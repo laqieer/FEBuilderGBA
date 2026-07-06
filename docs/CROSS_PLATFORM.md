@@ -86,18 +86,20 @@ FEBuilderGBA.E2ETests (net9.0-windows)
 
 ## Platform Support Matrix
 
-| Feature | Windows | Linux | macOS |
-|---------|---------|-------|-------|
-| Core library | Yes | Yes | Yes |
-| CLI (67 commands) | Yes | Yes | Yes |
-| SkiaSharp image backend | Yes | Yes | Yes |
-| Avalonia GUI (full editor) | Yes | Yes | Yes |
-| WinForms GUI (full editor) | Yes | No | No |
-| Unit tests (Core.Tests) | Yes | Yes | Yes |
-| Unit tests (Avalonia.Tests) | Yes | Yes | Yes |
-| Unit tests (FEBuilderGBA.Tests) | Yes | No | No |
-| E2E tests | Yes | No | No |
-| Emulator integration (RAM.cs) | Yes | No | No |
+| Feature | Windows | Linux | macOS | Android | iOS |
+|---------|---------|-------|-------|---------|-----|
+| Core library | Yes | Yes | Yes | Yes | Yes |
+| CLI (67 commands) | Yes | Yes | Yes | — | — |
+| SkiaSharp image backend | Yes | Yes | Yes | Yes | Yes |
+| Avalonia GUI (full editor) | Yes | Yes | Yes | Preview | Preview |
+| WinForms GUI (full editor) | Yes | No | No | No | No |
+| Unit tests (Core.Tests) | Yes | Yes | Yes | — | — |
+| Unit tests (Avalonia.Tests) | Yes | Yes | Yes | — | — |
+| Unit tests (FEBuilderGBA.Tests) | Yes | No | No | — | — |
+| E2E tests | Yes | No | No | — | — |
+| Emulator integration (RAM.cs) | Yes | No | No | No | No |
+
+> **Android / iOS = Preview:** native heads (`FEBuilderGBA.Android` / `FEBuilderGBA.iOS`) build the shared Avalonia GUI into an APK / `.ipa`; the on-device runtime is unvalidated. See [docs/ANDROID.md](ANDROID.md) / [docs/IOS.md](IOS.md).
 
 ## Migration Roadmap
 
@@ -247,3 +249,14 @@ dotnet build FEBuilderGBA.Android/FEBuilderGBA.Android.csproj -c Release -p:Enab
 The `-p:EnableAndroidTarget=true` flag is required: the `ProjectReference`'s `AdditionalProperties` activates the android TFM for the build phase, but NuGet restore ignores per-reference `AdditionalProperties`, so the global property is needed to make restore cross-target the shared project too. The APK is **not yet device-validated**: booting it shows no editor until the single-view navigation rework lands. Desktop-only pieces (`Program.cs`, `Avalonia.Desktop`, `app.manifest`, the `GapSweep` Roslyn dev-tooling) are excluded on the android TFM.
 
 The full, evidence-backed feasibility assessment lives in **[docs/ANDROID.md](ANDROID.md)**: which layers are Android-capable (`Core` + `Avalonia`; WinForms excluded), the **SkiaSharp native-version pin** (`SkiaSharp.NativeAssets.Android` must match Avalonia's bundled `2.88.x`), **scoped-storage / SAF** ROM access (the desktop file dialogs collapse picks to a local path that Android `content://` URIs lack), **`config/` bundling** (ship as `AndroidAsset`, extract to `Context.FilesDir` on first run), the **multi-window → single-activity** navigation gap (the largest item), and the build prerequisites. The head is intentionally **not** in `FEBuilderGBA.sln` so it never affects the desktop CI build.
+
+## Running on iOS
+
+A native iOS/iPadOS build of the Avalonia GUI, added in [#1859](https://github.com/laqieer/FEBuilderGBA/issues/1859) — the iOS counterpart of the Android epic. It reuses the **same** platform-agnostic seams the Android port introduced (single-view lifetime, first-run `config/` extraction via `FEBuilderGBA.Core/AndroidConfigExtractorCore`, stream-based ROM I/O), so it is a close mirror. `FEBuilderGBA.Avalonia` conditionally multi-targets `net9.0;net9.0-ios` via the opt-in `EnableIosTarget` property (default **OFF**), and the head at [`FEBuilderGBA.iOS/`](../FEBuilderGBA.iOS/README.md) builds an iOS `.app` / **unsigned `.ipa`** on macOS:
+
+```bash
+dotnet workload install ios
+dotnet build FEBuilderGBA.iOS/FEBuilderGBA.iOS.csproj -c Release -p:EnableIosTarget=true
+```
+
+`-p:EnableIosTarget=true` is required as a **global** property (the same NuGet-restore static-graph reason as Android's `EnableAndroidTarget`). `config/**` (excluding `patch2`) ships as `<BundleResource>` (structure preserved via `LogicalName`) and is extracted on first run into an app-private writable dir. iOS is a **PREVIEW**: it builds, but the on-device runtime (touch UX, file pickers, AOT/trim — mitigated with the Mono interpreter + `MtouchLink=SdkOnly`) is unvalidated. The CI-produced `.ipa` is **unsigned** (no Apple secret on this fork) — install it via re-signing with AltStore / Sideloadly / Apple Configurator. The head is intentionally **not** in `FEBuilderGBA.sln` (iOS needs macOS + Xcode and the `ios` workload). Full assessment: **[docs/IOS.md](IOS.md)**.

@@ -246,14 +246,85 @@ jobs:
           if-no-files-found: error
 
   # ---------------------------------------------------------------------------
+  # iOS unsigned .ipa (mirrors ios.yml). SOFT / advisory for the release (#1859):
+  # iOS is a PREVIEW and its macos-latest unsigned build is not yet proven stable,
+  # so — unlike the REQUIRED android job — this job is continue-on-error and is NOT
+  # in the release job's mandatory verify-assets list. The .ipa is attached when the
+  # build succeeds; a failure degrades to "release without iOS" instead of blocking
+  # WinForms/CLI/Avalonia/Android from publishing. Promote to required once the build
+  # is proven stable (the same graduation path android.yml describes). The .ipa is
+  # UNSIGNED (no Apple secret on this fork) — for downstream re-signing / sideload,
+  # not directly installable. See docs/IOS.md.
+  # ---------------------------------------------------------------------------
+  ios:
+    name: iOS IPA (advisory)
+    # macos-26 ships Xcode 26.5 (default) — required by the current .NET for iOS workload;
+    # macos-latest can still resolve to macos-15 / Xcode 16.4 which the workload rejects. (#1859)
+    runs-on: macos-26
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # No submodule init needed (config/** are regular files; patch2 excluded from the
+      # bundle) — see ios.yml.
+      - name: Setup .NET 9.0
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Install ios workload
+        run: dotnet workload install ios
+
+      - name: Build unsigned iOS .ipa
+        run: |
+          set -euo pipefail
+          dotnet publish FEBuilderGBA.iOS/FEBuilderGBA.iOS.csproj \
+            -c ${{ env.BUILD_CONFIGURATION }} \
+            -p:EnableIosTarget=true \
+            -p:RuntimeIdentifier=ios-arm64 \
+            -p:EnableCodeSigning=false \
+            -p:CodesignKey= \
+            -p:CodesignProvision= \
+            -p:InformationalVersion=${{ github.ref_name }} \
+            -p:IncludeSourceRevisionInInformationalVersion=false
+
+      - name: Package unsigned .ipa
+        run: |
+          set -euo pipefail
+          SEARCH_ROOT="FEBuilderGBA.iOS/bin/${{ env.BUILD_CONFIGURATION }}/net9.0-ios/ios-arm64"
+          ipa=$(find "$SEARCH_ROOT" -name '*.ipa' | head -n 1 || true)
+          if [ -z "$ipa" ]; then
+            app=$(find "$SEARCH_ROOT" -name '*.app' -type d | head -n 1)
+            test -n "$app" || { echo "::error::no .app produced"; exit 1; }
+            # Verify the bundled config/ tree survived (LogicalName not flattened).
+            test -d "$app/config" || { echo "::error::bundled config/ tree missing"; exit 1; }
+            rm -rf Payload; mkdir -p Payload; cp -R "$app" Payload/
+            ditto -c -k --sequesterRsrc --keepParent Payload "$GITHUB_WORKSPACE/FEBuilderGBA-ios-unsigned.ipa"
+            ipa="$GITHUB_WORKSPACE/FEBuilderGBA-ios-unsigned.ipa"
+          fi
+          zip -j "$GITHUB_WORKSPACE/FEBuilderGBA-ios-unsigned-ipa.zip" "$ipa"
+
+      - name: Upload iOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-ios
+          path: FEBuilderGBA-ios-unsigned-ipa.zip
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
   # Create the GitHub Release and attach every platform zip.
   # ---------------------------------------------------------------------------
   release:
     name: Create GitHub Release
-    # All build jobs are required: #1629 AC1/AC2 mandate every platform package
-    # (WinForms, CLI, Avalonia, Android) be built and attached, so a failure in
-    # ANY build job must block the release rather than publish a partial set.
-    needs: [ winforms, crossplatform, android ]
+    # WinForms/CLI/Avalonia/Android are REQUIRED: #1629 AC1/AC2 mandate those platform
+    # packages be built and attached, so a failure in any of them must block the release.
+    # `ios` is in `needs` too (so the release waits for it) but is SOFT — its job is
+    # continue-on-error and it is deliberately absent from the mandatory verify-assets
+    # `require` list below (#1859), so a fragile macOS iOS build degrades to "release
+    # without iOS" rather than blocking the whole release. Promote iOS to required once
+    # its build is proven stable.
+    needs: [ winforms, crossplatform, android, ios ]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -294,6 +365,9 @@ jobs:
           require "FEBuilderGBA-avalonia-osx-arm64.zip"
           require "FEBuilderGBA-avalonia-win-x64.zip"
           require "FEBuilderGBA-android-apk.zip"
+          # NOTE: FEBuilderGBA-ios-unsigned-ipa.zip is intentionally NOT required (#1859) —
+          # iOS is a soft/advisory preview asset, attached when its (continue-on-error) build
+          # succeeds and simply absent otherwise. Do not add it here until iOS is promoted.
           if [ "$missing" -ne 0 ]; then
             echo "::error::One or more required platform assets are missing; refusing to publish a partial release."
             exit 1

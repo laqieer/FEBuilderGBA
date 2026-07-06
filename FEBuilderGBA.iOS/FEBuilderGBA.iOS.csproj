@@ -1,0 +1,115 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Avalonia.iOS head for FEBuilderGBA (issue #1859), the iOS counterpart of the
+    Avalonia.Android head (FEBuilderGBA.Android, epic #1070).
+
+    STATUS: builds an iOS .app / unsigned .ipa against the shared FEBuilderGBA.Avalonia
+    UI. The shared project multi-targets net9.0;net9.0-ios when EnableIosTarget=true, and
+    the ProjectReference below activates that TFM via AdditionalProperties (an MSBuild
+    requirement — setting the property on this head alone does NOT propagate to the
+    referenced project's restore graph).
+
+    This project is INTENTIONALLY NOT part of FEBuilderGBA.sln. `check.yml` builds the
+    whole solution on a windows-latest runner that does NOT have the `ios` .NET workload
+    (and iOS builds require macOS + Xcode), so including this project in the .sln would
+    break the required `build` check. Build it standalone on macOS:
+
+        dotnet workload install ios
+        dotnet build FEBuilderGBA.iOS/FEBuilderGBA.iOS.csproj -c Release -p:EnableIosTarget=true
+
+    The `-p:EnableIosTarget=true` flag is REQUIRED as a GLOBAL property (mirrors the
+    android head's EnableAndroidTarget / NETSDK1005 fix): NuGet restore uses a separate
+    static graph that ignores the per-reference AdditionalProperties, so without the
+    global property restore writes a net9.0-only assets file for FEBuilderGBA.Avalonia and
+    the build fails with NETSDK1005 ("doesn't have a target for 'net9.0-ios'").
+
+    PREVIEW / not device-validated: iOS Release is full AOT + trimmed, and the Core/ROM
+    pipeline is reflection-heavy, so the runtime UX (touch, file pickers, editors) is
+    unvalidated — see docs/IOS.md. The interpreter + conservative linker settings below
+    maximize the chance the shipped .ipa actually runs.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net9.0-ios</TargetFramework>
+    <SupportedOSPlatformVersion>13.0</SupportedOSPlatformVersion>
+    <OutputType>Exe</OutputType>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>FEBuilderGBA.iOS</RootNamespace>
+    <AssemblyName>FEBuilderGBA.iOS</AssemblyName>
+
+    <!-- Identity / versioning. These populate the merged Info.plist:
+           CFBundleIdentifier         <- ApplicationId
+           CFBundleVersion            <- ApplicationVersion         (extraction stamp — #1859)
+           CFBundleShortVersionString <- ApplicationDisplayVersion
+         CFBundleVersion is load-bearing: AndroidConfigExtractorCore version-stamps the
+         first-run config extraction by it, so a bump forces a clean re-extract. -->
+    <ApplicationId>com.laqieer.febuildergba</ApplicationId>
+    <ApplicationVersion>1</ApplicationVersion>
+    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+
+    <!-- PREVIEW runtime viability (#1859): the Core/ROM pipeline is reflection-heavy.
+         Full iOS AOT + aggressive trimming can drop reflected types and crash the app at
+         launch even when it builds. Enable the Mono interpreter (dynamic/reflection
+         fallback) and link only the SDK so app assemblies (Core/Avalonia UI) are NOT
+         trimmed. If a future signed release wants a smaller binary, tighten these once the
+         runtime is validated on-device. -->
+    <UseInterpreter>true</UseInterpreter>
+    <MtouchLink>SdkOnly</MtouchLink>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Avalonia iOS head. Must match the Avalonia version used by FEBuilderGBA.Avalonia
+         (11.2.3) — mixing Avalonia major/minor versions across heads is unsupported. -->
+    <PackageReference Include="Avalonia.iOS" Version="11.2.3" />
+    <!-- CRITICAL native-version pin (mirrors android #796/#798): the managed SkiaSharp
+         MUST match the native libSkiaSharp Avalonia bundles (2.88.x). A 3.x managed
+         package rejects the 2.88 native and crashes inside the Avalonia process. The iOS
+         native assets package therefore pins 2.88.9 to stay byte-compatible with
+         FEBuilderGBA.SkiaSharp.csproj. -->
+    <PackageReference Include="SkiaSharp.NativeAssets.iOS" Version="2.88.9" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The shared Avalonia UI (which references FEBuilderGBA.Core + FEBuilderGBA.SkiaSharp).
+         AdditionalProperties="EnableIosTarget=true" is REQUIRED (#1859): EnableIosTarget set
+         on THIS head does not flow to the referenced project, so the shared UI would
+         otherwise resolve to its default net9.0 TFM and fail the ios build. The WinForms
+         project (net9.0-windows) is NOT referenced and MUST never be — it is not iOS-capable. -->
+    <ProjectReference Include="..\FEBuilderGBA.Avalonia\FEBuilderGBA.Avalonia.csproj" AdditionalProperties="EnableIosTarget=true" />
+  </ItemGroup>
+
+  <!--
+    config/ asset bundling (#1859). On desktop the Avalonia project copies config/** loose
+    beside the exe and Core reads it via CoreState.BaseDirectory. That layout does not
+    exist inside an .app bundle, so here config/** (EXCLUDING patch2) ships as
+    <BundleResource> and AppDelegate.FinishedLaunching extracts it once (version-stamped,
+    via the pure AndroidConfigExtractorCore + DirectoryAssetSource) into an app-private
+    writable dir on first run, then points App.BaseDirectoryOverride there so
+    PathUtil.ConfigPath resolves.
+
+    LogicalName preserves the config/<subpath> tree inside the bundle (iOS flattens
+    BundleResource by default). %(RecursiveDir) is forward-slash separated on macOS, where
+    iOS builds run. config/patch2 is NOT bundled (deferred): it is a runtime-installed git
+    submodule (hundreds of MB); on-device patch delivery is a follow-up. See docs/IOS.md.
+  -->
+  <ItemGroup>
+    <BundleResource Include="..\config\**\*"
+                    Exclude="..\config\patch2\**">
+      <LogicalName>config/%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
+    </BundleResource>
+  </ItemGroup>
+
+  <!--
+    GPLv3 (sections 4-6) requires the license text to accompany every binary distribution.
+    Embed the repo-root LICENSE and THIRD-PARTY-NOTICES.md as BundleResources so they ship
+    INSIDE the .app (alongside config/). Mirrors the android head (#1633).
+  -->
+  <ItemGroup>
+    <BundleResource Include="..\LICENSE">
+      <LogicalName>LICENSE</LogicalName>
+    </BundleResource>
+    <BundleResource Include="..\THIRD-PARTY-NOTICES.md">
+      <LogicalName>THIRD-PARTY-NOTICES.md</LogicalName>
+    </BundleResource>
+  </ItemGroup>
+</Project>

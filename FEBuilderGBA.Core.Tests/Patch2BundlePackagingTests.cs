@@ -121,9 +121,10 @@ namespace FEBuilderGBA.Core.Tests
         public void Avalonia_ConfigContent_Is_Excluded_From_Android_APK()
         {
             // The Android APK must stay patch2-free (#1123): config/ ships as <AndroidAsset>.
-            // The config Content ItemGroup is guarded by a Condition that turns it off on
-            // the net9.0-android TFM, so the whole config tree (incl. patch2) is never a
-            // loose Content item in the APK.
+            // The config Content ItemGroup is guarded by a Condition that turns it off on the
+            // mobile TFMs (net9.0-android AND net9.0-ios, via the computed IsMobileTfm — #1859),
+            // so the whole config tree (incl. patch2) is never a loose Content item in the APK
+            // / .app.
             XDocument doc = LoadCsproj("FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj");
             XElement content = FindConfigContentInclude(doc);
             Assert.NotNull(content);
@@ -134,7 +135,7 @@ namespace FEBuilderGBA.Core.Tests
 
             string condition = ((string)itemGroup.Attribute("Condition") ?? string.Empty)
                 .Replace(" ", string.Empty);
-            Assert.Contains("'$(TargetFramework)'!='net9.0-android'", condition);
+            Assert.Contains("'$(IsMobileTfm)'!='true'", condition);
         }
     }
 }

@@ -1,32 +1,64 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <!-- Android TFM is OPT-IN (#1121). Only the FEBuilderGBA.Android head activates it
-         (via ProjectReference AdditionalProperties="EnableAndroidTarget=true"). Default OFF
-         so the desktop .sln build + all CI (no android workload) see net9.0 only. -->
+    <!-- Mobile TFMs are OPT-IN. The FEBuilderGBA.Android head activates net9.0-android
+         (ProjectReference AdditionalProperties="EnableAndroidTarget=true", #1121); the
+         FEBuilderGBA.iOS head activates net9.0-ios (AdditionalProperties="EnableIosTarget=true",
+         #1859). Both default OFF so the desktop .sln build + all CI (no mobile workloads)
+         see net9.0 only. -->
     <EnableAndroidTarget Condition="'$(EnableAndroidTarget)' == ''">false</EnableAndroidTarget>
+    <EnableIosTarget Condition="'$(EnableIosTarget)' == ''">false</EnableIosTarget>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(EnableAndroidTarget)' == 'true'">
+  <!-- TFM COMPOSITION (#1859): the single-target fallback fires ONLY when BOTH mobile
+       flags are off, so <TargetFramework> and <TargetFrameworks> are NEVER both set. A
+       naive parallel two-block per flag would set <TargetFramework>net9.0</TargetFramework>
+       during the OTHER head's build (e.g. EnableIosTarget is unset during the android
+       build), and MSBuild lets the singular TargetFramework win over TargetFrameworks —
+       silently collapsing the project to single-target net9.0, dropping the mobile TFM and
+       failing the head with NETSDK1005.
+
+       The four cases are MUTUALLY EXCLUSIVE (#1860 review): the android-only and ios-only
+       conditions each also require the OTHER flag to be off, and a both-true case is handled
+       explicitly (net9.0;net9.0-android;net9.0-ios) — so setting both flags globally no longer
+       silently drops one mobile TFM (the previous parallel blocks let the later ios group win). -->
+  <PropertyGroup Condition="'$(EnableAndroidTarget)' == 'true' AND '$(EnableIosTarget)' != 'true'">
     <TargetFrameworks>net9.0;net9.0-android</TargetFrameworks>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(EnableAndroidTarget)' != 'true'">
+  <PropertyGroup Condition="'$(EnableIosTarget)' == 'true' AND '$(EnableAndroidTarget)' != 'true'">
+    <TargetFrameworks>net9.0;net9.0-ios</TargetFrameworks>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(EnableAndroidTarget)' == 'true' AND '$(EnableIosTarget)' == 'true'">
+    <TargetFrameworks>net9.0;net9.0-android;net9.0-ios</TargetFrameworks>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(EnableAndroidTarget)' != 'true' AND '$(EnableIosTarget)' != 'true'">
     <TargetFramework>net9.0</TargetFramework>
   </PropertyGroup>
+  <!-- Per-inner-build TFM classification (#1859). During a multi-target OUTER build
+       $(TargetFramework) is empty (only TargetFrameworks is set), so these stay empty and
+       the desktop defaults apply — harmless, the outer build never compiles. Each INNER
+       build has $(TargetFramework) set as a global property, so the right mobile/desktop
+       conditions light up. -->
   <PropertyGroup>
-    <!-- Desktop ships an executable; the android head consumes this project as a
-         library (it supplies its own MainActivity entry point), so OutputType is
-         per-TFM. -->
-    <OutputType Condition="'$(TargetFramework)' != 'net9.0-android'">WinExe</OutputType>
-    <OutputType Condition="'$(TargetFramework)' == 'net9.0-android'">Library</OutputType>
+    <IsAndroidTfm Condition="'$(TargetFramework)' == 'net9.0-android'">true</IsAndroidTfm>
+    <IsIosTfm Condition="'$(TargetFramework)' == 'net9.0-ios'">true</IsIosTfm>
+    <IsMobileTfm Condition="'$(IsAndroidTfm)' == 'true' OR '$(IsIosTfm)' == 'true'">true</IsMobileTfm>
+  </PropertyGroup>
+  <PropertyGroup>
+    <!-- Desktop ships an executable; the android/iOS heads consume this project as a
+         library (each supplies its own entry point — MainActivity / AppDelegate), so
+         OutputType is per-TFM. -->
+    <OutputType Condition="'$(IsMobileTfm)' != 'true'">WinExe</OutputType>
+    <OutputType Condition="'$(IsMobileTfm)' == 'true'">Library</OutputType>
     <RootNamespace>FEBuilderGBA.Avalonia</RootNamespace>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <!-- app.manifest is a Win32 application manifest — desktop-only. -->
-    <ApplicationManifest Condition="'$(TargetFramework)' != 'net9.0-android'">app.manifest</ApplicationManifest>
-    <!-- Defensive ANDROID compile constant for the #if !ANDROID guards (e.g. the
-         GapSweep dispatch in App.axaml.cs). The .NET Android SDK already defines
-         ANDROID, but we set it explicitly on the android TFM so the contract is
-         visible here; the desktop net9.0 TFM deliberately does NOT define it. -->
-    <DefineConstants Condition="'$(TargetFramework)' == 'net9.0-android'">$(DefineConstants);ANDROID</DefineConstants>
+    <ApplicationManifest Condition="'$(IsMobileTfm)' != 'true'">app.manifest</ApplicationManifest>
+    <!-- Defensive ANDROID / IOS compile constants for the #if !ANDROID && !IOS guards
+         (e.g. the GapSweep dispatch in App.axaml.cs). The .NET Android/iOS SDKs already
+         define ANDROID / IOS, but we set them explicitly on the mobile TFMs so the contract
+         is visible here; the desktop net9.0 TFM deliberately defines NEITHER. -->
+    <DefineConstants Condition="'$(IsAndroidTfm)' == 'true'">$(DefineConstants);ANDROID</DefineConstants>
+    <DefineConstants Condition="'$(IsIosTfm)' == 'true'">$(DefineConstants);IOS</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="FEBuilderGBA.Avalonia.Tests" />
@@ -37,14 +69,14 @@
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.3" />
     <!-- Avalonia.Desktop (classic desktop lifetime / StartWithClassicDesktopLifetime)
          and Microsoft.CodeAnalysis.CSharp (Roslyn, used only by the desktop-only
-         GapSweep dev-tooling) are excluded on the android TFM (#1121). -->
-    <PackageReference Include="Avalonia.Desktop" Version="11.2.3" Condition="'$(TargetFramework)' != 'net9.0-android'" />
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" Condition="'$(TargetFramework)' != 'net9.0-android'" />
+         GapSweep dev-tooling) are excluded on the mobile TFMs (android #1121, iOS #1859). -->
+    <PackageReference Include="Avalonia.Desktop" Version="11.2.3" Condition="'$(IsMobileTfm)' != 'true'" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" Condition="'$(IsMobileTfm)' != 'true'" />
   </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)' == 'net9.0-android'">
-    <!-- Desktop-only sources excluded on android (#1121):
+  <ItemGroup Condition="'$(IsMobileTfm)' == 'true'">
+    <!-- Desktop-only sources excluded on the mobile TFMs (android #1121, iOS #1859):
          - Program.cs           : [STAThread] desktop entry point (StartWithClassicDesktopLifetime).
-         - GapSweep\**          : Roslyn static-analysis dev-tooling (not shippable Android UI).
+         - GapSweep\**          : Roslyn static-analysis dev-tooling (not shippable mobile UI).
          - App.GapSweep.cs      : the App partial holding the GapSweep-type-dependent methods. -->
     <Compile Remove="Program.cs" />
     <Compile Remove="GapSweep\**\*.cs" />
@@ -62,12 +94,13 @@
        the WinForms CopyConfigDirectories target. patch2 must be initialized at publish
        time (git submodule update for config/patch2).
 
-       The android TFM is EXCLUDED entirely (#1123): the APK ships config/ as
-       <AndroidAsset> (FEBuilderGBA.Android.csproj) extracted to Context.FilesDir on
-       first run, so the loose Content here would only bloat the APK with a redundant
-       second copy of the config tree. The whole ItemGroup is gated off net9.0-android,
-       so patch2 is automatically kept out of the APK. -->
-  <ItemGroup Condition="'$(TargetFramework)' != 'net9.0-android'">
+       The mobile TFMs are EXCLUDED entirely (android #1123, iOS #1859): each head ships
+       config/ as platform assets (Android <AndroidAsset>, iOS <BundleResource>) extracted
+       to app-private storage on first run, so the loose Content here would only bloat the
+       package with a redundant second copy of the config tree. This whole ItemGroup (config
+       AND the fe-info code.json) is gated off the mobile TFMs, so patch2 is automatically
+       kept out of the mobile packages. -->
+  <ItemGroup Condition="'$(IsMobileTfm)' != 'true'">
     <Content Include="..\config\**\*.*" Exclude="..\config\patch2\.git;..\config\patch2\.git\**\*.*" LinkBase="config" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\resources\fe-info\json\*\code.json"
              CopyToOutputDirectory="PreserveNewest"

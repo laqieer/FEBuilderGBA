@@ -28,21 +28,22 @@ namespace FEBuilderGBA.Avalonia.Services
 
         /// <summary>
         /// Compute the auto-save sidecar file path from the primary ROM filename.
-        /// Desktop: {romDir}/{base}.autosave.gba. On Android the ROM is a content://
-        /// URI with no writable parent dir, so redirect into app-private storage
-        /// {CoreState.BaseDirectory}/autosave/{base}.autosave.gba (#1124).
+        /// Desktop: {romDir}/{base}.autosave.gba. On Android/iOS the ROM is a
+        /// content:// / security-scoped URI with no writable parent dir, so redirect
+        /// into app-private storage {CoreState.BaseDirectory}/autosave/{base}.autosave.gba
+        /// (Android #1124, iOS #1859).
         /// </summary>
         public static string ComputeSidecarPath(string romFilename)
-            => ComputeSidecarPath(romFilename, OperatingSystem.IsAndroid(), CoreState.BaseDirectory);
+            => ComputeSidecarPath(romFilename, OperatingSystem.IsAndroid() || OperatingSystem.IsIOS(), CoreState.BaseDirectory);
 
         /// <summary>Testable core of <see cref="ComputeSidecarPath(string)"/> — the
-        /// platform flag + base dir are injected so desktop unit tests can exercise the
-        /// Android branch (#1124).</summary>
-        internal static string ComputeSidecarPath(string romFilename, bool isAndroid, string baseDir)
+        /// mobile flag + base dir are injected so desktop unit tests can exercise the
+        /// mobile branch (#1124).</summary>
+        internal static string ComputeSidecarPath(string romFilename, bool isMobile, string baseDir)
         {
             if (string.IsNullOrEmpty(romFilename)) return null;
             string baseName = Path.GetFileNameWithoutExtension(romFilename);
-            if (isAndroid)
+            if (isMobile)
             {
                 string root = string.IsNullOrEmpty(baseDir) ? "." : baseDir;
                 return Path.Combine(root, "autosave", baseName + ".autosave.gba");

@@ -1,6 +1,6 @@
 # Full-Suite Release Runbook
 
-End-to-end runbook for cutting a FEBuilderGBA release across **all four ship targets**:
+End-to-end runbook for cutting a FEBuilderGBA release across **all five ship targets**:
 
 | Target | What ships | Built by | Runtime |
 |--------|-----------|----------|---------|
@@ -8,6 +8,7 @@ End-to-end runbook for cutting a FEBuilderGBA release across **all four ship tar
 | **CLI** | `cli-{rid}` self-contained bundle (+ bundled ColorzCore) | [`crossplatform.yml`](../.github/workflows/crossplatform.yml) | Linux / macOS / Windows |
 | **Avalonia desktop** | `avalonia-{rid}` self-contained bundle (+ bundled ColorzCore) | [`crossplatform.yml`](../.github/workflows/crossplatform.yml) | Linux / macOS / Windows |
 | **Android APK** | `*-Signed.apk` (debug keystore — see caveat) | [`android.yml`](../.github/workflows/android.yml) | Android |
+| **iOS IPA** | `*-unsigned.ipa` (unsigned — see caveat; **soft/advisory**) | [`ios.yml`](../.github/workflows/ios.yml) | iOS / iPadOS |
 
 > **What's live today:** the release process is **automated** — [`release.yml`](../.github/workflows/release.yml) ([#1629](https://github.com/laqieer/FEBuilderGBA/issues/1629)) is **merged and in-tree**. Pushing a `ver_*` tag builds every platform and runs `softprops/action-gh-release` to create the GitHub release with all assets attached (Section 5, the primary path). The manual `gh release create` flow (Section 4) remains as a **fallback** for hand-cut releases.
 >
@@ -42,10 +43,13 @@ Every push to `master` runs the build workflows and uploads artifacts via `actio
 | `crossplatform.yml` | `cli-linux-x64`, `cli-osx-arm64`, `cli-win-x64` | Self-contained CLI per RID + `config/` (incl. the `config/patch2/` patch database — [#1630](https://github.com/laqieer/FEBuilderGBA/issues/1630)) + `tools/bin/` ColorzCore |
 | `crossplatform.yml` | `avalonia-linux-x64`, `avalonia-osx-arm64`, `avalonia-win-x64` | Self-contained Avalonia desktop per RID + `config/` (incl. the `config/patch2/` patch database — [#1630](https://github.com/laqieer/FEBuilderGBA/issues/1630)) + `tools/bin/` ColorzCore |
 | `android.yml` | `febuildergba-android-apk` | `*-Signed.apk` (debug keystore) — **advisory / non-required** check (`android-build`), so a flaky Android build can never block a merge |
+| `ios.yml` | `febuildergba-ios-ipa` | unsigned `*.ipa` (Payload/) — **advisory / non-required** check (`ios-build`), macOS-only; a flaky iOS build can never block a merge |
 
 **RIDs published:** `linux-x64`, `osx-arm64`, `win-x64`.
 
 > **Android signing caveat:** `android.yml` produces a **debug-keystore**-signed APK only. A production-signed (release) APK/AAB is **not** yet produced — tracked by [#1631](https://github.com/laqieer/FEBuilderGBA/issues/1631). Do not publish the debug APK as a trusted production download without flagging it.
+
+> **iOS signing caveat:** `ios.yml` produces an **unsigned** `.ipa` unless the maintainer adds the `APPLE_*` secrets (see [docs/IOS.md §6](IOS.md#6-build--ci)). An unsigned `.ipa` is **not directly installable** — it is for downstream re-signing / sideloading (AltStore, Sideloadly, Apple Configurator). iOS is a **preview** and is a **soft/advisory** release asset ([#1859](https://github.com/laqieer/FEBuilderGBA/issues/1859)) — its `release.yml` job is `continue-on-error` and not in the mandatory verify-assets list, so a missing iOS asset never blocks the other platforms.
 
 > **patch2 in cross-platform bundles:** the `cli-{rid}` / `avalonia-{rid}` bundles **do** embed the `config/patch2/` patch database ([#1630](https://github.com/laqieer/FEBuilderGBA/issues/1630)) — the CLI and Avalonia projects copy `config/patch2/**` into their output (only the submodule `.git` plumbing is excluded), so the Patch Manager is populated and `--list-patches` works on a fresh extract. This requires the patch2 submodule to be initialized at publish time (`git submodule update --init config/patch2`); the cross-platform build inits it before publishing.
 
@@ -186,6 +190,8 @@ These do **not** block a manual WinForms release, but flag them in release notes
 | Changelog / release-notes generation | [#1632](https://github.com/laqieer/FEBuilderGBA/issues/1632) |
 | Code-sign / notarize Windows + macOS artifacts — **conditional, secret-gated** ([§6.1](#61-code-signing--notarization-1634)): the CI wiring is in place, but artifacts stay **unsigned until the maintainer adds the certificate secrets** | [#1634](https://github.com/laqieer/FEBuilderGBA/issues/1634) |
 | Android: patch2 binary-patch library + FE-Repo resources not delivered on-device (desktop-only; in-app empty-state notice shown — see [docs/ANDROID.md §5.1](ANDROID.md)) | [#1641](https://github.com/laqieer/FEBuilderGBA/issues/1641) |
+| iOS: preview head — builds an unsigned `.ipa`; on-device runtime (touch UX, file pickers, AOT/trim) unvalidated, per-editor file-flow guards not yet extended to iOS, patch2/FE-Repo not bundled (same as Android) — see [docs/IOS.md](IOS.md) | [#1859](https://github.com/laqieer/FEBuilderGBA/issues/1859) |
+| iOS: release-signed (non-unsigned) `.ipa` + App Store / TestFlight distribution (needs a paid Apple Developer account + `APPLE_*` secrets) | [#1859](https://github.com/laqieer/FEBuilderGBA/issues/1859) |
 
 ---
 
@@ -277,7 +283,7 @@ See [DEPLOYMENT.md → Rollback Procedure](DEPLOYMENT.md#rollback-procedure) for
 - [DEPLOYMENT.md](DEPLOYMENT.md) — WinForms split-package (FULL/CORE/PATCH2) update system.
 
   > **Status:** the split-package `.7z` generator (`scripts/create-split-packages.ps1`) and a `split-packages_{buildTime}` CI artifact described in DEPLOYMENT.md are **not present in the current tree** — `msbuild.yml` uploads only the single `FEBuilderGBA_{build_time}` artifact (Section 2). Treat the split-package flow in DEPLOYMENT.md as the design of the in-app updater, not a step you can run today. The live artifact set is the one in Section 2.
-- Workflows: [`msbuild.yml`](../.github/workflows/msbuild.yml) · [`crossplatform.yml`](../.github/workflows/crossplatform.yml) · [`android.yml`](../.github/workflows/android.yml)
+- Workflows: [`msbuild.yml`](../.github/workflows/msbuild.yml) · [`crossplatform.yml`](../.github/workflows/crossplatform.yml) · [`android.yml`](../.github/workflows/android.yml) · [`ios.yml`](../.github/workflows/ios.yml)
 - Scripts: [`release.ps1`](../release.ps1) (WinForms staging) · [`scripts/publish-all.sh`](../scripts/publish-all.sh) (CLI/Avalonia bundles) · [`scripts/release.test.ps1`](../scripts/release.test.ps1) (release.ps1 smoke test)
 - [docs/ANDROID.md](ANDROID.md) — Android build & signing details.
 - Umbrella: [#1628](https://github.com/laqieer/FEBuilderGBA/issues/1628) (release readiness) · automation: [#1629](https://github.com/laqieer/FEBuilderGBA/issues/1629)

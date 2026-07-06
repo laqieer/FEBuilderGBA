@@ -1,0 +1,226 @@
+# Advisory iOS build + unsigned-IPA artifact workflow (#1859), the iOS counterpart of
+# .github/workflows/android.yml (native-Android epic #1070).
+#
+# The FEBuilderGBA.iOS head is INTENTIONALLY excluded from FEBuilderGBA.sln because
+# check.yml builds the whole solution on windows-latest with NO ios workload — and iOS
+# builds require macOS + Xcode regardless. This dedicated workflow builds the iOS app on a
+# workload-capable macos-latest runner WITHOUT touching the required `build` check.
+#
+# ADVISORY / non-blocking by construction:
+#   * It is a SEPARATE workflow (not the required `build` job in check.yml).
+#   * The job/check context is `ios-build` (NOT `build`) so it can never collide with the
+#     required build contexts.
+# So a slow/flaky iOS build can NOT block PR merges. Once the iOS build has been stable for
+# a while the maintainer can flip it to required via a follow-up branch-ruleset change (the
+# same graduation path android.yml describes).
+#
+# NOTE on continue-on-error: deliberately NOT set at the job level. With continue-on-error a
+# failed build/upload step would still report the check as success, masking a real
+# regression and defeating the `if-no-files-found: error` guard below. The job is already
+# non-blocking by being a separate, non-required workflow, so genuine failures surface as a
+# (still non-blocking) RED check rather than a misleading green one.
+#
+# SIGNING is CONDITIONAL on maintainer-provided Apple secrets (APPLE_CERTIFICATE_BASE64 etc).
+# When they are present the job imports the signing certificate + provisioning profile and
+# publishes a release-signed .ipa. When ABSENT — the state on this fork's CI, which has no
+# secret — the job falls back to an UNSIGNED .ipa build (`EnableCodeSigning=false`, packaged
+# as Payload/<App>.app). An unsigned .ipa is NOT directly installable on a stock device; it
+# is intended for downstream re-signing / sideloading (AltStore, Sideloadly, Apple
+# Configurator) or a later maintainer signing step. Attaching the artifact to a GitHub
+# release is the separate tag-triggered release workflow (#1629); this workflow only
+# produces the build. See docs/IOS.md.
+#
+# `secrets.*` cannot be referenced in a step-level `if:` (GitHub Actions forbids it), so
+# presence is computed once into a step output (hassigning) and the signing / fallback steps
+# gate on that output. Secret values are passed via `env:` (never interpolated into a logged
+# command line).
+
+name: iOS
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  BUILD_CONFIGURATION: Release
+
+jobs:
+  ios-build:
+    name: iOS app (advisory)
+    # macos-26 ships Xcode 26.5 as the default — required by the current .NET for iOS
+    # workload (26.5.9002). `macos-latest` can still resolve to macos-15 / Xcode 16.4,
+    # which that workload rejects ("requires Xcode 26.5"). Pin explicitly. (#1859)
+    runs-on: macos-26
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # No submodule init needed: config/** (data/translate/etc.) are regular tracked files
+      # already in the checkout, and the BundleResource glob EXCLUDES config/patch2 (a large
+      # git-delivered submodule that is NOT bundled — see docs/IOS.md). Core/Avalonia/SkiaSharp
+      # have no build-time submodule dependency.
+
+      - name: Setup .NET 9.0
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-ios-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets') }}
+          restore-keys: |
+            nuget-ios-${{ runner.os }}-
+
+      - name: Install ios workload
+        # Installs the net9.0-ios TFM toolchain. macos-latest ships Xcode, which the workload
+        # build consumes for the native link/package step.
+        run: dotnet workload install ios
+
+      - name: Detect Apple signing secrets
+        # `secrets.*` is NOT allowed in a step-level `if:`, so classify presence once here
+        # into a step output. Only the boolean is emitted — secret values are never printed.
+        # All required secrets must be set together: all empty => unsigned fallback (this
+        # fork's current CI); all set => release signing; a PARTIAL set fails fast.
+        id: hassigning
+        env:
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_PROVISIONING_PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
+          APPLE_CODESIGN_IDENTITY: ${{ secrets.APPLE_CODESIGN_IDENTITY }}
+        run: |
+          set_count=0
+          missing=""
+          for name in APPLE_CERTIFICATE_BASE64 APPLE_CERTIFICATE_PASSWORD APPLE_PROVISIONING_PROFILE_BASE64 APPLE_CODESIGN_IDENTITY; do
+            # Safe bash indirect expansion (NOT eval — never re-evaluates a secret value).
+            val="${!name}"
+            if [ -n "$val" ]; then
+              set_count=$((set_count + 1))
+            else
+              missing="$missing $name"
+            fi
+          done
+          if [ "$set_count" -eq 4 ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+            echo "All Apple signing secrets detected — building a release-signed .ipa."
+          elif [ "$set_count" -eq 0 ]; then
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "No Apple signing secrets — falling back to an unsigned .ipa build."
+          else
+            echo "::error::Partial Apple signing secrets configured. Set ALL of APPLE_CERTIFICATE_BASE64, APPLE_CERTIFICATE_PASSWORD, APPLE_PROVISIONING_PROFILE_BASE64, APPLE_CODESIGN_IDENTITY (or none). Missing:$missing"
+            exit 1
+          fi
+
+      - name: Import signing certificate & provisioning profile
+        # Signed path (secrets present). Create a temporary keychain, import the .p12, and
+        # install the provisioning profile so the publish step can codesign. Runs ONLY when
+        # secrets are present; all secret material lives under $RUNNER_TEMP and is never logged.
+        if: steps.hassigning.outputs.present == 'true'
+        env:
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_PROVISIONING_PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          set -euo pipefail
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASS="$(uuidgen)"
+          CERT_PATH="$RUNNER_TEMP/cert.p12"
+          printf '%s' "$APPLE_CERTIFICATE_BASE64" | base64 --decode > "$CERT_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASS" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASS" "$KEYCHAIN"
+          security import "$CERT_PATH" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASS" "$KEYCHAIN" >/dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | sed s/\"//g)
+
+          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILE_DIR"
+          printf '%s' "$APPLE_PROVISIONING_PROFILE_BASE64" | base64 --decode > "$PROFILE_DIR/profile.mobileprovision"
+          echo "Signing keychain + provisioning profile installed."
+
+      - name: Build release-signed .ipa
+        # Signed path (secrets present). ArchiveOnBuild + BuildIpa emits a signed .ipa.
+        if: steps.hassigning.outputs.present == 'true'
+        env:
+          APPLE_CODESIGN_IDENTITY: ${{ secrets.APPLE_CODESIGN_IDENTITY }}
+        run: |
+          dotnet publish FEBuilderGBA.iOS/FEBuilderGBA.iOS.csproj \
+            -c ${{ env.BUILD_CONFIGURATION }} \
+            -p:EnableIosTarget=true \
+            -p:RuntimeIdentifier=ios-arm64 \
+            -p:ArchiveOnBuild=true \
+            -p:BuildIpa=true \
+            -p:CodesignKey="$APPLE_CODESIGN_IDENTITY"
+
+      - name: Build unsigned .ipa (fallback)
+        # Fallback path (secrets ABSENT) — this fork's current CI. Publishes an UNSIGNED app
+        # (EnableCodeSigning=false), then packages Payload/<App>.app into an .ipa if the SDK
+        # did not already emit one. A device RID (ios-arm64) is required for sideloading.
+        if: steps.hassigning.outputs.present != 'true'
+        run: |
+          set -euo pipefail
+          dotnet publish FEBuilderGBA.iOS/FEBuilderGBA.iOS.csproj \
+            -c ${{ env.BUILD_CONFIGURATION }} \
+            -p:EnableIosTarget=true \
+            -p:RuntimeIdentifier=ios-arm64 \
+            -p:EnableCodeSigning=false \
+            -p:CodesignKey= \
+            -p:CodesignProvision=
+
+      - name: Locate app bundle & verify bundled config (artifact-inspection proof)
+        # Prove the BundleResource LogicalName preserved the config/<subpath> tree (a flatten
+        # would make first-run extraction silently find no config/ and crash the app).
+        id: locate
+        run: |
+          set -euo pipefail
+          SEARCH_ROOT="FEBuilderGBA.iOS/bin/${{ env.BUILD_CONFIGURATION }}/net9.0-ios/ios-arm64"
+          app=$(find "$SEARCH_ROOT" -name '*.app' -type d | head -n 1)
+          if [ -z "$app" ]; then
+            echo "::error::No .app bundle found under $SEARCH_ROOT"
+            exit 1
+          fi
+          echo "app=$app" >> "$GITHUB_OUTPUT"
+          echo "Found app bundle: $app"
+          test -d "$app/config" || { echo "::error::bundled config/ tree missing (BundleResource LogicalName flattened?)"; exit 1; }
+          # Assert a genuinely git-TRACKED config file survived the bundle (config/config.xml
+          # is gitignored/machine-specific and absent in a clean checkout, so it must NOT be
+          # the proof — it verifies nothing in CI). config/data/6c_name_FE8.txt is one of ~485
+          # tracked config files; its presence proves both LogicalName preservation AND that
+          # real config content (not an empty dir) was bundled.
+          test -f "$app/config/data/6c_name_FE8.txt" || { echo "::error::tracked config content (config/data/6c_name_FE8.txt) missing from bundle — LogicalName flattened or config not bundled"; exit 1; }
+          echo "Bundled config/ tree OK. Sample:"
+          find "$app/config" -type f | head -n 20
+          echo "Bundled LICENSE present:"; test -f "$app/LICENSE" && echo yes || echo "no (warn)"
+
+      - name: Package unsigned .ipa (if SDK did not emit one)
+        run: |
+          set -euo pipefail
+          SEARCH_ROOT="FEBuilderGBA.iOS/bin/${{ env.BUILD_CONFIGURATION }}/net9.0-ios/ios-arm64"
+          ipa=$(find "$SEARCH_ROOT" -name '*.ipa' | head -n 1 || true)
+          if [ -z "$ipa" ]; then
+            app="${{ steps.locate.outputs.app }}"
+            echo "No SDK-produced .ipa; packaging Payload/ from $app"
+            rm -rf Payload
+            mkdir -p Payload
+            cp -R "$app" Payload/
+            ditto -c -k --sequesterRsrc --keepParent Payload "$GITHUB_WORKSPACE/FEBuilderGBA-ios-unsigned.ipa"
+            ipa="$GITHUB_WORKSPACE/FEBuilderGBA-ios-unsigned.ipa"
+          fi
+          echo "Final .ipa: $ipa"
+          cp "$ipa" "$GITHUB_WORKSPACE/FEBuilderGBA-ios.ipa"
+
+      - name: Upload .ipa artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: febuildergba-ios-ipa
+          path: FEBuilderGBA-ios.ipa
+          if-no-files-found: error
