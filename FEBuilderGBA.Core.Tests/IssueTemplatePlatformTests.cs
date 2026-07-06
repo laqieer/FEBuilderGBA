@@ -87,7 +87,18 @@ namespace FEBuilderGBA.Core.Tests
         public void PlatformDropdown_HasWeb_AndMatchesExpected(string template)
         {
             string root = FindRepoRoot();
-            if (root == null) return; // packaged CI without the repo checkout
+            if (root == null)
+            {
+                // Skip only when genuinely outside the repo tree (e.g. a packaged/nuget run) — the
+                // repo-wide FindRepoRoot() convention. But if we ARE running from this test project's
+                // own build output, the root MUST resolve; a null there means detection regressed, so
+                // fail rather than let the drift guard silently no-op (Copilot review, #1868).
+                bool underTestOutput = AppContext.BaseDirectory.Replace('\\', '/')
+                    .Contains("/FEBuilderGBA.Core.Tests/");
+                Assert.False(underTestOutput,
+                    "FindRepoRoot() returned null despite running under the FEBuilderGBA.Core.Tests build output — repo-root detection regressed.");
+                return;
+            }
 
             string path = Path.Combine(root, ".github", "ISSUE_TEMPLATE", template);
             Assert.True(File.Exists(path), $"Missing issue template {path}");

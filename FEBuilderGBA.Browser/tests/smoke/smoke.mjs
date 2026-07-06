@@ -72,9 +72,15 @@ const server = http.createServer((req, res) => {
     }
     if (urlPath === '/' || urlPath === '') urlPath = '/index.html';
 
-    const filePath = path.join(ROOT, path.normalize(urlPath));
+    // Resolve against ROOT as a RELATIVE path (strip leading slashes) so separators stay consistent
+    // on every OS. NOTE: path.join/resolve with a leading-slash SECOND arg is a footgun — join keeps
+    // ROOT but can mix separators (breaking the traversal guard on Windows), and resolve would drop
+    // ROOT entirely. Stripping to a relative path avoids both. NO SPA fallback: a missing file is a
+    // real 404 — exactly what reproduces the #1867 `_framework/avalonia.js` 404.
+    const rel = path.normalize(urlPath).replace(/^[/\\]+/, '');
+    const filePath = path.resolve(ROOT, rel);
     // Path-traversal guard + real 404 for anything missing (NO fallback to index.html).
-    if (!filePath.startsWith(ROOT + path.sep) || !fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+    if (!(filePath === ROOT || filePath.startsWith(ROOT + path.sep)) || !fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
       res.statusCode = 404;
       res.end('Not Found');
       return;
