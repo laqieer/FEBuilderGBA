@@ -94,7 +94,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
             finally
             {
-                (view as Window)?.Close();
+                view.Close();
             }
         }
 
