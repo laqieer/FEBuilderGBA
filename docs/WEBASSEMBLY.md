@@ -98,22 +98,27 @@ ignores the per-reference `AdditionalProperties`, else `NETSDK1005` (same mechan
   regression fails the PR) and gates the deploy on `master`. Added after #1867, where every asset
   returned `200` but the app never booted — an HTTP-200 check could not catch that.
 
-### `avalonia.js` module resolution (#1867)
+### Why the web app first hung on the splash (#1867)
 
-Avalonia loads its browser JS modules via `JSHost.ImportAsync(name, resolver(file))`; the default
-resolver is `file => "./" + file`, which the .NET wasm runtime resolves **relative to `_framework/`**
-(where `dotnet.js` lives) → `_framework/avalonia.js`. But Avalonia's static web assets publish with
-`RelativePath = $(WasmRuntimeAssetsLocation)/<file>`, and `WasmRuntimeAssetsLocation` is **empty** in
-this AppBundle, so `avalonia.js` / `storage.js` land at the wwwroot **root**, not `_framework/`. The
-mismatch 404s `avalonia.js` and the app hangs on the splash forever. Fix: `FEBuilderGBA.Browser/Program.cs`
-overrides `BrowserPlatformOptions.FrameworkAssetPathResolver` to `file => "../" + file` — climb one
-segment out of `_framework/` to app-root, where the modules actually are; stays relative, so correct at
-both `/FEBuilderGBA/` and a local `/`. This also repairs `storage.js` (file dialogs), which 404s the
-same way. It is valid **only** for the two `import()`-loaded modules; `sw.js` (opt-in, off by default)
-registers against the document base, not `_framework/`. **Canonical follow-up:** set
-`<WasmRuntimeAssetsLocation>_framework</WasmRuntimeAssetsLocation>` so the modules land next to
-`dotnet.js` and Avalonia's default resolver works unmodified — deferred because it couldn't be
-validated without a local wasm workload.
+The initial deploy hung on the loading splash and 404'd on `avalonia.js`. It looked like a module-path
+bug, but the true root cause was an **incomplete wasm build**: the head published *without* a native
+build — no `WasmBuildNative`, and CI installed only the generic `wasm-tools` workload, not
+`wasm-tools-net9`. That single gap caused **two** failures at once:
+
+1. **SkiaSharp/HarfBuzz natives were never linked.** `@(NativeFileReference)` (`libSkiaSharp.a` +
+   `libHarfBuzzSharp.a`) is only emcc-relinked into `dotnet.native.wasm` when `WasmBuildNative=true`
+   (or AOT). Without it the SDK merely *warned*, and the first Skia call — `SKImageInfo`'s static
+   ctor — threw a `TypeInitialization` exception, so the app rendered nothing but the splash.
+2. **Avalonia's JS modules were misplaced.** Their `RelativePath = $(WasmRuntimeAssetsLocation)/<file>`
+   expanded with an empty `WasmRuntimeAssetsLocation`, so `avalonia.js` / `storage.js` landed at the
+   wwwroot **root** instead of `_framework/`. Avalonia's default resolver (`./avalonia.js`, resolved by
+   `JSHost.ImportAsync` **relative to `_framework/`** where `dotnet.js` lives) then 404'd them.
+
+**Fix:** do a proper native build — `WasmBuildNative=true` in the head csproj + `wasm-tools-net9` in
+`pages.yml`. That links the natives (Skia works) **and** produces the canonical layout with
+`avalonia.js` / `storage.js` in `_framework/`, so Avalonia's **default** resolver works with **no
+override**. The headless boot smoke test then verifies the canvas actually renders — the class of
+failure a "returns HTTP 200" check can't catch, which is exactly how #1867 shipped.
 
 ## 7. Known preview limitations / follow-ups
 
