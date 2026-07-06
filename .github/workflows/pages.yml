@@ -109,11 +109,17 @@ jobs:
 
       - name: Configure Pages
         # Idempotent; asserts the Actions build type. enablement:true turns Pages on if it isn't.
+        # Gated to non-PR: on a pull_request (esp. from a fork) the GITHUB_TOKEN is read-only, so
+        # configuring/enabling Pages fails — the PR only needs to VALIDATE the wasm build above.
+        if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v5
         with:
           enablement: true
 
       - name: Upload Pages artifact
+        # Only upload on master/dispatch (the deploy job consumes it). Uploading the Pages artifact
+        # also needs write scope not available to PRs from forks.
+        if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
         with:
           path: FEBuilderGBA.Browser/bin/${{ env.BUILD_CONFIGURATION }}/net9.0-browser/publish/wwwroot

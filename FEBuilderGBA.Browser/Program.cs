@@ -40,10 +40,16 @@ internal sealed partial class Program
     {
         try
         {
-            // main.js passes document.baseURI as args[0], so a relative fetch resolves under the
-            // GitHub Pages project base href (e.g. https://laqieer.github.io/FEBuilderGBA/).
-            string baseUri = (args is { Length: > 0 } && !string.IsNullOrEmpty(args[0])) ? args[0] : "./";
-            using var http = new HttpClient { BaseAddress = new Uri(baseUri, UriKind.Absolute) };
+            // main.js passes document.baseURI as args[0]. If it is missing or not an absolute URI
+            // we cannot resolve a relative fetch, so skip config load (non-fatal) rather than throw
+            // — `new Uri("./", UriKind.Absolute)` would throw and defeat the graceful fallback.
+            if (args is not { Length: > 0 } || !Uri.TryCreate(args[0], UriKind.Absolute, out Uri? baseUri))
+            {
+                Console.WriteLine("[FEBuilderGBA] no absolute base URI arg — booting without config.");
+                return;
+            }
+
+            using var http = new HttpClient { BaseAddress = baseUri };
             byte[] zipBytes = await http.GetByteArrayAsync("config.zip");
 
             using var ms = new MemoryStream(zipBytes, writable: false);
@@ -52,8 +58,13 @@ internal sealed partial class Program
             // MEMFS is writable in the .NET wasm runtime; extract under a dedicated app-private root.
             const string targetRoot = "/appdata";
             Directory.CreateDirectory(targetRoot);
+            // Stamp derived from the zip size (NOT a constant) so a changed config.zip forces a
+            // clean re-extract. The browser MEMFS is per-session (cleared on reload), so extraction
+            // normally runs fresh each load anyway; this guards a same-session re-entry / future
+            // persistent-FS use.
+            string version = "wasm-" + zipBytes.Length.ToString(System.Globalization.CultureInfo.InvariantCulture);
             AndroidConfigExtractorCore.ExtractionResult result =
-                AndroidConfigExtractorCore.EnsureExtracted(new ZipAssetSource(archive), targetRoot, "wasm-1.0");
+                AndroidConfigExtractorCore.EnsureExtracted(new ZipAssetSource(archive), targetRoot, version);
 
             global::FEBuilderGBA.Avalonia.App.BaseDirectoryOverride = targetRoot;
             Console.WriteLine($"[FEBuilderGBA] config {result} -> {targetRoot} ({zipBytes.Length} bytes)");

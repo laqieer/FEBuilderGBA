@@ -15,8 +15,19 @@ namespace FEBuilderGBA.Core.Tests
     /// extraction, including the critical guarantee that entries retain the <c>config/</c> prefix
     /// so the app resolves <c>{BaseDirectory}/config/config.xml</c> after extraction.
     /// </summary>
-    public class ZipAssetSourceTests
+    public class ZipAssetSourceTests : IDisposable
     {
+        readonly System.Collections.Generic.List<string> _tempDirs = new();
+
+        public void Dispose()
+        {
+            // Clean up temp dirs created by the tests so repeated runs don't leak folders.
+            foreach (string d in _tempDirs)
+            {
+                try { if (Directory.Exists(d)) Directory.Delete(d, recursive: true); } catch { /* best-effort */ }
+            }
+        }
+
         static ZipArchive BuildZip(params (string path, string content)[] entries)
         {
             var ms = new MemoryStream();
@@ -34,10 +45,11 @@ namespace FEBuilderGBA.Core.Tests
             return new ZipArchive(ms, ZipArchiveMode.Read);
         }
 
-        static string NewTempDir()
+        string NewTempDir()
         {
             string d = Path.Combine(Path.GetTempPath(), "feb_zipas_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(d);
+            _tempDirs.Add(d);
             return d;
         }
 
