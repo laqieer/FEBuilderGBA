@@ -88,12 +88,13 @@ the `INavigationService` abstraction (#1122):
   - The service is selected once via `OperatingSystem.IsAndroid()`.
 - **Carved to #1873 (honest):** per-editor attached-`Window` flows (file pickers
   via `StorageProvider`, `MessageBoxWindow.Show(this)`, in-page `Close()`),
-  page-transition/touch-UX polish, and the full desktop `MainWindow` shell
-  controller (ROM open/save actions, recent files, undo UI). A detached
+  page-transition/touch-UX polish, and the rest of the desktop `MainWindow` shell
+  controller (recent files, undo UI, menu commands — ROM open/save already landed
+  via #1870). A detached
   never-shown `Window` is not a reliable top-level owner, so those dialog flows
   need routing through `TopLevel.GetTopLevel(content)` — a device-validatable
   follow-up. The `MainView` ships an editor-launcher root + the nav host so
-  editors are reachable.
+  the editor launcher is reachable.
 
 > ⚠️ **Known limitation (#1873) — editor `Window`s can't actually be constructed on a real
 > single-view backend.** The `AndroidNavigationService.Open<T>` "instantiate the view `Window` as a

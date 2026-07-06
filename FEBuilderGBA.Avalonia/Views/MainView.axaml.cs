@@ -10,11 +10,11 @@
 //   3. renders the nav host's current top page into NavHost, and wires Back /
 //      Home + a back-button title.
 //
-// SCOPE (#1122; rest carved to #1873): this ships the navigation model + a
-// reachable editor launcher. ROM open/save was added here in #1870; the rest of
-// the desktop MainWindow shell (recent files, undo UI, menu commands) is NOT
-// reproduced here — that is a separate shell-controller extraction tracked under
-// #1873. The desktop MainWindow is unchanged.
+// SCOPE (#1122): this ships the single-view navigation model + a reachable
+// editor launcher. ROM open/save was added here for #1870 (PR #1872). The rest
+// of the desktop MainWindow shell parity (recent files, undo UI, menu commands)
+// and single-view editor hosting are not reproduced here yet — both tracked
+// under the #1873 single-view-parity umbrella. The desktop MainWindow is unchanged.
 using System;
 using System.Collections.Generic;
 using global::Avalonia.Controls;
@@ -194,7 +194,8 @@ namespace FEBuilderGBA.Avalonia.Views
         /// Build the root launcher page: a scrollable column of buttons that
         /// open the common editors via WindowManager (which now routes to the
         /// single-view host). Kept deliberately small — the full editor catalog
-        /// + ROM actions live in the carved-out shell controller (#1873).
+        /// lives in the carved-out shell controller (#1873); ROM open/save is on
+        /// the top app bar (added for #1870 in PR #1872).
         /// </summary>
         Control BuildLauncher()
         {
