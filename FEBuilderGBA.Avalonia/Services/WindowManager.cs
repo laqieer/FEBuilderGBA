@@ -15,7 +15,8 @@ namespace FEBuilderGBA.Avalonia.Services
     ///     behavior-identical to the pre-#1122 WindowManager — .Show()/.ShowDialog());
     ///   - Android : <see cref="AndroidNavigationService"/> (single-view page/
     ///     view-stack host with a back stack).
-    /// The service is selected once at construction via <see cref="OperatingSystem.IsAndroid"/>,
+    /// The service is selected once at construction via <see cref="OperatingSystem.IsAndroid"/>
+    /// / <see cref="OperatingSystem.IsIOS"/> (both single-view mobile hosts),
     /// and can be overridden (tests / the Android shell) via <see cref="SetService"/>.
     /// </summary>
     public class WindowManager
@@ -31,7 +32,7 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         static INavigationService CreateDefaultService()
-            => OperatingSystem.IsAndroid()
+            => OperatingSystem.IsAndroid() || OperatingSystem.IsIOS()
                 ? new AndroidNavigationService()
                 : new DesktopNavigationService();
 

@@ -188,7 +188,12 @@ jobs:
           echo "app=$app" >> "$GITHUB_OUTPUT"
           echo "Found app bundle: $app"
           test -d "$app/config" || { echo "::error::bundled config/ tree missing (BundleResource LogicalName flattened?)"; exit 1; }
-          test -f "$app/config/config.xml" || { echo "::error::config/config.xml missing from bundle"; exit 1; }
+          # Assert a genuinely git-TRACKED config file survived the bundle (config/config.xml
+          # is gitignored/machine-specific and absent in a clean checkout, so it must NOT be
+          # the proof — it verifies nothing in CI). config/data/6c_name_FE8.txt is one of ~485
+          # tracked config files; its presence proves both LogicalName preservation AND that
+          # real config content (not an empty dir) was bundled.
+          test -f "$app/config/data/6c_name_FE8.txt" || { echo "::error::tracked config content (config/data/6c_name_FE8.txt) missing from bundle — LogicalName flattened or config not bundled"; exit 1; }
           echo "Bundled config/ tree OK. Sample:"
           find "$app/config" -type f | head -n 20
           echo "Bundled LICENSE present:"; test -f "$app/LICENSE" && echo yes || echo "no (warn)"
