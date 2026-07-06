@@ -2151,7 +2151,14 @@ namespace FEBuilderGBA
         static HttpClient CreateHttpClient()
         {
             var handler = new HttpClientHandler();
-            handler.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
+            // HttpClientHandler.AutomaticDecompression is NOT supported on the WASM/browser
+            // BrowserHttpHandler — its setter throws PlatformNotSupportedException, which would fault
+            // U's static ctor and break the ENTIRE U utility class in the web app (#1867). The browser
+            // fetch layer negotiates gzip/deflate transparently, so skip it there.
+            if (!OperatingSystem.IsBrowser())
+            {
+                handler.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
+            }
             var client = new HttpClient(handler);
             client.DefaultRequestHeaders.UserAgent.ParseAdd("FEBuilderGBA/1.0");
             client.Timeout = TimeSpan.FromSeconds(30);
