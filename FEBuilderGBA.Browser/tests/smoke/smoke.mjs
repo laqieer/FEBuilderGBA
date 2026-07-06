@@ -129,10 +129,21 @@ page.on('console', (msg) => {
 
 try {
   await page.goto(url, { waitUntil: 'load', timeout: BOOT_TIMEOUT_MS });
-  // Success signal: Avalonia mounted its Skia <canvas> (the splash lives in #out and is replaced on
-  // boot, so a canvas existing proves the app actually rendered — not merely that assets loaded).
+  // Success signal: Avalonia mounted its Skia <canvas> into #out (it APPENDS the canvas rather than
+  // replacing #out's content — see the .app-splash removal below), proving the app actually rendered.
   await page.waitForSelector('canvas', { state: 'attached', timeout: BOOT_TIMEOUT_MS });
   console.log('[smoke] canvas mounted — app booted.');
+  // #1869: Avalonia does NOT replace #out's content — it appends its <canvas>, leaving the HTML
+  // .app-splash overlaying the app. main.js now removes .app-splash once the canvas mounts; assert
+  // it's gone (give the MutationObserver a beat), else the loading spinner sticks over the app.
+  // Wait (bounded) for the splash to be removed rather than a fixed sleep — resolves as soon as it's
+  // gone, and fails fast if it never is. #1869.
+  try {
+    await page.waitForFunction(() => document.querySelectorAll('#out .app-splash').length === 0, undefined, { timeout: 15000 });
+    console.log('[smoke] .app-splash removed after boot (#1869).');
+  } catch (e) {
+    failures.push(`.app-splash was NOT removed after the canvas mounted (#1869 — the loading spinner overlays the app): ${e.message}`);
+  }
 } catch (e) {
   failures.push(`app did not render a canvas within ${BOOT_TIMEOUT_MS} ms: ${e.message}`);
 }
