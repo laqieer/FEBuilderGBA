@@ -139,6 +139,15 @@ namespace FEBuilderGBA.Avalonia.Views
                 return;
             }
 
+            if (CoreState.IsDecompMode)
+            {
+                // Parity with desktop SaveRom_Click: a decomp preview ROM is
+                // source-backed and read-only — surface the same message instead
+                // of overwriting the build preview.
+                SetStatus(R._("This is a source-backed decomp project. The built ROM is a preview and cannot be saved over. Edit the source and rebuild instead."));
+                return;
+            }
+
             string? saved;
             try
             {
@@ -155,10 +164,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 SetStatus(R._("ROM saved as:") + " " + System.IO.Path.GetFileName(saved));
         }
 
-        /// <summary>Enable the Save button only when a ROM is loaded.</summary>
+        /// <summary>Enable the Save button only when a writable ROM is loaded.</summary>
         void UpdateRomActionState()
         {
-            SaveRomButton.IsEnabled = CoreState.ROM != null;
+            // Match the desktop save guards: no Save for a decomp preview ROM
+            // (read-only) even though the single-view shell can't enter decomp mode.
+            SaveRomButton.IsEnabled = CoreState.ROM != null && !CoreState.IsDecompMode;
         }
 
         /// <summary>Show a message in the ROM status strip (or hide it when empty).</summary>

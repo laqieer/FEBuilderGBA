@@ -164,6 +164,12 @@ namespace FEBuilderGBA.Avalonia.Services
             var file = await FileDialogHelper.OpenRomFilePick(owner);
             if (file == null) return RomOpenOutcome.Cancelled;
 
+            // Opening a plain ROM clears any active decomp project (#1129), matching
+            // MainWindow.OpenRom_Click. Cleared only AFTER the picker returns a real
+            // file, so cancelling the dialog leaves a currently-open decomp preview
+            // (and its read-only save guard) intact.
+            CoreState.DecompProject = null;
+
             string displayName = file.Name ?? "rom.gba";
             var rom = new ROM();
             bool ok;
