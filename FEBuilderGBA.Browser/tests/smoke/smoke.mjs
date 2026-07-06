@@ -133,6 +133,12 @@ try {
   // boot, so a canvas existing proves the app actually rendered — not merely that assets loaded).
   await page.waitForSelector('canvas', { state: 'attached', timeout: BOOT_TIMEOUT_MS });
   console.log('[smoke] canvas mounted — app booted.');
+  // #1869: the HTML loading splash must be removed once the canvas mounts, else it overlays the
+  // rendered app and looks "always loading". Give the MutationObserver a beat, then assert it's gone.
+  await page.waitForTimeout(1500);
+  const splashCount = await page.evaluate(() => document.querySelectorAll('.app-splash').length);
+  if (splashCount > 0) failures.push(`.app-splash was NOT removed after the canvas mounted (#1869 — the loading spinner overlays the app)`);
+  else console.log('[smoke] .app-splash removed after boot (#1869).');
 } catch (e) {
   failures.push(`app did not render a canvas within ${BOOT_TIMEOUT_MS} ms: ${e.message}`);
 }
