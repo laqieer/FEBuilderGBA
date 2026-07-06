@@ -30,12 +30,17 @@ entry point.
 
 ## 3. Rendering (SkiaSharp + HarfBuzz native relink)
 
-Avalonia.Browser 11.2.3 depends on managed `SkiaSharp 2.88.9` **and** `HarfBuzzSharp 7.3.0.3`, and
-its targets emcc-relink **both** static native archives (`libSkiaSharp.a` + `libHarfBuzzSharp.a`)
-into `dotnet.wasm` (via the `wasm-tools`/Emscripten toolchain). The head therefore pins **both**
-native packages — `SkiaSharp.NativeAssets.WebAssembly` 2.88.9 + `HarfBuzzSharp.NativeAssets.WebAssembly`
-7.3.0.3 (HarfBuzz shapes text; the shell renders text buttons on first paint) — plus
-`Avalonia.Fonts.Inter` (wasm has **no system fonts**, so an embedded font is required).
+Avalonia.Browser 11.2.3 depends on managed `SkiaSharp 2.88.9` **and** `HarfBuzzSharp 7.3.0.3`, and the
+head adds their static native archives (`libSkiaSharp.a` + `libHarfBuzzSharp.a`) as
+`@(NativeFileReference)` via the `*.NativeAssets.WebAssembly` packages. **Those natives are only
+emcc-relinked into `dotnet.native.wasm` when `WasmBuildNative=true`** (set in the head csproj) —
+otherwise the .NET wasm SDK merely *warns* ("native references won't be linked in") and ships a runtime
+with **no Skia**, so the first Skia call (`SKImageInfo`'s static ctor) throws a `TypeInitialization`
+exception and the app renders nothing but the splash (#1867). The head therefore sets
+`WasmBuildNative=true` and pins **both** native packages — `SkiaSharp.NativeAssets.WebAssembly` 2.88.9 +
+`HarfBuzzSharp.NativeAssets.WebAssembly` 7.3.0.3 (HarfBuzz shapes text) — plus `Avalonia.Fonts.Inter`
+(wasm has **no system fonts**, so an embedded font is required). We do **not** enable AOT
+(`RunAOTCompilation`); `WasmBuildNative` relinks the natives without AOT-compiling managed code.
 
 ## 4. `config/` in the browser (no filesystem)
 
@@ -87,6 +92,33 @@ ignores the per-reference `AdditionalProperties`, else `NETSDK1005` (same mechan
   the `config.zip`/`_framework` are present, then `upload-pages-artifact` + `deploy-pages`. The **build**
   job runs on PRs (validates the wasm build); the **deploy** job runs only on `master`/dispatch.
 - GitHub Pages source is set to **GitHub Actions** (`build_type: workflow`).
+- **Boot smoke test** (`FEBuilderGBA.Browser/tests/smoke/`) — the build job runs a headless-Chromium
+  (Playwright) test that serves the AppBundle under `/FEBuilderGBA/` and asserts the app actually
+  *renders* (Avalonia canvas mounts; no `avalonia.js` response `>= 400`). It runs on PRs (a boot
+  regression fails the PR) and gates the deploy on `master`. Added after #1867, where every asset
+  returned `200` but the app never booted — an HTTP-200 check could not catch that.
+
+### Why the web app first hung on the splash (#1867)
+
+The initial deploy hung on the loading splash and 404'd on `avalonia.js`. It looked like a module-path
+bug, but the true root cause was an **incomplete wasm build**: the head published *without* a native
+build — no `WasmBuildNative`, and CI installed only the generic `wasm-tools` workload, not
+`wasm-tools-net9`. That single gap caused **two** failures at once:
+
+1. **SkiaSharp/HarfBuzz natives were never linked.** `@(NativeFileReference)` (`libSkiaSharp.a` +
+   `libHarfBuzzSharp.a`) is only emcc-relinked into `dotnet.native.wasm` when `WasmBuildNative=true`
+   (or AOT). Without it the SDK merely *warned*, and the first Skia call — `SKImageInfo`'s static
+   ctor — threw a `TypeInitialization` exception, so the app rendered nothing but the splash.
+2. **Avalonia's JS modules were misplaced.** Their `RelativePath = $(WasmRuntimeAssetsLocation)/<file>`
+   expanded with an empty `WasmRuntimeAssetsLocation`, so `avalonia.js` / `storage.js` landed at the
+   wwwroot **root** instead of `_framework/`. Avalonia's default resolver (`./avalonia.js`, resolved by
+   `JSHost.ImportAsync` **relative to `_framework/`** where `dotnet.js` lives) then 404'd them.
+
+**Fix:** do a proper native build — `WasmBuildNative=true` in the head csproj + `wasm-tools-net9` in
+`pages.yml`. That links the natives (Skia works) **and** produces the canonical layout with
+`avalonia.js` / `storage.js` in `_framework/`, so Avalonia's **default** resolver works with **no
+override**. The headless boot smoke test then verifies the canvas actually renders — the class of
+failure a "returns HTTP 200" check can't catch, which is exactly how #1867 shipped.
 
 ## 7. Known preview limitations / follow-ups
 

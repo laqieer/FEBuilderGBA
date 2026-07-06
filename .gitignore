@@ -34,6 +34,10 @@ FEBuilderGBA.CLI/obj/
 FEBuilderGBA.SkiaSharp/bin/
 FEBuilderGBA.SkiaSharp/obj/
 
+# Browser (WebAssembly) head build outputs (#1864 gap — was never ignored)
+FEBuilderGBA.Browser/bin/
+FEBuilderGBA.Browser/obj/
+
 # Test results and coverage
 **/TestResults/
 coverage-report/

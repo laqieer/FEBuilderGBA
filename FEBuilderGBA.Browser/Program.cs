@@ -21,6 +21,16 @@ internal sealed partial class Program
         // creates defaults; translations are File.Exists-guarded).
         await TryLoadConfigAsync(args);
 
+        // #1867: boot the shared Avalonia app under the browser single-view lifetime. The site
+        // originally hung on the loading splash because Avalonia's runtime 404'd on avalonia.js — which
+        // turned out to be a symptom of an INCOMPLETE wasm build, not an Avalonia bug. Without
+        // WasmBuildNative=true (+ the wasm-tools-net9 workload) the SkiaSharp/HarfBuzz natives were
+        // never linked into dotnet.native.wasm (so the first Skia call crashed) AND Avalonia's JS
+        // modules were misplaced at the wwwroot root instead of _framework/. A proper native build
+        // (see FEBuilderGBA.Browser.csproj + pages.yml) puts avalonia.js / storage.js in _framework/
+        // next to dotnet.js, where Avalonia's DEFAULT FrameworkAssetPathResolver (./avalonia.js,
+        // resolved by JSHost relative to _framework/) finds them — so NO resolver override is needed.
+        // Verified end-to-end by the headless boot smoke test in pages.yml.
         await BuildAvaloniaApp().StartBrowserAppAsync("out");
     }
 

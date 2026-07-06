@@ -29,6 +29,7 @@ body:
         - "macOS Intel (x64)"
         - "Android"
         - "iOS / iPadOS"
+        - "Web (WebAssembly)"
         - "Other"
     validations:
       required: true
