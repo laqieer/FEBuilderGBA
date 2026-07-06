@@ -1,6 +1,0 @@
-C:\Users\zhiwenzhu\source\repos\laqieer\wt-1867-web\FEBuilderGBA.Browser\bin\Release\net9.0-browser\publish\runtimeconfig.template.json
-C:\Users\zhiwenzhu\source\repos\laqieer\wt-1867-web\FEBuilderGBA.Browser\bin\Release\net9.0-browser\publish\tests\smoke\package-lock.json
-C:\Users\zhiwenzhu\source\repos\laqieer\wt-1867-web\FEBuilderGBA.Browser\bin\Release\net9.0-browser\publish\tests\smoke\package.json
-C:\Users\zhiwenzhu\source\repos\laqieer\wt-1867-web\FEBuilderGBA.Browser\bin\Release\net9.0-browser\publish\wwwroot\config.zip
-C:\Users\zhiwenzhu\source\repos\laqieer\wt-1867-web\FEBuilderGBA.Browser\bin\Release\net9.0-browser\publish\FEBuilderGBA.Browser.runtimeconfig.json
-C:\Users\zhiwenzhu\source\repos\laqieer\wt-1867-web\FEBuilderGBA.Browser\bin\Release\net9.0-browser\publish\web.config
