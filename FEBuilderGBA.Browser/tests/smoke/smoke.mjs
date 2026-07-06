@@ -136,10 +136,14 @@ try {
   // #1869: Avalonia does NOT replace #out's content — it appends its <canvas>, leaving the HTML
   // .app-splash overlaying the app. main.js now removes .app-splash once the canvas mounts; assert
   // it's gone (give the MutationObserver a beat), else the loading spinner sticks over the app.
-  await page.waitForTimeout(1500);
-  const splashCount = await page.evaluate(() => document.querySelectorAll('.app-splash').length);
-  if (splashCount > 0) failures.push(`.app-splash was NOT removed after the canvas mounted (#1869 — the loading spinner overlays the app)`);
-  else console.log('[smoke] .app-splash removed after boot (#1869).');
+  // Wait (bounded) for the splash to be removed rather than a fixed sleep — resolves as soon as it's
+  // gone, and fails fast if it never is. #1869.
+  try {
+    await page.waitForFunction(() => document.querySelectorAll('#out .app-splash').length === 0, undefined, { timeout: 15000 });
+    console.log('[smoke] .app-splash removed after boot (#1869).');
+  } catch {
+    failures.push(`.app-splash was NOT removed after the canvas mounted (#1869 — the loading spinner overlays the app)`);
+  }
 } catch (e) {
   failures.push(`app did not render a canvas within ${BOOT_TIMEOUT_MS} ms: ${e.message}`);
 }
