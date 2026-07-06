@@ -73,23 +73,27 @@ namespace FEBuilderGBA
             if (string.IsNullOrEmpty(relativePath))
                 throw new ArgumentException("relativePath must be non-empty", nameof(relativePath));
 
-            // Defensive path-traversal guard (#1860 review): this is a REUSABLE IAssetSource,
-            // so validate here rather than trust the caller (the AndroidConfigExtractorCore
-            // manifest filter is only one of its possible consumers). Reject rooted paths and
-            // any entry that resolves outside _rootDir (e.g. "../secret").
+            // Defensive scope guard (#1860 review): this instance is constructed for ONE
+            // subtree (_subfolder), and EnumerateAssetFiles only reports paths under it (rooted
+            // at _rootDir, so they retain the subfolder prefix). Enforce that the resolved path
+            // stays under _rootDir/_subfolder — NOT merely under _rootDir — so a caller can't
+            // misuse this scoped source to read arbitrary files elsewhere under _rootDir. This
+            // also subsumes rejection of rooted paths and ../-traversal escapes.
             string normalized = relativePath.Replace('/', Path.DirectorySeparatorChar);
             if (Path.IsPathRooted(normalized))
                 throw new ArgumentException("relativePath must be relative (not rooted)", nameof(relativePath));
 
-            string rootFull = Path.GetFullPath(_rootDir);
-            string full = Path.GetFullPath(Path.Combine(rootFull, normalized));
-            string rootWithSep = rootFull.EndsWith(Path.DirectorySeparatorChar)
-                ? rootFull
-                : rootFull + Path.DirectorySeparatorChar;
-            if (!string.Equals(full, rootFull, StringComparison.Ordinal) &&
-                !full.StartsWith(rootWithSep, StringComparison.Ordinal))
+            string subtreeFull = Path.GetFullPath(Path.Combine(_rootDir, _subfolder));
+            string full = Path.GetFullPath(Path.Combine(_rootDir, normalized));
+            string subtreeWithSep = subtreeFull.EndsWith(Path.DirectorySeparatorChar)
+                ? subtreeFull
+                : subtreeFull + Path.DirectorySeparatorChar;
+            if (!string.Equals(full, subtreeFull, StringComparison.Ordinal) &&
+                !full.StartsWith(subtreeWithSep, StringComparison.Ordinal))
             {
-                throw new ArgumentException("relativePath escapes the asset root", nameof(relativePath));
+                throw new ArgumentException(
+                    "relativePath must resolve under the configured subfolder '" + _subfolder + "'",
+                    nameof(relativePath));
             }
 
             return new FileStream(full, FileMode.Open, FileAccess.Read, FileShare.Read);

@@ -98,6 +98,17 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void OpenAsset_RejectsPathInsideRootButOutsideSubfolder()
+        {
+            // A path that stays under _rootDir but escapes the configured subtree must still
+            // be rejected — the source is scoped to "config", not the whole root (#1860 review).
+            string root = NewTempDir();
+            Write(root, "other/secret.txt", "SECRET");
+            var src = new DirectoryAssetSource(root, "config");
+            Assert.Throws<ArgumentException>(() => src.OpenAsset("other/secret.txt"));
+        }
+
+        [Fact]
         public void DrivesEnsureExtracted_EndToEnd()
         {
             // Simulate the iOS flow: a read-only "bundle" dir with config/ under it,
