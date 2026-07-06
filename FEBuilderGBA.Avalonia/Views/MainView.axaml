@@ -4,9 +4,11 @@
              AutomationProperties.AutomationId="Main_AndroidShell_Control">
   <!-- #1122: Android single-activity shell. A top app bar (Back + title +
        overflow) over a content host that renders the navigation host's current
-       page. The desktop multi-window MainWindow is unchanged; this view only
-       exists under ISingleViewApplicationLifetime (Android). -->
-  <Grid RowDefinitions="Auto,*">
+       page. #1870 added ROM Open/Save actions + a status strip so the WebAssembly
+       and Android single-view shells can load and save a ROM. The desktop
+       multi-window MainWindow is unchanged; this view only exists under
+       ISingleViewApplicationLifetime (WebAssembly / Android). -->
+  <Grid RowDefinitions="Auto,Auto,*">
     <!-- Top app bar -->
     <Border Grid.Row="0"
             Background="{DynamicResource ToolbarBackgroundBrush}"
@@ -27,15 +29,40 @@
                    AutomationProperties.AutomationId="Main_AndroidTitle_Label"
                    VerticalAlignment="Center"
                    FontWeight="SemiBold" />
-        <Button Grid.Column="2"
-                Name="HomeButton"
-                AutomationProperties.AutomationId="Main_AndroidHome_Button"
-                Click="Home_Click" />
+        <!-- ROM open/save + Home. Open/Save are the single-view equivalent of
+             the desktop File menu (#1870). -->
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
+          <Button Name="OpenRomButton"
+                  AutomationProperties.AutomationId="Main_AndroidOpenRom_Button"
+                  Click="OpenRom_Click" />
+          <Button Name="SaveRomButton"
+                  AutomationProperties.AutomationId="Main_AndroidSaveRom_Button"
+                  Click="SaveRom_Click"
+                  IsEnabled="False" />
+          <Button Name="HomeButton"
+                  AutomationProperties.AutomationId="Main_AndroidHome_Button"
+                  Click="Home_Click" />
+        </StackPanel>
       </Grid>
     </Border>
 
+    <!-- ROM status strip: shows the loaded ROM name/version and transient
+         open/save results. Collapsed until there is something to say (#1870). -->
+    <Border Grid.Row="1"
+            Name="RomStatusBorder"
+            Background="{DynamicResource ToolbarBackgroundBrush}"
+            BorderBrush="{DynamicResource ToolbarBorderBrush}"
+            BorderThickness="0,0,0,1"
+            Padding="12,3"
+            IsVisible="False">
+      <TextBlock Name="RomStatusText"
+                 AutomationProperties.AutomationId="Main_AndroidRomStatus_Label"
+                 VerticalAlignment="Center"
+                 TextTrimming="CharacterEllipsis" />
+    </Border>
+
     <!-- Navigation content host: renders the nav host's current top page. -->
-    <ContentControl Grid.Row="1"
+    <ContentControl Grid.Row="2"
                     Name="NavHost"
                     AutomationProperties.AutomationId="Main_AndroidNavHost_Control" />
   </Grid>
