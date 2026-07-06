@@ -1,6 +1,6 @@
 # Deployment Guide: Core Artifact + In-App Patch2 Git Updater
 
-> **For the full-suite release flow** (WinForms + CLI + Avalonia + Android), see **[RELEASE.md](RELEASE.md)** — that runbook is the entry point for cutting a release. This guide covers the **core application artifact** built by CI and the **two-track update model** that delivers patch data separately.
+> **For the full-suite release flow** (WinForms + CLI + Avalonia + Android + iOS), see **[RELEASE.md](RELEASE.md)** — that runbook is the entry point for cutting a release. This guide covers the **core application artifact** built by CI and the **two-track update model** that delivers patch data separately.
 >
 > **Code-signing / notarization** of the Windows exe and macOS bundles is conditional and secret-gated — see **[RELEASE.md → §6.1 Code-signing & notarization](RELEASE.md#61-code-signing--notarization-1634)** for the required GitHub Actions secrets and the unsigned-artifact SmartScreen/Gatekeeper workaround. (Windows Authenticode signing is wired into the build job below.)
 
@@ -90,12 +90,18 @@ release asset:
 | `FEBuilderGBA-cli-<rid>.zip`         | `crossplatform`  | `crossplatform.yml`   |
 | `FEBuilderGBA-avalonia-<rid>.zip`    | `crossplatform`  | `crossplatform.yml`   |
 | `FEBuilderGBA-android-apk.zip`       | `android`        | `android.yml`         |
+| `FEBuilderGBA-ios-unsigned-ipa.zip`  | `ios` (soft)     | `ios.yml`             |
 
 (`<rid>` = `linux-x64`, `osx-arm64`, `win-x64`.)
 
-All four build jobs are **required** — if any platform build fails, the release
-is **not** published (no partial release missing a platform download). A
-preflight step also verifies every expected zip is present before publishing.
+The WinForms/CLI/Avalonia/Android build jobs are **required** — if any of those platform
+builds fails, the release is **not** published (no partial release missing a required
+platform download), and a preflight step verifies every expected zip is present before
+publishing. The **iOS** job (#1859) is deliberately **soft/advisory** during the preview:
+it is `continue-on-error` and is **not** in the mandatory verify-assets list, so its
+`FEBuilderGBA-ios-unsigned-ipa.zip` is attached when the macOS build succeeds and simply
+absent otherwise — a fragile iOS build degrades to "release without iOS" rather than
+blocking the other platforms. Promote it to required once the iOS build is proven stable.
 
 **Dry run:** triggering the workflow via `workflow_dispatch` (the "Run workflow"
 button) runs the build jobs only and does **not** create a release — the
@@ -361,14 +367,39 @@ the signed artifact to a GitHub release is handled by the tag-triggered release
 workflow ([#1629](https://github.com/laqieer/FEBuilderGBA/issues/1629)). No
 production signing key is committed to the repo.
 
+## iOS release signing
+
+The iOS head (`FEBuilderGBA.iOS`) is built by a separate workflow,
+`.github/workflows/ios.yml` (advisory / non-required — see [docs/IOS.md](IOS.md)). It
+produces a **release-signed `.ipa`** *only when* the maintainer adds Apple signing
+material to the repository's GitHub Actions secrets; otherwise it falls back to an
+**unsigned `.ipa`** (the fork's current CI), which is **not directly installable** — it is
+for downstream re-signing / sideloading (AltStore, Sideloadly, Apple Configurator).
+
+Required secrets (set ALL four together, or none):
+
+| Secret | Meaning |
+| --- | --- |
+| `APPLE_CERTIFICATE_BASE64` | base64 of the signing certificate `.p12` — `base64 -i cert.p12` |
+| `APPLE_CERTIFICATE_PASSWORD` | the `.p12` password |
+| `APPLE_PROVISIONING_PROFILE_BASE64` | base64 of the `.mobileprovision` profile |
+| `APPLE_CODESIGN_IDENTITY` | the codesign identity (e.g. `Apple Distribution: …`) |
+
+Add them at **Settings → Secrets and variables → Actions → New repository secret**. A
+partial set fails the workflow fast with a clear error. App Store / TestFlight distribution
+needs a paid Apple Developer account. Attaching the artifact to a GitHub release is the
+soft `ios` job in the tag-triggered release workflow (#1859). No production signing key is
+committed to the repo.
+
 ## References
 
-- CI/CD Workflows: `.github/workflows/msbuild.yml` (core artifact), `.github/workflows/crossplatform.yml`, `.github/workflows/android.yml`
+- CI/CD Workflows: `.github/workflows/msbuild.yml` (core artifact), `.github/workflows/crossplatform.yml`, `.github/workflows/android.yml`, `.github/workflows/ios.yml`
 - Tag-triggered Release Workflow: `.github/workflows/release.yml` (#1629)
 - Changelog Generator: `scripts/generate-changelog.sh` + `CHANGELOG.md` + `.github/release.yml` (#1632)
 - Core update check: `FEBuilderGBA/UpdateCheckSplitPackage.cs` + `FEBuilderGBA.Core/UpdateInfo.cs`
 - Patch2 Git updater: `FEBuilderGBA.Core/GitUtil.cs` + `FEBuilderGBA/ToolUpdateDialogForm.cs`
 - Android build + signing: `.github/workflows/android.yml`, [docs/ANDROID.md §7](ANDROID.md#7-build-status-in-this-environment)
+- iOS build + signing: `.github/workflows/ios.yml`, [docs/IOS.md](IOS.md)
 
 ---
 
