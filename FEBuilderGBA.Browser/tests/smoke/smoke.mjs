@@ -17,6 +17,9 @@
 //                     <base href> so base-relative resolution is exercised the same way as prod.
 //   SMOKE_SCREENSHOT  (default `web-smoke.png`) screenshot output path.
 //   SMOKE_TIMEOUT_MS  (default 120000) boot timeout — cold wasm + ~6.8 MB config.zip is slow.
+//   SMOKE_ROM         (optional) ROM fixture path. When present, the smoke test loads it through
+//                     the single-view Open ROM flow, opens Move Cost Editor, and asserts the
+//                     embeddable editor page renders (real #1873 single-view proof).
 
 import http from 'node:http';
 import fs from 'node:fs';
@@ -27,6 +30,7 @@ const WWWROOT = process.env.SMOKE_WWWROOT;
 const BASE_PATH = process.env.SMOKE_BASE_PATH || '/FEBuilderGBA/';
 const SCREENSHOT = process.env.SMOKE_SCREENSHOT || 'web-smoke.png';
 const BOOT_TIMEOUT_MS = Number(process.env.SMOKE_TIMEOUT_MS || 120000);
+const ROM_PATH = process.env.SMOKE_ROM;
 
 if (!WWWROOT || !fs.existsSync(WWWROOT)) {
   console.error(`[smoke] SMOKE_WWWROOT not found: ${WWWROOT}`);
@@ -95,6 +99,7 @@ const server = http.createServer((req, res) => {
 
 const failures = [];
 const badModuleResponses = [];
+const notSupportedErrors = [];
 
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
 const port = server.address().port;
@@ -120,9 +125,18 @@ page.on('requestfailed', (req) => {
 // Log — but do NOT fail on — page errors and console.errors (Skia/WebGL emit benign ones during
 // startup). The stack + console.error lines are the fastest way to diagnose a boot crash — e.g. a
 // missing SkiaSharp native throwing SKImageInfo's type initializer (#1867).
-page.on('pageerror', (err) => console.log(`[smoke] pageerror: ${err.message}${err.stack ? '\n' + err.stack : ''}`));
+page.on('pageerror', (err) => {
+  const text = `${err.message}${err.stack ? '\n' + err.stack : ''}`;
+  if (/NotSupportedException|windowing platform|Browser doesn't support windowing platform/i.test(text)) {
+    notSupportedErrors.push(text);
+  }
+  console.log(`[smoke] pageerror: ${text}`);
+});
 page.on('console', (msg) => {
   const t = msg.text();
+  if (/NotSupportedException|windowing platform|Browser doesn't support windowing platform/i.test(t)) {
+    notSupportedErrors.push(t);
+  }
   if (t.includes('[FEBuilderGBA]')) console.log(`[smoke] app-console: ${t}`);
   else if (msg.type() === 'error') console.log(`[smoke] console.error: ${t}`);
 });
@@ -144,6 +158,29 @@ try {
   } catch (e) {
     failures.push(`.app-splash was NOT removed after the canvas mounted (#1869 — the loading spinner overlays the app): ${e.message}`);
   }
+
+  if (ROM_PATH && fs.existsSync(ROM_PATH)) {
+    try {
+      console.log(`[smoke] loading ROM fixture -> ${ROM_PATH}`);
+      const fileChooserPromise = page.waitForEvent('filechooser', { timeout: 15000 });
+      await page.getByRole('button', { name: /Open ROM/i }).click();
+      const chooser = await fileChooserPromise;
+      await chooser.setFiles(ROM_PATH);
+
+      await page.getByText(/Loaded:/i).waitFor({ state: 'visible', timeout: BOOT_TIMEOUT_MS });
+      console.log('[smoke] ROM loaded through single-view shell.');
+
+      await page.getByRole('button', { name: /Move Cost Editor/i }).click();
+      await page.locator('[data-automation-id="MoveCostEditor_Class_List"], [automation-id="MoveCostEditor_Class_List"], :text("Terrain Move Costs")')
+        .first()
+        .waitFor({ state: 'visible', timeout: BOOT_TIMEOUT_MS });
+      console.log('[smoke] Move Cost Editor rendered in single-view host (#1873).');
+    } catch (e) {
+      failures.push(`Move Cost Editor single-view proof failed with SMOKE_ROM=${ROM_PATH}: ${e.message}`);
+    }
+  } else {
+    console.log(`[smoke] SMOKE_ROM not set or missing; skipping Move Cost Editor single-view proof.`);
+  }
 } catch (e) {
   failures.push(`app did not render a canvas within ${BOOT_TIMEOUT_MS} ms: ${e.message}`);
 }
@@ -157,6 +194,9 @@ try {
 
 if (badModuleResponses.length) {
   failures.push(`Avalonia JS module(s) not served OK: ${badModuleResponses.join('; ')}`);
+}
+if (notSupportedErrors.length) {
+  failures.push(`Unexpected NotSupportedException/windowing-platform error(s): ${notSupportedErrors.join('\n---\n')}`);
 }
 
 await browser.close();
