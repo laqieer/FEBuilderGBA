@@ -53,7 +53,10 @@ env:
 jobs:
   ios-build:
     name: iOS app (advisory)
-    runs-on: macos-latest
+    # macos-26 ships Xcode 26.5 as the default — required by the current .NET for iOS
+    # workload (26.5.9002). `macos-latest` can still resolve to macos-15 / Xcode 16.4,
+    # which that workload rejects ("requires Xcode 26.5"). Pin explicitly. (#1859)
+    runs-on: macos-26
 
     steps:
       - name: Checkout

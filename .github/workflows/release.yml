@@ -258,7 +258,9 @@ jobs:
   # ---------------------------------------------------------------------------
   ios:
     name: iOS IPA (advisory)
-    runs-on: macos-latest
+    # macos-26 ships Xcode 26.5 (default) — required by the current .NET for iOS workload;
+    # macos-latest can still resolve to macos-15 / Xcode 16.4 which the workload rejects. (#1859)
+    runs-on: macos-26
     continue-on-error: true
     steps:
       - name: Checkout
