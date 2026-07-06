@@ -10,7 +10,8 @@ namespace FEBuilderGBA.Core.Tests
         private static readonly string[] KnownPlatformLabels =
         {
             "Windows x64", "Windows x86 (WinForms)", "Linux x64",
-            "macOS Apple Silicon (arm64)", "macOS Intel (x64)", "Android", "Other"
+            "macOS Apple Silicon (arm64)", "macOS Intel (x64)", "Android",
+            "iOS / iPadOS", "Web (WebAssembly)", "Other"
         };
 
         [Fact]

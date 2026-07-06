@@ -58,7 +58,9 @@ namespace FEBuilderGBA
         /// </remarks>
         public static string DetectPlatformLabel()
         {
+            if (OperatingSystem.IsBrowser()) return "Web (WebAssembly)";
             if (OperatingSystem.IsAndroid()) return "Android";
+            if (OperatingSystem.IsIOS()) return "iOS / iPadOS";
             var arch = RuntimeInformation.ProcessArchitecture;
             if (OperatingSystem.IsWindows())
                 return arch switch
