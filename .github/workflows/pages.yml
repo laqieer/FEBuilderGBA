@@ -63,10 +63,14 @@ jobs:
             nuget-wasm-${{ runner.os }}-
 
       - name: Install wasm-tools workload
-        # Provides the net9.0-browser toolchain + Emscripten used to emcc-relink the SkiaSharp +
-        # HarfBuzz wasm native archives into dotnet.wasm. On Linux this is a clean NuGet-pack
-        # install (no MSI / elevation).
-        run: dotnet workload install wasm-tools
+        # Provides the net9 wasm toolchain + Emscripten used to emcc-relink the SkiaSharp + HarfBuzz
+        # native archives into dotnet.native.wasm (WasmBuildNative=true). BOTH ids are installed on
+        # purpose: the hosted runner's default SDK is a 10.x band, so `wasm-tools` alone pulls the
+        # 10.x ("current") toolchain and the net9 native build fails with NETSDK1147
+        # ("wasm-tools-net9 must be installed"). `wasm-tools-net9` supplies net9's Emscripten 3.1.34,
+        # which also matches SkiaSharp 2.88.9's prebuilt libSkiaSharp.a/3.1.34 (a newer emcc would
+        # mismatch the archive). Clean NuGet-pack install on Linux (no MSI / elevation). (#1867)
+        run: dotnet workload install wasm-tools wasm-tools-net9
 
       - name: Publish Browser head
         # EnableBrowserTarget=true as a GLOBAL property (restore static-graph / NETSDK1005 fix,
