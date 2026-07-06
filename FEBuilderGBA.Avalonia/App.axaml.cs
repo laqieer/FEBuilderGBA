@@ -244,10 +244,10 @@ namespace FEBuilderGBA.Avalonia
                 // Execute them BEFORE creating MainWindow and exit immediately so
                 // they're fast (~1-2 seconds total) and don't pop a window in CI.
                 // GapSweep (RunGapSweep + scanners) is Roslyn dev-tooling excluded
-                // from the net9.0-android TFM (#1121), so the dispatch is guarded —
-                // on Android the desktop lifetime cast above is false anyway, so
+                // from the mobile TFMs (android #1121, iOS #1859), so the dispatch is
+                // guarded — on mobile the desktop lifetime cast above is false anyway, so
                 // this branch never executes there at runtime.
-#if !ANDROID
+#if !ANDROID && !IOS
                 if (GapSweepMode != null)
                 {
                     int code = RunGapSweep();
