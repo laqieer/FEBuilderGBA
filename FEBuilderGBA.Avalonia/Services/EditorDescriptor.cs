@@ -2,6 +2,11 @@ using System;
 
 namespace FEBuilderGBA.Avalonia.Services
 {
+    /// <summary>
+    /// Host metadata supplied by an <see cref="IEmbeddableEditor"/>. Desktop uses
+    /// it once when constructing the generic <see cref="EditorHostWindow"/>;
+    /// single-view hosts use the same editor content directly as a page.
+    /// </summary>
     public record EditorDescriptor(
         string Title,
         double PreferredWidth,

@@ -16,8 +16,10 @@ namespace FEBuilderGBA.Avalonia.Services
     }
 
     /// <summary>
-    /// Marker for editors whose content can be hosted directly by single-view
-    /// backends and wrapped by a generic host window on desktop.
+    /// Marker for editors whose root content is safe to instantiate without an
+    /// Avalonia <see cref="global::Avalonia.Controls.Window"/>. Desktop wraps
+    /// these controls in <see cref="EditorHostWindow"/> to preserve multi-window
+    /// behavior; Android/browser/iOS push the control itself as a page.
     /// </summary>
     public interface IEmbeddableEditor : IEditorView
     {
