@@ -1711,7 +1711,7 @@ namespace FEBuilderGBA.Avalonia.Views
                         await Task.Delay(100);
 
                         // Extract the Avalonia list from the AddressListControl
-                        var avaloniaList = ExtractListFromView(window);
+                        var avaloniaList = ExtractListFromView(editor);
                         if (avaloniaList == null)
                         {
                             skipped++;
@@ -1773,7 +1773,7 @@ namespace FEBuilderGBA.Avalonia.Views
         /// Searches by known control names via FindControl, then falls back to
         /// a visual-tree scan for any AddressListControl descendant.
         /// </summary>
-        static IReadOnlyList<AddrResult> ExtractListFromView(Window window)
+        static IReadOnlyList<AddrResult> ExtractListFromView(Control window)
         {
             // Try known named controls first
             string[] knownNames = { "UnitList", "ItemList", "ClassList", "BranchList", "EntryList" };
