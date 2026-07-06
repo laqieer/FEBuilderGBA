@@ -3,7 +3,6 @@ using System.IO;
 using Avalonia;
 using Avalonia.iOS;
 using Foundation;
-using UIKit;
 using FEBuilderGBA;
 
 namespace FEBuilderGBA.iOS
@@ -22,16 +21,17 @@ namespace FEBuilderGBA.iOS
     /// </para>
     ///
     /// <para>
-    /// CONFIG BOOTSTRAP (#1859): <see cref="FinishedLaunching"/> extracts the bundled
+    /// CONFIG BOOTSTRAP (#1859): <see cref="CustomizeAppBuilder"/> extracts the bundled
     /// <c>config/</c> <c>&lt;BundleResource&gt;</c> tree into an app-private writable dir on
     /// first run (version-stamped + idempotent, via the pure, desktop-unit-tested
     /// <see cref="AndroidConfigExtractorCore"/> + <see cref="DirectoryAssetSource"/>) and
-    /// points <c>App.BaseDirectoryOverride</c> at it BEFORE the Avalonia app boots
-    /// (<c>base.FinishedLaunching</c>), so Core's <c>PathUtil.ConfigPath</c> resolves
-    /// <c>config/&lt;sub&gt;</c> on iOS. The iOS app bundle is read-only, so — like Android's
-    /// <c>Context.FilesDir</c> extraction — config must live in a writable location for the
-    /// app to persist <c>config.xml</c> and side files. <c>config/patch2</c> is NOT bundled
-    /// (deferred — see docs/IOS.md).
+    /// points <c>App.BaseDirectoryOverride</c> at it BEFORE the Avalonia app is built (Avalonia
+    /// calls <c>CustomizeAppBuilder</c> from within its non-virtual <c>FinishedLaunching</c>,
+    /// ahead of <c>App.OnFrameworkInitializationCompleted</c>), so Core's
+    /// <c>PathUtil.ConfigPath</c> resolves <c>config/&lt;sub&gt;</c> on iOS. The iOS app bundle
+    /// is read-only, so — like Android's <c>Context.FilesDir</c> extraction — config must live
+    /// in a writable location for the app to persist <c>config.xml</c> and side files.
+    /// <c>config/patch2</c> is NOT bundled (deferred — see docs/IOS.md).
     /// </para>
     ///
     /// <para>PREVIEW: the iOS runtime (touch UX, SAF-equivalent file pickers, editors) is
@@ -45,15 +45,30 @@ namespace FEBuilderGBA.iOS
         /// <summary>Dedicated app-private root under Library/ where config/ is extracted.</summary>
         const string AppDataFolderName = "febuildergba";
 
-        public override bool FinishedLaunching(UIApplication application, NSDictionary launchOptions)
+        /// <summary>
+        /// Extract the bundled config/ assets and wire <c>App.BaseDirectoryOverride</c> BEFORE
+        /// the Avalonia app is built/initialized.
+        ///
+        /// <para>
+        /// NOTE: Avalonia's <see cref="AvaloniaAppDelegate{TApp}"/><c>.FinishedLaunching</c> is
+        /// NOT <c>virtual</c> (it is the UIKit <c>[Export]</c> entry), so it cannot be
+        /// overridden. <see cref="CustomizeAppBuilder"/> is the overridable hook Avalonia calls
+        /// from WITHIN <c>FinishedLaunching</c> — before the app is built and before
+        /// <c>App.OnFrameworkInitializationCompleted</c> reads <c>CoreState.BaseDirectory</c> —
+        /// so setting the override here is early enough. This is the iOS analog of the android
+        /// head extracting in <c>MainActivity.OnCreate</c> before <c>base.OnCreate</c>.
+        /// </para>
+        /// </summary>
+        protected override AppBuilder CustomizeAppBuilder(AppBuilder builder)
         {
-            // Extract the bundled config/ assets BEFORE the Avalonia app boots
-            // (base.FinishedLaunching). The shared App.OnFrameworkInitializationCompleted
-            // reads CoreState.BaseDirectory immediately to locate config/config.xml, so
-            // BaseDirectoryOverride must already be set when it runs — mirrors the android
-            // head's MainActivity.OnCreate ordering (extract, then base.OnCreate).
             ExtractConfigAndWireBaseDirectory();
-            return base.FinishedLaunching(application, launchOptions);
+
+            // NOTE: the shared App.axaml already declares a <FluentTheme/>, so no extra
+            // font/theme wiring is needed here. (The Avalonia template's .WithInterFont()
+            // needs the separate Avalonia.Fonts.Inter package and is intentionally omitted,
+            // mirroring the android head's minimal CustomizeAppBuilder.)
+            return base.CustomizeAppBuilder(builder)
+                .LogToTrace();
         }
 
         /// <summary>
@@ -108,16 +123,6 @@ namespace FEBuilderGBA.iOS
             string shortStr = shortVersion?.ToString() ?? "0";
             string buildStr = build?.ToString() ?? "unknown";
             return shortStr + "-" + buildStr;
-        }
-
-        protected override AppBuilder CustomizeAppBuilder(AppBuilder builder)
-        {
-            // NOTE: the shared App.axaml already declares a <FluentTheme/>, so no extra
-            // font/theme wiring is needed here. (The Avalonia template's .WithInterFont()
-            // needs the separate Avalonia.Fonts.Inter package and is intentionally omitted,
-            // mirroring the android head's minimal CustomizeAppBuilder.)
-            return base.CustomizeAppBuilder(builder)
-                .LogToTrace();
         }
     }
 }
