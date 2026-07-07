@@ -38,6 +38,9 @@ if (!WWWROOT || !fs.existsSync(WWWROOT)) {
   process.exit(2);
 }
 const ROOT = path.resolve(WWWROOT);
+const VIEWPORT_WIDTH = 1280;
+const VIEWPORT_HEIGHT = 800;
+const EDITOR_CONTENT_CLIP = { x: 0, y: 80, width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT - 80 };
 
 // Correct MIME types matter: a `.wasm` served as anything but application/wasm makes the streaming
 // instantiation fail and the runtime never boots — i.e. a failure for the WRONG reason.
@@ -127,7 +130,7 @@ const url = `http://127.0.0.1:${port}${BASE_PATH}?e2e=1`;
 console.log(`[smoke] serving ${ROOT} at ${url} (boot timeout ${BOOT_TIMEOUT_MS} ms)`);
 
 const browser = await chromium.launch({ args: ['--no-sandbox'] });
-const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+const context = await browser.newContext({ viewport: { width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT } });
 const page = await context.newPage();
 
 // The #1867 tripwire: any Avalonia JS module (avalonia.js OR storage.js) that responds >= 400 or
@@ -180,6 +183,9 @@ try {
   }
 
   rom = smokeRomBytes();
+  if (ROM_PATH && !rom) {
+    failures.push('SMOKE_ROM was set but no ROM bytes were available; fix SMOKE_ROM (use a valid path or "synthetic") before running the editor-nav smoke.');
+  }
   if (rom) {
     try {
       console.log(`[smoke] loading ROM fixture -> ${ROM_PATH}`);
@@ -203,28 +209,39 @@ try {
       const beforeScreenshot = path.join(parsed.dir || '.', `${parsed.name}.before${parsed.ext || '.png'}`);
       fs.mkdirSync(path.dirname(beforeScreenshot), { recursive: true });
       fs.mkdirSync(path.dirname(SCREENSHOT), { recursive: true });
-      await page.screenshot({ path: beforeScreenshot });
-      console.log(`[smoke] launcher screenshot -> ${beforeScreenshot}`);
+      await page.screenshot({ path: beforeScreenshot, clip: EDITOR_CONTENT_CLIP });
+      console.log(`[smoke] launcher content screenshot -> ${beforeScreenshot}`);
 
       const opened = await page.evaluate(() => globalThis.__febTest.OpenEditor('MoveCost'));
       await page.waitForTimeout(1500);
       const cur = await page.evaluate(() => globalThis.__febTest.CurrentEditorTitle());
+      const rendered = await page.evaluate(() => globalThis.__febTest.CurrentEditorBodyRendered());
       if (opened !== 'Move Cost Editor') {
         failures.push(`OpenEditor('MoveCost') returned "${opened}"; expected "Move Cost Editor"`);
       }
       if (cur !== 'Move Cost Editor') {
         failures.push(`CurrentEditorTitle() returned "${cur}"; expected "Move Cost Editor"`);
       }
+      if (rendered !== true) {
+        failures.push(`editor body did not render (Bounds/visual children empty) — CurrentEditorBodyRendered()=${rendered}`);
+      }
 
-      await page.screenshot({ path: SCREENSHOT });
-      console.log(`[smoke] editor screenshot -> ${SCREENSHOT}`);
+      await page.screenshot({ path: SCREENSHOT, clip: EDITOR_CONTENT_CLIP });
+      console.log(`[smoke] editor content screenshot -> ${SCREENSHOT}`);
       const before = fs.readFileSync(beforeScreenshot);
       const after = fs.readFileSync(SCREENSHOT);
-      if (before.length === after.length && before.equals(after)) {
-        failures.push('editor screenshot matched launcher screenshot; expected a rendered visual change');
+      let changedBytes = 0;
+      const comparableLength = Math.min(before.length, after.length);
+      for (let i = 0; i < comparableLength; i++) {
+        if (before[i] !== after[i]) changedBytes++;
       }
-      if (opened === 'Move Cost Editor' && cur === 'Move Cost Editor') {
+      changedBytes += Math.abs(before.length - after.length);
+      if (changedBytes < 1024) {
+        failures.push(`editor content screenshot changed only ${changedBytes} byte(s); expected a substantial body-region render delta`);
+      }
+      if (opened === 'Move Cost Editor' && cur === 'Move Cost Editor' && rendered === true) {
         console.log('[smoke] Move Cost Editor opened through real launcher command path (#1888).');
+        console.log(`[smoke] editor body rendered; content-region changed bytes=${changedBytes}.`);
       }
     } catch (e) {
       if (e.message !== '__FEB_E2E_HOOKS_MISSING__') {

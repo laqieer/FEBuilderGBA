@@ -24,7 +24,7 @@ using Xunit;
 namespace FEBuilderGBA.Avalonia.Tests;
 
 [Collection("WindowManagerSerial")]
-public class MainViewSingleViewShellTest
+public class MainViewSingleViewShellScreenshotTest
 {
     [AvaloniaFact]
     public void MainView_wires_single_view_host_and_navigates()
@@ -110,6 +110,7 @@ public class MainViewSingleViewShellTest
             CoreState.ExportFunction = prevExport;
             CoreState.Undo = prevUndo;
             CoreState.EventScript = prevEvent;
+            PatchDetectionService.Instance.Refresh();
         }
     }
 
