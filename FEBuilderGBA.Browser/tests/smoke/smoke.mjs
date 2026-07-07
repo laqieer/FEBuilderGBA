@@ -243,6 +243,17 @@ try {
         console.log('[smoke] Move Cost Editor opened through real launcher command path (#1888).');
         console.log(`[smoke] editor body rendered; content-region changed bytes=${changedBytes}.`);
       }
+
+      // #1891: prove a newly-exposed catalog editor (NOT one of the old 9 hardcoded launcher
+      // entries) also opens through the real single-view launcher on wasm. AI Script was
+      // unreachable on the web app before the full EditorCatalog was wired in.
+      const opened2 = await page.evaluate(() => globalThis.__febTest.OpenEditor('AIScript'));
+      await page.waitForTimeout(1000);
+      if (!opened2) {
+        failures.push(`OpenEditor('AIScript') returned "${opened2}"; a newly-exposed catalog editor failed to open on wasm (#1891)`);
+      } else {
+        console.log(`[smoke] newly-exposed catalog editor opened on wasm (#1891): "${opened2}".`);
+      }
     } catch (e) {
       if (e.message !== '__FEB_E2E_HOOKS_MISSING__') {
         failures.push(`Move Cost Editor wasm proof failed with SMOKE_ROM=${ROM_PATH}: ${e.message}`);

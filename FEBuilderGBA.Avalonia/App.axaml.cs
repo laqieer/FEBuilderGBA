@@ -302,6 +302,11 @@ namespace FEBuilderGBA.Avalonia
         {
             try
             {
+                // #1891: if a ROM was supplied (--rom=<path>), load it so the launcher renders the
+                // FULL editor catalog instead of the empty "no ROM loaded" hint. Best-effort — a
+                // failure still renders the shell chrome.
+                TryLoadRomForMainViewRender();
+
                 // Install the single-view nav service so MainView wires its host.
                 Services.WindowManager.Instance.SetService(new Services.AndroidNavigationService());
 
@@ -351,6 +356,38 @@ namespace FEBuilderGBA.Avalonia
             {
                 Log.Error("RenderMainViewToPng failed: ", ex.ToString());
                 return 1;
+            }
+        }
+
+        /// <summary>
+        /// #1891: best-effort load the <c>--rom=</c> ROM before rendering the single-view shell, so
+        /// the launcher shows the full editor catalog (version-gated to the ROM) rather than the
+        /// empty "no ROM loaded" hint. Mirrors the shared post-load init the app/tests use. Any
+        /// failure is logged and swallowed — the render then shows the empty shell chrome.
+        /// </summary>
+        static void TryLoadRomForMainViewRender()
+        {
+            if (string.IsNullOrEmpty(StartupRomPath) || !File.Exists(StartupRomPath))
+                return;
+            try
+            {
+                if (string.IsNullOrEmpty(CoreState.BaseDirectory))
+                    CoreState.BaseDirectory = AppContext.BaseDirectory;
+                var rom = new ROM();
+                using var stream = File.OpenRead(StartupRomPath);
+                var (ok, _) = rom.LoadFromStreamAsync(stream, StartupRomPath).GetAwaiter().GetResult();
+                if (ok)
+                {
+                    // Set CoreState.ROM first so the launcher renders the catalog even if the
+                    // cache-populating post-load init degrades without a full config/ tree.
+                    CoreState.ROM = rom;
+                    try { Services.RomFileService.InitializeLoadedRom(rom); }
+                    catch (Exception initEx) { Log.Error("RenderMainView post-load init (non-fatal): ", initEx.ToString()); }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("RenderMainView ROM load failed (rendering empty shell): ", ex.ToString());
             }
         }
 
