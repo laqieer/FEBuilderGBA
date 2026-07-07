@@ -13,6 +13,8 @@ namespace FEBuilderGBA.Avalonia.Services
             Height = descriptor.PreferredHeight;
             MinWidth = descriptor.MinWidth;
             MinHeight = descriptor.MinHeight;
+            CanResize = descriptor.CanResize;
+            WindowStartupLocation = descriptor.StartupLocation;
             if (descriptor.SizeToContent)
                 SizeToContent = SizeToContent.WidthAndHeight;
             Content = editor;

@@ -1,10 +1,10 @@
+
 using System;
 using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
-
 namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class MainSimpleMenuEventErrorIgnoreErrorView : TranslatedUserControl, IEmbeddableEditor
@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly MainSimpleMenuEventErrorIgnoreErrorViewModel _vm = new();
         public string ViewTitle => "Hide this error";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Hide this error", 820, 355, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Hide this error", 820, 355, SizeToContent: true, CanResize: false);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

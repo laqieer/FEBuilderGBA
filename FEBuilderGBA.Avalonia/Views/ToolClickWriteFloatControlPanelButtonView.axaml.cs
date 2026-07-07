@@ -1,10 +1,10 @@
+
 using System;
 using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
-
 namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class ToolClickWriteFloatControlPanelButtonView : TranslatedUserControl, IEmbeddableEditor
@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ToolClickWriteFloatControlPanelButtonViewModel _vm = new();
         public string ViewTitle => "Which button would you click?";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Which button would you click?", 920, 220, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Which button would you click?", 920, 220, SizeToContent: true, CanResize: false);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

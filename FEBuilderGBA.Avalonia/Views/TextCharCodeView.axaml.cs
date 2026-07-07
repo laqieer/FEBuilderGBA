@@ -1,3 +1,4 @@
+
 using System;
 using global::Avalonia;
 using global::Avalonia.Controls;
@@ -5,7 +6,6 @@ using global::Avalonia.Interactivity;
 using global::Avalonia.Media.Imaging;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
-
 namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class TextCharCodeView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView

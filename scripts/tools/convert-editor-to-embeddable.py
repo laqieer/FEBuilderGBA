@@ -57,11 +57,18 @@ class Descriptor:
     width: str
     height: str
     size_to_content: bool
+    can_resize: bool
+    startup_location: str
 
 
 def parse_size_to_content(value: str | None) -> bool:
     """Map Avalonia Window SizeToContent to EditorDescriptor auto-size flag."""
     return value in {"Width", "Height", "WidthAndHeight"}
+
+
+def parse_can_resize(value: str | None) -> bool:
+    """Map Avalonia Window CanResize to EditorDescriptor resize flag."""
+    return not (value is not None and value.strip().lower() == "false")
 
 
 def read_text(path: Path) -> str:
@@ -90,6 +97,8 @@ def parse_window_root(axaml: str, view_name: str) -> tuple[str, dict[str, str], 
         width=attrs["Width"],
         height=attrs["Height"],
         size_to_content=parse_size_to_content(attrs.get("SizeToContent")),
+        can_resize=parse_can_resize(attrs.get("CanResize")),
+        startup_location=attrs.get("WindowStartupLocation", "CenterOwner"),
     )
     return match.group("root"), attrs, descriptor
 
@@ -114,12 +123,37 @@ def convert_axaml(axaml: str, view_name: str) -> tuple[str, Descriptor]:
     return converted, descriptor
 
 
-def ensure_avalonia_using(cs: str) -> str:
-    if "using global::Avalonia;" in cs:
+def add_using(cs: str, using_line: str) -> str:
+    if using_line in cs:
         return cs
-    if "using System;\n" in cs:
-        return cs.replace("using System;\n", "using System;\nusing global::Avalonia;\n", 1)
-    return "using global::Avalonia;\n" + cs
+    first_using = re.search(r"^using\s+", cs, re.MULTILINE)
+    if first_using:
+        return cs[: first_using.start()] + using_line + "\n" + cs[first_using.start() :]
+
+    lines = cs.splitlines(keepends=True)
+    index = 0
+    in_block_comment = False
+    while index < len(lines):
+        stripped = lines[index].strip()
+        if in_block_comment:
+            index += 1
+            if "*/" in stripped:
+                in_block_comment = False
+            continue
+        if not stripped or stripped.startswith("//"):
+            index += 1
+            continue
+        if stripped.startswith("/*"):
+            index += 1
+            if "*/" not in stripped:
+                in_block_comment = True
+            continue
+        break
+    return "".join(lines[:index]) + using_line + "\n" + "".join(lines[index:])
+
+
+def ensure_avalonia_using(cs: str) -> str:
+    return add_using(cs, "using global::Avalonia;")
 
 
 def ensure_system_using(cs: str) -> str:
@@ -127,21 +161,13 @@ def ensure_system_using(cs: str) -> str:
         return cs
     if "using System;" in cs or "using global::System;" in cs:
         return cs
-    return "using System;\n" + cs
+    return add_using(cs, "using System;")
 
 
 def ensure_avalonia_controls_using(cs: str) -> str:
-    if "TopLevel.GetTopLevel(this) as Window" not in cs:
+    if "TopLevel.GetTopLevel(this) as Window" not in cs and "WindowStartupLocation." not in cs:
         return cs
-    if "using global::Avalonia.Controls;" in cs or "using Avalonia.Controls;" in cs:
-        return cs
-    if "using global::Avalonia;\n" in cs:
-        return cs.replace("using global::Avalonia;\n", "using global::Avalonia;\nusing global::Avalonia.Controls;\n", 1)
-    if "using Avalonia;\n" in cs:
-        return cs.replace("using Avalonia;\n", "using Avalonia;\nusing global::Avalonia.Controls;\n", 1)
-    if "using System;\n" in cs:
-        return cs.replace("using System;\n", "using System;\nusing global::Avalonia.Controls;\n", 1)
-    return "using global::Avalonia.Controls;\n" + cs
+    return add_using(cs, "using global::Avalonia.Controls;")
 
 
 def convert_base_list(cs: str, view_name: str) -> str:
@@ -182,10 +208,16 @@ def inject_members(cs: str, descriptor: Descriptor) -> str:
         if not marker:
             raise ValueError("public bool/new bool IsLoaded expression not found")
         indent = marker.group("indent")
-        size_bool = "true" if descriptor.size_to_content else "false"
+        descriptor_args = [f'"{descriptor.title}"', descriptor.width, descriptor.height]
+        if descriptor.size_to_content:
+            descriptor_args.append("SizeToContent: true")
+        if not descriptor.can_resize:
+            descriptor_args.append("CanResize: false")
+        if descriptor.startup_location != "CenterOwner":
+            descriptor_args.append(f"StartupLocation: WindowStartupLocation.{descriptor.startup_location}")
         injected = (
             marker.group(0)
-            + f'{indent}public EditorDescriptor Descriptor => new("{descriptor.title}", {descriptor.width}, {descriptor.height}, SizeToContent: {size_bool});\n'
+            + f'{indent}public EditorDescriptor Descriptor => new({", ".join(descriptor_args)});\n'
             + f'{indent}public event EventHandler? CloseRequested;\n'
         )
         cs = cs[: marker.start()] + injected + cs[marker.end() :]
@@ -290,6 +322,7 @@ def convert_cs(cs: str, view_name: str, descriptor: Descriptor) -> str:
     cs = ensure_avalonia_controls_using(cs)
     cs = convert_self_close(cs)
     cs = inject_members(cs, descriptor)
+    cs = ensure_avalonia_controls_using(cs)
     cs = ensure_system_using(cs)
     cs = convert_opened_handler(cs)
     return cs

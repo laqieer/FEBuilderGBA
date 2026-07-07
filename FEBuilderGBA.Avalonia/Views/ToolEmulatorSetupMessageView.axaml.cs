@@ -1,10 +1,10 @@
+
 using System;
 using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
-
 namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class ToolEmulatorSetupMessageView : TranslatedUserControl, IEmbeddableEditor
@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ToolEmulatorSetupMessageViewModel _vm = new();
         public string ViewTitle => "Emulator is not configured";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Emulator is not configured", 700, 245, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Emulator is not configured", 700, 245, SizeToContent: true, CanResize: false);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

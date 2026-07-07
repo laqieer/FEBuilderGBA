@@ -1,5 +1,3 @@
-using System;
-using global::Avalonia;
 // SPDX-License-Identifier: GPL-3.0-or-later
 // EmulatorMemoryView code-behind - gap-sweep #385 parity rebuild.
 //
@@ -17,6 +15,8 @@ using global::Avalonia;
 // vacuously true because no Avalonia handler ever calls
 // ROM.SetU8/16/32 - the entire ROM-mutating surface is KnownGap.
 
+using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
