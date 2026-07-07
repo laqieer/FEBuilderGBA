@@ -19,7 +19,7 @@ from pathlib import Path
 EXCLUDED_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("IPickableEditor", re.compile(r"\bIPickableEditor\b")),
     ("StorageProvider", re.compile(r"\bStorageProvider\b")),
-    ("MessageBox", re.compile(r"\bMessageBox\b")),
+    ("MessageBox", re.compile(r"\bMessageBox(?:Window)?\b")),
     ("ShowDialog(", re.compile(r"\bShowDialog\s*\(")),
     ("GetTopLevel", re.compile(r"\bGetTopLevel\b")),
     ("Closed event", re.compile(r"\bClosed\s*\+=")),
@@ -29,9 +29,10 @@ EXCLUDED_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("Dialogs.*Show", re.compile(r"\bDialogs\.[A-Za-z0-9_.]*Show\b")),
     ("owner-bound ShowDialog", re.compile(r"\bShowDialog\s*<[^>]+>\s*\(\s*this\b")),
     ("owner-bound OpenModal", re.compile(r"\bOpenModal\s*<[^>]+>\s*\([^;]*\bthis\b", re.DOTALL)),
+    ("owner-bound ShowAsync", re.compile(r"\bShowAsync\s*\(\s*this\b")),
     ("owner-bound image export", re.compile(r"\bExportPng\s*\(\s*this\b")),
     ("owner-bound image import", re.compile(r"\bImageImportService\.[A-Za-z0-9_]+\s*\(\s*this\b")),
-    ("self Close()", re.compile(r"(?<![\.\w])Close\s*\(")),
+    ("Close with result", re.compile(r"(?<![\.\w])Close\s*\(\s*[^)\s]|\bthis\s*\.\s*Close\s*\(\s*[^)\s]")),
 )
 
 ROOT_RE = re.compile(r"(?P<root><Window\b(?P<attrs>.*?)>)", re.DOTALL)
@@ -121,6 +122,14 @@ def ensure_avalonia_using(cs: str) -> str:
     return "using global::Avalonia;\n" + cs
 
 
+def ensure_system_using(cs: str) -> str:
+    if "EventHandler" not in cs and "EventArgs" not in cs:
+        return cs
+    if "using System;" in cs or "using global::System;" in cs:
+        return cs
+    return "using System;\n" + cs
+
+
 def ensure_avalonia_controls_using(cs: str) -> str:
     if "TopLevel.GetTopLevel(this) as Window" not in cs:
         return cs
@@ -157,6 +166,13 @@ def convert_owner_bound_pick_from_editor(cs: str) -> str:
         cs,
         flags=re.DOTALL,
     )
+
+
+def convert_self_close(cs: str) -> str:
+    """Convert calls that close the editor Window itself into embeddable CloseRequested requests."""
+    cs = re.sub(r"\bthis\s*\.\s*Close\s*\(\s*\)\s*;", "RequestClose();", cs)
+    cs = re.sub(r"(?<![\.\w])Close\s*\(\s*\)\s*;", "RequestClose();", cs)
+    return cs
 
 
 def inject_members(cs: str, descriptor: Descriptor) -> str:
@@ -272,7 +288,9 @@ def convert_cs(cs: str, view_name: str, descriptor: Descriptor) -> str:
     cs = convert_base_list(cs, view_name)
     cs = convert_owner_bound_pick_from_editor(cs)
     cs = ensure_avalonia_controls_using(cs)
+    cs = convert_self_close(cs)
     cs = inject_members(cs, descriptor)
+    cs = ensure_system_using(cs)
     cs = convert_opened_handler(cs)
     return cs
 
