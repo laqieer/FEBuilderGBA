@@ -27,7 +27,6 @@ EXCLUDED_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("FileDialogHelper", re.compile(r"\bFileDialogHelper\b")),
     ("NumberInputDialog", re.compile(r"\bNumberInputDialog\b")),
     ("Dialogs.*Show", re.compile(r"\bDialogs\.[A-Za-z0-9_.]*Show\b")),
-    ("owner-bound PickFromEditor", re.compile(r"\bPickFromEditor\s*<[^>]+>\s*\([^;]*\bthis\b", re.DOTALL)),
     ("owner-bound ShowDialog", re.compile(r"\bShowDialog\s*<[^>]+>\s*\(\s*this\b")),
     ("owner-bound OpenModal", re.compile(r"\bOpenModal\s*<[^>]+>\s*\([^;]*\bthis\b", re.DOTALL)),
     ("owner-bound image export", re.compile(r"\bExportPng\s*\(\s*this\b")),
@@ -35,10 +34,10 @@ EXCLUDED_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("self Close()", re.compile(r"(?<![\.\w])Close\s*\(")),
 )
 
-ROOT_RE = re.compile(r"^<Window\b(?P<attrs>.*?)>", re.DOTALL)
+ROOT_RE = re.compile(r"(?P<root><Window\b(?P<attrs>.*?)>)", re.DOTALL)
 ATTR_RE = re.compile(r"(?P<name>[\w:.]+)\s*=\s*\"(?P<value>[^\"]*)\"")
 OPENED_RE = re.compile(
-    r"^(?P<indent>[ \t]*)Opened[ \t]*\+=[ \t]*\([^;\n]*\)[ \t]*=>[ \t]*(?P<call>[A-Za-z_][A-Za-z0-9_]*[ \t]*\([^;\n]*\))[ \t]*;[ \t]*\n",
+    r"^(?P<indent>[ \t]*)Opened[ \t]*\+=[ \t]*\([^;\n]*\)[ \t]*=>[ \t]*(?P<call>[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*[ \t]*\([^;\n]*\))[ \t]*;[ \t]*\n",
     re.MULTILINE,
 )
 OPENED_COMPOUND_RE = re.compile(
@@ -91,7 +90,7 @@ def parse_window_root(axaml: str, view_name: str) -> tuple[str, dict[str, str], 
         height=attrs["Height"],
         size_to_content=parse_size_to_content(attrs.get("SizeToContent")),
     )
-    return match.group(0), attrs, descriptor
+    return match.group("root"), attrs, descriptor
 
 
 def convert_axaml(axaml: str, view_name: str) -> tuple[str, Descriptor]:
@@ -122,6 +121,20 @@ def ensure_avalonia_using(cs: str) -> str:
     return "using global::Avalonia;\n" + cs
 
 
+def ensure_avalonia_controls_using(cs: str) -> str:
+    if "TopLevel.GetTopLevel(this) as Window" not in cs:
+        return cs
+    if "using global::Avalonia.Controls;" in cs or "using Avalonia.Controls;" in cs:
+        return cs
+    if "using global::Avalonia;\n" in cs:
+        return cs.replace("using global::Avalonia;\n", "using global::Avalonia;\nusing global::Avalonia.Controls;\n", 1)
+    if "using Avalonia;\n" in cs:
+        return cs.replace("using Avalonia;\n", "using Avalonia;\nusing global::Avalonia.Controls;\n", 1)
+    if "using System;\n" in cs:
+        return cs.replace("using System;\n", "using System;\nusing global::Avalonia.Controls;\n", 1)
+    return "using global::Avalonia.Controls;\n" + cs
+
+
 def convert_base_list(cs: str, view_name: str) -> str:
     pattern = re.compile(rf"public\s+partial\s+class\s+{re.escape(view_name)}\s*:\s*(?P<bases>[^\n{{]+)")
     match = pattern.search(cs)
@@ -134,6 +147,16 @@ def convert_base_list(cs: str, view_name: str) -> str:
         raise ValueError("class does not implement IEditorView")
     new_bases = bases.replace("TranslatedWindow", "TranslatedUserControl").replace("IEditorView", "IEmbeddableEditor")
     return cs[: match.start("bases")] + new_bases + cs[match.end("bases") :]
+
+
+def convert_owner_bound_pick_from_editor(cs: str) -> str:
+    """Reroute Window owner arguments through the hosting TopLevel after conversion to UserControl."""
+    return re.sub(
+        r"(PickFromEditor<[^>]+>\s*\(\s*[^;,\n\)](?:[^;]*?)),\s*this\s*\)",
+        r"\1, TopLevel.GetTopLevel(this) as Window)",
+        cs,
+        flags=re.DOTALL,
+    )
 
 
 def inject_members(cs: str, descriptor: Descriptor) -> str:
@@ -247,6 +270,8 @@ def convert_cs(cs: str, view_name: str, descriptor: Descriptor) -> str:
             raise RuntimeError(f"SKIP excluded pattern: {label}")
     cs = ensure_avalonia_using(cs)
     cs = convert_base_list(cs, view_name)
+    cs = convert_owner_bound_pick_from_editor(cs)
+    cs = ensure_avalonia_controls_using(cs)
     cs = inject_members(cs, descriptor)
     cs = convert_opened_handler(cs)
     return cs

@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -6,18 +7,31 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MainSimpleMenuImageSubView : TranslatedWindow, IEditorView
+    public partial class MainSimpleMenuImageSubView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly MainSimpleMenuImageSubViewModel _vm = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Image Sub-Menu";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Image Sub-Menu", 1773, 1038, SizeToContent: true);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public MainSimpleMenuImageSubView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()

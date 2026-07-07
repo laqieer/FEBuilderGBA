@@ -1,9 +1,7 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
-        x:Class="FEBuilderGBA.Avalonia.Views.ItemPromotionViewerView"
-        Title="Item Promotion Editor" Width="1180" Height="720"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+             x:Class="FEBuilderGBA.Avalonia.Views.ItemPromotionViewerView">
   <!--
     Issue #368: CC-item-driven master/detail layout that mirrors the WinForms
     ItemPromotionForm. Outer EntryList = the fixed set of CC items (Hero Crest,
@@ -120,4 +118,4 @@
       </Grid>
     </Grid>
   </Grid>
-</Window>
+</UserControl>

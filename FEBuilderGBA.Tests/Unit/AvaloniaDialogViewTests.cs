@@ -915,39 +915,20 @@ namespace FEBuilderGBA.Tests.Unit
         [InlineData("BattleTerrainViewerView.axaml", 1251, 811)]
         [InlineData("ChapterTitleViewerView.axaml", 1224, 564)]
         [InlineData("SystemIconViewerView.axaml", 966, 656)]
-        // #419 — Width/Height bumped to 1534x878 to accommodate the three-pane
-        // master-detail rebuild added by the gap-sweep parity raise.
-        [InlineData("OPClassDemoViewerView.axaml", 1534, 878)]
         [InlineData("OPClassFontViewerView.axaml", 1179, 475)]
-        [InlineData("ItemWeaponEffectViewerView.axaml", 1302, 803)]
-        // Issue #368 — sizes bumped to fit the new item-driven master/detail layout.
-        [InlineData("ItemEffectivenessViewerView.axaml", 1297, 780)]
-        [InlineData("ItemPromotionViewerView.axaml", 1180, 720)]
-        // PR #465 (#369) bumped ItemShopViewerView to 1280x720; sync the expected size.
-        [InlineData("ItemShopViewerView.axaml", 1280, 720)]
         // #440 — Width bumped to 1253 to accommodate the dense filter/read-config
         // bar + selection-row added by the gap-sweep parity raise.
         [InlineData("ItemIconViewerView.axaml", 749, 358)]
-        [InlineData("ArenaClassViewerView.axaml", 1201, 738)]
-        [InlineData("LinkArenaDenyUnitViewerView.axaml", 1201, 738)]
-        [InlineData("MonsterProbabilityViewerView.axaml", 1203, 552)]
-        // #394: MonsterItemForm parity rebuild — 3-tab restructure
-        // brings AV control density to LOW; window dimensions changed
-        // to 1280x900 (was 1645x935) to fit the new tab layout.
-        [InlineData("MonsterItemViewerView.axaml", 1280, 900)]
         [InlineData("SummonUnitViewerView.axaml", 1214, 462)]
         [InlineData("SummonsDemonKingViewerView.axaml", 1237, 700)]
-        [InlineData("SoundBossBGMViewerView.axaml", 1392, 722)]
         [InlineData("SoundRoomViewerView.axaml", 1275, 817)]
         [InlineData("TextViewerView.axaml", 1166, 930)]
         [InlineData("PortraitViewerView.axaml", 789, 700)]
-        [InlineData("EDView.axaml", 1280, 820)]
         [InlineData("SongTableView.axaml", 1505, 809)]
         [InlineData("UnitEditorView.axaml", 934, 661)]
         [InlineData("ItemEditorView.axaml", 1408, 856)]
         [InlineData("ClassEditorView.axaml", 1200, 900)]
         [InlineData("ClassFE6View.axaml", 1200, 900)]
-        [InlineData("CCBranchEditorView.axaml", 1264, 684)]
         [InlineData("SupportTalkView.axaml", 1279, 720)]
         [InlineData("UnitFE6View.axaml", 934, 700)]
         [InlineData("UnitFE7View.axaml", 1409, 900)]
@@ -957,10 +938,6 @@ namespace FEBuilderGBA.Tests.Unit
         [InlineData("MapSettingView.axaml", 1773, 1038)]
         [InlineData("EventCondView.axaml", 1834, 999)]
         [InlineData("UnitIncreaseHeightView.axaml", 1185, 658)]
-        [InlineData("ClassOPDemoView.axaml", 1534, 930)]
-        [InlineData("OPClassDemoFE7View.axaml", 1580, 1020)]
-        [InlineData("OPClassDemoFE7UView.axaml", 1580, 980)]
-        [InlineData("OPClassDemoFE8UView.axaml", 1579, 898)]
         [InlineData("StatusOptionOrderView.axaml", 1238, 806)]
         [InlineData("DisASMDumpAllView.axaml", 695, 721)]
         [InlineData("DisASMDumpAllArgGrepView.axaml", 891, 757)]

@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
@@ -9,19 +10,31 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class LinkArenaDenyUnitViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class LinkArenaDenyUnitViewerView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly LinkArenaDenyUnitViewerViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Link Arena Deny Unit";
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
+        public EditorDescriptor Descriptor => new("Link Arena Deny Unit Editor", 1201, 738, SizeToContent: true);
+        public event EventHandler? CloseRequested;
 
         public LinkArenaDenyUnitViewerView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -99,7 +112,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 uint addr = SupportUnitNavigation.UnitAddrForOneBased(CoreState.ROM, UnitIdBox.Value);
-                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
+                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null)
                 {
                     // PickResult.Index is 0-based; UnitId is 1-based (#937).
@@ -119,5 +132,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

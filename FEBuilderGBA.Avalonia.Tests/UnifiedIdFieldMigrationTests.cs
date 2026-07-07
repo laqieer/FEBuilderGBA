@@ -1074,7 +1074,7 @@ public class UnifiedIdFieldMigrationTests
 
     // ---- Helpers ------------------------------------------------------
 
-    static void AssertAutomationIdResolvesToNumericUpDown(Window view, string automationId)
+    static void AssertAutomationIdResolvesToNumericUpDown(Control view, string automationId)
     {
         // GetLogicalDescendants can enumerate the same Control instance twice
         // when it lives inside a TabControl item (the logical tree traverses

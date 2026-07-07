@@ -16,6 +16,7 @@
 // the Lyn tab list (the original surface), so any pre-existing
 // ListParityHelper / INavigationTargetSource callers keep working.
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Controls;
@@ -25,16 +26,20 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EDFE7View : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class EDFE7View : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly EDFE7ViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
         bool _suppressEpilogueDesignationSync;
 
         public string ViewTitle => "ED (FE7)";
-        public bool IsLoaded =>
+        public new bool IsLoaded =>
             _vm.LynCanWrite || _vm.RetreatCanWrite || _vm.EpithetCanWrite || _vm.EpilogueCanWrite;
+        public EditorDescriptor Descriptor => new("ED (FE7)", 1280, 820, SizeToContent: true);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public EDFE7View()
         {
@@ -43,7 +48,16 @@ namespace FEBuilderGBA.Avalonia.Views
             Retreat_EntryList.SelectedAddressChanged += OnRetreatSelected;
             Epithet_EntryList.SelectedAddressChanged += OnEpithetSelected;
             Epilogue_EntryList.SelectedAddressChanged += OnEpilogueSelected;
-            Opened += (_, _) => LoadAllLists();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadAllLists();
+            }
         }
 
         // ============================================================
@@ -171,7 +185,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 uint addr = UnitAddrFor(Lyn_UnitIdBox.Value);
-                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
+                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null) Lyn_UnitIdBox.Value = (uint)result.Index + 1;
             }
             catch (Exception ex) { Log.ErrorF("EDFE7View.LynUnitId_Pick failed: {0}", ex.Message); }
@@ -289,7 +303,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 uint addr = UnitAddrFor(Retreat_UnitIdBox.Value);
-                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
+                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null) Retreat_UnitIdBox.Value = (uint)result.Index + 1;
             }
             catch (Exception ex) { Log.ErrorF("EDFE7View.RetreatUnitId_Pick failed: {0}", ex.Message); }
@@ -416,7 +430,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 uint addr = UnitAddrFor(Epithet_UnitIdBox.Value);
-                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
+                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null) Epithet_UnitIdBox.Value = (uint)result.Index + 1;
             }
             catch (Exception ex) { Log.ErrorF("EDFE7View.EpithetUnitId_Pick failed: {0}", ex.Message); }
@@ -590,7 +604,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 uint addr = UnitAddrFor(Epilogue_UnitId1Box.Value);
-                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
+                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null) Epilogue_UnitId1Box.Value = (uint)result.Index + 1;
             }
             catch (Exception ex) { Log.ErrorF("EDFE7View.EpilogueUnitId1_Pick failed: {0}", ex.Message); }
@@ -618,7 +632,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 uint addr = UnitAddrFor(Epilogue_UnitId2Box.Value);
-                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
+                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null) Epilogue_UnitId2Box.Value = (uint)result.Index + 1;
             }
             catch (Exception ex) { Log.ErrorF("EDFE7View.EpilogueUnitId2_Pick failed: {0}", ex.Message); }

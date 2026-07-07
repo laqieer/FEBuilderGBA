@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
@@ -30,15 +31,19 @@ namespace FEBuilderGBA.Avalonia.Views
     /// (anime block) round-trip through <c>rom.write_p32</c> via the
     /// <c>EditorFormRef</c> <c>FieldType.Pointer</c> codec.
     /// </summary>
-    public partial class OPClassDemoFE7View : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class OPClassDemoFE7View : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly OPClassDemoFE7ViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
         bool _suppressN2Change;
 
         public string ViewTitle => "OP Class Demo (FE7) Editor";
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
+        public EditorDescriptor Descriptor => new("OP Class Demo (FE7) Editor", 1580, 1020, SizeToContent: true);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public OPClassDemoFE7View()
         {
@@ -46,7 +51,16 @@ namespace FEBuilderGBA.Avalonia.Views
             EntryList.SelectedAddressChanged += OnSelected;
             DescTextIdLowBox.ValueChanged += OnDescTextIdLowChanged;
             N2CommandRawBox.ValueChanged += OnN2CommandRawChanged;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void OnDescTextIdLowChanged(object? sender, NumericUpDownValueChangedEventArgs e)
@@ -79,7 +93,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // Per WF N2_AddressList_SelectedIndexChanged: cmd 3 and 8 use
                 // raw "00" argument (no wait); other commands display "/60 (sec)".
                 // Wrap in R._() so the runtime assignment stays localized after
-                // the initial TranslatedWindow.TranslateAll() pass (Copilot PR
+                // the initial TranslatedUserControl.TranslateAll() pass (Copilot PR
                 // #537 finding).
                 if (cmd == 0x03 || cmd == 0x08)
                 {
@@ -339,9 +353,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint addr = ClassAddrFor(ClassIdBox.Value);
                 PickResult? result;
                 if (CoreState.ROM?.RomInfo?.version == 6)
-                    result = await WindowManager.Instance.PickFromEditor<ClassFE6View>(addr, this);
+                    result = await WindowManager.Instance.PickFromEditor<ClassFE6View>(addr, TopLevel.GetTopLevel(this) as Window);
                 else
-                    result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr, this);
+                    result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null) ClassIdBox.Value = (uint)result.Index;
             }
             catch (Exception ex) { Log.ErrorF("OPClassDemoFE7View.ClassId_Pick failed: {0}", ex.Message); }

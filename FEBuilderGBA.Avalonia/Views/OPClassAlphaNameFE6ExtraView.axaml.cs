@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -6,18 +7,31 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class OPClassAlphaNameFE6ExtraView : TranslatedWindow, IEditorView
+    public partial class OPClassAlphaNameFE6ExtraView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly OPClassAlphaNameFE6ExtraViewModel _vm = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "OP Class Alpha Name (FE6 Extra)";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("OP Class Alpha Name (FE6 Extra)", 800, 500, SizeToContent: true);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public OPClassAlphaNameFE6ExtraView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()

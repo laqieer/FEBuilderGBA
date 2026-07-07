@@ -1,9 +1,7 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
-        x:Class="FEBuilderGBA.Avalonia.Views.ItemEffectivenessViewerView"
-        Title="Item Effectiveness Editor" Width="1297" Height="780"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+             x:Class="FEBuilderGBA.Avalonia.Views.ItemEffectivenessViewerView">
   <!--
     Issue #368: item-driven master/detail layout that mirrors the WinForms
     ItemEffectivenessForm. Outer EntryList = items whose +16 effectiveness
@@ -135,4 +133,4 @@
       </Grid>
     </Grid>
   </Grid>
-</Window>
+</UserControl>

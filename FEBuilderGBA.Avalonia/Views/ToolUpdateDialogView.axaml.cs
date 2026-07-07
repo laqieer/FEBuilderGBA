@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -6,18 +7,31 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolUpdateDialogView : TranslatedWindow, IEditorView
+    public partial class ToolUpdateDialogView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ToolUpdateDialogViewModel _vm = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Update Checker";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Update Checker", 920, 416, SizeToContent: true);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ToolUpdateDialogView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()

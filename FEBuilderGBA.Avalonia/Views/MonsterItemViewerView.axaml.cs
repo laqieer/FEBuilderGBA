@@ -22,6 +22,7 @@
 // pointing at the original single-tab surface continue to resolve.
 
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
@@ -32,13 +33,16 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MonsterItemViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class MonsterItemViewerView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly MonsterItemViewerViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Monster Item";
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
+        public EditorDescriptor Descriptor => new("Monster Item Editor", 1280, 900, SizeToContent: true);
+        public event EventHandler? CloseRequested;
 
         public MonsterItemViewerView()
         {
@@ -46,12 +50,18 @@ namespace FEBuilderGBA.Avalonia.Views
             EntryList.SelectedAddressChanged += OnItemSelected;
             ProbEntryList.SelectedAddressChanged += OnProbSelected;
             HoldingEntryList.SelectedAddressChanged += OnHoldingSelected;
-            Opened += (_, _) =>
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
             {
+                _hasLoadedList = true;
                 LoadItemList();
                 LoadProbList();
                 LoadHoldList();
-            };
+            }
         }
 
         // ============================================================
@@ -617,9 +627,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint addr = ItemAddrFor(box.Value);
                 PickResult? result;
                 if (CoreState.ROM?.RomInfo?.version == 6)
-                    result = await WindowManager.Instance.PickFromEditor<ItemFE6View>(addr, this);
+                    result = await WindowManager.Instance.PickFromEditor<ItemFE6View>(addr, TopLevel.GetTopLevel(this) as Window);
                 else
-                    result = await WindowManager.Instance.PickFromEditor<ItemEditorView>(addr, this);
+                    result = await WindowManager.Instance.PickFromEditor<ItemEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null)
                     box.Value = (uint)result.Index;
             }
@@ -740,7 +750,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 uint addr = ClassAddrFor(HoldClassIdBox.Value);
-                var result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr, this);
+                var result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null) HoldClassIdBox.Value = (uint)result.Index;
             }
             catch (Exception ex) { Log.ErrorF("MonsterItemViewerView.HoldClassId_Pick: {0}", ex.Message); }
@@ -759,6 +769,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         // ============================================================
         // Comment + ReadWindow helpers (Copilot CLI PR review threads).

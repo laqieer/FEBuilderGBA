@@ -15,6 +15,7 @@
 // the Retreat tab list (the original surface), so any pre-existing
 // ListParityHelper / INavigationTargetSource callers keep working.
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Controls;
@@ -24,15 +25,19 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EDView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class EDView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly EDViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
         bool _suppressEpilogueDesignationSync;
 
         public string ViewTitle => "Ending Event Editor";
-        public bool IsLoaded => _vm.RetreatCanWrite || _vm.EpithetCanWrite || _vm.EpilogueCanWrite;
+        public new bool IsLoaded => _vm.RetreatCanWrite || _vm.EpithetCanWrite || _vm.EpilogueCanWrite;
+        public EditorDescriptor Descriptor => new("Ending Event Editor", 1280, 820, SizeToContent: true);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public EDView()
         {
@@ -40,7 +45,16 @@ namespace FEBuilderGBA.Avalonia.Views
             Retreat_EntryList.SelectedAddressChanged += OnRetreatSelected;
             Epithet_EntryList.SelectedAddressChanged += OnEpithetSelected;
             Epilogue_EntryList.SelectedAddressChanged += OnEpilogueSelected;
-            Opened += (_, _) => { LoadAllLists(); UpdateEpilogueAvailability(); };
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadAllLists(); UpdateEpilogueAvailability();
+            }
         }
 
         // ============================================================
@@ -184,7 +198,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 uint addr = UnitAddrFor(Retreat_UnitIdBox.Value);
-                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
+                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null) Retreat_UnitIdBox.Value = (uint)result.Index + 1;
             }
             catch (Exception ex) { Log.ErrorF("EDView.RetreatUnitId_Pick failed: {0}", ex.Message); }
@@ -311,7 +325,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 uint addr = UnitAddrFor(Epithet_UnitIdBox.Value);
-                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
+                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null) Epithet_UnitIdBox.Value = (uint)result.Index + 1;
             }
             catch (Exception ex) { Log.ErrorF("EDView.EpithetUnitId_Pick failed: {0}", ex.Message); }
@@ -498,7 +512,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 uint addr = UnitAddrFor(Epilogue_UnitId1Box.Value);
-                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
+                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null) Epilogue_UnitId1Box.Value = (uint)result.Index + 1;
             }
             catch (Exception ex) { Log.ErrorF("EDView.EpilogueUnitId1_Pick failed: {0}", ex.Message); }
@@ -526,7 +540,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 uint addr = UnitAddrFor(Epilogue_UnitId2Box.Value);
-                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
+                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null) Epilogue_UnitId2Box.Value = (uint)result.Index + 1;
             }
             catch (Exception ex) { Log.ErrorF("EDView.EpilogueUnitId2_Pick failed: {0}", ex.Message); }

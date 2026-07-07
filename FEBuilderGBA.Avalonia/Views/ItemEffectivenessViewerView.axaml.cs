@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
@@ -19,10 +20,12 @@ namespace FEBuilderGBA.Avalonia.Views
     /// ItemListBox of items sharing the same effectiveness array, plus the
     /// IndependencePanel for forking shared arrays.
     /// </summary>
-    public partial class ItemEffectivenessViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class ItemEffectivenessViewerView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
         readonly ItemEffectivenessViewerViewModel _vm = new();
+        bool _hasLoadedList;
 
         // Inner-list rows are AddressListItem so we can render icons in a
         // ListBox; we keep a parallel List<AddrResult> for index lookup.
@@ -33,7 +36,9 @@ namespace FEBuilderGBA.Avalonia.Views
         List<AddrResult> _sharedData = new();
 
         public string ViewTitle => "Item Effectiveness";
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
+        public EditorDescriptor Descriptor => new("Item Effectiveness Editor", 1297, 780, SizeToContent: true);
+        public event EventHandler? CloseRequested;
 
         public ItemEffectivenessViewerView()
         {
@@ -41,7 +46,16 @@ namespace FEBuilderGBA.Avalonia.Views
             EntryList.SelectedAddressChanged += OnOuterSelected;
             InnerList.ItemsSource = _innerDisplay;
             ItemListBox.ItemsSource = _sharedDisplay;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -243,9 +257,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint addr = ClassAddrFor(ClassIdBox.Value);
                 PickResult? result;
                 if (CoreState.ROM?.RomInfo?.version == 6)
-                    result = await WindowManager.Instance.PickFromEditor<ClassFE6View>(addr, this);
+                    result = await WindowManager.Instance.PickFromEditor<ClassFE6View>(addr, TopLevel.GetTopLevel(this) as Window);
                 else
-                    result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr, this);
+                    result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null) ClassIdBox.Value = (uint)result.Index;
             }
             catch (Exception ex) { Log.ErrorF("ItemEffectivenessViewerView.ClassId_Pick failed: {0}", ex.Message); }

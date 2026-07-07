@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
@@ -19,23 +20,36 @@ namespace FEBuilderGBA.Avalonia.Views
     /// editor. When the IER patch is detected the X_IER_Patch warning panel
     /// appears with a button that opens Patch Manager.
     /// </summary>
-    public partial class ItemPromotionViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class ItemPromotionViewerView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
         readonly ItemPromotionViewerViewModel _vm = new();
+        bool _hasLoadedList;
 
         readonly System.Collections.ObjectModel.ObservableCollection<AddressListItem> _innerDisplay = new();
         List<AddrResult> _innerData = new();
 
         public string ViewTitle => "Item Promotion";
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
+        public EditorDescriptor Descriptor => new("Item Promotion Editor", 1180, 720, SizeToContent: true);
+        public event EventHandler? CloseRequested;
 
         public ItemPromotionViewerView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnOuterSelected;
             InnerList.ItemsSource = _innerDisplay;
-            Opened += (_, _) => { LoadList(); CheckIERPatch(); };
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList(); CheckIERPatch();
+            }
         }
 
         void LoadList()
@@ -228,9 +242,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint addr = ClassAddrFor(ClassIdBox.Value);
                 PickResult? result;
                 if (CoreState.ROM?.RomInfo?.version == 6)
-                    result = await WindowManager.Instance.PickFromEditor<ClassFE6View>(addr, this);
+                    result = await WindowManager.Instance.PickFromEditor<ClassFE6View>(addr, TopLevel.GetTopLevel(this) as Window);
                 else
-                    result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr, this);
+                    result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null) ClassIdBox.Value = (uint)result.Index;
             }
             catch (Exception ex) { Log.ErrorF("ItemPromotionViewerView.ClassId_Pick failed: {0}", ex.Message); }

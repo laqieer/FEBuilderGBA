@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using System.Collections.Generic;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -15,10 +16,11 @@ namespace FEBuilderGBA.Avalonia.Views
     /// sub-lists (Japanese name font glyphs / animation commands) plus
     /// patch-aware affordances for OPClassReelSort and OPClassReelAnimationIDOver255.
     /// </summary>
-    public partial class OPClassDemoViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class OPClassDemoViewerView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly OPClassDemoViewerViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         // N1 sub-list state — Japanese name font glyphs (1 byte each, terminator 0xFF).
         List<OPClassDemoViewerViewModel.N1Row> _n1Rows = new();
@@ -29,8 +31,11 @@ namespace FEBuilderGBA.Avalonia.Views
         uint _n2SelectedAddr;
 
         public string ViewTitle => "OP Class Demo Editor";
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
+        public EditorDescriptor Descriptor => new("OP Class Demo Editor", 1534, 878, SizeToContent: true);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public OPClassDemoViewerView()
         {
@@ -112,11 +117,17 @@ namespace FEBuilderGBA.Avalonia.Views
                     N2B0Box.Value = idx + 1; // combo entry "1=..." → value 1
             };
 
-            Opened += (_, _) =>
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
             {
+                _hasLoadedList = true;
                 ApplyPatchAwareUI();
                 LoadList();
-            };
+            }
         }
 
         // -----------------------------------------------------------------
@@ -200,9 +211,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint addr = ClassAddrFor(DisplayWeaponBox.Value);
                 PickResult? result;
                 if (CoreState.ROM?.RomInfo?.version == 6)
-                    result = await WindowManager.Instance.PickFromEditor<ClassFE6View>(addr, this);
+                    result = await WindowManager.Instance.PickFromEditor<ClassFE6View>(addr, TopLevel.GetTopLevel(this) as Window);
                 else
-                    result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr, this);
+                    result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null) DisplayWeaponBox.Value = (uint)result.Index;
             }
             catch (Exception ex) { Log.Error($"OPClassDemoViewerView.ClassId_Pick: {ex.Message}"); }

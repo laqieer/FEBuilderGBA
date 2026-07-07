@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
@@ -10,20 +11,33 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EDSensekiCommentView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class EDSensekiCommentView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly EDSensekiCommentViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "ED Senseki Comment";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("ED Senseki Comment", 1226, 485, SizeToContent: true);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public EDSensekiCommentView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -106,7 +120,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 uint addr = SupportUnitNavigation.UnitAddrForOneBased(CoreState.ROM, UnitIdBox.Value);
-                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
+                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 // PickResult.Index is 0-based; UnitId is 1-based (#937).
                 if (result != null) UnitIdBox.Value = SupportUnitNavigation.OneBasedIdFromPickIndex(result.Index);
             }
