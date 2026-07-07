@@ -1,11 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.ToolClickWriteFloatControlPanelButtonView"
-        Title="Which button would you click?"
-        Width="920" Height="220"
-        WindowStartupLocation="CenterOwner"
-        CanResize="False"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.ToolClickWriteFloatControlPanelButtonView">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <Border Margin="13" Padding="5,11">
     <Grid ColumnDefinitions="128,*" RowDefinitions="Auto,Auto">
@@ -27,4 +22,4 @@
     </Grid>
   </Border>
   </ScrollViewer>
-</Window>
+</UserControl>

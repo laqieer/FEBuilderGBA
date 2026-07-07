@@ -116,7 +116,9 @@ the `INavigationService` abstraction (#1122):
 > `SupportTalkView`, `SupportTalkFE6View`, `SupportTalkFE7View`, `UnitFE6View`, `UnitFE7View`,
 > and `UnitMainView`. The converter reroutes optional desktop `Window` owner arguments from
 > `WindowManager.PickFromEditor(..., this)` to `TopLevel.GetTopLevel(this) as Window` when the caller
-> becomes a `UserControl`; picker *targets* remain deferred.
+> becomes a `UserControl`; picker *targets* remain deferred. Slice 7 starts the complex phase by
+> converting the first self-close-only dialog/tool batch, where converted `Close()` calls become
+> `RequestClose()` and close through the hosting `EditorHostWindow`.
 > Editors with owner-bound file/dialog/picker/closed-event flows remain deferred until the
 > single-view dialog-flow slice.
 

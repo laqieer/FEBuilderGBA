@@ -8,14 +8,17 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class TextCharCodeView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class TextCharCodeView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly TextCharCodeViewModel _vm = new();
         readonly UndoService _undoService = new();
 
         public string ViewTitle => "Text Character Code";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Text Character Code Table", 1172, 519, SizeToContent: true);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public TextCharCodeView()
         {
@@ -30,7 +33,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void Close_Click(object? sender, RoutedEventArgs e) => Close();
+        void Close_Click(object? sender, RoutedEventArgs e) => RequestClose();
 
         /// <summary>
         /// Persist the edited Char Code (u16@0) and Terminator (u16@2) to the ROM under an

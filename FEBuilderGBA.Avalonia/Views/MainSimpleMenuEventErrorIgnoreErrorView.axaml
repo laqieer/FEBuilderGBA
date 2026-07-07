@@ -1,11 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.MainSimpleMenuEventErrorIgnoreErrorView"
-        Title="Hide this error"
-        Width="820" Height="355"
-        WindowStartupLocation="CenterOwner"
-        CanResize="False"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.MainSimpleMenuEventErrorIgnoreErrorView">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <StackPanel Margin="16,13,12,12">
     <!-- Question label -->
@@ -26,4 +21,4 @@
     </Grid>
   </StackPanel>
   </ScrollViewer>
-</Window>
+</UserControl>

@@ -1,9 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.EmulatorMemoryView"
-        Title="Emulator Memory" Width="1280" Height="900"
-        WindowStartupLocation="CenterOwner"
-        SizeToContent="Manual">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.EmulatorMemoryView">
   <!--
     EmulatorMemoryView - gap-sweep #385 parity rebuild.
     Cross-platform Avalonia has no P/Invoke RAM reader, so this view is a
@@ -711,4 +708,4 @@
       </TabControl>
     </DockPanel>
   </ScrollViewer>
-</Window>
+</UserControl>

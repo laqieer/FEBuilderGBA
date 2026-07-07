@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -6,12 +7,15 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MoveToFreeSpaceView : TranslatedWindow, IEditorView
+    public partial class MoveToFreeSpaceView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly MoveToFreeSpaceViewViewModel _vm = new();
         readonly UndoService _undoService = new();
         public string ViewTitle => "Move to Free Space";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Move to Free Space", 800, 500, SizeToContent: true);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public MoveToFreeSpaceView()
         {
@@ -40,7 +44,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void Close_Click(object? sender, RoutedEventArgs e) => Close();
+        void Close_Click(object? sender, RoutedEventArgs e) => RequestClose();
 
         public void NavigateTo(uint address)
         {

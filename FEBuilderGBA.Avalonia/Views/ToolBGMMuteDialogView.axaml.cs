@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -6,11 +7,14 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolBGMMuteDialogView : TranslatedWindow, IEditorView
+    public partial class ToolBGMMuteDialogView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ToolBGMMuteDialogViewModel _vm = new();
         public string ViewTitle => "BGM Mute Settings";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("BGM Mute Settings", 583, 320, SizeToContent: true);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ToolBGMMuteDialogView()
         {
@@ -25,19 +29,19 @@ namespace FEBuilderGBA.Avalonia.Views
         void Toggle_Click(object? sender, RoutedEventArgs e)
         {
             _vm.DialogResult = "toggle";
-            Close();
+            RequestClose();
         }
 
         void OnlyPlay_Click(object? sender, RoutedEventArgs e)
         {
             _vm.DialogResult = "onlyplay";
-            Close();
+            RequestClose();
         }
 
         void PlayAll_Click(object? sender, RoutedEventArgs e)
         {
             _vm.DialogResult = "playall";
-            Close();
+            RequestClose();
         }
 
         public void NavigateTo(uint address) { }

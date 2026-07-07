@@ -1,11 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.ToolEmulatorSetupMessageView"
-        Title="Emulator is not configured"
-        Width="700" Height="245"
-        WindowStartupLocation="CenterOwner"
-        CanResize="False"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.ToolEmulatorSetupMessageView">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <StackPanel Margin="22,31,15,15">
     <TextBlock TextWrapping="Wrap" Height="36"
@@ -16,4 +11,4 @@
             HorizontalAlignment="Stretch" Margin="0,16,0,0" Click="ManualSetup_Click" />
   </StackPanel>
   </ScrollViewer>
-</Window>
+</UserControl>

@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -6,11 +7,14 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolEmulatorSetupMessageView : TranslatedWindow, IEditorView
+    public partial class ToolEmulatorSetupMessageView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ToolEmulatorSetupMessageViewModel _vm = new();
         public string ViewTitle => "Emulator is not configured";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Emulator is not configured", 700, 245, SizeToContent: true);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ToolEmulatorSetupMessageView()
         {
@@ -22,13 +26,13 @@ namespace FEBuilderGBA.Avalonia.Views
         void UseInitWizard_Click(object? sender, RoutedEventArgs e)
         {
             _vm.UseInitWizardResult = "wizard";
-            Close();
+            RequestClose();
         }
 
         void ManualSetup_Click(object? sender, RoutedEventArgs e)
         {
             _vm.UseInitWizardResult = "manual";
-            Close();
+            RequestClose();
         }
 
         public void NavigateTo(uint address) { }

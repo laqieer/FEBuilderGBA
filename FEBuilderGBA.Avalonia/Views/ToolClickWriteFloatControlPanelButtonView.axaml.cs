@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -6,11 +7,14 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolClickWriteFloatControlPanelButtonView : TranslatedWindow, IEditorView
+    public partial class ToolClickWriteFloatControlPanelButtonView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ToolClickWriteFloatControlPanelButtonViewModel _vm = new();
         public string ViewTitle => "Which button would you click?";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Which button would you click?", 920, 220, SizeToContent: true);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ToolClickWriteFloatControlPanelButtonView()
         {
@@ -22,13 +26,13 @@ namespace FEBuilderGBA.Avalonia.Views
         void Update_Click(object? sender, RoutedEventArgs e)
         {
             _vm.DialogResult = "update";
-            Close();
+            RequestClose();
         }
 
         void New_Click(object? sender, RoutedEventArgs e)
         {
             _vm.DialogResult = "new";
-            Close();
+            RequestClose();
         }
 
         public void NavigateTo(uint address) { }
