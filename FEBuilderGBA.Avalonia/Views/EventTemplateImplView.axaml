@@ -1,8 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.EventTemplateImplView"
-        Title="Event Template Implementation" Width="860" Height="600"
-        SizeToContent="Manual">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.EventTemplateImplView">
   <Grid ColumnDefinitions="320,*" Margin="8">
     <ListBox AutomationProperties.AutomationId="EventTemplateImpl_List"
              Grid.Column="0" Name="TemplateList" Margin="0,0,8,0"
@@ -37,4 +35,4 @@
       </Grid>
     </ScrollViewer>
   </Grid>
-</Window>
+</UserControl>

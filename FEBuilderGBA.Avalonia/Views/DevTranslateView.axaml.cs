@@ -25,7 +25,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Developer Translation Tool";
         public new bool IsLoaded => true;
-        public EditorDescriptor Descriptor => new("Developer Translation Tool", 620, 560, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Developer Translation Tool", 620, 560, SizeToContent: global::Avalonia.Controls.SizeToContent.Height);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

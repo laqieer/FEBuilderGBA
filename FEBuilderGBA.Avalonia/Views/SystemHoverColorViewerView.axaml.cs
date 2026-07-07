@@ -16,7 +16,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "System Area Color Viewer";
         public new bool IsLoaded => _vm.CanWrite;
-        public EditorDescriptor Descriptor => new("System Area Color Viewer", 1238, 604, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("System Area Color Viewer", 1238, 604, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);

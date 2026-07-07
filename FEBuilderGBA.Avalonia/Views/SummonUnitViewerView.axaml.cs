@@ -19,7 +19,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Summon Unit";
         public new bool IsLoaded => _vm.CanWrite;
-        public EditorDescriptor Descriptor => new("Summon Unit Editor", 1214, 462, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Summon Unit Editor", 1214, 462, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public SummonUnitViewerView()

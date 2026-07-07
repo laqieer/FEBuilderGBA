@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ErrorTSAErrorViewModel _vm = new();
         public string ViewTitle => "TSA Error";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("TSA Error", 1071, 885, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("TSA Error", 1071, 885, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

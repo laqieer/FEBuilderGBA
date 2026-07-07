@@ -157,7 +157,7 @@ public class ImageBattleScreenParityTests
         string code = File.ReadAllText(CodeBehindPath());
         // Handler exports the live preview surface (no ROM write).
         Assert.Matches(new Regex(
-            @"BattlePreview\.ExportPng\(\s*this", RegexOptions.Singleline), code);
+            @"BattlePreview\.ExportPng\(\s*TopLevel\.GetTopLevel\(this\)\s+as\s+Window", RegexOptions.Singleline), code);
         // Gate is driven from HasImage and applied to the button (no DataContext).
         Assert.Matches(new Regex(
             @"_vm\.CanExportBattle\s*=\s*BattlePreview\.HasImage", RegexOptions.Singleline), code);

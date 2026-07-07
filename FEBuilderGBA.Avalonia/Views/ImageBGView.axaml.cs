@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -11,19 +12,21 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImageBGView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class ImageBGView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly ImageBGViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Background Image Editor";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Background Image Editor", 1024, 560, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
 
         public ImageBGView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
 
             // Wire Comment lost-focus → save (mirrors WF
             // InputFormRef.OnComment_TextChanged save path).
@@ -33,6 +36,16 @@ namespace FEBuilderGBA.Avalonia.Views
             DragDrop.SetAllowDrop(this, true);
             AddHandler(DragDrop.DragOverEvent, OnDragOver);
             AddHandler(DragDrop.DropEvent, OnDrop);
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void OnDragOver(object? sender, DragEventArgs e)
@@ -228,7 +241,7 @@ namespace FEBuilderGBA.Avalonia.Views
         // asset fails gracefully with the existing strict-size error.
         async void FERepo_Click(object? sender, RoutedEventArgs e)
         {
-            string? path = await FERepoPickHelper.PickForEditor(this,
+            string? path = await FERepoPickHelper.PickForEditor(TopLevel.GetTopLevel(this) as Window,
                 FERepoResourceBrowser.FERepoEditorKind.BackgroundImage);
             if (string.IsNullOrEmpty(path)) return;
             ImportImageFromFile(path);
@@ -377,7 +390,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (IsBG256ColorEntry())
                 {
                     int maxColors = _vm.P4 == 1 ? 224 : 256;
-                    var bg256Load = await ImageImportService.LoadAndQuantize(this, 256, 160, maxColors, strictSize: true);
+                    var bg256Load = await ImageImportService.LoadAndQuantize(TopLevel.GetTopLevel(this) as Window, 256, 160, maxColors, strictSize: true);
                     if (bg256Load == null) return;
                     if (!bg256Load.Success) { CoreState.Services.ShowError(bg256Load.Error); return; }
                     RunBG256Import(bg256Load, bg256Load.SourcePath, "Import BG255 Image");
@@ -398,7 +411,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // expectation. Loading 240x160 would produce
                 // incorrect header-TSA packing under the default
                 // tsa_width_margin=2 (Copilot bot review on PR #517).
-                var loadResult = await ImageImportService.LoadAndQuantize(this, 256, 160, 16, strictSize: true);
+                var loadResult = await ImageImportService.LoadAndQuantize(TopLevel.GetTopLevel(this) as Window, 256, 160, 16, strictSize: true);
                 if (loadResult == null) return;
                 if (!loadResult.Success) { CoreState.Services.ShowError(loadResult.Error); return; }
 
@@ -432,7 +445,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void ExportPng_Click(object? sender, RoutedEventArgs e)
         {
-            await ImageDisplay.ExportPng(this, $"background_{_vm.CurrentIndex:X02}.png");
+            await ImageDisplay.ExportPng(TopLevel.GetTopLevel(this) as Window, $"background_{_vm.CurrentIndex:X02}.png");
         }
 
         static uint ParseHexText(string? text)
@@ -494,7 +507,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (safeColorCount < 16) { CoreState.Services.ShowError("Palette pointer is too close to end of ROM"); return; }
                 byte[] pal = ImageUtilCore.GetPalette(palAddr, safeColorCount);
                 if (pal == null || pal.Length < 32) { CoreState.Services.ShowError("Failed to read palette"); return; }
-                await FileDialogHelper.SavePaletteFileVia(this, "bg_palette.pal", p =>
+                await FileDialogHelper.SavePaletteFileVia(TopLevel.GetTopLevel(this) as Window, "bg_palette.pal", p =>
                 {
                     // #1639: write via the SAF bridge so Android content:// targets work.
                     PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(p));
@@ -517,7 +530,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     CoreState.Services?.ShowError("No BG entry is selected. Select an entry in the list before importing.");
                     return;
                 }
-                string path = await FileDialogHelper.OpenPaletteFile(this);
+                string path = await FileDialogHelper.OpenPaletteFile(TopLevel.GetTopLevel(this) as Window);
                 if (string.IsNullOrEmpty(path)) return;
                 byte[] fileData = File.ReadAllBytes(path);
                 PaletteFormat fmt = PaletteFormatConverter.DetectFormat(fileData, System.IO.Path.GetExtension(path));
@@ -647,5 +660,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

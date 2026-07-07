@@ -17,7 +17,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Support Attribute";
         public new bool IsLoaded => _vm.CanWrite;
-        public EditorDescriptor Descriptor => new("Support Attribute Editor", 1169, 497, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Support Attribute Editor", 1169, 497, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public SupportAttributeView()

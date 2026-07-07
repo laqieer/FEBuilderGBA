@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ToolDecompileResultViewViewModel _vm = new();
         public string ViewTitle => "Decompile Result";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Decompile Result", 802, 845, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Decompile Result", 802, 845, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

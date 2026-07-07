@@ -1,6 +1,7 @@
 // #886 — Export + OpenSource/SelectSource wired.
 // #889 — Import wired (closes #889, completes #500 image-import).
 // Editor remains a stub (follow-up to #500).
+using global::Avalonia;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -32,20 +33,33 @@ namespace FEBuilderGBA.Avalonia.Views
     /// referencing the open follow-up <c>#500</c> (ToolAnimationCreator
     /// real-init flow).
     /// </summary>
-    public partial class ImageMagicCSACreatorView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class ImageMagicCSACreatorView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly ImageMagicCSACreatorViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "CSA Magic Creator";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("CSA Magic Creator", 1080, 610, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ImageMagicCSACreatorView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -411,7 +425,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // so require a real local path; a SAF pick (no local path) cannot
             // resolve siblings → message on Android, never silent.
             string txtPath = await FileDialogHelper.OpenFile(
-                this,
+                TopLevel.GetTopLevel(this) as Window,
                 R._("Import CSA magic animation script"),
                 "*.txt", requireLocalPath: true);
 
@@ -561,7 +575,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
 
             var (filename, filterIndex) = await FileDialogHelper.SaveFileWithFilterIndex(
-                this,
+                TopLevel.GetTopLevel(this) as Window,
                 R._("Save CSA magic animation script"),
                 new (string, string)[]
                 {

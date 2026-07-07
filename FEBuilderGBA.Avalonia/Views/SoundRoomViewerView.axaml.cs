@@ -19,7 +19,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Sound Room";
         public new bool IsLoaded => _vm.CanWrite;
-        public EditorDescriptor Descriptor => new("Sound Room Editor", 1275, 817, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Sound Room Editor", 1275, 817, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public SoundRoomViewerView()

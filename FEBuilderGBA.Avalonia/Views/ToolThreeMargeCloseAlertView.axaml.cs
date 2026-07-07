@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ToolThreeMargeCloseAlertViewModel _vm = new();
         public string ViewTitle => "Do you want to close the comparison tool?";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Do you want to close the comparison tool?", 820, 380, SizeToContent: true, CanResize: false);
+        public EditorDescriptor Descriptor => new("Do you want to close the comparison tool?", 820, 380, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight, CanResize: false);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

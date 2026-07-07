@@ -20,7 +20,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Random Chest Items";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Random Chest Items", 808, 410, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Random Chest Items", 808, 410, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public ItemRandomChestView()

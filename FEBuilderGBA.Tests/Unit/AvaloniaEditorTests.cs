@@ -1452,7 +1452,7 @@ namespace FEBuilderGBA.Tests.Unit
             // editor has not yet been rebuilt — that's a separate
             // follow-up.
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml.cs"));
-            Assert.Contains("(\"AIScriptView\", () => wm.Open<AIScriptView>())", src);
+            Assert.Contains("(\"AIScriptView\", () => wm.OpenAsTopLevel<AIScriptView>())", src);
             Assert.Contains("(\"ProcsScriptView\", () => wm.Open<ProcsScriptCategorySelectView>())", src);
         }
 

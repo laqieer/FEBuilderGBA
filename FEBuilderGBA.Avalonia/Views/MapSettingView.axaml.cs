@@ -17,7 +17,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Map Settings";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Map Settings", 1773, 1038, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Map Settings", 1773, 1038, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);

@@ -16,7 +16,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Units Short Text Editor";
         public new bool IsLoaded => _vm.CanWrite;
-        public EditorDescriptor Descriptor => new("Units Short Text Editor", 1155, 551, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Units Short Text Editor", 1155, 551, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public UnitsShortTextView()

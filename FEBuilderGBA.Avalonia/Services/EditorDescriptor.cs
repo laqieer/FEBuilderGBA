@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.Services
         string Title,
         double PreferredWidth,
         double PreferredHeight,
-        bool SizeToContent = false,
+        global::Avalonia.Controls.SizeToContent SizeToContent = global::Avalonia.Controls.SizeToContent.Manual,
         double MinWidth = 0,
         double MinHeight = 0,
         bool CanBeModal = false,

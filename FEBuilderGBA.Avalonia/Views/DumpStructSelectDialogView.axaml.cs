@@ -3,6 +3,7 @@
 // Mirrors WinForms `DumpStructSelectDialogForm`. Eleven action buttons each
 // invoke a side effect (clipboard write / WindowManager.Navigate / open the
 // text-display dialog) and update the VM's SelectedFunc to track the action.
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Input.Platform;
@@ -12,13 +13,16 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class DumpStructSelectDialogView : TranslatedWindow, IEditorView
+    public partial class DumpStructSelectDialogView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly DumpStructSelectDialogViewModel _vm = new();
         readonly UndoService _undoService = new();
 
         public string ViewTitle => R._("Data Address Editor");
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Data Address Editor", 720, 860, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         /// <summary>Public accessor for the VM — used by parity/unit tests.</summary>
         public DumpStructSelectDialogViewModel ViewModel => _vm;
@@ -169,7 +173,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // real file; everything else honestly shows the hex-dump preview.
                 if (_vm.ResolvedTableName() != null)
                 {
-                    await TableExportImportHelper.ExportTableByAddressAsync(this, _vm.CurrentAddr, formatName);
+                    await TableExportImportHelper.ExportTableByAddressAsync(TopLevel.GetTopLevel(this) as Window, _vm.CurrentAddr, formatName);
                     return;
                 }
 
@@ -201,7 +205,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // ShowDialog with this as owner so the preview is modal and
                 // honors the target view's WindowStartupLocation="CenterOwner".
                 // (Per Copilot inline review on PR #494.)
-                await dialog.ShowDialog(this);
+                await dialog.ShowDialog(TopLevel.GetTopLevel(this) as Window);
             }
             catch (Exception ex)
             {
@@ -231,7 +235,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _vm.SelectedFunc = DumpStructSelectDialogViewModel.Func.Func_Import;
                 await TableExportImportHelper.ImportTableByAddressAsync(
-                    this, _vm.CurrentAddr, _undoService, UpdateAddressLabel);
+                    TopLevel.GetTopLevel(this) as Window, _vm.CurrentAddr, _undoService, UpdateAddressLabel);
             }
             catch (Exception ex)
             {
@@ -246,14 +250,14 @@ namespace FEBuilderGBA.Avalonia.Views
         void CancelButton_Click(object? sender, RoutedEventArgs e)
         {
             _vm.SelectedFunc = DumpStructSelectDialogViewModel.Func.Func_Cancel;
-            Close();
+            RequestClose();
         }
 
         async System.Threading.Tasks.Task SetClipboardAsync(string text)
         {
             try
             {
-                IClipboard? clipboard = Clipboard;
+                IClipboard? clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
                 if (clipboard != null)
                     await clipboard.SetTextAsync(text);
             }

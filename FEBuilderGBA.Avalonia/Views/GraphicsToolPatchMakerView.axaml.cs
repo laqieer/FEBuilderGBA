@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -8,14 +9,17 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class GraphicsToolPatchMakerView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class GraphicsToolPatchMakerView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly GraphicsToolPatchMakerViewViewModel _vm = new();
         readonly UndoService _undoService = new();
 
         public string ViewTitle => "Graphics Tool Patch Maker";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Graphics Tool Patch Maker", 620, 580, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public GraphicsToolPatchMakerView()
         {
@@ -29,14 +33,14 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void BrowseOriginal_Click(object? sender, RoutedEventArgs e)
         {
-            var path = await FileDialogHelper.OpenRomFile(this);
+            var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this) as Window);
             if (!string.IsNullOrEmpty(path))
                 _vm.OriginalRomPath = path;
         }
 
         async void BrowseModified_Click(object? sender, RoutedEventArgs e)
         {
-            var path = await FileDialogHelper.OpenRomFile(this);
+            var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this) as Window);
             if (!string.IsNullOrEmpty(path))
                 _vm.ModifiedRomPath = path;
         }
@@ -54,13 +58,15 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void Close_Click(object? sender, RoutedEventArgs e) => Close();
+        void Close_Click(object? sender, RoutedEventArgs e) => RequestClose();
 
         async void Save_Click(object? sender, RoutedEventArgs e)
         {
             try
             {
-                var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+                var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+                if (storageProvider == null) return;
+                var file = await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
                 {
                     Title = R._("Save Graphics Patch"),
                     SuggestedFileName = "graphics_patch.txt",

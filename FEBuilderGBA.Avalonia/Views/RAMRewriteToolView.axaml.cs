@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly RAMRewriteToolViewViewModel _vm = new();
         public string ViewTitle => "RAM Rewrite Tool";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("RAM Rewrite Tool", 463, 486, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("RAM Rewrite Tool", 463, 486, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

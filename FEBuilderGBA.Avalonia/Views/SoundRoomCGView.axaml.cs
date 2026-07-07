@@ -18,7 +18,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public new bool IsLoaded => _vm.IsLoaded;
 
 
-        public EditorDescriptor Descriptor => new("Sound Room CG", 1392, 722, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Sound Room CG", 1392, 722, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
 
         public event EventHandler? CloseRequested;
         public SoundRoomCGView()

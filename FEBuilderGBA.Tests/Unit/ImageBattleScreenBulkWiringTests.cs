@@ -110,7 +110,7 @@ namespace FEBuilderGBA.Tests.Unit
         {
             var src = CodeBehind;
             Assert.Matches(new Regex(
-                @"void\s+BulkExport_Click[\s\S]{0,300}BattlePreview\.ExportPng\(this,\s*""battle_screen""\)",
+                @"void\s+BulkExport_Click[\s\S]{0,300}BattlePreview\.ExportPng\(TopLevel\.GetTopLevel\(this\)\s+as\s+Window,\s*""battle_screen""\)",
                 RegexOptions.Singleline), src);
         }
 
@@ -187,12 +187,12 @@ namespace FEBuilderGBA.Tests.Unit
         [Fact]
         public void Window_HasBoundedMinHeight_SoTabStripIsReachable()
         {
-            var axaml = Axaml;
-            // A MinHeight large enough to reveal the tab content below the
-            // preview row (the tab row would otherwise collapse under the older
-            // auto-size). Guards against regressing to the clipped layout.
-            var m = Regex.Match(axaml, @"MinHeight=""(\d+)""");
-            Assert.True(m.Success, "Battle Screen window must declare a MinHeight so the tab strip is reachable.");
+            var src = CodeBehind;
+            // A Descriptor MinHeight large enough to reveal the tab content
+            // below the preview row. The hosted EditorHostWindow applies this
+            // value after the root moved from Window to UserControl.
+            var m = Regex.Match(src, @"Descriptor\s*=>\s*new\([^;]*MinHeight:\s*(\d+)");
+            Assert.True(m.Success, "Battle Screen descriptor must declare a MinHeight so the tab strip is reachable.");
             Assert.True(int.Parse(m.Groups[1].Value) >= 700,
                 "MinHeight must be tall enough (>=700) to render the tab content (preview row + tabs).");
         }

@@ -14,7 +14,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Flag Name Editor";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Flag Name Editor", 900, 560, SizeToContent: false);
+        public EditorDescriptor Descriptor => new("Flag Name Editor", 900, 560);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

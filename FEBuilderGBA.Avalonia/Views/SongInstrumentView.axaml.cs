@@ -26,7 +26,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Instrument Editor";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Instrument Editor", 1200, 780, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Instrument Editor", 1200, 780, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         // Header bytes that map to the 14 WF UNIONTAB_Nxx pages, in tab order.

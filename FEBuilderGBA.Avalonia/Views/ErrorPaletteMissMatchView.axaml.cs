@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ErrorPaletteMissMatchViewModel _vm = new();
         public string ViewTitle => "Palette Mismatch Error";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Palette Mismatch", 1110, 711, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Palette Mismatch", 1110, 711, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

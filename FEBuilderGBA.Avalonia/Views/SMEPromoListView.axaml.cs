@@ -13,7 +13,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly UndoService _undoService = new();
         public string ViewTitle => "SME Promo List";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("SME Promo List", 1155, 655, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("SME Promo List", 1155, 655, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

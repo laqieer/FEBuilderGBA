@@ -21,7 +21,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public string ViewTitle => "Map Change Editor";
         public new bool IsLoaded => _vm.CanWrite;
 
-        public EditorDescriptor Descriptor => new("Map Change Editor", 1609, 636, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Map Change Editor", 1609, 636, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
 
         public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;

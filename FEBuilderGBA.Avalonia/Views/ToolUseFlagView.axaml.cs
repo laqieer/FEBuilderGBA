@@ -22,7 +22,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Flags Used in Chapter";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Flags Used in Chapter", 1113, 720, SizeToContent: false);
+        public EditorDescriptor Descriptor => new("Flags Used in Chapter", 1113, 720);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

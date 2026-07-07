@@ -1,10 +1,7 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
-        x:Class="FEBuilderGBA.Avalonia.Views.ImageBattleScreenView"
-        Title="Battle Screen Layout" Width="1180" Height="820"
-        MinWidth="900" MinHeight="760"
-        SizeToContent="Manual">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+             x:Class="FEBuilderGBA.Avalonia.Views.ImageBattleScreenView">
   <Grid ColumnDefinitions="250,*">
 
     <!-- ===========================================================
@@ -578,4 +575,4 @@
       </TabControl>
     </Grid>
   </Grid>
-</Window>
+</UserControl>

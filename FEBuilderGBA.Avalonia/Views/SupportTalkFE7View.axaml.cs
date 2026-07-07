@@ -20,7 +20,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Support Talk (FE7)";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Support Talk (FE7)", 1279, 720, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Support Talk (FE7)", 1279, 720, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public SupportTalkFE7View()

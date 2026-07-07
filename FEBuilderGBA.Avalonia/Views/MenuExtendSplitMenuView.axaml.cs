@@ -17,7 +17,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public string ViewTitle => "Menu Extend Split";
         public new bool IsLoaded => _vm.IsLoaded;
 
-        public EditorDescriptor Descriptor => new("Menu Extend Split", 1257, 604, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Menu Extend Split", 1257, 604, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
 
         public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;

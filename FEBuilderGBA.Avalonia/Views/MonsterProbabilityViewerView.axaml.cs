@@ -26,7 +26,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Monster Probability";
         public new bool IsLoaded => _vm.CanWrite;
-        public EditorDescriptor Descriptor => new("Monster Probability Editor", 1203, 552, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Monster Probability Editor", 1203, 552, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public MonsterProbabilityViewerView()

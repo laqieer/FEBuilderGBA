@@ -14,7 +14,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "OP Class Alpha Name (FE6 Extra)";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("OP Class Alpha Name (FE6 Extra)", 800, 500, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("OP Class Alpha Name (FE6 Extra)", 800, 500, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

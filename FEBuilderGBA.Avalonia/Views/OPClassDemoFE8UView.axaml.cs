@@ -18,7 +18,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "OP Class Demo (FE8U) Editor";
         public new bool IsLoaded => _vm.CanWrite;
-        public EditorDescriptor Descriptor => new("OP Class Demo (FE8U) Editor", 1579, 898, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("OP Class Demo (FE8U) Editor", 1579, 898, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);

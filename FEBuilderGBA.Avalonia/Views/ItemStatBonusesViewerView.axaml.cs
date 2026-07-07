@@ -21,7 +21,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public new bool IsLoaded => _vm.CanWrite;
 
 
-        public EditorDescriptor Descriptor => new("Item Stat Bonuses Editor", 1291, 587, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Item Stat Bonuses Editor", 1291, 587, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
 
         public event EventHandler? CloseRequested;
         public ItemStatBonusesViewerView()

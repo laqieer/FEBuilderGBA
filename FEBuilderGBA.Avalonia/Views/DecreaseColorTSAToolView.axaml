@@ -1,9 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.DecreaseColorTSAToolView"
-        Title="Color Reduction Tool" Width="560" Height="520"
-        WindowStartupLocation="CenterOwner"
-        SizeToContent="Height">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.DecreaseColorTSAToolView">
   <!-- File→file PNG color-reduction utility (WF DecreaseColorTSAToolForm).
        NO ROM mutation, NO Undo, NO address list. Drives the merged Core
        engine DecreaseColorConvertCore (GetMethodPreset + ReduceColorFile).
@@ -118,4 +115,4 @@
 
     </StackPanel>
   </ScrollViewer>
-</Window>
+</UserControl>

@@ -16,7 +16,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Open Last Selected File";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Open Last Selected File", 760, 240, SizeToContent: false);
+        public EditorDescriptor Descriptor => new("Open Last Selected File", 760, 240);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

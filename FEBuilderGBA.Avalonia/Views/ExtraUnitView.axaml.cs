@@ -15,7 +15,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Extra Unit Editor";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Extra Unit Editor", 1121, 735, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Extra Unit Editor", 1121, 735, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public ExtraUnitView()

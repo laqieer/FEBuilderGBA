@@ -18,7 +18,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Units (FE7) Editor";
         public new bool IsLoaded => _vm.CanWrite;
-        public EditorDescriptor Descriptor => new("Units (FE7) Editor", 1409, 900, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Units (FE7) Editor", 1409, 900, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public UnitFE7View()

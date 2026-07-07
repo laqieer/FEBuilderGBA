@@ -11,10 +11,11 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImagePortraitView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class ImagePortraitView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly ImagePortraitViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         static readonly string[] ShowFrameNames = new[]
         {
@@ -31,13 +32,14 @@ namespace FEBuilderGBA.Avalonia.Views
         };
 
         public string ViewTitle => "Portrait Image Editor";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Portrait Image Editor", 900, 780, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
 
         public ImagePortraitView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
 
             // Enable drag-and-drop for image files
             DragDrop.SetAllowDrop(this, true);
@@ -48,6 +50,16 @@ namespace FEBuilderGBA.Avalonia.Views
             // patch detection (cross-platform Avalonia path, no WinForms dep).
             // Plan v3 #424 / WU2.
             UpdatePatchGatedVisibility();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void UpdatePatchGatedVisibility()
@@ -237,8 +249,8 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateShowFrameLabel()
         {
             int idx = _vm.ShowFrame;
-            // Translate at assignment time — TranslatedWindow.TranslateAll() runs
-            // once at window open, so values assigned afterward go through R._().
+            // Translate at assignment time — TranslatedUserControl.TranslateAll()
+            // runs once when attached, so values assigned afterward go through R._().
             ShowFrameLabel.Text = R._(idx >= 0 && idx < ShowFrameNames.Length
                 ? ShowFrameNames[idx] : $"Frame {idx}");
         }
@@ -300,7 +312,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 // Portrait face tiles: no strict size, quantize to 16 colors
-                var loadResult = await ImageImportService.LoadAndQuantize(this, 0, 0, 16);
+                var loadResult = await ImageImportService.LoadAndQuantize(TopLevel.GetTopLevel(this) as Window, 0, 0, 16);
                 if (loadResult == null) return;
                 if (!loadResult.Success) { CoreState.Services.ShowError(loadResult.Error); return; }
 
@@ -336,12 +348,12 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void ExportPng_Click(object? sender, RoutedEventArgs e)
         {
-            await PortraitImage.ExportPng(this, "portrait_face.png");
+            await PortraitImage.ExportPng(TopLevel.GetTopLevel(this) as Window, "portrait_face.png");
         }
 
         async void ExportMini_Click(object? sender, RoutedEventArgs e)
         {
-            await MiniPortraitImage.ExportPng(this, "portrait_mini.png");
+            await MiniPortraitImage.ExportPng(TopLevel.GetTopLevel(this) as Window, "portrait_mini.png");
         }
 
         async void ExportSheet_Click(object? sender, RoutedEventArgs e)
@@ -454,7 +466,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
 
                 // #1639: write via the SAF bridge so Android content:// targets work.
-                await FileDialogHelper.SaveImageFileVia(this, "portrait_sheet.png", p =>
+                await FileDialogHelper.SaveImageFileVia(TopLevel.GetTopLevel(this) as Window, "portrait_sheet.png", p =>
                 {
                     using var stream = File.Create(p);
                     wb.Save(stream);
@@ -478,7 +490,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint palAddr = U.toOffset(palPtr);
                 byte[] pal = ImageUtilCore.GetPalette(palAddr, 16);
                 if (pal == null || pal.Length < 32) { CoreState.Services.ShowError("Failed to read palette"); return; }
-                await FileDialogHelper.SavePaletteFileVia(this, "portrait_palette.pal", p =>
+                await FileDialogHelper.SavePaletteFileVia(TopLevel.GetTopLevel(this) as Window, "portrait_palette.pal", p =>
                 {
                     // #1639: write via the SAF bridge so Android content:// targets work.
                     PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(p));
@@ -494,7 +506,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 ROM rom = CoreState.ROM;
                 if (rom == null) return;
-                string? path = await FileDialogHelper.OpenPaletteFile(this);
+                string? path = await FileDialogHelper.OpenPaletteFile(TopLevel.GetTopLevel(this) as Window);
                 if (string.IsNullOrEmpty(path)) return;
                 byte[] fileData = File.ReadAllBytes(path);
                 PaletteFormat fmt = PaletteFormatConverter.DetectFormat(fileData, System.IO.Path.GetExtension(path));
@@ -663,7 +675,7 @@ namespace FEBuilderGBA.Avalonia.Views
         async void FERepoButton_Click(object? sender, RoutedEventArgs e)
         {
             var browser = new FERepoResourceBrowserWindow();
-            string result = await browser.ShowDialog<string>(this);
+            string result = await browser.ShowDialog<string>(TopLevel.GetTopLevel(this) as Window);
             if (!string.IsNullOrEmpty(result))
             {
                 ImportImageFromFile(result);
@@ -729,5 +741,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

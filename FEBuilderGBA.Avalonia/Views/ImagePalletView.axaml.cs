@@ -10,6 +10,7 @@
 // RunRedo() API" blocker was stale — RunRedo()/CanRedo have existed
 // since #692.
 
+using global::Avalonia;
 using System;
 using System.IO;
 using global::Avalonia.Controls;
@@ -22,10 +23,11 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImagePalletView : TranslatedWindow, IEditorView
+    public partial class ImagePalletView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ImagePalletViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         // Cache the original paletteNames passed via JumpTo so the
         // Palette Index combo labels survive a Write+reload or Undo
@@ -54,17 +56,29 @@ namespace FEBuilderGBA.Avalonia.Views
         double _previewBaseH;
 
         public string ViewTitle => "Palette Editor";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Palette Editor", 1280, 700, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ImagePalletView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
             // Wire all 48 R/G/B NumericUpDowns so an edit refreshes
             // the swatches immediately (Copilot bot round-3 inline
             // review #1 on PR #586).
             WireNudChangeHandlers();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void WireNudChangeHandlers()
@@ -746,7 +760,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (!_vm.IsLoaded) return;
                 // Pack the 16 displayed colors (incl. unsaved NUD edits).
                 byte[] gbaBytes = ComputeExportBytes();
-                await FileDialogHelper.SavePaletteFileVia(this, "palette.pal", p =>
+                await FileDialogHelper.SavePaletteFileVia(TopLevel.GetTopLevel(this) as Window, "palette.pal", p =>
                 {
                     // #1639: write via the SAF bridge so Android content:// targets work.
                     PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(Path.GetExtension(p));
@@ -770,7 +784,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // checks it. The IsLoaded gate alone refuses imports when
                 // no entry has been opened.
                 if (!_vm.IsLoaded) return;
-                string? path = await FileDialogHelper.OpenPaletteFile(this);
+                string? path = await FileDialogHelper.OpenPaletteFile(TopLevel.GetTopLevel(this) as Window);
                 if (string.IsNullOrEmpty(path)) return; // cancel = no change
                 byte[] fileData = File.ReadAllBytes(path);
                 PaletteFormat fmt = PaletteFormatConverter.DetectFormat(fileData, Path.GetExtension(path));

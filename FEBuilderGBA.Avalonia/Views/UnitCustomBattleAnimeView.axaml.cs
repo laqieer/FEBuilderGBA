@@ -33,7 +33,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Custom Battle Animation";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Custom Battle Animation", 1314, 521, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Custom Battle Animation", 1314, 521, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public UnitCustomBattleAnimeView()

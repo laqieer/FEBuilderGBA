@@ -1,9 +1,7 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
-        x:Class="FEBuilderGBA.Avalonia.Views.ImageUnitMoveIconView"
-        Title="Unit Move Icon" Width="900" Height="540"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+             x:Class="FEBuilderGBA.Avalonia.Views.ImageUnitMoveIconView">
   <Grid ColumnDefinitions="250,*" RowDefinitions="*,Auto">
     <controls:AddressListControl AutomationProperties.AutomationId="ImageUnitMoveIcon_Entry_List"
                                  Grid.Row="0" Grid.Column="0" Name="EntryList" Margin="4" />
@@ -128,4 +126,4 @@
       </StackPanel>
     </Border>
   </Grid>
-</Window>
+</UserControl>

@@ -22,7 +22,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public new bool IsLoaded => _vm.CanWrite;
 
 
-        public EditorDescriptor Descriptor => new("Arena Enemy Weapon Editor", 1257, 809, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Arena Enemy Weapon Editor", 1257, 809, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
 
         public event EventHandler? CloseRequested;
         public ArenaEnemyWeaponViewerView()

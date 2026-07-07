@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.IO;
 using global::Avalonia.Controls;
@@ -8,20 +9,33 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class BattleTerrainViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class BattleTerrainViewerView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly BattleTerrainViewerViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Battle Terrain Editor";
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
+        public EditorDescriptor Descriptor => new("Battle Terrain Editor", 1251, 811, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public BattleTerrainViewerView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -111,7 +125,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var loadResult = await ImageImportService.LoadAndQuantize(this, 256, 0, 16);
+                var loadResult = await ImageImportService.LoadAndQuantize(TopLevel.GetTopLevel(this) as Window, 256, 0, 16);
                 if (loadResult == null) return;
                 if (!loadResult.Success) { CoreState.Services.ShowError(loadResult.Error); return; }
 
@@ -138,7 +152,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void ExportPng_Click(object? sender, RoutedEventArgs e)
         {
-            await ImageDisplay.ExportPng(this, "battle_terrain.png");
+            await ImageDisplay.ExportPng(TopLevel.GetTopLevel(this) as Window, "battle_terrain.png");
         }
 
         async void ExportPal_Click(object? sender, RoutedEventArgs e)
@@ -151,7 +165,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // BattleTerrain palette is stored RAW (0x20 bytes), NOT LZ77.
                 byte[] pal = _vm.ExportPaletteBytes();
                 if (pal == null || pal.Length < 32) { CoreState.Services.ShowError("Failed to read palette"); return; }
-                await FileDialogHelper.SavePaletteFileVia(this, "battle_terrain_palette.pal", p =>
+                await FileDialogHelper.SavePaletteFileVia(TopLevel.GetTopLevel(this) as Window, "battle_terrain_palette.pal", p =>
                 {
                     // #1639: write via the SAF bridge so Android content:// targets work.
                     PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(p));
@@ -167,7 +181,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 ROM rom = CoreState.ROM;
                 if (rom == null) return;
-                string? path = await FileDialogHelper.OpenPaletteFile(this);
+                string? path = await FileDialogHelper.OpenPaletteFile(TopLevel.GetTopLevel(this) as Window);
                 if (string.IsNullOrEmpty(path)) return;
                 byte[] fileData = File.ReadAllBytes(path);
                 PaletteFormat fmt = PaletteFormatConverter.DetectFormat(fileData, System.IO.Path.GetExtension(path));

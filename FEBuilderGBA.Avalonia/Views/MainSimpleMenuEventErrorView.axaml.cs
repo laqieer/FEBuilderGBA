@@ -14,7 +14,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Event Error Display";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Event Error Display", 1773, 1038, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Event Error Display", 1773, 1038, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

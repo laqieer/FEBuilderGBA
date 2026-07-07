@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -7,20 +8,33 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class OPClassFontViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class OPClassFontViewerView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly OPClassFontViewerViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "OP Class Font Editor";
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
+        public EditorDescriptor Descriptor => new("OP Class Font Editor", 1179, 475, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public OPClassFontViewerView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -105,7 +119,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 // Generic OP class font glyph is 32x32 (4x4 tiles). LoadAndRemapToExistingPalette
                 // enforces the size + remaps onto the shared palette (nearest color).
-                var result = await ImageImportService.LoadAndRemapToExistingPalette(this, 32, 32, palette, 16, strictSize: true);
+                var result = await ImageImportService.LoadAndRemapToExistingPalette(TopLevel.GetTopLevel(this) as Window, 32, 32, palette, 16, strictSize: true);
                 if (result == null) return;                              // cancelled
                 if (!result.Success) { CoreState.Services?.ShowError(result.Error); return; }  // BEFORE the undo scope
 
@@ -133,7 +147,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void ExportPng_Click(object? sender, RoutedEventArgs e)
         {
-            await ImageDisplay.ExportPng(this, "op_class_font.png");
+            await ImageDisplay.ExportPng(TopLevel.GetTopLevel(this) as Window, "op_class_font.png");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

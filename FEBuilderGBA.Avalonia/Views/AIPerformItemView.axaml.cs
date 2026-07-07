@@ -15,7 +15,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "AI Item Performance";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("AI Item Performance", 800, 500, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("AI Item Performance", 800, 500, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public AIPerformItemView()

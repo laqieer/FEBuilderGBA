@@ -27,7 +27,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Path Editor";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Path Editor", 1103, 710, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Path Editor", 1103, 710, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly MainSimpleMenuEventErrorIgnoreErrorViewModel _vm = new();
         public string ViewTitle => "Hide this error";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Hide this error", 820, 355, SizeToContent: true, CanResize: false);
+        public EditorDescriptor Descriptor => new("Hide this error", 820, 355, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight, CanResize: false);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

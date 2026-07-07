@@ -236,7 +236,7 @@ public class ImagePalletImportExportTests
                 Assert.Equal(((byte)0xF8, (byte)0x00, (byte)0x00), colors[0]); // red, the edit
                 Assert.Equal(((byte)0x00, (byte)0xF8, (byte)0x00), colors[1]); // green
             }
-            finally { view.Hide(); }
+            finally { view.Close(); }
         }
         finally { CoreState.ROM = prevRom; }
     }
@@ -266,7 +266,7 @@ public class ImagePalletImportExportTests
                 Assert.Equal(16, parts.Length);
                 Assert.Equal("F80000", parts[0]); // slot 0 = red
             }
-            finally { view.Hide(); }
+            finally { view.Close(); }
         }
         finally { CoreState.ROM = prevRom; }
     }
@@ -308,7 +308,7 @@ public class ImagePalletImportExportTests
                 view.ApplyGbaBytesToNuds(prevBytes);
                 Assert.Equal(prevBytes, view.ComputeExportBytes());
             }
-            finally { view.Hide(); }
+            finally { view.Close(); }
         }
         finally { CoreState.ROM = prevRom; }
     }
@@ -340,7 +340,7 @@ public class ImagePalletImportExportTests
                 Assert.Equal(0x00, ReadNud(view, "ImagePallet_R2_Input"));
                 Assert.Equal(0xF8, ReadNud(view, "ImagePallet_G2_Input"));
             }
-            finally { view.Hide(); }
+            finally { view.Close(); }
         }
         finally { CoreState.ROM = prevRom; }
     }

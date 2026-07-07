@@ -24,7 +24,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Mant Animation";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Mant Animation", 801, 473, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Mant Animation", 801, 473, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public MantAnimationView()

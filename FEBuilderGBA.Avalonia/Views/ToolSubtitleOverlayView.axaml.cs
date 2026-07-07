@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ToolSubtitleOverlayViewViewModel _vm = new();
         public string ViewTitle => "Subtitle Overlay";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Subtitle Overlay", 992, 230, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Subtitle Overlay", 992, 230, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

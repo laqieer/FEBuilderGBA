@@ -14,7 +14,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Event Script Inner Control";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Event Script Inner Control", 800, 500, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Event Script Inner Control", 800, 500, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

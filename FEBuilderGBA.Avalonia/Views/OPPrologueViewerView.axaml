@@ -1,9 +1,7 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
-        x:Class="FEBuilderGBA.Avalonia.Views.OPPrologueViewerView"
-        Title="OP Prologue Editor" Width="1225" Height="471"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+             x:Class="FEBuilderGBA.Avalonia.Views.OPPrologueViewerView">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl AutomationProperties.AutomationId="OPPrologueViewer_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
     <ScrollViewer Grid.Column="1" Margin="4">
@@ -30,4 +28,4 @@
       </StackPanel>
     </ScrollViewer>
   </Grid>
-</Window>
+</UserControl>

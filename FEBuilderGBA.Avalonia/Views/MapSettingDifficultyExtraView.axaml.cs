@@ -14,7 +14,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Map Setting Difficulty Extra";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Map Setting Difficulty Extra", 800, 500, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Map Setting Difficulty Extra", 800, 500, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

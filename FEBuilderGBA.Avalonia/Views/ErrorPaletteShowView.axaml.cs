@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ErrorPaletteShowViewModel _vm = new();
         public string ViewTitle => "Palette Error Display";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Palette Error Display", 1210, 716, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Palette Error Display", 1210, 716, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

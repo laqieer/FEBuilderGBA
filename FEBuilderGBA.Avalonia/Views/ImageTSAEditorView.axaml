@@ -1,9 +1,7 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
-        x:Class="FEBuilderGBA.Avalonia.Views.ImageTSAEditorView"
-        Title="TSA Tile Editor" Width="1411" Height="938"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+             x:Class="FEBuilderGBA.Avalonia.Views.ImageTSAEditorView">
   <!-- ImageTSAEditorView - Avalonia parity raise for ImageTSAEditorForm
        (gap-sweep #398, 100 vs 3 controls, -97% density, 30 WF-only labels).
 
@@ -512,4 +510,4 @@
     </Grid>
 
   </Grid>
-</Window>
+</UserControl>

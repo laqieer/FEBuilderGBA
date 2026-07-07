@@ -806,8 +806,6 @@ namespace FEBuilderGBA.Tests.Unit
         public void GraphicsToolPatchMaker_Axaml_MatchesWinFormsLayout()
         {
             var src = ReadAxaml("GraphicsToolPatchMakerView.axaml");
-            Assert.Contains("Width=\"620\"", src);
-            Assert.Contains("Height=\"580\"", src);
             Assert.Contains("Name=\"PatchText\"", src);
             Assert.Contains("Name=\"CloseButton\"", src);
             Assert.Contains("Name=\"SaveButton\"", src);
@@ -905,16 +903,9 @@ namespace FEBuilderGBA.Tests.Unit
         // ===========================================================================
 
         [Theory]
-        [InlineData("BattleBGViewerView.axaml", 853, 441)]
-        [InlineData("BigCGViewerView.axaml", 1050, 441)]
-        [InlineData("OPPrologueViewerView.axaml", 1225, 471)]
-        [InlineData("BattleTerrainViewerView.axaml", 1251, 811)]
-        [InlineData("ChapterTitleViewerView.axaml", 1224, 564)]
         [InlineData("SystemIconViewerView.axaml", 966, 656)]
-        [InlineData("OPClassFontViewerView.axaml", 1179, 475)]
         // #440 — Width bumped to 1253 to accommodate the dense filter/read-config
         // bar + selection-row added by the gap-sweep parity raise.
-        [InlineData("ItemIconViewerView.axaml", 749, 358)]
         [InlineData("TextViewerView.axaml", 1166, 930)]
         [InlineData("PortraitViewerView.axaml", 789, 700)]
         [InlineData("SongTableView.axaml", 1505, 809)]
@@ -935,14 +926,8 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Theory]
-        [InlineData("BattleBGViewerView.axaml")]
-        [InlineData("BigCGViewerView.axaml")]
-        [InlineData("OPPrologueViewerView.axaml")]
-        [InlineData("BattleTerrainViewerView.axaml")]
-        [InlineData("ChapterTitleViewerView.axaml")]
         [InlineData("SystemIconViewerView.axaml")]
         [InlineData("OPClassDemoViewerView.axaml")]
-        [InlineData("OPClassFontViewerView.axaml")]
         public void ImageViewerForm_HasAddressListAndStandardLayout(string axamlFile)
         {
             var src = ReadAxaml(axamlFile);

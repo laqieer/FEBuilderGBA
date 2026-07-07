@@ -32,6 +32,6 @@ public class EditorHostWindowTests
 
     sealed class MoveCostDescriptorDouble : TestEmbeddableEditor
     {
-        public override EditorDescriptor Descriptor => new("Sized", 10, 20, SizeToContent: true);
+        public override EditorDescriptor Descriptor => new("Sized", 10, 20, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
     }
 }

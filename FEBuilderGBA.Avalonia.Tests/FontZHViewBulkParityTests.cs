@@ -68,8 +68,10 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Contains("FontZH_ImportAll_Button", ax);
             Assert.Contains("FontZH_LoadFont_Button", ax);
             Assert.Contains("FontZH_AutoGen_Button", ax);
-            // The added Window must keep SizeToContent="Manual" (the Avalonia gate).
-            Assert.Contains("SizeToContent=\"Manual\"", ax);
+            // The embeddable descriptor must keep manual sizing (the Avalonia gate).
+            string cs = ReadRepoFile("FEBuilderGBA.Avalonia", "Views", "FontZHView.axaml.cs");
+            Assert.Contains("public EditorDescriptor Descriptor => new(\"Font Editor (Chinese)\", 640, 640)", cs);
+            Assert.DoesNotContain("SizeToContent:", cs);
         }
 
         [Fact]

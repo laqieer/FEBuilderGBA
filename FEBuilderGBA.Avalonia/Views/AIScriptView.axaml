@@ -1,9 +1,7 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
-        x:Class="FEBuilderGBA.Avalonia.Views.AIScriptView"
-        Title="AI Script Editor" Width="1400" Height="780"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+             x:Class="FEBuilderGBA.Avalonia.Views.AIScriptView">
   <Grid RowDefinitions="Auto,*">
 
     <!-- ===========================================================
@@ -219,4 +217,4 @@
       </Grid>
     </Grid>
   </Grid>
-</Window>
+</UserControl>

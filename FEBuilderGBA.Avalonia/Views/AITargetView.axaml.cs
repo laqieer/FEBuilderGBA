@@ -15,7 +15,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "AI Targeting";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("AI Targeting", 800, 820, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("AI Targeting", 800, 820, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public AITargetView()

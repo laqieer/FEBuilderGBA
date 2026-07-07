@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.IO;
 using global::Avalonia.Controls;
@@ -8,10 +9,11 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImagePortraitFE6View : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class ImagePortraitFE6View : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly ImagePortraitFE6ViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         static readonly string[] ShowFrameNames = new[]
         {
@@ -24,13 +26,24 @@ namespace FEBuilderGBA.Avalonia.Views
         };
 
         public string ViewTitle => "Portrait Editor (FE6)";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Portrait Editor (FE6)", 900, 600, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
 
         public ImagePortraitFE6View()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -96,7 +109,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             int idx = (int)(ShowFrameInput?.Value ?? 0);
             // Translate the static description string at assignment time —
-            // TranslatedWindow.TranslateAll() runs once at window open, so
+            // TranslatedUserControl.TranslateAll() runs once when attached, so
             // values assigned afterward must go through R._() explicitly
             // to localize when the UI language is ja/zh.
             ShowFrameLabel.Text = R._(idx >= 0 && idx < ShowFrameNames.Length
@@ -321,7 +334,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void ImportPng_Click(object? sender, RoutedEventArgs e)
         {
-            string? filePath = await FileDialogHelper.OpenImageFile(this);
+            string? filePath = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this) as Window);
             if (string.IsNullOrEmpty(filePath)) return;
             ImportImageFromFile(filePath);
         }
@@ -332,7 +345,7 @@ namespace FEBuilderGBA.Avalonia.Views
         // file-picker).
         async void FERepo_Click(object? sender, RoutedEventArgs e)
         {
-            string? path = await FERepoPickHelper.PickForEditor(this,
+            string? path = await FERepoPickHelper.PickForEditor(TopLevel.GetTopLevel(this) as Window,
                 FERepoResourceBrowser.FERepoEditorKind.Portrait);
             if (string.IsNullOrEmpty(path)) return;
             ImportImageFromFile(path);
@@ -391,7 +404,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void ExportPng_Click(object? sender, RoutedEventArgs e)
         {
-            await PortraitImage.ExportPng(this, "portrait_fe6.png");
+            await PortraitImage.ExportPng(TopLevel.GetTopLevel(this) as Window, "portrait_fe6.png");
         }
 
         async void ExportPal_Click(object? sender, RoutedEventArgs e)
@@ -406,7 +419,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // FE6 portrait palette is raw (not compressed), 16 colors = 32 bytes
                 byte[] pal = ImageUtilCore.GetPalette(palAddr, 16);
                 if (pal == null || pal.Length < 32) { CoreState.Services.ShowError("Failed to read palette"); return; }
-                await FileDialogHelper.SavePaletteFileVia(this, "portrait_fe6_palette.pal", p =>
+                await FileDialogHelper.SavePaletteFileVia(TopLevel.GetTopLevel(this) as Window, "portrait_fe6_palette.pal", p =>
                 {
                     // #1639: write via the SAF bridge so Android content:// targets work.
                     PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(p));
@@ -422,7 +435,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 ROM rom = CoreState.ROM;
                 if (rom == null) return;
-                string? path = await FileDialogHelper.OpenPaletteFile(this);
+                string? path = await FileDialogHelper.OpenPaletteFile(TopLevel.GetTopLevel(this) as Window);
                 if (string.IsNullOrEmpty(path)) return;
                 byte[] fileData = File.ReadAllBytes(path);
                 PaletteFormat fmt = PaletteFormatConverter.DetectFormat(fileData, System.IO.Path.GetExtension(path));
@@ -447,5 +460,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

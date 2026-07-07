@@ -15,7 +15,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Command 0x85 Pointer";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Command 0x85 Pointer", 1185, 658, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Command 0x85 Pointer", 1185, 658, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public Command85PointerView()

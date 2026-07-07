@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -16,14 +17,17 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MapStyleEditorView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class MapStyleEditorView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly MapStyleEditorViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
         List<AddrResult> _styleList = new();
 
         public string ViewTitle => "Map Style Editor";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Map Style Editor", 1200, 780);
+        public event EventHandler? CloseRequested;
 
         public MapStyleEditorView()
         {
@@ -35,7 +39,6 @@ namespace FEBuilderGBA.Avalonia.Views
             PaletteCombo.SelectionChanged += (_, _) => ReloadPalette();
             PaletteTypeCombo.SelectionChanged += (_, _) => ReloadPalette();
             MapStyleCombo.SelectionChanged += MapStyle_SelectionChanged;
-            Opened += (_, _) => LoadList();
             // Wire ValueChanged handlers on the 48 editable RGB NumericUpDowns
             // so user edits sync into the VM and the swatch updates live.
             // The handler is no-op when _vm.IsLoading is true so programmatic
@@ -66,6 +69,16 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (e.PropertyName == nameof(_vm.CanImportObj))
                     RefreshObjImportEnabled();
             };
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         /// <summary>
@@ -746,6 +759,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         static uint ParseHexText(string? text)
         {
@@ -832,7 +846,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 byte[] gbaBytes = PackPaletteToBytes();
                 // #1639: write via the SAF bridge so Android content:// targets work.
-                string? written = await FileDialogHelper.SavePaletteFileVia(this, "map_style_palette.pal", p =>
+                string? written = await FileDialogHelper.SavePaletteFileVia(TopLevel.GetTopLevel(this) as Window, "map_style_palette.pal", p =>
                 {
                     PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(p));
                     byte[] output = PaletteFormatConverter.ExportToFormat(gbaBytes, fmt);
@@ -856,7 +870,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
             try
             {
-                string? path = await FileDialogHelper.OpenPaletteFile(this);
+                string? path = await FileDialogHelper.OpenPaletteFile(TopLevel.GetTopLevel(this) as Window);
                 if (string.IsNullOrEmpty(path)) return;
 
                 byte[] fileData = File.ReadAllBytes(path);
@@ -968,7 +982,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
                 // #1639: write via the SAF bridge so Android content:// targets work.
-                string? written = await FileDialogHelper.SaveImageFileVia(this, $"map_style_obj_{_vm.ConfigNo}.png", p =>
+                string? written = await FileDialogHelper.SaveImageFileVia(TopLevel.GetTopLevel(this) as Window, $"map_style_obj_{_vm.ConfigNo}.png", p =>
                 {
                     using var stream = File.Create(p);
                     bitmap.Save(stream);
@@ -1093,7 +1107,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // #1639: single-file config export → SAF bridge so Android
                 // content:// targets are written through OpenWriteAsync.
                 string? written = await FileDialogHelper.SaveFileVia(
-                    this,
+                    TopLevel.GetTopLevel(this) as Window,
                     "Export Map Chip Config",
                     "Map Chip Config",
                     "*.MAPCHIP_CONFIG",
@@ -1206,7 +1220,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
 
-                string? path = await FileDialogHelper.OpenImageFile(this);
+                string? path = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this) as Window);
                 if (string.IsNullOrEmpty(path)) return;
 
                 // Decode the source image through the shared SkiaSharp

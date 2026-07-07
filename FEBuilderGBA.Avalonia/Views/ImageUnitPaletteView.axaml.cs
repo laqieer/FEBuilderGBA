@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -8,10 +9,11 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImageUnitPaletteView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class ImageUnitPaletteView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly ImageUnitPaletteViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         // Per-swatch control references for fast UI updates.
         NumericUpDown[] _rBoxes = Array.Empty<NumericUpDown>();
@@ -28,7 +30,9 @@ namespace FEBuilderGBA.Avalonia.Views
         const int EditableBlockIndex = 0;
 
         public string ViewTitle => "Unit Palette Editor";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Unit Palette Editor", 1305, 911, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
 
         public ImageUnitPaletteView()
         {
@@ -63,11 +67,17 @@ namespace FEBuilderGBA.Avalonia.Views
             ClassBox.ValueChanged += OnClassChanged;
             PreviewPaletteTypeCombo.SelectionChanged += OnPreviewPaletteTypeChanged;
 
-            Opened += (_, _) =>
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
             {
+                _hasLoadedList = true;
                 CacheSwatchControls();
                 LoadList();
-            };
+            }
         }
 
         void OnClassChanged(object? sender, NumericUpDownValueChangedEventArgs e)
@@ -506,7 +516,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                await SamplePreview.ExportPng(this);
+                await SamplePreview.ExportPng(TopLevel.GetTopLevel(this) as Window);
             }
             catch (Exception ex)
             {
@@ -545,7 +555,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
 
-                string? path = await Dialogs.FileDialogHelper.OpenImageFile(this);
+                string? path = await Dialogs.FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this) as Window);
                 if (string.IsNullOrEmpty(path)) return; // user cancelled
 
                 ImportFromFile(path);
@@ -672,7 +682,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint defaultCount = currentCount + 1;
                 if (defaultCount > 512) defaultCount = 512;
                 uint? chosen = await NumberInputDialog.Show(
-                    this,
+                    TopLevel.GetTopLevel(this) as Window,
                     R._("Enter the new entry count for the unit-palette list (current: {0}, max: 512).",
                         currentCount),
                     R._("List Expansion"),
@@ -859,5 +869,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

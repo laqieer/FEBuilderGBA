@@ -15,7 +15,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "World Map Event (FE7)";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Event Pointer (FE7)", 1288, 770, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Event Pointer (FE7)", 1288, 770, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public WorldMapEventPointerFE7View()

@@ -18,7 +18,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public string ViewTitle => "Menu Command";
         public new bool IsLoaded => _vm.CanWrite;
 
-        public EditorDescriptor Descriptor => new("Menu Command Editor", 1238, 604, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Menu Command Editor", 1238, 604, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
 
         public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;

@@ -18,7 +18,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public new bool IsLoaded => _vm.IsLoaded;
 
 
-        public EditorDescriptor Descriptor => new("Terrain Name Editor", 800, 500, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Terrain Name Editor", 800, 500, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
 
         public event EventHandler? CloseRequested;
         public MapTerrainNameView()

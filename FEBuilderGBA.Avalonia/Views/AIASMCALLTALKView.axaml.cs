@@ -15,7 +15,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "AI ASM Call Talk";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("AI ASM Call Talk", 626, 388, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("AI ASM Call Talk", 626, 388, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public AIASMCALLTALKView()

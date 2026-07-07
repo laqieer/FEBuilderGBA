@@ -18,7 +18,7 @@ public class MoveCostEditorViewEmbeddableTests
         Assert.Equal("Move Cost Editor", embeddable.Descriptor.Title);
         Assert.Equal(1601, embeddable.Descriptor.PreferredWidth);
         Assert.Equal(800, embeddable.Descriptor.PreferredHeight);
-        Assert.True(embeddable.Descriptor.SizeToContent);
+        Assert.Equal(SizeToContent.WidthAndHeight, embeddable.Descriptor.SizeToContent);
     }
 
     [AvaloniaFact]

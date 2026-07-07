@@ -13,7 +13,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly UndoService _undoService = new();
         public string ViewTitle => "Move to Free Space";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Move to Free Space", 800, 500, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Move to Free Space", 800, 500, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

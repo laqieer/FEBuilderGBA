@@ -18,13 +18,8 @@ from pathlib import Path
 
 EXCLUDED_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("IPickableEditor", re.compile(r"\bIPickableEditor\b")),
-    ("direct StorageProvider", re.compile(r"\b(?:this\s*\.\s*)?StorageProvider\b")),
-    ("GetTopLevel", re.compile(r"\bGetTopLevel\b")),
     ("Closed event", re.compile(r"\bClosed\s*\+=")),
     ("OnClosed override", re.compile(r"\boverride\s+void\s+OnClosed\s*\(")),
-    ("Window Clipboard", re.compile(r"\bClipboard\b")),
-    ("owner-bound image export", re.compile(r"\bExportPng\s*\(\s*this\b")),
-    ("owner-bound image import", re.compile(r"\bImageImportService\.[A-Za-z0-9_]+\s*\(\s*this\b")),
     ("Close with result", re.compile(r"(?<![\.\w])Close\s*\(\s*[^)\s]|\bthis\s*\.\s*Close\s*\(\s*[^)\s]")),
 )
 
@@ -49,14 +44,18 @@ class Descriptor:
     title: str
     width: str
     height: str
-    size_to_content: bool
+    size_to_content: str
+    min_width: str
+    min_height: str
     can_resize: bool
     startup_location: str
 
 
-def parse_size_to_content(value: str | None) -> bool:
-    """Map Avalonia Window SizeToContent to EditorDescriptor auto-size flag."""
-    return value in {"Width", "Height", "WidthAndHeight"}
+def parse_size_to_content(value: str | None) -> str:
+    """Map Avalonia Window SizeToContent to the precise EditorDescriptor enum value."""
+    if value in {"Width", "Height", "WidthAndHeight"}:
+        return value
+    return "Manual"
 
 
 def parse_can_resize(value: str | None) -> bool:
@@ -90,6 +89,8 @@ def parse_window_root(axaml: str, view_name: str) -> tuple[str, dict[str, str], 
         width=attrs["Width"],
         height=attrs["Height"],
         size_to_content=parse_size_to_content(attrs.get("SizeToContent")),
+        min_width=attrs.get("MinWidth", "0"),
+        min_height=attrs.get("MinHeight", "0"),
         can_resize=parse_can_resize(attrs.get("CanResize")),
         startup_location=attrs.get("WindowStartupLocation", "CenterOwner"),
     )
@@ -158,7 +159,7 @@ def ensure_system_using(cs: str) -> str:
 
 
 def ensure_avalonia_controls_using(cs: str) -> str:
-    if "TopLevel.GetTopLevel(this) as Window" not in cs and "WindowStartupLocation." not in cs:
+    if "TopLevel.GetTopLevel(this)" not in cs and "WindowStartupLocation." not in cs:
         return cs
     return add_using(cs, "using global::Avalonia.Controls;")
 
@@ -214,6 +215,10 @@ def convert_owner_bound_dialog_calls(cs: str) -> str:
             rf"\g<prefix>{owner}\g<suffix>",
         ),
         (
+            re.compile(r"(?P<prefix>\bTableExportImportHelper\s*\.\s*[A-Za-z_][A-Za-z0-9_]*\s*\(\s*)this(?P<suffix>\s*,)"),
+            rf"\g<prefix>{owner}\g<suffix>",
+        ),
+        (
             re.compile(r"(?P<prefix>\b[A-Za-z_][A-Za-z0-9_]*\s*\.\s*ShowAsync\s*\(\s*)this\b"),
             rf"\g<prefix>{owner}",
         ),
@@ -235,6 +240,82 @@ def convert_owner_bound_dialog_calls(cs: str) -> str:
     return cs
 
 
+def convert_owner_bound_image_calls(cs: str) -> str:
+    """Reroute image import/export owners from the editor Window to its hosting TopLevel."""
+    owner = "TopLevel.GetTopLevel(this) as Window"
+    replacements: tuple[tuple[re.Pattern[str], str], ...] = (
+        (
+            re.compile(r"(?P<prefix>\bImageImportService\s*\.\s*[A-Za-z_][A-Za-z0-9_]*\s*\(\s*)this(?P<suffix>\s*,)"),
+            rf"\g<prefix>{owner}\g<suffix>",
+        ),
+        (
+            re.compile(r"(?P<prefix>\b[A-Za-z_][A-Za-z0-9_]*\s*\.\s*ExportPng\s*\(\s*)this(?P<suffix>\s*[,)])"),
+            rf"\g<prefix>{owner}\g<suffix>",
+        ),
+        (
+            re.compile(r"(?P<prefix>\bExportPng\s*\(\s*)this(?P<suffix>\s*[,)])"),
+            rf"\g<prefix>{owner}\g<suffix>",
+        ),
+        (
+            re.compile(r"(?P<prefix>\bImageExportService\s*\.\s*[A-Za-z_][A-Za-z0-9_]*\s*\(\s*[^;\n]*?,\s*)this(?P<suffix>\s*[,)])"),
+            rf"\g<prefix>{owner}\g<suffix>",
+        ),
+    )
+    for pattern, repl in replacements:
+        cs = pattern.sub(repl, cs)
+    return cs
+
+
+def convert_top_level_services(cs: str) -> str:
+    """Reroute Window-only StorageProvider/Clipboard property access through TopLevel.
+
+    The handled shapes are intentionally narrow: direct picker awaits, local
+    aliases, and nullable guards. More complex flows should be skipped manually
+    rather than rewritten incorrectly.
+    """
+    cs = re.sub(r"(?<![A-Za-z0-9_\.])GetTopLevel\s*\(\s*this\s*\)", "TopLevel.GetTopLevel(this)", cs)
+    cs = re.sub(
+        r"(?P<indent>^[ \t]*)if\s*\(\s*(?:this\s*\.\s*)?StorageProvider\s*==\s*null\s*\)\s*return\s*;\s*\n(?P=indent)(?P<decl>var\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*await\s+)(?:this\s*\.\s*)?StorageProvider\s*\.\s*(?P<method>(?:Open|Save)(?:File|Folder)PickerAsync\s*\()",
+        r"\g<indent>var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;\n"
+        r"\g<indent>if (storageProvider == null) return;\n"
+        r"\g<indent>\g<decl>storageProvider.\g<method>",
+        cs,
+        flags=re.MULTILINE,
+    )
+    cs = re.sub(
+        r"(?P<indent>^[ \t]*)(?P<decl>var\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*await\s+)(?:this\s*\.\s*)?StorageProvider\s*\.\s*(?P<method>(?:Open|Save)(?:File|Folder)PickerAsync\s*\()",
+        r"\g<indent>var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;\n"
+        r"\g<indent>if (storageProvider == null) return;\n"
+        r"\g<indent>\g<decl>storageProvider.\g<method>",
+        cs,
+        flags=re.MULTILINE,
+    )
+    cs = re.sub(
+        r"(?P<indent>^[ \t]*)return\s+await\s+(?:this\s*\.\s*)?StorageProvider\s*\.\s*(?P<method>(?:Open|Save)(?:File|Folder)PickerAsync\s*\()",
+        r"\g<indent>var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;\n"
+        r"\g<indent>if (storageProvider == null) return null;\n"
+        r"\g<indent>return await storageProvider.\g<method>",
+        cs,
+        flags=re.MULTILINE,
+    )
+    cs = re.sub(
+        r"(?P<decl>\bvar\s+[A-Za-z_][A-Za-z0-9_]*\s*=\s*)(?:this\s*\.\s*)?StorageProvider\s*;",
+        r"\g<decl>TopLevel.GetTopLevel(this)?.StorageProvider;",
+        cs,
+    )
+    cs = re.sub(
+        r"(?P<decl>\bIClipboard\?\s+[A-Za-z_][A-Za-z0-9_]*\s*=\s*)Clipboard\s*;",
+        r"\g<decl>TopLevel.GetTopLevel(this)?.Clipboard;",
+        cs,
+    )
+    cs = re.sub(
+        r"(?P<decl>\bvar\s+[A-Za-z_][A-Za-z0-9_]*\s*=\s*)Clipboard\s*;",
+        r"\g<decl>TopLevel.GetTopLevel(this)?.Clipboard;",
+        cs,
+    )
+    return cs
+
+
 def convert_self_close(cs: str) -> str:
     """Convert calls that close the editor Window itself into embeddable CloseRequested requests."""
     cs = re.sub(r"\bthis\s*\.\s*Close\s*\(\s*\)\s*;", "RequestClose();", cs)
@@ -250,8 +331,12 @@ def inject_members(cs: str, descriptor: Descriptor) -> str:
             raise ValueError("public bool/new bool IsLoaded expression not found")
         indent = marker.group("indent")
         descriptor_args = [f'"{descriptor.title}"', descriptor.width, descriptor.height]
-        if descriptor.size_to_content:
-            descriptor_args.append("SizeToContent: true")
+        if descriptor.size_to_content != "Manual":
+            descriptor_args.append(f"SizeToContent: global::Avalonia.Controls.SizeToContent.{descriptor.size_to_content}")
+        if descriptor.min_width != "0":
+            descriptor_args.append(f"MinWidth: {descriptor.min_width}")
+        if descriptor.min_height != "0":
+            descriptor_args.append(f"MinHeight: {descriptor.min_height}")
         if not descriptor.can_resize:
             descriptor_args.append("CanResize: false")
         if descriptor.startup_location != "CenterOwner":
@@ -361,6 +446,8 @@ def convert_cs(cs: str, view_name: str, descriptor: Descriptor) -> str:
     cs = convert_base_list(cs, view_name)
     cs = convert_owner_bound_pick_from_editor(cs)
     cs = convert_owner_bound_dialog_calls(cs)
+    cs = convert_owner_bound_image_calls(cs)
+    cs = convert_top_level_services(cs)
     cs = ensure_avalonia_controls_using(cs)
     cs = convert_self_close(cs)
     cs = inject_members(cs, descriptor)

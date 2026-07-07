@@ -5,6 +5,7 @@
 // `ImageBattleAnimePaletteCore` helper for the LZ77 decompress / splice /
 // recompress / pointer-rewrite write path under the ambient UndoService
 // scope.
+using global::Avalonia;
 using System;
 using System.Globalization;
 using global::Avalonia.Controls;
@@ -16,13 +17,17 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImageBattleAnimePalletView : TranslatedWindow, IEditorView
+    public partial class ImageBattleAnimePalletView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ImageBattleAnimePalletViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Battle Animation Palette";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Battle Animation Palette", 1280, 780, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         // Cached references to the 48 numeric cells + 16 swatch borders so
         // we don't have to walk the visual tree on every reload.
@@ -60,7 +65,16 @@ namespace FEBuilderGBA.Avalonia.Views
             PaletteIndexCombo.SelectionChanged += PaletteIndexCombo_SelectionChanged;
             EntryList.SelectedAddressChanged += OnSelectedEntry;
 
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void CachePaletteCells()
@@ -242,7 +256,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                await SamplePreview.ExportPng(this, ExportSuggestedName());
+                await SamplePreview.ExportPng(TopLevel.GetTopLevel(this) as Window, ExportSuggestedName());
             }
             catch (Exception ex)
             {
@@ -433,7 +447,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
 
             // Open file dialog — mirrors WF ImageFormRef.OpenFilenameDialogFullColor.
-            string filePath = await FileDialogHelper.OpenImageFile(this);
+            string filePath = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this) as Window);
             if (string.IsNullOrEmpty(filePath))
             {
                 return; // User cancelled.

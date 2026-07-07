@@ -15,7 +15,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "AI Steal Item Logic";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("AI Steal Item Logic", 800, 400, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("AI Steal Item Logic", 800, 400, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public AIStealItemView()

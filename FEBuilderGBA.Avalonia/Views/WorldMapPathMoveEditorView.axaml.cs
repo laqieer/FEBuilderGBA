@@ -21,7 +21,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Path Movement Editor";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Path Movement Editor", 1229, 822, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Path Movement Editor", 1229, 822, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public WorldMapPathMoveEditorView()

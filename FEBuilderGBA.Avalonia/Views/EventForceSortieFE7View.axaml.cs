@@ -18,7 +18,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public new bool IsLoaded => _vm.IsLoaded;
 
 
-        public EditorDescriptor Descriptor => new("Force Sortie (FE7)", 1296, 450, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Force Sortie (FE7)", 1296, 450, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
 
         public event EventHandler? CloseRequested;
         public EventForceSortieFE7View()

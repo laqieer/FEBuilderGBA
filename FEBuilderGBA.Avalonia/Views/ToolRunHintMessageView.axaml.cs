@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ToolRunHintMessageViewModel _vm = new();
         public string ViewTitle => "Test Run";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Test Run", 965, 480, SizeToContent: true, CanResize: false);
+        public EditorDescriptor Descriptor => new("Test Run", 965, 480, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight, CanResize: false);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

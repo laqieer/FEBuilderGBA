@@ -15,7 +15,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "World Map Paths";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("World Map Paths", 1284, 787, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("World Map Paths", 1284, 787, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public WorldMapPathView()

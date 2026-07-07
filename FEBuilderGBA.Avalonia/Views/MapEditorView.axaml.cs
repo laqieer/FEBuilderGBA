@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.IO;
 using global::Avalonia.Controls;
@@ -12,21 +13,24 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MapEditorView : TranslatedWindow, IEditorView
+    public partial class MapEditorView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly MapEditorViewModel _vm = new();
+        bool _hasLoadedList;
         readonly UndoService _undo = new();
         int _zoom = 1;
         byte[] _lastRgba; // cached for refresh
 
         public string ViewTitle => "Visual Map Editor";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Visual Map Editor", 1200, 800, MinWidth: 1170, MinHeight: 640);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public MapEditorView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
             ZoomInBtn.Click += OnZoomIn;
             ZoomOutBtn.Click += OnZoomOut;
             MapImageControl.PointerPressed += OnMapImageClick;
@@ -45,6 +49,16 @@ namespace FEBuilderGBA.Avalonia.Views
             // Wiring both would double-fire the handler. The handler converts pointer
             // coords to image-pixel coords via e.GetPosition(TilePaletteImage).
             TilePaletteHitArea.PointerPressed += OnTilePaletteClick;
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void OnEditorKeyDown(object? sender, KeyEventArgs e)
@@ -441,8 +455,9 @@ namespace FEBuilderGBA.Avalonia.Views
                     CoreState.Services?.ShowError(R._("No map data loaded — select a map first."));
                     return;
                 }
-                if (StorageProvider == null) return;
-                var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+                var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+                if (storageProvider == null) return;
+                var file = await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
                 {
                     Title = R._("Export Map (CSV)"),
                     DefaultExtension = "csv",
@@ -495,9 +510,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (DecompMapAssetGuard.BlockIfDecomp(R._("map tile layout")))
                     return;
 
-                if (StorageProvider == null) return;
-
-                var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+                var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+                if (storageProvider == null) return;
+                var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
                 {
                     Title = R._("Import Map (CSV)"),
                     AllowMultiple = false,
@@ -579,9 +594,9 @@ namespace FEBuilderGBA.Avalonia.Views
                     CoreState.Services?.ShowError(R._("No map data loaded — select a map first."));
                     return;
                 }
-                if (StorageProvider == null) return;
-
-                var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+                var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+                if (storageProvider == null) return;
+                var file = await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
                 {
                     Title = R._("Export Map (Tiled)"),
                     DefaultExtension = "tmx",
@@ -685,9 +700,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (DecompMapAssetGuard.BlockIfDecomp(R._("map tile layout")))
                     return;
 
-                if (StorageProvider == null) return;
-
-                var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+                var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+                if (storageProvider == null) return;
+                var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
                 {
                     Title = R._("Import Map (Tiled)"),
                     AllowMultiple = false,
@@ -790,7 +805,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 var dialog = new MapEditorResizeDialogView();
                 dialog.SetPosition(0, 0, _vm.MapWidth, _vm.MapHeight);
-                bool confirmed = await dialog.ShowDialog<bool>(this);
+                bool confirmed = await dialog.ShowDialog<bool>(TopLevel.GetTopLevel(this) as Window);
                 if (!confirmed) return;
 
                 if (dialog.DataViewModel is not MapEditorResizeDialogViewModel dlgVm) return;

@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
@@ -16,7 +17,7 @@ namespace FEBuilderGBA.Avalonia.Views
     /// pick up ja/zh translations at runtime (ViewTranslationHelper does not
     /// translate ComboBoxItem content).
     /// </summary>
-    public partial class DecreaseColorTSAToolView : TranslatedWindow, IEditorView
+    public partial class DecreaseColorTSAToolView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly DecreaseColorTSAToolViewModel _vm = new();
 
@@ -26,7 +27,10 @@ namespace FEBuilderGBA.Avalonia.Views
         IStorageFile? _outputFile;
 
         public string ViewTitle => "Color Reduction Tool";
-        public bool IsLoaded => true;
+        public new bool IsLoaded => true;
+        public EditorDescriptor Descriptor => new("Color Reduction Tool", 560, 520, SizeToContent: global::Avalonia.Controls.SizeToContent.Height);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public DecreaseColorTSAToolView()
         {
@@ -79,7 +83,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void InputBrowse_Click(object? sender, RoutedEventArgs e)
         {
-            var storage = GetTopLevel(this)?.StorageProvider;
+            var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
             if (storage == null) return;
 
             try
@@ -119,7 +123,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void OutputBrowse_Click(object? sender, RoutedEventArgs e)
         {
-            var storage = GetTopLevel(this)?.StorageProvider;
+            var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
             if (storage == null) return;
 
             try

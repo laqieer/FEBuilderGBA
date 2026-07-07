@@ -1,9 +1,7 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
-        x:Class="FEBuilderGBA.Avalonia.Views.ImageBattleAnimePalletView"
-        Title="Battle Animation Palette" Width="1280" Height="780"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+             x:Class="FEBuilderGBA.Avalonia.Views.ImageBattleAnimePalletView">
   <Grid ColumnDefinitions="270,*">
 
     <!-- ===========================================================
@@ -392,4 +390,4 @@
       </Border>
     </Grid>
   </Grid>
-</Window>
+</UserControl>

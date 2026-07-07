@@ -15,7 +15,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Weapon Lock (Vennou) Editor";
         public new bool IsLoaded => _vm.CanWrite;
-        public EditorDescriptor Descriptor => new("Weapon Lock (Vennou) Editor", 1155, 661, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Weapon Lock (Vennou) Editor", 1155, 661, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public VennouWeaponLockView()

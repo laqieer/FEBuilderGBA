@@ -22,7 +22,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "World Map Event";
         public new bool IsLoaded => _vm.CanWrite;
-        public EditorDescriptor Descriptor => new("World Map Event Editor", 1240, 900, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("World Map Event Editor", 1240, 900, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);

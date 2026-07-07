@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -8,21 +9,23 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImageUnitWaitIconView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class ImageUnitWaitIconView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly ImageUnitWaitIconViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
         bool _suppressPreviewRefresh;
         bool _initialized;
 
         public string ViewTitle => "Unit Wait Icon";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Unit Wait Icon", 900, 520, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
 
         public ImageUnitWaitIconView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
 
             // Comment lost-focus → save (mirrors ImageBattleBGView).
             CommentBox.LostFocus += (_, _) => _vm.SaveComment(CommentBox.Text ?? string.Empty);
@@ -32,6 +35,16 @@ namespace FEBuilderGBA.Avalonia.Views
             // SelectionChanged handler doesn't fire mid-construction.
             PaletteCombo.SelectedIndex = 0;
             _initialized = true;
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -155,7 +168,7 @@ namespace FEBuilderGBA.Avalonia.Views
             byte[] selfPalette = ReadSelfPalette(rom);
             if (selfPalette == null) return;
 
-            var result = await ImageImportService.LoadAndRemapToExistingPalette(this, 0, 0, selfPalette, 16);
+            var result = await ImageImportService.LoadAndRemapToExistingPalette(TopLevel.GetTopLevel(this) as Window, 0, 0, selfPalette, 16);
             if (result == null) return; // cancelled
             RunWaitIconImport(rom, result);
         }
@@ -173,7 +186,7 @@ namespace FEBuilderGBA.Avalonia.Views
             byte[] selfPalette = ReadSelfPalette(rom);
             if (selfPalette == null) return;
 
-            string? path = await FERepoPickHelper.PickForEditor(this,
+            string? path = await FERepoPickHelper.PickForEditor(TopLevel.GetTopLevel(this) as Window,
                 FERepoResourceBrowser.FERepoEditorKind.UnitWaitIcon);
             if (string.IsNullOrEmpty(path)) return;
 
@@ -232,7 +245,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 string suggested = $"wait_icon_{_vm.CurrentIndex:X02}.png";
                 // #1639: both .png and .gif are single-file → SAF bridge.
                 bool ok = false;
-                string? written = await FileDialogHelper.SaveFileVia(this, "Export Wait Icon",
+                string? written = await FileDialogHelper.SaveFileVia(TopLevel.GetTopLevel(this) as Window, "Export Wait Icon",
                     new[]
                     {
                         ("PNG Image", "*.png"),
@@ -271,5 +284,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

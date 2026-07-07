@@ -20,7 +20,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Item Weapon Effect";
         public new bool IsLoaded => _vm.CanWrite;
-        public EditorDescriptor Descriptor => new("Item Weapon Effect Editor", 1302, 803, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Item Weapon Effect Editor", 1302, 803, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public ItemWeaponEffectViewerView()

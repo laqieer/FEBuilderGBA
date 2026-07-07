@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ErrorPaletteTransparentViewModel _vm = new();
         public string ViewTitle => "Palette Transparent Error";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Palette Transparency Error", 1110, 857, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Palette Transparency Error", 1110, 857, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

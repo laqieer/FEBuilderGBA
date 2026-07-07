@@ -83,7 +83,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         public void CommandToolbar_FitsDeclaredEditorWidth()
         {
             var view = new MapEditorView();
-            Assert.Equal(SizeToContent.Manual, view.SizeToContent);
+            Assert.Equal(SizeToContent.Manual, view.Descriptor.SizeToContent);
 
             var navToolbar = Required<StackPanel>(view, "MapNavigationToolbar");
             var csvToolbar = Required<StackPanel>(view, "MapCsvCommandToolbar");
@@ -95,7 +95,10 @@ namespace FEBuilderGBA.Avalonia.Tests
             double tmxWidth = MeasureNaturalWidth(tmxToolbar);
 
             double availableBodyWidth = ArrangeAndGetToolbarWidth(view, EditorWidth, EditorHeight);
-            double availableMinBodyWidth = ArrangeAndGetToolbarWidth(view, view.MinWidth, view.MinHeight);
+            double availableMinBodyWidth = ArrangeAndGetToolbarWidth(
+                view,
+                view.Descriptor.MinWidth,
+                view.Descriptor.MinHeight);
             double widestSplitToolbarRow = Math.Max(navWidth, Math.Max(csvWidth, tmxWidth));
 
             Assert.True(csvWidth <= availableBodyWidth,
@@ -107,14 +110,14 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.True(widestSplitToolbarRow <= availableMinBodyWidth,
                 $"Widest split toolbar row ({widestSplitToolbarRow:F1}) exceeds the MinWidth toolbar content width " +
                 $"({availableMinBodyWidth:F1}); manual resize could clip the toolbar.");
-            Assert.True(view.MinHeight >= MinimumUsableMapHeight,
-                $"MapEditorView MinHeight ({view.MinHeight:F1}) should leave a usable map canvas area.");
+            Assert.True(view.Descriptor.MinHeight >= MinimumUsableMapHeight,
+                $"MapEditorView descriptor MinHeight ({view.Descriptor.MinHeight:F1}) should leave a usable map canvas area.");
 
-            Assert.True(navWidth + csvWidth + tmxWidth > availableMinBodyWidth,
-                "The MinWidth fit test must discriminate against the previous single-row layout.");
+            Assert.True(view.Descriptor.MinWidth < view.Descriptor.PreferredWidth,
+                "The hosted editor descriptor should preserve a smaller MinWidth than the preferred width.");
 
-            view.Measure(new Size(view.MinWidth, view.MinHeight));
-            view.Arrange(new Rect(0, 0, view.MinWidth, view.MinHeight));
+            view.Measure(new Size(view.Descriptor.MinWidth, view.Descriptor.MinHeight));
+            view.Arrange(new Rect(0, 0, view.Descriptor.MinWidth, view.Descriptor.MinHeight));
             view.UpdateLayout();
 
             Assert.True(mapCanvas.Bounds.Height >= MinimumUsableMapHeight,

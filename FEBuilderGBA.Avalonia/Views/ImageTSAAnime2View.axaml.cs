@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -6,19 +7,31 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImageTSAAnime2View : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class ImageTSAAnime2View : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly ImageTSAAnime2ViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "TSA Animation Editor v2";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("TSA Animation Editor v2", 1383, 766, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
 
         public ImageTSAAnime2View()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -114,7 +127,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 // Accept either 256x160 (native) or 240x160 (right-padded to 256).
-                var loadResult = await ImageImportService.LoadAndQuantize(this, IMPORT_WIDTH, IMPORT_HEIGHT, 16);
+                var loadResult = await ImageImportService.LoadAndQuantize(TopLevel.GetTopLevel(this) as Window, IMPORT_WIDTH, IMPORT_HEIGHT, 16);
                 if (loadResult == null) return;
                 if (!loadResult.Success) { CoreState.Services.ShowError(loadResult.Error); return; }
                 if (loadResult.Height != IMPORT_HEIGHT ||
@@ -185,5 +198,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }
