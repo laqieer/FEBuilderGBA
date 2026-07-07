@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
@@ -24,11 +25,13 @@ namespace FEBuilderGBA.Avalonia.Views
     /// <see cref="Undo.UndoData"/> committed via
     /// <see cref="UndoService.CommitExternal"/>.
     /// </summary>
-    public partial class ItemEffectivenessSkillSystemsReworkView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class ItemEffectivenessSkillSystemsReworkView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly ItemEffectivenessSkillSystemsReworkViewModel _vm = new();
         readonly UndoService _undoService = new();
 
+
+        bool _hasLoadedList;
         readonly ObservableCollection<AddressListItem> _innerDisplay = new();
         List<AddrResult> _innerData = new();
 
@@ -38,8 +41,12 @@ namespace FEBuilderGBA.Avalonia.Views
         bool _suppressFieldEvents;
 
         public string ViewTitle => "Effectiveness (Skill Systems Rework)";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
 
+
+        public EditorDescriptor Descriptor => new("Effectiveness (Skill Systems Rework)", 1297, 918, SizeToContent: false);
+
+        public event EventHandler? CloseRequested;
         /// <summary>
         /// Exposes the backing view-model for headless test access (issue #362
         /// regression tests assert <c>vm.CurrentAddr</c> matches the navigated
@@ -48,13 +55,32 @@ namespace FEBuilderGBA.Avalonia.Views
         /// </summary>
         public ViewModelBase? DataViewModel => _vm;
 
+
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
         public ItemEffectivenessSkillSystemsReworkView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
             InnerList.ItemsSource = _innerDisplay;
-            ItemListBox.ItemsSource = _sharedDisplay;
-            Opened += (_, _) => LoadList();
+            ItemListBox.ItemsSource = _sharedDisplay;        }
+
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+
+        {
+
+            base.OnAttachedToVisualTree(e);
+
+            if (!_hasLoadedList)
+
+            {
+
+                _hasLoadedList = true;
+
+                LoadList();
+
+            }
+
         }
 
         void LoadList()

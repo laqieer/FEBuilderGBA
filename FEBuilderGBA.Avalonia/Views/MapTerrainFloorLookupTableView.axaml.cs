@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -12,22 +13,47 @@ namespace FEBuilderGBA.Avalonia.Views
     /// indicators, reload + jump buttons, and the patch-install affordance —
     /// so the view density matches WinForms within the 25% MEDIUM verdict.
     /// </summary>
-    public partial class MapTerrainFloorLookupTableView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class MapTerrainFloorLookupTableView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly MapTerrainFloorLookupTableViewModel _vm = new();
         readonly UndoService _undoService = new();
+
+        bool _hasLoadedList;
         bool _suppressFilterChange;
 
         public string ViewTitle => "Terrain Floor Lookup Table";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+
+        public EditorDescriptor Descriptor => new("Terrain Floor Lookup Table", 1253, 742, SizeToContent: true);
+
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
 
+
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
         public MapTerrainFloorLookupTableView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            FilterComboBox.SelectionChanged += FilterComboBox_SelectionChanged;
-            Opened += (_, _) => InitialLoad();
+            FilterComboBox.SelectionChanged += FilterComboBox_SelectionChanged;        }
+
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+
+        {
+
+            base.OnAttachedToVisualTree(e);
+
+            if (!_hasLoadedList)
+
+            {
+
+                _hasLoadedList = true;
+
+                InitialLoad();
+
+            }
+
         }
 
         void InitialLoad()

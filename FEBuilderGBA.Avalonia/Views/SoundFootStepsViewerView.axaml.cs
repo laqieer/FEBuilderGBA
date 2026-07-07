@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using System.Collections.Generic;
 using System.IO;
 using global::Avalonia.Controls;
@@ -8,19 +9,42 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SoundFootStepsViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class SoundFootStepsViewerView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly SoundFootStepsViewerViewModel _vm = new();
         readonly UndoService _undoService = new();
 
-        public string ViewTitle => "Footstep Sounds";
-        public bool IsLoaded => _vm.CanWrite;
 
+        bool _hasLoadedList;
+        public string ViewTitle => "Footstep Sounds";
+        public new bool IsLoaded => _vm.CanWrite;
+
+
+        public EditorDescriptor Descriptor => new("Footstep Sounds Editor", 1245, 636, SizeToContent: true);
+
+        public event EventHandler? CloseRequested;
         public SoundFootStepsViewerView()
         {
             InitializeComponent();
-            EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+            EntryList.SelectedAddressChanged += OnSelected;        }
+
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+
+        {
+
+            base.OnAttachedToVisualTree(e);
+
+            if (!_hasLoadedList)
+
+            {
+
+                _hasLoadedList = true;
+
+                LoadList();
+
+            }
+
         }
 
         void LoadList()
@@ -203,5 +227,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

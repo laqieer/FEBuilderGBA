@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -6,26 +7,37 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EventFunctionPointerView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class EventFunctionPointerView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly EventFunctionPointerViewModel _vm = new();
         readonly UndoService _undoService = new();
         bool _populatingFilter;
+        bool _hasLoadedList;
 
         public string ViewTitle => "Event Function Pointer Editor";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
 
+
+        public EditorDescriptor Descriptor => new("Event Function Pointer Editor", 1185, 658, SizeToContent: true);
+
+        public event EventHandler? CloseRequested;
         public EventFunctionPointerView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
             WriteButton.Click += OnWrite;
             FilterComboBox.SelectionChanged += OnFilterChanged;
-            Opened += (_, _) =>
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
             {
+                _hasLoadedList = true;
                 PopulateFilter();
                 LoadList();
-            };
+            }
         }
 
         // #1441 — populate the Primary/Worldmap filter. Primary is always
@@ -121,5 +133,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

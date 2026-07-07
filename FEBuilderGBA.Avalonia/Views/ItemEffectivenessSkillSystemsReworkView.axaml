@@ -1,9 +1,7 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
-        x:Class="FEBuilderGBA.Avalonia.Views.ItemEffectivenessSkillSystemsReworkView"
-        Title="Effectiveness (Skill Systems Rework)" Width="1297" Height="918"
-        SizeToContent="Manual">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+             x:Class="FEBuilderGBA.Avalonia.Views.ItemEffectivenessSkillSystemsReworkView">
   <!--
     Issue #1175: item-driven master/detail layout mirroring the WinForms
     ItemEffectivenessSkillSystemsReworkForm. Outer EntryList = items whose +16
@@ -122,4 +120,4 @@
       </Grid>
     </Grid>
   </Grid>
-</Window>
+</UserControl>

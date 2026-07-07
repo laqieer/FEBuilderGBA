@@ -75,7 +75,6 @@ namespace FEBuilderGBA.Avalonia.Tests
             if (list?.Parent is Panel listParent)
                 listParent.Children.Remove(list);
 
-            view.SizeToContent = SizeToContent.Manual;
             view.Width = W;
             view.Height = H;
 

@@ -50,10 +50,10 @@ public class DataVerifyEmptyNumericUpDownTests
     /// no `IsEnabled` filter, so disabled NUDs left at `null` still count
     /// as empty (which is the bug we're guarding against here).
     /// </summary>
-    static List<string> FindEmptyVisibleNuds(Window window)
+    static List<string> FindEmptyVisibleNuds(Control control)
     {
         var empty = new List<string>();
-        foreach (var descendant in window.GetVisualDescendants())
+        foreach (var descendant in control.GetVisualDescendants())
         {
             if (descendant is NumericUpDown nud)
             {
@@ -71,12 +71,17 @@ public class DataVerifyEmptyNumericUpDownTests
     /// avoids the brittleness of reflection if the method name changes),
     /// and checks every NumericUpDown for null Value.
     /// </summary>
-    static List<string> OpenAndCollectEmptyNuds<TView>() where TView : Window, IEditorView, new()
+    static List<string> OpenAndCollectEmptyNuds<TView>() where TView : Control, IEditorView, new()
     {
         var view = new TView();
         try
         {
-            view.Show();
+            if (view is Window window)
+                window.Show();
+            else if (view is IEmbeddableEditor embeddable)
+                embeddable.Show();
+            else
+                throw new InvalidOperationException($"{typeof(TView).Name} is neither Window nor IEmbeddableEditor.");
             // SelectFirstItem mirrors what the data-verify harness does after
             // the Opened handler runs (MainWindow.RunDataVerify line ~1352).
             // Every editor that data-verify exercises implements IEditorView,
@@ -86,7 +91,10 @@ public class DataVerifyEmptyNumericUpDownTests
         }
         finally
         {
-            view.Close();
+            if (view is Window window)
+                window.Close();
+            else if (view is IEmbeddableEditor embeddable)
+                embeddable.Close();
         }
     }
 

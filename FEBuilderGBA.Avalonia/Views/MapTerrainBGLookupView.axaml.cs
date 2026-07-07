@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -6,20 +7,45 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MapTerrainBGLookupView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class MapTerrainBGLookupView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly MapTerrainBGLookupTableViewModel _vm = new();
         readonly UndoService _undoService = new();
 
+
+        bool _hasLoadedList;
         public string ViewTitle => "Terrain BG Lookup";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+
+        public EditorDescriptor Descriptor => new("Terrain BG Lookup", 1253, 790, SizeToContent: true);
+
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
 
+
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
         public MapTerrainBGLookupView()
         {
             InitializeComponent();
-            EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+            EntryList.SelectedAddressChanged += OnSelected;        }
+
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+
+        {
+
+            base.OnAttachedToVisualTree(e);
+
+            if (!_hasLoadedList)
+
+            {
+
+                _hasLoadedList = true;
+
+                LoadList();
+
+            }
+
         }
 
         void LoadList()

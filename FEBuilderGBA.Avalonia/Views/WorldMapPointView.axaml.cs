@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -7,20 +8,43 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class WorldMapPointView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class WorldMapPointView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly WorldMapPointViewModel _vm = new();
         readonly UndoService _undoService = new();
 
-        public string ViewTitle => "World Map Point";
-        public bool IsLoaded => _vm.CanWrite;
 
+        bool _hasLoadedList;
+        public string ViewTitle => "World Map Point";
+        public new bool IsLoaded => _vm.CanWrite;
+
+
+        public EditorDescriptor Descriptor => new("World Map Point Editor", 1761, 778, SizeToContent: true);
+
+        public event EventHandler? CloseRequested;
         public WorldMapPointView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            NameTextIdBox.ValueChanged += OnNameTextIdChanged;
-            Opened += (_, _) => LoadList();
+            NameTextIdBox.ValueChanged += OnNameTextIdChanged;        }
+
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+
+        {
+
+            base.OnAttachedToVisualTree(e);
+
+            if (!_hasLoadedList)
+
+            {
+
+                _hasLoadedList = true;
+
+                LoadList();
+
+            }
+
         }
 
         void OnNameTextIdChanged(object? sender, NumericUpDownValueChangedEventArgs e)
@@ -131,5 +155,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -6,20 +7,45 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ItemEffectPointerViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class ItemEffectPointerViewerView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         public ViewModelBase? DataViewModel => _vm;
+
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
         readonly ItemEffectPointerViewerViewModel _vm = new();
         readonly UndoService _undoService = new();
 
-        public string ViewTitle => "Item Effect Pointer";
-        public bool IsLoaded => _vm.CanWrite;
 
+        bool _hasLoadedList;
+        public string ViewTitle => "Item Effect Pointer";
+        public new bool IsLoaded => _vm.CanWrite;
+
+
+        public EditorDescriptor Descriptor => new("Item Effect Pointer Editor", 1185, 658, SizeToContent: true);
+
+        public event EventHandler? CloseRequested;
         public ItemEffectPointerViewerView()
         {
             InitializeComponent();
-            EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+            EntryList.SelectedAddressChanged += OnSelected;        }
+
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+
+        {
+
+            base.OnAttachedToVisualTree(e);
+
+            if (!_hasLoadedList)
+
+            {
+
+                _hasLoadedList = true;
+
+                LoadList();
+
+            }
+
         }
 
         void LoadList()

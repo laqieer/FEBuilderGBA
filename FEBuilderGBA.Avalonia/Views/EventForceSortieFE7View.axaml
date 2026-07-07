@@ -1,9 +1,7 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
-        x:Class="FEBuilderGBA.Avalonia.Views.EventForceSortieFE7View"
-        Title="Force Sortie (FE7)" Width="1296" Height="450"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+             x:Class="FEBuilderGBA.Avalonia.Views.EventForceSortieFE7View">
   <Grid ColumnDefinitions="250,250,*">
     <controls:AddressListControl AutomationProperties.AutomationId="EventForceSortieFE7_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
@@ -42,4 +40,4 @@
       </StackPanel>
     </ScrollViewer>
   </Grid>
-</Window>
+</UserControl>

@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using System.Collections.Generic;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -7,23 +8,46 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ArenaEnemyWeaponViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class ArenaEnemyWeaponViewerView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly ArenaEnemyWeaponViewerViewModel _vm = new();
         readonly UndoService _undoService = new();
 
+
+        bool _hasLoadedList;
         List<AddrResult> _basicItems = new();
         List<AddrResult> _rankupItems = new();
 
         public string ViewTitle => "Arena Enemy Weapon";
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
 
+
+        public EditorDescriptor Descriptor => new("Arena Enemy Weapon Editor", 1257, 809, SizeToContent: true);
+
+        public event EventHandler? CloseRequested;
         public ArenaEnemyWeaponViewerView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            RankupEntryList.SelectedAddressChanged += OnRankupSelected;
-            Opened += (_, _) => LoadList();
+            RankupEntryList.SelectedAddressChanged += OnRankupSelected;        }
+
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+
+        {
+
+            base.OnAttachedToVisualTree(e);
+
+            if (!_hasLoadedList)
+
+            {
+
+                _hasLoadedList = true;
+
+                LoadList();
+
+            }
+
         }
 
         void LoadList()
@@ -191,5 +215,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

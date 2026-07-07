@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using System.Collections.Generic;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -14,16 +15,23 @@ namespace FEBuilderGBA.Avalonia.Views
     /// detail panel (X/Y/Escape/Flag), notice panel, and the New Allocation
     /// + Expand List affordances.
     /// </summary>
-    public partial class MapExitPointView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class MapExitPointView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly MapExitPointViewModel _vm = new();
         readonly UndoService _undoService = new();
         bool _suppressEscapeComboSync;
+        bool _hasLoadedList;
 
         public string ViewTitle => "Map Exit Point Editor";
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
+
+        public EditorDescriptor Descriptor => new("Map Exit Point Editor", 1607, 777, SizeToContent: true);
+
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
 
+
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
         public MapExitPointView()
         {
             InitializeComponent();
@@ -49,11 +57,16 @@ namespace FEBuilderGBA.Avalonia.Views
 
             MapList.SelectedAddressChanged += OnMapSelected;
             ExitList.SelectedAddressChanged += OnExitSelected;
+        }
 
-            Opened += (_, _) =>
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
             {
+                _hasLoadedList = true;
                 FilterComboBox.SelectedIndex = 0;
-            };
+            }
         }
 
         // -----------------------------------------------------------------

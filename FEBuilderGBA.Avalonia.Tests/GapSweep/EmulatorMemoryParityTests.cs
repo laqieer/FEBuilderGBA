@@ -307,8 +307,9 @@ public class EmulatorMemoryParityTests
         {
             Assert.NotNull(t.TargetViewType);
             Assert.True(
-                typeof(global::Avalonia.Controls.Window).IsAssignableFrom(t.TargetViewType),
-                $"NavigationTarget {t.CommandName}: target {t.TargetViewType.Name} must be a Window");
+                typeof(global::Avalonia.Controls.Window).IsAssignableFrom(t.TargetViewType)
+                || typeof(IEmbeddableEditor).IsAssignableFrom(t.TargetViewType),
+                $"NavigationTarget {t.CommandName}: target {t.TargetViewType.Name} must be a Window or IEmbeddableEditor");
         }
     }
 
