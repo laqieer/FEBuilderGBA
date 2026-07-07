@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.IO;
 using global::Avalonia.Controls;
@@ -15,18 +16,22 @@ namespace FEBuilderGBA.Avalonia.Views
     /// glyph rows (each rendered as its 16x13 glyph icon) plus a per-glyph PNG
     /// export/import flow. Only available on a Chinese ROM (FontGlyphZHCore.IsZHRom).
     /// </summary>
-    public partial class FontZHView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class FontZHView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly FontZHViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         // Path of the desktop .ttf/.otf loaded for Auto-Generate (#1268). Empty
         // => fall back to the typed font family. Set by LoadFont_Click.
         string _fontFilePath = "";
 
         public string ViewTitle => "Font Editor (Chinese)";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Font Editor (Chinese)", 640, 640);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public FontZHView()
         {
@@ -39,12 +44,21 @@ namespace FEBuilderGBA.Avalonia.Views
             FontTypeCombo.SelectionChanged += FontTypeCombo_SelectionChanged;
 
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
 
             // Default font family (a data value, not a UI label — set here so it
             // isn't a scanned AXAML literal the L10n gate would flag as
             // untranslated). AutoGen_Click also falls back to "SimSun" when empty.
             FontFamilyInput.Text = "SimSun";
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -135,7 +149,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 if (_vm.CurrentAddr == 0) { CoreState.Services?.ShowError(R._("No glyph selected.")); return; }
                 string suggested = (_vm.IsItemFont ? "Item_" : "Serif_") + U.ToHexString(_vm.CurrentMoji) + ".png";
-                await GlyphImage.ExportPng(this, suggested);
+                await GlyphImage.ExportPng(TopLevel.GetTopLevel(this) as Window, suggested);
             }
             catch (Exception ex)
             {
@@ -161,7 +175,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // multiple of 8, so requireTileMultiple MUST be false or strictSize-correct
                 // 16x13 PNGs would be rejected by the tile-size guard (#1166 import bug).
                 byte[] fontPal = FontGlyphZHCore.GetFontPaletteGBA(_vm.IsItemFont);
-                var result = await ImageImportService.LoadAndRemapToExistingPalette(this,
+                var result = await ImageImportService.LoadAndRemapToExistingPalette(TopLevel.GetTopLevel(this) as Window,
                     FontGlyphZHCore.GLYPH_W, FontGlyphZHCore.GLYPH_H, fontPal, 4,
                     strictSize: true, requireTileMultiple: false);
                 if (result == null) return;                                  // cancelled
@@ -201,7 +215,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // #1639: ExportAll writes sibling glyph PNGs next to the manifest,
                 // so require a real local path; a SAF pick (no local path) cannot
                 // place siblings → message on Android, never silent.
-                string? path = await FileDialogHelper.SaveFile(this,
+                string? path = await FileDialogHelper.SaveFile(TopLevel.GetTopLevel(this) as Window,
                     R._("Export All Fonts"), "fontall.txt", "*.fontall.txt", "font.fontall.txt");
                 if (string.IsNullOrEmpty(path))
                 {
@@ -247,7 +261,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // #1639: ImportAll resolves sibling glyph PNGs from the manifest's
                 // own directory, so require a real local path; a SAF pick (no local
                 // path) cannot resolve siblings → message on Android, never silent.
-                string? path = await FileDialogHelper.OpenFile(this,
+                string? path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this) as Window,
                     R._("Import All Fonts"), "*.fontall.txt", requireLocalPath: true);
                 if (string.IsNullOrEmpty(path))
                 {
@@ -297,7 +311,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                string? path = await FileDialogHelper.OpenFile(this,
+                string? path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this) as Window,
                     R._("Load Font File"), new[] { "*.ttf", "*.otf" });
                 if (string.IsNullOrEmpty(path)) return;
                 _fontFilePath = path;

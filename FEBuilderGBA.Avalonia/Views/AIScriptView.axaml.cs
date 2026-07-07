@@ -6,6 +6,7 @@
 // the AI sub-editors (AIUnits / AITiles / AIASMCoordinate / AIASMRange /
 // AIASMCALLTALK / AIScriptCategorySelect) stay deferred and explicitly
 // absent from both manifest and click-handler wiring.
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
@@ -17,13 +18,16 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class AIScriptView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class AIScriptView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly AIScriptViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "AI Script Editor";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("AI Script Editor", 1400, 780, SizeToContent: true);
+        public event EventHandler? CloseRequested;
 
         public AIScriptView()
         {
@@ -37,7 +41,16 @@ namespace FEBuilderGBA.Avalonia.Views
 
             EntryList.SelectedAddressChanged += OnSelected;
             FilterCombo.SelectionChanged += FilterCombo_SelectionChanged;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         // -----------------------------------------------------------------
@@ -310,7 +323,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint defaultCount = currentCount + 1;
                 if (defaultCount > maxCount) defaultCount = maxCount;
                 uint? chosen = await NumberInputDialog.Show(
-                    this,
+                    TopLevel.GetTopLevel(this) as Window,
                     R._("Enter the new entry count for the AI pointer table (current: {0}, max: {1}).",
                         currentCount, maxCount),
                     R._("List Expansion"),
@@ -681,9 +694,9 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var picker = new ScriptCommandPickerView(EventScript.EventScriptType.AI);
 
-                // AIScriptView IS a Window (TranslatedWindow : Window), so it can
-                // own the modal directly.
-                EventScript.Script? result = await picker.ShowDialog<EventScript.Script?>(this);
+                // AIScriptView is hosted by an EditorHostWindow on desktop, so
+                // route the modal owner through the current TopLevel.
+                EventScript.Script? result = await picker.ShowDialog<EventScript.Script?>(TopLevel.GetTopLevel(this) as Window);
 
                 if (result != null)
                     ApplyPickedScript(result);
@@ -724,7 +737,9 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var txtType = new FilePickerFileType(R._("Text Files")) { Patterns = new[] { "*.txt", "*.event" } };
                 var allType = new FilePickerFileType(R._("All Files")) { Patterns = new[] { "*" } };
-                var file = await this.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+                var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+                if (storageProvider == null) return;
+                var file = await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
                 {
                     Title = R._("Export AI Script"),
                     SuggestedFileName = $"aiscript_0x{_vm.CurrentAddr:X06}.txt",
@@ -768,7 +783,9 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var txtType = new FilePickerFileType(R._("Text Files")) { Patterns = new[] { "*.txt", "*.event" } };
                 var allType = new FilePickerFileType(R._("All Files")) { Patterns = new[] { "*" } };
-                var files = await this.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+                var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+                if (storageProvider == null) return;
+                var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
                 {
                     Title = R._("Import AI Script"),
                     AllowMultiple = false,
@@ -812,5 +829,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

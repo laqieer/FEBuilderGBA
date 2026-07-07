@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.IO;
 using global::Avalonia.Controls;
@@ -8,20 +9,33 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class BattleBGViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class BattleBGViewerView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly BattleBGViewerViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Battle Background Editor";
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
+        public EditorDescriptor Descriptor => new("Battle Background Editor", 853, 441, SizeToContent: true);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public BattleBGViewerView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -84,7 +98,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void ImportPng_Click(object? sender, RoutedEventArgs e)
         {
-            string? filePath = await FileDialogHelper.OpenImageFile(this);
+            string? filePath = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this) as Window);
             if (string.IsNullOrEmpty(filePath)) return; // cancelled
             ImportImageFromFile(filePath);
         }
@@ -127,7 +141,7 @@ namespace FEBuilderGBA.Avalonia.Views
         // rejected, not silently cropped).
         async void FERepo_Click(object? sender, RoutedEventArgs e)
         {
-            string? path = await FERepoPickHelper.PickForEditor(this,
+            string? path = await FERepoPickHelper.PickForEditor(TopLevel.GetTopLevel(this) as Window,
                 FERepoResourceBrowser.FERepoEditorKind.BattleBackground);
             if (string.IsNullOrEmpty(path)) return;
             ImportImageFromFile(path, strictSize: true);
@@ -135,7 +149,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void ExportPng_Click(object? sender, RoutedEventArgs e)
         {
-            await ImageDisplay.ExportPng(this, "battle_bg.png");
+            await ImageDisplay.ExportPng(TopLevel.GetTopLevel(this) as Window, "battle_bg.png");
         }
 
         async void ExportPal_Click(object? sender, RoutedEventArgs e)
@@ -150,7 +164,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // BattleBG palette is LZ77-compressed
                 byte[] pal = LZ77.decompress(rom.Data, palAddr);
                 if (pal == null || pal.Length < 32) { CoreState.Services.ShowError("Failed to read palette"); return; }
-                await FileDialogHelper.SavePaletteFileVia(this, "battle_bg_palette.pal", p =>
+                await FileDialogHelper.SavePaletteFileVia(TopLevel.GetTopLevel(this) as Window, "battle_bg_palette.pal", p =>
                 {
                     // #1639: write via the SAF bridge so Android content:// targets work.
                     PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(p));
@@ -166,7 +180,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 ROM rom = CoreState.ROM;
                 if (rom == null) return;
-                string path = await FileDialogHelper.OpenPaletteFile(this);
+                string path = await FileDialogHelper.OpenPaletteFile(TopLevel.GetTopLevel(this) as Window);
                 if (string.IsNullOrEmpty(path)) return;
                 byte[] fileData = File.ReadAllBytes(path);
                 PaletteFormat fmt = PaletteFormatConverter.DetectFormat(fileData, System.IO.Path.GetExtension(path));

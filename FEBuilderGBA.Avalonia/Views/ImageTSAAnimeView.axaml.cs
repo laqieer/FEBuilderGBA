@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.IO;
 using global::Avalonia.Controls;
@@ -8,22 +9,34 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImageTSAAnimeView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class ImageTSAAnimeView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly ImageTSAAnimeViewModel _vm = new();
+        bool _hasLoadedList;
 
         // TSA Anime v1 palette is the WinForms 8-bank raw palette:
         // 8 banks x 16 colors x 2 bytes = 256 bytes (ImageTSAAnimeForm uses palette_count=8).
         const int PALETTE_BYTES = 0x20 * 8;
 
         public string ViewTitle => "TSA Animation Editor";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("TSA Animation Editor", 1383, 556, SizeToContent: true);
+        public event EventHandler? CloseRequested;
 
         public ImageTSAAnimeView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -71,7 +84,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var loadResult = await ImageImportService.LoadAndQuantize(this, 240, 160, 16);
+                var loadResult = await ImageImportService.LoadAndQuantize(TopLevel.GetTopLevel(this) as Window, 240, 160, 16);
                 if (loadResult == null) return;
                 if (!loadResult.Success) { CoreState.Services.ShowError(loadResult.Error); return; }
 
@@ -98,7 +111,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void ExportPng_Click(object? sender, RoutedEventArgs e)
         {
-            await ImageDisplay.ExportPng(this, "tsa_anime.png");
+            await ImageDisplay.ExportPng(TopLevel.GetTopLevel(this) as Window, "tsa_anime.png");
         }
 
         async void ExportPal_Click(object? sender, RoutedEventArgs e)
@@ -117,7 +130,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // near the ROM end) rather than exporting a partial 8-bank palette.
                 byte[] pal = rom.getBinaryData(palAddr, PALETTE_BYTES);
                 if (pal == null || pal.Length < PALETTE_BYTES) { CoreState.Services.ShowError("Failed to read palette (expected 256 bytes)"); return; }
-                await FileDialogHelper.SavePaletteFileVia(this, "tsa_anime_palette.pal", p =>
+                await FileDialogHelper.SavePaletteFileVia(TopLevel.GetTopLevel(this) as Window, "tsa_anime_palette.pal", p =>
                 {
                     // #1639: write via the SAF bridge so Android content:// targets work.
                     PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(p));
@@ -133,7 +146,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 ROM rom = CoreState.ROM;
                 if (rom == null) return;
-                string path = await FileDialogHelper.OpenPaletteFile(this);
+                string path = await FileDialogHelper.OpenPaletteFile(TopLevel.GetTopLevel(this) as Window);
                 if (string.IsNullOrEmpty(path)) return;
                 byte[] fileData = File.ReadAllBytes(path);
                 PaletteFormat fmt = PaletteFormatConverter.DetectFormat(fileData, System.IO.Path.GetExtension(path));
@@ -158,5 +171,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

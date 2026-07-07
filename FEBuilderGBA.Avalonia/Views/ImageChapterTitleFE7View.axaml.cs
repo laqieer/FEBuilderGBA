@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.IO;
 using global::Avalonia.Controls;
@@ -8,20 +9,33 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImageChapterTitleFE7View : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class ImageChapterTitleFE7View : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly ImageChapterTitleFE7ViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Chapter Title FE7 Editor";
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
+        public EditorDescriptor Descriptor => new("Chapter Title FE7 Editor", 1205, 615, SizeToContent: true);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ImageChapterTitleFE7View()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -77,7 +91,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void ExportPng_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
         {
-            await ImageDisplay.ExportPng(this, "chapter_title_fe7.png");
+            await ImageDisplay.ExportPng(TopLevel.GetTopLevel(this) as Window, "chapter_title_fe7.png");
         }
 
         async void ExportPal_Click(object? sender, RoutedEventArgs e)
@@ -90,7 +104,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (palAddr == 0 || !U.isSafetyOffset(palAddr)) { CoreState.Services.ShowError("No palette address"); return; }
                 byte[] pal = ImageUtilCore.GetPalette(palAddr, 16);
                 if (pal == null || pal.Length < 32) { CoreState.Services.ShowError("Failed to read palette"); return; }
-                await FileDialogHelper.SavePaletteFileVia(this, "chapter_title_fe7_palette.pal", p =>
+                await FileDialogHelper.SavePaletteFileVia(TopLevel.GetTopLevel(this) as Window, "chapter_title_fe7_palette.pal", p =>
                 {
                     // #1639: write via the SAF bridge so Android content:// targets work.
                     PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(p));
@@ -117,7 +131,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 byte[] existingPalette = ImageUtilCore.GetPalette(paletteAddr, 16);
                 if (existingPalette == null) { CoreState.Services.ShowError("Failed to read palette"); return; }
 
-                var loadResult = await ImageImportService.LoadAndRemapToExistingPalette(this, 256, 0, existingPalette, 16);
+                var loadResult = await ImageImportService.LoadAndRemapToExistingPalette(TopLevel.GetTopLevel(this) as Window, 256, 0, existingPalette, 16);
                 if (loadResult == null) return;
                 if (!loadResult.Success) { CoreState.Services.ShowError(loadResult.Error); return; }
 

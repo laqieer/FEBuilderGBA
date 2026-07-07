@@ -13,6 +13,7 @@
 //     palette -> GenericEnemyPortraitImportCore.ImportPortrait under one
 //     UndoService scope, repointing BOTH the image (+0) and palette (+0x20)
 //     slots. Rollback + ShowError on failure; Commit + re-render on success.
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -21,13 +22,16 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImageGenericEnemyPortraitView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class ImageGenericEnemyPortraitView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly ImageGenericEnemyPortraitViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Generic Enemy Portraits";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Generic Enemy Portraits", 800, 400, SizeToContent: true);
+        public event EventHandler? CloseRequested;
 
         public ImageGenericEnemyPortraitView()
         {
@@ -35,7 +39,16 @@ namespace FEBuilderGBA.Avalonia.Views
             // The Export/Import buttons bind IsEnabled to IsLoaded on the VM.
             DataContext = _vm;
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -106,7 +119,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // Make sure the preview holds the current entry's image, then
                 // export it via the shared GbaImageControl save-file dialog.
                 RefreshPreview();
-                await PreviewImage.ExportPng(this, "generic_enemy_portrait");
+                await PreviewImage.ExportPng(TopLevel.GetTopLevel(this) as Window, "generic_enemy_portrait");
             }
             catch (Exception ex)
             {
@@ -121,7 +134,7 @@ namespace FEBuilderGBA.Avalonia.Views
         async void ImportButton_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.IsLoaded) return;
-            string? filePath = await FEBuilderGBA.Avalonia.Dialogs.FileDialogHelper.OpenImageFile(this);
+            string? filePath = await FEBuilderGBA.Avalonia.Dialogs.FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this) as Window);
             if (string.IsNullOrEmpty(filePath)) return;
             RunPortraitImport(filePath);
         }
@@ -133,7 +146,7 @@ namespace FEBuilderGBA.Avalonia.Views
         async void FERepo_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.IsLoaded) return;
-            string? path = await FERepoPickHelper.PickForEditor(this,
+            string? path = await FERepoPickHelper.PickForEditor(TopLevel.GetTopLevel(this) as Window,
                 FERepoResourceBrowser.FERepoEditorKind.GenericEnemyPortrait);
             if (string.IsNullOrEmpty(path)) return;
             RunPortraitImport(path);
@@ -210,5 +223,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

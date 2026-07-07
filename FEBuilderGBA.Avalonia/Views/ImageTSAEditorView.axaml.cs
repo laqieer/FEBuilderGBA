@@ -17,6 +17,7 @@
 // per-cell editing is RESOLVED (#1071): the cell panel enables for a valid header
 // decode, the Cell X/Y maxima are constrained to the header region, and Write
 // branches to _vm.WriteTsa -> ImageTSAEditorCore.WriteHeaderTsaCells.
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Input.Platform;
@@ -26,10 +27,11 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImageTSAEditorView : TranslatedWindow, IEditorView
+    public partial class ImageTSAEditorView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ImageTSAEditorViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         // Suppresses the Cell X / Cell Y ValueChanged -> field-load reentrancy
         // while we programmatically push a cell's values into the editor fields
@@ -37,7 +39,10 @@ namespace FEBuilderGBA.Avalonia.Views
         bool _suppressCellLoad;
 
         public string ViewTitle => "TSA Tile Editor";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("TSA Tile Editor", 1411, 938, SizeToContent: true);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ImageTSAEditorView()
         {
@@ -77,7 +82,16 @@ namespace FEBuilderGBA.Avalonia.Views
             // CoreState.Undo.RunRedo() + CanRedo already exist (the Map Style
             // editor's Redo_Click uses the same pattern). The buttons stay
             // enabled and Redo_Click guards on CanRedo at runtime.
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         /// <summary>
@@ -695,7 +709,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 return;
             }
 
-            string? filePath = await FEBuilderGBA.Avalonia.Dialogs.FileDialogHelper.OpenImageFile(this);
+            string? filePath = await FEBuilderGBA.Avalonia.Dialogs.FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this) as Window);
             if (string.IsNullOrEmpty(filePath)) return;
 
             var loadResult = ImageImportService.LoadAndRemapFromFile(
@@ -782,7 +796,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // Show the rendered tilesheet in the Main Image preview so the
                 // user sees what is being exported, then save it to PNG.
                 MainImagePreview.SetImage(img);
-                await MainImagePreview.ExportPng(this, "tsa_tilesheet");
+                await MainImagePreview.ExportPng(TopLevel.GetTopLevel(this) as Window, "tsa_tilesheet");
             }
             catch (Exception ex)
             {
@@ -800,7 +814,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                await BattlePreview.ExportPng(this, "tsa_main_image");
+                await BattlePreview.ExportPng(TopLevel.GetTopLevel(this) as Window, "tsa_main_image");
             }
             catch (Exception ex)
             {

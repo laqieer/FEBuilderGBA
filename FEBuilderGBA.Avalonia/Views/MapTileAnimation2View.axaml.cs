@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.Collections.Generic;
 using global::Avalonia.Controls;
@@ -22,10 +23,11 @@ namespace FEBuilderGBA.Avalonia.Views
     /// (#524) lands; those buttons render but are <c>IsEnabled=False</c>
     /// with a tooltip referencing the follow-up.
     /// </summary>
-    public partial class MapTileAnimation2View : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class MapTileAnimation2View : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly MapTileAnimation2ViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
         bool _suppressRgbChange;
         bool _suppressFilterChange;
         bool _suppressNListChange;
@@ -33,14 +35,26 @@ namespace FEBuilderGBA.Avalonia.Views
         // Window title shown in the editor dock (matches the AXAML Title
         // attribute so screenshot / UIAutomation tools can locate the view).
         public string ViewTitle => "Map Tile Animation Type 2 (Palette)";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Map Tile Animation Type 2 (Palette)", 1238, 926, SizeToContent: true);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public MapTileAnimation2View()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -427,7 +441,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 var txtType = new FilePickerFileType("Map Tile Animation 2 Files")
                 { Patterns = new[] { "*.mapanime2.txt", "*.txt" } };
                 var allType = new FilePickerFileType("All Files") { Patterns = new[] { "*" } };
-                var files = await this.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+                var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+                if (storageProvider == null) return;
+                var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
                 {
                     Title = "Import Map Tile Animation Type 2",
                     AllowMultiple = false,
@@ -476,7 +492,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 var txtType = new FilePickerFileType("Map Tile Animation 2 Files")
                 { Patterns = new[] { "*.mapanime2.txt", "*.txt" } };
                 var allType = new FilePickerFileType("All Files") { Patterns = new[] { "*" } };
-                var file = await this.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+                var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+                if (storageProvider == null) return;
+                var file = await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
                 {
                     Title = "Export Map Tile Animation Type 2",
                     SuggestedFileName =

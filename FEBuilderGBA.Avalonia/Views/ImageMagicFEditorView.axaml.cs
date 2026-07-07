@@ -4,6 +4,7 @@
 // editor surface mirroring the WF panel3 / panel5 / panel8 /
 // DragTargetPanel layout.
 // #878 PR1: Export + OpenSource/SelectSource wired. Import is PR2.
+using global::Avalonia;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -18,16 +19,20 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImageMagicFEditorView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class ImageMagicFEditorView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly ImageMagicFEditorViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         // Window title shown in editor docks + accessed by MCP /
         // UIAutomation screenshot tooling.
         public string ViewTitle => "Magic Effect Editor (FEditor)";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Magic Effect Editor (FEditor)", 1080, 720, SizeToContent: true);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ImageMagicFEditorView()
         {
@@ -49,7 +54,16 @@ namespace FEBuilderGBA.Avalonia.Views
             };
             DimCombo.SelectedIndex = 0;
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -376,7 +390,7 @@ namespace FEBuilderGBA.Avalonia.Views
             if (!MagicFramePreview.HasImage) return;
             try
             {
-                await MagicFramePreview.ExportPng(this, "magic-effect.png");
+                await MagicFramePreview.ExportPng(TopLevel.GetTopLevel(this) as Window, "magic-effect.png");
             }
             catch (Exception ex)
             {
@@ -411,7 +425,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // so require a real local path; a SAF pick (no local path) cannot
             // resolve siblings → message on Android, never silent.
             string txtPath = await FEBuilderGBA.Avalonia.Dialogs.FileDialogHelper.OpenFile(
-                this,
+                TopLevel.GetTopLevel(this) as Window,
                 R._("Import magic animation script"),
                 "*.txt", requireLocalPath: true);
 
@@ -563,7 +577,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // chosen filter index (0 = with comments, 1 = no comments), not the
             // filename heuristic. The _nc suffix heuristic is removed.
             var (filename, filterIndex) = await FEBuilderGBA.Avalonia.Dialogs.FileDialogHelper.SaveFileWithFilterIndex(
-                this,
+                TopLevel.GetTopLevel(this) as Window,
                 R._("Save magic animation script"),
                 new (string, string)[]
                 {

@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -10,16 +11,19 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EventMapChangeView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class EventMapChangeView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly EventMapChangeViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         readonly ObservableCollection<string> _mapDisplayItems = new();
         List<AddrResult> _mapItems = new();
 
         public string ViewTitle => "Map Change Event Editor";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Map Change Event Editor", 1280, 760, SizeToContent: true);
+        public event EventHandler? CloseRequested;
 
         public EventMapChangeView()
         {
@@ -33,7 +37,16 @@ namespace FEBuilderGBA.Avalonia.Views
             EntryList.SelectedAddressChanged += OnEntrySelected;
             CommentBox.LostFocus += (_, _) => _vm.SaveComment(CommentBox.Text ?? string.Empty);
 
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -251,7 +264,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                await MapPictureImage.ExportPng(this, "eventmapchange_overlay");
+                await MapPictureImage.ExportPng(TopLevel.GetTopLevel(this) as Window, "eventmapchange_overlay");
             }
             catch (Exception ex)
             {
@@ -300,7 +313,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint defaultSrc = U.toOffset(_vm.P8);
                 const uint GBA_ADDRESS_MAX = 0x09FFFFFFu;
                 uint? chosen = await NumberInputDialog.Show(
-                    this,
+                    TopLevel.GetTopLevel(this) as Window,
                     R._("Enter the SOURCE change-data address to import from (W×H×2 = {0} bytes will be copied into this record).",
                         _vm.B3 * _vm.B4 * 2),
                     R._("Pointer Import"),
@@ -370,7 +383,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint defaultCount = current + 1;
                 if (defaultCount > 255) defaultCount = 255;
                 uint? chosen = await NumberInputDialog.Show(
-                    this,
+                    TopLevel.GetTopLevel(this) as Window,
                     R._("Enter the new entry count for the event map-change list (current: {0}, max: 255).", current),
                     R._("List Expansion"),
                     defaultCount,
@@ -458,5 +471,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

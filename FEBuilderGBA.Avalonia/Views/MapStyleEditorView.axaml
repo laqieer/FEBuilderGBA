@@ -1,9 +1,7 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
-        x:Class="FEBuilderGBA.Avalonia.Views.MapStyleEditorView"
-        Title="Map Style Editor" Width="1200" Height="780"
-        SizeToContent="Manual">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+             x:Class="FEBuilderGBA.Avalonia.Views.MapStyleEditorView">
   <!-- Chipset tab hotkeys (#671 acceptance): Alt+T = CopyTile,
        Alt+C = CopyType, Alt+V = Paste. The actual handler is wired
        in the code-behind constructor via this.KeyDown += so the
@@ -418,4 +416,4 @@
       </TabItem>
     </TabControl>
   </Grid>
-</Window>
+</UserControl>

@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -6,18 +7,31 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EventTemplateImplView : TranslatedWindow, IEditorView
+    public partial class EventTemplateImplView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly EventTemplateImplViewModel _vm = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Event Template Implementation";
-        public bool IsLoaded => true;
+        public new bool IsLoaded => true;
+        public EditorDescriptor Descriptor => new("Event Template Implementation", 860, 600);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public EventTemplateImplView()
         {
             InitializeComponent();
             DataContext = _vm;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -40,7 +54,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 {
                     return;
                 }
-                var clipboard = Clipboard;
+                var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
                 if (clipboard != null)
                 {
                     await clipboard.SetTextAsync(_vm.GeneratedHex);

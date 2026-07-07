@@ -5,6 +5,7 @@
 // for the TSA + palette + image-pointer write paths under the ambient
 // UndoService scope.
 // Per-image Import/Export wired in #872.
+using global::Avalonia;
 using System;
 using System.Globalization;
 using global::Avalonia.Controls;
@@ -16,13 +17,17 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImageBattleScreenView : TranslatedWindow, IEditorView
+    public partial class ImageBattleScreenView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ImageBattleScreenViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Battle Screen Layout";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Battle Screen Layout", 1180, 820, MinWidth: 900, MinHeight: 760);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         // Cached references to the 48 numeric cells + 16 swatch borders so
         // we don't have to walk the visual tree on every reload.
@@ -61,7 +66,16 @@ namespace FEBuilderGBA.Avalonia.Views
             WireSpinnerHandlers();
 
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void CachePaletteCells()
@@ -243,7 +257,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                await BattlePreview.ExportPng(this, "battle_screen");
+                await BattlePreview.ExportPng(TopLevel.GetTopLevel(this) as Window, "battle_screen");
             }
             catch (Exception ex)
             {
@@ -585,7 +599,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                await BattlePreview.ExportPng(this, "battle_screen");
+                await BattlePreview.ExportPng(TopLevel.GetTopLevel(this) as Window, "battle_screen");
             }
             catch (Exception ex)
             {
@@ -617,7 +631,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // needs more than one palette bank (ColorCount > BULK_MAX_COLORS) and
             // reject it cleanly -- rather than silently downgrading a multi-bank
             // image to a single bank with the wrong colors (#989).
-            string? filePath = await FileDialogHelper.OpenImageFile(this);
+            string? filePath = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this) as Window);
             if (string.IsNullOrEmpty(filePath)) return;
 
             var loadResult = ImageImportService.LoadAndQuantizeFromFile(
@@ -732,7 +746,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             try
             {
-                await previewControl.ExportPng(this, suggestedName);
+                await previewControl.ExportPng(TopLevel.GetTopLevel(this) as Window, suggestedName);
             }
             catch (Exception ex)
             {
@@ -782,7 +796,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // Open file dialog and load+quantize (remap to existing palette so
             // the user's image is forced to use the current battle-screen colors).
-            string? filePath = await FileDialogHelper.OpenImageFile(this);
+            string? filePath = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this) as Window);
             if (string.IsNullOrEmpty(filePath)) return;
 
             var loadResult = ImageImportService.LoadAndRemapFromFile(

@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.IO;
 using global::Avalonia.Controls;
@@ -8,20 +9,33 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ItemIconViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class ItemIconViewerView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
         readonly ItemIconViewerViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Item/Weapon Icon Viewer";
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
+        public EditorDescriptor Descriptor => new("Item/Weapon Icon Viewer", 749, 358, SizeToContent: true);
+        public event EventHandler? CloseRequested;
 
         public ItemIconViewerView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -66,7 +80,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void ExportPng_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
         {
-            await ImageDisplay.ExportPng(this, "item_icon.png");
+            await ImageDisplay.ExportPng(TopLevel.GetTopLevel(this) as Window, "item_icon.png");
         }
 
         async void ExportPal_Click(object? sender, RoutedEventArgs e)
@@ -75,7 +89,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 byte[] pal = _vm.CachedPalette;
                 if (pal == null || pal.Length < 32) { CoreState.Services.ShowError("No palette loaded"); return; }
-                await FileDialogHelper.SavePaletteFileVia(this, "item_icon_palette.pal", p =>
+                await FileDialogHelper.SavePaletteFileVia(TopLevel.GetTopLevel(this) as Window, "item_icon_palette.pal", p =>
                 {
                     // #1639: write via the SAF bridge so Android content:// targets work.
                     PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(p));
@@ -94,7 +108,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             // Remap to existing shared palette instead of quantizing a new one
             var loadResult = await ImageImportService.LoadAndRemapToExistingPalette(
-                this, 16, 16, _vm.CachedPalette, 16, strictSize: true);
+                TopLevel.GetTopLevel(this) as Window, 16, 16, _vm.CachedPalette, 16, strictSize: true);
             if (loadResult == null) return; // cancelled
             RunIconImport(loadResult);
         }
@@ -109,7 +123,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 CoreState.Services.ShowError("No palette loaded. Select an icon first.");
                 return;
             }
-            string? path = await FERepoPickHelper.PickForEditor(this,
+            string? path = await FERepoPickHelper.PickForEditor(TopLevel.GetTopLevel(this) as Window,
                 FERepoResourceBrowser.FERepoEditorKind.ItemIcon);
             if (string.IsNullOrEmpty(path)) return;
 

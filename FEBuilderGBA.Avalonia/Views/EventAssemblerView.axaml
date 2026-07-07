@@ -1,9 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.EventAssemblerView"
-        Title="Event Assembler" Width="640" Height="520"
-        WindowStartupLocation="CenterOwner"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.EventAssemblerView">
   <!-- Add-via-Event-Assembler tool (WF EventAssemblerForm). Assembles/inserts an
        EA .event into the ROM via ColorzCore / Event-Assembler, with free-area
        selection (Program/Data/None), AutoReCompile, debug-symbol store and undo.
@@ -85,4 +82,4 @@
 
     </StackPanel>
   </ScrollViewer>
-</Window>
+</UserControl>

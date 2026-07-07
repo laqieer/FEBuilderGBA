@@ -1,9 +1,7 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
-        x:Class="FEBuilderGBA.Avalonia.Views.ImagePalletView"
-        Title="Palette Editor" Width="1280" Height="700"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+             x:Class="FEBuilderGBA.Avalonia.Views.ImagePalletView">
   <!-- Mirrors WF ImagePalletForm.panel1 (#400 gap-sweep).
        Left: address list (placeholder). Right: top selection bar,
        palette-index bar, 16-cell color grid (4 cols x 4 rows),
@@ -323,4 +321,4 @@
     </Border>
 
   </Grid>
-</Window>
+</UserControl>

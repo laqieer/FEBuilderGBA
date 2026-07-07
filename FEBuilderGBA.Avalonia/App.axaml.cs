@@ -380,8 +380,8 @@ namespace FEBuilderGBA.Avalonia
                     // real desktop Skia rasterizer (the empty editor already lays
                     // out the geometry under test — AIScript's MinWidth address
                     // link and the palette index columns + swatches; no ROM needed).
-                    "AIScriptView" => new Views.AIScriptView(),
-                    "ImagePalletView" => new Views.ImagePalletView(),
+                    "AIScriptView" => new Services.EditorHostWindow(new Views.AIScriptView()),
+                    "ImagePalletView" => new Services.EditorHostWindow(new Views.ImagePalletView()),
                     // #1793 PR proof: the "unknown ROM" chooser is ROM-independent
                     // (its VM.Initialize() is self-contained) and has 7 tall (66px)
                     // action buttons that were NOT touched by #1727 — so it renders

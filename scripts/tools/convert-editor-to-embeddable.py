@@ -45,6 +45,8 @@ class Descriptor:
     width: str
     height: str
     size_to_content: bool
+    min_width: str
+    min_height: str
     can_resize: bool
     startup_location: str
 
@@ -85,6 +87,8 @@ def parse_window_root(axaml: str, view_name: str) -> tuple[str, dict[str, str], 
         width=attrs["Width"],
         height=attrs["Height"],
         size_to_content=parse_size_to_content(attrs.get("SizeToContent")),
+        min_width=attrs.get("MinWidth", "0"),
+        min_height=attrs.get("MinHeight", "0"),
         can_resize=parse_can_resize(attrs.get("CanResize")),
         startup_location=attrs.get("WindowStartupLocation", "CenterOwner"),
     )
@@ -209,6 +213,10 @@ def convert_owner_bound_dialog_calls(cs: str) -> str:
             rf"\g<prefix>{owner}\g<suffix>",
         ),
         (
+            re.compile(r"(?P<prefix>\bTableExportImportHelper\s*\.\s*[A-Za-z_][A-Za-z0-9_]*\s*\(\s*)this(?P<suffix>\s*,)"),
+            rf"\g<prefix>{owner}\g<suffix>",
+        ),
+        (
             re.compile(r"(?P<prefix>\b[A-Za-z_][A-Za-z0-9_]*\s*\.\s*ShowAsync\s*\(\s*)this\b"),
             rf"\g<prefix>{owner}",
         ),
@@ -263,6 +271,7 @@ def convert_top_level_services(cs: str) -> str:
     aliases, and nullable guards. More complex flows should be skipped manually
     rather than rewritten incorrectly.
     """
+    cs = re.sub(r"(?<![A-Za-z0-9_\.])GetTopLevel\s*\(\s*this\s*\)", "TopLevel.GetTopLevel(this)", cs)
     cs = re.sub(
         r"(?P<indent>^[ \t]*)if\s*\(\s*(?:this\s*\.\s*)?StorageProvider\s*==\s*null\s*\)\s*return\s*;\s*\n(?P=indent)(?P<decl>var\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*await\s+)(?:this\s*\.\s*)?StorageProvider\s*\.\s*(?P<method>(?:Open|Save)(?:File|Folder)PickerAsync\s*\()",
         r"\g<indent>var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;\n"
@@ -322,6 +331,10 @@ def inject_members(cs: str, descriptor: Descriptor) -> str:
         descriptor_args = [f'"{descriptor.title}"', descriptor.width, descriptor.height]
         if descriptor.size_to_content:
             descriptor_args.append("SizeToContent: true")
+        if descriptor.min_width != "0":
+            descriptor_args.append(f"MinWidth: {descriptor.min_width}")
+        if descriptor.min_height != "0":
+            descriptor_args.append(f"MinHeight: {descriptor.min_height}")
         if not descriptor.can_resize:
             descriptor_args.append("CanResize: false")
         if descriptor.startup_location != "CenterOwner":

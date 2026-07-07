@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
@@ -25,13 +26,17 @@ namespace FEBuilderGBA.Avalonia.Views
     /// those bytes from a user-supplied clean-original ROM, under undo. (An applied
     /// insert can still also be reverted via the Undo button.)
     /// </summary>
-    public partial class EventAssemblerView : TranslatedWindow, IEditorView
+    public partial class EventAssemblerView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly EventAssemblerViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Event Assembler";
-        public bool IsLoaded => true;
+        public new bool IsLoaded => true;
+        public EditorDescriptor Descriptor => new("Event Assembler", 640, 520, SizeToContent: true);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public EventAssemblerView()
         {
@@ -52,12 +57,18 @@ namespace FEBuilderGBA.Avalonia.Views
             FreeAreaCombo.SelectedIndex = _vm.FreeAreaIndex;
             DebugSymbolCombo.SelectedIndex = _vm.DebugSymbolIndex;
 
-            Opened += (_, _) =>
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
             {
+                _hasLoadedList = true;
                 // Surface a clear message up front if EA/ColorzCore is not configured.
                 if (!_vm.IsEventAssemblerAvailable)
                     _vm.StatusMessage = _vm.NotFoundMessage;
-            };
+            }
         }
 
         async void Browse_Click(object? sender, RoutedEventArgs e)
@@ -72,7 +83,7 @@ namespace FEBuilderGBA.Avalonia.Views
         /// </summary>
         async Task<bool> BrowseForSourceAsync()
         {
-            var storage = GetTopLevel(this)?.StorageProvider;
+            var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
             if (storage == null) return false;
 
             try
@@ -222,7 +233,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // Prompt for the CLEAN ORIGINAL ROM (the ROM as it was before the patch).
             // Faithful to WF UnInstallPatch, which asks the user for a ROM that does
             // NOT contain the patch and restores the traced ranges from it.
-            string? cleanRomPath = await FileDialogHelper.OpenRomFile(this);
+            string? cleanRomPath = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this) as Window);
             if (string.IsNullOrEmpty(cleanRomPath))
                 return; // cancelled
 
@@ -261,7 +272,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 string prompt = R._("{0} block(s) in this EA cannot be traced (e.g. inline image / PROCS); those bytes will NOT be reverted and may remain patched.", n.ToString())
                     + detail + "\r\n\r\n"
                     + R._("Proceed with a partial uninstall?");
-                var answer = await MessageBoxWindow.Show(this, prompt,
+                var answer = await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window, prompt,
                     R._("Partial uninstall"), MessageBoxMode.YesNo);
                 if (answer != MessageBoxResult.Yes)
                 {

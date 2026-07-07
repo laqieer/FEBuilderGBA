@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.IO;
 using global::Avalonia.Controls;
@@ -8,20 +9,33 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class BigCGViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class BigCGViewerView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly BigCGViewerViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Big CG Editor";
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
+        public EditorDescriptor Descriptor => new("Big CG Editor", 1050, 441, SizeToContent: true);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public BigCGViewerView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -80,14 +94,14 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void ExportPng_Click(object? sender, RoutedEventArgs e)
         {
-            await ImageDisplay.ExportPng(this, "big_cg.png");
+            await ImageDisplay.ExportPng(TopLevel.GetTopLevel(this) as Window, "big_cg.png");
         }
 
         async void ImportPng_Click(object? sender, RoutedEventArgs e)
         {
             try
             {
-                var loadResult = await ImageImportService.LoadAndQuantize(this, 256, 160, 16);
+                var loadResult = await ImageImportService.LoadAndQuantize(TopLevel.GetTopLevel(this) as Window, 256, 160, 16);
                 if (loadResult == null) return;
                 RunBigCGImport(loadResult);
             }
@@ -102,7 +116,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                string? path = await FERepoPickHelper.PickForEditor(this,
+                string? path = await FERepoPickHelper.PickForEditor(TopLevel.GetTopLevel(this) as Window,
                     FERepoResourceBrowser.FERepoEditorKind.CGImage);
                 if (string.IsNullOrEmpty(path)) return;
                 var loadResult = ImageImportService.LoadAndQuantizeFromFile(path, 256, 160, 16, strictSize: true);
@@ -194,7 +208,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint palAddr = U.toOffset(palPtr);
                 byte[] pal = ImageUtilCore.GetPalette(palAddr, 256);
                 if (pal == null || pal.Length < 32) { CoreState.Services.ShowError("Failed to read palette"); return; }
-                await FileDialogHelper.SavePaletteFileVia(this, "big_cg_palette.pal", p =>
+                await FileDialogHelper.SavePaletteFileVia(TopLevel.GetTopLevel(this) as Window, "big_cg_palette.pal", p =>
                 {
                     // #1639: write via the SAF bridge so Android content:// targets work.
                     PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(p));
@@ -210,7 +224,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 ROM rom = CoreState.ROM;
                 if (rom == null) return;
-                string path = await FileDialogHelper.OpenPaletteFile(this);
+                string path = await FileDialogHelper.OpenPaletteFile(TopLevel.GetTopLevel(this) as Window);
                 if (string.IsNullOrEmpty(path)) return;
                 byte[] fileData = File.ReadAllBytes(path);
                 PaletteFormat fmt = PaletteFormatConverter.DetectFormat(fileData, System.IO.Path.GetExtension(path));

@@ -1,9 +1,7 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
-        x:Class="FEBuilderGBA.Avalonia.Views.EventMapChangeView"
-        Title="Map Change Event Editor" Width="1280" Height="760"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+             x:Class="FEBuilderGBA.Avalonia.Views.EventMapChangeView">
   <Grid ColumnDefinitions="220,*,220" RowDefinitions="Auto,Auto,*,Auto">
 
     <!-- Row 0: Top read-config bar (mirrors WF panel1: Top Address /
@@ -182,4 +180,4 @@
       </StackPanel>
     </Border>
   </Grid>
-</Window>
+</UserControl>

@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -7,20 +8,33 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImageRomAnimeView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class ImageRomAnimeView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly ImageRomAnimeViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "In-ROM Magic Animation";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("In-ROM Magic Animation", 820, 520, SizeToContent: true);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ImageRomAnimeView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -101,7 +115,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                await FrameImage.ExportPng(this,
+                await FrameImage.ExportPng(TopLevel.GetTopLevel(this) as Window,
                     "romanime_" + U.ToHexString(_vm.CurrentId) + "_f" + _vm.CurrentFrame + ".png");
             }
             catch (Exception ex)
@@ -120,7 +134,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
 
-                string? path = await FileDialogHelper.OpenImageFile(this);
+                string? path = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this) as Window);
                 if (string.IsNullOrEmpty(path)) return;
 
                 int width = _vm.FrameWidthPx;
@@ -181,7 +195,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // returns null on Android SAF (no local path) → disable with a
                 // clear message instead of silently returning. (Use Export GIF for
                 // a single-file animation export on Android.)
-                string? path = await FileDialogHelper.SaveAnimationScriptFile(this,
+                string? path = await FileDialogHelper.SaveAnimationScriptFile(TopLevel.GetTopLevel(this) as Window,
                     "romanime_" + U.ToHexString(_vm.CurrentId) + ".txt");
                 if (string.IsNullOrEmpty(path))
                 {
@@ -212,7 +226,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 // #1639: single-file GIF export → SAF bridge.
                 string err = "";
-                string? written = await FileDialogHelper.SaveFileVia(this,
+                string? written = await FileDialogHelper.SaveFileVia(TopLevel.GetTopLevel(this) as Window,
                     R._("Save Animation GIF"), R._("Animated GIF (.gif)"), "*.gif",
                     "romanime_" + U.ToHexString(_vm.CurrentId) + ".gif",
                     p => { err = _vm.ExportGif(p); });
@@ -239,7 +253,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // #1639: ImportScript resolves sibling frame PNGs from the
                 // script's own directory, so require a real local path; a SAF pick
                 // (no local path) cannot resolve siblings → message on Android.
-                string? path = await FileDialogHelper.OpenFile(this,
+                string? path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this) as Window,
                     R._("Open Animation Script"), "*.txt", requireLocalPath: true);
                 if (string.IsNullOrEmpty(path))
                 {

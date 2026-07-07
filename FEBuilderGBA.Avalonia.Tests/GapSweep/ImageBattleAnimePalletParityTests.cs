@@ -273,7 +273,7 @@ public class ImageBattleAnimePalletParityTests
         string code = File.ReadAllText(CodeBehindPath());
         // Handler exports the rendered sample preview (no ROM write).
         Assert.Matches(new Regex(
-            @"SamplePreview\.ExportPng\(\s*this", RegexOptions.Singleline), code);
+            @"SamplePreview\.ExportPng\(\s*TopLevel\.GetTopLevel\(this\)\s+as\s+Window", RegexOptions.Singleline), code);
         // Gate is driven from HasImage and applied to the button.
         Assert.Matches(new Regex(
             @"ExportButton\.IsEnabled\s*=\s*SamplePreview\.HasImage",
