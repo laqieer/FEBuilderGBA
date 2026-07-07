@@ -226,12 +226,11 @@ def convert_owner_bound_dialog_calls(cs: str) -> str:
             rf"\g<prefix>{owner}\g<suffix>",
         ),
         (
-            re.compile(r"(?P<prefix>\bOpenModal<[^>]+>\s*\([^;]*?),\s*this\s*\)"),
+            re.compile(r"(?P<prefix>\bOpenModal<[^>]+>\s*\([^;]*?),\s*this\s*\)", re.DOTALL),
             rf"\g<prefix>, {owner})",
-            re.DOTALL,
         ),
     )
-    for pattern, repl, *extra in replacements:
+    for pattern, repl in replacements:
         cs = pattern.sub(repl, cs)
     return cs
 
