@@ -1,4 +1,4 @@
-using global::Avalonia;
+﻿using global::Avalonia;
 using System;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
@@ -35,7 +35,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void DecompressSrcBrowse_Click(object? sender, RoutedEventArgs e)
         {
-            var path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this) as Window, "Open source file", "*");
+            var path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this), "Open source file", "*");
             if (!string.IsNullOrEmpty(path))
                 _vm.DecompressSrcPath = path;
         }
@@ -87,7 +87,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void CompressSrcBrowse_Click(object? sender, RoutedEventArgs e)
         {
-            var path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this) as Window, "Open source file", "*");
+            var path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this), "Open source file", "*");
             if (!string.IsNullOrEmpty(path))
                 _vm.CompressSrcPath = path;
         }
@@ -173,7 +173,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void FileToBase64Text_Click(object? sender, RoutedEventArgs e)
         {
-            var path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this) as Window, R._("Open file to encode as base64"), "*");
+            var path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this), R._("Open file to encode as base64"), "*");
             if (!string.IsNullOrEmpty(path))
                 _vm.RunFileToBase64Text(path);
         }

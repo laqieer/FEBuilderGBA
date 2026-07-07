@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // ImageBattleScreenView -- Avalonia parity rebuild for #393. Mirrors the WF
 // `ImageBattleScreenForm` 5-tab battle-screen layout editor. Uses the
 // `ImageBattleScreenCore` helper (which delegates palette I/O to PaletteCore)
@@ -631,7 +631,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // needs more than one palette bank (ColorCount > BULK_MAX_COLORS) and
             // reject it cleanly -- rather than silently downgrading a multi-bank
             // image to a single bank with the wrong colors (#989).
-            string? filePath = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this) as Window);
+            string? filePath = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this));
             if (string.IsNullOrEmpty(filePath)) return;
 
             var loadResult = ImageImportService.LoadAndQuantizeFromFile(
@@ -796,7 +796,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // Open file dialog and load+quantize (remap to existing palette so
             // the user's image is forced to use the current battle-screen colors).
-            string? filePath = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this) as Window);
+            string? filePath = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this));
             if (string.IsNullOrEmpty(filePath)) return;
 
             var loadResult = ImageImportService.LoadAndRemapFromFile(

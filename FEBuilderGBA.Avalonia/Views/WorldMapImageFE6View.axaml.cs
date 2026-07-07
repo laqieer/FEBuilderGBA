@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // World Map Image (FE6) editor view (#1183) — port of WF WorldMapImageFE6Form.
 // Five GbaImageControl previews (full + 4 quadrants NW/NE/SW/SE), each with a
 // per-zoom PNG Import (file dialog -> validate 240x160 -> Core 256-linear import
@@ -118,7 +118,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                string? path = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this) as Window);
+                string? path = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this));
                 if (path == null) return;
                 await DoImport(slotByteOffset, path, target, render, label);
             }

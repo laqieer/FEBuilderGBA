@@ -1,4 +1,4 @@
-using global::Avalonia;
+﻿using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -277,7 +277,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // the .txt script, so a SAF pick (no local path) can't place them.
             // SaveAnimationScriptFile returns null without a local path; on Android
             // message instead of silently exporting siblings into a temp dir.
-            string? path = await Dialogs.FileDialogHelper.SaveAnimationScriptFile(TopLevel.GetTopLevel(this) as Window, $"{name}.txt");
+            string? path = await Dialogs.FileDialogHelper.SaveAnimationScriptFile(TopLevel.GetTopLevel(this), $"{name}.txt");
             if (string.IsNullOrEmpty(path))
             {
                 if (OperatingSystem.IsAndroid())

@@ -1,4 +1,4 @@
-using global::Avalonia;
+﻿using global::Avalonia;
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -57,7 +57,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // so it needs a real local directory. OpenProjectFolder returns
                 // null on Android SAF (no local path) → surface a clear message
                 // instead of silently doing nothing.
-                string? folder = await FileDialogHelper.OpenProjectFolder(TopLevel.GetTopLevel(this) as Window);
+                string? folder = await FileDialogHelper.OpenProjectFolder(TopLevel.GetTopLevel(this));
                 if (string.IsNullOrEmpty(folder) && OperatingSystem.IsAndroid())
                     _vm.StatusMessage = R._("Dev Translate reads a folder tree and requires desktop file-system access; it is not available on this device.");
                 return folder;

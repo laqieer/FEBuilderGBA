@@ -1,4 +1,4 @@
-using global::Avalonia;
+﻿using global::Avalonia;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -44,7 +44,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                string? path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this) as Window);
+                string? path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this));
                 if (!string.IsNullOrEmpty(path))
                     OriginalRomTextBox.Text = path;
             }
@@ -68,7 +68,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 string suggested = ToolUPSPatchSimpleViewModel.SuggestedName(DateTime.Now.ToString("yyyyMMddHHmmss"));
                 // #1639: the .ups patch is a single-file output → pick the handle
                 // and write through the SAF bridge so Android content:// targets work.
-                var file = await FileDialogHelper.SaveUpsFilePick(TopLevel.GetTopLevel(this) as Window, suggested);
+                var file = await FileDialogHelper.SaveUpsFilePick(TopLevel.GetTopLevel(this), suggested);
                 if (file == null)
                     return;   // user cancelled
 

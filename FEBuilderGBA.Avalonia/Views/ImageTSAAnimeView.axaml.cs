@@ -1,4 +1,4 @@
-using global::Avalonia;
+﻿using global::Avalonia;
 using System;
 using System.IO;
 using global::Avalonia.Controls;
@@ -130,7 +130,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // near the ROM end) rather than exporting a partial 8-bank palette.
                 byte[] pal = rom.getBinaryData(palAddr, PALETTE_BYTES);
                 if (pal == null || pal.Length < PALETTE_BYTES) { CoreState.Services.ShowError("Failed to read palette (expected 256 bytes)"); return; }
-                await FileDialogHelper.SavePaletteFileVia(TopLevel.GetTopLevel(this) as Window, "tsa_anime_palette.pal", p =>
+                await FileDialogHelper.SavePaletteFileVia(TopLevel.GetTopLevel(this), "tsa_anime_palette.pal", p =>
                 {
                     // #1639: write via the SAF bridge so Android content:// targets work.
                     PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(p));
@@ -146,7 +146,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 ROM rom = CoreState.ROM;
                 if (rom == null) return;
-                string path = await FileDialogHelper.OpenPaletteFile(TopLevel.GetTopLevel(this) as Window);
+                string path = await FileDialogHelper.OpenPaletteFile(TopLevel.GetTopLevel(this));
                 if (string.IsNullOrEmpty(path)) return;
                 byte[] fileData = File.ReadAllBytes(path);
                 PaletteFormat fmt = PaletteFormatConverter.DetectFormat(fileData, System.IO.Path.GetExtension(path));

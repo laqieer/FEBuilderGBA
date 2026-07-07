@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // WorldMapImageView code-behind — gap-sweep #395 parity raise.
 //
 // Wires the six Avalonia tabs (Main / Event / Mini / PointIcon / Border /
@@ -276,7 +276,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                string? path = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this) as Window);
+                string? path = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this));
                 if (path == null) return;
                 await DoBorderImport(path);
             }
@@ -764,7 +764,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                string? path = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this) as Window);
+                string? path = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this));
                 if (path == null) return;
                 await DoMainImport(path);
             }
@@ -884,7 +884,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                string? path = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this) as Window);
+                string? path = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this));
                 if (path == null) return;
                 await DoDarkImport(path);
             }
@@ -1135,7 +1135,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                string? path = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this) as Window);
+                string? path = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this));
                 if (path == null) return;
                 await DoEventImport(path);
             }
@@ -1227,7 +1227,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
                 // #1639: write via the SAF bridge so Android content:// targets work.
-                await FileDialogHelper.SaveImageFileVia(TopLevel.GetTopLevel(this) as Window, "worldmap_darkfieldmap", p =>
+                await FileDialogHelper.SaveImageFileVia(TopLevel.GetTopLevel(this), "worldmap_darkfieldmap", p =>
                 {
                     using var stream = System.IO.File.Create(p);
                     bmp.Save(stream);

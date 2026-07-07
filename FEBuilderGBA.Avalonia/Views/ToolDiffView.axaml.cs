@@ -1,4 +1,4 @@
-using global::Avalonia;
+﻿using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -30,7 +30,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void OtherBrowse_Click(object? sender, RoutedEventArgs e)
         {
-            var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this) as Window);
+            var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this));
             if (!string.IsNullOrEmpty(path))
                 _vm.OtherPath = path;
         }
@@ -62,14 +62,14 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void ABrowse_Click(object? sender, RoutedEventArgs e)
         {
-            var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this) as Window);
+            var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this));
             if (!string.IsNullOrEmpty(path))
                 _vm.AFilePath = path;
         }
 
         async void BBrowse_Click(object? sender, RoutedEventArgs e)
         {
-            var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this) as Window);
+            var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this));
             if (!string.IsNullOrEmpty(path))
                 _vm.BFilePath = path;
         }

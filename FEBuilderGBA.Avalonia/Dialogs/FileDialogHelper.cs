@@ -1,10 +1,11 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Platform.Storage;
+using FEBuilderGBA;
 
 namespace FEBuilderGBA.Avalonia.Dialogs
 {
@@ -226,6 +227,16 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         static readonly string[] TxtPatterns = new[] { "*.txt" };
         static readonly string[] AllPalettePatterns = new[] { "*.pal", "*.gbapal", "*.act", "*.gpl", "*.txt" };
 
+        static IStorageProvider? GetStorageProvider(TopLevel? owner, string operation)
+        {
+            var provider = owner?.StorageProvider;
+            if (provider == null)
+            {
+                Log.Error($"FileDialogHelper.{operation}: TopLevel or StorageProvider is unavailable.");
+            }
+            return provider;
+        }
+
         static FilePickerFileType MakeGbaFileType() => new(R._("GBA ROM Files"))
         {
             Patterns = GbaPatterns,
@@ -249,9 +260,11 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         /// retain the SAF handle for write-back (the main ROM open/save) use
         /// <see cref="OpenRomFilePick"/> instead.
         /// </summary>
-        public static async Task<string?> OpenRomFile(Window owner)
+        public static async Task<string?> OpenRomFile(TopLevel? owner)
         {
-            var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            var provider = GetStorageProvider(owner, nameof(OpenRomFile));
+            if (provider == null) return null;
+            var files = await provider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
                 Title = R._("Open ROM"),
                 AllowMultiple = false,
@@ -262,9 +275,11 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         }
 
         /// <summary>Save a GBA ROM file.</summary>
-        public static async Task<string?> SaveRomFile(Window owner, string? suggestedName = null)
+        public static async Task<string?> SaveRomFile(TopLevel? owner, string? suggestedName = null)
         {
-            var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            var provider = GetStorageProvider(owner, nameof(SaveRomFile));
+            if (provider == null) return null;
+            var file = await provider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = R._("Save ROM"),
                 SuggestedFileName = suggestedName ?? "rom.gba",
@@ -275,16 +290,18 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         }
 
         /// <summary>Save a UPS patch file (#1194 Save-as-UPS tool).</summary>
-        public static async Task<string?> SaveUpsFile(Window owner, string? suggestedName = null)
+        public static async Task<string?> SaveUpsFile(TopLevel? owner, string? suggestedName = null)
         {
             var file = await SaveUpsFilePick(owner, suggestedName);
             return file?.TryGetLocalPath();
         }
 
         /// <summary>Save a UPS patch file and return the picked IStorageFile handle (#1639).</summary>
-        public static async Task<IStorageFile?> SaveUpsFilePick(Window owner, string? suggestedName = null)
+        public static async Task<IStorageFile?> SaveUpsFilePick(TopLevel? owner, string? suggestedName = null)
         {
-            return await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            var provider = GetStorageProvider(owner, nameof(SaveUpsFilePick));
+            if (provider == null) return null;
+            return await provider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = R._("Save UPS Patch"),
                 SuggestedFileName = suggestedName ?? "patch.ups",
@@ -298,18 +315,9 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         /// local path, so callers must read it via the stream API (#1124). Desktop
         /// callers can still call TryGetLocalPath() on the returned handle.
         /// </summary>
-        public static Task<IStorageFile?> OpenRomFilePick(Window owner)
-            => OpenRomFilePick((Visual)owner);
-
-        /// <summary>
-        /// Visual/TopLevel-owner overload (#1870): resolves the StorageProvider via
-        /// <see cref="TopLevel.GetTopLevel"/> so it works from the single-view
-        /// (WebAssembly / Android) shell, whose owner Visual is NOT a Window. Returns
-        /// null when the owner is not yet attached to a TopLevel or the user cancels.
-        /// </summary>
-        public static async Task<IStorageFile?> OpenRomFilePick(Visual owner)
+        public static async Task<IStorageFile?> OpenRomFilePick(TopLevel? owner)
         {
-            var provider = TopLevel.GetTopLevel(owner)?.StorageProvider;
+            var provider = GetStorageProvider(owner, nameof(OpenRomFilePick));
             if (provider == null) return null;
             var files = await provider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
@@ -321,17 +329,9 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         }
 
         /// <summary>Save a GBA ROM and return the picked IStorageFile (#1124).</summary>
-        public static Task<IStorageFile?> SaveRomFilePick(Window owner, string? suggestedName = null)
-            => SaveRomFilePick((Visual)owner, suggestedName);
-
-        /// <summary>
-        /// Visual/TopLevel-owner overload (#1870): resolves the StorageProvider via
-        /// <see cref="TopLevel.GetTopLevel"/> for the single-view shell. Returns null
-        /// when the owner is not yet attached to a TopLevel or the user cancels.
-        /// </summary>
-        public static async Task<IStorageFile?> SaveRomFilePick(Visual owner, string? suggestedName = null)
+        public static async Task<IStorageFile?> SaveRomFilePick(TopLevel? owner, string? suggestedName = null)
         {
-            var provider = TopLevel.GetTopLevel(owner)?.StorageProvider;
+            var provider = GetStorageProvider(owner, nameof(SaveRomFilePick));
             if (provider == null) return null;
             return await provider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
@@ -345,9 +345,11 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         /// Open a decomp project folder (#1129 slice 1). Returns the chosen
         /// directory's local path, or null when cancelled / unavailable.
         /// </summary>
-        public static async Task<string?> OpenProjectFolder(Window owner)
+        public static async Task<string?> OpenProjectFolder(TopLevel? owner)
         {
-            var folders = await owner.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            var provider = GetStorageProvider(owner, nameof(OpenProjectFolder));
+            if (provider == null) return null;
+            var folders = await provider.OpenFolderPickerAsync(new FolderPickerOpenOptions
             {
                 Title = R._("Open Decomp Project"),
                 AllowMultiple = false,
@@ -357,9 +359,11 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         }
 
         /// <summary>Open a UPS patch file.</summary>
-        public static async Task<string?> OpenPatchFile(Window owner)
+        public static async Task<string?> OpenPatchFile(TopLevel? owner)
         {
-            var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            var provider = GetStorageProvider(owner, nameof(OpenPatchFile));
+            if (provider == null) return null;
+            var files = await provider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
                 Title = R._("Open Patch"),
                 AllowMultiple = false,
@@ -375,9 +379,11 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         };
 
         /// <summary>Save a PNG image file.</summary>
-        public static async Task<string?> SaveImageFile(Window owner, string? suggestedName = null)
+        public static async Task<string?> SaveImageFile(TopLevel? owner, string? suggestedName = null)
         {
-            var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            var provider = GetStorageProvider(owner, nameof(SaveImageFile));
+            if (provider == null) return null;
+            var file = await provider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = R._("Export Image"),
                 SuggestedFileName = suggestedName ?? "image.png",
@@ -393,9 +399,11 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         };
 
         /// <summary>Open an image file (PNG, BMP) for import.</summary>
-        public static async Task<string?> OpenImageFile(Window owner)
+        public static async Task<string?> OpenImageFile(TopLevel? owner)
         {
-            var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            var provider = GetStorageProvider(owner, nameof(OpenImageFile));
+            if (provider == null) return null;
+            var files = await provider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
                 Title = R._("Import Image"),
                 AllowMultiple = false,
@@ -406,7 +414,7 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         }
 
         /// <summary>Save an Animation Creator script file (.txt).</summary>
-        public static async Task<string?> SaveAnimationScriptFile(Window owner, string? suggestedName = null)
+        public static async Task<string?> SaveAnimationScriptFile(TopLevel? owner, string? suggestedName = null)
         {
             var file = await SaveAnimationScriptFilePick(owner, suggestedName);
             return file?.TryGetLocalPath();
@@ -419,10 +427,12 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         /// (#1639). NOTE: callers whose export ALSO writes sibling PNGs must NOT
         /// bridge — they require a local path and Android-disable.
         /// </summary>
-        public static async Task<IStorageFile?> SaveAnimationScriptFilePick(Window owner, string? suggestedName = null)
+        public static async Task<IStorageFile?> SaveAnimationScriptFilePick(TopLevel? owner, string? suggestedName = null)
         {
+            var provider = GetStorageProvider(owner, nameof(SaveAnimationScriptFilePick));
+            if (provider == null) return null;
             var fileType = new FilePickerFileType(R._("Animation Script (.txt)")) { Patterns = TxtPatterns };
-            return await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            return await provider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = R._("Save Animation Script"),
                 SuggestedFileName = suggestedName ?? "anim.txt",
@@ -431,7 +441,7 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         }
 
         /// <summary>Open any file with custom filter.</summary>
-        public static async Task<string?> OpenFile(Window owner, string title, string pattern, bool requireLocalPath = false)
+        public static async Task<string?> OpenFile(TopLevel? owner, string title, string pattern, bool requireLocalPath = false)
             => await OpenFile(owner, title, new[] { pattern }, requireLocalPath);
 
         /// <summary>
@@ -446,10 +456,12 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         /// returns null — the caller then shows an explicit Android message — and
         /// the bridge is NEVER used for multi-file flows.
         /// </summary>
-        public static async Task<string?> OpenFile(Window owner, string title, string[] patterns, bool requireLocalPath = false)
+        public static async Task<string?> OpenFile(TopLevel? owner, string title, string[] patterns, bool requireLocalPath = false)
         {
+            var provider = GetStorageProvider(owner, nameof(OpenFile));
+            if (provider == null) return null;
             var fileType = new FilePickerFileType(title) { Patterns = patterns };
-            var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            var files = await provider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
                 Title = title,
                 AllowMultiple = false,
@@ -470,10 +482,12 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         /// Used by the Map Action Animation Export button (#499) plus any
         /// future caller that needs a generic single-format SaveFilePicker.
         /// </summary>
-        public static async Task<string?> SaveFile(Window owner, string title, string filterName, string pattern, string? suggestedName = null)
+        public static async Task<string?> SaveFile(TopLevel? owner, string title, string filterName, string pattern, string? suggestedName = null)
         {
+            var provider = GetStorageProvider(owner, nameof(SaveFile));
+            if (provider == null) return null;
             var fileType = new FilePickerFileType(filterName) { Patterns = new[] { pattern } };
-            var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            var file = await provider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = title,
                 SuggestedFileName = suggestedName,
@@ -490,9 +504,11 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         /// Used by the Map Action Animation Export button (#499 Copilot bot
         /// inline review fix: single-pattern picker hid the .gif export path).
         /// </summary>
-        public static async Task<string?> SaveFile(Window owner, string title,
+        public static async Task<string?> SaveFile(TopLevel? owner, string title,
             (string Name, string Pattern)[] filters, string? suggestedName = null)
         {
+            var provider = GetStorageProvider(owner, nameof(SaveFile));
+            if (provider == null) return null;
             var choices = new System.Collections.Generic.List<FilePickerFileType>(filters.Length + 1);
             foreach (var (name, pattern) in filters)
             {
@@ -500,7 +516,7 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             }
             choices.Add(MakeAllFileType());
 
-            var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            var file = await provider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = title,
                 SuggestedFileName = suggestedName,
@@ -517,9 +533,11 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         /// Returns (-1) as filterIndex when the dialog is cancelled.
         /// </summary>
         public static async Task<(string? Path, int FilterIndex)> SaveFileWithFilterIndex(
-            Window owner, string title,
+            TopLevel? owner, string title,
             (string Name, string Pattern)[] filters, string? suggestedName = null)
         {
+            var provider = GetStorageProvider(owner, nameof(SaveFileWithFilterIndex));
+            if (provider == null) return (null, -1);
             var choices = new System.Collections.Generic.List<FilePickerFileType>(filters.Length + 1);
             foreach (var (name, pattern) in filters)
             {
@@ -527,7 +545,7 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             }
             choices.Add(MakeAllFileType());
 
-            var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            var file = await provider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = title,
                 SuggestedFileName = suggestedName,
@@ -586,9 +604,11 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         };
 
         /// <summary>Save a palette file with multi-format choices.</summary>
-        public static async Task<string?> SavePaletteFile(Window owner, string? suggestedName = null)
+        public static async Task<string?> SavePaletteFile(TopLevel? owner, string? suggestedName = null)
         {
-            var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            var provider = GetStorageProvider(owner, nameof(SavePaletteFile));
+            if (provider == null) return null;
+            var file = await provider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = R._("Export Palette"),
                 SuggestedFileName = suggestedName ?? "palette.pal",
@@ -599,9 +619,11 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         }
 
         /// <summary>Open a palette file (any supported format) for import.</summary>
-        public static async Task<string?> OpenPaletteFile(Window owner)
+        public static async Task<string?> OpenPaletteFile(TopLevel? owner)
         {
-            var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            var provider = GetStorageProvider(owner, nameof(OpenPaletteFile));
+            if (provider == null) return null;
+            var files = await provider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
                 Title = R._("Import Palette"),
                 AllowMultiple = false,
@@ -619,9 +641,11 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         // ===================================================================
 
         /// <summary>Pick a PNG save target and run <paramref name="writer"/> via the SAF bridge.</summary>
-        public static async Task<string?> SaveImageFileVia(Window owner, string? suggestedName, Func<string, Task> writer)
+        public static async Task<string?> SaveImageFileVia(TopLevel? owner, string? suggestedName, Func<string, Task> writer)
         {
-            var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            var provider = GetStorageProvider(owner, nameof(SaveImageFileVia));
+            if (provider == null) return null;
+            var file = await provider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = R._("Export Image"),
                 SuggestedFileName = suggestedName ?? "image.png",
@@ -631,7 +655,7 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         }
 
         /// <summary>Synchronous-writer overload of <see cref="SaveImageFileVia(Window, string, Func{string, Task})"/>.</summary>
-        public static Task<string?> SaveImageFileVia(Window owner, string? suggestedName, Action<string> writer)
+        public static Task<string?> SaveImageFileVia(TopLevel? owner, string? suggestedName, Action<string> writer)
             => SaveImageFileVia(owner, suggestedName, p => { writer(p); return Task.CompletedTask; });
 
         /// <summary>
@@ -640,9 +664,11 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         /// writing (e.g. the desktop overwrite-confirmation in ImageExportService)
         /// and then bridge the write via <see cref="WriteViaAsync(IStorageFile, Func{string, Task})"/>. #1639.
         /// </summary>
-        public static async Task<IStorageFile?> SaveImageFilePick(Window owner, string? suggestedName = null)
+        public static async Task<IStorageFile?> SaveImageFilePick(TopLevel? owner, string? suggestedName = null)
         {
-            return await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            var provider = GetStorageProvider(owner, nameof(SaveImageFilePick));
+            if (provider == null) return null;
+            return await provider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = R._("Export Image"),
                 SuggestedFileName = suggestedName ?? "image.png",
@@ -651,9 +677,11 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         }
 
         /// <summary>Pick a palette save target (multi-format) and run <paramref name="writer"/> via the SAF bridge.</summary>
-        public static async Task<string?> SavePaletteFileVia(Window owner, string? suggestedName, Func<string, Task> writer)
+        public static async Task<string?> SavePaletteFileVia(TopLevel? owner, string? suggestedName, Func<string, Task> writer)
         {
-            var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            var provider = GetStorageProvider(owner, nameof(SavePaletteFileVia));
+            if (provider == null) return null;
+            var file = await provider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = R._("Export Palette"),
                 SuggestedFileName = suggestedName ?? "palette.pal",
@@ -663,14 +691,16 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         }
 
         /// <summary>Synchronous-writer overload of <see cref="SavePaletteFileVia(Window, string, Func{string, Task})"/>.</summary>
-        public static Task<string?> SavePaletteFileVia(Window owner, string? suggestedName, Action<string> writer)
+        public static Task<string?> SavePaletteFileVia(TopLevel? owner, string? suggestedName, Action<string> writer)
             => SavePaletteFileVia(owner, suggestedName, p => { writer(p); return Task.CompletedTask; });
 
         /// <summary>Pick a single-format save target and run <paramref name="writer"/> via the SAF bridge.</summary>
-        public static async Task<string?> SaveFileVia(Window owner, string title, string filterName, string pattern, string? suggestedName, Func<string, Task> writer)
+        public static async Task<string?> SaveFileVia(TopLevel? owner, string title, string filterName, string pattern, string? suggestedName, Func<string, Task> writer)
         {
+            var provider = GetStorageProvider(owner, nameof(SaveFileVia));
+            if (provider == null) return null;
             var fileType = new FilePickerFileType(filterName) { Patterns = new[] { pattern } };
-            var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            var file = await provider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = title,
                 SuggestedFileName = suggestedName,
@@ -680,7 +710,7 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         }
 
         /// <summary>Synchronous-writer overload of <see cref="SaveFileVia(Window, string, string, string, string, Func{string, Task})"/>.</summary>
-        public static Task<string?> SaveFileVia(Window owner, string title, string filterName, string pattern, string? suggestedName, Action<string> writer)
+        public static Task<string?> SaveFileVia(TopLevel? owner, string title, string filterName, string pattern, string? suggestedName, Action<string> writer)
             => SaveFileVia(owner, title, filterName, pattern, suggestedName, p => { writer(p); return Task.CompletedTask; });
 
         /// <summary>
@@ -689,10 +719,12 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         /// awaited write and then bridge it via <see cref="WriteViaAsync(IStorageFile, Func{string, Task})"/>
         /// themselves (#1639).
         /// </summary>
-        public static async Task<IStorageFile?> SaveFilePick(Window owner, string title, string filterName, string pattern, string? suggestedName = null)
+        public static async Task<IStorageFile?> SaveFilePick(TopLevel? owner, string title, string filterName, string pattern, string? suggestedName = null)
         {
+            var provider = GetStorageProvider(owner, nameof(SaveFilePick));
+            if (provider == null) return null;
             var fileType = new FilePickerFileType(filterName) { Patterns = new[] { pattern } };
-            return await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            return await provider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = title,
                 SuggestedFileName = suggestedName,
@@ -706,14 +738,16 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         /// (bridgeable) and others write siblings (must require a local path), so
         /// they branch by the chosen extension themselves (#1639).
         /// </summary>
-        public static async Task<IStorageFile?> SaveFilePick(Window owner, string title,
+        public static async Task<IStorageFile?> SaveFilePick(TopLevel? owner, string title,
             (string Name, string Pattern)[] filters, string? suggestedName = null)
         {
+            var provider = GetStorageProvider(owner, nameof(SaveFilePick));
+            if (provider == null) return null;
             var choices = new System.Collections.Generic.List<FilePickerFileType>(filters.Length + 1);
             foreach (var (name, pattern) in filters)
                 choices.Add(new FilePickerFileType(name) { Patterns = new[] { pattern } });
             choices.Add(MakeAllFileType());
-            return await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            return await provider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = title,
                 SuggestedFileName = suggestedName,
@@ -728,15 +762,17 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         /// index, so callers can branch by format (e.g. .txt vs .gif). Single-file
         /// writers only — multi-file/sibling exports must require a local path.
         /// </summary>
-        public static async Task<string?> SaveFileVia(Window owner, string title,
+        public static async Task<string?> SaveFileVia(TopLevel? owner, string title,
             (string Name, string Pattern)[] filters, string? suggestedName, Func<string, int, Task> writer)
         {
+            var provider = GetStorageProvider(owner, nameof(SaveFileVia));
+            if (provider == null) return null;
             var choices = new System.Collections.Generic.List<FilePickerFileType>(filters.Length + 1);
             foreach (var (name, pattern) in filters)
                 choices.Add(new FilePickerFileType(name) { Patterns = new[] { pattern } });
             choices.Add(MakeAllFileType());
 
-            var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            var file = await provider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = title,
                 SuggestedFileName = suggestedName,

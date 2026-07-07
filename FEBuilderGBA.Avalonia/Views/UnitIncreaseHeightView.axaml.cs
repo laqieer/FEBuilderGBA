@@ -1,4 +1,4 @@
-using global::Avalonia;
+﻿using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -41,7 +41,6 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // TranslatedWindow auto-translates Text/Content, but NOT ComboBox items — rebuild the
             // combo labels ourselves on a runtime language change (preserving the selection).
-            CoreState.LanguageChanged += RebuildHeightCombo;
 
         }
 
@@ -54,6 +53,8 @@ namespace FEBuilderGBA.Avalonia.Views
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
         {
             base.OnAttachedToVisualTree(e);
+            CoreState.LanguageChanged -= RebuildHeightCombo;
+            CoreState.LanguageChanged += RebuildHeightCombo;
             if (!_hasLoadedList)
             {
                 _hasLoadedList = true;

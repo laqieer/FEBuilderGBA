@@ -1,4 +1,4 @@
-using global::Avalonia;
+﻿using global::Avalonia;
 using System;
 using System.IO;
 using global::Avalonia.Controls;
@@ -47,7 +47,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                string? path = await FileDialogHelper.OpenPatchFile(TopLevel.GetTopLevel(this) as Window);
+                string? path = await FileDialogHelper.OpenPatchFile(TopLevel.GetTopLevel(this));
                 if (string.IsNullOrEmpty(path))
                     return;
                 UpsTextBox.Text = path;
@@ -70,7 +70,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                string? path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this) as Window);
+                string? path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this));
                 if (!string.IsNullOrEmpty(path))
                     OriginalRomTextBox.Text = path;
             }
@@ -150,7 +150,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (SaveAsGbaCheck.IsChecked == true)
                 {
                     string suggested = Path.GetFileNameWithoutExtension(ups) + ".gba";
-                    saveFile = await FileDialogHelper.SaveRomFilePick(TopLevel.GetTopLevel(this) as Window, suggested);
+                    saveFile = await FileDialogHelper.SaveRomFilePick(TopLevel.GetTopLevel(this), suggested);
                     if (saveFile == null)
                         return;   // user cancelled
                     string? local = saveFile.TryGetLocalPath();

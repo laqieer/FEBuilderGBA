@@ -382,7 +382,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // chosen TSV's OWN directory, so require a real local path; a SAF pick
             // (no local path) cannot resolve those sibling dirs → message on
             // Android, never silent.
-            string? path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this) as Window,
+            string? path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this),
                 R._("Bulk Import Skill Config"), "*.SkillConfig.tsv", requireLocalPath: true);
             if (string.IsNullOrEmpty(path))
             {
@@ -479,7 +479,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // #1639: bulk export writes per-skill anime* directories next to the
             // TSV, so require a real local path; a SAF pick (no local path) cannot
             // place those siblings → message on Android, never silent.
-            string? path = await FileDialogHelper.SaveFile(TopLevel.GetTopLevel(this) as Window,
+            string? path = await FileDialogHelper.SaveFile(TopLevel.GetTopLevel(this),
                 R._("Bulk Export Skill Config"),
                 new[] { (R._("Skill Config TSV"), "*.SkillConfig.tsv") },
                 suggested);

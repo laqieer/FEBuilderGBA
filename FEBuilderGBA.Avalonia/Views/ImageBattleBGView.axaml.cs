@@ -1,4 +1,4 @@
-using global::Avalonia;
+﻿using global::Avalonia;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -248,7 +248,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var img = _vm.TryLoadImage();
                 if (img == null) { CoreState.Services.ShowError("No image to export"); return; }
                 // #1639: write via the SAF bridge so Android content:// targets work.
-                await FileDialogHelper.SaveImageFileVia(TopLevel.GetTopLevel(this) as Window, $"battle_bg_{_vm.CurrentIndex:X02}.png", p => img.Save(p));
+                await FileDialogHelper.SaveImageFileVia(TopLevel.GetTopLevel(this), $"battle_bg_{_vm.CurrentIndex:X02}.png", p => img.Save(p));
             }
             catch (Exception ex) { CoreState.Services.ShowError($"Export image failed: {ex.Message}"); }
         }
@@ -276,7 +276,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // BattleBG palette is LZ77-compressed
                 byte[] pal = LZ77.decompress(rom.Data, palAddr);
                 if (pal == null || pal.Length < 32) { CoreState.Services.ShowError("Failed to read palette"); return; }
-                await FileDialogHelper.SavePaletteFileVia(TopLevel.GetTopLevel(this) as Window, "battle_bg_palette.pal", p =>
+                await FileDialogHelper.SavePaletteFileVia(TopLevel.GetTopLevel(this), "battle_bg_palette.pal", p =>
                 {
                     // #1639: write via the SAF bridge so Android content:// targets work.
                     PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(p));
@@ -292,7 +292,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 ROM rom = CoreState.ROM;
                 if (rom == null) return;
-                string path = await FileDialogHelper.OpenPaletteFile(TopLevel.GetTopLevel(this) as Window);
+                string path = await FileDialogHelper.OpenPaletteFile(TopLevel.GetTopLevel(this));
                 if (string.IsNullOrEmpty(path)) return;
                 byte[] fileData = File.ReadAllBytes(path);
                 PaletteFormat fmt = PaletteFormatConverter.DetectFormat(fileData, System.IO.Path.GetExtension(path));

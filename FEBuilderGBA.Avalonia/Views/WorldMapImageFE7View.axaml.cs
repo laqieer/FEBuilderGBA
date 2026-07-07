@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // World Map Image (FE7) editor view (#1184) — port of WF WorldMapImageFE7Form.
 // Two GbaImageControl previews (12-split big field map + event image), each with
 // PNG import (file dialog -> remap -> Core import under one UndoService scope) and
@@ -105,7 +105,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                string? path = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this) as Window);
+                string? path = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this));
                 if (path == null) return;
                 await DoBigImport(path);
             }
@@ -193,7 +193,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                string? path = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this) as Window);
+                string? path = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this));
                 if (path == null) return;
                 await DoEventImport(path);
             }
@@ -287,7 +287,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     try
                     {
                         // #1639: write via the SAF bridge so Android content:// targets work.
-                        await FileDialogHelper.SaveImageFileVia(TopLevel.GetTopLevel(this) as Window, "worldmap_fe7_event", p => cropped.Save(p));
+                        await FileDialogHelper.SaveImageFileVia(TopLevel.GetTopLevel(this), "worldmap_fe7_event", p => cropped.Save(p));
                     }
                     finally { cropped.Dispose(); }
                 }

@@ -1,4 +1,4 @@
-using global::Avalonia;
+﻿using global::Avalonia;
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -441,7 +441,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // #1639: pick the handle so we can branch by format — the single-file
             // .gif export routes through the SAF bridge, while the .txt script
             // (which writes sibling PNGs) requires a real local path.
-            var file = await FileDialogHelper.SaveFilePick(TopLevel.GetTopLevel(this) as Window,
+            var file = await FileDialogHelper.SaveFilePick(TopLevel.GetTopLevel(this),
                 R._("Save Map Action Animation"),
                 new[]
                 {
@@ -494,7 +494,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // #1639: ImportScript resolves sibling frame PNGs from the script's
             // own directory, so require a real local path; a SAF pick (no local
             // path) cannot resolve siblings → message on Android, never silent.
-            string? path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this) as Window,
+            string? path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this),
                 R._("Open Map Action Animation Script"),
                 "*.MapActionAnimation.txt", requireLocalPath: true);
             if (string.IsNullOrEmpty(path))

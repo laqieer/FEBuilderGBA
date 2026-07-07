@@ -1,4 +1,4 @@
-using global::Avalonia;
+﻿using global::Avalonia;
 using System;
 using System.IO;
 using global::Avalonia.Controls;
@@ -209,7 +209,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // #1639: ExportAll writes sibling glyph PNGs next to the manifest,
                 // so require a real local path; a SAF pick (no local path) cannot
                 // place siblings → message on Android, never silent.
-                string? path = await FileDialogHelper.SaveFile(TopLevel.GetTopLevel(this) as Window,
+                string? path = await FileDialogHelper.SaveFile(TopLevel.GetTopLevel(this),
                     R._("Export All Fonts"), "fontall.txt", "*.fontall.txt", "font.fontall.txt");
                 if (string.IsNullOrEmpty(path))
                 {
@@ -246,7 +246,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // #1639: ImportAll resolves sibling glyph PNGs from the manifest's
                 // own directory, so require a real local path; a SAF pick (no local
                 // path) cannot resolve siblings → message on Android, never silent.
-                string? path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this) as Window,
+                string? path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this),
                     R._("Import All Fonts"), "*.fontall.txt", requireLocalPath: true);
                 if (string.IsNullOrEmpty(path))
                 {
@@ -293,7 +293,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                string? path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this) as Window,
+                string? path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this),
                     R._("Load Font File"), new[] { "*.ttf", "*.otf" });
                 if (string.IsNullOrEmpty(path)) return;
                 _fontFilePath = path;

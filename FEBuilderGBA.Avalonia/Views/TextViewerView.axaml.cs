@@ -547,7 +547,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                string? path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this) as Window, "TSV Files", "*.tsv");
+                string? path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this), "TSV Files", "*.tsv");
                 if (path == null) return;
 
                 int count = _vm.ImportAllTexts(path);

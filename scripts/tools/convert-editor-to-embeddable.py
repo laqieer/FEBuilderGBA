@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """Convert Avalonia Window editors to embeddable UserControl editors.
 
 Usage:
@@ -234,7 +234,7 @@ def convert_owner_bound_dialog_calls(cs: str) -> str:
         ),
         (
             re.compile(r"(?P<prefix>\bFERepoPickHelper\s*\.\s*[A-Za-z_][A-Za-z0-9_]*\s*\(\s*)this(?P<suffix>\s*[,)])"),
-            rf"\g<prefix>{owner}\g<suffix>",
+            rf"\g<prefix>{file_owner}\g<suffix>",
         ),
         (
             re.compile(r"(?P<prefix>\bTableExportImportHelper\s*\.\s*[A-Za-z_][A-Za-z0-9_]*\s*\(\s*)this(?P<suffix>\s*,)"),
@@ -495,6 +495,34 @@ def insert_lifecycle_override(cs: str, method_name: str, body_lines: list[str]) 
     return cs[:pos] + override + cs[pos:]
 
 
+def make_language_changed_lifecycle_symmetric(cs: str) -> str:
+    """Move matching CoreState.LanguageChanged += handlers into visual attach.
+
+    Window-era editors often subscribed once in the constructor and unsubscribed
+    in Closed. After Closed cleanup moves to OnDetachedFromVisualTree, the
+    unsubscribe can run on every detach/reparent; subscribe must therefore be
+    attach-scoped too.
+    """
+    handlers = re.findall(r"CoreState\.LanguageChanged\s*-\=\s*([A-Za-z_][A-Za-z0-9_]*)\s*;", cs)
+    if not handlers:
+        return cs
+    for handler in dict.fromkeys(handlers):
+        plus = re.compile(r"^[ \t]*CoreState\.LanguageChanged\s*\+=\s*" + re.escape(handler) + r"\s*;[ \t]*\n", re.MULTILINE)
+        if not plus.search(cs):
+            continue
+        cs = plus.sub("", cs, count=1)
+        attach = re.search(
+            r"(?P<head>protected\s+override\s+void\s+OnAttachedToVisualTree\s*\(VisualTreeAttachmentEventArgs\s+e\)\s*\{\s*\n(?P<indent>[ \t]*)base\.OnAttachedToVisualTree\(e\);\s*\n)",
+            cs,
+        )
+        if not attach:
+            raise ValueError(f"LanguageChanged handler {handler} needs OnAttachedToVisualTree")
+        indent = attach.group("indent")
+        lines = f"{indent}CoreState.LanguageChanged -= {handler};\n{indent}CoreState.LanguageChanged += {handler};\n"
+        cs = cs[: attach.end()] + lines + cs[attach.end() :]
+    return cs
+
+
 def convert_closed_handler(cs: str) -> str:
     """Move own Window.Closed cleanup into UserControl visual-detach cleanup."""
     if "OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)" in cs:
@@ -538,6 +566,7 @@ def convert_cs(cs: str, view_name: str, descriptor: Descriptor) -> str:
     cs = ensure_system_using(cs)
     cs = convert_opened_handler(cs)
     cs = convert_closed_handler(cs)
+    cs = make_language_changed_lifecycle_symmetric(cs)
     return cs
 
 

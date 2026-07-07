@@ -1,4 +1,4 @@
-using global::Avalonia;
+﻿using global::Avalonia;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -44,7 +44,6 @@ namespace FEBuilderGBA.Avalonia.Views
             // changes — TranslatedWindow's helper re-scans the AXAML, which
             // would otherwise reset Unk33Label.Text back to the original
             // "Unk33 (B33):" literal (Copilot bot review on PR #569).
-            CoreState.LanguageChanged += UpdateWeaponDebuffsLink;
         }
 
         protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
@@ -56,6 +55,8 @@ namespace FEBuilderGBA.Avalonia.Views
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
         {
             base.OnAttachedToVisualTree(e);
+            CoreState.LanguageChanged -= UpdateWeaponDebuffsLink;
+            CoreState.LanguageChanged += UpdateWeaponDebuffsLink;
             if (!_hasLoadedList)
             {
                 _hasLoadedList = true;

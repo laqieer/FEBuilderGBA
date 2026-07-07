@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // ImageTSAEditorView code-behind — Avalonia parity raise (gap-sweep #398).
 //
 // The view exposes the WinForms Init(...) entry point so future callers
@@ -709,7 +709,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 return;
             }
 
-            string? filePath = await FEBuilderGBA.Avalonia.Dialogs.FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this) as Window);
+            string? filePath = await FEBuilderGBA.Avalonia.Dialogs.FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this));
             if (string.IsNullOrEmpty(filePath)) return;
 
             var loadResult = ImageImportService.LoadAndRemapFromFile(

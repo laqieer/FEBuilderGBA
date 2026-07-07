@@ -1,4 +1,4 @@
-using global::Avalonia;
+﻿using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -27,21 +27,21 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void BrowseOriginal_Click(object? sender, RoutedEventArgs e)
         {
-            var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this) as Window);
+            var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this));
             if (path != null)
                 _vm.OriginalPath = path;
         }
 
         async void BrowseMine_Click(object? sender, RoutedEventArgs e)
         {
-            var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this) as Window);
+            var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this));
             if (path != null)
                 _vm.MyPath = path;
         }
 
         async void BrowseTheirs_Click(object? sender, RoutedEventArgs e)
         {
-            var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this) as Window);
+            var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this));
             if (path != null)
                 _vm.TheirsPath = path;
         }
@@ -59,7 +59,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // write through the SAF bridge so Android content:// targets work.
             // SaveMerged returns false (no write) on no merge result — the bridge's
             // missing-output guard then returns null, so nothing is streamed back.
-            var file = await FileDialogHelper.SaveRomFilePick(TopLevel.GetTopLevel(this) as Window, "merged.gba");
+            var file = await FileDialogHelper.SaveRomFilePick(TopLevel.GetTopLevel(this), "merged.gba");
             if (file == null) return;
             string? written = await FileDialogHelper.WriteViaAsync(file, p => _vm.SaveMerged(p));
             // On a SAF target the VM's status shows the temp path; rewrite it with

@@ -1,4 +1,4 @@
-using global::Avalonia;
+﻿using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -245,7 +245,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 string suggested = $"wait_icon_{_vm.CurrentIndex:X02}.png";
                 // #1639: both .png and .gif are single-file → SAF bridge.
                 bool ok = false;
-                string? written = await FileDialogHelper.SaveFileVia(TopLevel.GetTopLevel(this) as Window, "Export Wait Icon",
+                string? written = await FileDialogHelper.SaveFileVia(TopLevel.GetTopLevel(this), "Export Wait Icon",
                     new[]
                     {
                         ("PNG Image", "*.png"),

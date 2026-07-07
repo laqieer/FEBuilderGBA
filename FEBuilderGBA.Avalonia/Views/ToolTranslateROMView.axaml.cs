@@ -1,4 +1,4 @@
-using global::Avalonia;
+﻿using global::Avalonia;
 using System;
 using System.IO;
 using System.Linq;
@@ -51,7 +51,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this) as Window);
+                var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this));
                 if (!string.IsNullOrEmpty(path)) _vm.FromRomPath = path;
             }
             catch (Exception ex) { Log.ErrorF("ToolTranslateROMView.SimpleFromRomBrowse: {0}", ex.Message); }
@@ -61,7 +61,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this) as Window);
+                var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this));
                 if (!string.IsNullOrEmpty(path)) _vm.ToRomPath = path;
             }
             catch (Exception ex) { Log.ErrorF("ToolTranslateROMView.SimpleToRomBrowse: {0}", ex.Message); }
@@ -71,7 +71,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this) as Window);
+                var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this));
                 if (!string.IsNullOrEmpty(path)) _vm.ExtraFontRomPath = path;
             }
             catch (Exception ex) { Log.ErrorF("ToolTranslateROMView.ExtraFontRomBrowse: {0}", ex.Message); }
@@ -81,7 +81,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this) as Window,
+                var path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this),
                     R._("Translation Data"), "*.txt");
                 if (!string.IsNullOrEmpty(path)) _vm.TranslateDataPath = path;
             }
@@ -94,7 +94,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this) as Window);
+                var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this));
                 if (!string.IsNullOrEmpty(path)) _vm.FromRomPath = path;
             }
             catch (Exception ex) { Log.ErrorF("ToolTranslateROMView.DetailFromRomBrowse: {0}", ex.Message); }
@@ -104,7 +104,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this) as Window);
+                var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this));
                 if (!string.IsNullOrEmpty(path)) _vm.ToRomPath = path;
             }
             catch (Exception ex) { Log.ErrorF("ToolTranslateROMView.DetailToRomBrowse: {0}", ex.Message); }
@@ -114,7 +114,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this) as Window);
+                var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this));
                 if (!string.IsNullOrEmpty(path)) _vm.FontRomPath = path;
             }
             catch (Exception ex) { Log.ErrorF("ToolTranslateROMView.FontRomBrowse: {0}", ex.Message); }
@@ -239,7 +239,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // #1639: pick the handle now; the actual single-file write is routed
             // through the SAF bridge below so Android content:// targets work.
-            var outFile = await FileDialogHelper.SaveFilePick(TopLevel.GetTopLevel(this) as Window,
+            var outFile = await FileDialogHelper.SaveFilePick(TopLevel.GetTopLevel(this),
                 R._("Save translation file"), "Text", "*.txt", "translation.txt");
             if (outFile == null) return;
 
@@ -292,7 +292,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 return;
             }
 
-            string? inPath = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this) as Window,
+            string? inPath = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this),
                 R._("Open translation file"), "*.txt");
             if (string.IsNullOrEmpty(inPath)) return;
 
