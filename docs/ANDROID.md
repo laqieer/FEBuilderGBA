@@ -108,9 +108,12 @@ the `INavigationService` abstraction (#1122):
 > `MapPointerView`, `EventFunctionPointerView`, `MenuDefinitionView`, `SoundFootStepsViewerView`,
 > and `WorldMapPointView`). Slice 4 extends the same script-driven path across additional simple
 > Text/Tool/Status/Unit-support/WorldMap editors (including `TextMainView`, `HexEditorView`,
-> `ToolFELintView`, `StatusParamView`, `SupportUnitEditorView`, and `WorldMapPathView`). Editors
-> with owner-bound file/dialog/picker/closed-event flows remain deferred until the single-view
-> dialog-flow slice.
+> `ToolFELintView`, `StatusParamView`, `SupportUnitEditorView`, and `WorldMapPathView`). Slice 5
+> converts the remaining script-safe launcher/resource/menu/support surfaces (`MainSimpleMenuView`,
+> `MainSimpleMenuEventErrorView`, `MainSimpleMenuImageSubView`, `OpenLastSelectedFileView`,
+> `ResourceView`, `SMEPromoListView`, and `ToolUpdateDialogView`).
+> Editors with owner-bound file/dialog/picker/closed-event flows remain deferred until the
+> single-view dialog-flow slice.
 
 The repository's `FEBuilderGBA.Android/MainActivity.cs` is the Android-equivalent
 of `Program.Main` — it subclasses `AvaloniaMainActivity<App>` and reuses the

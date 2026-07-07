@@ -2450,11 +2450,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 // === App Infrastructure (WU18) ===
                 ("VersionView", () => wm.OpenAsTopLevel<VersionView>()),
                 ("WelcomeView", () => wm.Open<WelcomeView>()),
-                ("ResourceView", () => wm.Open<ResourceView>()),
+                ("ResourceView", () => wm.OpenAsTopLevel<ResourceView>()),
                 ("ToolInitWizardView", () => wm.Open<ToolInitWizardView>()),
                 ("ToolUndoPopupDialogView", () => wm.Open<ToolUndoPopupDialogView>()),
-                ("OpenLastSelectedFileView", () => wm.Open<OpenLastSelectedFileView>()),
-                ("ToolUpdateDialogView", () => wm.Open<ToolUpdateDialogView>()),
+                ("OpenLastSelectedFileView", () => wm.OpenAsTopLevel<OpenLastSelectedFileView>()),
+                ("ToolUpdateDialogView", () => wm.OpenAsTopLevel<ToolUpdateDialogView>()),
 
                 // === Previously Unregistered On-Disk Views (WU19) ===
                 ("ToolAllWorkSupportView", () => wm.Open<ToolAllWorkSupportView>()),
@@ -2462,9 +2462,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 ("WorldMapPathMoveEditorView", () => wm.OpenAsTopLevel<WorldMapPathMoveEditorView>()),
                 ("MantAnimationView", () => wm.Open<MantAnimationView>()),
                 ("RAMRewriteToolView", () => wm.Open<RAMRewriteToolView>()),
-                ("MainSimpleMenuView", () => wm.Open<MainSimpleMenuView>()),
-                ("MainSimpleMenuEventErrorView", () => wm.Open<MainSimpleMenuEventErrorView>()),
-                ("MainSimpleMenuImageSubView", () => wm.Open<MainSimpleMenuImageSubView>()),
+                ("MainSimpleMenuView", () => wm.OpenAsTopLevel<MainSimpleMenuView>()),
+                ("MainSimpleMenuEventErrorView", () => wm.OpenAsTopLevel<MainSimpleMenuEventErrorView>()),
+                ("MainSimpleMenuImageSubView", () => wm.OpenAsTopLevel<MainSimpleMenuImageSubView>()),
 
                 // === Small Dialog/Message Views (WU19-dialogs) ===
                 ("ToolEmulatorSetupMessageView", () => wm.Open<ToolEmulatorSetupMessageView>()),
@@ -2481,7 +2481,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 ("ToolDiffDebugSelectView", () => wm.Open<ToolDiffDebugSelectView>()),
 
                 // === Specialized Views (WU19-specialized) ===
-                ("SMEPromoListView", () => wm.Open<SMEPromoListView>()),
+                ("SMEPromoListView", () => wm.OpenAsTopLevel<SMEPromoListView>()),
                 ("ToolRunHintMessageView", () => wm.Open<ToolRunHintMessageView>()),
             };
         }

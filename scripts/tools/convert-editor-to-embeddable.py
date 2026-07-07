@@ -35,10 +35,10 @@ EXCLUDED_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("self Close()", re.compile(r"(?<![\.\w])Close\s*\(")),
 )
 
-ROOT_RE = re.compile(r"^<Window\b(?P<attrs>.*?)>", re.DOTALL)
+ROOT_RE = re.compile(r"(?P<root><Window\b(?P<attrs>.*?)>)", re.DOTALL)
 ATTR_RE = re.compile(r"(?P<name>[\w:.]+)\s*=\s*\"(?P<value>[^\"]*)\"")
 OPENED_RE = re.compile(
-    r"^(?P<indent>[ \t]*)Opened[ \t]*\+=[ \t]*\([^;\n]*\)[ \t]*=>[ \t]*(?P<call>[A-Za-z_][A-Za-z0-9_]*[ \t]*\([^;\n]*\))[ \t]*;[ \t]*\n",
+    r"^(?P<indent>[ \t]*)Opened[ \t]*\+=[ \t]*\([^;\n]*\)[ \t]*=>[ \t]*(?P<call>[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*[ \t]*\([^;\n]*\))[ \t]*;[ \t]*\n",
     re.MULTILINE,
 )
 OPENED_COMPOUND_RE = re.compile(
@@ -91,7 +91,7 @@ def parse_window_root(axaml: str, view_name: str) -> tuple[str, dict[str, str], 
         height=attrs["Height"],
         size_to_content=parse_size_to_content(attrs.get("SizeToContent")),
     )
-    return match.group(0), attrs, descriptor
+    return match.group("root"), attrs, descriptor
 
 
 def convert_axaml(axaml: str, view_name: str) -> tuple[str, Descriptor]:

@@ -58,9 +58,12 @@ editors (for example `ItemStatBonusesViewerView`, `MapPointerView`, `EventFuncti
 `MenuDefinitionView`, `SoundFootStepsViewerView`, and `WorldMapPointView`). Slice 4 extends the same
 script-driven path across additional simple Text/Tool/Status/Unit-support/WorldMap editors (for
 example `TextMainView`, `HexEditorView`, `ToolFELintView`, `StatusParamView`,
-`SupportUnitEditorView`, and `WorldMapPathView`). Converted editors are exposed in the single-view
-launcher once a ROM is loaded; editors with owner-bound file/dialog/picker/closed-event flows remain
-on the legacy path until the dialog-flow slice.
+`SupportUnitEditorView`, and `WorldMapPathView`). Slice 5 converts the remaining script-safe
+launcher/resource/menu/support surfaces (`MainSimpleMenuView`, `MainSimpleMenuEventErrorView`,
+`MainSimpleMenuImageSubView`, `OpenLastSelectedFileView`, `ResourceView`,
+`SMEPromoListView`, and `ToolUpdateDialogView`). Converted editors are exposed in the single-view
+launcher once a ROM is loaded; editors with owner-bound
+file/dialog/picker/closed-event flows remain on the legacy path until the dialog-flow slice.
 
 ## 3. Rendering (SkiaSharp + HarfBuzz native relink)
 
@@ -157,9 +160,10 @@ failure a "returns HTTP 200" check can't catch, which is exactly how #1867 shipp
 ## 7. Known preview limitations / follow-ups
 
 - **Editor rollout is partial (#1873)** — embeddable editors now work without constructing a `Window`.
-  `MoveCostEditorView` plus the first simple-AI rollout batch are converted; the remaining legacy
-  `Window` editors still need follow-up conversions before the browser can host the full catalog. ROM
-  **open/save** works (#1870), and the launcher remains ROM-gated.
+  `MoveCostEditorView`, the simple-AI rollout batch, and the script-driven batches through Slice 5
+  are converted; the remaining legacy `Window` editors still need follow-up conversions before the
+  browser can host the full catalog. ROM **open/save** works (#1870), and the launcher remains
+  ROM-gated.
 - **On-device parity maturing** — threading-dependent caches + some file-flows aren't browser-ported
   (single-threaded on Pages). Milestone = builds + deploys + loads/renders the shell (config-loaded).
 - **`config/patch2` / FE-Repo not bundled** — same as the mobile heads.

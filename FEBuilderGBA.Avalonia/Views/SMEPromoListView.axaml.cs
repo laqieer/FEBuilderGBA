@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -6,12 +7,15 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SMEPromoListView : TranslatedWindow, IEditorView
+    public partial class SMEPromoListView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly SMEPromoListViewModel _vm = new();
         readonly UndoService _undoService = new();
         public string ViewTitle => "SME Promo List";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("SME Promo List", 1155, 655, SizeToContent: true);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public SMEPromoListView()
         {

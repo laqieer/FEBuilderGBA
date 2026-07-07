@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using System.Diagnostics;
 using System.IO;
 using global::Avalonia.Controls;
@@ -8,17 +9,30 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class OpenLastSelectedFileView : TranslatedWindow, IEditorView
+    public partial class OpenLastSelectedFileView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly OpenLastSelectedFileViewModel _vm = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Open Last Selected File";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Open Last Selected File", 760, 240, SizeToContent: false);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public OpenLastSelectedFileView()
         {
             InitializeComponent();
-            Opened += (_, _) => Refresh();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                Refresh();
+            }
         }
 
         void Refresh()
