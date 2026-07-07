@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -7,14 +8,18 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class StatusUnitsMenuView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class StatusUnitsMenuView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly StatusUnitsMenuViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Status Units Menu";
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
+        public EditorDescriptor Descriptor => new("Status Units Menu Editor", 1238, 806, SizeToContent: true);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public StatusUnitsMenuView()
         {
@@ -22,7 +27,16 @@ namespace FEBuilderGBA.Avalonia.Views
             EntryList.SelectedAddressChanged += OnSelected;
             ItemNameTextIdBox.ValueChanged += OnItemNameTextIdChanged;
             RMenuTextIdBox.ValueChanged += OnRMenuTextIdChanged;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void OnItemNameTextIdChanged(object? sender, NumericUpDownValueChangedEventArgs e)

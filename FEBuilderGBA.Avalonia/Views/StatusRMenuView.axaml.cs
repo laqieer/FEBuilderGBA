@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -7,14 +8,18 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class StatusRMenuView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class StatusRMenuView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly StatusRMenuViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Status R-Menu";
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
+        public EditorDescriptor Descriptor => new("Status R-Menu Editor", 1238, 604, SizeToContent: true);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public StatusRMenuView()
         {
@@ -22,8 +27,14 @@ namespace FEBuilderGBA.Avalonia.Views
             EntryList.SelectedAddressChanged += OnSelected;
             TextIdBox.ValueChanged += OnTextIdChanged;
             FilterComboBox.SelectionChanged += FilterCombo_SelectionChanged;
-            Opened += (_, _) =>
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
             {
+                _hasLoadedList = true;
                 PopulateFilterCombo();
                 // Selecting index 0 fires FilterCombo_SelectionChanged →
                 // LoadList(). If the combo ended up empty (no ROM) load directly.
@@ -31,7 +42,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     FilterComboBox.SelectedIndex = 0;
                 else
                     LoadList();
-            };
+            }
         }
 
         /// <summary>

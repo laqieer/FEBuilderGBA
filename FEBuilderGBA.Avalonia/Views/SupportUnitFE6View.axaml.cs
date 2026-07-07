@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using System.Collections.Generic;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -8,13 +9,16 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SupportUnitFE6View : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class SupportUnitFE6View : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly SupportUnitFE6ViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Support Units (FE6)";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Support Units (FE6)", 1234, 750, SizeToContent: true);
+        public event EventHandler? CloseRequested;
 
         public SupportUnitFE6View()
         {
@@ -44,7 +48,16 @@ namespace FEBuilderGBA.Avalonia.Views
             Partner8Nud.ValueChanged  += (s, e) => Partner8NameLabel.Text  = ResolvePartnerName(Partner8Nud.Value);
             Partner9Nud.ValueChanged  += (s, e) => Partner9NameLabel.Text  = ResolvePartnerName(Partner9Nud.Value);
             Partner10Nud.ValueChanged += (s, e) => Partner10NameLabel.Text = ResolvePartnerName(Partner10Nud.Value);
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         static string ResolvePartnerName(decimal? value)
@@ -355,5 +368,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

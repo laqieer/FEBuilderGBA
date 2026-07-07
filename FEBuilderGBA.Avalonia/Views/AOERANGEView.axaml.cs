@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Controls.Primitives;
 using global::Avalonia.Interactivity;
@@ -8,15 +9,18 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class AOERANGEView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class AOERANGEView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly AOERANGEViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
         bool _suppress;
         UniformGrid? _cellPanel; // cached ItemsControl panel (resolved once).
 
         public string ViewTitle => "Area of Effect Range";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Area of Effect Range", 720, 560, SizeToContent: false);
+        public event EventHandler? CloseRequested;
 
         public AOERANGEView()
         {
@@ -32,7 +36,16 @@ namespace FEBuilderGBA.Avalonia.Views
             CenterXBox.ValueChanged += OnCenterChanged;
             CenterYBox.ValueChanged += OnCenterChanged;
 
-            Opened += (_, _) => SyncFromVm();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                SyncFromVm();
+            }
         }
 
         // ------------------------------------------------------------------
@@ -194,5 +207,6 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void SelectFirstItem() { /* no list — manual address entry */ }
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

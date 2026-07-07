@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -12,12 +13,16 @@ namespace FEBuilderGBA.Avalonia.Views
     /// on open, lists each finding, shows the selected finding's detail, and lets the
     /// user double-click/Enter a jumpable finding to open it in the Hex Editor.
     /// </summary>
-    public partial class ToolFELintView : TranslatedWindow, IEditorView
+    public partial class ToolFELintView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ToolFELintViewModel _vm = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "FELint GUI";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("FELint GUI", 1099, 788, SizeToContent: true);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ToolFELintView()
         {
@@ -25,7 +30,16 @@ namespace FEBuilderGBA.Avalonia.Views
             DataContext = _vm;
             EntryList.SelectedAddressChanged += OnSelected;
             EntryList.SelectionConfirmed += OnConfirmed;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()

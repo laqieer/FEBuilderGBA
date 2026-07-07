@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
@@ -7,19 +8,32 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class HexEditorView : TranslatedWindow, IEditorView
+    public partial class HexEditorView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly HexEditorViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Hex Editor";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Hex Editor", 820, 600, SizeToContent: true);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public HexEditorView()
         {
             InitializeComponent();
             DataContext = _vm;
-            Opened += (_, _) => { _vm.RefreshDisplay(); UpdateUI(); };
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                _vm.RefreshDisplay(); UpdateUI();
+            }
         }
 
         public void NavigateTo(uint address)

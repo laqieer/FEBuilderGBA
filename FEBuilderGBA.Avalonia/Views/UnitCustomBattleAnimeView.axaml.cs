@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using System.Collections.Generic;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -22,22 +23,34 @@ namespace FEBuilderGBA.Avalonia.Views
     /// so a shared list is still safe to edit (the edit is just shared across its referencing classes,
     /// exactly as the underlying ROM data is shared).
     /// </summary>
-    public partial class UnitCustomBattleAnimeView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class UnitCustomBattleAnimeView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly UnitCustomBattleAnimeViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
         List<AddrResult> _classList = new();
         List<AddrResult> _entryList = new();
 
         public string ViewTitle => "Custom Battle Animation";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Custom Battle Animation", 1314, 521, SizeToContent: true);
+        public event EventHandler? CloseRequested;
 
         public UnitCustomBattleAnimeView()
         {
             InitializeComponent();
             ClassList.SelectedAddressChanged += OnClassSelected;
             EntryList.SelectedAddressChanged += OnEntrySelected;
-            Opened += (_, _) => LoadClassList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadClassList();
+            }
         }
 
         // ===================================================================
@@ -215,5 +228,6 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }
