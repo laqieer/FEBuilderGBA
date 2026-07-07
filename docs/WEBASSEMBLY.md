@@ -85,6 +85,23 @@ exception and the app renders nothing but the splash (#1867). The head therefore
 (wasm has **no system fonts**, so an embedded font is required). We do **not** enable AOT
 (`RunAOTCompilation`); `WasmBuildNative` relinks the natives without AOT-compiling managed code.
 
+### CJK glyph fallback (#1890)
+
+Inter is Latin-only, and because wasm has **no system fonts** there is nothing to fall back to, so
+Japanese game text and the `ja`/`zh` UI translations rendered as tofu boxes on the web app only
+(desktop/Android/iOS fall back to OS CJK fonts). The head therefore **embeds a compact CJK fallback**:
+`Assets/Fonts/NotoSansCJKsc-Subset.otf` — a character SUBSET of Noto Sans CJK SC (OFL, ~2.8 MB, family
+name `Noto Sans CJK SC`) covering every Shift-JIS + GB2312 codepoint, kana, CJK punctuation, the
+fullwidth/halfwidth forms, and every character used by `config/translate` + `config/data`
+(regenerate with `scripts/build-cjk-font-subset.py`). It is added as an `<AvaloniaResource>` (browser
+head only) and registered as a per-codepoint `FontFallback` in `Program.CreateBrowserFontManagerOptions`
+— the same mechanism the desktop uses (`FEBuilderGBA.Avalonia/Program.CreateFontManagerOptions`), but
+with an embedded font because the sandbox has none. `.WithInterFont()` stays the default (Latin); the
+fallback fills only the glyphs Inter lacks. The subset's coverage, its family name (which must match
+the `#Noto Sans CJK SC` avares suffix), and the `Program.cs`/csproj wiring are guarded by
+`BrowserCjkFontTests`. The OFL license ships at `wwwroot/fonts/OFL.txt` and is credited in
+`THIRD-PARTY-NOTICES.md`.
+
 ## 4. `config/` in the browser (no filesystem)
 
 There is no real filesystem or app bundle in the browser sandbox, so `config/` is delivered as a

@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Browser;
+using Avalonia.Media;
 using FEBuilderGBA;
 
 // WebAssembly/Browser entry point for the FEBuilderGBA Avalonia GUI (#1864) — the browser
@@ -36,8 +37,39 @@ internal sealed partial class Program
 
     public static AppBuilder BuildAvaloniaApp()
         => AppBuilder.Configure<global::FEBuilderGBA.Avalonia.App>()
-            // wasm has NO system fonts — embed Inter so text renders (HarfBuzz shapes it).
-            .WithInterFont();
+            // wasm has NO system fonts — embed Inter (Latin) so text renders (HarfBuzz shapes it),
+            // and register an embedded Noto Sans CJK SC subset as a per-codepoint FALLBACK so
+            // Japanese game text and the ja/zh UI don't render as tofu (#1890). Desktop/Android/iOS
+            // fall back to OS CJK fonts; wasm has none.
+            .WithInterFont()
+            .With(CreateBrowserFontManagerOptions());
+
+    /// <summary>
+    /// <see cref="FontManagerOptions"/> for the wasm head: register the embedded Noto Sans CJK SC
+    /// subset (<c>Assets/Fonts/NotoSansCJKsc-Subset.otf</c>) as a per-codepoint font FALLBACK for the
+    /// CJK glyphs Inter lacks (#1890). This is the same mechanism the desktop uses
+    /// (<c>FEBuilderGBA.Avalonia/Program.CreateFontManagerOptions</c>) but with an EMBEDDED font,
+    /// because the browser sandbox has no system fonts to fall back to. Factored out (internal) so a
+    /// test can assert the fallback is wired to the exact embedded family. <c>WithInterFont()</c>
+    /// registers Inter via <c>ConfigureFonts</c> (not <c>With&lt;FontManagerOptions&gt;</c>), so adding
+    /// these options composes cleanly and does not clobber the Inter default.
+    /// </summary>
+    internal static FontManagerOptions CreateBrowserFontManagerOptions()
+        => new FontManagerOptions
+        {
+            // DefaultFamilyName is intentionally NOT set — Inter (from WithInterFont) stays the
+            // default; FontFallbacks are consulted per codepoint only when the primary font lacks a
+            // glyph. The '#Noto Sans CJK SC' suffix MUST match the font's internal family name (the
+            // #1 silent-failure mode — guarded by BrowserCjkFontTests).
+            FontFallbacks = new[]
+            {
+                new FontFallback
+                {
+                    FontFamily = new FontFamily(
+                        "avares://FEBuilderGBA.Browser/Assets/Fonts/NotoSansCJKsc-Subset.otf#Noto Sans CJK SC"),
+                },
+            },
+        };
 
     /// <summary>
     /// First-run config bootstrap for wasm: fetch the bundled <c>config.zip</c> over HTTP and
