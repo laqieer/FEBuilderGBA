@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // Layout/style regression coverage for Visual Map Editor button readability (#1760).
 using System;
 using System.IO;
@@ -160,7 +160,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         [InlineData(typeof(MapEditorMarSizeDialogView), "MapEditorMarSizeDialog_Apply_Button")]
         public void MapResizeDialogActionButton_CentersItsLabel(Type dialogType, string automationId)
         {
-            var dialog = (Window)Activator.CreateInstance(dialogType)!;
+            var dialog = (Control)Activator.CreateInstance(dialogType)!;
 
             var button = dialog.GetLogicalDescendants()
                 .OfType<Button>()

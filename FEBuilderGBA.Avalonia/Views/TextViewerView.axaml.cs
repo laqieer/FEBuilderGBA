@@ -330,9 +330,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint textid = _vm.CurrentId;
                 string existing = cache.GetName(textid) ?? "";
 
-                var dlg = new TextRefAddDialogView();
-                dlg.Init(textid, existing);
-                var result = await dlg.ShowDialog<TextRefAddDialogViewModel?>(TopLevel.GetTopLevel(this) as Window);
+                var result = await WindowManager.Instance.OpenModal<TextRefAddDialogView, TextRefAddDialogViewModel?>(
+                    TopLevel.GetTopLevel(this) as Window,
+                    dlg => dlg.Init(textid, existing));
                 if (result == null) return; // Cancelled.
 
                 // Persist via the cache seam. GetComment() applies the WF blank-entry
@@ -374,9 +374,9 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var dlg = new TextScriptCategorySelectView();
-                dlg.Init(isDetail: true);
-                string? code = await dlg.ShowDialog<string?>(TopLevel.GetTopLevel(this) as Window);
+                string? code = await WindowManager.Instance.OpenModal<TextScriptCategorySelectView, string?>(
+                    TopLevel.GetTopLevel(this) as Window,
+                    dlg => dlg.Init(isDetail: true));
                 if (string.IsNullOrEmpty(code)) return;
 
                 // Convert the raw @XXXX code to the editor's FEditor-display form
@@ -587,8 +587,9 @@ namespace FEBuilderGBA.Avalonia.Views
         Task<string?> ShowBadCharPopupDefaultAsync(string error)
         {
             string dialogText = R.Error("文字:{0}はシステムに登録されていません。", error);
-            var popup = new TextBadCharPopupView(dialogText);
-            return popup.ShowDialog<string?>(TopLevel.GetTopLevel(this) as Window);
+            return WindowManager.Instance.OpenModal<TextBadCharPopupView, string?>(
+                TopLevel.GetTopLevel(this) as Window,
+                popup => popup.LoadWarning(dialogText));
         }
 
         Task OpenPatchManagerModalDefaultAsync()

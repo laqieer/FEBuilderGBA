@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -6,13 +7,17 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MapEditorResizeDialogView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class MapEditorResizeDialogView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly MapEditorResizeDialogViewModel _vm = new();
 
         public string ViewTitle => "Map Resize";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Map Resize", 444, 385, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight, CanResize: false);
+        public event EventHandler? CloseRequested;
+        public object? DialogResult { get; private set; }
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public MapEditorResizeDialogView()
         {
@@ -38,7 +43,7 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.PaddingRight = (int)(RInput.Value ?? 0);
             _vm.PaddingBottom = (int)(BInput.Value ?? 0);
             _vm.DialogResult = "OK";
-            Close(true);
+            DialogResult = true; RequestClose();
         }
 
         public void NavigateTo(uint address) { }

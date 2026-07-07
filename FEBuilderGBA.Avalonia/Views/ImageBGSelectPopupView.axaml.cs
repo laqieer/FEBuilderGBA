@@ -1,3 +1,4 @@
+﻿using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -6,13 +7,17 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImageBGSelectPopupView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class ImageBGSelectPopupView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly ImageBGSelectPopupViewViewModel _vm = new();
 
         public string ViewTitle => "BG Image Select";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("BG Image Select", 945, 594, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
+        public object? DialogResult { get; private set; }
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ImageBGSelectPopupView()
         {
@@ -23,10 +28,10 @@ namespace FEBuilderGBA.Avalonia.Views
         void Select_Click(object? sender, RoutedEventArgs e)
         {
             var selected = BGList.SelectedItem;
-            Close(selected);
+            DialogResult = selected; RequestClose();
         }
 
-        void Cancel_Click(object? sender, RoutedEventArgs e) => Close(null);
+        void Cancel_Click(object? sender, RoutedEventArgs e) { DialogResult = null; RequestClose(); }
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }

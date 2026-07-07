@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.Collections.Generic;
 using global::Avalonia.Controls;
@@ -7,13 +8,17 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class HexEditorSearchView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class HexEditorSearchView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly HexEditorSearchViewModel _vm = new();
 
         public string ViewTitle => "Hex Editor - Search";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Hex Editor - Search", 515, 305, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight, CanResize: false);
+        public event EventHandler? CloseRequested;
+        public object? DialogResult { get; private set; }
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public HexEditorSearchView()
         {
@@ -39,7 +44,7 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.IsLittleEndian = LittleEndianCheckBox.IsChecked == true;
             _vm.IsAlign4 = Align4CheckBox.IsChecked == true;
             _vm.DialogResult = "OK";
-            Close(_vm.SearchText);
+            DialogResult = _vm.SearchText; RequestClose();
         }
 
         public void NavigateTo(uint address) { }

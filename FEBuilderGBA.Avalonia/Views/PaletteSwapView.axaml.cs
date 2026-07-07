@@ -1,3 +1,4 @@
+﻿using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -6,14 +7,18 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class PaletteSwapView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class PaletteSwapView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly PaletteSwapViewViewModel _vm = new();
         readonly UndoService _undoService = new();
 
         public string ViewTitle => "Palette Swap";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Palette Swap", 800, 500, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
+        public object? DialogResult { get; private set; }
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public PaletteSwapView()
         {
@@ -50,7 +55,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Commit();
                 _vm.MarkClean();
                 _vm.StatusMessage = $"Swap requested: slot {srcSlot} <-> slot {dstSlot}.";
-                Close(true);
+                DialogResult = true; RequestClose();
             }
             catch (Exception ex)
             {
@@ -60,7 +65,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void Cancel_Click(object? sender, RoutedEventArgs e) => Close(null);
+        void Cancel_Click(object? sender, RoutedEventArgs e) { DialogResult = null; RequestClose(); }
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }

@@ -1,11 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.MapStyleEditorImportImageOptionView"
-        Title="Import Map Chip"
-        Width="1092" Height="360"
-        WindowStartupLocation="CenterOwner"
-        CanResize="False"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.MapStyleEditorImportImageOptionView">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <StackPanel Margin="12,20,12,15">
     <!-- Section 1: Map chip import (WinForms label1 at 12,36) -->
@@ -24,4 +19,4 @@
             HorizontalAlignment="Stretch" Click="OnePicture_Click" />
   </StackPanel>
   </ScrollViewer>
-</Window>
+</UserControl>

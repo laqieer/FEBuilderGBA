@@ -1,11 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.HexEditorMarkView"
-        Title="Marked Addresses"
-        Width="409" Height="685"
-        WindowStartupLocation="CenterOwner"
-        CanResize="False"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.HexEditorMarkView">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <DockPanel Margin="12,9,12,10">
     <!-- Header label with border -->
@@ -21,4 +16,4 @@
     <ListBox AutomationProperties.AutomationId="HexEditorMark_Address_List" x:Name="AddressList" ItemsSource="{Binding Marks}" />
   </DockPanel>
   </ScrollViewer>
-</Window>
+</UserControl>

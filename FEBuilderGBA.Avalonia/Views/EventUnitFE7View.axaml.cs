@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using global::Avalonia.Controls;
@@ -482,8 +482,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint mapId = _mapItems[mapIdx].tag;
 
                 // Modal count-picker (WF EventUnitNewAllocForm parity).
-                var dlg = new EventUnitNewAllocView();
-                uint? count = await dlg.ShowDialog<uint?>(this);
+                uint? count = await WindowManager.Instance.OpenModal<EventUnitNewAllocView, uint?>(TopLevel.GetTopLevel(this) as Window);
                 if (count == null || count.Value == 0) return; // Cancel / count=0 no-op
 
                 _undoService.Begin("EventUnit NEW FE7");

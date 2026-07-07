@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.IO;
 using global::Avalonia.Controls;
@@ -7,11 +8,15 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolChangeProjectnameView : TranslatedWindow, IEditorView
+    public partial class ToolChangeProjectnameView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ToolChangeProjectnameViewViewModel _vm = new();
         public string ViewTitle => "Change Project Name";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Change Project Name", 791, 360, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight, CanResize: false);
+        public event EventHandler? CloseRequested;
+        public object? DialogResult { get; private set; }
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ToolChangeProjectnameView()
         {
@@ -44,7 +49,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 mw.LoadRomFile(newPath);
             }
 
-            Close("OK");
+            DialogResult = "OK"; RequestClose();
         }
 
         public void NavigateTo(uint address) { }

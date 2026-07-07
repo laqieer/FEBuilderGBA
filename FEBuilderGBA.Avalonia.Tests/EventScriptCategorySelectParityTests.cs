@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // Event Script category-picker parity tests (#1443).
 //
 // Proves the Avalonia "Event Script Category Select" dialog is no longer a
@@ -296,9 +296,9 @@ namespace FEBuilderGBA.Avalonia.Tests
             string code = ReadCodeBehind();
             // OK confirms a selection and returns the chosen Script.
             Assert.Contains("_vm.ConfirmSelection()", code);
-            Assert.Contains("Close(_vm.SelectedScript)", code);
+            Assert.Contains("DialogResult = _vm.SelectedScript; RequestClose();", code);
             // The old stub returned the category string — that must be gone.
-            Assert.DoesNotContain("Close(_vm.SelectedCategory)", code);
+            Assert.DoesNotContain("DialogResult = _vm.SelectedCategory", code);
         }
 
         [Fact]
@@ -313,7 +313,7 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             string mainWindow = File.ReadAllText(Path.Combine(repoRoot,
                 "FEBuilderGBA.Avalonia", "Views", "MainWindow.axaml.cs"));
-            Assert.Contains("Open<EventScriptCategorySelectView>", mainWindow);
+            Assert.Contains("OpenAsTopLevel<EventScriptCategorySelectView>", mainWindow);
 
             string listParity = File.ReadAllText(Path.Combine(repoRoot,
                 "FEBuilderGBA.Avalonia", "Services", "ListParityHelper.cs"));

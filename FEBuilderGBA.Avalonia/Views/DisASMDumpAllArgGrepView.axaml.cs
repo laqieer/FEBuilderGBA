@@ -1,3 +1,4 @@
+﻿using global::Avalonia;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -8,7 +9,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class DisASMDumpAllArgGrepView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class DisASMDumpAllArgGrepView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly DisASMDumpAllArgGrepViewModel _vm = new();
 
@@ -16,8 +17,12 @@ namespace FEBuilderGBA.Avalonia.Views
         List<string>? _cachedLines;
 
         public string ViewTitle => "Disassembly Argument Grep";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Disassembly Argument Grep", 891, 757, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
+        public object? DialogResult { get; private set; }
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public DisASMDumpAllArgGrepView()
         {
@@ -111,7 +116,7 @@ namespace FEBuilderGBA.Avalonia.Views
             ResultsBox.Text = _vm.Results;
         }
 
-        void Close_Click(object? sender, RoutedEventArgs e) => Close(null);
+        void Close_Click(object? sender, RoutedEventArgs e) { DialogResult = null; RequestClose(); }
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }

@@ -1,9 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.ImageBGSelectPopupView"
-        Title="BG Image Select" Width="945" Height="594"
-        WindowStartupLocation="CenterOwner"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.ImageBGSelectPopupView">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <DockPanel Margin="16">
     <TextBlock DockPanel.Dock="Top" Text="BG Image Select" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
@@ -18,4 +15,4 @@
     <ListBox AutomationProperties.AutomationId="ImageBGSelectPopup_BG_List" Name="BGList" />
   </DockPanel>
   </ScrollViewer>
-</Window>
+</UserControl>

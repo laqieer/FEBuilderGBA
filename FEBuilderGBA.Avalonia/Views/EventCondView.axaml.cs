@@ -956,8 +956,7 @@ namespace FEBuilderGBA.Avalonia.Views
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return;
 
-            var popup = new MapPointerNewPLISTPopupView();
-            uint? plist = await popup.ShowDialog<uint?>(this);
+            uint? plist = await WindowManager.Instance.OpenModal<MapPointerNewPLISTPopupView, uint?>(TopLevel.GetTopLevel(this) as Window);
 
             // WF guard: plist == 0 means cancelled or reserved sentinel slot.
             if (plist is null || plist == 0) return;

@@ -1,3 +1,4 @@
+﻿using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -7,13 +8,17 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MapPointerNewPLISTPopupView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class MapPointerNewPLISTPopupView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly MapPointerNewPLISTPopupViewModel _vm = new();
 
         public string ViewTitle => "Map Pointer - New PLIST";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Map Pointer - New PLIST", 953, 423, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight, CanResize: false);
+        public event EventHandler? CloseRequested;
+        public object? DialogResult { get; private set; }
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public MapPointerNewPLISTPopupView()
         {
@@ -62,10 +67,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
             }
 
-            Close(_vm.PlistId);
+            DialogResult = _vm.PlistId; RequestClose();
         }
 
-        void Cancel_Click(object? sender, RoutedEventArgs e) => Close(null);
+        void Cancel_Click(object? sender, RoutedEventArgs e) { DialogResult = null; RequestClose(); }
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }

@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -10,12 +11,16 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class WelcomeView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class WelcomeView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly WelcomeViewModel _vm = new();
         public string ViewTitle => "Welcome";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Welcome", 1172, 588, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
+        public object? DialogResult { get; private set; }
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         /// <summary>Stores (index, fullPath) pairs for each recent file entry.</summary>
         List<string> _recentPaths = new();
@@ -80,12 +85,12 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OpenLastROM_Click(object? sender, RoutedEventArgs e)
         {
-            Close("OpenLastROM");
+            DialogResult = "OpenLastROM"; RequestClose();
         }
 
         void OpenROM_Click(object? sender, RoutedEventArgs e)
         {
-            Close("OpenROM");
+            DialogResult = "OpenROM"; RequestClose();
         }
 
         void RecentFile_Click(object? sender, RoutedEventArgs e)
@@ -95,7 +100,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 string path = _recentPaths[idx];
                 if (!File.Exists(path))
                 {
-                    _ = MessageBoxWindow.Show(this, R._("File not found:") + $" {path}", R._("Error"), MessageBoxMode.Ok);
+                    _ = MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window, R._("File not found:") + $" {path}", R._("Error"), MessageBoxMode.Ok);
                     return;
                 }
 
@@ -105,11 +110,11 @@ namespace FEBuilderGBA.Avalonia.Views
                     bool ok = mw.LoadRomFile(path);
                     if (ok)
                     {
-                        Close();
+                        RequestClose();
                     }
                     else
                     {
-                        _ = MessageBoxWindow.Show(this, R._("Failed to load ROM:") + $" {path}", R._("Error"), MessageBoxMode.Ok);
+                        _ = MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window, R._("Failed to load ROM:") + $" {path}", R._("Error"), MessageBoxMode.Ok);
                     }
                 }
             }

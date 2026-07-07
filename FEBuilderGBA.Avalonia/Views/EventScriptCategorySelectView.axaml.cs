@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
@@ -7,13 +8,17 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EventScriptCategorySelectView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class EventScriptCategorySelectView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly EventScriptCategorySelectViewModel _vm = new();
 
         public string ViewTitle => "Event Script Category Select";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Event Script Category Select", 1000, 700);
+        public event EventHandler? CloseRequested;
+        public object? DialogResult { get; private set; }
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         // R._() runs the runtime translation (TranslatedWindow's pass only covers
         // AXAML literals, not strings assigned later in code-behind) — Copilot PR
@@ -87,7 +92,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (_vm.ConfirmSelection())
             {
-                Close(_vm.SelectedScript);
+                DialogResult = _vm.SelectedScript; RequestClose();
             }
             else
             {
@@ -99,7 +104,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Cancel_Click(object? sender, RoutedEventArgs e)
         {
-            Close(null);
+            DialogResult = null; RequestClose();
         }
 
         public void NavigateTo(uint address) { }

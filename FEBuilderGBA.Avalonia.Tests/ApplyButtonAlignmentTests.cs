@@ -3,7 +3,7 @@
 // (Grid "*,Auto" with a fixed Height="40" MESSAGE Border + an Apply/OK Button)
 // must vertically center both the Border and the Button within the single grid
 // row, so the Apply button no longer sits flush against the top of the taller
-// row. These tests construct each Window headlessly and assert the ApplyButton's
+// row. These tests construct each view headlessly and assert the ApplyButton's
 // VerticalAlignment == Center.
 using global::Avalonia.Controls;
 using global::Avalonia.Headless.XUnit;
@@ -15,7 +15,7 @@ namespace FEBuilderGBA.Avalonia.Tests
 {
     public class ApplyButtonAlignmentTests
     {
-        static void AssertApplyButtonCentered(Window view)
+        static void AssertApplyButtonCentered(Control view)
         {
             var apply = view.FindControl<Button>("ApplyButton");
             Assert.NotNull(apply);

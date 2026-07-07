@@ -1,3 +1,5 @@
+﻿using System;
+using global::Avalonia;
 using System.Collections.Generic;
 using System.Linq;
 using global::Avalonia.Controls;
@@ -8,7 +10,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class TextScriptCategorySelectView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class TextScriptCategorySelectView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly TextScriptCategorySelectViewModel _vm = new();
 
@@ -17,8 +19,12 @@ namespace FEBuilderGBA.Avalonia.Views
         List<FEBuilderGBA.TextEscapeEntry> _shownEntries = new();
 
         public string ViewTitle => "Text Script Category Select";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Text Script Category Select", 700, 500);
+        public event EventHandler? CloseRequested;
+        public object? DialogResult { get; private set; }
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public TextScriptCategorySelectView()
         {
@@ -71,17 +77,17 @@ namespace FEBuilderGBA.Avalonia.Views
             string? code = ResolveSelectedCode();
             if (code == null) return;
             _vm.SelectedCode = code;
-            Close(code);
+            DialogResult = code; RequestClose();
         }
 
         void OK_Click(object? sender, RoutedEventArgs e)
         {
             string? code = ResolveSelectedCode();
             _vm.SelectedCode = code;
-            Close(code);
+            DialogResult = code; RequestClose();
         }
 
-        void Cancel_Click(object? sender, RoutedEventArgs e) => Close(null);
+        void Cancel_Click(object? sender, RoutedEventArgs e) { DialogResult = null; RequestClose(); }
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { if (_vm.Categories.Count > 0) CategoryList.SelectedIndex = 0; }

@@ -1,10 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.MapPointerNewPLISTPopupView"
-        Title="Map Pointer - New PLIST" Width="953" Height="423"
-        WindowStartupLocation="CenterOwner"
-        CanResize="False"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.MapPointerNewPLISTPopupView">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <DockPanel Margin="12,9,12,12">
     <!-- Header label (WinForms label1 285x26) -->
@@ -47,4 +43,4 @@
     </StackPanel>
   </DockPanel>
   </ScrollViewer>
-</Window>
+</UserControl>

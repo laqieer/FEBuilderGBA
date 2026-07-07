@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // #1057 (N00/N08) + #1001 PR1 (N10/N18) parity tests for the Song Instrument
 // editor's DirectSound wave Export/Import wiring.
 //
@@ -102,7 +102,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             // null result (Cancel) is a strict no-op.
             Assert.Contains("SongDirectSoundWavCore.ImportSampleBytes", cs);
             Assert.Contains("SongInstrumentImportWaveView", cs);
-            Assert.Contains("ShowDialog<byte[]?>", cs);
+            Assert.Contains("OpenModal<SongInstrumentImportWaveView, byte[]?>", cs);
 
             // Gate on the LOADED ROM byte 0x00 (NOT the mutable category) so a
             // tab switch can't trick the gate (#1057 Copilot plan review pt 1).

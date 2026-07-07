@@ -1,10 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.ToolChangeProjectnameView"
-        Title="Change Project Name" Width="791" Height="360"
-        WindowStartupLocation="CenterOwner"
-        CanResize="False"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.ToolChangeProjectnameView">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <StackPanel Margin="12,29,12,12" Spacing="12">
     <!-- Current name row (WinForms label1 95x18 + CurrentName 599x25) -->
@@ -27,4 +23,4 @@
              Text="{Binding HelpText}" />
   </StackPanel>
   </ScrollViewer>
-</Window>
+</UserControl>

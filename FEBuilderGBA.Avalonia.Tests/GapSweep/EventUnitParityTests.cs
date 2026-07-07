@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // Phase 1 / Phase 4 / Phase 5 gap-sweep regression tests for
 // EventUnitView (closes #420 via this PR).
 //
@@ -585,7 +585,7 @@ public class EventUnitParityTests
     public void View_NewAllocClick_OpensModalPicker_AndGuardsCancelCountZero()
     {
         // The View's NewAlloc_Click must open the modal count-picker via
-        // ShowDialog<uint?> and early-return on Cancel (null) or count==0.
+        // OpenModal<EventUnitNewAllocView, uint?> and early-return on Cancel (null) or count==0.
         string repoRoot = FindRepoRoot();
         string codeBehindPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
             "EventUnitView.axaml.cs");
@@ -593,7 +593,7 @@ public class EventUnitParityTests
 
         // Opens the modal picker and awaits a uint? count.
         Assert.Matches(
-            new Regex(@"NewAlloc_Click[\s\S]*?new\s+EventUnitNewAllocView\(\)[\s\S]*?ShowDialog<uint\?>", RegexOptions.Singleline),
+            new Regex(@"NewAlloc_Click[\s\S]*?OpenModal<EventUnitNewAllocView, uint\?>", RegexOptions.Singleline),
             source);
         // Cancel / count==0 no-op guard.
         Assert.Matches(
@@ -678,12 +678,12 @@ public class EventUnitParityTests
             "EventUnitNewAllocView.axaml.cs");
         string source = File.ReadAllText(codeBehindPath);
 
-        // OK closes with the chosen count; Cancel closes with null.
+        // OK returns the chosen count; Cancel returns null through DialogResult.
         Assert.Matches(
-            new Regex(@"OK_Click[\s\S]*?Close\(\(uint\?\)", RegexOptions.Singleline),
+            new Regex(@"OK_Click[\s\S]*?DialogResult\s*=\s*\(uint\?\)count;\s*RequestClose\(\)", RegexOptions.Singleline),
             source);
         Assert.Matches(
-            new Regex(@"Cancel_Click[\s\S]*?Close\(\(uint\?\)null\)", RegexOptions.Singleline),
+            new Regex(@"Cancel_Click[\s\S]*?DialogResult\s*=\s*\(uint\?\)null;\s*RequestClose\(\)", RegexOptions.Singleline),
             source);
     }
 
