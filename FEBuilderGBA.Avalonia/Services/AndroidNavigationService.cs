@@ -167,7 +167,7 @@ namespace FEBuilderGBA.Avalonia.Services
             {
                 // A modal embeddable editor signals completion through
                 // CloseRequested; the page is popped and the awaited result
-                // completes with null.
+                // completes with the content's DialogResult.
                 void OnCloseRequested(object? s, EventArgs e)
                 {
                     UnwirePageCloseRequested(page.Content);

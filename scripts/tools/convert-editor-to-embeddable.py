@@ -355,8 +355,16 @@ def _replace_own_close_with_result(cs: str) -> tuple[str, bool]:
         if j < 0:
             out.append(cs[i:])
             break
+        call_start = j
         prev = cs[j - 1] if j > 0 else ""
-        if prev == "." or prev == "_" or prev.isalnum():
+        if prev == ".":
+            if j >= 5 and cs[j - 5:j] == "this.":
+                call_start = j - 5
+            else:
+                out.append(cs[i:j + len(needle)])
+                i = j + len(needle)
+                continue
+        elif prev == "_" or prev.isalnum():
             out.append(cs[i:j + len(needle)])
             i = j + len(needle)
             continue
@@ -400,8 +408,16 @@ def _replace_own_close_with_result(cs: str) -> tuple[str, bool]:
             out.append(cs[i:j + len(needle)])
             i = j + len(needle)
             continue
+        prefix_start = max(
+            cs.rfind("\n", 0, call_start) + 1,
+            cs.rfind(";", 0, call_start) + 1,
+            cs.rfind("{", 0, call_start) + 1,
+        )
+        prefix = cs[prefix_start:call_start].strip()
+        if prefix and not prefix.endswith("=>"):
+            raise ValueError("Close(result) used in an unsupported expression context")
         arg = cs[k + 1:q].strip()
-        out.append(cs[i:j])
+        out.append(cs[i:call_start])
         if arg:
             out.append(f"{{ DialogResult = {arg}; RequestClose(); }}")
             changed = True

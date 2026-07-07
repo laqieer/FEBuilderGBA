@@ -146,6 +146,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.AutoFeedbackStatus = R._("Update cancelled.");
                 return;
             }
+            if (sel is null)
+            {
+                _vm.AutoFeedbackStatus = R._("Update cancelled.");
+                return;
+            }
             string original = sel.SelectedOriginal;
             if (string.IsNullOrEmpty(original) || !File.Exists(original))
             {
