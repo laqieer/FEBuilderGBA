@@ -36,11 +36,12 @@ EXCLUDED_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
 ROOT_RE = re.compile(r"^<Window\b(?P<attrs>.*?)>", re.DOTALL)
 ATTR_RE = re.compile(r"(?P<name>[\w:.]+)\s*=\s*\"(?P<value>[^\"]*)\"")
 OPENED_RE = re.compile(
-    r"(?P<indent>\s*)Opened\s*\+=\s*\([^;\n]*\)\s*=>\s*(?P<call>[A-Za-z_][A-Za-z0-9_]*\s*\([^;\n]*\))\s*;\s*\n"
+    r"^(?P<indent>\s*)Opened\s*\+=\s*\([^;\n]*\)\s*=>\s*(?P<call>[A-Za-z_][A-Za-z0-9_]*\s*\([^;\n]*\))\s*;\s*\n",
+    re.MULTILINE,
 )
 OPENED_COMPOUND_RE = re.compile(
-    r"(?P<indent>\s*)Opened\s*\+=\s*\([^;\n]*\)\s*=>\s*\{\s*(?P<body>.*?)\s*\}\s*;\s*\n",
-    re.DOTALL,
+    r"^(?P<indent>\s*)Opened\s*\+=\s*\([^;\n]*\)\s*=>\s*\{\s*(?P<body>.*?)\s*\}\s*;\s*\n",
+    re.DOTALL | re.MULTILINE,
 )
 
 
@@ -50,6 +51,11 @@ class Descriptor:
     width: str
     height: str
     size_to_content: bool
+
+
+def parse_size_to_content(value: str | None) -> bool:
+    """Map Avalonia Window SizeToContent to EditorDescriptor auto-size flag."""
+    return value in {"Width", "Height", "WidthAndHeight"}
 
 
 def read_text(path: Path) -> str:
@@ -77,7 +83,7 @@ def parse_window_root(axaml: str, view_name: str) -> tuple[str, dict[str, str], 
         title=attrs["Title"],
         width=attrs["Width"],
         height=attrs["Height"],
-        size_to_content="SizeToContent" in attrs,
+        size_to_content=parse_size_to_content(attrs.get("SizeToContent")),
     )
     return match.group(0), attrs, descriptor
 
@@ -250,11 +256,14 @@ def main(argv: list[str]) -> int:
 
     repo = Path(args.repo).resolve()
     converted = 0
+    failed = 0
     for view in args.views:
         ok, message = convert_view(repo, view)
         print(message)
         converted += int(ok)
-    return 0 if converted or args.views else 1
+        if not ok and "already embeddable" not in message:
+            failed += 1
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

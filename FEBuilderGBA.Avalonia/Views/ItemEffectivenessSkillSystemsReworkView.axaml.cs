@@ -44,7 +44,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public new bool IsLoaded => _vm.IsLoaded;
 
 
-        public EditorDescriptor Descriptor => new("Effectiveness (Skill Systems Rework)", 1297, 918, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Effectiveness (Skill Systems Rework)", 1297, 918, SizeToContent: false);
 
         public event EventHandler? CloseRequested;
         /// <summary>
