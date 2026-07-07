@@ -18,18 +18,11 @@ from pathlib import Path
 
 EXCLUDED_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("IPickableEditor", re.compile(r"\bIPickableEditor\b")),
-    ("StorageProvider", re.compile(r"\bStorageProvider\b")),
-    ("MessageBox", re.compile(r"\bMessageBox(?:Window)?\b")),
-    ("ShowDialog(", re.compile(r"\bShowDialog\s*\(")),
+    ("direct StorageProvider", re.compile(r"\b(?:this\s*\.\s*)?StorageProvider\b")),
     ("GetTopLevel", re.compile(r"\bGetTopLevel\b")),
     ("Closed event", re.compile(r"\bClosed\s*\+=")),
+    ("OnClosed override", re.compile(r"\boverride\s+void\s+OnClosed\s*\(")),
     ("Window Clipboard", re.compile(r"\bClipboard\b")),
-    ("FileDialogHelper", re.compile(r"\bFileDialogHelper\b")),
-    ("NumberInputDialog", re.compile(r"\bNumberInputDialog\b")),
-    ("Dialogs.*Show", re.compile(r"\bDialogs\.[A-Za-z0-9_.]*Show\b")),
-    ("owner-bound ShowDialog", re.compile(r"\bShowDialog\s*<[^>]+>\s*\(\s*this\b")),
-    ("owner-bound OpenModal", re.compile(r"\bOpenModal\s*<[^>]+>\s*\([^;]*\bthis\b", re.DOTALL)),
-    ("owner-bound ShowAsync", re.compile(r"\bShowAsync\s*\(\s*this\b")),
     ("owner-bound image export", re.compile(r"\bExportPng\s*\(\s*this\b")),
     ("owner-bound image import", re.compile(r"\bImageImportService\.[A-Za-z0-9_]+\s*\(\s*this\b")),
     ("Close with result", re.compile(r"(?<![\.\w])Close\s*\(\s*[^)\s]|\bthis\s*\.\s*Close\s*\(\s*[^)\s]")),
@@ -38,7 +31,7 @@ EXCLUDED_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
 ROOT_RE = re.compile(r"(?P<root><Window\b(?P<attrs>.*?)>)", re.DOTALL)
 ATTR_RE = re.compile(r"(?P<name>[\w:.]+)\s*=\s*\"(?P<value>[^\"]*)\"")
 OPENED_RE = re.compile(
-    r"^(?P<indent>[ \t]*)Opened[ \t]*\+=[ \t]*\([^;\n]*\)[ \t]*=>[ \t]*(?P<call>[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*[ \t]*\([^;\n]*\))[ \t]*;[ \t]*\n",
+    r"^(?P<indent>[ \t]*)Opened[ \t]*\+=[ \t]*\([^;\n]*\)[ \t]*=>[ \t]*(?P<stmt>[^;\n]+;)[ \t]*\n",
     re.MULTILINE,
 )
 OPENED_COMPOUND_RE = re.compile(
@@ -194,6 +187,55 @@ def convert_owner_bound_pick_from_editor(cs: str) -> str:
     )
 
 
+def convert_owner_bound_dialog_calls(cs: str) -> str:
+    """Reroute owner-bound dialog helpers from the editor Window to its hosting TopLevel.
+
+    After conversion the editor instance is a UserControl, so passing ``this`` as a
+    Window owner no longer compiles and also loses the desktop modal owner. The
+    desktop host is the TopLevel Window; single-view TopLevels are not Windows, so
+    the cast intentionally yields null for APIs that accept ``Window?``.
+    """
+    owner = "TopLevel.GetTopLevel(this) as Window"
+    replacements: tuple[tuple[re.Pattern[str], str], ...] = (
+        (
+            re.compile(r"(?P<prefix>\b(?:Dialogs\.)?MessageBoxWindow\s*\.\s*Show\s*\(\s*)this\s*,"),
+            rf"\g<prefix>{owner},",
+        ),
+        (
+            re.compile(r"(?P<prefix>\b(?:Dialogs\.)?NumberInputDialog\s*\.\s*Show\s*\(\s*)this\s*,"),
+            rf"\g<prefix>{owner},",
+        ),
+        (
+            re.compile(r"(?P<prefix>\bFileDialogHelper\s*\.\s*[A-Za-z_][A-Za-z0-9_]*\s*\(\s*)this(?P<suffix>\s*[,)])"),
+            rf"\g<prefix>{owner}\g<suffix>",
+        ),
+        (
+            re.compile(r"(?P<prefix>\bFERepoPickHelper\s*\.\s*[A-Za-z_][A-Za-z0-9_]*\s*\(\s*)this(?P<suffix>\s*[,)])"),
+            rf"\g<prefix>{owner}\g<suffix>",
+        ),
+        (
+            re.compile(r"(?P<prefix>\b[A-Za-z_][A-Za-z0-9_]*\s*\.\s*ShowAsync\s*\(\s*)this\b"),
+            rf"\g<prefix>{owner}",
+        ),
+        (
+            re.compile(r"(?P<prefix>\b[A-Za-z_][A-Za-z0-9_]*\s*\.\s*Show\s*\(\s*)this\s*,"),
+            rf"\g<prefix>{owner},",
+        ),
+        (
+            re.compile(r"(?P<prefix>\.ShowDialog(?:<[^>]+>)?\s*\(\s*)this(?P<suffix>\s*\))"),
+            rf"\g<prefix>{owner}\g<suffix>",
+        ),
+        (
+            re.compile(r"(?P<prefix>\bOpenModal<[^>]+>\s*\([^;]*?),\s*this\s*\)"),
+            rf"\g<prefix>, {owner})",
+            re.DOTALL,
+        ),
+    )
+    for pattern, repl, *extra in replacements:
+        cs = pattern.sub(repl, cs)
+    return cs
+
+
 def convert_self_close(cs: str) -> str:
     """Convert calls that close the editor Window itself into embeddable CloseRequested requests."""
     cs = re.sub(r"\bthis\s*\.\s*Close\s*\(\s*\)\s*;", "RequestClose();", cs)
@@ -270,7 +312,7 @@ def convert_opened_handler(cs: str) -> str:
         body_lines = normalize_lambda_body(compound.group("body"))
         match = compound
     else:
-        body_lines = [match.group("call") + ";"]
+        body_lines = [match.group("stmt").strip()]
     cs = cs[: match.start()] + cs[match.end() :]
 
     field_marker = re.search(r"^(?P<indent>[ \t]*)readonly\s+UndoService\s+_undoService\s*=\s*new\(\)\s*;[ \t]*\n", cs, re.MULTILINE)
@@ -319,6 +361,7 @@ def convert_cs(cs: str, view_name: str, descriptor: Descriptor) -> str:
     cs = ensure_avalonia_using(cs)
     cs = convert_base_list(cs, view_name)
     cs = convert_owner_bound_pick_from_editor(cs)
+    cs = convert_owner_bound_dialog_calls(cs)
     cs = ensure_avalonia_controls_using(cs)
     cs = convert_self_close(cs)
     cs = inject_members(cs, descriptor)
@@ -339,6 +382,13 @@ def convert_view(repo: Path, view_name: str) -> tuple[bool, str]:
     cs = read_text(cs_path)
     if axaml.lstrip().startswith("<UserControl") and "IEmbeddableEditor" in cs:
         return False, f"SKIP {view_name}: already embeddable"
+    constructor_ref = re.compile(rf"\bnew\s+{re.escape(view_name)}\s*\(")
+    for other in views.glob("*.cs"):
+        if other == cs_path:
+            continue
+        other_cs = read_text(other)
+        if constructor_ref.search(other_cs) and "ShowDialog" in other_cs:
+            return False, f"SKIP {view_name}: used as external ShowDialog target in {other.name}"
 
     try:
         converted_axaml, descriptor = convert_axaml(axaml, view_name)
