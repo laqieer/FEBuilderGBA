@@ -11,19 +11,14 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly OtherTextViewModel _vm = new();
         readonly UndoService _undoService = new();
-
-
         bool _hasLoadedList;
+
         public string ViewTitle => "Other Text Strings";
         public new bool IsLoaded => _vm.IsLoaded;
-
-
         public EditorDescriptor Descriptor => new("Other Text Strings", 1166, 930, SizeToContent: true);
-
         public event EventHandler? CloseRequested;
-
-
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
+
         public OtherTextView()
         {
             InitializeComponent();
@@ -31,23 +26,14 @@ namespace FEBuilderGBA.Avalonia.Views
             WriteButton.Click += OnWrite;
         }
 
-
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
-
         {
-
             base.OnAttachedToVisualTree(e);
-
             if (!_hasLoadedList)
-
             {
-
                 _hasLoadedList = true;
-
                 LoadList();
-
             }
-
         }
 
         void LoadList()

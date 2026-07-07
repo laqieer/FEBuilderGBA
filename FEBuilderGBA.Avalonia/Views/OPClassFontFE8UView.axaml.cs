@@ -11,42 +11,29 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly OPClassFontFE8UViewModel _vm = new();
         readonly UndoService _undoService = new();
-
-
         bool _hasLoadedList;
+
         public string ViewTitle => "OP Class Font (FE8U) Editor";
         public new bool IsLoaded => _vm.CanWrite;
-
         public EditorDescriptor Descriptor => new("OP Class Font (FE8U) Editor", 1179, 849, SizeToContent: true);
-
         public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
-
-
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
+
         public OPClassFontFE8UView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
         }
 
-
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
-
         {
-
             base.OnAttachedToVisualTree(e);
-
             if (!_hasLoadedList)
-
             {
-
                 _hasLoadedList = true;
-
                 LoadList();
-
             }
-
         }
 
         void LoadList()

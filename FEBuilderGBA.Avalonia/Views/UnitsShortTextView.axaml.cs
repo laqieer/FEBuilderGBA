@@ -11,17 +11,14 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly UnitsShortTextViewModel _vm = new();
         readonly UndoService _undoService = new();
-
         bool _hasLoadedList;
         uint _baseAddr;
 
         public string ViewTitle => "Units Short Text Editor";
         public new bool IsLoaded => _vm.CanWrite;
-
-
         public EditorDescriptor Descriptor => new("Units Short Text Editor", 1155, 551, SizeToContent: true);
-
         public event EventHandler? CloseRequested;
+
         public UnitsShortTextView()
         {
             InitializeComponent();
@@ -31,23 +28,14 @@ namespace FEBuilderGBA.Avalonia.Views
             // empty-state explanation until a caller supplies an address via NavigateTo().
         }
 
-
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
-
         {
-
             base.OnAttachedToVisualTree(e);
-
             if (!_hasLoadedList)
-
             {
-
                 _hasLoadedList = true;
-
                 UpdateEmptyState();
-
             }
-
         }
 
         /// <summary>
@@ -72,9 +60,8 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
-
-
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
+
         void OnSelected(uint address)
         {
             _vm.LoadEntry(address);

@@ -11,19 +11,14 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly SongTrackChangeTrackViewModel _vm = new();
         readonly UndoService _undoService = new();
-
-
         bool _hasLoadedList;
+
         public string ViewTitle => "Track Change";
         public new bool IsLoaded => _vm.IsLoaded;
-
-
         public EditorDescriptor Descriptor => new("Track Change", 754, 640, SizeToContent: true);
-
         public event EventHandler? CloseRequested;
-
-
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
+
         public SongTrackChangeTrackView()
         {
             InitializeComponent();
@@ -33,23 +28,14 @@ namespace FEBuilderGBA.Avalonia.Views
             EntryList.SelectedAddressChanged += OnSelected;
         }
 
-
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
-
         {
-
             base.OnAttachedToVisualTree(e);
-
             if (!_hasLoadedList)
-
             {
-
                 _hasLoadedList = true;
-
                 LoadList();
-
             }
-
         }
 
         void LoadList()

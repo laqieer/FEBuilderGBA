@@ -11,19 +11,15 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly StatusParamViewModel _vm = new();
         readonly UndoService _undoService = new();
-
-
         bool _hasLoadedList;
+
         public string ViewTitle => "Status Parameters";
         public new bool IsLoaded => _vm.CanWrite;
-
         public EditorDescriptor Descriptor => new("Status Parameters Editor", 1238, 604, SizeToContent: true);
-
         public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
-
-
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
+
         public StatusParamView()
         {
             InitializeComponent();
@@ -31,23 +27,14 @@ namespace FEBuilderGBA.Avalonia.Views
             TableFilterCombo.SelectionChanged += TableFilter_Changed;
         }
 
-
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
-
         {
-
             base.OnAttachedToVisualTree(e);
-
             if (!_hasLoadedList)
-
             {
-
                 _hasLoadedList = true;
-
                 InitFilter();
-
             }
-
         }
 
         void InitFilter()

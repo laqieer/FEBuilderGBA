@@ -11,20 +11,15 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly EDFE6ViewModel _vm = new();
         readonly UndoService _undoService = new();
-
         bool _hasLoadedList;
         bool _loading;
 
         public string ViewTitle => "Ending (FE6)";
         public new bool IsLoaded => _vm.IsLoaded;
-
-
         public EditorDescriptor Descriptor => new("Ending (FE6)", 1204, 885, SizeToContent: true);
-
         public event EventHandler? CloseRequested;
-
-
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
+
         public EDFE6View()
         {
             InitializeComponent();
@@ -35,25 +30,17 @@ namespace FEBuilderGBA.Avalonia.Views
             Text2IdBox.ValueChanged += (_, _) => OnIdEdited(Text2IdBox, id => _vm.Text2Id = id, Text2Preview, () => _vm.Text2Preview);
             Text4IdBox.ValueChanged += (_, _) => OnIdEdited(Text4IdBox, id => _vm.Text4Id = id, Text4Preview, () => _vm.Text4Preview);
             Text6IdBox.ValueChanged += (_, _) => OnIdEdited(Text6IdBox, id => _vm.Text6Id = id, Text6Preview, () => _vm.Text6Preview);
+
         }
 
-
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
-
         {
-
             base.OnAttachedToVisualTree(e);
-
             if (!_hasLoadedList)
-
             {
-
                 _hasLoadedList = true;
-
                 LoadList();
-
             }
-
         }
 
         void LoadList()

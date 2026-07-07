@@ -19,6 +19,20 @@ namespace FEBuilderGBA.Tests.Unit
 
         private string AvaloniaDir => Path.Combine(SolutionDir, "FEBuilderGBA.Avalonia");
 
+        private static string GetClassBaseList(string src, string className)
+        {
+            var match = System.Text.RegularExpressions.Regex.Match(
+                src,
+                $@"\bclass\s+{System.Text.RegularExpressions.Regex.Escape(className)}\s*:\s*(?<bases>[^\r\n{{]+)");
+            Assert.True(match.Success, $"Class declaration for {className} was not found.");
+            return match.Groups["bases"].Value;
+        }
+
+        private static bool BaseListContainsInterface(string bases, string interfaceName) =>
+            System.Text.RegularExpressions.Regex.IsMatch(
+                bases,
+                $@"(^|,\s*){System.Text.RegularExpressions.Regex.Escape(interfaceName)}(\s*,|$)");
+
         // ------------------------------------------------------------------ AddressListControl
 
         [Fact]
@@ -1328,7 +1342,10 @@ namespace FEBuilderGBA.Tests.Unit
         {
             string viewPath = Path.Combine(AvaloniaDir, "Views", $"{editorName}View.axaml.cs");
             var src = File.ReadAllText(viewPath);
-            Assert.True(src.Contains("IEditorView") || src.Contains("IEmbeddableEditor"),
+            string bases = GetClassBaseList(src, $"{editorName}View");
+            Assert.True(BaseListContainsInterface(bases, "IEditorView")
+                || BaseListContainsInterface(bases, "IPickableEditor")
+                || BaseListContainsInterface(bases, "IEmbeddableEditor"),
                 $"{editorName}View must implement IEditorView directly or through IEmbeddableEditor.");
             Assert.Contains("SelectFirstItem", src);
             Assert.Contains("NavigateTo", src);

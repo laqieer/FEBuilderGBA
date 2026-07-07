@@ -12,19 +12,15 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly StatusRMenuViewModel _vm = new();
         readonly UndoService _undoService = new();
-
-
         bool _hasLoadedList;
+
         public string ViewTitle => "Status R-Menu";
         public new bool IsLoaded => _vm.CanWrite;
-
         public EditorDescriptor Descriptor => new("Status R-Menu Editor", 1238, 604, SizeToContent: true);
-
         public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
-
-
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
+
         public StatusRMenuView()
         {
             InitializeComponent();
@@ -33,35 +29,20 @@ namespace FEBuilderGBA.Avalonia.Views
             FilterComboBox.SelectionChanged += FilterCombo_SelectionChanged;
         }
 
-
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
-
         {
-
             base.OnAttachedToVisualTree(e);
-
             if (!_hasLoadedList)
-
             {
-
                 _hasLoadedList = true;
-
                 PopulateFilterCombo();
-
                 // Selecting index 0 fires FilterCombo_SelectionChanged →
-
                 // LoadList(). If the combo ended up empty (no ROM) load directly.
-
                 if (FilterComboBox.ItemCount > 0)
-
-                FilterComboBox.SelectedIndex = 0;
-
+                    FilterComboBox.SelectedIndex = 0;
                 else
-
-                LoadList();
-
+                    LoadList();
             }
-
         }
 
         /// <summary>

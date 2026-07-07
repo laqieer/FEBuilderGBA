@@ -38,12 +38,16 @@ EXCLUDED_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
 ROOT_RE = re.compile(r"^<Window\b(?P<attrs>.*?)>", re.DOTALL)
 ATTR_RE = re.compile(r"(?P<name>[\w:.]+)\s*=\s*\"(?P<value>[^\"]*)\"")
 OPENED_RE = re.compile(
-    r"^(?P<indent>\s*)Opened\s*\+=\s*\([^;\n]*\)\s*=>\s*(?P<call>[A-Za-z_][A-Za-z0-9_]*\s*\([^;\n]*\))\s*;\s*\n",
+    r"^(?P<indent>[ \t]*)Opened[ \t]*\+=[ \t]*\([^;\n]*\)[ \t]*=>[ \t]*(?P<call>[A-Za-z_][A-Za-z0-9_]*[ \t]*\([^;\n]*\))[ \t]*;[ \t]*\n",
     re.MULTILINE,
 )
 OPENED_COMPOUND_RE = re.compile(
-    r"^(?P<indent>\s*)Opened\s*\+=\s*\([^;\n]*\)\s*=>\s*\{\s*(?P<body>.*?)\s*\}\s*;\s*\n",
+    r"^(?P<indent>[ \t]*)Opened[ \t]*\+=[ \t]*\([^;\n]*\)[ \t]*=>[ \t]*(?:\r?\n[ \t]*)?\{(?P<body>.*?)^(?P=indent)\}[ \t]*;[ \t]*\n",
     re.DOTALL | re.MULTILINE,
+)
+OPENED_INLINE_COMPOUND_RE = re.compile(
+    r"^(?P<indent>[ \t]*)Opened[ \t]*\+=[ \t]*\([^;\n]*\)[ \t]*=>[ \t]*\{[ \t]*(?P<body>.*?)[ \t]*\}[ \t]*;[ \t]*\n",
+    re.MULTILINE,
 )
 
 
@@ -135,7 +139,7 @@ def convert_base_list(cs: str, view_name: str) -> str:
 def inject_members(cs: str, descriptor: Descriptor) -> str:
     cs = re.sub(r"public\s+bool\s+IsLoaded\s*=>", "public new bool IsLoaded =>", cs, count=1)
     if "public EditorDescriptor Descriptor" not in cs:
-        marker = re.search(r"(?P<indent>\s*)public\s+new\s+bool\s+IsLoaded\s*=>[^;]+;\s*\n", cs)
+        marker = re.search(r"^(?P<indent>[ \t]*)public\s+new\s+bool\s+IsLoaded\s*=>[^;]+;[ \t]*\n", cs, re.MULTILINE)
         if not marker:
             raise ValueError("public bool/new bool IsLoaded expression not found")
         indent = marker.group("indent")
@@ -147,9 +151,9 @@ def inject_members(cs: str, descriptor: Descriptor) -> str:
         )
         cs = cs[: marker.start()] + injected + cs[marker.end() :]
     if "RequestClose() => CloseRequested?.Invoke" not in cs:
-        marker = re.search(r"(?P<indent>\s*)public\s+ViewModelBase\?\s+DataViewModel\s*=>\s*_vm\s*;\s*\n", cs)
+        marker = re.search(r"^(?P<indent>[ \t]*)public\s+ViewModelBase\?\s+DataViewModel\s*=>\s*_vm\s*;[ \t]*\n", cs, re.MULTILINE)
         if not marker:
-            marker = re.search(r"(?P<indent>\s*)public\s+event\s+EventHandler\?\s+CloseRequested\s*;\s*\n", cs)
+            marker = re.search(r"^(?P<indent>[ \t]*)public\s+event\s+EventHandler\?\s+CloseRequested\s*;[ \t]*\n", cs, re.MULTILINE)
         if not marker:
             raise ValueError("member anchor not found; add RequestClose manually")
         indent = marker.group("indent")
@@ -158,34 +162,55 @@ def inject_members(cs: str, descriptor: Descriptor) -> str:
     return cs
 
 
+def normalize_lambda_body(body: str) -> list[str]:
+    """Trim wrapper whitespace while preserving relative indentation inside a lambda body."""
+    lines = [line.rstrip() for line in body.splitlines()]
+    while lines and not lines[0].strip():
+        lines.pop(0)
+    while lines and not lines[-1].strip():
+        lines.pop()
+    nonblank_indents = [
+        len(line) - len(line.lstrip(" "))
+        for line in lines
+        if line.strip()
+    ]
+    common_indent = min(nonblank_indents, default=0)
+    if common_indent == 0 and len(nonblank_indents) > 1:
+        positive_indents = [indent for indent in nonblank_indents if indent > 0]
+        if positive_indents:
+            common_indent = min(positive_indents)
+    return [
+        line[common_indent:] if line.strip() and len(line) - len(line.lstrip(" ")) >= common_indent else line
+        for line in lines
+    ]
+
+
 def convert_opened_handler(cs: str) -> str:
     if "OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)" in cs:
         return cs
     match = OPENED_RE.search(cs)
-    body: str
+    body_lines: list[str]
     if not match:
         compound = OPENED_COMPOUND_RE.search(cs)
         if not compound:
+            compound = OPENED_INLINE_COMPOUND_RE.search(cs)
+        if not compound:
             return cs
-        body = "\n".join(
-            line.rstrip()
-            for line in compound.group("body").splitlines()
-            if line.strip()
-        )
+        body_lines = normalize_lambda_body(compound.group("body"))
         match = compound
     else:
-        body = match.group("call") + ";"
+        body_lines = [match.group("call") + ";"]
     cs = cs[: match.start()] + cs[match.end() :]
 
-    field_marker = re.search(r"(?P<indent>\s*)readonly\s+UndoService\s+_undoService\s*=\s*new\(\)\s*;\s*\n", cs)
+    field_marker = re.search(r"^(?P<indent>[ \t]*)readonly\s+UndoService\s+_undoService\s*=\s*new\(\)\s*;[ \t]*\n", cs, re.MULTILINE)
     if not field_marker:
-        field_marker = re.search(r"(?P<indent>\s*)readonly\s+[^;\n]+\s*;\s*\n", cs)
+        field_marker = re.search(r"^(?P<indent>[ \t]*)readonly\s+[^;\n]+\s*;[ \t]*\n", cs, re.MULTILINE)
     if not field_marker:
         raise ValueError("field anchor not found; cannot place one-shot load guard")
     indent = field_marker.group("indent")
     cs = cs[: field_marker.end()] + f"{indent}bool _hasLoadedList;\n" + cs[field_marker.end() :]
 
-    ctor_match = re.search(r"(?P<indent>\s*)public\s+[A-Za-z_][A-Za-z0-9_]*\s*\(\)\s*\{", cs)
+    ctor_match = re.search(r"^(?P<indent>[ \t]*)public\s+[A-Za-z_][A-Za-z0-9_]*\s*\(\)\s*\{", cs, re.MULTILINE)
     if not ctor_match:
         raise ValueError("constructor not found")
     pos = ctor_match.end()
@@ -208,7 +233,7 @@ def convert_opened_handler(cs: str) -> str:
         f"{method_indent}    if (!_hasLoadedList)\n"
         f"{method_indent}    {{\n"
         f"{method_indent}        _hasLoadedList = true;\n"
-        + "\n".join(f"{method_indent}        {line.strip()}" for line in body.splitlines())
+        + "\n".join(f"{method_indent}        {line}" for line in body_lines)
         + "\n"
         f"{method_indent}    }}\n"
         f"{method_indent}}}"

@@ -11,39 +11,27 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly ExtraUnitViewModel _vm = new();
         readonly UndoService _undoService = new();
-
-
         bool _hasLoadedList;
+
         public string ViewTitle => "Extra Unit Editor";
         public new bool IsLoaded => _vm.IsLoaded;
-
-
         public EditorDescriptor Descriptor => new("Extra Unit Editor", 1121, 735, SizeToContent: true);
-
         public event EventHandler? CloseRequested;
+
         public ExtraUnitView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
         }
 
-
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
-
         {
-
             base.OnAttachedToVisualTree(e);
-
             if (!_hasLoadedList)
-
             {
-
                 _hasLoadedList = true;
-
                 LoadList();
-
             }
-
         }
 
         void LoadList()
@@ -112,7 +100,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
-
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

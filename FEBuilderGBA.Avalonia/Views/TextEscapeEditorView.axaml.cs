@@ -10,42 +10,28 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class TextEscapeEditorView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly TextEscapeEditorViewModel _vm = new();
-
-
         bool _hasLoadedList;
+
         public string ViewTitle => "Text Escape Sequences";
         public new bool IsLoaded => _vm.IsLoaded;
-
-
         public EditorDescriptor Descriptor => new("Text Escape Sequences", 1166, 930, SizeToContent: true);
-
         public event EventHandler? CloseRequested;
-
-
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
+
         public TextEscapeEditorView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
         }
 
-
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
-
         {
-
             base.OnAttachedToVisualTree(e);
-
             if (!_hasLoadedList)
-
             {
-
                 _hasLoadedList = true;
-
                 LoadList();
-
             }
-
         }
 
         void LoadList()

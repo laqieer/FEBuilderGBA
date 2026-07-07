@@ -11,16 +11,13 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly WorldMapEventPointerFE7ViewModel _vm = new();
         readonly UndoService _undoService = new();
-
-
         bool _hasLoadedList;
+
         public string ViewTitle => "World Map Event (FE7)";
         public new bool IsLoaded => _vm.IsLoaded;
-
-
         public EditorDescriptor Descriptor => new("Event Pointer (FE7)", 1288, 770, SizeToContent: true);
-
         public event EventHandler? CloseRequested;
+
         public WorldMapEventPointerFE7View()
         {
             InitializeComponent();
@@ -29,23 +26,14 @@ namespace FEBuilderGBA.Avalonia.Views
             EventWriteButton.Click += OnWriteGlobalEvents;
         }
 
-
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
-
         {
-
             base.OnAttachedToVisualTree(e);
-
             if (!_hasLoadedList)
-
             {
-
                 _hasLoadedList = true;
-
                 LoadList();
-
             }
-
         }
 
         void LoadList()
@@ -144,7 +132,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
-
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

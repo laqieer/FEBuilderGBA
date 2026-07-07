@@ -10,39 +10,27 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class ClassOPFontView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly ClassOPFontViewModel _vm = new();
-
-
         bool _hasLoadedList;
+
         public string ViewTitle => "Class OP Font";
         public new bool IsLoaded => _vm.IsLoaded;
-
-
         public EditorDescriptor Descriptor => new("Class OP Font", 1179, 475, SizeToContent: true);
-
         public event EventHandler? CloseRequested;
+
         public ClassOPFontView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
         }
 
-
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
-
         {
-
             base.OnAttachedToVisualTree(e);
-
             if (!_hasLoadedList)
-
             {
-
                 _hasLoadedList = true;
-
                 LoadList();
-
             }
-
         }
 
         void LoadList()
@@ -79,7 +67,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
-
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

@@ -13,16 +13,13 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly SupportUnitFE6ViewModel _vm = new();
         readonly UndoService _undoService = new();
-
-
         bool _hasLoadedList;
+
         public string ViewTitle => "Support Units (FE6)";
         public new bool IsLoaded => _vm.IsLoaded;
-
-
         public EditorDescriptor Descriptor => new("Support Units (FE6)", 1234, 750, SizeToContent: true);
-
         public event EventHandler? CloseRequested;
+
         public SupportUnitFE6View()
         {
             InitializeComponent();
@@ -53,23 +50,14 @@ namespace FEBuilderGBA.Avalonia.Views
             Partner10Nud.ValueChanged += (s, e) => Partner10NameLabel.Text = ResolvePartnerName(Partner10Nud.Value);
         }
 
-
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
-
         {
-
             base.OnAttachedToVisualTree(e);
-
             if (!_hasLoadedList)
-
             {
-
                 _hasLoadedList = true;
-
                 LoadList();
-
             }
-
         }
 
         static string ResolvePartnerName(decimal? value)
@@ -380,7 +368,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
-
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

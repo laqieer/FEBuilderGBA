@@ -18,19 +18,14 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class ToolUseFlagView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ToolUseFlagViewModel _vm = new();
-
-
         bool _hasLoadedList;
+
         public string ViewTitle => "Flags Used in Chapter";
         public new bool IsLoaded => _vm.IsLoaded;
-
-
         public EditorDescriptor Descriptor => new("Flags Used in Chapter", 1113, 720, SizeToContent: false);
-
         public event EventHandler? CloseRequested;
-
-
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
+
         public ToolUseFlagView()
         {
             InitializeComponent();
@@ -39,25 +34,17 @@ namespace FEBuilderGBA.Avalonia.Views
             MapList.SelectedAddressChanged += OnMapSelected;
             EntryList.SelectedAddressChanged += OnUsageSelected;
             EntryList.SelectionConfirmed += OnUsageConfirmed;
+
         }
 
-
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
-
         {
-
             base.OnAttachedToVisualTree(e);
-
             if (!_hasLoadedList)
-
             {
-
                 _hasLoadedList = true;
-
                 LoadMapList();
-
             }
-
         }
 
         // Populate the chapter selector. SetItems auto-selects the first row

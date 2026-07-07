@@ -18,19 +18,15 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly WorldMapEventPointerViewModel _vm = new();
         readonly UndoService _undoService = new();
-
-
         bool _hasLoadedList;
+
         public string ViewTitle => "World Map Event";
         public new bool IsLoaded => _vm.CanWrite;
-
         public EditorDescriptor Descriptor => new("World Map Event Editor", 1240, 900, SizeToContent: true);
-
         public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
-
-
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
+
         public WorldMapEventPointerView()
         {
             InitializeComponent();
@@ -38,23 +34,14 @@ namespace FEBuilderGBA.Avalonia.Views
             AfterList.SelectedAddressChanged += OnAfterSelected;
         }
 
-
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
-
         {
-
             base.OnAttachedToVisualTree(e);
-
             if (!_hasLoadedList)
-
             {
-
                 _hasLoadedList = true;
-
                 InitialLoad();
-
             }
-
         }
 
         void InitialLoad()

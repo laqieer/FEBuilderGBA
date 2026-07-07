@@ -12,42 +12,28 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly HexEditorViewModel _vm = new();
         readonly UndoService _undoService = new();
-
-
         bool _hasLoadedList;
+
         public string ViewTitle => "Hex Editor";
         public new bool IsLoaded => _vm.IsLoaded;
-
-
         public EditorDescriptor Descriptor => new("Hex Editor", 820, 600, SizeToContent: true);
-
         public event EventHandler? CloseRequested;
-
-
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
+
         public HexEditorView()
         {
             InitializeComponent();
             DataContext = _vm;
         }
 
-
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
-
         {
-
             base.OnAttachedToVisualTree(e);
-
             if (!_hasLoadedList)
-
             {
-
                 _hasLoadedList = true;
-
                 _vm.RefreshDisplay(); UpdateUI();
-
             }
-
         }
 
         public void NavigateTo(uint address)

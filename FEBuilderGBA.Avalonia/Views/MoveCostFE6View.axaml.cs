@@ -12,17 +12,14 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly MoveCostFE6ViewModel _vm = new();
         readonly UndoService _undoService = new();
-
         bool _hasLoadedList;
         bool _suppressEvents;
 
         public string ViewTitle => "Move Cost (FE6)";
         public new bool IsLoaded => _vm.CanWrite;
-
-
         public EditorDescriptor Descriptor => new("Move Cost (FE6) Editor", 1536, 634, SizeToContent: true);
-
         public event EventHandler? CloseRequested;
+
         public MoveCostFE6View()
         {
             InitializeComponent();
@@ -30,23 +27,14 @@ namespace FEBuilderGBA.Avalonia.Views
             CostTypeCombo.SelectionChanged += OnCostTypeChanged;
         }
 
-
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
-
         {
-
             base.OnAttachedToVisualTree(e);
-
             if (!_hasLoadedList)
-
             {
-
                 _hasLoadedList = true;
-
                 LoadList();
-
             }
-
         }
 
         void LoadList()
@@ -149,9 +137,8 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
-
-
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
+
         /// <summary>
         /// Jump to <paramref name="classAddr"/> with the cost-type combo
         /// pre-selected to <paramref name="costType"/>. Mirrors

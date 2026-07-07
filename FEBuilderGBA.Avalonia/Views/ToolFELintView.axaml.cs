@@ -16,19 +16,14 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class ToolFELintView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ToolFELintViewModel _vm = new();
-
-
         bool _hasLoadedList;
+
         public string ViewTitle => "FELint GUI";
         public new bool IsLoaded => _vm.IsLoaded;
-
-
         public EditorDescriptor Descriptor => new("FELint GUI", 1099, 788, SizeToContent: true);
-
         public event EventHandler? CloseRequested;
-
-
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
+
         public ToolFELintView()
         {
             InitializeComponent();
@@ -37,23 +32,14 @@ namespace FEBuilderGBA.Avalonia.Views
             EntryList.SelectionConfirmed += OnConfirmed;
         }
 
-
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
-
         {
-
             base.OnAttachedToVisualTree(e);
-
             if (!_hasLoadedList)
-
             {
-
                 _hasLoadedList = true;
-
                 LoadList();
-
             }
-
         }
 
         void LoadList()

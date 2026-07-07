@@ -10,42 +10,28 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class EventUnitItemDropView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly EventUnitItemDropViewModel _vm = new();
-
-
         bool _hasLoadedList;
+
         public string ViewTitle => "Unit Item Drop Editor";
         public new bool IsLoaded => _vm.IsLoaded;
-
-
         public EditorDescriptor Descriptor => new("Unit Item Drop Editor", 823, 217, SizeToContent: true);
-
         public event EventHandler? CloseRequested;
-
-
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
+
         public EventUnitItemDropView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
         }
 
-
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
-
         {
-
             base.OnAttachedToVisualTree(e);
-
             if (!_hasLoadedList)
-
             {
-
                 _hasLoadedList = true;
-
                 LoadList();
-
             }
-
         }
 
         void LoadList()

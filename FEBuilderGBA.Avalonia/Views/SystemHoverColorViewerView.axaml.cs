@@ -12,19 +12,15 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly SystemHoverColorViewerViewModel _vm = new();
         readonly UndoService _undoService = new();
-
-
         bool _hasLoadedList;
+
         public string ViewTitle => "System Area Color Viewer";
         public new bool IsLoaded => _vm.CanWrite;
-
         public EditorDescriptor Descriptor => new("System Area Color Viewer", 1238, 604, SizeToContent: true);
-
         public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
-
-
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
+
         public SystemHoverColorViewerView()
         {
             InitializeComponent();
@@ -36,23 +32,14 @@ namespace FEBuilderGBA.Avalonia.Views
             GBAColorBox.ValueChanged += GBAColorBox_ValueChanged;
         }
 
-
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
-
         {
-
             base.OnAttachedToVisualTree(e);
-
             if (!_hasLoadedList)
-
             {
-
                 _hasLoadedList = true;
-
                 LoadList();
-
             }
-
         }
 
         void FilterCombo_SelectionChanged(object? sender, SelectionChangedEventArgs e)

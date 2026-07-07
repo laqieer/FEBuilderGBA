@@ -19,42 +19,28 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class WorldMapEventPointerFE6View : TranslatedUserControl, IEmbeddableEditor
     {
         readonly WorldMapEventPointerFE6ViewModel _vm = new();
-
-
         bool _hasLoadedList;
+
         public string ViewTitle => "Event Pointer (FE6)";
         public new bool IsLoaded => _vm.IsLoaded;
-
-
         public EditorDescriptor Descriptor => new("Event Pointer (FE6)", 1281, 796, SizeToContent: true);
-
         public event EventHandler? CloseRequested;
-
-
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
+
         public WorldMapEventPointerFE6View()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
         }
 
-
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
-
         {
-
             base.OnAttachedToVisualTree(e);
-
             if (!_hasLoadedList)
-
             {
-
                 _hasLoadedList = true;
-
                 LoadList();
-
             }
-
         }
 
         void LoadList()

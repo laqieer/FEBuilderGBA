@@ -10,42 +10,28 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class ToolUnitTalkGroupView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ToolUnitTalkGroupViewModel _vm = new();
-
-
         bool _hasLoadedList;
+
         public string ViewTitle => "Unit Talk Group";
         public new bool IsLoaded => _vm.IsLoaded;
-
-
         public EditorDescriptor Descriptor => new("Unit Talk Group", 820, 540, SizeToContent: false);
-
         public event EventHandler? CloseRequested;
-
-
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
+
         public ToolUnitTalkGroupView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
         }
 
-
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
-
         {
-
             base.OnAttachedToVisualTree(e);
-
             if (!_hasLoadedList)
-
             {
-
                 _hasLoadedList = true;
-
                 LoadList();
-
             }
-
         }
 
         void LoadList()

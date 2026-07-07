@@ -24,6 +24,20 @@ namespace FEBuilderGBA.Tests.Unit
         private string ReadView(string name) =>
             File.ReadAllText(Path.Combine(AvaloniaDir, "Views", name));
 
+        private static string GetClassBaseList(string src, string className)
+        {
+            var match = System.Text.RegularExpressions.Regex.Match(
+                src,
+                $@"\bclass\s+{System.Text.RegularExpressions.Regex.Escape(className)}\s*:\s*(?<bases>[^\r\n{{]+)");
+            Assert.True(match.Success, $"Class declaration for {className} was not found.");
+            return match.Groups["bases"].Value;
+        }
+
+        private static bool BaseListContainsInterface(string bases, string interfaceName) =>
+            System.Text.RegularExpressions.Regex.IsMatch(
+                bases,
+                $@"(^|,\s*){System.Text.RegularExpressions.Regex.Escape(interfaceName)}(\s*,|$)");
+
         // ---------------------------------------------------------------
         // UnitEditorView
         // ---------------------------------------------------------------
@@ -76,8 +90,11 @@ namespace FEBuilderGBA.Tests.Unit
         public void UnitEditorView_ImplementsIEditorView()
         {
             var src = ReadView("UnitEditorView.axaml.cs");
+            string bases = GetClassBaseList(src, "UnitEditorView");
             // UnitEditorView implements IPickableEditor (which extends IEditorView)
-            Assert.True(src.Contains("IEditorView") || src.Contains("IPickableEditor"),
+            Assert.True(BaseListContainsInterface(bases, "IEditorView")
+                || BaseListContainsInterface(bases, "IPickableEditor")
+                || BaseListContainsInterface(bases, "IEmbeddableEditor"),
                 "UnitEditorView should implement IEditorView or IPickableEditor");
             Assert.Contains("IDataVerifiableView", src);
             Assert.Contains("NavigateTo", src);
@@ -413,8 +430,12 @@ namespace FEBuilderGBA.Tests.Unit
         public void View_ImplementsIEditorView(string viewFile)
         {
             var src = ReadView(viewFile);
+            string className = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(viewFile));
+            string bases = GetClassBaseList(src, className);
             // Views implement IEditorView directly, IPickableEditor, or IEmbeddableEditor.
-            Assert.True(src.Contains("IEditorView") || src.Contains("IPickableEditor") || src.Contains("IEmbeddableEditor"),
+            Assert.True(BaseListContainsInterface(bases, "IEditorView")
+                || BaseListContainsInterface(bases, "IPickableEditor")
+                || BaseListContainsInterface(bases, "IEmbeddableEditor"),
                 $"View {viewFile} should implement IEditorView, IPickableEditor, or IEmbeddableEditor");
             Assert.Contains("SelectFirstItem", src);
         }

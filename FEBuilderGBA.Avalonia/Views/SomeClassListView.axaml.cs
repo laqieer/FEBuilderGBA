@@ -11,40 +11,28 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly SomeClassListViewModel _vm = new();
         readonly UndoService _undoService = new();
-
         bool _hasLoadedList;
         uint _baseAddr;
 
         public string ViewTitle => "Class List Editor";
         public new bool IsLoaded => _vm.CanWrite;
-
-
         public EditorDescriptor Descriptor => new("Class List Editor", 1155, 661, SizeToContent: true);
-
         public event EventHandler? CloseRequested;
+
         public SomeClassListView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
         }
 
-
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
-
         {
-
             base.OnAttachedToVisualTree(e);
-
             if (!_hasLoadedList)
-
             {
-
                 _hasLoadedList = true;
-
                 AutoInitIfNeeded();
-
             }
-
         }
 
         /// <summary>
@@ -79,9 +67,8 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
-
-
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
+
         void LoadList()
         {
             var items = _vm.BuildList(_baseAddr);

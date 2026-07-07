@@ -27,18 +27,15 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly UnitCustomBattleAnimeViewModel _vm = new();
         readonly UndoService _undoService = new();
-
         bool _hasLoadedList;
         List<AddrResult> _classList = new();
         List<AddrResult> _entryList = new();
 
         public string ViewTitle => "Custom Battle Animation";
         public new bool IsLoaded => _vm.IsLoaded;
-
-
         public EditorDescriptor Descriptor => new("Custom Battle Animation", 1314, 521, SizeToContent: true);
-
         public event EventHandler? CloseRequested;
+
         public UnitCustomBattleAnimeView()
         {
             InitializeComponent();
@@ -46,23 +43,14 @@ namespace FEBuilderGBA.Avalonia.Views
             EntryList.SelectedAddressChanged += OnEntrySelected;
         }
 
-
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
-
         {
-
             base.OnAttachedToVisualTree(e);
-
             if (!_hasLoadedList)
-
             {
-
                 _hasLoadedList = true;
-
                 LoadClassList();
-
             }
-
         }
 
         // ===================================================================
@@ -240,8 +228,6 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         public ViewModelBase? DataViewModel => _vm;
-
-
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

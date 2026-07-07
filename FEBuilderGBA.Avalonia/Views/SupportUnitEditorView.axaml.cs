@@ -14,19 +14,15 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly SupportUnitEditorViewModel _vm = new();
         readonly UndoService _undoService = new();
-
-
         bool _hasLoadedList;
+
         public string ViewTitle => "Support Unit Editor";
         public new bool IsLoaded => _vm.CanWrite;
-
         public EditorDescriptor Descriptor => new("Support Unit Editor", 1100, 900, SizeToContent: false);
-
         public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
-
-
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
+
         public SupportUnitEditorView()
         {
             InitializeComponent();
@@ -63,23 +59,14 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
-
         {
-
             base.OnAttachedToVisualTree(e);
-
             if (!_hasLoadedList)
-
             {
-
                 _hasLoadedList = true;
-
                 LoadList();
-
             }
-
         }
 
         static string ResolvePartnerName(decimal? value)
