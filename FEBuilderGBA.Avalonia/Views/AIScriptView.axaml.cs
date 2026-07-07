@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // AIScriptView — Avalonia parity rebuild for #410. Mirrors `AIScriptForm`
 // layout (panel3 read-config + panel6 master list + panel5 write bar +
 // ControlPanel detail with 5 parameter rows). Per Copilot CLI plan-review
@@ -692,11 +692,9 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var picker = new ScriptCommandPickerView(EventScript.EventScriptType.AI);
-
-                // AIScriptView is hosted by an EditorHostWindow on desktop, so
-                // route the modal owner through the current TopLevel.
-                EventScript.Script? result = await picker.ShowDialog<EventScript.Script?>(TopLevel.GetTopLevel(this) as Window);
+                EventScript.Script? result = await WindowManager.Instance.OpenModal<ScriptCommandPickerView, EventScript.Script?>(
+                    TopLevel.GetTopLevel(this) as Window,
+                    picker => picker.Configure(EventScript.EventScriptType.AI));
 
                 if (result != null)
                     ApplyPickedScript(result);

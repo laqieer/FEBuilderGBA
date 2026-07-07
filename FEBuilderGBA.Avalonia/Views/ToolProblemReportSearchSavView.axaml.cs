@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -7,11 +8,14 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolProblemReportSearchSavView : TranslatedWindow, IEditorView
+    public partial class ToolProblemReportSearchSavView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ToolProblemReportSearchSavViewModel _vm = new();
         public string ViewTitle => "No SAV file found";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("No SAV file found", 910, 245, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight, CanResize: false);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ToolProblemReportSearchSavView()
         {
@@ -33,7 +37,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var dlg = new OpenFileDialog();
                 dlg.Title = R._("Select SAV File");
                 dlg.Filters?.Add(new FileDialogFilter { Name = "SAV Files", Extensions = { "sav" } });
-                var result = await dlg.ShowAsync(this);
+                var result = await dlg.ShowAsync(TopLevel.GetTopLevel(this) as Window);
                 if (result != null && result.Length > 0)
                 {
                     // Populate the path; the user still confirms via OK (which
@@ -57,13 +61,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 return;
             }
             _vm.DialogConfirmed = true;
-            Close();
+            RequestClose();
         }
 
         void Cancel_Click(object? sender, RoutedEventArgs e)
         {
             _vm.DialogConfirmed = false;
-            Close();
+            RequestClose();
         }
 
         public void NavigateTo(uint address) { }

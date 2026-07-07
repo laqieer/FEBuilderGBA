@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Platform.Storage;
@@ -20,8 +20,15 @@ namespace FEBuilderGBA.Avalonia.Views
     /// Opened by <c>ToolASMInsertView</c> via <c>SetPatchText(...)</c> then
     /// <c>ShowDialog(owner)</c> (WF <c>f.Init(patch); f.ShowDialog();</c>).
     /// </summary>
-    public partial class AsmPatchTextView : TranslatedWindow
+    public partial class AsmPatchTextView : TranslatedUserControl, IEmbeddableEditor
     {
+        public string ViewTitle => "Make Patch";
+        public new bool IsLoaded => true;
+        public EditorDescriptor Descriptor => new("Make Patch", 640, 520);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
+        public void NavigateTo(uint address) { }
+
         readonly AsmPatchTextViewModel _vm = new();
 
         public AsmPatchTextView()
@@ -43,7 +50,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var storage = GetTopLevel(this)?.StorageProvider;
+                var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
                 if (storage == null) return;
 
                 var file = await storage.SaveFilePickerAsync(new FilePickerSaveOptions
@@ -70,7 +77,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     bool ok = false;
                     string? written = await FileDialogHelper.WriteViaAsync(file, p => { ok = _vm.Save(p, nameSource); });
                     if (written != null && ok)
-                        Close();
+                        RequestClose();
                 }
             }
             catch (Exception ex)
@@ -80,6 +87,6 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void Close_Click(object? sender, RoutedEventArgs e) => Close();
+        void Close_Click(object? sender, RoutedEventArgs e) => RequestClose();
     }
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -9,7 +9,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EventScriptPopupView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class EventScriptPopupView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly EventScriptPopupViewModel _vm = new();
 
@@ -19,8 +19,11 @@ namespace FEBuilderGBA.Avalonia.Views
             EventScript.EventScriptType.AI => "AI Script Editor",
             _ => "Event Script Editor"
         };
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Event Script Editor", 1000, 750, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public EventScriptPopupView() : this(EventScript.EventScriptType.Event) { }
 
@@ -28,14 +31,13 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             _vm.ScriptType = scriptType;
             InitializeComponent();
-            Title = ViewTitle;
             _vm.Load();
             CommandsList.ItemsSource = _vm.Commands;
         }
 
         void Close_Click(object? sender, RoutedEventArgs e)
         {
-            Close();
+            RequestClose();
         }
 
         void Disassemble_Click(object? sender, RoutedEventArgs e)

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // Code-behind for ToolAnimationCreatorView — issue #500.
 //
 // Two public entry points mirror the WF Init surface:
@@ -10,6 +10,7 @@
 // Create_Click branches on context (ROM vs file). BrowseImage_Click is wired
 // through the StorageProvider file picker.
 using System;
+using global::Avalonia;
 using System.ComponentModel;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
@@ -21,8 +22,12 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolAnimationCreatorView : TranslatedWindow, IEditorView
+    public partial class ToolAnimationCreatorView : TranslatedUserControl, IEmbeddableEditor
     {
+        public EditorDescriptor Descriptor => new("Animation Creator", 1024, 720);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
+
         readonly ToolAnimationCreatorViewViewModel _vm = new();
         readonly UndoService _undoService = new();
 
@@ -35,7 +40,7 @@ namespace FEBuilderGBA.Avalonia.Views
         // Used only when AnimationKind == Skill — it re-decodes the per-frame skill
         // image via the cross-platform SkillSystemsAnimeExportCore seam (skill frames
         // need OBJ+TSA, which the MapAction single-OBJ RenderFrameImage path cannot
-        // represent). Disposed in OnClosed.
+        // represent). Disposed in OnDetachedFromVisualTree.
         readonly Services.SkillConfigAnimePreview _skillPreview = new();
 
         // #1116: when the --screenshot-all self-seed writes synthetic bytes into the
@@ -46,7 +51,7 @@ namespace FEBuilderGBA.Avalonia.Views
         (uint Addr, byte[] Orig)? _screenshotSeedRestore;
 
         public string ViewTitle => "Animation Creator";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
 
         /// <summary>True when the VM has at least one frame loaded (#996) — lets
         /// magic callers detect an empty-seed result after Init.</summary>
@@ -116,8 +121,9 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateTitle()
         {
-            string hint = string.IsNullOrEmpty(_vm.FileHint) ? "" : ": " + _vm.FileHint;
-            Title = R._("Animation Creator{0}", hint);
+            // Embeddable controls do not own a Window.Title. The host title comes
+            // from Descriptor/ViewTitle; keep this hook as a no-op for callers that
+            // refresh title state after seeding.
         }
 
         void FramesList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -201,7 +207,7 @@ namespace FEBuilderGBA.Avalonia.Views
             MapActionPreview.SetImage(img);
         }
 
-        protected override void OnClosed(EventArgs e)
+        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
         {
             if (_previewTrackedFrame != null)
             {
@@ -228,14 +234,14 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             _screenshotSeedRestore = null;
 
-            base.OnClosed(e);
+            base.OnDetachedFromVisualTree(e);
         }
 
         async void BrowseImage_Click(object? sender, RoutedEventArgs e)
         {
             try
             {
-                string? picked = await FileDialogHelper.OpenImageFile(this);
+                string? picked = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this));
                 if (string.IsNullOrEmpty(picked)) return;
                 // If a frame is selected, the user is replacing THAT frame's
                 // image (most common workflow when editing a specific row).
@@ -322,7 +328,7 @@ namespace FEBuilderGBA.Avalonia.Views
             global::Avalonia.Platform.Storage.IStorageFile? file = null;
             try
             {
-                file = await FileDialogHelper.SaveAnimationScriptFilePick(this, suggestedName);
+                file = await FileDialogHelper.SaveAnimationScriptFilePick(TopLevel.GetTopLevel(this), suggestedName);
             }
             catch (Exception ex)
             {
@@ -342,7 +348,7 @@ namespace FEBuilderGBA.Avalonia.Views
             CoreState.Services.ShowInfo(R._("Wrote {0} frames to {1}.", projected.Count, written));
         }
 
-        void Close_Click(object? sender, RoutedEventArgs e) => Close();
+        void Close_Click(object? sender, RoutedEventArgs e) => RequestClose();
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem()
@@ -385,7 +391,7 @@ namespace FEBuilderGBA.Avalonia.Views
         /// via <see cref="ToolAnimationCreatorViewViewModel.InitFromSkillRom"/> so the
         /// captured PNG shows the populated Creator window with a TSA-decoded skill
         /// frame. Transient (no undo) — runs ONLY under <c>--screenshot-all</c>; the
-        /// overwritten span is byte-restored in <see cref="OnClosed"/>. Returns true
+        /// overwritten span is byte-restored in <see cref="OnDetachedFromVisualTree"/>. Returns true
         /// when the seed was planted (caller skips the magic fallback).
         /// </summary>
         bool SeedDemoSkillForScreenshot()

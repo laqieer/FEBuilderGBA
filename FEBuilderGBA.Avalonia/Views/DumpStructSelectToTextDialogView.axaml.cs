@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.IO;
 using global::Avalonia.Controls;
@@ -9,13 +10,16 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class DumpStructSelectToTextDialogView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class DumpStructSelectToTextDialogView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly DumpStructSelectToTextDialogViewModel _vm = new();
 
         public string ViewTitle => "Dump Struct to Text";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Dump Struct to Text", 1179, 725, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public DumpStructSelectToTextDialogView()
         {
@@ -47,7 +51,9 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var txtType = new FilePickerFileType(R._("Text Files")) { Patterns = new[] { "*.txt" } };
                 var allType = new FilePickerFileType(R._("All Files")) { Patterns = new[] { "*" } };
-                var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+                var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+                if (storageProvider == null) return;
+                var file = await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
                 {
                     Title = R._("Save Text Dump"),
                     SuggestedFileName = _vm.FileName,
@@ -71,7 +77,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Close_Click(object? sender, RoutedEventArgs e)
         {
-            Close();
+            RequestClose();
         }
 
         public void NavigateTo(uint address) { }

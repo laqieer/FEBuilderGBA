@@ -32,7 +32,7 @@ namespace FEBuilderGBA.Avalonia.Services
         /// The <paramref name="work"/> delegate receives an IProgress reporter and a CancellationToken.
         /// </summary>
         public static async Task RunWithProgress(
-            Window parent,
+            Control parent,
             string title,
             Func<IProgress<ProgressInfo>, CancellationToken, Task> work)
         {
@@ -44,8 +44,7 @@ namespace FEBuilderGBA.Avalonia.Services
             vm.PercentComplete = 0;
             vm.IsCancelVisible = true;
 
-            var dialog = new NotifyPleaseWaitView(vm);
-            dialog.CancelRequested += () => cts.Cancel();
+            NotifyPleaseWaitView? dialog = null;
 
             Exception? workException = null;
 
@@ -66,6 +65,15 @@ namespace FEBuilderGBA.Avalonia.Services
                 }
             });
 
+            var modalTask = WindowManager.Instance.OpenModal<NotifyPleaseWaitView, object?>(
+                TopLevel.GetTopLevel(parent) as Window,
+                d =>
+                {
+                    dialog = d;
+                    d.SetViewModel(vm);
+                    d.CancelRequested += () => cts.Cancel();
+                });
+
             // Start the background work. When it finishes (success or failure), close the dialog.
             _ = Task.Run(async () =>
             {
@@ -85,13 +93,12 @@ namespace FEBuilderGBA.Avalonia.Services
                 {
                     await Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        dialog.ForceClose();
+                        dialog?.ForceClose();
                     });
                 }
             });
 
-            // ShowDialog blocks (awaits) until the dialog is closed.
-            await dialog.ShowDialog(parent);
+            await modalTask;
 
             if (workException != null)
                 throw new InvalidOperationException(
@@ -102,7 +109,7 @@ namespace FEBuilderGBA.Avalonia.Services
         /// Convenience overload without cancellation support.
         /// </summary>
         public static Task RunWithProgress(
-            Window parent,
+            Control parent,
             string title,
             Func<IProgress<ProgressInfo>, Task> work)
         {

@@ -404,6 +404,11 @@ namespace FEBuilderGBA.Avalonia.Views
             // reads it from there. UI-only - no UndoService.
             try
             {
+                var owner = TopLevel.GetTopLevel(this) as Window;
+                if (owner == null)
+                {
+                    return;
+                }
                 var families = global::Avalonia.Media.FontManager.Current
                     .SystemFonts
                     .Select(f => f.Name)
@@ -435,7 +440,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 panel.Children.Add(list);
                 dlg.Content = panel;
 
-                await dlg.ShowDialog(TopLevel.GetTopLevel(this) as Window);
+                await dlg.ShowDialog(owner);
             }
             catch (Exception ex)
             {
@@ -447,6 +452,11 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                var owner = TopLevel.GetTopLevel(this) as Window;
+                if (owner == null)
+                {
+                    return;
+                }
                 var dlg = new Window
                 {
                     Title = ViewTitle,
@@ -471,7 +481,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 panel.Children.Add(ok);
                 panel.Children.Add(text);
                 dlg.Content = panel;
-                await dlg.ShowDialog(TopLevel.GetTopLevel(this) as Window);
+                await dlg.ShowDialog(owner);
             }
             catch (Exception ex)
             {
@@ -493,12 +503,12 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var view = new HowDoYouLikePatchView();
-                view.SetPatchInfo(R._(
-                    "To display chapter titles as text (required before wiping the Japanese " +
-                    "chapter-title images), the ChapterNameToText patch must be installed. " +
-                    "Apply it now?"));
-                await view.ShowDialog(TopLevel.GetTopLevel(this) as Window);
+                var view = await WindowManager.Instance.OpenModal<HowDoYouLikePatchView>(
+                    TopLevel.GetTopLevel(this) as Window,
+                    v => v.SetPatchInfo(R._(
+                        "To display chapter titles as text (required before wiping the Japanese " +
+                        "chapter-title images), the ChapterNameToText patch must be installed. " +
+                        "Apply it now?")));
                 if (!view.UserApplied) return; // Skip — leave the patch absent.
 
                 // Apply the ChapterNameToText patch (mirrors WF Enable button ->

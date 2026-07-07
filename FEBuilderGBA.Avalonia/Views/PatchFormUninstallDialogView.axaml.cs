@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -7,11 +8,14 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class PatchFormUninstallDialogView : TranslatedWindow, IEditorView
+    public partial class PatchFormUninstallDialogView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly PatchFormUninstallDialogViewModel _vm = new();
         public string ViewTitle => "Patch Uninstallation";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Patch Uninstallation", 1193, 350, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight, CanResize: false);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public PatchFormUninstallDialogView()
         {
@@ -36,7 +40,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var path = await FileDialogHelper.OpenRomFile(this);
+                var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this));
                 if (!string.IsNullOrEmpty(path))
                     _vm.OriginalFilename = path;
             }
@@ -49,7 +53,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void Yes_Click(object? sender, RoutedEventArgs e)
         {
             _vm.UserConfirmed = true;
-            Close();
+            RequestClose();
         }
 
         public void NavigateTo(uint address) { }

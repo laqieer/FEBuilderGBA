@@ -8,6 +8,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Styling;
+using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.SkiaSharp;
 
 namespace FEBuilderGBA.Avalonia
@@ -387,7 +388,7 @@ namespace FEBuilderGBA.Avalonia
                     // action buttons that were NOT touched by #1727 — so it renders
                     // real before/after PNG proof of the global Button vertical-
                     // centering style.
-                    "ErrorUnknownROMView" => new Views.ErrorUnknownROMView(),
+                    "ErrorUnknownROMView" => new EditorHostWindow(new Views.ErrorUnknownROMView()),
                     // #1681: the alignment-fix clone dialogs are ROM-independent
                     // (each constructs its own ViewModel + Load(0)/Initialize()),
                     // so they render real PNG proof of the centered Apply button.
@@ -400,8 +401,8 @@ namespace FEBuilderGBA.Avalonia
                     // geometry under test — the fixed-size window (SizeToContent="Manual"
                     // + MinWidth/MinHeight floor) and the CatalogCombo toolbar with the
                     // fixed-width dropdown style. No ROM needed.
-                    "EventScriptView" => new Views.EventScriptView(),
-                    "ProcsScriptView" => new Views.ProcsScriptView(),
+                    "EventScriptView" => new EditorHostWindow(new Views.EventScriptView()),
+                    "ProcsScriptView" => new EditorHostWindow(new Views.ProcsScriptView()),
                     // #1772 PR proof: the map-resize dialog family is ROM-independent
                     // (each VM's Initialize() just sets IsLoaded=true), so they render
                     // real PNG proof of the centered Resize / Apply action buttons.
@@ -410,7 +411,7 @@ namespace FEBuilderGBA.Avalonia
                     // #1781 PR proof: the Options window is ROM-independent (its Opened
                     // handler loads config, not a ROM), so it renders real PNG proof that
                     // the window is a screen-safe fixed height with OK/Cancel visible.
-                    "OptionsView" => new Views.OptionsView(),
+                    "OptionsView" => new EditorHostWindow(new Views.OptionsView()),
                     // #1784 PR proof: MapSettingDifficultyDialogView is ROM-independent, so
                     // it renders real PNG proof of the centered "Apply" action button.
                     "MapSettingDifficultyDialogView" => new Services.EditorHostWindow(new Views.MapSettingDifficultyDialogView()),
@@ -418,7 +419,7 @@ namespace FEBuilderGBA.Avalonia
                     // screenshot (LoadPatches catches a missing ROM/patch2), so it renders real
                     // PNG proof of the new "Initialize / Update Patch Database" button and the
                     // empty-state notice in the left panel.
-                    "PatchManagerView" => new Views.PatchManagerView(),
+                    "PatchManagerView" => new EditorHostWindow(new Views.PatchManagerView()),
                     _ => throw new ArgumentException($"Unsupported --screenshot-window view: {viewName}"),
                 };
 

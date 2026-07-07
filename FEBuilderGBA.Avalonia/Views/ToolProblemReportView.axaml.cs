@@ -1,3 +1,4 @@
+﻿using global::Avalonia;
 using System;
 using System.Diagnostics;
 using global::Avalonia.Controls;
@@ -17,12 +18,15 @@ namespace FEBuilderGBA.Avalonia.Views
     /// written via <see cref="ProblemReportCore.CreateReport"/>. No ROM mutation,
     /// no undo scope. The emulator save/backup search is deferred (follow-up issue).
     /// </summary>
-    public partial class ToolProblemReportView : TranslatedWindow, IEditorView
+    public partial class ToolProblemReportView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ToolProblemReportViewModel _vm = new();
 
         public string ViewTitle => "Problem Reporter";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Problem Reporter", 720, 560, StartupLocation: WindowStartupLocation.CenterScreen);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ToolProblemReportView()
         {
@@ -51,7 +55,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
 
-                var storage = GetTopLevel(this)?.StorageProvider;
+                var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
                 if (storage == null) return;
 
                 // ArchSevenZip.Compress writes a real .7z only when native 7-zip32.dll
@@ -79,8 +83,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 string savFilePath = null;
                 if (!_vm.HasAutoSaveData())
                 {
-                    var savPicker = new ToolProblemReportSearchSavView();
-                    await savPicker.ShowDialog(this);
+                    var savPicker = await WindowManager.Instance.OpenModal<ToolProblemReportSearchSavView>(
+                        TopLevel.GetTopLevel(this) as Window);
                     if (savPicker.Confirmed)
                     {
                         savFilePath = savPicker.PickedFilename;
@@ -92,8 +96,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 string cleanRomPath = null;
                 if (!_vm.HasSiblingUps())
                 {
-                    var backupPicker = new ToolProblemReportSearchBackupView();
-                    await backupPicker.ShowDialog(this);
+                    var backupPicker = await WindowManager.Instance.OpenModal<ToolProblemReportSearchBackupView>(
+                        TopLevel.GetTopLevel(this) as Window);
                     if (backupPicker.Confirmed)
                     {
                         cleanRomPath = backupPicker.PickedFilename;
@@ -116,12 +120,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (!string.IsNullOrEmpty(err))
                 {
                     StatusLabel.Text = err;
-                    await MessageBoxWindow.Show(this, err, R._("Error"), MessageBoxMode.Ok);
+                    await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window, err, R._("Error"), MessageBoxMode.Ok);
                     return;
                 }
 
                 StatusLabel.Text = R._("Report created:") + " " + written;
-                await MessageBoxWindow.Show(this,
+                await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window,
                     R._("Report created:") + "\r\n" + written, R._("Problem Reporter"), MessageBoxMode.Ok);
             }
             catch (Exception ex)

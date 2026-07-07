@@ -1453,7 +1453,7 @@ namespace FEBuilderGBA.Tests.Unit
             // follow-up.
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml.cs"));
             Assert.Contains("(\"AIScriptView\", () => wm.OpenAsTopLevel<AIScriptView>())", src);
-            Assert.Contains("(\"ProcsScriptView\", () => wm.Open<ProcsScriptCategorySelectView>())", src);
+            Assert.Contains("(\"ProcsScriptView\", () => wm.OpenAsTopLevel<ProcsScriptCategorySelectView>())", src);
         }
 
         // ------------------------------------------------------------------ NumericUpDown FormatString regression

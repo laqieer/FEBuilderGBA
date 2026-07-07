@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // Portrait Import Wizard — first meaningful slice (#657) + FE-Repo browser
 // and drag-and-drop integration (#664).
 //
@@ -32,6 +32,7 @@
 // Out of scope (tracked under follow-ups):
 //   - Per-frame live preview render pipeline (follow-up to #707 Slice A)
 using System;
+using global::Avalonia;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -45,8 +46,12 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImagePortraitImporterView : TranslatedWindow, IEditorView
+    public partial class ImagePortraitImporterView : TranslatedUserControl, IEmbeddableEditor
     {
+        public EditorDescriptor Descriptor => new("Portrait Import Wizard", 660, 500, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight, MinWidth: 660, MinHeight: 500);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
+
         readonly ImagePortraitImporterViewModel _vm = new();
         readonly UndoService _undoService = new();
 
@@ -73,13 +78,12 @@ namespace FEBuilderGBA.Avalonia.Views
         bool FuchidoriEnabled => FuchidoriCheckbox.IsChecked == true;
 
         public string ViewTitle => "Portrait Import Wizard";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
 
         public ImagePortraitImporterView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
 
             // #664: enable drag-and-drop for image files. Mirrors the
             // pattern from ImagePortraitView (ctor lines 43-45).
@@ -116,6 +120,13 @@ namespace FEBuilderGBA.Avalonia.Views
             Hook(EyeCropXInput); Hook(EyeCropYInput); Hook(EyeCropWInput); Hook(EyeCropHInput);
             Hook(MouthCropXInput); Hook(MouthCropYInput); Hook(MouthCropWInput); Hook(MouthCropHInput);
             Hook(MouthBlockXInput); Hook(MouthBlockYInput); Hook(EyeBlockXInput); Hook(EyeBlockYInput);
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (_listLoaded) return;
+            LoadList();
         }
 
         void LoadList()
@@ -261,7 +272,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                string filePath = await FileDialogHelper.OpenImageFile(this);
+                string filePath = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this));
                 if (string.IsNullOrEmpty(filePath))
                 {
                     return; // user cancelled
@@ -286,8 +297,8 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var browser = new FERepoResourceBrowserWindow();
-                string result = await browser.ShowDialog<string>(this);
+                string result = await WindowManager.Instance.OpenModal<FERepoResourceBrowserWindow, string>(
+                    TopLevel.GetTopLevel(this) as Window);
                 if (!string.IsNullOrEmpty(result))
                 {
                     LoadImageFromPath(result);

@@ -753,8 +753,8 @@ namespace FEBuilderGBA.Avalonia.Views
                         // the skill edit.
                         if (fe8nView != null)
                         {
-                            fe8nView.Closed -= OnSkillEditorClosed;
-                            fe8nView.Closed += OnSkillEditorClosed;
+                            fe8nView.CloseRequested -= OnSkillEditorClosed;
+                            fe8nView.CloseRequested += OnSkillEditorClosed;
                         }
                         break;
                     default:

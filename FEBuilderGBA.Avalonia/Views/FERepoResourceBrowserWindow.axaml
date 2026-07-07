@@ -1,11 +1,8 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:vm="using:FEBuilderGBA.Avalonia.ViewModels"
-        x:Class="FEBuilderGBA.Avalonia.Views.FERepoResourceBrowserWindow"
-        Title="FE-Repo Resource Browser"
-        Width="900" Height="600"
-        SizeToContent="WidthAndHeight"
-        WindowStartupLocation="CenterOwner">
+﻿<UserControl
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:FEBuilderGBA.Avalonia.ViewModels"
+             x:Class="FEBuilderGBA.Avalonia.Views.FERepoResourceBrowserWindow">
 
   <Design.DataContext>
     <vm:FERepoResourceBrowserViewModel />
@@ -66,4 +63,4 @@
     </Grid>
   </DockPanel>
   </ScrollViewer>
-</Window>
+</UserControl>

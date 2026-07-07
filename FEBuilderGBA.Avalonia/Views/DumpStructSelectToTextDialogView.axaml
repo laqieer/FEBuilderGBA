@@ -1,9 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.DumpStructSelectToTextDialogView"
-        Title="Dump Struct to Text" Width="1179" Height="725"
-        WindowStartupLocation="CenterOwner"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.DumpStructSelectToTextDialogView">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <DockPanel Margin="16">
     <TextBlock DockPanel.Dock="Top" Text="Dump Struct to Text" FontSize="18" FontWeight="Bold" Margin="0,0,0,8" />
@@ -20,4 +17,4 @@
              TextWrapping="Wrap" />
   </DockPanel>
   </ScrollViewer>
-</Window>
+</UserControl>

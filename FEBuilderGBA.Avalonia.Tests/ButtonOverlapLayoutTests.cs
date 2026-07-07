@@ -1,4 +1,4 @@
-using System.Linq;
+﻿using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using FEBuilderGBA.Avalonia.Views;
@@ -175,10 +175,10 @@ namespace FEBuilderGBA.Avalonia.Tests
             var v = new EventScriptView();
             // #1714: SizeToContent must stay Manual so the window does not
             // auto-shrink (macOS black-strip repaint) after deleting a command.
-            Assert.Equal(global::Avalonia.Controls.SizeToContent.Manual, v.SizeToContent);
+            Assert.Equal(global::Avalonia.Controls.SizeToContent.Manual, v.Descriptor.SizeToContent);
             // A minimum floor keeps the fixed-size window usable (no drag-to-tiny).
-            Assert.True(v.MinWidth >= 1180);
-            Assert.True(v.MinHeight >= 780);
+            Assert.True(v.Descriptor.MinWidth >= 1180);
+            Assert.True(v.Descriptor.MinHeight >= 780);
         }
 
         [AvaloniaFact]
@@ -187,9 +187,9 @@ namespace FEBuilderGBA.Avalonia.Tests
             // ProcsScriptView shares the EventScriptView layout/engine — the #1714
             // fixed-size fix must hold on the sibling view too.
             var v = new ProcsScriptView();
-            Assert.Equal(global::Avalonia.Controls.SizeToContent.Manual, v.SizeToContent);
-            Assert.True(v.MinWidth >= 1180);
-            Assert.True(v.MinHeight >= 780);
+            Assert.Equal(global::Avalonia.Controls.SizeToContent.Manual, v.Descriptor.SizeToContent);
+            Assert.True(v.Descriptor.MinWidth >= 1180);
+            Assert.True(v.Descriptor.MinHeight >= 780);
         }
 
         [AvaloniaFact]

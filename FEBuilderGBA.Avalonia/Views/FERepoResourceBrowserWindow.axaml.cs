@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.ViewModels;
@@ -7,17 +7,24 @@ using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class FERepoResourceBrowserWindow : TranslatedWindow
+    public partial class FERepoResourceBrowserWindow : TranslatedUserControl, IEmbeddableEditor
     {
-        public string SelectedFilePath => (DataContext as FERepoResourceBrowserViewModel)?.SelectedFilePath;
+        public string ViewTitle => "FE-Repo Resource Browser";
+        public new bool IsLoaded => true;
+        public EditorDescriptor Descriptor => new("FE-Repo Resource Browser", 900, 600, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
+        public object? DialogResult { get; private set; }
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
+        public void NavigateTo(uint address) { }
+
+        public string SelectedFilePath => (DataContext as FERepoResourceBrowserViewModel)?.SelectedFilePath ?? "";
 
         public FERepoResourceBrowserWindow() : this(false) { }
 
         public FERepoResourceBrowserWindow(bool musicMode)
         {
             InitializeComponent();
-            DataContext = new FERepoResourceBrowserViewModel(musicMode);
-            if (musicMode) Title = R._("FE-Repo Music Browser");
+            Configure(musicMode);
         }
 
         /// <summary>
@@ -28,7 +35,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public FERepoResourceBrowserWindow(string seedCategory, string seedSubCategory)
         {
             InitializeComponent();
-            DataContext = new FERepoResourceBrowserViewModel(false, seedCategory, seedSubCategory);
+            Configure(false, seedCategory, seedSubCategory);
         }
 
         /// <summary>
@@ -40,18 +47,24 @@ namespace FEBuilderGBA.Avalonia.Views
         public FERepoResourceBrowserWindow(bool musicMode, string seedCategory, string seedSubCategory)
         {
             InitializeComponent();
-            DataContext = new FERepoResourceBrowserViewModel(musicMode, seedCategory, seedSubCategory);
-            if (musicMode) Title = R._("FE-Repo Music Browser");
+            Configure(musicMode, seedCategory, seedSubCategory);
+        }
+
+        public void Configure(bool musicMode, string? seedCategory = null, string? seedSubCategory = null)
+        {
+            DataContext = seedCategory == null || seedSubCategory == null
+                ? new FERepoResourceBrowserViewModel(musicMode)
+                : new FERepoResourceBrowserViewModel(musicMode, seedCategory, seedSubCategory);
         }
 
         void InsertButton_Click(object sender, RoutedEventArgs e)
         {
-            Close(SelectedFilePath);
+            { DialogResult = SelectedFilePath; RequestClose(); }
         }
 
         void CancelButton_Click(object sender, RoutedEventArgs e)
         {
-            Close(null);
+            { DialogResult = null; RequestClose(); }
         }
 
         async void CopyInitCommand_Click(object sender, RoutedEventArgs e)
@@ -66,7 +79,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var vm = DataContext as FERepoResourceBrowserViewModel;
                 string cmd = vm?.CopyCommand
                              ?? FERepoResourceBrowserViewModel.SubmoduleInitCommand;
-                var clipboard = Clipboard;
+                var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
                 if (clipboard != null)
                     await clipboard.SetTextAsync(cmd);
             }

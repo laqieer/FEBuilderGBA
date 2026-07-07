@@ -1,8 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.EventUnitFE7View"
-        Title="Event Unit (FE7)" Width="1902" Height="1047"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.EventUnitFE7View">
   <Grid ColumnDefinitions="220,220,260,*">
 
     <!-- Level 1: Map Names list (mirrors WF panel5 / label12) -->
@@ -159,4 +157,4 @@
       </StackPanel>
     </ScrollViewer>
   </Grid>
-</Window>
+</UserControl>

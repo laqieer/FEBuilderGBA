@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -6,12 +7,15 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EventScriptView : TranslatedWindow, IEditorView
+    public partial class EventScriptView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly EventScriptViewModel _vm = new();
 
         public string ViewTitle => "Event Script Editor";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Event Script Editor", 1180, 780, MinWidth: 1180, MinHeight: 780);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public EventScriptView()
         {

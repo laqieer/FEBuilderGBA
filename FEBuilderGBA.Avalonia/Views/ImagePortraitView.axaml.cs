@@ -674,8 +674,8 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void FERepoButton_Click(object? sender, RoutedEventArgs e)
         {
-            var browser = new FERepoResourceBrowserWindow();
-            string result = await browser.ShowDialog<string>(TopLevel.GetTopLevel(this) as Window);
+            string result = await WindowManager.Instance.OpenModal<FERepoResourceBrowserWindow, string>(
+                TopLevel.GetTopLevel(this) as Window);
             if (!string.IsNullOrEmpty(result))
             {
                 ImportImageFromFile(result);

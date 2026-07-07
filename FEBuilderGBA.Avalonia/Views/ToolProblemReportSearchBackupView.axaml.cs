@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -7,11 +8,14 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolProblemReportSearchBackupView : TranslatedWindow, IEditorView
+    public partial class ToolProblemReportSearchBackupView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ToolProblemReportSearchBackupViewModel _vm = new();
         public string ViewTitle => "No past backups found";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("No past backups found", 906, 220, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight, CanResize: false);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ToolProblemReportSearchBackupView()
         {
@@ -35,7 +39,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // The backup is a clean / old ROM used as the UPS-delta source
                 // (read as raw bytes), so accept ROM files.
                 dlg.Filters?.Add(new FileDialogFilter { Name = "GBA ROMs", Extensions = { "gba", "bin" } });
-                var result = await dlg.ShowAsync(this);
+                var result = await dlg.ShowAsync(TopLevel.GetTopLevel(this) as Window);
                 if (result != null && result.Length > 0)
                 {
                     // Populate the path; the user still confirms via OK (which
@@ -59,13 +63,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 return;
             }
             _vm.DialogConfirmed = true;
-            Close();
+            RequestClose();
         }
 
         void Cancel_Click(object? sender, RoutedEventArgs e)
         {
             _vm.DialogConfirmed = false;
-            Close();
+            RequestClose();
         }
 
         public void NavigateTo(uint address) { }

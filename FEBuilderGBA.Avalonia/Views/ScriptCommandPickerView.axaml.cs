@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.ViewModels;
@@ -11,9 +11,17 @@ namespace FEBuilderGBA.Avalonia.Views
     /// Modal dialog for picking a script command from categories.
     /// Works for Event, Procs, and AI script types.
     /// </summary>
-    public partial class ScriptCommandPickerView : TranslatedWindow
+    public partial class ScriptCommandPickerView : TranslatedUserControl, IEmbeddableEditor
     {
-        readonly EventScript.EventScriptType _scriptType;
+        public string ViewTitle => "Select Script Command";
+        public new bool IsLoaded => true;
+        public EditorDescriptor Descriptor => new("Select Script Command", 800, 600, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
+        public object? DialogResult { get; private set; }
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
+        public void NavigateTo(uint address) { }
+
+        EventScript.EventScriptType _scriptType;
         EventScript.Script? _selectedScript;
 
         // For AI scripts, use the AI category VM; for Procs, the Procs VM.
@@ -27,17 +35,29 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             _scriptType = scriptType;
             InitializeComponent();
+            FilterBox.TextChanged += FilterBox_TextChanged;
+            Configure(scriptType);
+        }
 
-            Title = scriptType switch
-            {
-                EventScript.EventScriptType.AI => "Select AI Script Command",
-                EventScript.EventScriptType.Procs => "Select Procs Script Command",
-                _ => "Select Script Command"
-            };
+        public void Configure(EventScript.EventScriptType scriptType)
+        {
+            _scriptType = scriptType;
+            _selectedScript = null;
+            DialogResult = null;
+            _aiVm = null;
+            _procsVm = null;
+            DataContext = null;
+            CategoryList.ItemsSource = null;
+            ScriptList.ItemsSource = null;
+            CategoryList.SelectedIndex = -1;
+            ScriptList.SelectedIndex = -1;
+            FilterBox.Text = "";
+            InfoLabel.Text = "";
 
             if (scriptType == EventScript.EventScriptType.AI)
             {
                 _aiVm = new AIScriptCategorySelectViewModel();
+                DataContext = _aiVm;
                 _aiVm.Load();
                 CategoryList.ItemsSource = _aiVm.Categories;
                 ScriptList.ItemsSource = _aiVm.ScriptNames;
@@ -47,14 +67,13 @@ namespace FEBuilderGBA.Avalonia.Views
             else
             {
                 _procsVm = new ProcsScriptCategorySelectViewModel();
+                DataContext = _procsVm;
                 _procsVm.Load();
                 CategoryList.ItemsSource = _procsVm.Categories;
                 ScriptList.ItemsSource = _procsVm.ScriptNames;
                 if (_procsVm.Categories.Count > 0)
                     CategoryList.SelectedIndex = 0;
             }
-
-            FilterBox.TextChanged += FilterBox_TextChanged;
         }
 
         /// <summary>The selected script command, or null if cancelled.</summary>
@@ -129,7 +148,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // caller's ShowDialog<EventScript.Script?>. The AI Script editor's
                 // "Script Change" button copies the result's Data bytes into its
                 // Binary Code box.
-                Close(_selectedScript);
+                { DialogResult = _selectedScript; RequestClose(); }
             }
             else
             {
@@ -141,7 +160,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Cancel_Click(object? sender, RoutedEventArgs e)
         {
-            Close(null);
+            { DialogResult = null; RequestClose(); }
         }
     }
 }

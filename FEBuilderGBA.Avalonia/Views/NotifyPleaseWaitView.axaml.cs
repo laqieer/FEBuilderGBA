@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.ViewModels;
@@ -7,9 +7,14 @@ using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class NotifyPleaseWaitView : TranslatedWindow
+    public partial class NotifyPleaseWaitView : TranslatedUserControl, IEmbeddableEditor
     {
-        bool _forceClosing;
+        public string ViewTitle => "Progress";
+        public new bool IsLoaded => true;
+        public EditorDescriptor Descriptor => new("Progress", 420, 180, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight, CanResize: false);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
+        public void NavigateTo(uint address) { }
 
         /// <summary>Raised when the user clicks Cancel.</summary>
         public event Action? CancelRequested;
@@ -19,6 +24,11 @@ namespace FEBuilderGBA.Avalonia.Views
         public NotifyPleaseWaitView(NotifyPleaseWaitViewModel vm)
         {
             InitializeComponent();
+            SetViewModel(vm);
+        }
+
+        public void SetViewModel(NotifyPleaseWaitViewModel vm)
+        {
             DataContext = vm;
         }
 
@@ -32,23 +42,7 @@ namespace FEBuilderGBA.Avalonia.Views
         /// </summary>
         public void ForceClose()
         {
-            _forceClosing = true;
-            Close();
-        }
-
-        /// <summary>
-        /// Prevent the user from closing the dialog via the window chrome close button
-        /// while work is in progress. Only <see cref="ForceClose"/> can close it.
-        /// </summary>
-        protected override void OnClosing(WindowClosingEventArgs e)
-        {
-            if (!_forceClosing)
-            {
-                // Don't let the user dismiss the dialog by clicking X — they should use Cancel.
-                e.Cancel = true;
-                return;
-            }
-            base.OnClosing(e);
+            RequestClose();
         }
     }
 }

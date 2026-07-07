@@ -2152,11 +2152,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 ("MapTerrainNameView", () => wm.OpenAsTopLevel<MapTerrainNameView>()),
 
                 // Event Script Editors
-                ("EventCondView", () => wm.Open<EventCondView>()),
-                ("EventScriptView", () => wm.Open<EventScriptView>()),
-                ("EventUnitView", () => wm.Open<EventUnitView>()),
+                ("EventCondView", () => wm.OpenAsTopLevel<EventCondView>()),
+                ("EventScriptView", () => wm.OpenAsTopLevel<EventScriptView>()),
+                ("EventUnitView", () => wm.OpenAsTopLevel<EventUnitView>()),
                 ("EventUnitFE6View", () => wm.OpenAsTopLevel<EventUnitFE6View>()),
-                ("EventUnitFE7View", () => wm.Open<EventUnitFE7View>()),
+                ("EventUnitFE7View", () => wm.OpenAsTopLevel<EventUnitFE7View>()),
                 ("EventUnitColorView", () => wm.OpenAsTopLevel<EventUnitColorView>()),
                 ("EventUnitItemDropView", () => wm.OpenAsTopLevel<EventUnitItemDropView>()),
                 ("EventUnitNewAllocView", () => wm.OpenAsTopLevel<EventUnitNewAllocView>()),
@@ -2173,7 +2173,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 ("EventFunctionPointerView", () => wm.OpenAsTopLevel<EventFunctionPointerView>()),
                 ("EventFunctionPointerFE7View", () => wm.OpenAsTopLevel<EventFunctionPointerFE7View>()),
                 ("EventAssemblerView", () => wm.OpenAsTopLevel<EventAssemblerView>()),
-                ("ProcsScriptView", () => wm.Open<ProcsScriptCategorySelectView>()),
+                ("ProcsScriptView", () => wm.OpenAsTopLevel<ProcsScriptCategorySelectView>()),
                 ("EventScriptTemplateView", () => wm.OpenAsTopLevel<EventScriptTemplateView>()),
 
                 // AI Script Editors
@@ -2191,11 +2191,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 ("AOERANGEView", () => wm.OpenAsTopLevel<AOERANGEView>()),
 
                 // Image Editors
-                ("ImageViewerView", () => wm.Open<ImageViewerView>()),
+                ("ImageViewerView", () => wm.OpenAsTopLevel<ImageViewerView>()),
                 ("PortraitViewerView", () => wm.OpenAsTopLevel<PortraitViewerView>()),
                 ("ImagePortraitView", () => wm.OpenAsTopLevel<ImagePortraitView>()),
                 ("ImagePortraitFE6View", () => wm.OpenAsTopLevel<ImagePortraitFE6View>()),
-                ("ImagePortraitImporterView", () => wm.Open<ImagePortraitImporterView>()),
+                ("ImagePortraitImporterView", () => wm.OpenAsTopLevel<ImagePortraitImporterView>()),
                 ("ImageBGView", () => wm.OpenAsTopLevel<ImageBGView>()),
                 ("ImageBattleAnimeView", () => wm.OpenAsTopLevel<ImageBattleAnimeView>()),
                 ("ImageBattleAnimePalletView", () => wm.OpenAsTopLevel<ImageBattleAnimePalletView>()),
@@ -2235,7 +2235,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 ("SongInstrumentDirectSoundView", () => wm.OpenAsTopLevel<SongInstrumentDirectSoundView>()),
                 ("SongInstrumentImportWaveView", () => wm.OpenAsTopLevel<SongInstrumentImportWaveView>()),
                 ("SongTrackImportMidiView", () => wm.OpenAsTopLevel<SongTrackImportMidiView>()),
-                ("SongExchangeView", () => wm.Open<SongExchangeView>()),
+                ("SongExchangeView", () => wm.OpenAsTopLevel<SongExchangeView>()),
                 ("SoundBossBGMViewerView", () => wm.OpenAsTopLevel<SoundBossBGMViewerView>()),
                 ("SoundFootStepsViewerView", () => wm.OpenAsTopLevel<SoundFootStepsViewerView>()),
                 ("SoundRoomViewerView", () => wm.OpenAsTopLevel<SoundRoomViewerView>()),
@@ -2287,14 +2287,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 ("DumpStructSelectDialogView", () => wm.OpenAsTopLevel<DumpStructSelectDialogView>()),
 
                 // Patch / Skill Systems
-                ("PatchManagerView", () => wm.Open<PatchManagerView>()),
-                ("ToolCustomBuildView", () => wm.Open<ToolCustomBuildView>()),
+                ("PatchManagerView", () => wm.OpenAsTopLevel<PatchManagerView>()),
+                ("ToolCustomBuildView", () => wm.OpenAsTopLevel<ToolCustomBuildView>()),
                 ("SkillAssignmentUnitSkillSystemView", () => wm.OpenAsTopLevel<SkillAssignmentUnitSkillSystemView>()),
                 ("SkillAssignmentClassSkillSystemView", () => wm.OpenAsTopLevel<SkillAssignmentClassSkillSystemView>()),
                 ("SkillConfigSkillSystemView", () => wm.OpenAsTopLevel<SkillConfigSkillSystemView>()),
 
                 // Tools
-                ("ToolUndoView", () => wm.Open<ToolUndoView>()),
+                ("ToolUndoView", () => wm.OpenAsTopLevel<ToolUndoView>()),
                 ("ToolFELintView", () => wm.OpenAsTopLevel<ToolFELintView>()),
                 ("ToolROMRebuildView", () => wm.OpenAsTopLevel<ToolROMRebuildView>()),
                 ("ToolLZ77View", () => wm.OpenAsTopLevel<ToolLZ77View>()),
@@ -2304,12 +2304,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 ("ToolFlagNameView", () => wm.OpenAsTopLevel<ToolFlagNameView>()),
                 ("ToolUseFlagView", () => wm.OpenAsTopLevel<ToolUseFlagView>()),
                 ("ToolUnitTalkGroupView", () => wm.OpenAsTopLevel<ToolUnitTalkGroupView>()),
-                ("ToolASMInsertView", () => wm.Open<ToolASMInsertView>()),
+                ("ToolASMInsertView", () => wm.OpenAsTopLevel<ToolASMInsertView>()),
                 ("HexEditorView", () => wm.OpenAsTopLevel<HexEditorView>()),
                 ("DisASMView", () => wm.OpenAsTopLevel<DisASMView>()),
                 ("LogViewerView", () => wm.OpenAsTopLevel<LogViewerView>()),
                 ("GrowSimulatorView", () => wm.OpenAsTopLevel<GrowSimulatorView>()),
-                ("OptionsView", () => wm.Open<OptionsView>()),
+                ("OptionsView", () => wm.OpenAsTopLevel<OptionsView>()),
 
                 // === GAP CLOSURE: New editors added by gap analysis ===
 
@@ -2322,7 +2322,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // Skill System Editors (WU3)
                 ("SkillAssignmentUnitCSkillSysView", () => wm.OpenAsTopLevel<SkillAssignmentUnitCSkillSysView>()),
                 ("SkillAssignmentClassCSkillSysView", () => wm.OpenAsTopLevel<SkillAssignmentClassCSkillSysView>()),
-                ("SkillAssignmentUnitFE8NView", () => wm.Open<SkillAssignmentUnitFE8NView>()),
+                ("SkillAssignmentUnitFE8NView", () => wm.OpenAsTopLevel<SkillAssignmentUnitFE8NView>()),
                 ("SkillConfigFE8NSkillView", () => wm.OpenAsTopLevel<SkillConfigFE8NSkillView>()),
                 ("SkillConfigFE8NVer2SkillView", () => wm.OpenAsTopLevel<SkillConfigFE8NVer2SkillView>()),
                 ("SkillConfigFE8NVer3SkillView", () => wm.OpenAsTopLevel<SkillConfigFE8NVer3SkillView>()),
@@ -2333,9 +2333,9 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 // Event/Text Sub-forms (WU5)
                 ("EventScriptCategorySelectView", () => wm.OpenAsTopLevel<EventScriptCategorySelectView>()),
-                ("EventScriptPopupView", () => wm.Open<EventScriptPopupView>()),
-                ("ProcsScriptCategorySelectView", () => wm.Open<ProcsScriptCategorySelectView>()),
-                ("AIScriptCategorySelectView", () => wm.Open<AIScriptCategorySelectView>()),
+                ("EventScriptPopupView", () => wm.OpenAsTopLevel<EventScriptPopupView>()),
+                ("ProcsScriptCategorySelectView", () => wm.OpenAsTopLevel<ProcsScriptCategorySelectView>()),
+                ("AIScriptCategorySelectView", () => wm.OpenAsTopLevel<AIScriptCategorySelectView>()),
                 ("TextScriptCategorySelectView", () => wm.OpenAsTopLevel<TextScriptCategorySelectView>()),
                 ("TextDicView", () => wm.OpenAsTopLevel<TextDicView>()),
                 ("TextCharCodeView", () => wm.OpenAsTopLevel<TextCharCodeView>()),
@@ -2347,7 +2347,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 ("GraphicsToolView", () => wm.OpenAsTopLevel<GraphicsToolView>()),
                 ("GraphicsToolPatchMakerView", () => wm.OpenAsTopLevel<GraphicsToolPatchMakerView>()),
                 ("PaletteChangeColorsView", () => wm.OpenAsTopLevel<PaletteChangeColorsView>()),
-                ("PaletteClipboardView", () => wm.Open<PaletteClipboardView>()),
+                ("PaletteClipboardView", () => wm.OpenAsTopLevel<PaletteClipboardView>()),
                 ("PaletteSwapView", () => wm.OpenAsTopLevel<PaletteSwapView>()),
                 ("ImageBGSelectPopupView", () => wm.OpenAsTopLevel<ImageBGSelectPopupView>()),
 
@@ -2375,7 +2375,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 // Tool/Utility Forms Part 2 (WU9)
                 ("RAMRewriteToolMAPView", () => wm.OpenAsTopLevel<RAMRewriteToolMAPView>()),
-                ("ToolAnimationCreatorView", () => wm.Open<ToolAnimationCreatorView>()),
+                ("ToolAnimationCreatorView", () => wm.OpenAsTopLevel<ToolAnimationCreatorView>()),
                 ("ToolThreeMargeView", () => wm.OpenAsTopLevel<ToolThreeMargeView>()),
                 ("ToolASMEditView", () => wm.OpenAsTopLevel<ToolASMEditView>()),
                 ("ToolExportEAEventView", () => wm.OpenAsTopLevel<ToolExportEAEventView>()),
@@ -2393,12 +2393,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 ("ErrorPaletteTransparentView", () => wm.OpenAsTopLevel<ErrorPaletteTransparentView>()),
                 ("ErrorTSAErrorView", () => wm.OpenAsTopLevel<ErrorTSAErrorView>()),
                 ("ErrorLongMessageDialogView", () => wm.OpenAsTopLevel<ErrorLongMessageDialogView>()),
-                ("ErrorUnknownROMView", () => wm.Open<ErrorUnknownROMView>()),
-                ("DumpStructSelectToTextDialogView", () => wm.Open<DumpStructSelectToTextDialogView>()),
-                ("HowDoYouLikePatchView", () => wm.Open<HowDoYouLikePatchView>()),
+                ("ErrorUnknownROMView", () => wm.OpenAsTopLevel<ErrorUnknownROMView>()),
+                ("DumpStructSelectToTextDialogView", () => wm.OpenAsTopLevel<DumpStructSelectToTextDialogView>()),
+                ("HowDoYouLikePatchView", () => wm.OpenAsTopLevel<HowDoYouLikePatchView>()),
                 ("HowDoYouLikePatch2View", () => wm.OpenAsTopLevel<HowDoYouLikePatch2View>()),
                 ("PatchFilterExView", () => wm.OpenAsTopLevel<PatchFilterExView>()),
-                ("PatchFormUninstallDialogView", () => wm.Open<PatchFormUninstallDialogView>()),
+                ("PatchFormUninstallDialogView", () => wm.OpenAsTopLevel<PatchFormUninstallDialogView>()),
 
                 // Version-Specific / Specialized Forms (WU11)
                 ("ItemFE6View", () => wm.OpenAsTopLevel<ItemFE6View>()),
@@ -2421,12 +2421,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 ("UwordBitFlagView", () => wm.OpenAsTopLevel<UwordBitFlagView>()),
 
                 // === Event Templates (WU15) ===
-                ("EventTemplate1View", () => wm.Open<EventTemplate1View>()),
-                ("EventTemplate2View", () => wm.Open<EventTemplate2View>()),
-                ("EventTemplate3View", () => wm.Open<EventTemplate3View>()),
-                ("EventTemplate4View", () => wm.Open<EventTemplate4View>()),
-                ("EventTemplate5View", () => wm.Open<EventTemplate5View>()),
-                ("EventTemplate6View", () => wm.Open<EventTemplate6View>()),
+                ("EventTemplate1View", () => wm.OpenAsTopLevel<EventTemplate1View>()),
+                ("EventTemplate2View", () => wm.OpenAsTopLevel<EventTemplate2View>()),
+                ("EventTemplate3View", () => wm.OpenAsTopLevel<EventTemplate3View>()),
+                ("EventTemplate4View", () => wm.OpenAsTopLevel<EventTemplate4View>()),
+                ("EventTemplate5View", () => wm.OpenAsTopLevel<EventTemplate5View>()),
+                ("EventTemplate6View", () => wm.OpenAsTopLevel<EventTemplate6View>()),
                 ("EventTemplateImplView", () => wm.OpenAsTopLevel<EventTemplateImplView>()),
                 ("EventFinalSerifFE7View", () => wm.OpenAsTopLevel<EventFinalSerifFE7View>()),
                 ("EventMoveDataFE7View", () => wm.OpenAsTopLevel<EventMoveDataFE7View>()),
@@ -2451,14 +2451,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 ("VersionView", () => wm.OpenAsTopLevel<VersionView>()),
                 ("WelcomeView", () => wm.OpenAsTopLevel<WelcomeView>()),
                 ("ResourceView", () => wm.OpenAsTopLevel<ResourceView>()),
-                ("ToolInitWizardView", () => wm.Open<ToolInitWizardView>()),
+                ("ToolInitWizardView", () => wm.OpenAsTopLevel<ToolInitWizardView>()),
                 ("ToolUndoPopupDialogView", () => wm.OpenAsTopLevel<ToolUndoPopupDialogView>()),
                 ("OpenLastSelectedFileView", () => wm.OpenAsTopLevel<OpenLastSelectedFileView>()),
                 ("ToolUpdateDialogView", () => wm.OpenAsTopLevel<ToolUpdateDialogView>()),
 
                 // === Previously Unregistered On-Disk Views (WU19) ===
                 ("ToolAllWorkSupportView", () => wm.OpenAsTopLevel<ToolAllWorkSupportView>()),
-                ("ToolProblemReportView", () => wm.Open<ToolProblemReportView>()),
+                ("ToolProblemReportView", () => wm.OpenAsTopLevel<ToolProblemReportView>()),
                 ("WorldMapPathMoveEditorView", () => wm.OpenAsTopLevel<WorldMapPathMoveEditorView>()),
                 ("MantAnimationView", () => wm.OpenAsTopLevel<MantAnimationView>()),
                 ("RAMRewriteToolView", () => wm.OpenAsTopLevel<RAMRewriteToolView>()),
@@ -2472,8 +2472,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 ("ToolClickWriteFloatControlPanelButtonView", () => wm.OpenAsTopLevel<ToolClickWriteFloatControlPanelButtonView>()),
                 ("ToolWorkSupport_UpdateQuestionDialogView", () => wm.OpenAsTopLevel<ToolWorkSupport_UpdateQuestionDialogView>()),
                 ("MainSimpleMenuEventErrorIgnoreErrorView", () => wm.OpenAsTopLevel<MainSimpleMenuEventErrorIgnoreErrorView>()),
-                ("ToolProblemReportSearchBackupView", () => wm.Open<ToolProblemReportSearchBackupView>()),
-                ("ToolProblemReportSearchSavView", () => wm.Open<ToolProblemReportSearchSavView>()),
+                ("ToolProblemReportSearchBackupView", () => wm.OpenAsTopLevel<ToolProblemReportSearchBackupView>()),
+                ("ToolProblemReportSearchSavView", () => wm.OpenAsTopLevel<ToolProblemReportSearchSavView>()),
 
                 // === Tool Support Views (WU19-tools) ===
                 ("ToolWorkSupportView", () => wm.OpenAsTopLevel<ToolWorkSupportView>()),
@@ -3296,14 +3296,12 @@ namespace FEBuilderGBA.Avalonia.Views
         private async void DataExport_Click(object? sender, RoutedEventArgs e)
         {
             if (CoreState.ROM == null) return;
-            var dialog = new DataExportView();
-            await dialog.ShowDialog(this);
+            await WindowManager.Instance.OpenModal<DataExportView>(this);
         }
 
         private async void Options_Click(object? sender, RoutedEventArgs e)
         {
-            var dialog = new OptionsView();
-            await dialog.ShowDialog(this);
+            await WindowManager.Instance.OpenModal<OptionsView>(this);
             // Re-read auto-save config after options dialog closes
             string currentTarget = AutoSaveService.Instance.CurrentRomFilename ?? CoreState.ROM?.Filename;
             TryStartAutoSave(currentTarget);

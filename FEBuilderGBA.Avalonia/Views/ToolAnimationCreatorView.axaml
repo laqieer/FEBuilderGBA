@@ -1,10 +1,8 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
-        x:Class="FEBuilderGBA.Avalonia.Views.ToolAnimationCreatorView"
-        Title="Animation Creator" Width="1024" Height="720"
-        WindowStartupLocation="CenterOwner"
-        SizeToContent="Manual">
+﻿<UserControl
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+             x:Class="FEBuilderGBA.Avalonia.Views.ToolAnimationCreatorView">
   <!-- Outer ScrollViewer prevents content clipping when the window is
        resized below the natural layout size. Required by the
        AvaloniaScrollViewerTests regression suite. -->
@@ -121,4 +119,4 @@
     </Grid>
   </DockPanel>
   </ScrollViewer>
-</Window>
+</UserControl>
