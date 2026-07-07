@@ -28,6 +28,7 @@ listed below); the GPLv3 text in `LICENSE` does **not** substitute for it.
 | Component | License | Where it ships | Upstream |
 |-----------|---------|----------------|----------|
 | fe-info (decomp symbol maps — `resources/fe-info/json/{fe6,fe8}/code.json`) | BSD 3-Clause | `resources/fe-info/json/` in the CLI and Avalonia bundles | https://github.com/laqieer/fe-info |
+| Noto Sans CJK SC (character subset — `NotoSansCJKsc-Subset.otf`) | SIL OFL 1.1 | embedded in the WebAssembly AppBundle (`FEBuilderGBA.Browser`) as the CJK glyph fallback; OFL text at `wwwroot/fonts/OFL.txt` | https://github.com/notofonts/noto-cjk |
 
 The bundled fe-info `code.json` files (decomp function symbols used to enrich the
 disassembler) are distributed under the **BSD 3-Clause License**. As required by

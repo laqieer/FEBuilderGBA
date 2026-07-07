@@ -81,6 +81,19 @@
     <Content Include="..\THIRD-PARTY-NOTICES.md" Link="wwwroot\THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- #1890: embedded CJK fallback font. wasm has NO system fonts and Inter is Latin-only, so
+       Japanese game text and the ja/zh UI render as tofu without a per-codepoint CJK fallback
+       (registered in Program.BuildAvaloniaApp). This is a compact SUBSET of Noto Sans CJK SC
+       (OFL, ~2.8 MB) covering all Shift-JIS + GB2312 codepoints + kana/fullwidth/punctuation +
+       the CJK characters used by config/translate + config/data — see scripts/build-cjk-font-subset.py.
+       Scoped to the BROWSER head only; desktop/Android/iOS fall back to OS CJK fonts. The OFL text
+       is shipped alongside the compiled binaries (GPLv3 §4-6 + OFL both require accompanying license
+       text) and credited in THIRD-PARTY-NOTICES.md. -->
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\Fonts\NotoSansCJKsc-Subset.otf" />
+    <Content Include="Assets\Fonts\OFL.txt" Link="wwwroot\fonts\OFL.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <!--
     config.zip generation (#1864). config/** (excl. patch2) is zipped into wwwroot/config.zip so
     Program.Main can fetch it over HTTP and extract it into a writable MEMFS dir on first run
