@@ -43,9 +43,21 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             _scriptType = scriptType;
             _selectedScript = null;
+            DialogResult = null;
+            _aiVm = null;
+            _procsVm = null;
+            DataContext = null;
+            CategoryList.ItemsSource = null;
+            ScriptList.ItemsSource = null;
+            CategoryList.SelectedIndex = -1;
+            ScriptList.SelectedIndex = -1;
+            FilterBox.Text = "";
+            InfoLabel.Text = "";
+
             if (scriptType == EventScript.EventScriptType.AI)
             {
                 _aiVm = new AIScriptCategorySelectViewModel();
+                DataContext = _aiVm;
                 _aiVm.Load();
                 CategoryList.ItemsSource = _aiVm.Categories;
                 ScriptList.ItemsSource = _aiVm.ScriptNames;
@@ -55,6 +67,7 @@ namespace FEBuilderGBA.Avalonia.Views
             else
             {
                 _procsVm = new ProcsScriptCategorySelectViewModel();
+                DataContext = _procsVm;
                 _procsVm.Load();
                 CategoryList.ItemsSource = _procsVm.Categories;
                 ScriptList.ItemsSource = _procsVm.ScriptNames;

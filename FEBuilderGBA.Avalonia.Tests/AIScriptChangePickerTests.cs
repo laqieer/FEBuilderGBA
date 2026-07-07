@@ -201,6 +201,27 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.False(string.IsNullOrWhiteSpace(info!.Text));
         }
 
+        [AvaloniaFact]
+        public void Picker_Configure_ReplacesPreviousVmState()
+        {
+            using var env = new AiDisasmEnv();
+            CoreState.ROM = env.Rom;
+            CoreState.AIScript = env.AiScript;
+
+            var picker = new ScriptCommandPickerView(EventScript.EventScriptType.AI);
+            Assert.IsType<AIScriptCategorySelectViewModel>(picker.DataContext);
+
+            picker.Configure(EventScript.EventScriptType.Procs);
+
+            var procsVm = Assert.IsType<ProcsScriptCategorySelectViewModel>(picker.DataContext);
+            var categoryList = picker.FindControl<ListBox>("CategoryList");
+            var scriptList = picker.FindControl<ListBox>("ScriptList");
+            Assert.Same(procsVm.Categories, categoryList!.ItemsSource);
+            Assert.Same(procsVm.ScriptNames, scriptList!.ItemsSource);
+            Assert.Null(picker.SelectedScript);
+            Assert.Null(picker.DialogResult);
+        }
+
         // ================================================================
         // 3b. [AvaloniaFact] ApplyPickedScript drops Data into AsmBox as hex
         //     that UpdateRow / ParseInstructionHex accepts.
