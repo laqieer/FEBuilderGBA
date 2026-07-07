@@ -183,7 +183,14 @@ try {
   if (rom) {
     try {
       console.log(`[smoke] loading ROM fixture -> ${ROM_PATH}`);
-      await page.waitForFunction(() => typeof globalThis.__febTest !== 'undefined', null, { timeout: BOOT_TIMEOUT_MS });
+      try {
+        await page.waitForFunction(() => typeof globalThis.__febTest !== 'undefined', null, { timeout: 5000 });
+      } catch {
+        failures.push('globalThis.__febTest missing — publish the bundle with -p:DefineConstants=E2E_HOOKS (SMOKE_ROM set but E2E hooks absent)');
+        await page.screenshot({ path: SCREENSHOT });
+        console.log(`[smoke] screenshot -> ${SCREENSHOT}`);
+        throw new Error('__FEB_E2E_HOOKS_MISSING__');
+      }
 
       const loaded = await page.evaluate(async (s) => await globalThis.__febTest.LoadRomBase64(s), rom.toString('base64'));
       if (loaded !== true) {
@@ -220,7 +227,9 @@ try {
         console.log('[smoke] Move Cost Editor opened through real launcher command path (#1888).');
       }
     } catch (e) {
-      failures.push(`Move Cost Editor wasm proof failed with SMOKE_ROM=${ROM_PATH}: ${e.message}`);
+      if (e.message !== '__FEB_E2E_HOOKS_MISSING__') {
+        failures.push(`Move Cost Editor wasm proof failed with SMOKE_ROM=${ROM_PATH}: ${e.message}`);
+      }
     }
   } else {
     console.log(`[smoke] SMOKE_ROM not set or missing; skipping Move Cost Editor single-view proof.`);

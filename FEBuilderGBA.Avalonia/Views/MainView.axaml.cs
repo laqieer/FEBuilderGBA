@@ -104,7 +104,7 @@ namespace FEBuilderGBA.Avalonia.Views
             if (Dispatcher.UIThread.CheckAccess())
                 Refresh();
             else
-                Dispatcher.UIThread.Post(Refresh);
+                Dispatcher.UIThread.Invoke(Refresh);
         }
 
         public static string OpenLauncherEntryForTest(string key)
@@ -146,7 +146,9 @@ namespace FEBuilderGBA.Avalonia.Views
             if (string.IsNullOrWhiteSpace(value))
                 return "";
 
-            Span<char> buffer = stackalloc char[value.Length];
+            Span<char> buffer = value.Length <= 128
+                ? stackalloc char[value.Length]
+                : new char[value.Length];
             int count = 0;
             foreach (char ch in value)
             {
