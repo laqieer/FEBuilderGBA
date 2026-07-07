@@ -1,5 +1,5 @@
 using global::Avalonia.Controls;
-using global::Avalonia.Interactivity;
+using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.Dialogs
 {
@@ -13,6 +13,8 @@ namespace FEBuilderGBA.Avalonia.Dialogs
     /// </summary>
     public partial class NumberInputDialog : Window
     {
+        NumberInputContent? _content;
+
         /// <summary>True when the user clicked OK.</summary>
         public bool DialogResult { get; private set; }
 
@@ -22,29 +24,22 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         public NumberInputDialog()
         {
             InitializeComponent();
+            _content = new NumberInputContent();
+            Content = _content;
         }
 
         public NumberInputDialog(string prompt, string title, uint defaultValue, uint min, uint max)
             : this()
         {
             Title = title;
-            PromptText.Text = prompt;
-            ValueBox.Minimum = min;
-            ValueBox.Maximum = max;
-            ValueBox.Value = defaultValue;
-        }
-
-        private void OkButton_Click(object? sender, RoutedEventArgs e)
-        {
-            DialogResult = true;
-            Value = (uint)(ValueBox.Value ?? 0);
-            Close();
-        }
-
-        private void CancelButton_Click(object? sender, RoutedEventArgs e)
-        {
-            DialogResult = false;
-            Close();
+            _content ??= new NumberInputContent();
+            _content.Configure(prompt, title, defaultValue, min, max);
+            _content.CloseRequested += (_, _) =>
+            {
+                DialogResult = _content.Confirmed;
+                Value = _content.Value;
+                Close();
+            };
         }
 
         /// <summary>
@@ -55,6 +50,13 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         public static async System.Threading.Tasks.Task<uint?> Show(
             Window? owner, string prompt, string title, uint defaultValue, uint min, uint max)
         {
+            if (WindowManager.Instance.Service is AndroidNavigationService)
+            {
+                return await WindowManager.Instance.OpenModal<NumberInputContent, uint?>(
+                    owner,
+                    content => content.Configure(prompt, title, defaultValue, min, max));
+            }
+
             var dlg = new NumberInputDialog(prompt, title, defaultValue, min, max);
             if (owner != null)
                 await dlg.ShowDialog(owner);

@@ -165,10 +165,10 @@ namespace FEBuilderGBA.Avalonia.Tests
             foreach (var (_, id) in ids)
                 _output.WriteLine($"  {id}");
 
-            Assert.Contains("MessageBox_Ok_Button", idSet);
-            Assert.Contains("MessageBox_Yes_Button", idSet);
-            Assert.Contains("MessageBox_No_Button", idSet);
-            Assert.Contains("MessageBox_Message_Label", idSet);
+            Assert.Contains("MessageBoxContent_Ok_Button", idSet);
+            Assert.Contains("MessageBoxContent_Yes_Button", idSet);
+            Assert.Contains("MessageBoxContent_No_Button", idSet);
+            Assert.Contains("MessageBoxContent_Message_Label", idSet);
         }
 
         // ===================================================================

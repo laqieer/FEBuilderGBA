@@ -8,6 +8,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
 using FEBuilderGBA.Avalonia;
 using FEBuilderGBA.Avalonia.Dialogs;
+using FEBuilderGBA.Avalonia.Services;
 using Xunit;
 
 namespace FEBuilderGBA.Avalonia.Tests
@@ -28,9 +29,22 @@ namespace FEBuilderGBA.Avalonia.Tests
     /// owner via <see cref="TestableAvaloniaAppServices"/>, because
     /// Avalonia.Headless does not provide a classic-desktop application lifetime.
     /// </summary>
-    public class AvaloniaAppServicesDialogTests
+    [Collection("WindowManagerSerial")]
+    public class AvaloniaAppServicesDialogTests : IDisposable
     {
         static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(10);
+        readonly INavigationService _originalNavigationService;
+
+        public AvaloniaAppServicesDialogTests()
+        {
+            _originalNavigationService = WindowManager.Instance.Service;
+            WindowManager.Instance.SetService(new DesktopNavigationService());
+        }
+
+        public void Dispose()
+        {
+            WindowManager.Instance.SetService(_originalNavigationService);
+        }
 
         /// <summary>Test variant that exposes the owner-window setter.</summary>
         sealed class TestableAvaloniaAppServices : AvaloniaAppServices
@@ -66,7 +80,8 @@ namespace FEBuilderGBA.Avalonia.Tests
                     return;
                 }
 
-                var button = msgBox.FindControl<Button>(buttonName);
+                var button = msgBox.FindControl<Button>(buttonName)
+                    ?? (msgBox.Content as Control)?.FindControl<Button>(buttonName);
                 Assert.NotNull(button);
 
                 // Synthesize a click via Button.OnClick (the non-public method the
