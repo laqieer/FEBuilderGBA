@@ -1,4 +1,4 @@
-Copyright © 2014-2021 Adobe (http://www.adobe.com/), with Reserved Font Name 'Source'.
+Copyright © 2014-2021 Adobe (http://www.adobe.com/).
 Noto is a trademark of Google Inc.
 
 This font (Noto Sans CJK SC) is used by the FEBuilderGBA WebAssembly (Browser) head as
