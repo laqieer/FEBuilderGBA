@@ -67,9 +67,19 @@ optional desktop `Window` owner arguments from `WindowManager.PickFromEditor(...
 `TopLevel.GetTopLevel(this) as Window` when the caller becomes a `UserControl`; picker targets remain
 deferred. Slice 7 starts the complex phase by converting the first self-close-only dialog/tool batch,
 where converted `Close()` calls become `RequestClose()` and close through the hosting
-`EditorHostWindow`. Converted editors are exposed in the single-view launcher once a ROM is loaded;
-editors with owner-bound file/dialog/picker/closed-event flows remain on the legacy path until the
-dialog-flow slice.
+`EditorHostWindow`. Converted editors are exposed in the single-view launcher once a ROM is loaded.
+
+**Full editor catalog in the single-view launcher (#1891).** With #1873 complete (every editor is now
+an embeddable `IEmbeddableEditor` `UserControl` — 0 `Window`-derived editors except the 6 legacy
+`EventTemplate` editors), the `MainView` launcher renders the **full** desktop editor set instead of a
+9-editor stub. The list is the shared **`Services/EditorCatalog`** — a single source of truth that
+mirrors the desktop `MainWindow` body (28 categories, ~223 editors) including its version/patch open
+dispatch, and gates entries to the loaded ROM version exactly as the desktop does
+(`EditorCatalog.AppliesTo`). The launcher renders it as collapsible, filterable category expanders.
+`EditorCatalog` is kept in lock-step with the desktop body by `EditorCatalogParityTests`, and every
+catalog editor is asserted to be `IEmbeddableEditor` (so a `Window`-derived editor can never slip in
+and throw on the single-view host). The 6 `EventTemplate` editors stay desktop-only (they derive from
+`TranslatedWindow`).
 
 ## 3. Rendering (SkiaSharp + HarfBuzz native relink)
 

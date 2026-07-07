@@ -17,6 +17,7 @@
 // under the #1873 single-view-parity umbrella. The desktop MainWindow is unchanged.
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Layout;
@@ -119,18 +120,14 @@ namespace FEBuilderGBA.Avalonia.Views
 
             void Open()
             {
-                string normalizedKey = NormalizeLauncherKey(key);
-                foreach (var (label, open) in LauncherEntries())
-                {
-                    if (NormalizeLauncherKey(label) != normalizedKey)
-                        continue;
+                var entry = FindLauncherEntry(key);
+                if (entry is null)
+                    return;
 
-                    open();
-                    openedTitle = WindowManager.Instance.Service is INavigationHost host
-                        ? host.CurrentTitle
-                        : null;
-                    break;
-                }
+                entry.Open();
+                openedTitle = WindowManager.Instance.Service is INavigationHost host
+                    ? host.CurrentTitle
+                    : null;
             }
 
             if (Dispatcher.UIThread.CheckAccess())
@@ -140,8 +137,30 @@ namespace FEBuilderGBA.Avalonia.Views
 
             return openedTitle ?? "";
         }
+#endif
 
-        static string NormalizeLauncherKey(string? value)
+        /// <summary>
+        /// Resolve a launcher key to its catalog entry: an EXACT, unique catalog Key match wins;
+        /// otherwise fall back to the (possibly non-unique) label, so legacy keys like "MoveCost"
+        /// (→ label "Move Cost") still resolve. Key-first prevents a duplicate label (e.g. the two
+        /// distinct "Unit Palette" editors, ImageUnitPaletteView vs UnitPaletteView) from resolving
+        /// to the wrong entry. Internal test seam (via InternalsVisibleTo).
+        /// </summary>
+        internal static EditorEntry? FindLauncherEntry(string key)
+        {
+            string nk = NormalizeLauncherKey(key);
+            EditorEntry? labelHit = null;
+            foreach (var e in EditorCatalog.AllEntries)
+            {
+                if (NormalizeLauncherKey(e.Key) == nk)
+                    return e; // exact, unique key wins
+                if (labelHit is null && NormalizeLauncherKey(e.Label) == nk)
+                    labelHit = e;
+            }
+            return labelHit;
+        }
+
+        internal static string NormalizeLauncherKey(string? value)
         {
             if (string.IsNullOrWhiteSpace(value))
                 return "";
@@ -156,9 +175,11 @@ namespace FEBuilderGBA.Avalonia.Views
                     buffer[count++] = char.ToUpperInvariant(ch);
             }
             string normalized = new(buffer[..count]);
-            return normalized == "MOVECOST" ? "MOVECOSTEDITOR" : normalized;
+            // Stable, translation-independent key: strip non-alphanumerics + uppercase. Catalog
+            // Keys are derived from view type names, so "MoveCost" and the label "Move Cost" both
+            // fold to "MOVECOST" here (no special-case remap needed).
+            return normalized;
         }
-#endif
 
         void Back_Click(object? sender, RoutedEventArgs e) => Host.GoBack();
 
@@ -266,86 +287,138 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         /// <summary>
-        /// Build the root launcher page: a scrollable column of buttons that
-        /// open the common editors via WindowManager (which now routes to the
-        /// single-view host). Kept deliberately small — the full editor catalog
-        /// lives in the carved-out shell controller (#1873); ROM open/save is on
-        /// the top app bar (added for #1870 in PR #1872).
+        /// Build the root launcher page: a filterable, category-grouped list of every editor the
+        /// desktop home page exposes (the shared <see cref="EditorCatalog"/>), so the single-view
+        /// (WebAssembly / Android) app shows the FULL editor set instead of the handful it used to
+        /// (#1891). Editors are the shared embeddable UserControls opened via WindowManager, which
+        /// routes to the single-view host — #1873 (single-view editor hosting) is complete, so the
+        /// old "editors are Windows that throw here" limitation no longer applies. Version-specific
+        /// editors are gated to the loaded ROM exactly as the desktop MainWindow does
+        /// (<see cref="EditorCatalog.AppliesTo"/>). ROM open/save is on the top app bar (#1870).
         /// </summary>
         Control BuildLauncher()
         {
-            var panel = new StackPanel { Spacing = 6, Margin = new global::Avalonia.Thickness(12) };
-            // Editors read CoreState.ROM. Until a ROM is loaded, disable the
-            // editor buttons and show a hint pointing at the Open ROM action so
-            // the launcher can't open an empty editor (#1870).
             bool hasRom = CoreState.ROM != null;
-            panel.Children.Add(new TextBlock
+
+            var root = new DockPanel();
+            global::Avalonia.Automation.AutomationProperties.SetAutomationId(root, "Main_AndroidLauncher_Control");
+
+            var header = new TextBlock
             {
                 Text = hasRom
                     ? R._("Editors")
                     : R._("No ROM loaded. Tap \"Open ROM\" above to begin."),
                 FontWeight = global::Avalonia.Media.FontWeight.SemiBold,
                 TextWrapping = global::Avalonia.Media.TextWrapping.Wrap,
-                Margin = new global::Avalonia.Thickness(0, 0, 0, 6),
-            });
+                Margin = new global::Avalonia.Thickness(12, 12, 12, 6),
+            };
+            DockPanel.SetDock(header, Dock.Top);
+            root.Children.Add(header);
 
-            foreach (var (label, open) in LauncherEntries())
+            // Editors read CoreState.ROM; the version gate needs a loaded ROM. Until one is loaded
+            // show only the hint pointing at the Open ROM action (#1870).
+            if (!hasRom)
+                return root;
+
+            var rom = CoreState.ROM!;
+            int version = rom.RomInfo?.version ?? 0;
+            bool multibyte = rom.RomInfo?.is_multibyte ?? false;
+
+            // Filter box — built in code-behind, so the AutomationId validator (which only scans
+            // .axaml) does not apply; the id still follows the MainView "Main_" convention.
+            var filter = new TextBox
             {
-                var btn = new Button
+                Watermark = R._("Type to filter editors..."),
+                Margin = new global::Avalonia.Thickness(12, 0, 12, 6),
+            };
+            global::Avalonia.Automation.AutomationProperties.SetAutomationId(filter, "Main_LauncherFilter_Input");
+            DockPanel.SetDock(filter, Dock.Top);
+            root.Children.Add(filter);
+
+            var catPanel = new StackPanel { Spacing = 4, Margin = new global::Avalonia.Thickness(12, 0, 12, 12) };
+            var cats = new List<(Expander Exp, List<(Button Btn, string Label)> Buttons)>();
+
+            foreach (var group in EditorCatalog.Categories)
+            {
+                var applicable = group.Where(e => EditorCatalog.AppliesTo(e, version, multibyte)).ToList();
+                if (applicable.Count == 0)
+                    continue;
+
+                var wrap = new WrapPanel { Orientation = Orientation.Horizontal };
+                var buttons = new List<(Button, string)>();
+                foreach (var entry in applicable)
                 {
-                    Content = R._(label),
-                    IsEnabled = hasRom,
-                    HorizontalAlignment = HorizontalAlignment.Stretch,
-                    HorizontalContentAlignment = HorizontalAlignment.Left,
-                };
-                btn.Click += (_, _) =>
+                    string label = R._(entry.Label);
+                    var btn = new Button
+                    {
+                        Content = label,
+                        Margin = new global::Avalonia.Thickness(4),
+                        MinWidth = 100,
+                    };
+                    global::Avalonia.Automation.AutomationProperties.SetAutomationId(btn, "Main_Launcher_" + entry.Key + "_Button");
+                    var open = entry.Open;
+                    btn.Click += (_, _) => OpenFromLauncher(open);
+                    wrap.Children.Add(btn);
+                    buttons.Add((btn, label));
+                }
+
+                var exp = new Expander
                 {
-                    try
-                    {
-                        open();
-                    }
-                    catch (Exception ex)
-                    {
-                        // Editor views are Window subclasses; on the browser
-                        // single-view host `new Window()` throws
-                        // NotSupportedException ("Browser doesn't support
-                        // windowing platform"). Hosting editor Windows in the
-                        // single-view shell is the architectural rewrite tracked
-                        // by #1873. Log the full stack AND surface a friendly
-                        // message — Log.Error alone is not visible on wasm.
-                        Log.Error("MainView launcher open failed: ", ex.ToString());
-                        var baseEx = ex.GetBaseException();
-                        if (baseEx is NotSupportedException)
-                            SetStatus(R._("Editors aren't available in this browser build yet."));
-                        else
-                            SetStatus(R._("Couldn't open editor:") + " " + baseEx.Message);
-                    }
+                    Header = R._(group.Key) + " (" + applicable.Count + ")",
+                    Content = wrap,
+                    // Collapsed by default: ~200 editors across 28 categories would be a huge scroll
+                    // otherwise. The filter box auto-expands matching categories.
+                    IsExpanded = false,
                 };
-                panel.Children.Add(btn);
+                catPanel.Children.Add(exp);
+                cats.Add((exp, buttons));
             }
 
-            var scroller = new ScrollViewer { Content = panel };
-            global::Avalonia.Automation.AutomationProperties.SetAutomationId(scroller, "Main_AndroidLauncher_Control");
-            return scroller;
+            filter.TextChanged += (_, _) => ApplyLauncherFilter(cats, filter.Text);
+
+            var scroller = new ScrollViewer { Content = catPanel };
+            root.Children.Add(scroller); // fills the space under the docked header + filter
+            return root;
         }
 
         /// <summary>
-        /// The launcher entries: (label, open-action). Each open-action goes
-        /// through WindowManager so it routes to the single-view host. We open
-        /// FE8U-shaped editors by default (the most common); version-specific
-        /// variants are a shell-controller concern carved to #1873.
+        /// Open an editor from the launcher, surfacing failures as a status message instead of
+        /// crashing the shell. All catalog editors are embeddable UserControls (asserted by
+        /// EditorCatalogTests), so they host in the single-view navigation host; this catch is
+        /// defense-in-depth for an individual editor whose ctor/load fails (e.g. a wasm-unsupported
+        /// dependency). Log.Error alone is not visible on wasm, so we also set a status message.
         /// </summary>
-        static IEnumerable<(string Label, Action Open)> LauncherEntries()
+        void OpenFromLauncher(Action open)
         {
-            yield return ("Unit Editor", () => WindowManager.Instance.Open<UnitEditorView>());
-            yield return ("Class Editor", () => WindowManager.Instance.Open<ClassEditorView>());
-            yield return ("Item Editor", () => WindowManager.Instance.Open<ItemEditorView>());
-            yield return ("Portrait Editor", () => WindowManager.Instance.Open<PortraitViewerView>());
-            yield return ("Text Editor", () => WindowManager.Instance.Open<TextViewerView>());
-            yield return ("Map Settings", () => WindowManager.Instance.Open<MapSettingView>());
-            yield return ("Song Table", () => WindowManager.Instance.Open<SongTableView>());
-            yield return ("Image Viewer", () => WindowManager.Instance.Open<ImageViewerView>());
-            yield return ("Move Cost Editor", () => WindowManager.Instance.Open<MoveCostEditorView>());
+            try
+            {
+                open();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("MainView launcher open failed: ", ex.ToString());
+                SetStatus(R._("Couldn't open editor:") + " " + ex.GetBaseException().Message);
+            }
+        }
+
+        /// <summary>Filter launcher buttons by label; hides empty categories and auto-expands matches.</summary>
+        static void ApplyLauncherFilter(List<(Expander Exp, List<(Button Btn, string Label)> Buttons)> cats, string? text)
+        {
+            string q = (text ?? "").Trim();
+            bool hasFilter = q.Length > 0;
+            foreach (var (exp, buttons) in cats)
+            {
+                int visible = 0;
+                foreach (var (btn, label) in buttons)
+                {
+                    bool match = !hasFilter || label.Contains(q, StringComparison.OrdinalIgnoreCase);
+                    btn.IsVisible = match;
+                    if (match) visible++;
+                }
+                exp.IsVisible = visible > 0;
+                if (hasFilter)
+                    exp.IsExpanded = visible > 0;
+            }
         }
     }
 }
