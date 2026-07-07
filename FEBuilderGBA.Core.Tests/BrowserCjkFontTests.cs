@@ -70,9 +70,11 @@ public class BrowserCjkFontTests
     {
         string src = File.ReadAllText(RepoPath("FEBuilderGBA.Browser/Program.cs"));
         Assert.Contains(".WithInterFont()", src);
-        Assert.Contains("CreateBrowserFontManagerOptions", src);
         Assert.Contains("FontFallbacks", src);
         Assert.Contains(FallbackUri, src);
+        // Assert the fallback options are actually CHAINED into BuildAvaloniaApp — a
+        // defined-but-uncalled factory would still pass a bare name-Contains check.
+        Assert.Matches(@"\.WithInterFont\(\)\s*\.With\(\s*CreateBrowserFontManagerOptions\(\)\s*\)", src);
     }
 
     [Fact]

@@ -14,7 +14,8 @@ Coverage kept:
   * CJK Symbols & Punctuation, Hiragana, Katakana (+ phonetic ext), Halfwidth/Fullwidth Forms
   * Every codepoint encodable in Shift-JIS (⊇ JIS X 0208 — all standard Japanese)
   * Every codepoint encodable in GB2312 (standard Simplified Chinese)
-  * Every character actually present in config/translate and config/data (UI + game names)
+  * The CJK characters present in config/translate and config/data (UI + game names) that the
+    base font provides a glyph for
 
 Base font (OFL): Noto Sans CJK SC Regular (Source Han Sans SC), from notofonts/noto-cjk.
 Reproduce:

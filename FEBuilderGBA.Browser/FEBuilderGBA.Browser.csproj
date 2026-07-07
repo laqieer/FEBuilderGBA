@@ -85,7 +85,7 @@
        Japanese game text and the ja/zh UI render as tofu without a per-codepoint CJK fallback
        (registered in Program.BuildAvaloniaApp). This is a compact SUBSET of Noto Sans CJK SC
        (OFL, ~2.8 MB) covering all Shift-JIS + GB2312 codepoints + kana/fullwidth/punctuation +
-       every character used by config/translate + config/data — see scripts/build-cjk-font-subset.py.
+       the CJK characters used by config/translate + config/data — see scripts/build-cjk-font-subset.py.
        Scoped to the BROWSER head only; desktop/Android/iOS fall back to OS CJK fonts. The OFL text
        is shipped alongside the compiled binaries (GPLv3 §4-6 + OFL both require accompanying license
        text) and credited in THIRD-PARTY-NOTICES.md. -->

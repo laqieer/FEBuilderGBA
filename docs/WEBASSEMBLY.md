@@ -102,7 +102,7 @@ Japanese game text and the `ja`/`zh` UI translations rendered as tofu boxes on t
 (desktop/Android/iOS fall back to OS CJK fonts). The head therefore **embeds a compact CJK fallback**:
 `Assets/Fonts/NotoSansCJKsc-Subset.otf` — a character SUBSET of Noto Sans CJK SC (OFL, ~2.8 MB, family
 name `Noto Sans CJK SC`) covering every Shift-JIS + GB2312 codepoint, kana, CJK punctuation, the
-fullwidth/halfwidth forms, and every character used by `config/translate` + `config/data`
+fullwidth/halfwidth forms, and the CJK characters used by `config/translate` + `config/data`
 (regenerate with `scripts/build-cjk-font-subset.py`). It is added as an `<AvaloniaResource>` (browser
 head only) and registered as a per-codepoint `FontFallback` in `Program.CreateBrowserFontManagerOptions`
 — the same mechanism the desktop uses (`FEBuilderGBA.Avalonia/Program.CreateFontManagerOptions`), but
