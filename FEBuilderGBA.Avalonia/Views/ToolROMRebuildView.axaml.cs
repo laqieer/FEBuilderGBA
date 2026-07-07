@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -11,20 +12,30 @@ using global::Avalonia.Platform.Storage;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolROMRebuildView : TranslatedWindow, IEditorView
+    public partial class ToolROMRebuildView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ToolROMRebuildViewModel _vm = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "ROM Rebuild Tool";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("ROM Rebuild Tool", 760, 480);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ToolROMRebuildView()
         {
             InitializeComponent();
             IntroText.Text = R._("Rebuild (defragment) the ROM: produce a faithful rebuild manifest from the modified ROM against the clean original, apply it onto the clean base, and write the compacted ROM. You can also write a .rebuild analysis report listing the modified regions and reusable free space.");
             RebuildHelpText.Text = R._("Rebuilds the ROM end-to-end and writes the compacted ROM to a file you choose. If this ROM carries an installed patch the rebuilder cannot reproduce, the rebuild is refused with an explanation (no file is written).");
-            Opened += (_, _) =>
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
             {
+                _hasLoadedList = true;
                 try
                 {
                     bool ok = _vm.Load();
@@ -50,7 +61,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 {
                     Log.Error("ToolROMRebuildView.Opened failed: " + ex);
                 }
-            };
+            }
         }
 
         string BuildAddressHelp()
@@ -64,7 +75,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                string? path = await FileDialogHelper.OpenRomFile(this);
+                string? path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this) as Window);
                 if (!string.IsNullOrEmpty(path))
                     OriginalRomTextBox.Text = path;
             }
@@ -101,7 +112,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             if (check == ToolROMRebuildViewModel.AddressCheck.BelowExtends)
             {
-                var dr = await MessageBoxWindow.Show(this,
+                var dr = await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window,
                     R._("Rebuilding an address ({0}) below the extended region is dangerous. Continue anyway?", "0x" + string.Format("{0:X8}", rebuildAddress)),
                     ViewTitle, MessageBoxMode.YesNo);
                 if (dr != MessageBoxResult.Yes)
@@ -136,7 +147,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // flow — it needs a real local path. Pick the handle so we can tell
                 // a genuine CANCEL (null handle → silent return) apart from a SAF
                 // pick with no local path (→ explicit Android message).
-                var outFile = await FileDialogHelper.SaveRomFilePick(this, suggested);
+                var outFile = await FileDialogHelper.SaveRomFilePick(TopLevel.GetTopLevel(this) as Window, suggested);
                 if (outFile == null) return;   // user cancelled
                 string? output = outFile.TryGetLocalPath();
                 if (string.IsNullOrEmpty(output))
@@ -211,7 +222,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // (path-based, revealed in the explorer). Pick the handle so a
                 // genuine CANCEL (null handle) is distinguished from a SAF pick
                 // with no local path (→ explicit Android message).
-                var outFile = await FileDialogHelper.SaveFilePick(this,
+                var outFile = await FileDialogHelper.SaveFilePick(TopLevel.GetTopLevel(this) as Window,
                     R._("Save ROMRebuild report"), R._("ROMRebuild report"), "*.rebuild", suggested);
                 if (outFile == null) return;   // user cancelled
                 string? output = outFile.TryGetLocalPath();

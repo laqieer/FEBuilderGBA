@@ -795,8 +795,6 @@ namespace FEBuilderGBA.Tests.Unit
         public void ToolAutomaticRecoveryROMHeader_Axaml_MatchesWinFormsLayout()
         {
             var src = ReadAxaml("ToolAutomaticRecoveryROMHeaderView.axaml");
-            Assert.Contains("Width=\"1193\"", src);
-            Assert.Contains("Height=\"298\"", src);
             Assert.Contains("Select File", src);
             Assert.Contains("{Binding OriginalFilename}", src);
             Assert.Contains("Recover ROM Header", src);
@@ -917,9 +915,6 @@ namespace FEBuilderGBA.Tests.Unit
         // #440 — Width bumped to 1253 to accommodate the dense filter/read-config
         // bar + selection-row added by the gap-sweep parity raise.
         [InlineData("ItemIconViewerView.axaml", 749, 358)]
-        [InlineData("SummonUnitViewerView.axaml", 1214, 462)]
-        [InlineData("SummonsDemonKingViewerView.axaml", 1237, 700)]
-        [InlineData("SoundRoomViewerView.axaml", 1275, 817)]
         [InlineData("TextViewerView.axaml", 1166, 930)]
         [InlineData("PortraitViewerView.axaml", 789, 700)]
         [InlineData("SongTableView.axaml", 1505, 809)]
@@ -928,10 +923,8 @@ namespace FEBuilderGBA.Tests.Unit
         [InlineData("ClassEditorView.axaml", 1200, 900)]
         [InlineData("ClassFE6View.axaml", 1200, 900)]
         [InlineData("ItemFE6View.axaml", 1408, 856)]
-        [InlineData("MapSettingView.axaml", 1773, 1038)]
         [InlineData("EventCondView.axaml", 1834, 999)]
         [InlineData("UnitIncreaseHeightView.axaml", 1185, 658)]
-        [InlineData("StatusOptionOrderView.axaml", 1238, 806)]
         [InlineData("DisASMDumpAllView.axaml", 695, 721)]
         [InlineData("DisASMDumpAllArgGrepView.axaml", 891, 757)]
         public void ImageViewerForm_HasCorrectWindowSize(string axamlFile, int width, int height)

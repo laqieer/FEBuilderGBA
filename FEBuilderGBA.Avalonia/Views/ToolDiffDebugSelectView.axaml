@@ -1,10 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.ToolDiffDebugSelectView"
-        Title="Comparison Debug Tool"
-        Width="1177" Height="875"
-        WindowStartupLocation="CenterOwner"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.ToolDiffDebugSelectView">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <Grid ColumnDefinitions="712,*" Margin="8">
     <!-- Left panel: Backup list -->
@@ -72,4 +68,4 @@
     </DockPanel>
   </Grid>
   </ScrollViewer>
-</Window>
+</UserControl>

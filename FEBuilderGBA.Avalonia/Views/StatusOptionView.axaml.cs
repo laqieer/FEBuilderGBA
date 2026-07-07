@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -8,14 +9,18 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class StatusOptionView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class StatusOptionView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly StatusOptionViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Status Screen Options";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Status Screen Options", 1238, 806, SizeToContent: true);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public StatusOptionView()
         {
@@ -27,7 +32,16 @@ namespace FEBuilderGBA.Avalonia.Views
             HelpTextIdBox.ValueChanged += OnHelpTextIdChanged;
             DefaultTextIdBox.ValueChanged += OnDefaultTextIdChanged;
             YesTextIdBox.ValueChanged += OnYesTextIdChanged;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         // リストの拡張 — expand the 44-byte status_game_option (game option) table
@@ -67,7 +81,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint defaultCount = current + 1;
                 if (defaultCount > maxCount) defaultCount = maxCount;
                 uint? chosen = await NumberInputDialog.Show(
-                    this,
+                    TopLevel.GetTopLevel(this) as Window,
                     R._("Enter the new game option entry count (current: {0}, max: {1}).", current, maxCount),
                     R._("List Expansion"),
                     defaultCount,

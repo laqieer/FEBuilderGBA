@@ -1,8 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.ToolUPSPatchSimpleView"
-        Title="UPS Patch Creator" Width="760" Height="320"
-        SizeToContent="Manual">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.ToolUPSPatchSimpleView">
   <ScrollViewer Margin="8">
     <StackPanel Spacing="12" Margin="8">
       <TextBlock Text="UPS Patch Creator" FontSize="18" FontWeight="Bold" />
@@ -24,4 +22,4 @@
                  TextWrapping="Wrap" />
     </StackPanel>
   </ScrollViewer>
-</Window>
+</UserControl>

@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -10,12 +11,15 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolASMEditView : TranslatedWindow, IEditorView
+    public partial class ToolASMEditView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ToolASMEditViewViewModel _vm = new();
         readonly UndoService _undoService = new();
         public string ViewTitle => "ASM Edit";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("ASM Edit", 1016, 510, SizeToContent: true);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ToolASMEditView()
         {
@@ -75,7 +79,7 @@ namespace FEBuilderGBA.Avalonia.Views
             var rom = CoreState.ROM;
             if (rom == null)
             {
-                _ = MessageBoxWindow.Show(this, "No ROM loaded.", "Error", MessageBoxMode.Ok);
+                _ = MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window, "No ROM loaded.", "Error", MessageBoxMode.Ok);
                 return;
             }
 
@@ -83,14 +87,14 @@ namespace FEBuilderGBA.Avalonia.Views
             string code = asmTextBox?.Text ?? _vm.AsmCode;
             if (string.IsNullOrWhiteSpace(code))
             {
-                _ = MessageBoxWindow.Show(this, "No ASM code to compile.", "Error", MessageBoxMode.Ok);
+                _ = MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window, "No ASM code to compile.", "Error", MessageBoxMode.Ok);
                 return;
             }
 
             string? assemblerPath = FindAssembler();
             if (assemblerPath == null)
             {
-                _ = MessageBoxWindow.Show(this,
+                _ = MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window,
                     "ASM compiler not found.\n\n" +
                     "Please install devkitARM and ensure arm-none-eabi-as is in your PATH,\n" +
                     "or set the path in Options > devkitpro_eabi.",
@@ -113,7 +117,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
             if (targetAddr < 0x100)
             {
-                _ = MessageBoxWindow.Show(this,
+                _ = MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window,
                     "Cannot write to address below 0x100 (ROM header area).",
                     "Error", MessageBoxMode.Ok);
                 return;
@@ -173,7 +177,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 rom.write_range(offset, bin);
                 _undoService.Commit();
 
-                _ = MessageBoxWindow.Show(this,
+                _ = MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window,
                     $"Successfully wrote {bin.Length} bytes at 0x{offset:X08}.",
                     "ASM Compile", MessageBoxMode.Ok);
             }
@@ -181,7 +185,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _undoService.Rollback();
                 Log.Error("ToolASMEditView.Compile", ex.ToString());
-                _ = MessageBoxWindow.Show(this, ex.Message, "Compile Error", MessageBoxMode.Ok);
+                _ = MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window, ex.Message, "Compile Error", MessageBoxMode.Ok);
             }
             finally
             {
@@ -190,7 +194,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 try { if (File.Exists(tempBin)) File.Delete(tempBin); } catch (Exception ex) { Log.ErrorF("ToolASMEditView temp bin cleanup: {0}", ex.Message); }
             }
         }
-        void Close_Click(object? sender, RoutedEventArgs e) => Close();
+        void Close_Click(object? sender, RoutedEventArgs e) => RequestClose();
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }

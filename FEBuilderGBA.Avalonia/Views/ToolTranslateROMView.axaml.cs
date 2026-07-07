@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.IO;
 using System.Linq;
@@ -27,12 +28,15 @@ namespace FEBuilderGBA.Avalonia.Views
     /// <see cref="FEBuilderGBA.SkiaSharp.SkiaFontRasterizer"/>, so the former
     /// WinForms-only System.Drawing.Bitmap dependency is gone.
     /// </summary>
-    public partial class ToolTranslateROMView : TranslatedWindow, IEditorView
+    public partial class ToolTranslateROMView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ToolTranslateROMViewModel _vm = new();
 
         public string ViewTitle => "ROM Translation Tool";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("ROM Translation Tool", 940, 780);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ToolTranslateROMView()
         {
@@ -47,7 +51,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var path = await FileDialogHelper.OpenRomFile(this);
+                var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this) as Window);
                 if (!string.IsNullOrEmpty(path)) _vm.FromRomPath = path;
             }
             catch (Exception ex) { Log.ErrorF("ToolTranslateROMView.SimpleFromRomBrowse: {0}", ex.Message); }
@@ -57,7 +61,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var path = await FileDialogHelper.OpenRomFile(this);
+                var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this) as Window);
                 if (!string.IsNullOrEmpty(path)) _vm.ToRomPath = path;
             }
             catch (Exception ex) { Log.ErrorF("ToolTranslateROMView.SimpleToRomBrowse: {0}", ex.Message); }
@@ -67,7 +71,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var path = await FileDialogHelper.OpenRomFile(this);
+                var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this) as Window);
                 if (!string.IsNullOrEmpty(path)) _vm.ExtraFontRomPath = path;
             }
             catch (Exception ex) { Log.ErrorF("ToolTranslateROMView.ExtraFontRomBrowse: {0}", ex.Message); }
@@ -77,7 +81,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var path = await FileDialogHelper.OpenFile(this,
+                var path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this) as Window,
                     R._("Translation Data"), "*.txt");
                 if (!string.IsNullOrEmpty(path)) _vm.TranslateDataPath = path;
             }
@@ -90,7 +94,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var path = await FileDialogHelper.OpenRomFile(this);
+                var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this) as Window);
                 if (!string.IsNullOrEmpty(path)) _vm.FromRomPath = path;
             }
             catch (Exception ex) { Log.ErrorF("ToolTranslateROMView.DetailFromRomBrowse: {0}", ex.Message); }
@@ -100,7 +104,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var path = await FileDialogHelper.OpenRomFile(this);
+                var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this) as Window);
                 if (!string.IsNullOrEmpty(path)) _vm.ToRomPath = path;
             }
             catch (Exception ex) { Log.ErrorF("ToolTranslateROMView.DetailToRomBrowse: {0}", ex.Message); }
@@ -110,7 +114,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var path = await FileDialogHelper.OpenRomFile(this);
+                var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this) as Window);
                 if (!string.IsNullOrEmpty(path)) _vm.FontRomPath = path;
             }
             catch (Exception ex) { Log.ErrorF("ToolTranslateROMView.FontRomBrowse: {0}", ex.Message); }
@@ -235,7 +239,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // #1639: pick the handle now; the actual single-file write is routed
             // through the SAF bridge below so Android content:// targets work.
-            var outFile = await FileDialogHelper.SaveFilePick(this,
+            var outFile = await FileDialogHelper.SaveFilePick(TopLevel.GetTopLevel(this) as Window,
                 R._("Save translation file"), "Text", "*.txt", "translation.txt");
             if (outFile == null) return;
 
@@ -288,7 +292,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 return;
             }
 
-            string? inPath = await FileDialogHelper.OpenFile(this,
+            string? inPath = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this) as Window,
                 R._("Open translation file"), "*.txt");
             if (string.IsNullOrEmpty(inPath)) return;
 
@@ -431,7 +435,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 panel.Children.Add(list);
                 dlg.Content = panel;
 
-                await dlg.ShowDialog(this);
+                await dlg.ShowDialog(TopLevel.GetTopLevel(this) as Window);
             }
             catch (Exception ex)
             {
@@ -467,7 +471,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 panel.Children.Add(ok);
                 panel.Children.Add(text);
                 dlg.Content = panel;
-                await dlg.ShowDialog(this);
+                await dlg.ShowDialog(TopLevel.GetTopLevel(this) as Window);
             }
             catch (Exception ex)
             {
@@ -494,7 +498,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     "To display chapter titles as text (required before wiping the Japanese " +
                     "chapter-title images), the ChapterNameToText patch must be installed. " +
                     "Apply it now?"));
-                await view.ShowDialog(this);
+                await view.ShowDialog(TopLevel.GetTopLevel(this) as Window);
                 if (!view.UserApplied) return; // Skip — leave the patch absent.
 
                 // Apply the ChapterNameToText patch (mirrors WF Enable button ->

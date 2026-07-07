@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -18,12 +19,15 @@ namespace FEBuilderGBA.Avalonia.Views
     /// files, WRITES translation .txt files. NO ROM mutation, NO Undo, NO address
     /// list — a read-no-ROM-bytes tool (orphan by the data-verification contract).
     /// </summary>
-    public partial class DevTranslateView : TranslatedWindow, IEditorView
+    public partial class DevTranslateView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly DevTranslateViewModel _vm = new();
 
         public string ViewTitle => "Developer Translation Tool";
-        public bool IsLoaded => true;
+        public new bool IsLoaded => true;
+        public EditorDescriptor Descriptor => new("Developer Translation Tool", 620, 560, SizeToContent: true);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public DevTranslateView()
         {
@@ -53,7 +57,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // so it needs a real local directory. OpenProjectFolder returns
                 // null on Android SAF (no local path) → surface a clear message
                 // instead of silently doing nothing.
-                string? folder = await FileDialogHelper.OpenProjectFolder(this);
+                string? folder = await FileDialogHelper.OpenProjectFolder(TopLevel.GetTopLevel(this) as Window);
                 if (string.IsNullOrEmpty(folder) && OperatingSystem.IsAndroid())
                     _vm.StatusMessage = R._("Dev Translate reads a folder tree and requires desktop file-system access; it is not available on this device.");
                 return folder;

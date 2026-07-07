@@ -1,8 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.ToolROMRebuildView"
-        Title="ROM Rebuild Tool" Width="760" Height="480"
-        SizeToContent="Manual">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.ToolROMRebuildView">
   <ScrollViewer Margin="8">
     <StackPanel Spacing="12" Margin="8">
       <TextBlock Text="ROM Rebuild Tool" FontSize="18" FontWeight="Bold" />
@@ -35,4 +33,4 @@
                  TextWrapping="Wrap" />
     </StackPanel>
   </ScrollViewer>
-</Window>
+</UserControl>

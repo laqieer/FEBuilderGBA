@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -7,14 +8,18 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MapSettingFE7UView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class MapSettingFE7UView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly MapSettingFE7UViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Map Settings (FE7U)";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Map Settings (FE7U)", 1773, 1038, SizeToContent: true);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public MapSettingFE7UView()
         {
@@ -22,7 +27,16 @@ namespace FEBuilderGBA.Avalonia.Views
             EntryList.SelectedAddressChanged += OnSelected;
             WriteButton.Click += OnWriteClick;
             ExpandListButton.Click += OnExpandListClick;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         // リストの拡張 — expand the map-setting (chapter) table by a prompted
@@ -61,7 +75,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint defaultCount = current + 1;
                 if (defaultCount > 255) defaultCount = 255;
                 uint? chosen = await NumberInputDialog.Show(
-                    this,
+                    TopLevel.GetTopLevel(this) as Window,
                     R._("Enter the new map setting entry count (current: {0}, max: 255).", current),
                     R._("List Expansion"),
                     defaultCount,

@@ -1,8 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.ToolTranslateROMView"
-        Title="ROM Translation Tool" Width="940" Height="780"
-        SizeToContent="Manual">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.ToolTranslateROMView">
   <TabControl AutomationProperties.AutomationId="ToolTranslateROM_TabControl">
 
     <!-- =============== Simple tab (mirrors WF tabPage1 / panel1) =============== -->
@@ -281,4 +279,4 @@
     </TabItem>
 
   </TabControl>
-</Window>
+</UserControl>

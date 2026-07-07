@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -20,11 +21,14 @@ namespace FEBuilderGBA.Avalonia.Views
     /// (<see cref="WorkSupportUpdateCheckCore"/> + <see cref="WorkSupportUpdateDownloadCore"/>);
     /// this view only supplies the host network/extract/ROM delegates and the UI.
     /// </summary>
-    public partial class ToolWorkSupportView : TranslatedWindow, IEditorView
+    public partial class ToolWorkSupportView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ToolWorkSupportViewModel _vm = new();
         public string ViewTitle => "Work Support";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Work Support", 883, 716, SizeToContent: true);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ToolWorkSupportView()
         {
@@ -58,7 +62,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 if (CoreState.ROM.Modified)
                 {
-                    var go = await MessageBoxWindow.Show(this,
+                    var go = await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window,
                         R._("Warning: unsaved changes are not stored in the ROM. Update anyway?"),
                         R._("Work Support"), MessageBoxMode.YesNo);
                     if (go != MessageBoxResult.Yes) return;
@@ -80,7 +84,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     // WF parity finding #2: offer a force-update via the question dialog.
                     var q = new ToolWorkSupport_UpdateQuestionDialogView();
                     q.SetVersion(_vm.Version);
-                    string? choice = await q.ShowDialog<string?>(this);
+                    string? choice = await q.ShowDialog<string?>(TopLevel.GetTopLevel(this) as Window);
                     if (choice != "retry")
                     {
                         _vm.AutoFeedbackStatus = R._("You are up to date.");
@@ -131,7 +135,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // ---- select the vanilla ROM (CRC32 auto-find inside the dialog) ----
             var sel = new ToolWorkSupport_SelectUPSView();
             sel.OpenUPS(stage.UpsFiles[0]);
-            bool confirmed = await sel.ShowDialog<bool>(this);
+            bool confirmed = await sel.ShowDialog<bool>(TopLevel.GetTopLevel(this) as Window);
             if (!confirmed)
             {
                 _vm.AutoFeedbackStatus = R._("Update cancelled.");
@@ -158,7 +162,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // ---- PROMPT on non-fatal CRC warnings BEFORE writing (WF parity #2/#3) ----
             if (prepared.Warnings.Count > 0)
             {
-                var cont = await MessageBoxWindow.Show(this,
+                var cont = await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window,
                     R._("The UPS patch produced CRC warnings:") + "\r\n" +
                     string.Join("\r\n", prepared.Warnings) + "\r\n\r\n" +
                     R._("Save the patched ROM anyway?"),
@@ -276,7 +280,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Close_Click(object? sender, RoutedEventArgs e)
         {
-            Close();
+            RequestClose();
         }
 
         // One shared HttpClient for all HEAD probes (per .NET guidance) with a

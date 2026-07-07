@@ -1,9 +1,7 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
-        x:Class="FEBuilderGBA.Avalonia.Views.MapSettingView"
-        Title="Map Settings" Width="1773" Height="1038"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+             x:Class="FEBuilderGBA.Avalonia.Views.MapSettingView">
   <Grid ColumnDefinitions="250,*">
     <DockPanel Grid.Column="0" Margin="4">
       <Button AutomationProperties.AutomationId="MapSetting_ExpandList_Button" DockPanel.Dock="Top" Name="ExpandListButton" Content="Data Expansion" Margin="2" />
@@ -392,4 +390,4 @@
       </StackPanel>
     </ScrollViewer>
   </Grid>
-</Window>
+</UserControl>

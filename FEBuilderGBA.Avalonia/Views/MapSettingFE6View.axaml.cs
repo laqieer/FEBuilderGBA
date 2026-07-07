@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.Collections.Generic;
 using global::Avalonia.Controls;
@@ -8,14 +9,18 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MapSettingFE6View : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class MapSettingFE6View : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly MapSettingFE6ViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Map Settings (FE6)";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Map Settings (FE6)", 1280, 900, SizeToContent: true);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public MapSettingFE6View()
         {
@@ -26,7 +31,16 @@ namespace FEBuilderGBA.Avalonia.Views
             ExpandListButton.Click += OnExpandListClick;
             JumpMapEditorButton.Click += OnJumpMapEditorClick;
             JumpExitPointButton.Click += OnJumpExitPointClick;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         // 再取得 — reload the entry list and reselect the current entry. Zero mutation.
@@ -63,7 +77,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint defaultCount = current + 1;
                 if (defaultCount > 255) defaultCount = 255;
                 uint? chosen = await NumberInputDialog.Show(
-                    this,
+                    TopLevel.GetTopLevel(this) as Window,
                     R._("Enter the new map setting entry count (current: {0}, max: 255).", current),
                     R._("List Expansion"),
                     defaultCount,

@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -15,19 +16,31 @@ namespace FEBuilderGBA.Avalonia.Views
     /// count-driven via <c>mant_command_count_address</c>, so growing the list
     /// rewrites that u8 — see <see cref="MantAnimationViewModel.ExpandList"/>).
     /// </summary>
-    public partial class MantAnimationView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class MantAnimationView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly MantAnimationViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Mant Animation";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Mant Animation", 801, 473, SizeToContent: true);
+        public event EventHandler? CloseRequested;
 
         public MantAnimationView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -153,7 +166,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint defaultCount = _vm.ReadCount + 1;
                 if (defaultCount > 255) defaultCount = 255;
                 uint? chosen = await NumberInputDialog.Show(
-                    this,
+                    TopLevel.GetTopLevel(this) as Window,
                     R._("Enter the new entry count for the mant animation list (current: {0}, max: 255).",
                         _vm.ReadCount),
                     R._("List Expansion"),
@@ -210,5 +223,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }
