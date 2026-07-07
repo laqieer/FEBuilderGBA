@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -6,21 +7,45 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class WorldMapEventPointerFE7View : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class WorldMapEventPointerFE7View : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly WorldMapEventPointerFE7ViewModel _vm = new();
         readonly UndoService _undoService = new();
 
-        public string ViewTitle => "World Map Event (FE7)";
-        public bool IsLoaded => _vm.IsLoaded;
 
+        bool _hasLoadedList;
+        public string ViewTitle => "World Map Event (FE7)";
+        public new bool IsLoaded => _vm.IsLoaded;
+
+
+        public EditorDescriptor Descriptor => new("Event Pointer (FE7)", 1288, 770, SizeToContent: true);
+
+        public event EventHandler? CloseRequested;
         public WorldMapEventPointerFE7View()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
             WriteButton.Click += OnWriteEntry;
             EventWriteButton.Click += OnWriteGlobalEvents;
-            Opened += (_, _) => LoadList();
+        }
+
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+
+        {
+
+            base.OnAttachedToVisualTree(e);
+
+            if (!_hasLoadedList)
+
+            {
+
+                _hasLoadedList = true;
+
+                LoadList();
+
+            }
+
         }
 
         void LoadList()
@@ -119,5 +144,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

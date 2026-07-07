@@ -8,6 +8,7 @@
 // editable ROM-data fields and no Write button, so the view holds no
 // UndoService and the VM does not implement IDataVerifiable.
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -15,18 +16,45 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class WorldMapEventPointerFE6View : TranslatedWindow, IEditorView
+    public partial class WorldMapEventPointerFE6View : TranslatedUserControl, IEmbeddableEditor
     {
         readonly WorldMapEventPointerFE6ViewModel _vm = new();
 
-        public string ViewTitle => "Event Pointer (FE6)";
-        public bool IsLoaded => _vm.IsLoaded;
 
+        bool _hasLoadedList;
+        public string ViewTitle => "Event Pointer (FE6)";
+        public new bool IsLoaded => _vm.IsLoaded;
+
+
+        public EditorDescriptor Descriptor => new("Event Pointer (FE6)", 1281, 796, SizeToContent: true);
+
+        public event EventHandler? CloseRequested;
+
+
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
         public WorldMapEventPointerFE6View()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+        }
+
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+
+        {
+
+            base.OnAttachedToVisualTree(e);
+
+            if (!_hasLoadedList)
+
+            {
+
+                _hasLoadedList = true;
+
+                LoadList();
+
+            }
+
         }
 
         void LoadList()

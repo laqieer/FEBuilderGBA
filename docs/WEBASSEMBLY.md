@@ -55,9 +55,12 @@ the first rollout batch also converts the simple AI editors (`AIASMCALLTALKView`
 `AIPerformStaffView`, `AIStealItemView`, `AITargetView`, `AITilesView`, and `AIUnitsView`). Slice 3
 adds the first reusable script-driven rollout batch across simple Item/Map/Event/Menu/Sound/WorldMap
 editors (for example `ItemStatBonusesViewerView`, `MapPointerView`, `EventFunctionPointerView`,
-`MenuDefinitionView`, `SoundFootStepsViewerView`, and `WorldMapPointView`). Converted editors are
-exposed in the single-view launcher once a ROM is loaded; editors with owner-bound file/dialog/picker
-flows remain on the legacy path until the dialog-flow slice.
+`MenuDefinitionView`, `SoundFootStepsViewerView`, and `WorldMapPointView`). Slice 4 extends the same
+script-driven path across additional simple Text/Tool/Status/Unit-support/WorldMap editors (for
+example `TextMainView`, `HexEditorView`, `ToolFELintView`, `StatusParamView`,
+`SupportUnitEditorView`, and `WorldMapPathView`). Converted editors are exposed in the single-view
+launcher once a ROM is loaded; editors with owner-bound file/dialog/picker/closed-event flows remain
+on the legacy path until the dialog-flow slice.
 
 ## 3. Rendering (SkiaSharp + HarfBuzz native relink)
 

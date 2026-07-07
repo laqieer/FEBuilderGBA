@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using global::Avalonia.Controls;
@@ -8,11 +9,13 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EventUnitFE6View : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class EventUnitFE6View : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly EventUnitFE6ViewModel _vm = new();
         readonly UndoService _undoService = new();
 
+
+        bool _hasLoadedList;
         readonly ObservableCollection<string> _mapDisplayItems = new();
         readonly ObservableCollection<string> _groupDisplayItems = new();
         readonly ObservableCollection<string> _unitDisplayItems = new();
@@ -22,8 +25,12 @@ namespace FEBuilderGBA.Avalonia.Views
         List<AddrResult> _unitItems = new();
 
         public string ViewTitle => "Event Unit (FE6)";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
 
+
+        public EditorDescriptor Descriptor => new("Event Unit (FE6)", 1902, 1047, SizeToContent: true);
+
+        public event EventHandler? CloseRequested;
         public EventUnitFE6View()
         {
             InitializeComponent();
@@ -34,8 +41,25 @@ namespace FEBuilderGBA.Avalonia.Views
             MapListBox.SelectionChanged += MapListBox_SelectionChanged;
             GroupListBox.SelectionChanged += GroupListBox_SelectionChanged;
             UnitListBox.SelectionChanged += UnitListBox_SelectionChanged;
+        }
 
-            Opened += (_, _) => LoadMapList();
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+
+        {
+
+            base.OnAttachedToVisualTree(e);
+
+            if (!_hasLoadedList)
+
+            {
+
+                _hasLoadedList = true;
+
+                LoadMapList();
+
+            }
+
         }
 
         void LoadMapList()
@@ -248,5 +272,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 MapListBox.SelectedIndex = 0;
         }
         public ViewModelBase? DataViewModel => _vm;
+
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

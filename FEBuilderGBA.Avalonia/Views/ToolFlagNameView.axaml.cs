@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -6,18 +7,45 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolFlagNameView : TranslatedWindow, IEditorView
+    public partial class ToolFlagNameView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ToolFlagNameViewModel _vm = new();
 
-        public string ViewTitle => "Flag Name Editor";
-        public bool IsLoaded => _vm.IsLoaded;
 
+        bool _hasLoadedList;
+        public string ViewTitle => "Flag Name Editor";
+        public new bool IsLoaded => _vm.IsLoaded;
+
+
+        public EditorDescriptor Descriptor => new("Flag Name Editor", 900, 560, SizeToContent: false);
+
+        public event EventHandler? CloseRequested;
+
+
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
         public ToolFlagNameView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+        }
+
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+
+        {
+
+            base.OnAttachedToVisualTree(e);
+
+            if (!_hasLoadedList)
+
+            {
+
+                _hasLoadedList = true;
+
+                LoadList();
+
+            }
+
         }
 
         void LoadList()

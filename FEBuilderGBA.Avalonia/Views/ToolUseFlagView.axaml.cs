@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
@@ -14,13 +15,22 @@ namespace FEBuilderGBA.Avalonia.Views
     /// double-click / Enter jumps to the referencing bytes in the Hex Editor.
     /// Strictly read-only — no ROM mutation, no undo.
     /// </summary>
-    public partial class ToolUseFlagView : TranslatedWindow, IEditorView
+    public partial class ToolUseFlagView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ToolUseFlagViewModel _vm = new();
 
-        public string ViewTitle => "Flags Used in Chapter";
-        public bool IsLoaded => _vm.IsLoaded;
 
+        bool _hasLoadedList;
+        public string ViewTitle => "Flags Used in Chapter";
+        public new bool IsLoaded => _vm.IsLoaded;
+
+
+        public EditorDescriptor Descriptor => new("Flags Used in Chapter", 1113, 720, SizeToContent: false);
+
+        public event EventHandler? CloseRequested;
+
+
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
         public ToolUseFlagView()
         {
             InitializeComponent();
@@ -29,8 +39,25 @@ namespace FEBuilderGBA.Avalonia.Views
             MapList.SelectedAddressChanged += OnMapSelected;
             EntryList.SelectedAddressChanged += OnUsageSelected;
             EntryList.SelectionConfirmed += OnUsageConfirmed;
+        }
 
-            Opened += (_, _) => LoadMapList();
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+
+        {
+
+            base.OnAttachedToVisualTree(e);
+
+            if (!_hasLoadedList)
+
+            {
+
+                _hasLoadedList = true;
+
+                LoadMapList();
+
+            }
+
         }
 
         // Populate the chapter selector. SetItems auto-selects the first row

@@ -124,9 +124,10 @@ namespace FEBuilderGBA.Tests.Unit
         public void WorldMapEventPointerView_LoadsOnOpen()
         {
             string src = File.ReadAllText(Path.Combine(SolutionDir, "FEBuilderGBA.Avalonia", "Views", "WorldMapEventPointerView.axaml.cs"));
-            Assert.Contains("Opened += ", src);
+            Assert.True(src.Contains("Opened += ") || src.Contains("OnAttachedToVisualTree"),
+                "Window editors load via Opened; embeddable editors load via OnAttachedToVisualTree.");
             // After #432 the view is dual-list (Before + After) and loads
-            // both at Opened time via InitialLoad -> ReloadBefore + ReloadAfter.
+            // both at first-load time via InitialLoad -> ReloadBefore + ReloadAfter.
             Assert.Contains("ReloadBefore()", src);
             Assert.Contains("ReloadAfter()", src);
             Assert.Contains("SelectFirstItem()", src);

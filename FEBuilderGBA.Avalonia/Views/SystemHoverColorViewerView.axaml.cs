@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Media;
@@ -7,15 +8,23 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SystemHoverColorViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class SystemHoverColorViewerView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly SystemHoverColorViewerViewModel _vm = new();
         readonly UndoService _undoService = new();
 
+
+        bool _hasLoadedList;
         public string ViewTitle => "System Area Color Viewer";
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
+
+        public EditorDescriptor Descriptor => new("System Area Color Viewer", 1238, 604, SizeToContent: true);
+
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
 
+
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
         public SystemHoverColorViewerView()
         {
             InitializeComponent();
@@ -25,7 +34,25 @@ namespace FEBuilderGBA.Avalonia.Views
             FilterCombo.SelectionChanged += FilterCombo_SelectionChanged;
             EntryList.SelectedAddressChanged += OnSelected;
             GBAColorBox.ValueChanged += GBAColorBox_ValueChanged;
-            Opened += (_, _) => LoadList();
+        }
+
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+
+        {
+
+            base.OnAttachedToVisualTree(e);
+
+            if (!_hasLoadedList)
+
+            {
+
+                _hasLoadedList = true;
+
+                LoadList();
+
+            }
+
         }
 
         void FilterCombo_SelectionChanged(object? sender, SelectionChangedEventArgs e)

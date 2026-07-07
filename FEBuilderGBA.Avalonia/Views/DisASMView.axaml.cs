@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
@@ -8,13 +9,20 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class DisASMView : TranslatedWindow, IEditorView
+    public partial class DisASMView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly DisASMViewModel _vm = new();
 
         public string ViewTitle => "Disassembler";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
 
+
+        public EditorDescriptor Descriptor => new("Disassembler", 900, 700, SizeToContent: true);
+
+        public event EventHandler? CloseRequested;
+
+
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
         public DisASMView()
         {
             InitializeComponent();

@@ -22,6 +22,8 @@ EXCLUDED_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("MessageBox", re.compile(r"\bMessageBox\b")),
     ("ShowDialog(", re.compile(r"\bShowDialog\s*\(")),
     ("GetTopLevel", re.compile(r"\bGetTopLevel\b")),
+    ("Closed event", re.compile(r"\bClosed\s*\+=")),
+    ("Window Clipboard", re.compile(r"\bClipboard\b")),
     ("FileDialogHelper", re.compile(r"\bFileDialogHelper\b")),
     ("NumberInputDialog", re.compile(r"\bNumberInputDialog\b")),
     ("Dialogs.*Show", re.compile(r"\bDialogs\.[A-Za-z0-9_.]*Show\b")),
@@ -147,7 +149,9 @@ def inject_members(cs: str, descriptor: Descriptor) -> str:
     if "RequestClose() => CloseRequested?.Invoke" not in cs:
         marker = re.search(r"(?P<indent>\s*)public\s+ViewModelBase\?\s+DataViewModel\s*=>\s*_vm\s*;\s*\n", cs)
         if not marker:
-            raise ValueError("DataViewModel expression not found; add RequestClose manually")
+            marker = re.search(r"(?P<indent>\s*)public\s+event\s+EventHandler\?\s+CloseRequested\s*;\s*\n", cs)
+        if not marker:
+            raise ValueError("member anchor not found; add RequestClose manually")
         indent = marker.group("indent")
         injected = marker.group(0) + f"{indent}public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);\n"
         cs = cs[: marker.start()] + injected + cs[marker.end() :]

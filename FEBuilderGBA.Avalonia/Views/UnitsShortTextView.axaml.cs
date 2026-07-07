@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -6,15 +7,21 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class UnitsShortTextView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class UnitsShortTextView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly UnitsShortTextViewModel _vm = new();
         readonly UndoService _undoService = new();
+
+        bool _hasLoadedList;
         uint _baseAddr;
 
         public string ViewTitle => "Units Short Text Editor";
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
 
+
+        public EditorDescriptor Descriptor => new("Units Short Text Editor", 1155, 551, SizeToContent: true);
+
+        public event EventHandler? CloseRequested;
         public UnitsShortTextView()
         {
             InitializeComponent();
@@ -22,7 +29,25 @@ namespace FEBuilderGBA.Avalonia.Views
             // Issue #372: no auto-init from any ROM pointer. This editor is pointer-driven —
             // a vanilla ROM has no unit-short-text table, so opening standalone shows an
             // empty-state explanation until a caller supplies an address via NavigateTo().
-            Opened += (_, _) => UpdateEmptyState();
+        }
+
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+
+        {
+
+            base.OnAttachedToVisualTree(e);
+
+            if (!_hasLoadedList)
+
+            {
+
+                _hasLoadedList = true;
+
+                UpdateEmptyState();
+
+            }
+
         }
 
         /// <summary>
@@ -48,6 +73,8 @@ namespace FEBuilderGBA.Avalonia.Views
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
 
+
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
         void OnSelected(uint address)
         {
             _vm.LoadEntry(address);

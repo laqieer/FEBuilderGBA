@@ -1,9 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.DisASMView"
-        Title="Disassembler" Width="900" Height="700"
-        SizeToContent="WidthAndHeight"
-        WindowStartupLocation="CenterOwner">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.DisASMView">
   <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
   <DockPanel Margin="8">
     <TextBlock Text="Disassembler" FontSize="18" FontWeight="Bold" DockPanel.Dock="Top" Margin="0,0,0,8" />
@@ -22,4 +19,4 @@
              TextWrapping="NoWrap" />
   </DockPanel>
   </ScrollViewer>
-</Window>
+</UserControl>

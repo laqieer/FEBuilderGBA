@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using System.Collections.Generic;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -11,21 +12,45 @@ namespace FEBuilderGBA.Avalonia.Views
     // movement nodes are loaded from p32(record+8) — NOT the record table. The
     // list stays EMPTY (and Write disabled) until a path is selected, and Write
     // only ever targets a validated movement node (record/terminator-safe).
-    public partial class WorldMapPathMoveEditorView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class WorldMapPathMoveEditorView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly WorldMapPathMoveEditorViewModel _vm = new();
         readonly UndoService _undoService = new();
+
+        bool _hasLoadedList;
         bool _suppressPathChange;
 
         public string ViewTitle => "Path Movement Editor";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
 
+
+        public EditorDescriptor Descriptor => new("Path Movement Editor", 1229, 822, SizeToContent: true);
+
+        public event EventHandler? CloseRequested;
         public WorldMapPathMoveEditorView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
             PathTypeCombo.SelectionChanged += OnPathChanged;
-            Opened += (_, _) => LoadPaths();
+        }
+
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+
+        {
+
+            base.OnAttachedToVisualTree(e);
+
+            if (!_hasLoadedList)
+
+            {
+
+                _hasLoadedList = true;
+
+                LoadPaths();
+
+            }
+
         }
 
         void LoadPaths()
@@ -205,5 +230,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

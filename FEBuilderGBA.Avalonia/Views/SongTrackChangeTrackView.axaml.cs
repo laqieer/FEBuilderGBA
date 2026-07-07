@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -6,14 +7,23 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SongTrackChangeTrackView : TranslatedWindow, IEditorView
+    public partial class SongTrackChangeTrackView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly SongTrackChangeTrackViewModel _vm = new();
         readonly UndoService _undoService = new();
 
-        public string ViewTitle => "Track Change";
-        public bool IsLoaded => _vm.IsLoaded;
 
+        bool _hasLoadedList;
+        public string ViewTitle => "Track Change";
+        public new bool IsLoaded => _vm.IsLoaded;
+
+
+        public EditorDescriptor Descriptor => new("Track Change", 754, 640, SizeToContent: true);
+
+        public event EventHandler? CloseRequested;
+
+
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
         public SongTrackChangeTrackView()
         {
             InitializeComponent();
@@ -21,7 +31,25 @@ namespace FEBuilderGBA.Avalonia.Views
             // View needs a DataContext pointing at the VM.
             DataContext = _vm;
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+        }
+
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+
+        {
+
+            base.OnAttachedToVisualTree(e);
+
+            if (!_hasLoadedList)
+
+            {
+
+                _hasLoadedList = true;
+
+                LoadList();
+
+            }
+
         }
 
         void LoadList()

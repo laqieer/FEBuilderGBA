@@ -1,19 +1,26 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class CStringView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class CStringView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly CStringViewModel _vm = new();
         readonly UndoService _undoService = new();
+
+        bool _hasLoadedList;
         bool _suppress;
 
         public string ViewTitle => "C-String Editor";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
 
+
+        public EditorDescriptor Descriptor => new("C-String Editor", 520, 320, SizeToContent: false);
+
+        public event EventHandler? CloseRequested;
         public CStringView()
         {
             InitializeComponent();
@@ -21,8 +28,25 @@ namespace FEBuilderGBA.Avalonia.Views
 
             ReloadButton.Click += OnReload;
             WriteButton.Click += OnWrite;
+        }
 
-            Opened += (_, _) => SyncFromVm();
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+
+        {
+
+            base.OnAttachedToVisualTree(e);
+
+            if (!_hasLoadedList)
+
+            {
+
+                _hasLoadedList = true;
+
+                SyncFromVm();
+
+            }
+
         }
 
         // ------------------------------------------------------------------
@@ -127,5 +151,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void SelectFirstItem() { /* no list — manual address entry */ }
         public ViewModelBase? DataViewModel => _vm;
+
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

@@ -1328,7 +1328,8 @@ namespace FEBuilderGBA.Tests.Unit
         {
             string viewPath = Path.Combine(AvaloniaDir, "Views", $"{editorName}View.axaml.cs");
             var src = File.ReadAllText(viewPath);
-            Assert.Contains("IEditorView", src);
+            Assert.True(src.Contains("IEditorView") || src.Contains("IEmbeddableEditor"),
+                $"{editorName}View must implement IEditorView directly or through IEmbeddableEditor.");
             Assert.Contains("SelectFirstItem", src);
             Assert.Contains("NavigateTo", src);
         }
