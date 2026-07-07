@@ -17,8 +17,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 EXCLUDED_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
-    ("IPickableEditor", re.compile(r"\bIPickableEditor\b")),
-    ("Closed event", re.compile(r"\bClosed\s*\+=")),
     ("OnClosed override", re.compile(r"\boverride\s+void\s+OnClosed\s*\(")),
     ("Close with result", re.compile(r"(?<![\.\w])Close\s*\(\s*[^)\s]|\bthis\s*\.\s*Close\s*\(\s*[^)\s]")),
 )
@@ -29,12 +27,32 @@ OPENED_RE = re.compile(
     r"^(?P<indent>[ \t]*)Opened[ \t]*\+=[ \t]*\([^;\n]*\)[ \t]*=>[ \t]*(?P<stmt>[^;\n]+;)[ \t]*\n",
     re.MULTILINE,
 )
+OPENED_METHOD_RE = re.compile(
+    r"^(?P<indent>[ \t]*)Opened[ \t]*\+=[ \t]*(?P<handler>[A-Za-z_][A-Za-z0-9_]*)[ \t]*;[ \t]*\n",
+    re.MULTILINE,
+)
 OPENED_COMPOUND_RE = re.compile(
     r"^(?P<indent>[ \t]*)Opened[ \t]*\+=[ \t]*\([^;\n]*\)[ \t]*=>[ \t]*(?:\r?\n[ \t]*)?\{(?P<body>.*?)^(?P=indent)\}[ \t]*;[ \t]*\n",
     re.DOTALL | re.MULTILINE,
 )
 OPENED_INLINE_COMPOUND_RE = re.compile(
     r"^(?P<indent>[ \t]*)Opened[ \t]*\+=[ \t]*\([^;\n]*\)[ \t]*=>[ \t]*\{[ \t]*(?P<body>.*?)[ \t]*\}[ \t]*;[ \t]*\n",
+    re.MULTILINE,
+)
+CLOSED_RE = re.compile(
+    r"^(?P<indent>[ \t]*)(?:this[ \t]*\.[ \t]*)?Closed[ \t]*\+=[ \t]*\([^;\n]*\)[ \t]*=>[ \t]*(?P<stmt>[^;\n]+;)[ \t]*\n",
+    re.MULTILINE,
+)
+CLOSED_METHOD_RE = re.compile(
+    r"^(?P<indent>[ \t]*)(?:this[ \t]*\.[ \t]*)?Closed[ \t]*\+=[ \t]*(?P<handler>[A-Za-z_][A-Za-z0-9_]*)[ \t]*;[ \t]*\n",
+    re.MULTILINE,
+)
+CLOSED_COMPOUND_RE = re.compile(
+    r"^(?P<indent>[ \t]*)(?:this[ \t]*\.[ \t]*)?Closed[ \t]*\+=[ \t]*\([^;\n]*\)[ \t]*=>[ \t]*(?:\r?\n[ \t]*)?\{(?P<body>.*?)^(?P=indent)\}[ \t]*;[ \t]*\n",
+    re.DOTALL | re.MULTILINE,
+)
+CLOSED_INLINE_COMPOUND_RE = re.compile(
+    r"^(?P<indent>[ \t]*)(?:this[ \t]*\.[ \t]*)?Closed[ \t]*\+=[ \t]*\([^;\n]*\)[ \t]*=>[ \t]*\{[ \t]*(?P<body>.*?)[ \t]*\}[ \t]*;[ \t]*\n",
     re.MULTILINE,
 )
 
@@ -172,9 +190,13 @@ def convert_base_list(cs: str, view_name: str) -> str:
     bases = match.group("bases")
     if "TranslatedWindow" not in bases:
         raise ValueError("class does not derive from TranslatedWindow")
-    if "IEditorView" not in bases:
-        raise ValueError("class does not implement IEditorView")
-    new_bases = bases.replace("TranslatedWindow", "TranslatedUserControl").replace("IEditorView", "IEmbeddableEditor")
+    if "IEditorView" not in bases and "IPickableEditor" not in bases:
+        raise ValueError("class does not implement IEditorView/IPickableEditor")
+    new_bases = bases.replace("TranslatedWindow", "TranslatedUserControl")
+    if "IEditorView" in new_bases:
+        new_bases = new_bases.replace("IEditorView", "IEmbeddableEditor")
+    elif "IEmbeddableEditor" not in new_bases:
+        new_bases = new_bases.replace("IPickableEditor", "IEmbeddableEditor, IPickableEditor", 1)
     return cs[: match.start("bases")] + new_bases + cs[match.end("bases") :]
 
 
@@ -388,13 +410,18 @@ def convert_opened_handler(cs: str) -> str:
     match = OPENED_RE.search(cs)
     body_lines: list[str]
     if not match:
-        compound = OPENED_COMPOUND_RE.search(cs)
+        compound = OPENED_INLINE_COMPOUND_RE.search(cs)
         if not compound:
-            compound = OPENED_INLINE_COMPOUND_RE.search(cs)
+            compound = OPENED_COMPOUND_RE.search(cs)
         if not compound:
-            return cs
-        body_lines = normalize_lambda_body(compound.group("body"))
-        match = compound
+            method = OPENED_METHOD_RE.search(cs)
+            if not method:
+                return cs
+            body_lines = [f"{method.group('handler')}(this, EventArgs.Empty);"]
+            match = method
+        else:
+            body_lines = normalize_lambda_body(compound.group("body"))
+            match = compound
     else:
         body_lines = [match.group("stmt").strip()]
     cs = cs[: match.start()] + cs[match.end() :]
@@ -438,6 +465,62 @@ def convert_opened_handler(cs: str) -> str:
     return cs[:ctor_end] + override + cs[ctor_end:]
 
 
+def insert_lifecycle_override(cs: str, method_name: str, body_lines: list[str]) -> str:
+    if f"{method_name}(VisualTreeAttachmentEventArgs e)" in cs:
+        raise ValueError(f"{method_name} already exists; merge manually")
+
+    ctor_match = re.search(r"^(?P<indent>[ \t]*)public\s+[A-Za-z_][A-Za-z0-9_]*\s*\(\)\s*\{", cs, re.MULTILINE)
+    if not ctor_match:
+        raise ValueError("constructor not found")
+    pos = ctor_match.end()
+    depth = 1
+    while pos < len(cs) and depth:
+        if cs[pos] == "{":
+            depth += 1
+        elif cs[pos] == "}":
+            depth -= 1
+        pos += 1
+    if depth != 0:
+        raise ValueError("constructor body did not parse")
+    method_indent = ctor_match.group("indent")
+    override = (
+        "\n\n"
+        f"{method_indent}protected override void {method_name}(VisualTreeAttachmentEventArgs e)\n"
+        f"{method_indent}{{\n"
+        f"{method_indent}    base.{method_name}(e);\n"
+        + "\n".join(f"{method_indent}    {line}" for line in body_lines)
+        + "\n"
+        f"{method_indent}}}"
+    )
+    return cs[:pos] + override + cs[pos:]
+
+
+def convert_closed_handler(cs: str) -> str:
+    """Move own Window.Closed cleanup into UserControl visual-detach cleanup."""
+    if "OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)" in cs:
+        return cs
+    match = CLOSED_RE.search(cs)
+    body_lines: list[str]
+    if not match:
+        compound = CLOSED_INLINE_COMPOUND_RE.search(cs)
+        if not compound:
+            compound = CLOSED_COMPOUND_RE.search(cs)
+        if not compound:
+            method = CLOSED_METHOD_RE.search(cs)
+            if not method:
+                return cs
+            body_lines = [f"{method.group('handler')}(this, EventArgs.Empty);"]
+            match = method
+        else:
+            body_lines = normalize_lambda_body(compound.group("body"))
+            match = compound
+    else:
+        body_lines = [match.group("stmt").strip()]
+
+    cs = cs[: match.start()] + cs[match.end() :]
+    return insert_lifecycle_override(cs, "OnDetachedFromVisualTree", body_lines)
+
+
 def convert_cs(cs: str, view_name: str, descriptor: Descriptor) -> str:
     for label, pattern in EXCLUDED_PATTERNS:
         if pattern.search(cs):
@@ -454,6 +537,7 @@ def convert_cs(cs: str, view_name: str, descriptor: Descriptor) -> str:
     cs = ensure_avalonia_controls_using(cs)
     cs = ensure_system_using(cs)
     cs = convert_opened_handler(cs)
+    cs = convert_closed_handler(cs)
     return cs
 
 
