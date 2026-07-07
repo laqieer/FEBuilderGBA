@@ -9,6 +9,11 @@
 // UseHeadlessDrawing does not rasterize, so a PNG saved here would be blank.
 // This test therefore validates the shell WIRING headlessly; the pixels come
 // from the desktop render. Neither proves on-device runtime UX (tracked #1873).
+using System;
+using System.IO;
+using System.Text;
+using System.Threading.Tasks;
+using FEBuilderGBA;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.Views;
 using global::Avalonia.Controls;
@@ -19,7 +24,7 @@ using Xunit;
 namespace FEBuilderGBA.Avalonia.Tests;
 
 [Collection("WindowManagerSerial")]
-public class MainViewSingleViewShellTest
+public class MainViewSingleViewShellScreenshotTest
 {
     [AvaloniaFact]
     public void MainView_wires_single_view_host_and_navigates()
@@ -53,6 +58,59 @@ public class MainViewSingleViewShellTest
         finally
         {
             WindowManager.Instance.SetService(original);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task SyntheticRom_can_open_MoveCostEditor_through_single_view_nav()
+    {
+        var originalService = WindowManager.Instance.Service;
+        var prevBase = CoreState.BaseDirectory;
+        var prevRom = CoreState.ROM;
+        var prevAsm = CoreState.AsmMapFileAsmCache;
+        var prevEnc = CoreState.SystemTextEncoder;
+        var prevTid = CoreState.UseTextIDCache;
+        var prevSkill = CoreState.SkillNameResolver;
+        var prevExport = CoreState.ExportFunction;
+        var prevUndo = CoreState.Undo;
+        var prevEvent = CoreState.EventScript;
+        try
+        {
+            var bytes = new byte[0x1000000];
+            Encoding.ASCII.GetBytes("BE8E01").CopyTo(bytes, 0xAC);
+            var rom = new ROM();
+            using (var stream = new MemoryStream(bytes))
+            {
+                var (ok, version) = await rom.LoadFromStreamAsync(stream, "synthetic-fe8u.gba");
+                Assert.True(ok, "synthetic FE8U header should be accepted by the ROM loader");
+                Assert.False(string.IsNullOrEmpty(version));
+            }
+
+            CoreState.BaseDirectory = AppContext.BaseDirectory;
+            RomFileService.InitializeLoadedRom(rom);
+            WindowManager.Instance.SetService(new AndroidNavigationService());
+            var view = WindowManager.Instance.Open<MoveCostEditorView>();
+
+            var embeddable = Assert.IsAssignableFrom<IEmbeddableEditor>(view);
+            Assert.Equal("Move Cost Editor", embeddable.Descriptor.Title);
+
+            var host = Assert.IsAssignableFrom<INavigationHost>(WindowManager.Instance.Service);
+            Assert.Same(view, host.CurrentContent);
+            Assert.Equal("Move Cost Editor", host.CurrentTitle);
+        }
+        finally
+        {
+            WindowManager.Instance.SetService(originalService);
+            CoreState.BaseDirectory = prevBase;
+            CoreState.ROM = prevRom;
+            CoreState.AsmMapFileAsmCache = prevAsm;
+            CoreState.SystemTextEncoder = prevEnc;
+            CoreState.UseTextIDCache = prevTid;
+            CoreState.SkillNameResolver = prevSkill;
+            CoreState.ExportFunction = prevExport;
+            CoreState.Undo = prevUndo;
+            CoreState.EventScript = prevEvent;
+            PatchDetectionService.Instance.Refresh();
         }
     }
 

@@ -27,6 +27,20 @@ const dotnetRuntime = await dotnet
     .create();
 
 const config = dotnetRuntime.getConfig();
+const e2e = new URLSearchParams(location.search).get('e2e') === '1';
+if (e2e) {
+    try {
+        const ex = await dotnetRuntime.getAssemblyExports(config.mainAssemblyName);
+        if (ex.TestHooks) {
+            globalThis.__febTest = ex.TestHooks;
+            console.log('[FEBuilderGBA] e2e hooks ready');
+        } else {
+            console.log('[FEBuilderGBA] e2e hooks unavailable');
+        }
+    } catch (err) {
+        console.log('[FEBuilderGBA] e2e hook setup failed: ' + err);
+    }
+}
 
 // Pass document.baseURI as the first arg so the app resolves relative fetches (config.zip)
 // against the deployed <base href> — correct under a GitHub Pages project path (/FEBuilderGBA/).

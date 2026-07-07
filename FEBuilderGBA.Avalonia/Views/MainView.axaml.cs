@@ -85,6 +85,81 @@ namespace FEBuilderGBA.Avalonia.Views
             return Host.CurrentTitle ?? "FEBuilderGBA";
         }
 
+#if E2E_HOOKS
+        public static void RefreshForLoadedRomForTest()
+        {
+            if (global::Avalonia.Application.Current?.ApplicationLifetime is not global::Avalonia.Controls.ApplicationLifetimes.ISingleViewApplicationLifetime
+                {
+                    MainView: MainView mv
+                })
+                return;
+
+            void Refresh()
+            {
+                mv._nav.SetRoot(mv.BuildLauncher());
+                mv.UpdateRomActionState();
+                mv.SetStatus(R._("Loaded:") + " " + RomDisplayName());
+            }
+
+            if (Dispatcher.UIThread.CheckAccess())
+                Refresh();
+            else
+                Dispatcher.UIThread.Invoke(Refresh);
+        }
+
+        public static string OpenLauncherEntryForTest(string key)
+        {
+            if (global::Avalonia.Application.Current?.ApplicationLifetime is not global::Avalonia.Controls.ApplicationLifetimes.ISingleViewApplicationLifetime
+                {
+                    MainView: MainView mv
+                })
+                return "";
+
+            string? openedTitle = null;
+
+            void Open()
+            {
+                string normalizedKey = NormalizeLauncherKey(key);
+                foreach (var (label, open) in LauncherEntries())
+                {
+                    if (NormalizeLauncherKey(label) != normalizedKey)
+                        continue;
+
+                    open();
+                    openedTitle = WindowManager.Instance.Service is INavigationHost host
+                        ? host.CurrentTitle
+                        : null;
+                    break;
+                }
+            }
+
+            if (Dispatcher.UIThread.CheckAccess())
+                Open();
+            else
+                Dispatcher.UIThread.Invoke(Open);
+
+            return openedTitle ?? "";
+        }
+
+        static string NormalizeLauncherKey(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return "";
+
+            Span<char> buffer = value.Length <= 128
+                ? stackalloc char[value.Length]
+                : new char[value.Length];
+            int count = 0;
+            foreach (char ch in value)
+            {
+                if (char.IsLetterOrDigit(ch))
+                    buffer[count++] = char.ToUpperInvariant(ch);
+            }
+            string normalized = new(buffer[..count]);
+            return normalized == "MOVECOST" ? "MOVECOSTEDITOR" : normalized;
+        }
+#endif
+
         void Back_Click(object? sender, RoutedEventArgs e) => Host.GoBack();
 
         void Home_Click(object? sender, RoutedEventArgs e)
