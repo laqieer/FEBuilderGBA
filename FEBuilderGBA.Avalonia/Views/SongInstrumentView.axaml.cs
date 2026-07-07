@@ -6,6 +6,7 @@
 // (`SongInstrumentImportWaveForm`) stays deferred and explicitly absent from
 // both the manifest and the click-handler wiring — see
 // `SongInstrumentViewModel.NavigationTargets.cs`.
+using global::Avalonia;
 using System;
 using System.IO;
 using global::Avalonia.Controls;
@@ -17,13 +18,16 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SongInstrumentView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class SongInstrumentView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly SongInstrumentViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Instrument Editor";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Instrument Editor", 1200, 780, SizeToContent: true);
+        public event EventHandler? CloseRequested;
 
         // Header bytes that map to the 14 WF UNIONTAB_Nxx pages, in tab order.
         // Used to populate TypeCombo and to map combo selection -> HeaderByte.
@@ -45,8 +49,17 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             PopulateTypeCombo();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
             _viewReady = true;
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void PopulateTypeCombo()
@@ -577,7 +590,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 string suggested = $"wave_0x{_vm.CurrentAddr:X06}.wav";
                 // #1639: single-file WAV export → SAF bridge.
                 string? written = await FileDialogHelper.SaveFileVia(
-                    this, R._("Export Wave"), R._("Wave Files"), "*.wav", suggested, p => File.WriteAllBytes(p, wav));
+                    TopLevel.GetTopLevel(this) as Window, R._("Export Wave"), R._("Wave Files"), "*.wav", suggested, p => File.WriteAllBytes(p, wav));
                 if (written == null) return;
                 CoreState.Services.ShowInfo(R._("Wave exported to {0}", written));
             }
@@ -603,7 +616,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
             try
             {
-                string? path = await FileDialogHelper.OpenFile(this, R._("Import Wave"), "*.wav");
+                string? path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this) as Window, R._("Import Wave"), "*.wav");
                 if (string.IsNullOrEmpty(path)) return;
 
                 byte[] bytes = File.ReadAllBytes(path);
@@ -614,7 +627,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // (no ROM mutation, no fallback import — #1448 review pt 2).
                 var dlg = new SongInstrumentImportWaveView();
                 dlg.Seed(bytes, System.IO.Path.GetFileName(path));
-                byte[]? sample = await dlg.ShowDialog<byte[]?>(this);
+                byte[]? sample = await dlg.ShowDialog<byte[]?>(TopLevel.GetTopLevel(this) as Window);
                 if (sample == null || sample.Length == 0) return; // cancelled / failed in-dialog
 
                 _undoService.Begin("Import DirectSound Wave");
@@ -686,7 +699,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // chosen path, so require a real local path; a SAF pick (no local
                 // path) cannot place siblings → message on Android, never silent.
                 string? path = await FileDialogHelper.SaveFile(
-                    this, R._("Export Instrument"), R._("Instrument Set"), "*.instrument",
+                    TopLevel.GetTopLevel(this) as Window, R._("Export Instrument"), R._("Instrument Set"), "*.instrument",
                     $"voicegroup_0x{vocaBase:X06}.instrument");
                 if (string.IsNullOrEmpty(path))
                 {
@@ -747,7 +760,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // one-file SAF temp copy would break sibling resolution → message
                 // on Android, never silent.
                 string? path = await FileDialogHelper.OpenFile(
-                    this, R._("Import Instrument"), "*.instrument", requireLocalPath: true);
+                    TopLevel.GetTopLevel(this) as Window, R._("Import Instrument"), "*.instrument", requireLocalPath: true);
                 if (string.IsNullOrEmpty(path))
                 {
                     if (OperatingSystem.IsAndroid())
@@ -942,5 +955,6 @@ namespace FEBuilderGBA.Avalonia.Views
         }
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

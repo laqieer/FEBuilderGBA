@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -7,12 +8,15 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolAutomaticRecoveryROMHeaderView : TranslatedWindow, IEditorView
+    public partial class ToolAutomaticRecoveryROMHeaderView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ToolAutomaticRecoveryROMHeaderViewViewModel _vm = new();
         readonly UndoService _undoService = new();
         public string ViewTitle => "Automatic Recovery ROM Header";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Automatic Recovery ROM Header", 1193, 298, SizeToContent: true, CanResize: false);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ToolAutomaticRecoveryROMHeaderView()
         {
@@ -28,7 +32,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var path = await FileDialogHelper.OpenRomFile(this);
+                var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this) as Window);
                 if (!string.IsNullOrEmpty(path))
                     _vm.OriginalFilename = path;
             }

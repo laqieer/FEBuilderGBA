@@ -1,10 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.ToolAutomaticRecoveryROMHeaderView"
-        Title="Automatic Recovery ROM Header" Width="1193" Height="298"
-        WindowStartupLocation="CenterOwner"
-        CanResize="False"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.ToolAutomaticRecoveryROMHeaderView">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <Border Margin="12,12,12,12" BorderBrush="Gray" BorderThickness="1" Padding="7,10,7,10">
     <StackPanel Spacing="12">
@@ -27,4 +23,4 @@
     </StackPanel>
   </Border>
   </ScrollViewer>
-</Window>
+</UserControl>

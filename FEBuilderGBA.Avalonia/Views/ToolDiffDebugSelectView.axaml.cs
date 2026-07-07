@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -7,11 +8,14 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolDiffDebugSelectView : TranslatedWindow, IEditorView
+    public partial class ToolDiffDebugSelectView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ToolDiffDebugSelectViewModel _vm = new();
         public string ViewTitle => "Comparison Debug Tool";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Comparison Debug Tool", 1177, 875, SizeToContent: true);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ToolDiffDebugSelectView()
         {
@@ -27,7 +31,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var path = await FileDialogHelper.OpenRomFile(this);
+                var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this) as Window);
                 if (!string.IsNullOrEmpty(path))
                 {
                     _vm.OriginalFilename = path;
@@ -80,7 +84,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 if (string.IsNullOrEmpty(emulatorPath) || !System.IO.File.Exists(emulatorPath))
                 {
-                    _ = MessageBoxWindow.Show(this,
+                    _ = MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window,
                         "Emulator not configured.\n\nPlease set the emulator path in Options first.",
                         "Emulator Not Found", MessageBoxMode.Ok);
                     return;
@@ -95,7 +99,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 Log.Error("ToolDiffDebugSelectView.TestPlay", ex.ToString());
-                _ = MessageBoxWindow.Show(this,
+                _ = MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window,
                     $"Failed to launch emulator: {ex.Message}",
                     "Error", MessageBoxMode.Ok);
             }
@@ -103,7 +107,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Close_Click(object? sender, RoutedEventArgs e)
         {
-            Close();
+            RequestClose();
         }
 
         public void NavigateTo(uint address) { }

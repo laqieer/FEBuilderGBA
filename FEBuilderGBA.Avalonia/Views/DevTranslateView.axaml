@@ -1,9 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.DevTranslateView"
-        Title="Developer Translation Tool" Width="620" Height="560"
-        WindowStartupLocation="CenterOwner"
-        SizeToContent="Height">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.DevTranslateView">
   <!-- Developer translation builder (WF DevTranslateForm / Core MyTranslateBuild).
        Scans C# source + patches + MODs + config data and seeds the app's own
        config/translate/<lang>.txt resource (Translate), plus the *.Designer.cs
@@ -110,4 +107,4 @@
 
     </StackPanel>
   </ScrollViewer>
-</Window>
+</UserControl>

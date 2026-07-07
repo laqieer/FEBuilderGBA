@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -9,31 +10,41 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolUPSPatchSimpleView : TranslatedWindow, IEditorView
+    public partial class ToolUPSPatchSimpleView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ToolUPSPatchSimpleViewModel _vm = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "UPS Patch Creator";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("UPS Patch Creator", 760, 320);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ToolUPSPatchSimpleView()
         {
             InitializeComponent();
-            Opened += (_, _) =>
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
             {
+                _hasLoadedList = true;
                 _vm.IsLoaded = true;
                 // Best-effort auto-fill the clean original ROM (WinForms parity).
                 string found = _vm.FindOriginal();
                 if (!string.IsNullOrEmpty(found))
                     OriginalRomTextBox.Text = found;
-            };
+            }
         }
 
         async void Select_Click(object? sender, RoutedEventArgs e)
         {
             try
             {
-                string? path = await FileDialogHelper.OpenRomFile(this);
+                string? path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this) as Window);
                 if (!string.IsNullOrEmpty(path))
                     OriginalRomTextBox.Text = path;
             }
@@ -57,7 +68,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 string suggested = ToolUPSPatchSimpleViewModel.SuggestedName(DateTime.Now.ToString("yyyyMMddHHmmss"));
                 // #1639: the .ups patch is a single-file output → pick the handle
                 // and write through the SAF bridge so Android content:// targets work.
-                var file = await FileDialogHelper.SaveUpsFilePick(this, suggested);
+                var file = await FileDialogHelper.SaveUpsFilePick(TopLevel.GetTopLevel(this) as Window, suggested);
                 if (file == null)
                     return;   // user cancelled
 

@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.IO;
 using global::Avalonia.Controls;
@@ -15,24 +16,38 @@ namespace FEBuilderGBA.Avalonia.Views
     /// UPS's recorded source CRC32), Apply via Core <see cref="UPSUtilCore.ApplyUPS(byte[],byte[],out string)"/>,
     /// then load the patched ROM into the main window (optionally saving it as <c>.gba</c>).
     /// </summary>
-    public partial class ToolUPSOpenSimpleView : TranslatedWindow, IEditorView
+    public partial class ToolUPSOpenSimpleView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ToolUPSOpenSimpleViewModel _vm = new();
 
         public string ViewTitle => "UPS Patch Applier";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("UPS Patch Applier", 760, 360);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
+
+        bool _hasLoadedList;
 
         public ToolUPSOpenSimpleView()
         {
             InitializeComponent();
-            Opened += (_, _) => _vm.IsLoaded = true;
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                _vm.IsLoaded = true;
+            }
         }
 
         async void SelectUps_Click(object? sender, RoutedEventArgs e)
         {
             try
             {
-                string? path = await FileDialogHelper.OpenPatchFile(this);
+                string? path = await FileDialogHelper.OpenPatchFile(TopLevel.GetTopLevel(this) as Window);
                 if (string.IsNullOrEmpty(path))
                     return;
                 UpsTextBox.Text = path;
@@ -55,7 +70,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                string? path = await FileDialogHelper.OpenRomFile(this);
+                string? path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this) as Window);
                 if (!string.IsNullOrEmpty(path))
                     OriginalRomTextBox.Text = path;
             }
@@ -106,7 +121,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // Ask the user before committing the patched ROM (Copilot review finding #2).
                 if (result == ToolUPSOpenSimpleViewModel.ApplyResult.OkWithWarning)
                 {
-                    var answer = await MessageBoxWindow.Show(this,
+                    var answer = await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window,
                         R._("The UPS patch applied with a warning:") + "\r\n" + warning + "\r\n\r\n"
                             + R._("Apply it anyway?"),
                         R._("UPS Patch Applier"), MessageBoxMode.YesNo);
@@ -135,7 +150,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (SaveAsGbaCheck.IsChecked == true)
                 {
                     string suggested = Path.GetFileNameWithoutExtension(ups) + ".gba";
-                    saveFile = await FileDialogHelper.SaveRomFilePick(this, suggested);
+                    saveFile = await FileDialogHelper.SaveRomFilePick(TopLevel.GetTopLevel(this) as Window, suggested);
                     if (saveFile == null)
                         return;   // user cancelled
                     string? local = saveFile.TryGetLocalPath();
@@ -196,7 +211,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     : R._("UPS patch applied: {0}", savePath);
 
                 // The patched ROM is now active; close the dialog (WF closes on success).
-                Close();
+                RequestClose();
             }
             catch (Exception ex)
             {

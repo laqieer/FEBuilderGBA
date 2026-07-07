@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
@@ -10,20 +11,32 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SoundRoomViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class SoundRoomViewerView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly SoundRoomViewerViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Sound Room";
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
+        public EditorDescriptor Descriptor => new("Sound Room Editor", 1275, 817, SizeToContent: true);
+        public event EventHandler? CloseRequested;
 
         public SoundRoomViewerView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
             TextIdBox.ValueChanged += OnTextIdChanged;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void OnTextIdChanged(object? sender, NumericUpDownValueChangedEventArgs e)
@@ -113,7 +126,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (defaultCount > cap) defaultCount = cap;
 
                 uint? chosen = await Dialogs.NumberInputDialog.Show(
-                    this,
+                    TopLevel.GetTopLevel(this) as Window,
                     R._("Enter the new entry count for the sound room list (current: {0}, max: {1}).",
                         _vm.ReadCount, cap),
                     R._("List Expansion"),
@@ -282,7 +295,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 uint addr = SongAddrFor(SongIdBox.Value);
-                var result = await WindowManager.Instance.PickFromEditor<SongTableView>(addr, this);
+                var result = await WindowManager.Instance.PickFromEditor<SongTableView>(addr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null) SongIdBox.Value = (uint)result.Index;
             }
             catch (Exception ex) { Log.ErrorF("SoundRoomViewerView.SongId_Pick failed: {0}", ex.Message); }
@@ -297,5 +310,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

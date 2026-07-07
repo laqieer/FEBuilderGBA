@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.IO;
 using global::Avalonia.Controls;
@@ -15,22 +16,25 @@ namespace FEBuilderGBA.Avalonia.Views
     /// Left-click/drag paints the selected chip onto the world map; right-click
     /// is the eyedropper; the 5th palette column erases. FE8-only.
     /// </summary>
-    public partial class WorldMapPathEditorView : TranslatedWindow, IEditorView
+    public partial class WorldMapPathEditorView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly WorldMapPathEditorViewModel _vm = new();
+        bool _hasLoadedList;
         readonly UndoService _undo = new();
 
         // The 8x8-snapped grid the road format works in.
         const int GRID = 8;
 
         public string ViewTitle => "Path Editor";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Path Editor", 1103, 710, SizeToContent: true);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public WorldMapPathEditorView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
 
             WriteButton.Click += OnWrite;
             // #1458: .road.bin file Save/Load (WF SaveAS/Load parity).
@@ -48,6 +52,16 @@ namespace FEBuilderGBA.Avalonia.Views
             ChipPaletteImage.PointerPressed += OnPalettePointerPressed;
 
             UpdateSelectedChipLabel();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -330,7 +344,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 // #1639: single-file BIN export → SAF bridge.
                 string? written = await FileDialogHelper.SaveFileVia(
-                    this, R._("Save Road Data"), R._("Road.BIN"), "*.road.bin", "road.road.bin",
+                    TopLevel.GetTopLevel(this) as Window, R._("Save Road Data"), R._("Road.BIN"), "*.road.bin", "road.road.bin",
                     p => File.WriteAllBytes(p, bin));
                 if (written == null) return; // cancelled
                 StatusLabel.Text = R._("Saved.");
@@ -353,7 +367,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
 
                 string? path = await FileDialogHelper.OpenFile(
-                    this, R._("Load Road Data"), "*.road.bin");
+                    TopLevel.GetTopLevel(this) as Window, R._("Load Road Data"), "*.road.bin");
                 if (path == null) return; // cancelled
 
                 byte[] bin = File.ReadAllBytes(path);

@@ -107,7 +107,8 @@ namespace FEBuilderGBA.Tests.Unit
         public void MapSettingView_LoadsOnOpen()
         {
             string src = File.ReadAllText(Path.Combine(SolutionDir, "FEBuilderGBA.Avalonia", "Views", "MapSettingView.axaml.cs"));
-            Assert.Contains("Opened += ", src);
+            Assert.True(src.Contains("Opened += ") || src.Contains("OnAttachedToVisualTree"),
+                "Window editors load via Opened; embeddable editors load via OnAttachedToVisualTree.");
             Assert.Contains("LoadList()", src);
             Assert.Contains("SelectFirstItem()", src);
         }

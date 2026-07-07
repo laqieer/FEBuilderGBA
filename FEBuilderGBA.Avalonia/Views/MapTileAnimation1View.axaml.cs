@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -19,16 +20,20 @@ namespace FEBuilderGBA.Avalonia.Views
     /// PLIST's resolved data table (instead of treating the
     /// <c>map_tileanime1_pointer</c> PLIST table as a flat entry table).
     /// </summary>
-    public partial class MapTileAnimation1View : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class MapTileAnimation1View : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly MapTileAnimation1ViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
         bool _suppressFilterChange;
         bool _suppressPaletteChange;
 
         public string ViewTitle => "Map Tile Animation Type 1";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Map Tile Animation Type 1", 1238, 866, SizeToContent: true);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public MapTileAnimation1View()
         {
@@ -45,7 +50,16 @@ namespace FEBuilderGBA.Avalonia.Views
                 SamplePaletteComboBox.SelectedIndex = 0;
             }
             finally { _suppressPaletteChange = false; }
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void SamplePalette_SelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -243,7 +257,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
                 // #1639: write via the SAF bridge so Android content:// targets work.
-                string? written = await FileDialogHelper.SaveImageFileVia(this, $"maptileanim1_{_vm.CurrentAddr:X08}.png", p =>
+                string? written = await FileDialogHelper.SaveImageFileVia(TopLevel.GetTopLevel(this) as Window, $"maptileanim1_{_vm.CurrentAddr:X08}.png", p =>
                 {
                     using var stream = File.Create(p); bmp.Save(stream);
                 });
@@ -266,7 +280,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     CoreState.Services?.ShowError("No entry selected.");
                     return;
                 }
-                string? path = await FileDialogHelper.OpenImageFile(this);
+                string? path = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this) as Window);
                 if (string.IsNullOrEmpty(path)) return;
 
                 var img = CoreState.ImageService?.LoadImage(path);
@@ -328,7 +342,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // .mapanime1.txt batch (which writes sibling PNGs) requires a real
                 // local path.
                 var file = await FileDialogHelper.SaveFilePick(
-                    this, "Export Map Tile Animation Type 1",
+                    TopLevel.GetTopLevel(this) as Window, "Export Map Tile Animation Type 1",
                     new[]
                     {
                         ("Map Tile Animation 1", "*.mapanime1.txt"),
@@ -384,7 +398,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // own directory, so require a real local path; a SAF pick (no local
                 // path) cannot resolve siblings → message on Android, never silent.
                 string? path = await FileDialogHelper.OpenFile(
-                    this, "Import Map Tile Animation Type 1", "*.mapanime1.txt", requireLocalPath: true);
+                    TopLevel.GetTopLevel(this) as Window, "Import Map Tile Animation Type 1", "*.mapanime1.txt", requireLocalPath: true);
                 if (string.IsNullOrEmpty(path))
                 {
                     if (OperatingSystem.IsAndroid())

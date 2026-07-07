@@ -1,10 +1,7 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:vm="using:FEBuilderGBA.Avalonia.ViewModels"
-        x:Class="FEBuilderGBA.Avalonia.Views.ToolThreeMargeView"
-        Title="Three-Way Merge" Width="900" Height="700"
-        WindowStartupLocation="CenterOwner"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:FEBuilderGBA.Avalonia.ViewModels"
+             x:Class="FEBuilderGBA.Avalonia.Views.ToolThreeMargeView">
   <DockPanel Margin="16">
     <TextBlock DockPanel.Dock="Top" Text="Three-Way ROM Merge" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
 
@@ -102,4 +99,4 @@
       </DockPanel>
     </Border>
   </DockPanel>
-</Window>
+</UserControl>
