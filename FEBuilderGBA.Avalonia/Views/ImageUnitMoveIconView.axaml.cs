@@ -20,7 +20,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Unit Move Icon";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Unit Move Icon", 900, 540, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Unit Move Icon", 900, 540, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public ImageUnitMoveIconView()

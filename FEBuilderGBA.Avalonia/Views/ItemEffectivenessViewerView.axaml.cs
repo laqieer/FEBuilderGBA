@@ -37,7 +37,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Item Effectiveness";
         public new bool IsLoaded => _vm.CanWrite;
-        public EditorDescriptor Descriptor => new("Item Effectiveness Editor", 1297, 780, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Item Effectiveness Editor", 1297, 780, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public ItemEffectivenessViewerView()

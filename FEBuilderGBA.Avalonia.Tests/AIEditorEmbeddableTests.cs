@@ -37,7 +37,7 @@ public class AIEditorEmbeddableTests
             Assert.Equal(title, embeddable.Descriptor.Title);
             Assert.Equal(width, embeddable.Descriptor.PreferredWidth);
             Assert.Equal(height, embeddable.Descriptor.PreferredHeight);
-            Assert.True(embeddable.Descriptor.SizeToContent);
+            Assert.Equal(SizeToContent.WidthAndHeight, embeddable.Descriptor.SizeToContent);
         }
     }
 }

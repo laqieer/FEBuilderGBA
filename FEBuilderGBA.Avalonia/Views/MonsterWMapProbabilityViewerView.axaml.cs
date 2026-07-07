@@ -24,7 +24,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public new bool IsLoaded => _vm.CanWrite;
 
 
-        public EditorDescriptor Descriptor => new("World Map Monster Editor", 1100, 760, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("World Map Monster Editor", 1100, 760, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
 
         public event EventHandler? CloseRequested;
         public MonsterWMapProbabilityViewerView()

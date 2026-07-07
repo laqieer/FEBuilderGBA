@@ -23,7 +23,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Event Pointer (FE6)";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Event Pointer (FE6)", 1281, 796, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Event Pointer (FE6)", 1281, 796, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

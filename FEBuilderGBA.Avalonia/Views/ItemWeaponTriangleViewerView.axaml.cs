@@ -21,7 +21,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public new bool IsLoaded => _vm.CanWrite;
 
 
-        public EditorDescriptor Descriptor => new("Weapon Triangle Editor", 1290, 648, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Weapon Triangle Editor", 1290, 648, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
 
         public event EventHandler? CloseRequested;
         public ItemWeaponTriangleViewerView()

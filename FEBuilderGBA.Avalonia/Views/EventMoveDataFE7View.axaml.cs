@@ -21,7 +21,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public new bool IsLoaded => _vm.IsLoaded;
 
 
-        public EditorDescriptor Descriptor => new("Move Data (FE7)", 1503, 523, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Move Data (FE7)", 1503, 523, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
 
         public event EventHandler? CloseRequested;
         public EventMoveDataFE7View()

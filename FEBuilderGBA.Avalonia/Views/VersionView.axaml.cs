@@ -13,7 +13,7 @@ namespace FEBuilderGBA.Avalonia.Views
         bool _hasLoadedList;
         public string ViewTitle => "Version Information";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Version Information", 720, 420, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Version Information", 720, 420, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public VersionView()

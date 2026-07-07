@@ -14,7 +14,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Simple Menu (Easy Mode)";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Simple Menu (Easy Mode)", 1773, 1038, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Simple Menu (Easy Mode)", 1773, 1038, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

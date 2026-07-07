@@ -25,7 +25,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public string ViewTitle => "Map Exit Point Editor";
         public new bool IsLoaded => _vm.CanWrite;
 
-        public EditorDescriptor Descriptor => new("Map Exit Point Editor", 1607, 777, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Map Exit Point Editor", 1607, 777, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
 
         public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;

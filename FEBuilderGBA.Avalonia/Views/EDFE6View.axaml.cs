@@ -16,7 +16,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Ending (FE6)";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Ending (FE6)", 1204, 885, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Ending (FE6)", 1204, 885, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

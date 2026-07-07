@@ -17,7 +17,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Haiku (FE6)";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Haiku (FE6)", 1259, 826, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Haiku (FE6)", 1259, 826, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public EventHaikuFE6View()

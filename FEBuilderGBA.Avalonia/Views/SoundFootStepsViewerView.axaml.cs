@@ -20,7 +20,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public new bool IsLoaded => _vm.CanWrite;
 
 
-        public EditorDescriptor Descriptor => new("Footstep Sounds Editor", 1245, 636, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Footstep Sounds Editor", 1245, 636, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
 
         public event EventHandler? CloseRequested;
         public SoundFootStepsViewerView()

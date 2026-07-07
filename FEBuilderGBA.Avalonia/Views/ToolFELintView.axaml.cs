@@ -20,7 +20,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "FELint GUI";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("FELint GUI", 1099, 788, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("FELint GUI", 1099, 788, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

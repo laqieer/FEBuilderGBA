@@ -15,7 +15,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "TSA Animation Editor v2";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("TSA Animation Editor v2", 1383, 766, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("TSA Animation Editor v2", 1383, 766, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public ImageTSAAnime2View()

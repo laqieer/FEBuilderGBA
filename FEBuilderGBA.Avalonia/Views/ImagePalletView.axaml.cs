@@ -57,7 +57,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Palette Editor";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Palette Editor", 1280, 700, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Palette Editor", 1280, 700, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

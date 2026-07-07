@@ -31,7 +31,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Unit Palette Editor";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Unit Palette Editor", 1305, 911, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Unit Palette Editor", 1305, 911, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public ImageUnitPaletteView()

@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.Views
         bool _hasLoadedList;
         public string ViewTitle => "Resources";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Resources", 793, 620, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Resources", 793, 620, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public ResourceView()

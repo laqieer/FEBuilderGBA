@@ -21,7 +21,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public new bool IsLoaded => _vm.IsLoaded;
 
 
-        public EditorDescriptor Descriptor => new("Stat Bonuses (Skill Systems)", 1291, 587, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Stat Bonuses (Skill Systems)", 1291, 587, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
 
         public event EventHandler? CloseRequested;
         public ItemStatBonusesSkillSystemsView()

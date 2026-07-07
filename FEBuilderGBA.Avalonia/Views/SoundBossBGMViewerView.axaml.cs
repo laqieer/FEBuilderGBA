@@ -16,7 +16,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Boss BGM";
         public new bool IsLoaded => _vm.CanWrite;
-        public EditorDescriptor Descriptor => new("Boss BGM Editor", 1392, 722, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Boss BGM Editor", 1392, 722, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public SoundBossBGMViewerView()

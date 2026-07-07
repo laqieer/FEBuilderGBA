@@ -17,7 +17,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public string ViewTitle => "Terrain Floor Lookup";
         public new bool IsLoaded => _vm.IsLoaded;
 
-        public EditorDescriptor Descriptor => new("Terrain Floor Lookup", 1253, 790, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Terrain Floor Lookup", 1253, 790, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
 
         public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;

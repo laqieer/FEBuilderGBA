@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ErrorLongMessageDialogViewModel _vm = new();
         public string ViewTitle => "Error Details";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Error Details", 1120, 691, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Error Details", 1120, 691, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

@@ -20,7 +20,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public new bool IsLoaded => _vm.IsLoaded;
 
 
-        public EditorDescriptor Descriptor => new("Mini-Map Terrain", 1253, 790, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Mini-Map Terrain", 1253, 790, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
 
         public event EventHandler? CloseRequested;
         public MapMiniMapTerrainImageView()

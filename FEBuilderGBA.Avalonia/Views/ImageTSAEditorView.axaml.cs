@@ -40,7 +40,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "TSA Tile Editor";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("TSA Tile Editor", 1411, 938, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("TSA Tile Editor", 1411, 938, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

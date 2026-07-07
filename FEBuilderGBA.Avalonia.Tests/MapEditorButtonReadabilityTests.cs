@@ -83,7 +83,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         public void CommandToolbar_FitsDeclaredEditorWidth()
         {
             var view = new MapEditorView();
-            Assert.False(view.Descriptor.SizeToContent);
+            Assert.Equal(SizeToContent.Manual, view.Descriptor.SizeToContent);
 
             var navToolbar = Required<StackPanel>(view, "MapNavigationToolbar");
             var csvToolbar = Required<StackPanel>(view, "MapCsvCommandToolbar");

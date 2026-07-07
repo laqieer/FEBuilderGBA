@@ -13,7 +13,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ToolDiffDebugSelectViewModel _vm = new();
         public string ViewTitle => "Comparison Debug Tool";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Comparison Debug Tool", 1177, 875, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Comparison Debug Tool", 1177, 875, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

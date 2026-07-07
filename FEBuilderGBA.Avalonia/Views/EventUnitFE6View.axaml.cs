@@ -25,7 +25,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Event Unit (FE6)";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Event Unit (FE6)", 1902, 1047, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Event Unit (FE6)", 1902, 1047, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public EventUnitFE6View()

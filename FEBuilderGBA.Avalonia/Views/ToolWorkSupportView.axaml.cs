@@ -26,7 +26,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ToolWorkSupportViewModel _vm = new();
         public string ViewTitle => "Work Support";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Work Support", 883, 716, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Work Support", 883, 716, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

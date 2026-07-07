@@ -17,7 +17,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Move Cost (FE6)";
         public new bool IsLoaded => _vm.CanWrite;
-        public EditorDescriptor Descriptor => new("Move Cost (FE6) Editor", 1536, 634, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Move Cost (FE6) Editor", 1536, 634, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public MoveCostFE6View()

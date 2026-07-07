@@ -29,7 +29,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Haiku Event Editor";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Haiku Event Editor", 1252, 724, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Haiku Event Editor", 1252, 724, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public EventHaikuView()

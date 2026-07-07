@@ -32,7 +32,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Item Promotion";
         public new bool IsLoaded => _vm.CanWrite;
-        public EditorDescriptor Descriptor => new("Item Promotion Editor", 1180, 720, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Item Promotion Editor", 1180, 720, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public ItemPromotionViewerView()

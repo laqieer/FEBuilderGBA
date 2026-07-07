@@ -30,7 +30,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Generic Enemy Portraits";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Generic Enemy Portraits", 800, 400, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Generic Enemy Portraits", 800, 400, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public ImageGenericEnemyPortraitView()

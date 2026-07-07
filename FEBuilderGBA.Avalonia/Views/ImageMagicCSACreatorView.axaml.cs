@@ -41,7 +41,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "CSA Magic Creator";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("CSA Magic Creator", 1080, 610, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("CSA Magic Creator", 1080, 610, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);

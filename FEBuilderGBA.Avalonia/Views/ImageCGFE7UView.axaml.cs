@@ -17,7 +17,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "CG Editor (FE7U)";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("CG Editor (FE7U)", 774, 337, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("CG Editor (FE7U)", 774, 337, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public ImageCGFE7UView()

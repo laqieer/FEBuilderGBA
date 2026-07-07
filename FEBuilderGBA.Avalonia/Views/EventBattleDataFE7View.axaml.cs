@@ -18,7 +18,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public new bool IsLoaded => _vm.IsLoaded;
 
 
-        public EditorDescriptor Descriptor => new("Battle Data (FE7)", 1257, 521, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Battle Data (FE7)", 1257, 521, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
 
         public event EventHandler? CloseRequested;
         public EventBattleDataFE7View()

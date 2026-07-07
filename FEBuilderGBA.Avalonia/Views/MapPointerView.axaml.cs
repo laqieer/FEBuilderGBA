@@ -17,7 +17,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public string ViewTitle => "Map Pointer Editor";
         public new bool IsLoaded => _vm.CanWrite;
 
-        public EditorDescriptor Descriptor => new("Map Pointer Editor", 1305, 532, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Map Pointer Editor", 1305, 532, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
 
         public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;

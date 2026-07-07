@@ -30,7 +30,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Item Shop";
         public new bool IsLoaded => _vm.CanWrite;
-        public EditorDescriptor Descriptor => new("Item Shop Editor", 1280, 720, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Item Shop Editor", 1280, 720, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public ItemShopViewerView()

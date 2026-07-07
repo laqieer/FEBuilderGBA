@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ToolBGMMuteDialogViewModel _vm = new();
         public string ViewTitle => "BGM Mute Settings";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("BGM Mute Settings", 583, 320, SizeToContent: true, CanResize: false);
+        public EditorDescriptor Descriptor => new("BGM Mute Settings", 583, 320, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight, CanResize: false);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

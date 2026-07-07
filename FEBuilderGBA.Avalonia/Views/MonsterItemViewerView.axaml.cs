@@ -41,7 +41,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Monster Item";
         public new bool IsLoaded => _vm.CanWrite;
-        public EditorDescriptor Descriptor => new("Monster Item Editor", 1280, 900, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Monster Item Editor", 1280, 900, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public MonsterItemViewerView()

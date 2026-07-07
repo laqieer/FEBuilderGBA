@@ -15,7 +15,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Unit Action Pointers";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Unit Action Pointers", 1293, 863, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Unit Action Pointers", 1293, 863, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public UnitActionPointerView()

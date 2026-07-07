@@ -29,7 +29,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly EmulatorMemoryViewModel _vm = new();
         public string ViewTitle => "Emulator Memory";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Emulator Memory", 1280, 900, SizeToContent: false);
+        public EditorDescriptor Descriptor => new("Emulator Memory", 1280, 900);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

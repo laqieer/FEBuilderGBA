@@ -18,7 +18,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public new bool IsLoaded => _vm.IsLoaded;
 
 
-        public EditorDescriptor Descriptor => new("Battle Dialogue Editor", 1445, 815, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Battle Dialogue Editor", 1445, 815, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
 
         public event EventHandler? CloseRequested;
         public EventBattleTalkView()

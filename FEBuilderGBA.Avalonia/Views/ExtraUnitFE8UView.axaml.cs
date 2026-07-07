@@ -15,7 +15,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Extra Unit (FE8U)";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Extra Unit (FE8U)", 1121, 735, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Extra Unit (FE8U)", 1121, 735, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public ExtraUnitFE8UView()

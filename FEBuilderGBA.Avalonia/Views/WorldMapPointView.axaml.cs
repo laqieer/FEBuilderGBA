@@ -19,7 +19,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public new bool IsLoaded => _vm.CanWrite;
 
 
-        public EditorDescriptor Descriptor => new("World Map Point Editor", 1761, 778, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("World Map Point Editor", 1761, 778, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
 
         public event EventHandler? CloseRequested;
         public WorldMapPointView()

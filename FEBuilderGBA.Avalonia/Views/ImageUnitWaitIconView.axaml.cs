@@ -19,7 +19,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Unit Wait Icon";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Unit Wait Icon", 900, 520, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Unit Wait Icon", 900, 520, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public ImageUnitWaitIconView()

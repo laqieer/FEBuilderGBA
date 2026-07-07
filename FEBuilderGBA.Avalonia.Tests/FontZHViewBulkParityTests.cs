@@ -71,7 +71,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             // The embeddable descriptor must keep manual sizing (the Avalonia gate).
             string cs = ReadRepoFile("FEBuilderGBA.Avalonia", "Views", "FontZHView.axaml.cs");
             Assert.Contains("public EditorDescriptor Descriptor => new(\"Font Editor (Chinese)\", 640, 640)", cs);
-            Assert.DoesNotContain("SizeToContent: true", cs);
+            Assert.DoesNotContain("SizeToContent:", cs);
         }
 
         [Fact]

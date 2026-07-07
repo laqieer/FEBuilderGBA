@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly PatchFilterExViewModel _vm = new();
         public string ViewTitle => "Patch Filter";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Patch Filter", 1037, 529, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Patch Filter", 1037, 529, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

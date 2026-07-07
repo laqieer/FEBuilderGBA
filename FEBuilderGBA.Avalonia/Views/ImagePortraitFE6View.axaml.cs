@@ -27,7 +27,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Portrait Editor (FE6)";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Portrait Editor (FE6)", 900, 600, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Portrait Editor (FE6)", 900, 600, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public ImagePortraitFE6View()

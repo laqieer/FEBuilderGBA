@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly HowDoYouLikePatch2ViewModel _vm = new();
         public string ViewTitle => "Patch Feedback (Extended)";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Patch Review (Extended)", 849, 389, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Patch Review (Extended)", 849, 389, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

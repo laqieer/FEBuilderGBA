@@ -34,7 +34,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Ending Event Editor";
         public new bool IsLoaded => _vm.RetreatCanWrite || _vm.EpithetCanWrite || _vm.EpilogueCanWrite;
-        public EditorDescriptor Descriptor => new("Ending Event Editor", 1280, 820, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Ending Event Editor", 1280, 820, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);

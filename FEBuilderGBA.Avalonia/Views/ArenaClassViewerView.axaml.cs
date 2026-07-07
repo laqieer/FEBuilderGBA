@@ -18,7 +18,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Arena Class";
         public new bool IsLoaded => _vm.CanWrite;
-        public EditorDescriptor Descriptor => new("Arena Class Editor", 1201, 738, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Arena Class Editor", 1201, 738, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public ArenaClassViewerView()

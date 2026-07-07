@@ -15,7 +15,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Direct Sound Instruments";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Direct Sound Instruments", 879, 327, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Direct Sound Instruments", 879, 327, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public SongInstrumentDirectSoundView()

@@ -19,7 +19,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Area of Effect Range";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("Area of Effect Range", 720, 560, SizeToContent: false);
+        public EditorDescriptor Descriptor => new("Area of Effect Range", 720, 560);
         public event EventHandler? CloseRequested;
 
         public AOERANGEView()

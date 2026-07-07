@@ -19,7 +19,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Item/Weapon Icon Viewer";
         public new bool IsLoaded => _vm.CanWrite;
-        public EditorDescriptor Descriptor => new("Item/Weapon Icon Viewer", 749, 358, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Item/Weapon Icon Viewer", 749, 358, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public ItemIconViewerView()

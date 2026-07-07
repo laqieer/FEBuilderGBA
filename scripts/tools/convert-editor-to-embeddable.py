@@ -44,16 +44,18 @@ class Descriptor:
     title: str
     width: str
     height: str
-    size_to_content: bool
+    size_to_content: str
     min_width: str
     min_height: str
     can_resize: bool
     startup_location: str
 
 
-def parse_size_to_content(value: str | None) -> bool:
-    """Map Avalonia Window SizeToContent to EditorDescriptor auto-size flag."""
-    return value in {"Width", "Height", "WidthAndHeight"}
+def parse_size_to_content(value: str | None) -> str:
+    """Map Avalonia Window SizeToContent to the precise EditorDescriptor enum value."""
+    if value in {"Width", "Height", "WidthAndHeight"}:
+        return value
+    return "Manual"
 
 
 def parse_can_resize(value: str | None) -> bool:
@@ -329,8 +331,8 @@ def inject_members(cs: str, descriptor: Descriptor) -> str:
             raise ValueError("public bool/new bool IsLoaded expression not found")
         indent = marker.group("indent")
         descriptor_args = [f'"{descriptor.title}"', descriptor.width, descriptor.height]
-        if descriptor.size_to_content:
-            descriptor_args.append("SizeToContent: true")
+        if descriptor.size_to_content != "Manual":
+            descriptor_args.append(f"SizeToContent: global::Avalonia.Controls.SizeToContent.{descriptor.size_to_content}")
         if descriptor.min_width != "0":
             descriptor_args.append(f"MinWidth: {descriptor.min_width}")
         if descriptor.min_height != "0":

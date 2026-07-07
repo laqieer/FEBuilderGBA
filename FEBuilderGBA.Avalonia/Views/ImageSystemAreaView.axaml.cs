@@ -16,7 +16,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "System Area Graphics";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("System Area Graphics", 1238, 604, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("System Area Graphics", 1238, 604, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
 
         public ImageSystemAreaView()

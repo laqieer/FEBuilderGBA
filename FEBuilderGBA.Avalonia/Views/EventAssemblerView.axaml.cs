@@ -34,7 +34,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "Event Assembler";
         public new bool IsLoaded => true;
-        public EditorDescriptor Descriptor => new("Event Assembler", 640, 520, SizeToContent: true);
+        public EditorDescriptor Descriptor => new("Event Assembler", 640, 520, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
         public event EventHandler? CloseRequested;
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 

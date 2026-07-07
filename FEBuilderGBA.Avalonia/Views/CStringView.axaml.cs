@@ -15,7 +15,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public string ViewTitle => "C-String Editor";
         public new bool IsLoaded => _vm.IsLoaded;
-        public EditorDescriptor Descriptor => new("C-String Editor", 520, 320, SizeToContent: false);
+        public EditorDescriptor Descriptor => new("C-String Editor", 520, 320);
         public event EventHandler? CloseRequested;
 
         public CStringView()
