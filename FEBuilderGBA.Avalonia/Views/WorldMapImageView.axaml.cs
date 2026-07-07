@@ -12,6 +12,7 @@
 //
 // A single top-level Undo button is present (Copilot CLI plan review C3 —
 // WinForms has no per-tab Undo; we don't introduce them either).
+using global::Avalonia;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -24,13 +25,17 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class WorldMapImageView : TranslatedWindow, IEditorView
+    public partial class WorldMapImageView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly WorldMapImageViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "World Map Image";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("World Map Image", 1080, 640, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public WorldMapImageView()
         {
@@ -43,7 +48,16 @@ namespace FEBuilderGBA.Avalonia.Views
             DataContext = _vm;
             Border_EntryList.SelectedAddressChanged += OnBorderSelected;
             IconData_EntryList.SelectedAddressChanged += OnIconSelected;
-            Opened += (_, _) => LoadAll();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadAll();
+            }
         }
 
         // ===================================================================
@@ -262,7 +276,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                string? path = await FileDialogHelper.OpenImageFile(this);
+                string? path = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this) as Window);
                 if (path == null) return;
                 await DoBorderImport(path);
             }
@@ -420,7 +434,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint defaultCount = current + 1;
                 if (defaultCount > 255) defaultCount = 255;
                 uint? chosen = await NumberInputDialog.Show(
-                    this,
+                    TopLevel.GetTopLevel(this) as Window,
                     R._("Enter the new entry count for the world map border list (current: {0}, max: 255).", current),
                     R._("List Expansion"),
                     defaultCount,
@@ -610,7 +624,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint defaultCount = current + 1;
                 if (defaultCount > 255) defaultCount = 255;
                 uint? chosen = await NumberInputDialog.Show(
-                    this,
+                    TopLevel.GetTopLevel(this) as Window,
                     R._("Enter the new entry count for the world map icon-data list (current: {0}, max: 255).", current),
                     R._("List Expansion"),
                     defaultCount,
@@ -750,7 +764,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                string? path = await FileDialogHelper.OpenImageFile(this);
+                string? path = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this) as Window);
                 if (path == null) return;
                 await DoMainImport(path);
             }
@@ -870,7 +884,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                string? path = await FileDialogHelper.OpenImageFile(this);
+                string? path = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this) as Window);
                 if (path == null) return;
                 await DoDarkImport(path);
             }
@@ -1082,7 +1096,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
                 var result = await ImageImportService.LoadAndRemapToExistingPalette(
-                    this, widthPx, heightPx, palette, 16, strictSize: true);
+                    TopLevel.GetTopLevel(this) as Window, widthPx, heightPx, palette, 16, strictSize: true);
                 if (result == null) return;
                 if (!result.Success) { CoreState.Services?.ShowError(result.Error); return; }
 
@@ -1121,7 +1135,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                string? path = await FileDialogHelper.OpenImageFile(this);
+                string? path = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this) as Window);
                 if (path == null) return;
                 await DoEventImport(path);
             }
@@ -1213,7 +1227,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
                 // #1639: write via the SAF bridge so Android content:// targets work.
-                await FileDialogHelper.SaveImageFileVia(this, "worldmap_darkfieldmap", p =>
+                await FileDialogHelper.SaveImageFileVia(TopLevel.GetTopLevel(this) as Window, "worldmap_darkfieldmap", p =>
                 {
                     using var stream = System.IO.File.Create(p);
                     bmp.Save(stream);
@@ -1247,7 +1261,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                await target.ExportPng(this, suggestedName);
+                await target.ExportPng(TopLevel.GetTopLevel(this) as Window, suggestedName);
             }
             catch (Exception ex)
             {

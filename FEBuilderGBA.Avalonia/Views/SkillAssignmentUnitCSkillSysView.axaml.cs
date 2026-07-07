@@ -11,6 +11,7 @@
 // Unit WinForms form has no X_LV level-breakdown panel (Class-only), but it
 // DOES expose a per-unit level-up pointer (X_LevelUpAddr) which the master
 // Write commits alongside W0 — see OnWrite.
+using global::Avalonia;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -22,10 +23,11 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SkillAssignmentUnitCSkillSysView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class SkillAssignmentUnitCSkillSysView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly SkillAssignmentUnitCSkillSysViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         // Track currently selected N1 row address. Reset on unit change.
         uint _n1SelectedAddr;
@@ -38,8 +40,11 @@ namespace FEBuilderGBA.Avalonia.Views
         List<AddrResult> _n1Items = new();
 
         public string ViewTitle => "Skill Assignment - Unit (CSkillSys)";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Skill Assignment - Unit (CSkillSys)", 1200, 900, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public SkillAssignmentUnitCSkillSysView()
         {
@@ -58,14 +63,25 @@ namespace FEBuilderGBA.Avalonia.Views
                 int idx = N1ListBox.SelectedIndex;
                 if (idx >= 0 && idx < _n1Items.Count) OnN1Selected(_n1Items[idx]);
             };
-            Opened += (_, _) => Initialize();
-            Closed += (_, _) =>
+        }
+
+        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnDetachedFromVisualTree(e);
+            if (_unitSkillIconBitmap != null) try { _unitSkillIconBitmap.Dispose(); } catch { /* swallow */ }
+            if (_n1SkillIconBitmap != null) try { _n1SkillIconBitmap.Dispose(); } catch { /* swallow */ }
+            _unitSkillIconBitmap = null;
+            _n1SkillIconBitmap = null;
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
             {
-                if (_unitSkillIconBitmap != null) try { _unitSkillIconBitmap.Dispose(); } catch { /* swallow */ }
-                if (_n1SkillIconBitmap != null) try { _n1SkillIconBitmap.Dispose(); } catch { /* swallow */ }
-                _unitSkillIconBitmap = null;
-                _n1SkillIconBitmap = null;
-            };
+                _hasLoadedList = true;
+                Initialize();
+            }
         }
 
         void Initialize()

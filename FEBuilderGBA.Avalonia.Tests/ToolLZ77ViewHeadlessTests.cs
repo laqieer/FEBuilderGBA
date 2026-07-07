@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using Avalonia.Automation;
 using Avalonia.Controls;
@@ -52,7 +52,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.NotNull(tabs);
             // Force template realization
             view.Show();
-            view.Hide();
+            view.Close();
             var items = tabs.GetLogicalDescendants().OfType<TabItem>().ToList();
             Assert.Equal(6, items.Count);
         }
@@ -62,7 +62,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             var view = new ToolLZ77View();
             view.Show();
-            view.Hide();
+            view.Close();
             var tabs = view.GetLogicalDescendants().OfType<TabItem>().ToList();
             var headers = tabs.Select(t => t.Header?.ToString()).ToList();
             Assert.Contains("Decompress", headers);
@@ -78,7 +78,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             var view = new ToolLZ77View();
             view.Show();
-            view.Hide();
+            view.Close();
             var ids = CollectAutomationIds(view);
 
             // Per-tab "fire" buttons — these are the user-facing actions and MUST exist.
@@ -116,7 +116,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             var view = new ToolLZ77View();
             view.Show();
-            view.Hide();
+            view.Close();
             var statusLabel = view.GetLogicalDescendants()
                 .OfType<TextBlock>()
                 .FirstOrDefault(c => AutomationProperties.GetAutomationId(c) == "ToolLZ77_Status_Label");

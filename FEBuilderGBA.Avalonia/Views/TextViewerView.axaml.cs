@@ -1,3 +1,4 @@
+﻿using global::Avalonia;
 using System;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
@@ -11,14 +12,17 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class TextViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class TextViewerView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly TextViewerViewModel _vm = new();
         readonly ConversationViewerTabViewModel _convVm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Text Editor";
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
+        public EditorDescriptor Descriptor => new("Text Editor", 1166, 930, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
 
         static readonly IBrush YellowBrush = new SolidColorBrush(Colors.Orange);
         static readonly IBrush RedBrush = new SolidColorBrush(Colors.Red);
@@ -52,8 +56,14 @@ namespace FEBuilderGBA.Avalonia.Views
             // (finding 4): wire SelectionChanged + seed the initial label.
             ExportFilterCombo.SelectionChanged += OnExportFilterChanged;
             UpdateExportLimitLabel();
-            Opened += (_, _) =>
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
             {
+                _hasLoadedList = true;
                 LoadList();
                 PopulateAddressBar();
                 // Export Limit descriptor — describes the export filter that
@@ -61,7 +71,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // of read-only stub label. Re-sync in case the combo changed
                 // before the window opened.
                 UpdateExportLimitLabel();
-            };
+            }
         }
 
         /// <summary>
@@ -322,7 +332,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 var dlg = new TextRefAddDialogView();
                 dlg.Init(textid, existing);
-                var result = await dlg.ShowDialog<TextRefAddDialogViewModel?>(this);
+                var result = await dlg.ShowDialog<TextRefAddDialogViewModel?>(TopLevel.GetTopLevel(this) as Window);
                 if (result == null) return; // Cancelled.
 
                 // Persist via the cache seam. GetComment() applies the WF blank-entry
@@ -366,7 +376,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var dlg = new TextScriptCategorySelectView();
                 dlg.Init(isDetail: true);
-                string? code = await dlg.ShowDialog<string?>(this);
+                string? code = await dlg.ShowDialog<string?>(TopLevel.GetTopLevel(this) as Window);
                 if (string.IsNullOrEmpty(code)) return;
 
                 // Convert the raw @XXXX code to the editor's FEditor-display form
@@ -500,7 +510,9 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var tsvType = new FilePickerFileType(R._("TSV Files")) { Patterns = new[] { "*.tsv" } };
                 var allType = new FilePickerFileType(R._("All Files")) { Patterns = new[] { "*" } };
-                var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+                var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+                if (storageProvider == null) return;
+                var file = await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
                 {
                     Title = R._("Export Texts"),
                     SuggestedFileName = "texts.tsv",
@@ -522,12 +534,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 string? written = await FileDialogHelper.WriteViaAsync(file,
                     path => { count = _vm.ExportAllTexts(path, includeAIHints, filterIndex); });
                 if (written == null) return;
-                await MessageBoxWindow.Show(this, $"Exported {count} text entries to TSV.", R._("Export Complete"), MessageBoxMode.Ok);
+                await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window, $"Exported {count} text entries to TSV.", R._("Export Complete"), MessageBoxMode.Ok);
             }
             catch (Exception ex)
             {
                 Log.ErrorF("Export failed: {0}", ex.Message);
-                await MessageBoxWindow.Show(this, $"Export failed: {ex.Message}", "Error", MessageBoxMode.Ok);
+                await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window, $"Export failed: {ex.Message}", "Error", MessageBoxMode.Ok);
             }
         }
 
@@ -535,24 +547,24 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                string? path = await FileDialogHelper.OpenFile(this, "TSV Files", "*.tsv");
+                string? path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this) as Window, "TSV Files", "*.tsv");
                 if (path == null) return;
 
                 int count = _vm.ImportAllTexts(path);
                 if (count > 0)
                 {
                     LoadList(); // Refresh the list to show updated texts
-                    await MessageBoxWindow.Show(this, $"Imported {count} text entries.", R._("Import Complete"), MessageBoxMode.Ok);
+                    await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window, $"Imported {count} text entries.", R._("Import Complete"), MessageBoxMode.Ok);
                 }
                 else
                 {
-                    await MessageBoxWindow.Show(this, R._("No texts were imported. Check the file format."), "Import", MessageBoxMode.Ok);
+                    await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window, R._("No texts were imported. Check the file format."), "Import", MessageBoxMode.Ok);
                 }
             }
             catch (Exception ex)
             {
                 Log.ErrorF("Import failed: {0}", ex.Message);
-                await MessageBoxWindow.Show(this, $"Import failed: {ex.Message}", "Error", MessageBoxMode.Ok);
+                await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window, $"Import failed: {ex.Message}", "Error", MessageBoxMode.Ok);
             }
         }
 
@@ -576,7 +588,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             string dialogText = R.Error("文字:{0}はシステムに登録されていません。", error);
             var popup = new TextBadCharPopupView(dialogText);
-            return popup.ShowDialog<string?>(this);
+            return popup.ShowDialog<string?>(TopLevel.GetTopLevel(this) as Window);
         }
 
         Task OpenPatchManagerModalDefaultAsync()
@@ -584,7 +596,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // Open the Patch Manager as a MODAL dialog and AWAIT it — WriteText's
             // subsequent re-check only sees a freshly-installed patch if we block
             // here until the user closes the Patch Manager (Copilot finding 1).
-            return WindowManager.Instance.OpenModal<PatchManagerView>(this);
+            return WindowManager.Instance.OpenModal<PatchManagerView>(TopLevel.GetTopLevel(this) as Window);
         }
 
         async void OnWriteTextClick(object? sender, RoutedEventArgs e)
@@ -938,5 +950,6 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

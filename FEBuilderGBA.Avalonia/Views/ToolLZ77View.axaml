@@ -1,8 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.ToolLZ77View"
-        Title="LZ77 Compression Tool" Width="780" Height="500"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.ToolLZ77View">
   <DockPanel Margin="12">
     <TextBlock DockPanel.Dock="Top" Text="LZ77 Compression Tool" FontSize="18" FontWeight="Bold" Margin="0,0,0,8" />
 
@@ -143,4 +141,4 @@
 
     </TabControl>
   </DockPanel>
-</Window>
+</UserControl>

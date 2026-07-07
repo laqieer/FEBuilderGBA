@@ -1,9 +1,7 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
-        x:Class="FEBuilderGBA.Avalonia.Views.WorldMapImageFE6View"
-        Title="World Map Image (FE6)" Width="900" Height="720"
-        SizeToContent="Width">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+             x:Class="FEBuilderGBA.Avalonia.Views.WorldMapImageFE6View">
   <!-- World Map Image (FE6) editor (#1183) — port of WF WorldMapImageFE6Form.
        The FE6 world map is a FLAT 256-color LINEAR raster (NOT the FE7/FE8
        header-TSA), with FIVE zoom views (full + 4 quadrants NW/NE/SW/SE), each
@@ -203,4 +201,4 @@
       </StackPanel>
     </ScrollViewer>
   </DockPanel>
-</Window>
+</UserControl>

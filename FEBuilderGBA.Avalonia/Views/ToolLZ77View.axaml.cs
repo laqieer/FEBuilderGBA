@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
@@ -9,7 +10,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolLZ77View : TranslatedWindow, IEditorView
+    public partial class ToolLZ77View : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ToolLZ77ViewModel _vm = new();
 
@@ -20,7 +21,10 @@ namespace FEBuilderGBA.Avalonia.Views
         IStorageFile? _compressDestFile;
 
         public string ViewTitle => "LZ77 Compression Tool";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("LZ77 Compression Tool", 780, 500, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ToolLZ77View()
         {
@@ -31,14 +35,16 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void DecompressSrcBrowse_Click(object? sender, RoutedEventArgs e)
         {
-            var path = await FileDialogHelper.OpenFile(this, "Open source file", "*");
+            var path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this) as Window, "Open source file", "*");
             if (!string.IsNullOrEmpty(path))
                 _vm.DecompressSrcPath = path;
         }
 
         async void DecompressDestBrowse_Click(object? sender, RoutedEventArgs e)
         {
-            var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+            if (storageProvider == null) return;
+            var file = await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = R._("Save Decompressed File"),
                 SuggestedFileName = "decompressed.bin",
@@ -81,14 +87,16 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void CompressSrcBrowse_Click(object? sender, RoutedEventArgs e)
         {
-            var path = await FileDialogHelper.OpenFile(this, "Open source file", "*");
+            var path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this) as Window, "Open source file", "*");
             if (!string.IsNullOrEmpty(path))
                 _vm.CompressSrcPath = path;
         }
 
         async void CompressDestBrowse_Click(object? sender, RoutedEventArgs e)
         {
-            var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+            if (storageProvider == null) return;
+            var file = await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = R._("Save Compressed File"),
                 SuggestedFileName = "compressed.bin",
@@ -135,7 +143,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
             if (_vm.ZeroClearNeedsConfirmation(from, to))
             {
-                var result = await MessageBoxWindow.Show(this,
+                var result = await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window,
                     R._("Zeroing 0x{0:X8}..0x{1:X8} hits a dangerous low-address region (ROM header, fixed tables). Continue?", from, to),
                     R._("Confirm Zero Clear"),
                     MessageBoxMode.YesNo);
@@ -151,7 +159,9 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void Base64TextToFile_Click(object? sender, RoutedEventArgs e)
         {
-            var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+            if (storageProvider == null) return;
+            var file = await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = R._("Save Decoded File"),
                 SuggestedFileName = "decoded.bin",
@@ -163,7 +173,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void FileToBase64Text_Click(object? sender, RoutedEventArgs e)
         {
-            var path = await FileDialogHelper.OpenFile(this, R._("Open file to encode as base64"), "*");
+            var path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this) as Window, R._("Open file to encode as base64"), "*");
             if (!string.IsNullOrEmpty(path))
                 _vm.RunFileToBase64Text(path);
         }
@@ -183,7 +193,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // Optional raw-fallback warning.
             if (preflight == ToolLZ77ViewModel.MovePreflightResult.NeedRawFallbackConfirm)
             {
-                var dr = await MessageBoxWindow.Show(this,
+                var dr = await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window,
                     R._("LDR pointer search returned no hits. Falling back to a raw 4-byte binary pointer scan (may match unrelated bytes). Continue?"),
                     R._("Confirm Raw Pointer Fallback"),
                     MessageBoxMode.YesNo);
@@ -200,7 +210,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // Optional pointer-count warning.
             if (preflight == ToolLZ77ViewModel.MovePreflightResult.NeedPointerCountConfirm)
             {
-                var dr = await MessageBoxWindow.Show(this,
+                var dr = await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window,
                     R._("{0} pointer reference(s) will be rewritten. Continue?", sp.Pointers.Count),
                     R._("Confirm Multi-Pointer Move"),
                     MessageBoxMode.YesNo);
@@ -216,7 +226,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
 
             // Final main-confirm prompt.
-            var confirm = await MessageBoxWindow.Show(this,
+            var confirm = await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window,
                 R._("Move 0x{0:X} bytes from 0x{1:X8} to 0x{2:X8}{3}?",
                     length, srcOffset, dstOffset,
                     dstOffset == 0 ? " (auto-allocate)" : ""),
@@ -246,7 +256,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
             if (preflight == ToolLZ77ViewModel.RecompressPreflightResult.NeedRomModifiedAck)
             {
-                var dr = await MessageBoxWindow.Show(this,
+                var dr = await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window,
                     R._("ROM has unsaved modifications. Save first before recompressing? (Pressing No will proceed anyway, which is risky.)"),
                     R._("Confirm Recompress"),
                     MessageBoxMode.YesNo);
@@ -261,7 +271,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
             if (preflight == ToolLZ77ViewModel.RecompressPreflightResult.NeedConfirm)
             {
-                var dr = await MessageBoxWindow.Show(this,
+                var dr = await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window,
                     R._("Run LZ77 recompress? This walks the entire ROM (slow) and rewrites any entries that compress smaller. Heuristic scan — may miss entries WinForms catches."),
                     R._("Confirm Recompress"),
                     MessageBoxMode.YesNo);

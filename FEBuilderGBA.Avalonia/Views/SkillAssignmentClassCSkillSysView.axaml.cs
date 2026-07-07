@@ -6,6 +6,7 @@
 // ...ViewViewModel.cs stub was removed). The XView -> XViewModel name
 // pairing is what enables UndoCoverageScanner's View-to-VM upgrade pass to
 // mark the in-VM write callsites as Covered.
+using global::Avalonia;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -17,10 +18,11 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SkillAssignmentClassCSkillSysView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class SkillAssignmentClassCSkillSysView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly SkillAssignmentClassCSkillSysViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         // Track currently selected N1 row address. Reset on class change
         // (Copilot-flagged stale-selection guard from PR #544).
@@ -34,8 +36,11 @@ namespace FEBuilderGBA.Avalonia.Views
         List<AddrResult> _n1Items = new();
 
         public string ViewTitle => "Skill Assignment - Class (CSkillSys)";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Skill Assignment - Class (CSkillSys)", 1200, 900, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public SkillAssignmentClassCSkillSysView()
         {
@@ -52,20 +57,31 @@ namespace FEBuilderGBA.Avalonia.Views
                 int idx = N1ListBox.SelectedIndex;
                 if (idx >= 0 && idx < _n1Items.Count) OnN1Selected(_n1Items[idx]);
             };
-            Opened += (_, _) => Initialize();
-            Closed += (_, _) =>
-            {
-                if (_classSkillIconBitmap != null) try { _classSkillIconBitmap.Dispose(); } catch { /* swallow */ }
-                if (_n1SkillIconBitmap != null) try { _n1SkillIconBitmap.Dispose(); } catch { /* swallow */ }
-                _classSkillIconBitmap = null;
-                _n1SkillIconBitmap = null;
-            };
             N1B0Box.ValueChanged += (s, e) => OnLevelChanged();
             XLvValueBox.ValueChanged += (s, e) => OnXLevelValueChanged();
             XLvPlayerOnlyCheckBox.IsCheckedChanged += (s, e) => OnLevelModeCheckboxChanged(32);
             XLvEnemyOnlyCheckBox.IsCheckedChanged += (s, e) => OnLevelModeCheckboxChanged(64);
             XLvNormalHardCheckBox.IsCheckedChanged += (s, e) => OnLevelModeCheckboxChanged(96);
             XLvHardOnlyCheckBox.IsCheckedChanged += (s, e) => OnLevelModeCheckboxChanged(128);
+        }
+
+        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnDetachedFromVisualTree(e);
+            if (_classSkillIconBitmap != null) try { _classSkillIconBitmap.Dispose(); } catch { /* swallow */ }
+            if (_n1SkillIconBitmap != null) try { _n1SkillIconBitmap.Dispose(); } catch { /* swallow */ }
+            _classSkillIconBitmap = null;
+            _n1SkillIconBitmap = null;
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                Initialize();
+            }
         }
 
         void Initialize()

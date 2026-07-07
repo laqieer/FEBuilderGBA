@@ -1,4 +1,4 @@
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
@@ -268,9 +268,9 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [AvaloniaFact]
-        public void AllViews_InheritTranslatedWindow()
+        public void AllViews_InheritTranslatedBase()
         {
-            // Verify that views inherit from TranslatedWindow base class
+            // Converted editor views inherit from TranslatedUserControl and implement IEmbeddableEditor.
             var viewTypes = new[]
             {
                 typeof(FEBuilderGBA.Avalonia.Views.UnitEditorView),
@@ -280,8 +280,10 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             foreach (var vt in viewTypes)
             {
-                Assert.True(typeof(TranslatedWindow).IsAssignableFrom(vt),
-                    $"{vt.Name} should inherit from TranslatedWindow");
+                Assert.True(typeof(TranslatedUserControl).IsAssignableFrom(vt),
+                    $"{vt.Name} should inherit from TranslatedUserControl");
+                Assert.True(typeof(FEBuilderGBA.Avalonia.Services.IEmbeddableEditor).IsAssignableFrom(vt),
+                    $"{vt.Name} should implement IEmbeddableEditor");
             }
         }
 

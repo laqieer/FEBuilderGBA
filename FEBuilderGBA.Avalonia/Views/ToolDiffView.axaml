@@ -1,8 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.ToolDiffView"
-        Title="ROM Diff Tool" Width="820" Height="500"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.ToolDiffView">
   <DockPanel Margin="12">
     <TextBlock DockPanel.Dock="Top" Text="ROM Diff Tool" FontSize="18" FontWeight="Bold" Margin="0,0,0,8" />
 
@@ -66,4 +64,4 @@
 
     </TabControl>
   </DockPanel>
-</Window>
+</UserControl>

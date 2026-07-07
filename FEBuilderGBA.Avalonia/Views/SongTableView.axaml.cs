@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -6,13 +7,16 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SongTableView : TranslatedWindow, IPickableEditor, IDataVerifiableView
+    public partial class SongTableView : TranslatedUserControl, IEmbeddableEditor, IPickableEditor, IDataVerifiableView
     {
         readonly SongTableViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Song Table";
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
+        public EditorDescriptor Descriptor => new("Song Table Editor", 1505, 809, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
 
         public event Action<PickResult>? SelectionConfirmed;
 
@@ -21,7 +25,16 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             SongList.SelectedAddressChanged += OnSongSelected;
             SongList.SelectionConfirmed += result => SelectionConfirmed?.Invoke(result);
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -128,6 +141,7 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         static uint ParseHexText(string? text)
         {

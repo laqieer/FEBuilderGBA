@@ -1,3 +1,4 @@
+﻿using global::Avalonia;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,16 +12,19 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class UnitEditorView : TranslatedWindow, IPickableEditor, IDataVerifiableView
+    public partial class UnitEditorView : TranslatedUserControl, IEmbeddableEditor, IPickableEditor, IDataVerifiableView
     {
         readonly UnitEditorViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         List<(uint id, string name)> _classList = new();
         List<(uint id, string name)> _affinityList = new();
 
         public string ViewTitle => R._("Unit Editor");
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
+        public EditorDescriptor Descriptor => new("Unit Editor", 934, 661, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
 
         public event Action<PickResult>? SelectionConfirmed;
 
@@ -29,7 +33,6 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             UnitList.SelectedAddressChanged += OnUnitSelected;
             UnitList.SelectionConfirmed += result => SelectionConfirmed?.Invoke(result);
-            Opened += (_, _) => { LoadList(); UpdateAddressBarInfra(); };
 
             // Ability flag names are set in LoadList() based on ROM version
 
@@ -47,6 +50,16 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // #358: jump to Support Unit Editor for this unit's support row.
             JumpToSupportUnitButton.Click += JumpToSupportUnit_Click;
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList(); UpdateAddressBarInfra();
+            }
         }
 
         /// <summary>
@@ -641,9 +654,9 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 PickResult? result;
                 if (CoreState.ROM?.RomInfo?.version == 6)
-                    result = await WindowManager.Instance.PickFromEditor<ClassFE6View>(navAddr, this);
+                    result = await WindowManager.Instance.PickFromEditor<ClassFE6View>(navAddr, TopLevel.GetTopLevel(this) as Window);
                 else
-                    result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(navAddr, this);
+                    result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(navAddr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null)
                 {
                     // result.Index is the class list index — set the combo
@@ -671,7 +684,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (dataSize == 0) dataSize = 28;
                 uint navAddr = U.isSafetyOffset(baseAddr) ? baseAddr + portraitId * dataSize : 0;
 
-                var result = await WindowManager.Instance.PickFromEditor<PortraitViewerView>(navAddr, this);
+                var result = await WindowManager.Instance.PickFromEditor<PortraitViewerView>(navAddr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null)
                 {
                     PortraitIdBox.Value = result.Index;
@@ -707,6 +720,7 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         void EditSkills_Click(object? sender, RoutedEventArgs e)
         {
@@ -851,7 +865,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (rom == null) return;
                 var addrs = GetAllUnitAddresses();
                 if (addrs.Length == 0) return;
-                await MakeCsvManager().ExportAllAsync(this, rom, addrs);
+                await MakeCsvManager().ExportAllAsync(TopLevel.GetTopLevel(this) as Window, rom, addrs);
             }
             catch (Exception ex) { Log.ErrorF("ExportAll_Click failed: {0}", ex.Message); }
         }
@@ -869,7 +883,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // record. Falls back to 0 when no selection is resolvable.
                 int idx = UnitList.SelectedOriginalIndex;
                 uint uid = idx >= 0 ? (uint)idx : 0u;
-                await MakeCsvManager().ExportSelectedAsync(this, rom, _vm.CurrentAddr, uid);
+                await MakeCsvManager().ExportSelectedAsync(TopLevel.GetTopLevel(this) as Window, rom, _vm.CurrentAddr, uid);
             }
             catch (Exception ex) { Log.ErrorF("ExportSelected_Click failed: {0}", ex.Message); }
         }
@@ -887,7 +901,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // scope only wraps the actual ROM writes. Opening Begin/Commit
                 // across an `await` would risk capturing unrelated writes
                 // that happen while the picker dialog is open.
-                string? csv = await mgr.ReadCsvForUiAsync(this);
+                string? csv = await mgr.ReadCsvForUiAsync(TopLevel.GetTopLevel(this) as Window);
                 if (csv == null) return;
                 _undoService.Begin(R._("Import Units CSV"));
                 int written;
@@ -915,7 +929,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (_vm.CurrentAddr == 0) return;
                 var mgr = MakeCsvManager();
                 // Read CSV first (no undo scope across the picker await).
-                string? csv = await mgr.ReadCsvForUiAsync(this);
+                string? csv = await mgr.ReadCsvForUiAsync(TopLevel.GetTopLevel(this) as Window);
                 if (csv == null) return;
                 // #1016: thread the SELECTED unit id (0-based AddressList index)
                 // so the FE8U MagicSplit MAG column is read into the correct

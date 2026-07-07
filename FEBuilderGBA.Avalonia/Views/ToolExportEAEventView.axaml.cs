@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -11,11 +12,14 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolExportEAEventView : TranslatedWindow, IEditorView
+    public partial class ToolExportEAEventView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ToolExportEAEventViewViewModel _vm = new();
         public string ViewTitle => "Export EA Event";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Export EA Event", 1096, 784, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         static FilePickerFileType EaFileType => new(R._("EA Event Files")) { Patterns = new[] { "*.event" } };
         static FilePickerFileType AllFileType => new(R._("All Files")) { Patterns = new[] { "*" } };
@@ -48,7 +52,9 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async System.Threading.Tasks.Task<global::Avalonia.Platform.Storage.IStorageFile?> PickSaveFile(string suggestedName)
         {
-            return await this.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+            if (storageProvider == null) return null;
+            return await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = R._("Export EA Event"),
                 SuggestedFileName = suggestedName,

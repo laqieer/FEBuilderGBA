@@ -5,6 +5,7 @@
 // button, LDR Address + Reference textboxes, 4 per-result warning
 // indicators), and ensures every ROM-mutating handler runs inside a
 // _undoService.Begin / Commit / Rollback scope.
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
@@ -16,12 +17,15 @@ using FEBuilderGBA.Avalonia.Dialogs;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class PointerToolView : TranslatedWindow, IEditorView
+    public partial class PointerToolView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly PointerToolViewModel _vm = new();
         readonly UndoService _undoService = new();
         public string ViewTitle => "Pointer Tool";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Pointer Tool", 1050, 780, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public PointerToolView()
         {
@@ -134,7 +138,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var storage = StorageProvider;
+                var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
                 if (storage == null) return;
                 var gbaFiles = new FilePickerFileType("GBA ROMs") { Patterns = new[] { "*.gba" } };
                 var binFiles = new FilePickerFileType("Binary files") { Patterns = new[] { "*.bin" } };
@@ -206,7 +210,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void Close_Click(object? sender, RoutedEventArgs e) => Close();
+        void Close_Click(object? sender, RoutedEventArgs e) => RequestClose();
 
         public void NavigateTo(uint address)
         {

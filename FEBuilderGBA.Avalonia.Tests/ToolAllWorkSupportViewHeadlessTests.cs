@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.IO;
 using System.Linq;
@@ -87,10 +87,15 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             var view = new ToolAllWorkSupportView();
             view.Show();
-            view.Hide();
-
-            var ic = TilesList(view);
-            Assert.Equal(2, ItemCount(ic));
+            try
+            {
+                var ic = TilesList(view);
+                Assert.Equal(2, ItemCount(ic));
+            }
+            finally
+            {
+                view.Close();
+            }
         }
 
         [AvaloniaFact]
@@ -103,10 +108,15 @@ namespace FEBuilderGBA.Avalonia.Tests
             {
                 var view = new ToolAllWorkSupportView();
                 view.Show();
-                view.Hide();
-
-                var ic = TilesList(view);
-                Assert.Equal(0, ItemCount(ic));
+                try
+                {
+                    var ic = TilesList(view);
+                    Assert.Equal(0, ItemCount(ic));
+                }
+                finally
+                {
+                    view.Close();
+                }
             });
             Assert.Null(ex);
         }
@@ -119,7 +129,7 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             var view = new ToolAllWorkSupportView();
             view.Show();
-            view.Hide();
+            view.Close();
 
             var ids = view.GetLogicalDescendants().OfType<Control>()
                 .Select(AutomationProperties.GetAutomationId)

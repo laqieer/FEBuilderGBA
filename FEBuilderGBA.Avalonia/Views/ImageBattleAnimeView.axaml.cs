@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -8,29 +9,46 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImageBattleAnimeView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class ImageBattleAnimeView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly ImageBattleAnimeViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
         bool _suppressFrameEvents;
         DispatcherTimer? _animTimer;
         bool _isPlaying;
         bool _listLoaded;
 
         public string ViewTitle => "Battle Animation Editor";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Battle Animation Editor", 900, 600, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
 
         public ImageBattleAnimeView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
-            Closed += (_, _) => StopAnimation();
 
             // Populate section combo with mode names
             for (int i = 0; i < BattleAnimeRendererCore.SectionNames.Length; i++)
                 SectionCombo.Items.Add(BattleAnimeRendererCore.SectionNames[i]);
             SectionCombo.SelectedIndex = 0;
+        }
+
+        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnDetachedFromVisualTree(e);
+            StopAnimation();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -186,7 +204,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 string name = _vm.AnimeName.Replace("\0", "").Trim();
                 if (string.IsNullOrEmpty(name)) name = "tilesheet";
-                await TileSheetImage.ExportPng(this, $"{name}_tilesheet");
+                await TileSheetImage.ExportPng(TopLevel.GetTopLevel(this) as Window, $"{name}_tilesheet");
             }
         }
 
@@ -206,7 +224,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // real local path; on Android (no local path) message instead of silently
             // importing a sibling-less temp copy. Matches the Magic FEditor import.
             string? path = await Dialogs.FileDialogHelper.OpenFile(
-                this, R._("Import Battle Animation"), new[] { "*.txt", "*.bin" },
+                TopLevel.GetTopLevel(this) as Window, R._("Import Battle Animation"), new[] { "*.txt", "*.bin" },
                 requireLocalPath: true);
             if (string.IsNullOrEmpty(path))
             {
@@ -259,7 +277,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // the .txt script, so a SAF pick (no local path) can't place them.
             // SaveAnimationScriptFile returns null without a local path; on Android
             // message instead of silently exporting siblings into a temp dir.
-            string? path = await Dialogs.FileDialogHelper.SaveAnimationScriptFile(this, $"{name}.txt");
+            string? path = await Dialogs.FileDialogHelper.SaveAnimationScriptFile(TopLevel.GetTopLevel(this) as Window, $"{name}.txt");
             if (string.IsNullOrEmpty(path))
             {
                 if (OperatingSystem.IsAndroid())
@@ -515,5 +533,6 @@ namespace FEBuilderGBA.Avalonia.Views
         }
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

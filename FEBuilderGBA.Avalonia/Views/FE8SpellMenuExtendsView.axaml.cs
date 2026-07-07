@@ -14,6 +14,7 @@
 // PreviewIconHelper.LoadItemIconByItemId (a detail-panel preview, NOT a per-row
 // list-icon loader), so the master-list rows stay icon-free per the #939
 // Category-B contract.
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -24,14 +25,18 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class FE8SpellMenuExtendsView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class FE8SpellMenuExtendsView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly FE8SpellMenuExtendsViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
         Bitmap _n1IconBitmap;
 
         public string ViewTitle => "Spell Menu Extensions";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Spell Menu Extensions", 1189, 849);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
         public ViewModelBase DataViewModel => _vm;
 
         public FE8SpellMenuExtendsView()
@@ -40,8 +45,22 @@ namespace FEBuilderGBA.Avalonia.Views
             // Bind DataContext so AXAML {Binding SpellEntries} resolves.
             DataContext = _vm;
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
-            Closed += (_, _) => DisposeBitmap(ref _n1IconBitmap);
+        }
+
+        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnDetachedFromVisualTree(e);
+            DisposeBitmap(ref _n1IconBitmap);
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         static void DisposeBitmap(ref Bitmap bmp)
@@ -236,7 +255,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint defaultCount = currentCount + 1;
                 if (defaultCount > maxCount) defaultCount = maxCount;
                 uint? chosen = await NumberInputDialog.Show(
-                    this,
+                    TopLevel.GetTopLevel(this) as Window,
                     R._("Enter the new spell-list entry count for this unit (current: {0}, max: {1}).",
                         currentCount, maxCount),
                     R._("List Expansion"),

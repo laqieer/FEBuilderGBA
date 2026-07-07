@@ -1,9 +1,7 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
-        x:Class="FEBuilderGBA.Avalonia.Views.WorldMapImageFE7View"
-        Title="World Map Image (FE7)" Width="1100" Height="720"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+             x:Class="FEBuilderGBA.Avalonia.Views.WorldMapImageFE7View">
   <!-- World Map Image (FE7) editor (#1184) — port of WF WorldMapImageFE7Form.
        The FE7 big field map is a 12-split (4x3) grid of 256x256 header-TSA
        pieces composited into 1024x688 (bottom row clipped to 176). The event
@@ -92,4 +90,4 @@
       </StackPanel>
     </ScrollViewer>
   </DockPanel>
-</Window>
+</UserControl>

@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,15 +11,18 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ItemEditorView : TranslatedWindow, IPickableEditor, IDataVerifiableView
+    public partial class ItemEditorView : TranslatedUserControl, IEmbeddableEditor, IPickableEditor, IDataVerifiableView
     {
         readonly ItemEditorViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         List<(uint id, string name)> _weaponTypeList = new();
 
         public string ViewTitle => R._("Item Editor");
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
+        public EditorDescriptor Descriptor => new("Item Editor", 1408, 856, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
 
         public event Action<PickResult>? SelectionConfirmed;
 
@@ -27,7 +31,6 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             ItemList.SelectedAddressChanged += OnItemSelected;
             ItemList.SelectionConfirmed += result => SelectionConfirmed?.Invoke(result);
-            Opened += (_, _) => LoadList();
 
             // Set trait flag names
             Trait1Flags.SetBitNames(AbilityFlagNames.ItemTrait1);
@@ -42,7 +45,22 @@ namespace FEBuilderGBA.Avalonia.Views
             // would otherwise reset Unk33Label.Text back to the original
             // "Unk33 (B33):" literal (Copilot bot review on PR #569).
             CoreState.LanguageChanged += UpdateWeaponDebuffsLink;
-            Closed += (_, _) => CoreState.LanguageChanged -= UpdateWeaponDebuffsLink;
+        }
+
+        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnDetachedFromVisualTree(e);
+            CoreState.LanguageChanged -= UpdateWeaponDebuffsLink;
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -656,6 +674,7 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         static uint ParseHexText(string? text)
         {
@@ -700,12 +719,12 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void ExportTSV_Click(object? sender, RoutedEventArgs e)
         {
-            await TableExportImportHelper.ExportTableAsync(this, "items");
+            await TableExportImportHelper.ExportTableAsync(TopLevel.GetTopLevel(this) as Window, "items");
         }
 
         async void ImportTSV_Click(object? sender, RoutedEventArgs e)
         {
-            await TableExportImportHelper.ImportTableAsync(this, "items", _undoService, () =>
+            await TableExportImportHelper.ImportTableAsync(TopLevel.GetTopLevel(this) as Window, "items", _undoService, () =>
             {
                 // Reload the current entry after import
                 if (_vm.CurrentAddr != 0)

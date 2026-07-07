@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -6,12 +7,16 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SongTrackImportSelectInstrumentView : TranslatedWindow, IPickableEditor
+    public partial class SongTrackImportSelectInstrumentView : TranslatedUserControl, IEmbeddableEditor, IPickableEditor
     {
         readonly SongTrackImportSelectInstrumentViewModel _vm = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Instrument Selection";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Instrument Selection", 767, 400, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         // #1001 PR2 / #1002: the browser is now a pick-and-return editor — the
         // SongTrack .s import opens it via WindowManager.PickFromEditor and the
@@ -24,7 +29,16 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
             EntryList.SelectionConfirmed += result => SelectionConfirmed?.Invoke(result);
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()

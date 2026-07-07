@@ -1,9 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.PointerToolView"
-        Title="Pointer Tool" Width="1050" Height="780"
-        WindowStartupLocation="CenterOwner"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.PointerToolView">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <DockPanel Margin="12">
     <!-- Bottom buttons -->
@@ -200,4 +197,4 @@
     </Grid>
   </DockPanel>
   </ScrollViewer>
-</Window>
+</UserControl>

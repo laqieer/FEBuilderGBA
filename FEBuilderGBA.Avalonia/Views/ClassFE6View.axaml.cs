@@ -1,3 +1,4 @@
+﻿using global::Avalonia;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,13 +11,16 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ClassFE6View : TranslatedWindow, IPickableEditor, IDataVerifiableView
+    public partial class ClassFE6View : TranslatedUserControl, IEmbeddableEditor, IPickableEditor, IDataVerifiableView
     {
         readonly ClassFE6ViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Class Editor (FE6)";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Class Editor (FE6)", 1200, 900, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
 
         public event Action<PickResult>? SelectionConfirmed;
 
@@ -25,7 +29,6 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
             EntryList.SelectionConfirmed += result => SelectionConfirmed?.Invoke(result);
-            Opened += (_, _) => LoadList();
 
             // Auto-recalculate growth sim when SimLevel or growth/base stat boxes change.
             SimLevelBox.ValueChanged += OnGrowthInputChanged;
@@ -52,6 +55,16 @@ namespace FEBuilderGBA.Avalonia.Views
             B45Box.ValueChanged += OnWeaponValueChanged;
             B46Box.ValueChanged += OnWeaponValueChanged;
             B47Box.ValueChanged += OnWeaponValueChanged;
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -529,7 +542,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var addrs = GetAllClassAddresses();
                 if (addrs.Length == 0) return;
                 var mgr = BuildCsvManager();
-                await mgr.ExportAllAsync(this, rom, addrs);
+                await mgr.ExportAllAsync(TopLevel.GetTopLevel(this) as Window, rom, addrs);
             }
             catch (Exception ex) { Log.Error($"ClassFE6View.ExportAll failed: {ex.Message}"); }
         }
@@ -543,7 +556,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var mgr = BuildCsvManager();
                 int idx = EntryList.SelectedOriginalIndex;
                 uint uid = idx >= 0 ? (uint)idx : 0;
-                await mgr.ExportSelectedAsync(this, rom, _vm.CurrentAddr, uid);
+                await mgr.ExportSelectedAsync(TopLevel.GetTopLevel(this) as Window, rom, _vm.CurrentAddr, uid);
             }
             catch (Exception ex) { Log.Error($"ClassFE6View.ExportSelected failed: {ex.Message}"); }
         }
@@ -557,7 +570,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var addrs = GetAllClassAddresses();
                 if (addrs.Length == 0) return;
                 var mgr = BuildCsvManager();
-                string? csv = await mgr.ReadCsvForUiAsync(this);
+                string? csv = await mgr.ReadCsvForUiAsync(TopLevel.GetTopLevel(this) as Window);
                 if (csv == null) return;
                 _undoService.Begin("Import Classes (FE6) CSV");
                 int written;
@@ -584,7 +597,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var rom = CoreState.ROM;
                 if (rom == null || _vm.CurrentAddr == 0) return;
                 var mgr = BuildCsvManager();
-                string? csv = await mgr.ReadCsvForUiAsync(this);
+                string? csv = await mgr.ReadCsvForUiAsync(TopLevel.GetTopLevel(this) as Window);
                 if (csv == null) return;
                 _undoService.Begin("Import Class (FE6) CSV");
                 int written;
@@ -611,6 +624,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public void EnablePickMode() => EntryList.EnablePickMode();
 
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         static uint ParseHexText(string? text)
         {

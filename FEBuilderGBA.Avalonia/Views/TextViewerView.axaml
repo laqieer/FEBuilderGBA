@@ -1,9 +1,7 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
-        x:Class="FEBuilderGBA.Avalonia.Views.TextViewerView"
-        Title="Text Editor" Width="1166" Height="930"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+             x:Class="FEBuilderGBA.Avalonia.Views.TextViewerView">
   <Grid ColumnDefinitions="300,*">
     <controls:AddressListControl AutomationProperties.AutomationId="TextViewer_Text_List" Grid.Column="0" Name="TextList" Margin="4" />
 
@@ -255,4 +253,4 @@
       </TabItem>
     </TabControl>
   </Grid>
-</Window>
+</UserControl>

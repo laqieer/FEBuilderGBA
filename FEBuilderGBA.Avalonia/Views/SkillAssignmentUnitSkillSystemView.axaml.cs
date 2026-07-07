@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -26,15 +27,19 @@ namespace FEBuilderGBA.Avalonia.Views
     /// <c>FindAssignUnitLevelUpSkillPointer() == U.NOT_FOUND</c>), so no dead
     /// level-up UI is shown.
     /// </summary>
-    public partial class SkillAssignmentUnitSkillSystemView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class SkillAssignmentUnitSkillSystemView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly SkillAssignmentUnitSkillSystemViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
         Bitmap _unitIconBitmap;
         Bitmap _n1IconBitmap;
 
         public string ViewTitle => "Skill Assignment (Unit)";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Skill Assignment (Unit)", 1200, 900, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
         public ViewModelBase DataViewModel => _vm;
 
         public SkillAssignmentUnitSkillSystemView()
@@ -43,12 +48,23 @@ namespace FEBuilderGBA.Avalonia.Views
             // Bind DataContext so AXAML {Binding LevelUpEntries} resolves.
             DataContext = _vm;
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
-            Closed += (_, _) =>
+        }
+
+        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnDetachedFromVisualTree(e);
+            DisposeBitmap(ref _unitIconBitmap);
+            DisposeBitmap(ref _n1IconBitmap);
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
             {
-                DisposeBitmap(ref _unitIconBitmap);
-                DisposeBitmap(ref _n1IconBitmap);
-            };
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         static void DisposeBitmap(ref Bitmap bmp)
@@ -378,7 +394,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var sp = StorageProvider;
+                var sp = TopLevel.GetTopLevel(this)?.StorageProvider;
                 if (sp == null) return;
                 var file = await sp.SaveFilePickerAsync(new FilePickerSaveOptions
                 {
@@ -411,7 +427,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // the picker is showing.
             try
             {
-                var sp = StorageProvider;
+                var sp = TopLevel.GetTopLevel(this)?.StorageProvider;
                 if (sp == null) return;
                 var files = await sp.OpenFilePickerAsync(new FilePickerOpenOptions
                 {
