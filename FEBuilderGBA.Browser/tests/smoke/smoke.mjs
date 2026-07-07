@@ -17,9 +17,10 @@
 //                     <base href> so base-relative resolution is exercised the same way as prod.
 //   SMOKE_SCREENSHOT  (default `web-smoke.png`) screenshot output path.
 //   SMOKE_TIMEOUT_MS  (default 120000) boot timeout — cold wasm + ~6.8 MB config.zip is slow.
-//   SMOKE_ROM         (optional) ROM fixture path. When present, the smoke test loads it through
-//                     the single-view Open ROM flow, opens Move Cost Editor, and asserts the
-//                     embeddable editor page renders (real #1873 single-view proof).
+//   SMOKE_ROM         (optional) ROM fixture path, or `synthetic` to generate a license-clean FE8U
+//                     header-only ROM. When present, the smoke test loads it through the E2E-only
+//                     JSExport hook, opens Move Cost Editor through the real launcher delegate, and
+//                     asserts the embeddable editor page renders (real #1873 single-view proof).
 
 import http from 'node:http';
 import fs from 'node:fs';
@@ -90,6 +91,12 @@ const server = http.createServer((req, res) => {
       return;
     }
     res.setHeader('Content-Type', MIME[path.extname(filePath).toLowerCase()] || 'application/octet-stream');
+    if (rel === 'index.html' && BASE_PATH !== '/') {
+      const html = fs.readFileSync(filePath, 'utf8')
+        .replace('<base href="/" />', `<base href="${BASE_PATH}" />`);
+      res.end(html);
+      return;
+    }
     fs.createReadStream(filePath).pipe(res);
   } catch (e) {
     res.statusCode = 500;
@@ -100,10 +107,23 @@ const server = http.createServer((req, res) => {
 const failures = [];
 const badModuleResponses = [];
 const notSupportedErrors = [];
+let rom = null;
+
+function smokeRomBytes() {
+  if (!ROM_PATH) return null;
+  if (ROM_PATH === 'synthetic') {
+    const rom = Buffer.alloc(0x1000000);
+    Buffer.from('BE8E01', 'ascii').copy(rom, 0xAC);
+    return rom;
+  }
+  if (fs.existsSync(ROM_PATH)) return fs.readFileSync(ROM_PATH);
+  failures.push(`SMOKE_ROM not found: ${ROM_PATH}`);
+  return null;
+}
 
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
 const port = server.address().port;
-const url = `http://127.0.0.1:${port}${BASE_PATH}`;
+const url = `http://127.0.0.1:${port}${BASE_PATH}?e2e=1`;
 console.log(`[smoke] serving ${ROOT} at ${url} (boot timeout ${BOOT_TIMEOUT_MS} ms)`);
 
 const browser = await chromium.launch({ args: ['--no-sandbox'] });
@@ -159,24 +179,48 @@ try {
     failures.push(`.app-splash was NOT removed after the canvas mounted (#1869 — the loading spinner overlays the app): ${e.message}`);
   }
 
-  if (ROM_PATH && fs.existsSync(ROM_PATH)) {
+  rom = smokeRomBytes();
+  if (rom) {
     try {
       console.log(`[smoke] loading ROM fixture -> ${ROM_PATH}`);
-      const fileChooserPromise = page.waitForEvent('filechooser', { timeout: 15000 });
-      await page.getByRole('button', { name: /Open ROM/i }).click();
-      const chooser = await fileChooserPromise;
-      await chooser.setFiles(ROM_PATH);
+      await page.waitForFunction(() => typeof globalThis.__febTest !== 'undefined', null, { timeout: BOOT_TIMEOUT_MS });
 
-      await page.getByText(/Loaded:/i).waitFor({ state: 'visible', timeout: BOOT_TIMEOUT_MS });
-      console.log('[smoke] ROM loaded through single-view shell.');
+      const loaded = await page.evaluate(async (s) => await globalThis.__febTest.LoadRomBase64(s), rom.toString('base64'));
+      if (loaded !== true) {
+        failures.push(`LoadRomBase64 returned ${loaded}; expected true`);
+      } else {
+        console.log('[smoke] ROM loaded through E2E JSExport hook.');
+      }
 
-      await page.getByRole('button', { name: /Move Cost Editor/i }).click();
-      await page.locator('[data-automation-id="MoveCostEditor_Class_List"], [automation-id="MoveCostEditor_Class_List"], :text("Terrain Move Costs")')
-        .first()
-        .waitFor({ state: 'visible', timeout: BOOT_TIMEOUT_MS });
-      console.log('[smoke] Move Cost Editor rendered in single-view host (#1873).');
+      const parsed = path.parse(SCREENSHOT);
+      const beforeScreenshot = path.join(parsed.dir || '.', `${parsed.name}.before${parsed.ext || '.png'}`);
+      fs.mkdirSync(path.dirname(beforeScreenshot), { recursive: true });
+      fs.mkdirSync(path.dirname(SCREENSHOT), { recursive: true });
+      await page.screenshot({ path: beforeScreenshot });
+      console.log(`[smoke] launcher screenshot -> ${beforeScreenshot}`);
+
+      const opened = await page.evaluate(() => globalThis.__febTest.OpenEditor('MoveCost'));
+      await page.waitForTimeout(1500);
+      const cur = await page.evaluate(() => globalThis.__febTest.CurrentEditorTitle());
+      if (opened !== 'Move Cost Editor') {
+        failures.push(`OpenEditor('MoveCost') returned "${opened}"; expected "Move Cost Editor"`);
+      }
+      if (cur !== 'Move Cost Editor') {
+        failures.push(`CurrentEditorTitle() returned "${cur}"; expected "Move Cost Editor"`);
+      }
+
+      await page.screenshot({ path: SCREENSHOT });
+      console.log(`[smoke] editor screenshot -> ${SCREENSHOT}`);
+      const before = fs.readFileSync(beforeScreenshot);
+      const after = fs.readFileSync(SCREENSHOT);
+      if (before.length === after.length && before.equals(after)) {
+        failures.push('editor screenshot matched launcher screenshot; expected a rendered visual change');
+      }
+      if (opened === 'Move Cost Editor' && cur === 'Move Cost Editor') {
+        console.log('[smoke] Move Cost Editor opened through real launcher command path (#1888).');
+      }
     } catch (e) {
-      failures.push(`Move Cost Editor single-view proof failed with SMOKE_ROM=${ROM_PATH}: ${e.message}`);
+      failures.push(`Move Cost Editor wasm proof failed with SMOKE_ROM=${ROM_PATH}: ${e.message}`);
     }
   } else {
     console.log(`[smoke] SMOKE_ROM not set or missing; skipping Move Cost Editor single-view proof.`);
@@ -185,11 +229,14 @@ try {
   failures.push(`app did not render a canvas within ${BOOT_TIMEOUT_MS} ms: ${e.message}`);
 }
 
-try {
-  await page.screenshot({ path: SCREENSHOT });
-  console.log(`[smoke] screenshot -> ${SCREENSHOT}`);
-} catch (e) {
-  console.log(`[smoke] screenshot failed (non-fatal): ${e.message}`);
+if (!rom) {
+  try {
+    fs.mkdirSync(path.dirname(SCREENSHOT), { recursive: true });
+    await page.screenshot({ path: SCREENSHOT });
+    console.log(`[smoke] screenshot -> ${SCREENSHOT}`);
+  } catch (e) {
+    console.log(`[smoke] screenshot failed (non-fatal): ${e.message}`);
+  }
 }
 
 if (badModuleResponses.length) {

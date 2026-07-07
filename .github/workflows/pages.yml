@@ -155,6 +155,49 @@ jobs:
           path: web-boot-smoke.png
           if-no-files-found: warn
 
+      - name: Publish Browser head with E2E hooks (PR editor-nav smoke only)
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          E2E_PUBLISH="$GITHUB_WORKSPACE/browser-e2e-publish"
+          dotnet publish FEBuilderGBA.Browser/FEBuilderGBA.Browser.csproj \
+            -c ${{ env.BUILD_CONFIGURATION }} \
+            -p:EnableBrowserTarget=true \
+            -p:WasmEnableThreads=false \
+            -p:PublishTrimmed=false \
+            -p:CompressionEnabled=false \
+            -p:DefineConstants=E2E_HOOKS \
+            -o "$E2E_PUBLISH"
+          if [ -d "$E2E_PUBLISH/wwwroot" ]; then
+            E2E_OUT="$E2E_PUBLISH/wwwroot"
+          else
+            E2E_OUT="$E2E_PUBLISH"
+          fi
+          echo "E2E_OUT=$E2E_OUT" >> "$GITHUB_ENV"
+          sed -i "s|<base href=\"/\" />|<base href=\"${{ env.PAGES_BASE_PATH }}\" />|" "$E2E_OUT/index.html"
+          touch "$E2E_OUT/.nojekyll"
+
+      - name: Web editor-nav smoke test (synthetic ROM, E2E hooks)
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          cd FEBuilderGBA.Browser/tests/smoke
+          SMOKE_WWWROOT="$E2E_OUT" \
+          SMOKE_BASE_PATH="${{ env.PAGES_BASE_PATH }}" \
+          SMOKE_ROM=synthetic \
+          SMOKE_SCREENSHOT="$GITHUB_WORKSPACE/web-editor-nav-smoke.png" \
+          node smoke.mjs
+
+      - name: Upload web editor-nav screenshot
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-editor-nav-smoke
+          path: |
+            web-editor-nav-smoke.png
+            web-editor-nav-smoke.before.png
+          if-no-files-found: warn
+
       - name: Configure Pages
         # Idempotent; asserts the Actions build type. enablement:true turns Pages on if it isn't.
         # Gated to non-PR: on a pull_request (esp. from a fork) the GITHUB_TOKEN is read-only, so
