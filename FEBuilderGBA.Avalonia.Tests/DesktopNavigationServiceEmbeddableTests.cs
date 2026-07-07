@@ -124,6 +124,24 @@ public class DesktopNavigationServiceEmbeddableTests
     }
 
     [AvaloniaFact]
+    public async Task OpenModal_result_with_owner_returns_embeddable_DialogResult()
+    {
+        TestEmbeddableEditor.Reset();
+        var owner = new Window { Width = 200, Height = 100 };
+        owner.Show();
+        var svc = new DesktopNavigationService { MainWindow = owner };
+
+        var modalTask = svc.OpenModal<ModalResultEmbeddableEditor, string>(owner);
+        var editor = Assert.IsType<ModalResultEmbeddableEditor>(TestEmbeddableEditor.LastInstance);
+        Assert.False(modalTask.IsCompleted);
+
+        editor.DismissWith("accepted");
+
+        Assert.Equal("accepted", await modalTask);
+        owner.Close();
+    }
+
+    [AvaloniaFact]
     public void Open_close_repeated_embeddable_hosts_do_not_grow_cache_or_handlers()
     {
         const int iterations = 12;

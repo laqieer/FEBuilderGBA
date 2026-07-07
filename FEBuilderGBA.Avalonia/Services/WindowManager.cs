@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
 
@@ -86,6 +86,10 @@ namespace FEBuilderGBA.Avalonia.Services
         /// <summary>Open a view as a modal dialog or modal page.</summary>
         public Task<T> OpenModal<T>(Window? owner = null) where T : Control, new()
             => _service.OpenModal<T>(owner);
+
+        /// <summary>Open a modal dialog/page and return its dialog result.</summary>
+        public Task<TResult?> OpenModal<T, TResult>(Window? owner = null, Action<T>? configure = null) where T : Control, new()
+            => _service.OpenModal<T, TResult>(owner, configure);
 
         /// <summary>Find an already-open view of the given type, or null.</summary>
         public T? FindOpen<T>() where T : Control => _service.FindOpen<T>();

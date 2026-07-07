@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // #1122 — WindowManager facade + INavigationService delegation tests.
 //
 //   - WindowManager public API stability (reflection): the ~356 call sites must
@@ -48,6 +48,14 @@ sealed class RecordingNavigationService : INavigationService
     {
         LastCall = "OpenModal"; LastType = typeof(T);
         return Task.FromResult(new T());
+    }
+
+    public Task<TResult?> OpenModal<T, TResult>(Window? owner = null, Action<T>? configure = null) where T : Control, new()
+    {
+        LastCall = "OpenModalResult"; LastType = typeof(T);
+        var view = new T();
+        configure?.Invoke(view);
+        return Task.FromResult<TResult?>(default);
     }
 
     public Task<PickResult?> PickFromEditor<T>(uint navigateAddress = 0, Window? owner = null)

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // #1122 — Android single-activity navigation model.
 //
 // Desktop navigation service: the ORIGINAL WindowManager body moved here
@@ -142,6 +142,26 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <inheritdoc />
+        public async Task<TResult?> OpenModal<T, TResult>(Window? owner = null, Action<T>? configure = null) where T : Control, new()
+        {
+            var (host, content) = CreateHost<T>();
+            configure?.Invoke((T)content);
+            WireCloseRequested(content, host);
+            var parent = owner ?? MainWindow;
+            if (parent != null)
+                return await host.ShowDialog<TResult?>(parent);
+
+            var tcs = new TaskCompletionSource<TResult?>();
+            host.Closed += (_, _) =>
+            {
+                object? result = content is IEmbeddableEditor embeddable ? embeddable.DialogResult : null;
+                tcs.TrySetResult(result is TResult typed ? typed : default);
+            };
+            host.Show();
+            return await tcs.Task;
+        }
+
+        /// <inheritdoc />
         public T? FindOpen<T>() where T : Control
         {
             if (_windows.TryGetValue(typeof(T), out var existing) && existing.Host.IsVisible)
@@ -228,7 +248,7 @@ namespace FEBuilderGBA.Avalonia.Services
             {
                 embeddable.CloseRequested -= OnCloseRequested;
                 host.Closed -= OnHostClosed;
-                host.Close();
+                host.Close(embeddable.DialogResult);
             }
 
             void OnHostClosed(object? s, EventArgs e)

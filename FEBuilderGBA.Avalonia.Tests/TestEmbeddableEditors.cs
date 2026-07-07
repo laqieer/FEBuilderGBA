@@ -24,6 +24,7 @@ public class TestEmbeddableEditor : TranslatedUserControl, IEmbeddableEditor
     public int SelectFirstItemCalls { get; private set; }
 
     public virtual EditorDescriptor Descriptor => new("Test Embeddable", 321, 123, MinWidth: 111, MinHeight: 99);
+    public virtual object? DialogResult => null;
     public string ViewTitle => Descriptor.Title;
     public new bool IsLoaded => _loadedOnce;
     EventHandler? _closeRequested;
@@ -63,6 +64,18 @@ public class TestEmbeddableEditor : TranslatedUserControl, IEmbeddableEditor
 public sealed class ModalEmbeddableEditor : TestEmbeddableEditor
 {
     public override EditorDescriptor Descriptor => new("Modal Embeddable", 222, 111, CanBeModal: true);
+}
+
+public sealed class ModalResultEmbeddableEditor : TestEmbeddableEditor
+{
+    public override EditorDescriptor Descriptor => new("Modal Result Embeddable", 222, 111, CanBeModal: true);
+    public override object? DialogResult => Result;
+    public string? Result { get; private set; }
+    public void DismissWith(string? result)
+    {
+        Result = result;
+        RequestClose();
+    }
 }
 
 public sealed class PickableEmbeddableEditor : TestEmbeddableEditor, IPickableEditor

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // #1122 — Android single-activity navigation model.
 //
 // Single-view navigation service: hosts editor views as PAGES on a view-stack
@@ -171,7 +171,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 void OnCloseRequested(object? s, EventArgs e)
                 {
                     UnwirePageCloseRequested(page.Content);
-                    _stack.CompleteEntry(entry, (object?)null);
+                    _stack.CompleteEntry(entry, embeddable.DialogResult);
                     PopIfTop(page.Content);
                 }
                 WirePageCloseRequested(page.Content, embeddable, OnCloseRequested);
@@ -191,6 +191,40 @@ namespace FEBuilderGBA.Avalonia.Services
 
             await result;
             return (T)page.View;
+        }
+
+        /// <inheritdoc />
+        public async Task<TResult?> OpenModal<T, TResult>(Window? owner = null, Action<T>? configure = null) where T : Control, new()
+        {
+            var page = MakePage<T>();
+            configure?.Invoke((T)page.View);
+            TrackPage(page);
+            var (entry, result) = _stack.PushForResult<object?>(page.Content, asModal: true);
+            OpenPageLifecycle(page);
+
+            if (page.View is IEmbeddableEditor embeddable)
+            {
+                void OnCloseRequested(object? s, EventArgs e)
+                {
+                    UnwirePageCloseRequested(page.Content);
+                    _stack.CompleteEntry(entry, embeddable.DialogResult);
+                    PopIfTop(page.Content);
+                }
+                WirePageCloseRequested(page.Content, embeddable, OnCloseRequested);
+            }
+            else if (page.Window != null)
+            {
+                void OnClosed(object? s, EventArgs e)
+                {
+                    page.Window.Closed -= OnClosed;
+                    _stack.CompleteEntry(entry, (object?)null);
+                    PopIfTop(page.Content);
+                }
+                page.Window.Closed += OnClosed;
+            }
+
+            object? value = await result;
+            return value is TResult typed ? typed : default;
         }
 
         /// <inheritdoc />

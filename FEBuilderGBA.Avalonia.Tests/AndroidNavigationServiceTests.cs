@@ -340,6 +340,22 @@ public class AndroidNavigationServiceTests
         Assert.False(host.CanGoBack); // back at root
     }
 
+    [AvaloniaFact]
+    public async Task OpenModal_result_completes_with_embeddable_DialogResult()
+    {
+        INavigationHost host = NewServiceWithRoot();
+        var service = (AndroidNavigationService)host;
+
+        var modalTask = service.OpenModal<ModalResultEmbeddableEditor, string>();
+        var editor = Assert.IsType<ModalResultEmbeddableEditor>(TestEmbeddableEditor.LastInstance);
+        Assert.False(modalTask.IsCompleted);
+
+        editor.DismissWith("accepted");
+
+        Assert.Equal("accepted", await modalTask);
+        Assert.False(host.CanGoBack);
+    }
+
     // A second editor type for multi-page tests.
     public class PickTestView2 : Window, IEditorView
     {
