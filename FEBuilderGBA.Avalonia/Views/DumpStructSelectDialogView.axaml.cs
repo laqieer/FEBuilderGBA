@@ -200,12 +200,12 @@ namespace FEBuilderGBA.Avalonia.Views
                     : "DumpStructSelectDialog_" + tableName + "_" + U.ToHexString8(_vm.CurrentAddr);
                 string filename = baseName + ext;
                 string text = _vm.MakeExportText(formatName);
-                var dialog = new DumpStructSelectToTextDialogView();
-                dialog.SetContent(filename, text);
                 // ShowDialog with this as owner so the preview is modal and
                 // honors the target view's WindowStartupLocation="CenterOwner".
                 // (Per Copilot inline review on PR #494.)
-                await dialog.ShowDialog(TopLevel.GetTopLevel(this) as Window);
+                await WindowManager.Instance.OpenModal<DumpStructSelectToTextDialogView>(
+                    TopLevel.GetTopLevel(this) as Window,
+                    dialog => dialog.SetContent(filename, text));
             }
             catch (Exception ex)
             {

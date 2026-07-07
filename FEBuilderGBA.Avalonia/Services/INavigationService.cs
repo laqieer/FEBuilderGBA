@@ -54,6 +54,9 @@ namespace FEBuilderGBA.Avalonia.Services
         /// <summary>Open a view as a modal dialog (desktop) or modal overlay page (Android).</summary>
         Task<T> OpenModal<T>(Window? owner = null) where T : Control, new();
 
+        /// <summary>Open a configured view as a modal dialog/page.</summary>
+        Task<T> OpenModal<T>(Window? owner, Action<T>? configure) where T : Control, new();
+
         /// <summary>Open a modal dialog/page and return its dialog result.</summary>
         Task<TResult?> OpenModal<T, TResult>(Window? owner = null, Action<T>? configure = null) where T : Control, new();
 

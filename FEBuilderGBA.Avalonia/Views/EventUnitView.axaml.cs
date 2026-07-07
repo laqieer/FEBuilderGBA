@@ -1,4 +1,5 @@
-﻿using System;
+using global::Avalonia;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using global::Avalonia.Controls;
@@ -8,10 +9,11 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EventUnitView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class EventUnitView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly EventUnitViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         readonly ObservableCollection<string> _mapDisplayItems = new();
         readonly ObservableCollection<string> _groupDisplayItems = new();
@@ -30,7 +32,9 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly List<AddrResult> _newAllocData = new();
 
         public string ViewTitle => "Event Unit Placement";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Event Unit Placement", 1902, 1047, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
 
         bool _suppressUiSync;
 
@@ -80,7 +84,16 @@ namespace FEBuilderGBA.Avalonia.Views
             // ObservableCollection so Add/Remove + per-row edits flow through.
             AfterCoordsList.ItemsSource = _vm.AfterCoords;
 
-            Opened += (_, _) => LoadMapList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadMapList();
+            }
         }
 
         void LoadMapList()
@@ -779,5 +792,6 @@ namespace FEBuilderGBA.Avalonia.Views
                 MapListBox.SelectedIndex = 0;
         }
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

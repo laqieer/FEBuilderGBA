@@ -1,9 +1,7 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.ScriptCommandPickerView"
-        Title="Select Script Command" Width="800" Height="600"
-        WindowStartupLocation="CenterOwner"
-        SizeToContent="WidthAndHeight">
+﻿<UserControl
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.ScriptCommandPickerView">
   <DockPanel Margin="12">
     <!-- Bottom buttons -->
     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0" HorizontalAlignment="Right">
@@ -40,4 +38,4 @@
       </DockPanel>
     </Grid>
   </DockPanel>
-</Window>
+</UserControl>

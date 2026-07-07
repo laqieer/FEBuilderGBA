@@ -568,13 +568,12 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Contains("Name=\"FERepoButton\"", xaml);
             Assert.Contains("Click=\"FERepo_Click\"", xaml);
 
-            // Code-behind has the handler that opens the FERepoResourceBrowserWindow.
+            // Code-behind has the handler that opens the embeddable FERepoResourceBrowserWindow.
             string viewCsPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
                 "ImagePortraitImporterView.axaml.cs");
             string source = File.ReadAllText(viewCsPath);
             Assert.Contains("void FERepo_Click", source);
-            Assert.Contains("new FERepoResourceBrowserWindow()", source);
-            Assert.Contains("ShowDialog<string>(this)", source);
+            Assert.Contains("OpenModal<FERepoResourceBrowserWindow, string>", source);
             // FE-Repo path must funnel through the shared loader, not import
             // directly — so the user still sees the preview and hits Import.
             Assert.Matches(new Regex(@"FERepo_Click[\s\S]+?LoadImageFromPath\("), source);

@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -29,19 +30,28 @@ namespace FEBuilderGBA.Avalonia.Views
     /// window and only fires NavigateTo, not Opened) refreshes for the new unit
     /// instead of showing stale/hidden state.
     /// </summary>
-    public partial class SkillAssignmentUnitFE8NView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class SkillAssignmentUnitFE8NView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly SkillAssignmentUnitFE8NViewViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
         public string ViewTitle => "Skill Assignment - Unit (FE8N)";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Skill Assignment - Unit (FE8N)", 696, 508, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
 
         public SkillAssignmentUnitFE8NView()
         {
             InitializeComponent();
             WriteButton.Click += OnWrite;
-            Opened += (_, _) =>
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
             {
+                _hasLoadedList = true;
                 _vm.Initialize();
                 // When opened WITHOUT a navigated address (the main-menu
                 // OpenSkillAssignmentUnitFE8N entry and the --screenshot-all
@@ -56,7 +66,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     if (firstUnit != 0) _vm.CurrentAddr = firstUnit;
                 }
                 RefreshUiForCurrentAddress();
-            };
+            }
         }
 
         /// <summary>
@@ -159,5 +169,6 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void SelectFirstItem() { }
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

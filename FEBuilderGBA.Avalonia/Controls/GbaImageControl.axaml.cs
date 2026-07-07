@@ -339,7 +339,7 @@ namespace FEBuilderGBA.Avalonia.Controls
         public bool HasImage => _bitmap != null;
 
         /// <summary>Export the current image as PNG via a save dialog.</summary>
-        public async Task ExportPng(Window owner, string? suggestedName = null)
+        public async Task ExportPng(TopLevel? owner, string? suggestedName = null)
         {
             if (_bitmap == null) return;
 

@@ -1,4 +1,4 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using FEBuilderGBA.Avalonia.Views;
 using Xunit;
@@ -22,15 +22,15 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             // Must NOT auto-size its height — that is exactly what grew the window
             // off the bottom of the screen in #1781.
-            Assert.NotEqual(SizeToContent.Height, v.SizeToContent);
-            Assert.NotEqual(SizeToContent.WidthAndHeight, v.SizeToContent);
+            Assert.NotEqual(SizeToContent.Height, v.Descriptor.SizeToContent);
+            Assert.NotEqual(SizeToContent.WidthAndHeight, v.Descriptor.SizeToContent);
 
             // Must be resizable so a small/high-DPI display can always reach OK/Cancel.
-            Assert.True(v.CanResize, "Options window must be resizable so OK/Cancel stay reachable.");
+            Assert.True(v.Descriptor.CanResize, "Options window must be resizable so OK/Cancel stay reachable.");
 
             // The fixed height must be screen-safe (fits a 720p display with a taskbar).
-            Assert.True(v.Height > 0 && v.Height <= 640,
-                $"Options window Height ({v.Height}) should be a screen-safe fixed height, not unbounded.");
+            Assert.True(v.Descriptor.PreferredHeight > 0 && v.Descriptor.PreferredHeight <= 640,
+                $"Options window Height ({v.Descriptor.PreferredHeight}) should be a screen-safe fixed height, not unbounded.");
         }
     }
 }

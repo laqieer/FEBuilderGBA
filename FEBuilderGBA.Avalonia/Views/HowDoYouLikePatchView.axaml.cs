@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -6,11 +7,14 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class HowDoYouLikePatchView : TranslatedWindow, IEditorView
+    public partial class HowDoYouLikePatchView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly HowDoYouLikePatchViewModel _vm = new();
         public string ViewTitle => "Patch Feedback";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Patch Review", 849, 291, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public HowDoYouLikePatchView()
         {
@@ -34,13 +38,13 @@ namespace FEBuilderGBA.Avalonia.Views
         void Apply_Click(object? sender, RoutedEventArgs e)
         {
             _vm.UserApplied = true;
-            Close();
+            RequestClose();
         }
 
         void Skip_Click(object? sender, RoutedEventArgs e)
         {
             _vm.UserApplied = false;
-            Close();
+            RequestClose();
         }
 
         public void NavigateTo(uint address) { }

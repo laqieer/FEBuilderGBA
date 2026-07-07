@@ -1,11 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.ToolProblemReportSearchBackupView"
-        Title="No past backups found"
-        Width="906" Height="220"
-        WindowStartupLocation="CenterOwner"
-        CanResize="False"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.ToolProblemReportSearchBackupView">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <StackPanel Margin="12,19,12,12">
     <!-- Info label -->
@@ -37,4 +32,4 @@
     </StackPanel>
   </StackPanel>
   </ScrollViewer>
-</Window>
+</UserControl>

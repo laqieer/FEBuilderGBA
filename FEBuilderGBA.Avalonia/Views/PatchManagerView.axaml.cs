@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,23 +10,36 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class PatchManagerView : TranslatedWindow, IEditorView
+    public partial class PatchManagerView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly PatchManagerViewModel _vm = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Patch Manager";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Patch Manager", 1100, 650, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public PatchManagerView()
         {
             InitializeComponent();
-            Opened += (_, _) => LoadPatches();
             PatchListBox.SelectionChanged += OnPatchSelected;
             SearchBox.TextChanged += OnSearchTextChanged;
             InstallButton.Click += OnInstallClick;
             ForceInstallButton.Click += OnForceInstallClick;
             UninstallButton.Click += OnUninstallClick;
             InitUpdatePatch2Button.Click += OnInitUpdatePatch2Click;
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadPatches();
+            }
         }
 
         void LoadPatches()
@@ -152,9 +166,9 @@ namespace FEBuilderGBA.Avalonia.Views
             // patch-free ROM, then diff-restore the patched regions.
             try
             {
-                var dialog = new PatchFormUninstallDialogView();
-                dialog.SeedPatchName(_vm.SelectedPatchName);
-                await dialog.ShowDialog(this);
+                var dialog = await WindowManager.Instance.OpenModal<PatchFormUninstallDialogView>(
+                    TopLevel.GetTopLevel(this) as Window,
+                    d => d.SeedPatchName(_vm.SelectedPatchName));
 
                 if (!dialog.UserConfirmed)
                 {

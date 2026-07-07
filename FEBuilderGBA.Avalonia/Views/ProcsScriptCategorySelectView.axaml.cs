@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -9,7 +9,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ProcsScriptCategorySelectView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class ProcsScriptCategorySelectView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly EventScriptPopupViewModel _vm = new()
         {
@@ -17,8 +17,11 @@ namespace FEBuilderGBA.Avalonia.Views
         };
 
         public string ViewTitle => "Procs Script Editor";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Procs Script Editor", 1000, 750, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ProcsScriptCategorySelectView()
         {
@@ -29,7 +32,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Close_Click(object? sender, RoutedEventArgs e)
         {
-            Close();
+            RequestClose();
         }
 
         void Disassemble_Click(object? sender, RoutedEventArgs e)
@@ -87,8 +90,9 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void CommandPicker_Click(object? sender, RoutedEventArgs e)
         {
-            var picker = new ScriptCommandPickerView(EventScript.EventScriptType.Procs);
-            var result = await picker.ShowDialog<EventScript.Script?>(this);
+            var result = await WindowManager.Instance.OpenModal<ScriptCommandPickerView, EventScript.Script?>(
+                TopLevel.GetTopLevel(this) as Window,
+                picker => picker.Configure(EventScript.EventScriptType.Procs));
             if (result != null)
             {
                 string name = EventScript.makeCommandComboText(result, true);

@@ -1,9 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.ToolASMInsertView"
-        Title="Add via ASM/C" Width="640" Height="600"
-        WindowStartupLocation="CenterOwner"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.ToolASMInsertView">
   <!-- Add-via-ASM/C tool (WF ToolASMInsertForm). Compiles a C/C++/ASM source via
        the devkitARM chain (gcc/g++/as -> ELF -> raw binary, or lyn -> EA event) and
        inserts the result into the ROM. Three insert methods: compile-only (make file
@@ -129,4 +126,4 @@
 
     </StackPanel>
   </ScrollViewer>
-</Window>
+</UserControl>

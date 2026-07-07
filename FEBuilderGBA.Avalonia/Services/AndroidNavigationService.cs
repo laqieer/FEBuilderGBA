@@ -157,8 +157,13 @@ namespace FEBuilderGBA.Avalonia.Services
 
         /// <inheritdoc />
         public async Task<T> OpenModal<T>(Window? owner = null) where T : Control, new()
+            => await OpenModal<T>(owner, configure: null);
+
+        /// <inheritdoc />
+        public async Task<T> OpenModal<T>(Window? owner, Action<T>? configure) where T : Control, new()
         {
             var page = MakePage<T>();
+            configure?.Invoke((T)page.View);
             TrackPage(page);
             var (entry, result) = _stack.PushForResult<object?>(page.Content, asModal: true);
             OpenPageLifecycle(page);

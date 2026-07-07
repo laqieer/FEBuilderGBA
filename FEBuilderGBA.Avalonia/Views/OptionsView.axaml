@@ -1,12 +1,7 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.OptionsView"
-        Title="Options"
-        Width="620" Height="560"
-        WindowStartupLocation="CenterOwner"
-        CanResize="True"
-        ShowInTaskbar="False"
-        SizeToContent="Manual">
+﻿<UserControl
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.OptionsView">
   <Grid RowDefinitions="*,Auto" Margin="16">
     <TabControl AutomationProperties.AutomationId="Options_TabControl1_TabControl" Grid.Row="0">
       <!-- General Tab -->
@@ -210,4 +205,4 @@
       <Button AutomationProperties.AutomationId="Options_Cancel_Button" Name="CancelButton" Content="Cancel" Width="80" Click="CancelButton_Click" />
     </StackPanel>
   </Grid>
-</Window>
+</UserControl>

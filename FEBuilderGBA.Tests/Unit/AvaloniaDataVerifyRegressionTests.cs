@@ -117,7 +117,8 @@ namespace FEBuilderGBA.Tests.Unit
         public void EventCondView_LoadsOnOpen()
         {
             string src = File.ReadAllText(Path.Combine(SolutionDir, "FEBuilderGBA.Avalonia", "Views", "EventCondView.axaml.cs"));
-            Assert.Contains("Opened += ", src);
+            Assert.True(src.Contains("Opened += ") || src.Contains("OnAttachedToVisualTree"),
+                "Window editors load via Opened; embeddable editors load via OnAttachedToVisualTree.");
             Assert.Contains("SelectFirstItem()", src);
         }
 

@@ -28,14 +28,15 @@ namespace FEBuilderGBA.Avalonia.Services
         /// the user's chosen file path. Returns null when unsupported, cancelled,
         /// or nothing was selected.
         /// </summary>
-        public static async Task<string?> PickForEditor(Window owner,
+        public static async Task<string?> PickForEditor(TopLevel? owner,
             FERepoResourceBrowser.FERepoEditorKind kind)
         {
             var folder = FERepoResourceBrowser.GetFERepoFolderForEditor(kind);
             if (!folder.Supported) return null;
 
-            var browser = new FERepoResourceBrowserWindow(folder.Category, folder.SubCategory);
-            string result = await browser.ShowDialog<string>(owner);
+            string result = await WindowManager.Instance.OpenModal<FERepoResourceBrowserWindow, string>(
+                owner as Window,
+                browser => browser.Configure(false, folder.Category, folder.SubCategory));
             return string.IsNullOrEmpty(result) ? null : result;
         }
 
@@ -49,11 +50,12 @@ namespace FEBuilderGBA.Avalonia.Services
         /// through the SAME music-import dispatcher as its file-picker Import —
         /// no second import code path (#1383).
         /// </summary>
-        public static async Task<string?> PickMusic(Window owner,
+        public static async Task<string?> PickMusic(TopLevel? owner,
             string seedCategory = null, string seedSubCategory = null)
         {
-            var browser = new FERepoResourceBrowserWindow(true, seedCategory, seedSubCategory);
-            string result = await browser.ShowDialog<string>(owner);
+            string result = await WindowManager.Instance.OpenModal<FERepoResourceBrowserWindow, string>(
+                owner as Window,
+                browser => browser.Configure(true, seedCategory, seedSubCategory));
             return string.IsNullOrEmpty(result) ? null : result;
         }
     }

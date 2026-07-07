@@ -1,3 +1,4 @@
+﻿using global::Avalonia;
 using System;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
@@ -24,13 +25,17 @@ namespace FEBuilderGBA.Avalonia.Views
     /// <see cref="PatchInstallCore"/> (the <see cref="ToolCustomBuildViewModel.RunAndMarge"/>
     /// orchestration). Any applied operation can be reverted via Undo.
     /// </summary>
-    public partial class ToolCustomBuildView : TranslatedWindow, IEditorView
+    public partial class ToolCustomBuildView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ToolCustomBuildViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Custom Build";
-        public bool IsLoaded => true;
+        public new bool IsLoaded => true;
+        public EditorDescriptor Descriptor => new("Custom Build", 660, 560);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ToolCustomBuildView()
         {
@@ -49,8 +54,14 @@ namespace FEBuilderGBA.Avalonia.Views
             TakeoverSkillCombo.Items.Add(R._("Carry over the skill assignment"));
             TakeoverSkillCombo.SelectedIndex = _vm.TakeoverSkillAssignmentIndex;
 
-            Opened += (_, _) =>
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
             {
+                _hasLoadedList = true;
                 // Prefill the original-ROM field from the current ROM, like the WF form.
                 _vm.PrefillOriginalRom();
 
@@ -58,7 +69,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // on this OS (a .cmd batch script is Windows-only).
                 if (!CustomBuildCore.IsWindows)
                     _vm.StatusMessage = CustomBuildCore.GetCmdWindowsOnlyMessage();
-            };
+            }
         }
 
         async void BrowseTarget_Click(object? sender, RoutedEventArgs e)
@@ -73,7 +84,7 @@ namespace FEBuilderGBA.Avalonia.Views
         /// </summary>
         async Task<bool> BrowseForTargetAsync()
         {
-            var storage = GetTopLevel(this)?.StorageProvider;
+            var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
             if (storage == null) return false;
 
             try
@@ -116,7 +127,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void BrowseOriginalRom_Click(object? sender, RoutedEventArgs e)
         {
-            var storage = GetTopLevel(this)?.StorageProvider;
+            var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
             if (storage == null) return;
 
             try

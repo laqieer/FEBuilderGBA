@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // ToolInitWizardForm gap-sweep parity (#401 / #374).
 //
 // Code-behind for ToolInitWizardView.axaml. Wires:
@@ -22,6 +22,7 @@
 //   Assert.DoesNotContain(".write_u", source)
 // against this file.
 using System;
+using global::Avalonia;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
@@ -33,11 +34,15 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolInitWizardView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class ToolInitWizardView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
+        public EditorDescriptor Descriptor => new("Setup Wizard", 892, 666);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
+
         readonly ToolInitWizardViewModel _vm = new();
         public string ViewTitle => "Setup Wizard";
-        public bool IsLoaded { get; private set; }
+        public new bool IsLoaded { get; private set; }
 
         // Set true by the explicit Next/Prev/Skip handlers when they intend
         // to advance via _vm.GoToPage(). Cleared after the selection-change
@@ -52,15 +57,23 @@ namespace FEBuilderGBA.Avalonia.Views
         // (the TwoWay binding pushes the illegal target into _vm.CurrentPage
         // BEFORE this handler can revert, so we can't rely on the VM's value).
         int _lastValidPageIndex;
+        bool _loadedOnce;
 
         public ToolInitWizardView()
         {
             InitializeComponent();
             DataContext = _vm;
-            Opened += OnOpened;
         }
 
-        void OnOpened(object? sender, EventArgs e)
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (_loadedOnce) return;
+            _loadedOnce = true;
+            LoadWizard();
+        }
+
+        void LoadWizard()
         {
             _vm.Initialize();
             IsLoaded = true;
@@ -514,7 +527,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // the wizard state is persisted even if the user reached EndPage
             // by other paths.
             _vm.ApplyAll();
-            this.Close();
+            RequestClose();
         }
 
         // ===================================================================
@@ -541,7 +554,7 @@ namespace FEBuilderGBA.Avalonia.Views
         /// </summary>
         async Task<bool> ConfirmDownloadAsync(string title, string message)
         {
-            var result = await MessageBoxWindow.Show(this, message, title, MessageBoxMode.YesNo);
+            var result = await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window, message, title, MessageBoxMode.YesNo);
             return result == MessageBoxResult.Yes;
         }
 
@@ -707,7 +720,7 @@ namespace FEBuilderGBA.Avalonia.Views
         /// </summary>
         async System.Threading.Tasks.Task<string?> PickExeFileAsync(string title)
         {
-            var storage = StorageProvider;
+            var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
             if (storage == null)
                 return null;
             var allFiles = new FilePickerFileType(FEBuilderGBA.R._("All Files")) { Patterns = new[] { "*" } };

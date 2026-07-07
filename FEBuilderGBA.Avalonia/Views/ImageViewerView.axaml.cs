@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using global::Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Dialogs;
@@ -7,8 +7,15 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImageViewerView : TranslatedWindow, IDataVerifiableView
+    public partial class ImageViewerView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
+        public string ViewTitle => "Image Viewer";
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Image Viewer", 600, 500, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
+        public void NavigateTo(uint address) { }
+
         readonly ImageViewerViewModel _vm = new();
         byte[]? _palette;
 
@@ -41,7 +48,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void ExportPng_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
         {
-            await ImageControl.ExportPng(this, "image.png");
+            await ImageControl.ExportPng(TopLevel.GetTopLevel(this), "image.png");
         }
 
         async void ExportPal_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
@@ -49,7 +56,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 if (_palette == null || _palette.Length < 32) { CoreState.Services.ShowError("No palette data available"); return; }
-                await FileDialogHelper.SavePaletteFileVia(this, "image_palette.pal", p =>
+                await FileDialogHelper.SavePaletteFileVia(TopLevel.GetTopLevel(this), "image_palette.pal", p =>
                 {
                     // #1639: write via the SAF bridge so Android content:// targets work.
                     PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(p));

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -13,8 +13,15 @@ using FEBuilderGBA.Avalonia.Dialogs;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class DataExportView : TranslatedWindow
+    public partial class DataExportView : TranslatedUserControl, IEmbeddableEditor
     {
+        public string ViewTitle => "Data Export/Import";
+        public new bool IsLoaded => true;
+        public EditorDescriptor Descriptor => new("Data Export/Import", 500, 300, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
+        public void NavigateTo(uint address) { }
+
         readonly DataExportViewModel _vm = new();
         readonly UndoService _undoService = new();
 
@@ -39,7 +46,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 return;
             }
 
-            var storage = GetTopLevel(this)?.StorageProvider;
+            var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
             if (storage == null) return;
 
             var file = await storage.SaveFilePickerAsync(new FilePickerSaveOptions
@@ -175,7 +182,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 return;
             }
 
-            var storage = GetTopLevel(this)?.StorageProvider;
+            var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
             if (storage == null) return;
 
             var files = await storage.OpenFilePickerAsync(new FilePickerOpenOptions

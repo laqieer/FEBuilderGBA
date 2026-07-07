@@ -130,8 +130,13 @@ namespace FEBuilderGBA.Avalonia.Services
 
         /// <inheritdoc />
         public async Task<T> OpenModal<T>(Window? owner = null) where T : Control, new()
+            => await OpenModal<T>(owner, configure: null);
+
+        /// <inheritdoc />
+        public async Task<T> OpenModal<T>(Window? owner, Action<T>? configure) where T : Control, new()
         {
             var (host, content) = CreateHost<T>();
+            configure?.Invoke((T)content);
             WireCloseRequested(content, host);
             var parent = owner ?? MainWindow;
             if (parent != null)

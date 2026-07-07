@@ -1,4 +1,5 @@
-﻿using System;
+using global::Avalonia;
+using System;
 using System.Collections.Generic;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -8,16 +9,20 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EventCondView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class EventCondView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly EventCondViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
         bool _suppressSlotChange;
         bool _suppressRecordChange;
 
         public string ViewTitle => "Event Condition Editor";
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
+        public EditorDescriptor Descriptor => new("Event Condition Editor", 1834, 999, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public EventCondView()
         {
@@ -25,7 +30,6 @@ namespace FEBuilderGBA.Avalonia.Views
             EntryList.SelectedAddressChanged += OnMapSelected;
             SlotCombo.SelectionChanged += OnSlotChanged;
             RecordList.SelectionChanged += OnRecordSelected;
-            Opened += (_, _) => LoadAll();
 
             // Initialize all NUD controls to 0 so UIVERIFY doesn't flag hidden
             // ones as empty. FE7-extended fields (ExtraB12-B15) are hidden on
@@ -79,6 +83,16 @@ namespace FEBuilderGBA.Avalonia.Views
             InitialTimerBox.Value ??= 0;
             RepeatTimerBox.Value ??= 0;
             // #957 W1a: TextIdBox is now an IdFieldControl (uint Value) — no null-seed needed.
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadAll();
+            }
         }
 
         void LoadAll()
@@ -1097,7 +1111,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 uint addr = SupportUnitNavigation.UnitAddrForOneBased(CoreState.ROM, box.Value);
-                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
+                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null)
                     box.Value = SupportUnitNavigation.OneBasedIdFromPickIndex(result.Index);
             }
@@ -1149,9 +1163,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint addr = ItemAddrFor(ChestItemBox.Value);
                 PickResult? result;
                 if (CoreState.ROM?.RomInfo?.version == 6)
-                    result = await WindowManager.Instance.PickFromEditor<ItemFE6View>(addr, this);
+                    result = await WindowManager.Instance.PickFromEditor<ItemFE6View>(addr, TopLevel.GetTopLevel(this) as Window);
                 else
-                    result = await WindowManager.Instance.PickFromEditor<ItemEditorView>(addr, this);
+                    result = await WindowManager.Instance.PickFromEditor<ItemEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null) ChestItemBox.Value = (uint)result.Index;
             }
             catch (Exception ex) { Log.ErrorF("EventCondView.ChestItem_Pick failed: {0}", ex.Message); }

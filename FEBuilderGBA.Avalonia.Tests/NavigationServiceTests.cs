@@ -50,6 +50,14 @@ sealed class RecordingNavigationService : INavigationService
         return Task.FromResult(new T());
     }
 
+    public Task<T> OpenModal<T>(Window? owner, Action<T>? configure) where T : Control, new()
+    {
+        LastCall = "OpenModalConfigured"; LastType = typeof(T);
+        var view = new T();
+        configure?.Invoke(view);
+        return Task.FromResult(view);
+    }
+
     public Task<TResult?> OpenModal<T, TResult>(Window? owner = null, Action<T>? configure = null) where T : Control, new()
     {
         LastCall = "OpenModalResult"; LastType = typeof(T);

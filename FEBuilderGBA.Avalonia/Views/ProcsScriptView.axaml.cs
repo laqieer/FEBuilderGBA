@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -16,7 +17,7 @@ namespace FEBuilderGBA.Avalonia.Views
     /// so the Procs editor and the Event editor share one engine (CLAUDE.md
     /// "Script-type agnostic" seam).
     /// </summary>
-    public partial class ProcsScriptView : TranslatedWindow, IEditorView
+    public partial class ProcsScriptView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly EventScriptViewModel _vm = new()
         {
@@ -24,7 +25,10 @@ namespace FEBuilderGBA.Avalonia.Views
         };
 
         public string ViewTitle => "Procs Script Editor";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Procs Script Editor", 1180, 780, MinWidth: 1180, MinHeight: 780);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ProcsScriptView()
         {

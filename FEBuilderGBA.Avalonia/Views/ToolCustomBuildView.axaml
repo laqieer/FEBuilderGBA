@@ -1,9 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.ToolCustomBuildView"
-        Title="Custom Build" Width="660" Height="560"
-        WindowStartupLocation="CenterOwner"
-        SizeToContent="Manual">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.ToolCustomBuildView">
   <!-- Custom Build tool (WF ToolCustomBuildForm). Runs a custom build pipeline for the
        project: either a user CUSTOM_BUILD.cmd batch script (CMD method, Windows-only) or
        an Event Assembler target (EA method), then loads the freshly-built ROM. The
@@ -90,4 +87,4 @@
 
     </StackPanel>
   </ScrollViewer>
-</Window>
+</UserControl>

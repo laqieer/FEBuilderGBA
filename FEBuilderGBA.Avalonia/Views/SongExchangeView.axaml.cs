@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -8,13 +9,17 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SongExchangeView : TranslatedWindow, IEditorView
+    public partial class SongExchangeView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly SongExchangeViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Song Exchange Tool";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Song Exchange Tool", 1322, 601, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public SongExchangeView()
         {
@@ -22,11 +27,17 @@ namespace FEBuilderGBA.Avalonia.Views
             // The two song ListBoxes + Convert/Open buttons bind to the VM.
             DataContext = _vm;
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) =>
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
             {
+                _hasLoadedList = true;
                 LoadList();
                 LoadCurrentSongs();
-            };
+            }
         }
 
         void LoadList()
@@ -78,7 +89,9 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var gbaType = new FilePickerFileType(R._("GBA ROMs")) { Patterns = new[] { "*.gba", "*.bin" } };
                 var allType = new FilePickerFileType(R._("All Files")) { Patterns = new[] { "*" } };
-                var files = await this.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+                var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+                if (storageProvider == null) return;
+                var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
                 {
                     Title = R._("Select a ROM to import a song from"),
                     AllowMultiple = false,
@@ -207,7 +220,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // so resolve the destination song's header offset (#1399 review).
                 uint destHeaderAddr = _vm.MySongList[destIndex].Header;
 
-                string? path = await FERepoPickHelper.PickMusic(this);
+                string? path = await FERepoPickHelper.PickMusic(TopLevel.GetTopLevel(this));
                 if (string.IsNullOrEmpty(path)) return;
 
                 // Navigate to the Song Track Editor at the selected destination

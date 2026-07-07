@@ -1,12 +1,7 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.NotifyPleaseWaitView"
-        Title="{Binding Title}"
-        Width="420" Height="180"
-        CanResize="False"
-        WindowStartupLocation="CenterOwner"
-        SystemDecorations="BorderOnly"
-        SizeToContent="WidthAndHeight">
+﻿<UserControl
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.NotifyPleaseWaitView">
   <Grid RowDefinitions="Auto,Auto,Auto,Auto" Margin="24,20,24,16">
     <!-- Title -->
     <TextBlock Grid.Row="0" Text="{Binding Title}"
@@ -34,4 +29,4 @@
             Click="Cancel_Click"
             MinWidth="80" />
   </Grid>
-</Window>
+</UserControl>

@@ -1,11 +1,7 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.ContentRepoSetupWizardView"
-        Title="Content Repository Setup"
-        Width="920" Height="620"
-        WindowStartupLocation="CenterOwner"
-        CanResize="True"
-        SizeToContent="Manual">
+﻿<UserControl
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.ContentRepoSetupWizardView">
   <Grid RowDefinitions="*,Auto" Margin="16">
     <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
       <StackPanel Spacing="12">
@@ -49,5 +45,5 @@
       <Button AutomationProperties.AutomationId="ContentRepoSetupWizard_Close_Button" Content="{Binding CloseText}" Click="Close_Click" Padding="12,6" MinWidth="90" />
     </StackPanel>
   </Grid>
-</Window>
+</UserControl>
 

@@ -1,3 +1,4 @@
+﻿using global::Avalonia;
 using System;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
@@ -25,13 +26,17 @@ namespace FEBuilderGBA.Avalonia.Views
     /// <c>PATCH_(NAME).txt</c> via <see cref="AsmCompileCore.MakePatchText"/>, shown in
     /// <c>AsmPatchTextView</c>; an applied insert can be reverted via Undo.
     /// </summary>
-    public partial class ToolASMInsertView : TranslatedWindow, IEditorView
+    public partial class ToolASMInsertView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ToolASMInsertViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Add via ASM/C";
-        public bool IsLoaded => true;
+        public new bool IsLoaded => true;
+        public EditorDescriptor Descriptor => new("Add via ASM/C", 640, 600, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ToolASMInsertView()
         {
@@ -65,12 +70,18 @@ namespace FEBuilderGBA.Avalonia.Views
 
             UpdateInsertMethodVisibility();
 
-            Opened += (_, _) =>
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
             {
+                _hasLoadedList = true;
                 // Surface a clear message up front if devkitARM is not configured.
                 if (!_vm.IsDevkitProAvailable)
                     _vm.StatusMessage = _vm.NotFoundMessage;
-            };
+            }
         }
 
         /// <summary>
@@ -109,7 +120,7 @@ namespace FEBuilderGBA.Avalonia.Views
         /// </summary>
         async Task<bool> BrowseForSourceAsync()
         {
-            var storage = GetTopLevel(this)?.StorageProvider;
+            var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
             if (storage == null) return false;
 
             try
@@ -237,9 +248,9 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
 
-                var dialog = new AsmPatchTextView();
-                dialog.SetPatchText(patch);
-                await dialog.ShowDialog(this);
+                await WindowManager.Instance.OpenModal<AsmPatchTextView>(
+                    TopLevel.GetTopLevel(this) as Window,
+                    dialog => dialog.SetPatchText(patch));
             }
             catch (Exception ex)
             {

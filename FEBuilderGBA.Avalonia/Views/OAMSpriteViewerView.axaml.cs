@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -6,19 +7,22 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class OAMSpriteViewerView : TranslatedWindow, IEditorView
+    public partial class OAMSpriteViewerView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly OAMSpriteViewerViewModel _vm = new();
+        bool _hasLoadedList;
         bool _suppressFrameEvents;
 
         public string ViewTitle => "OAM Sprite Viewer";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("OAM Sprite Viewer", 1100, 750, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public OAMSpriteViewerView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
 
             // Populate section combo with mode names
             for (int i = 0; i < BattleAnimeRendererCore.SectionNames.Length; i++)
@@ -27,6 +31,16 @@ namespace FEBuilderGBA.Avalonia.Views
 
             SectionCombo.SelectionChanged += OnSectionChanged;
             FrameUpDown.ValueChanged += OnFrameValueChanged;
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -131,7 +145,7 @@ namespace FEBuilderGBA.Avalonia.Views
         async void ExportFrame_Click(object? sender, RoutedEventArgs e)
         {
             if (FrameImageControl.HasImage)
-                await FrameImageControl.ExportPng(this, $"oam_frame_{_vm.CurrentSection}_{_vm.CurrentFrame}");
+                await FrameImageControl.ExportPng(TopLevel.GetTopLevel(this), $"oam_frame_{_vm.CurrentSection}_{_vm.CurrentFrame}");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -6,14 +7,17 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class PaletteClipboardView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class PaletteClipboardView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly PaletteClipboardViewViewModel _vm = new();
         readonly UndoService _undoService = new();
 
         public string ViewTitle => "Palette Clipboard";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Palette Clipboard", 800, 500, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public PaletteClipboardView()
         {
@@ -100,7 +104,7 @@ namespace FEBuilderGBA.Avalonia.Views
             ClipboardStatusLabel.Text = "[No palette data in clipboard]";
         }
 
-        void Close_Click(object? sender, RoutedEventArgs e) => Close();
+        void Close_Click(object? sender, RoutedEventArgs e) => RequestClose();
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }
