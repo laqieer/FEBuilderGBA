@@ -8,12 +8,10 @@
   Unknown1..3Box) are preserved on Tab 1 so existing AvaloniaEditorTests +
   ListParityHelper keep working.
 -->
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
-        x:Class="FEBuilderGBA.Avalonia.Views.MonsterItemViewerView"
-        Title="Monster Item Editor" Width="1280" Height="900"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+             x:Class="FEBuilderGBA.Avalonia.Views.MonsterItemViewerView">
   <TabControl AutomationProperties.AutomationId="MonsterItemViewer_Main_TabControl"
               Name="MainTabs" Margin="4">
 
@@ -464,4 +462,4 @@
     </TabItem>
 
   </TabControl>
-</Window>
+</UserControl>

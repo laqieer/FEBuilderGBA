@@ -1,9 +1,7 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
-        x:Class="FEBuilderGBA.Avalonia.Views.EDFE7View"
-        Title="ED (FE7)" Width="1280" Height="820"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+             x:Class="FEBuilderGBA.Avalonia.Views.EDFE7View">
   <!-- Four-tab parity raise (#403) - mirrors WF EDFE7Form.tabControl1.
        tabPage1 / Lyn:      ed_3c_pointer USED AS DIRECT BASE (12-byte records)
                             D0 UnitId, D4 ClearedAfter TextId, D8 RetreatAfter TextId.
@@ -459,4 +457,4 @@
     </TabItem>
 
   </TabControl>
-</Window>
+</UserControl>

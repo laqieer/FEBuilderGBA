@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Controls;
@@ -8,13 +9,16 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EventHaikuFE7View : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class EventHaikuFE7View : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly EventHaikuFE7ViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Haiku (FE7)";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Haiku (FE7)", 1264, 1055, SizeToContent: true);
+        public event EventHandler? CloseRequested;
 
         public EventHaikuFE7View()
         {
@@ -22,7 +26,16 @@ namespace FEBuilderGBA.Avalonia.Views
             EntryList.SelectedAddressChanged += OnSelected;
             WriteButton.Click += Write_Click;
             TableFilter.SelectionChanged += TableFilter_SelectionChanged;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         // The FE7 N1_ tutorial death-quote tables
@@ -72,7 +85,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             bool tutorial = _vm.IsTutorialTable;
-            // Route through R._() at assignment time — TranslatedWindow.TranslateAll()
+            // Route through R._() at assignment time — TranslatedUserControl.TranslateAll()
             // runs once at window open, so values assigned afterward must be
             // localized explicitly to apply in ja/zh (#958 review).
             TableLabel.Text = R._(_vm.Table switch
@@ -182,7 +195,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 uint addr = EditorJumpAddressHelper.UnitAddrFor(CoreState.ROM, UnitNud.Value);
-                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
+                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr);
                 if (result != null) UnitNud.Value = (uint)result.Index + 1; // 0-based pick -> 1-based id
             }
             catch (Exception ex) { Log.Error($"EventHaikuFE7View.Unit_Pick failed: {ex.Message}"); }
@@ -270,5 +283,6 @@ namespace FEBuilderGBA.Avalonia.Views
         }
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

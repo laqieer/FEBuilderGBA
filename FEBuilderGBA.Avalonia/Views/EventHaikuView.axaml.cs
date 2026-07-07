@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Controls;
@@ -8,10 +9,11 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EventHaikuView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class EventHaikuView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly EventHaikuViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         // Route choices mirror WinForms EventHaikuForm L_2_COMBO
         // (01=序盤 / 02=エイリーク編 / 03=エフラム編 / FF=無条件). Each item maps a
@@ -26,7 +28,9 @@ namespace FEBuilderGBA.Avalonia.Views
         };
 
         public string ViewTitle => "Haiku Event Editor";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Haiku Event Editor", 1252, 724, SizeToContent: true);
+        public event EventHandler? CloseRequested;
 
         public EventHaikuView()
         {
@@ -37,7 +41,16 @@ namespace FEBuilderGBA.Avalonia.Views
             foreach (var c in RouteChoices) RouteCombo.Items.Add(R._(c.Label));
             EntryList.SelectedAddressChanged += OnSelected;
             WriteButton.Click += Write_Click;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -194,7 +207,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 uint addr = EditorJumpAddressHelper.UnitAddrFor(CoreState.ROM, UnitNud.Value);
-                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
+                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr);
                 if (result != null) UnitNud.Value = (uint)result.Index + 1; // 0-based pick -> 1-based id
             }
             catch (Exception ex) { Log.Error($"EventHaikuView.Unit_Pick failed: {ex.Message}"); }
@@ -216,7 +229,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 uint addr = EditorJumpAddressHelper.UnitAddrFor(CoreState.ROM, KillerUnitNud.Value);
-                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
+                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr);
                 if (result != null) KillerUnitNud.Value = (uint)result.Index + 1;
             }
             catch (Exception ex) { Log.Error($"EventHaikuView.KillerUnit_Pick failed: {ex.Message}"); }
@@ -241,5 +254,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
@@ -9,21 +10,34 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class OPClassDemoFE8UView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class OPClassDemoFE8UView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly OPClassDemoFE8UViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "OP Class Demo (FE8U) Editor";
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
+        public EditorDescriptor Descriptor => new("OP Class Demo (FE8U) Editor", 1579, 898, SizeToContent: true);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public OPClassDemoFE8UView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
             DescTextIdBox.ValueChanged += OnDescTextIdChanged;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void OnDescTextIdChanged(object? sender, NumericUpDownValueChangedEventArgs e)
@@ -148,9 +162,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint addr = ClassAddrFor(ClassIdBox.Value);
                 PickResult? result;
                 if (CoreState.ROM?.RomInfo?.version == 6)
-                    result = await WindowManager.Instance.PickFromEditor<ClassFE6View>(addr, this);
+                    result = await WindowManager.Instance.PickFromEditor<ClassFE6View>(addr);
                 else
-                    result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr, this);
+                    result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr);
                 if (result != null) ClassIdBox.Value = (uint)result.Index;
             }
             catch (Exception ex) { Log.ErrorF("OPClassDemoFE8UView.ClassId_Pick failed: {0}", ex.Message); }

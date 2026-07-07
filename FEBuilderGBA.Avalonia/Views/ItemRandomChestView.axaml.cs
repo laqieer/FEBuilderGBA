@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
@@ -9,20 +10,33 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ItemRandomChestView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class ItemRandomChestView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
         readonly ItemRandomChestViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Random Chest Items";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Random Chest Items", 808, 410, SizeToContent: true);
+        public event EventHandler? CloseRequested;
 
         public ItemRandomChestView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -130,9 +144,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint addr = ItemAddrFor(ItemIdBox.Value);
                 PickResult? result;
                 if (CoreState.ROM?.RomInfo?.version == 6)
-                    result = await WindowManager.Instance.PickFromEditor<ItemFE6View>(addr, this);
+                    result = await WindowManager.Instance.PickFromEditor<ItemFE6View>(addr);
                 else
-                    result = await WindowManager.Instance.PickFromEditor<ItemEditorView>(addr, this);
+                    result = await WindowManager.Instance.PickFromEditor<ItemEditorView>(addr);
                 if (result != null)
                 {
                     ItemIdBox.Value = (uint)result.Index;

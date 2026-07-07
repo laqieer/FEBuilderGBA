@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using System.Collections.Generic;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -27,10 +28,11 @@ namespace FEBuilderGBA.Avalonia.Views
     ///     `N1_AddressListExpandsButton` lives on the N1 panel, not the
     ///     main table.
     /// </summary>
-    public partial class ClassOPDemoView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class ClassOPDemoView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly ClassOPDemoViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         // N1 selection — JP-name font glyph row (1 byte each).
         List<ClassOPDemoViewModel.N1Row> _n1Rows = new();
@@ -41,8 +43,11 @@ namespace FEBuilderGBA.Avalonia.Views
         uint _n2BaseAddr;
 
         public string ViewTitle => "Class OP Demo Editor";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Class OP Demo Editor", 1534, 930, SizeToContent: true);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ClassOPDemoView()
         {
@@ -134,7 +139,16 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
             };
 
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         // -----------------------------------------------------------------
@@ -316,9 +330,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint addr = ClassAddrFor(DisplayWeaponBox.Value);
                 PickResult? result;
                 if (CoreState.ROM?.RomInfo?.version == 6)
-                    result = await WindowManager.Instance.PickFromEditor<ClassFE6View>(addr, this);
+                    result = await WindowManager.Instance.PickFromEditor<ClassFE6View>(addr);
                 else
-                    result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr, this);
+                    result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr);
                 if (result != null) DisplayWeaponBox.Value = (uint)result.Index;
             }
             catch (Exception ex) { Log.ErrorF("ClassOPDemoView.ClassId_Pick failed: {0}", ex.Message); }

@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
@@ -9,20 +10,32 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ArenaClassViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class ArenaClassViewerView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly ArenaClassViewerViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Arena Class";
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
+        public EditorDescriptor Descriptor => new("Arena Class Editor", 1201, 738, SizeToContent: true);
+        public event EventHandler? CloseRequested;
 
         public ArenaClassViewerView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
             WeaponTypeCombo.SelectionChanged += WeaponType_Changed;
-            Opened += (_, _) => InitFilter();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                InitFilter();
+            }
         }
 
         void InitFilter()
@@ -146,9 +159,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint addr = ClassAddrFor(ClassIdBox.Value);
                 PickResult? result;
                 if (CoreState.ROM?.RomInfo?.version == 6)
-                    result = await WindowManager.Instance.PickFromEditor<ClassFE6View>(addr, this);
+                    result = await WindowManager.Instance.PickFromEditor<ClassFE6View>(addr);
                 else
-                    result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr, this);
+                    result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr);
                 if (result != null) ClassIdBox.Value = (uint)result.Index;
             }
             catch (Exception ex) { Log.ErrorF("ArenaClassViewerView.ClassId_Pick failed: {0}", ex.Message); }
@@ -163,5 +176,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

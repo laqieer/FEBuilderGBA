@@ -1,9 +1,7 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
-        x:Class="FEBuilderGBA.Avalonia.Views.EDView"
-        Title="Ending Event Editor" Width="1280" Height="820"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+             x:Class="FEBuilderGBA.Avalonia.Views.EDView">
   <!-- Three-tab parity raise (#411) - mirrors WF EDForm.tabControl1.
        tabPage1 / Retreat:  ed_1_pointer  - 4-byte records (UnitId, Condition, B2, B3)
        tabPage2 / Epithet:  ed_2_pointer  - 8-byte records (W0 UnitId, D4 TextId)
@@ -358,4 +356,4 @@
     </TabItem>
 
   </TabControl>
-</Window>
+</UserControl>

@@ -27,7 +27,6 @@ EXCLUDED_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("FileDialogHelper", re.compile(r"\bFileDialogHelper\b")),
     ("NumberInputDialog", re.compile(r"\bNumberInputDialog\b")),
     ("Dialogs.*Show", re.compile(r"\bDialogs\.[A-Za-z0-9_.]*Show\b")),
-    ("owner-bound PickFromEditor", re.compile(r"\bPickFromEditor\s*<[^>]+>\s*\([^;]*\bthis\b", re.DOTALL)),
     ("owner-bound ShowDialog", re.compile(r"\bShowDialog\s*<[^>]+>\s*\(\s*this\b")),
     ("owner-bound OpenModal", re.compile(r"\bOpenModal\s*<[^>]+>\s*\([^;]*\bthis\b", re.DOTALL)),
     ("owner-bound image export", re.compile(r"\bExportPng\s*\(\s*this\b")),
@@ -134,6 +133,16 @@ def convert_base_list(cs: str, view_name: str) -> str:
         raise ValueError("class does not implement IEditorView")
     new_bases = bases.replace("TranslatedWindow", "TranslatedUserControl").replace("IEditorView", "IEmbeddableEditor")
     return cs[: match.start("bases")] + new_bases + cs[match.end("bases") :]
+
+
+def convert_owner_bound_pick_from_editor(cs: str) -> str:
+    """Drop Window owner arguments from PickFromEditor calls when the caller becomes a UserControl."""
+    return re.sub(
+        r"(PickFromEditor<[^>]+>\s*\(\s*[^;,\n\)](?:[^;]*?)),\s*this\s*\)",
+        r"\1)",
+        cs,
+        flags=re.DOTALL,
+    )
 
 
 def inject_members(cs: str, descriptor: Descriptor) -> str:
@@ -247,6 +256,7 @@ def convert_cs(cs: str, view_name: str, descriptor: Descriptor) -> str:
             raise RuntimeError(f"SKIP excluded pattern: {label}")
     cs = ensure_avalonia_using(cs)
     cs = convert_base_list(cs, view_name)
+    cs = convert_owner_bound_pick_from_editor(cs)
     cs = inject_members(cs, descriptor)
     cs = convert_opened_handler(cs)
     return cs

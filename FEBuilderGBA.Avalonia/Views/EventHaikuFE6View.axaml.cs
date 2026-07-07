@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Controls;
@@ -8,20 +9,32 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EventHaikuFE6View : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class EventHaikuFE6View : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly EventHaikuFE6ViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Haiku (FE6)";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Haiku (FE6)", 1259, 826, SizeToContent: true);
+        public event EventHandler? CloseRequested;
 
         public EventHaikuFE6View()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
             WriteButton.Click += Write_Click;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -143,7 +156,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 uint addr = EditorJumpAddressHelper.UnitAddrFor(CoreState.ROM, UnitNud.Value);
-                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
+                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr);
                 if (result != null) UnitNud.Value = (uint)result.Index + 1; // 0-based pick -> 1-based id
             }
             catch (Exception ex) { Log.Error($"EventHaikuFE6View.Unit_Pick failed: {ex.Message}"); }
@@ -179,5 +192,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

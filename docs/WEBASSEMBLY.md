@@ -58,12 +58,14 @@ editors (for example `ItemStatBonusesViewerView`, `MapPointerView`, `EventFuncti
 `MenuDefinitionView`, `SoundFootStepsViewerView`, and `WorldMapPointView`). Slice 4 extends the same
 script-driven path across additional simple Text/Tool/Status/Unit-support/WorldMap editors (for
 example `TextMainView`, `HexEditorView`, `ToolFELintView`, `StatusParamView`,
-`SupportUnitEditorView`, and `WorldMapPathView`). Slice 5 converts the remaining script-safe
-launcher/resource/menu/support surfaces (`MainSimpleMenuView`, `MainSimpleMenuEventErrorView`,
-`MainSimpleMenuImageSubView`, `OpenLastSelectedFileView`, `ResourceView`,
-`SMEPromoListView`, and `ToolUpdateDialogView`). Converted editors are exposed in the single-view
-launcher once a ROM is loaded; editors with owner-bound
-file/dialog/picker/closed-event flows remain on the legacy path until the dialog-flow slice.
+`SupportUnitEditorView`, and `WorldMapPathView`). Slice 5 converts the remaining script-safe launcher/resource/menu/support/class-demo/ending surfaces
+(including `MainSimpleMenuView`, `ResourceView`, `ArenaClassViewerView`, `ItemShopViewerView`,
+`MonsterItemViewerView`, `OPClassDemoViewerView`, `EDView`, and `SoundBossBGMViewerView`). The
+converter also drops the optional desktop `Window` owner argument from
+`WindowManager.PickFromEditor(..., this)` callers when the caller becomes a `UserControl`; picker
+targets remain deferred. Converted editors are exposed in the single-view launcher once a ROM is
+loaded; editors with owner-bound file/dialog/picker/closed-event flows remain on the legacy path
+until the dialog-flow slice.
 
 ## 3. Rendering (SkiaSharp + HarfBuzz native relink)
 

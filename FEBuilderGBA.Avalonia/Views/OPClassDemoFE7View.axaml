@@ -1,9 +1,7 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
-        x:Class="FEBuilderGBA.Avalonia.Views.OPClassDemoFE7View"
-        Title="OP Class Demo (FE7) Editor" Width="1580" Height="1020"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+             x:Class="FEBuilderGBA.Avalonia.Views.OPClassDemoFE7View">
   <Grid ColumnDefinitions="260,*" RowDefinitions="Auto,*">
 
     <!-- Row 0: Selection bar (mirrors WF AddressPanel) -->
@@ -256,4 +254,4 @@
       </StackPanel>
     </ScrollViewer>
   </Grid>
-</Window>
+</UserControl>

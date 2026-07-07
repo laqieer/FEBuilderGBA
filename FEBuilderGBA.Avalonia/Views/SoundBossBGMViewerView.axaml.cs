@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
@@ -7,19 +8,31 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SoundBossBGMViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class SoundBossBGMViewerView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly SoundBossBGMViewerViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Boss BGM";
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
+        public EditorDescriptor Descriptor => new("Boss BGM Editor", 1392, 722, SizeToContent: true);
+        public event EventHandler? CloseRequested;
 
         public SoundBossBGMViewerView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -149,7 +162,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 uint navAddr = SupportUnitNavigation.UnitAddrForOneBased(CoreState.ROM, (uint)(UnitIdBox.Value ?? 0));
 
-                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(navAddr, this);
+                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(navAddr);
                 // PickResult.Index is 0-based; UnitId is 1-based (#937).
                 if (result != null)
                     UnitIdBox.Value = SupportUnitNavigation.OneBasedIdFromPickIndex(result.Index);
@@ -161,5 +174,6 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

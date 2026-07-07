@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
@@ -17,23 +18,36 @@ namespace FEBuilderGBA.Avalonia.Views
     /// Left: ShopList (all shops in the ROM). Middle: SlotList (items in selected shop).
     /// Right: per-slot editor + slot management (Write, Append Slot, Remove Last Slot, Reload).
     /// </summary>
-    public partial class ItemShopViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class ItemShopViewerView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
         readonly ItemShopViewerViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
         List<AddrResult> _currentShopList = new();
         List<AddrResult> _currentSlotList = new();
 
         public string ViewTitle => "Item Shop";
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
+        public EditorDescriptor Descriptor => new("Item Shop Editor", 1280, 720, SizeToContent: true);
+        public event EventHandler? CloseRequested;
 
         public ItemShopViewerView()
         {
             InitializeComponent();
             ShopList.SelectedAddressChanged += OnShopSelected;
             SlotList.SelectedAddressChanged += OnSlotSelected;
-            Opened += (_, _) => LoadShopList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadShopList();
+            }
         }
 
         // ===================================================================
@@ -459,9 +473,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint addr = ItemAddrFor(ItemIdBox.Value);
                 PickResult? result;
                 if (CoreState.ROM?.RomInfo?.version == 6)
-                    result = await WindowManager.Instance.PickFromEditor<ItemFE6View>(addr, this);
+                    result = await WindowManager.Instance.PickFromEditor<ItemFE6View>(addr);
                 else
-                    result = await WindowManager.Instance.PickFromEditor<ItemEditorView>(addr, this);
+                    result = await WindowManager.Instance.PickFromEditor<ItemEditorView>(addr);
                 if (result != null) ItemIdBox.Value = (uint)result.Index;
             }
             catch (Exception ex) { Log.ErrorF("ItemShopViewerView.ItemId_Pick failed: {0}", ex.Message); }
