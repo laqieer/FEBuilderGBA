@@ -28,7 +28,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             AssertPortraitZoomIsBoundedAndScrollable(view);
         }
 
-        static void AssertPortraitZoomIsBoundedAndScrollable(Window view)
+        static void AssertPortraitZoomIsBoundedAndScrollable(Control view)
         {
             var viewport = view.FindControl<Border>("PortraitViewport");
             var portrait = view.FindControl<GbaImageControl>("PortraitImage");
@@ -43,9 +43,11 @@ namespace FEBuilderGBA.Avalonia.Tests
             portrait.SetRgbaData(MakePortraitRgba(), PortraitWidth, PortraitHeight);
             portrait.Zoom = 1;
 
-            view.Show();
+            var host = view as Window ?? new Window { Content = view };
+            host.Show();
             try
             {
+                host.UpdateLayout();
                 view.UpdateLayout();
 
                 Assert.Equal(ViewportMaxWidth, viewport!.MaxWidth);
@@ -64,6 +66,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                     "1x full portrait sheet should fit vertically without clipping.");
 
                 portrait.Zoom = GbaImageControl.ZoomMax;
+                host.UpdateLayout();
                 view.UpdateLayout();
 
                 Assert.Equal(PortraitWidth * GbaImageControl.ZoomMax, image!.Width);
@@ -79,7 +82,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
             finally
             {
-                view.Close();
+                host.Close();
             }
         }
 
