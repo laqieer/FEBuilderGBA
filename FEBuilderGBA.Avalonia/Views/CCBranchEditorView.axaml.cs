@@ -153,7 +153,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 uint addr = ClassAddrFor(target.Value);
-                var result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr);
+                var result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null)
                 {
                     target.Value = (uint)result.Index;

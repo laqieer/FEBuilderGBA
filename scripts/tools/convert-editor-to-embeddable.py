@@ -121,6 +121,20 @@ def ensure_avalonia_using(cs: str) -> str:
     return "using global::Avalonia;\n" + cs
 
 
+def ensure_avalonia_controls_using(cs: str) -> str:
+    if "TopLevel.GetTopLevel(this) as Window" not in cs:
+        return cs
+    if "using global::Avalonia.Controls;" in cs or "using Avalonia.Controls;" in cs:
+        return cs
+    if "using global::Avalonia;\n" in cs:
+        return cs.replace("using global::Avalonia;\n", "using global::Avalonia;\nusing global::Avalonia.Controls;\n", 1)
+    if "using Avalonia;\n" in cs:
+        return cs.replace("using Avalonia;\n", "using Avalonia;\nusing global::Avalonia.Controls;\n", 1)
+    if "using System;\n" in cs:
+        return cs.replace("using System;\n", "using System;\nusing global::Avalonia.Controls;\n", 1)
+    return "using global::Avalonia.Controls;\n" + cs
+
+
 def convert_base_list(cs: str, view_name: str) -> str:
     pattern = re.compile(rf"public\s+partial\s+class\s+{re.escape(view_name)}\s*:\s*(?P<bases>[^\n{{]+)")
     match = pattern.search(cs)
@@ -136,10 +150,10 @@ def convert_base_list(cs: str, view_name: str) -> str:
 
 
 def convert_owner_bound_pick_from_editor(cs: str) -> str:
-    """Drop Window owner arguments from PickFromEditor calls when the caller becomes a UserControl."""
+    """Reroute Window owner arguments through the hosting TopLevel after conversion to UserControl."""
     return re.sub(
         r"(PickFromEditor<[^>]+>\s*\(\s*[^;,\n\)](?:[^;]*?)),\s*this\s*\)",
-        r"\1)",
+        r"\1, TopLevel.GetTopLevel(this) as Window)",
         cs,
         flags=re.DOTALL,
     )
@@ -257,6 +271,7 @@ def convert_cs(cs: str, view_name: str, descriptor: Descriptor) -> str:
     cs = ensure_avalonia_using(cs)
     cs = convert_base_list(cs, view_name)
     cs = convert_owner_bound_pick_from_editor(cs)
+    cs = ensure_avalonia_controls_using(cs)
     cs = inject_members(cs, descriptor)
     cs = convert_opened_handler(cs)
     return cs

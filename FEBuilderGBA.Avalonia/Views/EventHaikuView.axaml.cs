@@ -207,7 +207,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 uint addr = EditorJumpAddressHelper.UnitAddrFor(CoreState.ROM, UnitNud.Value);
-                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr);
+                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null) UnitNud.Value = (uint)result.Index + 1; // 0-based pick -> 1-based id
             }
             catch (Exception ex) { Log.Error($"EventHaikuView.Unit_Pick failed: {ex.Message}"); }
@@ -229,7 +229,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 uint addr = EditorJumpAddressHelper.UnitAddrFor(CoreState.ROM, KillerUnitNud.Value);
-                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr);
+                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null) KillerUnitNud.Value = (uint)result.Index + 1;
             }
             catch (Exception ex) { Log.Error($"EventHaikuView.KillerUnit_Pick failed: {ex.Message}"); }

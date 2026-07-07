@@ -627,9 +627,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint addr = ItemAddrFor(box.Value);
                 PickResult? result;
                 if (CoreState.ROM?.RomInfo?.version == 6)
-                    result = await WindowManager.Instance.PickFromEditor<ItemFE6View>(addr);
+                    result = await WindowManager.Instance.PickFromEditor<ItemFE6View>(addr, TopLevel.GetTopLevel(this) as Window);
                 else
-                    result = await WindowManager.Instance.PickFromEditor<ItemEditorView>(addr);
+                    result = await WindowManager.Instance.PickFromEditor<ItemEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null)
                     box.Value = (uint)result.Index;
             }
@@ -750,7 +750,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 uint addr = ClassAddrFor(HoldClassIdBox.Value);
-                var result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr);
+                var result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null) HoldClassIdBox.Value = (uint)result.Index;
             }
             catch (Exception ex) { Log.ErrorF("MonsterItemViewerView.HoldClassId_Pick: {0}", ex.Message); }

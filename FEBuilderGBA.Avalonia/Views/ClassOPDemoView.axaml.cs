@@ -330,9 +330,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint addr = ClassAddrFor(DisplayWeaponBox.Value);
                 PickResult? result;
                 if (CoreState.ROM?.RomInfo?.version == 6)
-                    result = await WindowManager.Instance.PickFromEditor<ClassFE6View>(addr);
+                    result = await WindowManager.Instance.PickFromEditor<ClassFE6View>(addr, TopLevel.GetTopLevel(this) as Window);
                 else
-                    result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr);
+                    result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null) DisplayWeaponBox.Value = (uint)result.Index;
             }
             catch (Exception ex) { Log.ErrorF("ClassOPDemoView.ClassId_Pick failed: {0}", ex.Message); }

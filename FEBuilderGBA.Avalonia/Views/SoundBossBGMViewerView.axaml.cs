@@ -162,7 +162,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 uint navAddr = SupportUnitNavigation.UnitAddrForOneBased(CoreState.ROM, (uint)(UnitIdBox.Value ?? 0));
 
-                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(navAddr);
+                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(navAddr, TopLevel.GetTopLevel(this) as Window);
                 // PickResult.Index is 0-based; UnitId is 1-based (#937).
                 if (result != null)
                     UnitIdBox.Value = SupportUnitNavigation.OneBasedIdFromPickIndex(result.Index);

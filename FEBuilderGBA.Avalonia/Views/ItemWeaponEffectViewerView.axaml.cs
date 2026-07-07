@@ -160,9 +160,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint addr = ItemAddrFor(ItemIdBox.Value);
                 PickResult? result;
                 if (CoreState.ROM?.RomInfo?.version == 6)
-                    result = await WindowManager.Instance.PickFromEditor<ItemFE6View>(addr);
+                    result = await WindowManager.Instance.PickFromEditor<ItemFE6View>(addr, TopLevel.GetTopLevel(this) as Window);
                 else
-                    result = await WindowManager.Instance.PickFromEditor<ItemEditorView>(addr);
+                    result = await WindowManager.Instance.PickFromEditor<ItemEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null)
                 {
                     ItemIdBox.Value = (uint)result.Index;

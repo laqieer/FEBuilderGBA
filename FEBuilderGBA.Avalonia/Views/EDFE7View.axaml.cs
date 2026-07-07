@@ -185,7 +185,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 uint addr = UnitAddrFor(Lyn_UnitIdBox.Value);
-                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr);
+                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null) Lyn_UnitIdBox.Value = (uint)result.Index + 1;
             }
             catch (Exception ex) { Log.ErrorF("EDFE7View.LynUnitId_Pick failed: {0}", ex.Message); }
@@ -303,7 +303,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 uint addr = UnitAddrFor(Retreat_UnitIdBox.Value);
-                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr);
+                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null) Retreat_UnitIdBox.Value = (uint)result.Index + 1;
             }
             catch (Exception ex) { Log.ErrorF("EDFE7View.RetreatUnitId_Pick failed: {0}", ex.Message); }
@@ -430,7 +430,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 uint addr = UnitAddrFor(Epithet_UnitIdBox.Value);
-                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr);
+                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null) Epithet_UnitIdBox.Value = (uint)result.Index + 1;
             }
             catch (Exception ex) { Log.ErrorF("EDFE7View.EpithetUnitId_Pick failed: {0}", ex.Message); }
@@ -604,7 +604,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 uint addr = UnitAddrFor(Epilogue_UnitId1Box.Value);
-                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr);
+                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null) Epilogue_UnitId1Box.Value = (uint)result.Index + 1;
             }
             catch (Exception ex) { Log.ErrorF("EDFE7View.EpilogueUnitId1_Pick failed: {0}", ex.Message); }
@@ -632,7 +632,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 uint addr = UnitAddrFor(Epilogue_UnitId2Box.Value);
-                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr);
+                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null) Epilogue_UnitId2Box.Value = (uint)result.Index + 1;
             }
             catch (Exception ex) { Log.ErrorF("EDFE7View.EpilogueUnitId2_Pick failed: {0}", ex.Message); }
