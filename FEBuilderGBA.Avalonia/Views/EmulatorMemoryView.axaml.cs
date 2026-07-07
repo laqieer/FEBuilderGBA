@@ -15,6 +15,8 @@
 // vacuously true because no Avalonia handler ever calls
 // ROM.SetU8/16/32 - the entire ROM-mutating surface is KnownGap.
 
+using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -22,11 +24,14 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EmulatorMemoryView : TranslatedWindow, IEditorView
+    public partial class EmulatorMemoryView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly EmulatorMemoryViewModel _vm = new();
         public string ViewTitle => "Emulator Memory";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Emulator Memory", 1280, 900, SizeToContent: false);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public EmulatorMemoryView()
         {
@@ -37,7 +42,7 @@ namespace FEBuilderGBA.Avalonia.Views
             DataContext = _vm;
         }
 
-        void Close_Click(object? sender, RoutedEventArgs e) => Close();
+        void Close_Click(object? sender, RoutedEventArgs e) => RequestClose();
 
         // ---- Functional cross-editor open buttons ----
         // Each opens the target editor parameterlessly via

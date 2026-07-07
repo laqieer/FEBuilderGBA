@@ -1,16 +1,20 @@
+
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
-
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class PatchFilterExView : TranslatedWindow, IEditorView
+    public partial class PatchFilterExView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly PatchFilterExViewModel _vm = new();
         public string ViewTitle => "Patch Filter";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Patch Filter", 1037, 529, SizeToContent: true);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public PatchFilterExView()
         {
@@ -22,13 +26,13 @@ namespace FEBuilderGBA.Avalonia.Views
         void OK_Click(object? sender, RoutedEventArgs e)
         {
             _vm.DialogConfirmed = true;
-            Close();
+            RequestClose();
         }
 
         void Cancel_Click(object? sender, RoutedEventArgs e)
         {
             _vm.DialogConfirmed = false;
-            Close();
+            RequestClose();
         }
 
         public void NavigateTo(uint address) { }

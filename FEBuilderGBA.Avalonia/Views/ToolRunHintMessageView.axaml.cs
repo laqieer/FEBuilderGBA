@@ -1,16 +1,20 @@
+
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
-
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolRunHintMessageView : TranslatedWindow, IEditorView
+    public partial class ToolRunHintMessageView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ToolRunHintMessageViewModel _vm = new();
         public string ViewTitle => "Test Run";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Test Run", 965, 480, SizeToContent: true, CanResize: false);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ToolRunHintMessageView()
         {
@@ -33,7 +37,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     Log.Error("ToolRunHintMessageView", ex.ToString());
                 }
             }
-            Close();
+            RequestClose();
         }
 
         public void NavigateTo(uint address) { }

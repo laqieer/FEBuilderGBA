@@ -1,16 +1,20 @@
+
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
-
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolThreeMargeCloseAlertView : TranslatedWindow, IEditorView
+    public partial class ToolThreeMargeCloseAlertView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ToolThreeMargeCloseAlertViewModel _vm = new();
         public string ViewTitle => "Do you want to close the comparison tool?";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Do you want to close the comparison tool?", 820, 380, SizeToContent: true, CanResize: false);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ToolThreeMargeCloseAlertView()
         {
@@ -22,19 +26,19 @@ namespace FEBuilderGBA.Avalonia.Views
         void Cancel_Click(object? sender, RoutedEventArgs e)
         {
             _vm.DialogResult = "cancel";
-            Close();
+            RequestClose();
         }
 
         void No_Click(object? sender, RoutedEventArgs e)
         {
             _vm.DialogResult = "no";
-            Close();
+            RequestClose();
         }
 
         void Yes_Click(object? sender, RoutedEventArgs e)
         {
             _vm.DialogResult = "yes";
-            Close();
+            RequestClose();
         }
 
         public void NavigateTo(uint address) { }

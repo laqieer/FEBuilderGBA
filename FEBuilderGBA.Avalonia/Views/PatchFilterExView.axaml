@@ -1,9 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.PatchFilterExView"
-        Title="Patch Filter" Width="1037" Height="529"
-        WindowStartupLocation="CenterOwner"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.PatchFilterExView">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <DockPanel Margin="16">
     <TextBlock DockPanel.Dock="Top" Text="Patch Filter" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
@@ -17,4 +14,4 @@
     </StackPanel>
   </DockPanel>
   </ScrollViewer>
-</Window>
+</UserControl>

@@ -1,19 +1,23 @@
+
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
-
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class PaletteChangeColorsView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class PaletteChangeColorsView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly PaletteChangeColorsViewViewModel _vm = new();
         readonly UndoService _undoService = new();
 
         public string ViewTitle => "Palette Change Colors";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Palette Change Colors", 800, 500, SizeToContent: true);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public PaletteChangeColorsView()
         {
@@ -61,7 +65,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void Close_Click(object? sender, RoutedEventArgs e) => Close();
+        void Close_Click(object? sender, RoutedEventArgs e) => RequestClose();
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }

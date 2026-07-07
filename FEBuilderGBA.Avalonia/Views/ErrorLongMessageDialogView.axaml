@@ -1,9 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.ErrorLongMessageDialogView"
-        Title="Error Details" Width="1120" Height="691"
-        WindowStartupLocation="CenterOwner"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.ErrorLongMessageDialogView">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <DockPanel>
     <!-- Top panel: Red title + Close button (WinForms panel1 1104x43) -->
@@ -21,4 +18,4 @@
              Text="{Binding LongMessage}" />
   </DockPanel>
   </ScrollViewer>
-</Window>
+</UserControl>

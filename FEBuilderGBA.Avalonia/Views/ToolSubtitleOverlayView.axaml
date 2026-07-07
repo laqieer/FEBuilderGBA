@@ -1,9 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.ToolSubtitleOverlayView"
-        Title="Subtitle Overlay" Width="992" Height="230"
-        WindowStartupLocation="CenterOwner"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.ToolSubtitleOverlayView">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <DockPanel Margin="16">
     <TextBlock DockPanel.Dock="Top" Text="Subtitle Overlay" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
@@ -24,4 +21,4 @@
     </StackPanel>
   </DockPanel>
   </ScrollViewer>
-</Window>
+</UserControl>

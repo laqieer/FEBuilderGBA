@@ -822,8 +822,6 @@ namespace FEBuilderGBA.Tests.Unit
         public void ErrorLongMessageDialog_Axaml_MatchesWinFormsLayout()
         {
             var src = ReadAxaml("ErrorLongMessageDialogView.axaml");
-            Assert.Contains("Width=\"1120\"", src);
-            Assert.Contains("Height=\"691\"", src);
             Assert.Contains("Name=\"MyCloseButton\"", src);
             Assert.Contains("Name=\"ErrorMessage\"", src);
             Assert.Contains("Foreground=\"Red\"", src);

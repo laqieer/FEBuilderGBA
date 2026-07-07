@@ -1,3 +1,4 @@
+using global::Avalonia.Controls;
 using System;
 
 namespace FEBuilderGBA.Avalonia.Services
@@ -14,5 +15,7 @@ namespace FEBuilderGBA.Avalonia.Services
         bool SizeToContent = false,
         double MinWidth = 0,
         double MinHeight = 0,
-        bool CanBeModal = false);
+        bool CanBeModal = false,
+        bool CanResize = true,
+        WindowStartupLocation StartupLocation = WindowStartupLocation.CenterOwner);
 }

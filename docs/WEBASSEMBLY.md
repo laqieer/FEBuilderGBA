@@ -65,9 +65,11 @@ exhausts the remaining script-safe pool with `SupportTalkView`, `SupportTalkFE6V
 `SupportTalkFE7View`, `UnitFE6View`, `UnitFE7View`, and `UnitMainView`. The converter reroutes
 optional desktop `Window` owner arguments from `WindowManager.PickFromEditor(..., this)` to
 `TopLevel.GetTopLevel(this) as Window` when the caller becomes a `UserControl`; picker targets remain
-deferred. Converted editors are exposed in the single-view launcher once a ROM is loaded; editors
-with owner-bound file/dialog/picker/closed-event flows remain on the legacy path
-until the dialog-flow slice.
+deferred. Slice 7 starts the complex phase by converting the first self-close-only dialog/tool batch,
+where converted `Close()` calls become `RequestClose()` and close through the hosting
+`EditorHostWindow`. Converted editors are exposed in the single-view launcher once a ROM is loaded;
+editors with owner-bound file/dialog/picker/closed-event flows remain on the legacy path until the
+dialog-flow slice.
 
 ## 3. Rendering (SkiaSharp + HarfBuzz native relink)
 
@@ -164,9 +166,10 @@ failure a "returns HTTP 200" check can't catch, which is exactly how #1867 shipp
 ## 7. Known preview limitations / follow-ups
 
 - **Editor rollout is partial (#1873)** — embeddable editors now work without constructing a `Window`.
-  `MoveCostEditorView`, the simple-AI rollout batch, and the script-driven simple pool through Slice
-  6 are converted; the remaining legacy `Window` editors are the complex dialog/file/picker/closed
-  event long-tail and still need follow-up conversions before the browser can host the full catalog.
+  `MoveCostEditorView`, the simple-AI rollout batch, the script-driven simple pool through Slice 6,
+  and the first self-close dialog/tool batch from Slice 7 are converted; the remaining legacy
+  `Window` editors are the complex dialog/file/picker/closed-event long-tail and still need follow-up
+  conversions before the browser can host the full catalog.
   ROM **open/save** works (#1870), and the launcher remains ROM-gated.
 - **On-device parity maturing** — threading-dependent caches + some file-flows aren't browser-ported
   (single-threaded on Pages). Milestone = builds + deploys + loads/renders the shell (config-loaded).
