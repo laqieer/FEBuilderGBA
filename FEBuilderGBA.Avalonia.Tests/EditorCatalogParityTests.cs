@@ -33,64 +33,81 @@ public class EditorCatalogParityTests
     };
 
     [Fact]
-    public void Every_desktop_body_editor_is_in_the_catalog()
+    public void Every_desktop_body_editor_maps_to_the_matching_catalog_entry()
     {
         string axaml = ReadRepoFile(Path.Combine("FEBuilderGBA.Avalonia", "Views", "MainWindow.axaml"));
         string cs = ReadRepoFile(Path.Combine("FEBuilderGBA.Avalonia", "Views", "MainWindow.axaml.cs"));
 
-        // Collect the Click handlers of every button inside a body <Expander>…</Expander>.
-        var handlers = new List<string>();
+        // Collect (Content label, Click handler) for every button inside a body <Expander>.
+        var buttons = new List<(string Content, string Click)>();
         foreach (Match exp in Regex.Matches(axaml, @"<Expander\b.*?</Expander>", RegexOptions.Singleline))
         {
-            foreach (Match btn in Regex.Matches(exp.Value, @"<Button\b[^>]*?\bClick=""([A-Za-z0-9_]+)""", RegexOptions.Singleline))
-                handlers.Add(btn.Groups[1].Value);
+            foreach (Match btn in Regex.Matches(exp.Value, @"<Button\b[^>]*?/?>", RegexOptions.Singleline))
+            {
+                var content = Regex.Match(btn.Value, @"\bContent=""([^""]+)""");
+                var click = Regex.Match(btn.Value, @"\bClick=""([A-Za-z0-9_]+)""");
+                if (content.Success && click.Success)
+                    buttons.Add((content.Groups[1].Value, click.Groups[1].Value));
+            }
         }
-        handlers = handlers.Distinct(StringComparer.Ordinal).ToList();
-        Assert.True(handlers.Count > 150, $"Expected the full desktop editor body; found only {handlers.Count} button handlers.");
+        Assert.True(buttons.Count > 150, $"Expected the full desktop editor body; found only {buttons.Count} buttons.");
 
-        var desktopTypes = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var handler in handlers)
+        // Per desktop button: resolve its handler to the editor View type(s) it opens, and pair that
+        // (order-independent) type set with the button's label. This is a PER-BUTTON check — a catalog
+        // entry that opened the wrong view for a given label would fail, not just a missing type.
+        var desktopPairs = new HashSet<(string Label, string Types)>();
+        foreach (var (content, click) in buttons)
         {
-            if (NonEditorHandlers.Contains(handler))
+            if (NonEditorHandlers.Contains(click))
                 continue;
 
-            string? body = ExtractMethodBody(cs, handler);
-            Assert.True(body != null, $"Body button handler {handler} not found in MainWindow.axaml.cs.");
+            string? body = ExtractMethodBody(cs, click);
+            Assert.True(body != null, $"Body button handler {click} not found in MainWindow.axaml.cs.");
 
-            // Match ALL open verbs (Open / Navigate / OpenModal / PickFromEditor / OpenAsTopLevel).
             var types = Regex.Matches(body!, @"\b(?:Open|Navigate|OpenModal|PickFromEditor|OpenAsTopLevel)<\s*([A-Za-z0-9_]+)")
                 .Select(m => m.Groups[1].Value)
                 .Distinct(StringComparer.Ordinal)
+                .OrderBy(t => t, StringComparer.Ordinal)
                 .ToList();
 
-            // Fail loud: a body button we cannot resolve to an editor type is a hole in the
-            // anti-drift net. Either it opens an editor (add it) or it is a non-editor action
-            // (add it to NonEditorHandlers).
+            // Fail loud: an unresolved body button is a hole in the anti-drift net.
             Assert.True(types.Count >= 1,
-                $"Body button handler {handler} does not resolve to any editor type — the parity scanner cannot verify it. " +
-                "If it opens an editor, ensure the handler uses a recognized open verb; if it is a non-editor action, add it to NonEditorHandlers.");
+                $"Body button '{content}' (handler {click}) does not resolve to any editor type — the parity scanner cannot verify it. " +
+                "If it opens an editor, use a recognized open verb; if it is a non-editor action, add it to NonEditorHandlers.");
 
-            foreach (var t in types)
-                desktopTypes.Add(t);
+            // Skip buttons whose entire view set is intentionally excluded (the Window-derived
+            // EventTemplate editors). Any partially-excluded set would (correctly) fail below.
+            if (types.All(t => ExcludedDesktopEditors.Contains(t)))
+                continue;
+
+            desktopPairs.Add((content, string.Join(",", types)));
         }
 
-        var catalogTypes = EditorCatalog.AllEntries
-            .SelectMany(e => e.Views)
-            .Select(t => t.Name)
-            .ToHashSet(StringComparer.Ordinal);
+        var catalogPairs = EditorCatalog.AllEntries
+            .Select(e => (Label: e.Label, Types: string.Join(",", e.Views.Select(t => t.Name).Distinct(StringComparer.Ordinal).OrderBy(t => t, StringComparer.Ordinal))))
+            .ToHashSet();
 
-        var missing = desktopTypes
-            .Where(t => !catalogTypes.Contains(t) && !ExcludedDesktopEditors.Contains(t))
-            .OrderBy(t => t, StringComparer.Ordinal)
-            .ToList();
-
+        // Every desktop editor button (label + exact view set) must have a matching catalog entry.
+        var missing = desktopPairs.Except(catalogPairs).OrderBy(p => p.Label, StringComparer.Ordinal).ToList();
         Assert.True(missing.Count == 0,
-            "Desktop body editors missing from EditorCatalog (add them to EditorCatalog.cs, or to ExcludedDesktopEditors if single-view-incompatible): "
-            + string.Join(", ", missing));
+            "Desktop body editors missing from / mismatched in EditorCatalog (label -> views): "
+            + string.Join("; ", missing.Select(p => $"{p.Label} -> {p.Types}")));
+
+        // And the catalog must not carry an editor entry the desktop body does not (no orphans /
+        // wrong label). Entries are typeof(...)-referenced, so a deleted view already fails the build;
+        // this catches a mislabeled or fabricated entry.
+        var orphan = catalogPairs.Except(desktopPairs).OrderBy(p => p.Label, StringComparer.Ordinal).ToList();
+        Assert.True(orphan.Count == 0,
+            "EditorCatalog entries with no matching desktop body button (label -> views): "
+            + string.Join("; ", orphan.Select(p => $"{p.Label} -> {p.Types}")));
 
         // The exclusions must be real desktop-body editors (so a stale exclusion is caught).
+        var allDesktopTypes = buttons
+            .Where(b => !NonEditorHandlers.Contains(b.Click))
+            .SelectMany(b => Regex.Matches(ExtractMethodBody(cs, b.Click) ?? "", @"\b(?:Open|Navigate|OpenModal|PickFromEditor|OpenAsTopLevel)<\s*([A-Za-z0-9_]+)").Select(m => m.Groups[1].Value))
+            .ToHashSet(StringComparer.Ordinal);
         foreach (var excluded in ExcludedDesktopEditors)
-            Assert.True(desktopTypes.Contains(excluded),
+            Assert.True(allDesktopTypes.Contains(excluded),
                 $"{excluded} is listed as an exclusion but is not a desktop body editor — remove the stale exclusion.");
     }
 

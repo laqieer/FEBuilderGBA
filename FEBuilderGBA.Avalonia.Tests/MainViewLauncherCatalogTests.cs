@@ -119,4 +119,28 @@ public class MainViewLauncherCatalogTests
             CoreState.ROM = prevRom;
         }
     }
+
+    [Fact]
+    public void FindLauncherEntry_prefers_stable_key_over_duplicate_label()
+    {
+        // "Unit Palette" is a duplicate label — two distinct editors: ImageUnitPaletteView
+        // (key ImageUnitPalette) and UnitPaletteView (key UnitPalette). Key-first resolution must
+        // return the entry for the EXACT key, not the first entry whose label happens to match.
+        var byImageKey = MainView.FindLauncherEntry("ImageUnitPalette");
+        Assert.NotNull(byImageKey);
+        Assert.Equal("ImageUnitPalette", byImageKey!.Key);
+        Assert.Contains(byImageKey.Views, t => t.Name == "ImageUnitPaletteView");
+
+        var byUnitKey = MainView.FindLauncherEntry("UnitPalette");
+        Assert.NotNull(byUnitKey);
+        Assert.Equal("UnitPalette", byUnitKey!.Key);
+        Assert.Contains(byUnitKey.Views, t => t.Name == "UnitPaletteView");
+
+        // The legacy label-based key used by the wasm smoke still resolves via the label fallback.
+        var byLabel = MainView.FindLauncherEntry("MoveCost");
+        Assert.NotNull(byLabel);
+        Assert.Equal("MoveCostEditor", byLabel!.Key); // MoveCostEditorView, title "Move Cost Editor"
+
+        Assert.Null(MainView.FindLauncherEntry("NoSuchEditorKey"));
+    }
 }

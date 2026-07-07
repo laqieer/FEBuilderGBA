@@ -120,22 +120,14 @@ namespace FEBuilderGBA.Avalonia.Views
 
             void Open()
             {
-                string normalizedKey = NormalizeLauncherKey(key);
-                foreach (var (entryKey, label, open) in LauncherEntries())
-                {
-                    // Match on the stable catalog Key OR the (translatable) label, so existing
-                    // smoke keys like "MoveCost" (→ label "Move Cost") keep working while new
-                    // callers can use the stable Key.
-                    if (NormalizeLauncherKey(entryKey) != normalizedKey &&
-                        NormalizeLauncherKey(label) != normalizedKey)
-                        continue;
+                var entry = FindLauncherEntry(key);
+                if (entry is null)
+                    return;
 
-                    open();
-                    openedTitle = WindowManager.Instance.Service is INavigationHost host
-                        ? host.CurrentTitle
-                        : null;
-                    break;
-                }
+                entry.Open();
+                openedTitle = WindowManager.Instance.Service is INavigationHost host
+                    ? host.CurrentTitle
+                    : null;
             }
 
             if (Dispatcher.UIThread.CheckAccess())
@@ -145,8 +137,30 @@ namespace FEBuilderGBA.Avalonia.Views
 
             return openedTitle ?? "";
         }
+#endif
 
-        static string NormalizeLauncherKey(string? value)
+        /// <summary>
+        /// Resolve a launcher key to its catalog entry: an EXACT, unique catalog Key match wins;
+        /// otherwise fall back to the (possibly non-unique) label, so legacy keys like "MoveCost"
+        /// (→ label "Move Cost") still resolve. Key-first prevents a duplicate label (e.g. the two
+        /// distinct "Unit Palette" editors, ImageUnitPaletteView vs UnitPaletteView) from resolving
+        /// to the wrong entry. Internal test seam (via InternalsVisibleTo).
+        /// </summary>
+        internal static EditorEntry? FindLauncherEntry(string key)
+        {
+            string nk = NormalizeLauncherKey(key);
+            EditorEntry? labelHit = null;
+            foreach (var e in EditorCatalog.AllEntries)
+            {
+                if (NormalizeLauncherKey(e.Key) == nk)
+                    return e; // exact, unique key wins
+                if (labelHit is null && NormalizeLauncherKey(e.Label) == nk)
+                    labelHit = e;
+            }
+            return labelHit;
+        }
+
+        internal static string NormalizeLauncherKey(string? value)
         {
             if (string.IsNullOrWhiteSpace(value))
                 return "";
@@ -166,7 +180,6 @@ namespace FEBuilderGBA.Avalonia.Views
             // fold to "MOVECOST" here (no special-case remap needed).
             return normalized;
         }
-#endif
 
         void Back_Click(object? sender, RoutedEventArgs e) => Host.GoBack();
 
@@ -407,15 +420,5 @@ namespace FEBuilderGBA.Avalonia.Views
                     exp.IsExpanded = visible > 0;
             }
         }
-
-#if E2E_HOOKS
-        /// <summary>
-        /// The launcher entries flattened from <see cref="EditorCatalog"/> as (Key, Label, Open).
-        /// Used only by the E2E hook to open an editor by key or label; the catalog is the single
-        /// source of truth shared with the desktop MainWindow body (kept in sync by the parity tests).
-        /// </summary>
-        static IEnumerable<(string Key, string Label, Action Open)> LauncherEntries()
-            => EditorCatalog.AllEntries.Select(e => (e.Key, e.Label, e.Open));
-#endif
     }
 }
