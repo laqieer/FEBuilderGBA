@@ -120,7 +120,9 @@ def main() -> int:
     font = TTFont(args.base, recalcTimestamp=False)
     ss.subset(font)
 
-    os.makedirs(os.path.dirname(args.out), exist_ok=True)
+    out_dir = os.path.dirname(args.out)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
     font.save(args.out)
 
     out_font = TTFont(args.out)
