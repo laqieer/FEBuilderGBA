@@ -1,10 +1,7 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
-        x:Class="FEBuilderGBA.Avalonia.Views.OAMSPView"
-        Title="Special OAM" Width="860" Height="560"
-        WindowStartupLocation="CenterOwner"
-        SizeToContent="Manual">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+             x:Class="FEBuilderGBA.Avalonia.Views.OAMSPView">
   <Grid ColumnDefinitions="280,*" Margin="4">
     <controls:AddressListControl AutomationProperties.AutomationId="OAMSP_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
@@ -38,4 +35,4 @@
       </ScrollViewer>
     </DockPanel>
   </Grid>
-</Window>
+</UserControl>

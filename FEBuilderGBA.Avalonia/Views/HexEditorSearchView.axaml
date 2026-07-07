@@ -1,11 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.HexEditorSearchView"
-        Title="Hex Editor - Search"
-        Width="515" Height="305"
-        WindowStartupLocation="CenterOwner"
-        CanResize="False"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.HexEditorSearchView">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <StackPanel Margin="13,25,13,10">
     <!-- Search label + ComboBox row -->
@@ -33,4 +28,4 @@
                TextWrapping="Wrap" Foreground="Gray" FontSize="11" />
   </StackPanel>
   </ScrollViewer>
-</Window>
+</UserControl>

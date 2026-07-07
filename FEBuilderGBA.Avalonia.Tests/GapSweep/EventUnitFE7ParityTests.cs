@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // Phase 1 / Phase 4 / Phase 5 gap-sweep regression tests for
 // EventUnitFE7View (closes #431 via PR #522).
 //
@@ -513,7 +513,7 @@ public class EventUnitFE7ParityTests
             new Regex(@"async\s+void\s+NewAlloc_Click\(", RegexOptions.Singleline),
             source);
         Assert.Matches(
-            new Regex(@"NewAlloc_Click[\s\S]*?new\s+EventUnitNewAllocView\(\)[\s\S]*?ShowDialog<uint\?>", RegexOptions.Singleline),
+            new Regex(@"NewAlloc_Click[\s\S]*?OpenModal<EventUnitNewAllocView, uint\?>", RegexOptions.Singleline),
             source);
         // Cancel / count==0 no-op guard.
         Assert.Matches(

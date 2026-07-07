@@ -1,10 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.TextBadCharPopupView"
-        Title="Bad Character Warning" Width="849" Height="469"
-        WindowStartupLocation="CenterOwner"
-        CanResize="False"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.TextBadCharPopupView">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <DockPanel Margin="12,14,12,12">
     <!-- Error message header (WinForms Error_MessageLabel 244x28 14pt bold) -->
@@ -26,4 +22,4 @@
     </StackPanel>
   </DockPanel>
   </ScrollViewer>
-</Window>
+</UserControl>

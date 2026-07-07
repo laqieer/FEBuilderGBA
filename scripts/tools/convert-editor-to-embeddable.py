@@ -18,7 +18,6 @@ from pathlib import Path
 
 EXCLUDED_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("OnClosed override", re.compile(r"\boverride\s+void\s+OnClosed\s*\(")),
-    ("Close with result", re.compile(r"(?<![\.\w])Close\s*\(\s*[^)\s]|\bthis\s*\.\s*Close\s*\(\s*[^)\s]")),
 )
 
 ROOT_RE = re.compile(r"(?P<root><Window\b(?P<attrs>.*?)>)", re.DOTALL)
@@ -219,6 +218,7 @@ def convert_owner_bound_dialog_calls(cs: str) -> str:
     the cast intentionally yields null for APIs that accept ``Window?``.
     """
     owner = "TopLevel.GetTopLevel(this) as Window"
+    file_owner = "TopLevel.GetTopLevel(this)"
     replacements: tuple[tuple[re.Pattern[str], str], ...] = (
         (
             re.compile(r"(?P<prefix>\b(?:Dialogs\.)?MessageBoxWindow\s*\.\s*Show\s*\(\s*)this\s*,"),
@@ -230,7 +230,7 @@ def convert_owner_bound_dialog_calls(cs: str) -> str:
         ),
         (
             re.compile(r"(?P<prefix>\bFileDialogHelper\s*\.\s*[A-Za-z_][A-Za-z0-9_]*\s*\(\s*)this(?P<suffix>\s*[,)])"),
-            rf"\g<prefix>{owner}\g<suffix>",
+            rf"\g<prefix>{file_owner}\g<suffix>",
         ),
         (
             re.compile(r"(?P<prefix>\bFERepoPickHelper\s*\.\s*[A-Za-z_][A-Za-z0-9_]*\s*\(\s*)this(?P<suffix>\s*[,)])"),
@@ -264,7 +264,7 @@ def convert_owner_bound_dialog_calls(cs: str) -> str:
 
 def convert_owner_bound_image_calls(cs: str) -> str:
     """Reroute image import/export owners from the editor Window to its hosting TopLevel."""
-    owner = "TopLevel.GetTopLevel(this) as Window"
+    owner = "TopLevel.GetTopLevel(this)"
     replacements: tuple[tuple[re.Pattern[str], str], ...] = (
         (
             re.compile(r"(?P<prefix>\bImageImportService\s*\.\s*[A-Za-z_][A-Za-z0-9_]*\s*\(\s*)this(?P<suffix>\s*,)"),
@@ -338,10 +338,111 @@ def convert_top_level_services(cs: str) -> str:
     return cs
 
 
+
+def _replace_own_close_with_result(cs: str) -> tuple[str, bool]:
+    """Convert own Close(result) calls to DialogResult + RequestClose.
+
+    Handles balanced-parenthesis arguments so casts such as (uint?)null and
+    method calls keep compiling. Does not touch receiver-qualified closes
+    (otherWindow.Close(result)).
+    """
+    out: list[str] = []
+    i = 0
+    changed = False
+    needle = "Close"
+    while i < len(cs):
+        j = cs.find(needle, i)
+        if j < 0:
+            out.append(cs[i:])
+            break
+        call_start = j
+        prev = cs[j - 1] if j > 0 else ""
+        if prev == ".":
+            if j >= 5 and cs[j - 5:j] == "this.":
+                call_start = j - 5
+            else:
+                out.append(cs[i:j + len(needle)])
+                i = j + len(needle)
+                continue
+        elif prev == "_" or prev.isalnum():
+            out.append(cs[i:j + len(needle)])
+            i = j + len(needle)
+            continue
+        k = j + len(needle)
+        while k < len(cs) and cs[k].isspace():
+            k += 1
+        if k >= len(cs) or cs[k] != "(":
+            out.append(cs[i:j + len(needle)])
+            i = j + len(needle)
+            continue
+        depth = 1
+        q = k + 1
+        quote: str | None = None
+        escape = False
+        while q < len(cs):
+            ch = cs[q]
+            if quote:
+                if escape:
+                    escape = False
+                elif ch == "\\":
+                    escape = True
+                elif ch == quote:
+                    quote = None
+            else:
+                if ch in ('"', "'"):
+                    quote = ch
+                elif ch == "(":
+                    depth += 1
+                elif ch == ")":
+                    depth -= 1
+                    if depth == 0:
+                        break
+            q += 1
+        if q >= len(cs):
+            out.append(cs[i:])
+            break
+        r = q + 1
+        while r < len(cs) and cs[r].isspace():
+            r += 1
+        if r >= len(cs) or cs[r] != ";":
+            out.append(cs[i:j + len(needle)])
+            i = j + len(needle)
+            continue
+        prefix_start = max(
+            cs.rfind("\n", 0, call_start) + 1,
+            cs.rfind(";", 0, call_start) + 1,
+            cs.rfind("{", 0, call_start) + 1,
+        )
+        prefix = cs[prefix_start:call_start].strip()
+        if prefix and not prefix.endswith("=>"):
+            raise ValueError("Close(result) used in an unsupported expression context")
+        arg = cs[k + 1:q].strip()
+        out.append(cs[i:call_start])
+        if arg:
+            out.append(f"{{ DialogResult = {arg}; RequestClose(); }}")
+            changed = True
+        else:
+            out.append("RequestClose();")
+        i = r + 1
+    return "".join(out), changed
+
 def convert_self_close(cs: str) -> str:
     """Convert calls that close the editor Window itself into embeddable CloseRequested requests."""
     cs = re.sub(r"\bthis\s*\.\s*Close\s*\(\s*\)\s*;", "RequestClose();", cs)
+    cs, has_dialog_result = _replace_own_close_with_result(cs)
     cs = re.sub(r"(?<![\.\w])Close\s*\(\s*\)\s*;", "RequestClose();", cs)
+    cs = re.sub(
+        r"=>\s*\{\s*(DialogResult\s*=\s*[^;]+;\s*RequestClose\(\);)\s*\}\s*;",
+        r"{ \1 }",
+        cs,
+    )
+    if has_dialog_result and "public object? DialogResult" not in cs:
+        marker = re.search(r"^(?P<indent>[ \t]*)public\s+event\s+EventHandler\?\s+CloseRequested\s*;[ \t]*\n", cs, re.MULTILINE)
+        if not marker:
+            raise ValueError("Close(result) converted but CloseRequested member anchor not found")
+        indent = marker.group("indent")
+        injected = marker.group(0) + f"{indent}public object? DialogResult {{ get; private set; }}\n"
+        cs = cs[: marker.start()] + injected + cs[marker.end() :]
     return cs
 
 
@@ -560,8 +661,8 @@ def convert_cs(cs: str, view_name: str, descriptor: Descriptor) -> str:
     cs = convert_owner_bound_image_calls(cs)
     cs = convert_top_level_services(cs)
     cs = ensure_avalonia_controls_using(cs)
-    cs = convert_self_close(cs)
     cs = inject_members(cs, descriptor)
+    cs = convert_self_close(cs)
     cs = ensure_avalonia_controls_using(cs)
     cs = ensure_system_using(cs)
     cs = convert_opened_handler(cs)
@@ -581,14 +682,6 @@ def convert_view(repo: Path, view_name: str) -> tuple[bool, str]:
     cs = read_text(cs_path)
     if axaml.lstrip().startswith("<UserControl") and "IEmbeddableEditor" in cs:
         return False, f"SKIP {view_name}: already embeddable"
-    constructor_ref = re.compile(rf"\bnew\s+{re.escape(view_name)}\s*\(")
-    for other in views.glob("*.cs"):
-        if other == cs_path:
-            continue
-        other_cs = read_text(other)
-        if constructor_ref.search(other_cs) and "ShowDialog" in other_cs:
-            return False, f"SKIP {view_name}: used as external ShowDialog target in {other.name}"
-
     try:
         converted_axaml, descriptor = convert_axaml(axaml, view_name)
         converted_cs = convert_cs(cs, view_name, descriptor)

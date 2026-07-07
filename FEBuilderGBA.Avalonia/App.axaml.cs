@@ -391,11 +391,11 @@ namespace FEBuilderGBA.Avalonia
                     // #1681: the alignment-fix clone dialogs are ROM-independent
                     // (each constructs its own ViewModel + Load(0)/Initialize()),
                     // so they render real PNG proof of the centered Apply button.
-                    "EventUnitColorView" => new Views.EventUnitColorView(),
-                    "PackedMemorySlotView" => new Views.PackedMemorySlotView(),
-                    "UbyteBitFlagView" => new Views.UbyteBitFlagView(),
-                    "UshortBitFlagView" => new Views.UshortBitFlagView(),
-                    "UwordBitFlagView" => new Views.UwordBitFlagView(),
+                    "EventUnitColorView" => new Services.EditorHostWindow(new Views.EventUnitColorView()),
+                    "PackedMemorySlotView" => new Services.EditorHostWindow(new Views.PackedMemorySlotView()),
+                    "UbyteBitFlagView" => new Services.EditorHostWindow(new Views.UbyteBitFlagView()),
+                    "UshortBitFlagView" => new Services.EditorHostWindow(new Views.UshortBitFlagView()),
+                    "UwordBitFlagView" => new Services.EditorHostWindow(new Views.UwordBitFlagView()),
                     // #1714/#1716 PR proof: the empty editors already lay out the
                     // geometry under test — the fixed-size window (SizeToContent="Manual"
                     // + MinWidth/MinHeight floor) and the CatalogCombo toolbar with the
@@ -405,15 +405,15 @@ namespace FEBuilderGBA.Avalonia
                     // #1772 PR proof: the map-resize dialog family is ROM-independent
                     // (each VM's Initialize() just sets IsLoaded=true), so they render
                     // real PNG proof of the centered Resize / Apply action buttons.
-                    "MapEditorResizeDialogView" => new Views.MapEditorResizeDialogView(),
-                    "MapEditorMarSizeDialogView" => new Views.MapEditorMarSizeDialogView(),
+                    "MapEditorResizeDialogView" => new Services.EditorHostWindow(new Views.MapEditorResizeDialogView()),
+                    "MapEditorMarSizeDialogView" => new Services.EditorHostWindow(new Views.MapEditorMarSizeDialogView()),
                     // #1781 PR proof: the Options window is ROM-independent (its Opened
                     // handler loads config, not a ROM), so it renders real PNG proof that
                     // the window is a screen-safe fixed height with OK/Cancel visible.
                     "OptionsView" => new Views.OptionsView(),
                     // #1784 PR proof: MapSettingDifficultyDialogView is ROM-independent, so
                     // it renders real PNG proof of the centered "Apply" action button.
-                    "MapSettingDifficultyDialogView" => new Views.MapSettingDifficultyDialogView(),
+                    "MapSettingDifficultyDialogView" => new Services.EditorHostWindow(new Views.MapSettingDifficultyDialogView()),
                     // #1817 PR proof: the Patch Manager is ROM-independent for the empty-state
                     // screenshot (LoadPatches catches a missing ROM/patch2), so it renders real
                     // PNG proof of the new "Initialize / Update Patch Database" button and the

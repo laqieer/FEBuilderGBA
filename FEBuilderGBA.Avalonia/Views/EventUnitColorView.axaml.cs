@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -16,12 +17,16 @@ namespace FEBuilderGBA.Avalonia.Views
     /// dialog is seeded with the current value and, on Apply, closes returning
     /// the packed <see cref="uint"/>.
     /// </summary>
-    public partial class EventUnitColorView : TranslatedWindow, IEditorView
+    public partial class EventUnitColorView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly EventUnitColorViewModel _vm = new();
 
         public string ViewTitle => "Unit Color";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Unit Color", 520, 320, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight, CanResize: false);
+        public event EventHandler? CloseRequested;
+        public object? DialogResult { get; private set; }
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public EventUnitColorView()
         {
@@ -39,7 +44,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // (ignored result) for a standalone main-menu open. Box as the exact
             // uint? the caller awaits — a boxed plain uint cannot be unboxed to
             // uint? and would surface as null.
-            Close((uint?)_vm.Result);
+            DialogResult = (uint?)_vm.Result; RequestClose();
         }
 
         /// <summary>

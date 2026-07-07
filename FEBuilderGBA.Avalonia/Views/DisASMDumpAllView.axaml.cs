@@ -1,3 +1,4 @@
+﻿using global::Avalonia;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -9,13 +10,17 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class DisASMDumpAllView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class DisASMDumpAllView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly DisASMDumpAllViewModel _vm = new();
 
         public string ViewTitle => "Disassembly Dump All";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Disassembly Dump All", 695, 721, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
+        public object? DialogResult { get; private set; }
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public DisASMDumpAllView()
         {
@@ -63,7 +68,7 @@ namespace FEBuilderGBA.Avalonia.Views
             OutputBox.Text = _vm.Output;
         }
 
-        void Close_Click(object? sender, RoutedEventArgs e) => Close(null);
+        void Close_Click(object? sender, RoutedEventArgs e) { DialogResult = null; RequestClose(); }
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }

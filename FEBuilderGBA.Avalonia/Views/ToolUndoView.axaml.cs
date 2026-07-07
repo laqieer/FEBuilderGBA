@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -76,9 +76,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 int pos = _vm.SelectedPos;
                 if (pos < 0 || !_vm.CanRollback) return;
 
-                var popup = new ToolUndoPopupDialogView();
-                popup.Init(_vm.MakeRollbackLabel(pos));
-                string? result = await popup.ShowDialog<string?>(this);
+                string? result = await WindowManager.Instance.OpenModal<ToolUndoPopupDialogView, string?>(
+                    TopLevel.GetTopLevel(this) as Window,
+                    popup => popup.Init(_vm.MakeRollbackLabel(pos)));
 
                 if (result == "RunUndo")
                 {

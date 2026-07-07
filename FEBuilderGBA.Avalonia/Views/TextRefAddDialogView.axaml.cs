@@ -1,3 +1,4 @@
+﻿using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -6,13 +7,17 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class TextRefAddDialogView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class TextRefAddDialogView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly TextRefAddDialogViewModel _vm = new();
 
         public string ViewTitle => "Add Text Reference";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Add Text Reference", 820, 361, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
+        public object? DialogResult { get; private set; }
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public TextRefAddDialogView()
         {
@@ -45,10 +50,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.RefId = (int)(RefIdInput.Value ?? 0);
             }
             _vm.Comment = RefTextInput.Text ?? "";
-            Close(_vm);
+            DialogResult = _vm; RequestClose();
         }
 
-        void Cancel_Click(object? sender, RoutedEventArgs e) => Close(null);
+        void Cancel_Click(object? sender, RoutedEventArgs e) { DialogResult = null; RequestClose(); }
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }

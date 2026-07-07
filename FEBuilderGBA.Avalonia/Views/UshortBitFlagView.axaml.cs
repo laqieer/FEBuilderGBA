@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -6,13 +7,17 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class UshortBitFlagView : TranslatedWindow, IEditorView
+    public partial class UshortBitFlagView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly UshortBitFlagViewModel _vm = new();
         readonly CheckBox[] _bitBoxes;
 
         public string ViewTitle => "Short Bit Flags";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Short Bit Flags (16-bit)", 708, 420, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight, CanResize: false);
+        public event EventHandler? CloseRequested;
+        public object? DialogResult { get; private set; }
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public UshortBitFlagView()
         {
@@ -89,7 +94,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OK_Click(object? sender, RoutedEventArgs e)
         {
-            Close(_vm.Value);
+            DialogResult = _vm.Value; RequestClose();
         }
 
         public void NavigateTo(uint address) { }

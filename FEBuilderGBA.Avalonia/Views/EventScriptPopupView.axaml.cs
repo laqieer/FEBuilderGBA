@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -196,9 +196,9 @@ namespace FEBuilderGBA.Avalonia.Views
 
             try
             {
-                var picker = new EventUnitColorView();
-                picker.NavigateTo(current);
-                uint? result = await picker.ShowDialog<uint?>(this);
+                uint? result = await WindowManager.Instance.OpenModal<EventUnitColorView, uint?>(
+                    TopLevel.GetTopLevel(this) as Window,
+                    picker => picker.NavigateTo(current));
                 if (result.HasValue)
                 {
                     // Preserve sibling in-flight edits, then apply the picked value

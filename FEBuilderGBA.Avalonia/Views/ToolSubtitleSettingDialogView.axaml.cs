@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -7,11 +8,15 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolSubtitleSettingDialogView : TranslatedWindow, IEditorView
+    public partial class ToolSubtitleSettingDialogView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ToolSubtitleSettingDialogViewViewModel _vm = new();
         public string ViewTitle => "Subtitle Settings";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Subtitle Settings", 910, 357, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
+        public object? DialogResult { get; private set; }
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ToolSubtitleSettingDialogView()
         {
@@ -27,7 +32,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var path = await FileDialogHelper.OpenRomFile(this);
+                var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this));
                 if (!string.IsNullOrEmpty(path))
                     _vm.TranslateFromRomFilename = path;
             }
@@ -41,7 +46,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var path = await FileDialogHelper.OpenRomFile(this);
+                var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this));
                 if (!string.IsNullOrEmpty(path))
                     _vm.TranslateToRomFilename = path;
             }
@@ -57,7 +62,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var dlg = new OpenFileDialog();
                 dlg.Title = R._("Select Translation Data File");
-                var result = await dlg.ShowAsync(this);
+                var result = await dlg.ShowAsync(TopLevel.GetTopLevel(this) as Window);
                 if (result != null && result.Length > 0)
                     _vm.TranslateDataFilename = result[0];
             }
@@ -70,13 +75,13 @@ namespace FEBuilderGBA.Avalonia.Views
         void Show_Click(object? sender, RoutedEventArgs e)
         {
             _vm.DialogResult = "show";
-            Close("show");
+            DialogResult = "show"; RequestClose();
         }
 
         void Hide_Click(object? sender, RoutedEventArgs e)
         {
             _vm.DialogResult = "hide";
-            Close("hide");
+            DialogResult = "hide"; RequestClose();
         }
 
         public void NavigateTo(uint address) { }

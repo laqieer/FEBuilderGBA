@@ -1,9 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.PaletteSwapView"
-        Title="Palette Swap" Width="800" Height="500"
-        WindowStartupLocation="CenterOwner"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.PaletteSwapView">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <DockPanel Margin="16">
     <TextBlock DockPanel.Dock="Top" Text="Palette Swap" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
@@ -23,4 +20,4 @@
     </Grid>
   </DockPanel>
   </ScrollViewer>
-</Window>
+</UserControl>

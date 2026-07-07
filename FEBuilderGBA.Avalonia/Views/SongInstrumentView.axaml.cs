@@ -625,9 +625,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 // preview), seeded with the chosen .wav, and await the ready GBA
                 // DirectSound sample bytes. Cancel returns null => strict no-op
                 // (no ROM mutation, no fallback import — #1448 review pt 2).
-                var dlg = new SongInstrumentImportWaveView();
-                dlg.Seed(bytes, System.IO.Path.GetFileName(path));
-                byte[]? sample = await dlg.ShowDialog<byte[]?>(TopLevel.GetTopLevel(this) as Window);
+                byte[]? sample = await WindowManager.Instance.OpenModal<SongInstrumentImportWaveView, byte[]?>(
+                    TopLevel.GetTopLevel(this) as Window,
+                    dlg => dlg.Seed(bytes, System.IO.Path.GetFileName(path)));
                 if (sample == null || sample.Length == 0) return; // cancelled / failed in-dialog
 
                 _undoService.Begin("Import DirectSound Wave");

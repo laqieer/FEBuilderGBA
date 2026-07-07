@@ -1,11 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.MapEditorAddMapChangeDialogView"
-        Title="Add Map Change"
-        Width="831" Height="512"
-        WindowStartupLocation="CenterOwner"
-        CanResize="False"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.MapEditorAddMapChangeDialogView">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <StackPanel Margin="12,9,12,15">
     <!-- Bold question label (like WinForms labelEx1 at 82,9 717x58 Bold 11F) -->
@@ -29,4 +24,4 @@
             HorizontalAlignment="Stretch" Click="Cancel_Click" />
   </StackPanel>
   </ScrollViewer>
-</Window>
+</UserControl>

@@ -1,4 +1,4 @@
-using global::Avalonia;
+﻿using global::Avalonia;
 using System;
 using System.IO;
 using global::Avalonia.Controls;
@@ -803,14 +803,20 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (DecompMapAssetGuard.BlockIfDecomp(R._("map tile layout")))
                     return;
 
-                var dialog = new MapEditorResizeDialogView();
-                dialog.SetPosition(0, 0, _vm.MapWidth, _vm.MapHeight);
-                bool confirmed = await dialog.ShowDialog<bool>(TopLevel.GetTopLevel(this) as Window);
+                MapEditorResizeDialogView? dialog = null;
+                bool confirmed = await WindowManager.Instance.OpenModal<MapEditorResizeDialogView, bool>(
+                    TopLevel.GetTopLevel(this) as Window,
+                    d =>
+                    {
+                        dialog = d;
+                        d.SetPosition(0, 0, _vm.MapWidth, _vm.MapHeight);
+                    });
                 if (!confirmed) return;
 
-                if (dialog.DataViewModel is not MapEditorResizeDialogViewModel dlgVm) return;
+                    if (dialog is null) return;
+                    if (dialog.DataViewModel is not MapEditorResizeDialogViewModel dlgVm) return;
 
-                int top = dlgVm.PaddingTop, left = dlgVm.PaddingLeft;
+                    int top = dlgVm.PaddingTop, left = dlgVm.PaddingLeft;
                 int right = dlgVm.PaddingRight, bottom = dlgVm.PaddingBottom;
                 if (top == 0 && left == 0 && right == 0 && bottom == 0)
                     return; // nothing to do

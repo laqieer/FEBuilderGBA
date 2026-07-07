@@ -1,11 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.HexEditorJumpView"
-        Title="Hex Editor - Jump"
-        Width="515" Height="210"
-        WindowStartupLocation="CenterOwner"
-        CanResize="False"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.HexEditorJumpView">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <StackPanel Margin="13,25,13,10">
     <!-- Address label + ComboBox row -->
@@ -23,4 +18,4 @@
             HorizontalAlignment="Right" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Click="OK_Click" />
   </StackPanel>
   </ScrollViewer>
-</Window>
+</UserControl>

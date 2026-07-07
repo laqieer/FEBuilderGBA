@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -7,11 +8,15 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolWorkSupport_SelectUPSView : TranslatedWindow, IEditorView
+    public partial class ToolWorkSupport_SelectUPSView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ToolWorkSupport_SelectUPSViewModel _vm = new();
         public string ViewTitle => "Open UPS";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Open UPS", 1190, 255, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight, CanResize: false);
+        public event EventHandler? CloseRequested;
+        public object? DialogResult { get; private set; }
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ToolWorkSupport_SelectUPSView()
         {
@@ -39,7 +44,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var path = await FileDialogHelper.OpenRomFile(this);
+                var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this));
                 if (!string.IsNullOrEmpty(path))
                 {
                     _vm.OriginalFilename = path;
@@ -54,13 +59,13 @@ namespace FEBuilderGBA.Avalonia.Views
         void ApplyUPS_Click(object? sender, RoutedEventArgs e)
         {
             _vm.DialogConfirmed = true;
-            Close(true);
+            DialogResult = true; RequestClose();
         }
 
         void Cancel_Click(object? sender, RoutedEventArgs e)
         {
             _vm.DialogConfirmed = false;
-            Close(false);
+            DialogResult = false; RequestClose();
         }
 
         public void NavigateTo(uint address) { }

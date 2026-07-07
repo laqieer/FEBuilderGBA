@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using Xunit;
 
 namespace FEBuilderGBA.Tests.Unit
@@ -25,6 +25,15 @@ namespace FEBuilderGBA.Tests.Unit
         private string ReadVM(string name) => File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", name));
         private string ReadView(string name) => File.ReadAllText(Path.Combine(AvaloniaDir, "Views", name));
         private string ReadAxaml(string name) => File.ReadAllText(Path.Combine(AvaloniaDir, "Views", name));
+        private void AssertRootOrDescriptorSize(string axamlFile, int width, int height)
+        {
+            var axaml = ReadAxaml(axamlFile);
+            if (axaml.Contains($"Width=\"{width}\"") && axaml.Contains($"Height=\"{height}\""))
+                return;
+
+            var codeBehind = ReadView(axamlFile + ".cs");
+            Assert.Contains($", {width}, {height}", codeBehind);
+        }
 
         // ===========================================================================
         // WU9: Map Sub-Dialog Views
@@ -553,8 +562,7 @@ namespace FEBuilderGBA.Tests.Unit
         public void UbyteBitFlag_Axaml_MatchesWinFormsLayout()
         {
             var src = ReadAxaml("UbyteBitFlagView.axaml");
-            Assert.Contains("Width=\"708\"", src);
-            Assert.Contains("Height=\"420\"", src);
+            AssertRootOrDescriptorSize("UbyteBitFlagView.axaml", 708, 420);
             Assert.Contains("Name=\"MESSAGE\"", src);
             Assert.Contains("Name=\"ApplyButton\"", src);
             Assert.Contains("Width=\"181\"", src);
@@ -580,8 +588,7 @@ namespace FEBuilderGBA.Tests.Unit
         public void UshortBitFlag_Axaml_HasTwoColumnLayout()
         {
             var src = ReadAxaml("UshortBitFlagView.axaml");
-            Assert.Contains("Width=\"708\"", src);
-            Assert.Contains("Height=\"420\"", src);
+            AssertRootOrDescriptorSize("UshortBitFlagView.axaml", 708, 420);
             Assert.Contains("ColumnDefinitions=\"*,*\"", src);
             Assert.Contains("Name=\"B40\"", src);
             Assert.Contains("Name=\"B41\"", src);
@@ -607,8 +614,7 @@ namespace FEBuilderGBA.Tests.Unit
         public void UwordBitFlag_Axaml_HasFourColumnLayout()
         {
             var src = ReadAxaml("UwordBitFlagView.axaml");
-            Assert.Contains("Width=\"1183\"", src);
-            Assert.Contains("Height=\"420\"", src);
+            AssertRootOrDescriptorSize("UwordBitFlagView.axaml", 1183, 420);
             Assert.Contains("ColumnDefinitions=\"*,*,*,*\"", src);
             Assert.Contains("Name=\"B40\"", src);
             Assert.Contains("Name=\"B41\"", src);
@@ -637,8 +643,7 @@ namespace FEBuilderGBA.Tests.Unit
         public void PointerToolBatchInput_Axaml_MatchesWinFormsLayout()
         {
             var src = ReadAxaml("PointerToolBatchInputView.axaml");
-            Assert.Contains("Width=\"918\"", src);
-            Assert.Contains("Height=\"585\"", src);
+            AssertRootOrDescriptorSize("PointerToolBatchInputView.axaml", 918, 585);
             Assert.Contains("Name=\"RunButton\"", src);
             Assert.Contains("Batch Address Convert", src);
             Assert.Contains("Width=\"235\"", src);
@@ -661,8 +666,7 @@ namespace FEBuilderGBA.Tests.Unit
         public void PointerToolCopyTo_Axaml_HasFiveCopyButtons()
         {
             var src = ReadAxaml("PointerToolCopyToView.axaml");
-            Assert.Contains("Width=\"449\"", src);
-            Assert.Contains("Height=\"404\"", src);
+            AssertRootOrDescriptorSize("PointerToolCopyToView.axaml", 449, 404);
             Assert.Contains("Name=\"CopyPointer\"", src);
             Assert.Contains("Name=\"CopyClipboard\"", src);
             Assert.Contains("Name=\"CopyLittleEndian\"", src);
@@ -689,8 +693,7 @@ namespace FEBuilderGBA.Tests.Unit
         public void TextBadCharPopup_Axaml_HasThreeActionButtons()
         {
             var src = ReadAxaml("TextBadCharPopupView.axaml");
-            Assert.Contains("Width=\"849\"", src);
-            Assert.Contains("Height=\"469\"", src);
+            AssertRootOrDescriptorSize("TextBadCharPopupView.axaml", 849, 469);
             Assert.Contains("Name=\"ErrorMessageLabel\"", src);
             Assert.Contains("Name=\"Button1\"", src);
             Assert.Contains("Name=\"Button2\"", src);
@@ -716,8 +719,7 @@ namespace FEBuilderGBA.Tests.Unit
         public void MapPointerNewPLIST_Axaml_MatchesWinFormsLayout()
         {
             var src = ReadAxaml("MapPointerNewPLISTPopupView.axaml");
-            Assert.Contains("Width=\"953\"", src);
-            Assert.Contains("Height=\"423\"", src);
+            AssertRootOrDescriptorSize("MapPointerNewPLISTPopupView.axaml", 953, 423);
             Assert.Contains("Name=\"PLISTExtendsButton\"", src);
             Assert.Contains("Name=\"PlistIdInput\"", src);
             Assert.Contains("Name=\"LinkPlistDisplay\"", src);
@@ -742,8 +744,7 @@ namespace FEBuilderGBA.Tests.Unit
         public void ToolUndoPopupDialog_Axaml_MatchesWinFormsLayout()
         {
             var src = ReadAxaml("ToolUndoPopupDialogView.axaml");
-            Assert.Contains("Width=\"771\"", src);
-            Assert.Contains("Height=\"355\"", src);
+            AssertRootOrDescriptorSize("ToolUndoPopupDialogView.axaml", 771, 355);
             Assert.Contains("Name=\"InfoTextBox\"", src);
             Assert.Contains("Name=\"TestPlayButton\"", src);
             Assert.Contains("Name=\"RunUndoButton\"", src);
@@ -766,8 +767,7 @@ namespace FEBuilderGBA.Tests.Unit
         public void ToolChangeProjectname_Axaml_MatchesWinFormsLayout()
         {
             var src = ReadAxaml("ToolChangeProjectnameView.axaml");
-            Assert.Contains("Width=\"791\"", src);
-            Assert.Contains("Height=\"360\"", src);
+            AssertRootOrDescriptorSize("ToolChangeProjectnameView.axaml", 791, 360);
             Assert.Contains("Current Name:", src);
             Assert.Contains("New Name:", src);
             Assert.Contains("Change Project Name", src);
@@ -780,8 +780,7 @@ namespace FEBuilderGBA.Tests.Unit
         public void PackedMemorySlot_Axaml_MatchesWinFormsLayout()
         {
             var src = ReadAxaml("PackedMemorySlotView.axaml");
-            Assert.Contains("Width=\"708\"", src);
-            Assert.Contains("Height=\"186\"", src);
+            AssertRootOrDescriptorSize("PackedMemorySlotView.axaml", 708, 186);
             Assert.Contains("Name=\"MESSAGE\"", src);
             Assert.Contains("Name=\"ApplyButton\"", src);
             Assert.Contains("Name=\"AComboBox\"", src);
@@ -830,8 +829,7 @@ namespace FEBuilderGBA.Tests.Unit
         public void WelcomeView_Axaml_MatchesWinFormsLayout()
         {
             var src = ReadAxaml("WelcomeView.axaml");
-            Assert.Contains("Width=\"1172\"", src);
-            Assert.Contains("Height=\"588\"", src);
+            AssertRootOrDescriptorSize("WelcomeView.axaml", 1172, 588);
             Assert.Contains("Name=\"OpenLastROMButton\"", src);
             Assert.Contains("Name=\"OpenROMButton\"", src);
             Assert.Contains("Name=\"UpdateCheckButton\"", src);
@@ -908,9 +906,7 @@ namespace FEBuilderGBA.Tests.Unit
         [InlineData("DisASMDumpAllArgGrepView.axaml", 891, 757)]
         public void ImageViewerForm_HasCorrectWindowSize(string axamlFile, int width, int height)
         {
-            var src = ReadAxaml(axamlFile);
-            Assert.Contains($"Width=\"{width}\"", src);
-            Assert.Contains($"Height=\"{height}\"", src);
+            AssertRootOrDescriptorSize(axamlFile, width, height);
         }
 
         [Theory]

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // #1122 — Android single-activity navigation model.
 //
 // The navigation abstraction that WindowManager delegates to. Two impls:
@@ -53,6 +53,9 @@ namespace FEBuilderGBA.Avalonia.Services
 
         /// <summary>Open a view as a modal dialog (desktop) or modal overlay page (Android).</summary>
         Task<T> OpenModal<T>(Window? owner = null) where T : Control, new();
+
+        /// <summary>Open a modal dialog/page and return its dialog result.</summary>
+        Task<TResult?> OpenModal<T, TResult>(Window? owner = null, Action<T>? configure = null) where T : Control, new();
 
         /// <summary>
         /// Open an editor in pick mode and await the user's selection. Returns

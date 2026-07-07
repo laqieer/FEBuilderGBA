@@ -12,6 +12,7 @@
 //     WF PointerToolCopyToForm.HexButton_Click). The button is also disabled
 //     when the source address is unparseable or unsafe (mirrors WF
 //     `HexButton.Enabled = U.isSafetyOffset(U.toOffset(addr))` gate).
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Input.Platform;
@@ -21,12 +22,16 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class PointerToolCopyToView : TranslatedWindow, IEditorView
+    public partial class PointerToolCopyToView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly PointerToolCopyToViewModel _vm = new();
         readonly UndoService _undoService = new();
         public string ViewTitle => "Pointer Tool - Copy To";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Pointer Tool - Copy To", 449, 404, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight, CanResize: false);
+        public event EventHandler? CloseRequested;
+        public object? DialogResult { get; private set; }
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public PointerToolCopyToView()
         {
@@ -57,7 +62,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 return;
             }
             await SetClipboardAsync(payload);
-            Close("Pointer");
+            DialogResult = "Pointer"; RequestClose();
         }
 
         async void CopyClipboard_Click(object? sender, RoutedEventArgs e)
@@ -71,7 +76,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // out on empty input, mirroring WF
             // `U.SetClipboardText(this.ValueTextBox.Text)`.
             await SetClipboardAsync(_vm.GetAsClipboardText(), allowEmpty: true);
-            Close("Clipboard");
+            DialogResult = "Clipboard"; RequestClose();
         }
 
         async void CopyLittleEndian_Click(object? sender, RoutedEventArgs e)
@@ -84,7 +89,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 return;
             }
             await SetClipboardAsync(payload);
-            Close("LittleEndian");
+            DialogResult = "LittleEndian"; RequestClose();
         }
 
         void HexButton_Click(object? sender, RoutedEventArgs e)
@@ -111,7 +116,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
                 WindowManager.Instance.Navigate<HexEditorView>(offset);
-                Close("Hex");
+                DialogResult = "Hex"; RequestClose();
             }
             catch (Exception ex)
             {
@@ -129,14 +134,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 return;
             }
             await SetClipboardAsync(payload);
-            Close("NoDoll");
+            DialogResult = "NoDoll"; RequestClose();
         }
 
         async System.Threading.Tasks.Task SetClipboardAsync(string text, bool allowEmpty = false)
         {
             try
             {
-                IClipboard? clipboard = Clipboard;
+                IClipboard? clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
                 if (clipboard == null) return;
                 // Mirrors WF U.SetClipboardText which copies the string raw
                 // (including the empty string). For the formatted copy modes

@@ -1,3 +1,4 @@
+﻿using global::Avalonia;
 using System;
 using System.IO;
 using global::Avalonia.Controls;
@@ -21,29 +22,37 @@ namespace FEBuilderGBA.Avalonia.Views
     /// seed it prompts for a <c>.wav</c> file first so the window is never an empty
     /// placeholder.</para>
     /// </summary>
-    public partial class SongInstrumentImportWaveView : TranslatedWindow, IEditorView
+    public partial class SongInstrumentImportWaveView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly SongInstrumentImportWaveViewModel _vm = new();
         bool _seeded;
+        bool _promptedForSource;
 
         public string ViewTitle => "Wave Import";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Wave Import", 520, 440, SizeToContent: global::Avalonia.Controls.SizeToContent.Height);
+        public event EventHandler? CloseRequested;
+        public object? DialogResult { get; private set; }
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public SongInstrumentImportWaveView()
         {
             InitializeComponent();
             DataContext = _vm;
-            Opened += async (_, _) =>
+        }
+
+        protected override async void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            // Standalone open (no seed): prompt for a .wav so the view is a
+            // working tool, not a dead placeholder. Skip the prompt in the
+            // headless screenshot/smoke runner so the options panel renders
+            // unobstructed (the runner instantiates views without a user).
+            if (!_seeded && !_promptedForSource && !App.SmokeTestMode)
             {
-                // Standalone open (no seed): prompt for a .wav so the window is a
-                // working tool, not a dead placeholder. Skip the prompt in the
-                // headless screenshot/smoke runner so the options panel renders
-                // unobstructed (the runner instantiates views without a user).
-                if (!_seeded && !App.SmokeTestMode)
-                {
-                    await PromptForSourceAsync();
-                }
-            };
+                _promptedForSource = true;
+                await PromptForSourceAsync();
+            }
         }
 
         /// <summary>Seed the dialog with the chosen source .wav bytes + filename
@@ -63,11 +72,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 // simply unavailable. The standalone window is a working convert +
                 // preview tool even without a ROM; only the Import (write) step
                 // needs one, and ImportSampleBytes fails gracefully if absent.
-                string? path = await FileDialogHelper.OpenFile(this, R._("Import Wave"), "*.wav");
+                string? path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this), R._("Import Wave"), "*.wav");
                 if (string.IsNullOrEmpty(path))
                 {
                     // No file chosen for the standalone window — close it cleanly.
-                    Close((byte[]?)null);
+                    DialogResult = (byte[]?)null; RequestClose();
                     return;
                 }
                 byte[] bytes = File.ReadAllBytes(path);
@@ -104,7 +113,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     _vm.PreviewText = err ?? R._("Wave conversion failed.");
                     return; // keep the dialog open so the user can adjust options
                 }
-                Close(sample); // return the ready GBA-sample bytes to the caller
+                DialogResult = sample; RequestClose(); // return the ready GBA-sample bytes to the caller
             }
             catch (Exception ex)
             {
@@ -114,7 +123,7 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         // Cancel = strict no-op: return null, mutate nothing (#1448 review pt 2).
-        void Cancel_Click(object? sender, RoutedEventArgs e) => Close((byte[]?)null);
+        void Cancel_Click(object? sender, RoutedEventArgs e) { DialogResult = (byte[]?)null; RequestClose(); }
 
         public void NavigateTo(uint address) { /* options dialog — no list */ }
         public void SelectFirstItem() { /* options dialog — no list */ }

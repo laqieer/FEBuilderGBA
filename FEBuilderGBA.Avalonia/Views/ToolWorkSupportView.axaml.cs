@@ -1,4 +1,4 @@
-using global::Avalonia;
+﻿using global::Avalonia;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -82,9 +82,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (ur == WorkSupportUpdateCheckCore.UpdateResult.Latest)
                 {
                     // WF parity finding #2: offer a force-update via the question dialog.
-                    var q = new ToolWorkSupport_UpdateQuestionDialogView();
-                    q.SetVersion(_vm.Version);
-                    string? choice = await q.ShowDialog<string?>(TopLevel.GetTopLevel(this) as Window);
+                    string? choice = await WindowManager.Instance.OpenModal<ToolWorkSupport_UpdateQuestionDialogView, string?>(
+                        TopLevel.GetTopLevel(this) as Window,
+                        q => q.SetVersion(_vm.Version));
                     if (choice != "retry")
                     {
                         _vm.AutoFeedbackStatus = R._("You are up to date.");
@@ -133,10 +133,20 @@ namespace FEBuilderGBA.Avalonia.Views
             }
 
             // ---- select the vanilla ROM (CRC32 auto-find inside the dialog) ----
-            var sel = new ToolWorkSupport_SelectUPSView();
-            sel.OpenUPS(stage.UpsFiles[0]);
-            bool confirmed = await sel.ShowDialog<bool>(TopLevel.GetTopLevel(this) as Window);
+            ToolWorkSupport_SelectUPSView? sel = null;
+            bool confirmed = await WindowManager.Instance.OpenModal<ToolWorkSupport_SelectUPSView, bool>(
+                TopLevel.GetTopLevel(this) as Window,
+                s =>
+                {
+                    sel = s;
+                    s.OpenUPS(stage.UpsFiles[0]);
+                });
             if (!confirmed)
+            {
+                _vm.AutoFeedbackStatus = R._("Update cancelled.");
+                return;
+            }
+            if (sel is null)
             {
                 _vm.AutoFeedbackStatus = R._("Update cancelled.");
                 return;

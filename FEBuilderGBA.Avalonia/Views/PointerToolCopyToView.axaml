@@ -1,10 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.PointerToolCopyToView"
-        Title="Pointer Tool - Copy To" Width="449" Height="404"
-        WindowStartupLocation="CenterOwner"
-        CanResize="False"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.PointerToolCopyToView">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <StackPanel Margin="14,14,14,14" Spacing="8">
     <!-- Top row: Value label + TextBox (WinForms label1 + ValueTextBox) -->
@@ -26,4 +22,4 @@
             HorizontalAlignment="Left" Click="CopyNoDoll_Click" />
   </StackPanel>
   </ScrollViewer>
-</Window>
+</UserControl>

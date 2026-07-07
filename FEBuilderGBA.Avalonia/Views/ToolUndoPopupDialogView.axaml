@@ -1,10 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.ToolUndoPopupDialogView"
-        Title="Undo" Width="771" Height="355"
-        WindowStartupLocation="CenterOwner"
-        CanResize="False"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.ToolUndoPopupDialogView">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <Grid ColumnDefinitions="Auto,*" Margin="12,22,12,12">
     <!-- Icon (WinForms FormIcon 80x80 at 12,22) -->
@@ -30,4 +26,4 @@
     </StackPanel>
   </Grid>
   </ScrollViewer>
-</Window>
+</UserControl>

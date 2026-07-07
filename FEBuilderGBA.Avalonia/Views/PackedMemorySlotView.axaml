@@ -1,10 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.PackedMemorySlotView"
-        Title="Packed Memory Slot" Width="708" Height="186"
-        WindowStartupLocation="CenterOwner"
-        CanResize="False"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.PackedMemorySlotView">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <DockPanel Margin="10,9,10,10">
     <!-- Top row: MESSAGE label + Apply button (WinForms MESSAGE 676x40 + ApplyButton 181x40) -->
@@ -33,4 +29,4 @@
     </Border>
   </DockPanel>
   </ScrollViewer>
-</Window>
+</UserControl>

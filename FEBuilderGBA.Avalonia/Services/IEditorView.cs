@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 namespace FEBuilderGBA.Avalonia.Services
 {
@@ -24,6 +24,7 @@ namespace FEBuilderGBA.Avalonia.Services
     public interface IEmbeddableEditor : IEditorView
     {
         EditorDescriptor Descriptor { get; }
+        object? DialogResult => null;
         event EventHandler? CloseRequested;
     }
 

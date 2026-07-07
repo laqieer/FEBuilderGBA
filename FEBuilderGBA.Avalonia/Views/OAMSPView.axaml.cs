@@ -1,3 +1,4 @@
+﻿using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -14,18 +15,32 @@ namespace FEBuilderGBA.Avalonia.Views
     /// WF, which renders no sprite image for these entries). Selection is
     /// read-only and must not mark the editor dirty.
     /// </summary>
-    public partial class OAMSPView : TranslatedWindow, IEditorView
+    public partial class OAMSPView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly OAMSPViewModel _vm = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Special OAM";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Special OAM", 860, 560);
+        public event EventHandler? CloseRequested;
+        public object? DialogResult { get; private set; }
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public OAMSPView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -75,7 +90,7 @@ namespace FEBuilderGBA.Avalonia.Views
             DetailBox.Text = _vm.DetailText;
         }
 
-        void Close_Click(object? sender, RoutedEventArgs e) => Close(null);
+        void Close_Click(object? sender, RoutedEventArgs e) { DialogResult = null; RequestClose(); }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
