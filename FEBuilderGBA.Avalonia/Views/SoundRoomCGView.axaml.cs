@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -6,19 +7,42 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SoundRoomCGView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class SoundRoomCGView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly SoundRoomCGViewModel _vm = new();
         readonly UndoService _undoService = new();
 
-        public string ViewTitle => "Sound Room CG";
-        public bool IsLoaded => _vm.IsLoaded;
 
+        bool _hasLoadedList;
+        public string ViewTitle => "Sound Room CG";
+        public new bool IsLoaded => _vm.IsLoaded;
+
+
+        public EditorDescriptor Descriptor => new("Sound Room CG", 1392, 722, SizeToContent: true);
+
+        public event EventHandler? CloseRequested;
         public SoundRoomCGView()
         {
             InitializeComponent();
-            EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+            EntryList.SelectedAddressChanged += OnSelected;        }
+
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+
+        {
+
+            base.OnAttachedToVisualTree(e);
+
+            if (!_hasLoadedList)
+
+            {
+
+                _hasLoadedList = true;
+
+                LoadList();
+
+            }
+
         }
 
         void LoadList()
@@ -88,5 +112,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

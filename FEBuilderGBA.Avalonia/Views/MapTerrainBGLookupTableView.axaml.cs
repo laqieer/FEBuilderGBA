@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -13,10 +14,12 @@ namespace FEBuilderGBA.Avalonia.Views
     /// so the view density matches WinForms within the 25% MEDIUM verdict.
     /// Mirrors the Floor sister upgraded in #482 1:1.
     /// </summary>
-    public partial class MapTerrainBGLookupTableView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class MapTerrainBGLookupTableView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly MapTerrainBGLookupTableViewModel _vm = new();
         readonly UndoService _undoService = new();
+
+        bool _hasLoadedList;
         bool _suppressFilterChange;
         /// <summary>
         /// Set to true the FIRST time NavigateToFilterAndRow runs. When true,
@@ -29,15 +32,38 @@ namespace FEBuilderGBA.Avalonia.Views
         bool _navigationApplied;
 
         public string ViewTitle => "Terrain BG Lookup Table";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+
+        public EditorDescriptor Descriptor => new("Terrain BG Lookup Table", 1253, 742, SizeToContent: true);
+
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
 
+
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
         public MapTerrainBGLookupTableView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            FilterComboBox.SelectionChanged += FilterComboBox_SelectionChanged;
-            Opened += (_, _) => InitialLoad();
+            FilterComboBox.SelectionChanged += FilterComboBox_SelectionChanged;        }
+
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+
+        {
+
+            base.OnAttachedToVisualTree(e);
+
+            if (!_hasLoadedList)
+
+            {
+
+                _hasLoadedList = true;
+
+                InitialLoad();
+
+            }
+
         }
 
         void InitialLoad()
@@ -254,8 +280,8 @@ namespace FEBuilderGBA.Avalonia.Views
         /// When a valid reference IS provided, we call
         /// <see cref="NavigateToFilterAndRow"/> immediately after
         /// <c>Open&lt;T&gt;()</c>. <c>NavigateToFilterAndRow</c> sets
-        /// <c>_navigationApplied = true</c> so that the constructor-registered
-        /// <c>Opened += InitialLoad</c> handler short-circuits when it fires
+        /// <c>_navigationApplied = true</c> so that the one-shot
+        /// <c>OnAttachedToVisualTree</c> initial-load path short-circuits
         /// later — the deep-link wins over the default filter-0 load
         /// (Copilot CLI review point on PR #491).
         /// </summary>

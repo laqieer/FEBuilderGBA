@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using global::Avalonia.Controls;
@@ -8,24 +9,49 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MapChangeView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class MapChangeView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly MapChangeViewModel _vm = new();
         readonly UndoService _undoService = new();
+
+        bool _hasLoadedList;
         readonly ObservableCollection<string> _recordDisplayItems = new();
         List<ChangeRecord> _records = new();
 
         public string ViewTitle => "Map Change Editor";
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
+
+        public EditorDescriptor Descriptor => new("Map Change Editor", 1609, 636, SizeToContent: true);
+
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
 
+
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
         public MapChangeView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
             RecordList.ItemsSource = _recordDisplayItems;
-            RecordList.SelectionChanged += OnRecordSelected;
-            Opened += (_, _) => LoadList();
+            RecordList.SelectionChanged += OnRecordSelected;        }
+
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+
+        {
+
+            base.OnAttachedToVisualTree(e);
+
+            if (!_hasLoadedList)
+
+            {
+
+                _hasLoadedList = true;
+
+                LoadList();
+
+            }
+
         }
 
         void LoadList()

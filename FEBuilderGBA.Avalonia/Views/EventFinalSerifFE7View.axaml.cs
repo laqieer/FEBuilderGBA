@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -6,14 +7,20 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EventFinalSerifFE7View : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class EventFinalSerifFE7View : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly EventFinalSerifFE7ViewModel _vm = new();
         readonly UndoService _undoService = new();
 
-        public string ViewTitle => "Final Serif (FE7)";
-        public bool IsLoaded => _vm.IsLoaded;
 
+        bool _hasLoadedList;
+        public string ViewTitle => "Final Serif (FE7)";
+        public new bool IsLoaded => _vm.IsLoaded;
+
+
+        public EditorDescriptor Descriptor => new("Final Serif (FE7)", 1238, 806, SizeToContent: true);
+
+        public event EventHandler? CloseRequested;
         public EventFinalSerifFE7View()
         {
             InitializeComponent();
@@ -22,9 +29,25 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // Live name/text previews while editing.
             UnitBox.ValueChanged += (_, _) => UnitNameLabel.Text = UnitName(UnitBox);
-            TextIdBox.ValueChanged += (_, _) => TextPreviewLabel.Text = TextPreview(TextIdBox);
+            TextIdBox.ValueChanged += (_, _) => TextPreviewLabel.Text = TextPreview(TextIdBox);        }
 
-            Opened += (_, _) => LoadList();
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+
+        {
+
+            base.OnAttachedToVisualTree(e);
+
+            if (!_hasLoadedList)
+
+            {
+
+                _hasLoadedList = true;
+
+                LoadList();
+
+            }
+
         }
 
         void LoadList()
@@ -113,5 +136,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

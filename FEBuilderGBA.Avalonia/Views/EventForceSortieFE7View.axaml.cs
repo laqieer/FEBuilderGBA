@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -6,21 +7,44 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EventForceSortieFE7View : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class EventForceSortieFE7View : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly EventForceSortieFE7ViewModel _vm = new();
         readonly UndoService _undoService = new();
 
-        public string ViewTitle => "Force Sortie (FE7)";
-        public bool IsLoaded => _vm.IsLoaded;
 
+        bool _hasLoadedList;
+        public string ViewTitle => "Force Sortie (FE7)";
+        public new bool IsLoaded => _vm.IsLoaded;
+
+
+        public EditorDescriptor Descriptor => new("Force Sortie (FE7)", 1296, 450, SizeToContent: true);
+
+        public event EventHandler? CloseRequested;
         public EventForceSortieFE7View()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
             SubEntryList.SelectedAddressChanged += OnSubSelected;
-            WriteButton.Click += OnWrite;
-            Opened += (_, _) => LoadList();
+            WriteButton.Click += OnWrite;        }
+
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+
+        {
+
+            base.OnAttachedToVisualTree(e);
+
+            if (!_hasLoadedList)
+
+            {
+
+                _hasLoadedList = true;
+
+                LoadList();
+
+            }
+
         }
 
         void LoadList()
@@ -141,5 +165,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

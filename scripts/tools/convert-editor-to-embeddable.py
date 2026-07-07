@@ -22,6 +22,14 @@ EXCLUDED_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("MessageBox", re.compile(r"\bMessageBox\b")),
     ("ShowDialog(", re.compile(r"\bShowDialog\s*\(")),
     ("GetTopLevel", re.compile(r"\bGetTopLevel\b")),
+    ("FileDialogHelper", re.compile(r"\bFileDialogHelper\b")),
+    ("NumberInputDialog", re.compile(r"\bNumberInputDialog\b")),
+    ("Dialogs.*Show", re.compile(r"\bDialogs\.[A-Za-z0-9_.]*Show\b")),
+    ("owner-bound PickFromEditor", re.compile(r"\bPickFromEditor\s*<[^>]+>\s*\([^;]*\bthis\b", re.DOTALL)),
+    ("owner-bound ShowDialog", re.compile(r"\bShowDialog\s*<[^>]+>\s*\(\s*this\b")),
+    ("owner-bound OpenModal", re.compile(r"\bOpenModal\s*<[^>]+>\s*\([^;]*\bthis\b", re.DOTALL)),
+    ("owner-bound image export", re.compile(r"\bExportPng\s*\(\s*this\b")),
+    ("owner-bound image import", re.compile(r"\bImageImportService\.[A-Za-z0-9_]+\s*\(\s*this\b")),
     ("self Close()", re.compile(r"(?<![\.\w])Close\s*\(")),
 )
 
@@ -29,6 +37,10 @@ ROOT_RE = re.compile(r"^<Window\b(?P<attrs>.*?)>", re.DOTALL)
 ATTR_RE = re.compile(r"(?P<name>[\w:.]+)\s*=\s*\"(?P<value>[^\"]*)\"")
 OPENED_RE = re.compile(
     r"(?P<indent>\s*)Opened\s*\+=\s*\([^;\n]*\)\s*=>\s*(?P<call>[A-Za-z_][A-Za-z0-9_]*\s*\([^;\n]*\))\s*;\s*\n"
+)
+OPENED_COMPOUND_RE = re.compile(
+    r"(?P<indent>\s*)Opened\s*\+=\s*\([^;\n]*\)\s*=>\s*\{\s*(?P<body>.*?)\s*\}\s*;\s*\n",
+    re.DOTALL,
 )
 
 
@@ -140,14 +152,26 @@ def convert_opened_handler(cs: str) -> str:
     if "OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)" in cs:
         return cs
     match = OPENED_RE.search(cs)
+    body: str
     if not match:
-        return cs
-    call = match.group("call")
+        compound = OPENED_COMPOUND_RE.search(cs)
+        if not compound:
+            return cs
+        body = "\n".join(
+            line.rstrip()
+            for line in compound.group("body").splitlines()
+            if line.strip()
+        )
+        match = compound
+    else:
+        body = match.group("call") + ";"
     cs = cs[: match.start()] + cs[match.end() :]
 
     field_marker = re.search(r"(?P<indent>\s*)readonly\s+UndoService\s+_undoService\s*=\s*new\(\)\s*;\s*\n", cs)
     if not field_marker:
-        raise ValueError("UndoService field not found; cannot place one-shot load guard")
+        field_marker = re.search(r"(?P<indent>\s*)readonly\s+[^;\n]+\s*;\s*\n", cs)
+    if not field_marker:
+        raise ValueError("field anchor not found; cannot place one-shot load guard")
     indent = field_marker.group("indent")
     cs = cs[: field_marker.end()] + f"{indent}bool _hasLoadedList;\n" + cs[field_marker.end() :]
 
@@ -174,7 +198,8 @@ def convert_opened_handler(cs: str) -> str:
         f"{method_indent}    if (!_hasLoadedList)\n"
         f"{method_indent}    {{\n"
         f"{method_indent}        _hasLoadedList = true;\n"
-        f"{method_indent}        {call};\n"
+        + "\n".join(f"{method_indent}        {line.strip()}" for line in body.splitlines())
+        + "\n"
         f"{method_indent}    }}\n"
         f"{method_indent}}}"
     )

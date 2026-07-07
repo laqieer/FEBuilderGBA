@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -6,24 +7,47 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EventMoveDataFE7View : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class EventMoveDataFE7View : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly EventMoveDataFE7ViewModel _vm = new();
         readonly UndoService _undoService = new();
 
+
+        bool _hasLoadedList;
         // Guard so programmatic UI population doesn't re-trigger handlers.
         bool _suppressEvents;
 
         public string ViewTitle => "Move Data (FE7)";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
 
+
+        public EditorDescriptor Descriptor => new("Move Data (FE7)", 1503, 523, SizeToContent: true);
+
+        public event EventHandler? CloseRequested;
         public EventMoveDataFE7View()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
             WriteButton.Click += OnWrite;
-            MoveDirectionUpDown.ValueChanged += OnDirectionChanged;
-            Opened += (_, _) => LoadList();
+            MoveDirectionUpDown.ValueChanged += OnDirectionChanged;        }
+
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+
+        {
+
+            base.OnAttachedToVisualTree(e);
+
+            if (!_hasLoadedList)
+
+            {
+
+                _hasLoadedList = true;
+
+                LoadList();
+
+            }
+
         }
 
         void LoadList()
@@ -154,5 +178,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

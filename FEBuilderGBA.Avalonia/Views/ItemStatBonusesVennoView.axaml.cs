@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -6,20 +7,45 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ItemStatBonusesVennoView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class ItemStatBonusesVennoView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         public ViewModelBase? DataViewModel => _vm;
+
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
         readonly ItemStatBonusesVennoViewModel _vm = new();
         readonly UndoService _undoService = new();
 
-        public string ViewTitle => "Stat Bonuses (Venno)";
-        public bool IsLoaded => _vm.IsLoaded;
 
+        bool _hasLoadedList;
+        public string ViewTitle => "Stat Bonuses (Venno)";
+        public new bool IsLoaded => _vm.IsLoaded;
+
+
+        public EditorDescriptor Descriptor => new("Stat Bonuses (Venno)", 1291, 587, SizeToContent: true);
+
+        public event EventHandler? CloseRequested;
         public ItemStatBonusesVennoView()
         {
             InitializeComponent();
-            EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+            EntryList.SelectedAddressChanged += OnSelected;        }
+
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+
+        {
+
+            base.OnAttachedToVisualTree(e);
+
+            if (!_hasLoadedList)
+
+            {
+
+                _hasLoadedList = true;
+
+                LoadList();
+
+            }
+
         }
 
         void LoadList()

@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -6,20 +7,45 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ItemWeaponTriangleViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class ItemWeaponTriangleViewerView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         public ViewModelBase? DataViewModel => _vm;
+
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
         readonly ItemWeaponTriangleViewerViewModel _vm = new();
         readonly UndoService _undoService = new();
 
-        public string ViewTitle => "Weapon Triangle";
-        public bool IsLoaded => _vm.CanWrite;
 
+        bool _hasLoadedList;
+        public string ViewTitle => "Weapon Triangle";
+        public new bool IsLoaded => _vm.CanWrite;
+
+
+        public EditorDescriptor Descriptor => new("Weapon Triangle Editor", 1290, 648, SizeToContent: true);
+
+        public event EventHandler? CloseRequested;
         public ItemWeaponTriangleViewerView()
         {
             InitializeComponent();
-            EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+            EntryList.SelectedAddressChanged += OnSelected;        }
+
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+
+        {
+
+            base.OnAttachedToVisualTree(e);
+
+            if (!_hasLoadedList)
+
+            {
+
+                _hasLoadedList = true;
+
+                LoadList();
+
+            }
+
         }
 
         void LoadList()

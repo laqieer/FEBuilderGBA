@@ -1,9 +1,7 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
-        x:Class="FEBuilderGBA.Avalonia.Views.ArenaEnemyWeaponViewerView"
-        Title="Arena Enemy Weapon Editor" Width="1257" Height="809"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+             x:Class="FEBuilderGBA.Avalonia.Views.ArenaEnemyWeaponViewerView">
   <!-- Two-list editor mirroring WinForms ArenaEnemyWeaponForm (#1465):
        Basic tab   : arena_enemy_weapon_basic_pointer  - stride 1, 8 entries  (GetBasicTypeName)
        Rank-up tab : arena_enemy_weapon_rankup_pointer - stride 1, 26 entries (GetRankupTypeName) -->
@@ -91,4 +89,4 @@
       </Grid>
     </TabItem>
   </TabControl>
-</Window>
+</UserControl>

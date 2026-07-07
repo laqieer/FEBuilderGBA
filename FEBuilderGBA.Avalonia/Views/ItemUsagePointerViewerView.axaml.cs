@@ -3,6 +3,7 @@
 // indicators, expand button, related-link panels, and the IER red bar
 // missing from the pre-#440 view (which only handled the Usability slot).
 using System;
+using global::Avalonia;
 using System.Collections.Generic;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -19,25 +20,50 @@ namespace FEBuilderGBA.Avalonia.Views
     /// patch-install affordance — so the view density matches WinForms
     /// within the 25% MEDIUM verdict.
     /// </summary>
-    public partial class ItemUsagePointerViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class ItemUsagePointerViewerView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         public ViewModelBase? DataViewModel => _vm;
+
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
         readonly ItemUsagePointerViewerViewModel _vm = new();
         readonly UndoService _undoService = new();
+
+        bool _hasLoadedList;
         bool _suppressFilterChange;
         bool _suppressFunctionComboChange;
         List<string> _currentFunctionLines = new();
 
         public string ViewTitle => "Item Usage Pointer";
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
 
+
+        public EditorDescriptor Descriptor => new("Item Usage Pointer Editor", 1253, 801, SizeToContent: true);
+
+        public event EventHandler? CloseRequested;
         public ItemUsagePointerViewerView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
             FilterComboBox.SelectionChanged += FilterComboBox_SelectionChanged;
-            FunctionCombo.SelectionChanged += FunctionCombo_SelectionChanged;
-            Opened += (_, _) => InitialLoad();
+            FunctionCombo.SelectionChanged += FunctionCombo_SelectionChanged;        }
+
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+
+        {
+
+            base.OnAttachedToVisualTree(e);
+
+            if (!_hasLoadedList)
+
+            {
+
+                _hasLoadedList = true;
+
+                InitialLoad();
+
+            }
+
         }
 
         void InitialLoad()

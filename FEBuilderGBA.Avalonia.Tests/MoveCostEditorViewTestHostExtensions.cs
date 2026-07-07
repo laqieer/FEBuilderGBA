@@ -1,14 +1,16 @@
 using System.Runtime.CompilerServices;
+using global::Avalonia.Controls;
+using global::Avalonia.Headless;
+using global::Avalonia.Media.Imaging;
 using FEBuilderGBA.Avalonia.Services;
-using FEBuilderGBA.Avalonia.Views;
 
 namespace FEBuilderGBA.Avalonia.Tests;
 
 static class MoveCostEditorViewTestHostExtensions
 {
-    static readonly ConditionalWeakTable<MoveCostEditorView, EditorHostWindow> Hosts = new();
+    static readonly ConditionalWeakTable<IEmbeddableEditor, EditorHostWindow> Hosts = new();
 
-    public static void Show(this MoveCostEditorView view)
+    public static void Show(this IEmbeddableEditor view)
     {
         var host = new EditorHostWindow(view);
         Hosts.Remove(view);
@@ -16,12 +18,33 @@ static class MoveCostEditorViewTestHostExtensions
         host.Show();
     }
 
-    public static void Close(this MoveCostEditorView view)
+    public static void Close(this IEmbeddableEditor view)
     {
         if (Hosts.TryGetValue(view, out var host))
         {
             host.Close();
             Hosts.Remove(view);
         }
+    }
+
+    public static WriteableBitmap CaptureRenderedFrame(this IEmbeddableEditor view)
+    {
+        if (!Hosts.TryGetValue(view, out var host))
+        {
+            host = new EditorHostWindow(view);
+            Hosts.Add(view, host);
+            host.Show();
+        }
+        return host.CaptureRenderedFrame();
+    }
+
+    public static EditorHostWindow GetHeadlessHost(this IEmbeddableEditor view)
+    {
+        if (!Hosts.TryGetValue(view, out var host))
+        {
+            host = new EditorHostWindow(view);
+            Hosts.Add(view, host);
+        }
+        return host;
     }
 }

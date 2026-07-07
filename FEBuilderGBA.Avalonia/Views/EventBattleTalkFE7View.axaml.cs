@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -7,14 +8,20 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EventBattleTalkFE7View : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class EventBattleTalkFE7View : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly EventBattleTalkFE7ViewModel _vm = new();
         readonly UndoService _undoService = new();
 
-        public string ViewTitle => "Battle Dialogue (FE7)";
-        public bool IsLoaded => _vm.IsLoaded;
 
+        bool _hasLoadedList;
+        public string ViewTitle => "Battle Dialogue (FE7)";
+        public new bool IsLoaded => _vm.IsLoaded;
+
+
+        public EditorDescriptor Descriptor => new("Battle Dialogue (FE7)", 1328, 1077, SizeToContent: true);
+
+        public event EventHandler? CloseRequested;
         public EventBattleTalkFE7View()
         {
             InitializeComponent();
@@ -25,9 +32,25 @@ namespace FEBuilderGBA.Avalonia.Views
             // Live name/text previews while editing.
             AttackerUnitBox.ValueChanged += (_, _) => AttackerNameLabel.Text = UnitName(AttackerUnitBox);
             DefenderUnitBox.ValueChanged += (_, _) => UpdateDefenderPreview();
-            TextIdBox.ValueChanged += (_, _) => TextPreviewLabel.Text = TextPreview(TextIdBox);
+            TextIdBox.ValueChanged += (_, _) => TextPreviewLabel.Text = TextPreview(TextIdBox);        }
 
-            Opened += (_, _) => LoadList();
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+
+        {
+
+            base.OnAttachedToVisualTree(e);
+
+            if (!_hasLoadedList)
+
+            {
+
+                _hasLoadedList = true;
+
+                LoadList();
+
+            }
+
         }
 
         EventBattleTalkFE7ViewModel.BattleTalkTable SelectedTable =>
@@ -82,7 +105,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             bool secondary = _vm.IsSecondaryTable;
 
-            // Route through R._() at assignment time — TranslatedWindow.TranslateAll()
+            // Route through R._() at assignment time — TranslatedUserControl.TranslateAll()
             // runs once at window open, so values assigned afterward must be
             // localized explicitly to apply in ja/zh (#958 review).
             TableLabel.Text = R._(secondary ? "Secondary (12-byte)" : "Main (16-byte)");
@@ -258,5 +281,7 @@ namespace FEBuilderGBA.Avalonia.Views
         }
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

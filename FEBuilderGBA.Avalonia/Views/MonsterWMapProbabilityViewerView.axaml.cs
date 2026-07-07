@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using System.Collections.Generic;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -8,18 +9,24 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MonsterWMapProbabilityViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class MonsterWMapProbabilityViewerView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly MonsterWMapProbabilityViewerViewModel _vm = new();
         readonly UndoService _undoService = new();
 
+
+        bool _hasLoadedList;
         // Guard against ValueChanged events firing while we programmatically
         // load fields (prevents spurious dirty/SUM churn during selection).
         bool _loading;
 
         public string ViewTitle => "World Map Monster";
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
 
+
+        public EditorDescriptor Descriptor => new("World Map Monster Editor", 1100, 760, SizeToContent: true);
+
+        public event EventHandler? CloseRequested;
         public MonsterWMapProbabilityViewerView()
         {
             InitializeComponent();
@@ -27,8 +34,25 @@ namespace FEBuilderGBA.Avalonia.Views
             StageList.SelectedAddressChanged += OnStageSelected;
             ProbList.SelectedAddressChanged += OnProbSelected;
             StageFilter.SelectionChanged += OnStageFilterChanged;
-            ProbFilter.SelectionChanged += OnProbFilterChanged;
-            Opened += (_, _) => LoadAll();
+            ProbFilter.SelectionChanged += OnProbFilterChanged;        }
+
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+
+        {
+
+            base.OnAttachedToVisualTree(e);
+
+            if (!_hasLoadedList)
+
+            {
+
+                _hasLoadedList = true;
+
+                LoadAll();
+
+            }
+
         }
 
         void LoadAll()
@@ -333,5 +357,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

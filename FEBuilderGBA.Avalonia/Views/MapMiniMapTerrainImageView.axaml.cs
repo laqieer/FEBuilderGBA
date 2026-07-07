@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -6,16 +7,22 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MapMiniMapTerrainImageView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class MapMiniMapTerrainImageView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly MapMiniMapTerrainImageViewModel _vm = new();
         readonly UndoService _undoService = new();
+
+        bool _hasLoadedList;
         bool _loading;
         bool _syncing;
 
         public string ViewTitle => "Mini-Map Terrain";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
 
+
+        public EditorDescriptor Descriptor => new("Mini-Map Terrain", 1253, 790, SizeToContent: true);
+
+        public event EventHandler? CloseRequested;
         public MapMiniMapTerrainImageView()
         {
             InitializeComponent();
@@ -23,8 +30,25 @@ namespace FEBuilderGBA.Avalonia.Views
             WriteButton.Click += OnWrite;
             TileArrayCombo.ItemsSource = _vm.OptionLabels;
             TileArrayCombo.SelectionChanged += OnComboChanged;
-            PointerBox.ValueChanged += OnPointerChanged;
-            Opened += (_, _) => LoadList();
+            PointerBox.ValueChanged += OnPointerChanged;        }
+
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+
+        {
+
+            base.OnAttachedToVisualTree(e);
+
+            if (!_hasLoadedList)
+
+            {
+
+                _hasLoadedList = true;
+
+                LoadList();
+
+            }
+
         }
 
         void LoadList()
@@ -124,5 +148,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

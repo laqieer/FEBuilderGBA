@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -6,14 +7,20 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EventBattleTalkFE6View : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class EventBattleTalkFE6View : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly EventBattleTalkFE6ViewModel _vm = new();
         readonly UndoService _undoService = new();
 
-        public string ViewTitle => "Battle Dialogue (FE6)";
-        public bool IsLoaded => _vm.IsLoaded;
 
+        bool _hasLoadedList;
+        public string ViewTitle => "Battle Dialogue (FE6)";
+        public new bool IsLoaded => _vm.IsLoaded;
+
+
+        public EditorDescriptor Descriptor => new("Battle Dialogue (FE6)", 1585, 940, SizeToContent: true);
+
+        public event EventHandler? CloseRequested;
         public EventBattleTalkFE6View()
         {
             InitializeComponent();
@@ -26,9 +33,25 @@ namespace FEBuilderGBA.Avalonia.Views
             // so its name preview is suppressed in secondary mode.
             AttackerUnitBox.ValueChanged += (_, _) => AttackerNameLabel.Text = UnitName(AttackerUnitBox);
             DefenderUnitBox.ValueChanged += (_, _) => DefenderNameLabel.Text = _vm.IsSecondaryTable ? "" : UnitName(DefenderUnitBox);
-            TextIdBox.ValueChanged += (_, _) => TextPreviewLabel.Text = TextPreview(TextIdBox);
+            TextIdBox.ValueChanged += (_, _) => TextPreviewLabel.Text = TextPreview(TextIdBox);        }
 
-            Opened += (_, _) => LoadList();
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+
+        {
+
+            base.OnAttachedToVisualTree(e);
+
+            if (!_hasLoadedList)
+
+            {
+
+                _hasLoadedList = true;
+
+                LoadList();
+
+            }
+
         }
 
         EventBattleTalkFE6ViewModel.BattleTalkTable SelectedTable =>
@@ -106,7 +129,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateUI()
         {
-            // Route through R._() at assignment time — TranslatedWindow.TranslateAll()
+            // Route through R._() at assignment time — TranslatedUserControl.TranslateAll()
             // runs once at window open, so values assigned afterward must be
             // localized explicitly to apply in ja/zh.
             TableLabel.Text = R._(_vm.IsSecondaryTable ? "Boss conversation (16-byte)" : "Main (12-byte)");
@@ -244,5 +267,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

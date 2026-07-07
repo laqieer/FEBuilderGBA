@@ -52,8 +52,12 @@ wrapping those controls in the generic `EditorHostWindow`; browser/Android/iOS p
 old desktop path while rollout continues. `MoveCostEditorView` was the first converted proof editor;
 the first rollout batch also converts the simple AI editors (`AIASMCALLTALKView`,
 `AIASMCoordinateView`, `AIASMRangeView`, `AIMapSettingView`, `AIPerformItemView`,
-`AIPerformStaffView`, `AIStealItemView`, `AITargetView`, `AITilesView`, and `AIUnitsView`). Converted
-editors are exposed in the single-view launcher once a ROM is loaded.
+`AIPerformStaffView`, `AIStealItemView`, `AITargetView`, `AITilesView`, and `AIUnitsView`). Slice 3
+adds the first reusable script-driven rollout batch across simple Item/Map/Event/Menu/Sound/WorldMap
+editors (for example `ItemStatBonusesViewerView`, `MapPointerView`, `EventFunctionPointerView`,
+`MenuDefinitionView`, `SoundFootStepsViewerView`, and `WorldMapPointView`). Converted editors are
+exposed in the single-view launcher once a ROM is loaded; editors with owner-bound file/dialog/picker
+flows remain on the legacy path until the dialog-flow slice.
 
 ## 3. Rendering (SkiaSharp + HarfBuzz native relink)
 
