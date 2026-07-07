@@ -111,9 +111,13 @@ def main() -> int:
     opts.layout_features = ["ccmp", "mark", "mkmk", "kern"]
 
     ss = Subsetter(options=opts)
-    ss.populate(text="".join(chars))
+    # Sort the charset before joining so the populate input is deterministic (a Python set's
+    # iteration order depends on PYTHONHASHSEED) — keeps the subset build reproducible.
+    ss.populate(text="".join(sorted(chars)))
 
-    font = TTFont(args.base)
+    # recalcTimestamp=False: don't stamp head.modified with the current time on save, so the
+    # subset is byte-for-byte REPRODUCIBLE (it inherits the base font's fixed timestamp).
+    font = TTFont(args.base, recalcTimestamp=False)
     ss.subset(font)
 
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
