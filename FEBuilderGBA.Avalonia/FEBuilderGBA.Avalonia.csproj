@@ -61,6 +61,7 @@
     <DefineConstants Condition="'$(IsAndroidTfm)' == 'true'">$(DefineConstants);ANDROID</DefineConstants>
     <DefineConstants Condition="'$(IsIosTfm)' == 'true'">$(DefineConstants);IOS</DefineConstants>
     <DefineConstants Condition="'$(IsBrowserTfm)' == 'true'">$(DefineConstants);BROWSER</DefineConstants>
+    <DefineConstants Condition="'$(E2E_HOOKS)' == 'true'">$(DefineConstants);E2E_HOOKS</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="FEBuilderGBA.Avalonia.Tests" />

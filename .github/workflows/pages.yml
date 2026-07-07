@@ -166,7 +166,7 @@ jobs:
             -p:WasmEnableThreads=false \
             -p:PublishTrimmed=false \
             -p:CompressionEnabled=false \
-            -p:DefineConstants=E2E_HOOKS \
+            -p:E2E_HOOKS=true \
             -o "$E2E_PUBLISH"
           if [ -d "$E2E_PUBLISH/wwwroot" ]; then
             E2E_OUT="$E2E_PUBLISH/wwwroot"

@@ -24,7 +24,7 @@ It always writes a screenshot for proof / debugging.
 
 Avalonia.Browser renders the UI into one Skia `<canvas>`, so Playwright cannot reliably click
 individual Avalonia controls through the DOM. The editor-nav smoke therefore enables an E2E-only
-interop seam by publishing with `-p:DefineConstants=E2E_HOOKS` and loading the page with `?e2e=1`.
+interop seam by publishing with `-p:E2E_HOOKS=true` and loading the page with `?e2e=1`.
 `main.js` then exposes `globalThis.__febTest = ex.TestHooks` before `runMain`.
 
 The hook is intentionally build-time gated: `FEBuilderGBA.Browser/TestHooks.cs` is wrapped in
@@ -58,7 +58,7 @@ Editor-nav proof with the license-clean synthetic ROM:
 
 ```bash
 dotnet publish FEBuilderGBA.Browser/FEBuilderGBA.Browser.csproj -c Release \
-  -p:EnableBrowserTarget=true -p:DefineConstants=E2E_HOOKS
+  -p:EnableBrowserTarget=true -p:E2E_HOOKS=true
 
 cd FEBuilderGBA.Browser/tests/smoke
 SMOKE_WWWROOT="$(git rev-parse --show-toplevel)/FEBuilderGBA.Browser/bin/Release/net9.0-browser/publish/wwwroot" \

@@ -49,6 +49,7 @@
          and the Core pipeline is reflection-heavy) — WasmBuildNative alone relinks the natives without
          AOT-compiling managed code. Needs the wasm-tools workload's emscripten (present in CI). -->
     <WasmBuildNative>true</WasmBuildNative>
+    <DefineConstants Condition="'$(E2E_HOOKS)' == 'true'">$(DefineConstants);E2E_HOOKS</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>

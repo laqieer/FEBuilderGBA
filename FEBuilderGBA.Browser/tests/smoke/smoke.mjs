@@ -192,7 +192,7 @@ try {
       try {
         await page.waitForFunction(() => typeof globalThis.__febTest !== 'undefined', null, { timeout: 5000 });
       } catch {
-        failures.push('globalThis.__febTest missing — publish the bundle with -p:DefineConstants=E2E_HOOKS (SMOKE_ROM set but E2E hooks absent)');
+        failures.push('globalThis.__febTest missing — publish the bundle with -p:E2E_HOOKS=true (SMOKE_ROM set but E2E hooks absent)');
         await page.screenshot({ path: SCREENSHOT });
         console.log(`[smoke] screenshot -> ${SCREENSHOT}`);
         throw new Error('__FEB_E2E_HOOKS_MISSING__');
