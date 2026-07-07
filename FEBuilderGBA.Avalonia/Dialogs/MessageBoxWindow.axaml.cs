@@ -1,5 +1,5 @@
 using global::Avalonia.Controls;
-using global::Avalonia.Interactivity;
+using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.Dialogs
 {
@@ -8,48 +8,39 @@ namespace FEBuilderGBA.Avalonia.Dialogs
 
     public partial class MessageBoxWindow : Window
     {
+        MessageBoxContent? _content;
         public MessageBoxResult Result { get; private set; } = MessageBoxResult.No;
 
         public MessageBoxWindow()
         {
             InitializeComponent();
+            _content = new MessageBoxContent();
+            Content = _content;
         }
 
         public MessageBoxWindow(string message, string title, MessageBoxMode mode) : this()
         {
             Title = title;
-            MessageText.Text = message;
-
-            if (mode == MessageBoxMode.YesNo)
+            _content ??= new MessageBoxContent();
+            _content.Configure(message, title, mode);
+            _content.CloseRequested += (_, _) =>
             {
-                OkButton.IsVisible = false;
-                YesButton.IsVisible = true;
-                NoButton.IsVisible = true;
-            }
-        }
-
-        private void OkButton_Click(object? sender, RoutedEventArgs e)
-        {
-            Result = MessageBoxResult.Ok;
-            Close();
-        }
-
-        private void YesButton_Click(object? sender, RoutedEventArgs e)
-        {
-            Result = MessageBoxResult.Yes;
-            Close();
-        }
-
-        private void NoButton_Click(object? sender, RoutedEventArgs e)
-        {
-            Result = MessageBoxResult.No;
-            Close();
+                Result = _content.Result;
+                Close();
+            };
         }
 
         /// <summary>Show the dialog and return the result.</summary>
         public static async System.Threading.Tasks.Task<MessageBoxResult> Show(
             Window? owner, string message, string title, MessageBoxMode mode)
         {
+            if (WindowManager.Instance.Service is AndroidNavigationService)
+            {
+                return await WindowManager.Instance.OpenModal<MessageBoxContent, MessageBoxResult>(
+                    owner,
+                    content => content.Configure(message, title, mode));
+            }
+
             var dlg = new MessageBoxWindow(message, title, mode);
             if (owner != null)
                 await dlg.ShowDialog(owner);

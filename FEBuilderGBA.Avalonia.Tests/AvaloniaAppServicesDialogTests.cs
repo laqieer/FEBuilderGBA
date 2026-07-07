@@ -66,7 +66,8 @@ namespace FEBuilderGBA.Avalonia.Tests
                     return;
                 }
 
-                var button = msgBox.FindControl<Button>(buttonName);
+                var button = msgBox.FindControl<Button>(buttonName)
+                    ?? (msgBox.Content as Control)?.FindControl<Button>(buttonName);
                 Assert.NotNull(button);
 
                 // Synthesize a click via Button.OnClick (the non-public method the
