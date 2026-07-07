@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
@@ -9,19 +10,21 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class UnitFE7View : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class UnitFE7View : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly UnitFE7ViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Units (FE7) Editor";
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
+        public EditorDescriptor Descriptor => new("Units (FE7) Editor", 1409, 900, SizeToContent: true);
+        public event EventHandler? CloseRequested;
 
         public UnitFE7View()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => { LoadList(); UpdateAddressBarInfra(); };
 
             // Wire desc text live update
             DescIdBox.ValueChanged += OnDescIdChanged;
@@ -58,6 +61,16 @@ namespace FEBuilderGBA.Avalonia.Views
             LevelBox.ValueChanged += (_, _) => RefreshGrowthSim();
             ClassIdBox.ValueChanged += (_, _) => RefreshGrowthSim();
             SimLevelBox.ValueChanged += (_, _) => RefreshGrowthSim();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList(); UpdateAddressBarInfra();
+            }
         }
 
         /// <summary>
@@ -296,7 +309,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 uint addr = ClassAddrFor(ClassIdBox.Value);
-                var result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr, this);
+                var result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 if (result != null)
                 {
                     ClassIdBox.Value = (uint)result.Index;
@@ -411,6 +424,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         private static uint ParseHexText(string? text)
         {

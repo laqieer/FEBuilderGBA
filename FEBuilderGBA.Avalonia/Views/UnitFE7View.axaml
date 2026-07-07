@@ -1,9 +1,7 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
-        x:Class="FEBuilderGBA.Avalonia.Views.UnitFE7View"
-        Title="Units (FE7) Editor" Width="1409" Height="900"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+             x:Class="FEBuilderGBA.Avalonia.Views.UnitFE7View">
   <Grid ColumnDefinitions="250,*" RowDefinitions="Auto,*">
     <!-- Address-bar infrastructure (top of left column) — matches WF unit-form
          "Read Start Address / Read Count / Reload" trio (#428).
@@ -300,4 +298,4 @@
       </StackPanel>
     </ScrollViewer>
   </Grid>
-</Window>
+</UserControl>

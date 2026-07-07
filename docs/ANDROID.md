@@ -109,12 +109,14 @@ the `INavigationService` abstraction (#1122):
 > and `WorldMapPointView`). Slice 4 extends the same script-driven path across additional simple
 > Text/Tool/Status/Unit-support/WorldMap editors (including `TextMainView`, `HexEditorView`,
 > `ToolFELintView`, `StatusParamView`, `SupportUnitEditorView`, and `WorldMapPathView`). Slice 5
-> converts the remaining script-safe launcher/resource/menu/support/class-demo/ending surfaces
+> converts the script-safe launcher/resource/menu/support/class-demo/ending surfaces
 > (including `MainSimpleMenuView`, `ResourceView`, `ArenaClassViewerView`,
 > `ItemShopViewerView`, `MonsterItemViewerView`, `OPClassDemoViewerView`, `EDView`,
-> and `SoundBossBGMViewerView`). The converter also now drops the optional desktop `Window`
-> owner argument from `WindowManager.PickFromEditor(..., this)` callers when the caller becomes
-> a `UserControl`; picker *targets* remain deferred.
+> and `SoundBossBGMViewerView`). Slice 6 exhausts the remaining script-safe pool with
+> `SupportTalkView`, `SupportTalkFE6View`, `SupportTalkFE7View`, `UnitFE6View`, `UnitFE7View`,
+> and `UnitMainView`. The converter reroutes optional desktop `Window` owner arguments from
+> `WindowManager.PickFromEditor(..., this)` to `TopLevel.GetTopLevel(this) as Window` when the caller
+> becomes a `UserControl`; picker *targets* remain deferred.
 > Editors with owner-bound file/dialog/picker/closed-event flows remain deferred until the
 > single-view dialog-flow slice.
 

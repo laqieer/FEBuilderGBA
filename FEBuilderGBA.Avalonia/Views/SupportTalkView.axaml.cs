@@ -1,4 +1,5 @@
 using System;
+using global::Avalonia;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
@@ -11,20 +12,32 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SupportTalkView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class SupportTalkView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly SupportTalkViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Support Talk";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Support Talk", 1279, 720, SizeToContent: true);
+        public event EventHandler? CloseRequested;
 
         public SupportTalkView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
             WriteButton.Click += Write_Click;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -281,7 +294,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 uint addr = UnitAddrFor(SupportPartner1Nud.Value);
-                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
+                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 // PickResult.Index is 0-based; SupportPartner is 1-based (#725).
                 if (result != null) SupportPartner1Nud.Value = (uint)result.Index + 1;
             }
@@ -305,7 +318,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 uint addr = UnitAddrFor(SupportPartner2Nud.Value);
-                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
+                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, TopLevel.GetTopLevel(this) as Window);
                 // PickResult.Index is 0-based; SupportPartner is 1-based (#725).
                 if (result != null) SupportPartner2Nud.Value = (uint)result.Index + 1;
             }
@@ -352,5 +365,6 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }
