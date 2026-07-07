@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using Avalonia.Automation;
 using Avalonia.Controls;
@@ -47,7 +47,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             var view = new ToolDiffView();
             view.Show();
-            view.Hide();
+            view.Close();
             var items = view.GetLogicalDescendants().OfType<TabItem>().ToList();
             Assert.Equal(2, items.Count);
         }
@@ -57,7 +57,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             var view = new ToolDiffView();
             view.Show();
-            view.Hide();
+            view.Close();
             var headers = view.GetLogicalDescendants().OfType<TabItem>()
                 .Select(t => t.Header?.ToString()).ToList();
             Assert.Contains("2-ROM Diff", headers);
@@ -69,7 +69,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             var view = new ToolDiffView();
             view.Show();
-            view.Hide();
+            view.Close();
             var ids = CollectAutomationIds(view);
 
             // Diff2 tab

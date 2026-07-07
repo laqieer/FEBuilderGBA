@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // Layout regression tests for the CSkillSys / FE8N skill editors (#1728-#1732).
 //
 // Root cause: Avalonia 11.2.3 NumericUpDown has a ~120px effective minimum
@@ -51,7 +51,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         // Helpers
         // ==================================================================
 
-        static NumericUpDown Nud(Window view, string name)
+        static NumericUpDown Nud(Control view, string name)
         {
             var nud = view.FindControl<NumericUpDown>(name);
             Assert.True(nud != null, $"NumericUpDown '{name}' must exist in the view's name scope.");
@@ -63,7 +63,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         /// (strategy (1)/(3)). AllowSpin must stay true so the keyboard /
         /// wheel editing path still works.
         /// </summary>
-        static void AssertSpinnerCollapsed(Window view, params string[] names)
+        static void AssertSpinnerCollapsed(Control view, params string[] names)
         {
             foreach (var name in names)
             {
@@ -103,7 +103,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             return double.NaN;
         }
 
-        static void AssertEffectiveMinWidthAtLeast120(Window view, params string[] names)
+        static void AssertEffectiveMinWidthAtLeast120(Control view, params string[] names)
         {
             foreach (var name in names)
             {
@@ -116,7 +116,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
         }
 
-        static void ForceLayout(Window view)
+        static void ForceLayout(Control view)
         {
             view.UpdateLayout();
             var size = new Size(1600, 1200);
@@ -169,7 +169,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         /// geometric check"). The set is a local value applied after Show(); no
         /// data update re-asserts the binding during the synchronous test pass.
         /// </summary>
-        static void ForceVisible(Window view, params string[] controlNames)
+        static void ForceVisible(Control view, params string[] controlNames)
         {
             foreach (var n in controlNames)
             {
@@ -184,7 +184,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         /// (Bounds.Width>0) so the check can never pass vacuously, then that no
         /// NUD-involved adjacent pair overlaps.
         /// </summary>
-        void AssertRowsHaveNoNudOverflow(Window view, string tag, params string[] nudNames)
+        void AssertRowsHaveNoNudOverflow(Control view, string tag, params string[] nudNames)
         {
             foreach (var name in nudNames)
             {

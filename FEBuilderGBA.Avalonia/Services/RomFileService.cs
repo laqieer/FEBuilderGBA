@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // #1870 — shared ROM open/save for the single-view (web / Android) shell.
 //
 // The desktop MainWindow owns ROM open/save today (OpenRom_Click / SaveAsRom_Click
@@ -26,6 +26,7 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using global::Avalonia;
+using global::Avalonia.Controls;
 using global::Avalonia.Platform.Storage;
 using FEBuilderGBA.Avalonia.Dialogs;
 
@@ -161,7 +162,7 @@ namespace FEBuilderGBA.Avalonia.Services
         /// </summary>
         public static async Task<RomOpenOutcome> OpenRomAsync(Visual owner)
         {
-            var file = await FileDialogHelper.OpenRomFilePick(owner);
+            var file = await FileDialogHelper.OpenRomFilePick(TopLevel.GetTopLevel(owner));
             if (file == null) return RomOpenOutcome.Cancelled;
 
             // Opening a plain ROM clears any active decomp project (#1129), matching
@@ -203,7 +204,7 @@ namespace FEBuilderGBA.Avalonia.Services
             if (CoreState.IsDecompMode) return null;
 
             string suggestedName = Path.GetFileName(CoreState.ROM.Filename ?? "rom.gba");
-            var file = await FileDialogHelper.SaveRomFilePick(owner, suggestedName);
+            var file = await FileDialogHelper.SaveRomFilePick(TopLevel.GetTopLevel(owner), suggestedName);
             if (file == null) return null;
 
             string? localPath = file.TryGetLocalPath();

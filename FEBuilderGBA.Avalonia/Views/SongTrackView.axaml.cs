@@ -7,6 +7,7 @@
 // SelectInstrument) stay deferred and explicitly absent from both the
 // manifest and the click-handler wiring — see
 // `SongTrackViewModel.NavigationTargets.cs`.
+using global::Avalonia;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -21,13 +22,16 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SongTrackView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class SongTrackView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly SongTrackViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Song Track Editor";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Song Track Editor", 1200, 720, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
 
         // The 16 track ListBox controls — populated in OnSelected from
         // `_vm.Tracks`. Indexed by 0..15 for direct mapping to track index.
@@ -45,7 +49,16 @@ namespace FEBuilderGBA.Avalonia.Views
             // the two source-file buttons use the binding.
             DataContext = _vm;
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void ResolveTrackControls()
@@ -373,7 +386,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 // Instrument editor — no new Core work.
                 var instType = new FilePickerFileType(R._("Instrument Set Files")) { Patterns = new[] { "*.instrument" } };
                 var allType = new FilePickerFileType(R._("All Files")) { Patterns = new[] { "*" } };
-                var file = await this.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+                var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+                if (storageProvider == null) return;
+                var file = await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
                 {
                     Title = R._("Export Music File"),
                     SuggestedFileName = $"song_0x{_vm.CurrentAddr:X06}.mid",
@@ -446,7 +461,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 var instType = new FilePickerFileType(R._("Instrument Set Files")) { Patterns = new[] { "*.instrument" } };
                 var sType = new FilePickerFileType(R._("SondFont Source Files")) { Patterns = new[] { "*.s" } };
                 var allType = new FilePickerFileType(R._("All Files")) { Patterns = new[] { "*" } };
-                var files = await this.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+                var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+                if (storageProvider == null) return;
+                var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
                 {
                     Title = R._("Import Music File"),
                     AllowMultiple = false,
@@ -500,7 +517,7 @@ namespace FEBuilderGBA.Avalonia.Views
             if (!_vm.IsLoaded) return;
             try
             {
-                string? path = await FERepoPickHelper.PickMusic(this);
+                string? path = await FERepoPickHelper.PickMusic(TopLevel.GetTopLevel(this) as Window);
                 if (string.IsNullOrEmpty(path)) return;
                 await ImportMusicPath(path);
             }
@@ -581,7 +598,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 try
                 {
                     pick = await WindowManager.Instance.PickFromEditor<SongTrackImportSelectInstrumentView>(
-                        currentVoicegroup, this);
+                        currentVoicegroup, TopLevel.GetTopLevel(this) as Window);
                 }
                 catch (Exception exPick)
                 {
@@ -892,7 +909,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 pick = await WindowManager.Instance.PickFromEditor<SongTrackImportSelectInstrumentView>(
-                    currentVoicegroup, this);
+                    currentVoicegroup, TopLevel.GetTopLevel(this) as Window);
             }
             catch (Exception ex)
             {
@@ -1061,6 +1078,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         /// <summary>
         /// #1383: import a music file into the song at <paramref name="songHeaderAddr"/>

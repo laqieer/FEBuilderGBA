@@ -185,7 +185,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             b[a + 3] = (byte)((v >> 24) & 0xFF);
         }
 
-        void SaveRender(Window view, int w, int h, string outPath)
+        void SaveRender(IEmbeddableEditor view, int w, int h, string outPath)
         {
             // Use the Avalonia.Headless frame capture (CaptureRenderedFrame) +
             // a dependency-free BGRA8888 -> PNG encoder. This is the same path
@@ -194,15 +194,17 @@ namespace FEBuilderGBA.Avalonia.Tests
             // worktree environments.
             try
             {
-                view.Width = w;
-                view.Height = h;
-                view.Measure(new Size(w, h));
-                view.Arrange(new Rect(0, 0, w, h));
-                view.Show();
+                var host = view.GetHeadlessHost();
+                host.Width = w;
+                host.Height = h;
+                host.Measure(new Size(w, h));
+                host.Arrange(new Rect(0, 0, w, h));
+                host.Show();
                 global::Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-                using var frame = view.CaptureRenderedFrame();
+                using var frame = host.CaptureRenderedFrame();
                 Assert.NotNull(frame);
                 SavePng(frame!, outPath);
+                view.Close();
                 _output.WriteLine($"Saved screenshot to: {outPath} ({new FileInfo(outPath).Length} bytes)");
             }
             catch (Exception ex)

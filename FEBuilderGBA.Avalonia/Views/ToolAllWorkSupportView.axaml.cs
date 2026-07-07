@@ -1,4 +1,5 @@
 #nullable enable annotations
+using global::Avalonia;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -18,13 +19,17 @@ namespace FEBuilderGBA.Avalonia.Views
     /// opens that project's ROM in the main window. Mirrors WinForms
     /// <c>ToolAllWorkSupportForm</c>.
     /// </summary>
-    public partial class ToolAllWorkSupportView : TranslatedWindow, IEditorView
+    public partial class ToolAllWorkSupportView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ToolAllWorkSupportViewModel _vm = new();
+        bool _hasLoadedList;
         readonly List<WorkProjectTileItem> _tiles = new();
 
         public string ViewTitle => "All Work Support";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("All Work Support", 1024, 700, StartupLocation: WindowStartupLocation.CenterScreen);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ToolAllWorkSupportView()
         {
@@ -34,8 +39,22 @@ namespace FEBuilderGBA.Avalonia.Views
             HintLabel.Text = R._("Click a project to open its ROM.");
             UpdateCheckButton.Content = R._("Check Updates");
 
-            Opened += (_, _) => LoadList();
-            Closed += (_, _) => DisposeTiles();
+        }
+
+        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnDetachedFromVisualTree(e);
+            DisposeTiles();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -129,7 +148,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 string path = tile.RomFilename;
                 if (string.IsNullOrEmpty(path) || !File.Exists(path))
                 {
-                    _ = MessageBoxWindow.Show(this,
+                    _ = MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window,
                         R._("File not found:") + $" {path}", R._("Error"), MessageBoxMode.Ok);
                     return;
                 }
@@ -139,11 +158,11 @@ namespace FEBuilderGBA.Avalonia.Views
                     bool ok = mw.LoadRomFile(path);
                     if (ok)
                     {
-                        Close();
+                        RequestClose();
                     }
                     else
                     {
-                        _ = MessageBoxWindow.Show(this,
+                        _ = MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window,
                             R._("Failed to load ROM:") + $" {path}", R._("Error"), MessageBoxMode.Ok);
                     }
                 }

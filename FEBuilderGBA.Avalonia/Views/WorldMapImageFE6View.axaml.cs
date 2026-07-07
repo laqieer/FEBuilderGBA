@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // World Map Image (FE6) editor view (#1183) — port of WF WorldMapImageFE6Form.
 // Five GbaImageControl previews (full + 4 quadrants NW/NE/SW/SE), each with a
 // per-zoom PNG Import (file dialog -> validate 240x160 -> Core 256-linear import
@@ -8,6 +8,7 @@
 // "AllWriteButton"). Mirrors the FE7 view's preview/import/export/undo idioms.
 // All Log.Error calls pass a single interpolated string (Core Log.Error is
 // params string[] — no {0}/{1} composite substitution).
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -18,19 +19,32 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class WorldMapImageFE6View : TranslatedWindow, IEditorView
+    public partial class WorldMapImageFE6View : TranslatedUserControl, IEmbeddableEditor
     {
         readonly WorldMapImageFE6ViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "World Map Image (FE6)";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("World Map Image (FE6)", 900, 720, SizeToContent: global::Avalonia.Controls.SizeToContent.Width);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public WorldMapImageFE6View()
         {
             InitializeComponent();
             DataContext = _vm;
-            Opened += (_, _) => Load();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                Load();
+            }
         }
 
         void Load()
@@ -104,7 +118,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                string? path = await FileDialogHelper.OpenImageFile(this);
+                string? path = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this));
                 if (path == null) return;
                 await DoImport(slotByteOffset, path, target, render, label);
             }
@@ -189,7 +203,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                await source.ExportPng(this, suggestedName);
+                await source.ExportPng(TopLevel.GetTopLevel(this) as Window, suggestedName);
             }
             catch (Exception ex)
             {

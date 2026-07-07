@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -18,14 +19,18 @@ namespace FEBuilderGBA.Avalonia.Views
     /// Save / Copy-to-clipboard / Open-log-folder / Refresh button row.
     /// Read-only — no ROM writes, no undo.
     /// </summary>
-    public partial class LogViewerView : TranslatedWindow, IEditorView
+    public partial class LogViewerView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly LogViewerViewModel _vm = new();
+        bool _hasLoadedList;
         EventHandler? _logUpdateHandler;
         bool _reloadPending;
 
         public string ViewTitle => "Log Viewer";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Log Viewer", 800, 560);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         /// <summary>Test/diagnostic accessor for the bound view-model.</summary>
         public ViewModelBase DataViewModel => _vm;
@@ -40,8 +45,22 @@ namespace FEBuilderGBA.Avalonia.Views
             CopyButton.Click += OnCopy;
             OpenDirButton.Click += OnOpenDir;
 
-            Opened += OnOpened;
-            Closed += OnClosed;
+        }
+
+        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnDetachedFromVisualTree(e);
+            OnClosed(this, EventArgs.Empty);
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                OnOpened(this, EventArgs.Empty);
+            }
         }
 
         void OnOpened(object? sender, EventArgs e)
@@ -113,7 +132,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 // #1639: single-file log save → SAF bridge.
                 string? written = await FileDialogHelper.SaveFileVia(
-                    this, R._("Save"), R._("TEXT"), "*.txt", "log.txt", p => _vm.SaveToFile(p));
+                    TopLevel.GetTopLevel(this) as Window, R._("Save"), R._("TEXT"), "*.txt", "log.txt", p => _vm.SaveToFile(p));
                 if (written == null) return;
                 StatusLabel.Text = R._("Saved to {0}", written);
             }

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // ImageBattleAnimePalletView — Avalonia parity rebuild for #399. Mirrors
 // `ImageBattleAnimePalletForm` (panel1: 16 R/G/B + swatches + write +
 // zoom + clipboard + import/export + undo/redo). Uses the
@@ -447,7 +447,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
 
             // Open file dialog — mirrors WF ImageFormRef.OpenFilenameDialogFullColor.
-            string filePath = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this) as Window);
+            string filePath = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this));
             if (string.IsNullOrEmpty(filePath))
             {
                 return; // User cancelled.

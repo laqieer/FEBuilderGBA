@@ -1,9 +1,7 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
-        x:Class="FEBuilderGBA.Avalonia.Views.WorldMapImageView"
-        Title="World Map Image" Width="1080" Height="640"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+             x:Class="FEBuilderGBA.Avalonia.Views.WorldMapImageView">
   <!-- Six-tab parity raise (#395) - mirrors WF WorldMapImageForm.WMTabControl.
        tabPage1 / Main:      4 main-map pointers (image / palette / dark / palettemap)
        tabPage2 / Event:     3 pointers (image / palette / TSA)
@@ -638,4 +636,4 @@
 
     </TabControl>
   </DockPanel>
-</Window>
+</UserControl>

@@ -1,4 +1,4 @@
-using global::Avalonia;
+﻿using global::Avalonia;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -257,7 +257,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
                 // #1639: write via the SAF bridge so Android content:// targets work.
-                string? written = await FileDialogHelper.SaveImageFileVia(TopLevel.GetTopLevel(this) as Window, $"maptileanim1_{_vm.CurrentAddr:X08}.png", p =>
+                string? written = await FileDialogHelper.SaveImageFileVia(TopLevel.GetTopLevel(this), $"maptileanim1_{_vm.CurrentAddr:X08}.png", p =>
                 {
                     using var stream = File.Create(p); bmp.Save(stream);
                 });
@@ -280,7 +280,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     CoreState.Services?.ShowError("No entry selected.");
                     return;
                 }
-                string? path = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this) as Window);
+                string? path = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this));
                 if (string.IsNullOrEmpty(path)) return;
 
                 var img = CoreState.ImageService?.LoadImage(path);

@@ -1,10 +1,8 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
-        xmlns:views="clr-namespace:FEBuilderGBA.Avalonia.Views"
-        x:Class="FEBuilderGBA.Avalonia.Views.SkillConfigFE8NVer3SkillView"
-        Title="Skill Configuration (FE8N v3)" Width="1100" Height="820"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+             xmlns:views="clr-namespace:FEBuilderGBA.Avalonia.Views"
+             x:Class="FEBuilderGBA.Avalonia.Views.SkillConfigFE8NVer3SkillView">
   <Grid ColumnDefinitions="260,*" RowDefinitions="Auto,Auto,*">
 
     <!-- Row 0: top read-config bar — unified via EditorTopBarWithInputs (#743). -->
@@ -348,4 +346,4 @@
 
     </TabControl>
   </Grid>
-</Window>
+</UserControl>

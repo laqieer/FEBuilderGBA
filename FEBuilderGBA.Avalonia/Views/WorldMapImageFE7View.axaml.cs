@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // World Map Image (FE7) editor view (#1184) — port of WF WorldMapImageFE7Form.
 // Two GbaImageControl previews (12-split big field map + event image), each with
 // PNG import (file dialog -> remap -> Core import under one UndoService scope) and
@@ -6,6 +6,7 @@
 // read-only pointer labels. Mirrors the base WorldMapImageView's preview/import/
 // export/undo idioms. All Log.Error calls pass a single interpolated string (Core
 // Log.Error is params string[] — no {0}/{1} composite substitution).
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -16,18 +17,31 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class WorldMapImageFE7View : TranslatedWindow, IEditorView
+    public partial class WorldMapImageFE7View : TranslatedUserControl, IEmbeddableEditor
     {
         readonly WorldMapImageFE7ViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "World Map Image (FE7)";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("World Map Image (FE7)", 1100, 720, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public WorldMapImageFE7View()
         {
             InitializeComponent();
-            Opened += (_, _) => Load();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                Load();
+            }
         }
 
         void Load()
@@ -91,7 +105,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                string? path = await FileDialogHelper.OpenImageFile(this);
+                string? path = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this));
                 if (path == null) return;
                 await DoBigImport(path);
             }
@@ -163,7 +177,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                await BigPreviewImage.ExportPng(this, "worldmap_fe7_bigfieldmap");
+                await BigPreviewImage.ExportPng(TopLevel.GetTopLevel(this) as Window, "worldmap_fe7_bigfieldmap");
             }
             catch (Exception ex)
             {
@@ -179,7 +193,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                string? path = await FileDialogHelper.OpenImageFile(this);
+                string? path = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this));
                 if (path == null) return;
                 await DoEventImport(path);
             }
@@ -273,7 +287,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     try
                     {
                         // #1639: write via the SAF bridge so Android content:// targets work.
-                        await FileDialogHelper.SaveImageFileVia(this, "worldmap_fe7_event", p => cropped.Save(p));
+                        await FileDialogHelper.SaveImageFileVia(TopLevel.GetTopLevel(this), "worldmap_fe7_event", p => cropped.Save(p));
                     }
                     finally { cropped.Dispose(); }
                 }

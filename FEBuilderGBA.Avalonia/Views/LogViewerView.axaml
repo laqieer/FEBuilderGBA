@@ -1,10 +1,7 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:vm="clr-namespace:FEBuilderGBA.Avalonia.ViewModels"
-        x:Class="FEBuilderGBA.Avalonia.Views.LogViewerView"
-        x:DataType="vm:LogViewerViewModel"
-        Title="Log Viewer" Width="800" Height="560"
-        SizeToContent="Manual">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:FEBuilderGBA.Avalonia.ViewModels"
+             x:Class="FEBuilderGBA.Avalonia.Views.LogViewerView">
   <DockPanel Margin="8" LastChildFill="True">
 
     <TextBlock DockPanel.Dock="Top" Text="Log Viewer" FontSize="18" FontWeight="Bold" Margin="0,0,0,4" />
@@ -45,4 +42,4 @@
       </Border>
     </ScrollViewer>
   </DockPanel>
-</Window>
+</UserControl>

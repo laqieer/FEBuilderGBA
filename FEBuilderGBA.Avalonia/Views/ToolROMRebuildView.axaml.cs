@@ -1,4 +1,4 @@
-using global::Avalonia;
+﻿using global::Avalonia;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -75,7 +75,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                string? path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this) as Window);
+                string? path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this));
                 if (!string.IsNullOrEmpty(path))
                     OriginalRomTextBox.Text = path;
             }
@@ -147,7 +147,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // flow — it needs a real local path. Pick the handle so we can tell
                 // a genuine CANCEL (null handle → silent return) apart from a SAF
                 // pick with no local path (→ explicit Android message).
-                var outFile = await FileDialogHelper.SaveRomFilePick(TopLevel.GetTopLevel(this) as Window, suggested);
+                var outFile = await FileDialogHelper.SaveRomFilePick(TopLevel.GetTopLevel(this), suggested);
                 if (outFile == null) return;   // user cancelled
                 string? output = outFile.TryGetLocalPath();
                 if (string.IsNullOrEmpty(output))
@@ -222,7 +222,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // (path-based, revealed in the explorer). Pick the handle so a
                 // genuine CANCEL (null handle) is distinguished from a SAF pick
                 // with no local path (→ explicit Android message).
-                var outFile = await FileDialogHelper.SaveFilePick(TopLevel.GetTopLevel(this) as Window,
+                var outFile = await FileDialogHelper.SaveFilePick(TopLevel.GetTopLevel(this),
                     R._("Save ROMRebuild report"), R._("ROMRebuild report"), "*.rebuild", suggested);
                 if (outFile == null) return;   // user cancelled
                 string? output = outFile.TryGetLocalPath();

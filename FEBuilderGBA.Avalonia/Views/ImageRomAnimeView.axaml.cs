@@ -1,4 +1,4 @@
-using global::Avalonia;
+﻿using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -134,7 +134,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
 
-                string? path = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this) as Window);
+                string? path = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this));
                 if (string.IsNullOrEmpty(path)) return;
 
                 int width = _vm.FrameWidthPx;
@@ -195,7 +195,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // returns null on Android SAF (no local path) → disable with a
                 // clear message instead of silently returning. (Use Export GIF for
                 // a single-file animation export on Android.)
-                string? path = await FileDialogHelper.SaveAnimationScriptFile(TopLevel.GetTopLevel(this) as Window,
+                string? path = await FileDialogHelper.SaveAnimationScriptFile(TopLevel.GetTopLevel(this),
                     "romanime_" + U.ToHexString(_vm.CurrentId) + ".txt");
                 if (string.IsNullOrEmpty(path))
                 {
@@ -226,7 +226,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 // #1639: single-file GIF export → SAF bridge.
                 string err = "";
-                string? written = await FileDialogHelper.SaveFileVia(TopLevel.GetTopLevel(this) as Window,
+                string? written = await FileDialogHelper.SaveFileVia(TopLevel.GetTopLevel(this),
                     R._("Save Animation GIF"), R._("Animated GIF (.gif)"), "*.gif",
                     "romanime_" + U.ToHexString(_vm.CurrentId) + ".gif",
                     p => { err = _vm.ExportGif(p); });
@@ -253,7 +253,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // #1639: ImportScript resolves sibling frame PNGs from the
                 // script's own directory, so require a real local path; a SAF pick
                 // (no local path) cannot resolve siblings → message on Android.
-                string? path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this) as Window,
+                string? path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this),
                     R._("Open Animation Script"), "*.txt", requireLocalPath: true);
                 if (string.IsNullOrEmpty(path))
                 {

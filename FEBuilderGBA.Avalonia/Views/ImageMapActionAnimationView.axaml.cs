@@ -1,3 +1,4 @@
+﻿using global::Avalonia;
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -21,10 +22,11 @@ namespace FEBuilderGBA.Avalonia.Views
     /// (#499, #500, #501) — see the navigation manifest in
     /// `ImageMapActionAnimationViewModel.NavigationTargets.cs`.
     /// </summary>
-    public partial class ImageMapActionAnimationView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class ImageMapActionAnimationView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly ImageMapActionAnimationViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
         bool _suppressZoomChange;
         // Set true while UpdateUI syncs `ShowFrameUpDown.Value` from the VM
         // — the SelectionChanged handler short-circuits so the compute+render
@@ -36,25 +38,39 @@ namespace FEBuilderGBA.Avalonia.Views
         Bitmap? _currentPreviewBitmap;
 
         public string ViewTitle => "Map Action Animation";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Map Action Animation", 1024, 640, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ImageMapActionAnimationView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
             // Dispose the last preview Bitmap when the window closes so
             // unmanaged memory is released — Copilot CLI inline review on
             // PR #506.
-            Closed += (_, _) =>
+        }
+
+        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnDetachedFromVisualTree(e);
+            if (_currentPreviewBitmap != null)
             {
-                if (_currentPreviewBitmap != null)
-                {
-                    try { _currentPreviewBitmap.Dispose(); } catch { /* swallow */ }
-                    _currentPreviewBitmap = null;
-                }
-            };
+                try { _currentPreviewBitmap.Dispose(); } catch { /* swallow */ }
+                _currentPreviewBitmap = null;
+            }
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -232,7 +248,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint defaultCount = _vm.ReadCount + 1;
                 if (defaultCount > 255) defaultCount = 255;
                 uint? chosen = await NumberInputDialog.Show(
-                    this,
+                    TopLevel.GetTopLevel(this) as Window,
                     R._("Enter the new entry count for the map action animation list (current: {0}, max: 255).",
                         _vm.ReadCount),
                     R._("List Expansion"),
@@ -425,7 +441,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // #1639: pick the handle so we can branch by format — the single-file
             // .gif export routes through the SAF bridge, while the .txt script
             // (which writes sibling PNGs) requires a real local path.
-            var file = await FileDialogHelper.SaveFilePick(this,
+            var file = await FileDialogHelper.SaveFilePick(TopLevel.GetTopLevel(this),
                 R._("Save Map Action Animation"),
                 new[]
                 {
@@ -478,7 +494,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // #1639: ImportScript resolves sibling frame PNGs from the script's
             // own directory, so require a real local path; a SAF pick (no local
             // path) cannot resolve siblings → message on Android, never silent.
-            string? path = await FileDialogHelper.OpenFile(this,
+            string? path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this),
                 R._("Open Map Action Animation Script"),
                 "*.MapActionAnimation.txt", requireLocalPath: true);
             if (string.IsNullOrEmpty(path))

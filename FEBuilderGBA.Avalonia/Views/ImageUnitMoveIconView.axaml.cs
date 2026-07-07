@@ -1,4 +1,4 @@
-using global::Avalonia;
+﻿using global::Avalonia;
 using System;
 using System.IO;
 using global::Avalonia.Controls;
@@ -344,7 +344,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 string suggested = $"move_icon_{_vm.CurrentIndex:X02}.png";
                 // #1639: both .png and .gif are single-file → SAF bridge.
                 bool ok = false;
-                string? written = await FileDialogHelper.SaveFileVia(TopLevel.GetTopLevel(this) as Window, "Export Move Icon",
+                string? written = await FileDialogHelper.SaveFileVia(TopLevel.GetTopLevel(this), "Export Move Icon",
                     new[]
                     {
                         ("PNG Image", "*.png"),
@@ -370,7 +370,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (rom == null) return;
                 if (_vm.CurrentAddr == 0) { CoreState.Services?.ShowError(R._("No move icon selected.")); return; }
 
-                string? path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this) as Window, "Import AP", "*.romtcs.ap.bin");
+                string? path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this), "Import AP", "*.romtcs.ap.bin");
                 if (string.IsNullOrEmpty(path)) return;
 
                 byte[] apBytes;
@@ -425,7 +425,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 string suggested = $"move_icon_{_vm.CurrentIndex:X02}.romtcs.ap.bin";
                 // #1639: single-file AP export → SAF bridge.
-                string? written = await FileDialogHelper.SaveFileVia(TopLevel.GetTopLevel(this) as Window, "Export AP",
+                string? written = await FileDialogHelper.SaveFileVia(TopLevel.GetTopLevel(this), "Export AP",
                     "AP", "*.romtcs.ap.bin", suggested, p => File.WriteAllBytes(p, ap));
                 if (written == null) return;
                 CoreState.Services?.ShowInfo($"Exported to: {written}");

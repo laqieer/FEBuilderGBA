@@ -1,9 +1,6 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="FEBuilderGBA.Avalonia.Views.ToolExportEAEventView"
-        Title="Export EA Event" Width="1096" Height="784"
-        WindowStartupLocation="CenterOwner"
-        SizeToContent="WidthAndHeight">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.ToolExportEAEventView">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <Grid ColumnDefinitions="284,*" Margin="11">
     <!-- Left panel: Map list (WinForms panel14 with MAP_LISTBOX) -->
@@ -73,4 +70,4 @@
     </Border>
   </Grid>
   </ScrollViewer>
-</Window>
+</UserControl>

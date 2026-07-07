@@ -1,3 +1,4 @@
+﻿using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -8,12 +9,15 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolDiffView : TranslatedWindow, IEditorView
+    public partial class ToolDiffView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly ToolDiffViewModel _vm = new();
 
         public string ViewTitle => "ROM Diff Tool";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("ROM Diff Tool", 820, 500, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public ToolDiffView()
         {
@@ -26,14 +30,16 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void OtherBrowse_Click(object? sender, RoutedEventArgs e)
         {
-            var path = await FileDialogHelper.OpenRomFile(this);
+            var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this));
             if (!string.IsNullOrEmpty(path))
                 _vm.OtherPath = path;
         }
 
         async void MakeBinPatch_Click(object? sender, RoutedEventArgs e)
         {
-            var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+            if (storageProvider == null) return;
+            var file = await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = R._("Save Binary Patch File"),
                 SuggestedFileName = "PATCH_diff.txt",
@@ -56,21 +62,23 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void ABrowse_Click(object? sender, RoutedEventArgs e)
         {
-            var path = await FileDialogHelper.OpenRomFile(this);
+            var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this));
             if (!string.IsNullOrEmpty(path))
                 _vm.AFilePath = path;
         }
 
         async void BBrowse_Click(object? sender, RoutedEventArgs e)
         {
-            var path = await FileDialogHelper.OpenRomFile(this);
+            var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this));
             if (!string.IsNullOrEmpty(path))
                 _vm.BFilePath = path;
         }
 
         async void MakeBinPatch3_Click(object? sender, RoutedEventArgs e)
         {
-            var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+            if (storageProvider == null) return;
+            var file = await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = R._("Save 3-Way Binary Patch File"),
                 SuggestedFileName = "PATCH_diff3.txt",

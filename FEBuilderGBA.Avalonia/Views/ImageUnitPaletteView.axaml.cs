@@ -1,4 +1,4 @@
-using global::Avalonia;
+﻿using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -555,7 +555,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
 
-                string? path = await Dialogs.FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this) as Window);
+                string? path = await Dialogs.FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this));
                 if (string.IsNullOrEmpty(path)) return; // user cancelled
 
                 ImportFromFile(path);

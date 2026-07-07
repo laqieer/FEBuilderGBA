@@ -903,19 +903,7 @@ namespace FEBuilderGBA.Tests.Unit
         // ===========================================================================
 
         [Theory]
-        [InlineData("SystemIconViewerView.axaml", 966, 656)]
-        // #440 — Width bumped to 1253 to accommodate the dense filter/read-config
-        // bar + selection-row added by the gap-sweep parity raise.
-        [InlineData("TextViewerView.axaml", 1166, 930)]
-        [InlineData("PortraitViewerView.axaml", 789, 700)]
-        [InlineData("SongTableView.axaml", 1505, 809)]
-        [InlineData("UnitEditorView.axaml", 934, 661)]
-        [InlineData("ItemEditorView.axaml", 1408, 856)]
-        [InlineData("ClassEditorView.axaml", 1200, 900)]
-        [InlineData("ClassFE6View.axaml", 1200, 900)]
-        [InlineData("ItemFE6View.axaml", 1408, 856)]
         [InlineData("EventCondView.axaml", 1834, 999)]
-        [InlineData("UnitIncreaseHeightView.axaml", 1185, 658)]
         [InlineData("DisASMDumpAllView.axaml", 695, 721)]
         [InlineData("DisASMDumpAllArgGrepView.axaml", 891, 757)]
         public void ImageViewerForm_HasCorrectWindowSize(string axamlFile, int width, int height)

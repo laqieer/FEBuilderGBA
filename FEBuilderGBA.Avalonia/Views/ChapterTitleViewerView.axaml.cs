@@ -1,4 +1,4 @@
-using global::Avalonia;
+﻿using global::Avalonia;
 using System;
 using System.IO;
 using global::Avalonia.Controls;
@@ -107,7 +107,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (palAddr == 0 || !U.isSafetyOffset(palAddr)) { CoreState.Services.ShowError("No palette address"); return; }
                 byte[] pal = ImageUtilCore.GetPalette(palAddr, 16);
                 if (pal == null || pal.Length < 32) { CoreState.Services.ShowError("Failed to read palette"); return; }
-                await FileDialogHelper.SavePaletteFileVia(TopLevel.GetTopLevel(this) as Window, "chapter_title_palette.pal", p =>
+                await FileDialogHelper.SavePaletteFileVia(TopLevel.GetTopLevel(this), "chapter_title_palette.pal", p =>
                 {
                     // #1639: write via the SAF bridge so Android content:// targets work.
                     PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(p));

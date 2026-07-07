@@ -1,3 +1,4 @@
+﻿using global::Avalonia;
 using System;
 using System.IO;
 using global::Avalonia.Controls;
@@ -8,14 +9,18 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class PortraitViewerView : TranslatedWindow, IPickableEditor, IDataVerifiableView
+    public partial class PortraitViewerView : TranslatedUserControl, IEmbeddableEditor, IPickableEditor, IDataVerifiableView
     {
         readonly PortraitViewerViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "Portrait Editor";
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
+        public EditorDescriptor Descriptor => new("Portrait Editor", 789, 700, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public event Action<PickResult>? SelectionConfirmed;
 
@@ -24,7 +29,16 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             PortraitList.SelectedAddressChanged += OnPortraitSelected;
             PortraitList.SelectionConfirmed += result => SelectionConfirmed?.Invoke(result);
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -146,7 +160,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void ImportPng_Click(object? sender, RoutedEventArgs e)
         {
-            string? filePath = await FileDialogHelper.OpenImageFile(this);
+            string? filePath = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this));
             if (string.IsNullOrEmpty(filePath)) return;
             ImportImageFromFile(filePath);
         }
@@ -157,7 +171,7 @@ namespace FEBuilderGBA.Avalonia.Views
         // size to enforce), so the lenient quantize matches the file-picker.
         async void FERepo_Click(object? sender, RoutedEventArgs e)
         {
-            string? path = await FERepoPickHelper.PickForEditor(this,
+            string? path = await FERepoPickHelper.PickForEditor(TopLevel.GetTopLevel(this) as Window,
                 FERepoResourceBrowser.FERepoEditorKind.Portrait);
             if (string.IsNullOrEmpty(path)) return;
             ImportImageFromFile(path);
@@ -202,7 +216,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void ExportPng_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
         {
-            await MainPortraitImage.ExportPng(this, "portrait.png");
+            await MainPortraitImage.ExportPng(TopLevel.GetTopLevel(this) as Window, "portrait.png");
         }
 
         async void ExportPal_Click(object? sender, RoutedEventArgs e)
@@ -217,7 +231,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // Portrait palette is raw (not compressed), 16 colors = 32 bytes
                 byte[] pal = ImageUtilCore.GetPalette(palAddr, 16);
                 if (pal == null || pal.Length < 32) { CoreState.Services.ShowError("Failed to read palette"); return; }
-                await FileDialogHelper.SavePaletteFileVia(this, "portrait_palette.pal", p =>
+                await FileDialogHelper.SavePaletteFileVia(TopLevel.GetTopLevel(this), "portrait_palette.pal", p =>
                 {
                     // #1639: write via the SAF bridge so Android content:// targets work.
                     PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(p));
@@ -233,7 +247,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 ROM rom = CoreState.ROM;
                 if (rom == null) return;
-                string? path = await FileDialogHelper.OpenPaletteFile(this);
+                string? path = await FileDialogHelper.OpenPaletteFile(TopLevel.GetTopLevel(this));
                 if (string.IsNullOrEmpty(path)) return;
                 byte[] fileData = File.ReadAllBytes(path);
                 PaletteFormat fmt = PaletteFormatConverter.DetectFormat(fileData, System.IO.Path.GetExtension(path));

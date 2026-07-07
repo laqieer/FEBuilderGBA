@@ -1,3 +1,4 @@
+﻿using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -6,10 +7,11 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class UnitIncreaseHeightView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class UnitIncreaseHeightView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly UnitIncreaseHeightViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         // True once Opened -> LoadList() has populated EntryList. A NavigateTo
         // request that arrives BEFORE the list loads (WindowManager.Open then an
@@ -22,7 +24,9 @@ namespace FEBuilderGBA.Avalonia.Views
         bool _syncing;
 
         public string ViewTitle => "Unit Height Adjustment";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Unit Height Adjustment", 1185, 658, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
 
         public UnitIncreaseHeightView()
         {
@@ -37,10 +41,25 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // TranslatedWindow auto-translates Text/Content, but NOT ComboBox items — rebuild the
             // combo labels ourselves on a runtime language change (preserving the selection).
-            CoreState.LanguageChanged += RebuildHeightCombo;
-            Closed += (_, _) => CoreState.LanguageChanged -= RebuildHeightCombo;
 
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnDetachedFromVisualTree(e);
+            CoreState.LanguageChanged -= RebuildHeightCombo;
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            CoreState.LanguageChanged -= RebuildHeightCombo;
+            CoreState.LanguageChanged += RebuildHeightCombo;
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void RebuildHeightCombo()
@@ -198,5 +217,6 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }

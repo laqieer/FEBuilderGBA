@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -9,19 +10,32 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SongTrackImportMidiView : TranslatedWindow, IEditorView
+    public partial class SongTrackImportMidiView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly SongTrackImportMidiViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => "MIDI Import";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("MIDI Import", 761, 794, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public SongTrackImportMidiView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -90,7 +104,9 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var midiType = new FilePickerFileType(R._("MIDI Files")) { Patterns = new[] { "*.mid", "*.midi" } };
                 var allType = new FilePickerFileType(R._("All Files")) { Patterns = new[] { "*" } };
-                var files = await this.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+                var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
+                if (storageProvider == null) return;
+                var files = await storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
                 {
                     Title = R._("Select MIDI File"),
                     AllowMultiple = false,
@@ -200,7 +216,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 pick = await WindowManager.Instance.PickFromEditor<SongTrackImportSelectInstrumentView>(
-                    seed, this);
+                    seed, TopLevel.GetTopLevel(this) as Window);
             }
             catch (Exception ex)
             {

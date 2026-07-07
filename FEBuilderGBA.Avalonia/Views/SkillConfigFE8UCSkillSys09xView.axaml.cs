@@ -1,3 +1,4 @@
+﻿using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -17,10 +18,11 @@ namespace FEBuilderGBA.Avalonia.Views
     /// but their click handlers are intentional no-ops with a tooltip until
     /// the Core seam lands (mirrors the pattern used by #433).
     /// </summary>
-    public partial class SkillConfigFE8UCSkillSys09xView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class SkillConfigFE8UCSkillSys09xView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly SkillConfigFE8UCSkillSys09xViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
         readonly SkillConfigAnimePreview _animePreview = new();
         bool _suppressZoomChange;
         bool _suppressFrameChange;
@@ -28,20 +30,34 @@ namespace FEBuilderGBA.Avalonia.Views
         Bitmap? _currentPreviewBitmap;
 
         public string ViewTitle => "Skill Configuration (CSkillSys 0.9.x)";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Skill Configuration (CSkillSys 0.9.x)", 900, 640, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public SkillConfigFE8UCSkillSys09xView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
-            Closed += (_, _) =>
+        }
+
+        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnDetachedFromVisualTree(e);
+            DisposeBitmap(ref _currentIconBitmap);
+            DisposeBitmap(ref _currentPreviewBitmap);
+            _animePreview.Clear();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
             {
-                DisposeBitmap(ref _currentIconBitmap);
-                DisposeBitmap(ref _currentPreviewBitmap);
-                _animePreview.Clear();
-            };
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         static void DisposeBitmap(ref Bitmap? bmp)
@@ -237,7 +253,7 @@ namespace FEBuilderGBA.Avalonia.Views
             uint paletteAddr = rom.p32(SKILL_PALETTE_POINTER);
 
             string? err = await SkillConfigIconIoHelper.ImportIconAsync(
-                this, rom, iconByteAddr, paletteAddr, _undoService);
+                TopLevel.GetTopLevel(this) as Window, rom, iconByteAddr, paletteAddr, _undoService);
             if (err == null) return; // user cancelled — do not refresh.
             if (err != "")
             {
@@ -266,7 +282,7 @@ namespace FEBuilderGBA.Avalonia.Views
             uint iconByteAddr = U.toOffset(iconGbaPointer);
             uint paletteAddr = rom.p32(SKILL_PALETTE_POINTER);
 
-            string? path = await FERepoPickHelper.PickForEditor(this,
+            string? path = await FERepoPickHelper.PickForEditor(TopLevel.GetTopLevel(this) as Window,
                 FERepoResourceBrowser.FERepoEditorKind.SkillIcon);
             if (string.IsNullOrEmpty(path)) return;
 
@@ -296,7 +312,7 @@ namespace FEBuilderGBA.Avalonia.Views
             uint iconByteAddr = U.toOffset(iconGbaPointer);
             uint paletteAddr = rom.p32(SKILL_PALETTE_POINTER);
 
-            await SkillConfigIconIoHelper.ExportIconAsync(this, rom, iconByteAddr, paletteAddr);
+            await SkillConfigIconIoHelper.ExportIconAsync(TopLevel.GetTopLevel(this) as Window, rom, iconByteAddr, paletteAddr);
         }
 
         // #913 SLICE 1 — real skill-anime import via SkillSystemsAnimeImportCore
@@ -305,7 +321,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (!_vm.IsLoaded) return;
             bool ok = await SkillConfigAnimeImportHelper.ImportAsync(
-                this, _vm.AnimationPointer, _undoService);
+                TopLevel.GetTopLevel(this) as Window, _vm.AnimationPointer, _undoService);
             if (!ok) return;
 
             // #1010 — the animation bytes changed; drop the cached decode.
@@ -319,7 +335,7 @@ namespace FEBuilderGBA.Avalonia.Views
         async void AnimationExport_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.IsLoaded) return;
-            await SkillConfigAnimeExportHelper.ExportAsync(this, _vm.AnimationPointer, _vm.SelectedId);
+            await SkillConfigAnimeExportHelper.ExportAsync(TopLevel.GetTopLevel(this) as Window, _vm.AnimationPointer, _vm.SelectedId);
         }
 
         void JumpToEditor_Click(object? sender, RoutedEventArgs e)

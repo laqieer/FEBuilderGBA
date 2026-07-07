@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -25,24 +26,42 @@ namespace FEBuilderGBA.Avalonia.Views
     /// one editable tab is faithful + complete. The Class/Item/Other tabs remain
     /// informational placeholders (same 16 bytes; KnownGap #374).
     /// </summary>
-    public partial class SkillConfigFE8NSkillView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class SkillConfigFE8NSkillView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly SkillConfigFE8NSkillViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
         bool _suppressPointerChange;
         bool _suppressChangeTypeChange;
         Bitmap? _currentIconBitmap;
 
         public string ViewTitle => "Skill Configuration (FE8N)";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Skill Configuration (FE8N)", 1189, 898, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public SkillConfigFE8NSkillView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
-            Closed += (_, _) => DisposeBitmap(ref _currentIconBitmap);
+        }
+
+        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnDetachedFromVisualTree(e);
+            DisposeBitmap(ref _currentIconBitmap);
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         static void DisposeBitmap(ref Bitmap? bmp)

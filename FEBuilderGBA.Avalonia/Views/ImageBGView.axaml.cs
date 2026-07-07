@@ -1,4 +1,4 @@
-using global::Avalonia;
+﻿using global::Avalonia;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -507,7 +507,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (safeColorCount < 16) { CoreState.Services.ShowError("Palette pointer is too close to end of ROM"); return; }
                 byte[] pal = ImageUtilCore.GetPalette(palAddr, safeColorCount);
                 if (pal == null || pal.Length < 32) { CoreState.Services.ShowError("Failed to read palette"); return; }
-                await FileDialogHelper.SavePaletteFileVia(TopLevel.GetTopLevel(this) as Window, "bg_palette.pal", p =>
+                await FileDialogHelper.SavePaletteFileVia(TopLevel.GetTopLevel(this), "bg_palette.pal", p =>
                 {
                     // #1639: write via the SAF bridge so Android content:// targets work.
                     PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(p));
@@ -530,7 +530,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     CoreState.Services?.ShowError("No BG entry is selected. Select an entry in the list before importing.");
                     return;
                 }
-                string path = await FileDialogHelper.OpenPaletteFile(TopLevel.GetTopLevel(this) as Window);
+                string path = await FileDialogHelper.OpenPaletteFile(TopLevel.GetTopLevel(this));
                 if (string.IsNullOrEmpty(path)) return;
                 byte[] fileData = File.ReadAllBytes(path);
                 PaletteFormat fmt = PaletteFormatConverter.DetectFormat(fileData, System.IO.Path.GetExtension(path));

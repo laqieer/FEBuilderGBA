@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // SongInstrumentView — Avalonia parity rebuild for #387. Mirrors
 // `SongInstrumentForm` layout (panel1 read-config + AddressPanel master-write
 // + panel2 common-header + 14 instrument tabs + panel4 fingerprint footer).
@@ -616,7 +616,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
             try
             {
-                string? path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this) as Window, R._("Import Wave"), "*.wav");
+                string? path = await FileDialogHelper.OpenFile(TopLevel.GetTopLevel(this), R._("Import Wave"), "*.wav");
                 if (string.IsNullOrEmpty(path)) return;
 
                 byte[] bytes = File.ReadAllBytes(path);

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // Avalonia counterpart of WinForms ImagePalletForm (#400 gap-sweep).
 // Provides a WF-equivalent JumpTo(...) entry point so callers like
 // ImagePortraitView.JumpToPalette_Click can carry the palette
@@ -760,7 +760,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (!_vm.IsLoaded) return;
                 // Pack the 16 displayed colors (incl. unsaved NUD edits).
                 byte[] gbaBytes = ComputeExportBytes();
-                await FileDialogHelper.SavePaletteFileVia(TopLevel.GetTopLevel(this) as Window, "palette.pal", p =>
+                await FileDialogHelper.SavePaletteFileVia(TopLevel.GetTopLevel(this), "palette.pal", p =>
                 {
                     // #1639: write via the SAF bridge so Android content:// targets work.
                     PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(Path.GetExtension(p));
@@ -784,7 +784,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // checks it. The IsLoaded gate alone refuses imports when
                 // no entry has been opened.
                 if (!_vm.IsLoaded) return;
-                string? path = await FileDialogHelper.OpenPaletteFile(TopLevel.GetTopLevel(this) as Window);
+                string? path = await FileDialogHelper.OpenPaletteFile(TopLevel.GetTopLevel(this));
                 if (string.IsNullOrEmpty(path)) return; // cancel = no change
                 byte[] fileData = File.ReadAllBytes(path);
                 PaletteFormat fmt = PaletteFormatConverter.DetectFormat(fileData, Path.GetExtension(path));

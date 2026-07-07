@@ -1,4 +1,4 @@
-using global::Avalonia;
+﻿using global::Avalonia;
 using System;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
@@ -233,7 +233,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // Prompt for the CLEAN ORIGINAL ROM (the ROM as it was before the patch).
             // Faithful to WF UnInstallPatch, which asks the user for a ROM that does
             // NOT contain the patch and restores the traced ranges from it.
-            string? cleanRomPath = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this) as Window);
+            string? cleanRomPath = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this));
             if (string.IsNullOrEmpty(cleanRomPath))
                 return; // cancelled
 

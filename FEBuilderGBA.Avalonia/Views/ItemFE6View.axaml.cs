@@ -1,3 +1,4 @@
+using global::Avalonia;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,15 +12,18 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ItemFE6View : TranslatedWindow, IPickableEditor, IDataVerifiableView
+    public partial class ItemFE6View : TranslatedUserControl, IEmbeddableEditor, IPickableEditor, IDataVerifiableView
     {
         readonly ItemFE6ViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         List<(uint id, string name)> _weaponTypeList = new();
 
         public string ViewTitle => "Items (FE6)";
-        public bool IsLoaded => _vm.IsLoaded;
+        public new bool IsLoaded => _vm.IsLoaded;
+        public EditorDescriptor Descriptor => new("Item Editor (FE6)", 1408, 856, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
 
         public event Action<PickResult>? SelectionConfirmed;
 
@@ -28,7 +32,6 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
             EntryList.SelectionConfirmed += result => SelectionConfirmed?.Invoke(result);
-            Opened += (_, _) => LoadList();
 
             // Set trait flag names (FE6 shares the same trait1/trait2 bit
             // semantics as FE7/FE8 - mirrors PR #569 wiring).
@@ -44,6 +47,16 @@ namespace FEBuilderGBA.Avalonia.Views
             // editable but inert). Mirrors WF `LabelFilter` text field.
             // #649: filter is now an inline slot on the EditorTopBar; the
             // routed FilterTextChanged event handler is wired in AXAML.
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -567,6 +580,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public void EnablePickMode() => EntryList.EnablePickMode();
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         static uint ParseHexText(string? text)
         {

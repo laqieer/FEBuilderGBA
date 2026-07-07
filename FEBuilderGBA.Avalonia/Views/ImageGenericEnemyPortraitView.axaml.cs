@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // ImageGenericEnemyPortraitView code-behind — Image Import/Export parity (#907).
 //
 // Adds a read-only preview render of the selected 32x32 4bpp portrait plus
@@ -134,7 +134,7 @@ namespace FEBuilderGBA.Avalonia.Views
         async void ImportButton_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.IsLoaded) return;
-            string? filePath = await FEBuilderGBA.Avalonia.Dialogs.FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this) as Window);
+            string? filePath = await FEBuilderGBA.Avalonia.Dialogs.FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this));
             if (string.IsNullOrEmpty(filePath)) return;
             RunPortraitImport(filePath);
         }

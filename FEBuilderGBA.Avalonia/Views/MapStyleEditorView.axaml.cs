@@ -1,4 +1,4 @@
-using global::Avalonia;
+﻿using global::Avalonia;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -846,7 +846,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 byte[] gbaBytes = PackPaletteToBytes();
                 // #1639: write via the SAF bridge so Android content:// targets work.
-                string? written = await FileDialogHelper.SavePaletteFileVia(TopLevel.GetTopLevel(this) as Window, "map_style_palette.pal", p =>
+                string? written = await FileDialogHelper.SavePaletteFileVia(TopLevel.GetTopLevel(this), "map_style_palette.pal", p =>
                 {
                     PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(p));
                     byte[] output = PaletteFormatConverter.ExportToFormat(gbaBytes, fmt);
@@ -870,7 +870,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
             try
             {
-                string? path = await FileDialogHelper.OpenPaletteFile(TopLevel.GetTopLevel(this) as Window);
+                string? path = await FileDialogHelper.OpenPaletteFile(TopLevel.GetTopLevel(this));
                 if (string.IsNullOrEmpty(path)) return;
 
                 byte[] fileData = File.ReadAllBytes(path);
@@ -982,7 +982,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
                 // #1639: write via the SAF bridge so Android content:// targets work.
-                string? written = await FileDialogHelper.SaveImageFileVia(TopLevel.GetTopLevel(this) as Window, $"map_style_obj_{_vm.ConfigNo}.png", p =>
+                string? written = await FileDialogHelper.SaveImageFileVia(TopLevel.GetTopLevel(this), $"map_style_obj_{_vm.ConfigNo}.png", p =>
                 {
                     using var stream = File.Create(p);
                     bitmap.Save(stream);
@@ -1220,7 +1220,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
 
-                string? path = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this) as Window);
+                string? path = await FileDialogHelper.OpenImageFile(TopLevel.GetTopLevel(this));
                 if (string.IsNullOrEmpty(path)) return;
 
                 // Decode the source image through the shared SkiaSharp

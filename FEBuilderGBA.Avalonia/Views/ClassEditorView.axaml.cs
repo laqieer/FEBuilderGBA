@@ -1,3 +1,4 @@
+﻿using global::Avalonia;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,13 +11,16 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ClassEditorView : TranslatedWindow, IPickableEditor, IDataVerifiableView
+    public partial class ClassEditorView : TranslatedUserControl, IEmbeddableEditor, IPickableEditor, IDataVerifiableView
     {
         readonly ClassEditorViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _hasLoadedList;
 
         public string ViewTitle => R._("Class Editor");
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
+        public EditorDescriptor Descriptor => new("Class Editor", 1200, 900, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
+        public event EventHandler? CloseRequested;
 
         public event Action<PickResult>? SelectionConfirmed;
 
@@ -25,7 +29,6 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             ClassList.SelectedAddressChanged += OnClassSelected;
             ClassList.SelectionConfirmed += result => SelectionConfirmed?.Invoke(result);
-            Opened += (_, _) => LoadList();
 
             // Ability flag names are set in LoadList() based on ROM version
 
@@ -63,6 +66,16 @@ namespace FEBuilderGBA.Avalonia.Views
             // the portrait or wait-icon field, refresh the card images.
             PortraitIdBox.ValueChanged += OnClassCardInputChanged;
             WaitIconBox.ValueChanged   += OnClassCardInputChanged;
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void LoadList()
@@ -837,6 +850,7 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         void CalculateGrowth_Click(object? sender, RoutedEventArgs e)
         {
@@ -966,7 +980,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (rom == null) return;
                 var addrs = GetAllClassAddresses();
                 if (addrs.Length == 0) return;
-                await MakeCsvManager().ExportAllAsync(this, rom, addrs);
+                await MakeCsvManager().ExportAllAsync(TopLevel.GetTopLevel(this) as Window, rom, addrs);
             }
             catch (Exception ex) { Log.ErrorF("ExportAll_Click failed: {0}", ex.Message); }
         }
@@ -984,7 +998,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // when no selection is resolvable.
                 int idx = ClassList.SelectedOriginalIndex;
                 uint uid = idx >= 0 ? (uint)idx : 0u;
-                await MakeCsvManager().ExportSelectedAsync(this, rom, _vm.CurrentAddr, uid);
+                await MakeCsvManager().ExportSelectedAsync(TopLevel.GetTopLevel(this) as Window, rom, _vm.CurrentAddr, uid);
             }
             catch (Exception ex) { Log.ErrorF("ExportSelected_Click failed: {0}", ex.Message); }
         }
@@ -1000,7 +1014,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var mgr = MakeCsvManager();
                 // Read the CSV FIRST so the undo scope only wraps the
                 // actual ROM writes (matches PR #559 / UnitEditorView).
-                string? csv = await mgr.ReadCsvForUiAsync(this);
+                string? csv = await mgr.ReadCsvForUiAsync(TopLevel.GetTopLevel(this) as Window);
                 if (csv == null) return;
                 _undoService.Begin(R._("Import Classes CSV"));
                 int written;
@@ -1026,7 +1040,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (rom == null) return;
                 if (_vm.CurrentAddr == 0) return;
                 var mgr = MakeCsvManager();
-                string? csv = await mgr.ReadCsvForUiAsync(this);
+                string? csv = await mgr.ReadCsvForUiAsync(TopLevel.GetTopLevel(this) as Window);
                 if (csv == null) return;
                 // #1016: thread the SELECTED class id (0-based AddressList
                 // index) so the FE8U MagicSplit MAG column is read into the

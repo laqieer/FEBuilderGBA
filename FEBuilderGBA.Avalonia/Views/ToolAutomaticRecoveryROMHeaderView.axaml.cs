@@ -1,4 +1,4 @@
-using global::Avalonia;
+﻿using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -32,7 +32,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this) as Window);
+                var path = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this));
                 if (!string.IsNullOrEmpty(path))
                     _vm.OriginalFilename = path;
             }
