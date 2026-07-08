@@ -15,11 +15,14 @@ earliest point: your machine, then the pull request.
 
 The hook is defined in [`.pre-commit-config.yaml`](../.pre-commit-config.yaml)
 (ggshield `v1.52.2`). It is **opt-in** — nothing runs until you install it.
+(The same config also carries an opt-in **commitlint** `commit-msg` hook — see
+[Commit & PR Title Convention](DEPLOYMENT.md#commit--pr-title-convention); the
+combined install command below registers both.)
 
-1. Install [pre-commit](https://pre-commit.com/) (≥ 3.2.0) and the hook:
+1. Install [pre-commit](https://pre-commit.com/) (≥ 3.2.0) and the hooks:
    ```bash
    pip install pre-commit
-   pre-commit install
+   pre-commit install --hook-type pre-commit --hook-type commit-msg
    ```
 2. Authenticate ggshield once (free personal account):
    ```bash

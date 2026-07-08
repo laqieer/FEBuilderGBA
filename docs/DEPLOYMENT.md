@@ -324,6 +324,22 @@ The allowed type list in `commitlint.config.mjs` and the `types:` input of the
 `pr-title` job are kept in sync. A clean, conventional-commit `master` history is
 the prerequisite for the auto-changelog generation tracked by #1632.
 
+**Optional local shift-left (opt-in).** To catch a bad type or a >100-char header
+*before* pushing — instead of discovering it on the red CI check — enable the
+commit-msg hook in [`.pre-commit-config.yaml`](../.pre-commit-config.yaml):
+
+```bash
+pip install pre-commit
+pre-commit install --hook-type pre-commit --hook-type commit-msg
+```
+
+It runs the same `commitlint.config.mjs` at commit time (pinned to commitlint v19
+to match the CI action). Requires Node.js + npm. It is opt-in and bypassable
+(`git commit --no-verify`, or `SKIP=commitlint`), so you are never blocked
+offline and **CI remains the source of truth**. Automated worktree workflows
+should install it in the worktree so agent-authored commits are linted locally
+(see [DEVELOPMENT-WORKFLOW.md](../DEVELOPMENT-WORKFLOW.md)).
+
 ## Automation Roadmap
 
 Future improvements for CI/CD:

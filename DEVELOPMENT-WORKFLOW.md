@@ -206,6 +206,7 @@ Never work directly on master — always create a feature branch.
 **Commit discipline:**
 - One logical change per commit
 - Commit messages reference the issue: `feat: add X (#N)` or `fix: resolve Y (#N)`
+- **Conventional-commit subjects, ≤ 100 chars.** Use a valid type (`build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test`) and keep the header ≤ 100 characters — CI's `Lint commit messages` (`commitlint.config.mjs`) enforces this, and once commits are pushed an over-length subject can't be fixed without a force-push we don't do (squash-merge is the only clean escape). **Catch it before committing** by installing the opt-in local hook *in this worktree* (needs Node.js + npm): `pip install pre-commit && pre-commit install --hook-type commit-msg`. See [CONTRIBUTING.md](CONTRIBUTING.md#commit--pr-title-convention).
 - **When using Claude Code automation:** commit as `laqieer <laqieer@126.com>` (human contributors use their own identity)
 - Every commit must build and pass tests
 

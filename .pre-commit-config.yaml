@@ -1,7 +1,7 @@
 # Pre-commit hooks for FEBuilderGBA (opt-in). Enable with:
 #   pip install pre-commit
-#   pre-commit install
-# See docs/SECRET-SCANNING.md for setup, auth, and the escape hatch. (#1903)
+#   pre-commit install --hook-type pre-commit --hook-type commit-msg
+# See docs/SECRET-SCANNING.md for setup, auth, and the escape hatch. (#1903, #1918)
 repos:
   # GitGuardian ggshield — shift-left secret scanning. Blocks a commit that would
   # introduce a secret. Requires `ggshield auth login` (or a GITGUARDIAN_API_KEY
@@ -11,3 +11,21 @@ repos:
     hooks:
       - id: ggshield
         language_version: python3
+
+  # commitlint — shift-left the CI "Lint commit messages" check (#1918). Validates
+  # the commit message against commitlint.config.mjs (the SAME config the CI
+  # `commits` job uses), catching a bad type or a >100-char header BEFORE push.
+  # Pinned to v9.22.0, which bundles @commitlint/cli v19 — matching CI's
+  # wagoid/commitlint-github-action@v6 — so local and CI evaluate identically.
+  # Requires Node.js + npm (pre-commit bootstraps a node env on first run, needs
+  # network the first time). Merge/Revert/fixup!/squash! messages are auto-ignored.
+  # NOTE: `stages: [commit-msg]` is REQUIRED here — this hook's upstream
+  # .pre-commit-hooks.yaml declares no stage, so without it the hook would also
+  # run at the default `pre-commit` stage against a stale COMMIT_EDITMSG. Do NOT
+  # drop it as a "redundant stages" cleanup (unlike the ggshield hook above).
+  - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook
+    rev: v9.22.0
+    hooks:
+      - id: commitlint
+        stages: [commit-msg]
+        additional_dependencies: ['@commitlint/config-conventional@19']
