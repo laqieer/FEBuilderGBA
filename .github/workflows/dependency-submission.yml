@@ -1,0 +1,59 @@
+# Version-controlled NuGet dependency submission.
+#
+# Replaces GitHub's repo-managed "Automatic dependency submission" (disabled in
+# repo settings), whose auto-generated `dotnet restore *.csproj` step failed on
+# the workload-gated Avalonia heads — FEBuilderGBA.iOS / .Android / .Android.Tests
+# / .Browser (NETSDK1147: wasm-tools-net9). Those heads are intentionally excluded
+# from FEBuilderGBA.sln, so restoring the SOLUTION needs no mobile/wasm workloads.
+# Committing this workflow keeps the NuGet dependency graph (→ Dependabot alerts)
+# populated for the shipped solution. See issue #1899.
+name: NuGet Dependency Submission
+
+on:
+  push:
+    branches: [ master ]
+  # Self-test: on PRs that touch this workflow, run the restore only (submission is
+  # skipped below) to prove the Linux restore works BEFORE merge.
+  pull_request:
+    paths:
+      - '.github/workflows/dependency-submission.yml'
+  workflow_dispatch:
+
+# contents: write is required to submit the dependency snapshot. The repo-managed
+# dynamic workflow ran with exactly Contents:write + Metadata:read (no id-token),
+# so no OIDC scope is required here.
+permissions:
+  contents: write
+
+concurrency:
+  group: dependency-submission-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  submit-nuget:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '9.0.x'
+
+      # Restore ONLY the solution (excludes the workload-gated heads).
+      # EnableWindowsTargeting lets the net9.0-windows projects (WinForms + Tests +
+      # E2ETests) restore on Linux — this is restore, not build, so no Windows host
+      # is needed. On pull_request this step alone is the pre-merge Linux proof.
+      - name: Restore solution
+        run: dotnet restore FEBuilderGBA.sln -p:EnableWindowsTargeting=true
+
+      - name: Detect and submit NuGet dependencies
+        # Skip submission on PRs (the restore above is the pre-merge proof); submit
+        # only on push to master and manual dispatch.
+        if: github.event_name != 'pull_request'
+        # Pinned to the exact SHA GitHub's own dynamic workflow used (supply-chain hygiene).
+        uses: actions/component-detection-dependency-submission-action@98beaea5a1227f3db476e4c9ca959a0cacd7ac4f
+        with:
+          detectorsCategories: NuGet
+          directoryExclusionList: '**/FEBuilderGBA.iOS/**;**/FEBuilderGBA.Android/**;**/FEBuilderGBA.Android.Tests/**;**/FEBuilderGBA.Browser/**'
