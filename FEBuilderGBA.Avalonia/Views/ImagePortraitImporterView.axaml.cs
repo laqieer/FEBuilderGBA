@@ -134,10 +134,10 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadList();
-                // #1911: show each slot's OWN portrait thumbnail (per-id via tag),
-                // matching the main Portrait editor, so the constant "Quantized
-                // preview" of the loaded source is no longer mistaken for every
-                // character's current portrait.
+                // #1911: show each slot's OWN portrait thumbnail (per-id, resolved by
+                // ListIconLoaders.PortraitLoader), matching the main Portrait editor,
+                // so the constant "Quantized preview" of the loaded source is no longer
+                // mistaken for every character's current portrait.
                 EntryList.SetItemsWithIcons(items, i => ListIconLoaders.PortraitLoader(items, i)); // auto-selects row 0
                 RefreshImportButtonState();
                 _listLoaded = true;
