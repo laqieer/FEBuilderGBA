@@ -456,6 +456,57 @@ namespace FEBuilderGBA.Core.Tests
                 AndroidConfigExtractorCore.EnsureExtracted(new InMemoryAssetSource(files), "", "1.0-1"));
         }
 
+        // ---- IsWithinRoot containment guard (Zip Slip defense, #1915 / CodeQL cs/zipslip) ----
+        // The inline guard in EnsureExtracted is unreachable through the public API (the manifest
+        // filter drops '..'/rooted entries upstream — see Case 9 for the end-to-end behavior), so
+        // these exercise the containment math directly, including the trailing-separator and
+        // sibling-prefix ("root" vs "root-evil") edge cases.
+        [Fact]
+        public void IsWithinRoot_AcceptsPathsInsideRoot()
+        {
+            string root = NewTempDir();
+            try
+            {
+                Assert.True(AndroidConfigExtractorCore.IsWithinRoot(root, Path.Combine(root, "config", "data", "foo.txt")));
+                Assert.True(AndroidConfigExtractorCore.IsWithinRoot(root, Path.Combine(root, "a.txt")));
+                // A trailing separator on the root must not change the verdict.
+                Assert.True(AndroidConfigExtractorCore.IsWithinRoot(root + Path.DirectorySeparatorChar, Path.Combine(root, "x", "y.bin")));
+            }
+            finally { Cleanup(root); }
+        }
+
+        [Fact]
+        public void IsWithinRoot_RejectsEscapesAndSiblingPrefix()
+        {
+            string root = NewTempDir();
+            try
+            {
+                // Parent-traversal escapes (GetFullPath resolves the '..').
+                Assert.False(AndroidConfigExtractorCore.IsWithinRoot(root, Path.Combine(root, "..", "escape.txt")));
+                Assert.False(AndroidConfigExtractorCore.IsWithinRoot(root, Path.Combine(root, "config", "..", "..", "escape.txt")));
+                // A sibling dir merely sharing the root's name as a string prefix must be rejected
+                // (the classic "C:\root" vs "C:\root-evil" bypass the trailing separator prevents).
+                Assert.False(AndroidConfigExtractorCore.IsWithinRoot(root, root + "-evil" + Path.DirectorySeparatorChar + "x.txt"));
+                // The root itself is not strictly "within" the root (a file entry must never target it).
+                Assert.False(AndroidConfigExtractorCore.IsWithinRoot(root, root));
+            }
+            finally { Cleanup(root); }
+        }
+
+        [Fact]
+        public void IsWithinRoot_RejectsEmptyInputs()
+        {
+            string root = NewTempDir();
+            try
+            {
+                Assert.False(AndroidConfigExtractorCore.IsWithinRoot("", Path.Combine(root, "a.txt")));
+                Assert.False(AndroidConfigExtractorCore.IsWithinRoot(root, ""));
+                Assert.False(AndroidConfigExtractorCore.IsWithinRoot(null!, "x"));
+                Assert.False(AndroidConfigExtractorCore.IsWithinRoot(root, null!));
+            }
+            finally { Cleanup(root); }
+        }
+
         static void Cleanup(params string[] dirs)
         {
             foreach (string d in dirs)

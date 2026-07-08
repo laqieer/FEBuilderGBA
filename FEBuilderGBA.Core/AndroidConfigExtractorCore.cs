@@ -144,9 +144,31 @@ namespace FEBuilderGBA
 
             Directory.CreateDirectory(targetRootDir);
 
+            string canonicalRoot = Path.GetFullPath(targetRootDir);
+            string rootWithSep = canonicalRoot.EndsWith(Path.DirectorySeparatorChar)
+                ? canonicalRoot
+                : canonicalRoot + Path.DirectorySeparatorChar;
+            // Case-insensitive filesystems (Windows / default macOS) must compare the root
+            // prefix case-insensitively; Linux is case-sensitive.
+            StringComparison pathComparison = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+
             foreach (string rel in manifest)
             {
-                string destPath = Path.Combine(targetRootDir, ToPlatformPath(rel));
+                // Zip Slip defense (CodeQL cs/zipslip). Canonicalize the destination and confirm it
+                // stays strictly within the extraction root BEFORE any filesystem side effect
+                // (directory creation OR the file write). The StartsWith guard is INLINE on the exact
+                // 'destPath' value that flows to the FileStream sink so CodeQL's barrier recognizes it
+                // (see IsWithinRoot for the same containment math, unit-tested directly). Note the
+                // manifest already dropped '..'/rooted entries via IsSafeRelativePath — this is
+                // defense-in-depth at the sink.
+                string destPath = Path.GetFullPath(Path.Combine(targetRootDir, ToPlatformPath(rel)));
+                if (!destPath.StartsWith(rootWithSep, pathComparison))
+                {
+                    throw new IOException("Archive entry escapes the extraction root: " + rel);
+                }
+
                 string? destDir = Path.GetDirectoryName(destPath);
                 if (!string.IsNullOrEmpty(destDir))
                 {
@@ -314,6 +336,36 @@ namespace FEBuilderGBA
         static string ToPlatformPath(string posixRel)
         {
             return posixRel.Replace('/', Path.DirectorySeparatorChar);
+        }
+
+        /// <summary>
+        /// True iff <paramref name="candidatePath"/> canonicalizes to a location strictly within
+        /// <paramref name="targetRootDir"/> (Zip Slip containment). Mirrors the inline
+        /// <c>cs/zipslip</c> guard in <see cref="EnsureExtracted"/> — the enforcement there is
+        /// deliberately INLINE (not a call to this helper) so CodeQL's <c>cs/zipslip</c> barrier
+        /// recognizes the <c>StartsWith</c> guard on the exact path passed to the <c>FileStream</c>
+        /// sink. This helper exists to unit-test the containment math directly (trailing-separator,
+        /// sibling-prefix like <c>root-evil</c>, exact-root, and <c>..</c> traversal), because the
+        /// inline guard is otherwise unreachable through the public API: the manifest filter
+        /// (<see cref="IsSafeRelativePath"/>) already drops <c>..</c>/rooted entries upstream.
+        /// </summary>
+        public static bool IsWithinRoot(string targetRootDir, string candidatePath)
+        {
+            if (string.IsNullOrEmpty(targetRootDir) || string.IsNullOrEmpty(candidatePath))
+            {
+                return false;
+            }
+
+            string canonicalRoot = Path.GetFullPath(targetRootDir);
+            string rootWithSep = canonicalRoot.EndsWith(Path.DirectorySeparatorChar)
+                ? canonicalRoot
+                : canonicalRoot + Path.DirectorySeparatorChar;
+            StringComparison pathComparison = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+
+            string canonicalDest = Path.GetFullPath(candidatePath);
+            return canonicalDest.StartsWith(rootWithSep, pathComparison);
         }
     }
 }
