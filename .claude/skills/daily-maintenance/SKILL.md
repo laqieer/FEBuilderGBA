@@ -1,6 +1,6 @@
 ---
 name: daily-maintenance
-description: Run the full autonomous daily-maintenance routine for the laqieer/FEBuilderGBA fork end-to-end and unattended — open PRs → discussions → issues → docs/wiki → release, then loop until zero open issues AND zero open PRs. Activate when the user says "daily maintenance", "run the routine", "maintain the project", "auto-maintain", or when the scheduled maintenance prompt fires. Never ask questions — make the best safe decision and proceed, no matter how long it takes.
+description: Run the full autonomous daily-maintenance routine for the laqieer/FEBuilderGBA fork end-to-end and unattended — check CI → open PRs → discussions → issues → docs/wiki → release, then loop until zero open issues AND zero open PRs. Activate when the user says "daily maintenance", "run the routine", "maintain the project", "auto-maintain", or when the scheduled maintenance prompt fires. Never ask questions — make the best safe decision and proceed, no matter how long it takes.
 ---
 
 # Daily Autonomous Maintenance Routine — laqieer/FEBuilderGBA
@@ -30,21 +30,36 @@ Use the **running session's** version (the value injected in the system prompt a
 
 **(g) Clear ALL feedback before merge.** Check ALL THREE channels — unresolved inline review threads (incl. the `copilot-pull-request-reviewer` bot), PR-level conversation comments, and top-level review bodies. Fix every point (never just "acknowledged"), reply, and resolve threads. The repo ruleset blocks merge unless: CI green, branch up-to-date with base (`gh pr update-branch -R laqieer/FEBuilderGBA` after other merges land), AND all conversations resolved.
 
+**(h) Post-merge CI check (keep master green).** After EVERY merge to `master` (a PR merge OR a release tag), re-check master CI once it settles — never assume green. Use the Step 1 recipe: a **required**-check failure is a regression to fix immediately; an **advisory / `continue-on-error`** failure (e.g. the known-flaky `Android Boot Smoke`) that is a confirmed infra flake just gets re-run (`gh run rerun <run-id> --failed`).
+
 ## Steps
 
-1. **OPEN PRs.** For each open PR: run the cross-model Review Gate; post the consolidated comment. Then:
-   - Ready + no concerns → **merge** (`gh pr merge <N> -R laqieer/FEBuilderGBA --merge --delete-branch`).
+1. **CI HEALTH CHECK (run FIRST — keeping master green is a top priority).** Inspect the latest CI on the master tip and act on any real failure. List every **non-green** check-run (not only `failure` — also `timed_out` / `cancelled` / `startup_failure` / `action_required`), paginated, with the owning run/job for follow-up:
+   ```bash
+   gh api --paginate 'repos/laqieer/FEBuilderGBA/commits/master/check-runs?per_page=100' \
+     --jq '.check_runs[]
+            | select(.status=="completed" and (.conclusion | IN("success","skipped","neutral") | not))
+            | "\(.conclusion)\t\(.name)\t\(.details_url)"'
+   ```
+   `details_url` is `.../actions/runs/<run-id>/job/<job-id>` — those ids feed `gh run view <run-id> --job <job-id> --log-failed` (the job id is the job `databaseId`, NOT the URL number; or just `gh run view <run-id> --log-failed` for the whole run). Note advisory `continue-on-error` jobs surface here as a failed check-run even though the workflow RUN stays `success`. Classify each non-green check:
+   - **Advisory / non-blocking — safe to just re-run on an infra flake:** any name containing `advisory`, `Gap-sweep`, and **both** Android emulator jobs — `Android Boot Smoke` **and** `Android Emulator Parity` (they share the same `reactivecircus/android-emulator-runner` KVM emulator and its flakes; only boot-smoke is `continue-on-error`, but Parity fails on the *identical* infra). Read the failing step (`--log-failed`): if it is infra — corrupt Android SDK emulator-image download (`Error on ZipFile unknown archive` → `could not connect to TCP port 5554`), emulator boot timeout, or adb — and NOT an app crash / `FATAL EXCEPTION`, just **re-run** it (`gh run rerun <run-id> --failed`, or `gh run rerun <run-id>` for the whole run) and confirm it goes green. Do NOT file an issue for a confirmed flake.
+   - **Any other non-green check = a real regression.** The branch ruleset requires only `build` + `build (ubuntu-latest|macos-latest|windows-latest)`, but treat **every** non-advisory red check as a real failure (e.g. also `Build wasm AppBundle`, `Deploy to GitHub Pages`, `e2e / E2E FE6|FE7J|FE7U|FE8J|FE8U`). Open a tracking issue (`gh issue create -R laqieer/FEBuilderGBA`) capturing the failing check + a log snippet, then FIX it via the full dev workflow (Step 4) — it is the **highest-priority** item this run. Never start a release while master is red. (Release-only checks — `Create GitHub Release`, `WinForms package`, `CLI + Avalonia`, `publish` — appear only on tag runs; evaluate those in Step 6, not here.)
+
+2. **OPEN PRs.** For each open PR: run the cross-model Review Gate; post the consolidated comment. Then:
+   - Ready + no concerns → **merge** (`gh pr merge <N> -R laqieer/FEBuilderGBA --merge --delete-branch`), then **check post-merge CI** per guardrail (h).
    - Not acceptable → **close** with a reason posted as a comment.
    - Needs author work → **leave open** with actionable feedback.
    - `maintainerCanModify` + small fix → **edit the branch** then merge.
 
-2. **DISCUSSIONS.** Review all open discussions + NEW replies. Reply where useful; check Google Docs / image links in them. Create issues to track surfaced bugfixes / feature requests. **DO NOT write code here.** Close old discussions with no follow-up needed.
+3. **DISCUSSIONS.** Review all open discussions + NEW replies. Reply where useful; check Google Docs / image links in them. Create issues to track surfaced bugfixes / feature requests. **DO NOT write code here.** Close old discussions with no follow-up needed.
 
-3. **ISSUES.** Resolve + reply EVERY open issue **ONE BY ONE** via the full dev workflow: plan → cross-model Review Gate on the plan → worktree → implement + tests → PR → cross-model Review Gate on the PR → clear all three feedback channels → merge. Prioritize issues that break core tooling. This can take many cycles — do NOT stop early, do NOT ask.
+4. **ISSUES.** Resolve + reply EVERY open issue **ONE BY ONE** via the full dev workflow: plan → cross-model Review Gate on the plan → worktree → implement + tests → PR → cross-model Review Gate on the PR → clear all three feedback channels → merge → **check post-merge CI** per guardrail (h). Prioritize issues that break core tooling, and any CI-regression issue filed in Step 1. This can take many cycles — do NOT stop early, do NOT ask.
 
-4. **DOCS / WIKI.** Update `README.md`, `docs/`, and the wiki whenever code or behavior changed. (Release notes auto-generate from conventional-commit subjects — see `CHANGELOG.md`; no hand-editing needed.)
+5. **DOCS / WIKI.** Update `README.md`, `docs/`, and the wiki whenever code or behavior changed. (Release notes auto-generate from conventional-commit subjects — see `CHANGELOG.md`; no hand-editing needed.)
 
-5. **RELEASE.** Cut a release when warranted via the tag-triggered pipeline. From up-to-date master:
+6. **RELEASE.** Cut a release when warranted via the tag-triggered pipeline.
+   - **Pre-release CI gate (do this LAST before tagging).** Re-run the Step 1 CI Health Check on the up-to-date master tip. If ANY required check is red, STOP and fix it first — never release from a red master. Only tag once master is green.
+   - From up-to-date master:
    ```bash
    git fetch origin master
    TAG="ver_$(date +%Y%m%d.%H)"          # scheme: ver_YYYYMMDD.HH
@@ -52,6 +67,14 @@ Use the **running session's** version (the value injected in the system prompt a
    git push origin "$TAG"                # fires .github/workflows/release.yml
    ```
    **Decide the version number yourself — never ask.** The workflow builds all platforms (WinForms, CLI ×3 RIDs, Avalonia ×3 RIDs, Android APK) and publishes the GitHub Release with auto-generated grouped notes. The Gitee mirror was removed (#1766) — GitHub is the sole release source; there is no Gitee sync to run. Hold a release when the accumulated change since the last tag is a single same-day chore.
+   - **Verify the release CI + artifacts (do NOT declare the release done until this passes).** Watch `release.yml` for the tag to completion, confirm the run `conclusion == success`, then confirm the GitHub Release actually published the required artifact set:
+   ```bash
+   gh run list -R laqieer/FEBuilderGBA --workflow release.yml --branch "$TAG" \
+     --json status,conclusion,databaseId          # the release run for this tag
+   gh release view "$TAG" -R laqieer/FEBuilderGBA --json isDraft,assets \
+     --jq '{isDraft, assetCount:(.assets|length), assets:[.assets[].name]}'
+   ```
+   Expect `isDraft=false` and the **8 required** platform zips — WinForms + CLI ×3 RIDs + Avalonia ×3 RIDs + Android APK; `release.yml`'s own pre-publish gate already fails the run if any of those 8 is missing. `FEBuilderGBA-ios-unsigned-ipa.zip` is an **optional advisory** 9th asset (attached only when the `continue-on-error` iOS job succeeds), so a valid release may have just 8 assets — do NOT block on iOS alone. If the release run FAILED or a required asset is missing, investigate the failing job (`gh run view <run-id> --log-failed`) and fix / re-run (`gh run rerun <run-id>`) before considering the release complete.
 
 ## Mandatory completion loop
 
@@ -61,4 +84,5 @@ After finishing the current issue list, **RE-SCAN** `gh issue list -R laqieer/FE
 
 - Verify the main worktree is on `master` and clean; prune all implementation + review worktrees (`git worktree remove --force` + `git worktree prune`).
 - Confirm `0` open issues / `0` open PRs.
+- **Confirm master CI is green** (re-run the Step 1 CI Health Check on the final master tip; a red required check means an unfinished regression — do not declare done).
 - Post a concise summary of what was merged/closed/created and the release decision.

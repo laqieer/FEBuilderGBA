@@ -683,13 +683,14 @@ Run `dotnet test FEBuilderGBA.Avalonia.Tests/` before pushing. These tests catch
 
 ## Autonomous Daily Maintenance Routine
 
-An unattended agent (GitHub Copilot CLI) runs a **daily maintenance routine** over this fork. It executes end-to-end without asking for confirmation, following every rule in this document. The routine has five steps:
+An unattended agent (GitHub Copilot CLI) runs a **daily maintenance routine** over this fork. It executes end-to-end without asking for confirmation, following every rule in this document. The routine has six steps:
 
-1. **Open PRs** — cross-model review each; post a consolidated review comment. Merge if ready with no concerns; close with a posted reason if unacceptable; leave open with actionable feedback if author work is needed; edit the branch directly if `maintainerCanModify` and a small change makes it mergeable.
-2. **Discussions** — review all open discussions and any new replies; reply; check Google Docs / image links; create issues to track surfaced bugfixes/feature-requests (no coding in this step).
-3. **Issues** — resolve **and reply to every open issue, one by one**, via the full workflow above (plan → Review Gate → worktree → tests → PR → Review Gate → all-channel comment resolution → merge). Prioritize issues that break core tooling (in-app bug reporter, build, CLI).
-4. **Docs / wiki** — update README, `docs/`, and the wiki whenever code or behavior changed.
-5. **Release** — cut a tag-triggered release when warranted.
+1. **CI health check (first)** — inspect the latest CI on `master`; a non-advisory red check is a real regression → file a tracking issue and fix it via the full workflow before anything else. A confirmed advisory/infra flake (e.g. the Android emulator jobs — corrupt SDK image / emulator boot / adb) is just re-run, not filed. Keep master green.
+2. **Open PRs** — cross-model review each; post a consolidated review comment. Merge if ready with no concerns; close with a posted reason if unacceptable; leave open with actionable feedback if author work is needed; edit the branch directly if `maintainerCanModify` and a small change makes it mergeable. Check post-merge CI after each merge.
+3. **Discussions** — review all open discussions and any new replies; reply; check Google Docs / image links; create issues to track surfaced bugfixes/feature-requests (no coding in this step).
+4. **Issues** — resolve **and reply to every open issue, one by one**, via the full workflow above (plan → Review Gate → worktree → tests → PR → Review Gate → all-channel comment resolution → merge → post-merge CI check). Prioritize issues that break core tooling (in-app bug reporter, build, CLI) and any CI-regression issue filed in step 1.
+5. **Docs / wiki** — update README, `docs/`, and the wiki whenever code or behavior changed.
+6. **Release** — cut a tag-triggered release when warranted, only from a green master; verify the release CI succeeded and all required artifacts published.
 
 ### Non-negotiable rules for the routine
 
