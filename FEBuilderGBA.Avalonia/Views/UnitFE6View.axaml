@@ -97,7 +97,7 @@
             <Border Grid.Column="1" Name="PortraitViewport"
                     Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
                     Margin="8,0,0,0" VerticalAlignment="Top" HorizontalAlignment="Left"
-                    MaxWidth="160" MaxHeight="176">
+                    MaxWidth="256" MaxHeight="272">
               <controls:GbaImageControl AutomationProperties.AutomationId="UnitFE6_Portrait_Image" Name="PortraitImage" />
             </Border>
           </Grid>
