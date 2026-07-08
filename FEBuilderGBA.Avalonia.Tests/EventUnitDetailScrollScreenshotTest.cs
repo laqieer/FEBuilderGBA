@@ -18,6 +18,7 @@ using Xunit.Abstractions;
 
 namespace FEBuilderGBA.Avalonia.Tests
 {
+    [Collection("SharedState")]
     public class EventUnitDetailScrollScreenshotTest
     {
         readonly ITestOutputHelper _output;
@@ -27,12 +28,8 @@ namespace FEBuilderGBA.Avalonia.Tests
         public void EventUnitView_WideWidth_DetailScrollEngages_SavesScreenshot()
         {
             var v = new EventUnitView();
-
-            // Show the FE8 move-path panel (fixed 1094px grid) so the detail content
-            // is genuinely wider than the detail column at this width.
             var panel = v.FindControl<Control>("AfterCoordsPanel");
             Assert.NotNull(panel);
-            panel!.IsVisible = true;
 
             const int VW = 1400, VH = 950;
             // Set the window size explicitly (overrides the view's SizeToContent) so
@@ -43,6 +40,10 @@ namespace FEBuilderGBA.Avalonia.Tests
             v.Show();
             try
             {
+                // Force the FE8 move-path panel visible AFTER Show so the view's
+                // Show-time UI sync (which can re-hide it when a ROM is loaded) can't
+                // flip it back — keeps the overflow measurement deterministic (#1913 review).
+                panel!.IsVisible = true;
                 v.UpdateLayout();
 
                 // Enforced (outside the render try/catch): the detail ScrollViewer

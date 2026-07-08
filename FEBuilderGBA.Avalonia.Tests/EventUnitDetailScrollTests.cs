@@ -15,6 +15,7 @@ using Xunit;
 
 namespace FEBuilderGBA.Avalonia.Tests
 {
+    [Collection("SharedState")]
     public class EventUnitDetailScrollTests
     {
         static ScrollViewer GetDetailScroll(Control v)
@@ -31,11 +32,8 @@ namespace FEBuilderGBA.Avalonia.Tests
             var sv = GetDetailScroll(v);
             Assert.Equal(ScrollBarVisibility.Auto, sv.HorizontalScrollBarVisibility);
 
-            // The FE8 move-path panel (fixed 1094px grid) is gated hidden until a FE8
-            // ROM loads. Force it visible so the detail content is genuinely wide.
             var panel = v.FindControl<Control>("AfterCoordsPanel");
             Assert.NotNull(panel);
-            panel!.IsVisible = true;
 
             // Narrow window: the 220+220+260 list columns leave the detail column far
             // narrower than the 1094px content, so horizontal scrolling must engage.
@@ -44,6 +42,11 @@ namespace FEBuilderGBA.Avalonia.Tests
             v.Show();
             try
             {
+                // Force the FE8 move-path panel (fixed 1094px grid) visible AFTER Show
+                // so the view's Show-time UI sync (which, if a ROM is loaded, can
+                // auto-select a unit and re-hide the panel via UpdateUI) can't flip it
+                // back — keeps the overflow measurement deterministic (#1913 review).
+                panel!.IsVisible = true;
                 v.UpdateLayout();
                 Assert.True(
                     sv.Extent.Width > sv.Viewport.Width,
