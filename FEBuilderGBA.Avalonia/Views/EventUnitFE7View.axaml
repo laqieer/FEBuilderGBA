@@ -32,7 +32,7 @@
     </DockPanel>
 
     <!-- Detail Panel -->
-    <ScrollViewer Grid.Column="3" Margin="4">
+    <ScrollViewer Grid.Column="3" Margin="4" Name="DetailScrollViewer" HorizontalScrollBarVisibility="Auto">
       <StackPanel Spacing="6" Margin="8">
         <TextBlock Text="Event Unit (FE7)" FontSize="18" FontWeight="Bold" />
 
