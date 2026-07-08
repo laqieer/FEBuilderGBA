@@ -529,6 +529,31 @@ namespace FEBuilderGBA.Avalonia.Services
             if (rgbaPixels == null)
                 return ImportOutcome.Fail("Failed to reconstruct RGBA pixels");
 
+            // #1917: reconstruct the eye/mouth animation cells (reseed each cell
+            // from the destination face block, overlay only the cropped feature)
+            // BEFORE the palette is resolved AND before splitting — so (a) a
+            // hackbox sheet whose eye/mouth cells sit on a DIFFERENT background
+            // (e.g. white) than the face key (teal) has that background replaced
+            // by the transparent face background rather than blitted as a solid
+            // rectangle over the face in-game, and (b) AutoQuantize builds its
+            // 16-color palette from the FINAL pixels (no slot wasted on the
+            // discarded cell background — PR #1928 review). Mirrors WinForms
+            // DecreaseColor16, which the preview already runs but the import
+            // previously skipped. Gated to the wizard path (block coords + crops
+            // supplied); drag-drop / "Import PNG" pass null and keep their
+            // existing behaviour. FE7/FE8 only (ImportSheet is already gated).
+            if (crops.HasValue && eyeBlockX.HasValue && eyeBlockY.HasValue
+                && mouthBlockX.HasValue && mouthBlockY.HasValue)
+            {
+                PortraitEyeMouthCrops c = crops.Value;
+                PortraitImportPreviewCore.ReconstructSheetCellsRgba(
+                    rgbaPixels, loadResult.Width, loadResult.Height,
+                    eyeBlockX.Value, eyeBlockY.Value, mouthBlockX.Value, mouthBlockY.Value,
+                    c.EyeX, c.EyeY, c.EyeW, c.EyeH,
+                    c.MouthX, c.MouthY, c.MouthW, c.MouthH,
+                    isFe6: false);
+            }
+
             // Resolve mode-specific palette BEFORE opening the undo scope so
             // a pointer/format failure can't leave a no-op rollback entry.
             byte[] effectivePalette;
@@ -560,28 +585,6 @@ namespace FEBuilderGBA.Avalonia.Services
                     effectivePalette = qr.GBAPalette;
                     break;
                 }
-            }
-
-            // #1917: reconstruct the eye/mouth animation cells (reseed each cell
-            // from the destination face block, overlay only the cropped feature)
-            // BEFORE splitting — so a hackbox sheet whose eye/mouth cells sit on
-            // a DIFFERENT background (e.g. white) than the face key (teal) has
-            // that background replaced by the transparent face background rather
-            // than blitted as a solid rectangle over the face in-game. Mirrors
-            // WinForms DecreaseColor16, which the preview already runs but the
-            // import previously skipped. Gated to the wizard path (block coords +
-            // crops supplied); drag-drop / "Import PNG" pass null and keep their
-            // existing behaviour. FE7/FE8 only (ImportSheet is already gated).
-            if (crops.HasValue && eyeBlockX.HasValue && eyeBlockY.HasValue
-                && mouthBlockX.HasValue && mouthBlockY.HasValue)
-            {
-                PortraitEyeMouthCrops c = crops.Value;
-                PortraitImportPreviewCore.ReconstructSheetCellsRgba(
-                    rgbaPixels, loadResult.Width, loadResult.Height,
-                    eyeBlockX.Value, eyeBlockY.Value, mouthBlockX.Value, mouthBlockY.Value,
-                    c.EyeX, c.EyeY, c.EyeW, c.EyeH,
-                    c.MouthX, c.MouthY, c.MouthW, c.MouthH,
-                    isFe6: false);
             }
 
             var parts = PortraitRendererCore.SplitPortraitSheet(rgbaPixels, loadResult.Width, loadResult.Height);
