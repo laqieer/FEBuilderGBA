@@ -90,6 +90,12 @@ namespace FEBuilderGBA.Avalonia.Services
         public void MarkSaved()
         {
             _lastSavedUndoPosition = CoreState.Undo?.Postion ?? -1;
+            // Keep the undo dirty-state (Undo.IsModified) in sync with disk so the
+            // window-close prompt doesn't fire right after a manual save (#1914).
+            // Only manual/primary-ROM saves call MarkSaved(); the autosave timer
+            // (OnTick) updates _lastSavedUndoPosition directly and must NOT clear
+            // the primary-ROM dirty flag.
+            CoreState.Undo?.MarkFileSaved();
         }
 
         void OnTick()
