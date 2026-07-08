@@ -308,7 +308,8 @@ docs: document the commit/PR-title convention
 ci: lint PR titles and commit messages
 ```
 
-This is enforced **in CI only** — there are no local git hooks, so contributors
+This is enforced authoritatively **in CI** on every pull request; the optional
+local hook documented below is strictly opt-in and bypassable, so contributors
 are never blocked offline. The `.github/workflows/pr-title-lint.yml` workflow
 runs on every pull request and has two jobs:
 
@@ -335,10 +336,12 @@ pre-commit install --hook-type pre-commit --hook-type commit-msg
 
 It runs the same `commitlint.config.mjs` at commit time (pinned to commitlint v19
 to match the CI action). Requires Node.js + npm. It is opt-in and bypassable
-(`git commit --no-verify`, or `SKIP=commitlint`), so you are never blocked
-offline and **CI remains the source of truth**. Automated worktree workflows
-should install it in the worktree so agent-authored commits are linted locally
-(see [DEVELOPMENT-WORKFLOW.md](../DEVELOPMENT-WORKFLOW.md)).
+(`git commit --no-verify`; or skip just this hook — bash/zsh
+`SKIP=commitlint git commit …`, PowerShell
+`$env:SKIP='commitlint'; git commit …; Remove-Item Env:SKIP`), so you are never
+blocked offline and **CI remains the source of truth**. Automated worktree
+workflows should install it in the worktree so agent-authored commits are linted
+locally (see [DEVELOPMENT-WORKFLOW.md](../DEVELOPMENT-WORKFLOW.md)).
 
 ## Automation Roadmap
 
