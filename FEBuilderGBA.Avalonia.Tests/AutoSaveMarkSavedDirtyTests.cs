@@ -53,4 +53,22 @@ public class AutoSaveMarkSavedDirtyTests : System.IDisposable
         PushEdit(1, 0x22);
         Assert.True(CoreState.Undo!.IsModified);
     }
+
+    [Fact]
+    public void UpdateRomFilename_ThenMarkSaved_TracksNewName_AndClearsDirty()
+    {
+        // Save As changes ROM.Filename; RomFileService.SaveRomAsync must point
+        // autosave at the new name (so the sidecar isn't written next to the old
+        // path) AND clear the dirty flag. Verify the UpdateRomFilename+MarkSaved
+        // combo does both (#1914 review).
+        SetupRomAndUndo();
+        PushEdit(0, 0x11);
+        Assert.True(CoreState.Undo!.IsModified);
+
+        AutoSaveService.Instance.UpdateRomFilename("renamed-rom.gba");
+        AutoSaveService.Instance.MarkSaved();
+
+        Assert.Equal("renamed-rom.gba", AutoSaveService.Instance.CurrentRomFilename);
+        Assert.False(CoreState.Undo!.IsModified);
+    }
 }

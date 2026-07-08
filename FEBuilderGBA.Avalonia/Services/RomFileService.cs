@@ -237,6 +237,11 @@ namespace FEBuilderGBA.Avalonia.Services
             // with disk — the single-view shell (and any future caller of this
             // shared service) otherwise never cleared it, so the close prompt would
             // fire even right after Save (#1914). Reached only on success.
+            // This is a Save As (ROM.Filename changed), so point autosave at the new
+            // name BEFORE marking clean — parity with MainWindow.SaveAsRom_Click —
+            // otherwise a running autosave keeps writing its sidecar next to the OLD
+            // ROM path (#1914 review).
+            AutoSaveService.Instance.UpdateRomFilename(displayName);
             AutoSaveService.Instance.MarkSaved();
             return displayName;
         }
