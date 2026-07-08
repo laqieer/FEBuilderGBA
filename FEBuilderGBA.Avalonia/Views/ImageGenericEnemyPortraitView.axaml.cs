@@ -57,7 +57,13 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadList();
-                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.PortraitLoader(items, i));
+                // #1911: do NOT use PortraitLoader here. This list indexes the
+                // generic-enemy portrait table (4-byte entries, own image pointer
+                // + palette at +0x20), NOT the 28-byte main portrait table that
+                // PortraitLoader/LoadPortraitMini read — so a portrait-id icon would
+                // show an unrelated main portrait. WinForms shows no icon in this
+                // list; a dedicated generic-enemy thumbnail loader is a follow-up.
+                EntryList.SetItems(items);
             }
             catch (Exception ex)
             {
