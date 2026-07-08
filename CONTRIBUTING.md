@@ -83,7 +83,7 @@ See [DEVELOPMENT-WORKFLOW.md](DEVELOPMENT-WORKFLOW.md) for the mandatory develop
 
 This repo uses **[GitGuardian ggshield](https://github.com/gitguardian/ggshield)** to catch committed secrets (API keys, tokens) — "shift left" — both locally and in CI. Full setup: **[docs/SECRET-SCANNING.md](docs/SECRET-SCANNING.md)**.
 
-- **Local (opt-in pre-commit hook):** `pip install pre-commit && pre-commit install`, then authenticate once with `ggshield auth login` (or export `GITGUARDIAN_API_KEY`). ggshield then scans each commit and blocks one that would introduce a secret. Escape hatch for a false positive: `SKIP=ggshield git commit …` (or `git commit --no-verify`). Requires pre-commit ≥ 3.2.0.
+- **Local (opt-in pre-commit hook):** `pip install pre-commit && pre-commit install --hook-type pre-commit --hook-type commit-msg` (these `--hook-type` flags register **both** the ggshield secret-scan hook *and* the commitlint commit-msg hook — see [Commit & PR Title Convention](#commit--pr-title-convention)), then authenticate once with `ggshield auth login` (or export `GITGUARDIAN_API_KEY`). ggshield then scans each commit and blocks one that would introduce a secret. Escape hatch for a false positive: `SKIP=ggshield git commit …` (or `git commit --no-verify`). Requires pre-commit ≥ 3.2.0.
 - **CI:** `.github/workflows/ggshield.yml` scans the commit range of each push / PR. It runs only when the `GITGUARDIAN_API_KEY` repo secret is set, so **fork PRs skip it** (secrets aren't shared with forks) and it never breaks the build. It's an advisory (non-required) check — a finding fails the check but doesn't hard-block merge.
 
 ## Commit & PR Title Convention
@@ -103,11 +103,29 @@ release changelogs can be generated reliably from the history:
 Examples: `feat(avalonia): add path-move editor`, `fix(core): guard EOF`,
 `docs: update deployment guide`, `ci: lint PR titles`.
 
-This is enforced **in CI only** (no local git hooks — you are never blocked
-offline). On every pull request, `.github/workflows/pr-title-lint.yml` lints the
-PR title (covers squash merges) and every commit in the PR
+This is enforced **in CI** on every pull request: `.github/workflows/pr-title-lint.yml`
+lints the PR title (covers squash merges) and every commit in the PR
 (covers merge / rebase merges, via `commitlint.config.mjs`). If a check fails,
-edit the offending PR title or commit message to add a valid `<type>:` prefix.
+edit the offending PR title or commit message to add a valid `<type>:` prefix and
+keep the header (the whole `<type>(scope): <subject>` first line) ≤ 100 characters.
+
+To **catch these locally before pushing** (recommended, esp. for automated
+worktree work — the CI check stays the source of truth), enable the **opt-in**
+commit-msg hook in [`.pre-commit-config.yaml`](.pre-commit-config.yaml). It runs
+the same `commitlint.config.mjs` at commit time:
+
+```bash
+pip install pre-commit
+pre-commit install --hook-type pre-commit --hook-type commit-msg   # both ggshield + commitlint
+```
+
+Requires **pre-commit ≥ 3.2.0**; pre-commit provisions its own Node.js toolchain
+on first install (via nodeenv; needs network) — no system Node/npm required.
+Already set up the ggshield hook? Re-run the command above to add commit-msg
+linting (a bare `pre-commit install` only registers the `pre-commit` stage).
+Escape hatch: `git commit --no-verify` (portable), or skip just this hook —
+bash/zsh `SKIP=commitlint git commit …`, PowerShell `$env:SKIP='commitlint'; git commit …; Remove-Item Env:SKIP`.
+You are never blocked offline: the hook is opt-in and bypassable, and CI remains authoritative.
 See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#commit--pr-title-convention) for
 details and the link to the auto-changelog work (#1632).
 

@@ -308,7 +308,8 @@ docs: document the commit/PR-title convention
 ci: lint PR titles and commit messages
 ```
 
-This is enforced **in CI only** — there are no local git hooks, so contributors
+This is enforced authoritatively **in CI** on every pull request; the optional
+local hook documented below is strictly opt-in and bypassable, so contributors
 are never blocked offline. The `.github/workflows/pr-title-lint.yml` workflow
 runs on every pull request and has two jobs:
 
@@ -323,6 +324,25 @@ runs on every pull request and has two jobs:
 The allowed type list in `commitlint.config.mjs` and the `types:` input of the
 `pr-title` job are kept in sync. A clean, conventional-commit `master` history is
 the prerequisite for the auto-changelog generation tracked by #1632.
+
+**Optional local shift-left (opt-in).** To catch a bad type or a >100-char header
+*before* pushing — instead of discovering it on the red CI check — enable the
+commit-msg hook in [`.pre-commit-config.yaml`](../.pre-commit-config.yaml):
+
+```bash
+pip install pre-commit
+pre-commit install --hook-type pre-commit --hook-type commit-msg
+```
+
+It runs the same `commitlint.config.mjs` at commit time (pinned to commitlint v19
+to match the CI action). pre-commit provisions its own Node.js on first install
+(needs network). It is opt-in and bypassable
+(`git commit --no-verify`; or skip just this hook — bash/zsh
+`SKIP=commitlint git commit …`, PowerShell
+`$env:SKIP='commitlint'; git commit …; Remove-Item Env:SKIP`), so you are never
+blocked offline and **CI remains the source of truth**. Automated worktree
+workflows should install it in the worktree so agent-authored commits are linted
+locally (see [DEVELOPMENT-WORKFLOW.md](../DEVELOPMENT-WORKFLOW.md)).
 
 ## Automation Roadmap
 
