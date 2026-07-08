@@ -194,7 +194,7 @@ namespace FEBuilderGBA
                 }
 
                 if (!string.IsNullOrEmpty(patchedIf))
-                    info.Status = CheckPatchInstalled(patchedIf, rom);
+                    info.Status = CheckPatchInstalled(patchedIf, rom, Path.GetDirectoryName(patchFilePath) ?? "");
 
                 // Check dependencies (IF: lines)
                 var allDeps = GetPatchDependencies(patchFilePath, lang);
@@ -222,35 +222,59 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Check if a patch is installed by evaluating a PATCHED_IF condition string.
-        /// Supports fixed-address checks (0xADDR=0xBB 0xBB ...).
-        /// Returns Unknown for GREP-style conditions.
+        /// Fixed <c>0xADDR</c> / bare-hex addresses are hex-parsed directly. Any
+        /// <c>$</c>-prefixed address macro — the full family handled by
+        /// <see cref="PatchMacroAddressResolverCore.Resolve"/>: <c>$GREP</c>/<c>$XGREP</c>/
+        /// <c>$FGREP</c> (with <c>END</c>/<c>ENDA</c>/<c>+skip</c>), <c>$GREP_ENABLE_POINTER</c>,
+        /// <c>$P32</c>/<c>$P32+4</c>, <c>$TEXTID</c>/<c>$TEXTID_P</c>, and the
+        /// <c>$&lt;hexaddr&gt;</c> pointer-indirection form (e.g. <c>$0x0812345</c> reads the
+        /// 32-bit GBA pointer stored at that offset — there is no literal <c>$deref</c> keyword)
+        /// — is resolved through that shared, tested resolver, mirroring WinForms install
+        /// detection (#1919). <paramref name="basedir"/> is the patch's own directory, needed
+        /// to resolve <c>$FGREP</c> (external .bin) patterns.
+        /// Returns <c>Unknown</c> only for a malformed condition (no <c>=</c>, no expected
+        /// bytes, or a fixed address that isn't valid hex). A macro that doesn't resolve
+        /// (<see cref="U.NOT_FOUND"/>, incl. a missing <c>$FGREP</c> file), an out-of-bounds
+        /// address, or a byte mismatch is reported as <c>NotInstalled</c>.
         /// </summary>
         public static PatchStatus CheckPatchInstalled(string condition, ROM rom)
+            => CheckPatchInstalled(condition, rom, "");
+
+        public static PatchStatus CheckPatchInstalled(string condition, ROM rom, string basedir)
         {
             try
             {
-                if (condition.Contains("$GREP", StringComparison.OrdinalIgnoreCase) ||
-                    condition.Contains("$FGREP", StringComparison.OrdinalIgnoreCase))
-                {
-                    return PatchStatus.Unknown;
-                }
-
                 int eqIdx = condition.IndexOf('=');
                 if (eqIdx < 0) return PatchStatus.Unknown;
 
                 string addrStr = condition.Substring(0, eqIdx).Trim();
                 string dataStr = condition.Substring(eqIdx + 1).Trim();
 
-                if (addrStr.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-                    addrStr = addrStr.Substring(2);
-                if (!uint.TryParse(addrStr, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint addr))
-                    return PatchStatus.Unknown;
-
                 byte[] expected = ParseByteArray(dataStr);
                 if (expected.Length == 0) return PatchStatus.Unknown;
 
-                if (addr + expected.Length > rom.Data.Length)
-                    return PatchStatus.NotInstalled;
+                // Fixed addresses keep the original hex parse: patch metadata contains
+                // BARE hex like "2C2F0" that the resolver's atoi0x reads as DECIMAL, so
+                // only $-prefixed macros ($GREP/$XGREP/$FGREP/$P32/$TEXTID/$<addr> deref)
+                // go through the shared resolver (#1919).
+                uint addr;
+                if (addrStr.StartsWith("$", StringComparison.Ordinal))
+                {
+                    addr = PatchMacroAddressResolverCore.Resolve(rom, addrStr, basedir, 0x100);
+                    // NOT_FOUND (0xFFFFFFFF) — the macro/pattern didn't resolve (e.g. a GREP
+                    // pattern absent from the ROM) → the patch is simply not installed.
+                    if (addr == U.NOT_FOUND) return PatchStatus.NotInstalled;
+                }
+                else
+                {
+                    string hex = addrStr.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+                        ? addrStr.Substring(2) : addrStr;
+                    if (!uint.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out addr))
+                        return PatchStatus.Unknown;
+                }
+
+                // (long) widens the add so a huge addr can't wrap past the bounds check.
+                if ((long)addr + expected.Length > rom.Data.Length) return PatchStatus.NotInstalled;
 
                 byte[] actual = rom.getBinaryData(addr, expected.Length);
                 return U.memcmp(expected, actual) == 0

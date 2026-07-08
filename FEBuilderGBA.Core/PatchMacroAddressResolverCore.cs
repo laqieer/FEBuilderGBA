@@ -76,6 +76,9 @@ namespace FEBuilderGBA
                 if (m.Success && m.Groups.Count >= 5)
                 {
                     uint align = U.atoi(m.Groups[2].Value);
+                    // A zero alignment would make U.Grep's `i += blocksize` step never
+                    // advance -> infinite loop / hang. Reject it (a $GREP0 is malformed).
+                    if (align == 0) return U.NOT_FOUND;
                     // Groups[4] is the optional +<skip> integer; empty string -> 0
                     uint skip = string.IsNullOrEmpty(m.Groups[4].Value) ? 0 : U.atoi(m.Groups[4].Value);
                     string endMode = m.Groups[3].Value;  // "ENDA", "END", or ""
