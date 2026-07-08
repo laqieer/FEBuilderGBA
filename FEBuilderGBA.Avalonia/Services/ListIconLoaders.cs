@@ -201,13 +201,14 @@ namespace FEBuilderGBA.Avalonia.Services
         /// </summary>
         /// <remarks>
         /// #1911: the id was previously parsed with <c>U.atoh(items[index].name)</c>,
-        /// but the ImagePortrait / GenericEnemy / wizard VMs format labels as
+        /// but the ImagePortrait / wizard VMs format labels as
         /// <c>"0x{i:X2} &lt;name&gt;"</c> and <c>U.atoh</c> truncates at the <c>'x'</c> →
         /// <c>0</c> for EVERY row, collapsing the whole icon column to portrait 0
-        /// (blank on FE8U). <see cref="ResolvePortraitId"/> strips the optional
-        /// <c>0x</c> prefix first, which fixes those callers while keeping the
-        /// un-prefixed <c>"NN"</c> labels (PortraitViewer / FE6 / UnitIncreaseHeight,
-        /// whose rows carry the id only in the label, tag == 0) working.
+        /// (blank on FE8U). <see cref="ResolvePortraitId"/> prefers the exact
+        /// <c>AddrResult.tag</c>, else strips the optional <c>0x</c> prefix from the
+        /// label — fixing those callers while keeping the un-prefixed <c>"NN"</c>
+        /// labels (PortraitViewer / FE6 / UnitIncreaseHeight, whose rows carry the id
+        /// only in the label, tag == 0) working.
         /// #654: no <c>portraitId == 0</c> guard, so the first row (portrait 0) still
         /// gets its icon — matches WinForms <c>ListBoxEx.DrawImagePortraitAndText</c>.
         /// </remarks>
@@ -224,19 +225,20 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>
-        /// Resolve a portrait-list row's portrait id from its label. Test seam
-        /// (InternalsVisibleTo). Portrait-list VMs format the label as either
-        /// <c>"0x{i:X2} &lt;name&gt;"</c> (ImagePortrait / GenericEnemy / the wizard) or
-        /// un-prefixed <c>"{i:X2} &lt;name&gt;"</c> (PortraitViewer / FE6 / UnitIncreaseHeight);
-        /// the leading token is the id in HEX. Strip an optional <c>0x</c>/<c>0X</c> prefix
-        /// then hex-parse it. NOT plain <c>U.atoh(name)</c> (it truncates <c>"0x09"</c> at
-        /// the <c>'x'</c> → <c>0</c> for every row — #1911) and NOT <c>U.atoi0x</c> (it
-        /// DECIMAL-parses the un-prefixed <c>"0A"</c> label → <c>0</c> for ids ≥ 0x0A).
-        /// Reading <c>item.tag</c> instead would regress the un-prefixed callers whose
-        /// <c>tag</c> is 0 (e.g. UnitIncreaseHeight via <c>EditorFormRef.BuildList</c>).
+        /// Resolve a portrait-list row's portrait id. Test seam (InternalsVisibleTo).
+        /// Prefer the exact id in <see cref="AddrResult.tag"/> when the VM populated it
+        /// (<c>new AddrResult(addr, name, (uint)i)</c>); fall back to the row label for
+        /// lists built via <c>EditorFormRef.BuildList</c> (2-arg ctor → <c>tag == 0</c>,
+        /// e.g. UnitIncreaseHeight), whose id lives only in a <c>"{i:X2} &lt;name&gt;"</c>
+        /// or <c>"0x{i:X2} &lt;name&gt;"</c> label. The label parse strips an optional
+        /// <c>0x</c>/<c>0X</c> prefix then hex-parses. NOT plain <c>U.atoh(name)</c> (it
+        /// truncates <c>"0x09"</c> at the <c>'x'</c> → <c>0</c> — #1911) and NOT
+        /// <c>U.atoi0x</c> (it DECIMAL-parses the un-prefixed <c>"0A"</c> label → <c>0</c>
+        /// for ids ≥ 0x0A).
         /// </summary>
         internal static uint ResolvePortraitId(AddrResult item)
         {
+            if (item.tag != 0) return item.tag;
             string label = item.name ?? string.Empty;
             if (label.StartsWith("0x", System.StringComparison.OrdinalIgnoreCase))
                 label = label.Substring(2);

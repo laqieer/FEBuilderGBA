@@ -61,8 +61,8 @@ namespace FEBuilderGBA.Avalonia.Tests
             // The 3 list-prefix loaders fixed by #654 (ClassIconLoader,
             // ItemIconLoader, PortraitLoader) originally parsed the id from the
             // row text via U.atoh(items[index].name). (PortraitLoader now resolves
-            // the id from AddrResult.tag instead — see #1911 — but still has no
-            // id==0 short-circuit.) Pre-#654, each had an
+            // the id via ResolvePortraitId — AddrResult.tag, else the label — see
+            // #1911 — but still has no id==0 short-circuit.) Pre-#654, each had an
             // `if (xxxId == 0) return null;` immediately after the parse;
             // the fix removed those lines.
             //
