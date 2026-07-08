@@ -9,10 +9,15 @@ namespace FEBuilderGBA.Avalonia.Tests
 {
     public class UnitPortraitZoomLayoutTests
     {
-        const int PortraitWidth = 128;
-        const int PortraitHeight = 112;
-        const double ViewportMaxWidth = 160;
-        const double ViewportMaxHeight = 176;
+        // The real Unit Editor portrait is 96x80 (PortraitRendererCore.DrawPortraitUnit),
+        // so at 2x it is 192x160 — comfortably inside the raised cap with real slack
+        // (not an exact-fit boundary against the 256px width).
+        const int PortraitWidth = 96;
+        const int PortraitHeight = 80;
+        // #1912: the portrait viewport now grows with zoom up to this cap (was 160/176),
+        // so a portrait is fully visible at 2x before the internal scroll takes over.
+        const double ViewportMaxWidth = 256;
+        const double ViewportMaxHeight = 272;
 
         [AvaloniaFact]
         public void UnitEditor_PortraitZoom_IsBoundedAndScrollable()
@@ -61,9 +66,22 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Assert.True(viewport.Bounds.Height <= ViewportMaxHeight + 0.5,
                     $"1x portrait viewport should stay within {ViewportMaxHeight}px; actual {viewport.Bounds.Height:F1}");
                 Assert.True(scroller.Bounds.Width >= PortraitWidth,
-                    "1x full portrait sheet should fit horizontally without clipping.");
+                    "1x portrait should fit horizontally without clipping.");
                 Assert.True(scroller.Bounds.Height >= PortraitHeight,
-                    "1x full portrait sheet should fit vertically without clipping.");
+                    "1x portrait should fit vertically without clipping.");
+
+                // #1912: at 2x the enlarged portrait now fits fully WITHOUT scrolling —
+                // the viewport grows past the old 160/176 cap (up to the new cap) instead
+                // of panning a tiny window.
+                portrait.Zoom = 2;
+                host.UpdateLayout();
+                view.UpdateLayout();
+                Assert.True(viewport.Bounds.Width > 160,
+                    $"2x portrait viewport should grow past the old 160px cap; actual {viewport.Bounds.Width:F1}");
+                Assert.True(scroller.Bounds.Width + 0.5 >= image!.Width,
+                    $"2x portrait should fit horizontally without scrolling; scroller {scroller.Bounds.Width:F1} vs image {image.Width:F1}");
+                Assert.True(scroller.Bounds.Height + 0.5 >= image.Height,
+                    $"2x portrait should fit vertically without scrolling; scroller {scroller.Bounds.Height:F1} vs image {image.Height:F1}");
 
                 portrait.Zoom = GbaImageControl.ZoomMax;
                 host.UpdateLayout();
