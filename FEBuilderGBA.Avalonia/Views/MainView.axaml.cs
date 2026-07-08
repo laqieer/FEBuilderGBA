@@ -248,14 +248,29 @@ namespace FEBuilderGBA.Avalonia.Views
             ("Issue Report", IssueReportUrl),
         };
 
+        // #1907: latest-release link (the newest release, all platform assets). Data-driven
+        // so the flyout item's URL is unit-testable; GitHub's /releases/latest is version-less.
+        internal const string LatestReleaseUrl = "https://github.com/laqieer/FEBuilderGBA/releases/latest";
+        internal static (string Label, string Url) DesktopDownloadLink => ("Download the desktop app", LatestReleaseUrl);
+
         /// <summary>
-        /// Build the overflow "More" MenuFlyout: a Language submenu (live switch via
-        /// <see cref="OptionsViewModel.ApplyLanguage"/>) plus the external-link items.
-        /// Rebuilt on every language change so the item headers relocalize.
+        /// Build the overflow "More" MenuFlyout: a "download the desktop app" CTA, a
+        /// Language submenu (live switch via <see cref="OptionsViewModel.ApplyLanguage"/>),
+        /// plus the external-link items. Rebuilt on every language change so the item
+        /// headers relocalize.
         /// </summary>
         MenuFlyout BuildMoreFlyout()
         {
             var flyout = new MenuFlyout();
+
+            // #1907: prominent "download the desktop app" CTA as the first item, so web /
+            // Android visitors can grab the full desktop Avalonia GUI from the latest release.
+            var (dlLabel, dlUrl) = DesktopDownloadLink;
+            var downloadItem = new MenuItem { Header = R._(dlLabel) };
+            global::Avalonia.Automation.AutomationProperties.SetAutomationId(downloadItem, "Main_AndroidDownloadDesktop_Button");
+            downloadItem.Click += (_, _) => OpenUrl(dlUrl);
+            flyout.Items.Add(downloadItem);
+            flyout.Items.Add(new Separator());
 
             var languageItem = new MenuItem { Header = R._("Language") };
             global::Avalonia.Automation.AutomationProperties.SetAutomationId(languageItem, "Main_AndroidLanguage_Button");

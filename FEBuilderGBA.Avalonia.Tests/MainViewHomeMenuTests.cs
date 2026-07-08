@@ -40,6 +40,19 @@ public class MainViewHomeMenuTests
         Assert.DoesNotContain(links, l => l.Url.Contains("FEBuilderGBA/FEBuilderGBA/", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void DesktopDownloadLink_points_at_the_latest_release()
+    {
+        // GitHub's version-less "latest release" redirect (all platform assets). #1907.
+        Assert.Equal("https://github.com/laqieer/FEBuilderGBA/releases/latest", MainView.LatestReleaseUrl);
+
+        var (label, url) = MainView.DesktopDownloadLink;
+        Assert.Equal("Download the desktop app", label);
+        Assert.Equal(MainView.LatestReleaseUrl, url);
+        Assert.Contains("/releases/latest", url, StringComparison.Ordinal);
+        Assert.DoesNotContain("FEBuilderGBA/FEBuilderGBA/", url, StringComparison.Ordinal);
+    }
+
     [AvaloniaFact]
     public void More_menu_has_language_submenu_and_link_items()
     {
@@ -57,6 +70,14 @@ public class MainViewHomeMenuTests
             Assert.NotNull(moreButton);
 
             var flyout = Assert.IsType<MenuFlyout>(moreButton!.Flyout);
+
+            // #1907: the "download the desktop app" CTA is the FIRST flyout item,
+            // immediately followed by a Separator, then the Language submenu + links.
+            var rawItems = flyout.Items.Cast<object>().ToList();
+            var firstItem = Assert.IsType<MenuItem>(rawItems[0]);
+            Assert.Equal("Main_AndroidDownloadDesktop_Button", AutomationProperties.GetAutomationId(firstItem));
+            Assert.IsType<Separator>(rawItems[1]);
+
             var items = flyout.Items.OfType<MenuItem>().ToList();
 
             // Language submenu present, with one child per available language.
