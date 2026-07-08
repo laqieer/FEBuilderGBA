@@ -246,16 +246,28 @@ namespace FEBuilderGBA
                 byte[] expected = ParseByteArray(dataStr);
                 if (expected.Length == 0) return PatchStatus.Unknown;
 
-                // Resolve the address expression — a fixed 0xADDR or a $GREP/$XGREP/$FGREP/
-                // $P32/$TEXTID macro — with the shared resolver (never throws; returns
-                // U.NOT_FOUND on any failure, e.g. a GREP pattern absent from the ROM).
-                uint addr = PatchMacroAddressResolverCore.Resolve(rom, addrStr, basedir, 0x100);
+                // Fixed addresses keep the original hex parse: patch metadata contains
+                // BARE hex like "2C2F0" that the resolver's atoi0x reads as DECIMAL, so
+                // only $-prefixed macros ($GREP/$XGREP/$FGREP/$P32/$TEXTID/$<addr> deref)
+                // go through the shared resolver (#1925 review).
+                uint addr;
+                if (addrStr.StartsWith("$", StringComparison.Ordinal))
+                {
+                    addr = PatchMacroAddressResolverCore.Resolve(rom, addrStr, basedir, 0x100);
+                    // NOT_FOUND (0xFFFFFFFF) — the macro/pattern didn't resolve (e.g. a GREP
+                    // pattern absent from the ROM) → the patch is simply not installed.
+                    if (addr == U.NOT_FOUND) return PatchStatus.NotInstalled;
+                }
+                else
+                {
+                    string hex = addrStr.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+                        ? addrStr.Substring(2) : addrStr;
+                    if (!uint.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out addr))
+                        return PatchStatus.Unknown;
+                }
 
-                // Guard NOT_FOUND BEFORE the read-back: NOT_FOUND (0xFFFFFFFF) + length
-                // would wrap past the bounds check, then getBinaryData would throw. A
-                // not-found / unresolvable address means the patch is simply not installed.
-                if (addr == U.NOT_FOUND) return PatchStatus.NotInstalled;
-                if (addr + (uint)expected.Length > rom.Data.Length) return PatchStatus.NotInstalled;
+                // (long) widens the add so a huge addr can't wrap past the bounds check.
+                if ((long)addr + expected.Length > rom.Data.Length) return PatchStatus.NotInstalled;
 
                 byte[] actual = rom.getBinaryData(addr, expected.Length);
                 return U.memcmp(expected, actual) == 0

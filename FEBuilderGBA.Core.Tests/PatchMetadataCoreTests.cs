@@ -180,6 +180,25 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void CheckPatchInstalled_BareHexAddr_ParsedAsHex_Installed()
+        {
+            // Regression #1925: patch metadata contains BARE hex addresses (no 0x),
+            // e.g. real FE8J patches "PATCHED_IF:2C2F0=0x00 0x49 0x8F 0x46". These must
+            // parse as HEX (0x2C2F0), not decimal (2). A decimal misparse would read
+            // ROM[2] (0x00) and report NotInstalled.
+            byte[] data = new byte[0x40000];
+            data[0x2C2F0] = 0x00; data[0x2C2F1] = 0x49; data[0x2C2F2] = 0x8F; data[0x2C2F3] = 0x46;
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(data);
+
+            Assert.Equal(PatchMetadataCore.PatchStatus.Installed,
+                PatchMetadataCore.CheckPatchInstalled("2C2F0=0x00 0x49 0x8F 0x46", rom));
+            // Same address, wrong expected bytes -> NotInstalled (still hex-parsed).
+            Assert.Equal(PatchMetadataCore.PatchStatus.NotInstalled,
+                PatchMetadataCore.CheckPatchInstalled("2C2F0=0xFF 0xFF 0xFF 0xFF", rom));
+        }
+
+        [Fact]
         public void CheckPatchInstalled_AddrBeyondRom_NotInstalled()
         {
             byte[] data = new byte[0x10];
