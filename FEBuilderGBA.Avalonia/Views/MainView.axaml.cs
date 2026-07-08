@@ -18,6 +18,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Layout;
@@ -41,10 +42,11 @@ namespace FEBuilderGBA.Avalonia.Views
             TitleText.Text = "FEBuilderGBA";
 
             // #1895: attach the overflow "More" menu (Language / Wiki / Discussions /
-            // Issue Report) and relocalize the whole shell live when the language
-            // changes (MainView otherwise sets its labels only once, here).
+            // Issue Report). The CoreState.LanguageChanged + Host.StackChanged
+            // subscriptions live in OnAttached/OnDetached (below), not the ctor, so a
+            // MainView that is constructed but never attached — headless tests, preview
+            // tooling — doesn't leak a handler on the static LanguageChanged event.
             MoreButton.Flyout = BuildMoreFlyout();
-            CoreState.LanguageChanged += OnLanguageChanged;
 
             // Install the single-view navigation service. Reuse the one already
             // selected by WindowManager when running on Android; otherwise create
@@ -56,16 +58,26 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // Seed the launcher as the root page, then render.
             _nav.SetRoot(BuildLauncher());
-            Host.StackChanged += OnStackChanged;
             UpdateRomActionState();
             RenderTop();
         }
 
-        protected override void OnUnloaded(RoutedEventArgs e)
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            // Subscribe only while attached so a constructed-but-never-attached MainView
+            // (headless tests, preview tooling) can't leak a handler on the static
+            // CoreState.LanguageChanged event or the nav host (#1895 review).
+            Host.StackChanged += OnStackChanged;
+            CoreState.LanguageChanged += OnLanguageChanged;
+            RenderTop();
+        }
+
+        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
         {
             Host.StackChanged -= OnStackChanged;
             CoreState.LanguageChanged -= OnLanguageChanged;
-            base.OnUnloaded(e);
+            base.OnDetachedFromVisualTree(e);
         }
 
         void OnStackChanged()
@@ -291,10 +303,13 @@ namespace FEBuilderGBA.Avalonia.Views
             ApplyTopBarLabels();
             // Rebuild the More menu so its item headers pick up the new language.
             MoreButton.Flyout = BuildMoreFlyout();
-            // Rebuild the launcher so its R._()-based labels relocalize. SetRoot resets
-            // the nav stack — safe on the wasm/Android heads (editor Windows can't open
-            // there). RenderTop then refreshes NavHost + the title.
-            _nav.SetRoot(BuildLauncher());
+            // Rebuild the launcher root so its R._()-based labels relocalize — but ONLY
+            // when it IS the current page. SetRoot resets the whole nav stack, so doing
+            // it while the user is deeper (an editor / options page — which DO open as
+            // pages on the single-view host, #1873) would close that page and lose their
+            // context. Open pages relocalize themselves via their own LanguageChanged hook.
+            if (!Host.CanGoBack)
+                _nav.SetRoot(BuildLauncher());
             RenderTop();
         }
 
