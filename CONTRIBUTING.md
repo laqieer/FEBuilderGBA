@@ -119,7 +119,8 @@ pip install pre-commit
 pre-commit install --hook-type pre-commit --hook-type commit-msg   # both ggshield + commitlint
 ```
 
-Requires **Node.js + npm** (pre-commit bootstraps a node env on first run).
+Requires **pre-commit ≥ 3.2.0**; pre-commit provisions its own Node.js toolchain
+on first install (via nodeenv; needs network) — no system Node/npm required.
 Already set up the ggshield hook? Re-run the command above to add commit-msg
 linting (a bare `pre-commit install` only registers the `pre-commit` stage).
 Escape hatch: `git commit --no-verify` (portable), or skip just this hook —

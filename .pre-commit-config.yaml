@@ -17,8 +17,9 @@ repos:
   # `commits` job uses), catching a bad type or a >100-char header BEFORE push.
   # Pinned to v9.22.0, which bundles @commitlint/cli v19 — matching CI's
   # wagoid/commitlint-github-action@v6 — so local and CI evaluate identically.
-  # Requires Node.js + npm (pre-commit bootstraps a node env on first run, needs
-  # network the first time). Merge/Revert/fixup!/squash! messages are auto-ignored.
+  # pre-commit provisions its own Node.js toolchain on first install (via nodeenv;
+  # needs network) — no system Node/npm required. Merge/Revert/fixup!/squash!
+  # messages are auto-ignored.
   # NOTE: `stages: [commit-msg]` is REQUIRED here — this hook's upstream
   # .pre-commit-hooks.yaml declares no stage, so without it the hook would also
   # run at the default `pre-commit` stage against a stale COMMIT_EDITMSG. Do NOT

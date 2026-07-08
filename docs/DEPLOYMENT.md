@@ -335,7 +335,8 @@ pre-commit install --hook-type pre-commit --hook-type commit-msg
 ```
 
 It runs the same `commitlint.config.mjs` at commit time (pinned to commitlint v19
-to match the CI action). Requires Node.js + npm. It is opt-in and bypassable
+to match the CI action). pre-commit provisions its own Node.js on first install
+(needs network). It is opt-in and bypassable
 (`git commit --no-verify`; or skip just this hook — bash/zsh
 `SKIP=commitlint git commit …`, PowerShell
 `$env:SKIP='commitlint'; git commit …; Remove-Item Env:SKIP`), so you are never
