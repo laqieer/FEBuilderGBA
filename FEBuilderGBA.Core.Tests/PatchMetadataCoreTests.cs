@@ -144,13 +144,18 @@ namespace FEBuilderGBA.Core.Tests
         public void CheckPatchInstalled_GrepZeroAlignment_NoHang_NotInstalled()
         {
             // $GREP0 (zero alignment) must NOT infinite-loop U.Grep (blocksize step 0);
-            // the resolver rejects it -> NotInstalled.
+            // the resolver rejects it -> NotInstalled. Run under a 5s timeout so a
+            // regressed guard fails the test bounded instead of hanging the whole run
+            // (xUnit has no default per-test timeout) — PR #1925 review.
             byte[] data = new byte[0x1000];
             var rom = new ROM();
             rom.SwapNewROMDataDirect(data);
 
-            var status = PatchMetadataCore.CheckPatchInstalled("$GREP0 0xAB=0xAB", rom);
-            Assert.Equal(PatchMetadataCore.PatchStatus.NotInstalled, status);
+            var task = System.Threading.Tasks.Task.Run(() =>
+                PatchMetadataCore.CheckPatchInstalled("$GREP0 0xAB=0xAB", rom));
+            Assert.True(task.Wait(System.TimeSpan.FromSeconds(5)),
+                "CheckPatchInstalled($GREP0) hung — zero-alignment guard missing");
+            Assert.Equal(PatchMetadataCore.PatchStatus.NotInstalled, task.Result);
         }
 
         [Fact]
