@@ -34,15 +34,16 @@ Use the **running session's** version (the value injected in the system prompt a
 
 ## Steps
 
-1. **CI HEALTH CHECK (run FIRST — keep master green is a top priority).** Before anything else, inspect the latest CI on `master` and act on any real failure:
+1. **CI HEALTH CHECK (run FIRST — keeping master green is a top priority).** Inspect the latest CI on the master tip and act on any real failure. List every **non-green** check-run (not only `failure` — also `timed_out` / `cancelled` / `startup_failure` / `action_required`), paginated, with the owning run/job for follow-up:
    ```bash
-   # per-check conclusions on the current master tip (advisory continue-on-error jobs
-   # surface here as a failed check-run even though the workflow RUN is "success")
-   gh api repos/laqieer/FEBuilderGBA/commits/master/check-runs \
-     --jq '.check_runs[] | select(.conclusion=="failure") | .name'
+   gh api --paginate 'repos/laqieer/FEBuilderGBA/commits/master/check-runs?per_page=100' \
+     --jq '.check_runs[]
+            | select(.status=="completed" and (.conclusion | IN("success","skipped","neutral") | not))
+            | "\(.conclusion)\t\(.name)\t\(.details_url)"'
    ```
-   - **Required checks** (`build`, `build (ubuntu-latest|macos-latest|windows-latest)`, `Build wasm AppBundle`, `Cross-Platform Build`, `MSBuild`, `Check`, `Deploy to GitHub Pages`, `e2e / E2E FE6|FE7J|FE7U|FE8J|FE8U`, `Android Emulator Parity`) failing = a **real regression**. Open a tracking issue (`gh issue create -R laqieer/FEBuilderGBA`) capturing the failing check + a log snippet (`gh run view <run-id> --job <job-id> --log-failed`), then FIX it via the full dev workflow (Step 4) — it is the **highest-priority** item this run. Never start a release while master is red.
-   - **Advisory / `continue-on-error` checks** (names containing `advisory`, plus the known-flaky `Android Boot Smoke`) can fail on infra flakes — e.g. a corrupt Android SDK emulator-image download (`Error on ZipFile unknown archive` → `could not connect to TCP port 5554`) — WITHOUT failing the workflow run. Read the failing step (`--log-failed`): if it is infra (image download / emulator boot timeout / adb), NOT an app crash / `FATAL EXCEPTION`, just **re-run** it (`gh run rerun <run-id> --failed`) and confirm it goes green. Do not file an issue for a confirmed flake.
+   `details_url` is `.../actions/runs/<run-id>/job/<job-id>` — those ids feed `gh run view <run-id> --job <job-id> --log-failed` (the job id is the job `databaseId`, NOT the URL number; or just `gh run view <run-id> --log-failed` for the whole run). Note advisory `continue-on-error` jobs surface here as a failed check-run even though the workflow RUN stays `success`. Classify each non-green check:
+   - **Advisory / non-blocking — safe to just re-run on an infra flake:** any name containing `advisory`, `Gap-sweep`, and **both** Android emulator jobs — `Android Boot Smoke` **and** `Android Emulator Parity` (they share the same `reactivecircus/android-emulator-runner` KVM emulator and its flakes; only boot-smoke is `continue-on-error`, but Parity fails on the *identical* infra). Read the failing step (`--log-failed`): if it is infra — corrupt Android SDK emulator-image download (`Error on ZipFile unknown archive` → `could not connect to TCP port 5554`), emulator boot timeout, or adb — and NOT an app crash / `FATAL EXCEPTION`, just **re-run** it (`gh run rerun <run-id> --failed`, or `gh run rerun <run-id>` for the whole run) and confirm it goes green. Do NOT file an issue for a confirmed flake.
+   - **Any other non-green check = a real regression.** The branch ruleset requires only `build` + `build (ubuntu-latest|macos-latest|windows-latest)`, but treat **every** non-advisory red check as a real failure (e.g. also `Build wasm AppBundle`, `Deploy to GitHub Pages`, `e2e / E2E FE6|FE7J|FE7U|FE8J|FE8U`). Open a tracking issue (`gh issue create -R laqieer/FEBuilderGBA`) capturing the failing check + a log snippet, then FIX it via the full dev workflow (Step 4) — it is the **highest-priority** item this run. Never start a release while master is red. (Release-only checks — `Create GitHub Release`, `WinForms package`, `CLI + Avalonia`, `publish` — appear only on tag runs; evaluate those in Step 6, not here.)
 
 2. **OPEN PRs.** For each open PR: run the cross-model Review Gate; post the consolidated comment. Then:
    - Ready + no concerns → **merge** (`gh pr merge <N> -R laqieer/FEBuilderGBA --merge --delete-branch`), then **check post-merge CI** per guardrail (h).
@@ -66,14 +67,14 @@ Use the **running session's** version (the value injected in the system prompt a
    git push origin "$TAG"                # fires .github/workflows/release.yml
    ```
    **Decide the version number yourself — never ask.** The workflow builds all platforms (WinForms, CLI ×3 RIDs, Avalonia ×3 RIDs, Android APK) and publishes the GitHub Release with auto-generated grouped notes. The Gitee mirror was removed (#1766) — GitHub is the sole release source; there is no Gitee sync to run. Hold a release when the accumulated change since the last tag is a single same-day chore.
-   - **Verify the release CI + artifacts (do NOT declare the release done until this passes).** Watch `release.yml` for the tag to completion, confirm the run `conclusion == success`, then confirm the GitHub Release actually published the FULL expected artifact set:
+   - **Verify the release CI + artifacts (do NOT declare the release done until this passes).** Watch `release.yml` for the tag to completion, confirm the run `conclusion == success`, then confirm the GitHub Release actually published the required artifact set:
    ```bash
-   gh run list -R laqieer/FEBuilderGBA --workflow release.yml --limit 3 \
-     --json headBranch,status,conclusion,databaseId    # find the run for <TAG>
+   gh run list -R laqieer/FEBuilderGBA --workflow release.yml --branch "$TAG" \
+     --json status,conclusion,databaseId          # the release run for this tag
    gh release view "$TAG" -R laqieer/FEBuilderGBA --json isDraft,assets \
      --jq '{isDraft, assetCount:(.assets|length), assets:[.assets[].name]}'
    ```
-   Expect `isDraft=false` and the full platform set — WinForms zip, CLI ×3 RIDs, Avalonia ×3 RIDs, Android APK (≈9 assets). If the release run FAILED or any expected artifact is missing, investigate the failing job (`gh run view <run-id> --job <job-id> --log-failed`) and fix / re-run (`gh run rerun <run-id> --failed`) before considering the release complete.
+   Expect `isDraft=false` and the **8 required** platform zips — WinForms + CLI ×3 RIDs + Avalonia ×3 RIDs + Android APK; `release.yml`'s own pre-publish gate already fails the run if any of those 8 is missing. `FEBuilderGBA-ios-unsigned-ipa.zip` is an **optional advisory** 9th asset (attached only when the `continue-on-error` iOS job succeeds), so a valid release may have just 8 assets — do NOT block on iOS alone. If the release run FAILED or a required asset is missing, investigate the failing job (`gh run view <run-id> --log-failed`) and fix / re-run (`gh run rerun <run-id>`) before considering the release complete.
 
 ## Mandatory completion loop
 
