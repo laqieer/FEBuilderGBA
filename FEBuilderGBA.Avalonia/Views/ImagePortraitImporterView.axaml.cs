@@ -500,12 +500,22 @@ namespace FEBuilderGBA.Avalonia.Views
                 // keeps Slice A's intent self-documenting at the call site).
                 byte? mouthBlockX = null, mouthBlockY = null;
                 byte? eyeBlockX = null, eyeBlockY = null;
+                PortraitImportHelper.PortraitEyeMouthCrops? crops = null;
                 if (PortraitImportHelper.IsFe7Or8EntryLayout(rom))
                 {
                     mouthBlockX = (byte)(MouthBlockXInput?.Value ?? 0);
                     mouthBlockY = (byte)(MouthBlockYInput?.Value ?? 0);
                     eyeBlockX   = (byte)(EyeBlockXInput?.Value   ?? 0);
                     eyeBlockY   = (byte)(EyeBlockYInput?.Value   ?? 0);
+                    // #1917: pass the Detail-panel eye/mouth crop rects so the
+                    // 128x112 sheet import reconstructs the animation cells the
+                    // same way the live preview does (RenderFramePreview) — the
+                    // reporter's smear was the un-reconstructed opaque cell bg.
+                    crops = new PortraitImportHelper.PortraitEyeMouthCrops(
+                        (int)(EyeCropXInput?.Value   ?? 0), (int)(EyeCropYInput?.Value   ?? 0),
+                        (int)(EyeCropWInput?.Value   ?? 0), (int)(EyeCropHInput?.Value   ?? 0),
+                        (int)(MouthCropXInput?.Value ?? 0), (int)(MouthCropYInput?.Value ?? 0),
+                        (int)(MouthCropWInput?.Value ?? 0), (int)(MouthCropHInput?.Value ?? 0));
                 }
 
                 // Single source of truth: PortraitImportHelper. Same path used
@@ -514,7 +524,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     rom, addr, loadResult, _undoService,
                     mode, _customPaletteBytes, FuchidoriEnabled,
                     "Import Portrait Image (Wizard)",
-                    mouthBlockX, mouthBlockY, eyeBlockX, eyeBlockY);
+                    mouthBlockX, mouthBlockY, eyeBlockX, eyeBlockY, crops);
 
                 if (!outcome.Success)
                 {
