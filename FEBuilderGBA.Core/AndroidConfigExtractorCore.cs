@@ -356,16 +356,18 @@ namespace FEBuilderGBA
                 return false;
             }
 
-            string canonicalRoot = Path.GetFullPath(targetRootDir);
-            string rootWithSep = canonicalRoot.EndsWith(Path.DirectorySeparatorChar)
-                ? canonicalRoot
-                : canonicalRoot + Path.DirectorySeparatorChar;
             StringComparison pathComparison = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
                 ? StringComparison.OrdinalIgnoreCase
                 : StringComparison.Ordinal;
 
-            string canonicalDest = Path.GetFullPath(candidatePath);
-            return canonicalDest.StartsWith(rootWithSep, pathComparison);
+            // Trim any trailing separator so the root and "root/" compare equal: the root itself
+            // (with or without a trailing separator) is never *strictly within* the root.
+            char sep = Path.DirectorySeparatorChar;
+            string canonicalRoot = Path.GetFullPath(targetRootDir).TrimEnd(sep);
+            string canonicalDest = Path.GetFullPath(candidatePath).TrimEnd(sep);
+
+            return canonicalDest.Length > canonicalRoot.Length
+                && canonicalDest.StartsWith(canonicalRoot + sep, pathComparison);
         }
     }
 }

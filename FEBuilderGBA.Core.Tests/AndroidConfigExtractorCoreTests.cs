@@ -487,8 +487,11 @@ namespace FEBuilderGBA.Core.Tests
                 // A sibling dir merely sharing the root's name as a string prefix must be rejected
                 // (the classic "C:\root" vs "C:\root-evil" bypass the trailing separator prevents).
                 Assert.False(AndroidConfigExtractorCore.IsWithinRoot(root, root + "-evil" + Path.DirectorySeparatorChar + "x.txt"));
-                // The root itself is not strictly "within" the root (a file entry must never target it).
+                // The root itself is not strictly "within" the root (a file entry must never target it),
+                // in either the bare or the trailing-separator form.
                 Assert.False(AndroidConfigExtractorCore.IsWithinRoot(root, root));
+                Assert.False(AndroidConfigExtractorCore.IsWithinRoot(root, root + Path.DirectorySeparatorChar));
+                Assert.False(AndroidConfigExtractorCore.IsWithinRoot(root + Path.DirectorySeparatorChar, root));
             }
             finally { Cleanup(root); }
         }
