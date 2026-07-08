@@ -598,7 +598,6 @@ namespace FEBuilderGBA
             CoreState.GetLevelMaxCaps = PatchUtil.GetLevelMaxCaps;
             CoreState.IsHighClass = ClassForm.isHighClass;
             CoreState.GetCCCount = CCBranchForm.GetCCCount;
-            CoreState.TextEncoding = (TextEncodingEnum)OptionForm.textencoding();
 
             //数を求める部分はあまりにたくさん呼び出すのでキャッシュすることにしました.
             InputFormRef.ClearCacheDataCount();
@@ -613,6 +612,15 @@ namespace FEBuilderGBA
 
             //tbl適応判定
             OptionForm.AutoUpdateTBLOption();
+
+            //#1924: capture the text encoding AFTER AutoUpdateTBLOption has
+            //auto-detected the ROM's TBL and rewritten Config["func_textencoding"].
+            //Capturing it earlier (before AutoUpdate) used the PREVIOUS ROM's
+            //encoding, so the first FE6 load decoded with the wrong table (garbage
+            //kana/kanji) until a second FE6 load. ClearCacheDataCount above already
+            //reset g_Cache_textencoding, so textencoding() re-reads the freshly
+            //written Config; SystemTextEncoder.Build() consumes CoreState.TextEncoding.
+            CoreState.TextEncoding = (TextEncodingEnum)OptionForm.textencoding();
 
             //システム側のテキストエンコード どうやってUnicodeにするかどうか.
             ReBuildSystemTextEncoder();
@@ -725,6 +733,11 @@ namespace FEBuilderGBA
 
             //件数キャッシュの再構築
             InputFormRef.ClearCacheDataCount();
+
+            //#1924: refresh the captured encoding before rebuilding the encoder so a
+            //user-changed encoding (Options -> Save) is honoured immediately, not only
+            //on the next ROM load. ClearCacheDataCount above cleared g_Cache_textencoding.
+            CoreState.TextEncoding = (TextEncodingEnum)OptionForm.textencoding();
 
             //システム側のテキストエンコード いかにしてUnicodeにするかどうか.
             ReBuildSystemTextEncoder();
