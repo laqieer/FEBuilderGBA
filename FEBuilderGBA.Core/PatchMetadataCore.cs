@@ -224,7 +224,8 @@ namespace FEBuilderGBA
         /// Check if a patch is installed by evaluating a PATCHED_IF condition string.
         /// Fixed <c>0xADDR</c> / bare-hex addresses are hex-parsed directly; the full
         /// address-macro family (<c>$GREP</c>/<c>$XGREP</c>/<c>$FGREP</c> — incl.
-        /// <c>END</c>/<c>ENDA</c>/<c>+skip</c> — plus <c>$P32</c>/<c>$TEXTID</c>/<c>$deref</c>)
+        /// <c>END</c>/<c>ENDA</c>/<c>+skip</c> — plus <c>$P32</c>/<c>$TEXTID</c> and the
+        /// <c>$0xNNN</c> pointer-deref form)
         /// is resolved via the shared, tested <see cref="PatchMacroAddressResolverCore"/>,
         /// mirroring WinForms install detection (#1919). <paramref name="basedir"/> is the
         /// patch's own directory, needed to resolve <c>$FGREP</c> (external .bin) patterns.
