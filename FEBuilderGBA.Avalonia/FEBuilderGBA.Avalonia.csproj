@@ -76,7 +76,7 @@
          browser #1864). -->
     <PackageReference Include="Avalonia.Desktop" Version="11.2.3" Condition="'$(IsHeadTfm)' != 'true'" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" Condition="'$(IsHeadTfm)' != 'true'" />
-    <PackageReference Include="Tmds.DBus.Protocol" Version="0.21.3" />
+    <PackageReference Include="Tmds.DBus.Protocol" Version="0.21.3" Condition="'$(IsHeadTfm)' != 'true'" />
   </ItemGroup>
   <ItemGroup Condition="'$(IsHeadTfm)' == 'true'">
     <!-- Desktop-only sources excluded on the head TFMs (android #1121, iOS #1859, browser #1864):
