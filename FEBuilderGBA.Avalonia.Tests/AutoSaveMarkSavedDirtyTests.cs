@@ -14,11 +14,16 @@ public class AutoSaveMarkSavedDirtyTests : System.IDisposable
 {
     readonly ROM? _prevRom = CoreState.ROM;
     readonly Undo? _prevUndo = CoreState.Undo;
+    // UpdateRomFilename mutates the AutoSaveService singleton's tracked filename;
+    // snapshot + restore it so this class doesn't leave global state changed for
+    // later tests (#1914 review).
+    readonly string _prevAutoSaveRomFilename = AutoSaveService.Instance.CurrentRomFilename;
 
     public void Dispose()
     {
         CoreState.ROM = _prevRom;
         CoreState.Undo = _prevUndo;
+        AutoSaveService.Instance.UpdateRomFilename(_prevAutoSaveRomFilename);
     }
 
     static void SetupRomAndUndo()
