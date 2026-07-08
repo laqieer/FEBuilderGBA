@@ -6,7 +6,6 @@
 // ScrollViewer in all three EventUnit views. These headless tests assert the
 // realized property (not a source string) and, for FE8, that horizontal scrolling
 // actually engages (Extent.Width > Viewport.Width) at a narrow width.
-using System.Linq;
 using global::Avalonia.Controls;
 using global::Avalonia.Controls.Primitives;
 using global::Avalonia.Headless.XUnit;
