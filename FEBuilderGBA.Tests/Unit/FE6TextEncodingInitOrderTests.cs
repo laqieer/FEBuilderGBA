@@ -48,17 +48,19 @@ namespace FEBuilderGBA.Tests.Unit
                 savedCfg = Program.Config.at("func_textencoding");
 
                 // Baseline: a real FE6 load establishes Program.ROM + valid form state
-                // (so the later ClearCacheDataCount doesn't NRE on a null ROM).
+                // (so the later ClearCacheDataCount doesn't NRE on a null ROM) AND tells us
+                // what encoding THIS FE6 actually auto-detects.
                 Assert.True(Program.LoadROM(fe6, ""), "FE6 must load (baseline)");
                 Assert.Equal(6, Program.ROM.RomInfo.version);
+                int fe6Detected = (int)U.atoi(Program.Config.at("func_textencoding"));
 
-                // Simulate a stale prior state: a DIFFERENT encoding than FE6 auto-detects,
-                // with the OptionForm cache cleared so the pre-fix early read (InitSystem, the
-                // capture that USED to sit before AutoUpdateTBLOption) would pick up THIS value.
-                // The reporter's real trigger is the PREVIOUS ROM's detected encoding; forcing
-                // it makes the regression deterministic regardless of which sample ROMs exist.
-                const int StalePrior = 5; // any value != FE6's detected TBL
-                Program.Config["func_textencoding"] = StalePrior.ToString();
+                // Simulate a stale prior state with an encoding GUARANTEED to differ from FE6's
+                // detection (so the regression is exercised even for a fansub ROM that itself
+                // detects a non-Auto TBL), with the OptionForm cache cleared so the pre-fix early
+                // read (the capture that USED to sit before AutoUpdateTBLOption) would pick it up.
+                // The reporter's real trigger is the PREVIOUS ROM's detected encoding.
+                int stalePrior = fe6Detected + 1;
+                Program.Config["func_textencoding"] = stalePrior.ToString();
                 InputFormRef.ClearCacheDataCount();
 
                 // Reload FE6: InitSystem auto-detects FE6's TBL (rewriting Config away from the
@@ -68,9 +70,10 @@ namespace FEBuilderGBA.Tests.Unit
                 Assert.Equal(6, Program.ROM.RomInfo.version);
 
                 int detected = (int)U.atoi(Program.Config.at("func_textencoding"));
-                _output.WriteLine($"stale={StalePrior}, FE6 detected={detected}, CoreState.TextEncoding={(int)CoreState.TextEncoding}");
-                Assert.NotEqual(StalePrior, detected);                // detection changed it (regression scenario exercised)
-                Assert.Equal(detected, (int)CoreState.TextEncoding);  // fix: captured == detected (pre-fix would be StalePrior)
+                _output.WriteLine($"stale={stalePrior}, FE6 detected={detected}, CoreState.TextEncoding={(int)CoreState.TextEncoding}");
+                Assert.Equal(fe6Detected, detected);                  // detection is stable (AutoUpdate rewrote the stale value back)
+                Assert.NotEqual(stalePrior, detected);                // stale != detected (guaranteed by construction)
+                Assert.Equal(detected, (int)CoreState.TextEncoding);  // fix: captured == detected (pre-fix would be stalePrior)
             }
             finally
             {
