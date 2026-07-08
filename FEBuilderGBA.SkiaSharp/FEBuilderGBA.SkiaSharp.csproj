@@ -10,6 +10,7 @@
          native — managed 3.116 rejects native 2.88 ("88.1") and crashes on
          Linux/macOS where Avalonia ships only the 2.88 native (#796 / #798 CI).
          Avalonia 11.x is not compatible with SkiaSharp 3.x. -->
+    <PackageReference Include="SharpCompress" Version="0.48.0" />
     <PackageReference Include="SkiaSharp" Version="2.88.9" />
   </ItemGroup>
   <ItemGroup>
