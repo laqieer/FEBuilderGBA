@@ -115,7 +115,12 @@ namespace FEBuilderGBA.Avalonia.Services
 
             // Init export function + undo.
             CoreState.ExportFunction ??= new ExportFunction();
-            CoreState.Undo ??= new Undo();
+            // The undo buffer holds byte-deltas for THIS ROM (and, since #1914, a
+            // meaningful saved-position marker), so it must be recreated on every
+            // ROM load — reusing it across loads would leave a freshly opened ROM
+            // falsely "dirty" and could replay the previous ROM's deltas on Undo.
+            // Mirrors the UseTextIDCache "recreate on EVERY ROM load" pattern above.
+            CoreState.Undo = new Undo();
 
             // Init event scripts.
             try
@@ -227,6 +232,17 @@ namespace FEBuilderGBA.Avalonia.Services
                 displayName = file.Name ?? "rom.gba";
                 CoreState.ROM.Filename = displayName;
             }
+            // Mark the ROM clean after a successful primary-ROM write so the undo
+            // dirty-state (Undo.IsModified) and autosave skip-position stay in sync
+            // with disk — the single-view shell (and any future caller of this
+            // shared service) otherwise never cleared it, so the close prompt would
+            // fire even right after Save (#1914). Reached only on success.
+            // This is a Save As (ROM.Filename changed), so point autosave at the new
+            // name BEFORE marking clean — parity with MainWindow.SaveAsRom_Click —
+            // otherwise a running autosave keeps writing its sidecar next to the OLD
+            // ROM path (#1914 review).
+            AutoSaveService.Instance.UpdateRomFilename(displayName);
+            AutoSaveService.Instance.MarkSaved();
             return displayName;
         }
     }

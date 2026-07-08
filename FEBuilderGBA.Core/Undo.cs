@@ -65,6 +65,19 @@ namespace FEBuilderGBA
         /// meaning the ROM has unsaved modifications.
         /// </summary>
         public bool IsModified => Postion != PostionWhenFileSaving;
+
+        /// <summary>
+        /// Record the current undo position as the on-disk saved position, so
+        /// <see cref="IsModified"/> reports false until the next edit. Call after
+        /// persisting the primary ROM (manual Save / Save As). Without this the
+        /// saved marker never advances and <see cref="IsModified"/> stays stuck
+        /// true after the first edit, so the Avalonia close prompt fires even
+        /// right after a save (#1914).
+        /// </summary>
+        public void MarkFileSaved()
+        {
+            this.PostionWhenFileSaving = this.Postion;
+        }
         byte[] RollBackCancelBackup; //ロールバックをキャンセルするためのバックアップ
 
         public Undo()
@@ -117,6 +130,18 @@ namespace FEBuilderGBA
 
             if (this.Postion < this.UndoBuffer.Count)
             {//常に先頭に追加したいので、リスト中に戻っている場合は、それ以降を消す.
+                // If the on-disk saved snapshot lives in the redo branch we are
+                // about to discard (PostionWhenFileSaving > Postion), that state is
+                // no longer reachable by undo — invalidate the marker so IsModified
+                // stays true (dirty) until the next save. Otherwise "edit → save →
+                // undo → re-edit differently" would leave Postion == the stale
+                // saved position and silently report clean, suppressing the close
+                // prompt on genuinely unsaved work (#1914). Postion is always >= 0,
+                // so -1 can never spuriously match a real position.
+                if (this.PostionWhenFileSaving > this.Postion)
+                {
+                    this.PostionWhenFileSaving = -1;
+                }
                 this.UndoBuffer.RemoveRange(this.Postion, this.UndoBuffer.Count - this.Postion);
                 //状況が変わるので、ロールバックバッファを破棄
                 this.RollBackCancelBackup = null;
