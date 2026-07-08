@@ -222,13 +222,16 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Check if a patch is installed by evaluating a PATCHED_IF condition string.
-        /// Supports fixed-address checks (<c>0xADDR=0xBB 0xBB ...</c>) and the full
+        /// Fixed <c>0xADDR</c> / bare-hex addresses are hex-parsed directly; the full
         /// address-macro family (<c>$GREP</c>/<c>$XGREP</c>/<c>$FGREP</c> — incl.
-        /// <c>END</c>/<c>ENDA</c>/<c>+skip</c> — plus <c>$P32</c>/<c>$TEXTID</c>) via the
-        /// shared, tested <see cref="PatchMacroAddressResolverCore"/>, mirroring WinForms
-        /// install detection (#1919). <paramref name="basedir"/> is the patch's own
-        /// directory, needed to resolve <c>$FGREP</c> (external .bin) patterns.
-        /// Returns Unknown only when the condition can't be parsed at all.
+        /// <c>END</c>/<c>ENDA</c>/<c>+skip</c> — plus <c>$P32</c>/<c>$TEXTID</c>/<c>$deref</c>)
+        /// is resolved via the shared, tested <see cref="PatchMacroAddressResolverCore"/>,
+        /// mirroring WinForms install detection (#1919). <paramref name="basedir"/> is the
+        /// patch's own directory, needed to resolve <c>$FGREP</c> (external .bin) patterns.
+        /// Returns <c>Unknown</c> only for a malformed condition (no <c>=</c>, no expected
+        /// bytes, or a fixed address that isn't valid hex). A macro that doesn't resolve
+        /// (<see cref="U.NOT_FOUND"/>, incl. a missing <c>$FGREP</c> file), an out-of-bounds
+        /// address, or a byte mismatch is reported as <c>NotInstalled</c>.
         /// </summary>
         public static PatchStatus CheckPatchInstalled(string condition, ROM rom)
             => CheckPatchInstalled(condition, rom, "");
