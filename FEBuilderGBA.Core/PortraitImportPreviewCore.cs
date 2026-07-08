@@ -320,6 +320,108 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// RGBA sibling of the indexed STAGE-A (<see cref="RebuildSlot"/>):
+        /// reconstruct the standard eye/mouth animation cells IN PLACE on a
+        /// colour-keyed 128x112 RGBA sheet, BEFORE the import splits/remaps it
+        /// (#1917). Each cell is reseeded from the destination face block region
+        /// then overlaid with only the cropped feature, so the cell's original
+        /// (possibly differently-coloured, e.g. white hackbox) background is
+        /// discarded and replaced by the face background — which the import's
+        /// colour key already marked transparent (alpha 0) → index 0 after remap
+        /// → no in-game smear. Mirrors WinForms <c>DecreaseColor16</c> (which
+        /// reconstructs before the ROM write); the Avalonia import previously
+        /// skipped this, so the raw opaque cell backgrounds were blitted as solid
+        /// rectangles over the face. A feature whose crop W/H &lt;= 0 is skipped
+        /// (left untouched), so callers without crop info must gate this off.
+        /// </summary>
+        public static void ReconstructSheetCellsRgba(
+            byte[] rgba, int width, int height,
+            int eyeBlockX, int eyeBlockY, int mouthBlockX, int mouthBlockY,
+            int eyeCropX, int eyeCropY, int eyeCropW, int eyeCropH,
+            int mouthCropX, int mouthCropY, int mouthCropW, int mouthCropH,
+            bool isFe6)
+        {
+            if (rgba == null || width <= 0 || height <= 0) return;
+            if ((long)rgba.Length < (long)width * height * 4) return;
+
+            if (!isFe6 && eyeCropW > 0 && eyeCropH > 0)
+            {
+                RebuildSlotRgba(rgba, width, height, eyeBlockX * 8, eyeBlockY * 8,
+                    eyeCropX, eyeCropY, eyeCropW, eyeCropH, EyeHalfSrcX, EyeHalfSrcY);
+                RebuildSlotRgba(rgba, width, height, eyeBlockX * 8, eyeBlockY * 8,
+                    eyeCropX, eyeCropY, eyeCropW, eyeCropH, EyeClosedSrcX, EyeClosedSrcY);
+            }
+            if (mouthCropW > 0 && mouthCropH > 0)
+            {
+                for (int m = 0; m < MouthSlots.Length; m++)
+                    RebuildSlotRgba(rgba, width, height, mouthBlockX * 8, mouthBlockY * 8,
+                        mouthCropX, mouthCropY, mouthCropW, mouthCropH,
+                        MouthSlots[m].x, MouthSlots[m].y);
+            }
+        }
+
+        /// <summary>
+        /// RGBA port of <see cref="RebuildSlot"/>: seed the 32x16 slot at
+        /// (<paramref name="slotSrcX"/>, <paramref name="slotSrcY"/>) with the
+        /// face block region, overlay the crop rect read from the slot's own
+        /// source area, then write it back — all opaque 4-byte-per-pixel copies
+        /// (matches WF <c>DecreaseColor16</c>'s default-opaque BitBlt).
+        /// </summary>
+        static void RebuildSlotRgba(byte[] rgba, int sheetW, int sheetH,
+            int blockSrcX, int blockSrcY, int cropX, int cropY, int cropW, int cropH,
+            int slotSrcX, int slotSrcY)
+        {
+            byte[] temp = new byte[PartWidth * PartHeight * 4];
+            BlitRgba(rgba, sheetW, sheetH, blockSrcX, blockSrcY,
+                PartWidth, PartHeight, temp, PartWidth, PartHeight, 0, 0);
+            BlitRgba(rgba, sheetW, sheetH, cropX + slotSrcX, cropY + slotSrcY,
+                cropW, cropH, temp, PartWidth, PartHeight, cropX, cropY);
+            BlitRgba(temp, PartWidth, PartHeight, 0, 0,
+                PartWidth, PartHeight, rgba, sheetW, sheetH, slotSrcX, slotSrcY);
+        }
+
+        /// <summary>
+        /// Opaque RGBA (4 byte/pixel) block copy with WF-BitBlt-style region
+        /// clamping. Unlike <see cref="BlitIndexed"/> there is no transparent
+        /// index — every source pixel (incl. alpha 0) is copied, matching the
+        /// reconstruction's opaque reseed+overlay semantics.
+        /// </summary>
+        internal static void BlitRgba(
+            byte[] src, int srcW, int srcH, int srcX, int srcY,
+            int w, int h, byte[] dst, int dstW, int dstH, int dstX, int dstY)
+        {
+            if (src == null || dst == null || w <= 0 || h <= 0) return;
+
+            if (dstY < 0) { srcY += -dstY; h -= -dstY; dstY = 0; }
+            if (srcY < 0) { h -= -srcY; srcY = 0; }
+            if (srcY + h > srcH) h -= (srcY + h) - srcH;
+            if (dstY + h > dstH) h -= (dstY + h) - dstH;
+
+            if (dstX < 0) { srcX += -dstX; w -= -dstX; dstX = 0; }
+            if (srcX < 0) { w -= -srcX; srcX = 0; }
+            if (srcX + w > srcW) w -= (srcX + w) - srcW;
+            if (dstX + w > dstW) w -= (dstX + w) - dstW;
+
+            if (w <= 0 || h <= 0) return;
+
+            for (int y = 0; y < h; y++)
+            {
+                int sRow = ((srcY + y) * srcW + srcX) * 4;
+                int dRow = ((dstY + y) * dstW + dstX) * 4;
+                for (int x = 0; x < w; x++)
+                {
+                    int si = sRow + x * 4;
+                    int di = dRow + x * 4;
+                    if (si < 0 || si + 3 >= src.Length || di < 0 || di + 3 >= dst.Length) continue;
+                    dst[di] = src[si];
+                    dst[di + 1] = src[si + 1];
+                    dst[di + 2] = src[si + 2];
+                    dst[di + 3] = src[si + 3];
+                }
+            }
+        }
+
+        /// <summary>
         /// Decode an indexed (1 byte/pixel, 0..15) buffer to RGBA via a GBA
         /// palette. Palette index 0 is rendered fully transparent (matches the
         /// wizard's <c>ReconstructRgbaWithPaletteZeroTransparent</c> convention).

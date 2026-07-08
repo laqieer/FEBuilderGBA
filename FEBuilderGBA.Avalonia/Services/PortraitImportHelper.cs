@@ -171,6 +171,27 @@ namespace FEBuilderGBA.Avalonia.Services
             return PatchDetection.SearchPatchBool(rom, HalfBodyPatchTable);
         }
 
+        /// <summary>
+        /// Eye/mouth crop rectangles (pixels, within each 32x16 animation cell)
+        /// used by the 128x112 sheet import to reconstruct the eye/mouth cells
+        /// (#1917). Mirrors the wizard's Detail-panel crop NumericUpDowns and the
+        /// values <see cref="PortraitImportPreviewCore.RenderFramePreview"/> uses
+        /// for the live preview, so the import produces the same cells the
+        /// preview shows.
+        /// </summary>
+        public readonly struct PortraitEyeMouthCrops
+        {
+            public readonly int EyeX, EyeY, EyeW, EyeH;
+            public readonly int MouthX, MouthY, MouthW, MouthH;
+            public PortraitEyeMouthCrops(
+                int eyeX, int eyeY, int eyeW, int eyeH,
+                int mouthX, int mouthY, int mouthW, int mouthH)
+            {
+                EyeX = eyeX; EyeY = eyeY; EyeW = eyeW; EyeH = eyeH;
+                MouthX = mouthX; MouthY = mouthY; MouthW = mouthW; MouthH = mouthH;
+            }
+        }
+
         public static ImportOutcome ImportPortrait(
             ROM rom,
             uint entryAddr,
@@ -192,7 +213,8 @@ namespace FEBuilderGBA.Avalonia.Services
             byte? mouthBlockX = null,
             byte? mouthBlockY = null,
             byte? eyeBlockX = null,
-            byte? eyeBlockY = null)
+            byte? eyeBlockY = null,
+            PortraitEyeMouthCrops? crops = null)
         {
             if (loadResult == null || !loadResult.Success)
                 return ImportOutcome.Fail(loadResult?.Error ?? "No image to import");
@@ -206,7 +228,7 @@ namespace FEBuilderGBA.Avalonia.Services
             {
                 return ImportSheet(rom, entryAddr, loadResult, undoService,
                     mode, customPaletteBytes, fuchidori, undoLabel,
-                    mouthBlockX, mouthBlockY, eyeBlockX, eyeBlockY);
+                    mouthBlockX, mouthBlockY, eyeBlockX, eyeBlockY, crops);
             }
             if (loadResult.Width == 160 && loadResult.Height == 160)
             {
@@ -480,7 +502,8 @@ namespace FEBuilderGBA.Avalonia.Services
             byte? mouthBlockX = null,
             byte? mouthBlockY = null,
             byte? eyeBlockX = null,
-            byte? eyeBlockY = null)
+            byte? eyeBlockY = null,
+            PortraitEyeMouthCrops? crops = null)
         {
             if (rom == null) return ImportOutcome.Fail("ROM not loaded");
             if (loadResult == null || !loadResult.Success)
@@ -505,6 +528,31 @@ namespace FEBuilderGBA.Avalonia.Services
             byte[] rgbaPixels = BuildColorKeyedRgba(loadResult);
             if (rgbaPixels == null)
                 return ImportOutcome.Fail("Failed to reconstruct RGBA pixels");
+
+            // #1917: reconstruct the eye/mouth animation cells (reseed each cell
+            // from the destination face block, overlay only the cropped feature)
+            // BEFORE the palette is resolved AND before splitting — so (a) a
+            // hackbox sheet whose eye/mouth cells sit on a DIFFERENT background
+            // (e.g. white) than the face key (teal) has that background replaced
+            // by the transparent face background rather than blitted as a solid
+            // rectangle over the face in-game, and (b) AutoQuantize builds its
+            // 16-color palette from the FINAL pixels (no slot wasted on the
+            // discarded cell background — PR #1928 review). Mirrors WinForms
+            // DecreaseColor16, which the preview already runs but the import
+            // previously skipped. Gated to the wizard path (block coords + crops
+            // supplied); drag-drop / "Import PNG" pass null and keep their
+            // existing behaviour. FE7/FE8 only (ImportSheet is already gated).
+            if (crops.HasValue && eyeBlockX.HasValue && eyeBlockY.HasValue
+                && mouthBlockX.HasValue && mouthBlockY.HasValue)
+            {
+                PortraitEyeMouthCrops c = crops.Value;
+                PortraitImportPreviewCore.ReconstructSheetCellsRgba(
+                    rgbaPixels, loadResult.Width, loadResult.Height,
+                    eyeBlockX.Value, eyeBlockY.Value, mouthBlockX.Value, mouthBlockY.Value,
+                    c.EyeX, c.EyeY, c.EyeW, c.EyeH,
+                    c.MouthX, c.MouthY, c.MouthW, c.MouthH,
+                    isFe6: false);
+            }
 
             // Resolve mode-specific palette BEFORE opening the undo scope so
             // a pointer/format failure can't leave a no-op rollback entry.
