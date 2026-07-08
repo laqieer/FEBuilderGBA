@@ -22,7 +22,7 @@ namespace FEBuilderGBA.Tests.Unit
     ///
     /// This exercises the real WinForms load path end-to-end (like RebuildProducerWFParityTests),
     /// so it fails on the pre-fix capture-before-detect ordering. ROM-gated: skips cleanly when
-    /// the (gitignored) FE6/FE8U ROMs are absent (e.g. CI).
+    /// the (gitignored) roms/FE6.gba is absent (e.g. CI).
     /// </summary>
     [Collection("SharedState")]
     public class FE6TextEncodingInitOrderTests
