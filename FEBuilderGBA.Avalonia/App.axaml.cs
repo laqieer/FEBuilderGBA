@@ -457,6 +457,12 @@ namespace FEBuilderGBA.Avalonia
                     // PNG proof of the new "Initialize / Update Patch Database" button and the
                     // empty-state notice in the left panel.
                     "PatchManagerView" => new EditorHostWindow(new Views.PatchManagerView()),
+                    // #1913 PR proof: render the Event Unit Placement editor at a
+                    // FIXED narrow width (override the view's SizeToContent=WidthAndHeight,
+                    // which would otherwise auto-grow to fit content) so the always-present
+                    // Unit-Info "Growth Rate" row overflows the detail column, exercising the
+                    // new HorizontalScrollBarVisibility="Auto" on the detail ScrollViewer.
+                    "EventUnitView" => BuildEventUnitDetailScrollHost(),
                     _ => throw new ArgumentException($"Unsupported --screenshot-window view: {viewName}"),
                 };
 
@@ -498,6 +504,28 @@ namespace FEBuilderGBA.Avalonia
                 Log.Error("RenderEditorWindowToPng failed: ", ex.ToString());
                 return 1;
             }
+        }
+
+        /// <summary>
+        /// #1913 PR proof host: the Event Unit Placement editor's detail panel scrolls
+        /// horizontally only when its content is wider than the detail column. The
+        /// view declares SizeToContent=WidthAndHeight, so a normal host auto-grows to
+        /// fit content (no overflow, no scrollbar). Force SizeToContent=Manual at a
+        /// fixed narrow width so the always-present Unit-Info "Growth Rate" row
+        /// overflows and the new HorizontalScrollBarVisibility="Auto" engages.
+        /// </summary>
+        static global::Avalonia.Controls.Window BuildEventUnitDetailScrollHost()
+        {
+            var view = new Views.EventUnitView();
+            return new global::Avalonia.Controls.Window
+            {
+                Title = "Event Unit Placement",
+                SizeToContent = global::Avalonia.Controls.SizeToContent.Manual,
+                Width = 1150,
+                Height = 980,
+                MinWidth = 1150,
+                Content = view,
+            };
         }
 
         /// <summary>Toggle between light and dark mode, updating dynamic resources and persisting the choice.</summary>
