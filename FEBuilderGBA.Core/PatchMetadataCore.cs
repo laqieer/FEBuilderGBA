@@ -222,13 +222,16 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Check if a patch is installed by evaluating a PATCHED_IF condition string.
-        /// Fixed <c>0xADDR</c> / bare-hex addresses are hex-parsed directly; the full
-        /// address-macro family (<c>$GREP</c>/<c>$XGREP</c>/<c>$FGREP</c> — incl.
-        /// <c>END</c>/<c>ENDA</c>/<c>+skip</c> — plus <c>$P32</c>/<c>$TEXTID</c> and the
-        /// <c>$0xNNN</c> pointer-deref form)
-        /// is resolved via the shared, tested <see cref="PatchMacroAddressResolverCore"/>,
-        /// mirroring WinForms install detection (#1919). <paramref name="basedir"/> is the
-        /// patch's own directory, needed to resolve <c>$FGREP</c> (external .bin) patterns.
+        /// Fixed <c>0xADDR</c> / bare-hex addresses are hex-parsed directly. Any
+        /// <c>$</c>-prefixed address macro — the full family handled by
+        /// <see cref="PatchMacroAddressResolverCore.Resolve"/>: <c>$GREP</c>/<c>$XGREP</c>/
+        /// <c>$FGREP</c> (with <c>END</c>/<c>ENDA</c>/<c>+skip</c>), <c>$GREP_ENABLE_POINTER</c>,
+        /// <c>$P32</c>/<c>$P32+4</c>, <c>$TEXTID</c>/<c>$TEXTID_P</c>, and the
+        /// <c>$&lt;hexaddr&gt;</c> pointer-indirection form (e.g. <c>$0x0812345</c> reads the
+        /// 32-bit GBA pointer stored at that offset — there is no literal <c>$deref</c> keyword)
+        /// — is resolved through that shared, tested resolver, mirroring WinForms install
+        /// detection (#1919). <paramref name="basedir"/> is the patch's own directory, needed
+        /// to resolve <c>$FGREP</c> (external .bin) patterns.
         /// Returns <c>Unknown</c> only for a malformed condition (no <c>=</c>, no expected
         /// bytes, or a fixed address that isn't valid hex). A macro that doesn't resolve
         /// (<see cref="U.NOT_FOUND"/>, incl. a missing <c>$FGREP</c> file), an out-of-bounds
