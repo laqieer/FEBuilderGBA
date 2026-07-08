@@ -196,25 +196,43 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>
-        /// Load portrait by extracting portrait ID from the list item text prefix.
-        /// Matches WinForms DrawImagePortraitAndText which uses U.atoh(text) to get portrait ID.
+        /// Load the mini portrait for a list row from the exact portrait id stored
+        /// in <see cref="AddrResult.tag"/> (all portrait-list VMs pass the id there:
+        /// <c>new AddrResult(addr, name, (uint)i)</c>).
         /// </summary>
         /// <remarks>
-        /// #654: removed <c>portraitId == 0</c> guard so the first row (portrait 0)
-        /// gets its icon. WinForms <c>ListBoxEx.DrawImagePortraitAndText</c>
-        /// has no such guard.
+        /// #1911: previously the id was parsed from the row label via
+        /// <c>U.atoh(items[index].name)</c>, but the portrait VMs format labels as
+        /// <c>$"0x{i:X2} &lt;name&gt;"</c> and <c>U.atoh</c> truncates at the first
+        /// non-hex char (<c>'x'</c>) → <c>"0"</c> → <c>0</c> for EVERY row. That made
+        /// the whole icon column resolve to portrait 0 (blank on FE8U where portrait 0
+        /// is null), so every character appeared to share one portrait. Reading the id
+        /// from <c>tag</c> resolves each row's own portrait (and avoids re-introducing
+        /// the label-format coupling — the sibling <c>U.ToHexString</c> callers emit an
+        /// un-prefixed <c>"NN"</c> label, so no single string parse is correct for all).
+        /// #654: no <c>portraitId == 0</c> guard, so the first row (portrait 0) still
+        /// gets its icon — matches WinForms <c>ListBoxEx.DrawImagePortraitAndText</c>.
         /// </remarks>
         public static Bitmap? PortraitLoader(List<AddrResult> items, int index)
         {
             if (index < 0 || index >= items.Count) return null;
             try
             {
-                uint portraitId = U.atoh(items[index].name);
+                uint portraitId = ResolvePortraitId(items[index]);
                 using var img = PreviewIconHelper.LoadPortraitMini(portraitId);
                 return ImageConversionHelper.ToAvaloniaBitmap(img);
             }
             catch { return null; }
         }
+
+        /// <summary>
+        /// Resolve a portrait-list row's portrait id. Test seam (InternalsVisibleTo).
+        /// The portrait-list VMs store the exact id in <see cref="AddrResult.tag"/>
+        /// (<c>new AddrResult(addr, name, (uint)i)</c>); the label must NOT be parsed —
+        /// VMs format it as <c>"0x{i:X2} &lt;name&gt;"</c> and <c>U.atoh</c> truncates at
+        /// the <c>'x'</c> to <c>0</c> for EVERY row (#1911).
+        /// </summary>
+        internal static uint ResolvePortraitId(AddrResult item) => item.tag;
 
         /// <summary>
         /// Load item icon by reading item ID from ROM address as u16.

@@ -59,8 +59,10 @@ namespace FEBuilderGBA.Avalonia.Tests
         public void ListIconLoaders_FixedLoaders_DoNotShortCircuitOnIdZero()
         {
             // The 3 list-prefix loaders fixed by #654 (ClassIconLoader,
-            // ItemIconLoader, PortraitLoader) parse the id from the row
-            // text via U.atoh(items[index].name). Pre-fix, each had an
+            // ItemIconLoader, PortraitLoader) originally parsed the id from the
+            // row text via U.atoh(items[index].name). (PortraitLoader now resolves
+            // the id from AddrResult.tag instead — see #1911 — but still has no
+            // id==0 short-circuit.) Pre-#654, each had an
             // `if (xxxId == 0) return null;` immediately after the parse;
             // the fix removed those lines.
             //
