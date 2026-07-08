@@ -148,9 +148,11 @@ namespace FEBuilderGBA
             string rootWithSep = canonicalRoot.EndsWith(Path.DirectorySeparatorChar)
                 ? canonicalRoot
                 : canonicalRoot + Path.DirectorySeparatorChar;
-            // Case-insensitive filesystems (Windows / default macOS) must compare the root
-            // prefix case-insensitively; Linux is case-sensitive.
-            StringComparison pathComparison = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+            // Windows filesystems are case-insensitive; macOS may be case-sensitive (APFS) and
+            // Linux always is — so only fold case on Windows (case-folding a case-sensitive volume
+            // could accept a case-variant sibling outside the root). In practice destPath is built
+            // from targetRootDir, so the root prefix casing is identical and Ordinal matches too.
+            StringComparison pathComparison = OperatingSystem.IsWindows()
                 ? StringComparison.OrdinalIgnoreCase
                 : StringComparison.Ordinal;
 
@@ -356,7 +358,7 @@ namespace FEBuilderGBA
                 return false;
             }
 
-            StringComparison pathComparison = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+            StringComparison pathComparison = OperatingSystem.IsWindows()
                 ? StringComparison.OrdinalIgnoreCase
                 : StringComparison.Ordinal;
 
