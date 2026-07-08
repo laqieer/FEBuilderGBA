@@ -33,6 +33,10 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly AndroidNavigationService _nav;
         INavigationHost Host => _nav;
 
+        // #1905: set when a language switch happens while the user is deeper in the nav
+        // stack, so the deferred launcher-root rebuild runs lazily on return to the root.
+        bool _launcherLanguageStale;
+
         public MainView()
         {
             InitializeComponent();
@@ -83,8 +87,22 @@ namespace FEBuilderGBA.Avalonia.Views
         void OnStackChanged()
         {
             // StackChanged can fire from any await continuation; marshal to UI.
-            if (Dispatcher.UIThread.CheckAccess()) RenderTop();
-            else Dispatcher.UIThread.Post(RenderTop);
+            if (Dispatcher.UIThread.CheckAccess()) OnStackChangedCore();
+            else Dispatcher.UIThread.Post(OnStackChangedCore);
+        }
+
+        void OnStackChangedCore()
+        {
+            // If a language switch happened while the user was deeper in the stack, the
+            // launcher-root rebuild was deferred (SetRoot would have reset the stack).
+            // Now that we're back at the root, rebuild it so its R._() labels aren't
+            // stale (#1905 review nit). At the root, SetRoot only replaces the root page.
+            if (_launcherLanguageStale && !Host.CanGoBack)
+            {
+                _launcherLanguageStale = false;
+                _nav.SetRoot(BuildLauncher());
+            }
+            RenderTop();
         }
 
         void RenderTop()
@@ -309,7 +327,18 @@ namespace FEBuilderGBA.Avalonia.Views
             // pages on the single-view host, #1873) would close that page and lose their
             // context. Open pages relocalize themselves via their own LanguageChanged hook.
             if (!Host.CanGoBack)
+            {
+                // At the root: rebuild it now with the new language.
+                _launcherLanguageStale = false;
                 _nav.SetRoot(BuildLauncher());
+            }
+            else
+            {
+                // Deeper in the stack: don't SetRoot (it would reset the whole stack and
+                // close the open page). Defer the launcher rebuild until we return to root
+                // (handled in OnStackChangedCore), so the user's context isn't lost.
+                _launcherLanguageStale = true;
+            }
             RenderTop();
         }
 
