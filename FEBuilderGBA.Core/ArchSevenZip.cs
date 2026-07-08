@@ -140,7 +140,7 @@ namespace FEBuilderGBA
                 }
 
                 // Use ArchiveFactory which supports 7z, zip, rar, tar, etc.
-                using (var archive = ArchiveFactory.Open(archiveFile))
+                using (var archive = ArchiveFactory.OpenArchive(archiveFile))
                 {
                     var extractOptions = new ExtractionOptions
                     {
@@ -309,7 +309,7 @@ namespace FEBuilderGBA
 
                 // Create zip archive using SharpCompress Writers API
                 using (var stream = File.Create(outputFile))
-                using (var writer = WriterFactory.Open(stream, ArchiveType.Zip, new WriterOptions(CompressionType.Deflate)
+                using (var writer = WriterFactory.OpenWriter(stream, ArchiveType.Zip, new WriterOptions(CompressionType.Deflate)
                 {
                     LeaveStreamOpen = false
                 }))
