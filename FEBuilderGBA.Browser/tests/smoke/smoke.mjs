@@ -102,8 +102,11 @@ const server = http.createServer((req, res) => {
     }
     fs.createReadStream(filePath).pipe(res);
   } catch (e) {
+    // Do not leak exception/stack detail to the HTTP client (CodeQL js/stack-trace-exposure);
+    // log server-side for debugging and return a generic message.
+    console.error('[smoke] request error:', e);
     res.statusCode = 500;
-    res.end(String(e));
+    res.end('Internal Server Error');
   }
 });
 
