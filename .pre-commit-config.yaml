@@ -1,0 +1,14 @@
+# Pre-commit hooks for FEBuilderGBA (opt-in). Enable with:
+#   pip install pre-commit
+#   pre-commit install
+# See docs/SECRET-SCANNING.md for setup, auth, and the escape hatch. (#1903)
+repos:
+  # GitGuardian ggshield — shift-left secret scanning. Blocks a commit that would
+  # introduce a secret. Requires `ggshield auth login` (or a GITGUARDIAN_API_KEY
+  # env var). Needs pre-commit >= 3.2.0.
+  - repo: https://github.com/gitguardian/ggshield
+    rev: v1.52.2
+    hooks:
+      - id: ggshield
+        language_version: python3
+        stages: [pre-commit]

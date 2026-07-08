@@ -1,0 +1,60 @@
+# GitGuardian ggshield — shift-left secret scanning in CI (#1903).
+#
+# Scans the commit range of each push / PR (`ggshield secret scan ci`, which is
+# range-scoped — the PR delta or the push's before..after — and NEVER the whole
+# repository history) for committed secrets. A finding fails this check.
+#
+# Gated on the GITGUARDIAN_API_KEY repo secret using the repo's optional-secret
+# pattern (see android.yml): `secrets.*` can't be used in a step-level `if:`, so a
+# classifier step reads the key from `env:` and writes present=true/false, and the
+# scan steps run only when present. When the key is absent (fork PRs, or before the
+# secret is configured) the scan is skipped and the job is GREEN — so this never
+# breaks master or fork PRs. Intentionally NOT part of the required-checks ruleset
+# (advisory): a finding fails the check but does not hard-block merge.
+name: ggshield
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ggshield-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    name: GitGuardian secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for GITGUARDIAN_API_KEY
+        id: check
+        env:
+          GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
+        run: |
+          if [ -z "${GITGUARDIAN_API_KEY:-}" ]; then
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::GITGUARDIAN_API_KEY not set (e.g. a fork PR) — skipping ggshield scan."
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        if: steps.check.outputs.present == 'true'
+        uses: actions/checkout@v4
+        with:
+          # Required: ggshield's `ci` mode resolves the commit range from history.
+          fetch-depth: 0
+
+      - name: ggshield secret scan
+        if: steps.check.outputs.present == 'true'
+        # SHA-pinned to v1.52.2 (annotated tag -> commit da20be06...).
+        uses: GitGuardian/ggshield-action@da20be06cafe5e8633dc24744efe1efe8d30f06b # v1.52.2
+        env:
+          GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
+          # Range base for a multi-commit push (else only the last commit is scanned).
+          GITHUB_PUSH_BASE_SHA: ${{ github.event.before }}
