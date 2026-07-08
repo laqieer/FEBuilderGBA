@@ -107,7 +107,7 @@ This is enforced **in CI** on every pull request: `.github/workflows/pr-title-li
 lints the PR title (covers squash merges) and every commit in the PR
 (covers merge / rebase merges, via `commitlint.config.mjs`). If a check fails,
 edit the offending PR title or commit message to add a valid `<type>:` prefix and
-keep the subject ≤ 100 characters.
+keep the header (the whole `<type>(scope): <subject>` first line) ≤ 100 characters.
 
 To **catch these locally before pushing** (recommended, esp. for automated
 worktree work — the CI check stays the source of truth), enable the **opt-in**
