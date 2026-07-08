@@ -274,16 +274,49 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ApplySubmoduleRemotes();
             }
 
-            // Reload translations with new language
-            ReloadTranslations();
-
-            // Clear name cache so names are re-decoded in the new language
-            NameResolver.ClearCache();
-
-            // Notify all subscribers (ViewModels) to refresh their localized strings
-            CoreState.RaiseLanguageChanged();
+            // Apply the language change (reload translations, clear the name cache,
+            // raise LanguageChanged). cfg["Language"]/["func_lang"] were already
+            // persisted in the batch above, so pass persist:false to avoid a second
+            // cfg.Save(). #1895 factored this into ApplyLanguage so the web-app
+            // home-page language switcher can reuse it.
+            ApplyLanguage(langCode, persist: false);
 
             MarkClean();
+        }
+
+        /// <summary>
+        /// Apply a language change from anywhere (e.g. the web-app home-page language
+        /// switcher — #1895). Sets <see cref="CoreState.Language"/>, optionally
+        /// persists the language keys, then reloads translations, clears the name
+        /// cache, and raises <see cref="CoreState.LanguageChanged"/> so open views
+        /// relocalize. This is the language-only slice of <see cref="Save"/>: it must
+        /// NOT touch GitPath, tool paths, or submodule remotes.
+        /// </summary>
+        /// <param name="code">Language code, e.g. "en", "ja", "auto".</param>
+        /// <param name="persist">When true, write cfg["Language"]/["func_lang"] and save.</param>
+        internal static void ApplyLanguage(string code, bool persist = true)
+        {
+            CoreState.Language = code;
+
+            if (persist)
+            {
+                var cfg = CoreState.Config;
+                if (cfg != null)
+                {
+                    cfg["Language"] = code;
+                    cfg["func_lang"] = code; // backward compat with WinForms
+                    cfg.Save();
+                }
+            }
+
+            // Reload translations with the new language.
+            ReloadTranslations();
+
+            // Clear name cache so names are re-decoded in the new language.
+            NameResolver.ClearCache();
+
+            // Notify all subscribers (ViewModels) to refresh their localized strings.
+            CoreState.RaiseLanguageChanged();
         }
 
         void ApplySubmoduleRemotes()

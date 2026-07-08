@@ -23,6 +23,7 @@ using global::Avalonia.Interactivity;
 using global::Avalonia.Layout;
 using global::Avalonia.Threading;
 using FEBuilderGBA.Avalonia.Services;
+using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
@@ -36,11 +37,14 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
 
             // Set top-bar button text via R._() (translated; no AXAML literal).
-            BackButton.Content = "‹ " + R._("Back");
-            HomeButton.Content = R._("Home");
-            OpenRomButton.Content = R._("Open ROM");
-            SaveRomButton.Content = R._("Save ROM");
+            ApplyTopBarLabels();
             TitleText.Text = "FEBuilderGBA";
+
+            // #1895: attach the overflow "More" menu (Language / Wiki / Discussions /
+            // Issue Report) and relocalize the whole shell live when the language
+            // changes (MainView otherwise sets its labels only once, here).
+            MoreButton.Flyout = BuildMoreFlyout();
+            CoreState.LanguageChanged += OnLanguageChanged;
 
             // Install the single-view navigation service. Reuse the one already
             // selected by WindowManager when running on Android; otherwise create
@@ -60,6 +64,7 @@ namespace FEBuilderGBA.Avalonia.Views
         protected override void OnUnloaded(RoutedEventArgs e)
         {
             Host.StackChanged -= OnStackChanged;
+            CoreState.LanguageChanged -= OnLanguageChanged;
             base.OnUnloaded(e);
         }
 
@@ -187,6 +192,110 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             // Drop back to the launcher root, cancelling any pending pick/modal.
             WindowManager.Instance.CloseAll();
+        }
+
+        /// <summary>Set all top-bar button labels via R._() (called on init + on language change).</summary>
+        void ApplyTopBarLabels()
+        {
+            BackButton.Content = "‹ " + R._("Back");
+            HomeButton.Content = R._("Home");
+            OpenRomButton.Content = R._("Open ROM");
+            SaveRomButton.Content = R._("Save ROM");
+            MoreButton.Content = R._("More");
+        }
+
+        // #1895: web-app home-page links. Static testable data (mirrors LauncherEntries()).
+        // Issue Report uses /issues/new/choose because the fork disables blank issues
+        // (.github/ISSUE_TEMPLATE/config.yml).
+        internal const string WikiUrl = "https://github.com/laqieer/FEBuilderGBA/wiki";
+        internal const string DiscussionsUrl = "https://github.com/laqieer/FEBuilderGBA/discussions";
+        internal const string IssueReportUrl = "https://github.com/laqieer/FEBuilderGBA/issues/new/choose";
+
+        internal static IEnumerable<(string Label, string Url)> HomePageLinks => new[]
+        {
+            ("Wiki", WikiUrl),
+            ("Discussions", DiscussionsUrl),
+            ("Issue Report", IssueReportUrl),
+        };
+
+        /// <summary>
+        /// Build the overflow "More" MenuFlyout: a Language submenu (live switch via
+        /// <see cref="OptionsViewModel.ApplyLanguage"/>) plus the external-link items.
+        /// Rebuilt on every language change so the item headers relocalize.
+        /// </summary>
+        MenuFlyout BuildMoreFlyout()
+        {
+            var flyout = new MenuFlyout();
+
+            var languageItem = new MenuItem { Header = R._("Language") };
+            global::Avalonia.Automation.AutomationProperties.SetAutomationId(languageItem, "Main_AndroidLanguage_Button");
+            foreach (string display in OptionsViewModel.EnumerateLanguages())
+            {
+                string code = OptionsViewModel.ExtractLanguageCode(display);
+                var child = new MenuItem { Header = display };
+                child.Click += (_, _) => OptionsViewModel.ApplyLanguage(code);
+                languageItem.Items.Add(child);
+            }
+            flyout.Items.Add(languageItem);
+            flyout.Items.Add(new Separator());
+
+            foreach (var (label, url) in HomePageLinks)
+            {
+                var item = new MenuItem { Header = R._(label) };
+                global::Avalonia.Automation.AutomationProperties.SetAutomationId(item, "Main_Android" + label.Replace(" ", "") + "_Button");
+                item.Click += (_, _) => OpenUrl(url);
+                flyout.Items.Add(item);
+            }
+
+            return flyout;
+        }
+
+        /// <summary>Open a URL with Avalonia's cross-platform launcher (window.open on wasm).</summary>
+        async void OpenUrl(string url)
+        {
+            var top = TopLevel.GetTopLevel(this);
+            if (top == null)
+            {
+                SetStatus(R._("Couldn't open link:") + " " + url);
+                return;
+            }
+            try
+            {
+                // Called from the menu-item click (a user gesture), so the browser
+                // won't popup-block window.open.
+                bool ok = await top.Launcher.LaunchUriAsync(new Uri(url));
+                if (!ok)
+                    SetStatus(R._("Couldn't open link:") + " " + url);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("MainView OpenUrl failed: ", ex.ToString());
+                SetStatus(R._("Couldn't open link:") + " " + url);
+            }
+        }
+
+        /// <summary>
+        /// #1895 / B1: relocalize the whole shell after a live language switch. MainView
+        /// sets its labels only in the ctor, so without this a language pick would reload
+        /// translations but leave the visible UI in the old language.
+        /// </summary>
+        void OnLanguageChanged()
+        {
+            // LanguageChanged can fire from any thread; marshal to the UI thread.
+            if (Dispatcher.UIThread.CheckAccess()) RelocalizeShell();
+            else Dispatcher.UIThread.Post(RelocalizeShell);
+        }
+
+        void RelocalizeShell()
+        {
+            ApplyTopBarLabels();
+            // Rebuild the More menu so its item headers pick up the new language.
+            MoreButton.Flyout = BuildMoreFlyout();
+            // Rebuild the launcher so its R._()-based labels relocalize. SetRoot resets
+            // the nav stack — safe on the wasm/Android heads (editor Windows can't open
+            // there). RenderTop then refreshes NavHost + the title.
+            _nav.SetRoot(BuildLauncher());
+            RenderTop();
         }
 
         /// <summary>

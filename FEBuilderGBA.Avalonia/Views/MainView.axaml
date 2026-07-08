@@ -42,6 +42,12 @@
           <Button Name="HomeButton"
                   AutomationProperties.AutomationId="Main_AndroidHome_Button"
                   Click="Home_Click" />
+          <!-- #1895: overflow "More" menu (Language / Wiki / Discussions / Issue
+               Report). The MenuFlyout is built in code-behind so its items
+               relocalize on a live language switch and aren't scanned by the
+               .axaml-only AutomationId validator. -->
+          <Button Name="MoreButton"
+                  AutomationProperties.AutomationId="Main_AndroidMore_Button" />
         </StackPanel>
       </Grid>
     </Border>
