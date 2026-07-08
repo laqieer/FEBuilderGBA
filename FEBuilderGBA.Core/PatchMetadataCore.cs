@@ -256,7 +256,7 @@ namespace FEBuilderGBA
                 // Fixed addresses keep the original hex parse: patch metadata contains
                 // BARE hex like "2C2F0" that the resolver's atoi0x reads as DECIMAL, so
                 // only $-prefixed macros ($GREP/$XGREP/$FGREP/$P32/$TEXTID/$<addr> deref)
-                // go through the shared resolver (#1925 review).
+                // go through the shared resolver (#1919).
                 uint addr;
                 if (addrStr.StartsWith("$", StringComparison.Ordinal))
                 {

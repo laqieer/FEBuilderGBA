@@ -146,7 +146,7 @@ namespace FEBuilderGBA.Core.Tests
             // $GREP0 (zero alignment) must NOT infinite-loop U.Grep (blocksize step 0);
             // the resolver rejects it -> NotInstalled. Run under a 5s timeout so a
             // regressed guard fails the test bounded instead of hanging the whole run
-            // (xUnit has no default per-test timeout) — PR #1925 review.
+            // (xUnit has no default per-test timeout) — #1919.
             byte[] data = new byte[0x1000];
             var rom = new ROM();
             rom.SwapNewROMDataDirect(data);
@@ -187,7 +187,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void CheckPatchInstalled_BareHexAddr_ParsedAsHex_Installed()
         {
-            // Regression #1925: patch metadata contains BARE hex addresses (no 0x),
+            // Regression (#1919): patch metadata contains BARE hex addresses (no 0x),
             // e.g. real FE8J patches "PATCHED_IF:2C2F0=0x00 0x49 0x8F 0x46". These must
             // parse as HEX (0x2C2F0), not decimal (2). A decimal misparse would read
             // ROM[2] (0x00) and report NotInstalled.
