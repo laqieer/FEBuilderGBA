@@ -194,7 +194,7 @@ namespace FEBuilderGBA
                 }
 
                 if (!string.IsNullOrEmpty(patchedIf))
-                    info.Status = CheckPatchInstalled(patchedIf, rom);
+                    info.Status = CheckPatchInstalled(patchedIf, rom, Path.GetDirectoryName(patchFilePath) ?? "");
 
                 // Check dependencies (IF: lines)
                 var allDeps = GetPatchDependencies(patchFilePath, lang);
@@ -222,35 +222,40 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Check if a patch is installed by evaluating a PATCHED_IF condition string.
-        /// Supports fixed-address checks (0xADDR=0xBB 0xBB ...).
-        /// Returns Unknown for GREP-style conditions.
+        /// Supports fixed-address checks (<c>0xADDR=0xBB 0xBB ...</c>) and the full
+        /// address-macro family (<c>$GREP</c>/<c>$XGREP</c>/<c>$FGREP</c> — incl.
+        /// <c>END</c>/<c>ENDA</c>/<c>+skip</c> — plus <c>$P32</c>/<c>$TEXTID</c>) via the
+        /// shared, tested <see cref="PatchMacroAddressResolverCore"/>, mirroring WinForms
+        /// install detection (#1919). <paramref name="basedir"/> is the patch's own
+        /// directory, needed to resolve <c>$FGREP</c> (external .bin) patterns.
+        /// Returns Unknown only when the condition can't be parsed at all.
         /// </summary>
         public static PatchStatus CheckPatchInstalled(string condition, ROM rom)
+            => CheckPatchInstalled(condition, rom, "");
+
+        public static PatchStatus CheckPatchInstalled(string condition, ROM rom, string basedir)
         {
             try
             {
-                if (condition.Contains("$GREP", StringComparison.OrdinalIgnoreCase) ||
-                    condition.Contains("$FGREP", StringComparison.OrdinalIgnoreCase))
-                {
-                    return PatchStatus.Unknown;
-                }
-
                 int eqIdx = condition.IndexOf('=');
                 if (eqIdx < 0) return PatchStatus.Unknown;
 
                 string addrStr = condition.Substring(0, eqIdx).Trim();
                 string dataStr = condition.Substring(eqIdx + 1).Trim();
 
-                if (addrStr.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-                    addrStr = addrStr.Substring(2);
-                if (!uint.TryParse(addrStr, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint addr))
-                    return PatchStatus.Unknown;
-
                 byte[] expected = ParseByteArray(dataStr);
                 if (expected.Length == 0) return PatchStatus.Unknown;
 
-                if (addr + expected.Length > rom.Data.Length)
-                    return PatchStatus.NotInstalled;
+                // Resolve the address expression — a fixed 0xADDR or a $GREP/$XGREP/$FGREP/
+                // $P32/$TEXTID macro — with the shared resolver (never throws; returns
+                // U.NOT_FOUND on any failure, e.g. a GREP pattern absent from the ROM).
+                uint addr = PatchMacroAddressResolverCore.Resolve(rom, addrStr, basedir, 0x100);
+
+                // Guard NOT_FOUND BEFORE the read-back: NOT_FOUND (0xFFFFFFFF) + length
+                // would wrap past the bounds check, then getBinaryData would throw. A
+                // not-found / unresolvable address means the patch is simply not installed.
+                if (addr == U.NOT_FOUND) return PatchStatus.NotInstalled;
+                if (addr + (uint)expected.Length > rom.Data.Length) return PatchStatus.NotInstalled;
 
                 byte[] actual = rom.getBinaryData(addr, expected.Length);
                 return U.memcmp(expected, actual) == 0

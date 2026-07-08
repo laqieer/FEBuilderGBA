@@ -58,15 +58,99 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void CheckPatchInstalled_GrepCondition_ReturnsUnknown()
+        public void CheckPatchInstalled_GrepPatternPresent_Installed()
         {
-            // Create a minimal ROM
-            byte[] data = new byte[0x100];
+            // #1919: a $GREP condition whose pattern is present in the ROM (4-aligned)
+            // now resolves to Installed instead of Unknown.
+            byte[] data = new byte[0x1000];
+            data[0x200] = 0xAB; data[0x201] = 0xCD; data[0x202] = 0xEF; data[0x203] = 0x12;
             var rom = new ROM();
             rom.SwapNewROMDataDirect(data);
 
-            var status = PatchMetadataCore.CheckPatchInstalled("$GREP4 0xAB=0xAB", rom);
-            Assert.Equal(PatchMetadataCore.PatchStatus.Unknown, status);
+            var status = PatchMetadataCore.CheckPatchInstalled(
+                "$GREP4 0xAB 0xCD 0xEF 0x12=0xAB 0xCD 0xEF 0x12", rom);
+            Assert.Equal(PatchMetadataCore.PatchStatus.Installed, status);
+        }
+
+        [Fact]
+        public void CheckPatchInstalled_GrepPatternAbsent_NotInstalled()
+        {
+            byte[] data = new byte[0x1000]; // pattern never planted
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(data);
+
+            var status = PatchMetadataCore.CheckPatchInstalled(
+                "$GREP4 0xAB 0xCD 0xEF 0x12=0xAB 0xCD 0xEF 0x12", rom);
+            Assert.Equal(PatchMetadataCore.PatchStatus.NotInstalled, status);
+        }
+
+        [Fact]
+        public void CheckPatchInstalled_GrepRespectsAlignment()
+        {
+            // Pattern planted at a NON-4-aligned offset: $GREP4 must NOT find it, but
+            // $GREP1 (byte-aligned) must.
+            byte[] data = new byte[0x1000];
+            data[0x201] = 0xAB; data[0x202] = 0xCD; data[0x203] = 0xEF; data[0x204] = 0x12;
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(data);
+
+            Assert.Equal(PatchMetadataCore.PatchStatus.NotInstalled,
+                PatchMetadataCore.CheckPatchInstalled("$GREP4 0xAB 0xCD 0xEF 0x12=0xAB 0xCD 0xEF 0x12", rom));
+            Assert.Equal(PatchMetadataCore.PatchStatus.Installed,
+                PatchMetadataCore.CheckPatchInstalled("$GREP1 0xAB 0xCD 0xEF 0x12=0xAB 0xCD 0xEF 0x12", rom));
+        }
+
+        [Fact]
+        public void CheckPatchInstalled_FGrep_WithPatternFile_Installed()
+        {
+            // #1919: FGREP reads its pattern from an external .bin relative to the patch
+            // dir. Threading basedir through lets FGREP patches (the majority) resolve.
+            string dir = Path.Combine(Path.GetTempPath(), "fe_fgrep_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            try
+            {
+                byte[] pattern = { 0xAB, 0xCD, 0xEF, 0x12 };
+                File.WriteAllBytes(Path.Combine(dir, "sig.bin"), pattern);
+
+                byte[] data = new byte[0x1000];
+                pattern.CopyTo(data, 0x200); // planted, 4-aligned
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(data);
+
+                var status = PatchMetadataCore.CheckPatchInstalled(
+                    "$FGREP4 sig.bin=0xAB 0xCD 0xEF 0x12", rom, dir);
+                Assert.Equal(PatchMetadataCore.PatchStatus.Installed, status);
+            }
+            finally
+            {
+                try { Directory.Delete(dir, true); } catch { /* best-effort cleanup */ }
+            }
+        }
+
+        [Fact]
+        public void CheckPatchInstalled_FGrep_MissingFile_NotInstalled()
+        {
+            // No basedir / missing pattern file -> the pattern can't be loaded -> the
+            // patch is reported not installed (mirrors WinForms), never a false Installed.
+            byte[] data = new byte[0x1000];
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(data);
+
+            var status = PatchMetadataCore.CheckPatchInstalled("$FGREP4 missing.bin=0xAB", rom);
+            Assert.Equal(PatchMetadataCore.PatchStatus.NotInstalled, status);
+        }
+
+        [Fact]
+        public void CheckPatchInstalled_GrepZeroAlignment_NoHang_NotInstalled()
+        {
+            // $GREP0 (zero alignment) must NOT infinite-loop U.Grep (blocksize step 0);
+            // the resolver rejects it -> NotInstalled.
+            byte[] data = new byte[0x1000];
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(data);
+
+            var status = PatchMetadataCore.CheckPatchInstalled("$GREP0 0xAB=0xAB", rom);
+            Assert.Equal(PatchMetadataCore.PatchStatus.NotInstalled, status);
         }
 
         [Fact]
