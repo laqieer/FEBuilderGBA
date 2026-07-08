@@ -79,6 +79,13 @@ should reject or redirect new-feature PRs that target the WinForms GUI.
 
 See [DEVELOPMENT-WORKFLOW.md](DEVELOPMENT-WORKFLOW.md) for the mandatory development workflow including plan review, implementation, and PR review gates.
 
+## Secret Scanning (ggshield)
+
+This repo uses **[GitGuardian ggshield](https://github.com/gitguardian/ggshield)** to catch committed secrets (API keys, tokens) — "shift left" — both locally and in CI. Full setup: **[docs/SECRET-SCANNING.md](docs/SECRET-SCANNING.md)**.
+
+- **Local (opt-in pre-commit hook):** `pip install pre-commit && pre-commit install`, then authenticate once with `ggshield auth login` (or export `GITGUARDIAN_API_KEY`). ggshield then scans each commit and blocks one that would introduce a secret. Escape hatch for a false positive: `SKIP=ggshield git commit …` (or `git commit --no-verify`). Requires pre-commit ≥ 3.2.0.
+- **CI:** `.github/workflows/ggshield.yml` scans the commit range of each push / PR. It runs only when the `GITGUARDIAN_API_KEY` repo secret is set, so **fork PRs skip it** (secrets aren't shared with forks) and it never breaks the build. It's an advisory (non-required) check — a finding fails the check but doesn't hard-block merge.
+
 ## Commit & PR Title Convention
 
 Commit subjects and pull-request titles follow the
