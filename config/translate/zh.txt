@@ -28107,3 +28107,15 @@ Git 操作失败，退出代码 {0}。
 
 :Couldn't open editor:
 无法打开编辑器:
+
+:More
+更多
+
+:Discussions
+讨论
+
+:Issue Report
+报告问题
+
+:Couldn't open link:
+无法打开链接:
