@@ -28119,3 +28119,6 @@ Git 操作失败，退出代码 {0}。
 
 :Couldn't open link:
 无法打开链接:
+
+:Download the desktop app
+下载桌面版
