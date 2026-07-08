@@ -78,6 +78,21 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         // ------------------------------------------------------------------
+        // Guard: the generic-enemy portrait list must NOT use PortraitLoader.
+        // Its rows index the generic_enemy_portrait table (4-byte entries with
+        // their own image pointer + palette at +0x20), NOT the 28-byte main
+        // portrait table that PortraitLoader/LoadPortraitMini read — so a
+        // portrait-id icon would render an unrelated main portrait (#1911 review).
+        // ------------------------------------------------------------------
+        [Fact]
+        public void GenericEnemyPortraitList_DoesNotUsePortraitLoader()
+        {
+            string src = ReadSource("FEBuilderGBA.Avalonia", "Views", "ImageGenericEnemyPortraitView.axaml.cs");
+            Assert.DoesNotContain("ListIconLoaders.PortraitLoader", src);
+            Assert.Contains("EntryList.SetItems(items);", src);
+        }
+
+        // ------------------------------------------------------------------
         // ReadSource: walk up from the test assembly to the repo root
         // (FEBuilderGBA.sln) and read a source file. Mirrors the helper in
         // ListIconLoadersFirstRowTests.
