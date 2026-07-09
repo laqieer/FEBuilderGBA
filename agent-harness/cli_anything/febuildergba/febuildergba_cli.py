@@ -167,7 +167,7 @@ def rom_checksum_cmd(ctx, rom_file, force_version):
     result = checksum(path, fv)
     # Do NOT _check_exit_code blindly: exit 2 = "checked, header INVALID" (advisory,
     # non-fatal). Only exit 1 is a real file/usage error.
-    if result["exit_code"] == 1:
+    if result["exit_code"] not in (0, 2):
         _check_exit_code(result, "Checksum")
     if _json_mode:
         _output(result)
@@ -740,7 +740,8 @@ def palette():
 @click.option("--addr", required=True, help="Palette address in hex (e.g. 0x5524)")
 @click.option("-o", "--out", required=True,
               help="Output file; extension picks format (.pal/.act/.gpl/.txt/.gbapal)")
-@click.option("--colors", default=0, type=int, help="Color count 1..256 (default 16)")
+@click.option("--colors", default=None, type=click.IntRange(1, 256),
+              help="Color count 1..256 (backend default: 16 when omitted)")
 @click.option("--force-version", default="")
 @click.pass_context
 def palette_export_cmd(ctx, addr, out, colors, force_version):

@@ -10,7 +10,6 @@ Two layers:
 
 import os
 import shutil
-import sys
 import tempfile
 from pathlib import Path
 from types import SimpleNamespace
@@ -200,6 +199,14 @@ class TestChecksumClickLayer:
     def test_file_error_exit1_raises(self, monkeypatch):
         # exit 1 = real file/usage error → must surface as a non-zero exit.
         self._patch(monkeypatch, 1, None)
+        res = CliRunner().invoke(febuildergba_cli.cli,
+                                 ["rom", "checksum", "fake.gba"])
+        assert res.exit_code != 0
+
+    def test_unexpected_nonzero_exit_raises(self, monkeypatch):
+        # Any non-zero code other than the advisory 2 (e.g. a tool crash, 3)
+        # must fail fast, not silently print "INVALID (actual None)".
+        self._patch(monkeypatch, 3, None, actual=None, expected=None)
         res = CliRunner().invoke(febuildergba_cli.cli,
                                  ["rom", "checksum", "fake.gba"])
         assert res.exit_code != 0

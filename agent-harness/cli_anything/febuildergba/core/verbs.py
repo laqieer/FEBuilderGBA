@@ -151,11 +151,12 @@ def import_midi(rom_path: str, song_id: str, in_path: str,
 
 
 def export_palette(rom_path: str, addr: str, out_path: str,
-                   colors: int = 0, force_version: str = "") -> dict:
+                   colors=None, force_version: str = "") -> dict:
     """Export a GBA palette to a file (``--export-palette``).
 
     The output extension picks the format (.pal/.act/.gpl/.txt/.gbapal).
-    ``colors`` (1..256) is optional (default 16 on the backend).
+    ``colors`` (1..256) is optional; when None/0 the ``--colors`` flag is
+    omitted and the backend default (16) applies.
     """
     args = ["--export-palette", f"--rom={rom_path}",
             f"--addr={addr}", f"--out={out_path}"]
