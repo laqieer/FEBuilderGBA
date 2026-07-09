@@ -475,6 +475,8 @@ The step lists every zip entry with its uncompressed size before extraction, so 
 - `AppRunner.Run()` calls `WaitForExit()` (no-param) after `WaitForExit(timeout)` to flush async `OutputDataReceived` events before reading captured stdout
 - `RomLocator` treats any explicit `ROMS_DIR` value (even empty string) as an override — only when the variable is **absent** from the environment does the walk-up fallback activate
 
+**Repository-hygiene guardrail:** `.github/workflows/block-binaries.yml` runs on every push (to `master`) and pull request and **fails** if a commit adds or modifies a binary executable, ROM, disk/app image, archive, or secret/certificate/key file. Harmless test fixtures (`*.bin`/`*.dmp`/`*.wav`) and the two tracked binaries (`FEBuilderGBA/lib/7-zip32.dll`, `FEBuilderGBA/test/test.elf`) are allowlisted. This mirrors the `.gitignore` block and complements ggshield + secret-scanning push protection — see [CONTRIBUTING.md](CONTRIBUTING.md#binary-rom--secret-files-do-not-commit).
+
 ## 🔄 Update System
 
 > **Cutting a release?** See the full-suite release runbook in **[docs/RELEASE.md](docs/RELEASE.md)** — it covers tagging (`ver_YYYYMMDD.NN`), the per-platform artifacts (WinForms / CLI / Avalonia / Android), and the GitHub-release step.
