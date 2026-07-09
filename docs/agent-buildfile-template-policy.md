@@ -4,8 +4,8 @@
 mods (see the [emit-recipe path, #1935](https://github.com/laqieer/FEBuilderGBA/issues/1935) and
 [CLI-as-backend, #1937](https://github.com/laqieer/FEBuilderGBA/issues/1937)), the generated output
 has to start from *some* base project. This document sets the policy for choosing that base and for
-incorporating engine features — so generated content is **neutral, redistributable, and correctly
-attributed**.
+incorporating engine features — so generated content is **neutral, redistribution-friendly (where
+permissions allow), and correctly attributed**.
 
 Tracks [#1938](https://github.com/laqieer/FEBuilderGBA/issues/1938); spun out of discussion
 [#1930](https://github.com/laqieer/FEBuilderGBA/discussions/1930).
@@ -42,10 +42,11 @@ identity/content) says nothing about whether you're *legally permitted* to copy 
 
 At the time of writing, **none of the three projects above declares an open-source license** —
 `MysticOCE/EasyBuildfile`, `Snakey11/Legends-of-Avenir`, and `i-am-neon/fe-infinity` each report **no
-`LICENSE` file / no detected license**. Under default copyright (Berne Convention; GitHub's own Terms
-of Service for repos without a license), **"no license" means all rights reserved** — you may view
-the repo, but you do **not** automatically have permission to copy, modify, or redistribute its
-contents.
+`LICENSE` file / no detected license**. The rule to apply is simple and doesn't depend on any one
+platform's terms: **absent an explicit license grant, treat the work as all rights reserved** — you
+may view the repo, but you do **not** automatically have permission to copy, modify, or redistribute
+its contents. (GitHub documents this default for repositories without a license: see
+[Licensing a repository](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/licensing-a-repository).)
 
 Therefore this policy applies **uniformly**:
 
