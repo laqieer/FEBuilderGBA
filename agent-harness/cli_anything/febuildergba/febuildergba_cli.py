@@ -163,7 +163,9 @@ def rom_checksum_cmd(ctx, rom_file, force_version):
     """Validate the GBA header checksum (an INVALID header is reported, not an error)."""
     from cli_anything.febuildergba.core.verbs import checksum
     path = rom_file or _get_rom_path(ctx.obj.get("rom_path", ""))
-    fv = force_version or _get_force_version()
+    # Only inherit the session force-version when using the session/global ROM;
+    # an explicitly-passed rom_file must not pick up an unrelated forced version.
+    fv = force_version or ("" if rom_file else _get_force_version())
     result = checksum(path, fv)
     # Do NOT _check_exit_code blindly: exit 2 = "checked, header INVALID" (advisory,
     # non-fatal). Only exit 1 is a real file/usage error.
@@ -186,7 +188,7 @@ def rom_repair_header_cmd(ctx, rom_file, force_version):
     """Recompute and write the correct GBA header checksum in-place."""
     from cli_anything.febuildergba.core.verbs import repair_header
     path = rom_file or _get_rom_path(ctx.obj.get("rom_path", ""))
-    fv = force_version or _get_force_version()
+    fv = force_version or ("" if rom_file else _get_force_version())
     result = repair_header(path, fv)
     _check_exit_code(result, "Repair header")
     if _session and result["repaired"]:
