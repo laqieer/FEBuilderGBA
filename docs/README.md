@@ -41,6 +41,15 @@ overview and quick start; the documents below go into depth on specific areas.
 | [DECOMP-FEATURE-INVENTORY.md](DECOMP-FEATURE-INVENTORY.md) | Full decomp-project-mode feature set + the PRs/commits that landed each slice. |
 | [DECOMP-HYSSOPI-IMPORT-FINDINGS.md](DECOMP-HYSSOPI-IMPORT-FINDINGS.md) | Findings from the Hyssop decomp import investigation. |
 
+## Agent-native / LLM integration
+
+Docs for using FEBuilderGBA as an agent / LLM backend (headless authoring, buildfile/decomp emit).
+
+| Doc | What it covers |
+|-----|----------------|
+| [agent-buildfile-template-policy.md](agent-buildfile-template-policy.md) | **Base-ROM / template policy** for agent-generated content — prefer a neutral base for *neutrality* (not licensing), assume all-rights-reserved absent explicit permission, à-la-carte attributed features, user-supplied clean ROM. |
+| [agent-parity.md](agent-parity.md) | Agent parity matrix — per-surface headless coverage (GUI editors ↔ CLI verbs ↔ Core seams). *(Also listed under Architecture & internals.)* |
+
 ## Build, packaging & release
 
 | Doc | What it covers |
