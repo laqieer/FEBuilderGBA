@@ -105,6 +105,9 @@ curation is explicitly out of scope for this policy).*
 - Discussion [#1930](https://github.com/laqieer/FEBuilderGBA/discussions/1930); emit-recipe
   [#1935](https://github.com/laqieer/FEBuilderGBA/issues/1935); CLI-backend
   [#1937](https://github.com/laqieer/FEBuilderGBA/issues/1937).
+- [#1940](https://github.com/laqieer/FEBuilderGBA/issues/1940) positions FEBuilderGBA as an
+  authoring front-end that emits decomp-consumable assets — this neutral-base / attribution posture
+  applies to whatever base such a decomp/homebrew project targets.
 - [#1941](https://github.com/laqieer/FEBuilderGBA/issues/1941) discusses LoA's `ASM/SkillSystem` as an
   architectural *pattern* ("friendlier engine data structures"). **Note:** citing a project's design
   as prior art does **not** imply permission to vendor its code — the attribution/permission rules
