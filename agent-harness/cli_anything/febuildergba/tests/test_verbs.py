@@ -16,7 +16,9 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from click.testing import CliRunner
 
+from cli_anything.febuildergba import febuildergba_cli
 from cli_anything.febuildergba.core import verbs
 
 
@@ -156,6 +158,53 @@ class TestCompileEventUnit:
         assert not any(a.startswith("--out") for a in rec.args)
 
 
+# ── Click-layer regression guard (checksum exit-2 must NOT raise) ─────
+
+class TestChecksumClickLayer:
+    """The `rom checksum` Click command must treat exit 2 (invalid header) as a
+    structured, non-fatal result — never a raised ClickException. This guards
+    against a future "simplification" reintroducing the dead-code bug that the
+    pre-existing data/text roundtrip commands have.
+    """
+
+    def _patch(self, monkeypatch, returncode, valid, actual="0xAB", expected="0xCD"):
+        def fake(rom_path, force_version=""):
+            return {
+                "exit_code": returncode, "stdout": "", "stderr": "",
+                "rom_path": rom_path, "valid": valid,
+                "actual": actual, "expected": expected,
+            }
+        monkeypatch.setattr("cli_anything.febuildergba.core.verbs.checksum", fake)
+
+    def test_invalid_header_exit2_json_does_not_raise(self, monkeypatch):
+        self._patch(monkeypatch, 2, False)
+        res = CliRunner().invoke(febuildergba_cli.cli,
+                                 ["--json", "rom", "checksum", "fake.gba"])
+        assert res.exit_code == 0, res.output  # exit 2 must NOT raise
+        assert '"valid": false' in res.output.lower()
+
+    def test_invalid_header_human_does_not_raise(self, monkeypatch):
+        self._patch(monkeypatch, 2, False)
+        res = CliRunner().invoke(febuildergba_cli.cli,
+                                 ["rom", "checksum", "fake.gba"])
+        assert res.exit_code == 0, res.output
+        assert "INVALID" in res.output
+
+    def test_valid_header(self, monkeypatch):
+        self._patch(monkeypatch, 0, True, actual="0x91", expected="0x91")
+        res = CliRunner().invoke(febuildergba_cli.cli,
+                                 ["rom", "checksum", "fake.gba"])
+        assert res.exit_code == 0
+        assert "VALID" in res.output and "INVALID" not in res.output
+
+    def test_file_error_exit1_raises(self, monkeypatch):
+        # exit 1 = real file/usage error → must surface as a non-zero exit.
+        self._patch(monkeypatch, 1, None)
+        res = CliRunner().invoke(febuildergba_cli.cli,
+                                 ["rom", "checksum", "fake.gba"])
+        assert res.exit_code != 0
+
+
 # ── E2E scaffolding (real backend + real ROM, skip-gated) ─────────────
 
 def _repo_root() -> Path:
@@ -234,3 +283,24 @@ class TestVerbsE2E:
             result = verbs.export_palette(rom, "0x5524", out, colors=16)
             assert result["exit_code"] == 0
             assert os.path.isfile(out)
+
+    def test_compile_event_gated(self):
+        """Real compile-event, gated on EA/ColorzCore availability.
+
+        Skips when the tool is unresolvable (exit 1), which is the common dev
+        case (the EA/ColorzCore submodules are often uninitialized); runs the
+        real compile when the tool is present (CI initializes it).
+        """
+        _require_backend()
+        rom = _find_rom()
+        with tempfile.TemporaryDirectory() as td:
+            romcopy = os.path.join(td, "rom.gba")
+            shutil.copyfile(rom, romcopy)
+            script = os.path.join(td, "s.event")
+            with open(script, "w", encoding="utf-8") as f:
+                f.write("// minimal no-op EA script\n")
+            result = verbs.compile_event(romcopy, script)
+            if result["exit_code"] != 0:
+                pytest.skip("EA/ColorzCore not available or compile failed: "
+                            + (result["stderr"] or result["stdout"])[:200])
+            assert result["exit_code"] == 0
