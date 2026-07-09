@@ -6,7 +6,7 @@ FEBuilderGBA is a comprehensive ROM hacking suite for the Fire Emblem GBA trilog
 
 ## Backend
 
-The real software is `FEBuilderGBA.CLI` — a cross-platform .NET 9.0 CLI that exposes **~67 commands** (lint, rebuild, text export/import, struct data export/import, disassembly, palette quantization, UPS patching, event compile/disassemble, portrait / battle-animation / MIDI / palette I/O, buildfile & decomp-asset emit, and more). The authoritative, always-current command list is [`docs/cli-reference.md`](../docs/cli-reference.md) (per-argument detail in [`docs/cli-args.md`](../docs/cli-args.md)); the exact count drifts as verbs are added, so treat that reference — not this number — as canonical.
+The real software is `FEBuilderGBA.CLI` — a cross-platform .NET 9.0 CLI that exposes **~67 commands** (lint, rebuild, text export/import, struct data export/import, disassembly, palette quantization, UPS patching, event compile/disassemble, portrait / battle-animation / MIDI / palette I/O, decomp-asset export, and more). The authoritative, always-current command list is [`docs/cli-reference.md`](../docs/cli-reference.md) (per-argument detail in [`docs/cli-args.md`](../docs/cli-args.md)); the exact count drifts as verbs are added, so treat that reference — not this number — as canonical.
 
 The Python CLI harness wraps `FEBuilderGBA.CLI` via subprocess, adding:
 - Stateful session management (track open ROM, undo history)
