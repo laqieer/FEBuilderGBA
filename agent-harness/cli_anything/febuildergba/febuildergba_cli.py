@@ -155,6 +155,67 @@ def rom_save_cmd(ctx, out):
     _output(result, f"Saved ROM to {result['output_path']} ({result['file_size']} bytes)")
 
 
+@rom.command("checksum")
+@click.argument("rom_file", required=False)
+@click.option("--force-version", default="")
+@click.pass_context
+def rom_checksum_cmd(ctx, rom_file, force_version):
+    """Validate the GBA header checksum (an INVALID header is reported, not an error)."""
+    from cli_anything.febuildergba.core.verbs import checksum
+    path = rom_file or _get_rom_path(ctx.obj.get("rom_path", ""))
+    # Only inherit the session force-version when using the session/global ROM;
+    # an explicitly-passed rom_file must not pick up an unrelated forced version.
+    fv = force_version or ("" if rom_file else _get_force_version())
+    result = checksum(path, fv)
+    # Do NOT _check_exit_code blindly: exit 2 = "checked, header INVALID" (advisory,
+    # non-fatal). Only exit 1 is a real file/usage error.
+    if result["exit_code"] not in (0, 2):
+        _check_exit_code(result, "Checksum")
+    if _json_mode:
+        _output(result)
+    elif result["valid"]:
+        click.echo(f"Header checksum VALID ({result['actual']})")
+    else:
+        click.echo(f"Header checksum INVALID (actual {result['actual']}, "
+                   f"expected {result['expected']}) — use 'rom repair-header' to fix")
+
+
+@rom.command("repair-header")
+@click.argument("rom_file", required=False)
+@click.option("--force-version", default="")
+@click.pass_context
+def rom_repair_header_cmd(ctx, rom_file, force_version):
+    """Recompute and write the correct GBA header checksum in-place."""
+    from cli_anything.febuildergba.core.verbs import repair_header
+    path = rom_file or _get_rom_path(ctx.obj.get("rom_path", ""))
+    fv = force_version or ("" if rom_file else _get_force_version())
+    result = repair_header(path, fv)
+    _check_exit_code(result, "Repair header")
+    if _session and result["repaired"]:
+        _session.record_operation("repair_header", {"rom": path})
+        _session.mark_modified()
+    _output(result, result.get("stdout", "") or f"Header checksum OK: {path}")
+
+
+@rom.command("diff")
+@click.argument("rom_file")
+@click.argument("rom2")
+@click.option("-o", "--out", default="", help="Write a TSV of the differing ranges")
+def rom_diff_cmd(rom_file, rom2, out):
+    """Compare two ROMs byte-by-byte (distinct from `data diff`, which compares TSVs)."""
+    from cli_anything.febuildergba.core.verbs import rom_diff
+    result = rom_diff(rom_file, rom2, out)
+    _check_exit_code(result, "ROM diff")  # exit 1 = file/usage error only
+    if _json_mode:
+        _output(result)
+    elif result["identical"]:
+        click.echo("ROMs are identical.")
+    else:
+        click.echo(f"ROMs differ: {result['bytes_differ']} bytes across "
+                   f"{result['regions']} region(s)"
+                   + (f" (TSV: {out})" if out else ""))
+
+
 # ── Data commands ─────────────────────────────────────────────────────
 
 @cli.group()
@@ -565,6 +626,24 @@ def export_midi_cmd(ctx, song_id, out, force_version):
     _output(result, f"MIDI exported: {out} ({result['file_size']} bytes)")
 
 
+@cli.command("import-midi")
+@click.argument("song_id", type=str)
+@click.option("-i", "--in", "in_path", required=True, help="Input MIDI file path")
+@click.option("--force-version", default="")
+@click.pass_context
+def import_midi_cmd(ctx, song_id, in_path, force_version):
+    """Import a MIDI file into a ROM song slot. Song ID is hex (e.g. 1A, 0x1A)."""
+    from cli_anything.febuildergba.core.verbs import import_midi
+    rom = _get_rom_path(ctx.obj.get("rom_path", ""))
+    fv = force_version or _get_force_version()
+    result = import_midi(rom, song_id, in_path, fv)
+    _check_exit_code(result, "MIDI import")
+    if _session:
+        _session.record_operation("import_midi", {"song_id": song_id})
+        _session.mark_modified()
+    _output(result, f"MIDI imported into song {song_id}: {in_path}")
+
+
 # ── Event script disassembly command ──────────────────────────────────
 
 @cli.command("disasm-event")
@@ -590,6 +669,24 @@ def disasm_event_cmd(ctx, addr, script_type, out, force_version):
         click.echo(result.get("stdout", ""))
 
 
+@cli.command("compile-event")
+@click.option("-i", "--in", "in_path", required=True, help="Input .event script")
+@click.option("-o", "--out", default="", help="Output ROM (default: overwrite input ROM)")
+@click.option("--force-version", default="")
+@click.pass_context
+def compile_event_cmd(ctx, in_path, out, force_version):
+    """Compile an .event script with the bundled/configured EA/ColorzCore and write the ROM."""
+    from cli_anything.febuildergba.core.verbs import compile_event
+    rom = _get_rom_path(ctx.obj.get("rom_path", ""))
+    fv = force_version or _get_force_version()
+    result = compile_event(rom, in_path, out, fv)
+    _check_exit_code(result, "Event compile")  # exit 1 = tool missing or compile failure
+    if _session:
+        _session.record_operation("compile_event", {"in": in_path})
+        _session.mark_modified()
+    _output(result, result.get("stdout", "") or f"Compiled {in_path}")
+
+
 # ── OAM lint command ─────────────────────────────────────────────────
 
 @cli.command("lint-oam")
@@ -613,6 +710,68 @@ def lint_oam_cmd(ctx, addr, length, force_version):
             click.echo(f"OAM lint: {result['issue_count']} issue(s)")
             for issue in result["issues"]:
                 click.echo(f"  {issue}")
+
+
+@cli.command("export-map-settings-raw")
+@click.option("-o", "--out", required=True, help="Output TSV path")
+@click.option("--force-version", default="")
+@click.pass_context
+def export_map_settings_raw_cmd(ctx, out, force_version):
+    """Export chapter/map settings as raw struct words to TSV.
+
+    Legacy raw-hex dumper. For typed, round-trippable fields prefer:
+    `data export map_settings` (--export-data --table=map_settings).
+    """
+    from cli_anything.febuildergba.core.verbs import export_map_settings_raw
+    rom = _get_rom_path(ctx.obj.get("rom_path", ""))
+    fv = force_version or _get_force_version()
+    result = export_map_settings_raw(rom, out, fv)
+    _check_exit_code(result, "Export map settings")
+    _output(result, f"Map settings exported: {out} ({result['file_size']} bytes)")
+
+
+# ── Palette commands ─────────────────────────────────────────────────
+
+@cli.group()
+def palette():
+    """Palette operations — export/import GBA palettes."""
+    pass
+
+
+@palette.command("export")
+@click.option("--addr", required=True, help="Palette address in hex (e.g. 0x5524)")
+@click.option("-o", "--out", required=True,
+              help="Output file; extension picks format (.pal/.act/.gpl/.txt/.gbapal)")
+@click.option("--colors", default=None, type=click.IntRange(1, 256),
+              help="Color count 1..256 (backend default: 16 when omitted)")
+@click.option("--force-version", default="")
+@click.pass_context
+def palette_export_cmd(ctx, addr, out, colors, force_version):
+    """Export a GBA palette to a file."""
+    from cli_anything.febuildergba.core.verbs import export_palette
+    rom = _get_rom_path(ctx.obj.get("rom_path", ""))
+    fv = force_version or _get_force_version()
+    result = export_palette(rom, addr, out, colors, fv)
+    _check_exit_code(result, "Palette export")
+    _output(result, f"Palette exported: {out} ({result['file_size']} bytes)")
+
+
+@palette.command("import")
+@click.option("--addr", required=True, help="Palette address in hex (e.g. 0x5524)")
+@click.option("-i", "--in", "in_path", required=True, help="Input palette file")
+@click.option("--force-version", default="")
+@click.pass_context
+def palette_import_cmd(ctx, addr, in_path, force_version):
+    """Import a palette file into the ROM (format auto-detected)."""
+    from cli_anything.febuildergba.core.verbs import import_palette
+    rom = _get_rom_path(ctx.obj.get("rom_path", ""))
+    fv = force_version or _get_force_version()
+    result = import_palette(rom, addr, in_path, fv)
+    _check_exit_code(result, "Palette import")
+    if _session:
+        _session.record_operation("import_palette", {"addr": addr})
+        _session.mark_modified()
+    _output(result, f"Palette imported at {addr}: {in_path}")
 
 
 # ── Patch apply command ──────────────────────────────────────────────
