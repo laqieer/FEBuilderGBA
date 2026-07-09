@@ -87,7 +87,8 @@ All 40 registered tables round-trip losslessly (`--data-roundtrip --table=<name>
 | Battle animations | Battle-anime editor | `--import-battle-anime`, `--export-battle-anime` (+ `--gif`), decomp `--export-battle-anim-decomp` | **Full** | |
 | Palettes | Palette tools | `--export-palette`, `--import-palette` (JASC/ACT/GIMP/hex/raw) | **Full** | |
 | Map/screen graphics & TSA | TSA / map-graphic editors | `--convertmap1picture`, decomp `--import-asset`/`--export-asset` (map/mapchange/objtiles/…) | **Partial** | No general in-ROM TSA round-trip verb; decomp-asset family is project-mode. |
-| **Wait/move icons** | `ImageUnitWaitIconView`, `ImageUnitMoveIconView` | Core `WaitIconRenderCore` / `WaitIconImportCore` — **no CLI verb** | **Core-only** | Cheap win → see gaps. |
+| **Wait icons** | `ImageUnitWaitIconView` | Core `WaitIconRenderCore` / `WaitIconImportCore` — **no CLI verb** | **Core-only** | Cheap win → see gaps. |
+| **Move icons** | `ImageUnitMoveIconView` | Core `UnitMoveIconRenderCore` / `UnitMoveIconImportCore` — **no CLI verb** | **Core-only** | Cheap win → see gaps. |
 
 ## 4. Maps (tile layout, distinct from settings in §1)
 
@@ -150,7 +151,7 @@ yet; this list is the candidate set.
 | 1 | `--export-skills` / `--import-skills` | `SkillConfigSkillSystemBulkExportCore`, `SkillConfigSkillSystemBulkImportCore` | Bulk skill-config TSV round-trip (atomic). |
 | 2 | `--export-skill-anime` / `--import-skill-anime` | `SkillSystemsAnimeExportCore`, `SkillSystemsAnimeImportCore` | Skill-animation `.txt`+PNG/GIF export & import. |
 | 3 | `--export-data --format=struct` + `--format=nmm` | `StructExportCore.ExportToSTRUCT`, `ExportToNMM` | Extend the existing `--format=` switch (GUI already offers these). |
-| 4 | `--render-waiticon` / `--import-waiticon` | `WaitIconRenderCore`, `WaitIconImportCore` | Unit wait/move-icon PNG render & import. |
+| 4 | `--render-waiticon` / `--import-waiticon` (+ move-icon variants) | `WaitIconRenderCore`/`WaitIconImportCore` (wait); `UnitMoveIconRenderCore`/`UnitMoveIconImportCore` (move) | Unit wait-icon **and** move-icon PNG render & import (distinct seams). |
 | 5 | `--export-instrument` / track-change verbs | `SongTrackChangeCore`, `SongWaveConvertCore` | Instrument/sample/track-change headless path. |
 
 **Larger gaps (need new work, not just a wrapper):**
