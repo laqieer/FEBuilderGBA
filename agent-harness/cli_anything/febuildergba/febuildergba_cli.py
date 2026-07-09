@@ -189,10 +189,10 @@ def rom_repair_header_cmd(ctx, rom_file, force_version):
     fv = force_version or _get_force_version()
     result = repair_header(path, fv)
     _check_exit_code(result, "Repair header")
-    if _session:
+    if _session and result["repaired"]:
         _session.record_operation("repair_header", {"rom": path})
         _session.mark_modified()
-    _output(result, f"Header checksum repaired: {path}")
+    _output(result, result.get("stdout", "") or f"Header checksum OK: {path}")
 
 
 @rom.command("diff")

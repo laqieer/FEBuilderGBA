@@ -5,9 +5,10 @@ Each function is a thin subprocess wrapper over the real CLI (via
 dict so the Click layer can honor ``--json``.
 
 Advisory exit codes are handled *structurally* here (not by raising): e.g.
-``--checksum`` returns exit 2 for a VALID check of an INVALID header, so
-``checksum()`` maps that to ``{"valid": false}`` rather than an error — the
-same non-fatal pattern as ``lint_oam`` (see #1933 review board).
+``--checksum`` uses exit 2 to mean "the check ran successfully but the header
+checksum is invalid" (advisory, non-fatal), so ``checksum()`` maps it to
+``{"valid": false}`` rather than an error — the same non-fatal pattern as
+``lint_oam`` (see #1933 review board).
 """
 
 import os
@@ -60,15 +61,28 @@ def checksum(rom_path: str, force_version: str = "") -> dict:
 
 
 def repair_header(rom_path: str, force_version: str = "") -> dict:
-    """Recompute and write the correct GBA header checksum in-place (``--repair-header``)."""
+    """Recompute and write the correct GBA header checksum in-place (``--repair-header``).
+
+    The backend exits 0 both when it actually rewrites the byte AND when the
+    header was already valid (a no-op). Those two cases are distinguished by
+    parsing stdout so consumers (and the session-modified flag) aren't misled:
+    ``repaired`` is True only when a byte was actually written.
+    """
     args = ["--repair-header", f"--rom={rom_path}"]
     if force_version:
         args.append(f"--force-version={force_version}")
 
     result = run_cli(args)
     out = _base_result(result)
-    out["rom_path"] = rom_path
-    out["repaired"] = result.returncode == 0
+    already_valid = "already valid" in out["stdout"].lower()
+    repaired = (result.returncode == 0
+                and ("repaired header checksum" in out["stdout"].lower()
+                     or (not already_valid and out["stdout"] != "")))
+    out.update({
+        "rom_path": rom_path,
+        "repaired": repaired,          # a byte was actually written
+        "already_valid": already_valid,  # no-op (header was already correct)
+    })
     return out
 
 
@@ -209,5 +223,11 @@ def compile_event(rom_path: str, in_path: str, out_path: str = "",
 
     result = run_cli(args)
     out = _base_result(result)
-    out.update({"rom_path": rom_path, "input_path": in_path, "output_path": out_path})
+    # When --out is omitted the backend overwrites the input ROM, so report the
+    # actual destination (rom_path) rather than an empty string.
+    out.update({
+        "rom_path": rom_path,
+        "input_path": in_path,
+        "output_path": out_path or rom_path,
+    })
     return out

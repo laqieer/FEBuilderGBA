@@ -83,11 +83,20 @@ class TestChecksumUnit:
 
 
 class TestRepairHeaderUnit:
-    def test_args_and_result(self, rec):
+    def test_repaired(self, rec):
         rec.returncode = 0
+        rec.stdout = "Repaired header checksum: 0xAB -> 0x9D\nSaved: r.gba"
         result = verbs.repair_header("r.gba")
         assert rec.args == ["--repair-header", "--rom=r.gba"]
         assert result["repaired"] is True
+        assert result["already_valid"] is False
+
+    def test_already_valid_is_noop(self, rec):
+        rec.returncode = 0
+        rec.stdout = "Header checksum already valid (0x9D). No repair needed."
+        result = verbs.repair_header("r.gba")
+        assert result["already_valid"] is True
+        assert result["repaired"] is False
 
 
 class TestRomDiffUnit:
@@ -268,9 +277,20 @@ class TestVerbsE2E:
         with tempfile.TemporaryDirectory() as td:
             copy = os.path.join(td, "rom.gba")
             shutil.copyfile(rom, copy)
+            # Corrupt the header checksum byte (0xBD) so repair actually writes.
+            with open(copy, "r+b") as fh:
+                fh.seek(0xBD)
+                orig = fh.read(1)
+                fh.seek(0xBD)
+                fh.write(bytes([(orig[0] ^ 0xFF) & 0xFF]))
             result = verbs.repair_header(copy)
             assert result["exit_code"] == 0
             assert result["repaired"] is True
+            assert result["already_valid"] is False
+            # A second run is now a no-op (header already valid).
+            again = verbs.repair_header(copy)
+            assert again["already_valid"] is True
+            assert again["repaired"] is False
 
     def test_export_map_settings_raw_real_rom(self):
         _require_backend()
@@ -307,7 +327,13 @@ class TestVerbsE2E:
             with open(script, "w", encoding="utf-8") as f:
                 f.write("// minimal no-op EA script\n")
             result = verbs.compile_event(romcopy, script)
-            if result["exit_code"] != 0:
-                pytest.skip("EA/ColorzCore not available or compile failed: "
+            msg = (result["stderr"] + " " + result["stdout"]).lower()
+            tool_missing = ("event assembler" in msg or "colorzcore" in msg
+                            or "not found" in msg)
+            if result["exit_code"] != 0 and tool_missing:
+                pytest.skip("EA/ColorzCore not available: "
                             + (result["stderr"] or result["stdout"])[:200])
-            assert result["exit_code"] == 0
+            # Tool IS present → a genuine compile failure must fail the test,
+            # not silently skip (so CI catches real regressions).
+            assert result["exit_code"] == 0, (result["stderr"] or result["stdout"])[:400]
+            assert result["output_path"] == romcopy  # --out omitted → overwrites input
