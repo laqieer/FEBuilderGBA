@@ -1,3 +1,8 @@
 # Keep shell scripts LF-only so they run on the Linux CI runners regardless of
 # a contributor's core.autocrlf setting (a CRLF shebang breaks /bin/sh). (#1632)
 *.sh text eol=lf
+
+# Keep GitHub Actions workflows LF-only for the same reason: an embedded bash
+# `run:` block with CRLF would inject stray \r on the Linux runner. (#1943)
+/.github/workflows/*.yml text eol=lf
+

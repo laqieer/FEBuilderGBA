@@ -86,6 +86,15 @@ This repo uses **[GitGuardian ggshield](https://github.com/gitguardian/ggshield)
 - **Local (opt-in pre-commit hook):** `pip install pre-commit && pre-commit install --hook-type pre-commit --hook-type commit-msg` (these `--hook-type` flags register **both** the ggshield secret-scan hook *and* the commitlint commit-msg hook — see [Commit & PR Title Convention](#commit--pr-title-convention)), then authenticate once with `ggshield auth login` (or export `GITGUARDIAN_API_KEY`). ggshield then scans each commit and blocks one that would introduce a secret. Escape hatch for a false positive: `SKIP=ggshield git commit …` (or `git commit --no-verify`). Requires pre-commit ≥ 3.2.0.
 - **CI:** `.github/workflows/ggshield.yml` scans the commit range of each push / PR. It runs only when the `GITGUARDIAN_API_KEY` repo secret is set, so **fork PRs skip it** (secrets aren't shared with forks) and it never breaks the build. It's an advisory (non-required) check — a finding fails the check but doesn't hard-block merge.
 
+## Binary, ROM & Secret Files (do not commit)
+
+Executables, ROMs, disk/app images, archives, and secret/certificate/key material must **never** be committed (copyright risk for ROMs; supply-chain/leak risk for the rest). This is enforced two ways:
+
+- **`.gitignore`** blocks the whole class locally (`*.exe`, `*.dll`, `*.elf`, `*.7z`, `*.zip`, `*.nds`, `*.iso`, `*.pem`, `*.key`, `*.p12`, `*.env`, `id_rsa`, … — see the *Security / hygiene* block). `*.gba` and `/roms/` are also blocked.
+- **`.github/workflows/block-binaries.yml`** is a required-eligible CI check that fails any push/PR that **adds or modifies** a disallowed file (server-side; GitHub push rulesets aren't available on public repos).
+
+**Intentional exceptions:** the harmless test fixtures `*.bin` / `*.dmp` / `*.wav` are allowed, and the two legitimately-tracked binaries `FEBuilderGBA/lib/7-zip32.dll` (native archive helper) and `FEBuilderGBA/test/test.elf` (ARM test fixture) are explicitly allowlisted in both the `.gitignore` and the workflow. If you have a genuine need to commit another binary, add a documented allowlist entry in both places in the same PR. Together with **ggshield** (content-based) and **secret-scanning push protection**, this gives layered protection against accidental binary/secret commits.
+
 ## Commit & PR Title Convention
 
 Commit subjects and pull-request titles follow the

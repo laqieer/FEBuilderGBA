@@ -1,0 +1,82 @@
+name: Block binary & secret files
+
+# Repo-wide guardrail: refuse binary executables, ROMs, disk/app images, archives,
+# and secret/certificate/key material (issue #1943). Harmless data fixtures
+# (*.bin / *.dmp / *.wav) are intentionally allowed. `push` is restricted to master
+# (matching every other workflow in this repo); all pull requests are always checked,
+# which is the enforced entry point for contributions and forks.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: block-binaries-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  block:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect disallowed added/modified files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base='${{ github.event.pull_request.base.sha }}'
+            head='${{ github.event.pull_request.head.sha }}'
+          else
+            base='${{ github.event.before }}'
+            head='${{ github.sha }}'
+          fi
+
+          # New branch / unknown base → diff against the empty tree; otherwise diff from
+          # the merge-base so only files this push/PR introduces are inspected (changes
+          # already present on the base branch are ignored).
+          if [ -z "$base" ] || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            base="$(git hash-object -t tree /dev/null)"
+          else
+            base="$(git merge-base "$base" "$head" 2>/dev/null || printf '%s' "$base")"
+          fi
+
+          # Legitimately-tracked binaries (issue #1943) — never flagged.
+          allow='^(FEBuilderGBA/lib/7-zip32\.dll|FEBuilderGBA/test/test\.elf)$'
+          # Committable env templates — always allowed.
+          example='(^|/)\.env\.(example|sample|template)$'
+          # Secret files matched by NAME (no blockable extension).
+          names='(^|/)(\.env(\..*)?|\.netrc|\.pgpass|\.npmrc|\.pypirc|id_rsa|id_dsa|id_ecdsa|id_ed25519)$'
+          # macOS bundle directories are stored as Foo.app/… — match the path segment.
+          bundle='(^|/)[^/]+\.app(/|$)'
+          # Blocked extensions (113) — everything in the .gitignore block EXCEPT bin/dmp/wav.
+          exts='com|exe|elf|dll|so|dylib|o|a|lib|obj|pdb|ko|class|out|scr|cpl|wasm|app|msi|msix|appx|deb|rpm|pkg|dmg|apk|ipa|aab|jar|gba|gb|gbc|nds|nes|sfc|smc|n64|z64|v64|3ds|cia|agb|mb|srl|sav|rom|ups|ips|iso|img|vhd|vhdx|vmdk|vdi|qcow2|cue|zip|rar|7z|tar|tgz|gz|bz2|xz|lz|lzma|zst|z|cab|arj|lha|lzh|ace|sit|pem|crt|cer|der|crl|key|pkey|ppk|p12|pfx|pkcs12|p8|pk8|pkcs8|p7b|p7c|p7r|p7s|spc|csr|jks|jceks|bks|keystore|keychain|pub|asc|gpg|pgp|ovpn|kdbx|mobileprovision|provisionprofile|secret|secrets|credentials|htpasswd|keytab|env'
+
+          bad=0
+          # --no-renames so a rename into a blocked path shows up as an Add (renames are
+          # otherwise reported as R and dropped by --diff-filter=AMT).
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            [[ "$f" =~ $allow ]] && continue
+            low="$(printf '%s' "$f" | tr 'A-Z' 'a-z')"
+            printf '%s\n' "$low" | grep -Eq "$example" && continue
+            if printf '%s\n' "$low" | grep -Eq "\.($exts)\$" \
+               || printf '%s\n' "$low" | grep -Eq "$bundle" \
+               || printf '%s\n' "$low" | grep -Eq "$names"; then
+              echo "::error file=$f::Disallowed binary/secret file '$f' (see .gitignore policy / issue #1943)."
+              bad=1
+            fi
+          done < <(git diff --no-renames --name-only --diff-filter=AMT "$base" "$head")
+
+          if [ "$bad" -ne 0 ]; then
+            echo "Blocked: remove the file(s) above, or add a documented allowlist exception."
+            exit 1
+          fi
+          echo "OK — no disallowed binary/secret files added or modified."

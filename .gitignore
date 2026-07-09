@@ -98,3 +98,156 @@ FEBuilderGBA/FEBuilderGBA.csproj.user
 # tools/ subprojects (WinCapture, etc.) — build artifacts only
 tools/**/bin/
 tools/**/obj/
+
+# ── Security / hygiene: block binary executables, ROMs, disk & app images, archives,
+#    and secret / certificate / key material (issue #1943) ──
+# Opaque/attackable binaries + copyright-risk ROMs + leaked credentials must never be
+# committed. Harmless data fixtures (*.bin / *.dmp / *.wav) are intentionally NOT blocked.
+# (*.gba is already ignored at the top of this file.)
+# Enforced server-side by .github/workflows/block-binaries.yml + secret-scanning push protection.
+
+# Executables & libraries
+*.com
+*.exe
+*.elf
+*.dll
+*.so
+*.dylib
+*.o
+*.a
+*.lib
+*.obj
+*.pdb
+*.ko
+*.class
+*.out
+*.scr
+*.cpl
+*.wasm
+*.app
+
+# Installers & app packages
+*.msi
+*.msix
+*.appx
+*.deb
+*.rpm
+*.pkg
+*.dmg
+*.apk
+*.ipa
+*.aab
+*.jar
+
+# ROMs, game images & patches
+*.gb
+*.gbc
+*.nds
+*.nes
+*.sfc
+*.smc
+*.n64
+*.z64
+*.v64
+*.3ds
+*.cia
+*.agb
+*.mb
+*.srl
+*.sav
+*.rom
+*.ups
+*.ips
+
+# Disk & filesystem images
+*.iso
+*.img
+*.vhd
+*.vhdx
+*.vmdk
+*.vdi
+*.qcow2
+*.cue
+
+# Archives & compressed
+*.zip
+*.rar
+*.7z
+*.tar
+*.tgz
+*.gz
+*.bz2
+*.xz
+*.lz
+*.lzma
+*.zst
+*.z
+*.cab
+*.arj
+*.lha
+*.lzh
+*.ace
+*.sit
+
+# Secrets, certificates, keys & keystores
+*.pem
+*.crt
+*.cer
+*.der
+*.crl
+*.key
+*.pkey
+*.ppk
+*.p12
+*.pfx
+*.pkcs12
+*.p8
+*.pk8
+*.pkcs8
+*.p7b
+*.p7c
+*.p7r
+*.p7s
+*.spc
+*.csr
+*.jks
+*.jceks
+*.bks
+*.keystore
+*.keychain
+*.pub
+*.asc
+*.gpg
+*.pgp
+*.ovpn
+*.kdbx
+*.mobileprovision
+*.provisionprofile
+*.secret
+*.secrets
+*.credentials
+*.htpasswd
+*.keytab
+*.env
+
+# Secret dotfiles / env / credential files (no blockable extension).
+# .env.example / .sample / .template are re-included so they can still be committed.
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+.netrc
+.pgpass
+.htpasswd
+.npmrc
+.pypirc
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+
+# ── Exceptions: legitimately-tracked binaries (must stay tracked) ──
+# These fall in the blocked set above; negations MUST come after *.dll / *.elf.
+!FEBuilderGBA/lib/7-zip32.dll
+!FEBuilderGBA/test/test.elf
