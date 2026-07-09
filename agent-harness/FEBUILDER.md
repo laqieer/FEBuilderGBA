@@ -43,7 +43,7 @@ Coverage note below.
 | `rom` | ROM info, validate, version detection, tables, header, save |
 | `data` | Struct data export/import (40 tables: units, classes, items, etc.), roundtrip, inspect, diff, lookup |
 | `text` | Text export/import, search, roundtrip validation |
-| `patch` | Patch operations — list, create UPS, apply UPS |
+| `patch` | Patch operations — list, create UPS, apply UPS, apply BIN (`apply-bin`) |
 | `image` | Palette quantization (`quantize`), map tile conversion (`convert-map`) |
 | `session` | Session management (open, close, status, history) |
 
