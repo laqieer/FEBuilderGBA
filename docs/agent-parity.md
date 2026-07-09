@@ -99,7 +99,7 @@ All 40 registered tables round-trip losslessly (`--data-roundtrip --table=<name>
 
 | Surface | GUI editor(s) | Headless path | Coverage | Notes / gap |
 |---|---|---|---|---|
-| Event / Procs / AI script opcodes | `EventScriptView`, `ProcsScriptView`, `AIScriptView` | Read: `--disasm-event --type=event\|procs\|ai`. Write: `--compile-event` (EA `.event` only) | **Partial** | No structured per-command *import* back into the ROM; write path is EA-source compilation, not opcode editing. |
+| Event / Procs / AI script opcodes | `EventScriptView`, `ProcsScriptView`, `AIScriptView` | Read: `--disasm-event --type=` (`event`, `procs`, or `ai`). Write: `--compile-event` (EA `.event` only) | **Partial** | No structured per-command *import* back into the ROM; write path is EA-source compilation, not opcode editing. |
 
 ## 6. Audio
 
@@ -107,7 +107,7 @@ All 40 registered tables round-trip losslessly (`--data-roundtrip --table=<name>
 |---|---|---|---|---|
 | Songs (MIDI) | Song editors | `--export-midi`, `--import-midi`, `--songexchange`, `--export-voicegroup` | **Full** | |
 | **Instruments / track changes / samples** | Song instrument / track editors | Core `SongTrackChangeCore` / `SongWaveConvertCore` — **no CLI verb** | **Core-only** | Cheap win → see gaps. |
-| Sound room | `SoundRoomViewerView` | `--export-data --table=sound_room\|sound_boss_bgm` (§1) | **Full** | |
+| Sound room | `SoundRoomViewerView` | `--export-data --table=` (`sound_room`, `sound_boss_bgm`) (§1) | **Full** | |
 
 ## 7. Patches & mods — Full
 
@@ -122,7 +122,7 @@ All 40 registered tables round-trip losslessly (`--data-roundtrip --table=<name>
 | Hex dump / disassembly | Hex editor, DisASM | `--hex-dump`, `--disasm`, `--lint-oam` | **Partial** | Read/dump only; interactive ASM *edit/insert* surfaces have no CLI verb. |
 | Pointer search / free space | PointerTool, MoveToFreeSpace | `--pointercalc`, `--freespace` | **Partial** | Pointer *search* + free-space *scan* covered; `MoveToFreeSpace`, RAM/emulator-memory tools have no headless equivalent. |
 | Free-space report | — | `--freespace` | **Full** | |
-| Struct export **formats** | `DumpStructSelectDialogView` | `--export-data --format=tsv\|csv\|ea` | **Partial** | GUI also exports **STRUCT** / **NMM** (`ExportToSTRUCT`/`ExportToNMM`) — not reachable from the CLI `--format=` switch. Cheap win → see gaps. |
+| Struct export **formats** | `DumpStructSelectDialogView` | `--export-data --format=` (`tsv`, `csv`, `ea`) | **Partial** | GUI also exports **STRUCT** / **NMM** (`ExportToSTRUCT`/`ExportToNMM`) — not reachable from the CLI `--format=` switch. Cheap win → see gaps. |
 
 ## 9. Skills
 
@@ -149,7 +149,7 @@ yet; this list is the candidate set.
 |---|---|---|---|
 | 1 | `--export-skills` / `--import-skills` | `SkillConfigSkillSystemBulkExportCore`, `SkillConfigSkillSystemBulkImportCore` | Bulk skill-config TSV round-trip (atomic). |
 | 2 | `--export-skill-anime` / `--import-skill-anime` | `SkillSystemsAnimeExportCore`, `SkillSystemsAnimeImportCore` | Skill-animation `.txt`+PNG/GIF export & import. |
-| 3 | `--export-data --format=struct\|nmm` | `StructExportCore.ExportToSTRUCT`, `ExportToNMM` | Extend the existing `--format=` switch (GUI already offers these). |
+| 3 | `--export-data --format=struct` + `--format=nmm` | `StructExportCore.ExportToSTRUCT`, `ExportToNMM` | Extend the existing `--format=` switch (GUI already offers these). |
 | 4 | `--render-waiticon` / `--import-waiticon` | `WaitIconRenderCore`, `WaitIconImportCore` | Unit wait/move-icon PNG render & import. |
 | 5 | `--export-instrument` / track-change verbs | `SongTrackChangeCore`, `SongWaveConvertCore` | Instrument/sample/track-change headless path. |
 
