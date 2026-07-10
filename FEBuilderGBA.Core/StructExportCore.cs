@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -1114,11 +1115,22 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Export a ROM table to a list of (index, fieldName→value) entries.
+        /// Shared row-extraction seam (#1939): ONE base/count/stride/safety-stop
+        /// traversal produces, for every readable row, both the typed field→hex-string
+        /// dictionary (identical in shape/content to what <see cref="ExportTable"/> has
+        /// always returned) AND the exact raw runtime-stride bytes for that same row —
+        /// read from the same <paramref name="rom"/> at the same address, in the same
+        /// loop iteration. <see cref="ExportTable"/> (TSV/CSV/EA/JSON's data source) and
+        /// <see cref="FormatCData"/>/<see cref="ExportToCData"/> (the GNU11 C formatter's
+        /// data source) both consume this single seam, so the typed view and the raw-byte
+        /// view can never drift apart — there is no second, independently-maintained loop
+        /// that could read a different address, stop at a different row, or decode a field
+        /// differently than the raw bytes actually on the ROM.
         /// </summary>
-        public static List<Dictionary<string, string>> ExportTable(ROM rom, TableDef table, StructMetadata.StructDef structDef)
+        public static List<(uint index, Dictionary<string, string> fields, byte[] raw)> ExportTableRows(
+            ROM rom, TableDef table, StructMetadata.StructDef structDef)
         {
-            var result = new List<Dictionary<string, string>>();
+            var result = new List<(uint, Dictionary<string, string>, byte[])>();
             if (rom?.RomInfo == null || table == null || structDef == null) return result;
 
             uint baseAddr = table.GetBaseAddress(rom);
@@ -1153,9 +1165,28 @@ namespace FEBuilderGBA
                     entry[field.Name] = FormatFieldValue(val, field);
                 }
 
-                result.Add(entry);
+                // Exact raw runtime-stride bytes for this same row/address. The safety-stop
+                // check above already guarantees entryAddr .. entryAddr+dataSize-1 is inside
+                // rom.Data, so this always returns exactly dataSize bytes (never truncated).
+                byte[] raw = U.getBinaryData(rom.Data, entryAddr, dataSize);
+
+                result.Add((i, entry, raw));
             }
 
+            return result;
+        }
+
+        /// <summary>
+        /// Export a ROM table to a list of (index, fieldName→value) entries. Thin
+        /// projection over <see cref="ExportTableRows"/> — kept as its own method (rather
+        /// than inlined at call sites) so every existing TSV/CSV/EA/JSON caller keeps its
+        /// original signature/behavior byte-for-byte (#1939).
+        /// </summary>
+        public static List<Dictionary<string, string>> ExportTable(ROM rom, TableDef table, StructMetadata.StructDef structDef)
+        {
+            var rows = ExportTableRows(rom, table, structDef);
+            var result = new List<Dictionary<string, string>>(rows.Count);
+            foreach (var row in rows) result.Add(row.fields);
             return result;
         }
 
@@ -1766,6 +1797,487 @@ namespace FEBuilderGBA
             }
 
             return sb.ToString();
+        }
+
+        // ====================================================================
+        // GNU11 raw-byte-backed C struct/array formatter (#1939 Phase A). Produces a
+        // self-contained devkitARM-GCC-compatible (arm-none-eabi-gcc, or host GCC) GNU11
+        // translation unit per table: a one-byte-packed row struct, a 4-byte-aligned
+        // array object, and matching count/type symbols. Every stride byte is emitted
+        // exactly once — as a plain typed field, one arm of an anonymous packed union
+        // covering a connected group of overlapping fields, a named metadata "gap"
+        // member, or the runtime "trailing" member beyond the furthest declared field —
+        // so the emitted struct's sizeof() always equals the resolved runtime stride
+        // (asserted with _Static_assert) and no ROM byte is fabricated or dropped.
+        // FormatTSV/FormatCSV/FormatEA/FormatJSON/FormatSTRUCT/FormatNMM above are
+        // untouched by this addition (#1939 acceptance: byte-for-byte unchanged).
+        // ====================================================================
+
+        /// <summary>Kind of one resolved, non-overlapping GNU11 row-layout chunk (#1939).</summary>
+        internal enum CLayoutChunkKind
+        {
+            /// <summary>A single metadata field with no overlap: emitted as a plain typed member.</summary>
+            Field,
+            /// <summary>2+ connected (contained or crossing) overlapping metadata fields:
+            /// emitted as one anonymous packed union with promoted views and a raw arm.</summary>
+            Overlap,
+            /// <summary>An uncovered interior byte range before the furthest declared field end.</summary>
+            Gap,
+            /// <summary>The uncovered byte range from the furthest declared field end to the
+            /// resolved runtime entry stride (e.g. a version whose runtime stride is larger
+            /// than what the shared metadata file declares).</summary>
+            Trailing,
+        }
+
+        /// <summary>
+        /// One resolved, byte-exact slice of a GNU11 row layout. The ordered list returned
+        /// by <see cref="BuildCLayout"/> partitions <c>[0, resolvedEntrySize)</c> with zero
+        /// gaps and zero overlaps between chunks — every byte belongs to exactly one chunk.
+        /// </summary>
+        internal sealed class CLayoutChunk
+        {
+            public CLayoutChunkKind Kind;
+            public uint Offset;
+            public uint Length;
+            /// <summary>Exactly 1 field for <see cref="CLayoutChunkKind.Field"/>, 2+ for
+            /// <see cref="CLayoutChunkKind.Overlap"/>, empty for Gap/Trailing. Always sorted
+            /// by ascending <see cref="StructMetadata.FieldDef.Offset"/>.</summary>
+            public List<StructMetadata.FieldDef> Fields = new List<StructMetadata.FieldDef>();
+        }
+
+        /// <summary>
+        /// Partition <paramref name="resolvedEntrySize"/> runtime-stride bytes into ordered,
+        /// non-overlapping <see cref="CLayoutChunk"/>s from <paramref name="fields"/>'
+        /// declared <c>[Offset, Offset+Size)</c> byte intervals using one ascending sweep:
+        /// connected overlapping intervals — contained (one fully inside another, e.g. FE6
+        /// <c>map_settings</c>' <c>BGM1</c> word aliasing its second byte as <c>Field15</c>)
+        /// or crossing (partial overlap) — merge into a single <see cref="CLayoutChunkKind.Overlap"/>
+        /// chunk; a lone, non-overlapping field's interval is a <see cref="CLayoutChunkKind.Field"/>
+        /// chunk; any uncovered interior range before the furthest field end is a
+        /// <see cref="CLayoutChunkKind.Gap"/> chunk; any uncovered range from the furthest
+        /// field end up to <paramref name="resolvedEntrySize"/> is the single
+        /// <see cref="CLayoutChunkKind.Trailing"/> chunk (empty when the runtime stride
+        /// exactly matches the furthest declared field end).
+        /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// <paramref name="resolvedEntrySize"/> is smaller than the furthest declared field
+        /// end — the resolved runtime stride can't even hold the declared metadata, so no
+        /// valid GNU11 translation unit can be emitted (#1939 stride validation).
+        /// </exception>
+        internal static (List<CLayoutChunk> chunks, uint furthestFieldEnd) BuildCLayout(
+            List<StructMetadata.FieldDef> fields, uint resolvedEntrySize)
+        {
+            var sorted = (fields ?? new List<StructMetadata.FieldDef>())
+                .OrderBy(f => f.Offset)
+                .ThenBy(f => f.Offset + (uint)f.Size)
+                .ToList();
+
+            uint furthestFieldEnd = 0;
+            foreach (var f in sorted)
+            {
+                uint end = f.Offset + (uint)f.Size;
+                if (end > furthestFieldEnd) furthestFieldEnd = end;
+            }
+
+            if (resolvedEntrySize < furthestFieldEnd)
+            {
+                throw new InvalidOperationException(
+                    $"Resolved runtime entry stride 0x{resolvedEntrySize:X} is smaller than the " +
+                    $"furthest declared metadata field end 0x{furthestFieldEnd:X}; refusing to emit " +
+                    "a GNU11 struct that would truncate a declared field.");
+            }
+
+            var chunks = new List<CLayoutChunk>();
+            uint cursor = 0;
+            int idx = 0;
+            while (idx < sorted.Count)
+            {
+                var f = sorted[idx];
+                if (f.Offset > cursor)
+                {
+                    chunks.Add(new CLayoutChunk { Kind = CLayoutChunkKind.Gap, Offset = cursor, Length = f.Offset - cursor });
+                    cursor = f.Offset;
+                }
+
+                uint groupStart = f.Offset;
+                uint groupEnd = f.Offset + (uint)f.Size;
+                var groupFields = new List<StructMetadata.FieldDef> { f };
+                idx++;
+                while (idx < sorted.Count && sorted[idx].Offset < groupEnd)
+                {
+                    uint end = sorted[idx].Offset + (uint)sorted[idx].Size;
+                    if (end > groupEnd) groupEnd = end;
+                    groupFields.Add(sorted[idx]);
+                    idx++;
+                }
+
+                chunks.Add(new CLayoutChunk
+                {
+                    Kind = groupFields.Count == 1 ? CLayoutChunkKind.Field : CLayoutChunkKind.Overlap,
+                    Offset = groupStart,
+                    Length = groupEnd - groupStart,
+                    Fields = groupFields,
+                });
+                cursor = groupEnd;
+            }
+
+            if (resolvedEntrySize > cursor)
+            {
+                chunks.Add(new CLayoutChunk { Kind = CLayoutChunkKind.Trailing, Offset = cursor, Length = resolvedEntrySize - cursor });
+            }
+
+            return (chunks, furthestFieldEnd);
+        }
+
+        /// <summary>Fixed-width GNU11 storage type for a struct field. Pointers stay raw
+        /// <c>uint32_t</c> GBA addresses in this slice (#1939 — no symbol relocation yet).</summary>
+        internal static string CTypeForField(StructMetadata.FieldType type)
+        {
+            return type switch
+            {
+                StructMetadata.FieldType.Byte => "uint8_t",
+                StructMetadata.FieldType.Word => "uint16_t",
+                StructMetadata.FieldType.DWord => "uint32_t",
+                StructMetadata.FieldType.Pointer => "uint32_t",
+                _ => "uint8_t",
+            };
+        }
+
+        /// <summary>C11/GNU reserved words a sanitized identifier must not collide with.</summary>
+        static readonly HashSet<string> CReservedIdentifiers = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "auto","break","case","char","const","continue","default","do","double","else","enum",
+            "extern","float","for","goto","if","inline","int","long","register","restrict","return",
+            "short","signed","sizeof","static","struct","switch","typedef","union","unsigned","void",
+            "volatile","while",
+            "_Alignas","_Alignof","_Atomic","_Bool","_Complex","_Generic","_Imaginary","_Noreturn",
+            "_Static_assert","_Thread_local",
+            // GNU extension keywords that behave like reserved words in practice.
+            "asm","typeof","__asm__","__asm","__typeof__","__typeof","__inline__","__inline",
+            "__const__","__const","__volatile__","__volatile","__restrict__","__restrict",
+            "__attribute__","__attribute","__extension__","__signed__","__signed","__real__","__imag__",
+        };
+
+        /// <summary>
+        /// Deterministically sanitize an arbitrary string into a single valid C/GNU
+        /// identifier: any character outside <c>[A-Za-z0-9_]</c> becomes <c>_</c>; a
+        /// leading digit gets a <c>_</c> prefix; an empty result falls back to
+        /// <c>_field</c>; and a result matching a C/GNU keyword (<see cref="CReservedIdentifiers"/>)
+        /// gets a trailing <c>_</c> so it can never be emitted as a bare reserved word.
+        /// Does not deduplicate — see <see cref="ClaimCIdentifier"/> for the separate,
+        /// mandatory post-sanitization collision check.
+        /// </summary>
+        internal static string SanitizeCIdentifier(string raw)
+        {
+            if (string.IsNullOrEmpty(raw)) return "_field";
+
+            var sb = new StringBuilder(raw.Length);
+            foreach (char c in raw)
+            {
+                bool ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
+                sb.Append(ok ? c : '_');
+            }
+
+            string s = sb.ToString();
+            if (s.Length == 0) s = "_field";
+            if (s[0] >= '0' && s[0] <= '9') s = "_" + s;
+            if (CReservedIdentifiers.Contains(s)) s = s + "_";
+            return s;
+        }
+
+        /// <summary>
+        /// Register <paramref name="name"/> as freshly emitted in the row struct's flat
+        /// identifier scope (GNU anonymous unions/structs promote every arm's members up
+        /// into the enclosing struct's namespace, so every field member, every union raw
+        /// arm, and every gap/trailing member name must be globally unique within one row
+        /// struct). Throws with both colliding contexts named if <paramref name="name"/>
+        /// was already claimed — never silently renamed (#1939: "reject post-sanitization
+        /// collisions").
+        /// </summary>
+        static void ClaimCIdentifier(Dictionary<string, string> used, string name, string context)
+        {
+            if (used.TryGetValue(name, out string existing))
+            {
+                throw new InvalidOperationException(
+                    $"C identifier collision: '{name}' would be emitted for both {existing} and " +
+                    $"{context}. Rename the conflicting field(s) in the struct metadata to avoid " +
+                    "ambiguous GNU11 output.");
+            }
+            used[name] = context;
+        }
+
+        /// <summary>
+        /// Neutralize a string for safe embedding inside a single-line <c>/* ... */</c> or
+        /// <c>// ...</c> C comment: every character outside printable ASCII, or any of
+        /// <c>*</c>/<c>/</c>/<c>\</c>, becomes <c>_</c>. This removes CR/LF and other control
+        /// bytes (can't break out of a single line), removes every <c>*</c> and <c>/</c>
+        /// (can't ever form a <c>*/</c> comment terminator), and removes every backslash
+        /// (can't trigger C's phase-2 backslash-newline line splicing, which happens before
+        /// comments are stripped and would otherwise let a trailing <c>\</c> merge the
+        /// comment with the following source line). Used for the row-ordinal comment's
+        /// <c>_Index</c> text and for field <c>Comment</c> text copied from struct metadata.
+        /// </summary>
+        internal static string EscapeCComment(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            var sb = new StringBuilder(s.Length);
+            foreach (char c in s)
+            {
+                bool safe = c >= 0x20 && c <= 0x7E && c != '*' && c != '/' && c != '\\';
+                sb.Append(safe ? c : '_');
+            }
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Full-width hex row-ordinal designator: <c>0x000</c>, <c>0x001</c>, … — from the
+        /// row's ordinal/list position, NEVER the (variable-width, possibly 2-digit)
+        /// <c>_Index</c> column string. Width is at least 3 hex digits and grows so the
+        /// highest ordinal in a <paramref name="rowCount"/>-row table is never truncated
+        /// (e.g. row 300 of a 300-row table renders as <c>0x12B</c>, not a byte-truncated
+        /// <c>0x2B</c>).
+        /// </summary>
+        internal static string FormatRowOrdinal(uint index, uint rowCount)
+        {
+            uint maxIndex = rowCount > 0 ? rowCount - 1 : 0;
+            int width = Math.Max(3, maxIndex.ToString("X", CultureInfo.InvariantCulture).Length);
+            return "0x" + index.ToString("X" + width, CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>One member emitted in the row struct + its per-row initializer recipe.</summary>
+        sealed class CResolvedMember
+        {
+            public CLayoutChunkKind Kind;
+            public uint Offset;
+            public uint Length;
+            /// <summary>C member name used in the row initializer (the plain field member
+            /// name for Field/Gap/Trailing, the union's raw-array arm name for Overlap).</summary>
+            public string MemberName;
+            /// <summary>Only set for <see cref="CLayoutChunkKind.Field"/>.</summary>
+            public StructMetadata.FieldDef Field;
+        }
+
+        /// <summary>
+        /// Format raw-byte-backed table rows as a self-contained GNU11 (devkitARM
+        /// GCC/<c>arm-none-eabi-gcc</c>, or host GCC) C translation unit (#1939). Consumes
+        /// exactly the shared <see cref="ExportTableRows"/> seam's typed field dictionaries
+        /// (parsed here with the same strict, width-checked numeric parsing as JSON import —
+        /// <see cref="TryNormalizeFieldValue"/> — so a malformed/overflowing field value is
+        /// rejected rather than copied verbatim into C source) and raw per-row bytes (used
+        /// verbatim, byte-for-byte, for every gap/trailing member and every union's raw arm).
+        /// <list type="bullet">
+        /// <item>a one-byte-packed <c>struct FEBuilder_&lt;StructName&gt;</c> row type built
+        /// from <see cref="BuildCLayout"/>'s chunks: plain typed members, anonymous packed
+        /// unions (one arm per connected overlapping field plus one raw byte-array arm) for
+        /// overlap groups, and named raw gap/trailing members — every resolved stride byte
+        /// appears exactly once;</item>
+        /// <item><c>_Static_assert(sizeof(struct ...) == resolvedEntrySize, ...)</c>;</item>
+        /// <item>a 4-byte-aligned <c>const struct ... gFEBuilder_&lt;table&gt;[N]</c> array
+        /// (the GNU zero-length-array form with no initializer when <c>N == 0</c>) plus a
+        /// matching <c>const uint32_t gFEBuilder_&lt;table&gt;Count</c>;</item>
+        /// <item>full-width <c>[0x000]</c>-style row-ordinal comments (never the
+        /// byte-truncatable <c>_Index</c> prefix) with the (comment-escaped) <c>_Index</c>
+        /// text appended for human readability.</item>
+        /// </list>
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="structDef"/> is null, or
+        /// <paramref name="tableName"/> is null/empty.</exception>
+        /// <exception cref="InvalidOperationException">the resolved stride is smaller than
+        /// the furthest declared field end; a row's raw byte length does not equal the
+        /// resolved stride; two members would collide on the same sanitized C identifier;
+        /// or a row is missing/has an unparsable/overflowing value for a declared field.</exception>
+        public static string FormatCData(
+            List<(uint index, Dictionary<string, string> fields, byte[] raw)> rows,
+            StructMetadata.StructDef structDef,
+            string tableName,
+            uint resolvedEntrySize)
+        {
+            if (structDef == null) throw new ArgumentNullException(nameof(structDef));
+            if (string.IsNullOrEmpty(tableName)) throw new ArgumentException("tableName must not be null/empty.", nameof(tableName));
+            rows ??= new List<(uint, Dictionary<string, string>, byte[])>();
+
+            foreach (var row in rows)
+            {
+                if (row.raw == null || (uint)row.raw.Length != resolvedEntrySize)
+                {
+                    throw new InvalidOperationException(
+                        $"Row {FormatRowOrdinal(row.index, (uint)rows.Count)}: raw byte length " +
+                        $"{(row.raw == null ? "null" : "0x" + row.raw.Length.ToString("X"))} does not match " +
+                        $"the resolved runtime entry stride 0x{resolvedEntrySize:X}.");
+                }
+            }
+
+            var (chunks, _) = BuildCLayout(structDef.Fields, resolvedEntrySize);
+
+            string structTypeName = "FEBuilder_" + SanitizeCIdentifier(structDef.Name);
+            string dataSymbol = "gFEBuilder_" + SanitizeCIdentifier(tableName);
+            string countSymbol = dataSymbol + "Count";
+
+            var usedNames = new Dictionary<string, string>(StringComparer.Ordinal);
+            var members = new List<CResolvedMember>();
+            var memberLines = new List<string>();
+            int gapCounter = 0;
+            int overlapCounter = 0;
+
+            foreach (var chunk in chunks)
+            {
+                switch (chunk.Kind)
+                {
+                    case CLayoutChunkKind.Field:
+                    {
+                        var f = chunk.Fields[0];
+                        string memberName = SanitizeCIdentifier(f.Name);
+                        ClaimCIdentifier(usedNames, memberName, $"field '{f.Name}'");
+                        string ctype = CTypeForField(f.Type);
+                        string note = memberName == f.Name ? "" : $" (source name \"{EscapeCComment(f.Name)}\")";
+                        string comment = string.IsNullOrEmpty(f.Comment) ? "" : " " + EscapeCComment(f.Comment);
+                        memberLines.Add($"    {ctype} {memberName}; // 0x{chunk.Offset:X2}{note}{comment}");
+                        members.Add(new CResolvedMember { Kind = CLayoutChunkKind.Field, Offset = chunk.Offset, Length = chunk.Length, MemberName = memberName, Field = f });
+                        break;
+                    }
+                    case CLayoutChunkKind.Overlap:
+                    {
+                        memberLines.Add("    union {");
+                        foreach (var f in chunk.Fields)
+                        {
+                            string innerName = SanitizeCIdentifier(f.Name);
+                            string viewName = "as_" + innerName;
+                            ClaimCIdentifier(usedNames, viewName, $"overlap view of field '{f.Name}'");
+                            uint rel = f.Offset - chunk.Offset;
+                            string ctype = CTypeForField(f.Type);
+                            string comment = string.IsNullOrEmpty(f.Comment) ? "" : " " + EscapeCComment(f.Comment);
+                            if (rel > 0)
+                                memberLines.Add($"        struct __attribute__((packed)) {{ uint8_t _pad[{rel}]; {ctype} {innerName}; }} {viewName}; // 0x{f.Offset:X2}{comment}");
+                            else
+                                memberLines.Add($"        struct __attribute__((packed)) {{ {ctype} {innerName}; }} {viewName}; // 0x{f.Offset:X2}{comment}");
+                        }
+                        string rawArm = $"_overlap{overlapCounter}_raw";
+                        overlapCounter++;
+                        ClaimCIdentifier(usedNames, rawArm, $"overlap raw arm at 0x{chunk.Offset:X}");
+                        memberLines.Add($"        uint8_t {rawArm}[{chunk.Length}]; // raw bytes backing every view above — only this arm is initialized");
+                        memberLines.Add("    };");
+                        members.Add(new CResolvedMember { Kind = CLayoutChunkKind.Overlap, Offset = chunk.Offset, Length = chunk.Length, MemberName = rawArm });
+                        break;
+                    }
+                    case CLayoutChunkKind.Gap:
+                    {
+                        string gapName = $"_gap{gapCounter}";
+                        gapCounter++;
+                        ClaimCIdentifier(usedNames, gapName, $"metadata gap at 0x{chunk.Offset:X}");
+                        memberLines.Add($"    uint8_t {gapName}[{chunk.Length}]; // 0x{chunk.Offset:X2}: unmapped metadata gap, raw ROM bytes");
+                        members.Add(new CResolvedMember { Kind = CLayoutChunkKind.Gap, Offset = chunk.Offset, Length = chunk.Length, MemberName = gapName });
+                        break;
+                    }
+                    case CLayoutChunkKind.Trailing:
+                    {
+                        string trailingName = "_trailing";
+                        ClaimCIdentifier(usedNames, trailingName, "runtime trailing bytes");
+                        memberLines.Add($"    uint8_t {trailingName}[{chunk.Length}]; // 0x{chunk.Offset:X2}: runtime trailing bytes beyond declared metadata, raw ROM bytes");
+                        members.Add(new CResolvedMember { Kind = CLayoutChunkKind.Trailing, Offset = chunk.Offset, Length = chunk.Length, MemberName = trailingName });
+                        break;
+                    }
+                }
+            }
+
+            var sb = new StringBuilder();
+            sb.AppendLine("/* Auto-generated by FEBuilderGBA (--export-data --format=c, #1939). GNU11");
+            sb.AppendLine($" * translation unit for table \"{EscapeCComment(tableName)}\" (struct {EscapeCComment(structDef.Name)}).");
+            sb.AppendLine(" * Requires GNU C extensions: __attribute__((packed)), __attribute__((aligned(4))),");
+            sb.AppendLine(" * anonymous unions/structs, and GNU zero-length arrays. Compile with:");
+            sb.AppendLine(" *   arm-none-eabi-gcc -std=gnu11 -Wall -Werror -c   (or host gcc for a smoke build)");
+            sb.AppendLine(" * Read-only export: this is not a guaranteed C->ROM round-trip. Do not edit by hand.");
+            sb.AppendLine(" */");
+            sb.AppendLine("#include <stdint.h>");
+            sb.AppendLine();
+            sb.AppendLine($"struct __attribute__((packed)) {structTypeName} {{");
+            foreach (var line in memberLines) sb.AppendLine(line);
+            sb.AppendLine("};");
+            sb.AppendLine();
+            sb.AppendLine($"_Static_assert(sizeof(struct {structTypeName}) == 0x{resolvedEntrySize:X}, \"sizeof(struct {structTypeName}) must equal the resolved runtime entry stride\");");
+            sb.AppendLine();
+
+            if (rows.Count == 0)
+            {
+                sb.AppendLine($"const struct {structTypeName} {dataSymbol}[0] __attribute__((aligned(4)));");
+            }
+            else
+            {
+                sb.AppendLine($"const struct {structTypeName} {dataSymbol}[{rows.Count}] __attribute__((aligned(4))) = {{");
+                for (int r = 0; r < rows.Count; r++)
+                {
+                    var row = rows[r];
+                    string ordinal = FormatRowOrdinal(row.index, (uint)rows.Count);
+                    string indexText = row.fields.TryGetValue("_Index", out string idxVal) ? idxVal : "";
+                    var parts = new List<string>(members.Count);
+                    foreach (var m in members)
+                    {
+                        parts.Add(BuildCInitializer(m, row.fields, row.raw, ordinal));
+                    }
+                    sb.AppendLine($"    /* [{ordinal}] {EscapeCComment(indexText)} */ {{ {string.Join(", ", parts)} }},");
+                }
+                sb.AppendLine("};");
+            }
+            sb.AppendLine();
+            sb.AppendLine($"const uint32_t {countSymbol} = {rows.Count};");
+
+            return sb.ToString();
+        }
+
+        /// <summary>Build one <c>.member = value</c> designated-initializer fragment for a
+        /// resolved row member. Field members are strictly parsed/width-checked (reusing
+        /// <see cref="TryNormalizeFieldValue"/>) and re-emitted as a fresh hex literal (never
+        /// a copied raw token); Overlap/Gap/Trailing members are emitted as a raw
+        /// <c>{ 0x.., 0x.., ... }</c> byte-array literal sliced directly from the row's raw
+        /// bytes.</summary>
+        static string BuildCInitializer(CResolvedMember m, Dictionary<string, string> fields, byte[] raw, string ordinal)
+        {
+            if (m.Kind == CLayoutChunkKind.Field)
+            {
+                var f = m.Field;
+                if (!fields.TryGetValue(f.Name, out string rawValue))
+                {
+                    throw new InvalidOperationException($"Row {ordinal}: missing a value for field '{f.Name}'.");
+                }
+                if (!TryNormalizeFieldValue(rawValue, f.Type, out string canonical, out string error))
+                {
+                    throw new InvalidOperationException($"Row {ordinal}, field '{f.Name}': {error}.");
+                }
+                uint val = uint.Parse(canonical.Substring(2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+                int width = f.Type switch
+                {
+                    StructMetadata.FieldType.Byte => 2,
+                    StructMetadata.FieldType.Word => 4,
+                    _ => 8,
+                };
+                return $".{m.MemberName} = 0x{val.ToString("X" + width, CultureInfo.InvariantCulture)}";
+            }
+
+            var bytes = new StringBuilder();
+            for (uint b = 0; b < m.Length; b++)
+            {
+                if (b > 0) bytes.Append(", ");
+                bytes.Append("0x").Append(raw[m.Offset + b].ToString("X2", CultureInfo.InvariantCulture));
+            }
+            return $".{m.MemberName} = {{ {bytes} }}";
+        }
+
+        /// <summary>
+        /// Export a ROM table to a self-contained GNU11 C translation unit (see
+        /// <see cref="FormatCData"/>). Reads rows via the shared <see cref="ExportTableRows"/>
+        /// seam and resolves the runtime entry stride from <c>table.GetDataSize(rom)</c>.
+        /// Written UTF-8 without a BOM (a leading BOM is not valid at the start of a C
+        /// translation unit for every compiler).
+        /// </summary>
+        public static void ExportToCData(ROM rom, TableDef table, StructMetadata.StructDef structDef, string outputPath)
+        {
+            if (rom?.RomInfo == null) throw new ArgumentNullException(nameof(rom));
+            if (table == null) throw new ArgumentNullException(nameof(table));
+            if (structDef == null) throw new ArgumentNullException(nameof(structDef));
+
+            var rows = ExportTableRows(rom, table, structDef);
+            uint resolvedEntrySize = table.GetDataSize(rom);
+            string content = FormatCData(rows, structDef, table.Name, resolvedEntrySize);
+            File.WriteAllText(outputPath, content, Utf8NoBom);
         }
 
         /// <summary>
