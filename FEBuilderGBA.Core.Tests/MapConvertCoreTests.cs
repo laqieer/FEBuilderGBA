@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Xunit;
 
 namespace FEBuilderGBA.Core.Tests
@@ -249,6 +250,50 @@ namespace FEBuilderGBA.Core.Tests
             Assert.NotNull(result);
             Assert.Equal("", error);
             Assert.InRange(result.PaletteData.Length / 2, 1, 3);
+        }
+
+        [Fact]
+        public void ConvertImage_SkewedSixteenColorInput_PreservesEveryGbaColor()
+        {
+            int w = 16, h = 8;
+            byte[] rgba = new byte[w * h * 4];
+            for (int i = 0; i < w * h; i++)
+            {
+                rgba[i * 4 + 0] = 15 * 8;
+                rgba[i * 4 + 3] = 255;
+            }
+            for (int i = 0; i < 15; i++)
+                rgba[i * 4 + 0] = (byte)(i * 8);
+
+            var result = MapConvertCore.ConvertImage(rgba, w, h, out string error);
+
+            Assert.NotNull(result);
+            Assert.Equal("", error);
+            Assert.Equal(32, result.PaletteData.Length);
+
+            var palette = new HashSet<ushort>();
+            for (int i = 0; i < result.PaletteData.Length; i += 2)
+                palette.Add((ushort)(result.PaletteData[i] | (result.PaletteData[i + 1] << 8)));
+            Assert.Equal(16, palette.Count);
+            for (ushort color = 0; color < 16; color++)
+                Assert.Contains(color, palette);
+
+            for (int y = 0; y < h; y++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    int tsaOffset = ((y / 8) * result.WidthTiles + (x / 8)) * 2;
+                    int tileIndex = (result.TSAData[tsaOffset] |
+                        (result.TSAData[tsaOffset + 1] << 8)) & 0x3FF;
+                    int tilePixel = (y % 8) * 8 + (x % 8);
+                    byte packed = result.TileData[tileIndex * 32 + (tilePixel / 2)];
+                    int paletteIndex = (tilePixel & 1) == 0 ? packed & 0x0F : packed >> 4;
+                    ushort actual = (ushort)(result.PaletteData[paletteIndex * 2] |
+                        (result.PaletteData[paletteIndex * 2 + 1] << 8));
+                    ushort expected = (ushort)(rgba[(y * w + x) * 4] >> 3);
+                    Assert.Equal(expected, actual);
+                }
+            }
         }
     }
 }

@@ -100,17 +100,8 @@ namespace FEBuilderGBA
 
             bool hasTransparency = inputPaletteKeys.Contains(TransparentKey);
 
-            // Step 1: Quantize to the single palette that the output format can represent.
-            var quantized = DecreaseColorCore.Quantize(rgbaPixels, width, height, 16,
-                noReserve1stColor: !hasTransparency);
-            if (quantized == null)
-            {
-                error = "Color quantization failed.";
-                return null;
-            }
-
-            // Compact the palette entries that are actually used. Median-cut may emit duplicate
-            // entries, so ColorCount alone is not a reliable single-palette validation.
+            // Step 1: Map the already-validated colors directly. Quantizing an exactly
+            // representable image can merge rare colors and silently change pixel data.
             var compactPaletteMap = new Dictionary<int, byte>();
             var compactPalette = new List<ushort>();
             if (hasTransparency)
@@ -130,10 +121,10 @@ namespace FEBuilderGBA
                 }
                 else
                 {
-                    int sourceIndex = quantized.IndexData[i];
-                    int paletteOffset = sourceIndex * 2;
-                    gbaColor = (ushort)(quantized.GBAPalette[paletteOffset] |
-                        (quantized.GBAPalette[paletteOffset + 1] << 8));
+                    int pixelOffset = i * 4;
+                    gbaColor = (ushort)((rgbaPixels[pixelOffset] >> 3) |
+                        ((rgbaPixels[pixelOffset + 1] >> 3) << 5) |
+                        ((rgbaPixels[pixelOffset + 2] >> 3) << 10));
                     key = gbaColor;
                 }
 
