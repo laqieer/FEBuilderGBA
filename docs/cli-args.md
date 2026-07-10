@@ -31,7 +31,7 @@ output for that command compared to the WinForms exe.
 | `--pointercalc` | Search pointer references | `--rom`, `--target`, `--address` | E2E COVERED | ALIGNED |
 | `--rebuild` | Rebuild/defragment ROM | `--rom` (opt: `--fromrom`) | E2E COVERED | ALIGNED |
 | `--songexchange` | Copy song between ROMs | `--rom`, `--fromrom`, `--fromsong`, `--tosong` | E2E COVERED | ALIGNED |
-| `--convertmap1picture` | Convert image to map tiles | `--in`, `--outImg` and/or `--outTSA` (opt: `--json`) | E2E COVERED | ALIGNED |
+| `--convertmap1picture` | Convert image to map tiles | `--in`, one or more of `--outImg`/`--outTSA`/`--outPal` (opt: `--json`) | E2E COVERED | ALIGNED |
 | `--translate` | Dump or import ROM text | `--rom` | E2E COVERED | ALIGNED |
 | `--translate-roundtrip` | Validate text export/import round-trip | `--rom` (opt: `--out`) | E2E COVERED | ALIGNED |
 | `--lastrom` | Load last-used ROM from config | — | E2E COVERED | ALIGNED |
@@ -73,6 +73,7 @@ output for that command compared to the WinForms exe.
 | `--noScale` | Do not scale colors to GBA 5-bit range | `--decreasecolor` |
 | `--noReserve1stColor` | Do not reserve palette slot 0 for transparency | `--decreasecolor` |
 | `--ignoreTSA` | Ignore TSA tile deduplication constraints | `--decreasecolor` |
+| `--outPal=<path>` | Output the matching GBA palette data | `--convertmap1picture` |
 | `--json` | Emit one machine-readable result object on stdout; errors remain non-zero | `--decreasecolor`, `--convertmap1picture` |
 | `--target=<path>` | Target ROM file | `--pointercalc` |
 | `--address=<hex_list>` | Hex address list (comma-separated or file) | `--pointercalc` |

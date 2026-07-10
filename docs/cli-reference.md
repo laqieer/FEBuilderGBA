@@ -238,14 +238,15 @@ Convert an image to GBA map tile data and TSA (Tile Set Arrangement).
 | `--in=<path>` | Yes | Input image file. Dimensions must be multiples of 8; conversion is limited to one 16-entry palette and 1024 unique tiles. |
 | `--outImg=<path>` | No* | Raw 4bpp tile bytes (32 bytes per tile), not an encoded image regardless of extension. |
 | `--outTSA=<path>` | No* | Output TSA data file (LZ77-compressed). |
+| `--outPal=<path>` | No* | Matching GBA RGB555 palette data (up to 32 bytes). |
 | `--json` | No | Emit one JSON object on stdout for success or failure. Errors still return a non-zero exit code. |
 
-*At least one of `--outImg` or `--outTSA` is required.
-When both are supplied, they must resolve to different files.
+*At least one output is required. Multiple outputs are written transactionally so aliases cannot
+overwrite another requested artifact while reporting success.
 
 ```
-FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin
-FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin --json
+FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin --outPal=palette.bin
+FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin --outPal=palette.bin --json
 ```
 
 This command does **not** require a ROM.

@@ -31,7 +31,7 @@ default human-readable output is unchanged when `--json` is absent.
 
 | Verb | Input | In-game output | `--json` result keys |
 |---|---|---|---|
-| `--convertmap1picture` | `--in=<map.png>` | `--outImg=<tiles.bin>` (4bpp tile data) and/or `--outTSA=<tsa.bin>` (LZ77-compressed TSA) | `command`, `ok`, `in`, `outImg`, `outTSA`, `outImgBytes`, `outTSABytes`, `tiles`, `gridWidth`, `gridHeight` |
+| `--convertmap1picture` | `--in=<map.png>` | Any of `--outImg=<tiles.bin>` (4bpp tiles), `--outTSA=<tsa.bin>` (LZ77 TSA), `--outPal=<palette.bin>` (matching GBA palette) | `command`, `ok`, `in`, `outImg`, `outTSA`, `outPal`, `outImgBytes`, `outTSABytes`, `outPalBytes`, `tiles`, `gridWidth`, `gridHeight` |
 | `--decreasecolor` | `--in=<image.png>` (+ optional `--paletteno`, default 16; 2–256 with reserved transparency, or 1–256 with `--noReserve1stColor`) | `--out=<image.png>` (GBA-quantized to ≤ `--paletteno` colors) | `command`, `ok`, `in`, `out`, `outBytes`, `paletteNo`, `colors`, `width`, `height` |
 
 **Contract:**
@@ -39,18 +39,19 @@ default human-readable output is unchanged when `--json` is absent.
   backward-compatible; existing scripts are unaffected).
 - Success → `"ok": true` + the keys above; **failure → `{"command":…, "ok":false, "error":…}` on stdout**
   with the existing **non-zero exit code** (so a consumer can branch on exit code *or* on `ok`).
-- Deterministic partial outputs: for `--convertmap1picture`, an untaken `--outImg`/`--outTSA` is reported
-  as `null` (`outImg`/`outTSA` and `outImgBytes`/`outTSABytes`), never omitted.
+- Deterministic partial outputs: for `--convertmap1picture`, untaken `--outImg`/`--outTSA`/`--outPal`
+  fields and byte counts are reported as `null`, never omitted.
 - `--convertmap1picture` rejects images that require more than one 16-entry palette or more than 1024
   unique tiles, rather than masking palette/tile indices into corrupt output.
-- When both map outputs are requested, `--outImg` and `--outTSA` must resolve to different files;
-  canonical path aliases are rejected before either artifact is written.
+- Requested map outputs are staged and committed transactionally. Filesystem aliases cannot make one
+  artifact overwrite another while returning `ok:true`; on failure, the prior output set is restored.
 
 ```bash
 # Map image → tiles + TSA, machine-readable:
-FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin --json
+FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin --outPal=palette.bin --json
 # {"command":"convertmap1picture","ok":true,"in":"map.png","outImg":"tiles.bin","outTSA":"tsa.bin",
-#  "outImgBytes":4096,"outTSABytes":512,"tiles":128,"gridWidth":30,"gridHeight":20}
+#  "outPal":"palette.bin","outImgBytes":4096,"outTSABytes":512,"outPalBytes":32,
+#  "tiles":128,"gridWidth":30,"gridHeight":20}
 
 # Quantize an image to a 16-color GBA palette:
 FEBuilderGBA.CLI --decreasecolor --in=portrait.png --out=portrait_gba.png --paletteno=16 --json
@@ -76,19 +77,20 @@ The cross-platform CLI has a pre-existing, different contract: `--outImg` is alw
 
 A safe FEHRR migration therefore requires both:
 
-1. Change `--outImg` to a binary-oriented path such as `gfx/map/<id>.4bpp`, and update the downstream
-   build step to consume raw tile bytes. If that consumer still requires PNG, retain the legacy WinForms
-   conversion until the consumer is adapted.
+1. Change `--outImg` to a binary-oriented path such as `gfx/map/<id>.4bpp`, pass
+   `--outPal=gfx/map/<id>.pal`, and update the downstream build step to consume the paired raw tile and
+   palette files. If that consumer still requires PNG, retain the legacy WinForms conversion until it
+   is adapted.
 2. Then invoke **`FEBuilderGBA.CLI`** (built/published, or `dotnet run`) with **`--json`**, and parse the
    structured result (`ok`, output paths, byte sizes, grid dimensions) instead of regex-scraping logs.
 
 For example, after the downstream consumer accepts raw 4bpp:
 
 ```powershell
-FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=gfx/map/0001.4bpp --outTSA=maps/0001.tsa.lz --json
+FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=gfx/map/0001.4bpp --outTSA=maps/0001.tsa.lz --outPal=gfx/map/0001.pal --json
 ```
 
-`--json` stabilizes process integration; it does not change either output file format.
+`--json` stabilizes process integration; it does not change any output file format.
 
 ## Relationship & forward work
 

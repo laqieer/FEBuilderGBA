@@ -115,6 +115,8 @@ namespace FEBuilderGBA.E2ETests.Tests
             Assert.Equal(tiles * 32L, outImgBytes);
             Assert.Equal(JsonValueKind.Null, root.GetProperty("outTSA").ValueKind);
             Assert.Equal(JsonValueKind.Null, root.GetProperty("outTSABytes").ValueKind);
+            Assert.Equal(JsonValueKind.Null, root.GetProperty("outPal").ValueKind);
+            Assert.Equal(JsonValueKind.Null, root.GetProperty("outPalBytes").ValueKind);
             byte[] tileData = File.ReadAllBytes(img);
             Assert.Equal(outImgBytes, tileData.LongLength);
             Assert.False(tileData.Length >= 8 &&
@@ -138,22 +140,27 @@ namespace FEBuilderGBA.E2ETests.Tests
         }
 
         [Fact]
-        public void ConvertMap1Picture_Json_Success_BothOutputs()
+        public void ConvertMap1Picture_Json_Success_AllOutputs()
         {
             var png = GenerateTestPng();
             var img = TempFile(".bin");
             var tsa = TempFile(".bin");
+            var pal = TempFile(".pal");
             var (code, stdout, _) = AppRunner.Run(CliExe,
-                $"--convertmap1picture --in=\"{png}\" --outImg=\"{img}\" --outTSA=\"{tsa}\" --json", timeoutMs: 30_000);
+                $"--convertmap1picture --in=\"{png}\" --outImg=\"{img}\" --outTSA=\"{tsa}\" --outPal=\"{pal}\" --json",
+                timeoutMs: 30_000);
             Assert.Equal(0, code);
             using var doc = JsonDocument.Parse(stdout);
             var root = doc.RootElement;
             Assert.True(root.GetProperty("ok").GetBoolean());
             Assert.Equal(img, root.GetProperty("outImg").GetString());
             Assert.Equal(tsa, root.GetProperty("outTSA").GetString());
+            Assert.Equal(pal, root.GetProperty("outPal").GetString());
             Assert.True(root.GetProperty("outImgBytes").GetInt64() > 0);
             Assert.True(root.GetProperty("outTSABytes").GetInt64() > 0);
-            Assert.True(File.Exists(img) && File.Exists(tsa));
+            Assert.InRange(root.GetProperty("outPalBytes").GetInt64(), 2, 32);
+            Assert.True(File.Exists(img) && File.Exists(tsa) && File.Exists(pal));
+            Assert.Equal(root.GetProperty("outPalBytes").GetInt64(), new FileInfo(pal).Length);
         }
 
         [Fact]
@@ -170,7 +177,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             Assert.NotEqual(0, code);
             using var doc = JsonDocument.Parse(stdout);
             Assert.False(doc.RootElement.GetProperty("ok").GetBoolean());
-            Assert.Contains("different files", doc.RootElement.GetProperty("error").GetString());
+            Assert.Contains("filesystem entry", doc.RootElement.GetProperty("error").GetString());
             Assert.False(File.Exists(output));
         }
 

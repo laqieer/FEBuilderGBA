@@ -467,7 +467,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  --pointercalc            Search pointer references (requires --rom, --target, --address)");
             Console.WriteLine("  --rebuild                Rebuild/defragment ROM (requires --rom, --fromrom)");
             Console.WriteLine("  --songexchange           Copy song between ROMs (requires --rom, --fromrom, --fromsong, --tosong)");
-            Console.WriteLine("  --convertmap1picture     Convert image to map tiles (requires --in and --outImg and/or --outTSA; --json for machine output)");
+            Console.WriteLine("  --convertmap1picture     Convert image to map tiles (requires --in and one or more of --outImg, --outTSA, --outPal; --json for machine output)");
             Console.WriteLine("  --translate              Dump or import ROM text (requires --rom)");
             Console.WriteLine("    --out=<path>           Export text to TSV file");
             Console.WriteLine("    --in=<path>            Import text from TSV file and write to ROM");
@@ -672,7 +672,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  FEBuilderGBA.CLI --rebuild --rom=modified.gba --fromrom=original.gba");
             Console.WriteLine("  FEBuilderGBA.CLI --songexchange --rom=dest.gba --fromrom=source.gba --fromsong=0x1A --tosong=0x1A");
             Console.WriteLine("  FEBuilderGBA.CLI --migrate-diff --project=decomp/ --rom2=edited.gba --out=migrate.tsv");
-            Console.WriteLine("  FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin");
+            Console.WriteLine("  FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin --outPal=palette.bin");
             Console.WriteLine("  FEBuilderGBA.CLI --translate --rom=rom.gba --out=texts.tsv");
             Console.WriteLine("  FEBuilderGBA.CLI --translate --rom=rom.gba --in=texts.tsv");
             Console.WriteLine("  FEBuilderGBA.CLI --translate-roundtrip --rom=rom.gba");
@@ -1356,33 +1356,10 @@ namespace FEBuilderGBA.CLI
 
             string outImgPath = argsDic.ContainsKey("--outImg") ? argsDic["--outImg"] : "";
             string outTSAPath = argsDic.ContainsKey("--outTSA") ? argsDic["--outTSA"] : "";
-            if (string.IsNullOrEmpty(outImgPath) && string.IsNullOrEmpty(outTSAPath))
-                return Fail("--convertmap1picture requires --outImg=<path> and/or --outTSA=<path>");
-            if (!string.IsNullOrEmpty(outImgPath) && !string.IsNullOrEmpty(outTSAPath))
-            {
-                try
-                {
-                    string fullImgPath = Path.GetFullPath(outImgPath);
-                    string fullTSAPath = Path.GetFullPath(outTSAPath);
-                    StringComparison comparison = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
-                        ? StringComparison.OrdinalIgnoreCase
-                        : StringComparison.Ordinal;
-                    if (string.Equals(fullImgPath, fullTSAPath, comparison))
-                        return Fail("--outImg and --outTSA must resolve to different files");
-                }
-                catch (ArgumentException ex)
-                {
-                    return Fail("Invalid output path: " + ex.Message);
-                }
-                catch (NotSupportedException ex)
-                {
-                    return Fail("Invalid output path: " + ex.Message);
-                }
-                catch (PathTooLongException ex)
-                {
-                    return Fail("Invalid output path: " + ex.Message);
-                }
-            }
+            string outPalPath = argsDic.ContainsKey("--outPal") ? argsDic["--outPal"] : "";
+            if (string.IsNullOrEmpty(outImgPath) && string.IsNullOrEmpty(outTSAPath) &&
+                string.IsNullOrEmpty(outPalPath))
+                return Fail("--convertmap1picture requires --outImg=<path>, --outTSA=<path>, and/or --outPal=<path>");
 
             var imgService = CoreState.ImageService;
             if (imgService == null)
@@ -1409,22 +1386,38 @@ namespace FEBuilderGBA.CLI
             if (result == null)
                 return Fail("Map conversion failed. " + convertError);
 
-            long outTSABytes = 0;
+            byte[] compressedTSA = null;
             try
             {
+                var outputs = new List<AtomicFileSetWriterCore.FileOutput>();
                 if (!string.IsNullOrEmpty(outImgPath))
-                    File.WriteAllBytes(outImgPath, result.TileData);
+                    outputs.Add(new AtomicFileSetWriterCore.FileOutput(outImgPath, result.TileData));
                 if (!string.IsNullOrEmpty(outTSAPath))
                 {
-                    byte[] compressedTSA = LZ77.compress(result.TSAData);
-                    File.WriteAllBytes(outTSAPath, compressedTSA);
-                    outTSABytes = compressedTSA.Length;
+                    compressedTSA = LZ77.compress(result.TSAData);
+                    outputs.Add(new AtomicFileSetWriterCore.FileOutput(outTSAPath, compressedTSA));
                 }
+                if (!string.IsNullOrEmpty(outPalPath))
+                    outputs.Add(new AtomicFileSetWriterCore.FileOutput(outPalPath, result.PaletteData));
+                AtomicFileSetWriterCore.WriteAll(outputs);
             }
-            catch (Exception ex)
+            catch (IOException ex)
             {
-                // In --json mode, output-write failures must also surface as {ok:false,error}
-                // on stdout; otherwise preserve prior (throwing) behavior.
+                if (json) return Fail("Failed to write output: " + ex.Message);
+                throw;
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                if (json) return Fail("Failed to write output: " + ex.Message);
+                throw;
+            }
+            catch (ArgumentException ex)
+            {
+                if (json) return Fail("Failed to write output: " + ex.Message);
+                throw;
+            }
+            catch (NotSupportedException ex)
+            {
                 if (json) return Fail("Failed to write output: " + ex.Message);
                 throw;
             }
@@ -1433,6 +1426,7 @@ namespace FEBuilderGBA.CLI
             {
                 bool haveImg = !string.IsNullOrEmpty(outImgPath);
                 bool haveTSA = !string.IsNullOrEmpty(outTSAPath);
+                bool havePal = !string.IsNullOrEmpty(outPalPath);
                 Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, object>
                 {
                     ["command"] = "convertmap1picture",
@@ -1440,8 +1434,10 @@ namespace FEBuilderGBA.CLI
                     ["in"] = inputPath,
                     ["outImg"] = haveImg ? outImgPath : null,
                     ["outTSA"] = haveTSA ? outTSAPath : null,
+                    ["outPal"] = havePal ? outPalPath : null,
                     ["outImgBytes"] = haveImg ? (object)result.TileData.Length : null,
-                    ["outTSABytes"] = haveTSA ? (object)outTSABytes : null,
+                    ["outTSABytes"] = haveTSA ? (object)compressedTSA.Length : null,
+                    ["outPalBytes"] = havePal ? (object)result.PaletteData.Length : null,
                     ["tiles"] = result.TileCount,
                     ["gridWidth"] = result.WidthTiles,
                     ["gridHeight"] = result.HeightTiles,
@@ -1456,6 +1452,8 @@ namespace FEBuilderGBA.CLI
                     Console.WriteLine($"  Tile data: {outImgPath} ({result.TileData.Length} bytes)");
                 if (!string.IsNullOrEmpty(outTSAPath))
                     Console.WriteLine($"  TSA data: {outTSAPath}");
+                if (!string.IsNullOrEmpty(outPalPath))
+                    Console.WriteLine($"  Palette data: {outPalPath} ({result.PaletteData.Length} bytes)");
             }
             return 0;
         }
