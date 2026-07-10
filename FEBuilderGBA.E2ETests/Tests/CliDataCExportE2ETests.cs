@@ -363,6 +363,10 @@ namespace FEBuilderGBA.E2ETests.Tests
         [InlineData("__label__")]
         [InlineData("__alignof__")]
         [InlineData("_leadingUnderscore")]
+        [InlineData("uint8_t")]
+        [InlineData("uint16_t")]
+        [InlineData("uint32_t")]
+        [InlineData("UINT8_MAX")]
         public void ExportData_C_KeywordOrReservedCSymbol_RejectsBeforeRomLoadAndOutput(string symbol)
         {
             string outC = TempFile(".c");

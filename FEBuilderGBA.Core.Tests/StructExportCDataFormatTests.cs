@@ -743,6 +743,16 @@ namespace FEBuilderGBA.Core.Tests
                     string c = StructExportCore.FormatCData(
                         new List<(uint, Dictionary<string, string>, byte[])> { row }, structDef, "mixed_table", 12);
                     CompileGeneratedC(compiler, tempDir, "fe8_style_mixed", c);
+
+                    // The nearest valid spelling to a stdint typedef collision must still
+                    // compile when used verbatim as the public data/count symbol pair.
+                    string nearCollision = StructExportCore.FormatCData(
+                        new List<(uint, Dictionary<string, string>, byte[])> { row },
+                        structDef,
+                        "mixed_table",
+                        12,
+                        "uint8_t_");
+                    CompileGeneratedC(compiler, tempDir, "stdint_near_collision_override", nearCollision);
                 }
 
                 // 2) FE6-style connected (contained) overlap: word BGM1 aliasing byte Field15.
@@ -897,7 +907,7 @@ namespace FEBuilderGBA.Core.Tests
         public void TryValidateCSymbol_LeadingDigit_ReturnsFalse(string symbol)
         {
             Assert.False(StructExportCore.TryValidateCSymbol(symbol, out string error));
-            Assert.Contains("start with a letter or underscore", error);
+            Assert.Contains("start with a letter", error);
         }
 
         [Theory]
@@ -936,6 +946,22 @@ namespace FEBuilderGBA.Core.Tests
         {
             Assert.False(StructExportCore.TryValidateCSymbol(symbol, out string error));
             Assert.Contains("reserved", error);
+        }
+
+        [Theory]
+        [InlineData("uint8_t")]
+        [InlineData("uint16_t")]
+        [InlineData("uint32_t")]
+        [InlineData("int24_t")]
+        [InlineData("uint_least32_t")]
+        [InlineData("int_fast64_t")]
+        [InlineData("INT32_MAX")]
+        [InlineData("UINT_FAST16_MAX")]
+        [InlineData("SIZE_MAX")]
+        public void TryValidateCSymbol_StdintReservedIdentifier_ReturnsFalse(string symbol)
+        {
+            Assert.False(StructExportCore.TryValidateCSymbol(symbol, out string error));
+            Assert.Contains("<stdint.h>", error);
         }
 
         [Fact]

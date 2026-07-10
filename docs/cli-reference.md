@@ -434,9 +434,10 @@ required and optional flags. Each is verified against its `Run*` handler in
   does not invoke a compiler itself. Optional `--c-symbol=<identifier>` (single-table `--format=c`
   only) overrides the emitted data-array symbol with a strictly-validated, non-keyword C
   identifier that starts with a letter (leading underscores are implementation-reserved at file
-  scope and are rejected; invalid values are never silently sanitized); the count symbol becomes
-  `<identifier>Count`; combining `--c-symbol` with `--table=all`, or with any format other than
-  `c`, is rejected before the ROM is loaded or any output file is created. **Exit:** 0 on
+  scope; `<stdint.h>` typedef/macro names such as `uint8_t` and `UINT8_MAX` collide with the
+  generated prologue; both classes are rejected and invalid values are never silently sanitized);
+  the count symbol becomes `<identifier>Count`; combining `--c-symbol` with `--table=all`, or with
+  any format other than `c`, is rejected before the ROM is loaded or any output file is created. **Exit:** 0 on
   success, 1 on usage/unknown-table/unsupported-format/invalid-`--c-symbol`/C-layout-validation
   error.
 - **`--import-data`** — Import a struct table from TSV or JSON and save the ROM in-place.

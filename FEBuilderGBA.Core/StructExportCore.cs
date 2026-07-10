@@ -1961,6 +1961,69 @@ namespace FEBuilderGBA
         };
 
         /// <summary>
+        /// Non-width-specific identifiers reserved by the generated translation unit's
+        /// <c>#include &lt;stdint.h&gt;</c> prologue. Width-specific typedefs and macros are
+        /// recognized by <see cref="IsStdintReservedIdentifier"/> so implementation-defined
+        /// widths such as 24 are covered as well as the common 8/16/32/64 set.
+        /// </summary>
+        static readonly HashSet<string> CStdintFixedIdentifiers = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "intptr_t","uintptr_t","intmax_t","uintmax_t",
+            "INTPTR_MIN","INTPTR_MAX","UINTPTR_MAX",
+            "INTMAX_MIN","INTMAX_MAX","UINTMAX_MAX",
+            "PTRDIFF_MIN","PTRDIFF_MAX",
+            "SIG_ATOMIC_MIN","SIG_ATOMIC_MAX",
+            "SIZE_MAX","WCHAR_MIN","WCHAR_MAX","WINT_MIN","WINT_MAX",
+            "INTMAX_C","UINTMAX_C",
+        };
+
+        static bool HasDecimalMiddle(string identifier, string prefix, string suffix)
+        {
+            if (!identifier.StartsWith(prefix, StringComparison.Ordinal)
+                || !identifier.EndsWith(suffix, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            int end = identifier.Length - suffix.Length;
+            if (end == prefix.Length) return false;
+            for (int i = prefix.Length; i < end; i++)
+            {
+                if (identifier[i] < '0' || identifier[i] > '9') return false;
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Return whether <paramref name="identifier"/> belongs to a C11
+        /// <c>&lt;stdint.h&gt;</c> typedef/macro family. These names share the ordinary
+        /// identifier or preprocessor namespace with the emitted file-scope object; accepting
+        /// one as a symbol override can turn an otherwise successful export into invalid C.
+        /// </summary>
+        static bool IsStdintReservedIdentifier(string identifier)
+        {
+            if (CStdintFixedIdentifiers.Contains(identifier)) return true;
+
+            return HasDecimalMiddle(identifier, "int", "_t")
+                || HasDecimalMiddle(identifier, "uint", "_t")
+                || HasDecimalMiddle(identifier, "int_least", "_t")
+                || HasDecimalMiddle(identifier, "uint_least", "_t")
+                || HasDecimalMiddle(identifier, "int_fast", "_t")
+                || HasDecimalMiddle(identifier, "uint_fast", "_t")
+                || HasDecimalMiddle(identifier, "INT", "_MIN")
+                || HasDecimalMiddle(identifier, "INT", "_MAX")
+                || HasDecimalMiddle(identifier, "UINT", "_MAX")
+                || HasDecimalMiddle(identifier, "INT_LEAST", "_MIN")
+                || HasDecimalMiddle(identifier, "INT_LEAST", "_MAX")
+                || HasDecimalMiddle(identifier, "UINT_LEAST", "_MAX")
+                || HasDecimalMiddle(identifier, "INT_FAST", "_MIN")
+                || HasDecimalMiddle(identifier, "INT_FAST", "_MAX")
+                || HasDecimalMiddle(identifier, "UINT_FAST", "_MAX")
+                || HasDecimalMiddle(identifier, "INT", "_C")
+                || HasDecimalMiddle(identifier, "UINT", "_C");
+        }
+
+        /// <summary>
         /// C reserves every identifier beginning with two underscores, and every identifier
         /// beginning with underscore + uppercase, in every scope. Metadata-derived member
         /// names are repaired before emission; user-owned file-scope symbols are held to the
@@ -2009,9 +2072,10 @@ namespace FEBuilderGBA
         /// Strictly validate a USER-SUPPLIED C data-symbol override (CLI <c>--c-symbol</c>,
         /// #1939 Phase B1): must be a well-formed external C/GNU identifier — starts with an
         /// ASCII letter and every later character is <c>[A-Za-z0-9_]</c> — and must NOT be a
-        /// C/GNU reserved word (<see cref="CReservedIdentifiers"/>). A leading underscore is
-        /// rejected because every such identifier is implementation-reserved at file scope,
-        /// where the exported array object is declared. Unlike
+        /// C/GNU reserved word (<see cref="CReservedIdentifiers"/>) or an identifier reserved
+        /// by the generated <c>&lt;stdint.h&gt;</c> prologue. A leading underscore is rejected
+        /// because every such identifier is implementation-reserved at file scope, where the
+        /// exported array object is declared. Unlike
         /// <see cref="SanitizeCIdentifier"/> (used for ROM-metadata-derived names, which are
         /// silently repaired so a table/struct name always emits *something* valid), a
         /// user-supplied override is never silently rewritten — <paramref name="symbol"/> is
@@ -2033,7 +2097,7 @@ namespace FEBuilderGBA
             bool firstOk = (first >= 'a' && first <= 'z') || (first >= 'A' && first <= 'Z') || first == '_';
             if (!firstOk)
             {
-                error = $"'{symbol}' must start with a letter or underscore, not '{first}'";
+                error = $"'{symbol}' must start with a letter, not '{first}'";
                 return false;
             }
 
@@ -2056,6 +2120,12 @@ namespace FEBuilderGBA
             if (symbol[0] == '_')
             {
                 error = $"'{symbol}' begins with an underscore, which is reserved to the C implementation for file-scope symbols";
+                return false;
+            }
+
+            if (IsStdintReservedIdentifier(symbol))
+            {
+                error = $"'{symbol}' is reserved by the generated <stdint.h> prologue and cannot be reused as a file-scope symbol";
                 return false;
             }
 

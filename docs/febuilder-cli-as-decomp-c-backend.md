@@ -43,7 +43,10 @@ FEBuilderGBA.CLI --export-data --rom=<rom> --table=<name> --format=c [--out=<pat
   - `<identifier>` must be a strictly valid external C/GNU identifier
     (`[A-Za-z][A-Za-z0-9_]*`, not a C11/GNU keyword). Leading underscores are rejected because
     they are implementation-reserved for file-scope symbols, where the data array is emitted.
-    An invalid value is **rejected outright**, never silently sanitized/rewritten.
+    Names reserved by the generated `<stdint.h>` prologue are also rejected, including its
+    typedef/macro families (`uint8_t`, `uint16_t`, `uint32_t`, `INT32_MAX`, `SIZE_MAX`, and
+    implementation-defined widths such as `int24_t`). An invalid value is **rejected outright**,
+    never silently sanitized/rewritten.
   - Combining `--c-symbol` with `--table=all` is rejected (every table would collide on the same
     symbol name).
   - Combining `--c-symbol` with any format other than `c` is rejected explicitly (`--c-symbol
@@ -152,7 +155,8 @@ before indexing the array — like any zero-length array, indexing `gFEBuilder_e
   namespace (fields, union views, raw arms, gap/trailing members — GNU anonymous
   unions/structs promote all of them into one scope) is tracked; a post-sanitization collision is
   **rejected outright**, never silently renamed further. A **user-supplied** `--c-symbol` is held to
-  a stricter, different standard: it is never sanitized at all — file-scope-safe as given, or rejected.
+  a stricter, different standard: it is never sanitized at all — file-scope-safe and non-conflicting
+  with the generated `<stdint.h>` prologue as given, or rejected.
   (`FEBuilderGBA.Core.Tests/StructExportCDataFormatTests.cs` covers keyword/leading-digit/invalid-
   character sanitization and forced collisions for both cases.)
 - **Numeric values are strictly re-parsed and width-checked**, not copied as raw tokens: every field

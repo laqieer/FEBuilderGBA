@@ -478,7 +478,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --table=<name>         Table name: units, classes, items, or all");
             Console.WriteLine("    --out=<path>           Output file path (or base path for --table=all)");
             Console.WriteLine("    --format=<fmt>         Output format: tsv (default), csv, ea, json, c (self-contained GNU11 C source, export-only, default extension .c)");
-            Console.WriteLine("    --c-symbol=<name>      Override the emitted C data array symbol (--format=c, single table only, not with --table=all); must start with a letter and be a non-keyword, non-reserved C identifier — invalid values are rejected, never silently sanitized; the count symbol is deterministically <name>Count");
+            Console.WriteLine("    --c-symbol=<name>      Override the emitted C data array symbol (--format=c, single table only, not with --table=all); must start with a letter and be a non-keyword, non-<stdint.h>, file-scope-safe C identifier — invalid values are rejected, never silently sanitized; the count symbol is deterministically <name>Count");
             Console.WriteLine("  --import-data            Import struct data from TSV or JSON (requires --rom, --table, --in)");
             Console.WriteLine("    --table=<name>         Table name: units, classes, items");
             Console.WriteLine("    --in=<path>            Input file path (TSV, or JSON when --format=json or the extension is .json)");

@@ -136,8 +136,9 @@ the "### Graphics System" overview in `CLAUDE.md`.
   or connected-overlap unions initialized through one raw arm. It emits a packed row struct, 4-byte-
   aligned deterministic data/count symbols, a stride `_Static_assert`, full-width ordinal comments,
   and a real GNU `[0]` symbol for empty/version-absent tables. `--c-symbol` is strict and never
-  sanitized; C import/round-trip, pointer relocation, and external build orchestration are deliberately
-  excluded. See `docs/febuilder-cli-as-decomp-c-backend.md`.
+  sanitized: file-scope-reserved names and identifiers reserved by the generated `<stdint.h>`
+  prologue are rejected before output. C import/round-trip, pointer relocation, and external build
+  orchestration are deliberately excluded. See `docs/febuilder-cli-as-decomp-c-backend.md`.
 - `BattleAnimeRendererCore.RenderSampleBattleAnime` optional EXACT-32-byte `overridePaletteBlock` (Core, READ-ONLY)
   — live-recolor the Unit Palette editor sample preview from R/G/B spinners: Avalonia
   `ImageUnitPaletteView` packs 16 spinners (`UnitPaletteWriteCore.PackRgb555`) → `RenderClassSamplePreview(...,
