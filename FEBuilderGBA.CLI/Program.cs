@@ -979,7 +979,7 @@ namespace FEBuilderGBA.CLI
             bool ignoreTSA = argsDic.ContainsKey("--ignoreTSA");
 
             int maxColors = 16;  // optional; default 16 when --paletteno is omitted
-            if (argsDic.ContainsKey("--paletteno") && !string.IsNullOrEmpty(argsDic["--paletteno"]))
+            if (argsDic.ContainsKey("--paletteno"))
             {
                 int minimumColors = noReserve1stColor ? 1 : 2;
                 if (!int.TryParse(argsDic["--paletteno"], out maxColors) ||

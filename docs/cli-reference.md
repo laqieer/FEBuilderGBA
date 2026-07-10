@@ -155,10 +155,12 @@ Quantize an image's palette to a limited number of colors (for GBA-compatible gr
 | `--noScale` | No | Do not scale RGB values to GBA 5-bit range (0-31). |
 | `--noReserve1stColor` | No | Do not reserve palette slot 0 for transparency. |
 | `--ignoreTSA` | No | Ignore TSA 8x8 tile deduplication constraints. |
+| `--json` | No | Emit one JSON object on stdout for success or failure. Errors still return a non-zero exit code. |
 
 ```
 FEBuilderGBA.CLI --decreasecolor --in=input.png --out=output.png --paletteno=16
 FEBuilderGBA.CLI --decreasecolor --in=input.png --out=output.png --paletteno=16 --noScale --noReserve1stColor
+FEBuilderGBA.CLI --decreasecolor --in=input.png --out=output.png --paletteno=16 --json
 ```
 
 This command does **not** require a ROM; it operates purely on image files.
@@ -236,11 +238,13 @@ Convert an image to GBA map tile data and TSA (Tile Set Arrangement).
 | `--in=<path>` | Yes | Input image file. Dimensions must be multiples of 8 pixels. |
 | `--outImg=<path>` | No* | Output tile data binary file. |
 | `--outTSA=<path>` | No* | Output TSA data file (LZ77-compressed). |
+| `--json` | No | Emit one JSON object on stdout for success or failure. Errors still return a non-zero exit code. |
 
 *At least one of `--outImg` or `--outTSA` is required.
 
 ```
 FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin
+FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin --json
 ```
 
 This command does **not** require a ROM.
