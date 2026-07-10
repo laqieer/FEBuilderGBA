@@ -49,8 +49,10 @@ ergonomics gap** (graphics) — all perception/asset work with no in-tree visual
 3. **Commit the emitted file(s) as source** in the decomp tree (`.s` / `.json` / asset blob / PNG +
    `.pal`) and rebuild with the decomp toolchain. The emitted artifacts are reviewable source, not an
    opaque ROM patch.
-4. **(Optional) round-trip verify** map assets with `--roundtrip-asset` / `--verify-asset` before
-   committing.
+4. **(Optional) verify before committing:** round-trip map **layouts** with `--roundtrip-asset`
+   (ROM-free structural proof), and byte-verify the **ROM-backed** kinds
+   (`mapchange`/`mapanime2pal`/`objtiles`/`mapchipconfig`/`mapanime1gfx`) against the ROM with
+   `--verify-asset`.
 
 > This is deliberately **iterative and visual**: edit → preview → export → build. The scriptable,
 > stable-flag "converter interface" for unattended pipelines is #1941's concern.
@@ -62,8 +64,8 @@ Every verb below exists today in [`docs/cli-reference.md`](cli-reference.md) (an
 
 | Decomp subsystem | FEBuilder export verb | Emitted artifact |
 |---|---|---|
-| **Map tile layout** | `--export-asset --kind=map` (always LZ77-decompressed) | raw tile-layout blob + `.mar.json` sidecar; round-trips via `--import-asset`/`--roundtrip-asset`/`--verify-asset` |
-| **Map changes / tile-anim / chipset** | `--export-asset --kind=mapchange`/`mapanime2pal`/`objtiles`/`mapchipconfig` | raw uncompressed overlay/config blobs + `.json` sidecars |
+| **Map tile layout** | `--export-asset --kind=map` (always LZ77-decompressed) | raw `.mar` tile-layout blob + `.mar.json` sidecar; round-trips via `--import-asset` / `--roundtrip-asset` (ROM-free — `--verify-asset` does **not** cover `map`) |
+| **Map changes / tile-anim / chipset** | `--export-asset --kind=` one of `mapchange`, `mapanime2pal`, `objtiles`, `mapchipconfig`, `mapanime1gfx` | raw uncompressed overlay/config/gfx blobs + `.json` sidecars; ROM-backed byte proof via `--verify-asset` for these kinds |
 | **Newly-authored map (from an image)** | `--convertmap1picture` | `tiles.bin` + `tsa.bin` (image → GBA map tiles + TSA; no ROM required) |
 | **Battle animation** (primary) | **`--export-battle-anim-decomp`** | `banim_<TAG>_motion.s` (macro assembly) + per-team `.pal` + `.json` manifest, using fireemblem8u's banim macros — **READ-ONLY** |
 | Battle animation (preview only) | `--export-battle-anime` | classic `.txt`+PNG or GIF — a **preview / reimport aid**, *not* a decomp-consumable artifact |
