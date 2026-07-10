@@ -474,10 +474,11 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --in=<path>            Import text from TSV file and write to ROM");
             Console.WriteLine("  --translate-roundtrip    Validate text export/import losslessness (requires --rom)");
             Console.WriteLine("    --out=<base>           Save before/after TSVs as <base>.export1.tsv and <base>.export2.tsv");
-            Console.WriteLine("  --export-data            Export struct data to TSV/CSV/EA/JSON (requires --rom, --table)");
+            Console.WriteLine("  --export-data            Export struct data to TSV/CSV/EA/JSON/C (requires --rom, --table)");
             Console.WriteLine("    --table=<name>         Table name: units, classes, items, or all");
             Console.WriteLine("    --out=<path>           Output file path (or base path for --table=all)");
-            Console.WriteLine("    --format=<fmt>         Output format: tsv (default), csv, ea, json");
+            Console.WriteLine("    --format=<fmt>         Output format: tsv (default), csv, ea, json, c (self-contained GNU11 C source, export-only, default extension .c)");
+            Console.WriteLine("    --c-symbol=<name>      Override the emitted C data array symbol (--format=c, single table only, not with --table=all); must start with a letter and be a non-keyword, non-<stdint.h>, file-scope-safe C identifier — invalid values are rejected, never silently sanitized; matching preprocessor macros are #undef-guarded; the count symbol is deterministically <name>Count");
             Console.WriteLine("  --import-data            Import struct data from TSV or JSON (requires --rom, --table, --in)");
             Console.WriteLine("    --table=<name>         Table name: units, classes, items");
             Console.WriteLine("    --in=<path>            Input file path (TSV, or JSON when --format=json or the extension is .json)");
@@ -724,6 +725,9 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  FEBuilderGBA.CLI --import-data --rom=rom.gba --table=units --in=units.tsv");
             Console.WriteLine("  FEBuilderGBA.CLI --export-data --rom=rom.gba --table=units --format=json --out=units.json  (machine-readable: JSON array of string-valued objects, keyed by Index + field name)");
             Console.WriteLine("  FEBuilderGBA.CLI --import-data --rom=rom.gba --table=units --in=units.json  (format auto-detected from the .json extension; or pass --format=json explicitly)");
+            Console.WriteLine("  FEBuilderGBA.CLI --export-data --rom=rom.gba --table=items --format=c --out=items.c  (self-contained GNU11 C source: packed row struct, 4-byte-aligned array, count symbol; export-only, not importable)");
+            Console.WriteLine("  FEBuilderGBA.CLI --export-data --rom=rom.gba --table=items --format=c --c-symbol=gItemData --out=items.c  (overrides the data array symbol; count symbol becomes gItemDataCount)");
+            Console.WriteLine("  FEBuilderGBA.CLI --export-data --rom=rom.gba --table=all --format=c --out=data  (emits data.<table>.c for every registered table, including zero-row/version-absent tables)");
             Console.WriteLine("  FEBuilderGBA.CLI --data-roundtrip --rom=rom.gba --table=all");
             Console.WriteLine("  FEBuilderGBA.CLI --import-midi --rom=rom.gba --song-id=0x1A --in=song.mid");
             Console.WriteLine("  FEBuilderGBA.CLI --compile-event --rom=rom.gba --in=script.event --out=modified.gba");
@@ -1858,19 +1862,46 @@ namespace FEBuilderGBA.CLI
                 return 1;
             }
 
+            string tableName = argsDic["--table"];
+
             // Validate --format before touching the ROM/output files: an unsupported value
             // (e.g. a typo like "xml") must fail loudly instead of silently falling back to tsv.
             string format = "tsv";
             if (argsDic.ContainsKey("--format") && !string.IsNullOrEmpty(argsDic["--format"]))
                 format = argsDic["--format"].Trim().ToLowerInvariant();
-            if (format != "tsv" && format != "csv" && format != "ea" && format != "json")
+            if (format != "tsv" && format != "csv" && format != "ea" && format != "json" && format != "c")
             {
-                Console.Error.WriteLine($"Error: --export-data --format must be one of tsv, csv, ea, json (got '{format}').");
+                Console.Error.WriteLine($"Error: --export-data --format must be one of tsv, csv, ea, json, c (got '{format}').");
                 return 1;
             }
 
+            // --c-symbol (#1939 Phase B1): a single-table --format=c data-array symbol
+            // override. Validated here — before RomLoader ever touches --rom and before any
+            // output file is created — so a typo'd/keyword identifier, or a misuse with
+            // --table=all / a non-c format, fails loudly with a specific message instead of
+            // silently doing nothing or partially writing output.
+            bool hasCSymbol = argsDic.ContainsKey("--c-symbol");
+            string cSymbol = hasCSymbol ? argsDic["--c-symbol"] : null;
+            if (hasCSymbol)
+            {
+                if (format != "c")
+                {
+                    Console.Error.WriteLine("Error: --c-symbol requires --format=c.");
+                    return 1;
+                }
+                if (tableName.Equals("all", StringComparison.OrdinalIgnoreCase))
+                {
+                    Console.Error.WriteLine("Error: --c-symbol cannot be combined with --table=all (every table would collide on the same symbol name).");
+                    return 1;
+                }
+                if (!StructExportCore.TryValidateCSymbol(cSymbol, out string cSymbolError))
+                {
+                    Console.Error.WriteLine($"Error: --c-symbol '{cSymbol}' is invalid: {cSymbolError}.");
+                    return 1;
+                }
+            }
+
             string romPath = argsDic["--rom"];
-            string tableName = argsDic["--table"];
             string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
 
             RomLoader.InitEnvironment();
@@ -1901,9 +1932,7 @@ namespace FEBuilderGBA.CLI
                     return 1;
                 }
 
-                var entries = StructExportCore.ExportTable(CoreState.ROM, table, structDef);
-
-                string ext = format switch { "csv" => ".csv", "ea" => ".ea", "json" => ".json", _ => ".tsv" };
+                string ext = format switch { "csv" => ".csv", "ea" => ".ea", "json" => ".json", "c" => ".c", _ => ".tsv" };
 
                 string outPath;
                 if (argsDic.ContainsKey("--out") && !string.IsNullOrEmpty(argsDic["--out"]))
@@ -1918,22 +1947,48 @@ namespace FEBuilderGBA.CLI
                     outPath = Path.ChangeExtension(romPath, "." + tName + ext);
                 }
 
-                switch (format)
+                int exportedCount;
+                if (format == "c")
                 {
-                    case "csv":
-                        StructExportCore.ExportToCSV(entries, structDef, outPath);
-                        break;
-                    case "ea":
-                        StructExportCore.ExportToEA(entries, structDef, outPath);
-                        break;
-                    case "json":
-                        StructExportCore.ExportToJSON(entries, structDef, outPath);
-                        break;
-                    default:
-                        StructExportCore.ExportToTSV(entries, structDef, outPath);
-                        break;
+                    // C needs typed fields and exact raw stride bytes, so route directly
+                    // through its single raw-backed traversal. Calling ExportTable first
+                    // would decode every row twice and allocate data the C formatter discards.
+                    try
+                    {
+                        exportedCount = StructExportCore.ExportToCData(
+                            CoreState.ROM,
+                            table,
+                            structDef,
+                            outPath,
+                            tableNames.Count == 1 ? cSymbol : null);
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        Console.Error.WriteLine($"Error: C export failed for table '{tName}': {ex.Message}");
+                        return 1;
+                    }
                 }
-                Console.WriteLine($"Exported {entries.Count} {tName} entries ({format}) to: {outPath}");
+                else
+                {
+                    var entries = StructExportCore.ExportTable(CoreState.ROM, table, structDef);
+                    switch (format)
+                    {
+                        case "csv":
+                            StructExportCore.ExportToCSV(entries, structDef, outPath);
+                            break;
+                        case "ea":
+                            StructExportCore.ExportToEA(entries, structDef, outPath);
+                            break;
+                        case "json":
+                            StructExportCore.ExportToJSON(entries, structDef, outPath);
+                            break;
+                        default:
+                            StructExportCore.ExportToTSV(entries, structDef, outPath);
+                            break;
+                    }
+                    exportedCount = entries.Count;
+                }
+                Console.WriteLine($"Exported {exportedCount} {tName} entries ({format}) to: {outPath}");
             }
 
             return 0;

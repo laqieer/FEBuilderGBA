@@ -52,6 +52,7 @@ Docs for using FEBuilderGBA as an agent / LLM backend (headless authoring, build
 | [febuilder-as-decomp-frontend.md](febuilder-as-decomp-frontend.md) | **FEBuilder as a decomp authoring front-end** — the GUI-first workflow to edit maps/animations/graphics visually and export decomp-consumable artifacts (`.s`/`.json`/asset blobs/PNG+`.pal`). |
 | [febuilder-as-decomp-converter.md](febuilder-as-decomp-converter.md) | **FEBuilder as an in-tree asset converter** — the convert verbs (`--convertmap1picture`, `--decreasecolor`) as a stable, `--json`-scriptable build-rule interface (editable image → in-game blob), with FEHRR as the worked example. |
 | [febuilder-cli-as-llm-backend.md](febuilder-cli-as-llm-backend.md) | **`FEBuilderGBA.CLI` as an LLM ROM-generator format-knowledge backend** — honest mapping of what an LLM generator (prior art: fe-infinity) would otherwise hand-reimplement, to existing CLI verbs vs. genuine gaps; a literal `--export-data --format=json` → edit → `--import-data` → `--lint`/`--data-roundtrip` worked example. |
+| [febuilder-cli-as-decomp-c-backend.md](febuilder-cli-as-decomp-c-backend.md) | **`FEBuilderGBA.CLI` as a decomp-C data backend** — the `--export-data --format=c` GNU11/devkitARM-compatible per-table C codegen contract (packed struct, aligned array, `_Static_assert`, byte-preserving gaps/overlaps, zero-row contract, `--c-symbol` override); export-only, with honest exclusions (no shipped decomp, no whole-mod orchestration, no C→ROM round-trip guarantee). |
 
 ## Build, packaging & release
 

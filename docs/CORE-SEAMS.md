@@ -130,6 +130,20 @@ the "### Graphics System" overview in `CLAUDE.md`.
   for the resolved table, rejected here instead of relying on `WriteTable`'s silent per-row skip. CLI
   `RunImportData`'s JSON branch calls `ImportFromJSON(inputPath, structDef, table.GetEntryCount(rom))` so every
   check above runs — and can throw `FormatException` — strictly before `WriteTable`/`ROM.Save`.
+  `FormatCData`/`ExportToCData` + `BuildCLayout` (#1939, READ-ONLY) add an export-only GNU11 decomp-C
+  sibling: one shared traversal runs in typed-only mode for TSV/CSV/EA/JSON (no unused raw-stride
+  allocations) and captures typed fields + exact runtime-stride bytes once for C; the CLI never
+  pre-exports C rows through the legacy path. The formatter partitions every stride byte exactly once
+  into typed fields, raw gaps/trailing bytes,
+  or connected-overlap unions initialized through one raw arm. It emits a packed row struct, 4-byte-
+  aligned deterministic data/count symbols, a stride `_Static_assert`, compiler-visible full-width
+  ordinal array designators with escaped labels, and a real GNU `[0]` symbol for
+  empty/version-absent tables. `--c-symbol` is strict and never
+  sanitized: file-scope-reserved names and identifiers reserved by the generated `<stdint.h>`
+  prologue are rejected before output; every generated identifier is protected after includes by a
+  deterministic `#ifdef`/`#undef` guard so toolchain-predefined/caller `-D` macros cannot rewrite the
+  translation unit. C import/round-trip, pointer relocation, and external build orchestration are
+  deliberately excluded. See `docs/febuilder-cli-as-decomp-c-backend.md`.
 - `BattleAnimeRendererCore.RenderSampleBattleAnime` optional EXACT-32-byte `overridePaletteBlock` (Core, READ-ONLY)
   — live-recolor the Unit Palette editor sample preview from R/G/B spinners: Avalonia
   `ImageUnitPaletteView` packs 16 spinners (`UnitPaletteWriteCore.PackRgb555`) → `RenderClassSamplePreview(...,

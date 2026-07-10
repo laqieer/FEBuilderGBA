@@ -33,7 +33,8 @@ Tracks issue [#1931](https://github.com/laqieer/FEBuilderGBA/issues/1931).
    split into separate rows.
 2. **Registry cross-check first.** Every one of the **40 registered struct tables**
    (`FEBuilderGBA.Core/StructExportCore.cs`) is covered by the generic struct-data surface:
-   `--export-data` supports TSV/CSV/EA/JSON, `--import-data` accepts TSV/JSON with real ROM mutation
+   `--export-data` supports TSV/CSV/EA/JSON plus an export-only GNU11 `c` codegen format (#1939),
+   `--import-data` accepts TSV/JSON with real ROM mutation
    (`RunImportData` → `StructExportCore.WriteTable` → `ROM.Save`), and `--data-roundtrip` checks
    direct struct read/write stability without serializing through any file format. These are mapped
    to their GUI editors **before** per-editor verb classification, so a table-backed editor is never

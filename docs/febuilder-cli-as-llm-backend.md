@@ -33,7 +33,7 @@ implementing the gaps identified below — those are candidate follow-up issues,
 
 | fe-infinity re-derivation | FEBuilderGBA.CLI equivalent | Status |
 |---|---|---|
-| `character-table-csv-headers.ts` (hand-maintained CSV columns) | `--list-tables` (enumerate the 40 registered tables) + `--export-data --table=<name> --format=<tsv\|csv\|ea\|json>` (schema *is* the column/key set — no hand-maintenance needed) | **Existing verb** |
+| `character-table-csv-headers.ts` (hand-maintained CSV columns) | `--list-tables` (enumerate the 40 registered tables) + `--export-data --table=<name> --format=<tsv\|csv\|ea\|json\|c>` (schema *is* the column/key set — no hand-maintenance needed; `c` is the export-only decomp backend documented in [`febuilder-cli-as-decomp-c-backend.md`](febuilder-cli-as-decomp-c-backend.md)) | **Existing verb** |
 | `generate-character-stats.ts` (base stats, growths) | `--export-data --table=units` — real fields `BaseHP`/`BasePow`/`BaseSkl`/`BaseSpd`/`BaseDef`/`BaseRes`/`BaseLck`/`BaseCon` (`0x0C`–`0x13`) and `GrowthHP`/`GrowthPow`/… (`0x1C`–`0x22`), verified against both unit ViewModels and `config/data/struct_unit_*.txt` | **Existing verb** |
 | `get-weapon-rank.ts` | `--export-data --table=units` — real fields `SwordRank`/`LanceRank`/`AxeRank`/`BowRank`/`StaffRank`/`AnimaRank`/`LightRank`/`DarkRank` (`struct_unit_fe78.txt`) | **Existing verb** |
 | Item/weapon stats (`Might`, `Hit`, `Weight`, `Crit`, ranges, `WeaponRank`, …) | `--export-data --table=items` (`struct_item_fe78.txt`) | **Existing verb** |
@@ -67,7 +67,7 @@ file if this doc and the CLI ever drift.
   truncating it to one byte (`Index` for row 256 is `0x0100`, never `0x00`). `--import-data` accepts
   JSON either explicitly (`--format=json`) or automatically when `--in` has a `.json` extension;
   TSV import behavior is unchanged. An explicit `--format` value outside the supported set
-  (`tsv`/`csv`/`ea`/`json` for export, `tsv`/`json` for import) is rejected with an actionable error
+  (`tsv`/`csv`/`ea`/`json`/`c` for export, `tsv`/`json` for import) is rejected with an actionable error
   instead of silently falling back to TSV.
 - **Backstop:** this shape is covered by regression tests — `FEBuilderGBA.Core.Tests/StructExportFormatTests.cs`
   (`FormatJSON`/`ParseJSON`/`ValidateJSONEntries` unit tests, including the strict `Index` parsing,
@@ -101,7 +101,7 @@ An LLM generator needs to know exactly what these gates do and do **not** guaran
   cleanly.
 - **`--data-roundtrip`** verifies **struct read/write stability** on a temporary ROM copy: it reads
   each table into in-memory field dictionaries, writes those same dictionaries back, re-reads the
-  table, and compares the values. It does **not** pass through TSV, CSV, EA, or JSON, so it does not
+  table, and compares the values. It does **not** pass through TSV, CSV, EA, JSON, or C, so it does not
   prove that a serialization format is lossless; the JSON parser/writer contract is exercised by the
   JSON Core and CLI E2E tests instead. `--translate-roundtrip` separately exercises the text
   export/import path. Neither gate verifies that the *values* the generator chose are
@@ -156,7 +156,8 @@ without having corrupted anything.
 - [#1938](https://github.com/laqieer/FEBuilderGBA/issues/1938) — base-ROM/template policy for
   agent-generated content (fe-infinity's Legends-of-Avenir base is exactly the case this covers).
 - [#1939](https://github.com/laqieer/FEBuilderGBA/issues/1939) — emit-recipe targeting decomp-C data
-  headers, not just an EA buildfile.
+  headers, not just an EA buildfile; see the delivered
+  [`--format=c` backend contract](febuilder-cli-as-decomp-c-backend.md).
 - [#1941](https://github.com/laqieer/FEBuilderGBA/issues/1941) — the in-tree converter `--json`
   contracts (`--convertmap1picture`, `--decreasecolor`) that established the `System.Text.Json`
   pattern this issue's `--export-data --format=json` reuses.
