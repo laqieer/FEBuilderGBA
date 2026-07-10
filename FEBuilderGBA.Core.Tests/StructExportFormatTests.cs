@@ -488,5 +488,202 @@ namespace FEBuilderGBA.Core.Tests
                 File.Delete(path);
             }
         }
+
+        // ------------------------------------------------------------------
+        // #1937 follow-up: ValidateJSONEntries / ParseAndValidateJSON semantic
+        // preflight (unknown fields, strict numeric parsing/width, duplicate
+        // indices, out-of-range indices). MakeTestDef() has Level(Byte),
+        // HP(Byte), ClassPtr(Pointer) — entryCount below is deliberately >=
+        // the highest Index used so only the behavior under test fails.
+
+        [Fact]
+        public void ValidateJSONEntries_UnknownFieldName_ThrowsFormatException_WithRowAndPropertyName()
+        {
+            var def = MakeTestDef();
+            var entries = StructExportCore.ParseJSON("[{\"Index\":\"0x00\",\"Weigth\":\"0x05\"}]"); // typo: Weigth
+
+            var ex = Assert.Throws<FormatException>(() => StructExportCore.ValidateJSONEntries(entries, def, entryCount: 4));
+            Assert.Contains("row 1", ex.Message);
+            Assert.Contains("unknown property 'Weigth'", ex.Message);
+        }
+
+        [Fact]
+        public void ValidateJSONEntries_MissingField_IsAllowed_ForPartialUpdates()
+        {
+            var def = MakeTestDef();
+            // Only "Level" present; "HP"/"ClassPtr" omitted — must not throw.
+            var entries = StructExportCore.ParseJSON("[{\"Index\":\"0x00\",\"Level\":\"0x05\"}]");
+
+            var result = Record.Exception(() => StructExportCore.ValidateJSONEntries(entries, def, entryCount: 4));
+            Assert.Null(result);
+        }
+
+        [Theory]
+        [InlineData("banana")]
+        [InlineData("-1")]
+        [InlineData("0x")]
+        [InlineData("$")]
+        [InlineData("0x0A garbage")]
+        [InlineData("0xGG")]
+        [InlineData("")]
+        public void ValidateJSONEntries_GarbageOrNegativeOrBarePrefixOrTrailingTokenFieldValue_ThrowsFormatException(string badValue)
+        {
+            var def = MakeTestDef();
+            var entries = StructExportCore.ParseJSON($"[{{\"Index\":\"0x00\",\"Level\":\"{badValue}\"}}]");
+
+            var ex = Assert.Throws<FormatException>(() => StructExportCore.ValidateJSONEntries(entries, def, entryCount: 4));
+            Assert.Contains("row 1", ex.Message);
+            Assert.Contains("'Level'", ex.Message);
+        }
+
+        [Fact]
+        public void ValidateJSONEntries_ByteFieldOverflow_ThrowsFormatException()
+        {
+            var def = MakeTestDef();
+            // "Level"/"HP" are Byte fields (max 0xFF); 0x100 overflows a byte.
+            var entries = StructExportCore.ParseJSON("[{\"Index\":\"0x00\",\"Level\":\"0x100\"}]");
+
+            var ex = Assert.Throws<FormatException>(() => StructExportCore.ValidateJSONEntries(entries, def, entryCount: 4));
+            Assert.Contains("exceeds the maximum for a Byte field", ex.Message);
+        }
+
+        [Fact]
+        public void ValidateJSONEntries_DecimalOverflowsUintRange_ThrowsFormatException()
+        {
+            var def = MakeTestDef();
+            // "ClassPtr" is a Pointer field (max 0xFFFFFFFF); this decimal string
+            // overflows even a full 32-bit unsigned integer.
+            var entries = StructExportCore.ParseJSON("[{\"Index\":\"0x00\",\"ClassPtr\":\"99999999999\"}]");
+
+            var ex = Assert.Throws<FormatException>(() => StructExportCore.ValidateJSONEntries(entries, def, entryCount: 4));
+            Assert.Contains("overflow", ex.Message);
+        }
+
+        [Fact]
+        public void ValidateJSONEntries_PointerFieldAcceptsFullDWordRange_ButRejectsHexOverflow()
+        {
+            var def = MakeTestDef();
+            var valid = StructExportCore.ParseJSON("[{\"Index\":\"0x00\",\"ClassPtr\":\"0xFFFFFFFF\"}]");
+            var exNone = Record.Exception(() => StructExportCore.ValidateJSONEntries(valid, def, entryCount: 4));
+            Assert.Null(exNone);
+            Assert.Equal("0xFFFFFFFF", valid[0].fields["ClassPtr"]);
+
+            // 9 hex digits overflow a 32-bit pointer field.
+            var overflow = StructExportCore.ParseJSON("[{\"Index\":\"0x00\",\"ClassPtr\":\"0x1FFFFFFFF\"}]");
+            var ex = Assert.Throws<FormatException>(() => StructExportCore.ValidateJSONEntries(overflow, def, entryCount: 4));
+            Assert.Contains("overflow", ex.Message);
+        }
+
+        [Fact]
+        public void ValidateJSONEntries_DuplicateRowIndex_ThrowsFormatException()
+        {
+            var def = MakeTestDef();
+            var entries = StructExportCore.ParseJSON(
+                "[{\"Index\":\"0x00\",\"Level\":\"0x01\"},{\"Index\":\"0x00\",\"Level\":\"0x02\"}]");
+
+            var ex = Assert.Throws<FormatException>(() => StructExportCore.ValidateJSONEntries(entries, def, entryCount: 4));
+            Assert.Contains("duplicate Index", ex.Message);
+            Assert.Contains("row 2", ex.Message);
+        }
+
+        [Fact]
+        public void ValidateJSONEntries_IndexOutsideResolvedEntryCount_ThrowsFormatException()
+        {
+            var def = MakeTestDef();
+            var entries = StructExportCore.ParseJSON("[{\"Index\":\"0x05\",\"Level\":\"0x01\"}]");
+
+            // Table resolved to only 4 entries — Index 5 is out of range.
+            var ex = Assert.Throws<FormatException>(() => StructExportCore.ValidateJSONEntries(entries, def, entryCount: 4));
+            Assert.Contains("Index 5", ex.Message);
+            Assert.Contains("outside the valid range", ex.Message);
+        }
+
+        [Fact]
+        public void ValidateJSONEntries_ZeroEntryCount_ThrowsFormatException_InsteadOfSilentSkip()
+        {
+            var def = MakeTestDef();
+            var entries = StructExportCore.ParseJSON("[{\"Index\":\"0x00\",\"Level\":\"0x01\"}]");
+
+            // entryCount 0 means the table/base address was not resolved — WriteTable
+            // would silently skip every row; the preflight must reject instead.
+            var ex = Assert.Throws<FormatException>(() => StructExportCore.ValidateJSONEntries(entries, def, entryCount: 0));
+            Assert.Contains("outside the valid range", ex.Message);
+        }
+
+        [Fact]
+        public void ValidateJSONEntries_ValidDecimalDollarAndUppercase0X_NormalizeToLowercase0xCanonicalForm()
+        {
+            var def = MakeTestDef();
+            var entries = StructExportCore.ParseJSON(
+                "[{\"Index\":\"0x00\",\"Level\":\"10\"}," +
+                "{\"Index\":\"0x01\",\"Level\":\"$0A\"}," +
+                "{\"Index\":\"0x02\",\"Level\":\"0X0A\"}]");
+
+            var result = Record.Exception(() => StructExportCore.ValidateJSONEntries(entries, def, entryCount: 4));
+            Assert.Null(result);
+
+            // Decimal input stays decimal; $ and uppercase-0X both normalize to a
+            // lowercase "0x" prefix so U.atoi0x (which only recognizes lowercase "0x")
+            // parses them correctly instead of misreading "0X0A" as decimal "0".
+            Assert.Equal("10", entries[0].fields["Level"]);
+            Assert.Equal("0xA", entries[1].fields["Level"]);
+            Assert.Equal("0xA", entries[2].fields["Level"]);
+            Assert.Equal((uint)10, U.atoi0x(entries[1].fields["Level"]));
+            Assert.Equal((uint)10, U.atoi0x(entries[2].fields["Level"]));
+        }
+
+        [Fact]
+        public void ParseAndValidateJSON_ValidDocument_ReturnsNormalizedEntries()
+        {
+            var def = MakeTestDef();
+            string json = "[{\"Index\":\"0x00\",\"Level\":\"$0A\",\"HP\":\"0x10\"}]";
+
+            var entries = StructExportCore.ParseAndValidateJSON(json, def, entryCount: 4);
+
+            Assert.Single(entries);
+            Assert.Equal(0, entries[0].index);
+            Assert.Equal("0xA", entries[0].fields["Level"]);
+            Assert.Equal("0x10", entries[0].fields["HP"]);
+        }
+
+        [Fact]
+        public void ImportFromJSON_StructAndCountAware_UnknownField_ThrowsFormatException()
+        {
+            var def = MakeTestDef();
+            string path = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid():N}.json");
+            try
+            {
+                File.WriteAllText(path, "[{\"Index\":\"0x00\",\"NotAField\":\"0x01\"}]", System.Text.Encoding.UTF8);
+                var ex = Assert.Throws<FormatException>(() => StructExportCore.ImportFromJSON(path, def, entryCount: 4));
+                Assert.Contains("unknown property 'NotAField'", ex.Message);
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
+
+        [Fact]
+        public void ImportFromJSON_ShapeOnlyOverload_StillWorksUnchanged_ForBackwardCompatibility()
+        {
+            // The original shape-only ImportFromJSON(string) overload must keep working
+            // exactly as before — no struct/count-aware validation is applied to it.
+            var def = MakeTestDef();
+            var entries = MakeTestEntries();
+            string json = StructExportCore.FormatJSON(entries, def);
+            string path = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid():N}.json");
+            try
+            {
+                File.WriteAllText(path, json, System.Text.Encoding.UTF8);
+                var parsed = StructExportCore.ImportFromJSON(path);
+                Assert.Equal(2, parsed.Count);
+                // Unnormalized: the original hex casing/padding from FormatJSON is preserved.
+                Assert.Equal("0x01", parsed[0].fields["Level"]);
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
     }
 }

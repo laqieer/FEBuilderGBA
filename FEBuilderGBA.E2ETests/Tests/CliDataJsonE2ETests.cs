@@ -363,5 +363,130 @@ namespace FEBuilderGBA.E2ETests.Tests
             Assert.Contains("duplicate property", stdout + stderr);
             Assert.Equal(romBefore, File.ReadAllBytes(rom));
         }
+
+        // ------------------------------------------------------------------ #1937 follow-up:
+        // struct/count-aware semantic preflight (ValidateJSONEntries). ParseJSON above only
+        // validates JSON *kinds*; these prove the additional field-name/value/index checks
+        // also reject before any ROM write, and that a valid non-hex (decimal) value still
+        // persists correctly.
+
+        [SkippableFact]
+        public void ImportData_Json_UnknownFieldName_RejectedBeforeAnyRomWrite()
+        {
+            Skip.If(RomLocator.FE8U == null, "FE8U ROM not available");
+            string rom = CopyFE8U();
+            byte[] romBefore = File.ReadAllBytes(rom);
+
+            // "Wieght" is a typo of the real "Weight" field — must be rejected instead of
+            // silently ignored (the old WriteTable behavior for an unknown field name).
+            string badJson = TempFile(".json");
+            File.WriteAllText(badJson, "[{\"Index\":\"0x01 Iron Sword\",\"Wieght\":\"0x05\"}]");
+
+            var (code, stdout, stderr) = AppRunner.Run(CliExe,
+                $"--import-data --rom=\"{rom}\" --table=items --in=\"{badJson}\"", timeoutMs: 60_000);
+
+            Assert.NotEqual(0, code);
+            Assert.Contains("unknown property", stdout + stderr);
+            Assert.Equal(romBefore, File.ReadAllBytes(rom));
+        }
+
+        [SkippableFact]
+        public void ImportData_Json_GarbageFieldValue_RejectedBeforeAnyRomWrite()
+        {
+            Skip.If(RomLocator.FE8U == null, "FE8U ROM not available");
+            string rom = CopyFE8U();
+            byte[] romBefore = File.ReadAllBytes(rom);
+
+            // "banana" is not 0x/$/decimal for the "Weight" field — U.atoi0x's permissive
+            // TSV-style parse would silently coerce this to 0 and mutate the ROM.
+            string badJson = TempFile(".json");
+            File.WriteAllText(badJson, "[{\"Index\":\"0x01 Iron Sword\",\"Weight\":\"banana\"}]");
+
+            var (code, stdout, stderr) = AppRunner.Run(CliExe,
+                $"--import-data --rom=\"{rom}\" --table=items --in=\"{badJson}\"", timeoutMs: 60_000);
+
+            Assert.NotEqual(0, code);
+            Assert.Contains("invalid value", stdout + stderr);
+            Assert.Equal(romBefore, File.ReadAllBytes(rom));
+        }
+
+        [SkippableFact]
+        public void ImportData_Json_DuplicateRowIndex_RejectedBeforeAnyRomWrite()
+        {
+            Skip.If(RomLocator.FE8U == null, "FE8U ROM not available");
+            string rom = CopyFE8U();
+            byte[] romBefore = File.ReadAllBytes(rom);
+
+            // Two distinct row objects both targeting Index 1 — distinct from the
+            // duplicate-*property*-within-one-row case above.
+            string badJson = TempFile(".json");
+            File.WriteAllText(badJson,
+                "[{\"Index\":\"0x01 A\",\"Weight\":\"0x05\"},{\"Index\":\"0x01 B\",\"Weight\":\"0x06\"}]");
+
+            var (code, stdout, stderr) = AppRunner.Run(CliExe,
+                $"--import-data --rom=\"{rom}\" --table=items --in=\"{badJson}\"", timeoutMs: 60_000);
+
+            Assert.NotEqual(0, code);
+            Assert.Contains("duplicate Index", stdout + stderr);
+            Assert.Equal(romBefore, File.ReadAllBytes(rom));
+        }
+
+        [SkippableFact]
+        public void ImportData_Json_IndexOutsideResolvedEntryCount_RejectedBeforeAnyRomWrite()
+        {
+            Skip.If(RomLocator.FE8U == null, "FE8U ROM not available");
+            string rom = CopyFE8U();
+            byte[] romBefore = File.ReadAllBytes(rom);
+
+            // The items table never has anywhere close to 0xFFFFFF entries — WriteTable's
+            // silent per-row skip must not be relied on; this has to fail before ROM.Save.
+            string badJson = TempFile(".json");
+            File.WriteAllText(badJson, "[{\"Index\":\"0xFFFFFF\",\"Weight\":\"0x05\"}]");
+
+            var (code, stdout, stderr) = AppRunner.Run(CliExe,
+                $"--import-data --rom=\"{rom}\" --table=items --in=\"{badJson}\"", timeoutMs: 60_000);
+
+            Assert.NotEqual(0, code);
+            Assert.Contains("outside the valid range", stdout + stderr);
+            Assert.Equal(romBefore, File.ReadAllBytes(rom));
+        }
+
+        [SkippableFact]
+        public void ImportData_Json_ValidPlainDecimalFieldValue_NormalizesAndPersists()
+        {
+            Skip.If(RomLocator.FE8U == null, "FE8U ROM not available");
+            string rom = CopyFE8U();
+            string exportJson = TempFile(".json");
+
+            var (code1, stdout1, stderr1) = AppRunner.Run(CliExe,
+                $"--export-data --rom=\"{rom}\" --table=items --format=json --out=\"{exportJson}\"", timeoutMs: 60_000);
+            Assert.True(code1 == 0, $"export failed ({code1})\nStdout: {stdout1}\nStderr: {stderr1}");
+
+            JsonArray rows = JsonNode.Parse(File.ReadAllText(exportJson))!.AsArray();
+            Assert.True(rows.Count > 1, "expected the items table to have more than one row");
+            JsonObject row1 = rows[1]!.AsObject();
+            string originalWeight = row1["Weight"]!.GetValue<string>();
+            // Non-hex plain-decimal input — proves ValidateJSONEntries's normalization
+            // (not just hex forms) round-trips through U.atoi0x safely.
+            string decimalWeight = originalWeight == "0x07" ? "8" : "7";
+            row1["Weight"] = decimalWeight;
+
+            string editedJson = TempFile(".json");
+            File.WriteAllText(editedJson, rows.ToJsonString());
+
+            var (code2, stdout2, stderr2) = AppRunner.Run(CliExe,
+                $"--import-data --rom=\"{rom}\" --table=items --in=\"{editedJson}\"", timeoutMs: 60_000);
+            Assert.True(code2 == 0, $"import failed ({code2})\nStdout: {stdout2}\nStderr: {stderr2}");
+
+            string reExportJson = TempFile(".json");
+            var (code3, stdout3, stderr3) = AppRunner.Run(CliExe,
+                $"--export-data --rom=\"{rom}\" --table=items --format=json --out=\"{reExportJson}\"", timeoutMs: 60_000);
+            Assert.True(code3 == 0, $"re-export failed ({code3})\nStdout: {stdout3}\nStderr: {stderr3}");
+
+            using var doc = JsonDocument.Parse(File.ReadAllText(reExportJson));
+            string persistedWeight = doc.RootElement[1].GetProperty("Weight").GetString()!;
+            string expectedHex = "0x" + int.Parse(decimalWeight).ToString("X02");
+            Assert.Equal(expectedHex, persistedWeight);
+        }
     }
 }
