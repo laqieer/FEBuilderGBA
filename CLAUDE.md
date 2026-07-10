@@ -102,7 +102,7 @@ dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 ./FEBuilderGBA.CLI --translate-roundtrip --rom=rom.gba
 ./FEBuilderGBA.CLI --translate-roundtrip --rom=rom.gba --out=diff  # saves diff.export1.tsv + diff.export2.tsv
 
-# Export struct data to TSV (40 tables: units, classes, items, portraits, sound_room,
+# Export struct data (TSV default; CSV/EA/JSON/GNU11 C supported; 40 tables: units, classes, items, portraits, sound_room,
 # sound_boss_bgm, support_units, support_talks, support_attributes, event_haiku,
 # event_battle_talk, event_force_sortie, worldmap_points, worldmap_paths, worldmap_bgm,
 # map_settings, link_arena_deny, cc_branch, menu_definitions,
@@ -116,6 +116,7 @@ dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 ./FEBuilderGBA.CLI --export-data --rom=rom.gba --table=units --format=csv --out=units.csv
 ./FEBuilderGBA.CLI --export-data --rom=rom.gba --table=units --format=ea --out=units.ea
 ./FEBuilderGBA.CLI --export-data --rom=rom.gba --table=units --format=json --out=units.json  # LLM-backend format: JSON array of string-valued objects (docs/febuilder-cli-as-llm-backend.md)
+./FEBuilderGBA.CLI --export-data --rom=rom.gba --table=units --format=c --c-symbol=gUnitData --out=units.c  # GNU11 decomp-C backend (docs/febuilder-cli-as-decomp-c-backend.md)
 
 # Import struct data from TSV or JSON (format auto-detected from a .json --in, or pass --format=json)
 ./FEBuilderGBA.CLI --import-data --rom=rom.gba --table=units --in=units.tsv

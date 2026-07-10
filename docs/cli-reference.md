@@ -406,7 +406,7 @@ required and optional flags. Each is verified against its `Run*` handler in
   0 lossless, 2 if any text entry mismatches, 1 on file/usage error.
 - **`--data-roundtrip`** — Verify direct struct read/write stability on a temp copy: read
   table values, write the same in-memory values back, re-read, and compare. It does not
-  serialize through TSV/CSV/EA/JSON. Requires `--rom`; optional `--table=<name>` (default
+  serialize through TSV/CSV/EA/JSON/C. Requires `--rom`; optional `--table=<name>` (default
   `all`). **Exit:** 0 stable, 2 if any table mismatches, 1 on file/usage error.
 - **`--lint-oam`** — Validate battle-animation OAM data at an address. Requires `--rom`
   and `--addr=<hex>`; optional `--length=<int>` (0 = auto, default). **Exit:** 0 clean,
@@ -414,18 +414,33 @@ required and optional flags. Each is verified against its `Run*` handler in
 
 ### Data
 
-- **`--export-data`** — Export a struct table to TSV/CSV/EA/JSON. Requires `--rom` and
+- **`--export-data`** — Export a struct table to TSV/CSV/EA/JSON/C. Requires `--rom` and
   `--table=<name>` (any name from `--list-tables`, or `all`); optional `--out=<path>`
   (defaults to `<rom>.<table>.<ext>`; with `--table=all` it is a base path written as
-  `<out>.<table>.<ext>`) and `--format=<tsv|csv|ea|json>` (default `tsv`; an unsupported
+  `<out>.<table>.<ext>`) and `--format=<tsv|csv|ea|json|c>` (default `tsv`; an unsupported
   value is rejected with an error before any output is written). `--format=json`
   serializes rows as a JSON array of objects: the public key is `Index` (never the internal
   `_Index`), followed by one key per struct field; every value is a JSON **string** holding
   the same hex/text representation as TSV/CSV (e.g. `"0x0A"`) — see
-  [`febuilder-cli-as-llm-backend.md`](febuilder-cli-as-llm-backend.md). **Exit:** 0 on
-  success, 1 on usage/unknown-table/unsupported-format error.
+  [`febuilder-cli-as-llm-backend.md`](febuilder-cli-as-llm-backend.md). `--format=c` emits a
+  self-contained GNU11 (devkitARM `arm-none-eabi-gcc`-compatible) C translation unit per
+  table — a one-byte-packed row `struct`, a 4-byte-aligned array object, a
+  `_Static_assert(sizeof(...) == <resolved stride>, ...)`, deterministic
+  `struct FEBuilder_<StructName>`/`gFEBuilder_<table>`/`gFEBuilder_<table>Count` names, and a
+  real zero-row GNU array + `Count = 0` symbol pair for a version-absent/empty table — see
+  [`febuilder-cli-as-decomp-c-backend.md`](febuilder-cli-as-decomp-c-backend.md) for the full
+  contract. `c` is **export-only** (not accepted by `--import-data`) and requires
+  `arm-none-eabi-gcc`/host `gcc` with `-std=gnu11` to actually compile the output — FEBuilderGBA
+  does not invoke a compiler itself. Optional `--c-symbol=<identifier>` (single-table `--format=c`
+  only) overrides the emitted data-array symbol with a strictly-validated, non-keyword C
+  identifier (rejected outright if invalid — never silently sanitized); the count symbol becomes
+  `<identifier>Count`; combining `--c-symbol` with `--table=all`, or with any format other than
+  `c`, is rejected before the ROM is loaded or any output file is created. **Exit:** 0 on
+  success, 1 on usage/unknown-table/unsupported-format/invalid-`--c-symbol`/C-layout-validation
+  error.
 - **`--import-data`** — Import a struct table from TSV or JSON and save the ROM in-place.
-  Requires `--rom`, `--table=<name>`, and `--in=<path>`. JSON input is used when
+  Requires `--rom`, `--table=<name>`, and `--in=<path>`. `--format=c` (export-only) is not
+  accepted here; only `tsv`/`json` are. JSON input is used when
   `--format=json` is passed explicitly, or automatically when `--in` has a `.json`
   extension (and `--format` is omitted); otherwise the input is parsed as TSV. An explicit
   `--format` value other than `tsv`/`json` is rejected with an error before the ROM is even
