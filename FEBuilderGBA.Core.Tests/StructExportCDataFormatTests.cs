@@ -381,14 +381,16 @@ namespace FEBuilderGBA.Core.Tests
         // ====================================================================
 
         [Fact]
-        public void FormatCData_300Rows_EmitsUniqueFullWidthArrayDesignatorsAboveByteRange()
+        public void FormatCData_300Rows_UsesListPositionsForUniqueFullWidthArrayDesignators()
         {
             var structDef = Def("Wide", F("Value", 0, StructMetadata.FieldType.Byte));
             var rows = new List<(uint, Dictionary<string, string>, byte[])>();
             for (uint i = 0; i < 300; i++)
             {
                 byte b = (byte)(i % 256);
-                rows.Add(MakeRow(i, new byte[] { b }, ("Value", "0x" + b.ToString("X2"))));
+                // The tuple index is intentionally duplicate and outside the array.
+                // Only list position may become a compiler-visible designator.
+                rows.Add(MakeRow(0x1000, new byte[] { b }, ("Value", "0x" + b.ToString("X2"))));
             }
 
             string c = StructExportCore.FormatCData(rows, structDef, "wide_table", 1);
@@ -397,6 +399,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains("[0x0FF] = /* [0x0FF]", c);
             Assert.Contains("[0x100] = /* [0x100]", c);
             Assert.Contains("[0x12B] = /* [0x12B]", c); // row 299 (last row), never a byte-truncated "0x2B"
+            Assert.DoesNotContain("[0x1000] =", c);
             Assert.Contains("gFEBuilder_wide_table[300]", c);
             Assert.Contains("const uint32_t gFEBuilder_wide_tableCount = 300;", c);
 
@@ -898,14 +901,15 @@ namespace FEBuilderGBA.Core.Tests
                     CompileGeneratedC(compiler, tempDir, "crossing_overlap", c);
                 }
 
-                // 4) >255-row output (300 rows): exercises full-width [0x12B]-style designators.
+                // 4) >255-row output (300 rows): exercises full-width [0x12B]-style
+                // list-position designators independently of caller tuple indices.
                 {
                     var structDef = Def("Wide", F("Value", 0, StructMetadata.FieldType.Byte));
                     var rows = new List<(uint, Dictionary<string, string>, byte[])>();
                     for (uint i = 0; i < 300; i++)
                     {
                         byte b = (byte)(i % 256);
-                        rows.Add(MakeRow(i, new byte[] { b }, ("Value", "0x" + b.ToString("X2"))));
+                        rows.Add(MakeRow(0x1000, new byte[] { b }, ("Value", "0x" + b.ToString("X2"))));
                     }
                     string c = StructExportCore.FormatCData(rows, structDef, "wide_table", 1);
                     CompileGeneratedC(compiler, tempDir, "over_255_rows", c);
