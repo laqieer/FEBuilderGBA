@@ -337,6 +337,29 @@ namespace FEBuilderGBA.E2ETests.Tests
             Assert.DoesNotContain("gFEBuilder_items", content);
         }
 
+        [Fact]
+        public void ExportData_C_PredefinedMacroSymbol_EmitsUndefGuard()
+        {
+            string rom = TempFile(".gba");
+            using (var stream = new FileStream(rom, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                stream.SetLength(0x1000000);
+            }
+            string outC = TempFile(".c");
+
+            var (code, stdout, stderr) = AppRunner.Run(CliExe,
+                $"--export-data --rom=\"{rom}\" --force-version=FE8U --table=items --format=c --c-symbol=linux --out=\"{outC}\"",
+                timeoutMs: 60_000);
+
+            Assert.True(code == 0, $"Stdout: {stdout}\nStderr: {stderr}");
+            string content = File.ReadAllText(outC).Replace("\r\n", "\n", StringComparison.Ordinal);
+            Assert.Contains("#include <stdint.h>", content);
+            Assert.Contains("#ifdef linux\n#undef linux\n#endif", content);
+            Assert.Contains("const struct FEBuilder_Item_FE78 linux[0]", content);
+            Assert.Contains("const uint32_t linuxCount = 0;", content);
+            Assert.DoesNotContain("gFEBuilder_items", content);
+        }
+
         // ------------------------------------------------------------------ --c-symbol / --format validation
         // (no ROM required — validated before RomLoader ever touches --rom; proven with a
         // deliberately nonexistent --rom path and a reserved-but-never-created --out path)

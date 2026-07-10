@@ -121,6 +121,7 @@ dotnet run --project FEBuilderGBA.CLI -- --import-data --rom=rom.gba --table=uni
 dotnet run --project FEBuilderGBA.CLI -- --export-data --rom=rom.gba --table=units --format=json --out=units.json  # LLM-backend format: JSON array of string-valued objects, keyed by Index + field name (see docs/febuilder-cli-as-llm-backend.md)
 dotnet run --project FEBuilderGBA.CLI -- --export-data --rom=rom.gba --table=units --format=c --c-symbol=gUnitData --out=units.c  # GNU11 decomp-C backend; compile with arm-none-eabi-gcc -std=gnu11 (see docs/febuilder-cli-as-decomp-c-backend.md)
 # --c-symbol is strict: file-scope-reserved and <stdint.h>-reserved names (for example uint8_t) are rejected before ROM/output access.
+# Generated identifiers are #undef-guarded after includes, so GNU built-ins such as linux/unix and caller -D macros cannot rewrite the C source.
 # C export performs one raw+typed table traversal; TSV/CSV/EA/JSON retain typed-only extraction and do not allocate raw stride copies.
 dotnet run --project FEBuilderGBA.CLI -- --import-data --rom=rom.gba --table=units --in=units.json  # format auto-detected from .json, or pass --format=json explicitly
 # JSON preserves full row indices (including 0x0100+) and uses the canonical FE6/7/8 unit field offsets.

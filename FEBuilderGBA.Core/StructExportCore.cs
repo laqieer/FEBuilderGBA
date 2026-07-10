@@ -2318,6 +2318,12 @@ namespace FEBuilderGBA
             string countSymbol = dataSymbol + "Count";
 
             var usedNames = new Dictionary<string, string>(StringComparer.Ordinal);
+            var macroGuardNames = new HashSet<string>(StringComparer.Ordinal)
+            {
+                structTypeName,
+                dataSymbol,
+                countSymbol,
+            };
             var members = new List<CResolvedMember>();
             var memberLines = new List<string>();
             int gapCounter = 0;
@@ -2332,6 +2338,7 @@ namespace FEBuilderGBA
                         var f = chunk.Fields[0];
                         string memberName = SanitizeCIdentifier(f.Name);
                         ClaimCIdentifier(usedNames, memberName, $"field '{f.Name}'");
+                        macroGuardNames.Add(memberName);
                         string ctype = CTypeForField(f.Type);
                         string note = memberName == f.Name ? "" : $" (source name \"{EscapeCComment(f.Name)}\")";
                         string comment = string.IsNullOrEmpty(f.Comment) ? "" : " " + EscapeCComment(f.Comment);
@@ -2347,6 +2354,8 @@ namespace FEBuilderGBA
                             string innerName = SanitizeCIdentifier(f.Name);
                             string viewName = "as_" + innerName;
                             ClaimCIdentifier(usedNames, viewName, $"overlap view of field '{f.Name}'");
+                            macroGuardNames.Add(innerName);
+                            macroGuardNames.Add(viewName);
                             uint rel = f.Offset - chunk.Offset;
                             string ctype = CTypeForField(f.Type);
                             string comment = string.IsNullOrEmpty(f.Comment) ? "" : " " + EscapeCComment(f.Comment);
@@ -2357,6 +2366,7 @@ namespace FEBuilderGBA
                                 // emitting a duplicate member when metadata itself names the
                                 // overlapping field "_pad".
                                 string padName = innerName == "_pad" ? "_pad_" : "_pad";
+                                macroGuardNames.Add(padName);
                                 memberLines.Add($"        struct __attribute__((packed)) {{ uint8_t {padName}[{rel}]; {ctype} {innerName}; }} {viewName}; // 0x{f.Offset:X2}{comment}");
                             }
                             else
@@ -2365,6 +2375,7 @@ namespace FEBuilderGBA
                         string rawArm = $"_overlap{overlapCounter}_raw";
                         overlapCounter++;
                         ClaimCIdentifier(usedNames, rawArm, $"overlap raw arm at 0x{chunk.Offset:X}");
+                        macroGuardNames.Add(rawArm);
                         memberLines.Add($"        uint8_t {rawArm}[{chunk.Length}]; // raw bytes backing every view above — only this arm is initialized");
                         memberLines.Add("    };");
                         members.Add(new CResolvedMember { Kind = CLayoutChunkKind.Overlap, Offset = chunk.Offset, Length = chunk.Length, MemberName = rawArm });
@@ -2375,6 +2386,7 @@ namespace FEBuilderGBA
                         string gapName = $"_gap{gapCounter}";
                         gapCounter++;
                         ClaimCIdentifier(usedNames, gapName, $"metadata gap at 0x{chunk.Offset:X}");
+                        macroGuardNames.Add(gapName);
                         memberLines.Add($"    uint8_t {gapName}[{chunk.Length}]; // 0x{chunk.Offset:X2}: unmapped metadata gap, raw ROM bytes");
                         members.Add(new CResolvedMember { Kind = CLayoutChunkKind.Gap, Offset = chunk.Offset, Length = chunk.Length, MemberName = gapName });
                         break;
@@ -2383,6 +2395,7 @@ namespace FEBuilderGBA
                     {
                         string trailingName = "_trailing";
                         ClaimCIdentifier(usedNames, trailingName, "runtime trailing bytes");
+                        macroGuardNames.Add(trailingName);
                         memberLines.Add($"    uint8_t {trailingName}[{chunk.Length}]; // 0x{chunk.Offset:X2}: runtime trailing bytes beyond declared metadata, raw ROM bytes");
                         members.Add(new CResolvedMember { Kind = CLayoutChunkKind.Trailing, Offset = chunk.Offset, Length = chunk.Length, MemberName = trailingName });
                         break;
@@ -2399,6 +2412,14 @@ namespace FEBuilderGBA
             sb.AppendLine(" * Read-only export: this is not a guaranteed C->ROM round-trip. Do not edit by hand.");
             sb.AppendLine(" */");
             sb.AppendLine("#include <stdint.h>");
+            sb.AppendLine();
+            sb.AppendLine("/* Prevent toolchain-predefined or caller-supplied macros from rewriting generated identifiers. */");
+            foreach (string identifier in macroGuardNames.OrderBy(name => name, StringComparer.Ordinal))
+            {
+                sb.AppendLine($"#ifdef {identifier}");
+                sb.AppendLine($"#undef {identifier}");
+                sb.AppendLine("#endif");
+            }
             sb.AppendLine();
             sb.AppendLine($"struct __attribute__((packed)) {structTypeName} {{");
             foreach (var line in memberLines) sb.AppendLine(line);

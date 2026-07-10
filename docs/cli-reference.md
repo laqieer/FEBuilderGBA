@@ -436,8 +436,10 @@ required and optional flags. Each is verified against its `Run*` handler in
   identifier that starts with a letter (leading underscores are implementation-reserved at file
   scope; `<stdint.h>` typedef/macro names such as `uint8_t` and `UINT8_MAX` collide with the
   generated prologue; both classes are rejected and invalid values are never silently sanitized);
-  the count symbol becomes `<identifier>Count`; combining `--c-symbol` with `--table=all`, or with
-  any format other than `c`, is rejected before the ROM is loaded or any output file is created. **Exit:** 0 on
+  matching preprocessor macros (including GNU toolchain built-ins such as `linux`/`unix`) are
+  neutralized by generated post-include `#ifdef`/`#undef` guards; the count symbol becomes
+  `<identifier>Count`; combining `--c-symbol` with `--table=all`, or with any format other than `c`,
+  is rejected before the ROM is loaded or any output file is created. **Exit:** 0 on
   success, 1 on usage/unknown-table/unsupported-format/invalid-`--c-symbol`/C-layout-validation
   error.
 - **`--import-data`** — Import a struct table from TSV or JSON and save the ROM in-place.

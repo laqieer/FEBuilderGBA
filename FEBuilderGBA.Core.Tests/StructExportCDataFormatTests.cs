@@ -774,21 +774,29 @@ namespace FEBuilderGBA.Core.Tests
         /// <paramref name="caseName"/> so a failure in one of the five cases is
         /// unambiguous even though all five share one <c>[SkippableFact]</c>.
         /// </summary>
-        static void CompileGeneratedC(string compiler, string tempDir, string caseName, string cSource)
+        static void CompileGeneratedC(
+            string compiler,
+            string tempDir,
+            string caseName,
+            string cSource,
+            params string[] extraCompilerArgs)
         {
             string srcPath = Path.Combine(tempDir, caseName + ".c");
             string objPath = Path.Combine(tempDir, caseName + ".o");
             File.WriteAllText(srcPath, cSource, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 
+            var arguments = new List<string> { "-std=gnu11", "-Wall", "-Werror" };
+            if (extraCompilerArgs != null) arguments.AddRange(extraCompilerArgs);
+            arguments.AddRange(new[] { "-c", srcPath, "-o", objPath });
             var result = ProcessRunnerCore.Run(
                 compiler,
-                new[] { "-std=gnu11", "-Wall", "-Werror", "-c", srcPath, "-o", objPath },
+                arguments,
                 tempDir,
                 60_000);
 
             Assert.True(result.Started, $"[{caseName}] failed to start '{compiler}': {result.ErrorMessage}");
             Assert.True(result.ExitCode == 0,
-                $"[{caseName}] '{compiler} -std=gnu11 -Wall -Werror -c {srcPath} -o {objPath}' exited " +
+                $"[{caseName}] '{compiler} {string.Join(" ", arguments)}' exited " +
                 $"{result.ExitCode}.\nstdout:\n{result.Stdout}\nstderr:\n{result.Stderr}");
             Assert.True(File.Exists(objPath),
                 $"[{caseName}] compiler reported exit 0 but no object file was produced at {objPath}.");
@@ -833,6 +841,30 @@ namespace FEBuilderGBA.Core.Tests
                         12,
                         "uint8_t_");
                     CompileGeneratedC(compiler, tempDir, "stdint_near_collision_override", nearCollision);
+
+                    var macroStruct = Def("MacroNames",
+                        F("linux", 0, StructMetadata.FieldType.Byte),
+                        F("unix", 1, StructMetadata.FieldType.Byte));
+                    var macroRow = MakeRow(
+                        0,
+                        new byte[] { 0x11, 0x22 },
+                        ("linux", "0x11"),
+                        ("unix", "0x22"));
+                    string macroC = StructExportCore.FormatCData(
+                        new List<(uint, Dictionary<string, string>, byte[])> { macroRow },
+                        macroStruct,
+                        "macro_names",
+                        2,
+                        "linux");
+                    CompileGeneratedC(
+                        compiler,
+                        tempDir,
+                        "predefined_macro_identifiers",
+                        macroC,
+                        "-Dlinux=1",
+                        "-Dunix=1",
+                        "-DlinuxCount=1",
+                        "-DFEBuilder_MacroNames=1");
                 }
 
                 // 2) FE6-style connected (contained) overlap: word BGM1 aliasing byte Field15.
@@ -1042,6 +1074,34 @@ namespace FEBuilderGBA.Core.Tests
         {
             Assert.False(StructExportCore.TryValidateCSymbol(symbol, out string error));
             Assert.Contains("<stdint.h>", error);
+        }
+
+        [Fact]
+        public void FormatCData_PreprocessorMacroNames_AreUndefGuardedAfterIncludes()
+        {
+            var structDef = Def("MacroNames",
+                F("linux", 0, StructMetadata.FieldType.Byte),
+                F("unix", 1, StructMetadata.FieldType.Byte));
+            var row = MakeRow(
+                0,
+                new byte[] { 0x11, 0x22 },
+                ("linux", "0x11"),
+                ("unix", "0x22"));
+
+            Assert.True(StructExportCore.TryValidateCSymbol("linux", out string error), error);
+            string c = StructExportCore.FormatCData(
+                new List<(uint, Dictionary<string, string>, byte[])> { row },
+                structDef,
+                "macro_names",
+                2,
+                "linux").Replace("\r\n", "\n", StringComparison.Ordinal);
+
+            foreach (string identifier in new[] { "FEBuilder_MacroNames", "linux", "linuxCount", "unix" })
+            {
+                Assert.Contains($"#ifdef {identifier}\n#undef {identifier}\n#endif", c);
+            }
+            Assert.Contains("const struct FEBuilder_MacroNames linux[1]", c);
+            Assert.Contains("const uint32_t linuxCount = 1;", c);
         }
 
         [Fact]

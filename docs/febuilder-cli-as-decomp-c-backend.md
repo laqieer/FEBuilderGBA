@@ -47,6 +47,11 @@ FEBuilderGBA.CLI --export-data --rom=<rom> --table=<name> --format=c [--out=<pat
     typedef/macro families (`uint8_t`, `uint16_t`, `uint32_t`, `INT32_MAX`, `SIZE_MAX`, and
     implementation-defined widths such as `int24_t`). An invalid value is **rejected outright**,
     never silently sanitized/rewritten.
+  - A lexically valid symbol that matches a predefined preprocessor macro remains usable: after
+    `<stdint.h>`, the generated translation unit emits deterministic `#ifdef`/`#undef` guards for
+    every owned identifier (type, data/count object, fields, overlap views/helpers, and raw arms).
+    This prevents GNU built-ins such as `linux`/`unix`, or caller-supplied `-D` macros, from
+    rewriting declarations or initializers.
   - Combining `--c-symbol` with `--table=all` is rejected (every table would collide on the same
     symbol name).
   - Combining `--c-symbol` with any format other than `c` is rejected explicitly (`--c-symbol
@@ -157,7 +162,8 @@ before indexing the array — like any zero-length array, indexing `gFEBuilder_e
   unions/structs promote all of them into one scope) is tracked; a post-sanitization collision is
   **rejected outright**, never silently renamed further. A **user-supplied** `--c-symbol` is held to
   a stricter, different standard: it is never sanitized at all — file-scope-safe and non-conflicting
-  with the generated `<stdint.h>` prologue as given, or rejected.
+  with the generated `<stdint.h>` prologue as given, or rejected. All generated identifiers are
+  then macro-guarded after includes, so compiler/caller macros cannot rewrite them.
   (`FEBuilderGBA.Core.Tests/StructExportCDataFormatTests.cs` covers keyword/leading-digit/invalid-
   character sanitization and forced collisions for both cases.)
 - **Numeric values are strictly re-parsed and width-checked**, not copied as raw tokens: every field
