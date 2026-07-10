@@ -58,10 +58,11 @@ FEBuilderGBA.CLI --decreasecolor --in=portrait.png --out=portrait_gba.png --pale
 
 The maintainer's **FEHRR** (a *Fire Emblem Heroes* remake rebuilt as a GBA game) already uses FEBuilderGBA
 as its map/TSA converter. Its `asset/script/make_maps.py` converts datamined **JSON + map images** into
-the in-game forms (map TSA, terrain, `gfx/map`) by shelling out to FEBuilderGBA — verbatim:
+the in-game forms (map TSA, terrain, `gfx/map`) by shelling out to FEBuilderGBA. The upstream variable
+name is reproduced verbatim (including its missing `l`):
 
 ```python
-FEBuiderGBA = '..\\FEBuilderGBA\\FEBuilderGBA\\bin\\Debug\\FEBuilderGBA.exe --rom=baserom.gba'
+FEBuiderGBA = '..\\FEBuilderGBA\\FEBuilderGBA\\bin\\Debug\\FEBuilderGBA.exe --rom=baserom.gba'  # sic
 ```
 
 That's this exact repositioning, **already in production** — but bound to a **fragile `bin/Debug/…exe`
