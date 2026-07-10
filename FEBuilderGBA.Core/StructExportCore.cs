@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Text.Json;
@@ -1308,9 +1309,17 @@ namespace FEBuilderGBA
         /// <item>every property value must be a JSON string — numbers, booleans, nulls,
         /// arrays, and nested objects are all rejected with a specific, actionable message
         /// (row number + property name + the offending <see cref="JsonValueKind"/>);</item>
-        /// <item>the public <c>Index</c> property is required and is normalized back to the
-        /// internal index used by <see cref="WriteTable"/> (the same "0xNN[ name]" parsing
-        /// TSV import uses via <c>ParseIndexFromFirstColumn</c>).</item>
+        /// <item>a row may not repeat the same property name twice — <c>JsonDocument</c>
+        /// tolerates duplicate keys and silently keeps only the last one on enumeration,
+        /// which would otherwise let a duplicated <c>Index</c> (or any field) silently
+        /// win over an earlier, possibly-intended value;</item>
+        /// <item>the public <c>Index</c> property is required and is strictly parsed back
+        /// to the internal index used by <see cref="WriteTable"/> via
+        /// <see cref="TryParseStrictIndex"/> — unlike TSV import's forgiving
+        /// <c>ParseIndexFromFirstColumn</c> (which silently aliases unparsable garbage to
+        /// row 0 through <c>U.atoi0x</c>'s truncating parse), a malformed/out-of-range/
+        /// negative JSON <c>Index</c> is rejected outright rather than mutating the wrong
+        /// row.</item>
         /// </list>
         /// Throws <see cref="JsonException"/> for malformed JSON syntax, or
         /// <see cref="FormatException"/> for a syntactically valid document that violates
@@ -1333,9 +1342,17 @@ namespace FEBuilderGBA
                     throw new FormatException($"Invalid JSON import: row {rowNum} must be an object, got {rowEl.ValueKind}.");
 
                 string indexRaw = null;
+                bool sawIndex = false;
+                var seenProps = new HashSet<string>(StringComparer.Ordinal);
                 var fields = new Dictionary<string, string>();
                 foreach (JsonProperty prop in rowEl.EnumerateObject())
                 {
+                    if (!seenProps.Add(prop.Name))
+                    {
+                        throw new FormatException(
+                            $"Invalid JSON import: row {rowNum} has a duplicate property '{prop.Name}'.");
+                    }
+
                     if (prop.Value.ValueKind != JsonValueKind.String)
                     {
                         throw new FormatException(
@@ -1344,22 +1361,79 @@ namespace FEBuilderGBA
 
                     string value = prop.Value.GetString();
                     if (prop.Name == "Index")
+                    {
                         indexRaw = value;
+                        sawIndex = true;
+                    }
                     else
+                    {
                         fields[prop.Name] = value;
+                    }
                 }
 
-                if (indexRaw == null)
+                if (!sawIndex)
                     throw new FormatException($"Invalid JSON import: row {rowNum} is missing the required 'Index' property.");
 
-                int entryIndex = ParseIndexFromFirstColumn(indexRaw);
-                if (entryIndex < 0)
+                if (!TryParseStrictIndex(indexRaw, out int entryIndex))
                     throw new FormatException($"Invalid JSON import: row {rowNum} has an unparsable 'Index' value '{indexRaw}'.");
 
                 result.Add((entryIndex, fields));
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Strictly parse a JSON <c>Index</c> value shaped like the TSV/CSV/JSON export's
+        /// first column, <c>"&lt;token&gt;[ label]"</c>, where <c>&lt;token&gt;</c> is one of
+        /// the three numeric forms <see cref="U.atoi0x"/> understands: <c>0x</c>-prefixed hex,
+        /// <c>$</c>-prefixed hex, or plain decimal digits.
+        /// <para/>
+        /// Unlike <see cref="ParseIndexFromFirstColumn"/> (used by TSV import, which
+        /// tolerates garbage by falling through to <c>U.atoi</c>'s truncating parse — e.g.
+        /// <c>"banana"</c> silently becomes <c>0</c>), this requires the entire token to be
+        /// a well-formed, in-range, non-negative number for its base. Overflow (more digits
+        /// than fit in a <see cref="uint"/>), a missing/empty numeric portion, and any
+        /// non-numeric token are all rejected rather than aliased to row 0. TSV import
+        /// behavior is intentionally left unchanged by this stricter JSON-only parser.
+        /// </summary>
+        static bool TryParseStrictIndex(string indexRaw, out int index)
+        {
+            index = -1;
+            if (string.IsNullOrWhiteSpace(indexRaw)) return false;
+
+            string trimmed = indexRaw.Trim();
+            int space = trimmed.IndexOf(' ');
+            string token = space >= 0 ? trimmed.Substring(0, space) : trimmed;
+            if (token.Length == 0) return false;
+
+            string digits;
+            bool isHex;
+            if (token.Length >= 2 && token[0] == '0' && (token[1] == 'x' || token[1] == 'X'))
+            {
+                digits = token.Substring(2);
+                isHex = true;
+            }
+            else if (token.Length >= 1 && token[0] == '$')
+            {
+                digits = token.Substring(1);
+                isHex = true;
+            }
+            else
+            {
+                digits = token;
+                isHex = false;
+            }
+
+            if (digits.Length == 0) return false;
+
+            bool ok = isHex
+                ? uint.TryParse(digits, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint parsed)
+                : uint.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out parsed);
+            if (!ok || parsed > int.MaxValue) return false;
+
+            index = (int)parsed;
+            return true;
         }
 
         /// <summary>

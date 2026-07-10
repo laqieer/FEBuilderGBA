@@ -385,12 +385,83 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ParseJSON_UnparsableIndex_ThrowsFormatException()
         {
-            // A blank Index (IsNullOrWhiteSpace) is the one value ParseIndexFromFirstColumn
-            // cannot resolve; non-hex text like "abc" is tolerated the same permissive way
-            // TSV import already parses it (atoi0x falls back to atoi(), which is lenient).
+            // A blank Index (IsNullOrWhiteSpace) is unparsable under both the strict JSON
+            // parser and TSV's permissive ParseIndexFromFirstColumn.
             var ex = Assert.Throws<FormatException>(() =>
                 StructExportCore.ParseJSON("[{\"Index\":\"   \",\"Level\":\"0x01\"}]"));
             Assert.Contains("unparsable 'Index'", ex.Message);
+        }
+
+        [Fact]
+        public void ParseJSON_GarbageIndex_ThrowsFormatException_InsteadOfAliasingToRowZero()
+        {
+            // "banana" is not a 0x/$/decimal token. TSV import's ParseIndexFromFirstColumn
+            // would silently alias this to index 0 via U.atoi0x's truncating U.atoi() fallback
+            // (a[0] is not a digit, so the numeric prefix is "", and int.TryParse("") fails,
+            // returning 0) — the strict JSON parser must reject it instead of risking a
+            // silent write to row 0.
+            var ex = Assert.Throws<FormatException>(() =>
+                StructExportCore.ParseJSON("[{\"Index\":\"banana\",\"Level\":\"0x01\"}]"));
+            Assert.Contains("unparsable 'Index'", ex.Message);
+        }
+
+        [Fact]
+        public void ParseJSON_Index_AcceptsDollarHexForm()
+        {
+            var parsed = StructExportCore.ParseJSON("[{\"Index\":\"$0A Eirika\",\"Level\":\"0x01\"}]");
+            Assert.Equal(0x0A, parsed[0].index);
+        }
+
+        [Fact]
+        public void ParseJSON_Index_AcceptsPlainDecimalForm()
+        {
+            var parsed = StructExportCore.ParseJSON("[{\"Index\":\"10\",\"Level\":\"0x01\"}]");
+            Assert.Equal(10, parsed[0].index);
+        }
+
+        [Fact]
+        public void ParseJSON_Index_RejectsNegativeDecimalForm()
+        {
+            var ex = Assert.Throws<FormatException>(() =>
+                StructExportCore.ParseJSON("[{\"Index\":\"-1\",\"Level\":\"0x01\"}]"));
+            Assert.Contains("unparsable 'Index'", ex.Message);
+        }
+
+        [Fact]
+        public void ParseJSON_Index_RejectsOverflowingHexForm()
+        {
+            // 9 hex digits overflows uint (max 8 hex digits / 0xFFFFFFFF).
+            var ex = Assert.Throws<FormatException>(() =>
+                StructExportCore.ParseJSON("[{\"Index\":\"0x1FFFFFFFF\",\"Level\":\"0x01\"}]"));
+            Assert.Contains("unparsable 'Index'", ex.Message);
+        }
+
+        [Fact]
+        public void ParseJSON_Index_RejectsBarePrefixWithNoDigits()
+        {
+            var ex = Assert.Throws<FormatException>(() =>
+                StructExportCore.ParseJSON("[{\"Index\":\"0x\",\"Level\":\"0x01\"}]"));
+            Assert.Contains("unparsable 'Index'", ex.Message);
+        }
+
+        [Fact]
+        public void ParseJSON_DuplicateIndexProperty_ThrowsFormatException_InsteadOfLastWins()
+        {
+            // JsonDocument tolerates duplicate keys and would otherwise silently keep only
+            // the last "Index" value on enumeration — reject instead of a silent last-wins.
+            var ex = Assert.Throws<FormatException>(() =>
+                StructExportCore.ParseJSON("[{\"Index\":\"0x00 A\",\"Index\":\"0x01 B\",\"Level\":\"0x01\"}]"));
+            Assert.Contains("duplicate property", ex.Message);
+            Assert.Contains("Index", ex.Message);
+        }
+
+        [Fact]
+        public void ParseJSON_DuplicateFieldProperty_ThrowsFormatException_InsteadOfLastWins()
+        {
+            var ex = Assert.Throws<FormatException>(() =>
+                StructExportCore.ParseJSON("[{\"Index\":\"0x00 A\",\"Level\":\"0x01\",\"Level\":\"0x02\"}]"));
+            Assert.Contains("duplicate property", ex.Message);
+            Assert.Contains("Level", ex.Message);
         }
 
         [Fact]
