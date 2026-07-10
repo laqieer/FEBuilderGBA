@@ -2,9 +2,11 @@
 
 **Purpose.** Completed FE decompilations ([fireemblem8u](https://github.com/laqieer/fireemblem8u) —
 ~99.8%, builds byte-identical without the ROM; [fireemblem8j](https://github.com/laqieer/fireemblem8j))
-are the FE analog of `pret/pokeemerald`. Their own *"Missing essentials and roadmap"* rates
-**map tile layouts, battle animations, graphics import, and skills** as **Hard** — because those are
-**perception / asset** problems, not logic problems. That is exactly where FEBuilderGBA's **visual
+are the FE analog of `pret/pokeemerald`. Their own *"Missing essentials and roadmap"* moddability
+matrix rates **brand-new maps, battle animations, and skills** as **Hard**, and **portraits/graphics
+import** as **Moderate** (doable via the `graphics/` PNG pipeline but "format/palette-fiddly and lacks
+a preview loop") — because these are **perception / asset** problems, not logic problems. That is
+exactly where FEBuilderGBA's **visual
 editors + live preview** shine. This doc describes how FEBuilderGBA is **repositioned (not obsoleted)**
 for the decomp era: as an **authoring / preview front-end** where a human (or agent) edits assets
 visually, then lands the result **as source in the decomp tree** — honoring the decomp rule that
@@ -25,13 +27,17 @@ Tracks [#1940](https://github.com/laqieer/FEBuilderGBA/issues/1940); spun out of
 ## The opening: decomp's honest weak spots are FEBuilder's strengths
 
 fireemblem8u's own [*"Missing essentials and roadmap"*](https://github.com/laqieer/fireemblem8u/wiki/Missing-essentials-and-roadmap)
-rates these **Hard** — they're perception/asset work with no in-tree visual editor:
+moddability matrix rates these subsystems **Hard** (maps, animations) or **Moderate but a real
+ergonomics gap** (graphics) — all perception/asset work with no in-tree visual editor:
 
-| Decomp weak spot | Why it's hard in a decomp | FEBuilder strength |
-|---|---|---|
-| Map tile layouts | binary `.mar`/`.bin`/`.lz`; no in-tree visual map editor | visual map editor + live preview |
-| Battle animations | least-decompiled; opaque keyframes | frame-by-frame animation editor + preview |
-| Graphics / asset import | must match dims / bit-depth / palette; no in-loop preview | visual import with live palette/dimension feedback |
+| Decomp weak spot | Decomp rating | Why it's fiddly in a decomp | FEBuilder strength |
+|---|---|---|---|
+| Map tile layouts (brand-new maps) | **Hard** | binary `.mar`/`.bin`/`.lz`; no in-tree visual map editor | visual map editor + live preview |
+| Battle animations | **Hard** | least-decompiled; opaque keyframes | frame-by-frame animation editor + preview |
+| Portraits / graphics import | **Moderate** | `graphics/` PNG pipeline works, but must match dims / bit-depth / palette; no in-loop preview | visual import with live palette/dimension feedback |
+
+> (The matrix also rates **skills** *Hard* — "none shipped" — but FEBuilder has no decomp-consumable
+> skill export today; see the **Honest gaps** section below.)
 
 ## The workflow (author visually → export → commit as source)
 
