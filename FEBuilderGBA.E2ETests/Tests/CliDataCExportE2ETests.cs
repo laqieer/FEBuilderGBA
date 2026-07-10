@@ -370,6 +370,23 @@ namespace FEBuilderGBA.E2ETests.Tests
             Assert.False(File.Exists(outC));
         }
 
+        [Theory]
+        [InlineData("--c-symbol=")]
+        [InlineData("--c-symbol")]
+        public void ExportData_C_EmptyCSymbol_RejectsBeforeRomLoadAndOutput(string symbolArgument)
+        {
+            string outC = TempFile(".c");
+            string nonexistentRom = Path.Combine(Path.GetTempPath(), $"does-not-exist-{Guid.NewGuid():N}.gba");
+
+            var (code, stdout, stderr) = AppRunner.Run(CliExe,
+                $"--export-data --rom=\"{nonexistentRom}\" --table=items --format=c {symbolArgument} --out=\"{outC}\"", timeoutMs: 15_000);
+
+            Assert.NotEqual(0, code);
+            Assert.Contains("--c-symbol", stdout + stderr);
+            Assert.Contains("empty", stdout + stderr);
+            Assert.False(File.Exists(outC));
+        }
+
         [Fact]
         public void ExportData_CSymbolWithNonCFormat_RejectsExplicitlyBeforeRomLoadAndOutput()
         {

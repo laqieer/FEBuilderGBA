@@ -1880,8 +1880,9 @@ namespace FEBuilderGBA.CLI
             // output file is created — so a typo'd/keyword identifier, or a misuse with
             // --table=all / a non-c format, fails loudly with a specific message instead of
             // silently doing nothing or partially writing output.
-            string cSymbol = argsDic.ContainsKey("--c-symbol") ? argsDic["--c-symbol"] : null;
-            if (!string.IsNullOrEmpty(cSymbol))
+            bool hasCSymbol = argsDic.ContainsKey("--c-symbol");
+            string cSymbol = hasCSymbol ? argsDic["--c-symbol"] : null;
+            if (hasCSymbol)
             {
                 if (format != "c")
                 {

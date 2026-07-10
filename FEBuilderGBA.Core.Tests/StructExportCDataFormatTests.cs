@@ -756,7 +756,10 @@ namespace FEBuilderGBA.Core.Tests
                 {
                     var structDef = Def("Crossing",
                         F("A", 0, StructMetadata.FieldType.Word),
-                        F("B", 1, StructMetadata.FieldType.Word));
+                        // Deliberately collide with the formatter's preferred synthetic
+                        // positioning-pad name; the generated nested struct must choose a
+                        // distinct helper and still compile cleanly.
+                        F("_pad", 1, StructMetadata.FieldType.Word));
                     byte[] raw = { 0x01, 0x02, 0x03 };
                     var row = MakeRow(0, raw);
                     string c = StructExportCore.FormatCData(
@@ -812,6 +815,24 @@ namespace FEBuilderGBA.Core.Tests
             // B starts 1 byte into the group → a synthetic 1-byte _pad positions it.
             Assert.Contains("struct __attribute__((packed)) { uint8_t _pad[1]; uint16_t B; } as_B;", c);
             Assert.Contains("uint8_t _overlap0_raw[3];", c);
+        }
+
+        [Fact]
+        public void FormatCData_OverlapFieldNamedPad_UsesDistinctPositioningHelper()
+        {
+            var structDef = Def("PadCollision",
+                F("A", 0, StructMetadata.FieldType.Word),
+                F("_pad", 1, StructMetadata.FieldType.Byte));
+            byte[] raw = { 0x01, 0x02 };
+            var row = MakeRow(0, raw);
+
+            string c = StructExportCore.FormatCData(
+                new List<(uint, Dictionary<string, string>, byte[])> { row }, structDef, "pad_collision", 2);
+
+            Assert.Contains(
+                "struct __attribute__((packed)) { uint8_t _pad_[1]; uint8_t _pad; } as__pad;",
+                c);
+            Assert.DoesNotContain("uint8_t _pad[1]; uint8_t _pad;", c);
         }
 
         [Fact]

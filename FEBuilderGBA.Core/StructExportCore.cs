@@ -2215,7 +2215,14 @@ namespace FEBuilderGBA
                             string ctype = CTypeForField(f.Type);
                             string comment = string.IsNullOrEmpty(f.Comment) ? "" : " " + EscapeCComment(f.Comment);
                             if (rel > 0)
-                                memberLines.Add($"        struct __attribute__((packed)) {{ uint8_t _pad[{rel}]; {ctype} {innerName}; }} {viewName}; // 0x{f.Offset:X2}{comment}");
+                            {
+                                // The positioning pad and the field share this nested struct's
+                                // member namespace. Keep the helper deterministic, but avoid
+                                // emitting a duplicate member when metadata itself names the
+                                // overlapping field "_pad".
+                                string padName = innerName == "_pad" ? "_pad_" : "_pad";
+                                memberLines.Add($"        struct __attribute__((packed)) {{ uint8_t {padName}[{rel}]; {ctype} {innerName}; }} {viewName}; // 0x{f.Offset:X2}{comment}");
+                            }
                             else
                                 memberLines.Add($"        struct __attribute__((packed)) {{ {ctype} {innerName}; }} {viewName}; // 0x{f.Offset:X2}{comment}");
                         }
