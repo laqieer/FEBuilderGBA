@@ -50,6 +50,7 @@ Docs for using FEBuilderGBA as an agent / LLM backend (headless authoring, build
 | [agent-buildfile-template-policy.md](agent-buildfile-template-policy.md) | **Base-ROM / template policy** for agent-generated content — prefer a neutral base for *neutrality* (not licensing), assume all-rights-reserved absent explicit permission, à-la-carte attributed features, user-supplied clean ROM. |
 | [agent-parity.md](agent-parity.md) | Agent parity matrix — per-surface headless coverage (GUI editors ↔ CLI verbs ↔ Core seams). *(Also listed under Architecture & internals.)* |
 | [febuilder-as-decomp-frontend.md](febuilder-as-decomp-frontend.md) | **FEBuilder as a decomp authoring front-end** — the GUI-first workflow to edit maps/animations/graphics visually and export decomp-consumable artifacts (`.s`/`.json`/asset blobs/PNG+`.pal`). |
+| [febuilder-as-decomp-converter.md](febuilder-as-decomp-converter.md) | **FEBuilder as an in-tree asset converter** — the convert verbs (`--convertmap1picture`, `--decreasecolor`) as a stable, `--json`-scriptable build-rule interface (editable image → in-game blob), with FEHRR as the worked example. |
 
 ## Build, packaging & release
 
