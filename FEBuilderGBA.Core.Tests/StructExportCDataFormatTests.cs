@@ -506,6 +506,8 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal("int_", StructExportCore.SanitizeCIdentifier("int"));
             Assert.Equal("_0Value", StructExportCore.SanitizeCIdentifier("0Value"));
             Assert.Equal("Foo_Bar_", StructExportCore.SanitizeCIdentifier("Foo Bar!"));
+            Assert.Equal("field__thread", StructExportCore.SanitizeCIdentifier("__thread"));
+            Assert.Equal("field_Upper", StructExportCore.SanitizeCIdentifier("_Upper"));
             Assert.Equal("_field", StructExportCore.SanitizeCIdentifier(""));
         }
 
@@ -728,13 +730,16 @@ namespace FEBuilderGBA.Core.Tests
                 // 1) FE8-style mixed byte/word/dword/pointer row (+ an interior gap byte).
                 {
                     var structDef = Def("Mixed",
-                        F("Byte", 0, StructMetadata.FieldType.Byte),
-                        F("Word", 1, StructMetadata.FieldType.Word),
-                        F("DWord", 4, StructMetadata.FieldType.DWord),
-                        F("Ptr", 8, StructMetadata.FieldType.Pointer));
+                        // These are real GNU tokens/reserved prefixes. Metadata sanitization
+                        // must repair every one while preserving the mixed-width layout.
+                        F("__thread", 0, StructMetadata.FieldType.Byte),
+                        F("__auto_type", 1, StructMetadata.FieldType.Word),
+                        F("__label__", 4, StructMetadata.FieldType.DWord),
+                        F("__alignof__", 8, StructMetadata.FieldType.Pointer));
                     byte[] raw = { 0x7F, 0x34, 0x12, 0xAB, 0xEF, 0xBE, 0xAD, 0xDE, 0x56, 0x34, 0x12, 0x08 };
                     var row = MakeRow(0, raw,
-                        ("Byte", "0x7F"), ("Word", "0x1234"), ("DWord", "0xDEADBEEF"), ("Ptr", "0x08123456"));
+                        ("__thread", "0x7F"), ("__auto_type", "0x1234"),
+                        ("__label__", "0xDEADBEEF"), ("__alignof__", "0x08123456"));
                     string c = StructExportCore.FormatCData(
                         new List<(uint, Dictionary<string, string>, byte[])> { row }, structDef, "mixed_table", 12);
                     CompileGeneratedC(compiler, tempDir, "fe8_style_mixed", c);
@@ -864,7 +869,6 @@ namespace FEBuilderGBA.Core.Tests
 
         [Theory]
         [InlineData("gMyTable")]
-        [InlineData("_leadingUnderscore")]
         [InlineData("g_Item_Data_2")]
         [InlineData("A")]
         public void TryValidateCSymbol_WellFormedIdentifier_ReturnsTrue(string symbol)
@@ -912,10 +916,26 @@ namespace FEBuilderGBA.Core.Tests
         [InlineData("struct")]
         [InlineData("_Static_assert")]
         [InlineData("__attribute__")]
+        [InlineData("__thread")]
+        [InlineData("__auto_type")]
+        [InlineData("__label__")]
+        [InlineData("__alignof__")]
+        [InlineData("asm")]
+        [InlineData("typeof")]
         public void TryValidateCSymbol_ReservedKeyword_ReturnsFalse(string symbol)
         {
             Assert.False(StructExportCore.TryValidateCSymbol(symbol, out string error));
             Assert.Contains("reserved keyword", error);
+        }
+
+        [Theory]
+        [InlineData("_leadingUnderscore")]
+        [InlineData("_Upper")]
+        [InlineData("__implementationName")]
+        public void TryValidateCSymbol_FileScopeReservedPrefix_ReturnsFalse(string symbol)
+        {
+            Assert.False(StructExportCore.TryValidateCSymbol(symbol, out string error));
+            Assert.Contains("reserved", error);
         }
 
         [Fact]

@@ -433,7 +433,8 @@ required and optional flags. Each is verified against its `Run*` handler in
   `arm-none-eabi-gcc`/host `gcc` with `-std=gnu11` to actually compile the output — FEBuilderGBA
   does not invoke a compiler itself. Optional `--c-symbol=<identifier>` (single-table `--format=c`
   only) overrides the emitted data-array symbol with a strictly-validated, non-keyword C
-  identifier (rejected outright if invalid — never silently sanitized); the count symbol becomes
+  identifier that starts with a letter (leading underscores are implementation-reserved at file
+  scope and are rejected; invalid values are never silently sanitized); the count symbol becomes
   `<identifier>Count`; combining `--c-symbol` with `--table=all`, or with any format other than
   `c`, is rejected before the ROM is loaded or any output file is created. **Exit:** 0 on
   success, 1 on usage/unknown-table/unsupported-format/invalid-`--c-symbol`/C-layout-validation

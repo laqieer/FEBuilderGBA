@@ -40,9 +40,10 @@ FEBuilderGBA.CLI --export-data --rom=<rom> --table=<name> --format=c [--out=<pat
   table and keep going.
 - **`--c-symbol=<identifier>`** overrides the emitted data-array symbol for a **single-table** export
   only:
-  - `<identifier>` must be a strictly valid, non-keyword C/GNU identifier (`[A-Za-z_][A-Za-z0-9_]*`,
-    not a C11/GNU reserved word) — an invalid value is **rejected outright**, never silently
-    sanitized/rewritten.
+  - `<identifier>` must be a strictly valid external C/GNU identifier
+    (`[A-Za-z][A-Za-z0-9_]*`, not a C11/GNU keyword). Leading underscores are rejected because
+    they are implementation-reserved for file-scope symbols, where the data array is emitted.
+    An invalid value is **rejected outright**, never silently sanitized/rewritten.
   - Combining `--c-symbol` with `--table=all` is rejected (every table would collide on the same
     symbol name).
   - Combining `--c-symbol` with any format other than `c` is rejected explicitly (`--c-symbol
@@ -146,11 +147,12 @@ before indexing the array — like any zero-length array, indexing `gFEBuilder_e
   next source line).
 - **Identifiers are deterministic and collision-checked.** ROM-metadata-derived names (struct/table/
   field names) are sanitized deterministically — invalid characters become `_`, a leading digit gets
-  a `_` prefix, a C/GNU reserved keyword gets a trailing `_` — and every name actually emitted in a
-  row struct's flat namespace (fields, union views, raw arms, gap/trailing members — GNU anonymous
+  a `_` prefix, implementation-reserved `__*`/`_[A-Z]*` prefixes get a `field` prefix, and a C/GNU
+  reserved keyword gets a trailing `_` — and every name actually emitted in a row struct's flat
+  namespace (fields, union views, raw arms, gap/trailing members — GNU anonymous
   unions/structs promote all of them into one scope) is tracked; a post-sanitization collision is
   **rejected outright**, never silently renamed further. A **user-supplied** `--c-symbol` is held to
-  a stricter, different standard: it is never sanitized at all — valid-as-given or rejected.
+  a stricter, different standard: it is never sanitized at all — file-scope-safe as given, or rejected.
   (`FEBuilderGBA.Core.Tests/StructExportCDataFormatTests.cs` covers keyword/leading-digit/invalid-
   character sanitization and forced collisions for both cases.)
 - **Numeric values are strictly re-parsed and width-checked**, not copied as raw tokens: every field

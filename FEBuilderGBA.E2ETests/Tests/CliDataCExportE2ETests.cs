@@ -356,17 +356,24 @@ namespace FEBuilderGBA.E2ETests.Tests
             Assert.False(File.Exists(outC), "no output file should be created when --c-symbol validation fails before ROM load");
         }
 
-        [Fact]
-        public void ExportData_C_KeywordCSymbol_RejectsBeforeRomLoadAndOutput()
+        [Theory]
+        [InlineData("struct")]
+        [InlineData("__thread")]
+        [InlineData("__auto_type")]
+        [InlineData("__label__")]
+        [InlineData("__alignof__")]
+        [InlineData("_leadingUnderscore")]
+        public void ExportData_C_KeywordOrReservedCSymbol_RejectsBeforeRomLoadAndOutput(string symbol)
         {
             string outC = TempFile(".c");
             string nonexistentRom = Path.Combine(Path.GetTempPath(), $"does-not-exist-{Guid.NewGuid():N}.gba");
 
             var (code, stdout, stderr) = AppRunner.Run(CliExe,
-                $"--export-data --rom=\"{nonexistentRom}\" --table=items --format=c --c-symbol=struct --out=\"{outC}\"", timeoutMs: 15_000);
+                $"--export-data --rom=\"{nonexistentRom}\" --table=items --format=c --c-symbol={symbol} --out=\"{outC}\"", timeoutMs: 15_000);
 
             Assert.NotEqual(0, code);
             Assert.Contains("--c-symbol", stdout + stderr);
+            Assert.Contains(symbol, stdout + stderr);
             Assert.False(File.Exists(outC));
         }
 

@@ -1956,14 +1956,33 @@ namespace FEBuilderGBA
             "asm","typeof","__asm__","__asm","__typeof__","__typeof","__inline__","__inline",
             "__const__","__const","__volatile__","__volatile","__restrict__","__restrict",
             "__attribute__","__attribute","__extension__","__signed__","__signed","__real__","__imag__",
+            "__alignof__","__alignof","__auto_type","__complex__","__complex","__label__","__label",
+            "__thread","__int128","__float128","__float80",
         };
+
+        /// <summary>
+        /// C reserves every identifier beginning with two underscores, and every identifier
+        /// beginning with underscore + uppercase, in every scope. Metadata-derived member
+        /// names are repaired before emission; user-owned file-scope symbols are held to the
+        /// stricter rule in <see cref="TryValidateCSymbol"/>.
+        /// </summary>
+        static bool HasImplementationReservedPrefix(string identifier)
+        {
+            return identifier.StartsWith("__", StringComparison.Ordinal)
+                || (identifier.Length > 1
+                    && identifier[0] == '_'
+                    && identifier[1] >= 'A'
+                    && identifier[1] <= 'Z');
+        }
 
         /// <summary>
         /// Deterministically sanitize an arbitrary string into a single valid C/GNU
         /// identifier: any character outside <c>[A-Za-z0-9_]</c> becomes <c>_</c>; a
         /// leading digit gets a <c>_</c> prefix; an empty result falls back to
-        /// <c>_field</c>; and a result matching a C/GNU keyword (<see cref="CReservedIdentifiers"/>)
-        /// gets a trailing <c>_</c> so it can never be emitted as a bare reserved word.
+        /// <c>_field</c>; implementation-reserved <c>__*</c>/<c>_[A-Z]*</c> prefixes get a
+        /// deterministic <c>field</c> prefix; and a result matching a C/GNU keyword
+        /// (<see cref="CReservedIdentifiers"/>) gets a trailing <c>_</c> so it can never be
+        /// emitted as a bare reserved word.
         /// Does not deduplicate — see <see cref="ClaimCIdentifier"/> for the separate,
         /// mandatory post-sanitization collision check.
         /// </summary>
@@ -1981,15 +2000,18 @@ namespace FEBuilderGBA
             string s = sb.ToString();
             if (s.Length == 0) s = "_field";
             if (s[0] >= '0' && s[0] <= '9') s = "_" + s;
+            if (HasImplementationReservedPrefix(s)) s = "field" + s;
             if (CReservedIdentifiers.Contains(s)) s = s + "_";
             return s;
         }
 
         /// <summary>
         /// Strictly validate a USER-SUPPLIED C data-symbol override (CLI <c>--c-symbol</c>,
-        /// #1939 Phase B1): must be a well-formed C/GNU identifier — starts with a letter or
-        /// underscore, every character is <c>[A-Za-z0-9_]</c> — and must NOT be a C/GNU
-        /// reserved word (<see cref="CReservedIdentifiers"/>). Unlike
+        /// #1939 Phase B1): must be a well-formed external C/GNU identifier — starts with an
+        /// ASCII letter and every later character is <c>[A-Za-z0-9_]</c> — and must NOT be a
+        /// C/GNU reserved word (<see cref="CReservedIdentifiers"/>). A leading underscore is
+        /// rejected because every such identifier is implementation-reserved at file scope,
+        /// where the exported array object is declared. Unlike
         /// <see cref="SanitizeCIdentifier"/> (used for ROM-metadata-derived names, which are
         /// silently repaired so a table/struct name always emits *something* valid), a
         /// user-supplied override is never silently rewritten — <paramref name="symbol"/> is
@@ -2028,6 +2050,12 @@ namespace FEBuilderGBA
             if (CReservedIdentifiers.Contains(symbol))
             {
                 error = $"'{symbol}' is a C/GNU reserved keyword and cannot be used as a symbol name";
+                return false;
+            }
+
+            if (symbol[0] == '_')
+            {
+                error = $"'{symbol}' begins with an underscore, which is reserved to the C implementation for file-scope symbols";
                 return false;
             }
 
