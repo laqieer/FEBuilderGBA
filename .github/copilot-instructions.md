@@ -127,8 +127,8 @@ Model: <display-name> (<model-id>)
 
 **Example:**
 ```
-Copilot CLI: 1.0.6-0
-Model: GPT-5.4 (gpt-5.4)
+Copilot CLI: 1.0.70
+Model: GPT-5.6 Sol (gpt-5.6-sol)
 ```
 
 Use the **live session values** from the current runtime — never hardcode. This footer is non-negotiable and must never be omitted, even on short comments or approvals.
