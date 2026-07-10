@@ -27,11 +27,11 @@ output for that command compared to the WinForms exe.
 | `--applyups=<path>` | Apply UPS patch | `--rom`, `--patch` | E2E COVERED | ALIGNED |
 | `--lint` | Run lint checks on ROM | `--rom` | E2E COVERED | ALIGNED |
 | `--disasm=<path>` | Disassemble ROM to file | `--rom` | E2E COVERED | ALIGNED |
-| `--decreasecolor` | Quantize image palette | `--in`, `--out` (opt: `--paletteno`) | E2E COVERED | ALIGNED |
+| `--decreasecolor` | Quantize image palette | `--in`, `--out` (opt: `--paletteno`, `--json`) | E2E COVERED | ALIGNED |
 | `--pointercalc` | Search pointer references | `--rom`, `--target`, `--address` | E2E COVERED | ALIGNED |
 | `--rebuild` | Rebuild/defragment ROM | `--rom` (opt: `--fromrom`) | E2E COVERED | ALIGNED |
 | `--songexchange` | Copy song between ROMs | `--rom`, `--fromrom`, `--fromsong`, `--tosong` | E2E COVERED | ALIGNED |
-| `--convertmap1picture` | Convert image to map tiles | `--in`, `--outImg` and/or `--outTSA` | E2E COVERED | ALIGNED |
+| `--convertmap1picture` | Convert image to map tiles | `--in`, one or more of `--outImg`/`--outTSA`/`--outPal` (opt: `--json`) | E2E COVERED | ALIGNED |
 | `--translate` | Dump or import ROM text | `--rom` | E2E COVERED | ALIGNED |
 | `--translate-roundtrip` | Validate text export/import round-trip | `--rom` (opt: `--out`) | E2E COVERED | ALIGNED |
 | `--lastrom` | Load last-used ROM from config | — | E2E COVERED | ALIGNED |
@@ -69,10 +69,12 @@ output for that command compared to the WinForms exe.
 | `--gif` | Export the animation as an animated GIF | `--export-battle-anime` |
 | `--section=<N>` | Section index 0-11 for GIF export (default: 0) | `--export-battle-anime` |
 | `--compress` / `--decompress` | LZ77 mode (exactly one required) | `--lz77` |
-| `--paletteno=<n>` | Number of palette colors (default: 16) | `--decreasecolor` |
+| `--paletteno=<n>` | Number of palette colors (default: 16; range 2-256, or 1-256 with `--noReserve1stColor`) | `--decreasecolor` |
 | `--noScale` | Do not scale colors to GBA 5-bit range | `--decreasecolor` |
 | `--noReserve1stColor` | Do not reserve palette slot 0 for transparency | `--decreasecolor` |
 | `--ignoreTSA` | Ignore TSA tile deduplication constraints | `--decreasecolor` |
+| `--outPal=<path>` | Output the matching GBA palette data | `--convertmap1picture` |
+| `--json` | Emit one machine-readable result object on stdout; errors remain non-zero | `--decreasecolor`, `--convertmap1picture` |
 | `--target=<path>` | Target ROM file | `--pointercalc` |
 | `--address=<hex_list>` | Hex address list (comma-separated or file) | `--pointercalc` |
 | `--tracelevel=<n>` | Search depth level | `--pointercalc` |

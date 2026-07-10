@@ -66,7 +66,7 @@ Every verb below exists today in [`docs/cli-reference.md`](cli-reference.md) (an
 |---|---|---|
 | **Map tile layout** | `--export-asset --kind=map` (always LZ77-decompressed) | raw `.mar` tile-layout blob + `.mar.json` sidecar; round-trips via `--import-asset` / `--roundtrip-asset` (ROM-free — `--verify-asset` does **not** cover `map`) |
 | **Map changes / tile-anim / chipset** | `--export-asset --kind=` one of `mapchange`, `mapanime2pal`, `objtiles`, `mapchipconfig`, `mapanime1gfx` | raw uncompressed overlay/config/gfx blobs + `.json` sidecars; ROM-backed byte proof via `--verify-asset` for these kinds |
-| **Newly-authored map (from an image)** | `--convertmap1picture` | `tiles.bin` + `tsa.bin` (image → GBA map tiles + TSA; no ROM required) |
+| **Newly-authored map (from an image)** | `--convertmap1picture` | `tiles.bin` + `tsa.bin` + matching `palette.bin` (image → GBA map artifacts; no ROM required) |
 | **Battle animation** (primary) | **`--export-battle-anim-decomp`** | `banim_<TAG>_motion.s` (macro assembly) + per-team `.pal` + `.json` manifest, using fireemblem8u's banim macros — **READ-ONLY** |
 | Battle animation (preview only) | `--export-battle-anime` | classic `.txt`+PNG or GIF — a **preview / reimport aid**, *not* a decomp-consumable artifact |
 | **Portraits** | `--render-portrait` / `--export-portrait-all` | single-portrait PNG(s) |

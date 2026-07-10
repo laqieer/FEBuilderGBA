@@ -106,11 +106,11 @@ dotnet run --project FEBuilderGBA.CLI -- --makeups=out.ups --rom=modified.gba --
 dotnet run --project FEBuilderGBA.CLI -- --applyups=output.gba --rom=original.gba --patch=patch.ups
 dotnet run --project FEBuilderGBA.CLI -- --lint --rom=rom.gba
 dotnet run --project FEBuilderGBA.CLI -- --disasm=output.asm --rom=rom.gba
-dotnet run --project FEBuilderGBA.CLI -- --decreasecolor --rom=rom.gba --in=input.png --out=output.png --paletteno=0
+dotnet run --project FEBuilderGBA.CLI -- --decreasecolor --in=input.png --out=output.png --paletteno=16 --json
 dotnet run --project FEBuilderGBA.CLI -- --pointercalc --rom=source.gba --target=target.gba --address=0x1234
 dotnet run --project FEBuilderGBA.CLI -- --rebuild --rom=modified.gba --fromrom=vanilla.gba
 dotnet run --project FEBuilderGBA.CLI -- --songexchange --rom=dest.gba --fromrom=source.gba --fromsong=1 --tosong=2
-dotnet run --project FEBuilderGBA.CLI -- --convertmap1picture --rom=rom.gba --in=map.png
+dotnet run --project FEBuilderGBA.CLI -- --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin --outPal=palette.bin --json
 dotnet run --project FEBuilderGBA.CLI -- --translate --rom=rom.gba --out=texts.tsv
 dotnet run --project FEBuilderGBA.CLI -- --translate --rom=rom.gba --in=texts.tsv
 dotnet run --project FEBuilderGBA.CLI -- --translate-roundtrip --rom=rom.gba

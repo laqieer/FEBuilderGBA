@@ -19,6 +19,10 @@ the "### Graphics System" overview in `CLAUDE.md`.
 - `LZ77ToolCore.cs` (Core) — LZ77 Tool Move + Recompress tabs (WinForms `ToolLZ77Form` + Avalonia
   `ToolLZ77ViewModel`). Ambient undo via `ROM.BeginUndoScope()`; LDR-first / raw-fallback pointer search
   (event-aware path out of scope — `MissingEventAwareCoverage` always set).
+- `AtomicFileSetWriterCore.cs` (Core, FILE-MUTATING, TRANSACTIONAL) — stages a related output set beside
+  its destinations, backs up existing entries, commits with no-overwrite moves, and rolls back the set on
+  failure. This prevents case/symlink/hard-link aliases from turning multi-artifact CLI writes into
+  success-shaped overwrite corruption; used by `--convertmap1picture` tile/TSA/palette output. #1941.
 - `ImageBattleScreenCore` — `EncodeTSAKeep` (Core, PURE) + `ImportBattleScreenBulk` (Core, ROM-MUTATING):
   BULK whole-screen import for the Battle Screen Layout editor (#988). `EncodeTSAKeep` keeps the TSA + applies
   the INVERSE per-cell flip; `ImportBattleScreenBulk` validate-all-before-mutate (5 strips LZ77-written +

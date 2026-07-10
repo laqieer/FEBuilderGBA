@@ -151,14 +151,16 @@ Quantize an image's palette to a limited number of colors (for GBA-compatible gr
 |---|---|---|
 | `--in=<path>` | Yes | Input image file (PNG, etc.). |
 | `--out=<path>` | Yes | Output image file. |
-| `--paletteno=<n>` | No | Maximum palette colors. Default: **16**. |
+| `--paletteno=<n>` | No | Maximum palette colors. Default: **16**; range 2–256, or 1–256 with `--noReserve1stColor`. |
 | `--noScale` | No | Do not scale RGB values to GBA 5-bit range (0-31). |
 | `--noReserve1stColor` | No | Do not reserve palette slot 0 for transparency. |
 | `--ignoreTSA` | No | Ignore TSA 8x8 tile deduplication constraints. |
+| `--json` | No | Emit one JSON object on stdout for success or failure. Errors still return a non-zero exit code. |
 
 ```
 FEBuilderGBA.CLI --decreasecolor --in=input.png --out=output.png --paletteno=16
 FEBuilderGBA.CLI --decreasecolor --in=input.png --out=output.png --paletteno=16 --noScale --noReserve1stColor
+FEBuilderGBA.CLI --decreasecolor --in=input.png --out=output.png --paletteno=16 --json
 ```
 
 This command does **not** require a ROM; it operates purely on image files.
@@ -233,14 +235,18 @@ Convert an image to GBA map tile data and TSA (Tile Set Arrangement).
 
 | Option | Required | Description |
 |---|---|---|
-| `--in=<path>` | Yes | Input image file. Dimensions must be multiples of 8 pixels. |
-| `--outImg=<path>` | No* | Output tile data binary file. |
+| `--in=<path>` | Yes | Input image file. Dimensions must be multiples of 8; conversion is limited to 15 opaque colors plus reserved transparent palette slot 0, and 1024 unique tiles. |
+| `--outImg=<path>` | No* | Raw 4bpp tile bytes (32 bytes per tile), not an encoded image regardless of extension. |
 | `--outTSA=<path>` | No* | Output TSA data file (LZ77-compressed). |
+| `--outPal=<path>` | No* | Matching GBA RGB555 palette data (up to 32 bytes). |
+| `--json` | No | Emit one JSON object on stdout for success or failure. Errors still return a non-zero exit code. |
 
-*At least one of `--outImg` or `--outTSA` is required.
+*At least one output is required. Multiple outputs are written transactionally so aliases cannot
+overwrite another requested artifact while reporting success.
 
 ```
-FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin
+FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin --outPal=palette.bin
+FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin --outPal=palette.bin --json
 ```
 
 This command does **not** require a ROM.
@@ -1037,7 +1043,7 @@ Each finding prints as `ERROR [CODE] msg` (stderr) or `WARN [CODE] msg` (stdout)
 | `--pointercalc` | Required | — | — | — | `--target`, `--address` | No |
 | `--rebuild` | Required | Required | — | — | — | No |
 | `--songexchange` | Required | Required | — | — | `--fromsong`, `--tosong` | Partial |
-| `--convertmap1picture` | — | — | Required | — | `--outImg`/`--outTSA` | No |
+| `--convertmap1picture` | — | — | Required | — | one or more of `--outImg`/`--outTSA`/`--outPal` | No |
 | `--translate` | Required | — | Optional | Optional | — | Full |
 | `--translate_batch` | Required | — | Optional | Optional | — | Full |
 | `--lastrom` | — | — | — | — | — | Full |
@@ -1124,7 +1130,7 @@ FEBuilderGBA.CLI --rebuild --rom=modified.gba --fromrom=original.gba
 FEBuilderGBA.CLI --songexchange --rom=dest.gba --fromrom=source.gba --fromsong=0x1A --tosong=0x1A
 
 # Convert image to map tiles
-FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin
+FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin --outPal=palette.bin
 
 # Export text
 FEBuilderGBA.CLI --translate --rom=rom.gba --out=texts.tsv

@@ -460,14 +460,14 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  --applyups=<path>        Apply UPS patch (requires --rom and --patch)");
             Console.WriteLine("  --lint                   Run lint checks on ROM (requires --rom)");
             Console.WriteLine("  --disasm=<path>          Disassemble ROM to file (requires --rom)");
-            Console.WriteLine("  --decreasecolor          Quantize image palette (requires --in, --out, --paletteno)");
+            Console.WriteLine("  --decreasecolor          Quantize image palette (requires --in, --out; --paletteno optional, default 16; --json for machine output)");
             Console.WriteLine("    --noScale              Do not scale colors to GBA 5-bit range");
             Console.WriteLine("    --noReserve1stColor    Do not reserve palette slot 0 for transparency");
             Console.WriteLine("    --ignoreTSA            Ignore TSA tile deduplication constraints");
             Console.WriteLine("  --pointercalc            Search pointer references (requires --rom, --target, --address)");
             Console.WriteLine("  --rebuild                Rebuild/defragment ROM (requires --rom, --fromrom)");
             Console.WriteLine("  --songexchange           Copy song between ROMs (requires --rom, --fromrom, --fromsong, --tosong)");
-            Console.WriteLine("  --convertmap1picture     Convert image to map tiles (requires --in, --outImg, --outTSA)");
+            Console.WriteLine("  --convertmap1picture     Convert image to map tiles (requires --in and one or more of --outImg, --outTSA, --outPal; --json for machine output)");
             Console.WriteLine("  --translate              Dump or import ROM text (requires --rom)");
             Console.WriteLine("    --out=<path>           Export text to TSV file");
             Console.WriteLine("    --in=<path>            Import text from TSV file and write to ROM");
@@ -672,7 +672,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  FEBuilderGBA.CLI --rebuild --rom=modified.gba --fromrom=original.gba");
             Console.WriteLine("  FEBuilderGBA.CLI --songexchange --rom=dest.gba --fromrom=source.gba --fromsong=0x1A --tosong=0x1A");
             Console.WriteLine("  FEBuilderGBA.CLI --migrate-diff --project=decomp/ --rom2=edited.gba --out=migrate.tsv");
-            Console.WriteLine("  FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin");
+            Console.WriteLine("  FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin --outPal=palette.bin");
             Console.WriteLine("  FEBuilderGBA.CLI --translate --rom=rom.gba --out=texts.tsv");
             Console.WriteLine("  FEBuilderGBA.CLI --translate --rom=rom.gba --in=texts.tsv");
             Console.WriteLine("  FEBuilderGBA.CLI --translate-roundtrip --rom=rom.gba");
@@ -956,55 +956,70 @@ namespace FEBuilderGBA.CLI
 
         static int RunDecreaseColor(Dictionary<string, string> argsDic)
         {
+            bool json = argsDic.ContainsKey("--json");
+            int Fail(string msg)
+            {
+                if (json)
+                    Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(
+                        new Dictionary<string, object> { ["command"] = "decreasecolor", ["ok"] = false, ["error"] = msg }));
+                else
+                    Console.Error.WriteLine("Error: " + msg);
+                return 1;
+            }
+
             if (!argsDic.ContainsKey("--in") || string.IsNullOrEmpty(argsDic["--in"]))
-            {
-                Console.Error.WriteLine("Error: --decreasecolor requires --in=<input_image>");
-                return 1;
-            }
+                return Fail("--decreasecolor requires --in=<input_image>");
             if (!argsDic.ContainsKey("--out") || string.IsNullOrEmpty(argsDic["--out"]))
-            {
-                Console.Error.WriteLine("Error: --decreasecolor requires --out=<output_image>");
-                return 1;
-            }
+                return Fail("--decreasecolor requires --out=<output_image>");
 
             string inputPath = argsDic["--in"];
             string outputPath = argsDic["--out"];
-            int maxColors = 16;
-            if (argsDic.ContainsKey("--paletteno") && !string.IsNullOrEmpty(argsDic["--paletteno"]))
-                int.TryParse(argsDic["--paletteno"], out maxColors);
-
-            // Parse optional flags
             bool noScale = argsDic.ContainsKey("--noScale");
             bool noReserve1stColor = argsDic.ContainsKey("--noReserve1stColor");
             bool ignoreTSA = argsDic.ContainsKey("--ignoreTSA");
 
-            if (noScale)
-                Console.WriteLine("  Flag: --noScale (color scaling disabled)");
-            if (noReserve1stColor)
-                Console.WriteLine("  Flag: --noReserve1stColor (palette slot 0 not reserved for transparency)");
-            if (ignoreTSA)
-                Console.WriteLine("  Flag: --ignoreTSA (TSA tile constraints ignored)");
+            int maxColors = 16;  // optional; default 16 when --paletteno is omitted
+            if (argsDic.ContainsKey("--paletteno"))
+            {
+                int minimumColors = noReserve1stColor ? 1 : 2;
+                if (!int.TryParse(argsDic["--paletteno"], out maxColors) ||
+                    maxColors < minimumColors || maxColors > 256)
+                {
+                    string range = noReserve1stColor ? "1..256" : "2..256 (or 1 with --noReserve1stColor)";
+                    return Fail($"--paletteno must be an integer in {range}");
+                }
+            }
+
+            if (!json)
+            {
+                if (noScale)
+                    Console.WriteLine("  Flag: --noScale (color scaling disabled)");
+                if (noReserve1stColor)
+                    Console.WriteLine("  Flag: --noReserve1stColor (palette slot 0 not reserved for transparency)");
+                if (ignoreTSA)
+                    Console.WriteLine("  Flag: --ignoreTSA (TSA tile constraints ignored)");
+            }
 
             if (!File.Exists(inputPath))
-            {
-                Console.Error.WriteLine($"Error: Input file not found: {inputPath}");
-                return 1;
-            }
+                return Fail($"Input file not found: {inputPath}");
 
             // Load image via IImageService
             var imgService = CoreState.ImageService;
             if (imgService == null)
-            {
-                Console.Error.WriteLine("Error: Image service not available.");
-                return 1;
-            }
+                return Fail("Image service not available.");
 
-            var image = imgService.LoadImage(inputPath);
-            if (image == null)
+            IImage image;
+            try
             {
-                Console.Error.WriteLine($"Error: Failed to load image: {inputPath}");
-                return 1;
+                image = imgService.LoadImage(inputPath);
             }
+            catch (IOException ex)
+            {
+                if (json) return Fail(ex.Message);
+                throw;
+            }
+            if (image == null)
+                return Fail($"Failed to load image: {inputPath}");
 
             byte[] rgba = image.GetPixelData();
             int width = image.Width;
@@ -1012,10 +1027,7 @@ namespace FEBuilderGBA.CLI
 
             var result = DecreaseColorCore.Quantize(rgba, width, height, maxColors, noScale, noReserve1stColor, ignoreTSA);
             if (result == null)
-            {
-                Console.Error.WriteLine("Error: Quantization failed.");
-                return 1;
-            }
+                return Fail("Quantization failed.");
 
             // Convert indexed data back to RGBA for saving
             byte[] outRgba = new byte[width * height * 4];
@@ -1033,11 +1045,40 @@ namespace FEBuilderGBA.CLI
 
             var outImage = imgService.CreateImage(width, height);
             outImage.SetPixelData(outRgba);
-            outImage.Save(outputPath);
+            try
+            {
+                outImage.Save(outputPath);
+            }
+            catch (Exception ex)
+            {
+                // In --json mode, output-write failures (bad/unwritable path) must also
+                // surface as {ok:false,error} on stdout; otherwise preserve prior behavior.
+                if (json) return Fail("Failed to write output: " + ex.Message);
+                throw;
+            }
 
-            Console.WriteLine($"Color reduction complete: {outputPath}");
-            Console.WriteLine($"  Input: {inputPath} ({width}x{height})");
-            Console.WriteLine($"  Colors: {result.ColorCount} (max {maxColors})");
+            long outBytes = File.Exists(outputPath) ? new FileInfo(outputPath).Length : 0;
+            if (json)
+            {
+                Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, object>
+                {
+                    ["command"] = "decreasecolor",
+                    ["ok"] = true,
+                    ["in"] = inputPath,
+                    ["out"] = outputPath,
+                    ["outBytes"] = outBytes,
+                    ["paletteNo"] = maxColors,
+                    ["colors"] = result.ColorCount,
+                    ["width"] = width,
+                    ["height"] = height,
+                }));
+            }
+            else
+            {
+                Console.WriteLine($"Color reduction complete: {outputPath}");
+                Console.WriteLine($"  Input: {inputPath} ({width}x{height})");
+                Console.WriteLine($"  Colors: {result.ColorCount} (max {maxColors})");
+            }
             return 0;
         }
 
@@ -1295,67 +1336,125 @@ namespace FEBuilderGBA.CLI
 
         static int RunConvertMap1Picture(Dictionary<string, string> argsDic)
         {
-            if (!argsDic.ContainsKey("--in") || string.IsNullOrEmpty(argsDic["--in"]))
+            bool json = argsDic.ContainsKey("--json");
+            int Fail(string msg)
             {
-                Console.Error.WriteLine("Error: --convertmap1picture requires --in=<input_image>");
+                if (json)
+                    Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(
+                        new Dictionary<string, object> { ["command"] = "convertmap1picture", ["ok"] = false, ["error"] = msg }));
+                else
+                    Console.Error.WriteLine("Error: " + msg);
                 return 1;
             }
+
+            if (!argsDic.ContainsKey("--in") || string.IsNullOrEmpty(argsDic["--in"]))
+                return Fail("--convertmap1picture requires --in=<input_image>");
 
             string inputPath = argsDic["--in"];
             if (!File.Exists(inputPath))
-            {
-                Console.Error.WriteLine($"Error: Input file not found: {inputPath}");
-                return 1;
-            }
+                return Fail($"Input file not found: {inputPath}");
 
             string outImgPath = argsDic.ContainsKey("--outImg") ? argsDic["--outImg"] : "";
             string outTSAPath = argsDic.ContainsKey("--outTSA") ? argsDic["--outTSA"] : "";
-            if (string.IsNullOrEmpty(outImgPath) && string.IsNullOrEmpty(outTSAPath))
-            {
-                Console.Error.WriteLine("Error: --convertmap1picture requires --outImg=<path> and/or --outTSA=<path>");
-                return 1;
-            }
+            string outPalPath = argsDic.ContainsKey("--outPal") ? argsDic["--outPal"] : "";
+            if (string.IsNullOrEmpty(outImgPath) && string.IsNullOrEmpty(outTSAPath) &&
+                string.IsNullOrEmpty(outPalPath))
+                return Fail("--convertmap1picture requires --outImg=<path>, --outTSA=<path>, and/or --outPal=<path>");
 
             var imgService = CoreState.ImageService;
             if (imgService == null)
-            {
-                Console.Error.WriteLine("Error: Image service not available.");
-                return 1;
-            }
+                return Fail("Image service not available.");
 
-            var image = imgService.LoadImage(inputPath);
-            if (image == null)
+            IImage image;
+            try
             {
-                Console.Error.WriteLine($"Error: Failed to load image: {inputPath}");
-                return 1;
+                image = imgService.LoadImage(inputPath);
             }
+            catch (IOException ex)
+            {
+                if (json) return Fail(ex.Message);
+                throw;
+            }
+            if (image == null)
+                return Fail($"Failed to load image: {inputPath}");
 
             byte[] rgba = image.GetPixelData();
             int width = image.Width;
             int height = image.Height;
 
-            var result = MapConvertCore.ConvertImage(rgba, width, height);
+            var result = MapConvertCore.ConvertImage(rgba, width, height, out string convertError);
             if (result == null)
+                return Fail("Map conversion failed. " + convertError);
+
+            byte[] compressedTSA = null;
+            try
             {
-                Console.Error.WriteLine("Error: Map conversion failed. Image dimensions must be multiples of 8.");
-                return 1;
+                var outputs = new List<AtomicFileSetWriterCore.FileOutput>();
+                if (!string.IsNullOrEmpty(outImgPath))
+                    outputs.Add(new AtomicFileSetWriterCore.FileOutput(outImgPath, result.TileData));
+                if (!string.IsNullOrEmpty(outTSAPath))
+                {
+                    compressedTSA = LZ77.compress(result.TSAData);
+                    outputs.Add(new AtomicFileSetWriterCore.FileOutput(outTSAPath, compressedTSA));
+                }
+                if (!string.IsNullOrEmpty(outPalPath))
+                    outputs.Add(new AtomicFileSetWriterCore.FileOutput(outPalPath, result.PaletteData));
+                AtomicFileSetWriterCore.WriteAll(outputs);
+            }
+            catch (IOException ex)
+            {
+                if (json) return Fail("Failed to write output: " + ex.Message);
+                throw;
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                if (json) return Fail("Failed to write output: " + ex.Message);
+                throw;
+            }
+            catch (ArgumentException ex)
+            {
+                if (json) return Fail("Failed to write output: " + ex.Message);
+                throw;
+            }
+            catch (NotSupportedException ex)
+            {
+                if (json) return Fail("Failed to write output: " + ex.Message);
+                throw;
             }
 
-            if (!string.IsNullOrEmpty(outImgPath))
-                File.WriteAllBytes(outImgPath, result.TileData);
-            if (!string.IsNullOrEmpty(outTSAPath))
+            if (json)
             {
-                byte[] compressedTSA = LZ77.compress(result.TSAData);
-                File.WriteAllBytes(outTSAPath, compressedTSA);
+                bool haveImg = !string.IsNullOrEmpty(outImgPath);
+                bool haveTSA = !string.IsNullOrEmpty(outTSAPath);
+                bool havePal = !string.IsNullOrEmpty(outPalPath);
+                Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, object>
+                {
+                    ["command"] = "convertmap1picture",
+                    ["ok"] = true,
+                    ["in"] = inputPath,
+                    ["outImg"] = haveImg ? outImgPath : null,
+                    ["outTSA"] = haveTSA ? outTSAPath : null,
+                    ["outPal"] = havePal ? outPalPath : null,
+                    ["outImgBytes"] = haveImg ? (object)result.TileData.Length : null,
+                    ["outTSABytes"] = haveTSA ? (object)compressedTSA.Length : null,
+                    ["outPalBytes"] = havePal ? (object)result.PaletteData.Length : null,
+                    ["tiles"] = result.TileCount,
+                    ["gridWidth"] = result.WidthTiles,
+                    ["gridHeight"] = result.HeightTiles,
+                }));
             }
-
-            Console.WriteLine($"Map conversion complete:");
-            Console.WriteLine($"  Input: {inputPath} ({width}x{height})");
-            Console.WriteLine($"  Tiles: {result.TileCount} unique ({result.WidthTiles}x{result.HeightTiles} grid)");
-            if (!string.IsNullOrEmpty(outImgPath))
-                Console.WriteLine($"  Tile data: {outImgPath} ({result.TileData.Length} bytes)");
-            if (!string.IsNullOrEmpty(outTSAPath))
-                Console.WriteLine($"  TSA data: {outTSAPath}");
+            else
+            {
+                Console.WriteLine($"Map conversion complete:");
+                Console.WriteLine($"  Input: {inputPath} ({width}x{height})");
+                Console.WriteLine($"  Tiles: {result.TileCount} unique ({result.WidthTiles}x{result.HeightTiles} grid)");
+                if (!string.IsNullOrEmpty(outImgPath))
+                    Console.WriteLine($"  Tile data: {outImgPath} ({result.TileData.Length} bytes)");
+                if (!string.IsNullOrEmpty(outTSAPath))
+                    Console.WriteLine($"  TSA data: {outTSAPath}");
+                if (!string.IsNullOrEmpty(outPalPath))
+                    Console.WriteLine($"  Palette data: {outPalPath} ({result.PaletteData.Length} bytes)");
+            }
             return 0;
         }
 

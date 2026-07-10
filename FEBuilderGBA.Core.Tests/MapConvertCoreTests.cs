@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Xunit;
 
 namespace FEBuilderGBA.Core.Tests
@@ -163,6 +164,154 @@ namespace FEBuilderGBA.Core.Tests
             Assert.NotNull(result);
             // 4bpp: 32 bytes per 8x8 tile
             Assert.Equal(result.TileCount * 32, result.TileData.Length);
+        }
+
+        [Fact]
+        public void ConvertImage_OpaqueColorNeverUsesTransparentIndexZero()
+        {
+            int w = 8, h = 8;
+            byte[] rgba = new byte[w * h * 4];
+            for (int i = 0; i < w * h; i++)
+            {
+                rgba[i * 4 + 0] = 255;
+                rgba[i * 4 + 3] = 255;
+            }
+
+            var result = MapConvertCore.ConvertImage(rgba, w, h, out string error);
+
+            Assert.NotNull(result);
+            Assert.Equal("", error);
+            Assert.Equal(new byte[] { 0, 0, 0x1F, 0 }, result.PaletteData);
+            Assert.All(result.TileData, packed => Assert.Equal((byte)0x11, packed));
+        }
+
+        [Fact]
+        public void ConvertImage_MoreThan15OpaqueColors_ReturnsError()
+        {
+            int w = 8, h = 8;
+            byte[] rgba = new byte[w * h * 4];
+            for (int i = 0; i < w * h; i++)
+            {
+                rgba[i * 4 + 0] = (byte)((i % 16) * 8);
+                rgba[i * 4 + 3] = 255;
+            }
+
+            var result = MapConvertCore.ConvertImage(rgba, w, h, out string error, maxPalettes: 1);
+
+            Assert.Null(result);
+            Assert.Contains("more than 15 opaque colors", error);
+        }
+
+        [Fact]
+        public void ConvertImage_MoreThan1024UniqueTiles_ReturnsError()
+        {
+            const int tilesX = 33;
+            const int tilesY = 32;
+            int w = tilesX * 8;
+            int h = tilesY * 8;
+            byte[] rgba = new byte[w * h * 4];
+
+            for (int tile = 0; tile < tilesX * tilesY; tile++)
+            {
+                int tileX = tile % tilesX;
+                int tileY = tile / tilesX;
+                for (int pixel = 0; pixel < 64; pixel++)
+                {
+                    int x = tileX * 8 + (pixel % 8);
+                    int y = tileY * 8 + (pixel / 8);
+                    int offset = (y * w + x) * 4;
+                    byte value = pixel < 11 && (tile & (1 << pixel)) != 0 ? (byte)255 : (byte)0;
+                    rgba[offset + 0] = value;
+                    rgba[offset + 1] = value;
+                    rgba[offset + 2] = value;
+                    rgba[offset + 3] = 255;
+                }
+            }
+
+            var result = MapConvertCore.ConvertImage(rgba, w, h, out string error);
+
+            Assert.Null(result);
+            Assert.Contains("1024 unique tiles", error);
+        }
+
+        [Fact]
+        public void ConvertImage_TransparentAndOpaqueBlack_UseDistinctIndices()
+        {
+            int w = 8, h = 8;
+            byte[] rgba = new byte[w * h * 4];
+            rgba[1 * 4 + 3] = 255; // Opaque black next to transparent pixel 0.
+            rgba[2 * 4 + 0] = 255;
+            rgba[2 * 4 + 3] = 255; // Opaque red.
+
+            var result = MapConvertCore.ConvertImage(rgba, w, h, out string error);
+
+            Assert.NotNull(result);
+            Assert.Equal("", error);
+            Assert.Equal(0x10, result.TileData[0]); // transparent=0, opaque black=1
+            Assert.Equal(0x02, result.TileData[1]); // opaque red=2, transparent=0
+        }
+
+        [Fact]
+        public void ConvertImage_RgbColorsCollapsingToGbaColors_DoNotFalseReject()
+        {
+            int w = 8, h = 8;
+            byte[] rgba = new byte[w * h * 4];
+            for (int i = 0; i < w * h; i++)
+            {
+                rgba[i * 4 + 0] = (byte)(i % 18);
+                rgba[i * 4 + 3] = 255;
+            }
+
+            var result = MapConvertCore.ConvertImage(rgba, w, h, out string error);
+
+            Assert.NotNull(result);
+            Assert.Equal("", error);
+            Assert.InRange(result.PaletteData.Length / 2, 2, 4);
+        }
+
+        [Fact]
+        public void ConvertImage_SkewedFifteenColorInput_PreservesEveryGbaColor()
+        {
+            int w = 16, h = 8;
+            byte[] rgba = new byte[w * h * 4];
+            for (int i = 0; i < w * h; i++)
+            {
+                rgba[i * 4 + 0] = 14 * 8;
+                rgba[i * 4 + 3] = 255;
+            }
+            for (int i = 0; i < 14; i++)
+                rgba[i * 4 + 0] = (byte)(i * 8);
+
+            var result = MapConvertCore.ConvertImage(rgba, w, h, out string error);
+
+            Assert.NotNull(result);
+            Assert.Equal("", error);
+            Assert.Equal(32, result.PaletteData.Length);
+
+            var palette = new HashSet<ushort>();
+            for (int i = 0; i < result.PaletteData.Length; i += 2)
+                palette.Add((ushort)(result.PaletteData[i] | (result.PaletteData[i + 1] << 8)));
+            Assert.Equal(15, palette.Count);
+            for (ushort color = 0; color < 15; color++)
+                Assert.Contains(color, palette);
+
+            for (int y = 0; y < h; y++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    int tsaOffset = ((y / 8) * result.WidthTiles + (x / 8)) * 2;
+                    int tileIndex = (result.TSAData[tsaOffset] |
+                        (result.TSAData[tsaOffset + 1] << 8)) & 0x3FF;
+                    int tilePixel = (y % 8) * 8 + (x % 8);
+                    byte packed = result.TileData[tileIndex * 32 + (tilePixel / 2)];
+                    int paletteIndex = (tilePixel & 1) == 0 ? packed & 0x0F : packed >> 4;
+                    Assert.InRange(paletteIndex, 1, 15);
+                    ushort actual = (ushort)(result.PaletteData[paletteIndex * 2] |
+                        (result.PaletteData[paletteIndex * 2 + 1] << 8));
+                    ushort expected = (ushort)(rgba[(y * w + x) * 4] >> 3);
+                    Assert.Equal(expected, actual);
+                }
+            }
         }
     }
 }
