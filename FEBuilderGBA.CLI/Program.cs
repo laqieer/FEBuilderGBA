@@ -1364,7 +1364,7 @@ namespace FEBuilderGBA.CLI
                 {
                     string fullImgPath = Path.GetFullPath(outImgPath);
                     string fullTSAPath = Path.GetFullPath(outTSAPath);
-                    StringComparison comparison = OperatingSystem.IsWindows()
+                    StringComparison comparison = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
                         ? StringComparison.OrdinalIgnoreCase
                         : StringComparison.Ordinal;
                     if (string.Equals(fullImgPath, fullTSAPath, comparison))

@@ -163,7 +163,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             var output = TempFile(".bin");
             string directory = Path.GetDirectoryName(output)
                 ?? throw new InvalidOperationException("Temporary output path has no directory.");
-            string alias = Path.Combine(directory, ".", Path.GetFileName(output));
+            string alias = Path.Combine(directory, ".", Path.GetFileName(output).ToUpperInvariant());
             var (code, stdout, _) = AppRunner.Run(CliExe,
                 $"--convertmap1picture --in=\"{png}\" --outImg=\"{output}\" --outTSA=\"{alias}\" --json",
                 timeoutMs: 30_000);
