@@ -18,7 +18,8 @@ namespace FEBuilderGBA.E2ETests.Tests
     /// <c>RomCliTests</c>. The <c>--format</c>/<c>--c-symbol</c> validation tests run
     /// before any ROM load (proven with a deliberately nonexistent <c>--rom</c> path), so
     /// they are plain <see cref="FactAttribute"/>s that need no ROM at all. No ROM is
-    /// bundled or downloaded by this test file itself.
+    /// bundled or downloaded by this test file itself. A generated forced-FE8U fixture
+    /// with a minimal valid Huffman tree covers zero-row C output without an external ROM.
     /// </summary>
     public class CliDataCExportE2ETests : IDisposable
     {
@@ -83,6 +84,31 @@ namespace FEBuilderGBA.E2ETests.Tests
             data[offset + 1] = (byte)((value >> 8) & 0xFF);
             data[offset + 2] = (byte)((value >> 16) & 0xFF);
             data[offset + 3] = (byte)((value >> 24) & 0xFF);
+        }
+
+        private string CreateMinimalForcedFE8URom()
+        {
+            const int RomSize = 0x1000000;
+            const int TreeOffset = 0x1000;
+            const int TreeDataPointerOffset = 0x2000;
+            const int TreeDataOffset = 0x3000;
+            const uint GbaBase = 0x08000000;
+
+            byte[] data = new byte[RomSize];
+
+            // FE8U stores the tree-data pointer through one extra indirection.
+            WriteU32LE(data, 0x6DC, GbaBase + TreeDataPointerOffset);
+            WriteU32LE(data, TreeDataPointerOffset, GbaBase + TreeDataOffset);
+            WriteU32LE(data, 0x6E0, GbaBase + TreeOffset);
+
+            // One branch whose two children are leaf codes 0 (EOF) and 1.
+            data[TreeDataOffset + 2] = 1;
+            WriteU32LE(data, TreeOffset, 0x80000000);
+            WriteU32LE(data, TreeOffset + 4, 0x80000001);
+
+            string path = TempFile(".gba");
+            File.WriteAllBytes(path, data);
+            return path;
         }
 
         // ------------------------------------------------------------------ FE8U items: shape + no BOM
@@ -340,11 +366,7 @@ namespace FEBuilderGBA.E2ETests.Tests
         [Fact]
         public void ExportData_C_PredefinedMacroSymbol_EmitsUndefGuard()
         {
-            string rom = TempFile(".gba");
-            using (var stream = new FileStream(rom, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-            {
-                stream.SetLength(0x1000000);
-            }
+            string rom = CreateMinimalForcedFE8URom();
             string outC = TempFile(".c");
 
             var (code, stdout, stderr) = AppRunner.Run(CliExe,
