@@ -460,14 +460,14 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  --applyups=<path>        Apply UPS patch (requires --rom and --patch)");
             Console.WriteLine("  --lint                   Run lint checks on ROM (requires --rom)");
             Console.WriteLine("  --disasm=<path>          Disassemble ROM to file (requires --rom)");
-            Console.WriteLine("  --decreasecolor          Quantize image palette (requires --in, --out, --paletteno; --json for machine output)");
+            Console.WriteLine("  --decreasecolor          Quantize image palette (requires --in, --out; --paletteno optional, default 16; --json for machine output)");
             Console.WriteLine("    --noScale              Do not scale colors to GBA 5-bit range");
             Console.WriteLine("    --noReserve1stColor    Do not reserve palette slot 0 for transparency");
             Console.WriteLine("    --ignoreTSA            Ignore TSA tile deduplication constraints");
             Console.WriteLine("  --pointercalc            Search pointer references (requires --rom, --target, --address)");
             Console.WriteLine("  --rebuild                Rebuild/defragment ROM (requires --rom, --fromrom)");
             Console.WriteLine("  --songexchange           Copy song between ROMs (requires --rom, --fromrom, --fromsong, --tosong)");
-            Console.WriteLine("  --convertmap1picture     Convert image to map tiles (requires --in, --outImg, --outTSA; --json for machine output)");
+            Console.WriteLine("  --convertmap1picture     Convert image to map tiles (requires --in and --outImg and/or --outTSA; --json for machine output)");
             Console.WriteLine("  --translate              Dump or import ROM text (requires --rom)");
             Console.WriteLine("    --out=<path>           Export text to TSV file");
             Console.WriteLine("    --in=<path>            Import text from TSV file and write to ROM");
@@ -974,9 +974,12 @@ namespace FEBuilderGBA.CLI
 
             string inputPath = argsDic["--in"];
             string outputPath = argsDic["--out"];
-            int maxColors = 16;
+            int maxColors = 16;  // optional; default 16 when --paletteno is omitted
             if (argsDic.ContainsKey("--paletteno") && !string.IsNullOrEmpty(argsDic["--paletteno"]))
-                int.TryParse(argsDic["--paletteno"], out maxColors);
+            {
+                if (!int.TryParse(argsDic["--paletteno"], out maxColors) || maxColors < 1)
+                    return Fail("--paletteno must be a positive integer");
+            }
 
             // Parse optional flags
             bool noScale = argsDic.ContainsKey("--noScale");

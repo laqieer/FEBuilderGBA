@@ -131,6 +131,20 @@ namespace FEBuilderGBA.E2ETests.Tests
         }
 
         [Fact]
+        public void DecreaseColor_Json_InvalidPaletteno_Error()
+        {
+            var png = GenerateTestPng();
+            var outp = TempFile(".png");
+            var (code, stdout, _) = AppRunner.Run(CliExe,
+                $"--decreasecolor --in=\"{png}\" --out=\"{outp}\" --paletteno=abc --json", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            using var doc = JsonDocument.Parse(stdout);
+            Assert.False(doc.RootElement.GetProperty("ok").GetBoolean());
+            Assert.Contains("paletteno", doc.RootElement.GetProperty("error").GetString(),
+                StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
         public void DecreaseColor_NoJson_KeepsHumanOutput()
         {
             var png = GenerateTestPng();
