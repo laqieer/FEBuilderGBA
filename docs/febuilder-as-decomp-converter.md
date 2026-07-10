@@ -65,13 +65,26 @@ name is reproduced verbatim (including its missing `l`):
 FEBuiderGBA = '..\\FEBuilderGBA\\FEBuilderGBA\\bin\\Debug\\FEBuilderGBA.exe --rom=baserom.gba'  # sic
 ```
 
-That's this exact repositioning, **already in production** — but bound to a **fragile `bin/Debug/…exe`
-path** and to regex-scraping human stdout. The supported path is instead:
+This is production prior art for calling FEBuilderGBA from a build script, but it is **not** a drop-in
+executable swap. The legacy WinForms command reconstructs `--outImg=gfx/map/<id>.png` as an encoded PNG.
+The cross-platform CLI has a pre-existing, different contract: `--outImg` is always raw 4bpp tile bytes
+(exactly `tiles * 32` bytes), regardless of the file extension.
 
-- Depend on the **cross-platform `FEBuilderGBA.CLI`** (built/published, or `dotnet run`), not a
-  `bin/Debug` WinForms exe.
-- Pass **`--json`** and parse the structured result (`ok`, output paths, byte sizes, grid dims) instead of
-  regex-scraping log text — stable across log-wording refactors.
+A safe FEHRR migration therefore requires both:
+
+1. Change `--outImg` to a binary-oriented path such as `gfx/map/<id>.4bpp`, and update the downstream
+   build step to consume raw tile bytes. If that consumer still requires PNG, retain the legacy WinForms
+   conversion until the consumer is adapted.
+2. Then invoke **`FEBuilderGBA.CLI`** (built/published, or `dotnet run`) with **`--json`**, and parse the
+   structured result (`ok`, output paths, byte sizes, grid dimensions) instead of regex-scraping logs.
+
+For example, after the downstream consumer accepts raw 4bpp:
+
+```powershell
+FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=gfx/map/0001.4bpp --outTSA=maps/0001.tsa.lz --json
+```
+
+`--json` stabilizes process integration; it does not change either output file format.
 
 ## Relationship & forward work
 

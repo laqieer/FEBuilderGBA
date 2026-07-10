@@ -62,11 +62,11 @@ namespace FEBuilderGBA.E2ETests.Tests
         }
 
         [Fact]
-        public void ConvertMap1Picture_Json_Success_PartialOutput_TsaNull()
+        public void ConvertMap1Picture_Json_Success_PartialOutput_IsRaw4Bpp()
         {
             var png = GenerateTestPng();
-            var img = TempFile(".bin");
-            // Only --outImg requested → the deterministic contract reports outTSA/outTSABytes as null.
+            // The CLI contract is raw 4bpp tile data even when the caller supplies a .png extension.
+            var img = TempFile(".png");
             var (code, stdout, _) = AppRunner.Run(CliExe,
                 $"--convertmap1picture --in=\"{png}\" --outImg=\"{img}\" --json", timeoutMs: 30_000);
             Assert.Equal(0, code);
@@ -74,11 +74,16 @@ namespace FEBuilderGBA.E2ETests.Tests
             var root = doc.RootElement;
             Assert.Equal("convertmap1picture", root.GetProperty("command").GetString());
             Assert.True(root.GetProperty("ok").GetBoolean());
-            Assert.True(root.GetProperty("outImgBytes").GetInt64() > 0);
+            int tiles = root.GetProperty("tiles").GetInt32();
+            long outImgBytes = root.GetProperty("outImgBytes").GetInt64();
+            Assert.Equal(tiles * 32L, outImgBytes);
             Assert.Equal(JsonValueKind.Null, root.GetProperty("outTSA").ValueKind);
             Assert.Equal(JsonValueKind.Null, root.GetProperty("outTSABytes").ValueKind);
-            Assert.True(root.GetProperty("tiles").GetInt32() >= 1);
-            Assert.True(File.Exists(img));
+            byte[] tileData = File.ReadAllBytes(img);
+            Assert.Equal(outImgBytes, tileData.LongLength);
+            Assert.False(tileData.Length >= 8 &&
+                tileData[0] == 0x89 && tileData[1] == 0x50 && tileData[2] == 0x4E && tileData[3] == 0x47 &&
+                tileData[4] == 0x0D && tileData[5] == 0x0A && tileData[6] == 0x1A && tileData[7] == 0x0A);
         }
 
         [Fact]
