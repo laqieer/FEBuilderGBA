@@ -38,7 +38,7 @@ implementing the gaps identified below — those are candidate follow-up issues,
 | `get-weapon-rank.ts` | `--export-data --table=units` — real fields `SwordRank`/`LanceRank`/`AxeRank`/`BowRank`/`StaffRank`/`AnimaRank`/`LightRank`/`DarkRank` (`struct_unit_fe78.txt`) | **Existing verb** |
 | Item/weapon stats (`Might`, `Hit`, `Weight`, `Crit`, ranges, `WeaponRank`, …) | `--export-data --table=items` (`struct_item_fe78.txt`) | **Existing verb** |
 | Multi-version support (FE6/7/8, J/U) | Automatic ROM version detection, or `--force-version=<FE6\|FE7J\|FE7U\|FE8J\|FE8U>` | **Existing, free** |
-| The correctness gate | `--lint` (structural/pointer/text-id validity) and `--data-roundtrip` / `--translate-roundtrip` (export/import losslessness) — see the [precision note](#correctness-gate-precision-lint-vs-round-trip) below; **neither checks gameplay/semantic validity** | **Existing verb, precision caveat** |
+| The correctness gate | `--lint` (structural/pointer/text-id validity), `--data-roundtrip` (struct read/write stability), and `--translate-roundtrip` (text export/import losslessness) — see the [precision note](#correctness-gate-precision-lint-vs-round-trip) below; **none checks gameplay/semantic validity** | **Existing verb, precision caveat** |
 | `class-name-to-rom-class-name.ts` (name → id) | **Gap.** `--resolve-names` is **id → name only** (`--kind=<unit\|class\|item\|song> --ids=<comma-list>`); the reverse (name → id) has no CLI verb today. | **Needed verb** |
 | `generate-affinity.ts` (decoded affinity) | `--export-data --table=units` exposes the direct `Affinity` byte at `0x09` for FE6/7/8. It exports the raw hex value; converting that value to a human-readable affinity name still requires a decoder. | **Existing raw field; decoded-name gap** |
 | `map-processing/` (terrain-aware coordinate logic) | **Gap.** No terrain-query CLI verb exists; `docs/agent-parity.md` rates map *tile layout* as **Partial** (chapter/map *settings* are `--export-data --table=map_settings`-covered, but terrain-aware coordinate processing is not). | **Needed verb** |
@@ -99,10 +99,13 @@ An LLM generator needs to know exactly what these gates do and do **not** guaran
   dangling pointers, malformed tables, missing text references). It does **not** evaluate gameplay
   balance, and a ROM with absurd stats (e.g. a level-1 unit with 255 HP) can still pass `--lint`
   cleanly.
-- **`--data-roundtrip`** (and `--translate-roundtrip` for text) verifies **export/import
-  losslessness**: export → import → re-export → diff, on a temporary copy of the ROM. It proves the
-  serialization format doesn't lose or corrupt data; it does **not** verify that the *values* the
-  generator chose are gameplay-sensible.
+- **`--data-roundtrip`** verifies **struct read/write stability** on a temporary ROM copy: it reads
+  each table into in-memory field dictionaries, writes those same dictionaries back, re-reads the
+  table, and compares the values. It does **not** pass through TSV, CSV, EA, or JSON, so it does not
+  prove that a serialization format is lossless; the JSON parser/writer contract is exercised by the
+  JSON Core and CLI E2E tests instead. `--translate-roundtrip` separately exercises the text
+  export/import path. Neither gate verifies that the *values* the generator chose are
+  gameplay-sensible.
   (`--import-data`'s JSON-only semantic preflight, described above, does reject a value that
   overflows its field's byte/word/dword/pointer width — but that is a numeric-width check, not a
   gameplay/balance judgment; a byte-width stat like `0xFF` HP is numerically valid and will still

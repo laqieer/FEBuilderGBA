@@ -404,9 +404,10 @@ required and optional flags. Each is verified against its `Run*` handler in
   for losslessness (works on a temp copy; the source ROM is untouched). Requires `--rom`;
   optional `--out=<base>` saves `<base>.export1.tsv` and `<base>.export2.tsv`. **Exit:**
   0 lossless, 2 if any text entry mismatches, 1 on file/usage error.
-- **`--data-roundtrip`** — Export/import struct data and verify losslessness on a temp
-  copy. Requires `--rom`; optional `--table=<name>` (default `all`). **Exit:** 0 lossless,
-  2 if any table mismatches, 1 on file/usage error.
+- **`--data-roundtrip`** — Verify direct struct read/write stability on a temp copy: read
+  table values, write the same in-memory values back, re-read, and compare. It does not
+  serialize through TSV/CSV/EA/JSON. Requires `--rom`; optional `--table=<name>` (default
+  `all`). **Exit:** 0 stable, 2 if any table mismatches, 1 on file/usage error.
 - **`--lint-oam`** — Validate battle-animation OAM data at an address. Requires `--rom`
   and `--addr=<hex>`; optional `--length=<int>` (0 = auto, default). **Exit:** 0 clean,
   1 if issues are found or on usage error.
