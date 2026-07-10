@@ -109,6 +109,11 @@ the "### Graphics System" overview in `CLAUDE.md`.
 - `StructExportCore.FormatSTRUCT`/`FormatNMM` (Core, READ-ONLY, PURE) — Struct Dump Selector STRUCT (.h
   C-header) + NMM (No$gba memory map) export over `StructMetadata.StructDef`; Avalonia
   `DumpStructSelectDialogViewModel.MakeExportText` routes STRUCT/NMM (+CSV/TSV/EA), hex stub for unresolved. #1012.
+  `FormatJSON`/`ParseJSON`/`ExportToJSON`/`ImportFromJSON` (#1937) add a JSON array-of-objects sibling to
+  TSV/CSV/EA for `--export-data`/`--import-data`: public key `Index` (never internal `_Index`), one key per
+  field, every value a JSON **string** in the same hex/text form as TSV; `ParseJSON` fully validates the
+  document (array root, object rows, string-only values, no duplicate properties, strict `Index` parsing —
+  no silent alias to row 0 on garbage/overflow/negative) before any ROM write.
 - `BattleAnimeRendererCore.RenderSampleBattleAnime` optional EXACT-32-byte `overridePaletteBlock` (Core, READ-ONLY)
   — live-recolor the Unit Palette editor sample preview from R/G/B spinners: Avalonia
   `ImageUnitPaletteView` packs 16 spinners (`UnitPaletteWriteCore.PackRgb555`) → `RenderClassSamplePreview(...,
