@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace FEBuilderGBA
 {
@@ -1264,6 +1266,114 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Format table data as a JSON array of objects (#1937 — the LLM-backend
+        /// / agent-consumable format). Public keys are exactly the TSV column
+        /// headers used by <see cref="FormatTSV"/>: the internal <c>_Index</c> key
+        /// is renamed to the public <c>Index</c> key (never leaked as-is), followed
+        /// by one key per struct field in declaration order. Every value is
+        /// serialized as a JSON *string* holding the same TSV-compatible hex/text
+        /// representation (e.g. <c>"0x0A"</c>) — no numbers/booleans — so JSON
+        /// round-trips through the same <c>U.atoi0x</c> parsing as TSV/CSV.
+        /// <see cref="ExportToJSON"/> writes exactly this string to disk.
+        /// </summary>
+        public static string FormatJSON(List<Dictionary<string, string>> entries, StructMetadata.StructDef structDef)
+        {
+            var array = new JsonArray();
+            foreach (var entry in entries)
+            {
+                var obj = new JsonObject
+                {
+                    ["Index"] = entry.TryGetValue("_Index", out var idx) ? idx : ""
+                };
+                foreach (var field in structDef.Fields)
+                {
+                    obj[field.Name] = entry.TryGetValue(field.Name, out var val) ? val : "";
+                }
+                array.Add(obj);
+            }
+
+            var opts = new JsonSerializerOptions { WriteIndented = true };
+            return array.ToJsonString(opts);
+        }
+
+        /// <summary>
+        /// Parse a JSON document produced by (or compatible with) <see cref="FormatJSON"/>
+        /// back into (index, fields) entries usable by <see cref="WriteTable"/>. Mirrors
+        /// <see cref="ImportFromTSV"/> but for JSON input. Validates the *entire* document
+        /// before returning anything, so a caller can rely on "no exception ⇒ every row is
+        /// well-formed" and defer all ROM writes until after a successful parse:
+        /// <list type="bullet">
+        /// <item>the root element must be a JSON array;</item>
+        /// <item>every row must be a JSON object;</item>
+        /// <item>every property value must be a JSON string — numbers, booleans, nulls,
+        /// arrays, and nested objects are all rejected with a specific, actionable message
+        /// (row number + property name + the offending <see cref="JsonValueKind"/>);</item>
+        /// <item>the public <c>Index</c> property is required and is normalized back to the
+        /// internal index used by <see cref="WriteTable"/> (the same "0xNN[ name]" parsing
+        /// TSV import uses via <c>ParseIndexFromFirstColumn</c>).</item>
+        /// </list>
+        /// Throws <see cref="JsonException"/> for malformed JSON syntax, or
+        /// <see cref="FormatException"/> for a syntactically valid document that violates
+        /// the shape above.
+        /// </summary>
+        public static List<(int index, Dictionary<string, string> fields)> ParseJSON(string json)
+        {
+            var result = new List<(int, Dictionary<string, string>)>();
+
+            using var doc = JsonDocument.Parse(json);
+            JsonElement root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Array)
+                throw new FormatException($"Invalid JSON import: root element must be an array, got {root.ValueKind}.");
+
+            int rowNum = 0;
+            foreach (JsonElement rowEl in root.EnumerateArray())
+            {
+                rowNum++;
+                if (rowEl.ValueKind != JsonValueKind.Object)
+                    throw new FormatException($"Invalid JSON import: row {rowNum} must be an object, got {rowEl.ValueKind}.");
+
+                string indexRaw = null;
+                var fields = new Dictionary<string, string>();
+                foreach (JsonProperty prop in rowEl.EnumerateObject())
+                {
+                    if (prop.Value.ValueKind != JsonValueKind.String)
+                    {
+                        throw new FormatException(
+                            $"Invalid JSON import: row {rowNum}, property '{prop.Name}' must be a JSON string, got {prop.Value.ValueKind}.");
+                    }
+
+                    string value = prop.Value.GetString();
+                    if (prop.Name == "Index")
+                        indexRaw = value;
+                    else
+                        fields[prop.Name] = value;
+                }
+
+                if (indexRaw == null)
+                    throw new FormatException($"Invalid JSON import: row {rowNum} is missing the required 'Index' property.");
+
+                int entryIndex = ParseIndexFromFirstColumn(indexRaw);
+                if (entryIndex < 0)
+                    throw new FormatException($"Invalid JSON import: row {rowNum} has an unparsable 'Index' value '{indexRaw}'.");
+
+                result.Add((entryIndex, fields));
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Import table data from a JSON file (see <see cref="ParseJSON"/> for the
+        /// validated shape). Throws before returning if the document is malformed —
+        /// callers must not mutate the ROM until this call succeeds.
+        /// </summary>
+        public static List<(int index, Dictionary<string, string> fields)> ImportFromJSON(string inputPath)
+        {
+            string content = File.ReadAllText(inputPath, Encoding.UTF8);
+            return ParseJSON(content);
+        }
+
+        /// <summary>
         /// Format the struct layout as a C-header (".h") string, porting the
         /// WinForms <c>DumpStructSelectDialogForm.MakeStructString</c> output.
         /// The first line is <c>struct {Name} {//{Name}</c>; each field emits one
@@ -1386,6 +1496,17 @@ namespace FEBuilderGBA
         public static void ExportToEA(List<Dictionary<string, string>> entries, StructMetadata.StructDef structDef, string outputPath)
         {
             File.WriteAllText(outputPath, FormatEA(entries, structDef), Encoding.UTF8);
+        }
+
+        /// <summary>
+        /// Export table data to a JSON file (array of objects; see <see cref="FormatJSON"/>
+        /// for the exact shape). Written UTF-8 without a BOM — JSON has no BOM convention
+        /// and this keeps the file directly consumable by strict JSON parsers/LLM tooling.
+        /// Output is byte-identical to <see cref="FormatJSON"/>.
+        /// </summary>
+        public static void ExportToJSON(List<Dictionary<string, string>> entries, StructMetadata.StructDef structDef, string outputPath)
+        {
+            File.WriteAllText(outputPath, FormatJSON(entries, structDef), Utf8NoBom);
         }
 
         /// <summary>UTF-8 WITHOUT a BOM. The .h/.nmm files are consumed by
