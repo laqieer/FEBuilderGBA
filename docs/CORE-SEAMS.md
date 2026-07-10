@@ -113,7 +113,19 @@ the "### Graphics System" overview in `CLAUDE.md`.
   TSV/CSV/EA for `--export-data`/`--import-data`: public key `Index` (never internal `_Index`), one key per
   field, every value a JSON **string** in the same hex/text form as TSV; `ParseJSON` fully validates the
   document (array root, object rows, string-only values, no duplicate properties, strict `Index` parsing —
-  no silent alias to row 0 on garbage/overflow/negative) before any ROM write.
+  no silent alias to row 0 on garbage/overflow/negative) before any ROM write. `ValidateJSONEntries`/
+  `ParseAndValidateJSON`/`ImportFromJSON(path, structDef, entryCount)` (#1937 follow-up) add a second,
+  struct/count-aware semantic preflight that the shape-only `ParseJSON` deliberately does not do (kept
+  unchanged as a shape-only overload for existing callers): every non-`Index` property name must be a known
+  `structDef.Fields` name (unknown/typo'd names rejected with row+property, a field simply absent from a row
+  stays allowed for partial updates); every field value is strictly re-parsed as a complete `0x`/`$`/decimal
+  token — rejecting trailing tokens, bare prefixes, negatives, and overflow — and range-checked against the
+  field's `FieldType` width (Byte/Word/DWord/Pointer), with accepted values rewritten in place to a canonical
+  lowercase-`0x` (or decimal) form so the later `U.atoi0x` call (which only recognizes a lowercase `0x`, never
+  `0X`) parses them safely; no two rows may share an `Index`; and every `Index` must be in `[0, entryCount)`
+  for the resolved table, rejected here instead of relying on `WriteTable`'s silent per-row skip. CLI
+  `RunImportData`'s JSON branch calls `ImportFromJSON(inputPath, structDef, table.GetEntryCount(rom))` so every
+  check above runs — and can throw `FormatException` — strictly before `WriteTable`/`ROM.Save`.
 - `BattleAnimeRendererCore.RenderSampleBattleAnime` optional EXACT-32-byte `overridePaletteBlock` (Core, READ-ONLY)
   — live-recolor the Unit Palette editor sample preview from R/G/B spinners: Avalonia
   `ImageUnitPaletteView` packs 16 spinners (`UnitPaletteWriteCore.PackRgb555`) → `RenderClassSamplePreview(...,

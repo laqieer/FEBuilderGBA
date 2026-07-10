@@ -435,8 +435,17 @@ required and optional flags. Each is verified against its `Run*` handler in
   public `Index` key is required and strictly parsed (0x-hex, `$`-hex, or plain decimal,
   optionally followed by a space and a label) back to the internal row index — unlike TSV
   import, a garbage/overflowing/negative `Index` is rejected outright rather than silently
-  aliased to row 0. **Exit:** 0 on success, 1 on usage/unknown-table/unsupported-format/
-  malformed-input error.
+  aliased to row 0. A second, struct/count-aware preflight then runs — still **before** any
+  ROM write — that TSV import does not perform: every non-`Index` property name must be a
+  known field of the resolved table's struct (an unknown/typo'd name, e.g. `Wieght` instead
+  of `Weight`, is rejected with the row number and property name — a field simply absent
+  from a row is still allowed, for partial updates); every field value must strictly parse
+  as a complete `0x`-hex/`$`-hex/plain-decimal token — no trailing tokens, no bare prefixes,
+  no negatives, no overflow — and fit the field's byte/word/dword/pointer width (accepted
+  values are normalized to a canonical lowercase-`0x`/decimal form first); no two rows may
+  target the same `Index`; and every `Index` must be within `[0, entryCount)` for the
+  resolved table (rejected here instead of relying on the writer's silent per-row skip).
+  **Exit:** 0 on success, 1 on usage/unknown-table/unsupported-format/malformed-input error.
 - **`--resolve-names`** — Resolve entity IDs to names. Requires `--rom`, `--kind=<unit|class|item|song>`,
   and `--ids=<comma-list>`. Prints `id<TAB>name` per ID. **Exit:** 0 on success, 1 on
   usage/unknown-kind error.

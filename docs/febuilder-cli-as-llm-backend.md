@@ -68,15 +68,26 @@ file if this doc and the CLI ever drift.
   `--format` value outside the supported set (`tsv`/`csv`/`ea`/`json` for export, `tsv`/`json` for
   import) is rejected with an actionable error instead of silently falling back to TSV.
 - **Backstop:** this shape is covered by regression tests — `FEBuilderGBA.Core.Tests/StructExportFormatTests.cs`
-  (`FormatJSON`/`ParseJSON` unit tests, including the strict `Index` parsing and duplicate-property
-  rejection below) and `FEBuilderGBA.E2ETests/Tests/CliDataJsonE2ETests.cs` (ROM-gated export/import/
-  round-trip E2E tests, plus non-ROM `--format` validation tests).
-- **Validation before mutation:** `--import-data` with JSON input validates the **entire** document —
-  root must be an array, every row an object, every property value a JSON string, and no row may
-  repeat the same property name (including `Index`) twice — before writing anything to the ROM. A
-  malformed document (a stray number/boolean/null/array/object value, a non-array root, a duplicated
-  property, or an unparsable `Index`) fails with a specific, actionable error and leaves the ROM
-  byte-for-byte unchanged.
+  (`FormatJSON`/`ParseJSON`/`ValidateJSONEntries` unit tests, including the strict `Index` parsing,
+  duplicate-property rejection, unknown-field rejection, per-field numeric strictness/width
+  range-checking, duplicate-row-index rejection, and out-of-range-`Index` rejection below) and
+  `FEBuilderGBA.E2ETests/Tests/CliDataJsonE2ETests.cs` (ROM-gated export/import/round-trip E2E
+  tests, plus non-ROM `--format` validation tests).
+- **Validation before mutation:** `--import-data` with JSON input runs two validation passes, both
+  **before** writing anything to the ROM. First, a shape check: root must be an array, every row an
+  object, every property value a JSON string, and no row may repeat the same property name (including
+  `Index`) twice. Second, a struct/count-aware semantic preflight that catches what the shape check
+  can't: every non-`Index` property name must be a known field of the target table's struct (a typo'd
+  field name, e.g. `Wieght` instead of `Weight`, is rejected instead of being silently ignored); every
+  field value must strictly parse as a complete `0x`-hex/`$`-hex/plain-decimal token — no trailing
+  tokens, no bare prefixes, no negatives, no overflow (e.g. `"banana"`, `"-1"`, `"0x"`, `"0x0A extra"`)
+  — and must fit the field's byte/word/dword/pointer width, or it is rejected instead of the
+  permissive `U.atoi0x` silently coercing it to `0` and mutating the ROM; accepted values are
+  normalized to a canonical lowercase-`0x` (or decimal) form so a `$` or uppercase-`0X` input still
+  parses correctly downstream; no two rows may target the same `Index`; and every `Index` must be
+  within `[0, entryCount)` for the resolved table instead of relying on the writer's silent per-row
+  skip. Any violation (shape or semantic) fails with a specific, actionable error — naming the row
+  number and, where applicable, the offending property — and leaves the ROM byte-for-byte unchanged.
 
 ## Correctness-gate precision: `--lint` vs. `--data-roundtrip`
 
@@ -89,7 +100,11 @@ An LLM generator needs to know exactly what these gates do and do **not** guaran
 - **`--data-roundtrip`** (and `--translate-roundtrip` for text) verifies **export/import
   losslessness**: export → import → re-export → diff, on a temporary copy of the ROM. It proves the
   serialization format doesn't lose or corrupt data; it does **not** verify that the *values* the
-  generator chose are sensible or in-range for the field.
+  generator chose are gameplay-sensible.
+  (`--import-data`'s JSON-only semantic preflight, described above, does reject a value that
+  overflows its field's byte/word/dword/pointer width — but that is a numeric-width check, not a
+  gameplay/balance judgment; a byte-width stat like `0xFF` HP is numerically valid and will still
+  pass.)
 
 Neither gate is a semantic/gameplay validator. An LLM generator should treat them as "did my data
 survive the round-trip and does it still look like a valid ROM," not "is this a balanced game."
@@ -117,8 +132,10 @@ FEBuilderGBA.CLI --data-roundtrip --rom=rom.gba --table=units
 ```
 
 If step 2 produces a malformed document (a number instead of a string, a missing `Index`, or a root
-that isn't an array), step 3 fails with a specific error and the ROM is left untouched — the generator
-can fix the JSON and retry without having corrupted anything.
+that isn't an array) or a *semantically* invalid one (an unknown/typo'd field name, a garbage/negative/
+overflowing field value, a duplicate row `Index`, or an `Index` outside the table's entry count), step
+3 fails with a specific error and the ROM is left untouched — the generator can fix the JSON and retry
+without having corrupted anything.
 
 ## Relationship to other agent-native issues
 
