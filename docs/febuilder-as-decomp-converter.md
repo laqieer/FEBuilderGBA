@@ -32,7 +32,7 @@ default human-readable output is unchanged when `--json` is absent.
 | Verb | Input | In-game output | `--json` result keys |
 |---|---|---|---|
 | `--convertmap1picture` | `--in=<map.png>` | Any of `--outImg=<tiles.bin>` (4bpp tiles), `--outTSA=<tsa.bin>` (LZ77 TSA), `--outPal=<palette.bin>` (matching GBA palette) | `command`, `ok`, `in`, `outImg`, `outTSA`, `outPal`, `outImgBytes`, `outTSABytes`, `outPalBytes`, `tiles`, `gridWidth`, `gridHeight` |
-| `--decreasecolor` | `--in=<image.png>` (+ optional `--paletteno`, default 16; 2–256 with reserved transparency, or 1–256 with `--noReserve1stColor`) | `--out=<image.png>` (GBA-quantized to ≤ `--paletteno` colors) | `command`, `ok`, `in`, `out`, `outBytes`, `paletteNo`, `colors`, `width`, `height` |
+| `--decreasecolor` | `--in=<image.png>` (+ optional `--paletteno`, default 16; 2–256 with reserved transparency, or 1–256 with `--noReserve1stColor`) | `--out=<image.png>` (median-cut RGB palette reduction to ≤ `--paletteno` colors) | `command`, `ok`, `in`, `out`, `outBytes`, `paletteNo`, `colors`, `width`, `height` |
 
 **Contract:**
 - `--json` present → one JSON object on **stdout**; **`--json` absent → unchanged human output** (fully
@@ -53,9 +53,9 @@ FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=t
 #  "outPal":"palette.bin","outImgBytes":4096,"outTSABytes":512,"outPalBytes":32,
 #  "tiles":128,"gridWidth":30,"gridHeight":20}
 
-# Quantize an image to a 16-color GBA palette:
-FEBuilderGBA.CLI --decreasecolor --in=portrait.png --out=portrait_gba.png --paletteno=16 --json
-# {"command":"decreasecolor","ok":true,"in":"portrait.png","out":"portrait_gba.png","outBytes":146,
+# Reduce an image to a 16-color RGB palette:
+FEBuilderGBA.CLI --decreasecolor --in=portrait.png --out=portrait_reduced.png --paletteno=16 --json
+# {"command":"decreasecolor","ok":true,"in":"portrait.png","out":"portrait_reduced.png","outBytes":146,
 #  "paletteNo":16,"colors":16,"width":16,"height":16}
 ```
 
