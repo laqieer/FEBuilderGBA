@@ -235,7 +235,7 @@ Convert an image to GBA map tile data and TSA (Tile Set Arrangement).
 
 | Option | Required | Description |
 |---|---|---|
-| `--in=<path>` | Yes | Input image file. Dimensions must be multiples of 8 pixels. |
+| `--in=<path>` | Yes | Input image file. Dimensions must be multiples of 8; conversion is limited to one 16-entry palette and 1024 unique tiles. |
 | `--outImg=<path>` | No* | Raw 4bpp tile bytes (32 bytes per tile), not an encoded image regardless of extension. |
 | `--outTSA=<path>` | No* | Output TSA data file (LZ77-compressed). |
 | `--json` | No | Emit one JSON object on stdout for success or failure. Errors still return a non-zero exit code. |

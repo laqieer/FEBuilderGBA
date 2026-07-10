@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Text.Json;
 using FEBuilderGBA.E2ETests.Helpers;
@@ -40,6 +42,40 @@ namespace FEBuilderGBA.E2ETests.Tests
             var (code, _, stderr) = AppRunner.Run(CliExe,
                 $"--generate-font --out=\"{png}\" --text=ABCD", timeoutMs: 30_000);
             Assert.True(code == 0 && File.Exists(png), $"--generate-font setup failed (exit {code}): {stderr}");
+            return png;
+        }
+
+        private string GenerateHighColorPng()
+        {
+            var png = TempFile(".png");
+            using var bitmap = new Bitmap(8, 8, PixelFormat.Format32bppArgb);
+            for (int i = 0; i < 64; i++)
+            {
+                bitmap.SetPixel(i % 8, i / 8,
+                    Color.FromArgb(255, (i & 7) * 32, (i >> 3) * 32, 128));
+            }
+            bitmap.Save(png, ImageFormat.Png);
+            return png;
+        }
+
+        private string GenerateTooManyTilesPng()
+        {
+            const int tilesX = 33;
+            const int tilesY = 32;
+            var png = TempFile(".png");
+            using var bitmap = new Bitmap(tilesX * 8, tilesY * 8, PixelFormat.Format32bppArgb);
+            for (int tile = 0; tile < tilesX * tilesY; tile++)
+            {
+                int tileX = tile % tilesX;
+                int tileY = tile / tilesX;
+                for (int pixel = 0; pixel < 64; pixel++)
+                {
+                    int value = pixel < 11 && (tile & (1 << pixel)) != 0 ? 255 : 0;
+                    bitmap.SetPixel(tileX * 8 + (pixel % 8), tileY * 8 + (pixel / 8),
+                        Color.FromArgb(255, value, value, value));
+                }
+            }
+            bitmap.Save(png, ImageFormat.Png);
             return png;
         }
 
@@ -244,6 +280,34 @@ namespace FEBuilderGBA.E2ETests.Tests
             using var doc = JsonDocument.Parse(stdout);
             Assert.False(doc.RootElement.GetProperty("ok").GetBoolean());
             Assert.Contains("Failed to load image", doc.RootElement.GetProperty("error").GetString());
+        }
+
+        [Fact]
+        public void ConvertMap1Picture_Json_MoreThan16Colors_Error()
+        {
+            var input = GenerateHighColorPng();
+            var outp = TempFile(".bin");
+            var (code, stdout, _) = AppRunner.Run(CliExe,
+                $"--convertmap1picture --in=\"{input}\" --outImg=\"{outp}\" --json", timeoutMs: 30_000);
+            Assert.NotEqual(0, code);
+            using var doc = JsonDocument.Parse(stdout);
+            Assert.False(doc.RootElement.GetProperty("ok").GetBoolean());
+            Assert.Contains("at most 16", doc.RootElement.GetProperty("error").GetString());
+            Assert.False(File.Exists(outp));
+        }
+
+        [Fact]
+        public void ConvertMap1Picture_Json_MoreThan1024UniqueTiles_Error()
+        {
+            var input = GenerateTooManyTilesPng();
+            var outp = TempFile(".bin");
+            var (code, stdout, _) = AppRunner.Run(CliExe,
+                $"--convertmap1picture --in=\"{input}\" --outImg=\"{outp}\" --json", timeoutMs: 30_000);
+            Assert.NotEqual(0, code);
+            using var doc = JsonDocument.Parse(stdout);
+            Assert.False(doc.RootElement.GetProperty("ok").GetBoolean());
+            Assert.Contains("1024 unique tiles", doc.RootElement.GetProperty("error").GetString());
+            Assert.False(File.Exists(outp));
         }
 
         [Fact]

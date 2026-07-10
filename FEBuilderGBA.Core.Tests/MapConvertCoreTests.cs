@@ -164,5 +164,56 @@ namespace FEBuilderGBA.Core.Tests
             // 4bpp: 32 bytes per 8x8 tile
             Assert.Equal(result.TileCount * 32, result.TileData.Length);
         }
+
+        [Fact]
+        public void ConvertImage_MoreThan16PaletteEntries_ReturnsError()
+        {
+            int w = 8, h = 8;
+            byte[] rgba = new byte[w * h * 4];
+            for (int i = 0; i < w * h; i++)
+            {
+                rgba[i * 4 + 0] = (byte)((i & 7) * 32);
+                rgba[i * 4 + 1] = (byte)((i >> 3) * 32);
+                rgba[i * 4 + 2] = 128;
+                rgba[i * 4 + 3] = 255;
+            }
+
+            var result = MapConvertCore.ConvertImage(rgba, w, h, out string error);
+
+            Assert.Null(result);
+            Assert.Contains("at most 16", error);
+        }
+
+        [Fact]
+        public void ConvertImage_MoreThan1024UniqueTiles_ReturnsError()
+        {
+            const int tilesX = 33;
+            const int tilesY = 32;
+            int w = tilesX * 8;
+            int h = tilesY * 8;
+            byte[] rgba = new byte[w * h * 4];
+
+            for (int tile = 0; tile < tilesX * tilesY; tile++)
+            {
+                int tileX = tile % tilesX;
+                int tileY = tile / tilesX;
+                for (int pixel = 0; pixel < 64; pixel++)
+                {
+                    int x = tileX * 8 + (pixel % 8);
+                    int y = tileY * 8 + (pixel / 8);
+                    int offset = (y * w + x) * 4;
+                    byte value = pixel < 11 && (tile & (1 << pixel)) != 0 ? (byte)255 : (byte)0;
+                    rgba[offset + 0] = value;
+                    rgba[offset + 1] = value;
+                    rgba[offset + 2] = value;
+                    rgba[offset + 3] = 255;
+                }
+            }
+
+            var result = MapConvertCore.ConvertImage(rgba, w, h, out string error);
+
+            Assert.Null(result);
+            Assert.Contains("1024 unique tiles", error);
+        }
     }
 }

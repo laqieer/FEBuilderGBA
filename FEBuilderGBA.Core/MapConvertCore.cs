@@ -16,7 +16,7 @@ namespace FEBuilderGBA
             public byte[] TileData { get; set; }
             /// <summary>TSA (map arrangement) data.</summary>
             public byte[] TSAData { get; set; }
-            /// <summary>GBA palette data (multiple palettes, 32 bytes each).</summary>
+            /// <summary>GBA palette data for the single output palette.</summary>
             public byte[] PaletteData { get; set; }
             /// <summary>Number of unique 8x8 tiles.</summary>
             public int TileCount { get; set; }
@@ -38,12 +38,31 @@ namespace FEBuilderGBA
         /// <returns>Conversion result or null on error</returns>
         public static MapConvertResult ConvertImage(byte[] rgbaPixels, int width, int height, int maxPalettes = 5)
         {
+            return ConvertImage(rgbaPixels, width, height, out _, maxPalettes);
+        }
+
+        /// <summary>
+        /// Extract unique 8x8 tiles from RGBA pixel data and build TSA, returning a specific error.
+        /// </summary>
+        public static MapConvertResult ConvertImage(byte[] rgbaPixels, int width, int height,
+            out string error, int maxPalettes = 5)
+        {
+            error = "";
             if (rgbaPixels == null || width < 8 || height < 8)
+            {
+                error = "Input image data is invalid.";
                 return null;
+            }
             if (width % 8 != 0 || height % 8 != 0)
+            {
+                error = "Image dimensions must be multiples of 8.";
                 return null;
+            }
             if (rgbaPixels.Length < width * height * 4)
+            {
+                error = "Input image data is shorter than its dimensions require.";
                 return null;
+            }
 
             int tilesX = width / 8;
             int tilesY = height / 8;
@@ -51,7 +70,70 @@ namespace FEBuilderGBA
             // Step 1: Quantize the full image to get a global palette
             var quantized = DecreaseColorCore.Quantize(rgbaPixels, width, height, 16 * maxPalettes);
             if (quantized == null)
+            {
+                error = "Color quantization failed.";
                 return null;
+            }
+
+            // Compact the palette entries that are actually used. Median-cut may emit duplicate
+            // entries, so ColorCount alone is not a reliable single-palette validation.
+            const int TransparentKey = 0x10000;
+            var compactPaletteMap = new Dictionary<int, byte>();
+            var compactPalette = new List<ushort>();
+            bool hasTransparency = false;
+            int pixelCount = width * height;
+            for (int i = 0; i < pixelCount; i++)
+            {
+                if (rgbaPixels[i * 4 + 3] < 128)
+                {
+                    hasTransparency = true;
+                    break;
+                }
+            }
+            if (hasTransparency)
+            {
+                compactPaletteMap[TransparentKey] = 0;
+                compactPalette.Add(0);
+            }
+
+            byte[] compactIndexData = new byte[pixelCount];
+            for (int i = 0; i < pixelCount; i++)
+            {
+                int key;
+                ushort gbaColor = 0;
+                if (rgbaPixels[i * 4 + 3] < 128)
+                {
+                    key = TransparentKey;
+                }
+                else
+                {
+                    int sourceIndex = quantized.IndexData[i];
+                    int paletteOffset = sourceIndex * 2;
+                    gbaColor = (ushort)(quantized.GBAPalette[paletteOffset] |
+                        (quantized.GBAPalette[paletteOffset + 1] << 8));
+                    key = gbaColor;
+                }
+
+                if (!compactPaletteMap.TryGetValue(key, out byte compactIndex))
+                {
+                    if (compactPalette.Count >= 16)
+                    {
+                        error = "Image requires more than 16 distinct palette entries; map conversion supports at most 16 (one palette).";
+                        return null;
+                    }
+                    compactIndex = (byte)compactPalette.Count;
+                    compactPaletteMap[key] = compactIndex;
+                    compactPalette.Add(gbaColor);
+                }
+                compactIndexData[i] = compactIndex;
+            }
+
+            byte[] paletteData = new byte[compactPalette.Count * 2];
+            for (int i = 0; i < compactPalette.Count; i++)
+            {
+                paletteData[i * 2] = (byte)(compactPalette[i] & 0xFF);
+                paletteData[i * 2 + 1] = (byte)(compactPalette[i] >> 8);
+            }
 
             // Step 2: Extract unique 8x8 tiles
             var uniqueTiles = new List<byte[]>();
@@ -69,7 +151,7 @@ namespace FEBuilderGBA
                         for (int px = 0; px < 8; px++)
                         {
                             int srcIdx = (ty * 8 + py) * width + (tx * 8 + px);
-                            tile[py * 8 + px] = quantized.IndexData[srcIdx];
+                            tile[py * 8 + px] = compactIndexData[srcIdx];
                         }
                     }
 
@@ -84,11 +166,16 @@ namespace FEBuilderGBA
                     {
                         tileIdx = uniqueTiles.Count;
                         uniqueTiles.Add(tile);
+                        if (uniqueTiles.Count > 0x400)
+                        {
+                            error = "Image contains more than 1024 unique tiles; TSA tile indices are limited to 10 bits.";
+                            return null;
+                        }
                         tileMap[hash] = tileIdx;
                     }
 
                     // TSA entry: bits 0-9 = tile index, bits 12-15 = palette (0 for now)
-                    tsaEntries[ty * tilesX + tx] = (ushort)(tileIdx & 0x3FF);
+                    tsaEntries[ty * tilesX + tx] = (ushort)tileIdx;
                 }
             }
 
@@ -120,7 +207,7 @@ namespace FEBuilderGBA
             {
                 TileData = tileData,
                 TSAData = tsaData,
-                PaletteData = quantized.GBAPalette,
+                PaletteData = paletteData,
                 TileCount = uniqueTiles.Count,
                 PaletteCount = 1,
                 WidthTiles = tilesX,

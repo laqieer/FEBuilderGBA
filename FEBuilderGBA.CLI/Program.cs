@@ -1380,9 +1380,9 @@ namespace FEBuilderGBA.CLI
             int width = image.Width;
             int height = image.Height;
 
-            var result = MapConvertCore.ConvertImage(rgba, width, height);
+            var result = MapConvertCore.ConvertImage(rgba, width, height, out string convertError);
             if (result == null)
-                return Fail("Map conversion failed. Image dimensions must be multiples of 8.");
+                return Fail("Map conversion failed. " + convertError);
 
             long outTSABytes = 0;
             try

@@ -41,12 +41,14 @@ default human-readable output is unchanged when `--json` is absent.
   with the existing **non-zero exit code** (so a consumer can branch on exit code *or* on `ok`).
 - Deterministic partial outputs: for `--convertmap1picture`, an untaken `--outImg`/`--outTSA` is reported
   as `null` (`outImg`/`outTSA` and `outImgBytes`/`outTSABytes`), never omitted.
+- `--convertmap1picture` rejects images that require more than one 16-entry palette or more than 1024
+  unique tiles, rather than masking palette/tile indices into corrupt output.
 
 ```bash
 # Map image → tiles + TSA, machine-readable:
 FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin --json
 # {"command":"convertmap1picture","ok":true,"in":"map.png","outImg":"tiles.bin","outTSA":"tsa.bin",
-#  "outImgBytes":2048,"outTSABytes":512,"tiles":128,"gridWidth":30,"gridHeight":20}
+#  "outImgBytes":4096,"outTSABytes":512,"tiles":128,"gridWidth":30,"gridHeight":20}
 
 # Quantize an image to a 16-color GBA palette:
 FEBuilderGBA.CLI --decreasecolor --in=portrait.png --out=portrait_gba.png --paletteno=16 --json
