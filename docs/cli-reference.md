@@ -404,23 +404,52 @@ required and optional flags. Each is verified against its `Run*` handler in
   for losslessness (works on a temp copy; the source ROM is untouched). Requires `--rom`;
   optional `--out=<base>` saves `<base>.export1.tsv` and `<base>.export2.tsv`. **Exit:**
   0 lossless, 2 if any text entry mismatches, 1 on file/usage error.
-- **`--data-roundtrip`** — Export/import struct data and verify losslessness on a temp
-  copy. Requires `--rom`; optional `--table=<name>` (default `all`). **Exit:** 0 lossless,
-  2 if any table mismatches, 1 on file/usage error.
+- **`--data-roundtrip`** — Verify direct struct read/write stability on a temp copy: read
+  table values, write the same in-memory values back, re-read, and compare. It does not
+  serialize through TSV/CSV/EA/JSON. Requires `--rom`; optional `--table=<name>` (default
+  `all`). **Exit:** 0 stable, 2 if any table mismatches, 1 on file/usage error.
 - **`--lint-oam`** — Validate battle-animation OAM data at an address. Requires `--rom`
   and `--addr=<hex>`; optional `--length=<int>` (0 = auto, default). **Exit:** 0 clean,
   1 if issues are found or on usage error.
 
 ### Data
 
-- **`--export-data`** — Export a struct table to TSV/CSV/EA. Requires `--rom` and
+- **`--export-data`** — Export a struct table to TSV/CSV/EA/JSON. Requires `--rom` and
   `--table=<name>` (any name from `--list-tables`, or `all`); optional `--out=<path>`
   (defaults to `<rom>.<table>.<ext>`; with `--table=all` it is a base path written as
-  `<out>.<table>.<ext>`) and `--format=<tsv|csv|ea>` (default `tsv`). **Exit:** 0 on
-  success, 1 on usage/unknown-table error.
-- **`--import-data`** — Import a struct table from a TSV and save the ROM in-place.
-  Requires `--rom`, `--table=<name>`, and `--in=<path.tsv>`. **Exit:** 0 on success, 1 on
-  usage/unknown-table error.
+  `<out>.<table>.<ext>`) and `--format=<tsv|csv|ea|json>` (default `tsv`; an unsupported
+  value is rejected with an error before any output is written). `--format=json`
+  serializes rows as a JSON array of objects: the public key is `Index` (never the internal
+  `_Index`), followed by one key per struct field; every value is a JSON **string** holding
+  the same hex/text representation as TSV/CSV (e.g. `"0x0A"`) — see
+  [`febuilder-cli-as-llm-backend.md`](febuilder-cli-as-llm-backend.md). **Exit:** 0 on
+  success, 1 on usage/unknown-table/unsupported-format error.
+- **`--import-data`** — Import a struct table from TSV or JSON and save the ROM in-place.
+  Requires `--rom`, `--table=<name>`, and `--in=<path>`. JSON input is used when
+  `--format=json` is passed explicitly, or automatically when `--in` has a `.json`
+  extension (and `--format` is omitted); otherwise the input is parsed as TSV. An explicit
+  `--format` value other than `tsv`/`json` is rejected with an error before the ROM is even
+  loaded. The JSON document is fully validated (root must be an array; every row an object;
+  every property value a JSON string — numbers/booleans/nulls/arrays/objects are rejected;
+  no row may repeat the same property name, including `Index`, twice) **before** any ROM
+  write; a malformed document fails with a specific error and leaves the ROM untouched. The
+  public `Index` key is required and strictly parsed (0x-hex, `$`-hex, or plain decimal,
+  optionally followed by a space and a label) back to the internal row index — unlike TSV
+  import, a garbage/overflowing/negative `Index` is rejected outright rather than silently
+  aliased to row 0. Export preserves the complete row index for every registered table, so
+  row 256 is emitted as `0x0100` rather than wrapping to `0x00`. A second, struct/count-aware
+  preflight then runs — still **before** any
+  ROM write — that TSV import does not perform: every non-`Index` property name must be a
+  known field of the resolved table's struct (an unknown/typo'd name, e.g. `Wieght` instead
+  of `Weight`, is rejected with the row number and property name — a field simply absent
+  from a row is still allowed, for partial updates); every field value must strictly parse
+  as a complete `0x`-hex/`$`-hex/plain-decimal token — no trailing tokens, no bare prefixes,
+  no negatives, no overflow — and fit the field's byte/word/dword/pointer width (accepted
+  values are normalized to a canonical lowercase-`0x` hexadecimal form first, including
+  accepted decimal input, so the full unsigned field range reaches the writer safely); no two rows may
+  target the same `Index`; and every `Index` must be within `[0, entryCount)` for the
+  resolved table (rejected here instead of relying on the writer's silent per-row skip).
+  **Exit:** 0 on success, 1 on usage/unknown-table/unsupported-format/malformed-input error.
 - **`--resolve-names`** — Resolve entity IDs to names. Requires `--rom`, `--kind=<unit|class|item|song>`,
   and `--ids=<comma-list>`. Prints `id<TAB>name` per ID. **Exit:** 0 on success, 1 on
   usage/unknown-kind error.

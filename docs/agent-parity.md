@@ -32,11 +32,12 @@ Tracks issue [#1931](https://github.com/laqieer/FEBuilderGBA/issues/1931).
    levels (e.g. "Maps" = fully-covered chapter *settings* + not-round-trippable *tile layout*), it is
    split into separate rows.
 2. **Registry cross-check first.** Every one of the **40 registered struct tables**
-   (`FEBuilderGBA.Core/StructExportCore.cs`) is round-trippable via the *generic*
-   `--export-data`/`--import-data`/`--data-roundtrip` mechanism (real ROM mutation:
-   `RunImportData` → `StructExportCore.WriteTable` → `ROM.Save`). These are mapped to their GUI
-   editors **before** per-editor verb classification, so a table-backed editor is never mislabeled
-   as worse-covered than it is.
+   (`FEBuilderGBA.Core/StructExportCore.cs`) is covered by the generic struct-data surface:
+   `--export-data` supports TSV/CSV/EA/JSON, `--import-data` accepts TSV/JSON with real ROM mutation
+   (`RunImportData` → `StructExportCore.WriteTable` → `ROM.Save`), and `--data-roundtrip` checks
+   direct struct read/write stability without serializing through any file format. These are mapped
+   to their GUI editors **before** per-editor verb classification, so a table-backed editor is never
+   mislabeled as worse-covered than it is.
 3. **"CLI *or* Core-level headless equivalent"** (the issue's rule): a domain with a Core seam but no
    CLI verb is **Core-only** (a cheap win), not None.
 
@@ -48,8 +49,9 @@ distinct user-facing commands"); **40** struct tables (`--list-tables`); **~60**
 
 ## 1. Struct-data domains — Full via `--export-data` / `--import-data`
 
-All 40 registered tables round-trip losslessly (`--data-roundtrip --table=<name>`), export to
-`tsv|csv|ea`, and import back with a real ROM save. Grouped by the GUI editor family they back
+All 40 registered tables support direct struct read/write stability checks
+(`--data-roundtrip --table=<name>`), export to `tsv|csv|ea|json`, and import from TSV or JSON with a
+real ROM save. CSV and EA are export-only. Tables are grouped by the GUI editor family they back
 (`StructExportCore.cs` line in parentheses).
 
 | Domain / surface | GUI editor(s) | Table(s) (`--table=`) | Coverage |
@@ -123,7 +125,7 @@ All 40 registered tables round-trip losslessly (`--data-roundtrip --table=<name>
 | Hex dump / disassembly | Hex editor, DisASM | `--hex-dump`, `--disasm`, `--lint-oam` | **Partial** | Read/dump only; interactive ASM *edit/insert* surfaces have no CLI verb. |
 | Pointer search / free space | PointerTool, MoveToFreeSpace | `--pointercalc`, `--freespace` | **Partial** | Pointer *search* + free-space *scan* covered; `MoveToFreeSpace`, RAM/emulator-memory tools have no headless equivalent. |
 | Free-space report | — | `--freespace` | **Full** | |
-| Struct export **formats** | `DumpStructSelectDialogView` | `--export-data --format=` (`tsv`, `csv`, `ea`) | **Partial** | GUI also exports **STRUCT** / **NMM** (`ExportToSTRUCT`/`ExportToNMM`) — not reachable from the CLI `--format=` switch. Cheap win → see gaps. |
+| Struct export **formats** | `DumpStructSelectDialogView` | `--export-data --format=` (`tsv`, `csv`, `ea`, `json`) | **Partial** | GUI also exports **STRUCT** / **NMM** (`ExportToSTRUCT`/`ExportToNMM`) — not reachable from the CLI `--format=` switch. Cheap win → see gaps. `json` (#1937) is the LLM-backend-facing format: like TSV, `--import-data` accepts it back (auto-detected from a `.json` `--in`, or `--format=json`); CSV and EA remain export-only. |
 
 ## 9. Skills
 

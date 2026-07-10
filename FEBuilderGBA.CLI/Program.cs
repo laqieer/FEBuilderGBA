@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text.Json;
 using FEBuilderGBA;
 using FEBuilderGBA.SkiaSharp;
 
@@ -473,13 +474,14 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --in=<path>            Import text from TSV file and write to ROM");
             Console.WriteLine("  --translate-roundtrip    Validate text export/import losslessness (requires --rom)");
             Console.WriteLine("    --out=<base>           Save before/after TSVs as <base>.export1.tsv and <base>.export2.tsv");
-            Console.WriteLine("  --export-data            Export struct data to TSV/CSV/EA (requires --rom, --table)");
+            Console.WriteLine("  --export-data            Export struct data to TSV/CSV/EA/JSON (requires --rom, --table)");
             Console.WriteLine("    --table=<name>         Table name: units, classes, items, or all");
             Console.WriteLine("    --out=<path>           Output file path (or base path for --table=all)");
-            Console.WriteLine("    --format=<fmt>         Output format: tsv (default), csv, ea");
-            Console.WriteLine("  --import-data            Import struct data from TSV (requires --rom, --table, --in)");
+            Console.WriteLine("    --format=<fmt>         Output format: tsv (default), csv, ea, json");
+            Console.WriteLine("  --import-data            Import struct data from TSV or JSON (requires --rom, --table, --in)");
             Console.WriteLine("    --table=<name>         Table name: units, classes, items");
-            Console.WriteLine("    --in=<path>            Input TSV file path");
+            Console.WriteLine("    --in=<path>            Input file path (TSV, or JSON when --format=json or the extension is .json)");
+            Console.WriteLine("    --format=<fmt>         Input format override: tsv (default) or json (also auto-detected from a .json --in extension)");
             Console.WriteLine("  --data-roundtrip         Validate struct data export/import losslessness (requires --rom)");
             Console.WriteLine("    --table=<name>         Table name: units, classes, items, or all (default: all)");
             Console.WriteLine("  --lastrom                Load last-used ROM from config");
@@ -720,6 +722,8 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  FEBuilderGBA.CLI --export-data --rom=rom.gba --table=support_attributes --out=support_attrs.tsv");
             Console.WriteLine("  FEBuilderGBA.CLI --export-data --rom=rom.gba --table=support_talks --out=support_talks.tsv");
             Console.WriteLine("  FEBuilderGBA.CLI --import-data --rom=rom.gba --table=units --in=units.tsv");
+            Console.WriteLine("  FEBuilderGBA.CLI --export-data --rom=rom.gba --table=units --format=json --out=units.json  (machine-readable: JSON array of string-valued objects, keyed by Index + field name)");
+            Console.WriteLine("  FEBuilderGBA.CLI --import-data --rom=rom.gba --table=units --in=units.json  (format auto-detected from the .json extension; or pass --format=json explicitly)");
             Console.WriteLine("  FEBuilderGBA.CLI --data-roundtrip --rom=rom.gba --table=all");
             Console.WriteLine("  FEBuilderGBA.CLI --import-midi --rom=rom.gba --song-id=0x1A --in=song.mid");
             Console.WriteLine("  FEBuilderGBA.CLI --compile-event --rom=rom.gba --in=script.event --out=modified.gba");
@@ -1854,6 +1858,17 @@ namespace FEBuilderGBA.CLI
                 return 1;
             }
 
+            // Validate --format before touching the ROM/output files: an unsupported value
+            // (e.g. a typo like "xml") must fail loudly instead of silently falling back to tsv.
+            string format = "tsv";
+            if (argsDic.ContainsKey("--format") && !string.IsNullOrEmpty(argsDic["--format"]))
+                format = argsDic["--format"].Trim().ToLowerInvariant();
+            if (format != "tsv" && format != "csv" && format != "ea" && format != "json")
+            {
+                Console.Error.WriteLine($"Error: --export-data --format must be one of tsv, csv, ea, json (got '{format}').");
+                return 1;
+            }
+
             string romPath = argsDic["--rom"];
             string tableName = argsDic["--table"];
             string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
@@ -1888,11 +1903,7 @@ namespace FEBuilderGBA.CLI
 
                 var entries = StructExportCore.ExportTable(CoreState.ROM, table, structDef);
 
-                string format = "tsv";
-                if (argsDic.ContainsKey("--format") && !string.IsNullOrEmpty(argsDic["--format"]))
-                    format = argsDic["--format"].ToLowerInvariant();
-
-                string ext = format switch { "csv" => ".csv", "ea" => ".ea", _ => ".tsv" };
+                string ext = format switch { "csv" => ".csv", "ea" => ".ea", "json" => ".json", _ => ".tsv" };
 
                 string outPath;
                 if (argsDic.ContainsKey("--out") && !string.IsNullOrEmpty(argsDic["--out"]))
@@ -1914,6 +1925,9 @@ namespace FEBuilderGBA.CLI
                         break;
                     case "ea":
                         StructExportCore.ExportToEA(entries, structDef, outPath);
+                        break;
+                    case "json":
+                        StructExportCore.ExportToJSON(entries, structDef, outPath);
                         break;
                     default:
                         StructExportCore.ExportToTSV(entries, structDef, outPath);
@@ -1939,7 +1953,7 @@ namespace FEBuilderGBA.CLI
             }
             if (!argsDic.ContainsKey("--in") || string.IsNullOrEmpty(argsDic["--in"]))
             {
-                Console.Error.WriteLine("Error: --import-data requires --in=<path.tsv>");
+                Console.Error.WriteLine("Error: --import-data requires --in=<path> (TSV or JSON)");
                 return 1;
             }
 
@@ -1953,6 +1967,23 @@ namespace FEBuilderGBA.CLI
                 Console.Error.WriteLine($"Error: Input file not found: {inputPath}");
                 return 1;
             }
+
+            // Validate --format and decide TSV vs. JSON before touching the ROM: an
+            // unsupported value (e.g. a typo like "xml") must fail loudly instead of
+            // silently falling back to TSV. --format=json (explicit) or a .json --in
+            // extension (implicit, when --format is omitted) route through the JSON
+            // parser; otherwise TSV. The JSON document is fully validated before any
+            // ROM mutation: WriteTable/Save below never run if parsing throws (#1937).
+            string importFormat = argsDic.ContainsKey("--format") && !string.IsNullOrEmpty(argsDic["--format"])
+                ? argsDic["--format"].Trim().ToLowerInvariant()
+                : null;
+            if (importFormat != null && importFormat != "tsv" && importFormat != "json")
+            {
+                Console.Error.WriteLine($"Error: --import-data --format must be tsv or json (got '{importFormat}').");
+                return 1;
+            }
+            bool useJson = importFormat == "json" ||
+                (importFormat == null && string.Equals(Path.GetExtension(inputPath), ".json", StringComparison.OrdinalIgnoreCase));
 
             RomLoader.InitEnvironment();
             if (!RomLoader.LoadRom(romPath, forceVersion))
@@ -1976,8 +2007,31 @@ namespace FEBuilderGBA.CLI
                 return 1;
             }
 
-            var entries = StructExportCore.ImportFromTSV(inputPath, structDef);
-            Console.WriteLine($"Parsed {entries.Count} entries from TSV.");
+            List<(int index, Dictionary<string, string> fields)> entries;
+            if (useJson)
+            {
+                // Struct/count-aware overload (#1937 hardening): rejects unknown field
+                // names, garbage/negative/overflow/trailing-token numeric values (with
+                // FieldType width range-checking), duplicate row Index values, and any
+                // Index outside the resolved table entry count — all before WriteTable/
+                // ROM.Save ever run. See StructExportCore.ValidateJSONEntries.
+                uint entryCount = table.GetEntryCount(CoreState.ROM);
+                try
+                {
+                    entries = StructExportCore.ImportFromJSON(inputPath, structDef, entryCount);
+                }
+                catch (Exception ex) when (ex is JsonException || ex is FormatException)
+                {
+                    Console.Error.WriteLine($"Error: {ex.Message}");
+                    return 1;
+                }
+                Console.WriteLine($"Parsed {entries.Count} entries from JSON.");
+            }
+            else
+            {
+                entries = StructExportCore.ImportFromTSV(inputPath, structDef);
+                Console.WriteLine($"Parsed {entries.Count} entries from TSV.");
+            }
 
             int written = StructExportCore.WriteTable(CoreState.ROM, table, structDef, entries);
             Console.WriteLine($"Wrote {written} entries to ROM.");
