@@ -151,7 +151,7 @@ Quantize an image's palette to a limited number of colors (for GBA-compatible gr
 |---|---|---|
 | `--in=<path>` | Yes | Input image file (PNG, etc.). |
 | `--out=<path>` | Yes | Output image file. |
-| `--paletteno=<n>` | No | Maximum palette colors. Default: **16**. |
+| `--paletteno=<n>` | No | Maximum palette colors. Default: **16**; range 2–256, or 1–256 with `--noReserve1stColor`. |
 | `--noScale` | No | Do not scale RGB values to GBA 5-bit range (0-31). |
 | `--noReserve1stColor` | No | Do not reserve palette slot 0 for transparency. |
 | `--ignoreTSA` | No | Ignore TSA 8x8 tile deduplication constraints. |

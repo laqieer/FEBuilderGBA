@@ -32,7 +32,7 @@ default human-readable output is unchanged when `--json` is absent.
 | Verb | Input | In-game output | `--json` result keys |
 |---|---|---|---|
 | `--convertmap1picture` | `--in=<map.png>` | `--outImg=<tiles.bin>` (4bpp tile data) and/or `--outTSA=<tsa.bin>` (LZ77-compressed TSA) | `command`, `ok`, `in`, `outImg`, `outTSA`, `outImgBytes`, `outTSABytes`, `tiles`, `gridWidth`, `gridHeight` |
-| `--decreasecolor` | `--in=<image.png>` (+ optional `--paletteno`, default 16) | `--out=<image.png>` (GBA-quantized to ≤ `--paletteno` colors) | `command`, `ok`, `in`, `out`, `outBytes`, `paletteNo`, `colors`, `width`, `height` |
+| `--decreasecolor` | `--in=<image.png>` (+ optional `--paletteno`, default 16; 2–256 with reserved transparency, or 1–256 with `--noReserve1stColor`) | `--out=<image.png>` (GBA-quantized to ≤ `--paletteno` colors) | `command`, `ok`, `in`, `out`, `outBytes`, `paletteNo`, `colors`, `width`, `height` |
 
 **Contract:**
 - `--json` present → one JSON object on **stdout**; **`--json` absent → unchanged human output** (fully

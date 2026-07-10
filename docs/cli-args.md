@@ -69,7 +69,7 @@ output for that command compared to the WinForms exe.
 | `--gif` | Export the animation as an animated GIF | `--export-battle-anime` |
 | `--section=<N>` | Section index 0-11 for GIF export (default: 0) | `--export-battle-anime` |
 | `--compress` / `--decompress` | LZ77 mode (exactly one required) | `--lz77` |
-| `--paletteno=<n>` | Number of palette colors (default: 16) | `--decreasecolor` |
+| `--paletteno=<n>` | Number of palette colors (default: 16; range 2-256, or 1-256 with `--noReserve1stColor`) | `--decreasecolor` |
 | `--noScale` | Do not scale colors to GBA 5-bit range | `--decreasecolor` |
 | `--noReserve1stColor` | Do not reserve palette slot 0 for transparency | `--decreasecolor` |
 | `--ignoreTSA` | Ignore TSA tile deduplication constraints | `--decreasecolor` |

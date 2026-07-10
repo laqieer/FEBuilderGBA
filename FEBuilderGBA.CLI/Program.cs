@@ -974,17 +974,21 @@ namespace FEBuilderGBA.CLI
 
             string inputPath = argsDic["--in"];
             string outputPath = argsDic["--out"];
-            int maxColors = 16;  // optional; default 16 when --paletteno is omitted
-            if (argsDic.ContainsKey("--paletteno") && !string.IsNullOrEmpty(argsDic["--paletteno"]))
-            {
-                if (!int.TryParse(argsDic["--paletteno"], out maxColors) || maxColors < 1 || maxColors > 256)
-                    return Fail("--paletteno must be an integer in 1..256");
-            }
-
-            // Parse optional flags
             bool noScale = argsDic.ContainsKey("--noScale");
             bool noReserve1stColor = argsDic.ContainsKey("--noReserve1stColor");
             bool ignoreTSA = argsDic.ContainsKey("--ignoreTSA");
+
+            int maxColors = 16;  // optional; default 16 when --paletteno is omitted
+            if (argsDic.ContainsKey("--paletteno") && !string.IsNullOrEmpty(argsDic["--paletteno"]))
+            {
+                int minimumColors = noReserve1stColor ? 1 : 2;
+                if (!int.TryParse(argsDic["--paletteno"], out maxColors) ||
+                    maxColors < minimumColors || maxColors > 256)
+                {
+                    string range = noReserve1stColor ? "1..256" : "2..256 (or 1 with --noReserve1stColor)";
+                    return Fail($"--paletteno must be an integer in {range}");
+                }
+            }
 
             if (!json)
             {
@@ -1004,7 +1008,16 @@ namespace FEBuilderGBA.CLI
             if (imgService == null)
                 return Fail("Image service not available.");
 
-            var image = imgService.LoadImage(inputPath);
+            IImage image;
+            try
+            {
+                image = imgService.LoadImage(inputPath);
+            }
+            catch (IOException ex)
+            {
+                if (json) return Fail(ex.Message);
+                throw;
+            }
             if (image == null)
                 return Fail($"Failed to load image: {inputPath}");
 
@@ -1350,7 +1363,16 @@ namespace FEBuilderGBA.CLI
             if (imgService == null)
                 return Fail("Image service not available.");
 
-            var image = imgService.LoadImage(inputPath);
+            IImage image;
+            try
+            {
+                image = imgService.LoadImage(inputPath);
+            }
+            catch (IOException ex)
+            {
+                if (json) return Fail(ex.Message);
+                throw;
+            }
             if (image == null)
                 return Fail($"Failed to load image: {inputPath}");
 

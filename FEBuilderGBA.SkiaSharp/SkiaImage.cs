@@ -137,7 +137,7 @@ namespace FEBuilderGBA.SkiaSharp
             };
             using var image = SKImage.FromBitmap(_bitmap);
             using var data = image.Encode(format, 100);
-            using var stream = File.OpenWrite(filePath);
+            using var stream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None);
             data.SaveTo(stream);
         }
 

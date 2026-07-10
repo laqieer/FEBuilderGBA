@@ -158,6 +158,78 @@ namespace FEBuilderGBA.E2ETests.Tests
         }
 
         [Fact]
+        public void DecreaseColor_Json_PalettenoOne_WithReservedColor_Error()
+        {
+            var png = GenerateTestPng();
+            var outp = TempFile(".png");
+            var (code, stdout, _) = AppRunner.Run(CliExe,
+                $"--decreasecolor --in=\"{png}\" --out=\"{outp}\" --paletteno=1 --json", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            using var doc = JsonDocument.Parse(stdout);
+            Assert.False(doc.RootElement.GetProperty("ok").GetBoolean());
+            Assert.Contains("--noReserve1stColor", doc.RootElement.GetProperty("error").GetString());
+        }
+
+        [Fact]
+        public void DecreaseColor_Json_PalettenoOne_WithoutReservedColor_Succeeds()
+        {
+            var png = GenerateTestPng();
+            var outp = TempFile(".png");
+            var (code, stdout, _) = AppRunner.Run(CliExe,
+                $"--decreasecolor --in=\"{png}\" --out=\"{outp}\" --paletteno=1 --noReserve1stColor --json",
+                timeoutMs: 30_000);
+            Assert.Equal(0, code);
+            using var doc = JsonDocument.Parse(stdout);
+            Assert.True(doc.RootElement.GetProperty("ok").GetBoolean());
+            Assert.Equal(1, doc.RootElement.GetProperty("paletteNo").GetInt32());
+            Assert.Equal(1, doc.RootElement.GetProperty("colors").GetInt32());
+        }
+
+        [Fact]
+        public void DecreaseColor_Json_CorruptImage_Error()
+        {
+            var input = TempFile(".png");
+            File.WriteAllText(input, "not an image");
+            var outp = TempFile(".png");
+            var (code, stdout, _) = AppRunner.Run(CliExe,
+                $"--decreasecolor --in=\"{input}\" --out=\"{outp}\" --json", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            using var doc = JsonDocument.Parse(stdout);
+            Assert.False(doc.RootElement.GetProperty("ok").GetBoolean());
+            Assert.Contains("Failed to load image", doc.RootElement.GetProperty("error").GetString());
+        }
+
+        [Fact]
+        public void ConvertMap1Picture_Json_CorruptImage_Error()
+        {
+            var input = TempFile(".png");
+            File.WriteAllText(input, "not an image");
+            var outp = TempFile(".bin");
+            var (code, stdout, _) = AppRunner.Run(CliExe,
+                $"--convertmap1picture --in=\"{input}\" --outImg=\"{outp}\" --json", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            using var doc = JsonDocument.Parse(stdout);
+            Assert.False(doc.RootElement.GetProperty("ok").GetBoolean());
+            Assert.Contains("Failed to load image", doc.RootElement.GetProperty("error").GetString());
+        }
+
+        [Fact]
+        public void DecreaseColor_Json_OverwriteTruncatesOutput()
+        {
+            var png = GenerateTestPng();
+            var outp = TempFile(".png");
+            File.WriteAllBytes(outp, new byte[1_000_000]);
+
+            var (code, stdout, _) = AppRunner.Run(CliExe,
+                $"--decreasecolor --in=\"{png}\" --out=\"{outp}\" --paletteno=16 --json", timeoutMs: 30_000);
+            Assert.Equal(0, code);
+            using var doc = JsonDocument.Parse(stdout);
+            long reportedBytes = doc.RootElement.GetProperty("outBytes").GetInt64();
+            Assert.Equal(new FileInfo(outp).Length, reportedBytes);
+            Assert.InRange(reportedBytes, 1, 999_999);
+        }
+
+        [Fact]
         public void DecreaseColor_NoJson_KeepsHumanOutput()
         {
             var png = GenerateTestPng();
