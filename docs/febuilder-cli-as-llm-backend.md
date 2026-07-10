@@ -56,18 +56,27 @@ file if this doc and the CLI ever drift.
   `FEBuilderGBA.Core`), followed by one key per struct field, in the struct's declared field order.
   These are exactly the same column headers `--format=tsv`/`--format=csv` already use.
 - **Values:** every value is a JSON **string**, holding the identical hex/text representation TSV/CSV
-  use (e.g. `"0x0A"`, `"0x08123456"`) — never a JSON number/boolean, so the same `U.atoi0x` parsing
-  path handles TSV, CSV, and JSON input uniformly.
+  use (e.g. `"0x0A"`, `"0x08123456"`) — never a JSON number/boolean. Unlike TSV import's forgiving
+  `Index` parser (which silently aliases unparsable text to row 0 via `U.atoi0x`'s truncating
+  fallback), JSON's `Index` is **strictly** validated: it must be a `0x`-hex, `$`-hex, or plain
+  decimal token (optionally followed by a space and a label), in range for a 32-bit value, and
+  non-negative — a garbage, overflowing, or negative `Index` is rejected outright rather than
+  quietly mutating the wrong row.
 - **Additive, backward-compatible:** `tsv`/`csv`/`ea` output is byte-for-byte unchanged; `json` is a
   new, opt-in `--format=` value. `--import-data` accepts JSON either explicitly (`--format=json`) or
-  automatically when `--in` has a `.json` extension; TSV import behavior is unchanged.
+  automatically when `--in` has a `.json` extension; TSV import behavior is unchanged. An explicit
+  `--format` value outside the supported set (`tsv`/`csv`/`ea`/`json` for export, `tsv`/`json` for
+  import) is rejected with an actionable error instead of silently falling back to TSV.
 - **Backstop:** this shape is covered by regression tests — `FEBuilderGBA.Core.Tests/StructExportFormatTests.cs`
-  (`FormatJSON`/`ParseJSON` unit tests) and `FEBuilderGBA.E2ETests/Tests/CliDataJsonE2ETests.cs`
-  (ROM-gated export/import/round-trip E2E tests).
+  (`FormatJSON`/`ParseJSON` unit tests, including the strict `Index` parsing and duplicate-property
+  rejection below) and `FEBuilderGBA.E2ETests/Tests/CliDataJsonE2ETests.cs` (ROM-gated export/import/
+  round-trip E2E tests, plus non-ROM `--format` validation tests).
 - **Validation before mutation:** `--import-data` with JSON input validates the **entire** document —
-  root must be an array, every row an object, every property value a JSON string — before writing
-  anything to the ROM. A malformed document (a stray number/boolean/null/array/object value, or a
-  non-array root) fails with a specific, actionable error and leaves the ROM byte-for-byte unchanged.
+  root must be an array, every row an object, every property value a JSON string, and no row may
+  repeat the same property name (including `Index`) twice — before writing anything to the ROM. A
+  malformed document (a stray number/boolean/null/array/object value, a non-array root, a duplicated
+  property, or an unparsable `Index`) fails with a specific, actionable error and leaves the ROM
+  byte-for-byte unchanged.
 
 ## Correctness-gate precision: `--lint` vs. `--data-roundtrip`
 

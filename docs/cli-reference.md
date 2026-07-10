@@ -416,20 +416,26 @@ required and optional flags. Each is verified against its `Run*` handler in
 - **`--export-data`** — Export a struct table to TSV/CSV/EA/JSON. Requires `--rom` and
   `--table=<name>` (any name from `--list-tables`, or `all`); optional `--out=<path>`
   (defaults to `<rom>.<table>.<ext>`; with `--table=all` it is a base path written as
-  `<out>.<table>.<ext>`) and `--format=<tsv|csv|ea|json>` (default `tsv`). `--format=json`
+  `<out>.<table>.<ext>`) and `--format=<tsv|csv|ea|json>` (default `tsv`; an unsupported
+  value is rejected with an error before any output is written). `--format=json`
   serializes rows as a JSON array of objects: the public key is `Index` (never the internal
   `_Index`), followed by one key per struct field; every value is a JSON **string** holding
   the same hex/text representation as TSV/CSV (e.g. `"0x0A"`) — see
   [`febuilder-cli-as-llm-backend.md`](febuilder-cli-as-llm-backend.md). **Exit:** 0 on
-  success, 1 on usage/unknown-table error.
+  success, 1 on usage/unknown-table/unsupported-format error.
 - **`--import-data`** — Import a struct table from TSV or JSON and save the ROM in-place.
   Requires `--rom`, `--table=<name>`, and `--in=<path>`. JSON input is used when
   `--format=json` is passed explicitly, or automatically when `--in` has a `.json`
-  extension; otherwise the input is parsed as TSV. The JSON document is fully validated
-  (root must be an array; every row an object; every property value a JSON string — numbers/
-  booleans/nulls/arrays/objects are rejected) **before** any ROM write; a malformed document
-  fails with a specific error and leaves the ROM untouched. The public `Index` key is
-  normalized back to the internal row index. **Exit:** 0 on success, 1 on usage/unknown-table/
+  extension (and `--format` is omitted); otherwise the input is parsed as TSV. An explicit
+  `--format` value other than `tsv`/`json` is rejected with an error before the ROM is even
+  loaded. The JSON document is fully validated (root must be an array; every row an object;
+  every property value a JSON string — numbers/booleans/nulls/arrays/objects are rejected;
+  no row may repeat the same property name, including `Index`, twice) **before** any ROM
+  write; a malformed document fails with a specific error and leaves the ROM untouched. The
+  public `Index` key is required and strictly parsed (0x-hex, `$`-hex, or plain decimal,
+  optionally followed by a space and a label) back to the internal row index — unlike TSV
+  import, a garbage/overflowing/negative `Index` is rejected outright rather than silently
+  aliased to row 0. **Exit:** 0 on success, 1 on usage/unknown-table/unsupported-format/
   malformed-input error.
 - **`--resolve-names`** — Resolve entity IDs to names. Requires `--rom`, `--kind=<unit|class|item|song>`,
   and `--ids=<comma-list>`. Prints `id<TAB>name` per ID. **Exit:** 0 on success, 1 on
