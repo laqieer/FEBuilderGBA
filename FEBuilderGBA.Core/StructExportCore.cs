@@ -1986,6 +1986,55 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Strictly validate a USER-SUPPLIED C data-symbol override (CLI <c>--c-symbol</c>,
+        /// #1939 Phase B1): must be a well-formed C/GNU identifier — starts with a letter or
+        /// underscore, every character is <c>[A-Za-z0-9_]</c> — and must NOT be a C/GNU
+        /// reserved word (<see cref="CReservedIdentifiers"/>). Unlike
+        /// <see cref="SanitizeCIdentifier"/> (used for ROM-metadata-derived names, which are
+        /// silently repaired so a table/struct name always emits *something* valid), a
+        /// user-supplied override is never silently rewritten — <paramref name="symbol"/> is
+        /// used byte-for-byte verbatim when valid, and rejected outright with an actionable
+        /// <paramref name="error"/> otherwise. Called by the CLI before any ROM load / output
+        /// file creation, and re-checked by <see cref="FormatCData"/> itself so the guarantee
+        /// holds for every caller, not just the CLI.
+        /// </summary>
+        public static bool TryValidateCSymbol(string symbol, out string error)
+        {
+            error = null;
+            if (string.IsNullOrEmpty(symbol))
+            {
+                error = "symbol is empty";
+                return false;
+            }
+
+            char first = symbol[0];
+            bool firstOk = (first >= 'a' && first <= 'z') || (first >= 'A' && first <= 'Z') || first == '_';
+            if (!firstOk)
+            {
+                error = $"'{symbol}' must start with a letter or underscore, not '{first}'";
+                return false;
+            }
+
+            foreach (char c in symbol)
+            {
+                bool ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
+                if (!ok)
+                {
+                    error = $"'{symbol}' contains an invalid character '{c}' (only letters, digits, and underscore are allowed)";
+                    return false;
+                }
+            }
+
+            if (CReservedIdentifiers.Contains(symbol))
+            {
+                error = $"'{symbol}' is a C/GNU reserved keyword and cannot be used as a symbol name";
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
         /// Register <paramref name="name"/> as freshly emitted in the row struct's flat
         /// identifier scope (GNU anonymous unions/structs promote every arm's members up
         /// into the enclosing struct's namespace, so every field member, every union raw
@@ -2079,9 +2128,19 @@ namespace FEBuilderGBA
         /// byte-truncatable <c>_Index</c> prefix) with the (comment-escaped) <c>_Index</c>
         /// text appended for human readability.</item>
         /// </list>
+        /// <paramref name="dataSymbolOverride"/> (CLI <c>--c-symbol</c>, #1939 Phase B1),
+        /// when non-null/empty, replaces the deterministic <c>gFEBuilder_&lt;table&gt;</c>
+        /// data-array symbol verbatim; the count symbol always deterministically derives
+        /// from whichever data symbol is actually emitted (<c>&lt;symbol&gt;Count</c>), and
+        /// the row TYPE name (<c>struct FEBuilder_&lt;StructName&gt;</c>) is unaffected by
+        /// the override either way. The override is re-validated here via
+        /// <see cref="TryValidateCSymbol"/> — every caller gets the same "never silently
+        /// sanitized" guarantee the CLI enforces up front.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="structDef"/> is null, or
         /// <paramref name="tableName"/> is null/empty.</exception>
+        /// <exception cref="ArgumentException"><paramref name="dataSymbolOverride"/> is
+        /// non-empty but not a valid, non-keyword C identifier.</exception>
         /// <exception cref="InvalidOperationException">the resolved stride is smaller than
         /// the furthest declared field end; a row's raw byte length does not equal the
         /// resolved stride; two members would collide on the same sanitized C identifier;
@@ -2090,10 +2149,13 @@ namespace FEBuilderGBA
             List<(uint index, Dictionary<string, string> fields, byte[] raw)> rows,
             StructMetadata.StructDef structDef,
             string tableName,
-            uint resolvedEntrySize)
+            uint resolvedEntrySize,
+            string dataSymbolOverride = null)
         {
             if (structDef == null) throw new ArgumentNullException(nameof(structDef));
             if (string.IsNullOrEmpty(tableName)) throw new ArgumentException("tableName must not be null/empty.", nameof(tableName));
+            if (!string.IsNullOrEmpty(dataSymbolOverride) && !TryValidateCSymbol(dataSymbolOverride, out string symbolError))
+                throw new ArgumentException($"Invalid --c-symbol override '{dataSymbolOverride}': {symbolError}.", nameof(dataSymbolOverride));
             rows ??= new List<(uint, Dictionary<string, string>, byte[])>();
 
             foreach (var row in rows)
@@ -2110,7 +2172,13 @@ namespace FEBuilderGBA
             var (chunks, _) = BuildCLayout(structDef.Fields, resolvedEntrySize);
 
             string structTypeName = "FEBuilder_" + SanitizeCIdentifier(structDef.Name);
-            string dataSymbol = "gFEBuilder_" + SanitizeCIdentifier(tableName);
+            // A validated --c-symbol override is used byte-for-byte verbatim (never
+            // re-sanitized — TryValidateCSymbol above already guarantees it's a clean,
+            // non-keyword C identifier); the count symbol always deterministically derives
+            // from whichever data symbol is actually emitted.
+            string dataSymbol = !string.IsNullOrEmpty(dataSymbolOverride)
+                ? dataSymbolOverride
+                : "gFEBuilder_" + SanitizeCIdentifier(tableName);
             string countSymbol = dataSymbol + "Count";
 
             var usedNames = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -2266,9 +2334,10 @@ namespace FEBuilderGBA
         /// <see cref="FormatCData"/>). Reads rows via the shared <see cref="ExportTableRows"/>
         /// seam and resolves the runtime entry stride from <c>table.GetDataSize(rom)</c>.
         /// Written UTF-8 without a BOM (a leading BOM is not valid at the start of a C
-        /// translation unit for every compiler).
+        /// translation unit for every compiler). <paramref name="dataSymbolOverride"/> is
+        /// the optional CLI <c>--c-symbol</c> passthrough — see <see cref="FormatCData"/>.
         /// </summary>
-        public static void ExportToCData(ROM rom, TableDef table, StructMetadata.StructDef structDef, string outputPath)
+        public static void ExportToCData(ROM rom, TableDef table, StructMetadata.StructDef structDef, string outputPath, string dataSymbolOverride = null)
         {
             if (rom?.RomInfo == null) throw new ArgumentNullException(nameof(rom));
             if (table == null) throw new ArgumentNullException(nameof(table));
@@ -2276,9 +2345,10 @@ namespace FEBuilderGBA
 
             var rows = ExportTableRows(rom, table, structDef);
             uint resolvedEntrySize = table.GetDataSize(rom);
-            string content = FormatCData(rows, structDef, table.Name, resolvedEntrySize);
+            string content = FormatCData(rows, structDef, table.Name, resolvedEntrySize, dataSymbolOverride);
             File.WriteAllText(outputPath, content, Utf8NoBom);
         }
+
 
         /// <summary>
         /// Export table data to a TSV file. Output is byte-identical to

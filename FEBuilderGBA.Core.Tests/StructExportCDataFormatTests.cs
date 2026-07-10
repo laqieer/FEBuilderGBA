@@ -836,5 +836,116 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains("field '_gap0'", ex.Message);
             Assert.Contains("metadata gap", ex.Message);
         }
+
+        // ====================================================================
+        // 15. --c-symbol (#1939 Phase B1): TryValidateCSymbol + FormatCData override
+        // ====================================================================
+
+        [Theory]
+        [InlineData("gMyTable")]
+        [InlineData("_leadingUnderscore")]
+        [InlineData("g_Item_Data_2")]
+        [InlineData("A")]
+        public void TryValidateCSymbol_WellFormedIdentifier_ReturnsTrue(string symbol)
+        {
+            Assert.True(StructExportCore.TryValidateCSymbol(symbol, out string error));
+            Assert.Null(error);
+        }
+
+        [Fact]
+        public void TryValidateCSymbol_Empty_ReturnsFalse()
+        {
+            Assert.False(StructExportCore.TryValidateCSymbol("", out string error));
+            Assert.Contains("empty", error);
+        }
+
+        [Fact]
+        public void TryValidateCSymbol_Null_ReturnsFalse()
+        {
+            Assert.False(StructExportCore.TryValidateCSymbol(null, out string error));
+            Assert.NotNull(error);
+        }
+
+        [Theory]
+        [InlineData("0Value")]
+        [InlineData("9gTable")]
+        public void TryValidateCSymbol_LeadingDigit_ReturnsFalse(string symbol)
+        {
+            Assert.False(StructExportCore.TryValidateCSymbol(symbol, out string error));
+            Assert.Contains("start with a letter or underscore", error);
+        }
+
+        [Theory]
+        [InlineData("g-Item")]
+        [InlineData("g Item")]
+        [InlineData("g.Item")]
+        [InlineData("g!Item")]
+        public void TryValidateCSymbol_InvalidCharacter_ReturnsFalse(string symbol)
+        {
+            Assert.False(StructExportCore.TryValidateCSymbol(symbol, out string error));
+            Assert.Contains("invalid character", error);
+        }
+
+        [Theory]
+        [InlineData("int")]
+        [InlineData("struct")]
+        [InlineData("_Static_assert")]
+        [InlineData("__attribute__")]
+        public void TryValidateCSymbol_ReservedKeyword_ReturnsFalse(string symbol)
+        {
+            Assert.False(StructExportCore.TryValidateCSymbol(symbol, out string error));
+            Assert.Contains("reserved keyword", error);
+        }
+
+        [Fact]
+        public void FormatCData_NoSymbolOverride_UsesDeterministicDefaultSymbols()
+        {
+            var structDef = Def("Sym", F("A", 0, StructMetadata.FieldType.Byte));
+            var rows = new List<(uint, Dictionary<string, string>, byte[])> { MakeRow(0, new byte[] { 0x01 }, ("A", "0x01")) };
+
+            string c = StructExportCore.FormatCData(rows, structDef, "sym_table", 1);
+
+            Assert.Contains("gFEBuilder_sym_table[1]", c);
+            Assert.Contains("const uint32_t gFEBuilder_sym_tableCount = 1;", c);
+        }
+
+        [Fact]
+        public void FormatCData_WithSymbolOverride_UsesOverrideVerbatimForDataAndCountSymbols()
+        {
+            var structDef = Def("Sym", F("A", 0, StructMetadata.FieldType.Byte));
+            var rows = new List<(uint, Dictionary<string, string>, byte[])> { MakeRow(0, new byte[] { 0x01 }, ("A", "0x01")) };
+
+            string c = StructExportCore.FormatCData(rows, structDef, "sym_table", 1, "gCustomItemData");
+
+            // The override replaces the data/count symbols verbatim...
+            Assert.Contains("gCustomItemData[1]", c);
+            Assert.Contains("const uint32_t gCustomItemDataCount = 1;", c);
+            // ...but the row TYPE name still derives from the struct name, not the override
+            // or the table name — type naming stays deterministic either way.
+            Assert.Contains("struct FEBuilder_Sym", c);
+            Assert.DoesNotContain("gFEBuilder_sym_table", c);
+        }
+
+        [Fact]
+        public void FormatCData_InvalidSymbolOverride_Throws()
+        {
+            var structDef = Def("Sym", F("A", 0, StructMetadata.FieldType.Byte));
+            var rows = new List<(uint, Dictionary<string, string>, byte[])> { MakeRow(0, new byte[] { 0x01 }, ("A", "0x01")) };
+
+            var ex = Assert.Throws<ArgumentException>(() =>
+                StructExportCore.FormatCData(rows, structDef, "sym_table", 1, "0BadSymbol"));
+            Assert.Contains("0BadSymbol", ex.Message);
+        }
+
+        [Fact]
+        public void FormatCData_KeywordSymbolOverride_Throws()
+        {
+            var structDef = Def("Sym", F("A", 0, StructMetadata.FieldType.Byte));
+            var rows = new List<(uint, Dictionary<string, string>, byte[])> { MakeRow(0, new byte[] { 0x01 }, ("A", "0x01")) };
+
+            var ex = Assert.Throws<ArgumentException>(() =>
+                StructExportCore.FormatCData(rows, structDef, "sym_table", 1, "struct"));
+            Assert.Contains("struct", ex.Message);
+        }
     }
 }
