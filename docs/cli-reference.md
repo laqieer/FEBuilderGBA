@@ -241,6 +241,7 @@ Convert an image to GBA map tile data and TSA (Tile Set Arrangement).
 | `--json` | No | Emit one JSON object on stdout for success or failure. Errors still return a non-zero exit code. |
 
 *At least one of `--outImg` or `--outTSA` is required.
+When both are supplied, they must resolve to different files.
 
 ```
 FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin

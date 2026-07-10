@@ -43,6 +43,8 @@ default human-readable output is unchanged when `--json` is absent.
   as `null` (`outImg`/`outTSA` and `outImgBytes`/`outTSABytes`), never omitted.
 - `--convertmap1picture` rejects images that require more than one 16-entry palette or more than 1024
   unique tiles, rather than masking palette/tile indices into corrupt output.
+- When both map outputs are requested, `--outImg` and `--outTSA` must resolve to different files;
+  canonical path aliases are rejected before either artifact is written.
 
 ```bash
 # Map image → tiles + TSA, machine-readable:

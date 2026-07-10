@@ -1358,6 +1358,31 @@ namespace FEBuilderGBA.CLI
             string outTSAPath = argsDic.ContainsKey("--outTSA") ? argsDic["--outTSA"] : "";
             if (string.IsNullOrEmpty(outImgPath) && string.IsNullOrEmpty(outTSAPath))
                 return Fail("--convertmap1picture requires --outImg=<path> and/or --outTSA=<path>");
+            if (!string.IsNullOrEmpty(outImgPath) && !string.IsNullOrEmpty(outTSAPath))
+            {
+                try
+                {
+                    string fullImgPath = Path.GetFullPath(outImgPath);
+                    string fullTSAPath = Path.GetFullPath(outTSAPath);
+                    StringComparison comparison = OperatingSystem.IsWindows()
+                        ? StringComparison.OrdinalIgnoreCase
+                        : StringComparison.Ordinal;
+                    if (string.Equals(fullImgPath, fullTSAPath, comparison))
+                        return Fail("--outImg and --outTSA must resolve to different files");
+                }
+                catch (ArgumentException ex)
+                {
+                    return Fail("Invalid output path: " + ex.Message);
+                }
+                catch (NotSupportedException ex)
+                {
+                    return Fail("Invalid output path: " + ex.Message);
+                }
+                catch (PathTooLongException ex)
+                {
+                    return Fail("Invalid output path: " + ex.Message);
+                }
+            }
 
             var imgService = CoreState.ImageService;
             if (imgService == null)

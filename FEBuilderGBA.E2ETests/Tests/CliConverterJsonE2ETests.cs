@@ -157,6 +157,24 @@ namespace FEBuilderGBA.E2ETests.Tests
         }
 
         [Fact]
+        public void ConvertMap1Picture_Json_AliasedOutputPaths_Error()
+        {
+            var png = GenerateTestPng();
+            var output = TempFile(".bin");
+            string directory = Path.GetDirectoryName(output)
+                ?? throw new InvalidOperationException("Temporary output path has no directory.");
+            string alias = Path.Combine(directory, ".", Path.GetFileName(output));
+            var (code, stdout, _) = AppRunner.Run(CliExe,
+                $"--convertmap1picture --in=\"{png}\" --outImg=\"{output}\" --outTSA=\"{alias}\" --json",
+                timeoutMs: 30_000);
+            Assert.NotEqual(0, code);
+            using var doc = JsonDocument.Parse(stdout);
+            Assert.False(doc.RootElement.GetProperty("ok").GetBoolean());
+            Assert.Contains("different files", doc.RootElement.GetProperty("error").GetString());
+            Assert.False(File.Exists(output));
+        }
+
+        [Fact]
         public void DecreaseColor_Json_OutputWriteError_ToStdout()
         {
             var png = GenerateTestPng();
