@@ -92,8 +92,8 @@ dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 # Disassemble code
 ./FEBuilderGBA.exe --rom rom.gba --disasm [params]
 
-# Convert an image to GBA map tiles + TSA (no ROM required)
-./FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin
+# Convert an image to GBA map tiles + TSA + matching palette (no ROM required)
+./FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin --outPal=palette.bin
 
 # Show version
 ./FEBuilderGBA.exe --version

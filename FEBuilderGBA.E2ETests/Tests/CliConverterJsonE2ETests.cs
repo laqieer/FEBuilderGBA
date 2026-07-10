@@ -308,7 +308,7 @@ namespace FEBuilderGBA.E2ETests.Tests
         }
 
         [Fact]
-        public void ConvertMap1Picture_Json_MoreThan16Colors_Error()
+        public void ConvertMap1Picture_Json_MoreThan15OpaqueColors_Error()
         {
             var input = GenerateHighColorPng();
             var outp = TempFile(".bin");
@@ -317,7 +317,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             Assert.NotEqual(0, code);
             using var doc = JsonDocument.Parse(stdout);
             Assert.False(doc.RootElement.GetProperty("ok").GetBoolean());
-            Assert.Contains("at most 16", doc.RootElement.GetProperty("error").GetString());
+            Assert.Contains("15 opaque colors", doc.RootElement.GetProperty("error").GetString());
             Assert.False(File.Exists(outp));
         }
 

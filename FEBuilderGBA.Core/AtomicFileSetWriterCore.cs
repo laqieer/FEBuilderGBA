@@ -106,7 +106,6 @@ namespace FEBuilderGBA
                 throw;
             }
 
-            var cleanupErrors = new List<Exception>();
             foreach (Entry entry in entries)
             {
                 if (string.IsNullOrEmpty(entry.BackupPath))
@@ -116,15 +115,14 @@ namespace FEBuilderGBA
                     File.Delete(entry.BackupPath);
                     entry.BackupPath = null;
                 }
-                catch (Exception ex)
+                catch (IOException ex)
                 {
-                    cleanupErrors.Add(ex);
+                    Log.Error($"Output transaction committed, but backup cleanup failed for '{entry.BackupPath}': {ex}");
                 }
-            }
-            if (cleanupErrors.Count > 0)
-            {
-                throw new IOException("Outputs were written, but backup cleanup failed.",
-                    new AggregateException(cleanupErrors));
+                catch (UnauthorizedAccessException ex)
+                {
+                    Log.Error($"Output transaction committed, but backup cleanup failed for '{entry.BackupPath}': {ex}");
+                }
             }
         }
 

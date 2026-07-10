@@ -74,41 +74,32 @@ namespace FEBuilderGBA
             int tilesY = height / 8;
 
             const int TransparentKey = 0x10000;
-            var inputPaletteKeys = new HashSet<int>();
+            var opaquePaletteKeys = new HashSet<int>();
             int pixelCount = width * height;
             for (int i = 0; i < pixelCount; i++)
             {
                 int offset = i * 4;
-                int key;
                 if (rgbaPixels[offset + 3] < 128)
+                    continue;
+
+                int key = (rgbaPixels[offset] >> 3) |
+                    ((rgbaPixels[offset + 1] >> 3) << 5) |
+                    ((rgbaPixels[offset + 2] >> 3) << 10);
+                opaquePaletteKeys.Add(key);
+                if (opaquePaletteKeys.Count > 15)
                 {
-                    key = TransparentKey;
-                }
-                else
-                {
-                    key = (rgbaPixels[offset] >> 3) |
-                        ((rgbaPixels[offset + 1] >> 3) << 5) |
-                        ((rgbaPixels[offset + 2] >> 3) << 10);
-                }
-                inputPaletteKeys.Add(key);
-                if (inputPaletteKeys.Count > 16)
-                {
-                    error = "Image requires more than 16 distinct palette entries; map conversion supports at most 16 (one palette).";
+                    error = "Image requires more than 15 opaque colors; map conversion reserves palette index 0 for transparency.";
                     return null;
                 }
             }
 
-            bool hasTransparency = inputPaletteKeys.Contains(TransparentKey);
-
             // Step 1: Map the already-validated colors directly. Quantizing an exactly
             // representable image can merge rare colors and silently change pixel data.
-            var compactPaletteMap = new Dictionary<int, byte>();
-            var compactPalette = new List<ushort>();
-            if (hasTransparency)
+            var compactPaletteMap = new Dictionary<int, byte>
             {
-                compactPaletteMap[TransparentKey] = 0;
-                compactPalette.Add(0);
-            }
+                [TransparentKey] = 0,
+            };
+            var compactPalette = new List<ushort> { 0 };
 
             byte[] compactIndexData = new byte[pixelCount];
             for (int i = 0; i < pixelCount; i++)
@@ -132,7 +123,7 @@ namespace FEBuilderGBA
                 {
                     if (compactPalette.Count >= 16)
                     {
-                        error = "Image requires more than 16 distinct palette entries; map conversion supports at most 16 (one palette).";
+                        error = "Image requires more than 15 opaque colors; map conversion reserves palette index 0 for transparency.";
                         return null;
                     }
                     compactIndex = (byte)compactPalette.Count;

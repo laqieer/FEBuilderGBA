@@ -41,8 +41,8 @@ default human-readable output is unchanged when `--json` is absent.
   with the existing **non-zero exit code** (so a consumer can branch on exit code *or* on `ok`).
 - Deterministic partial outputs: for `--convertmap1picture`, untaken `--outImg`/`--outTSA`/`--outPal`
   fields and byte counts are reported as `null`, never omitted.
-- `--convertmap1picture` rejects images that require more than one 16-entry palette or more than 1024
-  unique tiles, rather than masking palette/tile indices into corrupt output.
+- `--convertmap1picture` reserves palette index 0 for transparency and rejects images with more than
+  15 opaque GBA colors or 1024 unique tiles, rather than masking palette/tile indices into corrupt output.
 - Requested map outputs are staged and committed transactionally. Filesystem aliases cannot make one
   artifact overwrite another while returning `ok:true`; on failure, the prior output set is restored.
 

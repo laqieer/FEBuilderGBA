@@ -167,22 +167,39 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void ConvertImage_MoreThan16PaletteEntries_ReturnsError()
+        public void ConvertImage_OpaqueColorNeverUsesTransparentIndexZero()
         {
             int w = 8, h = 8;
             byte[] rgba = new byte[w * h * 4];
             for (int i = 0; i < w * h; i++)
             {
-                rgba[i * 4 + 0] = (byte)((i & 7) * 32);
-                rgba[i * 4 + 1] = (byte)((i >> 3) * 32);
-                rgba[i * 4 + 2] = 128;
+                rgba[i * 4 + 0] = 255;
+                rgba[i * 4 + 3] = 255;
+            }
+
+            var result = MapConvertCore.ConvertImage(rgba, w, h, out string error);
+
+            Assert.NotNull(result);
+            Assert.Equal("", error);
+            Assert.Equal(new byte[] { 0, 0, 0x1F, 0 }, result.PaletteData);
+            Assert.All(result.TileData, packed => Assert.Equal((byte)0x11, packed));
+        }
+
+        [Fact]
+        public void ConvertImage_MoreThan15OpaqueColors_ReturnsError()
+        {
+            int w = 8, h = 8;
+            byte[] rgba = new byte[w * h * 4];
+            for (int i = 0; i < w * h; i++)
+            {
+                rgba[i * 4 + 0] = (byte)((i % 16) * 8);
                 rgba[i * 4 + 3] = 255;
             }
 
             var result = MapConvertCore.ConvertImage(rgba, w, h, out string error, maxPalettes: 1);
 
             Assert.Null(result);
-            Assert.Contains("at most 16", error);
+            Assert.Contains("more than 15 opaque colors", error);
         }
 
         [Fact]
@@ -249,20 +266,20 @@ namespace FEBuilderGBA.Core.Tests
 
             Assert.NotNull(result);
             Assert.Equal("", error);
-            Assert.InRange(result.PaletteData.Length / 2, 1, 3);
+            Assert.InRange(result.PaletteData.Length / 2, 2, 4);
         }
 
         [Fact]
-        public void ConvertImage_SkewedSixteenColorInput_PreservesEveryGbaColor()
+        public void ConvertImage_SkewedFifteenColorInput_PreservesEveryGbaColor()
         {
             int w = 16, h = 8;
             byte[] rgba = new byte[w * h * 4];
             for (int i = 0; i < w * h; i++)
             {
-                rgba[i * 4 + 0] = 15 * 8;
+                rgba[i * 4 + 0] = 14 * 8;
                 rgba[i * 4 + 3] = 255;
             }
-            for (int i = 0; i < 15; i++)
+            for (int i = 0; i < 14; i++)
                 rgba[i * 4 + 0] = (byte)(i * 8);
 
             var result = MapConvertCore.ConvertImage(rgba, w, h, out string error);
@@ -274,8 +291,8 @@ namespace FEBuilderGBA.Core.Tests
             var palette = new HashSet<ushort>();
             for (int i = 0; i < result.PaletteData.Length; i += 2)
                 palette.Add((ushort)(result.PaletteData[i] | (result.PaletteData[i + 1] << 8)));
-            Assert.Equal(16, palette.Count);
-            for (ushort color = 0; color < 16; color++)
+            Assert.Equal(15, palette.Count);
+            for (ushort color = 0; color < 15; color++)
                 Assert.Contains(color, palette);
 
             for (int y = 0; y < h; y++)
@@ -288,6 +305,7 @@ namespace FEBuilderGBA.Core.Tests
                     int tilePixel = (y % 8) * 8 + (x % 8);
                     byte packed = result.TileData[tileIndex * 32 + (tilePixel / 2)];
                     int paletteIndex = (tilePixel & 1) == 0 ? packed & 0x0F : packed >> 4;
+                    Assert.InRange(paletteIndex, 1, 15);
                     ushort actual = (ushort)(result.PaletteData[paletteIndex * 2] |
                         (result.PaletteData[paletteIndex * 2 + 1] << 8));
                     ushort expected = (ushort)(rgba[(y * w + x) * 4] >> 3);

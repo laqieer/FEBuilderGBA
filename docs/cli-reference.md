@@ -235,7 +235,7 @@ Convert an image to GBA map tile data and TSA (Tile Set Arrangement).
 
 | Option | Required | Description |
 |---|---|---|
-| `--in=<path>` | Yes | Input image file. Dimensions must be multiples of 8; conversion is limited to one 16-entry palette and 1024 unique tiles. |
+| `--in=<path>` | Yes | Input image file. Dimensions must be multiples of 8; conversion is limited to 15 opaque colors plus reserved transparent palette slot 0, and 1024 unique tiles. |
 | `--outImg=<path>` | No* | Raw 4bpp tile bytes (32 bytes per tile), not an encoded image regardless of extension. |
 | `--outTSA=<path>` | No* | Output TSA data file (LZ77-compressed). |
 | `--outPal=<path>` | No* | Matching GBA RGB555 palette data (up to 32 bytes). |
@@ -1043,7 +1043,7 @@ Each finding prints as `ERROR [CODE] msg` (stderr) or `WARN [CODE] msg` (stdout)
 | `--pointercalc` | Required | — | — | — | `--target`, `--address` | No |
 | `--rebuild` | Required | Required | — | — | — | No |
 | `--songexchange` | Required | Required | — | — | `--fromsong`, `--tosong` | Partial |
-| `--convertmap1picture` | — | — | Required | — | `--outImg`/`--outTSA` | No |
+| `--convertmap1picture` | — | — | Required | — | one or more of `--outImg`/`--outTSA`/`--outPal` | No |
 | `--translate` | Required | — | Optional | Optional | — | Full |
 | `--translate_batch` | Required | — | Optional | Optional | — | Full |
 | `--lastrom` | — | — | — | — | — | Full |
@@ -1130,7 +1130,7 @@ FEBuilderGBA.CLI --rebuild --rom=modified.gba --fromrom=original.gba
 FEBuilderGBA.CLI --songexchange --rom=dest.gba --fromrom=source.gba --fromsong=0x1A --tosong=0x1A
 
 # Convert image to map tiles
-FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin
+FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin --outPal=palette.bin
 
 # Export text
 FEBuilderGBA.CLI --translate --rom=rom.gba --out=texts.tsv
