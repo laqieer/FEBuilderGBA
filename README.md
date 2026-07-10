@@ -118,6 +118,8 @@ dotnet run --project FEBuilderGBA.CLI -- --translate-roundtrip --rom=rom.gba --o
 dotnet run --project FEBuilderGBA.CLI -- --export-data --rom=rom.gba --table=units --out=units.tsv  # 40 tables: units, classes, items, portraits, sound_room, sound_boss_bgm, support_units, support_talks, support_attributes, event_haiku, event_battle_talk, event_force_sortie, worldmap_points, worldmap_paths, worldmap_bgm, map_settings, link_arena_deny, cc_branch, menu_definitions, item_weapon_triangle, map_exit_points, ai_map_settings, ai_perform_items, ai_perform_staff, ai_steal_items, ai_targets, generic_enemy_portraits, status_options, ed_retreat, ed_epithet, ed_epilogue_a, ed_epilogue_b, ed_epilogue_c, op_class_demo, op_class_font, op_prologue, class_alpha_names, summon_units, summons_demon_king, monster_probability
 dotnet run --project FEBuilderGBA.CLI -- --export-data --rom=rom.gba --table=all --out=data
 dotnet run --project FEBuilderGBA.CLI -- --import-data --rom=rom.gba --table=units --in=units.tsv
+dotnet run --project FEBuilderGBA.CLI -- --export-data --rom=rom.gba --table=units --format=json --out=units.json  # LLM-backend format: JSON array of string-valued objects, keyed by Index + field name (see docs/febuilder-cli-as-llm-backend.md)
+dotnet run --project FEBuilderGBA.CLI -- --import-data --rom=rom.gba --table=units --in=units.json  # format auto-detected from .json, or pass --format=json explicitly
 dotnet run --project FEBuilderGBA.CLI -- --data-roundtrip --rom=rom.gba --table=all
 dotnet run --project FEBuilderGBA.CLI -- --lastrom
 dotnet run --project FEBuilderGBA.CLI -- --force-detail

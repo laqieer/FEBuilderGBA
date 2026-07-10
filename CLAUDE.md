@@ -115,9 +115,11 @@ dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 ./FEBuilderGBA.CLI --export-data --rom=rom.gba --table=all --out=data  # data.{table}.tsv per table
 ./FEBuilderGBA.CLI --export-data --rom=rom.gba --table=units --format=csv --out=units.csv
 ./FEBuilderGBA.CLI --export-data --rom=rom.gba --table=units --format=ea --out=units.ea
+./FEBuilderGBA.CLI --export-data --rom=rom.gba --table=units --format=json --out=units.json  # LLM-backend format: JSON array of string-valued objects (docs/febuilder-cli-as-llm-backend.md)
 
-# Import struct data from TSV
+# Import struct data from TSV or JSON (format auto-detected from a .json --in, or pass --format=json)
 ./FEBuilderGBA.CLI --import-data --rom=rom.gba --table=units --in=units.tsv
+./FEBuilderGBA.CLI --import-data --rom=rom.gba --table=units --in=units.json
 
 # Validate struct data round-trip (exit 0=lossless, 2=mismatches)
 ./FEBuilderGBA.CLI --data-roundtrip --rom=rom.gba --table=all

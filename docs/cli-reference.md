@@ -413,14 +413,24 @@ required and optional flags. Each is verified against its `Run*` handler in
 
 ### Data
 
-- **`--export-data`** — Export a struct table to TSV/CSV/EA. Requires `--rom` and
+- **`--export-data`** — Export a struct table to TSV/CSV/EA/JSON. Requires `--rom` and
   `--table=<name>` (any name from `--list-tables`, or `all`); optional `--out=<path>`
   (defaults to `<rom>.<table>.<ext>`; with `--table=all` it is a base path written as
-  `<out>.<table>.<ext>`) and `--format=<tsv|csv|ea>` (default `tsv`). **Exit:** 0 on
+  `<out>.<table>.<ext>`) and `--format=<tsv|csv|ea|json>` (default `tsv`). `--format=json`
+  serializes rows as a JSON array of objects: the public key is `Index` (never the internal
+  `_Index`), followed by one key per struct field; every value is a JSON **string** holding
+  the same hex/text representation as TSV/CSV (e.g. `"0x0A"`) — see
+  [`febuilder-cli-as-llm-backend.md`](febuilder-cli-as-llm-backend.md). **Exit:** 0 on
   success, 1 on usage/unknown-table error.
-- **`--import-data`** — Import a struct table from a TSV and save the ROM in-place.
-  Requires `--rom`, `--table=<name>`, and `--in=<path.tsv>`. **Exit:** 0 on success, 1 on
-  usage/unknown-table error.
+- **`--import-data`** — Import a struct table from TSV or JSON and save the ROM in-place.
+  Requires `--rom`, `--table=<name>`, and `--in=<path>`. JSON input is used when
+  `--format=json` is passed explicitly, or automatically when `--in` has a `.json`
+  extension; otherwise the input is parsed as TSV. The JSON document is fully validated
+  (root must be an array; every row an object; every property value a JSON string — numbers/
+  booleans/nulls/arrays/objects are rejected) **before** any ROM write; a malformed document
+  fails with a specific error and leaves the ROM untouched. The public `Index` key is
+  normalized back to the internal row index. **Exit:** 0 on success, 1 on usage/unknown-table/
+  malformed-input error.
 - **`--resolve-names`** — Resolve entity IDs to names. Requires `--rom`, `--kind=<unit|class|item|song>`,
   and `--ids=<comma-list>`. Prints `id<TAB>name` per ID. **Exit:** 0 on success, 1 on
   usage/unknown-kind error.

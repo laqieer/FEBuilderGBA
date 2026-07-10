@@ -123,7 +123,7 @@ All 40 registered tables round-trip losslessly (`--data-roundtrip --table=<name>
 | Hex dump / disassembly | Hex editor, DisASM | `--hex-dump`, `--disasm`, `--lint-oam` | **Partial** | Read/dump only; interactive ASM *edit/insert* surfaces have no CLI verb. |
 | Pointer search / free space | PointerTool, MoveToFreeSpace | `--pointercalc`, `--freespace` | **Partial** | Pointer *search* + free-space *scan* covered; `MoveToFreeSpace`, RAM/emulator-memory tools have no headless equivalent. |
 | Free-space report | — | `--freespace` | **Full** | |
-| Struct export **formats** | `DumpStructSelectDialogView` | `--export-data --format=` (`tsv`, `csv`, `ea`) | **Partial** | GUI also exports **STRUCT** / **NMM** (`ExportToSTRUCT`/`ExportToNMM`) — not reachable from the CLI `--format=` switch. Cheap win → see gaps. |
+| Struct export **formats** | `DumpStructSelectDialogView` | `--export-data --format=` (`tsv`, `csv`, `ea`, `json`) | **Partial** | GUI also exports **STRUCT** / **NMM** (`ExportToSTRUCT`/`ExportToNMM`) — not reachable from the CLI `--format=` switch. Cheap win → see gaps. `json` (#1937) is the LLM-backend-facing format: `--import-data` accepts it back (auto-detected from a `.json` `--in`, or `--format=json`), so it round-trips like TSV/CSV. |
 
 ## 9. Skills
 
