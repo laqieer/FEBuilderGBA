@@ -40,9 +40,16 @@ the review on GitHub as the `Copilot` bot; verify by **bot author** + the 2-line
 
 Do **not** call `agency cc` / Claude Code. Convene a 3-model board **in-session** and post one consolidated review.
 
-1. **Board roster:** `claude-opus-4.8` (Claude Opus 4.8), `gpt-5.5` (GPT-5.5), `gemini-3.5-flash` (Gemini 3.5 Flash).
-   **Independence:** if your own active model is one of these, swap that member for a **named same-tier alternate**
-   (`claude-opus-4.8`→`claude-sonnet-5`, `gpt-5.5`→`gpt-5.4`, `gemini-3.5-flash`→`gemini-3.1-pro-preview`) so all
+1. **Board roster:** use the primary model from each provider below. Invoke `gpt-5.6-sol` with
+   `reasoning_effort: max`.
+
+   | Provider | Primary | Same-provider alternate |
+   |---|---|---|
+   | OpenAI | `gpt-5.6-sol` (GPT-5.6 Sol) | `gpt-5.5` (GPT-5.5) |
+   | Anthropic | `claude-opus-4.8` (Claude Opus 4.8) | `claude-sonnet-5` (Claude Sonnet 5) |
+   | Google | `gemini-3.5-flash` (Gemini 3.5 Flash) | `gemini-3.1-pro-preview` (Gemini 3.1 Pro Preview) |
+
+   **Independence:** if your own active model is a primary, swap that member for its named alternate so all
    three reviewers differ from you; keep ≥2 providers (Anthropic / OpenAI / Google). If a roster/alternate model is
    unavailable, substitute another available model from a different provider and note the substitution.
 2. **Gather the artifact (full source-of-truth context)** and embed it in each reviewer's prompt:
@@ -67,7 +74,7 @@ Do **not** call `agency cc` / Claude Code. Convene a 3-model board **in-session*
    End the posted review with a board-roster line **immediately above** the mandatory 2-line footer (so
    `.github/copilot-instructions.md` stays satisfied):
    ```
-   Review Board: claude-opus-4.8, gpt-5.5, gemini-3.5-flash
+   Review Board: gpt-5.6-sol, claude-opus-4.8, gemini-3.5-flash
    Copilot CLI: <version>
    Model: <display-name> (<model-id>)
    ```
@@ -475,7 +482,7 @@ gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "<THRE
   Copilot CLI: <version>
   Model: <display-name> (<model-id>)
   ```
-  Example: `Copilot CLI: 1.0.6-0` / `Model: GPT-5.4 (gpt-5.4)`. Both lines must be present at the end of the review body.
+  Example: `Copilot CLI: 1.0.70` / `Model: GPT-5.6 Sol (gpt-5.6-sol)`. Both lines must be present at the end of the review body.
 - **Branch B** — the developer posts a `## Cross-Model Review Board` PR comment with no member reporting blocking, carrying a `Review Board:` roster line immediately above the same 2-line `Copilot CLI:` / `Model:` footer.
 
 ---
