@@ -120,6 +120,7 @@ dotnet run --project FEBuilderGBA.CLI -- --export-data --rom=rom.gba --table=all
 dotnet run --project FEBuilderGBA.CLI -- --import-data --rom=rom.gba --table=units --in=units.tsv
 dotnet run --project FEBuilderGBA.CLI -- --export-data --rom=rom.gba --table=units --format=json --out=units.json  # LLM-backend format: JSON array of string-valued objects, keyed by Index + field name (see docs/febuilder-cli-as-llm-backend.md)
 dotnet run --project FEBuilderGBA.CLI -- --import-data --rom=rom.gba --table=units --in=units.json  # format auto-detected from .json, or pass --format=json explicitly
+# JSON preserves full row indices (including 0x0100+) and uses the canonical FE6/7/8 unit field offsets.
 dotnet run --project FEBuilderGBA.CLI -- --data-roundtrip --rom=rom.gba --table=all
 dotnet run --project FEBuilderGBA.CLI -- --lastrom
 dotnet run --project FEBuilderGBA.CLI -- --force-detail

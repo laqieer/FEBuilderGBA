@@ -111,7 +111,11 @@ the "### Graphics System" overview in `CLAUDE.md`.
   `DumpStructSelectDialogViewModel.MakeExportText` routes STRUCT/NMM (+CSV/TSV/EA), hex stub for unresolved. #1012.
   `FormatJSON`/`ParseJSON`/`ExportToJSON`/`ImportFromJSON` (#1937) add a JSON array-of-objects sibling to
   TSV/CSV/EA for `--export-data`/`--import-data`: public key `Index` (never internal `_Index`), one key per
-  field, every value a JSON **string** in the same hex/text form as TSV; `ParseJSON` fully validates the
+  field, every value a JSON **string** in the same hex/text form as TSV. `ExportTable` keeps the complete
+  `uint` row number (`0x0100` at row 256, never a byte-truncated `0x00`) for every output format. The FE6
+  and FE7/8 unit metadata mirrors the canonical ViewModel layout: `MapFace`/`Affinity`/`SortOrder`/`Level`
+  at `0x08`–`0x0B`, base stats at `0x0C`–`0x13`, ranks at `0x14`–`0x1B`, growths at `0x1C`–`0x22`,
+  abilities at `0x28`–`0x2B`, and support pointer at `0x2C`. `ParseJSON` fully validates the
   document (array root, object rows, string-only values, no duplicate properties, strict `Index` parsing —
   no silent alias to row 0 on garbage/overflow/negative) before any ROM write. `ValidateJSONEntries`/
   `ParseAndValidateJSON`/`ImportFromJSON(path, structDef, entryCount)` (#1937 follow-up) add a second,

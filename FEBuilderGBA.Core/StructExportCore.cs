@@ -1141,7 +1141,10 @@ namespace FEBuilderGBA
                     uint textId = structDef.ReadField(rom, entryAddr, structDef.Fields[0]);
                     try { name = FETextDecode.Direct(textId) ?? ""; } catch { }
                 }
-                entry["_Index"] = U.To0xHexString((byte)i) + " " + name;
+                // Full-width formatting (not a byte cast): a table with 256+ rows must
+                // not alias row 256 back to "0x00" — U.To0xHexString(uint) widens the
+                // hex string (X02/X04/X06/X08) based on the actual magnitude of i.
+                entry["_Index"] = U.To0xHexString(i) + " " + name;
 
                 // All fields as hex values
                 foreach (var field in structDef.Fields)

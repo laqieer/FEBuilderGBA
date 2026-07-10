@@ -435,7 +435,9 @@ required and optional flags. Each is verified against its `Run*` handler in
   public `Index` key is required and strictly parsed (0x-hex, `$`-hex, or plain decimal,
   optionally followed by a space and a label) back to the internal row index — unlike TSV
   import, a garbage/overflowing/negative `Index` is rejected outright rather than silently
-  aliased to row 0. A second, struct/count-aware preflight then runs — still **before** any
+  aliased to row 0. Export preserves the complete row index for every registered table, so
+  row 256 is emitted as `0x0100` rather than wrapping to `0x00`. A second, struct/count-aware
+  preflight then runs — still **before** any
   ROM write — that TSV import does not perform: every non-`Index` property name must be a
   known field of the resolved table's struct (an unknown/typo'd name, e.g. `Wieght` instead
   of `Weight`, is rejected with the row number and property name — a field simply absent

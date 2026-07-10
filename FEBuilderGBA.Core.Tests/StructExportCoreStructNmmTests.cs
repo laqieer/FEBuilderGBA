@@ -97,11 +97,11 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.StartsWith("struct " + sd.Name, text);
                 Assert.Contains("struct " + sd.Name + " {//" + sd.Name, text);
 
-                // One correct C type per FieldType present (units has all four).
+                // One correct C type per FieldType present in the canonical unit layout.
                 Assert.Contains("byte    _", text);    // Byte
                 Assert.Contains("ushort   _", text);   // Word
-                Assert.Contains("dword   _", text);    // DWord
                 Assert.Contains("void*   _", text);    // Pointer
+                Assert.DoesNotContain("dword   _", text); // No synthetic padding field
 
                 // Footer: }; sizeof({DataSize})
                 Assert.Contains("}; sizeof(" + sd.DataSize + ")", text);

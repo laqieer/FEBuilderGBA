@@ -34,13 +34,13 @@ implementing the gaps identified below — those are candidate follow-up issues,
 | fe-infinity re-derivation | FEBuilderGBA.CLI equivalent | Status |
 |---|---|---|
 | `character-table-csv-headers.ts` (hand-maintained CSV columns) | `--list-tables` (enumerate the 40 registered tables) + `--export-data --table=<name> --format=<tsv\|csv\|ea\|json>` (schema *is* the column/key set — no hand-maintenance needed) | **Existing verb** |
-| `generate-character-stats.ts` (base stats, growths) | `--export-data --table=units` — real fields `BaseHP`/`BasePow`/`BaseSkl`/`BaseSpd`/`BaseDef`/`BaseRes`/`BaseLck`/`BaseCon` and `GrowthHP`/`GrowthPow`/… (verified against `config/data/struct_unit_fe78.txt`) | **Existing verb** |
+| `generate-character-stats.ts` (base stats, growths) | `--export-data --table=units` — real fields `BaseHP`/`BasePow`/`BaseSkl`/`BaseSpd`/`BaseDef`/`BaseRes`/`BaseLck`/`BaseCon` (`0x0C`–`0x13`) and `GrowthHP`/`GrowthPow`/… (`0x1C`–`0x22`), verified against both unit ViewModels and `config/data/struct_unit_*.txt` | **Existing verb** |
 | `get-weapon-rank.ts` | `--export-data --table=units` — real fields `SwordRank`/`LanceRank`/`AxeRank`/`BowRank`/`StaffRank`/`AnimaRank`/`LightRank`/`DarkRank` (`struct_unit_fe78.txt`) | **Existing verb** |
 | Item/weapon stats (`Might`, `Hit`, `Weight`, `Crit`, ranges, `WeaponRank`, …) | `--export-data --table=items` (`struct_item_fe78.txt`) | **Existing verb** |
 | Multi-version support (FE6/7/8, J/U) | Automatic ROM version detection, or `--force-version=<FE6\|FE7J\|FE7U\|FE8J\|FE8U>` | **Existing, free** |
 | The correctness gate | `--lint` (structural/pointer/text-id validity) and `--data-roundtrip` / `--translate-roundtrip` (export/import losslessness) — see the [precision note](#correctness-gate-precision-lint-vs-round-trip) below; **neither checks gameplay/semantic validity** | **Existing verb, precision caveat** |
 | `class-name-to-rom-class-name.ts` (name → id) | **Gap.** `--resolve-names` is **id → name only** (`--kind=<unit\|class\|item\|song> --ids=<comma-list>`); the reverse (name → id) has no CLI verb today. | **Needed verb** |
-| `generate-affinity.ts` (decoded affinity) | **Gap.** The `units` struct has no named `Affinity` column — affinity is packed into the opaque `Ability1`–`Ability4` bitfields (`struct_unit_fe78.txt`), which `--export-data` exports as raw hex, not a decoded value. | **Needed: undecoded-field gap** |
+| `generate-affinity.ts` (decoded affinity) | `--export-data --table=units` exposes the direct `Affinity` byte at `0x09` for FE6/7/8. It exports the raw hex value; converting that value to a human-readable affinity name still requires a decoder. | **Existing raw field; decoded-name gap** |
 | `map-processing/` (terrain-aware coordinate logic) | **Gap.** No terrain-query CLI verb exists; `docs/agent-parity.md` rates map *tile layout* as **Partial** (chapter/map *settings* are `--export-data --table=map_settings`-covered, but terrain-aware coordinate processing is not). | **Needed verb** |
 | Unit-placement coordinates | **Different surface, not struct data.** Chapter unit spawns live in event scripts, not a struct table — use `--disasm-event` / `--compile-event` (Event Assembler), not `--export-data`. | **Different surface** |
 
@@ -62,11 +62,13 @@ file if this doc and the CLI ever drift.
   decimal token (optionally followed by a space and a label), in range for a 32-bit value, and
   non-negative — a garbage, overflowing, or negative `Index` is rejected outright rather than
   quietly mutating the wrong row.
-- **Additive, backward-compatible:** `tsv`/`csv`/`ea` output is byte-for-byte unchanged; `json` is a
-  new, opt-in `--format=` value. `--import-data` accepts JSON either explicitly (`--format=json`) or
-  automatically when `--in` has a `.json` extension; TSV import behavior is unchanged. An explicit
-  `--format` value outside the supported set (`tsv`/`csv`/`ea`/`json` for export, `tsv`/`json` for
-  import) is rejected with an actionable error instead of silently falling back to TSV.
+- **Additive, backward-compatible:** `json` is a new, opt-in `--format=` value, and the existing
+  TSV/CSV/EA syntax is unchanged. All formats now preserve the complete row index rather than
+  truncating it to one byte (`Index` for row 256 is `0x0100`, never `0x00`). `--import-data` accepts
+  JSON either explicitly (`--format=json`) or automatically when `--in` has a `.json` extension;
+  TSV import behavior is unchanged. An explicit `--format` value outside the supported set
+  (`tsv`/`csv`/`ea`/`json` for export, `tsv`/`json` for import) is rejected with an actionable error
+  instead of silently falling back to TSV.
 - **Backstop:** this shape is covered by regression tests — `FEBuilderGBA.Core.Tests/StructExportFormatTests.cs`
   (`FormatJSON`/`ParseJSON`/`ValidateJSONEntries` unit tests, including the strict `Index` parsing,
   duplicate-property rejection, unknown-field rejection, per-field numeric strictness/width
@@ -119,8 +121,9 @@ struct table via JSON, end to end:
 FEBuilderGBA.CLI --export-data --rom=rom.gba --table=units --format=json --out=units.json
 
 # 2. Edit units.json — e.g. the LLM emits a modified array of the same shape:
-#    [{"Index": "0x01 Eirika", "BasePow": "0x05", ...}, ...]
+#    [{"Index": "0x01 Eirika", "Affinity": "0x02", "BasePow": "0x05", ...}, ...]
 #    Every value must stay a JSON string in the same hex/text form as the export.
+#    Unit metadata maps Affinity to byte 0x09 and BasePow to byte 0x0D.
 
 # 3. Import the edited JSON back into the ROM.
 #    Format is auto-detected from the .json extension (or pass --format=json explicitly).

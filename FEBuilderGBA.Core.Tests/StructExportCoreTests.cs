@@ -31,6 +31,78 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.BaseDirectory = root;
         }
 
+        static StructMetadata.StructDef LoadMetadataStruct(string fileName, string structName)
+        {
+            string root = FindRepoRoot();
+            Assert.False(string.IsNullOrEmpty(root), "Repository root with config/data must be available.");
+
+            string path = Path.Combine(root, "config", "data", fileName);
+            Assert.True(File.Exists(path), $"Metadata file not found: {path}");
+
+            var metadata = new StructMetadata();
+            metadata.LoadFromFile(path);
+            var structDef = metadata.GetStruct(structName);
+            Assert.NotNull(structDef);
+            return structDef;
+        }
+
+        static List<(string name, uint offset, StructMetadata.FieldType type)> CommonUnitLayout()
+        {
+            return new List<(string, uint, StructMetadata.FieldType)>
+            {
+                ("NameTextID", 0x00, StructMetadata.FieldType.Word),
+                ("DescTextID", 0x02, StructMetadata.FieldType.Word),
+                ("UnitNumber", 0x04, StructMetadata.FieldType.Byte),
+                ("ClassID", 0x05, StructMetadata.FieldType.Byte),
+                ("PortraitID", 0x06, StructMetadata.FieldType.Word),
+                ("MapFace", 0x08, StructMetadata.FieldType.Byte),
+                ("Affinity", 0x09, StructMetadata.FieldType.Byte),
+                ("SortOrder", 0x0A, StructMetadata.FieldType.Byte),
+                ("Level", 0x0B, StructMetadata.FieldType.Byte),
+                ("BaseHP", 0x0C, StructMetadata.FieldType.Byte),
+                ("BasePow", 0x0D, StructMetadata.FieldType.Byte),
+                ("BaseSkl", 0x0E, StructMetadata.FieldType.Byte),
+                ("BaseSpd", 0x0F, StructMetadata.FieldType.Byte),
+                ("BaseDef", 0x10, StructMetadata.FieldType.Byte),
+                ("BaseRes", 0x11, StructMetadata.FieldType.Byte),
+                ("BaseLck", 0x12, StructMetadata.FieldType.Byte),
+                ("BaseCon", 0x13, StructMetadata.FieldType.Byte),
+                ("SwordRank", 0x14, StructMetadata.FieldType.Byte),
+                ("LanceRank", 0x15, StructMetadata.FieldType.Byte),
+                ("AxeRank", 0x16, StructMetadata.FieldType.Byte),
+                ("BowRank", 0x17, StructMetadata.FieldType.Byte),
+                ("StaffRank", 0x18, StructMetadata.FieldType.Byte),
+                ("AnimaRank", 0x19, StructMetadata.FieldType.Byte),
+                ("LightRank", 0x1A, StructMetadata.FieldType.Byte),
+                ("DarkRank", 0x1B, StructMetadata.FieldType.Byte),
+                ("GrowthHP", 0x1C, StructMetadata.FieldType.Byte),
+                ("GrowthPow", 0x1D, StructMetadata.FieldType.Byte),
+                ("GrowthSkl", 0x1E, StructMetadata.FieldType.Byte),
+                ("GrowthSpd", 0x1F, StructMetadata.FieldType.Byte),
+                ("GrowthDef", 0x20, StructMetadata.FieldType.Byte),
+                ("GrowthRes", 0x21, StructMetadata.FieldType.Byte),
+                ("GrowthLck", 0x22, StructMetadata.FieldType.Byte),
+            };
+        }
+
+        static void AssertUnitLayout(
+            string fileName,
+            string structName,
+            uint expectedSize,
+            List<(string name, uint offset, StructMetadata.FieldType type)> expected)
+        {
+            var structDef = LoadMetadataStruct(fileName, structName);
+            Assert.Equal(expectedSize, structDef.DataSize);
+            Assert.Equal(expected.Count, structDef.Fields.Count);
+
+            for (int i = 0; i < expected.Count; i++)
+            {
+                Assert.Equal(expected[i].name, structDef.Fields[i].Name);
+                Assert.Equal(expected[i].offset, structDef.Fields[i].Offset);
+                Assert.Equal(expected[i].type, structDef.Fields[i].Type);
+            }
+        }
+
         [Fact]
         public void GetTableNames_ReturnsAllRegisteredTables()
         {
@@ -276,6 +348,137 @@ namespace FEBuilderGBA.Core.Tests
             var structDef = CreateTestStructDef();
             var result = StructExportCore.ExportTable(null, table, structDef);
             Assert.Empty(result);
+        }
+
+        [Fact]
+        public void ExportTable_IndexAboveByteRange_RoundTripsWithoutAliasing()
+        {
+            var rom = new ROM();
+            Assert.True(rom.LoadLow("wide-index.gba", new byte[0x1000000], "BE8E01"));
+
+            var table = new StructExportCore.TableDef
+            {
+                Name = "wide_index",
+                GetBaseAddress = _ => 0x200,
+                GetDataSize = _ => 1,
+                GetEntryCount = _ => 257,
+            };
+            var structDef = new StructMetadata.StructDef
+            {
+                Name = "WideIndex",
+                DataSize = 1,
+                Fields = new List<StructMetadata.FieldDef>
+                {
+                    new StructMetadata.FieldDef
+                    {
+                        Name = "Value",
+                        Offset = 0,
+                        Type = StructMetadata.FieldType.Byte,
+                    },
+                },
+            };
+
+            var entries = StructExportCore.ExportTable(rom, table, structDef);
+            Assert.Equal(257, entries.Count);
+            Assert.Equal("0xFF ", entries[255]["_Index"]);
+            Assert.Equal("0x0100 ", entries[256]["_Index"]);
+
+            string json = StructExportCore.FormatJSON(entries, structDef);
+            var parsed = StructExportCore.ParseAndValidateJSON(json, structDef, 257);
+            Assert.Equal(256, parsed[256].index);
+            Assert.Contains("\"Index\": \"0x0100 \"", json);
+            Assert.Contains("0x0100 ", StructExportCore.FormatTSV(entries, structDef));
+            Assert.Contains("#define WideIndex_0x0100_Value 0x00",
+                StructExportCore.FormatEA(entries, structDef));
+        }
+
+        [Fact]
+        public void UnitMetadata_FE6_MatchesCanonicalLayout()
+        {
+            var expected = CommonUnitLayout();
+            expected.AddRange(new (string, uint, StructMetadata.FieldType)[]
+            {
+                ("Unknown23", 0x23, StructMetadata.FieldType.Byte),
+                ("Unknown24", 0x24, StructMetadata.FieldType.Byte),
+                ("Unknown25", 0x25, StructMetadata.FieldType.Byte),
+                ("Unknown26", 0x26, StructMetadata.FieldType.Byte),
+                ("Unknown27", 0x27, StructMetadata.FieldType.Byte),
+                ("Ability1", 0x28, StructMetadata.FieldType.Byte),
+                ("Ability2", 0x29, StructMetadata.FieldType.Byte),
+                ("Ability3", 0x2A, StructMetadata.FieldType.Byte),
+                ("Ability4", 0x2B, StructMetadata.FieldType.Byte),
+                ("SupportPointer", 0x2C, StructMetadata.FieldType.Pointer),
+            });
+
+            AssertUnitLayout("struct_unit_fe6.txt", "Unit_FE6", 0x30, expected);
+        }
+
+        [Fact]
+        public void UnitMetadata_FE78_MatchesCanonicalLayout()
+        {
+            var expected = CommonUnitLayout();
+            expected.AddRange(new (string, uint, StructMetadata.FieldType)[]
+            {
+                ("LowerClassPalette", 0x23, StructMetadata.FieldType.Byte),
+                ("UpperClassPalette", 0x24, StructMetadata.FieldType.Byte),
+                ("LowerClassAnime", 0x25, StructMetadata.FieldType.Byte),
+                ("UpperClassAnime", 0x26, StructMetadata.FieldType.Byte),
+                ("Unknown27", 0x27, StructMetadata.FieldType.Byte),
+                ("Ability1", 0x28, StructMetadata.FieldType.Byte),
+                ("Ability2", 0x29, StructMetadata.FieldType.Byte),
+                ("Ability3", 0x2A, StructMetadata.FieldType.Byte),
+                ("Ability4", 0x2B, StructMetadata.FieldType.Byte),
+                ("SupportPointer", 0x2C, StructMetadata.FieldType.Pointer),
+                ("TalkGroup", 0x30, StructMetadata.FieldType.Byte),
+                ("Unknown31", 0x31, StructMetadata.FieldType.Byte),
+                ("Unknown32", 0x32, StructMetadata.FieldType.Byte),
+                ("Unknown33", 0x33, StructMetadata.FieldType.Byte),
+            });
+
+            AssertUnitLayout("struct_unit_fe78.txt", "Unit_FE78", 0x34, expected);
+        }
+
+        [Theory]
+        [InlineData("struct_unit_fe6.txt", "Unit_FE6", "Affinity", 0x09, 0x30)]
+        [InlineData("struct_unit_fe6.txt", "Unit_FE6", "BasePow", 0x0D, 0x30)]
+        [InlineData("struct_unit_fe78.txt", "Unit_FE78", "Affinity", 0x09, 0x34)]
+        [InlineData("struct_unit_fe78.txt", "Unit_FE78", "BasePow", 0x0D, 0x34)]
+        public void UnitMetadata_PartialWrite_ChangesOnlyNamedByte(
+            string fileName,
+            string structName,
+            string fieldName,
+            int expectedOffset,
+            int dataSize)
+        {
+            var structDef = LoadMetadataStruct(fileName, structName);
+            var field = Assert.Single(structDef.Fields, f => f.Name == fieldName);
+            Assert.Equal((uint)expectedOffset, field.Offset);
+
+            const int baseAddress = 0x200;
+            byte[] data = new byte[0x1000000];
+            for (int i = 0; i < dataSize; i++)
+                data[baseAddress + i] = 0xA5;
+
+            var rom = new ROM();
+            Assert.True(rom.LoadLow("unit-layout.gba", data, "BE8E01"));
+            var table = new StructExportCore.TableDef
+            {
+                Name = "unit_layout",
+                GetBaseAddress = _ => baseAddress,
+                GetDataSize = _ => (uint)dataSize,
+                GetEntryCount = _ => 1,
+            };
+            var entries = new List<(int index, Dictionary<string, string> fields)>
+            {
+                (0, new Dictionary<string, string> { [fieldName] = "0x5A" }),
+            };
+
+            Assert.Equal(1, StructExportCore.WriteTable(rom, table, structDef, entries));
+            for (int i = 0; i < dataSize; i++)
+            {
+                byte expected = i == expectedOffset ? (byte)0x5A : (byte)0xA5;
+                Assert.Equal(expected, rom.Data[baseAddress + i]);
+            }
         }
 
         [Theory]
