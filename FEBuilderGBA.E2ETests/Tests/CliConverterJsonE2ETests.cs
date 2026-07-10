@@ -97,6 +97,40 @@ namespace FEBuilderGBA.E2ETests.Tests
         }
 
         [Fact]
+        public void ConvertMap1Picture_Json_Success_BothOutputs()
+        {
+            var png = GenerateTestPng();
+            var img = TempFile(".bin");
+            var tsa = TempFile(".bin");
+            var (code, stdout, _) = AppRunner.Run(CliExe,
+                $"--convertmap1picture --in=\"{png}\" --outImg=\"{img}\" --outTSA=\"{tsa}\" --json", timeoutMs: 30_000);
+            Assert.Equal(0, code);
+            using var doc = JsonDocument.Parse(stdout);
+            var root = doc.RootElement;
+            Assert.True(root.GetProperty("ok").GetBoolean());
+            Assert.Equal(img, root.GetProperty("outImg").GetString());
+            Assert.Equal(tsa, root.GetProperty("outTSA").GetString());
+            Assert.True(root.GetProperty("outImgBytes").GetInt64() > 0);
+            Assert.True(root.GetProperty("outTSABytes").GetInt64() > 0);
+            Assert.True(File.Exists(img) && File.Exists(tsa));
+        }
+
+        [Fact]
+        public void DecreaseColor_Json_OutputWriteError_ToStdout()
+        {
+            var png = GenerateTestPng();
+            // Output path in a non-existent directory → the write throws; with --json this
+            // must still surface as {ok:false} JSON on stdout with a non-zero exit code.
+            var badOut = Path.Combine(Path.GetTempPath(), $"febno_{Guid.NewGuid():N}", "out.png");
+            var (code, stdout, _) = AppRunner.Run(CliExe,
+                $"--decreasecolor --in=\"{png}\" --out=\"{badOut}\" --paletteno=16 --json", timeoutMs: 30_000);
+            Assert.NotEqual(0, code);
+            using var doc = JsonDocument.Parse(stdout);
+            Assert.False(doc.RootElement.GetProperty("ok").GetBoolean());
+            Assert.False(string.IsNullOrEmpty(doc.RootElement.GetProperty("error").GetString()));
+        }
+
+        [Fact]
         public void DecreaseColor_NoJson_KeepsHumanOutput()
         {
             var png = GenerateTestPng();

@@ -1029,7 +1029,17 @@ namespace FEBuilderGBA.CLI
 
             var outImage = imgService.CreateImage(width, height);
             outImage.SetPixelData(outRgba);
-            outImage.Save(outputPath);
+            try
+            {
+                outImage.Save(outputPath);
+            }
+            catch (Exception ex)
+            {
+                // In --json mode, output-write failures (bad/unwritable path) must also
+                // surface as {ok:false,error} on stdout; otherwise preserve prior behavior.
+                if (json) return Fail("Failed to write output: " + ex.Message);
+                throw;
+            }
 
             long outBytes = File.Exists(outputPath) ? new FileInfo(outputPath).Length : 0;
             if (json)
@@ -1349,14 +1359,24 @@ namespace FEBuilderGBA.CLI
             if (result == null)
                 return Fail("Map conversion failed. Image dimensions must be multiples of 8.");
 
-            if (!string.IsNullOrEmpty(outImgPath))
-                File.WriteAllBytes(outImgPath, result.TileData);
             long outTSABytes = 0;
-            if (!string.IsNullOrEmpty(outTSAPath))
+            try
             {
-                byte[] compressedTSA = LZ77.compress(result.TSAData);
-                File.WriteAllBytes(outTSAPath, compressedTSA);
-                outTSABytes = compressedTSA.Length;
+                if (!string.IsNullOrEmpty(outImgPath))
+                    File.WriteAllBytes(outImgPath, result.TileData);
+                if (!string.IsNullOrEmpty(outTSAPath))
+                {
+                    byte[] compressedTSA = LZ77.compress(result.TSAData);
+                    File.WriteAllBytes(outTSAPath, compressedTSA);
+                    outTSABytes = compressedTSA.Length;
+                }
+            }
+            catch (Exception ex)
+            {
+                // In --json mode, output-write failures must also surface as {ok:false,error}
+                // on stdout; otherwise preserve prior (throwing) behavior.
+                if (json) return Fail("Failed to write output: " + ex.Message);
+                throw;
             }
 
             if (json)
