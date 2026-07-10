@@ -131,8 +131,10 @@ the "### Graphics System" overview in `CLAUDE.md`.
   `RunImportData`'s JSON branch calls `ImportFromJSON(inputPath, structDef, table.GetEntryCount(rom))` so every
   check above runs — and can throw `FormatException` — strictly before `WriteTable`/`ROM.Save`.
   `FormatCData`/`ExportToCData` + `BuildCLayout` (#1939, READ-ONLY) add an export-only GNU11 decomp-C
-  sibling: `ExportTableRows` supplies typed fields and exact runtime-stride bytes in one traversal;
-  the formatter partitions every stride byte exactly once into typed fields, raw gaps/trailing bytes,
+  sibling: one shared traversal runs in typed-only mode for TSV/CSV/EA/JSON (no unused raw-stride
+  allocations) and captures typed fields + exact runtime-stride bytes once for C; the CLI never
+  pre-exports C rows through the legacy path. The formatter partitions every stride byte exactly once
+  into typed fields, raw gaps/trailing bytes,
   or connected-overlap unions initialized through one raw arm. It emits a packed row struct, 4-byte-
   aligned deterministic data/count symbols, a stride `_Static_assert`, full-width ordinal comments,
   and a real GNU `[0]` symbol for empty/version-absent tables. `--c-symbol` is strict and never

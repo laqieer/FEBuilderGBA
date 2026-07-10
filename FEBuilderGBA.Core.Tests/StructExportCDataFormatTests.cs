@@ -640,6 +640,86 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void ExportTable_TypedOnlyPath_DoesNotAllocateRawStrideBuffers()
+        {
+            const uint stride = 0x10000;
+            const uint measuredRowCount = 64;
+            uint rowCount = 1;
+            byte[] data = new byte[0x1000000];
+            var rom = new ROM();
+            Assert.True(rom.LoadLow("cdata-typed-only.gba", data, "BE8E01"));
+
+            var table = new StructExportCore.TableDef
+            {
+                Name = "cdata_typed_only",
+                GetBaseAddress = _ => 0x200,
+                GetDataSize = _ => stride,
+                GetEntryCount = _ => rowCount,
+            };
+            var structDef = Def("TypedOnly", F("A", 0, StructMetadata.FieldType.Byte));
+
+            // Warm both paths so JIT/cold-start allocations cannot dominate the comparison.
+            StructExportCore.ExportTable(rom, table, structDef);
+            StructExportCore.ExportTableRows(rom, table, structDef);
+            rowCount = measuredRowCount;
+
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            var typedRows = StructExportCore.ExportTable(rom, table, structDef);
+            long typedAllocations = GC.GetAllocatedBytesForCurrentThread() - before;
+
+            before = GC.GetAllocatedBytesForCurrentThread();
+            var rawRows = StructExportCore.ExportTableRows(rom, table, structDef);
+            long rawAllocations = GC.GetAllocatedBytesForCurrentThread() - before;
+
+            Assert.Equal((int)measuredRowCount, typedRows.Count);
+            Assert.Equal((int)measuredRowCount, rawRows.Count);
+            long rawPayloadBytes = (long)stride * measuredRowCount;
+            Assert.True(
+                rawAllocations >= typedAllocations + (rawPayloadBytes / 2),
+                $"typed-only export allocated {typedAllocations:N0} bytes versus " +
+                $"{rawAllocations:N0} for raw capture; expected the raw path to include " +
+                $"approximately {rawPayloadBytes:N0} stride bytes.");
+        }
+
+        [Fact]
+        public void ExportToCData_ReturnsRowCountAndResolvesTableLayoutOnce()
+        {
+            byte[] data = new byte[0x1000000];
+            data[0x200] = 0x11;
+            data[0x201] = 0x22;
+            var rom = new ROM();
+            Assert.True(rom.LoadLow("cdata-single-traversal.gba", data, "BE8E01"));
+
+            int baseCalls = 0;
+            int sizeCalls = 0;
+            int countCalls = 0;
+            var table = new StructExportCore.TableDef
+            {
+                Name = "cdata_single_traversal",
+                GetBaseAddress = _ => { baseCalls++; return 0x200; },
+                GetDataSize = _ => { sizeCalls++; return 1; },
+                GetEntryCount = _ => { countCalls++; return 2; },
+            };
+            var structDef = Def("SingleTraversal", F("A", 0, StructMetadata.FieldType.Byte));
+            string path = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid():N}.c");
+
+            try
+            {
+                int exportedCount = StructExportCore.ExportToCData(rom, table, structDef, path);
+
+                Assert.Equal(2, exportedCount);
+                Assert.Equal(1, baseCalls);
+                Assert.Equal(1, sizeCalls);
+                Assert.Equal(1, countCalls);
+                Assert.True(File.Exists(path));
+            }
+            finally
+            {
+                if (File.Exists(path)) File.Delete(path);
+            }
+        }
+
+        [Fact]
         public void ExportToCData_NullRom_Throws()
         {
             var table = new StructExportCore.TableDef

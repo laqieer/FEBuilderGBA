@@ -1120,24 +1120,57 @@ namespace FEBuilderGBA
         /// dictionary (identical in shape/content to what <see cref="ExportTable"/> has
         /// always returned) AND the exact raw runtime-stride bytes for that same row —
         /// read from the same <paramref name="rom"/> at the same address, in the same
-        /// loop iteration. <see cref="ExportTable"/> (TSV/CSV/EA/JSON's data source) and
-        /// <see cref="FormatCData"/>/<see cref="ExportToCData"/> (the GNU11 C formatter's
-        /// data source) both consume this single seam, so the typed view and the raw-byte
-        /// view can never drift apart — there is no second, independently-maintained loop
-        /// that could read a different address, stop at a different row, or decode a field
-        /// differently than the raw bytes actually on the ROM.
+        /// loop iteration. Both this raw-backed C path and <see cref="ExportTable"/>'s
+        /// typed-only TSV/CSV/EA/JSON path consume <see cref="TraverseTableRows"/>. The
+        /// typed and raw views therefore cannot drift, while legacy formats avoid
+        /// allocating table-sized raw buffers they never consume.
         /// </summary>
         public static List<(uint index, Dictionary<string, string> fields, byte[] raw)> ExportTableRows(
             ROM rom, TableDef table, StructMetadata.StructDef structDef)
         {
+            return CaptureTableRows(rom, table, structDef, out _);
+        }
+
+        static List<(uint index, Dictionary<string, string> fields, byte[] raw)> CaptureTableRows(
+            ROM rom,
+            TableDef table,
+            StructMetadata.StructDef structDef,
+            out uint resolvedDataSize)
+        {
             var result = new List<(uint, Dictionary<string, string>, byte[])>();
-            if (rom?.RomInfo == null || table == null || structDef == null) return result;
+            TraverseTableRows(
+                rom,
+                table,
+                structDef,
+                captureRaw: true,
+                (index, fields, raw) => result.Add((index, fields, raw)),
+                out resolvedDataSize);
+            return result;
+        }
+
+        /// <summary>
+        /// Single source of truth for row addressing, safety stops, name decoding, and
+        /// typed field formatting. <paramref name="captureRaw"/> is enabled only for the
+        /// GNU11 C path; existing typed formats deliberately pass false so no per-row
+        /// runtime-stride copy is allocated.
+        /// </summary>
+        static void TraverseTableRows(
+            ROM rom,
+            TableDef table,
+            StructMetadata.StructDef structDef,
+            bool captureRaw,
+            Action<uint, Dictionary<string, string>, byte[]> addRow,
+            out uint resolvedDataSize)
+        {
+            resolvedDataSize = 0;
+            if (rom?.RomInfo == null || table == null || structDef == null) return;
 
             uint baseAddr = table.GetBaseAddress(rom);
             uint dataSize = table.GetDataSize(rom);
             uint count = table.GetEntryCount(rom);
+            resolvedDataSize = dataSize;
 
-            if (baseAddr == 0 || baseAddr == U.NOT_FOUND || count == 0) return result;
+            if (baseAddr == 0 || baseAddr == U.NOT_FOUND || count == 0) return;
 
             for (uint i = 0; i < count; i++)
             {
@@ -1165,28 +1198,33 @@ namespace FEBuilderGBA
                     entry[field.Name] = FormatFieldValue(val, field);
                 }
 
-                // Exact raw runtime-stride bytes for this same row/address. The safety-stop
-                // check above already guarantees entryAddr .. entryAddr+dataSize-1 is inside
-                // rom.Data, so this always returns exactly dataSize bytes (never truncated).
-                byte[] raw = U.getBinaryData(rom.Data, entryAddr, dataSize);
+                byte[] raw = null;
+                if (captureRaw)
+                {
+                    // The safety-stop above guarantees this exact runtime-stride copy is
+                    // never truncated. Legacy typed exports skip the allocation entirely.
+                    raw = U.getBinaryData(rom.Data, entryAddr, dataSize);
+                }
 
-                result.Add((i, entry, raw));
+                addRow(i, entry, raw);
             }
-
-            return result;
         }
 
         /// <summary>
-        /// Export a ROM table to a list of (index, fieldName→value) entries. Thin
-        /// projection over <see cref="ExportTableRows"/> — kept as its own method (rather
-        /// than inlined at call sites) so every existing TSV/CSV/EA/JSON caller keeps its
-        /// original signature/behavior byte-for-byte (#1939).
+        /// Export a ROM table to a list of (index, fieldName→value) entries. Uses the
+        /// shared traversal in typed-only mode, preserving every existing TSV/CSV/EA/JSON
+        /// caller's signature and output without allocating unused raw stride buffers.
         /// </summary>
         public static List<Dictionary<string, string>> ExportTable(ROM rom, TableDef table, StructMetadata.StructDef structDef)
         {
-            var rows = ExportTableRows(rom, table, structDef);
-            var result = new List<Dictionary<string, string>>(rows.Count);
-            foreach (var row in rows) result.Add(row.fields);
+            var result = new List<Dictionary<string, string>>();
+            TraverseTableRows(
+                rom,
+                table,
+                structDef,
+                captureRaw: false,
+                (_, fields, _) => result.Add(fields),
+                out _);
             return result;
         }
 
@@ -2442,16 +2480,17 @@ namespace FEBuilderGBA
         /// translation unit for every compiler). <paramref name="dataSymbolOverride"/> is
         /// the optional CLI <c>--c-symbol</c> passthrough — see <see cref="FormatCData"/>.
         /// </summary>
-        public static void ExportToCData(ROM rom, TableDef table, StructMetadata.StructDef structDef, string outputPath, string dataSymbolOverride = null)
+        /// <returns>The number of readable table rows written to the translation unit.</returns>
+        public static int ExportToCData(ROM rom, TableDef table, StructMetadata.StructDef structDef, string outputPath, string dataSymbolOverride = null)
         {
             if (rom?.RomInfo == null) throw new ArgumentNullException(nameof(rom));
             if (table == null) throw new ArgumentNullException(nameof(table));
             if (structDef == null) throw new ArgumentNullException(nameof(structDef));
 
-            var rows = ExportTableRows(rom, table, structDef);
-            uint resolvedEntrySize = table.GetDataSize(rom);
+            var rows = CaptureTableRows(rom, table, structDef, out uint resolvedEntrySize);
             string content = FormatCData(rows, structDef, table.Name, resolvedEntrySize, dataSymbolOverride);
             File.WriteAllText(outputPath, content, Utf8NoBom);
+            return rows.Count;
         }
 
 

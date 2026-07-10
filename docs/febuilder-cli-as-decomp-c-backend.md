@@ -78,11 +78,12 @@ The emitted translation unit is plain GNU11 C, meant to compile as-is under **de
 
 ## Byte preservation
 
-The formatter is raw-byte-backed: a shared row-extraction seam (`ExportTableRows`) reads, in one
-pass, both the typed field values (used by TSV/CSV/EA/JSON, unchanged) **and** the exact raw bytes
-for the table's resolved runtime entry stride (`table.GetDataSize(rom)` — which can be **larger**
-than what the shared struct-metadata file declares; e.g. FE7U's `map_settings` runtime stride is 152
-bytes against the shared 148-byte metadata file). The two views can never drift because they come
+The formatter is raw-byte-backed: one shared row traversal always reads the typed fields, but only
+the C path captures the exact raw bytes for the table's resolved runtime entry stride
+(`table.GetDataSize(rom)` — which can be **larger** than what the shared struct-metadata file
+declares; e.g. FE7U's `map_settings` runtime stride is 152 bytes against the shared 148-byte metadata
+file). TSV/CSV/EA/JSON use the typed-only mode and therefore allocate no unused raw-stride copies.
+C dispatch performs exactly one raw+typed traversal; the two views cannot drift because they come
 from the same address in the same loop iteration. From that raw+typed pair, every byte of the
 resolved stride is covered by **exactly one** of:
 

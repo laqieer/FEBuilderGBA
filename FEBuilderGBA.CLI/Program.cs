@@ -1932,8 +1932,6 @@ namespace FEBuilderGBA.CLI
                     return 1;
                 }
 
-                var entries = StructExportCore.ExportTable(CoreState.ROM, table, structDef);
-
                 string ext = format switch { "csv" => ".csv", "ea" => ".ea", "json" => ".json", "c" => ".c", _ => ".tsv" };
 
                 string outPath;
@@ -1949,39 +1947,48 @@ namespace FEBuilderGBA.CLI
                     outPath = Path.ChangeExtension(romPath, "." + tName + ext);
                 }
 
-                switch (format)
+                int exportedCount;
+                if (format == "c")
                 {
-                    case "csv":
-                        StructExportCore.ExportToCSV(entries, structDef, outPath);
-                        break;
-                    case "ea":
-                        StructExportCore.ExportToEA(entries, structDef, outPath);
-                        break;
-                    case "json":
-                        StructExportCore.ExportToJSON(entries, structDef, outPath);
-                        break;
-                    case "c":
-                        // Any C layout/validation failure (bad stride, raw-length mismatch,
-                        // identifier collision, malformed/missing field value) is fatal and
-                        // must clearly name the failing table — never a silent per-table
-                        // skip under --table=all. --c-symbol only ever applies to a
-                        // single-table export (rejected earlier for --table=all).
-                        try
-                        {
-                            StructExportCore.ExportToCData(CoreState.ROM, table, structDef, outPath,
-                                tableNames.Count == 1 ? cSymbol : null);
-                        }
-                        catch (InvalidOperationException ex)
-                        {
-                            Console.Error.WriteLine($"Error: C export failed for table '{tName}': {ex.Message}");
-                            return 1;
-                        }
-                        break;
-                    default:
-                        StructExportCore.ExportToTSV(entries, structDef, outPath);
-                        break;
+                    // C needs typed fields and exact raw stride bytes, so route directly
+                    // through its single raw-backed traversal. Calling ExportTable first
+                    // would decode every row twice and allocate data the C formatter discards.
+                    try
+                    {
+                        exportedCount = StructExportCore.ExportToCData(
+                            CoreState.ROM,
+                            table,
+                            structDef,
+                            outPath,
+                            tableNames.Count == 1 ? cSymbol : null);
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        Console.Error.WriteLine($"Error: C export failed for table '{tName}': {ex.Message}");
+                        return 1;
+                    }
                 }
-                Console.WriteLine($"Exported {entries.Count} {tName} entries ({format}) to: {outPath}");
+                else
+                {
+                    var entries = StructExportCore.ExportTable(CoreState.ROM, table, structDef);
+                    switch (format)
+                    {
+                        case "csv":
+                            StructExportCore.ExportToCSV(entries, structDef, outPath);
+                            break;
+                        case "ea":
+                            StructExportCore.ExportToEA(entries, structDef, outPath);
+                            break;
+                        case "json":
+                            StructExportCore.ExportToJSON(entries, structDef, outPath);
+                            break;
+                        default:
+                            StructExportCore.ExportToTSV(entries, structDef, outPath);
+                            break;
+                    }
+                    exportedCount = entries.Count;
+                }
+                Console.WriteLine($"Exported {exportedCount} {tName} entries ({format}) to: {outPath}");
             }
 
             return 0;
