@@ -2010,9 +2010,15 @@ namespace FEBuilderGBA.CLI
             List<(int index, Dictionary<string, string> fields)> entries;
             if (useJson)
             {
+                // Struct/count-aware overload (#1937 hardening): rejects unknown field
+                // names, garbage/negative/overflow/trailing-token numeric values (with
+                // FieldType width range-checking), duplicate row Index values, and any
+                // Index outside the resolved table entry count — all before WriteTable/
+                // ROM.Save ever run. See StructExportCore.ValidateJSONEntries.
+                uint entryCount = table.GetEntryCount(CoreState.ROM);
                 try
                 {
-                    entries = StructExportCore.ImportFromJSON(inputPath);
+                    entries = StructExportCore.ImportFromJSON(inputPath, structDef, entryCount);
                 }
                 catch (Exception ex) when (ex is JsonException || ex is FormatException)
                 {

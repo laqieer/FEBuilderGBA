@@ -1437,6 +1437,209 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Semantic (struct/count-aware) preflight for the (index, fields) rows already
+        /// shape-validated by <see cref="ParseJSON"/> (#1937 hardening). <see cref="ParseJSON"/>
+        /// only validates JSON *kinds* (root is an array, rows are objects, values are
+        /// strings, no duplicate property names) — it happily accepts a typo'd field name
+        /// or a garbage numeric string like <c>"banana"</c> for a field, which
+        /// <see cref="WriteTable"/> would then hand to the permissive <see cref="U.atoi0x"/>,
+        /// silently coercing it to <c>0</c> and mutating the ROM. This method closes that
+        /// gap and must run to completion (throwing on the first violation) before any
+        /// <see cref="WriteTable"/>/<c>ROM.Save</c> call:
+        /// <list type="bullet">
+        /// <item>every non-<c>Index</c> property name must be a known field of
+        /// <paramref name="structDef"/> — an unknown/typo'd name is rejected with the row
+        /// number and the offending property name (a field simply absent from a row is
+        /// still allowed, to support partial updates);</item>
+        /// <item>every field value must strictly parse as a complete <c>0x</c>-hex,
+        /// <c>$</c>-hex, or plain-decimal token — no trailing tokens, no bare prefixes, no
+        /// negatives, no garbage — and must fit the field's <see cref="StructMetadata.FieldType"/>
+        /// width (Byte/Word/DWord/Pointer); accepted values are rewritten in place to a
+        /// canonical form (always a lowercase <c>0x</c> prefix for hex, so <see cref="U.atoi0x"/> —
+        /// which only recognizes a lowercase <c>0x</c> prefix — parses the normalized value
+        /// safely even if the JSON used <c>$</c> or an uppercase <c>0X</c>);</item>
+        /// <item>no two rows in the document may resolve to the same <c>Index</c> — a
+        /// duplicate row index is rejected rather than letting the second row's write
+        /// silently clobber the first;</item>
+        /// <item>every row's <c>Index</c> must be within <c>[0, entryCount)</c> for the
+        /// resolved table — out-of-range indices are rejected here instead of relying on
+        /// <see cref="WriteTable"/>'s silent per-row skip.</item>
+        /// </list>
+        /// Throws <see cref="FormatException"/> (mirroring <see cref="ParseJSON"/>'s own
+        /// error type) with an actionable row/property message on the first violation
+        /// found. <paramref name="entries"/>' field dictionaries are mutated in place with
+        /// canonical values as each row passes; a caller can rely on "no exception ⇒ every
+        /// row/field is well-formed and canonicalized".
+        /// </summary>
+        public static void ValidateJSONEntries(
+            List<(int index, Dictionary<string, string> fields)> entries,
+            StructMetadata.StructDef structDef,
+            uint entryCount)
+        {
+            if (structDef == null) throw new ArgumentNullException(nameof(structDef));
+            if (entries == null) return;
+
+            var fieldsByName = new Dictionary<string, StructMetadata.FieldDef>(StringComparer.Ordinal);
+            foreach (var field in structDef.Fields)
+            {
+                fieldsByName[field.Name] = field;
+            }
+
+            var seenIndices = new HashSet<int>();
+            int rowNum = 0;
+            foreach (var (index, fields) in entries)
+            {
+                rowNum++;
+
+                if (!seenIndices.Add(index))
+                {
+                    throw new FormatException(
+                        $"Invalid JSON import: row {rowNum} has a duplicate Index {index} — an earlier row in this document already targets that entry.");
+                }
+
+                if (entryCount == 0 || index < 0 || (uint)index >= entryCount)
+                {
+                    string range = entryCount == 0 ? "0 entries (table/base address not resolved)" : $"[0, {entryCount - 1}]";
+                    throw new FormatException(
+                        $"Invalid JSON import: row {rowNum} has Index {index}, outside the valid range {range} for struct '{structDef.Name}'.");
+                }
+
+                // Snapshot the keys before mutating values in the same dictionary.
+                var propNames = new List<string>(fields.Keys);
+                foreach (string propName in propNames)
+                {
+                    if (!fieldsByName.TryGetValue(propName, out StructMetadata.FieldDef field))
+                    {
+                        throw new FormatException(
+                            $"Invalid JSON import: row {rowNum} has unknown property '{propName}' — struct '{structDef.Name}' has no such field.");
+                    }
+
+                    string raw = fields[propName];
+                    if (!TryNormalizeFieldValue(raw, field.Type, out string canonical, out string error))
+                    {
+                        throw new FormatException(
+                            $"Invalid JSON import: row {rowNum}, property '{propName}' has an invalid value '{raw}': {error}");
+                    }
+
+                    fields[propName] = canonical;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Strictly parse a single JSON field value shaped like <c>"0xNN"</c>/<c>"$NN"</c>/
+        /// plain decimal (the exact shape <see cref="FormatFieldValue"/> emits, with no
+        /// trailing label unlike the <c>Index</c> column) and range-check it against
+        /// <paramref name="type"/>'s width. Every character after the optional prefix must
+        /// be a valid digit for its base — this rejects trailing garbage (<c>"0x0A extra"</c>),
+        /// negatives (<c>-</c> is never a valid digit), bare prefixes (<c>"0x"</c> alone), and
+        /// overflow (too many digits, or a value exceeding the field's byte/word/dword/pointer
+        /// width) — instead of the permissive <see cref="U.atoi0x"/> silently truncating/
+        /// zeroing garbage. On success, <paramref name="canonical"/> is always re-emitted
+        /// with a lowercase <c>0x</c> prefix (for hex forms) so a later <see cref="U.atoi0x"/>
+        /// call — which only recognizes a lowercase <c>0x</c>, never <c>0X</c> — parses it
+        /// correctly regardless of the original prefix casing or <c>$</c> form used.
+        /// </summary>
+        static bool TryNormalizeFieldValue(string raw, StructMetadata.FieldType type, out string canonical, out string error)
+        {
+            canonical = null;
+            error = null;
+
+            if (raw == null)
+            {
+                error = "value is missing";
+                return false;
+            }
+
+            string trimmed = raw.Trim();
+            if (trimmed.Length == 0)
+            {
+                error = "value is empty";
+                return false;
+            }
+
+            string digits;
+            bool isHex;
+            if (trimmed.Length >= 2 && trimmed[0] == '0' && (trimmed[1] == 'x' || trimmed[1] == 'X'))
+            {
+                digits = trimmed.Substring(2);
+                isHex = true;
+            }
+            else if (trimmed.Length >= 1 && trimmed[0] == '$')
+            {
+                digits = trimmed.Substring(1);
+                isHex = true;
+            }
+            else
+            {
+                digits = trimmed;
+                isHex = false;
+            }
+
+            if (digits.Length == 0)
+            {
+                error = "missing numeric digits after prefix";
+                return false;
+            }
+
+            foreach (char c in digits)
+            {
+                bool validDigit = isHex ? U.ishex(c) : U.isnum(c);
+                if (!validDigit)
+                {
+                    error = $"contains a non-numeric/trailing character '{c}'";
+                    return false;
+                }
+            }
+
+            bool ok = isHex
+                ? uint.TryParse(digits, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint parsed)
+                : uint.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out parsed);
+            if (!ok)
+            {
+                error = "value does not fit a 32-bit unsigned integer (overflow)";
+                return false;
+            }
+
+            uint max = FieldTypeMaxValue(type);
+            if (parsed > max)
+            {
+                error = $"value 0x{parsed:X} exceeds the maximum for a {type} field (0x{max:X})";
+                return false;
+            }
+
+            canonical = isHex ? "0x" + parsed.ToString("X", CultureInfo.InvariantCulture) : parsed.ToString(CultureInfo.InvariantCulture);
+            return true;
+        }
+
+        /// <summary>Maximum representable unsigned value for a struct field's width.</summary>
+        static uint FieldTypeMaxValue(StructMetadata.FieldType type)
+        {
+            return type switch
+            {
+                StructMetadata.FieldType.Byte => 0xFFu,
+                StructMetadata.FieldType.Word => 0xFFFFu,
+                StructMetadata.FieldType.DWord => 0xFFFFFFFFu,
+                StructMetadata.FieldType.Pointer => 0xFFFFFFFFu,
+                _ => 0xFFu,
+            };
+        }
+
+        /// <summary>
+        /// Parse and fully validate a JSON import document against <paramref name="structDef"/>
+        /// and <paramref name="entryCount"/> in one call: shape (<see cref="ParseJSON"/>) then
+        /// semantics (<see cref="ValidateJSONEntries"/>). No ROM write may occur until this
+        /// returns without throwing.
+        /// </summary>
+        public static List<(int index, Dictionary<string, string> fields)> ParseAndValidateJSON(
+            string json, StructMetadata.StructDef structDef, uint entryCount)
+        {
+            var entries = ParseJSON(json);
+            ValidateJSONEntries(entries, structDef, entryCount);
+            return entries;
+        }
+
+        /// <summary>
         /// Import table data from a JSON file (see <see cref="ParseJSON"/> for the
         /// validated shape). Throws before returning if the document is malformed —
         /// callers must not mutate the ROM until this call succeeds.
@@ -1445,6 +1648,23 @@ namespace FEBuilderGBA
         {
             string content = File.ReadAllText(inputPath, Encoding.UTF8);
             return ParseJSON(content);
+        }
+
+        /// <summary>
+        /// Import table data from a JSON file and run the full struct/count-aware semantic
+        /// preflight (see <see cref="ValidateJSONEntries"/>) before returning — this is the
+        /// overload CLI import (<c>--import-data --format=json</c>) uses so unknown fields,
+        /// out-of-range/garbage numeric values, duplicate row indices, and out-of-range
+        /// <c>Index</c> values are all rejected before any <see cref="WriteTable"/>/
+        /// <c>ROM.Save</c> call. The shape-only <see cref="ImportFromJSON(string)"/> overload
+        /// is preserved unchanged for callers that only need the shape contract (e.g.
+        /// existing tests, or tooling without a resolved struct/entry count).
+        /// </summary>
+        public static List<(int index, Dictionary<string, string> fields)> ImportFromJSON(
+            string inputPath, StructMetadata.StructDef structDef, uint entryCount)
+        {
+            string content = File.ReadAllText(inputPath, Encoding.UTF8);
+            return ParseAndValidateJSON(content, structDef, entryCount);
         }
 
         /// <summary>
