@@ -2260,9 +2260,9 @@ namespace FEBuilderGBA
         /// <item>a 4-byte-aligned <c>const struct ... gFEBuilder_&lt;table&gt;[N]</c> array
         /// (the GNU zero-length-array form with no initializer when <c>N == 0</c>) plus a
         /// matching <c>const uint32_t gFEBuilder_&lt;table&gt;Count</c>;</item>
-        /// <item>full-width <c>[0x000]</c>-style row-ordinal comments (never the
-        /// byte-truncatable <c>_Index</c> prefix) with the (comment-escaped) <c>_Index</c>
-        /// text appended for human readability.</item>
+        /// <item>full-width <c>[0x000] =</c>-style row-ordinal array designators (never
+        /// the byte-truncatable <c>_Index</c> prefix) with the (comment-escaped)
+        /// <c>_Index</c> text appended for human readability.</item>
         /// </list>
         /// <paramref name="dataSymbolOverride"/> (CLI <c>--c-symbol</c>, #1939 Phase B1),
         /// when non-null/empty, replaces the deterministic <c>gFEBuilder_&lt;table&gt;</c>
@@ -2445,7 +2445,7 @@ namespace FEBuilderGBA
                     {
                         parts.Add(BuildCInitializer(m, row.fields, row.raw, ordinal));
                     }
-                    sb.AppendLine($"    /* [{ordinal}] {EscapeCComment(indexText)} */ {{ {string.Join(", ", parts)} }},");
+                    sb.AppendLine($"    [{ordinal}] = /* [{ordinal}] {EscapeCComment(indexText)} */ {{ {string.Join(", ", parts)} }},");
                 }
                 sb.AppendLine("};");
             }

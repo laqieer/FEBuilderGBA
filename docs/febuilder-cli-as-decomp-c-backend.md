@@ -121,12 +121,13 @@ whole export throws — a clear, fatal error naming the row/field/table, never a
 | Data array | `gFEBuilder_<table>` | `<name>` |
 | Count | `gFEBuilder_<table>Count` | `<name>Count` |
 
-Row comments use a **full-width**, ordinal-based designator — `[0x000]`, `[0x001]`, … — derived from
-each row's position in the export, **never** the byte-truncatable `_Index` column's own (variable-
-width) hex prefix. The width grows as needed (a 300-row table's last row renders `[0x12B]`, not a
-byte-truncated alias of `[0x2B]`), so no two rows ever share a designator regardless of table size.
-The (separately comment-escaped) decoded `_Index` label is appended after the designator for human
-readability, e.g. `/* [0x001] 0x01 Iron Sword */`.
+Rows use **compiler-visible, full-width ordinal array designators** — `[0x000] =`, `[0x001] =`, …
+— derived from each row's position in the export, **never** the byte-truncatable `_Index` column's
+own (variable-width) hex prefix. The width grows as needed (a 300-row table's last row renders
+`[0x12B] =`, not a byte-truncated alias of `[0x2B]`), so no two rows ever share a designator
+regardless of table size. The separately comment-escaped decoded `_Index` label follows the
+designator for human readability, e.g.
+`[0x001] = /* [0x001] 0x01 Iron Sword */ { ... },`.
 
 ## Zero-row contract
 

@@ -377,11 +377,11 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // ====================================================================
-        // 6. 300-row fixture: unique full-width designators above 0xFF
+        // 6. 300-row fixture: compiler-visible full-width designators above 0xFF
         // ====================================================================
 
         [Fact]
-        public void FormatCData_300Rows_UniqueFullWidthOrdinalsAboveByteRange()
+        public void FormatCData_300Rows_EmitsUniqueFullWidthArrayDesignatorsAboveByteRange()
         {
             var structDef = Def("Wide", F("Value", 0, StructMetadata.FieldType.Byte));
             var rows = new List<(uint, Dictionary<string, string>, byte[])>();
@@ -393,17 +393,19 @@ namespace FEBuilderGBA.Core.Tests
 
             string c = StructExportCore.FormatCData(rows, structDef, "wide_table", 1);
 
-            Assert.Contains("[0x000]", c);
-            Assert.Contains("[0x0FF]", c);
-            Assert.Contains("[0x100]", c);
-            Assert.Contains("[0x12B]", c); // row 299 (last row), never a byte-truncated "0x2B"
+            Assert.Contains("[0x000] = /* [0x000]", c);
+            Assert.Contains("[0x0FF] = /* [0x0FF]", c);
+            Assert.Contains("[0x100] = /* [0x100]", c);
+            Assert.Contains("[0x12B] = /* [0x12B]", c); // row 299 (last row), never a byte-truncated "0x2B"
             Assert.Contains("gFEBuilder_wide_table[300]", c);
             Assert.Contains("const uint32_t gFEBuilder_wide_tableCount = 300;", c);
 
-            var ordinals = new HashSet<string>();
-            foreach (Match m in Regex.Matches(c, @"\[0x[0-9A-F]{3,}\]"))
-                ordinals.Add(m.Value);
-            Assert.Equal(300, ordinals.Count);
+            MatchCollection matches = Regex.Matches(c, @"(?m)^\s+\[(0x[0-9A-F]{3,})\]\s*=");
+            var designators = new HashSet<string>();
+            foreach (Match match in matches)
+                designators.Add(match.Groups[1].Value);
+            Assert.Equal(300, matches.Count);
+            Assert.Equal(300, designators.Count);
         }
 
         // ====================================================================

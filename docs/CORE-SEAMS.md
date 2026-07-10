@@ -136,8 +136,9 @@ the "### Graphics System" overview in `CLAUDE.md`.
   pre-exports C rows through the legacy path. The formatter partitions every stride byte exactly once
   into typed fields, raw gaps/trailing bytes,
   or connected-overlap unions initialized through one raw arm. It emits a packed row struct, 4-byte-
-  aligned deterministic data/count symbols, a stride `_Static_assert`, full-width ordinal comments,
-  and a real GNU `[0]` symbol for empty/version-absent tables. `--c-symbol` is strict and never
+  aligned deterministic data/count symbols, a stride `_Static_assert`, compiler-visible full-width
+  ordinal array designators with escaped labels, and a real GNU `[0]` symbol for
+  empty/version-absent tables. `--c-symbol` is strict and never
   sanitized: file-scope-reserved names and identifiers reserved by the generated `<stdint.h>`
   prologue are rejected before output; every generated identifier is protected after includes by a
   deterministic `#ifdef`/`#undef` guard so toolchain-predefined/caller `-D` macros cannot rewrite the

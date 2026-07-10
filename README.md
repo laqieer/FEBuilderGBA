@@ -123,6 +123,7 @@ dotnet run --project FEBuilderGBA.CLI -- --export-data --rom=rom.gba --table=uni
 # --c-symbol is strict: file-scope-reserved and <stdint.h>-reserved names (for example uint8_t) are rejected before ROM/output access.
 # Generated identifiers are #undef-guarded after includes, so GNU built-ins such as linux/unix and caller -D macros cannot rewrite the C source.
 # C export performs one raw+typed table traversal; TSV/CSV/EA/JSON retain typed-only extraction and do not allocate raw stride copies.
+# Non-empty C arrays use compiler-visible full-width ordinal designators ([0x000] =, [0x100] =, ...) plus escaped _Index label comments.
 dotnet run --project FEBuilderGBA.CLI -- --import-data --rom=rom.gba --table=units --in=units.json  # format auto-detected from .json, or pass --format=json explicitly
 # JSON preserves full row indices (including 0x0100+) and uses the canonical FE6/7/8 unit field offsets.
 dotnet run --project FEBuilderGBA.CLI -- --data-roundtrip --rom=rom.gba --table=all

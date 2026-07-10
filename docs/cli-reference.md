@@ -426,8 +426,9 @@ required and optional flags. Each is verified against its `Run*` handler in
   self-contained GNU11 (devkitARM `arm-none-eabi-gcc`-compatible) C translation unit per
   table — a one-byte-packed row `struct`, a 4-byte-aligned array object, a
   `_Static_assert(sizeof(...) == <resolved stride>, ...)`, deterministic
-  `struct FEBuilder_<StructName>`/`gFEBuilder_<table>`/`gFEBuilder_<table>Count` names, and a
-  real zero-row GNU array + `Count = 0` symbol pair for a version-absent/empty table — see
+  `struct FEBuilder_<StructName>`/`gFEBuilder_<table>`/`gFEBuilder_<table>Count` names,
+  compiler-visible full-width ordinal array designators (`[0x000] =`, `[0x100] =`, ...),
+  and a real zero-row GNU array + `Count = 0` symbol pair for a version-absent/empty table — see
   [`febuilder-cli-as-decomp-c-backend.md`](febuilder-cli-as-decomp-c-backend.md) for the full
   contract. `c` is **export-only** (not accepted by `--import-data`) and requires
   `arm-none-eabi-gcc`/host `gcc` with `-std=gnu11` to actually compile the output — FEBuilderGBA

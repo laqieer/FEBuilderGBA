@@ -137,7 +137,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             Assert.Matches(new Regex(@"_Static_assert\(sizeof\(struct FEBuilder_\w+\) == 0x[0-9A-F]+"), content);
             Assert.Contains("gFEBuilder_items[", content);
             Assert.Matches(new Regex(@"const uint32_t gFEBuilder_itemsCount = \d+;"), content);
-            Assert.Contains("[0x000]", content);
+            Assert.Contains("[0x000] =", content);
         }
 
         // ------------------------------------------------------------------ FE6 map_settings: real overlap shape
@@ -255,14 +255,16 @@ namespace FEBuilderGBA.E2ETests.Tests
             string content = File.ReadAllText(outC);
             Assert.Contains($"const uint32_t gFEBuilder_portraitsCount = {TargetRowCount};", content);
 
-            // Row 256 (0-based) must render as the full-width [0x100], never a
-            // byte-truncated alias back onto [0x00].
-            Assert.Contains("[0x100]", content);
+            // Row 256 (0-based) must be a compiler-visible full-width [0x100]
+            // designator, never a byte-truncated alias back onto [0x00].
+            Assert.Contains("[0x100] =", content);
 
-            var ordinals = new HashSet<string>();
-            foreach (Match m in Regex.Matches(content, @"\[0x[0-9A-F]{3,}\]"))
-                ordinals.Add(m.Value);
-            Assert.Equal(TargetRowCount, ordinals.Count);
+            MatchCollection matches = Regex.Matches(content, @"(?m)^\s+\[(0x[0-9A-F]{3,})\]\s*=");
+            var designators = new HashSet<string>();
+            foreach (Match match in matches)
+                designators.Add(match.Groups[1].Value);
+            Assert.Equal(TargetRowCount, matches.Count);
+            Assert.Equal(TargetRowCount, designators.Count);
         }
 
         // ------------------------------------------------------------------ --table=all --format=c across all 5 ROMs
