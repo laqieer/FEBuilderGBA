@@ -977,8 +977,8 @@ namespace FEBuilderGBA.CLI
             int maxColors = 16;  // optional; default 16 when --paletteno is omitted
             if (argsDic.ContainsKey("--paletteno") && !string.IsNullOrEmpty(argsDic["--paletteno"]))
             {
-                if (!int.TryParse(argsDic["--paletteno"], out maxColors) || maxColors < 1)
-                    return Fail("--paletteno must be a positive integer");
+                if (!int.TryParse(argsDic["--paletteno"], out maxColors) || maxColors < 1 || maxColors > 256)
+                    return Fail("--paletteno must be an integer in 1..256");
             }
 
             // Parse optional flags

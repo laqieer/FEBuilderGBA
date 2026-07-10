@@ -145,6 +145,19 @@ namespace FEBuilderGBA.E2ETests.Tests
         }
 
         [Fact]
+        public void DecreaseColor_Json_PalettenoOutOfRange_Error()
+        {
+            var png = GenerateTestPng();
+            var outp = TempFile(".png");
+            // >256 would overflow the byte[] palette-index model → must be rejected.
+            var (code, stdout, _) = AppRunner.Run(CliExe,
+                $"--decreasecolor --in=\"{png}\" --out=\"{outp}\" --paletteno=999 --json", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            using var doc = JsonDocument.Parse(stdout);
+            Assert.False(doc.RootElement.GetProperty("ok").GetBoolean());
+        }
+
+        [Fact]
         public void DecreaseColor_NoJson_KeepsHumanOutput()
         {
             var png = GenerateTestPng();
