@@ -701,7 +701,9 @@ namespace FEBuilderGBA.Core.Tests
                 GetEntryCount = _ => { countCalls++; return 2; },
             };
             var structDef = Def("SingleTraversal", F("A", 0, StructMetadata.FieldType.Byte));
-            string path = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid():N}.c");
+            // A SharedState test deliberately mutates process-global TEMP/TMP. Keep this
+            // parallel-safe by writing beside the already-loaded, writable test assembly.
+            string path = Path.Combine(AppContext.BaseDirectory, $"test_{Guid.NewGuid():N}.c");
 
             try
             {
