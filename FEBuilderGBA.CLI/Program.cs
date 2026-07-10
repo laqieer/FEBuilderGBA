@@ -1858,6 +1858,17 @@ namespace FEBuilderGBA.CLI
                 return 1;
             }
 
+            // Validate --format before touching the ROM/output files: an unsupported value
+            // (e.g. a typo like "xml") must fail loudly instead of silently falling back to tsv.
+            string format = "tsv";
+            if (argsDic.ContainsKey("--format") && !string.IsNullOrEmpty(argsDic["--format"]))
+                format = argsDic["--format"].Trim().ToLowerInvariant();
+            if (format != "tsv" && format != "csv" && format != "ea" && format != "json")
+            {
+                Console.Error.WriteLine($"Error: --export-data --format must be one of tsv, csv, ea, json (got '{format}').");
+                return 1;
+            }
+
             string romPath = argsDic["--rom"];
             string tableName = argsDic["--table"];
             string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
@@ -1891,10 +1902,6 @@ namespace FEBuilderGBA.CLI
                 }
 
                 var entries = StructExportCore.ExportTable(CoreState.ROM, table, structDef);
-
-                string format = "tsv";
-                if (argsDic.ContainsKey("--format") && !string.IsNullOrEmpty(argsDic["--format"]))
-                    format = argsDic["--format"].ToLowerInvariant();
 
                 string ext = format switch { "csv" => ".csv", "ea" => ".ea", "json" => ".json", _ => ".tsv" };
 
@@ -1946,7 +1953,7 @@ namespace FEBuilderGBA.CLI
             }
             if (!argsDic.ContainsKey("--in") || string.IsNullOrEmpty(argsDic["--in"]))
             {
-                Console.Error.WriteLine("Error: --import-data requires --in=<path.tsv>");
+                Console.Error.WriteLine("Error: --import-data requires --in=<path> (TSV or JSON)");
                 return 1;
             }
 
@@ -1960,6 +1967,23 @@ namespace FEBuilderGBA.CLI
                 Console.Error.WriteLine($"Error: Input file not found: {inputPath}");
                 return 1;
             }
+
+            // Validate --format and decide TSV vs. JSON before touching the ROM: an
+            // unsupported value (e.g. a typo like "xml") must fail loudly instead of
+            // silently falling back to TSV. --format=json (explicit) or a .json --in
+            // extension (implicit, when --format is omitted) route through the JSON
+            // parser; otherwise TSV. The JSON document is fully validated before any
+            // ROM mutation: WriteTable/Save below never run if parsing throws (#1937).
+            string importFormat = argsDic.ContainsKey("--format") && !string.IsNullOrEmpty(argsDic["--format"])
+                ? argsDic["--format"].Trim().ToLowerInvariant()
+                : null;
+            if (importFormat != null && importFormat != "tsv" && importFormat != "json")
+            {
+                Console.Error.WriteLine($"Error: --import-data --format must be tsv or json (got '{importFormat}').");
+                return 1;
+            }
+            bool useJson = importFormat == "json" ||
+                (importFormat == null && string.Equals(Path.GetExtension(inputPath), ".json", StringComparison.OrdinalIgnoreCase));
 
             RomLoader.InitEnvironment();
             if (!RomLoader.LoadRom(romPath, forceVersion))
@@ -1982,15 +2006,6 @@ namespace FEBuilderGBA.CLI
                 Console.Error.WriteLine($"Error: Could not load struct definition for table '{tableName}'.");
                 return 1;
             }
-
-            // --format=json (explicit) or a .json --in extension (implicit) route through
-            // the JSON parser instead of TSV. The JSON document is fully validated before
-            // any ROM mutation: WriteTable/Save below never run if parsing throws (#1937).
-            string importFormat = argsDic.ContainsKey("--format") && !string.IsNullOrEmpty(argsDic["--format"])
-                ? argsDic["--format"].Trim().ToLowerInvariant()
-                : null;
-            bool useJson = importFormat == "json" ||
-                (importFormat == null && string.Equals(Path.GetExtension(inputPath), ".json", StringComparison.OrdinalIgnoreCase));
 
             List<(int index, Dictionary<string, string> fields)> entries;
             if (useJson)

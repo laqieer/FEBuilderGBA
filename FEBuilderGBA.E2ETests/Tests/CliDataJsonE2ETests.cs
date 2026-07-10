@@ -12,10 +12,13 @@ namespace FEBuilderGBA.E2ETests.Tests
     /// E2E coverage for #1937 — <c>--export-data --format=json</c> and the matching
     /// <c>--import-data</c> JSON input path on <c>FEBuilderGBA.CLI</c>.
     ///
-    /// ROM-gated (uses a temporary copy of <c>roms/FE8U.gba</c> via <see cref="RomLocator"/>)
-    /// and skips via <see cref="SkippableFact"/> when the ROM is not available locally — the
-    /// same pattern as <c>RomCliTests</c>/<c>AvaloniaDataVerifyTests</c>. No ROM is bundled or
-    /// downloaded by this test file itself.
+    /// Most scenarios are ROM-gated (uses a temporary copy of <c>roms/FE8U.gba</c> via
+    /// <see cref="RomLocator"/>) and skip via <see cref="SkippableFact"/> when the ROM is
+    /// not available locally — the same pattern as <c>RomCliTests</c>/
+    /// <c>AvaloniaDataVerifyTests</c>. No ROM is bundled or downloaded by this test file
+    /// itself. The <c>--format</c> validation and strict JSON <c>Index</c>-rejection tests
+    /// run before any ROM load, so a few are plain <see cref="FactAttribute"/>s that need
+    /// no ROM at all.
     /// </summary>
     public class CliDataJsonE2ETests : IDisposable
     {
@@ -275,6 +278,90 @@ namespace FEBuilderGBA.E2ETests.Tests
                 $"--data-roundtrip --rom=\"{rom}\" --table=items", timeoutMs: 60_000);
 
             Assert.True(code == 0, $"--data-roundtrip exited {code}\nStdout: {stdout}\nStderr: {stderr}");
+        }
+
+        // ------------------------------------------------------------------ --format validation (no ROM required)
+        //
+        // Format is validated before RomLoader ever touches --rom (export) / before ROM
+        // load (import, after the pre-existing --in file-exists check), so these run
+        // as plain [Fact]s with a throwaway/non-existent --rom path — no real ROM needed.
+
+        [Fact]
+        public void ExportData_UnsupportedFormat_RejectsBeforeRomLoad()
+        {
+            var (code, stdout, stderr) = AppRunner.Run(CliExe,
+                "--export-data --rom=does-not-exist.gba --table=units --format=xml", timeoutMs: 15_000);
+
+            Assert.NotEqual(0, code);
+            Assert.Contains("--format must be one of tsv, csv, ea, json", stdout + stderr);
+        }
+
+        [Fact]
+        public void ImportData_UnsupportedFormat_RejectsBeforeRomLoad()
+        {
+            string inPath = TempFile(".dat");
+            File.WriteAllText(inPath, "irrelevant content");
+
+            var (code, stdout, stderr) = AppRunner.Run(CliExe,
+                $"--import-data --rom=does-not-exist.gba --table=units --in=\"{inPath}\" --format=xml", timeoutMs: 15_000);
+
+            Assert.NotEqual(0, code);
+            Assert.Contains("--format must be tsv or json", stdout + stderr);
+        }
+
+        [Fact]
+        public void ImportData_MissingIn_ErrorMentionsTsvAndJson()
+        {
+            var (code, stdout, stderr) = AppRunner.Run(CliExe,
+                "--import-data --rom=does-not-exist.gba --table=units", timeoutMs: 15_000);
+
+            Assert.NotEqual(0, code);
+            string combined = stdout + stderr;
+            Assert.Contains("--in=", combined);
+            Assert.Contains("TSV", combined);
+            Assert.Contains("JSON", combined);
+        }
+
+        // ------------------------------------------------------------------ strict JSON Index parsing (ROM-gated mutation check)
+
+        [SkippableFact]
+        public void ImportData_Json_GarbageIndex_RejectedInsteadOfAliasingToRowZero()
+        {
+            Skip.If(RomLocator.FE8U == null, "FE8U ROM not available");
+            string rom = CopyFE8U();
+            byte[] romBefore = File.ReadAllBytes(rom);
+
+            // "banana" is not 0x/$/decimal — U.atoi0x's permissive TSV-style parse would
+            // silently alias this to index 0; strict JSON parsing must reject it instead.
+            string badJson = TempFile(".json");
+            File.WriteAllText(badJson, "[{\"Index\":\"banana\",\"Weight\":\"0x05\"}]");
+
+            var (code, stdout, stderr) = AppRunner.Run(CliExe,
+                $"--import-data --rom=\"{rom}\" --table=items --in=\"{badJson}\"", timeoutMs: 60_000);
+
+            Assert.NotEqual(0, code);
+            Assert.Contains("unparsable 'Index'", stdout + stderr);
+            Assert.Equal(romBefore, File.ReadAllBytes(rom));
+        }
+
+        [SkippableFact]
+        public void ImportData_Json_DuplicateIndexProperty_RejectedInsteadOfLastWins()
+        {
+            Skip.If(RomLocator.FE8U == null, "FE8U ROM not available");
+            string rom = CopyFE8U();
+            byte[] romBefore = File.ReadAllBytes(rom);
+
+            // Duplicate "Index" keys in the same row: JsonDocument tolerates this and would
+            // otherwise silently keep only the last value on enumeration.
+            string badJson = TempFile(".json");
+            File.WriteAllText(badJson, "[{\"Index\":\"0x00 A\",\"Index\":\"0x01 B\",\"Weight\":\"0x05\"}]");
+
+            var (code, stdout, stderr) = AppRunner.Run(CliExe,
+                $"--import-data --rom=\"{rom}\" --table=items --in=\"{badJson}\"", timeoutMs: 60_000);
+
+            Assert.NotEqual(0, code);
+            Assert.Contains("duplicate property", stdout + stderr);
+            Assert.Equal(romBefore, File.ReadAllBytes(rom));
         }
     }
 }
