@@ -85,8 +85,8 @@ file if this doc and the CLI ever drift.
   tokens, no bare prefixes, no negatives, no overflow (e.g. `"banana"`, `"-1"`, `"0x"`, `"0x0A extra"`)
   — and must fit the field's byte/word/dword/pointer width, or it is rejected instead of the
   permissive `U.atoi0x` silently coercing it to `0` and mutating the ROM; accepted values are
-  normalized to a canonical lowercase-`0x` (or decimal) form so a `$` or uppercase-`0X` input still
-  parses correctly downstream; no two rows may target the same `Index`; and every `Index` must be
+  normalized to a canonical lowercase-`0x` hexadecimal form (including accepted decimal input) so
+  the full unsigned field range parses correctly downstream; no two rows may target the same `Index`; and every `Index` must be
   within `[0, entryCount)` for the resolved table instead of relying on the writer's silent per-row
   skip. Any violation (shape or semantic) fails with a specific, actionable error — naming the row
   number and, where applicable, the offending property — and leaves the ROM byte-for-byte unchanged.

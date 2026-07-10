@@ -1458,9 +1458,9 @@ namespace FEBuilderGBA
         /// <c>$</c>-hex, or plain-decimal token — no trailing tokens, no bare prefixes, no
         /// negatives, no garbage — and must fit the field's <see cref="StructMetadata.FieldType"/>
         /// width (Byte/Word/DWord/Pointer); accepted values are rewritten in place to a
-        /// canonical form (always a lowercase <c>0x</c> prefix for hex, so <see cref="U.atoi0x"/> —
-        /// which only recognizes a lowercase <c>0x</c> prefix — parses the normalized value
-        /// safely even if the JSON used <c>$</c> or an uppercase <c>0X</c>);</item>
+        /// canonical hexadecimal form (always a lowercase <c>0x</c> prefix, so
+        /// <see cref="U.atoi0x"/> parses the full unsigned field range safely even if the JSON
+        /// used decimal, <c>$</c>, or an uppercase <c>0X</c> prefix);</item>
         /// <item>no two rows in the document may resolve to the same <c>Index</c> — a
         /// duplicate row index is rejected rather than letting the second row's write
         /// silently clobber the first;</item>
@@ -1539,9 +1539,10 @@ namespace FEBuilderGBA
         /// overflow (too many digits, or a value exceeding the field's byte/word/dword/pointer
         /// width) — instead of the permissive <see cref="U.atoi0x"/> silently truncating/
         /// zeroing garbage. On success, <paramref name="canonical"/> is always re-emitted
-        /// with a lowercase <c>0x</c> prefix (for hex forms) so a later <see cref="U.atoi0x"/>
-        /// call — which only recognizes a lowercase <c>0x</c>, never <c>0X</c> — parses it
-        /// correctly regardless of the original prefix casing or <c>$</c> form used.
+        /// as hexadecimal with a lowercase <c>0x</c> prefix so a later
+        /// <see cref="U.atoi0x"/> call parses the full unsigned 32-bit range correctly.
+        /// This includes decimal input above <see cref="int.MaxValue"/>, which
+        /// <see cref="U.atoi0x"/> cannot parse safely in decimal form.
         /// </summary>
         static bool TryNormalizeFieldValue(string raw, StructMetadata.FieldType type, out string canonical, out string error)
         {
@@ -1611,7 +1612,7 @@ namespace FEBuilderGBA
                 return false;
             }
 
-            canonical = isHex ? "0x" + parsed.ToString("X", CultureInfo.InvariantCulture) : parsed.ToString(CultureInfo.InvariantCulture);
+            canonical = "0x" + parsed.ToString("X", CultureInfo.InvariantCulture);
             return true;
         }
 

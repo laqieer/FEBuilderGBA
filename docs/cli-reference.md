@@ -444,7 +444,8 @@ required and optional flags. Each is verified against its `Run*` handler in
   from a row is still allowed, for partial updates); every field value must strictly parse
   as a complete `0x`-hex/`$`-hex/plain-decimal token — no trailing tokens, no bare prefixes,
   no negatives, no overflow — and fit the field's byte/word/dword/pointer width (accepted
-  values are normalized to a canonical lowercase-`0x`/decimal form first); no two rows may
+  values are normalized to a canonical lowercase-`0x` hexadecimal form first, including
+  accepted decimal input, so the full unsigned field range reaches the writer safely); no two rows may
   target the same `Index`; and every `Index` must be within `[0, entryCount)` for the
   resolved table (rejected here instead of relying on the writer's silent per-row skip).
   **Exit:** 0 on success, 1 on usage/unknown-table/unsupported-format/malformed-input error.

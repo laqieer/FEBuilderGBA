@@ -574,6 +574,41 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains("overflow", ex.Message);
         }
 
+        [Theory]
+        [InlineData(StructMetadata.FieldType.DWord)]
+        [InlineData(StructMetadata.FieldType.Pointer)]
+        public void ValidateJSONEntries_MaxDecimalDWord_NormalizesAndWritesFullUnsignedValue(
+            StructMetadata.FieldType type)
+        {
+            var def = new StructMetadata.StructDef
+            {
+                Name = "WideValue",
+                DataSize = 4,
+                Fields = new List<StructMetadata.FieldDef>
+                {
+                    new StructMetadata.FieldDef { Name = "Value", Offset = 0, Type = type },
+                },
+            };
+            var entries = StructExportCore.ParseJSON(
+                "[{\"Index\":\"0x00\",\"Value\":\"4294967295\"}]");
+
+            StructExportCore.ValidateJSONEntries(entries, def, entryCount: 1);
+            Assert.Equal("0xFFFFFFFF", entries[0].fields["Value"]);
+
+            var rom = new ROM();
+            Assert.True(rom.LoadLow("wide-value.gba", new byte[0x1000000], "BE8E01"));
+            var table = new StructExportCore.TableDef
+            {
+                Name = "wide_value",
+                GetBaseAddress = _ => 0x200,
+                GetDataSize = _ => 4,
+                GetEntryCount = _ => 1,
+            };
+
+            Assert.Equal(1, StructExportCore.WriteTable(rom, table, def, entries));
+            Assert.Equal(uint.MaxValue, rom.u32(0x200));
+        }
+
         [Fact]
         public void ValidateJSONEntries_DuplicateRowIndex_ThrowsFormatException()
         {
@@ -622,12 +657,12 @@ namespace FEBuilderGBA.Core.Tests
             var result = Record.Exception(() => StructExportCore.ValidateJSONEntries(entries, def, entryCount: 4));
             Assert.Null(result);
 
-            // Decimal input stays decimal; $ and uppercase-0X both normalize to a
-            // lowercase "0x" prefix so U.atoi0x (which only recognizes lowercase "0x")
-            // parses them correctly instead of misreading "0X0A" as decimal "0".
-            Assert.Equal("10", entries[0].fields["Level"]);
+            // Every accepted form normalizes to a lowercase "0x" prefix so U.atoi0x
+            // parses the complete unsigned range without decimal/int truncation.
+            Assert.Equal("0xA", entries[0].fields["Level"]);
             Assert.Equal("0xA", entries[1].fields["Level"]);
             Assert.Equal("0xA", entries[2].fields["Level"]);
+            Assert.Equal((uint)10, U.atoi0x(entries[0].fields["Level"]));
             Assert.Equal((uint)10, U.atoi0x(entries[1].fields["Level"]));
             Assert.Equal((uint)10, U.atoi0x(entries[2].fields["Level"]));
         }

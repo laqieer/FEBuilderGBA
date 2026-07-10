@@ -125,8 +125,8 @@ the "### Graphics System" overview in `CLAUDE.md`.
   stays allowed for partial updates); every field value is strictly re-parsed as a complete `0x`/`$`/decimal
   token — rejecting trailing tokens, bare prefixes, negatives, and overflow — and range-checked against the
   field's `FieldType` width (Byte/Word/DWord/Pointer), with accepted values rewritten in place to a canonical
-  lowercase-`0x` (or decimal) form so the later `U.atoi0x` call (which only recognizes a lowercase `0x`, never
-  `0X`) parses them safely; no two rows may share an `Index`; and every `Index` must be in `[0, entryCount)`
+  lowercase-`0x` hexadecimal form (including accepted decimal input) so the later `U.atoi0x` call parses the
+  full unsigned field range safely; no two rows may share an `Index`; and every `Index` must be in `[0, entryCount)`
   for the resolved table, rejected here instead of relying on `WriteTable`'s silent per-row skip. CLI
   `RunImportData`'s JSON branch calls `ImportFromJSON(inputPath, structDef, table.GetEntryCount(rom))` so every
   check above runs — and can throw `FormatException` — strictly before `WriteTable`/`ROM.Save`.
