@@ -178,7 +178,7 @@ namespace FEBuilderGBA.Core.Tests
                 rgba[i * 4 + 3] = 255;
             }
 
-            var result = MapConvertCore.ConvertImage(rgba, w, h, out string error);
+            var result = MapConvertCore.ConvertImage(rgba, w, h, out string error, maxPalettes: 1);
 
             Assert.Null(result);
             Assert.Contains("at most 16", error);
@@ -214,6 +214,41 @@ namespace FEBuilderGBA.Core.Tests
 
             Assert.Null(result);
             Assert.Contains("1024 unique tiles", error);
+        }
+
+        [Fact]
+        public void ConvertImage_TransparentAndOpaqueBlack_UseDistinctIndices()
+        {
+            int w = 8, h = 8;
+            byte[] rgba = new byte[w * h * 4];
+            rgba[1 * 4 + 3] = 255; // Opaque black next to transparent pixel 0.
+            rgba[2 * 4 + 0] = 255;
+            rgba[2 * 4 + 3] = 255; // Opaque red.
+
+            var result = MapConvertCore.ConvertImage(rgba, w, h, out string error);
+
+            Assert.NotNull(result);
+            Assert.Equal("", error);
+            Assert.Equal(0x10, result.TileData[0]); // transparent=0, opaque black=1
+            Assert.Equal(0x02, result.TileData[1]); // opaque red=2, transparent=0
+        }
+
+        [Fact]
+        public void ConvertImage_RgbColorsCollapsingToGbaColors_DoNotFalseReject()
+        {
+            int w = 8, h = 8;
+            byte[] rgba = new byte[w * h * 4];
+            for (int i = 0; i < w * h; i++)
+            {
+                rgba[i * 4 + 0] = (byte)(i % 18);
+                rgba[i * 4 + 3] = 255;
+            }
+
+            var result = MapConvertCore.ConvertImage(rgba, w, h, out string error);
+
+            Assert.NotNull(result);
+            Assert.Equal("", error);
+            Assert.InRange(result.PaletteData.Length / 2, 1, 3);
         }
     }
 }

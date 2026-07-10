@@ -34,18 +34,24 @@ namespace FEBuilderGBA
         /// <param name="rgbaPixels">RGBA pixel data (4 bytes per pixel)</param>
         /// <param name="width">Image width (must be multiple of 8)</param>
         /// <param name="height">Image height (must be multiple of 8)</param>
-        /// <param name="maxPalettes">Maximum number of 16-color palettes</param>
         /// <returns>Conversion result or null on error</returns>
-        public static MapConvertResult ConvertImage(byte[] rgbaPixels, int width, int height, int maxPalettes = 5)
+        public static MapConvertResult ConvertImage(byte[] rgbaPixels, int width, int height)
         {
-            return ConvertImage(rgbaPixels, width, height, out _, maxPalettes);
+            return ConvertImage(rgbaPixels, width, height, out _);
+        }
+
+        /// <summary>
+        /// Compatibility overload. Map conversion emits exactly one palette; maxPalettes is ignored.
+        /// </summary>
+        public static MapConvertResult ConvertImage(byte[] rgbaPixels, int width, int height, int maxPalettes)
+        {
+            return ConvertImage(rgbaPixels, width, height, out _);
         }
 
         /// <summary>
         /// Extract unique 8x8 tiles from RGBA pixel data and build TSA, returning a specific error.
         /// </summary>
-        public static MapConvertResult ConvertImage(byte[] rgbaPixels, int width, int height,
-            out string error, int maxPalettes = 5)
+        public static MapConvertResult ConvertImage(byte[] rgbaPixels, int width, int height, out string error)
         {
             error = "";
             if (rgbaPixels == null || width < 8 || height < 8)
@@ -67,8 +73,36 @@ namespace FEBuilderGBA
             int tilesX = width / 8;
             int tilesY = height / 8;
 
-            // Step 1: Quantize the full image to get a global palette
-            var quantized = DecreaseColorCore.Quantize(rgbaPixels, width, height, 16 * maxPalettes);
+            const int TransparentKey = 0x10000;
+            var inputPaletteKeys = new HashSet<int>();
+            int pixelCount = width * height;
+            for (int i = 0; i < pixelCount; i++)
+            {
+                int offset = i * 4;
+                int key;
+                if (rgbaPixels[offset + 3] < 128)
+                {
+                    key = TransparentKey;
+                }
+                else
+                {
+                    key = (rgbaPixels[offset] >> 3) |
+                        ((rgbaPixels[offset + 1] >> 3) << 5) |
+                        ((rgbaPixels[offset + 2] >> 3) << 10);
+                }
+                inputPaletteKeys.Add(key);
+                if (inputPaletteKeys.Count > 16)
+                {
+                    error = "Image requires more than 16 distinct palette entries; map conversion supports at most 16 (one palette).";
+                    return null;
+                }
+            }
+
+            bool hasTransparency = inputPaletteKeys.Contains(TransparentKey);
+
+            // Step 1: Quantize to the single palette that the output format can represent.
+            var quantized = DecreaseColorCore.Quantize(rgbaPixels, width, height, 16,
+                noReserve1stColor: !hasTransparency);
             if (quantized == null)
             {
                 error = "Color quantization failed.";
@@ -77,19 +111,8 @@ namespace FEBuilderGBA
 
             // Compact the palette entries that are actually used. Median-cut may emit duplicate
             // entries, so ColorCount alone is not a reliable single-palette validation.
-            const int TransparentKey = 0x10000;
             var compactPaletteMap = new Dictionary<int, byte>();
             var compactPalette = new List<ushort>();
-            bool hasTransparency = false;
-            int pixelCount = width * height;
-            for (int i = 0; i < pixelCount; i++)
-            {
-                if (rgbaPixels[i * 4 + 3] < 128)
-                {
-                    hasTransparency = true;
-                    break;
-                }
-            }
             if (hasTransparency)
             {
                 compactPaletteMap[TransparentKey] = 0;
@@ -213,6 +236,15 @@ namespace FEBuilderGBA
                 WidthTiles = tilesX,
                 HeightTiles = tilesY,
             };
+        }
+
+        /// <summary>
+        /// Compatibility overload. Map conversion emits exactly one palette; maxPalettes is ignored.
+        /// </summary>
+        public static MapConvertResult ConvertImage(byte[] rgbaPixels, int width, int height,
+            out string error, int maxPalettes)
+        {
+            return ConvertImage(rgbaPixels, width, height, out error);
         }
 
         static string ComputeTileHash(byte[] tile)
