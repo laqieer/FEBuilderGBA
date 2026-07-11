@@ -748,6 +748,46 @@ namespace FEBuilderGBA.Core.Tests
             finally { Cleanup(parent); try { Directory.Delete(patchBase, true); } catch { } }
         }
 
+        [Fact]
+        public void DeleteAndVerifyGone_MissingPath_RequiresDirectAbsenceVerification()
+        {
+            bool result = BuildfileExportCore.DeleteAndVerifyGone(
+                "missing",
+                (_, _) => throw new DirectoryNotFoundException("missing"),
+                _ => throw new FileNotFoundException("missing"),
+                out string error);
+
+            Assert.True(result);
+            Assert.Equal("", error);
+        }
+
+        [Fact]
+        public void DeleteAndVerifyGone_AttributeAccessFailure_FailsClosed()
+        {
+            bool result = BuildfileExportCore.DeleteAndVerifyGone(
+                "blocked",
+                (_, _) => { },
+                _ => throw new UnauthorizedAccessException("denied"),
+                out string error);
+
+            Assert.False(result);
+            Assert.Contains("could not verify path absence", error);
+            Assert.Contains("denied", error);
+        }
+
+        [Fact]
+        public void DeleteAndVerifyGone_DeleteReportsMissingButPathRemains_FailsClosed()
+        {
+            bool result = BuildfileExportCore.DeleteAndVerifyGone(
+                "replaced",
+                (_, _) => throw new DirectoryNotFoundException("directory missing"),
+                _ => FileAttributes.Archive,
+                out string error);
+
+            Assert.False(result);
+            Assert.Equal("path still present after delete", error);
+        }
+
         [SkippableFact]
         public void Export_ProjectionCleanupFailure_AbortsExport_NoDestination()
         {

@@ -916,26 +916,64 @@ namespace FEBuilderGBA
         // Delete a directory tree and confirm it is gone. Returns false (with a reason) when the
         // directory still exists afterwards, so the caller can refuse to publish.
         static bool DeleteAndVerifyGone(string dir, out string error)
+            => DeleteAndVerifyGone(dir, Directory.Delete, File.GetAttributes, out error);
+
+        internal static bool DeleteAndVerifyGone(
+            string dir,
+            Action<string, bool> deleteDirectory,
+            Func<string, FileAttributes> getAttributes,
+            out string error)
         {
+            if (deleteDirectory == null) throw new ArgumentNullException(nameof(deleteDirectory));
+            if (getAttributes == null) throw new ArgumentNullException(nameof(getAttributes));
             error = "";
             try
             {
-                if (Directory.Exists(dir)) Directory.Delete(dir, true);
+                deleteDirectory(dir, true);
+            }
+            catch (FileNotFoundException)
+            {
+                return VerifyPathAbsent(dir, getAttributes, out error);
+            }
+            catch (DirectoryNotFoundException)
+            {
+                return VerifyPathAbsent(dir, getAttributes, out error);
             }
             catch (Exception ex) when (IsExpectedFileSystemException(ex))
             {
                 // Only expected filesystem/access faults are cleanup detail; a programmer defect
                 // during cleanup propagates rather than being recorded as pass/fail data.
-                if (ex is DirectoryNotFoundException) return true;
                 error = ex.Message;
                 return false;
             }
-            if (Directory.Exists(dir))
+            return VerifyPathAbsent(dir, getAttributes, out error);
+        }
+
+        static bool VerifyPathAbsent(
+            string path,
+            Func<string, FileAttributes> getAttributes,
+            out string error)
+        {
+            error = "";
+            try
             {
-                if (string.IsNullOrEmpty(error)) error = "directory still present after delete";
+                getAttributes(path);
+                error = "path still present after delete";
                 return false;
             }
-            return true;
+            catch (FileNotFoundException)
+            {
+                return true;
+            }
+            catch (DirectoryNotFoundException)
+            {
+                return true;
+            }
+            catch (Exception ex) when (IsExpectedFileSystemException(ex))
+            {
+                error = "could not verify path absence: " + ex.Message;
+                return false;
+            }
         }
 
         // Normalize an advisory projection tree before publication: LF line endings and removal
