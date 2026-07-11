@@ -1311,7 +1311,6 @@ namespace FEBuilderGBA.CLI
             // to different physical paths and are accepted; aliases of the same file are rejected.
             // All BEFORE loading or writing; explicit failures, never broad-caught away.
             string moddedPhysical, cleanPhysical, outFull, outParent;
-            long moddedLength, cleanLength;
             try
             {
                 moddedPhysical = BuildfilePathSafety.ResolvePhysicalPath(moddedFull);
@@ -1324,8 +1323,6 @@ namespace FEBuilderGBA.CLI
                     Console.Error.WriteLine("Error: --rom (modded) and --clean resolve to the same file; they must be different ROMs.");
                     return 1;
                 }
-                moddedLength = new FileInfo(moddedPhysical).Length;
-                cleanLength = new FileInfo(cleanPhysical).Length;
                 if (Directory.Exists(outFull) || File.Exists(outFull))
                 {
                     Console.Error.WriteLine($"Error: Output path already exists: {outFull}");
@@ -1348,25 +1345,59 @@ namespace FEBuilderGBA.CLI
                 return 1;
             }
 
-            if (!ValidateBuildfileRomLengths(moddedLength, cleanLength, out string lengthError))
+            byte[] moddedData;
+            byte[] cleanData;
+            try
             {
-                Console.Error.WriteLine("Error: " + lengthError);
+                using FileStream moddedInput =
+                    ProjectionFileSystemSafety.OpenRegularFileForRead(moddedPhysical);
+                using FileStream cleanInput =
+                    ProjectionFileSystemSafety.OpenRegularFileForRead(cleanPhysical);
+
+                long moddedLength = moddedInput.Length;
+                long cleanLength = cleanInput.Length;
+                if (!ValidateBuildfileRomLengths(
+                    moddedLength,
+                    cleanLength,
+                    out string lengthError))
+                {
+                    Console.Error.WriteLine("Error: " + lengthError);
+                    return 1;
+                }
+
+                moddedData = ReadExactBuildfileRom(
+                    moddedInput,
+                    moddedLength,
+                    "Modded ROM");
+                cleanData = ReadExactBuildfileRom(
+                    cleanInput,
+                    cleanLength,
+                    "Clean ROM");
+            }
+            catch (Exception ex) when (ex is IOException
+                || ex is UnauthorizedAccessException
+                || ex is NotSupportedException)
+            {
+                Console.Error.WriteLine(
+                    "Error: ROM inputs must be readable plain regular files: " + ex.Message);
                 return 1;
             }
 
             RomLoader.InitEnvironment();
 
             // Keep the MODDED ROM in CoreState.ROM (the ROM the exporter/projection reads);
-            // --force-version applies only to loading the modded ROM. Load the EXACT resolved
-            // physical path used for the identity check.
+            // --force-version applies only to loading the modded ROM. Load the bounded bytes
+            // read through the exact validated handle rather than reopening the pathname.
             string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
-            if (!RomLoader.LoadRom(moddedPhysical, forceVersion))
+            if (!RomLoader.LoadRomFromBytes(moddedPhysical, moddedData, forceVersion))
                 return 1;
             RomLoader.InitFull();
 
             // Load the CLEAN ROM into a SEPARATE ROM object; never mutate either.
             var cleanRom = new ROM();
-            if (!cleanRom.Load(cleanPhysical, out string cleanVersion) || cleanRom.Data == null || cleanRom.Data.Length == 0)
+            if (!cleanRom.LoadFromBytes(cleanPhysical, cleanData, out string cleanVersion)
+                || cleanRom.Data == null
+                || cleanRom.Data.Length == 0)
             {
                 Console.Error.WriteLine($"Error: Not a recognized GBA Fire Emblem ROM (clean): {cleanPath}");
                 return 1;
@@ -1452,6 +1483,31 @@ namespace FEBuilderGBA.CLI
                 return false;
             }
             return true;
+        }
+
+        static byte[] ReadExactBuildfileRom(
+            FileStream stream,
+            long expectedLength,
+            string description)
+        {
+            var data = new byte[checked((int)expectedLength)];
+            int offset = 0;
+            while (offset < data.Length)
+            {
+                int count = stream.Read(data, offset, data.Length - offset);
+                if (count == 0)
+                {
+                    throw new IOException(
+                        description + " changed or was truncated while being read.");
+                }
+                offset += count;
+            }
+            if (stream.ReadByte() != -1)
+            {
+                throw new IOException(
+                    description + " grew while being read.");
+            }
+            return data;
         }
 
         /// <summary>

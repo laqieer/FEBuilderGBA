@@ -80,6 +80,43 @@ namespace FEBuilderGBA.CLI
         }
 
         /// <summary>
+        /// Load already-bounded ROM bytes and set up CoreState.ROM without reopening a path.
+        /// </summary>
+        public static bool LoadRomFromBytes(
+            string romPath,
+            byte[] data,
+            string forceVersion)
+        {
+            if (data == null) throw new ArgumentNullException(nameof(data));
+
+            ROM rom = new ROM();
+            bool ok;
+            if (!string.IsNullOrEmpty(forceVersion))
+            {
+                ok = rom.LoadForceVersionFromBytes(romPath, data, forceVersion);
+                if (!ok)
+                {
+                    CoreState.Services.ShowError(
+                        $"Failed to load ROM with forced version '{forceVersion}': {romPath}");
+                    return false;
+                }
+            }
+            else
+            {
+                ok = rom.LoadFromBytes(romPath, data, out string version);
+                if (!ok)
+                {
+                    CoreState.Services.ShowError(
+                        $"Failed to load ROM: {romPath} (version: {version})");
+                    return false;
+                }
+            }
+
+            CoreState.ROM = rom;
+            return true;
+        }
+
+        /// <summary>
         /// Open a decomp project directory: detect it, resolve its built ROM, load
         /// that ROM as a read-only preview, and run full init.
         /// Returns false (with a ShowError) on any fault. #1129 slice 1.

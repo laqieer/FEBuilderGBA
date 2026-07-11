@@ -216,8 +216,8 @@ single payload range. No source ROM path or full ROM is ever copied into the pro
 
 | Option | Required | Description |
 |---|---|---|
-| `--rom=<path>` | Yes | Path to the **modded** ROM (kept in memory; never mutated). |
-| `--clean=<path>` | Yes | Path to the **clean/baseline** ROM of the **same version**. Its SHA-256 is the reproducibility identity. |
+| `--rom=<path>` | Yes | Path to the **modded** plain regular ROM file (kept in memory; never mutated). |
+| `--clean=<path>` | Yes | Path to the **clean/baseline** plain regular ROM file of the **same version**. Its SHA-256 is the reproducibility identity. |
 | `--out=<dir>` | Yes | New project directory. **Must not already exist.** |
 | `--force-version=<VER>` | No | Applies **only** to loading the modded ROM; clean/modded version identity is still enforced. |
 | `--with-source` | No | Also emit an advisory, non-authoritative `source/` projection (opt-in). |
@@ -261,7 +261,11 @@ Patch Manager/CLI enumeration path, which logs an unreadable individual definiti
 other successfully parsed patches. The `source/` projection
 is a non-composable best-effort — the projector receives only the ROM and a private scratch
 directory (created as a unique sibling OUTSIDE the publish stage on the same volume, moved into
-`source/` only on complete success). Before publish its text files are normalized to LF and the
+`source/` only on complete success). Every projected final entry is opened no-follow, validated as
+a regular file on that exact handle, and read through the same handle. Text files are normalized
+to LF, and both text and binary files are atomically replaced with fresh exporter-owned inodes
+before and after the move to `source/`; this severs external hard links and prevents later
+cross-mutation. Before publish the
 exporter-owned scratch path is stripped from projected file contents AND from the projection outcome's
 success/refused/error/exception reason, from publish-failure diagnostics, and from cleanup-failure
 diagnostics alike (the exporter does **not** claim to sanitize arbitrary
@@ -294,8 +298,10 @@ forms—use a standard drive or UNC path instead; a symlink/junction output pare
 (single-entry check
 — the atomic publish only needs the stage and destination to share one real immediate parent); a
 pre-existing `--out`; a clean/modded version mismatch; a modded ROM shorter than clean or larger
-than 32 MiB. Input sizes are read from filesystem metadata and rejected before either ROM is
-loaded, so an oversized file is never allocated merely to report that limit. A non-canonical
+than 32 MiB; or either ROM input not being a plain regular file. Each final ROM entry is opened
+no-follow, validated on the exact handle, bounded by that handle's length, and read completely
+through the same handle before parsing; a FIFO/device cannot block or produce an unbounded read,
+and a pathname replacement cannot redirect the later load. A non-canonical
 (but same-version) clean baseline is an explicit warning, not a
 rejection. The `--out` path is normalized (full-path + trailing-separator trim, roots preserved)
 before all checks, so `--out=project/` and `--out=project` behave identically. Global switches
