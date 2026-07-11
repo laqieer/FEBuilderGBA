@@ -105,6 +105,8 @@ Standalone commands: `lint`, `disasm`, `songexchange`, `names`, `portrait`, `exp
 **`import-midi`**, `disasm-event`, **`compile-event`**, `lint-oam`, `rebuild`, `pointercalc`,
 **`export-map-settings-raw`**, `check`.
 
+Unwrapped standalone backend commands: `--export-buildfile`.
+
 ## CLI verb coverage (harness ↔ CLI)
 
 The harness wraps a growing subset of `FEBuilderGBA.CLI`'s ~68 verbs (see
@@ -156,6 +158,7 @@ tracked in [#1933](https://github.com/laqieer/FEBuilderGBA/issues/1933).
 | `--songexchange` | `songexchange` | ✅ |
 | `--pointercalc` | `pointercalc` | ✅ |
 | `--rebuild` | `rebuild` | ✅ |
+| `--export-buildfile` | — | ⬜ |
 | `--export-map-settings` | `export-map-settings-raw` | 🆕 |
 | `--freespace` / `--hex-dump` | — | ⬜ |
 | `--expand-table` / `--merge3` / `--lz77` | — | ⬜ |

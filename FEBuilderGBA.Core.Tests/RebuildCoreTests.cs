@@ -307,6 +307,97 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void ValidateProjectionOutput_AcceptsCompleteManifestAndSidecar()
+        {
+            using (var tmp = new TempDir())
+            {
+                string sidecarDir = Path.Combine(tmp.Path, "rebuild_bin");
+                Directory.CreateDirectory(sidecarDir);
+                File.WriteAllBytes(Path.Combine(sidecarDir, "data.bin"), new byte[] { 1, 2, 3 });
+                string manifestPath = Path.Combine(tmp.Path, "rom.rebuild");
+                File.WriteAllText(manifestPath,
+                    "@_CRC32 12345678\n"
+                    + "@_REBUILDADDRESS 00100000\n"
+                    + "@BIN 00100000 rebuild_bin" + Path.DirectorySeparatorChar + "data.bin\n");
+
+                RebuildMakeCore.ValidateProjectionOutput(manifestPath);
+            }
+        }
+
+        [Fact]
+        public void ValidateProjectionOutput_RejectsMissingReferencedSidecar()
+        {
+            using (var tmp = new TempDir())
+            {
+                string manifestPath = Path.Combine(tmp.Path, "rom.rebuild");
+                File.WriteAllText(manifestPath,
+                    "@_CRC32 12345678\n"
+                    + "@_REBUILDADDRESS 00100000\n"
+                    + "@BIN 00100000 rebuild_bin" + Path.DirectorySeparatorChar + "missing.bin\n");
+
+                InvalidDataException ex = Assert.Throws<InvalidDataException>(
+                    () => RebuildMakeCore.ValidateProjectionOutput(manifestPath));
+                Assert.Contains("Missing rebuild sidecar", ex.Message);
+            }
+        }
+
+        [Fact]
+        public void ValidateProjectionOutput_RejectsSidecarOutsideScratch()
+        {
+            using (var tmp = new TempDir())
+            {
+                string outsidePath = Path.Combine(Path.GetDirectoryName(tmp.Path), "outside-" + Guid.NewGuid().ToString("N") + ".bin");
+                try
+                {
+                    File.WriteAllBytes(outsidePath, new byte[] { 1 });
+                    string manifestPath = Path.Combine(tmp.Path, "rom.rebuild");
+                    File.WriteAllText(manifestPath,
+                        "@_CRC32 12345678\n"
+                        + "@_REBUILDADDRESS 00100000\n"
+                        + "@BIN 00100000 .." + Path.DirectorySeparatorChar + Path.GetFileName(outsidePath) + "\n");
+
+                    InvalidDataException ex = Assert.Throws<InvalidDataException>(
+                        () => RebuildMakeCore.ValidateProjectionOutput(manifestPath));
+                    Assert.Contains("escapes its scratch directory", ex.Message);
+                }
+                finally
+                {
+                    try { File.Delete(outsidePath); } catch { }
+                }
+            }
+        }
+
+        [Fact]
+        public void RebuildMakeCore_ManifestWriteFailure_IsNotSwallowed()
+        {
+            byte[] modified = BuildModified();
+            ROM vanilla = BuildVanilla();
+            var previousRom = CoreState.ROM;
+            try
+            {
+                var modifiedRom = new ROM();
+                modifiedRom.SwapNewROMDataDirect((byte[])modified.Clone());
+                CoreState.ROM = modifiedRom;
+
+                using (var tmp = new TempDir())
+                {
+                    string manifestPath = Path.Combine(tmp.Path, "manifest-is-a-directory.rebuild");
+                    Directory.CreateDirectory(manifestPath);
+
+                    Exception ex = Record.Exception(() =>
+                        RebuildMakeCore.Make(
+                            modified, vanilla, REBUILD_ADDR, BuildStructList(), manifestPath));
+                    Assert.NotNull(ex);
+                    Assert.True(ex is IOException || ex is UnauthorizedAccessException, ex.ToString());
+                }
+            }
+            finally
+            {
+                CoreState.ROM = previousRom;
+            }
+        }
+
+        [Fact]
         public void RoundTrip_PointersIntact_FreeReclaimed_Idempotent()
         {
             byte[] modified = BuildModified();

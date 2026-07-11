@@ -1210,7 +1210,12 @@ namespace FEBuilderGBA
             string scratchFwd = scratchAbs.Replace('\\', '/');
             // JSON/C-style escaped Windows spelling: backslashes are doubled (C:\\temp\\...).
             string scratchEsc = scratchAbs.Replace("\\", "\\\\");
-            return text.Replace(scratchEsc, "source").Replace(scratchAbs, "source").Replace(scratchFwd, "source");
+            StringComparison comparison = (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS())
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+            return text.Replace(scratchEsc, "source", comparison)
+                .Replace(scratchAbs, "source", comparison)
+                .Replace(scratchFwd, "source", comparison);
         }
 
         // -------------------------------------------------------- patch inventory

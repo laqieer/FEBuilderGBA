@@ -1085,6 +1085,51 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void Export_ProjectionSanitizesCaseVariantsOnCaseInsensitivePlatforms()
+        {
+            if (!OperatingSystem.IsWindows() && !OperatingSystem.IsMacOS())
+                return;
+
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x2000] = 0x67;
+
+            var (outDir, parent) = FreshOut();
+            string scratchPath = "";
+            try
+            {
+                var options = new BuildfileExportOptions
+                {
+                    OutputDirectory = outDir,
+                    ProjectionRunner = scratch =>
+                    {
+                        scratchPath = scratch;
+                        string alternateCase = scratch.ToUpperInvariant();
+                        string forward = alternateCase.Replace('\\', '/');
+                        string escaped = alternateCase.Replace("\\", "\\\\");
+                        File.WriteAllText(Path.Combine(scratch, "paths.txt"),
+                            alternateCase + "\n" + forward + "\n" + escaped + "\n");
+                        return new BuildfileProjectionOutcome
+                        {
+                            Status = BuildfileProjectionStatus.Success,
+                            Reason = "generated under " + alternateCase,
+                        };
+                    },
+                };
+
+                var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target), options);
+                Assert.True(result.Success, result.Error);
+                string projected = File.ReadAllText(Path.Combine(outDir, "source", "paths.txt"));
+                Assert.DoesNotContain(scratchPath.ToUpperInvariant(), projected.ToUpperInvariant());
+                Assert.Contains("source", projected);
+                Assert.DoesNotContain(
+                    scratchPath.ToUpperInvariant(),
+                    result.Manifest.Projection.Reason.ToUpperInvariant());
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [Fact]
         public void Export_PatchDirectoryIsAFile_IsUnavailable_NotAFailure()
         {
             // A patch base that is a FILE (or otherwise not a directory) must yield an advisory

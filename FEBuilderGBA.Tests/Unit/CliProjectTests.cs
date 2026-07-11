@@ -69,13 +69,47 @@ namespace FEBuilderGBA.Tests.Unit
             string parent = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "cli_repo_wt_" + System.Guid.NewGuid().ToString("N"));
             string repoRoot = System.IO.Path.Combine(parent, "worktree-checkout");
             string nested = System.IO.Path.Combine(repoRoot, "sub", "dir");
+            string gitDir = System.IO.Path.Combine(parent, "main-repo", ".git", "worktrees", "worktree-checkout");
             System.IO.Directory.CreateDirectory(repoRoot);
             System.IO.Directory.CreateDirectory(nested);
+            System.IO.Directory.CreateDirectory(gitDir);
             System.IO.File.WriteAllText(System.IO.Path.Combine(repoRoot, ".git"),
-                "gitdir: " + System.IO.Path.Combine(parent, "main-repo", ".git", "worktrees", "worktree-checkout") + "\n");
+                "gitdir: " + gitDir + "\n");
             try
             {
                 Assert.Equal(repoRoot, CliProgram.FindRepoRoot(nested));
+            }
+            finally { try { System.IO.Directory.Delete(parent, true); } catch { } }
+        }
+
+        [Fact]
+        public void FindRepoRoot_IgnoresOrdinaryDotGitFile()
+        {
+            string parent = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "cli_repo_fake_" + System.Guid.NewGuid().ToString("N"));
+            string fakeRoot = System.IO.Path.Combine(parent, "not-a-repo");
+            string nested = System.IO.Path.Combine(fakeRoot, "sub", "dir");
+            System.IO.Directory.CreateDirectory(System.IO.Path.Combine(parent, ".git"));
+            System.IO.Directory.CreateDirectory(nested);
+            System.IO.File.WriteAllText(System.IO.Path.Combine(fakeRoot, ".git"), "ordinary file\n");
+            try
+            {
+                Assert.Equal(parent, CliProgram.FindRepoRoot(nested));
+            }
+            finally { try { System.IO.Directory.Delete(parent, true); } catch { } }
+        }
+
+        [Fact]
+        public void FindRepoRoot_IgnoresEmptyGitDirMarker()
+        {
+            string parent = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "cli_repo_empty_" + System.Guid.NewGuid().ToString("N"));
+            string fakeRoot = System.IO.Path.Combine(parent, "not-a-worktree");
+            string nested = System.IO.Path.Combine(fakeRoot, "sub");
+            System.IO.Directory.CreateDirectory(System.IO.Path.Combine(parent, ".git"));
+            System.IO.Directory.CreateDirectory(nested);
+            System.IO.File.WriteAllText(System.IO.Path.Combine(fakeRoot, ".git"), "gitdir:   \n");
+            try
+            {
+                Assert.Equal(parent, CliProgram.FindRepoRoot(nested));
             }
             finally { try { System.IO.Directory.Delete(parent, true); } catch { } }
         }

@@ -19,7 +19,8 @@ test files in that directory.
 
 The **WinForms Alignment** column tracks whether the cross-platform CLI output is aligned with the
 original WinForms CLI (`FEBuilderGBA.exe`). "ALIGNED" means the CLI produces equivalent or better
-output for that command compared to the WinForms exe.
+output for that command compared to the WinForms exe. "CLI-ONLY (N/A)" marks commands that have no
+WinForms CLI counterpart to align against.
 
 | Argument | Description | Required Args | E2E Status | WinForms Alignment |
 |---|---|---|---|---|
@@ -32,7 +33,7 @@ output for that command compared to the WinForms exe.
 | `--decreasecolor` | Quantize image palette | `--in`, `--out` (opt: `--paletteno`, `--json`) | E2E COVERED | ALIGNED |
 | `--pointercalc` | Search pointer references | `--rom`, `--target`, `--address` | E2E COVERED | ALIGNED |
 | `--rebuild` | Rebuild/defragment ROM | `--rom` (opt: `--fromrom`) | E2E COVERED | ALIGNED |
-| `--export-buildfile` | Export a deterministic buildfile recipe of the clean→modded delta | `--rom`, `--clean`, `--out` (opt: `--force-version`, `--with-source`) | E2E COVERED | ALIGNED |
+| `--export-buildfile` | Export a deterministic buildfile recipe of the clean→modded delta | `--rom`, `--clean`, `--out` (opt: `--force-version`, `--with-source`) | E2E COVERED | CLI-ONLY (N/A) |
 | `--songexchange` | Copy song between ROMs | `--rom`, `--fromrom`, `--fromsong`, `--tosong` | E2E COVERED | ALIGNED |
 | `--convertmap1picture` | Convert image to map tiles | `--in`, one or more of `--outImg`/`--outTSA`/`--outPal` (opt: `--json`) | E2E COVERED | ALIGNED |
 | `--translate` | Dump or import ROM text | `--rom` | E2E COVERED | ALIGNED |
