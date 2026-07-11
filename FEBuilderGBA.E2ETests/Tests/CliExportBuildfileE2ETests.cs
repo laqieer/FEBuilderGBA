@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using FEBuilderGBA.E2ETests.Helpers;
 using Xunit;
@@ -368,6 +369,74 @@ namespace FEBuilderGBA.E2ETests.Tests
             Assert.False(Directory.Exists(outDir));
         }
 
+        [SkippableFact]
+        public void ExportBuildfile_WindowsDeviceNamespaceAliases_Return1_NoOutput()
+        {
+            Skip.IfNot(OperatingSystem.IsWindows(), "Windows device namespaces only exist on Windows");
+            string shared = TempPath(".gba");
+            File.WriteAllBytes(shared, new byte[64]);
+            string full = Path.GetFullPath(shared);
+            string[] aliases = { @"\\?\" + full, @"\\.\" + full, @"\??\" + full };
+
+            foreach (string alias in aliases)
+            {
+                Assert.True(File.Exists(alias), "The namespace path must alias the ordinary test file");
+                string outDir = TempPath("_proj");
+                var (code, _, stderr) = AppRunner.Run(CliExe,
+                    $"--export-buildfile --rom=\"{shared}\" --clean=\"{alias}\" --out=\"{outDir}\"",
+                    timeoutMs: 15_000);
+
+                Assert.Equal(1, code);
+                Assert.Contains("device-namespace", stderr);
+                Assert.False(Directory.Exists(outDir));
+            }
+        }
+
+        [SkippableFact]
+        public void ExportBuildfile_WindowsHardLinkAlias_Returns1_NoOutput()
+        {
+            Skip.IfNot(OperatingSystem.IsWindows(), "Windows file identity only asserted on Windows");
+            string shared = TempPath(".gba");
+            string alias = TempPath(".gba");
+            File.WriteAllBytes(shared, new byte[64]);
+            if (!CreateHardLinkWindows(alias, shared, IntPtr.Zero))
+            {
+                Skip.If(true, "Cannot create a hard link here; Win32 error "
+                    + Marshal.GetLastWin32Error());
+                return;
+            }
+            string outDir = TempPath("_proj");
+
+            var (code, _, stderr) = AppRunner.Run(CliExe,
+                $"--export-buildfile --rom=\"{shared}\" --clean=\"{alias}\" --out=\"{outDir}\"",
+                timeoutMs: 15_000);
+
+            Assert.Equal(1, code);
+            Assert.Contains("same file", stderr);
+            Assert.False(Directory.Exists(outDir));
+        }
+
+        [SkippableFact]
+        public void ExportBuildfile_WindowsLocalUncAlias_Returns1_NoOutput()
+        {
+            Skip.IfNot(OperatingSystem.IsWindows(), "Windows file identity only asserted on Windows");
+            string shared = TempPath(".gba");
+            File.WriteAllBytes(shared, new byte[64]);
+            string full = Path.GetFullPath(shared);
+            string root = Path.GetPathRoot(full)!;
+            string uncAlias = @"\\localhost\" + root[0] + @"$\" + full.Substring(root.Length);
+            Skip.IfNot(File.Exists(uncAlias), "The local administrative share is unavailable");
+            string outDir = TempPath("_proj");
+
+            var (code, _, stderr) = AppRunner.Run(CliExe,
+                $"--export-buildfile --rom=\"{shared}\" --clean=\"{uncAlias}\" --out=\"{outDir}\"",
+                timeoutMs: 15_000);
+
+            Assert.Equal(1, code);
+            Assert.Contains("same file", stderr);
+            Assert.False(Directory.Exists(outDir));
+        }
+
         [Fact]
         public void ExportBuildfile_ParentTraversalInRom_ForwardSlash_Returns1_NoOutput()
         {
@@ -469,5 +538,12 @@ namespace FEBuilderGBA.E2ETests.Tests
             }
             return recon;
         }
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true,
+            EntryPoint = "CreateHardLinkW")]
+        static extern bool CreateHardLinkWindows(
+            string fileName,
+            string existingFileName,
+            IntPtr securityAttributes);
     }
 }

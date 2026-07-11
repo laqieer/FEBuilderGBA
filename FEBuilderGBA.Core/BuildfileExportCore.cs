@@ -21,11 +21,13 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Win32.SafeHandles;
 
 namespace FEBuilderGBA
 {
@@ -68,7 +70,9 @@ namespace FEBuilderGBA
     /// Normalization: every path is run through <see cref="Path.GetFullPath(string)"/> then
     /// <see cref="Path.TrimEndingDirectorySeparator(string)"/> (roots preserved) BEFORE any
     /// parent/name/existence/staging decision, so a trailing separator (<c>project/</c>) never
-    /// changes behavior.
+    /// changes behavior. Windows device-namespace spellings (<c>\\?\</c>, <c>\\.\</c>, and
+    /// <c>\??\</c>) are rejected fail-closed instead of allowing an alternate spelling to bypass
+    /// identity checks.
     ///
     /// Input identity (ROM inputs): we do NOT blanket-reject symlinks/junctions. Instead we
     /// resolve each EXISTING input to its PHYSICAL canonical path via
@@ -87,9 +91,10 @@ namespace FEBuilderGBA
     /// output chain to root (which would reject legitimate roots and system symlinks).
     ///
     /// Comparison is OS-appropriate: case-insensitive on Windows/macOS (conservative — per-volume
-    /// case sensitivity is not probed), case-sensitive elsewhere. True same-file identity across
-    /// HARD links is not portably detectable (hard links are not reparse points and each has its
-    /// own physical path), so it is out of scope by design.
+    /// case sensitivity is not probed), case-sensitive elsewhere. Windows additionally compares
+    /// the volume serial + 128-bit file ID, catching hard links, local UNC aliases, and mounted
+    /// drive aliases that cannot be collapsed lexically. Hard-link identity remains out of scope
+    /// on other platforms.
     /// </summary>
     public static class BuildfilePathSafety
     {
@@ -97,7 +102,16 @@ namespace FEBuilderGBA
         public static string NormalizeFullPath(string path)
         {
             if (string.IsNullOrEmpty(path)) throw new ArgumentException("Path is empty.", nameof(path));
-            return Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+            string fullPath = Path.GetFullPath(path);
+            if (OperatingSystem.IsWindows()
+                && (fullPath.StartsWith(@"\\?\", StringComparison.OrdinalIgnoreCase)
+                    || fullPath.StartsWith(@"\\.\", StringComparison.OrdinalIgnoreCase)
+                    || fullPath.StartsWith(@"\??\", StringComparison.Ordinal)))
+            {
+                throw new IOException(
+                    @"Windows device-namespace paths (\\?\, \\.\, and \??\) are not supported; use a standard drive or UNC path.");
+            }
+            return Path.TrimEndingDirectorySeparator(fullPath);
         }
 
         static StringComparison PathComparison =>
@@ -155,7 +169,7 @@ namespace FEBuilderGBA
             if (getAttributes == null) throw new ArgumentNullException(nameof(getAttributes));
             if (ContainsParentTraversal(path))
                 throw new IOException("Path must not contain parent-directory (..) segments: " + path);
-            string full = Path.GetFullPath(path);
+            string full = NormalizeFullPath(path);
             string root = Path.GetPathRoot(full);
             if (string.IsNullOrEmpty(root))
                 throw new ArgumentException("Cannot resolve a rootless path: " + path, nameof(path));
@@ -223,10 +237,156 @@ namespace FEBuilderGBA
         /// <summary>
         /// True when <paramref name="a"/> and <paramref name="b"/> resolve to the SAME physical
         /// file/dir (realpath + OS-appropriate comparison). Catches ancestor- and final-link
-        /// aliases of the same file; does NOT detect hard-link identity (out of scope).
+        /// aliases of the same file. On Windows, existing files are also compared by stable
+        /// filesystem identity, which catches hard links and drive/UNC aliases.
         /// </summary>
         public static bool SamePhysicalFile(string a, string b)
-            => string.Equals(ResolvePhysicalPath(a), ResolvePhysicalPath(b), PathComparison);
+        {
+            return SameResolvedPhysicalFile(
+                ResolvePhysicalPath(a),
+                ResolvePhysicalPath(b));
+        }
+
+        /// <summary>
+        /// Compares two paths already returned by <see cref="ResolvePhysicalPath"/> without
+        /// walking their components again.
+        /// </summary>
+        public static bool SameResolvedPhysicalFile(string resolvedA, string resolvedB)
+        {
+            resolvedA = NormalizeFullPath(resolvedA);
+            resolvedB = NormalizeFullPath(resolvedB);
+            if (string.Equals(resolvedA, resolvedB, PathComparison))
+                return true;
+            if (!OperatingSystem.IsWindows())
+                return false;
+
+            return SameWindowsFileIdentity(resolvedA, resolvedB);
+        }
+
+        internal static bool SameWindowsFileIdentity(
+            string pathA,
+            string pathB,
+            bool try128BitIdentity = true)
+        {
+            using SafeFileHandle handleA = OpenWindowsIdentityHandle(pathA);
+            using SafeFileHandle handleB = OpenWindowsIdentityHandle(pathB);
+
+            if (try128BitIdentity
+                && TryReadWindowsFileIdentity128(handleA, out WindowsFileIdentity128 identity128A)
+                && TryReadWindowsFileIdentity128(handleB, out WindowsFileIdentity128 identity128B))
+            {
+                return identity128A.VolumeSerialNumber == identity128B.VolumeSerialNumber
+                    && identity128A.FileIdLow == identity128B.FileIdLow
+                    && identity128A.FileIdHigh == identity128B.FileIdHigh;
+            }
+
+            WindowsFileIdentity64 identity64A = ReadWindowsFileIdentity64(handleA, pathA);
+            WindowsFileIdentity64 identity64B = ReadWindowsFileIdentity64(handleB, pathB);
+            return identity64A.VolumeSerialNumber == identity64B.VolumeSerialNumber
+                && identity64A.FileIndexLow == identity64B.FileIndexLow
+                && identity64A.FileIndexHigh == identity64B.FileIndexHigh;
+        }
+
+        static SafeFileHandle OpenWindowsIdentityHandle(string path)
+        {
+            const uint FileFlagBackupSemantics = 0x02000000;
+            SafeFileHandle handle = CreateFileForIdentity(
+                path,
+                desiredAccess: 0,
+                FileShare.ReadWrite | FileShare.Delete,
+                IntPtr.Zero,
+                FileMode.Open,
+                FileFlagBackupSemantics,
+                IntPtr.Zero);
+            if (handle.IsInvalid)
+            {
+                int error = Marshal.GetLastWin32Error();
+                handle.Dispose();
+                throw new IOException(
+                    "Cannot inspect Windows file identity: " + path + " (Win32 error " + error + ").");
+            }
+            return handle;
+        }
+
+        static bool TryReadWindowsFileIdentity128(
+            SafeFileHandle handle,
+            out WindowsFileIdentity128 identity)
+        {
+            return GetFileInformationByHandleEx(
+                handle,
+                FileInfoByHandleClass.FileIdInfo,
+                out identity,
+                (uint)Marshal.SizeOf<WindowsFileIdentity128>());
+        }
+
+        static WindowsFileIdentity64 ReadWindowsFileIdentity64(
+            SafeFileHandle handle,
+            string path)
+        {
+            if (!GetFileInformationByHandle(handle, out WindowsFileIdentity64 identity))
+            {
+                int error = Marshal.GetLastWin32Error();
+                throw new IOException(
+                    "Cannot inspect Windows file identity: " + path + " (Win32 error " + error + ").");
+            }
+            return identity;
+        }
+
+        enum FileInfoByHandleClass
+        {
+            FileIdInfo = 18,
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        struct WindowsFileIdentity128
+        {
+            public ulong VolumeSerialNumber;
+            public ulong FileIdLow;
+            public ulong FileIdHigh;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        struct WindowsFileIdentity64
+        {
+            public uint FileAttributes;
+            public uint CreationTimeLow;
+            public uint CreationTimeHigh;
+            public uint LastAccessTimeLow;
+            public uint LastAccessTimeHigh;
+            public uint LastWriteTimeLow;
+            public uint LastWriteTimeHigh;
+            public uint VolumeSerialNumber;
+            public uint FileSizeHigh;
+            public uint FileSizeLow;
+            public uint NumberOfLinks;
+            public uint FileIndexHigh;
+            public uint FileIndexLow;
+        }
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true,
+            EntryPoint = "CreateFileW")]
+        static extern SafeFileHandle CreateFileForIdentity(
+            string fileName,
+            uint desiredAccess,
+            FileShare shareMode,
+            IntPtr securityAttributes,
+            FileMode creationDisposition,
+            uint flagsAndAttributes,
+            IntPtr templateFile);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool GetFileInformationByHandleEx(
+            SafeFileHandle file,
+            FileInfoByHandleClass fileInformationClass,
+            out WindowsFileIdentity128 fileInformation,
+            uint bufferSize);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool GetFileInformationByHandle(
+            SafeFileHandle file,
+            out WindowsFileIdentity64 fileInformation);
 
         static List<string> SplitComponents(string rest)
             => new List<string>(rest.Split(
@@ -253,8 +413,8 @@ namespace FEBuilderGBA
 
             string linkDir = Path.GetDirectoryName(linkPath) ?? resolvedBase;
             return Path.IsPathRooted(raw)
-                ? Path.GetFullPath(raw)
-                : Path.GetFullPath(Path.Combine(linkDir, raw));
+                ? NormalizeFullPath(raw)
+                : NormalizeFullPath(Path.Combine(linkDir, raw));
         }
 
         /// <summary>

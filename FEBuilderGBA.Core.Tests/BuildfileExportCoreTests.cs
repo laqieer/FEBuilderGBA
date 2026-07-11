@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -1180,6 +1181,97 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(string.IsNullOrEmpty(BuildfilePathSafety.NormalizeFullPath(root)));
         }
 
+        [SkippableFact]
+        public void PathSafety_WindowsDeviceNamespaces_AreRejectedBeforeInspection()
+        {
+            Skip.IfNot(OperatingSystem.IsWindows(), "Windows device namespaces only exist on Windows");
+            string ordinary = Path.Combine(
+                Path.GetPathRoot(Path.GetTempPath())!,
+                "bfx-device",
+                "rom.gba");
+            string[] devicePaths =
+            {
+                @"\\?\" + ordinary,
+                @"\\.\" + ordinary,
+                "//?/" + ordinary.Replace('\\', '/'),
+                "//./" + ordinary.Replace('\\', '/'),
+                @"\\?\UNC\server\share\rom.gba",
+                @"\\.\UNC\server\share\rom.gba",
+                @"\??\" + ordinary,
+                @"\??\UNC\server\share\rom.gba",
+            };
+
+            foreach (string devicePath in devicePaths)
+            {
+                IOException normalizeError = Assert.Throws<IOException>(
+                    () => BuildfilePathSafety.NormalizeFullPath(devicePath));
+                Assert.Contains("device-namespace", normalizeError.Message);
+
+                bool inspected = false;
+                IOException resolveError = Assert.Throws<IOException>(() =>
+                    BuildfilePathSafety.ResolvePhysicalPath(devicePath, _ =>
+                    {
+                        inspected = true;
+                        return FileAttributes.Normal;
+                    }));
+                Assert.Contains("device-namespace", resolveError.Message);
+                Assert.False(inspected);
+            }
+
+            string ordinaryUnc = @"\\server\share\rom.gba";
+            Assert.Equal(ordinaryUnc, BuildfilePathSafety.NormalizeFullPath(ordinaryUnc));
+        }
+
+        [SkippableFact]
+        public void PathSafety_SamePhysicalFile_WindowsHardLink_UsesFileIdentity()
+        {
+            Skip.IfNot(OperatingSystem.IsWindows(), "Windows file identity only asserted on Windows");
+            string root = Path.Combine(Path.GetTempPath(), "bfx-hardlink-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
+            string original = Path.Combine(root, "original.gba");
+            string alias = Path.Combine(root, "alias.gba");
+            File.WriteAllBytes(original, new byte[16]);
+            try
+            {
+                if (!CreateHardLinkWindows(alias, original, IntPtr.Zero))
+                {
+                    Skip.If(true, "Cannot create a hard link here; Win32 error "
+                        + Marshal.GetLastWin32Error());
+                    return;
+                }
+
+                Assert.False(BuildfilePathSafety.PathsEqual(original, alias));
+                Assert.True(BuildfilePathSafety.SamePhysicalFile(original, alias));
+                Assert.True(BuildfilePathSafety.SameWindowsFileIdentity(
+                    original,
+                    alias,
+                    try128BitIdentity: false));
+            }
+            finally { try { Directory.Delete(root, true); } catch { } }
+        }
+
+        [Fact]
+        public void PathSafety_SamePhysicalFile_DistinctDirectories_AreNotSame()
+        {
+            string root = Path.Combine(Path.GetTempPath(), "bfx-dirs-" + Guid.NewGuid().ToString("N"));
+            string first = Path.Combine(root, "first");
+            string second = Path.Combine(root, "second");
+            Directory.CreateDirectory(first);
+            Directory.CreateDirectory(second);
+            try
+            {
+                Assert.False(BuildfilePathSafety.SamePhysicalFile(first, second));
+                if (OperatingSystem.IsWindows())
+                {
+                    Assert.False(BuildfilePathSafety.SameWindowsFileIdentity(
+                        first,
+                        second,
+                        try128BitIdentity: false));
+                }
+            }
+            finally { try { Directory.Delete(root, true); } catch { } }
+        }
+
         [Fact]
         public void PathSafety_ContainsParentTraversal_ForwardSlashDotDot_True()
         {
@@ -1426,5 +1518,12 @@ namespace FEBuilderGBA.Core.Tests
             while ((idx = haystack.IndexOf(needle, idx, StringComparison.Ordinal)) >= 0) { count++; idx += needle.Length; }
             return count;
         }
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true,
+            EntryPoint = "CreateHardLinkW")]
+        static extern bool CreateHardLinkWindows(
+            string fileName,
+            string existingFileName,
+            IntPtr securityAttributes);
     }
 }

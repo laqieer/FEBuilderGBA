@@ -1279,12 +1279,26 @@ namespace FEBuilderGBA.CLI
                 return 1;
             }
 
-            if (!File.Exists(moddedPath))
+            string moddedFull, cleanFull;
+            try
+            {
+                // Reject Windows device namespaces before File.Exists or any other filesystem
+                // inspection, then use these exact normalized spellings for every later step.
+                moddedFull = BuildfilePathSafety.NormalizeFullPath(moddedPath);
+                cleanFull = BuildfilePathSafety.NormalizeFullPath(cleanPath);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Error: invalid path: {ex.Message}");
+                return 1;
+            }
+
+            if (!File.Exists(moddedFull))
             {
                 Console.Error.WriteLine($"Error: Modded ROM not found: {moddedPath}");
                 return 1;
             }
-            if (!File.Exists(cleanPath))
+            if (!File.Exists(cleanFull))
             {
                 Console.Error.WriteLine($"Error: Clean ROM not found: {cleanPath}");
                 return 1;
@@ -1300,12 +1314,12 @@ namespace FEBuilderGBA.CLI
             long moddedLength, cleanLength;
             try
             {
-                moddedPhysical = BuildfilePathSafety.ResolvePhysicalPath(moddedPath);
-                cleanPhysical = BuildfilePathSafety.ResolvePhysicalPath(cleanPath);
+                moddedPhysical = BuildfilePathSafety.ResolvePhysicalPath(moddedFull);
+                cleanPhysical = BuildfilePathSafety.ResolvePhysicalPath(cleanFull);
                 outFull = BuildfilePathSafety.NormalizeFullPath(outDir);
                 outParent = Path.GetDirectoryName(outFull);
 
-                if (BuildfilePathSafety.PathsEqual(moddedPhysical, cleanPhysical))
+                if (BuildfilePathSafety.SameResolvedPhysicalFile(moddedPhysical, cleanPhysical))
                 {
                     Console.Error.WriteLine("Error: --rom (modded) and --clean resolve to the same file; they must be different ROMs.");
                     return 1;

@@ -287,7 +287,11 @@ its realpath (following symlinks/junctions **including ancestor links**) and tho
 paths are the ones compared *and loaded*, so `C:\real\mod.gba` and `C:\link\mod.gba` (with
 `C:\link → C:\real`) are rejected as one file, while two *distinct* ROMs that merely share a
 benign symlinked ancestor such as macOS `/var → /private/var` are accepted; comparison is
-case-insensitive on Windows/macOS; a symlink/junction output parent directory (single-entry check
+case-insensitive on Windows/macOS; on Windows, any device-namespace spelling (`\\?\`, `\\.\`,
+`\??\`, or an equivalent slash variant) is rejected at the shared normalization boundary before
+filesystem inspection, ROM loading, or output creation, including extended-drive and extended-UNC
+forms—use a standard drive or UNC path instead; a symlink/junction output parent directory
+(single-entry check
 — the atomic publish only needs the stage and destination to share one real immediate parent); a
 pre-existing `--out`; a clean/modded version mismatch; a modded ROM shorter than clean or larger
 than 32 MiB. Input sizes are read from filesystem metadata and rejected before either ROM is
@@ -297,8 +301,12 @@ rejection. The `--out` path is normalized (full-path + trailing-separator trim, 
 before all checks, so `--out=project/` and `--out=project` behave identically. Global switches
 (`--help`, `--version`) still take precedence over the verb in either order. A final-component
 symlink is allowed as long as it resolves to a *distinct* physical file from the other input.
-True same-file identity across **hard links** is not portably detectable and is out of scope by
-design; the macOS case comparison is conservatively case-insensitive.
+Windows additionally compares volume serial + 128-bit file ID, with the older 64-bit handle
+identity as a capability fallback for FAT/FAT32/exFAT and other filesystems that do not expose
+`FileIdInfo`. Hard links, mounted-drive aliases, and local-drive/UNC aliases of the same file are
+therefore rejected even when their resolved path strings differ. Hard-link identity is not
+portably detectable and remains out of scope on other platforms; the macOS case comparison is
+conservatively case-insensitive.
 
 **Exit code:** 0 on success, 1 on error.
 
