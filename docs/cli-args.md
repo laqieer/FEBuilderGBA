@@ -2,16 +2,18 @@
 
 This document tracks the **E2E-covered** primary commands of the cross-platform `FEBuilderGBA.CLI`
 tool and their alignment with the original WinForms CLI. The table below is *not* the complete
-command set — it lists the commands exercised by `FEBuilderGBA.E2ETests/Tests/CliArgsE2ETests.cs`.
+command set — it lists commands exercised by `FEBuilderGBA.E2ETests/Tests/CliArgsE2ETests.cs`
+and command-specific E2E suites such as `CliExportBuildfileE2ETests.cs`.
 
-For the **full command set** (the `Main` dispatcher in `FEBuilderGBA.CLI/Program.cs` routes 67
+For the **full command set** (the `Main` dispatcher in `FEBuilderGBA.CLI/Program.cs` routes 68
 distinct user-facing commands), see [`docs/cli-reference.md`](cli-reference.md) or run:
 
 ```bash
 FEBuilderGBA.CLI --help
 ```
 
-E2E tests are in `FEBuilderGBA.E2ETests/Tests/CliArgsE2ETests.cs`.
+E2E tests are in `FEBuilderGBA.E2ETests/Tests/CliArgsE2ETests.cs` and sibling command-specific
+test files in that directory.
 
 ## Primary Commands (E2E-covered)
 
