@@ -668,6 +668,110 @@ namespace FEBuilderGBA.Core.Tests
             finally { Cleanup(parent); }
         }
 
+        [SkippableFact]
+        public void Export_ProjectionRunnerReplacesScratchRootWithLink_ExternalTreeUntouched()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x2000] = 0x78;
+
+            var (outDir, parent) = FreshOut();
+            string external = Path.Combine(
+                Path.GetTempPath(), "bfx_projection_external_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(external);
+            string externalFile = Path.Combine(external, "outside.txt");
+            const string Original = "outside\r\nmust remain unchanged\r\n";
+            File.WriteAllText(externalFile, Original);
+            Exception linkError = null;
+            try
+            {
+                var options = new BuildfileExportOptions
+                {
+                    OutputDirectory = outDir,
+                    ProjectionRunner = scratch =>
+                    {
+                        Directory.Delete(scratch);
+                        try { Directory.CreateSymbolicLink(scratch, external); }
+                        catch (Exception ex) { linkError = ex; }
+                        return BuildfileProjectionOutcome.Ok();
+                    },
+                };
+
+                var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target), options);
+                if (linkError != null)
+                {
+                    Skip.If(true, "Cannot create a directory symlink here: " + linkError.Message);
+                    return;
+                }
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("error", result.Manifest.Projection.Status);
+                Assert.Contains("symlink/junction directory", result.Manifest.Projection.Reason);
+                Assert.False(Directory.Exists(Path.Combine(outDir, "source")));
+                Assert.Equal(Original, File.ReadAllText(externalFile));
+                Assert.True(ReconstructFromProject(outDir, clean).SequenceEqual(target));
+            }
+            finally
+            {
+                Cleanup(parent);
+                try { Directory.Delete(external, true); } catch { }
+            }
+        }
+
+        [SkippableFact]
+        public void Export_UnsafeMovedProjectionCannotBeRemoved_AbortsWithoutExternalMutation()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x2000] = 0x79;
+
+            var (outDir, parent) = FreshOut();
+            string external = Path.Combine(
+                Path.GetTempPath(), "bfx_moved_external_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(external);
+            string externalFile = Path.Combine(external, "outside.txt");
+            const string Original = "external-content\n";
+            File.WriteAllText(externalFile, Original);
+            Exception linkError = null;
+            try
+            {
+                var options = new BuildfileExportOptions
+                {
+                    OutputDirectory = outDir,
+                    ProjectionRunner = scratch =>
+                    {
+                        File.WriteAllText(Path.Combine(scratch, "projection.txt"), "complete\n");
+                        return BuildfileProjectionOutcome.Ok();
+                    },
+                    AfterProjectionMoveForTest = source =>
+                    {
+                        Directory.Delete(source, true);
+                        try { Directory.CreateSymbolicLink(source, external); }
+                        catch (Exception ex) { linkError = ex; }
+                    },
+                    UnsafeMovedProjectionCleanupForTest = _ => false,
+                };
+
+                var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target), options);
+                if (linkError != null)
+                {
+                    Skip.If(true, "Cannot create a moved-source symlink here: " + linkError.Message);
+                    return;
+                }
+
+                Assert.False(result.Success);
+                Assert.Contains("Unsafe moved projection could not be removed", result.Error);
+                Assert.False(Directory.Exists(outDir));
+                Assert.Equal(Original, File.ReadAllText(externalFile));
+                Assert.DoesNotContain(Directory.GetDirectories(parent), d =>
+                    Path.GetFileName(d).Contains(".psrc-") || Path.GetFileName(d).Contains(".stage-"));
+            }
+            finally
+            {
+                Cleanup(parent);
+                try { Directory.Delete(external, true); } catch { }
+            }
+        }
+
         [Fact]
         public void Export_ProjectionError_IsWarning_NoSourcePublished_NoScratchSibling()
         {
@@ -856,8 +960,31 @@ namespace FEBuilderGBA.Core.Tests
                 out string error);
 
             Assert.False(result);
-            Assert.Contains("could not verify path absence", error);
+            Assert.Contains("could not inspect path before delete", error);
             Assert.Contains("denied", error);
+        }
+
+        [Fact]
+        public void DeleteAndVerifyGone_ReparseRoot_DeletesOnlyLink()
+        {
+            bool deleted = false;
+            bool? recursive = null;
+
+            bool result = BuildfileExportCore.DeleteAndVerifyGone(
+                "linked-root",
+                (_, recurse) =>
+                {
+                    recursive = recurse;
+                    deleted = true;
+                },
+                _ => deleted
+                    ? throw new DirectoryNotFoundException("deleted")
+                    : FileAttributes.Directory | FileAttributes.ReparsePoint,
+                out string error);
+
+            Assert.True(result);
+            Assert.Equal("", error);
+            Assert.False(recursive);
         }
 
         [Fact]
@@ -1426,6 +1553,41 @@ namespace FEBuilderGBA.Core.Tests
             finally { try { Directory.Delete(root, true); } catch { } }
         }
 
+        [SkippableFact]
+        public void PathSafety_SamePhysicalFile_WindowsLongPathHardLink_UsesExtendedIdentityPath()
+        {
+            Skip.IfNot(OperatingSystem.IsWindows(), "Windows long-path identity only asserted on Windows");
+            string root = Path.Combine(
+                Path.GetTempPath(), "bfx-long-identity-" + Guid.NewGuid().ToString("N"));
+            string parent = root;
+            while (parent.Length < 280)
+                parent = Path.Combine(parent, new string('i', 40));
+            Directory.CreateDirectory(parent);
+            string original = Path.Combine(parent, "original.gba");
+            string alias = Path.Combine(parent, "alias.gba");
+            File.WriteAllBytes(original, new byte[16]);
+            try
+            {
+                if (!CreateHardLinkWindows(
+                    BuildfileExportCore.ToWindowsExtendedPath(alias),
+                    BuildfileExportCore.ToWindowsExtendedPath(original),
+                    IntPtr.Zero))
+                {
+                    Skip.If(true, "Cannot create a long-path hard link here; Win32 error "
+                        + Marshal.GetLastWin32Error());
+                    return;
+                }
+
+                Assert.True(original.Length > 260);
+                Assert.True(BuildfilePathSafety.SamePhysicalFile(original, alias));
+                Assert.True(BuildfilePathSafety.SameWindowsFileIdentity(
+                    original,
+                    alias,
+                    try128BitIdentity: false));
+            }
+            finally { try { Directory.Delete(root, true); } catch { } }
+        }
+
         [Fact]
         public void PathSafety_SamePhysicalFile_DistinctDirectories_AreNotSame()
         {
@@ -1474,6 +1636,9 @@ namespace FEBuilderGBA.Core.Tests
             Skip.IfNot(OperatingSystem.IsWindows(), "Backslash is a separator only on Windows");
             Assert.True(BuildfilePathSafety.ContainsParentTraversal(@"a\..\b.gba"));
             Assert.True(BuildfilePathSafety.ContainsParentTraversal(@"C:\dir\..\f.gba"));
+            Assert.True(BuildfilePathSafety.ContainsParentTraversal(@"C:..\f.gba"));
+            Assert.True(BuildfilePathSafety.ContainsParentTraversal(@"C:dir\..\f.gba"));
+            Assert.False(BuildfilePathSafety.ContainsParentTraversal(@"C:..config\f.gba"));
             // A backslash inside a filename on Unix would NOT be a separator; on Windows it is.
         }
 
@@ -1535,6 +1700,49 @@ namespace FEBuilderGBA.Core.Tests
                 BuildfilePathSafety.SamePhysicalFile(traversed, traversed));
         }
 
+        [SkippableFact]
+        public void PathSafety_ResolvePhysical_LinkTargetTraversal_MatchesPlatformFilesystemOrder()
+        {
+            string root = Path.Combine(
+                Path.GetTempPath(), "bfx_link_traversal_" + Guid.NewGuid().ToString("N"));
+            string real = Path.Combine(root, "real");
+            string realChild = Path.Combine(real, "child");
+            Directory.CreateDirectory(realChild);
+            string physicalTarget = Path.Combine(real, "mod.gba");
+            string lexicalTarget = Path.Combine(root, "mod.gba");
+            File.WriteAllBytes(physicalTarget, new byte[] { 0x11 });
+            File.WriteAllBytes(lexicalTarget, new byte[] { 0x22 });
+            string pivot = Path.Combine(root, "pivot");
+            string link = Path.Combine(root, "link.gba");
+            try
+            {
+                try
+                {
+                    Directory.CreateSymbolicLink(pivot, realChild);
+                    File.CreateSymbolicLink(
+                        link,
+                        Path.Combine("pivot", "..", "mod.gba"));
+                }
+                catch (Exception ex)
+                {
+                    Skip.If(true, "Cannot create symbolic links here: " + ex.Message);
+                    return;
+                }
+
+                // Unix resolves pivot before '..' (real/child -> real); Win32 lexically folds the
+                // target first (pivot/../mod -> the sibling mod). Canonicalization must agree with
+                // the platform's actual file-open behavior so the checked path is the loaded path.
+                string expectedTarget = OperatingSystem.IsWindows()
+                    ? lexicalTarget
+                    : physicalTarget;
+                Assert.Equal(File.ReadAllBytes(expectedTarget), File.ReadAllBytes(link));
+                Assert.Equal(
+                    BuildfilePathSafety.ResolvePhysicalPath(expectedTarget),
+                    BuildfilePathSafety.ResolvePhysicalPath(link));
+            }
+            finally { try { Directory.Delete(root, true); } catch { } }
+        }
+
         [Fact]
         public void PathSafety_ResolvePhysical_AttributeAccessFailure_FailsClosed()
         {
@@ -1553,6 +1761,24 @@ namespace FEBuilderGBA.Core.Tests
 
             Assert.Contains("Cannot inspect path component", ex.Message);
             Assert.IsType<UnauthorizedAccessException>(ex.InnerException);
+        }
+
+        [Fact]
+        public void PathSafety_InspectorArgumentNull_PropagatesProgrammerDefect()
+        {
+            string path = Path.Combine(
+                Path.GetTempPath(),
+                "bfx_argnull_" + Guid.NewGuid().ToString("N"),
+                "target.gba");
+
+            Assert.Throws<ArgumentNullException>(() =>
+                BuildfilePathSafety.ResolvePhysicalPath(
+                    path,
+                    _ => throw new ArgumentNullException("candidate")));
+            Assert.Throws<ArgumentNullException>(() =>
+                BuildfilePathSafety.IsReparsePoint(
+                    path,
+                    _ => throw new ArgumentNullException("candidate")));
         }
 
         [Fact]

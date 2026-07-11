@@ -114,6 +114,7 @@ dotnet run --project FEBuilderGBA.CLI -- --export-buildfile --rom=modified.gba -
 # --with-source rejects linked sidecar ancestors and validates every referenced file before publishing source/.
 # Stage/scratch names use a bounded stable hash and are atomically reserved; collisions are never reused.
 # On Windows, use standard drive/UNC paths; device namespaces (\\?\, \\.\, and \??\) are rejected.
+# ROM aliases retain platform-accurate link semantics; Windows long paths keep handle-level identity checks.
 # Windows aliases use 128-bit file identity with a FAT/exFAT-compatible 64-bit fallback.
 dotnet run --project FEBuilderGBA.CLI -- --songexchange --rom=dest.gba --fromrom=source.gba --fromsong=1 --tosong=2
 dotnet run --project FEBuilderGBA.CLI -- --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin --outPal=palette.bin --json

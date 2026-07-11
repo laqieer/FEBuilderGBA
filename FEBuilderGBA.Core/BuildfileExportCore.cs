@@ -114,6 +114,16 @@ namespace FEBuilderGBA
             return Path.TrimEndingDirectorySeparator(fullPath);
         }
 
+        internal static string ToWindowsExtendedPath(string path)
+        {
+            string fullPath = Path.GetFullPath(path);
+            if (fullPath.StartsWith(@"\\?\", StringComparison.OrdinalIgnoreCase))
+                return fullPath;
+            if (fullPath.StartsWith(@"\\", StringComparison.Ordinal))
+                return @"\\?\UNC\" + fullPath.Substring(2);
+            return @"\\?\" + fullPath;
+        }
+
         static StringComparison PathComparison =>
             (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS())
                 ? StringComparison.OrdinalIgnoreCase
@@ -128,7 +138,9 @@ namespace FEBuilderGBA
         /// (parent-directory traversal). Splits on the platform's directory separators
         /// (<c>/</c> and <c>\</c> on Windows; only <c>/</c> on Unix, where <c>\</c> is a legal
         /// filename character), so a filename that merely CONTAINS dots (e.g. <c>my..rom.gba</c>,
-        /// <c>..config</c>) is NOT matched. Used to fail-closed on ROM inputs BEFORE any
+        /// <c>..config</c>) is NOT matched. On Windows an initial drive designator is removed
+        /// before scanning, so drive-relative traversal such as <c>C:..\rom.gba</c> cannot hide
+        /// the first <c>..</c> inside a <c>C:..</c> segment. Used to fail-closed on ROM inputs BEFORE any
         /// normalization/existence/load, because <see cref="Path.GetFullPath(string)"/> collapses
         /// <c>..</c> LEXICALLY before symlinks are resolved, which can diverge from the physical
         /// filesystem when a <c>..</c> segment follows a symlinked component.
@@ -136,7 +148,15 @@ namespace FEBuilderGBA
         public static bool ContainsParentTraversal(string rawPath)
         {
             if (string.IsNullOrEmpty(rawPath)) return false;
-            foreach (string seg in rawPath.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }))
+            string pathToScan = rawPath;
+            if (OperatingSystem.IsWindows()
+                && rawPath.Length >= 2
+                && char.IsLetter(rawPath[0])
+                && rawPath[1] == ':')
+            {
+                pathToScan = rawPath.Substring(2);
+            }
+            foreach (string seg in pathToScan.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }))
                 if (seg == "..") return true;
             return false;
         }
@@ -157,7 +177,10 @@ namespace FEBuilderGBA
         /// <see cref="Path.GetFullPath(string)"/>, which would otherwise resolve <c>..</c>
         /// LEXICALLY before any symlink is followed; a <c>..</c> after a symlinked component can
         /// diverge from the physical filesystem. A traversal segment is therefore always a
-        /// fail-closed <see cref="IOException"/>, never silently mis-resolved.
+        /// fail-closed <see cref="IOException"/>, never silently mis-resolved. Traversal contained
+        /// inside a filesystem-owned link target is different: on Unix its components are
+        /// processed during the physical walk after preceding target links have been resolved;
+        /// Windows applies Win32's lexical link-target normalization before that walk.
         /// </summary>
         public static string ResolvePhysicalPath(string path)
             => ResolvePhysicalPath(path, File.GetAttributes);
@@ -183,10 +206,21 @@ namespace FEBuilderGBA
             while (i < pending.Count)
             {
                 string comp = pending[i];
-                // GetFullPath already resolved '.'/'..' lexically; a residual traversal segment
-                // would mean an unexpected parse — fail closed rather than mis-resolve.
-                if (comp == "." || comp == "..")
-                    throw new IOException("Unexpected traversal segment '" + comp + "' after normalization of: " + full);
+                // The caller's path has already been normalized and was raw-checked for '..'.
+                // These segments can therefore only come from a link target. Process them here,
+                // against the PHYSICAL base reached so far, rather than collapsing them before
+                // target links are resolved.
+                if (comp == ".")
+                {
+                    i++;
+                    continue;
+                }
+                if (comp == "..")
+                {
+                    resolvedBase = PhysicalParentOrRoot(resolvedBase);
+                    i++;
+                    continue;
+                }
 
                 string candidate = Path.Combine(resolvedBase, comp);
                 FileAttributes attr;
@@ -199,10 +233,20 @@ namespace FEBuilderGBA
 
                 if (isMissing)
                 {
-                    // From here down nothing exists → append the rest lexically (no links possible).
+                    // From here down nothing exists, so append the remaining ordinary components
+                    // lexically. A later '..' could escape back into an existing tree (where links
+                    // may exist), but the missing component makes physical semantics uncertain;
+                    // fail closed rather than claim a potentially wrong canonical path.
                     resolvedBase = candidate;
                     for (int j = i + 1; j < pending.Count; j++)
-                        resolvedBase = Path.Combine(resolvedBase, pending[j]);
+                    {
+                        if (pending[j] == "..")
+                            throw new IOException(
+                                "Cannot physically resolve parent traversal after missing path component: " +
+                                candidate);
+                        if (pending[j] != ".")
+                            resolvedBase = Path.Combine(resolvedBase, pending[j]);
+                    }
                     return Path.TrimEndingDirectorySeparator(resolvedBase);
                 }
 
@@ -213,16 +257,48 @@ namespace FEBuilderGBA
                     if (++hops > MaxHops)
                         throw new IOException("Too many symbolic-link hops while resolving: " + path);
 
-                    string target = ReadLinkTarget(candidate, isDir, resolvedBase);
-                    string targetRoot = Path.GetPathRoot(target);
-                    if (string.IsNullOrEmpty(targetRoot))
-                        throw new IOException("Resolved link target is not rooted: " + target);
+                    string target = ReadLinkTarget(candidate, isDir);
+                    List<string> newPending;
+                    string targetBase;
+                    if (OperatingSystem.IsWindows())
+                    {
+                        if (Path.IsPathRooted(target) && !Path.IsPathFullyQualified(target))
+                            throw new IOException(
+                                "Partially rooted link targets are not supported: " + candidate);
+                        string lexicalTarget = Path.IsPathFullyQualified(target)
+                            ? NormalizeFullPath(target)
+                            : NormalizeFullPath(Path.Combine(resolvedBase, target));
+                        string targetRoot = Path.GetPathRoot(lexicalTarget);
+                        if (string.IsNullOrEmpty(targetRoot))
+                            throw new IOException("Resolved link target is not rooted: " + target);
+                        targetBase = targetRoot;
+                        newPending = SplitComponents(lexicalTarget.Substring(targetRoot.Length));
+                    }
+                    else if (Path.IsPathFullyQualified(target))
+                    {
+                        string targetRoot = Path.GetPathRoot(target);
+                        if (string.IsNullOrEmpty(targetRoot))
+                            throw new IOException("Resolved link target is not rooted: " + target);
+                        // Normalize only the root. Normalizing the WHOLE target here would collapse
+                        // pivot/../file before pivot can itself be physically resolved.
+                        targetBase = NormalizeFullPath(targetRoot);
+                        newPending = SplitComponents(target.Substring(targetRoot.Length));
+                    }
+                    else
+                    {
+                        if (Path.IsPathRooted(target))
+                            throw new IOException(
+                                "Partially rooted link targets are not supported: " + candidate);
+                        // Relative targets are relative to the link's already-physical parent.
+                        targetBase = resolvedBase;
+                        newPending = SplitComponents(target);
+                    }
 
-                    // Re-seed from the target's root, then re-append the not-yet-processed tail,
-                    // so ancestor links inside the target are themselves resolved.
-                    var newPending = SplitComponents(target.Substring(targetRoot.Length));
+                    // Re-seed from the target's physical base, then re-append the not-yet-processed
+                    // tail so links and traversal inside the target are resolved in filesystem
+                    // order.
                     for (int j = i + 1; j < pending.Count; j++) newPending.Add(pending[j]);
-                    resolvedBase = targetRoot;
+                    resolvedBase = targetBase;
                     pending = newPending;
                     i = 0;
                     continue;
@@ -291,7 +367,7 @@ namespace FEBuilderGBA
         {
             const uint FileFlagBackupSemantics = 0x02000000;
             SafeFileHandle handle = CreateFileForIdentity(
-                path,
+                ToWindowsExtendedPath(path),
                 desiredAccess: 0,
                 FileShare.ReadWrite | FileShare.Delete,
                 IntPtr.Zero,
@@ -393,9 +469,19 @@ namespace FEBuilderGBA
                 new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar },
                 StringSplitOptions.RemoveEmptyEntries));
 
-        // Read a reparse point's target and resolve it to an absolute path (relative targets are
-        // resolved against the link's own directory). Explicit failure — never silently empty.
-        static string ReadLinkTarget(string linkPath, bool isDir, string resolvedBase)
+        static string PhysicalParentOrRoot(string path)
+        {
+            string root = Path.GetPathRoot(path);
+            if (string.IsNullOrEmpty(root))
+                throw new IOException("Cannot find physical path root: " + path);
+            string parent = Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(path));
+            return string.IsNullOrEmpty(parent) ? root : parent;
+        }
+
+        // Read a reparse point's raw target. The caller applies platform filesystem semantics:
+        // Unix preserves component order through the physical walk; Windows uses Win32's lexical
+        // target normalization. Explicit failure — never silently empty.
+        static string ReadLinkTarget(string linkPath, bool isDir)
         {
             string raw;
             try
@@ -411,10 +497,7 @@ namespace FEBuilderGBA
             if (string.IsNullOrEmpty(raw))
                 throw new IOException("Unresolvable reparse point (no readable target): " + linkPath);
 
-            string linkDir = Path.GetDirectoryName(linkPath) ?? resolvedBase;
-            return Path.IsPathRooted(raw)
-                ? NormalizeFullPath(raw)
-                : NormalizeFullPath(Path.Combine(linkDir, raw));
+            return raw;
         }
 
         /// <summary>
@@ -452,7 +535,7 @@ namespace FEBuilderGBA
         static bool IsAttributeInspectionException(Exception ex)
             => ex is IOException
             || ex is UnauthorizedAccessException
-            || ex is ArgumentException
+            || ex.GetType() == typeof(ArgumentException)
             || ex is NotSupportedException
             || ex is System.Security.SecurityException;
     }
@@ -493,6 +576,12 @@ namespace FEBuilderGBA
 
         /// <summary>Internal deterministic name source for stage-collision tests.</summary>
         internal Func<Guid> GuidFactoryForTest { get; set; }
+
+        /// <summary>Internal hook for simulating a projection-root swap after the source move.</summary>
+        internal Action<string> AfterProjectionMoveForTest { get; set; }
+
+        /// <summary>Internal failure injection for unsafe moved-projection cleanup.</summary>
+        internal Func<string, bool> UnsafeMovedProjectionCleanupForTest { get; set; }
 
         /// <summary>Maximum accepted target size (32 MiB).</summary>
         public const int MaxRomSize = 32 * 1024 * 1024;
@@ -856,14 +945,7 @@ namespace FEBuilderGBA
         }
 
         internal static string ToWindowsExtendedPath(string path)
-        {
-            string fullPath = Path.GetFullPath(path);
-            if (fullPath.StartsWith(@"\\?\", StringComparison.OrdinalIgnoreCase))
-                return fullPath;
-            if (fullPath.StartsWith(@"\\", StringComparison.Ordinal))
-                return @"\\?\UNC\" + fullPath.Substring(2);
-            return @"\\?\" + fullPath;
-        }
+            => BuildfilePathSafety.ToWindowsExtendedPath(path);
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true,
             EntryPoint = "CreateDirectoryW")]
@@ -1125,9 +1207,35 @@ namespace FEBuilderGBA
                 {
                     if (!SanitizeAndNormalizeTree(scratch, out string sanitizeError))
                         throw new IOException(sanitizeError);
+                    if (!ValidatePlainProjectionDirectory(scratch, scratch, out string rootError))
+                        throw new IOException(rootError);
                     // Move the external scratch INTO the stage as source/ only now that it is
                     // complete and sanitized. This is the sole way source/ ever gets published.
-                    Directory.Move(scratch, Path.Combine(stage, "source"));
+                    string sourceDir = Path.Combine(stage, "source");
+                    Directory.Move(scratch, sourceDir);
+                    options.AfterProjectionMoveForTest?.Invoke(sourceDir);
+                    if (!ValidatePlainProjectionDirectory(sourceDir, sourceDir, out string movedRootError))
+                    {
+                        bool removed;
+                        string movedCleanupError;
+                        if (options.UnsafeMovedProjectionCleanupForTest != null)
+                        {
+                            removed = options.UnsafeMovedProjectionCleanupForTest(sourceDir);
+                            movedCleanupError = removed ? "" : "injected cleanup failure";
+                        }
+                        else
+                        {
+                            removed = DeleteAndVerifyGone(sourceDir, out movedCleanupError);
+                        }
+                        if (!removed)
+                        {
+                            // This must escape the advisory projection catch below: publishing a
+                            // stage that still contains an unsafe moved source is never allowed.
+                            throw new InvalidOperationException(
+                                "Unsafe moved projection could not be removed: " + movedCleanupError);
+                        }
+                        throw new IOException(movedRootError);
+                    }
                     m.Projection.Status = "success";
                     m.Projection.Reason = outcome.Reason ?? "";
                     m.Projection.Directory = "source";
@@ -1187,9 +1295,31 @@ namespace FEBuilderGBA
             if (deleteDirectory == null) throw new ArgumentNullException(nameof(deleteDirectory));
             if (getAttributes == null) throw new ArgumentNullException(nameof(getAttributes));
             error = "";
+            bool recursive;
             try
             {
-                deleteDirectory(dir, true);
+                // If an external projection runner replaced the reserved root with a symlink or
+                // junction, delete only that link. Never recursively traverse an external target.
+                FileAttributes attributes = getAttributes(dir);
+                recursive = (attributes & FileAttributes.ReparsePoint) == 0;
+            }
+            catch (FileNotFoundException)
+            {
+                return VerifyPathAbsent(dir, getAttributes, out error);
+            }
+            catch (DirectoryNotFoundException)
+            {
+                return VerifyPathAbsent(dir, getAttributes, out error);
+            }
+            catch (Exception ex) when (IsExpectedFileSystemException(ex))
+            {
+                error = "could not inspect path before delete: " + ex.Message;
+                return false;
+            }
+
+            try
+            {
+                deleteDirectory(dir, recursive);
             }
             catch (FileNotFoundException)
             {
@@ -1256,6 +1386,8 @@ namespace FEBuilderGBA
                 while (pending.Count > 0)
                 {
                     string current = pending.Pop();
+                    if (!ValidatePlainProjectionDirectory(current, scratchDir, out error))
+                        return false;
                     foreach (string entry in Directory.GetFileSystemEntries(current))
                     {
                         FileAttributes attributes = File.GetAttributes(entry);
@@ -1307,6 +1439,42 @@ namespace FEBuilderGBA
                     error = SanitizeScratchPath("write failed for " + file + ": " + ex.Message, scratchDir);
                     return false;
                 }
+            }
+            return true;
+        }
+
+        static bool ValidatePlainProjectionDirectory(
+            string directory,
+            string scratchDir,
+            out string error)
+        {
+            error = "";
+            FileAttributes attributes;
+            try
+            {
+                attributes = File.GetAttributes(directory);
+            }
+            catch (Exception ex) when (IsExpectedFileSystemException(ex))
+            {
+                error = SanitizeScratchPath(
+                    "cannot inspect projection directory: " + ex.Message,
+                    scratchDir);
+                return false;
+            }
+
+            if ((attributes & FileAttributes.Directory) == 0)
+            {
+                error = SanitizeScratchPath(
+                    "projection path is not a directory: " + directory,
+                    scratchDir);
+                return false;
+            }
+            if ((attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                error = SanitizeScratchPath(
+                    "projection contains a symlink/junction directory: " + directory,
+                    scratchDir);
+                return false;
             }
             return true;
         }

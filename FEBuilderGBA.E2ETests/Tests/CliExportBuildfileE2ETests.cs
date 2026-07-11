@@ -417,6 +417,35 @@ namespace FEBuilderGBA.E2ETests.Tests
         }
 
         [SkippableFact]
+        public void ExportBuildfile_WindowsLongPathHardLinkAlias_Returns1_NoOutput()
+        {
+            Skip.IfNot(OperatingSystem.IsWindows(), "Windows long-path identity only asserted on Windows");
+            string root = TempPath("_long_identity");
+            string parent = root;
+            while (parent.Length < 280)
+                parent = Path.Combine(parent, new string('i', 40));
+            Directory.CreateDirectory(parent);
+            string shared = Path.Combine(parent, "shared.gba");
+            string alias = Path.Combine(parent, "alias.gba");
+            File.WriteAllBytes(shared, new byte[64]);
+            if (!CreateHardLinkWindows(ToWindowsExtendedPath(alias), ToWindowsExtendedPath(shared), IntPtr.Zero))
+            {
+                Skip.If(true, "Cannot create a long-path hard link here; Win32 error "
+                    + Marshal.GetLastWin32Error());
+                return;
+            }
+            string outDir = TempPath("_proj");
+
+            var (code, _, stderr) = AppRunner.Run(CliExe,
+                $"--export-buildfile --rom=\"{shared}\" --clean=\"{alias}\" --out=\"{outDir}\"",
+                timeoutMs: 15_000);
+
+            Assert.Equal(1, code);
+            Assert.Contains("same file", stderr);
+            Assert.False(Directory.Exists(outDir));
+        }
+
+        [SkippableFact]
         public void ExportBuildfile_WindowsLocalUncAlias_Returns1_NoOutput()
         {
             Skip.IfNot(OperatingSystem.IsWindows(), "Windows file identity only asserted on Windows");
@@ -481,6 +510,25 @@ namespace FEBuilderGBA.E2ETests.Tests
         }
 
         [SkippableFact]
+        public void ExportBuildfile_ParentTraversalInDriveRelativeRom_Returns1_NoOutput()
+        {
+            Skip.IfNot(OperatingSystem.IsWindows(), "Drive-relative paths only exist on Windows");
+            string clean = TempPath(".gba");
+            File.WriteAllBytes(clean, new byte[64]);
+            string outDir = TempPath("_proj");
+            string drive = Path.GetPathRoot(Path.GetTempPath())!.Substring(0, 1);
+            string traversed = drive + @":..\mod.gba";
+
+            var (code, _, stderr) = AppRunner.Run(CliExe,
+                $"--export-buildfile --rom=\"{traversed}\" --clean=\"{clean}\" --out=\"{outDir}\"",
+                timeoutMs: 15_000);
+
+            Assert.Equal(1, code);
+            Assert.Contains("parent-directory", stderr);
+            Assert.False(Directory.Exists(outDir));
+        }
+
+        [SkippableFact]
         public void ExportBuildfile_SymlinkAncestorPlusDotDot_Returns1_NoOutput()
         {
             // Minimal reproduction of the lexical-vs-physical divergence: linkRoot -> realRoot,
@@ -537,6 +585,14 @@ namespace FEBuilderGBA.E2ETests.Tests
                 Array.Copy(bytes, 0, recon, offset, bytes.Length);
             }
             return recon;
+        }
+
+        private static string ToWindowsExtendedPath(string path)
+        {
+            string fullPath = Path.GetFullPath(path);
+            return fullPath.StartsWith(@"\\", StringComparison.Ordinal)
+                ? @"\\?\UNC\" + fullPath.Substring(2)
+                : @"\\?\" + fullPath;
         }
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true,
