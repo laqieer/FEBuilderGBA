@@ -735,6 +735,65 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [SkippableFact]
+        public void Export_ProjectionDescendantReplacedAfterMove_IsRemovedWithoutExternalMutation()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x2000] = 0x79;
+
+            var (outDir, parent) = FreshOut();
+            string external = Path.Combine(
+                Path.GetTempPath(), "bfx_moved_child_external_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(external);
+            string externalFile = Path.Combine(external, "outside.txt");
+            const string Original = "external-child-content\n";
+            File.WriteAllText(externalFile, Original);
+            Exception linkError = null;
+            try
+            {
+                var options = new BuildfileExportOptions
+                {
+                    OutputDirectory = outDir,
+                    ProjectionRunner = scratch =>
+                    {
+                        string child = Path.Combine(scratch, "nested");
+                        Directory.CreateDirectory(child);
+                        File.WriteAllText(Path.Combine(child, "inside.txt"), "complete\n");
+                        return BuildfileProjectionOutcome.Ok();
+                    },
+                    AfterProjectionMoveForTest = source =>
+                    {
+                        string child = Path.Combine(source, "nested");
+                        Directory.Delete(child, true);
+                        try { Directory.CreateSymbolicLink(child, external); }
+                        catch (Exception ex) { linkError = ex; }
+                    },
+                };
+
+                var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target), options);
+                if (linkError != null)
+                {
+                    Skip.If(true, "Cannot create a moved-source child symlink here: " + linkError.Message);
+                    return;
+                }
+
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("error", result.Manifest.Projection.Status);
+                Assert.Contains("symlink/junction", result.Manifest.Projection.Reason);
+                Assert.False(Directory.Exists(Path.Combine(outDir, "source")));
+                Assert.Equal(Original, File.ReadAllText(externalFile));
+                Assert.True(ReconstructFromProject(outDir, clean).SequenceEqual(target));
+                Assert.DoesNotContain(Directory.GetDirectories(parent), d =>
+                    Path.GetFileName(d).Contains(".psrc-") || Path.GetFileName(d).Contains(".stage-"));
+            }
+            finally
+            {
+                Cleanup(parent);
+                try { Directory.Delete(external, true); } catch { }
+            }
+        }
+
+        [SkippableFact]
         public void Export_UnsafeMovedProjectionCannotBeRemoved_AbortsWithoutExternalMutation()
         {
             var clean = new byte[RomSize];

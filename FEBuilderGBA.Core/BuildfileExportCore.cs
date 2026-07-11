@@ -1214,7 +1214,8 @@ namespace FEBuilderGBA
                     string sourceDir = Path.Combine(stage, "source");
                     Directory.Move(scratch, sourceDir);
                     options.AfterProjectionMoveForTest?.Invoke(sourceDir);
-                    if (!ValidatePlainProjectionDirectory(sourceDir, sourceDir, out string movedRootError))
+                    if (!TryEnumeratePlainProjectionTree(
+                        sourceDir, sourceDir, out _, out string movedTreeError))
                     {
                         bool removed;
                         string movedCleanupError;
@@ -1234,7 +1235,7 @@ namespace FEBuilderGBA
                             throw new InvalidOperationException(
                                 "Unsafe moved projection could not be removed: " + movedCleanupError);
                         }
-                        throw new IOException(movedRootError);
+                        throw new IOException(movedTreeError);
                     }
                     m.Projection.Status = "success";
                     m.Projection.Reason = outcome.Reason ?? "";
@@ -1376,40 +1377,9 @@ namespace FEBuilderGBA
             error = "";
             string[] textExt = { ".rebuild", ".event", ".txt", ".s", ".asm", ".json", ".md", ".inc", ".c", ".h" };
 
-            var files = new List<string>();
-            try
-            {
-                // Walk explicitly so every entry is inspected before descent. A linked file or
-                // directory would make the published source tree depend on an external target.
-                var pending = new Stack<string>();
-                pending.Push(scratchDir);
-                while (pending.Count > 0)
-                {
-                    string current = pending.Pop();
-                    if (!ValidatePlainProjectionDirectory(current, scratchDir, out error))
-                        return false;
-                    foreach (string entry in Directory.GetFileSystemEntries(current))
-                    {
-                        FileAttributes attributes = File.GetAttributes(entry);
-                        if ((attributes & FileAttributes.ReparsePoint) != 0)
-                        {
-                            error = SanitizeScratchPath(
-                                "projection contains a symlink/junction: " + entry,
-                                scratchDir);
-                            return false;
-                        }
-                        if ((attributes & FileAttributes.Directory) != 0)
-                            pending.Push(entry);
-                        else
-                            files.Add(entry);
-                    }
-                }
-            }
-            catch (Exception ex) when (IsExpectedFileSystemException(ex))
-            {
-                error = SanitizeScratchPath("enumerate failed: " + ex.Message, scratchDir);
+            if (!TryEnumeratePlainProjectionTree(
+                scratchDir, scratchDir, out List<string> files, out error))
                 return false;
-            }
 
             foreach (string file in files)
             {
@@ -1441,6 +1411,50 @@ namespace FEBuilderGBA
                 }
             }
             return true;
+        }
+
+        static bool TryEnumeratePlainProjectionTree(
+            string rootDirectory,
+            string sanitizeRoot,
+            out List<string> files,
+            out string error)
+        {
+            files = new List<string>();
+            error = "";
+            try
+            {
+                // Walk explicitly so every entry is inspected before descent. A linked file or
+                // directory would make the published source tree depend on an external target.
+                var pending = new Stack<string>();
+                pending.Push(rootDirectory);
+                while (pending.Count > 0)
+                {
+                    string current = pending.Pop();
+                    if (!ValidatePlainProjectionDirectory(current, sanitizeRoot, out error))
+                        return false;
+                    foreach (string entry in Directory.GetFileSystemEntries(current))
+                    {
+                        FileAttributes attributes = File.GetAttributes(entry);
+                        if ((attributes & FileAttributes.ReparsePoint) != 0)
+                        {
+                            error = SanitizeScratchPath(
+                                "projection contains a symlink/junction: " + entry,
+                                sanitizeRoot);
+                            return false;
+                        }
+                        if ((attributes & FileAttributes.Directory) != 0)
+                            pending.Push(entry);
+                        else
+                            files.Add(entry);
+                    }
+                }
+                return true;
+            }
+            catch (Exception ex) when (IsExpectedFileSystemException(ex))
+            {
+                error = SanitizeScratchPath("enumerate failed: " + ex.Message, sanitizeRoot);
+                return false;
+            }
         }
 
         static bool ValidatePlainProjectionDirectory(
