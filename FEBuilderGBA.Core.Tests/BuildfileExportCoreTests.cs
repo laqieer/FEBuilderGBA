@@ -337,7 +337,7 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.True(File.Exists(Path.Combine(outDir, "keepme.txt")));
                 Assert.Equal("precious", File.ReadAllText(Path.Combine(outDir, "keepme.txt")));
                 // No staging sibling left behind in the parent.
-                Assert.Empty(Directory.GetDirectories(parent).Where(d => Path.GetFileName(d).Contains(".stage-")));
+                Assert.DoesNotContain(Directory.GetDirectories(parent), d => Path.GetFileName(d).Contains(".stage-"));
             }
             finally { Cleanup(parent); }
         }
@@ -378,6 +378,9 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Contains(result.Manifest.Warnings, w => w.Contains("Source projection refused"));
                 // Raw recipe is still complete and reconstructs.
                 Assert.False(Directory.Exists(Path.Combine(outDir, "source")));
+                // No projection scratch sibling leaked next to the destination, and no stage.
+                Assert.DoesNotContain(Directory.GetDirectories(parent), d =>
+                    Path.GetFileName(d).Contains(".psrc-") || Path.GetFileName(d).Contains(".stage-"));
                 byte[] recon = ReconstructFromProject(outDir, clean);
                 Assert.True(recon.SequenceEqual(target));
             }
@@ -385,7 +388,7 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void Export_ProjectionSuccess_MovesScratchToSource()
+        public void Export_ProjectionSuccess_MovesScratchToSource_SanitizesScratchPath()
         {
             var clean = new byte[RomSize];
             var target = (byte[])clean.Clone();
@@ -399,7 +402,12 @@ namespace FEBuilderGBA.Core.Tests
                     OutputDirectory = outDir,
                     ProjectionRunner = scratch =>
                     {
-                        File.WriteAllText(Path.Combine(scratch, "rom.rebuild"), "PUSH\r\nPOP\r\n");
+                        // Emit CRLF (must become LF) and embed the scratch absolute path (must be
+                        // sanitized to "source" so no environment/scratch location leaks).
+                        File.WriteAllText(Path.Combine(scratch, "rom.rebuild"),
+                            "PUSH\r\n#incbin \"" + scratch + "/rebuild_bin/x.bin\"\r\nPOP\r\n");
+                        Directory.CreateDirectory(Path.Combine(scratch, "rebuild_bin"));
+                        File.WriteAllBytes(Path.Combine(scratch, "rebuild_bin", "x.bin"), new byte[4]);
                         return BuildfileProjectionOutcome.Ok();
                     },
                 };
@@ -408,10 +416,203 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal("success", result.Manifest.Projection.Status);
                 string projected = Path.Combine(outDir, "source", "rom.rebuild");
                 Assert.True(File.Exists(projected));
-                // Advisory tree is line-ending normalized to LF on publish.
-                Assert.DoesNotContain("\r\n", File.ReadAllText(projected));
-                // No scratch sidecar remains.
-                Assert.Empty(Directory.GetDirectories(outDir).Where(d => Path.GetFileName(d).Contains(".source-scratch-")));
+                string txt = File.ReadAllText(projected);
+                Assert.DoesNotContain("\r\n", txt);                    // LF endings
+                Assert.DoesNotContain(parent, txt);                    // no scratch/parent abs path leaked
+                Assert.Contains("source/rebuild_bin/x.bin", txt);      // sanitized to the final rel dir
+                // No scratch sibling remains next to the destination.
+                Assert.DoesNotContain(Directory.GetDirectories(parent), d =>
+                    Path.GetFileName(d).Contains(".psrc-") || Path.GetFileName(d).Contains(".stage-"));
+                Assert.DoesNotContain(Directory.GetDirectories(outDir), d => Path.GetFileName(d).StartsWith("."));
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [Fact]
+        public void Export_ProjectionError_IsWarning_NoSourcePublished_NoScratchSibling()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x30] = 0x44;
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                var options = new BuildfileExportOptions
+                {
+                    OutputDirectory = outDir,
+                    ProjectionRunner = scratch =>
+                    {
+                        File.WriteAllText(Path.Combine(scratch, "partial.txt"), "half-written");
+                        return BuildfileProjectionOutcome.Fail("producer crashed");
+                    },
+                };
+                var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target), options);
+                Assert.True(result.Success, result.Error);           // raw recipe still complete
+                Assert.Equal("error", result.Manifest.Projection.Status);
+                Assert.Contains(result.Manifest.Warnings, w => w.Contains("Source projection error"));
+                Assert.False(Directory.Exists(Path.Combine(outDir, "source")));
+                Assert.DoesNotContain(Directory.GetDirectories(parent), d =>
+                    Path.GetFileName(d).Contains(".psrc-") || Path.GetFileName(d).Contains(".stage-"));
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [SkippableFact]
+        public void Export_ProjectionCleanupFailure_AbortsExport_NoDestination()
+        {
+            // On refusal/error the external scratch is deleted and verified gone; if it CANNOT be
+            // removed, the export must abort with no destination (never publish a partial scratch).
+            // Simulated by holding an open handle to a file inside the scratch (locks it on Windows).
+            Skip.IfNot(OperatingSystem.IsWindows(), "Open-handle delete-lock is reliable only on Windows");
+
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x30] = 0x55;
+
+            var (outDir, parent) = FreshOut();
+            FileStream held = null;
+            try
+            {
+                var options = new BuildfileExportOptions
+                {
+                    OutputDirectory = outDir,
+                    ProjectionRunner = scratch =>
+                    {
+                        // Open (and keep open) a file inside the scratch so Directory.Delete fails.
+                        held = new FileStream(Path.Combine(scratch, "locked.bin"),
+                            FileMode.Create, FileAccess.ReadWrite, FileShare.None);
+                        held.WriteByte(1);
+                        return BuildfileProjectionOutcome.Refuse("refused with a locked scratch");
+                    },
+                };
+                var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target), options);
+                Assert.False(result.Success);
+                Assert.Contains("refusing to publish", result.Error);
+                Assert.False(Directory.Exists(outDir));
+            }
+            finally
+            {
+                held?.Dispose();
+                Cleanup(parent);
+            }
+        }
+
+        [Fact]
+        public void Export_EmptyPatchDir_IsAvailableWithZeroInstalled_NotUnavailable()
+        {
+            // An EXISTING but empty patch directory must be reported "available" with zero
+            // installed entries — distinct from "unavailable" (a missing library or an
+            // enumeration failure). Proves the empty-vs-unavailable seam distinction.
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x10] = 0x3;
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                string emptyPatchDir = Path.Combine(parent, "empty-patch2");
+                Directory.CreateDirectory(emptyPatchDir);
+                var options = new BuildfileExportOptions
+                {
+                    OutputDirectory = outDir,
+                    PatchBaseDirectory = emptyPatchDir,
+                };
+                var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target), options);
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("available", result.Manifest.Patches.Status);
+                Assert.Empty(result.Manifest.Patches.Installed);
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [Fact]
+        public void TryEnumeratePatches_DistinguishesMissingAndEmptyFromFailure()
+        {
+            // Missing directory → true + empty (NOT a failure).
+            string missing = Path.Combine(Path.GetTempPath(), "bfx_pm_missing_" + Guid.NewGuid().ToString("N"));
+            Assert.True(PatchMetadataCore.TryEnumeratePatches(missing, null, "en", out var m, out var mErr));
+            Assert.Empty(m);
+            Assert.Equal("", mErr);
+
+            // Existing empty directory → true + empty (NOT a failure).
+            string empty = Path.Combine(Path.GetTempPath(), "bfx_pm_empty_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(empty);
+            try
+            {
+                Assert.True(PatchMetadataCore.TryEnumeratePatches(empty, null, "en", out var e, out var eErr));
+                Assert.Empty(e);
+                Assert.Equal("", eErr);
+                // The legacy EnumeratePatches API still returns an (empty) list for the same input.
+                Assert.Empty(PatchMetadataCore.EnumeratePatches(empty, null, "en"));
+            }
+            finally { try { Directory.Delete(empty, true); } catch { } }
+        }
+
+        [Fact]
+        public void Export_ProjectionSanitizesNativeForwardAndJsonEscapedScratchSpellings()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x2000] = 0x66;
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                var options = new BuildfileExportOptions
+                {
+                    OutputDirectory = outDir,
+                    ProjectionRunner = scratch =>
+                    {
+                        string fwd = scratch.Replace('\\', '/');
+                        string esc = scratch.Replace("\\", "\\\\");
+                        // Emit all three spellings across text files, plus CRLF to be normalized.
+                        File.WriteAllText(Path.Combine(scratch, "a.txt"), "native=" + scratch + "\r\n");
+                        File.WriteAllText(Path.Combine(scratch, "b.txt"), "fwd=" + fwd + "\r\n");
+                        File.WriteAllText(Path.Combine(scratch, "c.json"), "{\"p\":\"" + esc + "/x.bin\"}\r\n");
+                        return BuildfileProjectionOutcome.Ok();
+                    },
+                };
+                var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target), options);
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("success", result.Manifest.Projection.Status);
+
+                string sourceDir = Path.Combine(outDir, "source");
+                foreach (string f in Directory.GetFiles(sourceDir))
+                {
+                    string txt = File.ReadAllText(f);
+                    Assert.DoesNotContain("\r\n", txt);        // LF normalization
+                    Assert.DoesNotContain(parent, txt);        // native spelling gone
+                    Assert.DoesNotContain(parent.Replace('\\', '/'), txt);          // forward gone
+                    Assert.DoesNotContain(parent.Replace("\\", "\\\\"), txt);       // JSON-escaped gone
+                    Assert.Contains("source", txt);            // replaced with the final rel dir
+                }
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [Fact]
+        public void Export_PatchDirectoryIsAFile_IsUnavailable_NotAFailure()
+        {
+            // A patch base that is a FILE (or otherwise not a directory) must yield an advisory
+            // "unavailable" inventory, never abort the authoritative export.
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x10] = 0x2;
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                string fakePatchDir = Path.Combine(parent, "not-a-dir.txt");
+                File.WriteAllText(fakePatchDir, "this is a file, not a patch directory");
+                var options = new BuildfileExportOptions
+                {
+                    OutputDirectory = outDir,
+                    PatchBaseDirectory = fakePatchDir,
+                };
+                var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target), options);
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("unavailable", result.Manifest.Patches.Status);
             }
             finally { Cleanup(parent); }
         }
@@ -441,10 +642,20 @@ namespace FEBuilderGBA.Core.Tests
 
         // ------------------------------------------------------------- path safety
 
-        [Theory]
-        [InlineData("/")]
-        [InlineData("\\")]
-        public void Export_TrailingSeparatorOut_PublishesAtIntendedDirectory(string sep)
+        [Fact]
+        public void Export_TrailingForwardSlashOut_PublishesAtIntendedDirectory()
+            => AssertTrailingSeparatorPublishes("/");
+
+        [SkippableFact]
+        public void Export_TrailingBackslashOut_WindowsOnly_PublishesAtIntendedDirectory()
+        {
+            // '\' is a directory separator only on Windows; on Unix it is a legal filename
+            // character, so a trailing '\' is NOT a separator there.
+            Skip.IfNot(OperatingSystem.IsWindows(), "Backslash separator only on Windows");
+            AssertTrailingSeparatorPublishes("\\");
+        }
+
+        static void AssertTrailingSeparatorPublishes(string sep)
         {
             var clean = new byte[RomSize];
             var target = (byte[])clean.Clone();
@@ -519,7 +730,8 @@ namespace FEBuilderGBA.Core.Tests
                 File.WriteAllBytes(real, new byte[16]);
                 string withDot = Path.Combine(dir, ".", "rom.gba");
                 Assert.False(BuildfilePathSafety.ContainsParentTraversal(withDot));
-                Assert.Equal(BuildfilePathSafety.NormalizeFullPath(real), BuildfilePathSafety.ResolvePhysicalPath(withDot));
+                // Compare physically-resolved forms (macOS temp resolves /var -> /private/var).
+                Assert.Equal(BuildfilePathSafety.ResolvePhysicalPath(real), BuildfilePathSafety.ResolvePhysicalPath(withDot));
             }
             finally { try { Directory.Delete(dir, true); } catch { } }
         }
@@ -535,7 +747,11 @@ namespace FEBuilderGBA.Core.Tests
             {
                 string missing = Path.Combine(baseDir, "does", "not", "exist.gba");
                 string resolved = BuildfilePathSafety.ResolvePhysicalPath(missing);
-                Assert.Equal(BuildfilePathSafety.NormalizeFullPath(missing), resolved);
+                // Expected = physically-resolved existing base + the lexical missing tail
+                // (macOS temp resolves /var -> /private/var, so the base must be resolved too).
+                string expected = Path.TrimEndingDirectorySeparator(
+                    Path.Combine(BuildfilePathSafety.ResolvePhysicalPath(baseDir), "does", "not", "exist.gba"));
+                Assert.Equal(expected, resolved);
             }
             finally { try { Directory.Delete(baseDir, true); } catch { } }
         }
@@ -567,8 +783,8 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.False(BuildfilePathSafety.PathsEqual(realA, linkedA));
                 // Two distinct files under the shared symlinked ancestor → accepted (not same).
                 Assert.False(BuildfilePathSafety.SamePhysicalFile(realA, linkedB));
-                // Physical resolution collapses the ancestor link.
-                Assert.Equal(BuildfilePathSafety.NormalizeFullPath(realA), BuildfilePathSafety.ResolvePhysicalPath(linkedA));
+                // Physical resolution collapses the ancestor link to the SAME physical file.
+                Assert.Equal(BuildfilePathSafety.ResolvePhysicalPath(realA), BuildfilePathSafety.ResolvePhysicalPath(linkedA));
             }
             finally { try { Directory.Delete(root, true); } catch { } }
         }
@@ -592,7 +808,8 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.True(BuildfilePathSafety.SamePhysicalFile(realFile, linkToReal));
                 // Final symlink vs a DISTINCT file → not identical (allowed by identity).
                 Assert.False(BuildfilePathSafety.SamePhysicalFile(linkToReal, other));
-                Assert.Equal(BuildfilePathSafety.NormalizeFullPath(realFile), BuildfilePathSafety.ResolvePhysicalPath(linkToReal));
+                // Both spellings resolve to the SAME physical file (compare resolved forms).
+                Assert.Equal(BuildfilePathSafety.ResolvePhysicalPath(realFile), BuildfilePathSafety.ResolvePhysicalPath(linkToReal));
             }
             finally { try { Directory.Delete(dir, true); } catch { } }
         }
@@ -639,7 +856,7 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Contains("reparse point", result.Error);
                 Assert.False(Directory.Exists(outDir));
                 // No stage sibling leaked into the (real) target directory either.
-                Assert.Empty(Directory.GetDirectories(realParent).Where(d => Path.GetFileName(d).Contains(".stage-")));
+                Assert.DoesNotContain(Directory.GetDirectories(realParent), d => Path.GetFileName(d).Contains(".stage-"));
             }
             finally { try { Directory.Delete(root, true); } catch { } }
         }

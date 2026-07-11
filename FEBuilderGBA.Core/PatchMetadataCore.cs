@@ -96,54 +96,77 @@ namespace FEBuilderGBA
         /// <returns>List of parsed patches, sorted by directory name.</returns>
         public static List<PatchInfo> EnumeratePatches(string patchBaseDir, ROM rom, string lang)
         {
-            var result = new List<PatchInfo>();
-            if (!Directory.Exists(patchBaseDir))
-                return result;
+            // Preserve the historical API/behavior: on a filesystem/access failure, LOG and
+            // return an empty list (callers that need to distinguish "empty" from "failed" use
+            // TryEnumeratePatches instead).
+            if (!TryEnumeratePatches(patchBaseDir, rom, lang, out List<PatchInfo> patches, out string error))
+            {
+                // Log.Error is params string[] (joined with spaces) — concatenate, do NOT use {0}.
+                Log.Error("PatchMetadataCore.EnumeratePatches failed for '" + patchBaseDir + "': " + error);
+                return new List<PatchInfo>();
+            }
+            return patches;
+        }
 
-            // Enumerate EVERY PATCH_*.txt recursively, matching WinForms
-            // PatchForm.ScanPatchs (SearchOption.AllDirectories). The previous
-            // "one patchFiles[0] per top-level directory" behavior dropped patches
-            // living in subdirectories (e.g. config/patch2/FE8U/SYSTEM/PATCH_*.txt),
-            // so hardcoding/installed patches were never loaded and the
-            // [HardCoding] filter could never match anything (#1376). Each patch is
-            // named by its NAME param (fallback = filename minus the PATCH_ prefix),
-            // matching WinForms.
-            string[] patchFiles;
+        /// <summary>
+        /// Enumerate + parse patch metadata, distinguishing a genuinely EMPTY directory
+        /// (returns <c>true</c> with an empty list) from an enumeration/parse FAILURE (returns
+        /// <c>false</c> with an explicit <paramref name="error"/>). Only documented filesystem/
+        /// access/path exceptions are caught — programmer defects (NullReference, argument-null,
+        /// index-out-of-range, invalid-operation, …) propagate so real bugs are not hidden.
+        /// </summary>
+        public static bool TryEnumeratePatches(string patchBaseDir, ROM rom, string lang,
+            out List<PatchInfo> patches, out string error)
+        {
+            patches = new List<PatchInfo>();
+            error = "";
+            if (!Directory.Exists(patchBaseDir))
+                return true; // missing directory is not a failure here — an empty result
+
             try
             {
-                patchFiles = Directory.GetFiles(patchBaseDir, "PATCH_*.txt", SearchOption.AllDirectories);
-            }
-            catch (Exception ex)
-            {
-                // Log before returning empty so a real failure (PathTooLong, permission
-                // denied, ...) is distinguishable from a genuinely empty patch dir —
-                // otherwise it silently regresses into "0 patches", the exact
-                // silent-empty class of bug this change fixes. Log.Error is
-                // params string[] (joined with spaces), so concatenate — do NOT use {0}.
-                Log.Error("PatchMetadataCore.EnumeratePatches failed for '" + patchBaseDir + "': " + ex.ToString());
-                return result;
-            }
+                // Enumerate EVERY PATCH_*.txt recursively, matching WinForms PatchForm.ScanPatchs
+                // (SearchOption.AllDirectories); each patch is named by its NAME param (fallback =
+                // filename minus the PATCH_ prefix). Materialize the enumeration so a lazy
+                // traversal fault is caught here rather than escaping the guard.
+                string[] patchFiles = Directory.GetFiles(patchBaseDir, "PATCH_*.txt", SearchOption.AllDirectories);
 
-            foreach (string file in patchFiles.OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
-            {
-                // Default display name = the file name without the "PATCH_" prefix
-                // (ParsePatchFile overrides it from a NAME / NAME.{lang} param).
-                string fileName = Path.GetFileNameWithoutExtension(file);
-                string defaultName = fileName.StartsWith("PATCH_", StringComparison.OrdinalIgnoreCase)
-                    ? fileName.Substring("PATCH_".Length)
-                    : fileName;
+                foreach (string file in patchFiles.OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
+                {
+                    string fileName = Path.GetFileNameWithoutExtension(file);
+                    string defaultName = fileName.StartsWith("PATCH_", StringComparison.OrdinalIgnoreCase)
+                        ? fileName.Substring("PATCH_".Length)
+                        : fileName;
 
-                var info = ParsePatchFile(file, defaultName, rom, lang);
-                // Group by the patch's real containing folder (e.g. "SYSTEM") so the
-                // CLI --patch-name folder filter keeps working with recursion; the
-                // display Name stays the per-file default/NAME param.
-                string containingDir = Path.GetFileName(Path.GetDirectoryName(file) ?? "") ?? "";
-                if (!string.IsNullOrEmpty(containingDir))
-                    info.DirectoryName = containingDir;
-                result.Add(info);
+                    var info = ParsePatchFile(file, defaultName, rom, lang);
+                    // Group by the patch's real containing folder (e.g. "SYSTEM") so the CLI
+                    // --patch-name folder filter keeps working with recursion.
+                    string containingDir = Path.GetFileName(Path.GetDirectoryName(file) ?? "") ?? "";
+                    if (!string.IsNullOrEmpty(containingDir))
+                        info.DirectoryName = containingDir;
+                    patches.Add(info);
+                }
             }
-            return result;
+            catch (Exception ex) when (IsExpectedFileSystemException(ex))
+            {
+                patches = new List<PatchInfo>();
+                error = ex.Message;
+                return false;
+            }
+            return true;
         }
+
+        /// <summary>
+        /// True for documented filesystem/access/path/format exceptions that advisory patch
+        /// enumeration may legitimately encounter. Excludes programmer defects (argument-null,
+        /// null-reference, index-out-of-range, invalid-operation) so they are never swallowed.
+        /// </summary>
+        internal static bool IsExpectedFileSystemException(Exception ex)
+            => ex is IOException
+            || ex is UnauthorizedAccessException
+            || ex is System.Security.SecurityException
+            || ex is NotSupportedException
+            || (ex is ArgumentException && !(ex is ArgumentNullException));
 
         /// <summary>
         /// Parse a PATCH_*.txt metadata file.

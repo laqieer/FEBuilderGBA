@@ -239,8 +239,16 @@ project/
 
 Authority model: `buildfile.json` + `data/` are the sole build authority (consumed by
 issue #1936, which applies/verifies a recipe). `main.event` is a derived interoperability
-surface; the installed-patch inventory in the manifest is advisory; the `source/` projection
-is a non-composable best-effort. If the target extends the clean ROM, the exporter picks the
+surface; the installed-patch inventory in the manifest is advisory (its `config/patch2/{version}`
+directory is resolved by existence only and enumerated under a guard, so a missing/slow/unreadable
+patch library yields `unavailable` and never aborts the export); the `source/` projection
+is a non-composable best-effort — the projector receives only the ROM and a private scratch
+directory (created as a unique sibling OUTSIDE the publish stage on the same volume, moved into
+`source/` only on complete success). Before publish its text files are normalized to LF and the
+exporter-owned scratch path is stripped (the exporter does **not** claim to sanitize arbitrary
+absolute paths a projector might otherwise embed); on refusal/error the scratch is removed and
+verified gone, and if it cannot be removed the export aborts rather than publish a partial
+`source/`. If the target extends the clean ROM, the exporter picks the
 most frequent extension byte (lowest byte on ties) as the fill and emits only sparse override
 ranges, so a large mostly-`FF`/`00` extension never becomes a giant payload. Emulator/playtest
 validation is issue #1932.

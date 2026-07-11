@@ -225,9 +225,11 @@ namespace FEBuilderGBA.E2ETests.Tests
             File.WriteAllBytes(moddedPath, modded);
 
             string outDir = TempPath("_proj");
-            // Spell the (not-yet-existing) destination WITH a trailing separator.
+            // Spell the (not-yet-existing) destination WITH a trailing separator. Use '/' (which
+            // Windows accepts) rather than '\', because a trailing backslash before the closing
+            // quote would escape the quote in the process command line.
             var (code, stdout, stderr) = AppRunner.Run(CliExe,
-                $"--export-buildfile --rom=\"{moddedPath}\" --clean=\"{cleanPath}\" --out=\"{outDir}{Path.DirectorySeparatorChar}\"",
+                $"--export-buildfile --rom=\"{moddedPath}\" --clean=\"{cleanPath}\" --out=\"{outDir}/\"",
                 timeoutMs: 120_000);
 
             Assert.True(code == 0, $"trailing-separator out exited {code}\nStdout: {stdout}\nStderr: {stderr}");
@@ -281,7 +283,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             Assert.Contains("same file", stderr);
             Assert.False(Directory.Exists(outDir));
             // No stage sibling leaked into the real target dir either.
-            Assert.Empty(Directory.GetDirectories(real).Where(d => Path.GetFileName(d).Contains(".stage-")));
+            Assert.DoesNotContain(Directory.GetDirectories(real), d => Path.GetFileName(d).Contains(".stage-"));
         }
 
         [SkippableFact]
@@ -392,7 +394,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             Assert.Equal(1, code);
             Assert.Contains("parent-directory", stderr);
             Assert.False(Directory.Exists(outDir));
-            Assert.Empty(Directory.GetDirectories(realRoot).Where(d => Path.GetFileName(d).Contains(".stage-")));
+            Assert.DoesNotContain(Directory.GetDirectories(realRoot), d => Path.GetFileName(d).Contains(".stage-"));
         }
 
         // --------------------------------------------------------------------- helper

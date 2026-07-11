@@ -1412,26 +1412,27 @@ namespace FEBuilderGBA.CLI
         }
 
         /// <summary>
-        /// Resolve the config/patch2/{version} directory for advisory patch inventory,
-        /// mirroring RunListPatches (base dir, then repo-root fallback). Returns null if
-        /// no directory is found — the exporter treats that as an advisory "unavailable".
+        /// Resolve the config/patch2/{version} directory for the advisory patch inventory by
+        /// deterministic path/existence only (build-output dir first, then repo-root fallback).
+        /// It performs NO directory enumeration — <see cref="BuildfileExportCore"/>'s
+        /// BuildPatchInventory owns the guarded enumeration and the unavailable/available status,
+        /// so a slow/unreadable patch tree can never abort the authoritative export from here.
+        /// Returns null when neither location exists (treated as advisory "unavailable").
         /// </summary>
         static string ResolvePatchBaseDir(string version)
         {
             if (string.IsNullOrEmpty(version)) return null;
             string baseDir = CoreState.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory;
-            string patchDir = Path.Combine(baseDir, "config", "patch2", version);
-            if (!Directory.Exists(patchDir) || !Directory.GetFiles(patchDir, "PATCH_*.txt", SearchOption.AllDirectories).Any())
+            string primary = Path.Combine(baseDir, "config", "patch2", version);
+            if (Directory.Exists(primary)) return primary;
+
+            string repoRoot = FindRepoRoot(baseDir);
+            if (repoRoot != null)
             {
-                string repoRoot = FindRepoRoot(baseDir);
-                if (repoRoot != null)
-                {
-                    string altDir = Path.Combine(repoRoot, "config", "patch2", version);
-                    if (Directory.Exists(altDir))
-                        return altDir;
-                }
+                string alt = Path.Combine(repoRoot, "config", "patch2", version);
+                if (Directory.Exists(alt)) return alt;
             }
-            return Directory.Exists(patchDir) ? patchDir : null;
+            return null;
         }
 
         static int RunSongExchange(Dictionary<string, string> argsDic)

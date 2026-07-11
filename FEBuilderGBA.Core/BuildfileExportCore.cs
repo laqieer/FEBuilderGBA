@@ -545,6 +545,9 @@ namespace FEBuilderGBA
             // byte-for-byte equality before we ever publish (defensive, never expected to fail).
             VerifyReconstruction(clean, target, fill, plan.Payloads);
 
+            // Advisory patch inventory is internally guarded (TryEnumeratePatches distinguishes
+            // empty from failure; per-record helpers surface degradation in the record reason).
+            // Programmer defects deliberately propagate so real exporter bugs are not hidden.
             m.Patches = BuildPatchInventory(cleanRom, targetRom, options);
 
             return plan;
@@ -608,7 +611,12 @@ namespace FEBuilderGBA
             }
 
             byte[] target = targetRom.Data;
-            string stage = Path.Combine(parent, "." + Path.GetFileName(outDir) + ".stage-" + Guid.NewGuid().ToString("N"));
+            string name = Path.GetFileName(outDir);
+            string stage = Path.Combine(parent, "." + name + ".stage-" + Guid.NewGuid().ToString("N"));
+            // The optional projection scratch is a UNIQUE SIBLING OUTSIDE the publish stage (same
+            // parent → same volume), so a failed projection cleanup can never be published inside
+            // the stage. It is moved into stage/source ONLY on complete projection success.
+            string projectionScratch = Path.Combine(parent, "." + name + ".psrc-" + Guid.NewGuid().ToString("N"));
 
             try
             {
@@ -627,8 +635,8 @@ namespace FEBuilderGBA
                 WriteTextLf(Path.Combine(stage, "main.event"), GenerateMainEvent(plan));
                 WriteTextLf(Path.Combine(stage, "README.md"), GenerateReadme(plan.Manifest));
 
-                // 3) Optional advisory source projection into a private scratch child.
-                RunProjection(plan.Manifest, stage, options);
+                // 3) Optional advisory source projection (external scratch → stage/source on success).
+                RunProjection(plan.Manifest, stage, projectionScratch, options);
 
                 // 4) Re-read + verify every payload hash before we publish.
                 foreach (BuildfileRange r in plan.Manifest.Ranges)
@@ -647,6 +655,9 @@ namespace FEBuilderGBA
             }
             catch (Exception ex)
             {
+                // Remove BOTH the external projection scratch (if any) and the stage; cleanup
+                // failures must not mask the original export error.
+                TryDelete(projectionScratch);
                 TryDelete(stage);
                 return BuildfileExportResult.Fail("Export failed: " + ex.Message);
             }
@@ -733,7 +744,7 @@ namespace FEBuilderGBA
 
         // -------------------------------------------------------------- projection
 
-        static void RunProjection(BuildfileManifest m, string stage, BuildfileExportOptions options)
+        static void RunProjection(BuildfileManifest m, string stage, string scratch, BuildfileExportOptions options)
         {
             if (options.ProjectionRunner == null)
             {
@@ -742,7 +753,6 @@ namespace FEBuilderGBA
                 return;
             }
 
-            string scratch = Path.Combine(stage, ".source-scratch-" + Guid.NewGuid().ToString("N"));
             BuildfileProjectionOutcome outcome;
             try
             {
@@ -751,6 +761,9 @@ namespace FEBuilderGBA
             }
             catch (Exception ex)
             {
+                // Plugin boundary: the projection runner is arbitrary caller-supplied code, so ANY
+                // fault it raises is treated as an advisory projection failure (never corrupts the
+                // authoritative export). This is deliberately broad and scoped to the delegate call.
                 outcome = BuildfileProjectionOutcome.Fail(ex.Message);
             }
 
@@ -758,47 +771,136 @@ namespace FEBuilderGBA
             {
                 try
                 {
-                    NormalizeTextTree(scratch);
-                    string sourceDir = Path.Combine(stage, "source");
-                    Directory.Move(scratch, sourceDir);
+                    if (!SanitizeAndNormalizeTree(scratch, out string sanitizeError))
+                        throw new IOException(sanitizeError);
+                    // Move the external scratch INTO the stage as source/ only now that it is
+                    // complete and sanitized. This is the sole way source/ ever gets published.
+                    Directory.Move(scratch, Path.Combine(stage, "source"));
                     m.Projection.Status = "success";
                     m.Projection.Reason = outcome.Reason ?? "";
                     m.Projection.Directory = "source";
                     return;
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (IsExpectedFileSystemException(ex))
                 {
                     outcome = BuildfileProjectionOutcome.Fail("publish failed: " + ex.Message);
                 }
             }
 
-            // Refused / error / skipped: remove any partial sidecar; record honest status.
-            TryDelete(scratch);
+            // Refusal / error (or a non-null runner reporting skipped): delete the EXTERNAL
+            // scratch and VERIFY it is gone. A cleanup failure must not let the export publish a
+            // partial scratch — surface it and abort by throwing, preserving the original
+            // projection reason as primary context.
+            string primaryReason = outcome.Reason ?? "";
+            if (!DeleteAndVerifyGone(scratch, out string cleanupError))
+            {
+                throw new IOException(
+                    "Source projection " + StatusWord(outcome.Status) + " (" + primaryReason +
+                    ") and its scratch could not be removed (" + scratch + "): " + cleanupError +
+                    "; refusing to publish.");
+            }
+
             switch (outcome.Status)
             {
                 case BuildfileProjectionStatus.Refused: m.Projection.Status = "refused"; break;
                 case BuildfileProjectionStatus.Skipped: m.Projection.Status = "skipped"; break;
                 default: m.Projection.Status = "error"; break;
             }
-            m.Projection.Reason = outcome.Reason ?? "";
+            m.Projection.Reason = primaryReason;
             if (m.Projection.Status != "skipped")
-                m.Warnings.Add("Source projection " + m.Projection.Status + ": " + m.Projection.Reason);
+                m.Warnings.Add("Source projection " + m.Projection.Status + ": " + primaryReason);
         }
 
-        static void NormalizeTextTree(string dir)
+        static string StatusWord(BuildfileProjectionStatus s)
         {
+            switch (s)
+            {
+                case BuildfileProjectionStatus.Refused: return "refused";
+                case BuildfileProjectionStatus.Skipped: return "skipped";
+                default: return "error";
+            }
+        }
+
+        // Delete a directory tree and confirm it is gone. Returns false (with a reason) when the
+        // directory still exists afterwards, so the caller can refuse to publish.
+        static bool DeleteAndVerifyGone(string dir, out string error)
+        {
+            error = "";
+            try
+            {
+                if (Directory.Exists(dir)) Directory.Delete(dir, true);
+            }
+            catch (Exception ex) when (IsExpectedFileSystemException(ex))
+            {
+                // Only expected filesystem/access faults are cleanup detail; a programmer defect
+                // during cleanup propagates rather than being recorded as pass/fail data.
+                error = ex.Message;
+            }
+            if (Directory.Exists(dir))
+            {
+                if (string.IsNullOrEmpty(error)) error = "directory still present after delete";
+                return false;
+            }
+            return true;
+        }
+
+        // Normalize an advisory projection tree before publication: LF line endings and removal
+        // of the (exporter-owned) scratch absolute path so no environment/scratch location leaks
+        // into source/. We only sanitize the scratch path we control — we do NOT claim to strip
+        // arbitrary absolute paths a projector might emit. Fail-closed on any read/write fault so
+        // a partial/leaky source/ is never published.
+        static bool SanitizeAndNormalizeTree(string scratchDir, out string error)
+        {
+            error = "";
+            string scratchAbs = Path.TrimEndingDirectorySeparator(Path.GetFullPath(scratchDir));
+            string scratchFwd = scratchAbs.Replace('\\', '/');
+            // JSON/C-style escaped Windows spelling: backslashes are doubled (C:\\temp\\...).
+            string scratchEsc = scratchAbs.Replace("\\", "\\\\");
             string[] textExt = { ".rebuild", ".event", ".txt", ".s", ".asm", ".json", ".md", ".inc", ".c", ".h" };
-            foreach (string file in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories))
+
+            string[] files;
+            try
+            {
+                // Materialize inside the guard so a lazy directory-traversal fault is caught by
+                // the fail-closed path rather than escaping mid-enumeration.
+                files = Directory.EnumerateFiles(scratchDir, "*", SearchOption.AllDirectories).ToArray();
+            }
+            catch (Exception ex) when (IsExpectedFileSystemException(ex))
+            {
+                error = "enumerate failed: " + ex.Message;
+                return false;
+            }
+
+            foreach (string file in files)
             {
                 string ext = Path.GetExtension(file).ToLowerInvariant();
                 if (Array.IndexOf(textExt, ext) < 0) continue;
-                try
+
+                string text;
+                try { text = File.ReadAllText(file); }
+                catch (Exception ex) when (IsExpectedFileSystemException(ex))
                 {
-                    string text = File.ReadAllText(file);
-                    File.WriteAllText(file, NormalizeLf(text));
+                    error = "read failed for " + file + ": " + ex.Message;
+                    return false;
                 }
-                catch { /* best-effort normalization for an advisory projection */ }
+
+                // Strip only the exporter-owned scratch path (escaped, native, then forward
+                // spellings). The unique guid in the path makes this boundary-safe: it cannot be
+                // a prefix of an unrelated fixed-width token. We do NOT claim to strip arbitrary
+                // absolute paths a projector might otherwise embed.
+                string sanitized = NormalizeLf(text
+                    .Replace(scratchEsc, "source")
+                    .Replace(scratchAbs, "source")
+                    .Replace(scratchFwd, "source"));
+
+                try { File.WriteAllText(file, sanitized); }
+                catch (Exception ex) when (IsExpectedFileSystemException(ex))
+                {
+                    error = "write failed for " + file + ": " + ex.Message;
+                    return false;
+                }
             }
+            return true;
         }
 
         // -------------------------------------------------------- patch inventory
@@ -818,15 +920,12 @@ namespace FEBuilderGBA
             }
 
             List<PatchMetadataCore.PatchInfo> patches;
-            try
+            if (!PatchMetadataCore.TryEnumeratePatches(baseDir, targetRom, options.Language ?? "en", out patches, out string enumError))
             {
-                patches = PatchMetadataCore.EnumeratePatches(baseDir, targetRom, options.Language ?? "en")
-                          ?? new List<PatchMetadataCore.PatchInfo>();
-            }
-            catch (Exception ex)
-            {
+                // Enumeration FAILED (distinct from an empty directory) → unavailable, not
+                // "available with zero entries".
                 inv.Status = "unavailable";
-                inv.Reason = "patch enumeration failed: " + ex.Message;
+                inv.Reason = "patch enumeration failed: " + enumError;
                 return inv;
             }
 
@@ -854,13 +953,12 @@ namespace FEBuilderGBA
                 var rec = new BuildfilePatchRecord
                 {
                     Name = p.DirectoryName ?? p.Name ?? "",
-                    Path = RelativePatchPath(baseDir, p.PatchFilePath),
                     Status = status,
                     Confidence = confidence,
                     Reason = reason,
                 };
-                foreach (BuildfilePatchParam pp in RawParams(p.PatchFilePath))
-                    rec.Params.Add(pp);
+                rec.Path = RelativePatchPath(baseDir, p.PatchFilePath, rec);
+                AppendRawParams(rec, p.PatchFilePath);
                 inv.Installed.Add(rec);
             }
 
@@ -872,35 +970,57 @@ namespace FEBuilderGBA
             return inv;
         }
 
-        static List<BuildfilePatchParam> RawParams(string patchFilePath)
+        // Append the raw parameter declarations to a record. Only documented filesystem/access
+        // exceptions are caught; a failure is surfaced in the record reason (never a silent empty
+        // list). Programmer defects propagate.
+        static void AppendRawParams(BuildfilePatchRecord rec, string patchFilePath)
         {
-            var list = new List<BuildfilePatchParam>();
-            if (string.IsNullOrEmpty(patchFilePath)) return list;
+            if (string.IsNullOrEmpty(patchFilePath)) return;
+            List<PatchMetadataCore.PatchParam> parsed;
             try
             {
-                foreach (PatchMetadataCore.PatchParam pp in PatchMetadataCore.ParsePatchParams(patchFilePath))
-                {
-                    if (pp == null) continue;
-                    list.Add(new BuildfilePatchParam { Key = pp.RawKey ?? "", Value = pp.Value ?? "" });
-                }
+                parsed = PatchMetadataCore.ParsePatchParams(patchFilePath);
             }
-            catch { /* raw params are advisory */ }
-            return list;
+            catch (Exception ex) when (IsExpectedFileSystemException(ex))
+            {
+                rec.Reason += "; raw parameters unavailable: " + ex.Message;
+                return;
+            }
+            if (parsed == null) return;
+            foreach (PatchMetadataCore.PatchParam pp in parsed)
+            {
+                if (pp == null) continue;
+                rec.Params.Add(new BuildfilePatchParam { Key = pp.RawKey ?? "", Value = pp.Value ?? "" });
+            }
         }
 
-        static string RelativePatchPath(string baseDir, string patchFilePath)
+        // Compute the patch's definition-relative forward-slash path. A path-format fault is an
+        // expected degradation surfaced in the record reason (falls back to the file name).
+        static string RelativePatchPath(string baseDir, string patchFilePath, BuildfilePatchRecord rec)
         {
             if (string.IsNullOrEmpty(patchFilePath)) return "";
             try
             {
-                string rel = Path.GetRelativePath(baseDir, patchFilePath);
-                return rel.Replace('\\', '/');
+                return Path.GetRelativePath(baseDir, patchFilePath).Replace('\\', '/');
             }
-            catch
+            catch (Exception ex) when (IsExpectedFileSystemException(ex))
             {
+                rec.Reason += "; relative path unavailable: " + ex.Message;
                 return Path.GetFileName(patchFilePath);
             }
         }
+
+        /// <summary>
+        /// True for documented filesystem/access/path/format exceptions the exporter's advisory
+        /// paths may legitimately encounter. Excludes programmer defects (argument-null,
+        /// null-reference, index-out-of-range, invalid-operation) so they are never swallowed.
+        /// </summary>
+        static bool IsExpectedFileSystemException(Exception ex)
+            => ex is IOException
+            || ex is UnauthorizedAccessException
+            || ex is System.Security.SecurityException
+            || ex is NotSupportedException
+            || (ex is ArgumentException && !(ex is ArgumentNullException));
 
         // --------------------------------------------------------------- utilities
 
