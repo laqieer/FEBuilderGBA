@@ -105,6 +105,18 @@ namespace FEBuilderGBA
     }
 
     /// <summary>
+    /// Injectable override for classifying ONE already-diffed range. Used only as a
+    /// deterministic fault-injection seam for tests (e.g. <see cref="BuildfileExportOptions"/>'s
+    /// internal classifier override); production code paths always pass <c>null</c>, which
+    /// selects the real classifier. An override that returns <c>null</c> or throws is treated
+    /// exactly like a real-classifier fault: <see cref="DecompDiffMigrationCore.ClassifyRangeSafe"/>
+    /// degrades ONLY that one range to a stable unknown/low-confidence/manual-review record.
+    /// </summary>
+    internal delegate MigrationRange RangeClassifierOverride(
+        ROM rom, byte[] builtBytes, uint offset, uint spanLength, uint changedBytes,
+        MergedAsmMapFile map, DecompSymbolResolver resolver);
+
+    /// <summary>
     /// READ-ONLY diff-to-source migration analyzer. Pure aside from reading the two
     /// ROM byte arrays + the symbol resolver; never writes; never throws.
     /// </summary>
@@ -131,6 +143,34 @@ namespace FEBuilderGBA
             MergedAsmMapFile map, DecompSymbolResolver resolver,
             int maxGap = DefaultMaxGap)
         {
+            return AnalyzeInternal(builtRom, editedBytes, hasFill: false, fillByte: 0, map, resolver, maxGap);
+        }
+
+        /// <summary>
+        /// Fill-aware variant of <see cref="Analyze"/>: classify each coalesced changed
+        /// range between a shorter baseline ROM (virtually extended with
+        /// <paramref name="fillByte"/>) and a longer edited buffer, reusing the same
+        /// diff/coalesce/classify pipeline. NEVER throws — a per-range classifier fault
+        /// degrades only that one range (see <see cref="ClassifyRangeSafe"/>), it never
+        /// truncates the report. NOTE: the buildfile exporter (#1935) does NOT call this —
+        /// it derives its authoritative ranges directly from <see cref="RomDiffCore.CompareWithFillBounded"/>
+        /// and classifies each one independently via <see cref="ClassifyRangeSafe"/>, so its
+        /// payload ownership can never depend on (or be silently truncated by) this
+        /// higher-level analyzer's coalescing/aggregate error handling.
+        /// </summary>
+        public static MigrationReport AnalyzeWithFill(
+            ROM builtRom, byte[] editedBytes, byte fillByte,
+            MergedAsmMapFile map, DecompSymbolResolver resolver,
+            int maxGap = DefaultMaxGap)
+        {
+            return AnalyzeInternal(builtRom, editedBytes, hasFill: true, fillByte, map, resolver, maxGap);
+        }
+
+        static MigrationReport AnalyzeInternal(
+            ROM builtRom, byte[] editedBytes, bool hasFill, byte fillByte,
+            MergedAsmMapFile map, DecompSymbolResolver resolver,
+            int maxGap)
+        {
             var report = new MigrationReport();
             try
             {
@@ -144,15 +184,23 @@ namespace FEBuilderGBA
                     return report;
                 if (maxGap < 0) maxGap = 0;
 
-                RomDiffCore.DiffResult diff = RomDiffCore.Compare(builtBytes, editedBytes);
+                RomDiffCore.DiffResult diff = hasFill
+                    ? RomDiffCore.CompareWithFill(builtBytes, editedBytes, fillByte)
+                    : RomDiffCore.Compare(builtBytes, editedBytes);
                 if (diff == null || diff.Ranges.Count == 0)
                     return report;
 
                 List<Coalesced> coalesced = Coalesce(diff.Ranges, maxGap);
 
+                // Each coalesced range is classified INDEPENDENTLY via the never-throwing
+                // ClassifyRangeSafe seam: a classifier fault on one range must never drop or
+                // truncate the remaining ranges (Copilot review finding — the previous single
+                // try/catch wrapping this whole loop would silently return a PARTIAL report,
+                // missing every range after the one that faulted).
                 foreach (Coalesced c in coalesced)
                 {
-                    MigrationRange r = Classify(builtRom, builtBytes, c, map, resolver);
+                    MigrationRange r = ClassifyRangeSafe(
+                        builtRom, builtBytes, c.Offset, c.SpanLength, c.ChangedBytes, map, resolver);
                     report.Ranges.Add(r);
                     report.TotalChangedBytes += r.ChangedBytes;
                 }
@@ -218,6 +266,58 @@ namespace FEBuilderGBA
 
         // ---------------------------------------------------------------- classify
 
+        /// <summary>
+        /// Classify ONE already-diffed range (offset+length authoritative — NEVER owned by
+        /// this call) and NEVER throw: a real-classifier exception, an injected
+        /// <paramref name="overrideClassifier"/> exception, or an override returning
+        /// <c>null</c> all degrade to a stable Unknown/Low/"manual review" record scoped to
+        /// the EXACT input offset+length. This is the single-range seam both the internal
+        /// analyzer (<see cref="AnalyzeInternal"/>) and the buildfile exporter
+        /// (<see cref="BuildfileExportCore.Plan"/>) use so a classification fault can never
+        /// omit, reorder, or resize an authoritative payload range.
+        /// </summary>
+        internal static MigrationRange ClassifyRangeSafe(
+            ROM rom, byte[] builtBytes, uint offset, uint spanLength, uint changedBytes,
+            MergedAsmMapFile map, DecompSymbolResolver resolver,
+            RangeClassifierOverride overrideClassifier = null)
+        {
+            try
+            {
+                if (overrideClassifier != null)
+                {
+                    MigrationRange overridden = overrideClassifier(rom, builtBytes, offset, spanLength, changedBytes, map, resolver);
+                    if (overridden != null) return overridden;
+                    // A bad override returning null is treated exactly like a fault: fall
+                    // through to the stable fallback below rather than throwing/omitting.
+                }
+                else
+                {
+                    var c = new Coalesced { Offset = offset, SpanLength = spanLength, ChangedBytes = changedBytes };
+                    return Classify(rom, builtBytes, c, map, resolver);
+                }
+            }
+            catch
+            {
+                // never throw — fall through to the stable fallback below
+            }
+            return UnclassifiedFallback(offset, spanLength, changedBytes);
+        }
+
+        // A stable, honest degradation record for a range whose classifier faulted. Always
+        // Unknown/Low/manual so it can never be mistaken for a real (even if conservative)
+        // classification, and always carries the caller's EXACT offset/length/changed-bytes.
+        static MigrationRange UnclassifiedFallback(uint offset, uint spanLength, uint changedBytes)
+            => new MigrationRange
+            {
+                Offset = offset,
+                SpanLength = spanLength,
+                ChangedBytes = changedBytes,
+                Category = MigrationCategory.Unknown,
+                Confidence = MigrationConfidence.Low,
+                Suggestion = "manual migration required (classification unavailable — advisory classifier fault)",
+                SourceFile = "(unknown — manual)",
+            };
+
         static MigrationRange Classify(
             ROM rom, byte[] builtBytes, Coalesced c,
             MergedAsmMapFile map, DecompSymbolResolver resolver)
@@ -229,7 +329,9 @@ namespace FEBuilderGBA
                 ChangedBytes = c.ChangedBytes,
             };
 
-            uint startPtr = U.toPointer(c.Offset);
+            uint startPtr = c.Offset <= 1
+                ? 0x08000000u + c.Offset
+                : U.toPointer(c.Offset);
             uint endOffsetExclusive = (uint)Math.Min((ulong)c.Offset + c.SpanLength, uint.MaxValue);
 
             // --- nearest symbol (span-covering resolver from #1130) ---

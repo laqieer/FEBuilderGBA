@@ -92,6 +92,185 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Validate that a generated rebuild projection is complete before its caller reports
+        /// success. The manifest must be a readable regular file with both required headers, and
+        /// every referenced sidecar must be a readable regular file beneath the manifest directory.
+        /// </summary>
+        public static void ValidateProjectionOutput(string manifestPath)
+            => ValidateProjectionOutput(manifestPath, File.GetAttributes);
+
+        internal static void ValidateProjectionOutput(
+            string manifestPath,
+            Func<string, FileAttributes> getAttributes)
+        {
+            if (string.IsNullOrEmpty(manifestPath))
+                throw new ArgumentNullException(nameof(manifestPath));
+            if (getAttributes == null)
+                throw new ArgumentNullException(nameof(getAttributes));
+
+            string fullManifestPath = Path.GetFullPath(manifestPath);
+            string baseDir = Path.GetDirectoryName(fullManifestPath) ?? Directory.GetCurrentDirectory();
+            string[] lines = ReadAllLinesFromRegularFile(
+                fullManifestPath, "rebuild manifest", getAttributes);
+            bool hasCrc32 = false;
+            bool hasRebuildAddress = false;
+            for (int lineIndex = 0; lineIndex < lines.Length; lineIndex++)
+            {
+                string line = U.ClipComment(lines[lineIndex]);
+                string[] tokens = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (tokens.Length == 0)
+                    continue;
+
+                if (tokens[0] == "@_CRC32")
+                {
+                    hasCrc32 |= tokens.Length >= 2;
+                    continue;
+                }
+                if (tokens[0] == "@_REBUILDADDRESS")
+                {
+                    hasRebuildAddress |= tokens.Length >= 2;
+                    continue;
+                }
+
+                if (tokens[0] != "@IFR"
+                    && tokens[0] != "@BIN"
+                    && tokens[0] != "@MIX"
+                    && tokens[0] != "@MIXLZ77")
+                {
+                    continue;
+                }
+
+                int filenameIndex = 2;
+                while (filenameIndex < tokens.Length
+                    && tokens[filenameIndex].Length > 0
+                    && (tokens[filenameIndex][0] == '='
+                        || tokens[filenameIndex][0] == '*'
+                        || tokens[filenameIndex][0] == ':'))
+                {
+                    filenameIndex++;
+                }
+                if (filenameIndex >= tokens.Length)
+                {
+                    throw new InvalidDataException(
+                        "Rebuild projection has no sidecar path at line " + (lineIndex + 1) + ".");
+                }
+
+                string relativePath = string.Join(" ", tokens, filenameIndex, tokens.Length - filenameIndex);
+                if (Path.IsPathRooted(relativePath))
+                {
+                    throw new InvalidDataException(
+                        "Rebuild projection sidecar path must be relative at line " + (lineIndex + 1) + ".");
+                }
+
+                string sidecarPath = Path.GetFullPath(Path.Combine(baseDir, relativePath));
+                string relativeToBase = Path.GetRelativePath(baseDir, sidecarPath);
+                if (Path.IsPathRooted(relativeToBase)
+                    || relativeToBase == ".."
+                    || relativeToBase.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+                    || relativeToBase.StartsWith(".." + Path.AltDirectorySeparatorChar, StringComparison.Ordinal))
+                {
+                    throw new InvalidDataException(
+                        "Rebuild projection sidecar escapes its scratch directory at line "
+                        + (lineIndex + 1) + ".");
+                }
+
+                try
+                {
+                    ValidateNoReparsePointDirectories(
+                        baseDir, sidecarPath, getAttributes, lineIndex + 1);
+                }
+                catch (FileNotFoundException)
+                {
+                    throw new InvalidDataException(
+                        "Missing rebuild sidecar at line " + (lineIndex + 1) + ": " + sidecarPath);
+                }
+                catch (DirectoryNotFoundException)
+                {
+                    throw new InvalidDataException(
+                        "Missing rebuild sidecar at line " + (lineIndex + 1) + ": " + sidecarPath);
+                }
+                ValidateReadableRegularFile(
+                    sidecarPath,
+                    "rebuild sidecar at line " + (lineIndex + 1),
+                    getAttributes);
+            }
+
+            if (!hasCrc32 || !hasRebuildAddress)
+            {
+                throw new InvalidDataException(
+                    "Rebuild projection manifest is incomplete: required @_CRC32 and "
+                    + "@_REBUILDADDRESS headers were not both written.");
+            }
+        }
+
+        static void ValidateNoReparsePointDirectories(
+            string baseDir,
+            string sidecarPath,
+            Func<string, FileAttributes> getAttributes,
+            int lineNumber)
+        {
+            string current = Path.GetDirectoryName(sidecarPath);
+            while (!string.IsNullOrEmpty(current))
+            {
+                if ((getAttributes(current) & FileAttributes.ReparsePoint) != 0)
+                {
+                    throw new InvalidDataException(
+                        "Rebuild projection sidecar has a symlink/junction directory at line "
+                        + lineNumber + ".");
+                }
+                if (BuildfilePathSafety.PathsEqual(current, baseDir))
+                    return;
+                current = Path.GetDirectoryName(current);
+            }
+
+            throw new InvalidDataException(
+                "Rebuild projection sidecar is not beneath its scratch directory at line "
+                + lineNumber + ".");
+        }
+
+        static void ValidateReadableRegularFile(
+            string path,
+            string description,
+            Func<string, FileAttributes> getAttributes)
+        {
+            ValidateRegularFileMetadata(path, description, getAttributes);
+
+            using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                stream.CopyTo(Stream.Null);
+            }
+        }
+
+        static string[] ReadAllLinesFromRegularFile(
+            string path,
+            string description,
+            Func<string, FileAttributes> getAttributes)
+        {
+            ValidateRegularFileMetadata(path, description, getAttributes);
+            return File.ReadAllLines(path);
+        }
+
+        static void ValidateRegularFileMetadata(
+            string path,
+            string description,
+            Func<string, FileAttributes> getAttributes)
+        {
+            if (!File.Exists(path))
+                throw new InvalidDataException("Missing " + description + ": " + path);
+
+            FileAttributes attributes = getAttributes(path);
+            if ((attributes & (FileAttributes.Directory | FileAttributes.ReparsePoint)) != 0)
+                throw new InvalidDataException(description + " is not a regular file: " + path);
+            if (!ProjectionFileSystemSafety.TryValidateRegularFile(
+                path, out string fileTypeError))
+            {
+                throw new InvalidDataException(
+                    description + " is not a regular file: " + path
+                    + " (" + fileTypeError + ").");
+            }
+        }
+
+        /// <summary>
         /// Per-run emitter state. Instance class so the ported WinForms method bodies stay
         /// recognizable while the public surface stays a pure static <see cref="Make"/>.
         /// </summary>
@@ -252,7 +431,7 @@ namespace FEBuilderGBA
                 StringBuilder rebuildData = new StringBuilder();
                 rebuildData.Append(RefSortSimple(refCmdList));
 
-                U.WriteAllText(manifestPath, rebuildData.ToString());
+                File.WriteAllText(manifestPath, rebuildData.ToString());
             }
 
             void MakePointerMark()
@@ -388,7 +567,7 @@ namespace FEBuilderGBA
                 }
 
                 string fullfilename = Path.Combine(this.BaseDir, filename);
-                U.WriteAllText(fullfilename, infsb.ToString());
+                File.WriteAllText(fullfilename, infsb.ToString());
 
                 sb.Append("@IFR ");
                 sb.Append(U.ToHexString8(address.Addr)); //addr
@@ -1183,7 +1362,7 @@ namespace FEBuilderGBA
                 //MIXデータを書き込む.
                 infsb.Remove(0, 1);
                 string fullfilename = Path.Combine(this.BaseDir, filename);
-                U.WriteAllText(fullfilename, infsb.ToString());
+                File.WriteAllText(fullfilename, infsb.ToString());
 
                 sb.Append(U.ToHexString8(address.Addr)); //addr
 
@@ -1252,7 +1431,7 @@ namespace FEBuilderGBA
 
                 string fullfilename = Path.Combine(this.BaseDir, filename);
                 byte[] bin = U.getBinaryData(this.Modified, address.Addr, address.Length);
-                U.WriteAllBytes(fullfilename, bin);
+                File.WriteAllBytes(fullfilename, bin);
 
                 refCmd.Cmd = sb.ToString();
                 return refCmd;
@@ -1312,7 +1491,7 @@ namespace FEBuilderGBA
                     sb.Append(filename);
 
                     string fullfilename = Path.Combine(this.BaseDir, filename);
-                    U.WriteAllBytes(fullfilename, bin);
+                    File.WriteAllBytes(fullfilename, bin);
                 }
 
                 refCmd.Cmd = sb.ToString();

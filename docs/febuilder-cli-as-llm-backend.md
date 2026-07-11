@@ -143,12 +143,49 @@ overflowing field value, a duplicate row `Index`, or an `Index` outside the tabl
 3 fails with a specific error and the ROM is left untouched — the generator can fix the JSON and retry
 without having corrupted anything.
 
+## Worked example: export a buildfile recipe (`--export-buildfile`)
+
+When an agent has a modded ROM and the clean ROM it started from, `--export-buildfile` emits a
+deterministic, git-friendly **source recipe** for the complete binary delta — no ROM is copied
+into the project:
+
+```
+FEBuilderGBA.CLI --export-buildfile --rom=modified.gba --clean=original.gba --out=project/
+```
+
+```
+project/
+  buildfile.json   # canonical schema-v1 manifest — the ONLY build authority (consumed by #1936)
+  main.event       # derived Event Assembler installer (PUSH / ORG / FILL / #incbin / POP)
+  README.md        # generated layout + authority notes (no absolute paths)
+  data/            # one raw payload per changed range: <index>_<offset>_<length>.bin
+```
+
+The losslessness invariant is the design gate: every target byte is owned exactly once by the
+clean baseline, a declared extension fill, or a single payload range. When the modded ROM extends
+the clean ROM, the exporter picks the most frequent extension byte (lowest byte on ties) as the
+fill and emits only sparse override ranges, so a common 16→32 MiB mostly-`FF`/`00` extension never
+becomes a giant payload. Output is deterministic (stable ordering, JSON property order/indentation,
+LF endings, forward-slash relative paths, no absolute environment data).
+
+`buildfile.json` records the clean/target size + CRC32 + SHA-256 (never source paths), whether the
+clean hash is the known canonical original (a non-canonical same-version baseline is a warning, not
+a rejection — the clean SHA-256 is the reproducibility identity), the extension policy, one ordered
+range record per contiguous diff (with an advisory `DecompDiffMigrationCore` category/confidence/
+suggestion and the payload SHA-256), an advisory installed-patch inventory, and the optional
+source-projection status. `main.event`, the patch inventory, and the opt-in `--with-source`
+projection are derived/advisory surfaces that never weaken or compose into the raw recipe.
+
+Applying/verifying a recipe is [#1936](https://github.com/laqieer/FEBuilderGBA/issues/1936);
+emulator/playtest validation is [#1932](https://github.com/laqieer/FEBuilderGBA/issues/1932).
+
 ## Relationship to other agent-native issues
 
 - Discussion [#1930](https://github.com/laqieer/FEBuilderGBA/discussions/1930) — the fe-infinity
   investigation this issue grew out of.
 - [#1935](https://github.com/laqieer/FEBuilderGBA/issues/1935) — emit-recipe / export-to-buildfile
-  (expressing a mod as source deltas from a clean ROM).
+  (expressing a mod as source deltas from a clean ROM). **Delivered** as `--export-buildfile`
+  (see the worked example above).
 - [#1933](https://github.com/laqieer/FEBuilderGBA/issues/1933) — agent-harness coverage of the
   remaining CLI verbs.
 - [#1931](https://github.com/laqieer/FEBuilderGBA/issues/1931) — the GUI↔CLI parity audit

@@ -313,6 +313,32 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void EnumeratePatches_ReadFailureForOneFile_RetainsOtherPatches()
+        {
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(new byte[0x100]);
+
+            string baseDir = Path.Combine(Path.GetTempPath(), "PatchEnumTolerance");
+            string good = Path.Combine(baseDir, "SYSTEM", "PATCH_Good.txt");
+            string unreadable = Path.Combine(baseDir, "SYSTEM", "PATCH_Unreadable.txt");
+
+            var result = PatchMetadataCore.EnumeratePatches(
+                baseDir,
+                rom,
+                "en",
+                file => file == unreadable
+                    ? throw new IOException("simulated unreadable patch")
+                    : new[] { "NAME=Good Patch", "TYPE=ADDR" },
+                _ => new[] { unreadable, good });
+
+            Assert.Equal(2, result.Count);
+            Assert.Contains(result, p => p.Name == "Good Patch" && p.Type == "ADDR");
+            PatchMetadataCore.PatchInfo fallback = Assert.Single(result, p => p.Name == "Unreadable");
+            Assert.Equal("SYSTEM", fallback.DirectoryName);
+            Assert.Equal(unreadable, fallback.PatchFilePath);
+        }
+
+        [Fact]
         public void ParsePatchFile_WithMetadata_ExtractsFields()
         {
             // Create a temp patch file

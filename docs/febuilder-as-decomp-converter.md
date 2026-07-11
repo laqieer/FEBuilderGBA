@@ -107,6 +107,6 @@ FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=gfx/map/0001.4bpp --
 
 ## Out of scope
 
-- A global `--json` mode across all ~67 CLI verbs — only the two ROM-free converter verbs FEHRR relies on
+- A global `--json` mode across all ~68 CLI verbs — only the two ROM-free converter verbs FEHRR relies on
   gained `--json` here.
 - Implementing friendlier/expanded structures (→ #1935 / #1939); the decompilation itself.

@@ -101,10 +101,10 @@ namespace FEBuilderGBA
         /// <summary>
         /// Returns true if path contains a usable git repository.
         /// A .git DIRECTORY means a proper standalone clone — always valid.
-        /// A .git FILE means a submodule link ("gitdir: ../../.git/modules/…") —
-        /// only valid when the referenced gitdir directory actually exists.
-        /// Broken submodule links (installed builds, unpacked ZIPs) return false
-        /// so the caller falls through to the fresh-clone path.
+        /// A .git FILE means a submodule or linked-worktree pointer
+        /// ("gitdir: ../../.git/modules/…" or an absolute worktree path) — only valid when
+        /// its first line contains a non-empty <c>gitdir:</c> value and the referenced
+        /// directory actually exists. Broken links and ordinary files named .git return false.
         /// </summary>
         public static bool IsGitRepo(string path)
         {
@@ -122,10 +122,14 @@ namespace FEBuilderGBA
             {
                 try
                 {
-                    string content = File.ReadAllText(dotGit).Trim();
-                    if (content.StartsWith("gitdir:"))
+                    string firstLine;
+                    using (var reader = new StreamReader(dotGit))
+                        firstLine = reader.ReadLine();
+                    if (firstLine != null && firstLine.StartsWith("gitdir:", StringComparison.Ordinal))
                     {
-                        string rel = content.Substring("gitdir:".Length).Trim();
+                        string rel = firstLine.Substring("gitdir:".Length).Trim();
+                        if (rel.Length == 0)
+                            return false;
                         string abs = Path.GetFullPath(Path.Combine(path, rel));
                         return Directory.Exists(abs);
                     }
