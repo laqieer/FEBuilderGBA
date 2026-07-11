@@ -1124,6 +1124,44 @@ namespace FEBuilderGBA.Core.Tests
             finally { try { Directory.Delete(baseDir, true); } catch { } }
         }
 
+        [Fact]
+        public void PathSafety_ResolvePhysical_AttributeAccessFailure_FailsClosed()
+        {
+            string blocked = Path.Combine(
+                Path.GetTempPath(),
+                "bfx_blocked_" + Guid.NewGuid().ToString("N"),
+                "target.gba");
+
+            IOException ex = Assert.Throws<IOException>(() =>
+                BuildfilePathSafety.ResolvePhysicalPath(blocked, candidate =>
+                {
+                    if (candidate.Contains("bfx_blocked_", StringComparison.Ordinal))
+                        throw new UnauthorizedAccessException("denied");
+                    return File.GetAttributes(candidate);
+                }));
+
+            Assert.Contains("Cannot inspect path component", ex.Message);
+            Assert.IsType<UnauthorizedAccessException>(ex.InnerException);
+        }
+
+        [Fact]
+        public void PathSafety_IsReparsePoint_DistinguishesMissingFromInspectionFailure()
+        {
+            Assert.False(BuildfilePathSafety.IsReparsePoint(
+                "missing-file",
+                _ => throw new FileNotFoundException("missing")));
+            Assert.False(BuildfilePathSafety.IsReparsePoint(
+                "missing-directory",
+                _ => throw new DirectoryNotFoundException("missing")));
+
+            IOException ex = Assert.Throws<IOException>(() =>
+                BuildfilePathSafety.IsReparsePoint(
+                    "blocked",
+                    _ => throw new UnauthorizedAccessException("denied")));
+            Assert.Contains("Could not inspect path for reparse point", ex.Message);
+            Assert.IsType<UnauthorizedAccessException>(ex.InnerException);
+        }
+
         [SkippableFact]
         public void PathSafety_SamePhysicalFile_AncestorLink_SameFileTrue_DistinctFileFalse()
         {

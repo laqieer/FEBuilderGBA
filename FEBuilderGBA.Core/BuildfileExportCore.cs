@@ -146,7 +146,13 @@ namespace FEBuilderGBA
         /// treated as a fail-closed <see cref="IOException"/>, never silently mis-resolved.
         /// </summary>
         public static string ResolvePhysicalPath(string path)
+            => ResolvePhysicalPath(path, File.GetAttributes);
+
+        internal static string ResolvePhysicalPath(
+            string path,
+            Func<string, FileAttributes> getAttributes)
         {
+            if (getAttributes == null) throw new ArgumentNullException(nameof(getAttributes));
             string full = Path.GetFullPath(path);
             string root = Path.GetPathRoot(full);
             if (string.IsNullOrEmpty(root))
@@ -167,9 +173,15 @@ namespace FEBuilderGBA
                     throw new IOException("Unexpected traversal segment '" + comp + "' after normalization of: " + full);
 
                 string candidate = Path.Combine(resolvedBase, comp);
-                bool isFile = File.Exists(candidate);
-                bool isDir = Directory.Exists(candidate);
-                if (!isFile && !isDir)
+                FileAttributes attr;
+                bool isMissing = false;
+                try { attr = getAttributes(candidate); }
+                catch (FileNotFoundException) { attr = default; isMissing = true; }
+                catch (DirectoryNotFoundException) { attr = default; isMissing = true; }
+                catch (Exception ex) when (IsAttributeInspectionException(ex))
+                { throw new IOException("Cannot inspect path component: " + candidate + " (" + ex.Message + ")", ex); }
+
+                if (isMissing)
                 {
                     // From here down nothing exists → append the rest lexically (no links possible).
                     resolvedBase = candidate;
@@ -178,10 +190,7 @@ namespace FEBuilderGBA
                     return Path.TrimEndingDirectorySeparator(resolvedBase);
                 }
 
-                FileAttributes attr;
-                try { attr = File.GetAttributes(candidate); }
-                catch (Exception ex)
-                { throw new IOException("Cannot inspect path component: " + candidate + " (" + ex.Message + ")", ex); }
+                bool isDir = (attr & FileAttributes.Directory) != 0;
 
                 if ((attr & FileAttributes.ReparsePoint) != 0)
                 {
@@ -252,18 +261,38 @@ namespace FEBuilderGBA
         /// <see cref="IOException"/> rather than being treated as "not a reparse point".
         /// </summary>
         public static bool IsReparsePoint(string path)
+            => IsReparsePoint(path, File.GetAttributes);
+
+        internal static bool IsReparsePoint(
+            string path,
+            Func<string, FileAttributes> getAttributes)
         {
             if (string.IsNullOrEmpty(path)) return false;
-            if (!File.Exists(path) && !Directory.Exists(path)) return false;
+            if (getAttributes == null) throw new ArgumentNullException(nameof(getAttributes));
             try
             {
-                return (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
+                return (getAttributes(path) & FileAttributes.ReparsePoint) != 0;
             }
-            catch (Exception ex)
+            catch (FileNotFoundException)
+            {
+                return false;
+            }
+            catch (DirectoryNotFoundException)
+            {
+                return false;
+            }
+            catch (Exception ex) when (IsAttributeInspectionException(ex))
             {
                 throw new IOException("Could not inspect path for reparse point: " + path + " (" + ex.Message + ")", ex);
             }
         }
+
+        static bool IsAttributeInspectionException(Exception ex)
+            => ex is IOException
+            || ex is UnauthorizedAccessException
+            || ex is ArgumentException
+            || ex is NotSupportedException
+            || ex is System.Security.SecurityException;
     }
 
     /// <summary>Inputs for a buildfile export.</summary>
