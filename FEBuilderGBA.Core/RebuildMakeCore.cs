@@ -175,11 +175,25 @@ namespace FEBuilderGBA
                         + (lineIndex + 1) + ".");
                 }
 
+                try
+                {
+                    ValidateNoReparsePointDirectories(
+                        baseDir, sidecarPath, getAttributes, lineIndex + 1);
+                }
+                catch (FileNotFoundException)
+                {
+                    throw new InvalidDataException(
+                        "Missing rebuild sidecar at line " + (lineIndex + 1) + ": " + sidecarPath);
+                }
+                catch (DirectoryNotFoundException)
+                {
+                    throw new InvalidDataException(
+                        "Missing rebuild sidecar at line " + (lineIndex + 1) + ": " + sidecarPath);
+                }
                 ValidateReadableRegularFile(
                     sidecarPath,
                     "rebuild sidecar at line " + (lineIndex + 1),
                     getAttributes);
-                ValidateNoReparsePointDirectories(baseDir, sidecarPath, getAttributes, lineIndex + 1);
             }
 
             if (!hasCrc32 || !hasRebuildAddress)

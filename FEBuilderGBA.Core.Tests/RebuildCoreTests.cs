@@ -387,6 +387,9 @@ namespace FEBuilderGBA.Core.Tests
                         manifestPath,
                         path =>
                         {
+                            if (BuildfilePathSafety.PathsEqual(path, sidecarPath))
+                                throw new InvalidOperationException(
+                                    "Sidecar metadata was inspected before its ancestor chain.");
                             FileAttributes attributes = File.GetAttributes(path);
                             return BuildfilePathSafety.PathsEqual(path, sidecarDir)
                                 ? attributes | FileAttributes.ReparsePoint
