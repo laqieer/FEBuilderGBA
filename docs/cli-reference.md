@@ -240,8 +240,8 @@ project/
 Authority model: `buildfile.json` + `data/` are the sole build authority (consumed by
 issue #1936, which applies/verifies a recipe). `main.event` is a derived interoperability
 surface; the installed-patch inventory in the manifest is advisory (its `config/patch2/{version}`
-directory is resolved by existence only and enumerated under a guard, so a missing/slow/unreadable
-patch library yields `unavailable` and never aborts the export); the `source/` projection
+directory is resolved by existence only and enumerated under a guard, so a missing, empty,
+slow, or unreadable patch library yields `unavailable` and never aborts the export); the `source/` projection
 is a non-composable best-effort — the projector receives only the ROM and a private scratch
 directory (created as a unique sibling OUTSIDE the publish stage on the same volume, moved into
 `source/` only on complete success). Before publish its text files are normalized to LF and the

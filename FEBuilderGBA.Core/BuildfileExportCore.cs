@@ -281,6 +281,9 @@ namespace FEBuilderGBA
         /// <summary>Optional source-aware projection runner; null = projection skipped.</summary>
         public BuildfileProjectionRunner ProjectionRunner { get; set; }
 
+        /// <summary>Internal failure-injection seam used by staged-publication tests.</summary>
+        internal Action<string> BeforePayloadWriteForTest { get; set; }
+
         /// <summary>Maximum accepted target size (32 MiB).</summary>
         public const int MaxRomSize = 32 * 1024 * 1024;
     }
@@ -628,6 +631,7 @@ namespace FEBuilderGBA
                 {
                     string full = Path.Combine(stage, RelToNative(span.RelativePath));
                     byte[] bytes = Slice(target, span.Offset, span.Length);
+                    options.BeforePayloadWriteForTest?.Invoke(full);
                     File.WriteAllBytes(full, bytes);
                 }
 
@@ -928,6 +932,12 @@ namespace FEBuilderGBA
                 inv.Reason = "patch enumeration failed: " + enumError;
                 return inv;
             }
+            if (patches.Count == 0)
+            {
+                inv.Status = "unavailable";
+                inv.Reason = "patch library is empty or not initialized; raw recipe is complete without it";
+                return inv;
+            }
 
             inv.Status = "available";
             foreach (PatchMetadataCore.PatchInfo p in patches)
@@ -952,7 +962,7 @@ namespace FEBuilderGBA
 
                 var rec = new BuildfilePatchRecord
                 {
-                    Name = p.DirectoryName ?? p.Name ?? "",
+                    Name = !string.IsNullOrEmpty(p.Name) ? p.Name : (p.DirectoryName ?? ""),
                     Status = status,
                     Confidence = confidence,
                     Reason = reason,
@@ -1020,7 +1030,7 @@ namespace FEBuilderGBA
             || ex is UnauthorizedAccessException
             || ex is System.Security.SecurityException
             || ex is NotSupportedException
-            || (ex is ArgumentException && !(ex is ArgumentNullException));
+            || ex.GetType() == typeof(ArgumentException);
 
         // --------------------------------------------------------------- utilities
 

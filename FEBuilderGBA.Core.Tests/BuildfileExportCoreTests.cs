@@ -343,6 +343,39 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void Export_StagedPayloadWriteFailure_RemovesStageAndDestination()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x10] = 0x9;
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                bool injected = false;
+                var options = new BuildfileExportOptions
+                {
+                    OutputDirectory = outDir,
+                    BeforePayloadWriteForTest = payloadPath =>
+                    {
+                        injected = true;
+                        Directory.CreateDirectory(payloadPath);
+                    },
+                };
+
+                var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target), options);
+
+                Assert.True(injected);
+                Assert.False(result.Success);
+                Assert.Contains("Export failed", result.Error);
+                Assert.False(Directory.Exists(outDir));
+                Assert.DoesNotContain(Directory.GetDirectories(parent), d =>
+                    Path.GetFileName(d).Contains(".stage-") || Path.GetFileName(d).Contains(".psrc-"));
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [Fact]
         public void Export_MissingParent_Fails_NoPartialOutput()
         {
             var clean = new byte[RomSize];
@@ -499,11 +532,10 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void Export_EmptyPatchDir_IsAvailableWithZeroInstalled_NotUnavailable()
+        public void Export_EmptyPatchDir_IsUnavailable_NotInitialized()
         {
-            // An EXISTING but empty patch directory must be reported "available" with zero
-            // installed entries — distinct from "unavailable" (a missing library or an
-            // enumeration failure). Proves the empty-vs-unavailable seam distinction.
+            // Fresh installations contain empty version stub directories. A successful scan
+            // with no PATCH_*.txt files therefore means the advisory library is unavailable.
             var clean = new byte[RomSize];
             var target = (byte[])clean.Clone();
             target[0x10] = 0x3;
@@ -520,8 +552,44 @@ namespace FEBuilderGBA.Core.Tests
                 };
                 var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target), options);
                 Assert.True(result.Success, result.Error);
-                Assert.Equal("available", result.Manifest.Patches.Status);
+                Assert.Equal("unavailable", result.Manifest.Patches.Status);
+                Assert.Contains("empty or not initialized", result.Manifest.Patches.Reason);
                 Assert.Empty(result.Manifest.Patches.Installed);
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [Fact]
+        public void Export_PatchInventoryUsesMetadataNamesForFilesInSharedFolder()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x10] = 0x3;
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                string patchBase = Path.Combine(parent, "patch2");
+                string systemDir = Path.Combine(patchBase, "SYSTEM");
+                Directory.CreateDirectory(systemDir);
+                File.WriteAllLines(Path.Combine(systemDir, "PATCH_Eirika.txt"),
+                    new[] { "TYPE=ADDR", "NAME=Eirika Patch" });
+                File.WriteAllLines(Path.Combine(systemDir, "PATCH_Ephraim.txt"),
+                    new[] { "TYPE=ADDR", "NAME=Ephraim Patch" });
+
+                var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target),
+                    new BuildfileExportOptions
+                    {
+                        OutputDirectory = outDir,
+                        PatchBaseDirectory = patchBase,
+                    });
+
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("available", result.Manifest.Patches.Status);
+                Assert.Equal(2, result.Manifest.Patches.Installed.Count);
+                Assert.Contains(result.Manifest.Patches.Installed, p => p.Name == "Eirika Patch");
+                Assert.Contains(result.Manifest.Patches.Installed, p => p.Name == "Ephraim Patch");
+                Assert.DoesNotContain(result.Manifest.Patches.Installed, p => p.Name == "SYSTEM");
             }
             finally { Cleanup(parent); }
         }
@@ -545,6 +613,9 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal("", eErr);
                 // The legacy EnumeratePatches API still returns an (empty) list for the same input.
                 Assert.Empty(PatchMetadataCore.EnumeratePatches(empty, null, "en"));
+                Assert.True(PatchMetadataCore.IsExpectedFileSystemException(new ArgumentException()));
+                Assert.False(PatchMetadataCore.IsExpectedFileSystemException(new ArgumentNullException()));
+                Assert.False(PatchMetadataCore.IsExpectedFileSystemException(new ArgumentOutOfRangeException()));
             }
             finally { try { Directory.Delete(empty, true); } catch { } }
         }

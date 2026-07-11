@@ -166,7 +166,7 @@ namespace FEBuilderGBA
             || ex is UnauthorizedAccessException
             || ex is System.Security.SecurityException
             || ex is NotSupportedException
-            || (ex is ArgumentException && !(ex is ArgumentNullException));
+            || ex.GetType() == typeof(ArgumentException);
 
         /// <summary>
         /// Parse a PATCH_*.txt metadata file.
