@@ -368,6 +368,35 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void ValidateProjectionOutput_RejectsReparsePointAncestor()
+        {
+            using (var tmp = new TempDir())
+            {
+                string sidecarDir = Path.Combine(tmp.Path, "rebuild_bin");
+                string sidecarPath = Path.Combine(sidecarDir, "data.bin");
+                Directory.CreateDirectory(sidecarDir);
+                File.WriteAllBytes(sidecarPath, new byte[] { 1 });
+                string manifestPath = Path.Combine(tmp.Path, "rom.rebuild");
+                File.WriteAllText(manifestPath,
+                    "@_CRC32 12345678\n"
+                    + "@_REBUILDADDRESS 00100000\n"
+                    + "@BIN 00100000 rebuild_bin" + Path.DirectorySeparatorChar + "data.bin\n");
+
+                InvalidDataException ex = Assert.Throws<InvalidDataException>(() =>
+                    RebuildMakeCore.ValidateProjectionOutput(
+                        manifestPath,
+                        path =>
+                        {
+                            FileAttributes attributes = File.GetAttributes(path);
+                            return BuildfilePathSafety.PathsEqual(path, sidecarDir)
+                                ? attributes | FileAttributes.ReparsePoint
+                                : attributes;
+                        }));
+                Assert.Contains("symlink/junction directory", ex.Message);
+            }
+        }
+
+        [Fact]
         public void RebuildMakeCore_ManifestWriteFailure_IsNotSwallowed()
         {
             byte[] modified = BuildModified();

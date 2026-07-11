@@ -97,13 +97,20 @@ namespace FEBuilderGBA
         /// every referenced sidecar must be a readable regular file beneath the manifest directory.
         /// </summary>
         public static void ValidateProjectionOutput(string manifestPath)
+            => ValidateProjectionOutput(manifestPath, File.GetAttributes);
+
+        internal static void ValidateProjectionOutput(
+            string manifestPath,
+            Func<string, FileAttributes> getAttributes)
         {
             if (string.IsNullOrEmpty(manifestPath))
                 throw new ArgumentNullException(nameof(manifestPath));
+            if (getAttributes == null)
+                throw new ArgumentNullException(nameof(getAttributes));
 
             string fullManifestPath = Path.GetFullPath(manifestPath);
             string baseDir = Path.GetDirectoryName(fullManifestPath) ?? Directory.GetCurrentDirectory();
-            ValidateReadableRegularFile(fullManifestPath, "rebuild manifest");
+            ValidateReadableRegularFile(fullManifestPath, "rebuild manifest", getAttributes);
 
             string[] lines = File.ReadAllLines(fullManifestPath);
             bool hasCrc32 = false;
@@ -168,7 +175,11 @@ namespace FEBuilderGBA
                         + (lineIndex + 1) + ".");
                 }
 
-                ValidateReadableRegularFile(sidecarPath, "rebuild sidecar at line " + (lineIndex + 1));
+                ValidateReadableRegularFile(
+                    sidecarPath,
+                    "rebuild sidecar at line " + (lineIndex + 1),
+                    getAttributes);
+                ValidateNoReparsePointDirectories(baseDir, sidecarPath, getAttributes, lineIndex + 1);
             }
 
             if (!hasCrc32 || !hasRebuildAddress)
@@ -179,12 +190,40 @@ namespace FEBuilderGBA
             }
         }
 
-        static void ValidateReadableRegularFile(string path, string description)
+        static void ValidateNoReparsePointDirectories(
+            string baseDir,
+            string sidecarPath,
+            Func<string, FileAttributes> getAttributes,
+            int lineNumber)
+        {
+            string current = Path.GetDirectoryName(sidecarPath);
+            while (!string.IsNullOrEmpty(current))
+            {
+                if ((getAttributes(current) & FileAttributes.ReparsePoint) != 0)
+                {
+                    throw new InvalidDataException(
+                        "Rebuild projection sidecar has a symlink/junction directory at line "
+                        + lineNumber + ".");
+                }
+                if (BuildfilePathSafety.PathsEqual(current, baseDir))
+                    return;
+                current = Path.GetDirectoryName(current);
+            }
+
+            throw new InvalidDataException(
+                "Rebuild projection sidecar is not beneath its scratch directory at line "
+                + lineNumber + ".");
+        }
+
+        static void ValidateReadableRegularFile(
+            string path,
+            string description,
+            Func<string, FileAttributes> getAttributes)
         {
             if (!File.Exists(path))
                 throw new InvalidDataException("Missing " + description + ": " + path);
 
-            FileAttributes attributes = File.GetAttributes(path);
+            FileAttributes attributes = getAttributes(path);
             if ((attributes & (FileAttributes.Directory | FileAttributes.ReparsePoint)) != 0)
                 throw new InvalidDataException(description + " is not a regular file: " + path);
 

@@ -491,6 +491,9 @@ namespace FEBuilderGBA
         /// </summary>
         internal Func<string, string[]> PatchDirectoryListerForTest { get; set; }
 
+        /// <summary>Internal deterministic name source for stage-collision tests.</summary>
+        internal Func<Guid> GuidFactoryForTest { get; set; }
+
         /// <summary>Maximum accepted target size (32 MiB).</summary>
         public const int MaxRomSize = 32 * 1024 * 1024;
 
@@ -790,6 +793,82 @@ namespace FEBuilderGBA
 
         // ------------------------------------------------------------- publication
 
+        const int TemporaryDirectoryReservationAttempts = 64;
+
+        static string ReserveUniqueSiblingDirectory(
+            string parent,
+            string prefix,
+            Func<Guid> guidFactory)
+        {
+            Func<Guid> nextGuid = guidFactory ?? Guid.NewGuid;
+            for (int attempt = 0; attempt < TemporaryDirectoryReservationAttempts; attempt++)
+            {
+                string candidate = Path.Combine(parent, prefix + nextGuid().ToString("N"));
+                if (TryCreateDirectoryExclusive(candidate))
+                    return candidate;
+            }
+
+            throw new IOException(
+                "Could not reserve a unique temporary directory after "
+                + TemporaryDirectoryReservationAttempts + " name collisions.");
+        }
+
+        internal static bool TryCreateDirectoryExclusive(string path)
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                // Raw CreateDirectoryW does not receive .NET's automatic long-path handling.
+                // Use an internal extended-length spelling so deep standard drive/UNC outputs
+                // retain the same >MAX_PATH support as managed Directory.CreateDirectory.
+                if (CreateDirectoryWindows(ToWindowsExtendedPath(path), IntPtr.Zero))
+                    return true;
+
+                int error = Marshal.GetLastWin32Error();
+                if (error == 80 || error == 183) // ERROR_FILE_EXISTS / ERROR_ALREADY_EXISTS
+                    return false;
+                throw new IOException(
+                    "Could not reserve temporary directory (Win32 error " + error + "): " + path);
+            }
+
+            // Browser storage is single-process; native libc is unavailable there.
+            if (OperatingSystem.IsBrowser())
+            {
+                if (Directory.Exists(path) || File.Exists(path))
+                    return false;
+                Directory.CreateDirectory(path);
+                return true;
+            }
+
+            if (CreateDirectoryUnix(path, 0x1C0) == 0) // 0700: exporter-private stage/scratch
+                return true;
+
+            int errno = Marshal.GetLastWin32Error();
+            if (errno == 17) // EEXIST on Linux/macOS/Android/iOS
+                return false;
+            throw new IOException(
+                "Could not reserve temporary directory (errno " + errno + "): " + path);
+        }
+
+        internal static string ToWindowsExtendedPath(string path)
+        {
+            string fullPath = Path.GetFullPath(path);
+            if (fullPath.StartsWith(@"\\?\", StringComparison.OrdinalIgnoreCase))
+                return fullPath;
+            if (fullPath.StartsWith(@"\\", StringComparison.Ordinal))
+                return @"\\?\UNC\" + fullPath.Substring(2);
+            return @"\\?\" + fullPath;
+        }
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true,
+            EntryPoint = "CreateDirectoryW")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool CreateDirectoryWindows(string path, IntPtr securityAttributes);
+
+        [DllImport("libc", SetLastError = true, EntryPoint = "mkdir")]
+        static extern int CreateDirectoryUnix(
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string path,
+            uint mode);
+
         /// <summary>
         /// Plan and publish a buildfile project. Stages the whole tree in a uniquely
         /// named sibling under the destination's exact parent, re-reads/hashes each
@@ -847,15 +926,23 @@ namespace FEBuilderGBA
 
             byte[] target = targetRom.Data;
             string name = Path.GetFileName(outDir);
-            string stage = Path.Combine(parent, "." + name + ".stage-" + Guid.NewGuid().ToString("N"));
-            // The optional projection scratch is a UNIQUE SIBLING OUTSIDE the publish stage (same
-            // parent → same volume), so a failed projection cleanup can never be published inside
-            // the stage. It is moved into stage/source ONLY on complete projection success.
-            string projectionScratch = Path.Combine(parent, "." + name + ".psrc-" + Guid.NewGuid().ToString("N"));
+            string stage = null;
+            string projectionScratch = null;
 
             try
             {
-                Directory.CreateDirectory(stage);
+                // Reserve each private tree with an atomic create-new operation. A generated-name
+                // collision is never reused, overwritten, or deleted; retry with a fresh name.
+                stage = ReserveUniqueSiblingDirectory(
+                    parent, "." + name + ".stage-", options.GuidFactoryForTest);
+                if (options.ProjectionRunner != null)
+                {
+                    // The optional projection scratch is a UNIQUE SIBLING OUTSIDE the publish
+                    // stage (same parent -> same volume). It moves into stage/source only after
+                    // complete projection success.
+                    projectionScratch = ReserveUniqueSiblingDirectory(
+                        parent, "." + name + ".psrc-", options.GuidFactoryForTest);
+                }
                 Directory.CreateDirectory(Path.Combine(stage, "data"));
 
                 // 1) Raw payloads.
@@ -899,9 +986,11 @@ namespace FEBuilderGBA
             catch (Exception ex)
             {
                 var cleanupErrors = new List<string>();
-                if (!DeleteAndVerifyGone(projectionScratch, out string projectionCleanupError))
+                if (!string.IsNullOrEmpty(projectionScratch)
+                    && !DeleteAndVerifyGone(projectionScratch, out string projectionCleanupError))
                     cleanupErrors.Add("projection scratch '" + projectionScratch + "': " + projectionCleanupError);
-                if (!DeleteAndVerifyGone(stage, out string stageCleanupError))
+                if (!string.IsNullOrEmpty(stage)
+                    && !DeleteAndVerifyGone(stage, out string stageCleanupError))
                     cleanupErrors.Add("stage '" + stage + "': " + stageCleanupError);
 
                 string error = "Export failed: " + ex.Message;
@@ -1004,7 +1093,6 @@ namespace FEBuilderGBA
             BuildfileProjectionOutcome outcome;
             try
             {
-                Directory.CreateDirectory(scratch);
                 outcome = options.ProjectionRunner(scratch) ?? BuildfileProjectionOutcome.Fail("projection returned no outcome");
             }
             catch (Exception ex)
@@ -1148,12 +1236,32 @@ namespace FEBuilderGBA
             error = "";
             string[] textExt = { ".rebuild", ".event", ".txt", ".s", ".asm", ".json", ".md", ".inc", ".c", ".h" };
 
-            string[] files;
+            var files = new List<string>();
             try
             {
-                // Materialize inside the guard so a lazy directory-traversal fault is caught by
-                // the fail-closed path rather than escaping mid-enumeration.
-                files = Directory.EnumerateFiles(scratchDir, "*", SearchOption.AllDirectories).ToArray();
+                // Walk explicitly so every entry is inspected before descent. A linked file or
+                // directory would make the published source tree depend on an external target.
+                var pending = new Stack<string>();
+                pending.Push(scratchDir);
+                while (pending.Count > 0)
+                {
+                    string current = pending.Pop();
+                    foreach (string entry in Directory.GetFileSystemEntries(current))
+                    {
+                        FileAttributes attributes = File.GetAttributes(entry);
+                        if ((attributes & FileAttributes.ReparsePoint) != 0)
+                        {
+                            error = SanitizeScratchPath(
+                                "projection contains a symlink/junction: " + entry,
+                                scratchDir);
+                            return false;
+                        }
+                        if ((attributes & FileAttributes.Directory) != 0)
+                            pending.Push(entry);
+                        else
+                            files.Add(entry);
+                    }
+                }
             }
             catch (Exception ex) when (IsExpectedFileSystemException(ex))
             {

@@ -1130,6 +1130,97 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void Export_StageAndScratchNameCollisions_RetryWithoutTouchingExistingTrees()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x2000] = 0x68;
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                string name = Path.GetFileName(outDir);
+                Guid stageCollisionId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+                Guid stageId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+                Guid scratchCollisionId = Guid.Parse("33333333-3333-3333-3333-333333333333");
+                Guid scratchId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+                string stageCollision = Path.Combine(
+                    parent, "." + name + ".stage-" + stageCollisionId.ToString("N"));
+                string scratchCollision = Path.Combine(
+                    parent, "." + name + ".psrc-" + scratchCollisionId.ToString("N"));
+                Directory.CreateDirectory(stageCollision);
+                Directory.CreateDirectory(scratchCollision);
+                File.WriteAllText(Path.Combine(stageCollision, "owner.txt"), "stage-owner");
+                File.WriteAllText(Path.Combine(scratchCollision, "owner.txt"), "scratch-owner");
+
+                var ids = new Queue<Guid>(new[]
+                {
+                    stageCollisionId, stageId, scratchCollisionId, scratchId,
+                });
+                var options = new BuildfileExportOptions
+                {
+                    OutputDirectory = outDir,
+                    GuidFactoryForTest = () => ids.Dequeue(),
+                    ProjectionRunner = scratch =>
+                    {
+                        File.WriteAllText(Path.Combine(scratch, "projection.txt"), "complete\n");
+                        return BuildfileProjectionOutcome.Ok();
+                    },
+                };
+
+                var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target), options);
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("stage-owner", File.ReadAllText(Path.Combine(stageCollision, "owner.txt")));
+                Assert.Equal("scratch-owner", File.ReadAllText(Path.Combine(scratchCollision, "owner.txt")));
+                Assert.True(File.Exists(Path.Combine(outDir, "source", "projection.txt")));
+                Assert.Empty(ids);
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [Fact]
+        public void TryCreateDirectoryExclusive_WindowsLongPath_PreservesManagedPathSupport()
+        {
+            if (!OperatingSystem.IsWindows())
+                return;
+
+            string root = Path.Combine(
+                Path.GetTempPath(), "feb_buildfile_long_" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                string parent = root;
+                while (parent.Length < 280)
+                    parent = Path.Combine(parent, new string('a', 40));
+                Directory.CreateDirectory(parent);
+
+                string candidate = Path.Combine(
+                    parent, "stage-" + Guid.NewGuid().ToString("N"));
+                Assert.True(candidate.Length > 260);
+                Assert.True(BuildfileExportCore.TryCreateDirectoryExclusive(candidate));
+                Assert.True(Directory.Exists(candidate));
+                Assert.False(BuildfileExportCore.TryCreateDirectoryExclusive(candidate));
+            }
+            finally
+            {
+                try { Directory.Delete(root, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void ToWindowsExtendedPath_ConvertsDriveAndUncPaths()
+        {
+            if (!OperatingSystem.IsWindows())
+                return;
+
+            Assert.Equal(
+                @"\\?\C:\repo\stage",
+                BuildfileExportCore.ToWindowsExtendedPath(@"C:\repo\stage"));
+            Assert.Equal(
+                @"\\?\UNC\server\share\stage",
+                BuildfileExportCore.ToWindowsExtendedPath(@"\\server\share\stage"));
+        }
+
+        [Fact]
         public void Export_PatchDirectoryIsAFile_IsUnavailable_NotAFailure()
         {
             // A patch base that is a FILE (or otherwise not a directory) must yield an advisory
