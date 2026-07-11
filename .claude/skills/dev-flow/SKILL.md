@@ -64,7 +64,18 @@ dotnet run --project tools/WinCapture -c Release -- "Editor Title" pr-screenshot
     - **Screenshots**: MUST show the SPECIFIC affected editor with data for GUI-changing PRs. Non-GUI PRs (Core, CLI, tests only) may use CLI/test output as proof. Generic main window is NOT acceptable for GUI PRs. NEVER fabricate images. NEVER use feature-branch URLs (`blob/{feature-branch}/` or `raw.githubusercontent.com/{owner}/{repo}/{feature-branch}/`). For `docs`/`chore` PRs, screenshots are optional.
     - **Test plan**: ALL items must be `[x]`. Automatable tests MUST be automated — no unchecked "manual later" items.
     - Footer (developer-dependent): Claude Code CLI → `Generated with Claude Code (<model>)`; Copilot CLI → `Copilot CLI: <version>` + `Model: <display-name> (<model-id>)`
-11. **Trigger the Review Gate** on the PR (pick your branch — see `DEVELOPMENT-WORKFLOW.md` → **Developer & Reviewer Roles**):
+11. **Trigger the Review Gate or verify the screenshot-only helper exemption**:
+    - The plan gate is never exempt. Skip the PR gate only when every canonical predicate in
+      `DEVELOPMENT-WORKFLOW.md` → **Screenshot-only helper PR exemption** is independently verified against the
+      current head: REST `author_association` in `OWNER`/`MEMBER`/`COLLABORATOR`, `isCrossRepository == false`, an
+      accepted parent plan, `docs:` title, a base-to-head name/status diff containing only added (`A`) paths under
+      `pr-screenshots/` that end in lowercase `.png`, mode-`100644` PNG blobs with the correct signature plus
+      successful decode and visual inspection, no GitHub closing keyword paired with any issue reference in the
+      title/body or commits, an all-checked test plan, and the exact PR-body marker
+      `Review-Gate-Exemption: screenshot-only-helper`.
+    - The marker alone is never sufficient. If any predicate is absent, ambiguous, or later becomes false, run the
+      normal branch below. An eligible PR skips only the independent PR review; safety screening, CI, freshness,
+      all-three-channel feedback, merge confirmation, post-merge CI, and cleanup remain mandatory.
     - **Branch A** (Claude Code CLI → Copilot CLI):
     ```bash
     copilot -p "Review pull request #<N> in laqieer/FEBuilderGBA. Perform a full code review: check correctness, test coverage, style, potential bugs, and adherence to the plan. Screenshot check: if the PR title starts with 'feat' or 'fix', verify the PR description contains at least one rendered image (Markdown ![...](URL) or HTML <img> tag) proving the change works. For PRs that modify GUI files (FEBuilderGBA.Avalonia/ or FEBuilderGBA/ WinForms): screenshots MUST show the ACTUAL running application GUI with controls and data visible — NOT fabricated terminal-output images drawn on a blank background. Verify the screenshot content is RELEVANT to the behavior change (e.g., a Class Editor fix should show the Class Editor with populated data). For PRs that only modify non-GUI files (Core, CLI, Tests): CLI terminal output or test run screenshots are acceptable proof. Accept valid image sources: GitHub attachments, default-branch `raw.githubusercontent.com/{owner}/{repo}/master/...` links, or `blob/master/...` paths with `?raw=1`. REJECT feature-branch URLs (`blob/{feature-branch}/...` or `raw.githubusercontent.com/{owner}/{repo}/{feature-branch}/...`) — these break after branch deletion. Flag them as a blocking issue. Treat a Screenshots section as missing if it contains only placeholder URLs, only HTML comments, or no rendered images at all. Flag missing or invalid screenshots as a blocking issue for feat/fix PRs. For docs/chore PRs (title starts with 'docs' or 'chore'), screenshots are optional — do NOT flag their absence. GUI Test Report check: inspect the changed files list — if the PR modifies any GUI file under FEBuilderGBA.Avalonia/ or FEBuilderGBA/ (WinForms) AND the title starts with 'feat' or 'fix', verify the PR description contains a '## GUI Test Report' section with actual test results (a results table with pass/fail entries). Files under FEBuilderGBA.Core/, FEBuilderGBA.CLI/, FEBuilderGBA.Tests/, FEBuilderGBA.Core.Tests/, FEBuilderGBA.E2ETests/, and FEBuilderGBA.SkiaSharp/ are NOT GUI files — do not count them. Treat a GUI Test Report section as missing if it contains only HTML comments, only placeholder text, or no results table. Flag missing GUI test report as a blocking issue for qualifying GUI feat/fix PRs. For PRs that do not modify GUI files (FEBuilderGBA.Avalonia/ or FEBuilderGBA/), or for docs/chore/refactor PRs, do NOT require a GUI test report. Test plan check: verify the '## Test plan' section has ALL items checked [x]. Flag any unchecked [ ] items as a blocking issue — no exceptions. Also flag placeholder/template text that was not replaced (e.g., items containing angle brackets like '<what was tested>' or generic boilerplate) — each item must describe a specific test that was actually performed. After you finish posting the review, prune any git worktree you created for this review: run 'git worktree prune' and 'git worktree remove --force' any checkout you made under your session-state directory. Post your review as a pull request review on GitHub. Include your Copilot CLI version and model at the end." --autopilot --enable-all-github-mcp-tools --allow-all-tools
@@ -81,11 +92,14 @@ dotnet run --project tools/WinCapture -c Release -- "Editor Title" pr-screenshot
     ```
     **CRITICAL: Always check ALL THREE channels** (issue comments + review bodies + inline threads). Ignoring any channel is a recurring failure mode.
 13. **Fix code** for every comment (never dismiss with "acknowledged"), push, wait for re-review.
-14. **Repeat 11-13** until no unaddressed feedback across all three channels.
+14. **Repeat 11-13** until no unaddressed feedback across all three channels. For an exempt helper PR, re-verify
+    every canonical predicate after each push; any eligibility loss triggers the full Review Gate.
 
 ## Phase 4 — Merge
 
-15. **Pre-merge checklist**: CI green, branch up-to-date, all feedback addressed (all three channels: issue comments, review bodies, inline threads).
+15. **Pre-merge checklist**: normal Review Gate signoff or a current independently verified screenshot-only helper
+    exemption; CI green; branch up-to-date; all feedback addressed (all three channels: issue comments, review
+    bodies, inline threads).
 16. **Merge**: `gh pr merge <N> -R laqieer/FEBuilderGBA --merge`
 17. **Confirm**: `gh pr view <N> -R laqieer/FEBuilderGBA --json state --jq .state` — must be `MERGED`.
 18. If not MERGED, diagnose and fix (see DEVELOPMENT-WORKFLOW.md), loop back to step 15.
@@ -106,5 +120,7 @@ dotnet run --project tools/WinCapture -c Release -- "Editor Title" pr-screenshot
 - **ALL implementation in isolated worktrees** — never `git checkout`/`stash`/`switch` in main worktree
 - **Screenshots MANDATORY for feat/fix PRs** — GUI PRs need real GUI captures (PrintWindow/MCP); non-GUI PRs accept CLI/test output. NEVER fabricate images. NEVER use feature-branch URLs (blob or raw).
 - **ALL test plan items must be `[x]`** — unchecked items block merge. Automate everything automatable.
+- **PR Review Gate may be skipped ONLY for the canonical screenshot-only helper exemption** — re-verify every
+  predicate; the PR-body marker alone never authorizes a bypass.
 - **Push immediately after every commit**
 - **Prune ALL stale worktrees after every merge** — own implementation worktree(s) AND merged-PR Copilot CLI review checkouts under `~/.copilot/session-state/*/files/pr*` (`git worktree remove --force` + `git worktree prune`); never `rm -rf` an unconfirmed path
