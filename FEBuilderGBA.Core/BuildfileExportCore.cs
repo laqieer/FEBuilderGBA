@@ -659,11 +659,16 @@ namespace FEBuilderGBA
             }
             catch (Exception ex)
             {
-                // Remove BOTH the external projection scratch (if any) and the stage; cleanup
-                // failures must not mask the original export error.
-                TryDelete(projectionScratch);
-                TryDelete(stage);
-                return BuildfileExportResult.Fail("Export failed: " + ex.Message);
+                var cleanupErrors = new List<string>();
+                if (!DeleteAndVerifyGone(projectionScratch, out string projectionCleanupError))
+                    cleanupErrors.Add("projection scratch '" + projectionScratch + "': " + projectionCleanupError);
+                if (!DeleteAndVerifyGone(stage, out string stageCleanupError))
+                    cleanupErrors.Add("stage '" + stage + "': " + stageCleanupError);
+
+                string error = "Export failed: " + ex.Message;
+                if (cleanupErrors.Count > 0)
+                    error += " Cleanup incomplete: " + string.Join("; ", cleanupErrors);
+                return BuildfileExportResult.Fail(error);
             }
 
             var result = new BuildfileExportResult
@@ -838,7 +843,9 @@ namespace FEBuilderGBA
             {
                 // Only expected filesystem/access faults are cleanup detail; a programmer defect
                 // during cleanup propagates rather than being recorded as pass/fail data.
+                if (ex is DirectoryNotFoundException) return true;
                 error = ex.Message;
+                return false;
             }
             if (Directory.Exists(dir))
             {
@@ -1097,12 +1104,6 @@ namespace FEBuilderGBA
         static string NormalizeLf(string s) => s.Replace("\r\n", "\n").Replace("\r", "\n");
 
         static void WriteTextLf(string path, string text) => File.WriteAllText(path, NormalizeLf(text));
-
-        static void TryDelete(string dir)
-        {
-            try { if (Directory.Exists(dir)) Directory.Delete(dir, true); }
-            catch { /* cleanup failures must not mask the original error */ }
-        }
 
         static string CategoryWord(MigrationCategory c)
         {

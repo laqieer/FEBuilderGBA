@@ -248,7 +248,9 @@ directory (created as a unique sibling OUTSIDE the publish stage on the same vol
 exporter-owned scratch path is stripped (the exporter does **not** claim to sanitize arbitrary
 absolute paths a projector might otherwise embed); on refusal/error the scratch is removed and
 verified gone, and if it cannot be removed the export aborts rather than publish a partial
-`source/`. If the target extends the clean ROM, the exporter picks the
+`source/`. Authoritative-output failures also verify stage/scratch cleanup; if the filesystem
+blocks removal, the failure names the residual temporary path instead of silently claiming
+cleanup. If the target extends the clean ROM, the exporter picks the
 most frequent extension byte (lowest byte on ties) as the fill and emits only sparse override
 ranges, so a large mostly-`FF`/`00` extension never becomes a giant payload. Emulator/playtest
 validation is issue #1932.

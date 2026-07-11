@@ -375,6 +375,48 @@ namespace FEBuilderGBA.Core.Tests
             finally { Cleanup(parent); }
         }
 
+        [SkippableFact]
+        public void Export_StagedCleanupFailure_IsReportedWithResidualPath()
+        {
+            Skip.IfNot(OperatingSystem.IsWindows(), "Open-handle delete-lock is reliable only on Windows");
+
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x10] = 0x9;
+
+            var (outDir, parent) = FreshOut();
+            FileStream held = null;
+            try
+            {
+                var options = new BuildfileExportOptions
+                {
+                    OutputDirectory = outDir,
+                    BeforePayloadWriteForTest = payloadPath =>
+                    {
+                        held = new FileStream(Path.Combine(Path.GetDirectoryName(payloadPath), "locked.bin"),
+                            FileMode.Create, FileAccess.ReadWrite, FileShare.None);
+                        held.WriteByte(1);
+                        throw new IOException("injected payload write failure");
+                    },
+                };
+
+                var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target), options);
+
+                Assert.False(result.Success);
+                Assert.Contains("injected payload write failure", result.Error);
+                Assert.Contains("Cleanup incomplete", result.Error);
+                Assert.Contains(".stage-", result.Error);
+                Assert.False(Directory.Exists(outDir));
+                Assert.Contains(Directory.GetDirectories(parent),
+                    d => Path.GetFileName(d).Contains(".stage-"));
+            }
+            finally
+            {
+                held?.Dispose();
+                Cleanup(parent);
+            }
+        }
+
         [Fact]
         public void Export_MissingParent_Fails_NoPartialOutput()
         {
@@ -618,6 +660,26 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.False(PatchMetadataCore.IsExpectedFileSystemException(new ArgumentOutOfRangeException()));
             }
             finally { try { Directory.Delete(empty, true); } catch { } }
+        }
+
+        [Fact]
+        public void TryEnumeratePatches_ReadFailure_ReturnsExplicitFailure()
+        {
+            string patchBase = Path.Combine(Path.GetTempPath(), "bfx_pm_read_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(patchBase);
+            try
+            {
+                File.WriteAllText(Path.Combine(patchBase, "PATCH_Test.txt"), "NAME=Test");
+
+                bool success = PatchMetadataCore.TryEnumeratePatches(
+                    patchBase, null, "en", _ => throw new IOException("injected read failure"),
+                    out var patches, out string error);
+
+                Assert.False(success);
+                Assert.Empty(patches);
+                Assert.Contains("injected read failure", error);
+            }
+            finally { try { Directory.Delete(patchBase, true); } catch { } }
         }
 
         [Fact]

@@ -117,6 +117,11 @@ namespace FEBuilderGBA
         /// </summary>
         public static bool TryEnumeratePatches(string patchBaseDir, ROM rom, string lang,
             out List<PatchInfo> patches, out string error)
+            => TryEnumeratePatches(patchBaseDir, rom, lang, File.ReadAllLines, out patches, out error);
+
+        /// <summary>Internal read seam for deterministic enumeration-failure coverage.</summary>
+        internal static bool TryEnumeratePatches(string patchBaseDir, ROM rom, string lang,
+            Func<string, string[]> readAllLines, out List<PatchInfo> patches, out string error)
         {
             patches = new List<PatchInfo>();
             error = "";
@@ -138,7 +143,7 @@ namespace FEBuilderGBA
                         ? fileName.Substring("PATCH_".Length)
                         : fileName;
 
-                    var info = ParsePatchFile(file, defaultName, rom, lang);
+                    var info = ParsePatchFileStrict(file, defaultName, rom, lang, readAllLines);
                     // Group by the patch's real containing folder (e.g. "SYSTEM") so the CLI
                     // --patch-name folder filter keeps working with recursion.
                     string containingDir = Path.GetFileName(Path.GetDirectoryName(file) ?? "") ?? "";
@@ -173,75 +178,82 @@ namespace FEBuilderGBA
         /// </summary>
         public static PatchInfo ParsePatchFile(string patchFilePath, string dirName, ROM rom, string lang)
         {
-            var info = new PatchInfo
+            try
+            {
+                return ParsePatchFileStrict(patchFilePath, dirName, rom, lang, File.ReadAllLines);
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorF("PatchMetadataCore: Failed to parse {0}: {1}", patchFilePath, ex.Message);
+                return CreatePatchInfo(patchFilePath, dirName);
+            }
+        }
+
+        static PatchInfo ParsePatchFileStrict(string patchFilePath, string dirName, ROM rom, string lang,
+            Func<string, string[]> readAllLines)
+        {
+            var info = CreatePatchInfo(patchFilePath, dirName);
+            string[] lines = readAllLines(patchFilePath);
+            string? patchedIf = null;
+
+            foreach (string rawLine in lines)
+            {
+                string line = rawLine.Trim();
+                if (line.StartsWith("//")) continue;
+
+                // Localized NAME
+                if (!string.IsNullOrEmpty(lang) && line.StartsWith($"NAME.{lang}=", StringComparison.OrdinalIgnoreCase))
+                    info.Name = line.Substring($"NAME.{lang}=".Length).Trim();
+                else if (line.StartsWith("NAME=", StringComparison.OrdinalIgnoreCase) && info.Name == dirName)
+                    info.Name = line.Substring(5).Trim();
+
+                // Localized INFO
+                if (!string.IsNullOrEmpty(lang) && line.StartsWith($"INFO.{lang}=", StringComparison.OrdinalIgnoreCase))
+                    info.Description = CleanDescription(line.Substring($"INFO.{lang}=".Length));
+                else if (line.StartsWith("INFO=", StringComparison.OrdinalIgnoreCase) && string.IsNullOrEmpty(info.Description))
+                    info.Description = CleanDescription(line.Substring(5));
+
+                if (line.StartsWith("AUTHOR=", StringComparison.OrdinalIgnoreCase))
+                    info.Author = line.Substring(7).Trim();
+
+                if (line.StartsWith("TAG=", StringComparison.OrdinalIgnoreCase))
+                    info.Tags = line.Substring(4).Trim();
+
+                if (line.StartsWith("TYPE=", StringComparison.OrdinalIgnoreCase))
+                    info.Type = line.Substring(5).Trim();
+
+                if (line.StartsWith("PATCHED_IF:", StringComparison.OrdinalIgnoreCase))
+                    patchedIf = line.Substring(11);
+            }
+
+            if (!string.IsNullOrEmpty(patchedIf))
+                info.Status = CheckPatchInstalled(patchedIf, rom, Path.GetDirectoryName(patchFilePath) ?? "");
+
+            var allDeps = ParsePatchDependencies(lines, lang);
+            info.DependencyCount = allDeps.Count;
+            if (allDeps.Count > 0)
+            {
+                var missing = new List<PatchDependency>();
+                foreach (var dep in allDeps)
+                {
+                    dep.IsSatisfied = EvaluateIfCondition(dep.Condition, rom);
+                    if (!dep.IsSatisfied)
+                        missing.Add(dep);
+                }
+                info.UnsatisfiedDependencyCount = missing.Count;
+                info.UnsatisfiedDependencies = missing;
+            }
+            return info;
+        }
+
+        static PatchInfo CreatePatchInfo(string patchFilePath, string dirName)
+            => new PatchInfo
             {
                 Name = dirName,
                 DirectoryName = dirName,
                 DirectoryPath = Path.GetDirectoryName(patchFilePath) ?? "",
                 PatchFilePath = patchFilePath,
             };
-
-            try
-            {
-                string[] lines = File.ReadAllLines(patchFilePath);
-                string? patchedIf = null;
-
-                foreach (string rawLine in lines)
-                {
-                    string line = rawLine.Trim();
-                    if (line.StartsWith("//")) continue;
-
-                    // Localized NAME
-                    if (!string.IsNullOrEmpty(lang) && line.StartsWith($"NAME.{lang}=", StringComparison.OrdinalIgnoreCase))
-                        info.Name = line.Substring($"NAME.{lang}=".Length).Trim();
-                    else if (line.StartsWith("NAME=", StringComparison.OrdinalIgnoreCase) && info.Name == dirName)
-                        info.Name = line.Substring(5).Trim();
-
-                    // Localized INFO
-                    if (!string.IsNullOrEmpty(lang) && line.StartsWith($"INFO.{lang}=", StringComparison.OrdinalIgnoreCase))
-                        info.Description = CleanDescription(line.Substring($"INFO.{lang}=".Length));
-                    else if (line.StartsWith("INFO=", StringComparison.OrdinalIgnoreCase) && string.IsNullOrEmpty(info.Description))
-                        info.Description = CleanDescription(line.Substring(5));
-
-                    if (line.StartsWith("AUTHOR=", StringComparison.OrdinalIgnoreCase))
-                        info.Author = line.Substring(7).Trim();
-
-                    if (line.StartsWith("TAG=", StringComparison.OrdinalIgnoreCase))
-                        info.Tags = line.Substring(4).Trim();
-
-                    if (line.StartsWith("TYPE=", StringComparison.OrdinalIgnoreCase))
-                        info.Type = line.Substring(5).Trim();
-
-                    if (line.StartsWith("PATCHED_IF:", StringComparison.OrdinalIgnoreCase))
-                        patchedIf = line.Substring(11);
-                }
-
-                if (!string.IsNullOrEmpty(patchedIf))
-                    info.Status = CheckPatchInstalled(patchedIf, rom, Path.GetDirectoryName(patchFilePath) ?? "");
-
-                // Check dependencies (IF: lines)
-                var allDeps = GetPatchDependencies(patchFilePath, lang);
-                info.DependencyCount = allDeps.Count;
-                if (allDeps.Count > 0)
-                {
-                    var missing = new List<PatchDependency>();
-                    foreach (var dep in allDeps)
-                    {
-                        dep.IsSatisfied = EvaluateIfCondition(dep.Condition, rom);
-                        if (!dep.IsSatisfied)
-                            missing.Add(dep);
-                    }
-                    info.UnsatisfiedDependencyCount = missing.Count;
-                    info.UnsatisfiedDependencies = missing;
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.ErrorF("PatchMetadataCore: Failed to parse {0}: {1}", patchFilePath, ex.Message);
-            }
-
-            return info;
-        }
 
         /// <summary>
         /// Check if a patch is installed by evaluating a PATCHED_IF condition string.
@@ -368,74 +380,72 @@ namespace FEBuilderGBA
         /// <returns>List of dependency conditions.</returns>
         public static List<PatchDependency> GetPatchDependencies(string patchFilePath, string lang = "")
         {
-            var result = new List<PatchDependency>();
-            if (!File.Exists(patchFilePath)) return result;
+            if (!File.Exists(patchFilePath)) return new List<PatchDependency>();
 
             try
             {
-                string[] lines = File.ReadAllLines(patchFilePath);
-                string ifComment = "";
-                string ifCommentLocalized = "";
-
-                // First pass: collect IF_COMMENT values
-                foreach (string rawLine in lines)
-                {
-                    string line = rawLine.Trim();
-                    if (line.StartsWith("//")) continue;
-
-                    int sep = line.IndexOf('=');
-                    if (sep < 0) continue;
-
-                    string key = line.Substring(0, sep).Trim();
-                    string value = line.Substring(sep + 1).Trim();
-
-                    if (!string.IsNullOrEmpty(lang) &&
-                        key.Equals($"IF_COMMENT.{lang}", StringComparison.OrdinalIgnoreCase))
-                        ifCommentLocalized = value;
-                    else if (key.Equals("IF_COMMENT", StringComparison.OrdinalIgnoreCase) &&
-                             string.IsNullOrEmpty(ifCommentLocalized))
-                        ifComment = value;
-                }
-
-                string resolvedComment = !string.IsNullOrEmpty(ifCommentLocalized) ? ifCommentLocalized : ifComment;
-
-                // Second pass: collect IF: conditions
-                foreach (string rawLine in lines)
-                {
-                    string line = rawLine.Trim();
-                    if (line.StartsWith("//")) continue;
-
-                    // IF: lines use colon-separated key format: IF:address=bytes
-                    if (!line.StartsWith("IF:", StringComparison.OrdinalIgnoreCase)) continue;
-
-                    // Extract the condition part after "IF:"
-                    string condition = line.Substring(3).Trim();
-
-                    // Strip trailing inline comments (e.g. "//need Anti-Huffman")
-                    int commentIdx = condition.IndexOf("//");
-                    string inlineComment = "";
-                    if (commentIdx >= 0)
-                    {
-                        inlineComment = condition.Substring(commentIdx + 2).Trim();
-                        condition = condition.Substring(0, commentIdx).Trim();
-                    }
-
-                    // Use inline comment if IF_COMMENT is not present
-                    string depComment = !string.IsNullOrEmpty(resolvedComment) ? resolvedComment
-                        : !string.IsNullOrEmpty(inlineComment) ? inlineComment : "";
-
-                    result.Add(new PatchDependency
-                    {
-                        Condition = condition,
-                        Comment = depComment,
-                    });
-                }
+                return ParsePatchDependencies(File.ReadAllLines(patchFilePath), lang);
             }
             catch (Exception ex)
             {
                 Log.ErrorF("PatchMetadataCore.GetPatchDependencies: {0}: {1}", patchFilePath, ex.Message);
+                return new List<PatchDependency>();
+            }
+        }
+
+        static List<PatchDependency> ParsePatchDependencies(string[] lines, string lang)
+        {
+            var result = new List<PatchDependency>();
+            string ifComment = "";
+            string ifCommentLocalized = "";
+
+            // First pass: collect IF_COMMENT values
+            foreach (string rawLine in lines)
+            {
+                string line = rawLine.Trim();
+                if (line.StartsWith("//")) continue;
+
+                int sep = line.IndexOf('=');
+                if (sep < 0) continue;
+
+                string key = line.Substring(0, sep).Trim();
+                string value = line.Substring(sep + 1).Trim();
+
+                if (!string.IsNullOrEmpty(lang) &&
+                    key.Equals($"IF_COMMENT.{lang}", StringComparison.OrdinalIgnoreCase))
+                    ifCommentLocalized = value;
+                else if (key.Equals("IF_COMMENT", StringComparison.OrdinalIgnoreCase) &&
+                         string.IsNullOrEmpty(ifCommentLocalized))
+                    ifComment = value;
             }
 
+            string resolvedComment = !string.IsNullOrEmpty(ifCommentLocalized) ? ifCommentLocalized : ifComment;
+
+            // Second pass: collect IF: conditions
+            foreach (string rawLine in lines)
+            {
+                string line = rawLine.Trim();
+                if (line.StartsWith("//")) continue;
+                if (!line.StartsWith("IF:", StringComparison.OrdinalIgnoreCase)) continue;
+
+                string condition = line.Substring(3).Trim();
+                int commentIdx = condition.IndexOf("//");
+                string inlineComment = "";
+                if (commentIdx >= 0)
+                {
+                    inlineComment = condition.Substring(commentIdx + 2).Trim();
+                    condition = condition.Substring(0, commentIdx).Trim();
+                }
+
+                string depComment = !string.IsNullOrEmpty(resolvedComment) ? resolvedComment
+                    : !string.IsNullOrEmpty(inlineComment) ? inlineComment : "";
+
+                result.Add(new PatchDependency
+                {
+                    Condition = condition,
+                    Comment = depComment,
+                });
+            }
             return result;
         }
 
