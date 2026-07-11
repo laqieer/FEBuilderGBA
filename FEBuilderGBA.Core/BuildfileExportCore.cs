@@ -1,0 +1,1001 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Buildfile recipe exporter (#1935).
+//
+// Emits a deterministic, git-friendly source recipe describing the COMPLETE binary
+// delta from a clean ROM to a modded ROM. The governing invariant is losslessness:
+// every target byte is owned exactly once by either
+//   - the clean baseline (unchanged bytes up to clean.Length),
+//   - a declared extension fill (bytes past clean.Length that equal the chosen fill),
+//   - or exactly one sparse payload range (bytes that differ from clean-or-fill).
+//
+// `buildfile.json` + `data/` are the SOLE authoritative recipe (consumed by #1936).
+// `main.event` (derived Event Assembler installer), the patch inventory, and the
+// optional `source/` projection are advisory surfaces that never weaken the raw
+// recipe and are never composed into authoritative reconstruction here.
+//
+// The planner (pure, deterministic) is separated from filesystem publication so it
+// can be unit-tested without touching disk. Publication stages the whole tree in a
+// uniquely named sibling under the destination's exact parent, then publishes it
+// with a single directory rename; no source ROM path or full ROM is ever written.
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+namespace FEBuilderGBA
+{
+    /// <summary>Status of the optional source-aware rebuild projection.</summary>
+    public enum BuildfileProjectionStatus
+    {
+        Skipped = 0,
+        Success = 1,
+        Refused = 2,
+        Error = 3,
+    }
+
+    /// <summary>Outcome returned by a caller-supplied projection runner.</summary>
+    public sealed class BuildfileProjectionOutcome
+    {
+        public BuildfileProjectionStatus Status { get; set; } = BuildfileProjectionStatus.Skipped;
+        public string Reason { get; set; } = "";
+
+        public static BuildfileProjectionOutcome Skip(string reason)
+            => new BuildfileProjectionOutcome { Status = BuildfileProjectionStatus.Skipped, Reason = reason ?? "" };
+        public static BuildfileProjectionOutcome Ok()
+            => new BuildfileProjectionOutcome { Status = BuildfileProjectionStatus.Success, Reason = "" };
+        public static BuildfileProjectionOutcome Refuse(string reason)
+            => new BuildfileProjectionOutcome { Status = BuildfileProjectionStatus.Refused, Reason = reason ?? "" };
+        public static BuildfileProjectionOutcome Fail(string reason)
+            => new BuildfileProjectionOutcome { Status = BuildfileProjectionStatus.Error, Reason = reason ?? "" };
+    }
+
+    /// <summary>
+    /// Optional source projection runner. It must produce its artifacts INTO
+    /// <paramref name="scratchDir"/> (an empty, private directory the exporter owns
+    /// and will move to <c>source/</c> only on <see cref="BuildfileProjectionStatus.Success"/>).
+    /// It must never throw; any fault should be reported as a Refused/Error outcome.
+    /// </summary>
+    public delegate BuildfileProjectionOutcome BuildfileProjectionRunner(string scratchDir);
+
+    /// <summary>
+    /// Canonical path helpers shared by the exporter and its CLI front-end.
+    ///
+    /// Normalization: every path is run through <see cref="Path.GetFullPath(string)"/> then
+    /// <see cref="Path.TrimEndingDirectorySeparator(string)"/> (roots preserved) BEFORE any
+    /// parent/name/existence/staging decision, so a trailing separator (<c>project/</c>) never
+    /// changes behavior.
+    ///
+    /// Input identity (ROM inputs): we do NOT blanket-reject symlinks/junctions. Instead we
+    /// resolve each EXISTING input to its PHYSICAL canonical path via
+    /// <see cref="ResolvePhysicalPath"/> — a realpath that walks every component from the root
+    /// and follows symlink/junction targets, including ANCESTOR links (so
+    /// <c>C:\link\mod.gba</c> collapses to <c>C:\real\mod.gba</c> when <c>C:\link</c> is a
+    /// junction to <c>C:\real</c>). <see cref="SamePhysicalFile"/> then compares the two
+    /// resolved paths, so aliases of the SAME file are rejected while two DISTINCT files that
+    /// merely share a benign/system symlinked ancestor (e.g. macOS <c>/var → /private/var</c>)
+    /// are accepted. Resolution never broad-catches: permission/IO/loop faults surface as an
+    /// explicit <see cref="IOException"/>.
+    ///
+    /// Output staging: only the IMMEDIATE output parent is checked for a reparse point via
+    /// <see cref="IsReparsePoint"/> — the atomic-publish guarantee needs only that the stage
+    /// sibling and the destination share the same immediate parent, so we do NOT walk the
+    /// output chain to root (which would reject legitimate roots and system symlinks).
+    ///
+    /// Comparison is OS-appropriate: case-insensitive on Windows/macOS (conservative — per-volume
+    /// case sensitivity is not probed), case-sensitive elsewhere. True same-file identity across
+    /// HARD links is not portably detectable (hard links are not reparse points and each has its
+    /// own physical path), so it is out of scope by design.
+    /// </summary>
+    public static class BuildfilePathSafety
+    {
+        /// <summary>Full-path normalize + trailing-separator trim (roots preserved).</summary>
+        public static string NormalizeFullPath(string path)
+        {
+            if (string.IsNullOrEmpty(path)) throw new ArgumentException("Path is empty.", nameof(path));
+            return Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        }
+
+        static StringComparison PathComparison =>
+            (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS())
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+
+        /// <summary>OS-appropriate equality of two normalized full paths.</summary>
+        public static bool PathsEqual(string a, string b)
+            => string.Equals(NormalizeFullPath(a), NormalizeFullPath(b), PathComparison);
+
+        /// <summary>
+        /// True when the RAW path value contains a path segment that is exactly <c>..</c>
+        /// (parent-directory traversal). Splits on the platform's directory separators
+        /// (<c>/</c> and <c>\</c> on Windows; only <c>/</c> on Unix, where <c>\</c> is a legal
+        /// filename character), so a filename that merely CONTAINS dots (e.g. <c>my..rom.gba</c>,
+        /// <c>..config</c>) is NOT matched. Used to fail-closed on ROM inputs BEFORE any
+        /// normalization/existence/load, because <see cref="Path.GetFullPath(string)"/> collapses
+        /// <c>..</c> LEXICALLY before symlinks are resolved, which can diverge from the physical
+        /// filesystem when a <c>..</c> segment follows a symlinked component.
+        /// </summary>
+        public static bool ContainsParentTraversal(string rawPath)
+        {
+            if (string.IsNullOrEmpty(rawPath)) return false;
+            foreach (string seg in rawPath.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }))
+                if (seg == "..") return true;
+            return false;
+        }
+
+        /// <summary>
+        /// Resolve <paramref name="path"/> to a PHYSICAL canonical path (realpath): walk every
+        /// component from the volume/filesystem root and follow each existing symlink/junction
+        /// to its target — INCLUDING ancestor links — so aliases collapse to one physical path.
+        /// Non-existent trailing components (the destination may not exist yet) are appended
+        /// lexically (they cannot be links). Windows drive/UNC roots and Unix roots are handled;
+        /// relative link targets are resolved against the link's own (already-physical) directory;
+        /// symlink loops are bounded and raise an <see cref="IOException"/>; a permission/
+        /// attribute/target-read fault also raises an explicit <see cref="IOException"/>. Never
+        /// broad-catches or silently accepts uncertainty.
+        ///
+        /// PRECONDITION: the caller MUST reject raw parent-traversal (<c>..</c>) segments first
+        /// (see <see cref="ContainsParentTraversal"/>). This method normalizes via
+        /// <see cref="Path.GetFullPath(string)"/>, which resolves <c>..</c> LEXICALLY before any
+        /// symlink is followed; a <c>..</c> that follows a symlinked component would therefore
+        /// diverge from the physical filesystem. A residual <c>..</c> after normalization is
+        /// treated as a fail-closed <see cref="IOException"/>, never silently mis-resolved.
+        /// </summary>
+        public static string ResolvePhysicalPath(string path)
+        {
+            string full = Path.GetFullPath(path);
+            string root = Path.GetPathRoot(full);
+            if (string.IsNullOrEmpty(root))
+                throw new ArgumentException("Cannot resolve a rootless path: " + path, nameof(path));
+
+            var pending = SplitComponents(full.Substring(root.Length));
+            string resolvedBase = root; // physical so far
+            int hops = 0;
+            const int MaxHops = 128;
+
+            int i = 0;
+            while (i < pending.Count)
+            {
+                string comp = pending[i];
+                // GetFullPath already resolved '.'/'..' lexically; a residual traversal segment
+                // would mean an unexpected parse — fail closed rather than mis-resolve.
+                if (comp == "." || comp == "..")
+                    throw new IOException("Unexpected traversal segment '" + comp + "' after normalization of: " + full);
+
+                string candidate = Path.Combine(resolvedBase, comp);
+                bool isFile = File.Exists(candidate);
+                bool isDir = Directory.Exists(candidate);
+                if (!isFile && !isDir)
+                {
+                    // From here down nothing exists → append the rest lexically (no links possible).
+                    resolvedBase = candidate;
+                    for (int j = i + 1; j < pending.Count; j++)
+                        resolvedBase = Path.Combine(resolvedBase, pending[j]);
+                    return Path.TrimEndingDirectorySeparator(resolvedBase);
+                }
+
+                FileAttributes attr;
+                try { attr = File.GetAttributes(candidate); }
+                catch (Exception ex)
+                { throw new IOException("Cannot inspect path component: " + candidate + " (" + ex.Message + ")", ex); }
+
+                if ((attr & FileAttributes.ReparsePoint) != 0)
+                {
+                    if (++hops > MaxHops)
+                        throw new IOException("Too many symbolic-link hops while resolving: " + path);
+
+                    string target = ReadLinkTarget(candidate, isDir, resolvedBase);
+                    string targetRoot = Path.GetPathRoot(target);
+                    if (string.IsNullOrEmpty(targetRoot))
+                        throw new IOException("Resolved link target is not rooted: " + target);
+
+                    // Re-seed from the target's root, then re-append the not-yet-processed tail,
+                    // so ancestor links inside the target are themselves resolved.
+                    var newPending = SplitComponents(target.Substring(targetRoot.Length));
+                    for (int j = i + 1; j < pending.Count; j++) newPending.Add(pending[j]);
+                    resolvedBase = targetRoot;
+                    pending = newPending;
+                    i = 0;
+                    continue;
+                }
+
+                resolvedBase = candidate;
+                i++;
+            }
+            return Path.TrimEndingDirectorySeparator(resolvedBase);
+        }
+
+        /// <summary>
+        /// True when <paramref name="a"/> and <paramref name="b"/> resolve to the SAME physical
+        /// file/dir (realpath + OS-appropriate comparison). Catches ancestor- and final-link
+        /// aliases of the same file; does NOT detect hard-link identity (out of scope).
+        /// </summary>
+        public static bool SamePhysicalFile(string a, string b)
+            => string.Equals(ResolvePhysicalPath(a), ResolvePhysicalPath(b), PathComparison);
+
+        static List<string> SplitComponents(string rest)
+            => new List<string>(rest.Split(
+                new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar },
+                StringSplitOptions.RemoveEmptyEntries));
+
+        // Read a reparse point's target and resolve it to an absolute path (relative targets are
+        // resolved against the link's own directory). Explicit failure — never silently empty.
+        static string ReadLinkTarget(string linkPath, bool isDir, string resolvedBase)
+        {
+            string raw;
+            try
+            {
+                FileSystemInfo fsi = isDir ? new DirectoryInfo(linkPath) : new FileInfo(linkPath);
+                raw = fsi.LinkTarget;
+                if (string.IsNullOrEmpty(raw))
+                    raw = fsi.ResolveLinkTarget(returnFinalTarget: false)?.FullName;
+            }
+            catch (Exception ex)
+            { throw new IOException("Cannot read link target: " + linkPath + " (" + ex.Message + ")", ex); }
+
+            if (string.IsNullOrEmpty(raw))
+                throw new IOException("Unresolvable reparse point (no readable target): " + linkPath);
+
+            string linkDir = Path.GetDirectoryName(linkPath) ?? resolvedBase;
+            return Path.IsPathRooted(raw)
+                ? Path.GetFullPath(raw)
+                : Path.GetFullPath(Path.Combine(linkDir, raw));
+        }
+
+        /// <summary>
+        /// True when <paramref name="path"/> exists AND is a reparse point (symlink/junction).
+        /// A permission fault while inspecting an existing path is surfaced as an explicit
+        /// <see cref="IOException"/> rather than being treated as "not a reparse point".
+        /// </summary>
+        public static bool IsReparsePoint(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return false;
+            if (!File.Exists(path) && !Directory.Exists(path)) return false;
+            try
+            {
+                return (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
+            }
+            catch (Exception ex)
+            {
+                throw new IOException("Could not inspect path for reparse point: " + path + " (" + ex.Message + ")", ex);
+            }
+        }
+    }
+
+    /// <summary>Inputs for a buildfile export.</summary>
+    public sealed class BuildfileExportOptions
+    {
+        /// <summary>Absolute path of the destination project directory (must not exist).</summary>
+        public string OutputDirectory { get; set; } = "";
+
+        /// <summary>Patch-library base directory for this version (config/patch2/{version}); optional.</summary>
+        public string PatchBaseDirectory { get; set; }
+
+        /// <summary>Language used when enumerating patch metadata (default "en").</summary>
+        public string Language { get; set; } = "en";
+
+        /// <summary>Optional source-aware projection runner; null = projection skipped.</summary>
+        public BuildfileProjectionRunner ProjectionRunner { get; set; }
+
+        /// <summary>Maximum accepted target size (32 MiB).</summary>
+        public const int MaxRomSize = 32 * 1024 * 1024;
+    }
+
+    /// <summary>Result of an export attempt.</summary>
+    public sealed class BuildfileExportResult
+    {
+        public bool Success { get; set; }
+        public string Error { get; set; } = "";
+        public string PublishedPath { get; set; } = "";
+        public BuildfileManifest Manifest { get; set; }
+        public List<string> Warnings { get; } = new List<string>();
+
+        public static BuildfileExportResult Fail(string error)
+            => new BuildfileExportResult { Success = false, Error = error ?? "" };
+    }
+
+    // -------------------------------------------------------------- manifest POCOs
+
+    /// <summary>Deterministic schema-v1 buildfile manifest (JSON authority).</summary>
+    public sealed class BuildfileManifest
+    {
+        [JsonPropertyName("schemaVersion")] public int SchemaVersion { get; set; } = 1;
+        [JsonPropertyName("tool")] public string Tool { get; set; } = "FEBuilderGBA --export-buildfile";
+        [JsonPropertyName("game")] public string Game { get; set; } = "";
+        [JsonPropertyName("version")] public string Version { get; set; } = "";
+        [JsonPropertyName("entryEvent")] public string EntryEvent { get; set; } = "main.event";
+        [JsonPropertyName("dataDirectory")] public string DataDirectory { get; set; } = "data";
+
+        [JsonPropertyName("clean")] public BuildfileRomIdentity Clean { get; set; } = new BuildfileRomIdentity();
+        [JsonPropertyName("target")] public BuildfileRomIdentity Target { get; set; } = new BuildfileRomIdentity();
+
+        /// <summary>Extension policy when the target is longer than clean; null when equal length.</summary>
+        [JsonPropertyName("extension")] public BuildfileExtension Extension { get; set; }
+
+        [JsonPropertyName("totalRanges")] public int TotalRanges { get; set; }
+        [JsonPropertyName("totalChangedBytes")] public uint TotalChangedBytes { get; set; }
+
+        [JsonPropertyName("ranges")] public List<BuildfileRange> Ranges { get; set; } = new List<BuildfileRange>();
+        [JsonPropertyName("patches")] public BuildfilePatchInventory Patches { get; set; } = new BuildfilePatchInventory();
+        [JsonPropertyName("projection")] public BuildfileProjectionInfo Projection { get; set; } = new BuildfileProjectionInfo();
+        [JsonPropertyName("warnings")] public List<string> Warnings { get; set; } = new List<string>();
+    }
+
+    /// <summary>Size + hash identity of a ROM (never its filesystem path).</summary>
+    public sealed class BuildfileRomIdentity
+    {
+        [JsonPropertyName("size")] public uint Size { get; set; }
+        [JsonPropertyName("crc32")] public string Crc32 { get; set; } = "";
+        [JsonPropertyName("sha256")] public string Sha256 { get; set; } = "";
+        /// <summary>Only meaningful for the clean ROM: true when it is the known canonical original.</summary>
+        [JsonPropertyName("isCanonicalOriginal")] public bool IsCanonicalOriginal { get; set; }
+    }
+
+    /// <summary>Virtual extension-fill policy for a target longer than clean.</summary>
+    public sealed class BuildfileExtension
+    {
+        [JsonPropertyName("start")] public uint Start { get; set; }
+        [JsonPropertyName("length")] public uint Length { get; set; }
+        [JsonPropertyName("fillByte")] public string FillByte { get; set; } = "";
+    }
+
+    /// <summary>One ordered, non-overlapping payload range.</summary>
+    public sealed class BuildfileRange
+    {
+        [JsonPropertyName("index")] public int Index { get; set; }
+        [JsonPropertyName("offset")] public uint Offset { get; set; }
+        [JsonPropertyName("gbaAddress")] public string GbaAddress { get; set; } = "";
+        [JsonPropertyName("length")] public uint Length { get; set; }
+        [JsonPropertyName("changedBytes")] public uint ChangedBytes { get; set; }
+        [JsonPropertyName("category")] public string Category { get; set; } = "";
+        [JsonPropertyName("confidence")] public string Confidence { get; set; } = "";
+        [JsonPropertyName("suggestion")] public string Suggestion { get; set; } = "";
+        [JsonPropertyName("payload")] public string Payload { get; set; } = "";
+        [JsonPropertyName("payloadSha256")] public string PayloadSha256 { get; set; } = "";
+    }
+
+    /// <summary>Advisory installed-patch inventory (never authoritative).</summary>
+    public sealed class BuildfilePatchInventory
+    {
+        [JsonPropertyName("status")] public string Status { get; set; } = "unavailable";
+        [JsonPropertyName("reason")] public string Reason { get; set; } = "";
+        [JsonPropertyName("baseRelative")] public string BaseRelative { get; set; } = "";
+        [JsonPropertyName("installed")] public List<BuildfilePatchRecord> Installed { get; set; } = new List<BuildfilePatchRecord>();
+    }
+
+    /// <summary>One advisory patch record.</summary>
+    public sealed class BuildfilePatchRecord
+    {
+        [JsonPropertyName("name")] public string Name { get; set; } = "";
+        [JsonPropertyName("path")] public string Path { get; set; } = "";
+        [JsonPropertyName("status")] public string Status { get; set; } = "";
+        [JsonPropertyName("confidence")] public string Confidence { get; set; } = "";
+        [JsonPropertyName("reason")] public string Reason { get; set; } = "";
+        [JsonPropertyName("params")] public List<BuildfilePatchParam> Params { get; set; } = new List<BuildfilePatchParam>();
+    }
+
+    /// <summary>Raw patch parameter declaration.</summary>
+    public sealed class BuildfilePatchParam
+    {
+        [JsonPropertyName("key")] public string Key { get; set; } = "";
+        [JsonPropertyName("value")] public string Value { get; set; } = "";
+    }
+
+    /// <summary>Status of the optional source projection recorded in the manifest.</summary>
+    public sealed class BuildfileProjectionInfo
+    {
+        [JsonPropertyName("status")] public string Status { get; set; } = "skipped";
+        [JsonPropertyName("reason")] public string Reason { get; set; } = "";
+        [JsonPropertyName("directory")] public string Directory { get; set; }
+    }
+
+    // -------------------------------------------------------------- planner result
+
+    /// <summary>The pure planning output: the manifest plus the raw payload spans to write.</summary>
+    public sealed class BuildfileExportPlan
+    {
+        public BuildfileManifest Manifest { get; set; } = new BuildfileManifest();
+        /// <summary>Payloads to write: relative "data/..." path -> (offset,length) into the target.</summary>
+        public List<BuildfilePayloadSpan> Payloads { get; } = new List<BuildfilePayloadSpan>();
+        public byte FillByte { get; set; }
+        public bool HasExtension { get; set; }
+    }
+
+    /// <summary>A payload span referencing target bytes by offset/length.</summary>
+    public sealed class BuildfilePayloadSpan
+    {
+        public string RelativePath { get; set; } = "";
+        public uint Offset { get; set; }
+        public uint Length { get; set; }
+    }
+
+    /// <summary>
+    /// Buildfile recipe exporter. The planner is pure/deterministic; publication is
+    /// staged then atomically renamed. Neither ROM is mutated.
+    /// </summary>
+    public static class BuildfileExportCore
+    {
+        static readonly JsonSerializerOptions JsonOptions = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        };
+
+        // ---------------------------------------------------------------- planning
+
+        /// <summary>
+        /// Build a deterministic export plan for the given clean/target ROMs. Throws
+        /// <see cref="ArgumentException"/> on any identity/size validation failure so the
+        /// caller can refuse before touching the filesystem. Pure: reads only the two
+        /// ROMs (+ optional patch metadata); writes nothing.
+        /// </summary>
+        public static BuildfileExportPlan Plan(ROM cleanRom, ROM targetRom, BuildfileExportOptions options)
+        {
+            if (cleanRom == null) throw new ArgumentNullException(nameof(cleanRom));
+            if (targetRom == null) throw new ArgumentNullException(nameof(targetRom));
+            if (options == null) throw new ArgumentNullException(nameof(options));
+
+            byte[] clean = cleanRom.Data ?? throw new ArgumentException("Clean ROM has no data.", nameof(cleanRom));
+            byte[] target = targetRom.Data ?? throw new ArgumentException("Target ROM has no data.", nameof(targetRom));
+
+            string cleanVersion = cleanRom.RomInfo?.VersionToFilename;
+            string targetVersion = targetRom.RomInfo?.VersionToFilename;
+            if (string.IsNullOrEmpty(cleanVersion) || string.IsNullOrEmpty(targetVersion))
+                throw new ArgumentException("Could not detect a supported Fire Emblem GBA version for one or both ROMs.");
+            if (!string.Equals(cleanVersion, targetVersion, StringComparison.Ordinal))
+                throw new ArgumentException(
+                    $"Clean and modded ROMs are different versions (clean={cleanVersion}, modded={targetVersion}).");
+
+            if (target.Length < clean.Length)
+                throw new ArgumentException(
+                    $"Modded ROM ({target.Length} bytes) is shorter than the clean ROM ({clean.Length} bytes); refusing.");
+            if (target.Length > BuildfileExportOptions.MaxRomSize)
+                throw new ArgumentException(
+                    $"Modded ROM ({target.Length} bytes) exceeds the {BuildfileExportOptions.MaxRomSize}-byte (32 MiB) limit.");
+
+            var plan = new BuildfileExportPlan();
+            var m = plan.Manifest;
+            m.SchemaVersion = 1;
+            m.Game = "Fire Emblem GBA";
+            m.Version = targetVersion;
+
+            uint cleanCrc = new U.CRC32().Calc(clean);
+            uint targetCrc = new U.CRC32().Calc(target);
+            uint canonicalCrc = cleanRom.RomInfo != null ? cleanRom.RomInfo.orignal_crc32 : 0;
+            bool cleanIsCanonical = canonicalCrc != 0 && cleanCrc == canonicalCrc;
+
+            m.Clean = new BuildfileRomIdentity
+            {
+                Size = (uint)clean.Length,
+                Crc32 = Hex32(cleanCrc),
+                Sha256 = Sha256Hex(clean),
+                IsCanonicalOriginal = cleanIsCanonical,
+            };
+            m.Target = new BuildfileRomIdentity
+            {
+                Size = (uint)target.Length,
+                Crc32 = Hex32(targetCrc),
+                Sha256 = Sha256Hex(target),
+            };
+
+            if (!cleanIsCanonical)
+            {
+                m.Warnings.Add(
+                    "Clean ROM is not the known canonical original for " + targetVersion +
+                    " (crc32=" + Hex32(cleanCrc) + "); reproducibility is bound to its sha256 " +
+                    m.Clean.Sha256 + ".");
+            }
+
+            // Deterministic extension fill: most frequent byte in [clean.Length, target.Length),
+            // lowest byte value on a frequency tie.
+            byte fill = 0;
+            bool hasExtension = target.Length > clean.Length;
+            if (hasExtension)
+            {
+                fill = MostFrequentByte(target, clean.Length, target.Length);
+                plan.HasExtension = true;
+                plan.FillByte = fill;
+                m.Extension = new BuildfileExtension
+                {
+                    Start = (uint)clean.Length,
+                    Length = (uint)(target.Length - clean.Length),
+                    FillByte = Hex8(fill),
+                };
+            }
+
+            // Fill-aware diff feeding the SAME classification pipeline (maxGap 0 so every
+            // range byte differs from clean-or-fill and is owned exactly once).
+            MigrationReport report = DecompDiffMigrationCore.AnalyzeWithFill(
+                cleanRom, target, fill, map: null, resolver: null, maxGap: 0);
+
+            uint totalChanged = 0;
+            int index = 0;
+            foreach (MigrationRange mr in report.Ranges)
+            {
+                string rel = "data/" + PayloadName(index, mr.Offset, mr.SpanLength);
+                byte[] payload = Slice(target, mr.Offset, mr.SpanLength);
+
+                m.Ranges.Add(new BuildfileRange
+                {
+                    Index = index,
+                    Offset = mr.Offset,
+                    GbaAddress = Hex32(U.toPointer(mr.Offset)),
+                    Length = mr.SpanLength,
+                    ChangedBytes = mr.ChangedBytes,
+                    Category = CategoryWord(mr.Category),
+                    Confidence = ConfidenceWord(mr.Confidence),
+                    Suggestion = mr.Suggestion ?? "",
+                    Payload = rel,
+                    PayloadSha256 = Sha256Hex(payload),
+                });
+                plan.Payloads.Add(new BuildfilePayloadSpan { RelativePath = rel, Offset = mr.Offset, Length = mr.SpanLength });
+
+                totalChanged += mr.ChangedBytes;
+                index++;
+            }
+            m.TotalRanges = m.Ranges.Count;
+            m.TotalChangedBytes = totalChanged;
+
+            // Losslessness gate: reconstruct target from clean + fill + payloads and prove
+            // byte-for-byte equality before we ever publish (defensive, never expected to fail).
+            VerifyReconstruction(clean, target, fill, plan.Payloads);
+
+            m.Patches = BuildPatchInventory(cleanRom, targetRom, options);
+
+            return plan;
+        }
+
+        // ------------------------------------------------------------- publication
+
+        /// <summary>
+        /// Plan and publish a buildfile project. Stages the whole tree in a uniquely
+        /// named sibling under the destination's exact parent, re-reads/hashes each
+        /// payload, writes buildfile.json last, and publishes with one directory rename.
+        /// On any failure the stage is removed and no destination is created.
+        /// </summary>
+        public static BuildfileExportResult Export(ROM cleanRom, ROM targetRom, BuildfileExportOptions options)
+        {
+            if (options == null) return BuildfileExportResult.Fail("Options are required.");
+            if (string.IsNullOrEmpty(options.OutputDirectory))
+                return BuildfileExportResult.Fail("Output directory is required.");
+
+            string outDir;
+            string parent;
+            try
+            {
+                outDir = BuildfilePathSafety.NormalizeFullPath(options.OutputDirectory);
+                parent = Path.GetDirectoryName(outDir);
+            }
+            catch (Exception ex)
+            {
+                return BuildfileExportResult.Fail("Invalid output directory: " + ex.Message);
+            }
+
+            if (string.IsNullOrEmpty(parent))
+                return BuildfileExportResult.Fail("Output directory has no parent (cannot export to a filesystem root): " + outDir);
+            if (Directory.Exists(outDir) || File.Exists(outDir))
+                return BuildfileExportResult.Fail("Output path already exists: " + outDir);
+            if (!Directory.Exists(parent))
+                return BuildfileExportResult.Fail("Output parent directory does not exist: " + parent);
+            try
+            {
+                if (BuildfilePathSafety.IsReparsePoint(parent))
+                    return BuildfileExportResult.Fail(
+                        "Output parent directory is a symlink/junction (reparse point); refusing to guarantee an atomic same-parent publish: " + parent);
+            }
+            catch (Exception ex)
+            {
+                return BuildfileExportResult.Fail(ex.Message);
+            }
+
+            BuildfileExportPlan plan;
+            try
+            {
+                plan = Plan(cleanRom, targetRom, options);
+            }
+            catch (ArgumentException ex)
+            {
+                return BuildfileExportResult.Fail(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return BuildfileExportResult.Fail("Planning failed: " + ex.Message);
+            }
+
+            byte[] target = targetRom.Data;
+            string stage = Path.Combine(parent, "." + Path.GetFileName(outDir) + ".stage-" + Guid.NewGuid().ToString("N"));
+
+            try
+            {
+                Directory.CreateDirectory(stage);
+                Directory.CreateDirectory(Path.Combine(stage, "data"));
+
+                // 1) Raw payloads.
+                foreach (BuildfilePayloadSpan span in plan.Payloads)
+                {
+                    string full = Path.Combine(stage, RelToNative(span.RelativePath));
+                    byte[] bytes = Slice(target, span.Offset, span.Length);
+                    File.WriteAllBytes(full, bytes);
+                }
+
+                // 2) Derived EA installer + README.
+                WriteTextLf(Path.Combine(stage, "main.event"), GenerateMainEvent(plan));
+                WriteTextLf(Path.Combine(stage, "README.md"), GenerateReadme(plan.Manifest));
+
+                // 3) Optional advisory source projection into a private scratch child.
+                RunProjection(plan.Manifest, stage, options);
+
+                // 4) Re-read + verify every payload hash before we publish.
+                foreach (BuildfileRange r in plan.Manifest.Ranges)
+                {
+                    string full = Path.Combine(stage, RelToNative(r.Payload));
+                    byte[] bytes = File.ReadAllBytes(full);
+                    if ((uint)bytes.Length != r.Length || Sha256Hex(bytes) != r.PayloadSha256)
+                        throw new IOException("Payload verification failed for " + r.Payload);
+                }
+
+                // 5) buildfile.json LAST (the authority file marks a complete project).
+                WriteTextLf(Path.Combine(stage, "buildfile.json"), SerializeManifest(plan.Manifest));
+
+                // 6) Publish with a single directory rename.
+                Directory.Move(stage, outDir);
+            }
+            catch (Exception ex)
+            {
+                TryDelete(stage);
+                return BuildfileExportResult.Fail("Export failed: " + ex.Message);
+            }
+
+            var result = new BuildfileExportResult
+            {
+                Success = true,
+                PublishedPath = outDir,
+                Manifest = plan.Manifest,
+            };
+            result.Warnings.AddRange(plan.Manifest.Warnings);
+            return result;
+        }
+
+        /// <summary>Serialize a manifest to deterministic LF-terminated JSON text.</summary>
+        public static string SerializeManifest(BuildfileManifest manifest)
+        {
+            string json = JsonSerializer.Serialize(manifest, JsonOptions);
+            return NormalizeLf(json) + "\n";
+        }
+
+        // --------------------------------------------------------------- main.event
+
+        /// <summary>
+        /// Generate the derived Event Assembler installer from the plan. Uses EA's
+        /// documented <c>ORG Offset</c> and <c>FILL Amount Size Value</c> forms; payload
+        /// writes follow the fill so sparse overrides win. The JSON remains the authority.
+        /// </summary>
+        public static string GenerateMainEvent(BuildfileExportPlan plan)
+        {
+            var sb = new StringBuilder();
+            BuildfileManifest m = plan.Manifest;
+            sb.Append("// Generated by FEBuilderGBA --export-buildfile (#1935). DO NOT EDIT BY HAND.\n");
+            sb.Append("// Authoritative recipe: buildfile.json + data/. This file is a derived\n");
+            sb.Append("// Event Assembler interoperability surface only.\n");
+            sb.Append("PUSH\n");
+
+            if (m.Extension != null)
+            {
+                sb.Append("ORG 0x" + m.Extension.Start.ToString("X") + "\n");
+                sb.Append("FILL 0x" + m.Extension.Length.ToString("X") + " 1 " + m.Extension.FillByte + "\n");
+            }
+
+            foreach (BuildfileRange r in m.Ranges)
+            {
+                sb.Append("ORG 0x" + r.Offset.ToString("X") + "\n");
+                sb.Append("#incbin \"" + r.Payload + "\" // HINT=BIN\n");
+            }
+
+            sb.Append("POP\n");
+            return sb.ToString();
+        }
+
+        // ------------------------------------------------------------------- README
+
+        static string GenerateReadme(BuildfileManifest m)
+        {
+            var sb = new StringBuilder();
+            sb.Append("# FEBuilderGBA buildfile recipe\n\n");
+            sb.Append("Deterministic source recipe for the binary delta from a clean ROM to a modded ROM.\n\n");
+            sb.Append("- Game/version: " + m.Version + "\n");
+            sb.Append("- Clean size: " + m.Clean.Size + " bytes (sha256 " + m.Clean.Sha256 + ")\n");
+            sb.Append("- Target size: " + m.Target.Size + " bytes (sha256 " + m.Target.Sha256 + ")\n");
+            sb.Append("- Ranges: " + m.TotalRanges + " (" + m.TotalChangedBytes + " changed bytes)\n");
+            if (m.Extension != null)
+                sb.Append("- Extension: " + m.Extension.Length + " bytes from 0x" +
+                    m.Extension.Start.ToString("X") + " filled with " + m.Extension.FillByte + "\n");
+            sb.Append("\n## Layout\n\n");
+            sb.Append("- `buildfile.json` + `data/` are the ONLY build authority (consumed by #1936).\n");
+            sb.Append("- `main.event` is a derived Event Assembler entry point.\n");
+            sb.Append("- `source/` (when present) is a non-composable, best-effort source projection.\n");
+            sb.Append("- The patch inventory in `buildfile.json` is advisory only.\n");
+            sb.Append("- No source ROM path or full ROM is stored in this project.\n\n");
+            sb.Append("## Authority model\n\n");
+            sb.Append("Applying/verifying this recipe is issue #1936; emulator/playtest validation is #1932.\n");
+            if (m.Warnings.Count > 0)
+            {
+                sb.Append("\n## Warnings\n\n");
+                foreach (string w in m.Warnings)
+                    sb.Append("- " + w + "\n");
+            }
+            return sb.ToString();
+        }
+
+        // -------------------------------------------------------------- projection
+
+        static void RunProjection(BuildfileManifest m, string stage, BuildfileExportOptions options)
+        {
+            if (options.ProjectionRunner == null)
+            {
+                m.Projection.Status = "skipped";
+                m.Projection.Reason = "source projection not requested";
+                return;
+            }
+
+            string scratch = Path.Combine(stage, ".source-scratch-" + Guid.NewGuid().ToString("N"));
+            BuildfileProjectionOutcome outcome;
+            try
+            {
+                Directory.CreateDirectory(scratch);
+                outcome = options.ProjectionRunner(scratch) ?? BuildfileProjectionOutcome.Fail("projection returned no outcome");
+            }
+            catch (Exception ex)
+            {
+                outcome = BuildfileProjectionOutcome.Fail(ex.Message);
+            }
+
+            if (outcome.Status == BuildfileProjectionStatus.Success)
+            {
+                try
+                {
+                    NormalizeTextTree(scratch);
+                    string sourceDir = Path.Combine(stage, "source");
+                    Directory.Move(scratch, sourceDir);
+                    m.Projection.Status = "success";
+                    m.Projection.Reason = outcome.Reason ?? "";
+                    m.Projection.Directory = "source";
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    outcome = BuildfileProjectionOutcome.Fail("publish failed: " + ex.Message);
+                }
+            }
+
+            // Refused / error / skipped: remove any partial sidecar; record honest status.
+            TryDelete(scratch);
+            switch (outcome.Status)
+            {
+                case BuildfileProjectionStatus.Refused: m.Projection.Status = "refused"; break;
+                case BuildfileProjectionStatus.Skipped: m.Projection.Status = "skipped"; break;
+                default: m.Projection.Status = "error"; break;
+            }
+            m.Projection.Reason = outcome.Reason ?? "";
+            if (m.Projection.Status != "skipped")
+                m.Warnings.Add("Source projection " + m.Projection.Status + ": " + m.Projection.Reason);
+        }
+
+        static void NormalizeTextTree(string dir)
+        {
+            string[] textExt = { ".rebuild", ".event", ".txt", ".s", ".asm", ".json", ".md", ".inc", ".c", ".h" };
+            foreach (string file in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories))
+            {
+                string ext = Path.GetExtension(file).ToLowerInvariant();
+                if (Array.IndexOf(textExt, ext) < 0) continue;
+                try
+                {
+                    string text = File.ReadAllText(file);
+                    File.WriteAllText(file, NormalizeLf(text));
+                }
+                catch { /* best-effort normalization for an advisory projection */ }
+            }
+        }
+
+        // -------------------------------------------------------- patch inventory
+
+        static BuildfilePatchInventory BuildPatchInventory(ROM cleanRom, ROM targetRom, BuildfileExportOptions options)
+        {
+            var inv = new BuildfilePatchInventory();
+            string baseDir = options.PatchBaseDirectory;
+            string version = targetRom.RomInfo?.VersionToFilename ?? "";
+            inv.BaseRelative = string.IsNullOrEmpty(version) ? "config/patch2" : "config/patch2/" + version;
+
+            if (string.IsNullOrEmpty(baseDir) || !Directory.Exists(baseDir))
+            {
+                inv.Status = "unavailable";
+                inv.Reason = "patch library not found; raw recipe is complete without it";
+                return inv;
+            }
+
+            List<PatchMetadataCore.PatchInfo> patches;
+            try
+            {
+                patches = PatchMetadataCore.EnumeratePatches(baseDir, targetRom, options.Language ?? "en")
+                          ?? new List<PatchMetadataCore.PatchInfo>();
+            }
+            catch (Exception ex)
+            {
+                inv.Status = "unavailable";
+                inv.Reason = "patch enumeration failed: " + ex.Message;
+                return inv;
+            }
+
+            inv.Status = "available";
+            foreach (PatchMetadataCore.PatchInfo p in patches)
+            {
+                if (p == null) continue;
+                // Only installed / unknown patches are advisory-relevant; unknown is never
+                // promoted to installed.
+                string status;
+                string confidence;
+                string reason;
+                switch (p.Status)
+                {
+                    case PatchMetadataCore.PatchStatus.Installed:
+                        status = "installed"; confidence = "high"; reason = "install markers matched";
+                        break;
+                    case PatchMetadataCore.PatchStatus.Unknown:
+                        status = "unknown"; confidence = "low"; reason = "install markers could not be resolved";
+                        break;
+                    default:
+                        continue; // not installed → not part of the ROM
+                }
+
+                var rec = new BuildfilePatchRecord
+                {
+                    Name = p.DirectoryName ?? p.Name ?? "",
+                    Path = RelativePatchPath(baseDir, p.PatchFilePath),
+                    Status = status,
+                    Confidence = confidence,
+                    Reason = reason,
+                };
+                foreach (BuildfilePatchParam pp in RawParams(p.PatchFilePath))
+                    rec.Params.Add(pp);
+                inv.Installed.Add(rec);
+            }
+
+            // Deterministic ordering: sort by definition-relative path (ordinal).
+            inv.Installed = inv.Installed
+                .OrderBy(r => r.Path, StringComparer.Ordinal)
+                .ThenBy(r => r.Name, StringComparer.Ordinal)
+                .ToList();
+            return inv;
+        }
+
+        static List<BuildfilePatchParam> RawParams(string patchFilePath)
+        {
+            var list = new List<BuildfilePatchParam>();
+            if (string.IsNullOrEmpty(patchFilePath)) return list;
+            try
+            {
+                foreach (PatchMetadataCore.PatchParam pp in PatchMetadataCore.ParsePatchParams(patchFilePath))
+                {
+                    if (pp == null) continue;
+                    list.Add(new BuildfilePatchParam { Key = pp.RawKey ?? "", Value = pp.Value ?? "" });
+                }
+            }
+            catch { /* raw params are advisory */ }
+            return list;
+        }
+
+        static string RelativePatchPath(string baseDir, string patchFilePath)
+        {
+            if (string.IsNullOrEmpty(patchFilePath)) return "";
+            try
+            {
+                string rel = Path.GetRelativePath(baseDir, patchFilePath);
+                return rel.Replace('\\', '/');
+            }
+            catch
+            {
+                return Path.GetFileName(patchFilePath);
+            }
+        }
+
+        // --------------------------------------------------------------- utilities
+
+        static void VerifyReconstruction(byte[] clean, byte[] target, byte fill, List<BuildfilePayloadSpan> payloads)
+        {
+            var recon = new byte[target.Length];
+            Array.Copy(clean, 0, recon, 0, Math.Min(clean.Length, target.Length));
+            for (int i = clean.Length; i < target.Length; i++)
+                recon[i] = fill;
+            foreach (BuildfilePayloadSpan span in payloads)
+            {
+                for (uint i = 0; i < span.Length; i++)
+                    recon[span.Offset + i] = target[span.Offset + i];
+            }
+            for (int i = 0; i < target.Length; i++)
+            {
+                if (recon[i] != target[i])
+                    throw new InvalidOperationException(
+                        "Internal losslessness check failed at offset 0x" + i.ToString("X") + ".");
+            }
+        }
+
+        static byte MostFrequentByte(byte[] data, int start, int end)
+        {
+            var counts = new long[256];
+            for (int i = start; i < end; i++)
+                counts[data[i]]++;
+            int best = 0;
+            long bestCount = -1;
+            for (int b = 0; b < 256; b++)
+            {
+                if (counts[b] > bestCount)
+                {
+                    bestCount = counts[b];
+                    best = b; // lowest byte wins ties because we scan ascending with strict >
+                }
+            }
+            return (byte)best;
+        }
+
+        static byte[] Slice(byte[] data, uint offset, uint length)
+        {
+            var buf = new byte[length];
+            Array.Copy(data, offset, buf, 0, length);
+            return buf;
+        }
+
+        static string PayloadName(int index, uint offset, uint length)
+            => index.ToString("D4") + "_" + offset.ToString("X6") + "_" + length + ".bin";
+
+        static string RelToNative(string rel) => rel.Replace('/', Path.DirectorySeparatorChar);
+
+        static string Hex32(uint v) => "0x" + v.ToString("X8");
+        static string Hex8(byte v) => "0x" + v.ToString("X2");
+
+        static string Sha256Hex(byte[] data)
+        {
+            byte[] hash = SHA256.HashData(data);
+            var sb = new StringBuilder(hash.Length * 2);
+            foreach (byte b in hash) sb.Append(b.ToString("x2"));
+            return sb.ToString();
+        }
+
+        static string NormalizeLf(string s) => s.Replace("\r\n", "\n").Replace("\r", "\n");
+
+        static void WriteTextLf(string path, string text) => File.WriteAllText(path, NormalizeLf(text));
+
+        static void TryDelete(string dir)
+        {
+            try { if (Directory.Exists(dir)) Directory.Delete(dir, true); }
+            catch { /* cleanup failures must not mask the original error */ }
+        }
+
+        static string CategoryWord(MigrationCategory c)
+        {
+            switch (c)
+            {
+                case MigrationCategory.StructTable: return "struct-table";
+                case MigrationCategory.GraphicsPalette: return "graphics-palette";
+                case MigrationCategory.Compressed: return "compressed";
+                case MigrationCategory.Map: return "map";
+                case MigrationCategory.Text: return "text";
+                case MigrationCategory.Music: return "music";
+                default: return "unknown";
+            }
+        }
+
+        static string ConfidenceWord(MigrationConfidence c)
+        {
+            switch (c)
+            {
+                case MigrationConfidence.High: return "high";
+                case MigrationConfidence.Medium: return "medium";
+                default: return "low";
+            }
+        }
+    }
+}

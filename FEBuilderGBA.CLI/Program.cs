@@ -76,6 +76,11 @@ namespace FEBuilderGBA.CLI
                 return RunRebuild(argsDic);
             }
 
+            if (argsDic.ContainsKey("--export-buildfile"))
+            {
+                return RunExportBuildfile(argsDic);
+            }
+
             if (argsDic.ContainsKey("--songexchange"))
             {
                 return RunSongExchange(argsDic);
@@ -467,6 +472,10 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --ignoreTSA            Ignore TSA tile deduplication constraints");
             Console.WriteLine("  --pointercalc            Search pointer references (requires --rom, --target, --address)");
             Console.WriteLine("  --rebuild                Rebuild/defragment ROM (requires --rom, --fromrom)");
+            Console.WriteLine("  --export-buildfile       Export a deterministic buildfile recipe of the clean->modded delta");
+            Console.WriteLine("                           (requires --rom=<modded>, --clean=<clean>, --out=<new-project-dir>)");
+            Console.WriteLine("    --clean=<path>         Clean/baseline ROM (same version as --rom); its sha256 is the identity");
+            Console.WriteLine("    --with-source          Also emit an advisory source/ projection (opt-in, non-authoritative)");
             Console.WriteLine("  --songexchange           Copy song between ROMs (requires --rom, --fromrom, --fromsong, --tosong)");
             Console.WriteLine("  --convertmap1picture     Convert image to map tiles (requires --in and one or more of --outImg, --outTSA, --outPal; --json for machine output)");
             Console.WriteLine("  --translate              Dump or import ROM text (requires --rom)");
@@ -673,6 +682,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  FEBuilderGBA.CLI --decreasecolor --in=input.png --out=output.png --paletteno=16 --noScale --noReserve1stColor");
             Console.WriteLine("  FEBuilderGBA.CLI --pointercalc --rom=source.gba --target=target.gba --address=0x100,0x200");
             Console.WriteLine("  FEBuilderGBA.CLI --rebuild --rom=modified.gba --fromrom=original.gba");
+            Console.WriteLine("  FEBuilderGBA.CLI --export-buildfile --rom=modified.gba --clean=original.gba --out=project/");
             Console.WriteLine("  FEBuilderGBA.CLI --songexchange --rom=dest.gba --fromrom=source.gba --fromsong=0x1A --tosong=0x1A");
             Console.WriteLine("  FEBuilderGBA.CLI --migrate-diff --project=decomp/ --rom2=edited.gba --out=migrate.tsv");
             Console.WriteLine("  FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin --outPal=palette.bin");
@@ -1211,6 +1221,217 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine($"Rebuild analysis complete:");
             Console.WriteLine($"  {result.Message}");
             return 0;
+        }
+
+        static readonly HashSet<string> ExportBuildfileAllowedFlags = new(StringComparer.Ordinal)
+        {
+            "--export-buildfile", "--rom", "--clean", "--out", "--force-version", "--with-source",
+        };
+
+        static int RunExportBuildfile(Dictionary<string, string> argsDic)
+        {
+            // Reject unknown command-specific flags BEFORE loading or writing anything, so a
+            // typo such as `--with-soruce` fails loudly instead of silently changing behavior.
+            foreach (string key in argsDic.Keys)
+            {
+                if (!ExportBuildfileAllowedFlags.Contains(key))
+                {
+                    Console.Error.WriteLine($"Error: --export-buildfile: unknown option '{key}'.");
+                    Console.Error.WriteLine("  Supported: --rom, --clean, --out, --force-version, --with-source");
+                    return 1;
+                }
+            }
+
+            // Require explicit --rom (modded), --clean (baseline), and --out (new project dir).
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            {
+                Console.Error.WriteLine("Error: --export-buildfile requires --rom=<modded.gba>");
+                return 1;
+            }
+            if (!argsDic.ContainsKey("--clean") || string.IsNullOrEmpty(argsDic["--clean"]))
+            {
+                Console.Error.WriteLine("Error: --export-buildfile requires --clean=<clean.gba>");
+                return 1;
+            }
+            if (!argsDic.ContainsKey("--out") || string.IsNullOrEmpty(argsDic["--out"]))
+            {
+                Console.Error.WriteLine("Error: --export-buildfile requires --out=<new-project-dir>");
+                return 1;
+            }
+
+            string moddedPath = argsDic["--rom"];
+            string cleanPath = argsDic["--clean"];
+            string outDir = argsDic["--out"];
+
+            // Safe input contract: reject parent-directory traversal (a raw '..' segment) in ROM
+            // inputs BEFORE any existence check, normalization, or load. Path.GetFullPath collapses
+            // '..' lexically before symlinks are resolved, which can diverge from the physical
+            // filesystem when '..' follows a symlinked component, so we fail closed rather than
+            // guess. Ordinary and '.'-relative paths remain supported.
+            if (BuildfilePathSafety.ContainsParentTraversal(moddedPath))
+            {
+                Console.Error.WriteLine("Error: --rom must not contain parent-directory (..) path segments.");
+                return 1;
+            }
+            if (BuildfilePathSafety.ContainsParentTraversal(cleanPath))
+            {
+                Console.Error.WriteLine("Error: --clean must not contain parent-directory (..) path segments.");
+                return 1;
+            }
+
+            if (!File.Exists(moddedPath))
+            {
+                Console.Error.WriteLine($"Error: Modded ROM not found: {moddedPath}");
+                return 1;
+            }
+            if (!File.Exists(cleanPath))
+            {
+                Console.Error.WriteLine($"Error: Clean ROM not found: {cleanPath}");
+                return 1;
+            }
+
+            // Resolve both ROM inputs to their PHYSICAL canonical paths (realpath, ancestor links
+            // included) ONCE, and use those exact resolved paths for identity comparison AND for
+            // loading, so existence, identity, and load all refer to the same files. Two DISTINCT
+            // ROMs sharing a benign symlinked ancestor (e.g. macOS /var -> /private/var) resolve
+            // to different physical paths and are accepted; aliases of the same file are rejected.
+            // All BEFORE loading or writing; explicit failures, never broad-caught away.
+            string moddedPhysical, cleanPhysical, outFull, outParent;
+            try
+            {
+                moddedPhysical = BuildfilePathSafety.ResolvePhysicalPath(moddedPath);
+                cleanPhysical = BuildfilePathSafety.ResolvePhysicalPath(cleanPath);
+                outFull = BuildfilePathSafety.NormalizeFullPath(outDir);
+                outParent = Path.GetDirectoryName(outFull);
+
+                if (BuildfilePathSafety.PathsEqual(moddedPhysical, cleanPhysical))
+                {
+                    Console.Error.WriteLine("Error: --rom (modded) and --clean resolve to the same file; they must be different ROMs.");
+                    return 1;
+                }
+                if (Directory.Exists(outFull) || File.Exists(outFull))
+                {
+                    Console.Error.WriteLine($"Error: Output path already exists: {outFull}");
+                    return 1;
+                }
+                if (string.IsNullOrEmpty(outParent))
+                {
+                    Console.Error.WriteLine($"Error: Output directory has no parent (cannot export to a filesystem root): {outFull}");
+                    return 1;
+                }
+                if (Directory.Exists(outParent) && BuildfilePathSafety.IsReparsePoint(outParent))
+                {
+                    Console.Error.WriteLine($"Error: Output parent directory is a symlink/junction (reparse point); refusing to guarantee an atomic publish: {outParent}");
+                    return 1;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Error: invalid path: {ex.Message}");
+                return 1;
+            }
+
+            RomLoader.InitEnvironment();
+
+            // Keep the MODDED ROM in CoreState.ROM (the ROM the exporter/projection reads);
+            // --force-version applies only to loading the modded ROM. Load the EXACT resolved
+            // physical path used for the identity check.
+            string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+            if (!RomLoader.LoadRom(moddedPhysical, forceVersion))
+                return 1;
+            RomLoader.InitFull();
+
+            // Load the CLEAN ROM into a SEPARATE ROM object; never mutate either.
+            var cleanRom = new ROM();
+            if (!cleanRom.Load(cleanPhysical, out string cleanVersion) || cleanRom.Data == null || cleanRom.Data.Length == 0)
+            {
+                Console.Error.WriteLine($"Error: Not a recognized GBA Fire Emblem ROM (clean): {cleanPath}");
+                return 1;
+            }
+
+            string version = CoreState.ROM.RomInfo?.VersionToFilename ?? "";
+            string patchBaseDir = ResolvePatchBaseDir(version);
+
+            var options = new BuildfileExportOptions
+            {
+                OutputDirectory = outFull,
+                PatchBaseDirectory = patchBaseDir,
+                Language = CoreState.Language ?? "en",
+            };
+
+            // Optional advisory source projection (opt-in): runs RebuildProducerCore in its
+            // own scratch child; never composed into the authoritative recipe.
+            if (argsDic.ContainsKey("--with-source"))
+            {
+                ROM modded = CoreState.ROM;
+                options.ProjectionRunner = scratch =>
+                {
+                    try
+                    {
+                        uint rebuildAddress = U.toOffset(modded.RomInfo.extends_address);
+                        string manifestPath = Path.Combine(scratch, "rom.rebuild");
+                        RebuildProducerCore.MakeWithProducer(
+                            modded, cleanRom, rebuildAddress, manifestPath,
+                            isUseOtherGraphics: true, isUseOAMSP: false);
+                        return BuildfileProjectionOutcome.Ok();
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        return BuildfileProjectionOutcome.Refuse(ex.Message);
+                    }
+                    catch (Exception ex)
+                    {
+                        return BuildfileProjectionOutcome.Fail(ex.Message);
+                    }
+                };
+            }
+
+            BuildfileExportResult result = BuildfileExportCore.Export(cleanRom, CoreState.ROM, options);
+            if (!result.Success)
+            {
+                Console.Error.WriteLine($"Error: {result.Error}");
+                return 1;
+            }
+
+            BuildfileManifest m = result.Manifest;
+            Console.WriteLine($"Buildfile recipe written to: {result.PublishedPath}");
+            Console.WriteLine($"  Version: {m.Version}");
+            Console.WriteLine($"  Clean:  {m.Clean.Size} bytes, crc32={m.Clean.Crc32}, sha256={m.Clean.Sha256}" +
+                (m.Clean.IsCanonicalOriginal ? " (canonical original)" : " (non-canonical baseline)"));
+            Console.WriteLine($"  Target: {m.Target.Size} bytes, crc32={m.Target.Crc32}, sha256={m.Target.Sha256}");
+            if (m.Extension != null)
+                Console.WriteLine($"  Extension: {m.Extension.Length} bytes from 0x{m.Extension.Start:X} filled with {m.Extension.FillByte}");
+            Console.WriteLine($"  Ranges: {m.TotalRanges} ({m.TotalChangedBytes} changed bytes)");
+            Console.WriteLine($"  Patches: {m.Patches.Status}" +
+                (m.Patches.Status == "available" ? $" ({m.Patches.Installed.Count} installed/unknown)" : $" ({m.Patches.Reason})"));
+            Console.WriteLine($"  Projection: {m.Projection.Status}" +
+                (string.IsNullOrEmpty(m.Projection.Reason) ? "" : $" ({m.Projection.Reason})"));
+            foreach (string w in result.Warnings)
+                Console.WriteLine($"  Warning: {w}");
+            return 0;
+        }
+
+        /// <summary>
+        /// Resolve the config/patch2/{version} directory for advisory patch inventory,
+        /// mirroring RunListPatches (base dir, then repo-root fallback). Returns null if
+        /// no directory is found — the exporter treats that as an advisory "unavailable".
+        /// </summary>
+        static string ResolvePatchBaseDir(string version)
+        {
+            if (string.IsNullOrEmpty(version)) return null;
+            string baseDir = CoreState.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory;
+            string patchDir = Path.Combine(baseDir, "config", "patch2", version);
+            if (!Directory.Exists(patchDir) || !Directory.GetFiles(patchDir, "PATCH_*.txt", SearchOption.AllDirectories).Any())
+            {
+                string repoRoot = FindRepoRoot(baseDir);
+                if (repoRoot != null)
+                {
+                    string altDir = Path.Combine(repoRoot, "config", "patch2", version);
+                    if (Directory.Exists(altDir))
+                        return altDir;
+                }
+            }
+            return Directory.Exists(patchDir) ? patchDir : null;
         }
 
         static int RunSongExchange(Dictionary<string, string> argsDic)

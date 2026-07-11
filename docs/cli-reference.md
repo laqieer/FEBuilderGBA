@@ -207,6 +207,69 @@ FEBuilderGBA.CLI --rebuild --rom=modified.gba --fromrom=original.gba
 
 ---
 
+### `--export-buildfile`
+
+Export a deterministic, git-friendly **buildfile recipe** describing the complete binary
+delta from a clean ROM to a modded ROM. The recipe is authoritative and lossless: every
+target byte is owned exactly once by the clean baseline, a declared extension fill, or a
+single payload range. No source ROM path or full ROM is ever copied into the project.
+
+| Option | Required | Description |
+|---|---|---|
+| `--rom=<path>` | Yes | Path to the **modded** ROM (kept in memory; never mutated). |
+| `--clean=<path>` | Yes | Path to the **clean/baseline** ROM of the **same version**. Its SHA-256 is the reproducibility identity. |
+| `--out=<dir>` | Yes | New project directory. **Must not already exist.** |
+| `--force-version=<VER>` | No | Applies **only** to loading the modded ROM; clean/modded version identity is still enforced. |
+| `--with-source` | No | Also emit an advisory, non-authoritative `source/` projection (opt-in). |
+
+```
+FEBuilderGBA.CLI --export-buildfile --rom=modified.gba --clean=original.gba --out=project/
+```
+
+Output layout:
+
+```
+project/
+  buildfile.json   # canonical machine-readable manifest (schema v1) — the ONLY build authority
+  main.event       # derived Event Assembler installer (PUSH / ORG / FILL / #incbin / POP)
+  README.md        # generated layout + authority notes (no absolute paths)
+  data/            # one raw payload per range: <index>_<offset>_<length>.bin
+  source/          # optional advisory projection (only with --with-source, non-composable)
+```
+
+Authority model: `buildfile.json` + `data/` are the sole build authority (consumed by
+issue #1936, which applies/verifies a recipe). `main.event` is a derived interoperability
+surface; the installed-patch inventory in the manifest is advisory; the `source/` projection
+is a non-composable best-effort. If the target extends the clean ROM, the exporter picks the
+most frequent extension byte (lowest byte on ties) as the fill and emits only sparse override
+ranges, so a large mostly-`FF`/`00` extension never becomes a giant payload. Emulator/playtest
+validation is issue #1932.
+
+**Rejections (exit 1, no partial output):** an unknown command-specific option (e.g. a typo
+like `--with-soruce`); missing `--rom`/`--clean`/`--out`; a `--rom` or `--clean` value that
+contains a parent-directory (`..`) path segment (rejected up front — `Path.GetFullPath` collapses
+`..` lexically before symlinks are resolved, which can diverge from the physical filesystem, so
+the exporter fails closed; ordinary and `.`-relative paths are fine); a nonexistent input ROM;
+`--rom` and `--clean` that resolve to the **same physical file** — each input is canonicalized to
+its realpath (following symlinks/junctions **including ancestor links**) and those exact resolved
+paths are the ones compared *and loaded*, so `C:\real\mod.gba` and `C:\link\mod.gba` (with
+`C:\link → C:\real`) are rejected as one file, while two *distinct* ROMs that merely share a
+benign symlinked ancestor such as macOS `/var → /private/var` are accepted; comparison is
+case-insensitive on Windows/macOS; a symlink/junction output parent directory (single-entry check
+— the atomic publish only needs the stage and destination to share one real immediate parent); a
+pre-existing `--out`; a clean/modded version mismatch; a modded ROM shorter than clean or larger
+than 32 MiB. A non-canonical (but same-version) clean baseline is an explicit warning, not a
+rejection. The `--out` path is normalized (full-path + trailing-separator trim, roots preserved)
+before all checks, so `--out=project/` and `--out=project` behave identically. Global switches
+(`--help`, `--version`) still take precedence over the verb in either order. A final-component
+symlink is allowed as long as it resolves to a *distinct* physical file from the other input.
+True same-file identity across **hard links** is not portably detectable and is out of scope by
+design; the macOS case comparison is conservatively case-insensitive.
+
+**Exit code:** 0 on success, 1 on error.
+
+---
+
 ### `--songexchange`
 
 Copy a song from one ROM to another.
@@ -1091,6 +1154,7 @@ Each finding prints as `ERROR [CODE] msg` (stderr) or `WARN [CODE] msg` (stdout)
 | `--decreasecolor` | — | — | Required | Required | — | No |
 | `--pointercalc` | Required | — | — | — | `--target`, `--address` | No |
 | `--rebuild` | Required | Required | — | — | — | No |
+| `--export-buildfile` | Required | — | — | Required | `--clean` | Full |
 | `--songexchange` | Required | Required | — | — | `--fromsong`, `--tosong` | Partial |
 | `--convertmap1picture` | — | — | Required | — | one or more of `--outImg`/`--outTSA`/`--outPal` | No |
 | `--translate` | Required | — | Optional | Optional | — | Full |

@@ -106,6 +106,60 @@ namespace FEBuilderGBA
             return result;
         }
 
+        /// <summary>
+        /// Compare a baseline against a target, treating the baseline as though it
+        /// were virtually extended to the target's length with <paramref name="fillByte"/>.
+        /// Every reported range contains ONLY bytes that differ from the clean baseline
+        /// or the declared extension fill (there is no small-gap merge and no trailing
+        /// size-difference special case), so the caller may write each range's bytes as
+        /// a sparse override that wins over the fill.
+        ///
+        /// The target MUST NOT be shorter than the baseline (the buildfile exporter
+        /// rejects that upstream); a shorter target throws <see cref="ArgumentException"/>.
+        /// The existing two-argument <see cref="Compare(byte[], byte[])"/> behavior is
+        /// intentionally left unchanged.
+        /// </summary>
+        public static DiffResult CompareWithFill(byte[] baseline, byte[] target, byte fillByte)
+        {
+            if (baseline == null) throw new ArgumentNullException(nameof(baseline));
+            if (target == null) throw new ArgumentNullException(nameof(target));
+            if (target.Length < baseline.Length)
+                throw new ArgumentException("Target must not be shorter than the baseline.", nameof(target));
+
+            var result = new DiffResult
+            {
+                Rom1Size = (uint)baseline.Length,
+                Rom2Size = (uint)target.Length,
+            };
+
+            int diffStart = -1;
+            for (int i = 0; i < target.Length; i++)
+            {
+                byte baseByte = i < baseline.Length ? baseline[i] : fillByte;
+                if (target[i] != baseByte)
+                {
+                    if (diffStart < 0)
+                        diffStart = i;
+                }
+                else if (diffStart >= 0)
+                {
+                    uint len = (uint)(i - diffStart);
+                    result.Ranges.Add(new DiffRange { Offset = (uint)diffStart, Length = len });
+                    result.TotalDiffBytes += len;
+                    diffStart = -1;
+                }
+            }
+
+            if (diffStart >= 0)
+            {
+                uint len = (uint)(target.Length - diffStart);
+                result.Ranges.Add(new DiffRange { Offset = (uint)diffStart, Length = len });
+                result.TotalDiffBytes += len;
+            }
+
+            return result;
+        }
+
         /// <summary>Format diff result as human-readable summary text.</summary>
         public static string FormatSummary(DiffResult diff)
         {

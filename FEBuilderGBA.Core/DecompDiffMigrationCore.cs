@@ -131,6 +131,29 @@ namespace FEBuilderGBA
             MergedAsmMapFile map, DecompSymbolResolver resolver,
             int maxGap = DefaultMaxGap)
         {
+            return AnalyzeInternal(builtRom, editedBytes, hasFill: false, fillByte: 0, map, resolver, maxGap);
+        }
+
+        /// <summary>
+        /// Fill-aware variant of <see cref="Analyze"/>: classify each coalesced changed
+        /// range between a shorter baseline ROM (virtually extended with
+        /// <paramref name="fillByte"/>) and a longer edited buffer, reusing the exact
+        /// same diff/coalesce/classify pipeline so the buildfile exporter's payload
+        /// ownership can never drift from the classification. NEVER throws.
+        /// </summary>
+        public static MigrationReport AnalyzeWithFill(
+            ROM builtRom, byte[] editedBytes, byte fillByte,
+            MergedAsmMapFile map, DecompSymbolResolver resolver,
+            int maxGap = DefaultMaxGap)
+        {
+            return AnalyzeInternal(builtRom, editedBytes, hasFill: true, fillByte, map, resolver, maxGap);
+        }
+
+        static MigrationReport AnalyzeInternal(
+            ROM builtRom, byte[] editedBytes, bool hasFill, byte fillByte,
+            MergedAsmMapFile map, DecompSymbolResolver resolver,
+            int maxGap)
+        {
             var report = new MigrationReport();
             try
             {
@@ -144,7 +167,9 @@ namespace FEBuilderGBA
                     return report;
                 if (maxGap < 0) maxGap = 0;
 
-                RomDiffCore.DiffResult diff = RomDiffCore.Compare(builtBytes, editedBytes);
+                RomDiffCore.DiffResult diff = hasFill
+                    ? RomDiffCore.CompareWithFill(builtBytes, editedBytes, fillByte)
+                    : RomDiffCore.Compare(builtBytes, editedBytes);
                 if (diff == null || diff.Ranges.Count == 0)
                     return report;
 

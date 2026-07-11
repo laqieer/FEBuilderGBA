@@ -30,6 +30,7 @@ output for that command compared to the WinForms exe.
 | `--decreasecolor` | Quantize image palette | `--in`, `--out` (opt: `--paletteno`, `--json`) | E2E COVERED | ALIGNED |
 | `--pointercalc` | Search pointer references | `--rom`, `--target`, `--address` | E2E COVERED | ALIGNED |
 | `--rebuild` | Rebuild/defragment ROM | `--rom` (opt: `--fromrom`) | E2E COVERED | ALIGNED |
+| `--export-buildfile` | Export a deterministic buildfile recipe of the clean→modded delta | `--rom`, `--clean`, `--out` (opt: `--force-version`, `--with-source`) | E2E COVERED | ALIGNED |
 | `--songexchange` | Copy song between ROMs | `--rom`, `--fromrom`, `--fromsong`, `--tosong` | E2E COVERED | ALIGNED |
 | `--convertmap1picture` | Convert image to map tiles | `--in`, one or more of `--outImg`/`--outTSA`/`--outPal` (opt: `--json`) | E2E COVERED | ALIGNED |
 | `--translate` | Dump or import ROM text | `--rom` | E2E COVERED | ALIGNED |
@@ -61,7 +62,9 @@ output for that command compared to the WinForms exe.
 | `--patch=<path>` | Specify UPS patch file | `--applyups` |
 | `--rom2=<path>` | Second ROM file to compare against | `--diff` |
 | `--in=<path>` | Input file | `--decreasecolor`, `--convertmap1picture`, `--translate`, `--lz77`, `--import-palette`, `--import-battle-anime` |
-| `--out=<path>` | Output file | `--decreasecolor`, `--translate`, `--translate-roundtrip`, `--translate_batch`, `--export-map-settings`, `--lz77`, `--export-palette`, `--export-battle-anime`, `--diff` |
+| `--out=<path>` | Output file | `--decreasecolor`, `--translate`, `--translate-roundtrip`, `--translate_batch`, `--export-map-settings`, `--lz77`, `--export-palette`, `--export-battle-anime`, `--diff`, `--export-buildfile` (new project directory, must not exist) |
+| `--clean=<path>` | Clean/baseline ROM of the same version; its SHA-256 is the reproducibility identity | `--export-buildfile` |
+| `--with-source` | Also emit an advisory, non-authoritative `source/` projection (opt-in) | `--export-buildfile` |
 | `--dir=<path>` | Input directory of portraits | `--import-portrait-all` |
 | `--addr=<hex>` | ROM address (raw offset or `0x08…` pointer) | `--export-palette`, `--import-palette` |
 | `--colors=<n>` | Number of palette colors (default: 16, range 1-256) | `--export-palette` |
