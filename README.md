@@ -112,8 +112,9 @@ dotnet run --project FEBuilderGBA.CLI -- --rebuild --rom=modified.gba --fromrom=
 dotnet run --project FEBuilderGBA.CLI -- --export-buildfile --rom=modified.gba --clean=original.gba --out=project/
 # buildfile.json + data/ are authoritative; derived main.event is real-toolchain tested when bundled EA is available.
 # Each range's gbaAddress is always 0x08000000 + offset, including header offsets 0 and 1.
-# ROM inputs and --with-source files are opened no-follow and validated on the exact handle.
-# Every projected text/binary file is copied to a fresh inode, severing external hard links.
+# ROM inputs are opened no-follow, identity-compared, bounded, and read through exact handles.
+# --with-source captures a bounded handle-relative snapshot, then creates a fresh private source/.
+# Projection scratch is deleted before the atomic publish stage exists; hard links are never published.
 # Stage/scratch names use a bounded stable hash and are atomically reserved; collisions are never reused.
 # Final publication is an atomic no-replace rename; a race-created destination is never replaced.
 # On Windows, use standard drive/UNC paths; device namespaces (\\?\, \\.\, and \??\) are rejected.

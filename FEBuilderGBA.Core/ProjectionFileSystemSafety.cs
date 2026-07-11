@@ -169,6 +169,62 @@ namespace FEBuilderGBA
                 "Exact regular-file validation is unavailable on this platform.");
         }
 
+        /// <summary>Compares the filesystem identities represented by two opened file handles.</summary>
+        public static bool SameOpenedFile(FileStream first, FileStream second)
+        {
+            if (first == null) throw new ArgumentNullException(nameof(first));
+            if (second == null) throw new ArgumentNullException(nameof(second));
+
+            if (OperatingSystem.IsWindows())
+            {
+                if (!GetFileInformationByHandle(
+                        first.SafeFileHandle,
+                        out WindowsFileInformation firstInfo)
+                    || !GetFileInformationByHandle(
+                        second.SafeFileHandle,
+                        out WindowsFileInformation secondInfo))
+                {
+                    throw new IOException(
+                        "Cannot compare opened Windows file identities (Win32 error "
+                        + Marshal.GetLastPInvokeError() + ").");
+                }
+
+                return firstInfo.VolumeSerialNumber == secondInfo.VolumeSerialNumber
+                    && firstInfo.FileIndexHigh == secondInfo.FileIndexHigh
+                    && firstInfo.FileIndexLow == secondInfo.FileIndexLow;
+            }
+
+            if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()
+                || OperatingSystem.IsAndroid() || OperatingSystem.IsIOS()
+                || OperatingSystem.IsMacCatalyst())
+            {
+                UnixFileStatus firstStatus;
+                UnixFileStatus secondStatus;
+                try
+                {
+                    if (GetUnixFileStatus(first.SafeFileHandle, out firstStatus) != 0
+                        || GetUnixFileStatus(second.SafeFileHandle, out secondStatus) != 0)
+                    {
+                        throw new IOException(
+                            "Cannot compare opened Unix file identities (native error "
+                            + Marshal.GetLastPInvokeError() + ").");
+                    }
+                }
+                catch (Exception ex) when (IsNativeInteropUnavailable(ex))
+                {
+                    throw new IOException(
+                        "Cannot compare opened Unix file identities on this platform.",
+                        ex);
+                }
+
+                return firstStatus.Dev == secondStatus.Dev
+                    && firstStatus.Ino == secondStatus.Ino;
+            }
+
+            throw new PlatformNotSupportedException(
+                "Opened file identity comparison is unavailable on this platform.");
+        }
+
         static FileStream OpenRegularUnix(string path)
         {
             if (!TryGetUnixFileStatus(path, out UnixFileStatus pathStatus, out string pathError))

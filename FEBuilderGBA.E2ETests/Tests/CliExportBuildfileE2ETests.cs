@@ -223,6 +223,40 @@ namespace FEBuilderGBA.E2ETests.Tests
         }
 
         [SkippableFact]
+        public void ExportBuildfile_WithSource_InvokesBuiltInProjection()
+        {
+            Skip.If(RomLocator.FE8U == null, "FE8U ROM not available");
+
+            string cleanPath = CopyFE8U();
+            string moddedPath = CopyFE8U();
+            byte[] modded = File.ReadAllBytes(moddedPath);
+            modded[0x100000] ^= 0x01;
+            File.WriteAllBytes(moddedPath, modded);
+            string outDir = TempPath("_proj");
+
+            var (code, stdout, stderr) = AppRunner.Run(
+                CliExe,
+                $"--export-buildfile --rom=\"{moddedPath}\" --clean=\"{cleanPath}\" "
+                    + $"--out=\"{outDir}\" --with-source",
+                timeoutMs: 120_000);
+
+            Assert.True(
+                code == 0,
+                $"--export-buildfile --with-source exited {code}\n"
+                    + $"Stdout: {stdout}\nStderr: {stderr}");
+            using var doc = JsonDocument.Parse(
+                File.ReadAllText(Path.Combine(outDir, "buildfile.json")));
+            string? status = doc.RootElement
+                .GetProperty("projection")
+                .GetProperty("status")
+                .GetString();
+            Assert.NotEqual("skipped", status);
+            Assert.Equal(
+                status == "success",
+                Directory.Exists(Path.Combine(outDir, "source")));
+        }
+
+        [SkippableFact]
         public void ExportBuildfile_PreexistingOut_Returns1_NoOverwrite()
         {
             Skip.If(RomLocator.FE8U == null, "FE8U ROM not available");

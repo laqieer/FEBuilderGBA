@@ -1354,6 +1354,17 @@ namespace FEBuilderGBA.CLI
                 using FileStream cleanInput =
                     ProjectionFileSystemSafety.OpenRegularFileForRead(cleanPhysical);
 
+                // The earlier realpath comparison is only a fast preflight. These exact opened
+                // handles are authoritative: a regular-file replacement between preflight and
+                // open must not let both arguments collapse onto the same inode.
+                if (ProjectionFileSystemSafety.SameOpenedFile(moddedInput, cleanInput))
+                {
+                    Console.Error.WriteLine(
+                        "Error: --rom (modded) and --clean opened the same file; "
+                        + "they must be different ROMs.");
+                    return 1;
+                }
+
                 long moddedLength = moddedInput.Length;
                 long cleanLength = cleanInput.Length;
                 if (!ValidateBuildfileRomLengths(
@@ -1414,32 +1425,9 @@ namespace FEBuilderGBA.CLI
             };
 
             // Optional advisory source projection (opt-in): runs RebuildProducerCore in its
-            // own scratch child; never composed into the authoritative recipe.
+            // private exporter scratch; never composes it into the authoritative recipe.
             if (argsDic.ContainsKey("--with-source"))
-            {
-                ROM modded = CoreState.ROM;
-                options.ProjectionRunner = scratch =>
-                {
-                    try
-                    {
-                        uint rebuildAddress = U.toOffset(modded.RomInfo.extends_address);
-                        string manifestPath = Path.Combine(scratch, "rom.rebuild");
-                        RebuildProducerCore.MakeWithProducer(
-                            modded, cleanRom, rebuildAddress, manifestPath,
-                            isUseOtherGraphics: true, isUseOAMSP: false);
-                        RebuildMakeCore.ValidateProjectionOutput(manifestPath);
-                        return BuildfileProjectionOutcome.Ok();
-                    }
-                    catch (InvalidOperationException ex)
-                    {
-                        return BuildfileProjectionOutcome.Refuse(ex.Message);
-                    }
-                    catch (Exception ex)
-                    {
-                        return BuildfileProjectionOutcome.Fail(ex.Message);
-                    }
-                };
-            }
+                options.IncludeSourceProjection = true;
 
             BuildfileExportResult result = BuildfileExportCore.Export(cleanRom, CoreState.ROM, options);
             if (!result.Success)
