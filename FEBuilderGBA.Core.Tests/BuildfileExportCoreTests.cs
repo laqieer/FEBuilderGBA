@@ -770,10 +770,14 @@ namespace FEBuilderGBA.Core.Tests
                 OperatingSystem.IsLinux() || OperatingSystem.IsMacOS(),
                 "Unix socket inode types are available only on Linux/macOS CI.");
 
+            // Darwin limits filesystem-backed Unix socket paths to 104 bytes.
             string root = Path.Combine(
-                Path.GetTempPath(), "bfs" + Guid.NewGuid().ToString("N").Substring(0, 8));
+                OperatingSystem.IsMacOS() ? "/tmp" : Path.GetTempPath(),
+                "bfs" + Guid.NewGuid().ToString("N").Substring(0, 8));
             Directory.CreateDirectory(root);
             string socketPath = Path.Combine(root, "s");
+            if (OperatingSystem.IsMacOS())
+                Assert.InRange(Encoding.UTF8.GetByteCount(socketPath), 1, 104);
             Socket socket = null;
             try
             {
