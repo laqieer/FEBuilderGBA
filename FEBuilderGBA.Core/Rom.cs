@@ -598,8 +598,9 @@ namespace FEBuilderGBA
         // Shared byte-level load seam: extract the GBA game code at 0x080000AC and
         // dispatch to LoadLow. Used by Load, LoadFromStream and the async wrappers so
         // the stream==path round-trip is a real drift guard (#1124).
-        bool LoadBytes(string name, byte[] data, out string version)
+        public bool LoadFromBytes(string name, byte[] data, out string version)
         {
+            if (data == null) throw new ArgumentNullException(nameof(data));
             version = U.getASCIIString(data, U.toOffset(0x080000AC), 6);
             return LoadLow(name, data, version);
         }
@@ -614,13 +615,13 @@ namespace FEBuilderGBA
 
             byte[] data = File.ReadAllBytes(name);
 
-            return LoadBytes(name, data, out version);
+            return LoadFromBytes(name, data, out version);
         }
 
         // Stream-based ROM load (#1124). On Android a SAF content:// pick has no
         // local filesystem path, so the Avalonia head reads the bytes via the
         // IStorageFile stream API and feeds them here. Converges on the same
-        // LoadBytes seam as the path Load so detection stays identical.
+        // LoadFromBytes seam as the path Load so detection stays identical.
         public bool LoadFromStream(System.IO.Stream stream, string name, out string version)
         {
             // Path Load always reads from the start; rewind a seekable input so a
@@ -629,7 +630,7 @@ namespace FEBuilderGBA
             using (var ms = new System.IO.MemoryStream())
             {
                 stream.CopyTo(ms);
-                return LoadBytes(name, ms.ToArray(), out version);
+                return LoadFromBytes(name, ms.ToArray(), out version);
             }
         }
         public async System.Threading.Tasks.Task<(bool ok, string version)> LoadFromStreamAsync(System.IO.Stream stream, string name)
@@ -638,7 +639,7 @@ namespace FEBuilderGBA
             using (var ms = new System.IO.MemoryStream())
             {
                 await stream.CopyToAsync(ms).ConfigureAwait(false);
-                bool ok = LoadBytes(name, ms.ToArray(), out string version);
+                bool ok = LoadFromBytes(name, ms.ToArray(), out string version);
                 return (ok, version);
             }
         }
@@ -651,6 +652,17 @@ namespace FEBuilderGBA
             }
 
             byte[] data = File.ReadAllBytes(name);
+            return LoadForceVersionFromBytes(name, data, forceversion);
+        }
+
+        public bool LoadForceVersionFromBytes(
+            string name,
+            byte[] data,
+            string forceversion)
+        {
+            if (data == null) throw new ArgumentNullException(nameof(data));
+            if (forceversion == null) throw new ArgumentNullException(nameof(forceversion));
+
             string version = U.getASCIIString(data, U.toOffset(0x080000AC), 6);
 
             if (forceversion.IndexOf("FE8J") >= 0)

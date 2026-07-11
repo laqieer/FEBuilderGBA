@@ -235,7 +235,8 @@ namespace FEBuilderGBA
         {
             ValidateRegularFileMetadata(path, description, getAttributes);
 
-            using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (FileStream stream =
+                ProjectionFileSystemSafety.OpenRegularFileForRead(path))
             {
                 stream.CopyTo(Stream.Null);
             }
@@ -247,7 +248,16 @@ namespace FEBuilderGBA
             Func<string, FileAttributes> getAttributes)
         {
             ValidateRegularFileMetadata(path, description, getAttributes);
-            return File.ReadAllLines(path);
+            var lines = new List<string>();
+            using (FileStream stream =
+                ProjectionFileSystemSafety.OpenRegularFileForRead(path))
+            using (var reader = new StreamReader(stream))
+            {
+                string line;
+                while ((line = reader.ReadLine()) != null)
+                    lines.Add(line);
+            }
+            return lines.ToArray();
         }
 
         static void ValidateRegularFileMetadata(

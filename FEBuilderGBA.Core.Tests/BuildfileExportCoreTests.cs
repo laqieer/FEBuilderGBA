@@ -816,6 +816,203 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [SkippableFact]
+        public void OpenRegularFileForRead_UnixCharacterDevice_IsRejected()
+        {
+            Skip.IfNot(
+                OperatingSystem.IsLinux() || OperatingSystem.IsMacOS(),
+                "Unix device inode types are available only on Linux/macOS CI.");
+
+            IOException error = Assert.Throws<IOException>(
+                () => ProjectionFileSystemSafety.OpenRegularFileForRead("/dev/null"));
+            Assert.Contains("regular file", error.Message);
+        }
+
+        [SkippableFact]
+        public void Export_ProjectionFileReplacedWithFifoBeforeOpen_IsRejectedWithoutBlocking()
+        {
+            Skip.IfNot(
+                OperatingSystem.IsLinux() || OperatingSystem.IsMacOS(),
+                "Unix FIFO inode types are available only on Linux/macOS CI.");
+
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x2000] = 0x75;
+            var (outDir, parent) = FreshOut();
+            int fifoResult = 0;
+            bool replaced = false;
+            try
+            {
+                var options = new BuildfileExportOptions
+                {
+                    OutputDirectory = outDir,
+                    ProjectionRunner = scratch =>
+                    {
+                        File.WriteAllText(Path.Combine(scratch, "victim.event"), "safe\n");
+                        return BuildfileProjectionOutcome.Ok();
+                    },
+                    BeforeProjectionFileOpenForTest = file =>
+                    {
+                        if (replaced || Path.GetFileName(file) != "victim.event")
+                            return;
+                        replaced = true;
+                        File.Delete(file);
+                        fifoResult = CreateFifoUnix(file, 0x180);
+                    },
+                };
+
+                BuildfileExportResult result =
+                    BuildfileExportCore.Export(MakeRom(clean), MakeRom(target), options);
+
+                if (fifoResult != 0)
+                {
+                    Skip.If(true, "mkfifo failed with native error "
+                        + Marshal.GetLastWin32Error());
+                    return;
+                }
+                Assert.True(replaced);
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("error", result.Manifest.Projection.Status);
+                Assert.Contains("regular file", result.Manifest.Projection.Reason);
+                Assert.False(Directory.Exists(Path.Combine(outDir, "source")));
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [SkippableFact]
+        public void Export_ProjectionFileReplacedWithSymlinkBeforeOpen_DoesNotReadTarget()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x2000] = 0x76;
+            var (outDir, parent) = FreshOut();
+            string externalRoot = Path.Combine(
+                Path.GetTempPath(), "bfx_external_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(externalRoot);
+            string external = Path.Combine(externalRoot, "outside.event");
+            const string ExternalContent = "outside-secret-content\n";
+            File.WriteAllText(external, ExternalContent);
+            Exception linkError = null;
+            bool replaced = false;
+            try
+            {
+                var options = new BuildfileExportOptions
+                {
+                    OutputDirectory = outDir,
+                    ProjectionRunner = scratch =>
+                    {
+                        File.WriteAllText(Path.Combine(scratch, "victim.event"), "safe\n");
+                        return BuildfileProjectionOutcome.Ok();
+                    },
+                    BeforeProjectionFileOpenForTest = file =>
+                    {
+                        if (replaced || Path.GetFileName(file) != "victim.event")
+                            return;
+                        replaced = true;
+                        File.Delete(file);
+                        try { File.CreateSymbolicLink(file, external); }
+                        catch (Exception ex) { linkError = ex; }
+                    },
+                };
+
+                BuildfileExportResult result =
+                    BuildfileExportCore.Export(MakeRom(clean), MakeRom(target), options);
+
+                if (linkError != null)
+                {
+                    Skip.If(true, "Cannot create a file symlink here: " + linkError.Message);
+                    return;
+                }
+                Assert.True(replaced);
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("error", result.Manifest.Projection.Status);
+                Assert.Contains("regular file", result.Manifest.Projection.Reason);
+                Assert.False(Directory.Exists(Path.Combine(outDir, "source")));
+                Assert.Equal(ExternalContent, File.ReadAllText(external));
+            }
+            finally
+            {
+                Cleanup(parent);
+                try { Directory.Delete(externalRoot, true); } catch { }
+            }
+        }
+
+        [SkippableFact]
+        public void Export_ProjectionHardLinkedTextAndBinary_AreRematerialized()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x2000] = 0x77;
+            var (outDir, parent) = FreshOut();
+            string externalRoot = Path.Combine(
+                Path.GetTempPath(), "bfx_links_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(externalRoot);
+            string externalText = Path.Combine(externalRoot, "outside.event");
+            string externalBinary = Path.Combine(externalRoot, "outside.bin");
+            const string OriginalText = "external-text\n";
+            byte[] originalBinary = { 1, 3, 5, 7 };
+            File.WriteAllText(externalText, OriginalText);
+            File.WriteAllBytes(externalBinary, originalBinary);
+            string linkFailure = null;
+            try
+            {
+                var options = new BuildfileExportOptions
+                {
+                    OutputDirectory = outDir,
+                    ProjectionRunner = scratch =>
+                    {
+                        if (!CreateHardLink(
+                            Path.Combine(scratch, "linked.event"),
+                            externalText))
+                        {
+                            linkFailure = "text hard link failed with native error "
+                                + Marshal.GetLastWin32Error();
+                            return BuildfileProjectionOutcome.Fail(linkFailure);
+                        }
+                        if (!CreateHardLink(
+                            Path.Combine(scratch, "linked.bin"),
+                            externalBinary))
+                        {
+                            linkFailure = "binary hard link failed with native error "
+                                + Marshal.GetLastWin32Error();
+                            return BuildfileProjectionOutcome.Fail(linkFailure);
+                        }
+                        return BuildfileProjectionOutcome.Ok();
+                    },
+                };
+
+                BuildfileExportResult result =
+                    BuildfileExportCore.Export(MakeRom(clean), MakeRom(target), options);
+                if (linkFailure != null)
+                {
+                    Skip.If(true, linkFailure);
+                    return;
+                }
+
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("success", result.Manifest.Projection.Status);
+                string publishedText =
+                    Path.Combine(outDir, "source", "linked.event");
+                string publishedBinary =
+                    Path.Combine(outDir, "source", "linked.bin");
+
+                File.WriteAllText(externalText, "external-mutated\n");
+                File.WriteAllBytes(externalBinary, new byte[] { 9, 9, 9 });
+                Assert.Equal(OriginalText, File.ReadAllText(publishedText));
+                Assert.Equal(originalBinary, File.ReadAllBytes(publishedBinary));
+
+                File.WriteAllText(publishedText, "published-mutated\n");
+                File.WriteAllBytes(publishedBinary, new byte[] { 2, 4, 6 });
+                Assert.Equal("external-mutated\n", File.ReadAllText(externalText));
+                Assert.Equal(new byte[] { 9, 9, 9 }, File.ReadAllBytes(externalBinary));
+            }
+            finally
+            {
+                Cleanup(parent);
+                try { Directory.Delete(externalRoot, true); } catch { }
+            }
+        }
+
+        [SkippableFact]
         public void Export_ProjectionRunnerReplacesScratchRootWithLink_ExternalTreeUntouched()
         {
             var clean = new byte[RomSize];
@@ -2127,11 +2324,23 @@ namespace FEBuilderGBA.Core.Tests
             return count;
         }
 
+        static bool CreateHardLink(string linkPath, string existingPath)
+        {
+            if (OperatingSystem.IsWindows())
+                return CreateHardLinkWindows(linkPath, existingPath, IntPtr.Zero);
+            return CreateHardLinkUnix(existingPath, linkPath) == 0;
+        }
+
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true,
             EntryPoint = "CreateHardLinkW")]
         static extern bool CreateHardLinkWindows(
             string fileName,
             string existingFileName,
             IntPtr securityAttributes);
+
+        [DllImport("libc", SetLastError = true, EntryPoint = "link")]
+        static extern int CreateHardLinkUnix(
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string existingPath,
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string linkPath);
     }
 }

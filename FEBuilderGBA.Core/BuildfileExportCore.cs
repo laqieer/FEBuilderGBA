@@ -583,6 +583,9 @@ namespace FEBuilderGBA
         /// <summary>Internal hook for simulating a projection-root swap after the source move.</summary>
         internal Action<string> AfterProjectionMoveForTest { get; set; }
 
+        /// <summary>Internal hook for simulating a final-entry swap immediately before open.</summary>
+        internal Action<string> BeforeProjectionFileOpenForTest { get; set; }
+
         /// <summary>Internal failure injection for unsafe moved-projection cleanup.</summary>
         internal Func<string, bool> UnsafeMovedProjectionCleanupForTest { get; set; }
 
@@ -1297,7 +1300,10 @@ namespace FEBuilderGBA
             {
                 try
                 {
-                    if (!SanitizeAndNormalizeTree(scratch, out string sanitizeError))
+                    if (!SanitizeAndNormalizeTree(
+                        scratch,
+                        options.BeforeProjectionFileOpenForTest,
+                        out string sanitizeError))
                         throw new IOException(sanitizeError);
                     if (!ValidatePlainProjectionDirectory(scratch, scratch, out string rootError))
                         throw new IOException(rootError);
@@ -1306,8 +1312,10 @@ namespace FEBuilderGBA
                     string sourceDir = Path.Combine(stage, "source");
                     Directory.Move(scratch, sourceDir);
                     options.AfterProjectionMoveForTest?.Invoke(sourceDir);
-                    if (!TryEnumeratePlainProjectionTree(
-                        sourceDir, sourceDir, out _, out string movedTreeError))
+                    if (!SanitizeAndNormalizeTree(
+                        sourceDir,
+                        options.BeforeProjectionFileOpenForTest,
+                        out string movedTreeError))
                     {
                         bool removed;
                         string movedCleanupError;
@@ -1464,7 +1472,10 @@ namespace FEBuilderGBA
         // into source/. We only sanitize the scratch path we control — we do NOT claim to strip
         // arbitrary absolute paths a projector might emit. Fail-closed on any read/write fault so
         // a partial/leaky source/ is never published.
-        static bool SanitizeAndNormalizeTree(string scratchDir, out string error)
+        static bool SanitizeAndNormalizeTree(
+            string scratchDir,
+            Action<string> beforeFileOpenForTest,
+            out string error)
         {
             error = "";
             string[] textExt = { ".rebuild", ".event", ".txt", ".s", ".asm", ".json", ".md", ".inc", ".c", ".h" };
@@ -1476,35 +1487,57 @@ namespace FEBuilderGBA
             foreach (string file in files)
             {
                 string ext = Path.GetExtension(file).ToLowerInvariant();
-                if (Array.IndexOf(textExt, ext) < 0) continue;
-
-                if (!ValidatePlainProjectionFile(file, scratchDir, out error))
-                    return false;
-
-                string text;
-                try { text = File.ReadAllText(file); }
-                catch (Exception ex) when (IsExpectedFileSystemException(ex))
+                bool isText = Array.IndexOf(textExt, ext) >= 0;
+                string temporary = file + ".materialize-" + Guid.NewGuid().ToString("N");
+                try
                 {
-                    // `file` is itself an absolute path UNDER scratchDir — sanitize it too so an
-                    // enumeration/read failure can never leak the scratch location (Copilot
-                    // review finding: per-record/per-file raw exception path).
-                    error = SanitizeScratchPath("read failed for " + file + ": " + ex.Message, scratchDir);
-                    return false;
+                    beforeFileOpenForTest?.Invoke(file);
+                    using (FileStream input =
+                        ProjectionFileSystemSafety.OpenRegularFileForRead(file))
+                    using (var output = new FileStream(
+                        temporary,
+                        FileMode.CreateNew,
+                        FileAccess.Write,
+                        FileShare.None))
+                    {
+                        if (isText)
+                        {
+                            string text;
+                            using (var reader = new StreamReader(
+                                input,
+                                Encoding.UTF8,
+                                detectEncodingFromByteOrderMarks: true,
+                                bufferSize: 4096,
+                                leaveOpen: true))
+                            {
+                                text = reader.ReadToEnd();
+                            }
+
+                            // Strip only the exporter-owned scratch path (escaped, native, then
+                            // forward spellings). The unique guid in the path makes this
+                            // boundary-safe: it cannot prefix an unrelated fixed-width token.
+                            string sanitized = NormalizeLf(
+                                SanitizeScratchPath(text, scratchDir));
+                            byte[] normalized = new UTF8Encoding(false).GetBytes(sanitized);
+                            output.Write(normalized, 0, normalized.Length);
+                        }
+                        else
+                        {
+                            input.CopyTo(output);
+                        }
+                    }
+
+                    // Replacing the directory entry with our new file severs any hard link to an
+                    // external inode. The source handle is already closed, so Windows can replace
+                    // the entry while Unix performs the same operation atomically.
+                    File.Move(temporary, file, overwrite: true);
                 }
-
-                // Strip only the exporter-owned scratch path (escaped, native, then forward
-                // spellings). The unique guid in the path makes this boundary-safe: it cannot be
-                // a prefix of an unrelated fixed-width token. We do NOT claim to strip arbitrary
-                // absolute paths a projector might otherwise embed.
-                string sanitized = NormalizeLf(SanitizeScratchPath(text, scratchDir));
-
-                if (!ValidatePlainProjectionFile(file, scratchDir, out error))
-                    return false;
-
-                try { File.WriteAllText(file, sanitized); }
                 catch (Exception ex) when (IsExpectedFileSystemException(ex))
                 {
-                    error = SanitizeScratchPath("write failed for " + file + ": " + ex.Message, scratchDir);
+                    try { if (File.Exists(temporary)) File.Delete(temporary); } catch { }
+                    error = SanitizeScratchPath(
+                        "materialization failed for " + file + ": " + ex.Message,
+                        scratchDir);
                     return false;
                 }
             }

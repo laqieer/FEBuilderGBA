@@ -62,6 +62,32 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void LoadFromBytes_UsesProvidedBoundedBuffer()
+        {
+            byte[] buffer = MakeFe8uBuffer();
+            var rom = new ROM();
+
+            Assert.True(rom.LoadFromBytes("missing-path.gba", buffer, out string version));
+            Assert.Equal("BE8E01", version);
+            Assert.Same(buffer, rom.Data);
+            Assert.IsType<ROMFE8U>(rom.RomInfo);
+        }
+
+        [Fact]
+        public void LoadForceVersionFromBytes_DoesNotReopenPath()
+        {
+            byte[] buffer = new byte[0x1000000];
+            var rom = new ROM();
+
+            Assert.True(rom.LoadForceVersionFromBytes(
+                "missing-path.gba",
+                buffer,
+                "FE8U"));
+            Assert.Same(buffer, rom.Data);
+            Assert.IsType<ROMFE8U>(rom.RomInfo);
+        }
+
+        [Fact]
         public async Task LoadFromStreamAsync_MatchesSync()
         {
             byte[] buffer = MakeFe8uBuffer();
