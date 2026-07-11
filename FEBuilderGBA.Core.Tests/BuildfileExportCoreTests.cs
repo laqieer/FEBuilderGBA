@@ -120,6 +120,86 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void Plan_FaultingClassifierOverride_DoesNotDropOrReorderAuthoritativeRanges()
+        {
+            // A faulting/bad advisory classifier must NEVER omit, reorder, or resize the
+            // authoritative payload ranges — only its own advisory category/confidence/
+            // suggestion for the affected range degrades to a stable Unknown/Low/manual-review
+            // record (Copilot review finding: authoritative AnalyzeWithFill partial report).
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x100] = 0xAA;
+            target[0x200] = 0xBB;
+            target[0x300] = 0xCC;
+
+            var plan = BuildfileExportCore.Plan(MakeRom(clean), MakeRom(target), new BuildfileExportOptions
+            {
+                OutputDirectory = "unused",
+                ClassifierOverrideForTest = (rom, built, offset, span, changed, map, resolver) =>
+                    throw new InvalidOperationException("injected advisory classifier fault"),
+            });
+
+            // All three authoritative ranges are still present, in order, unmodified.
+            Assert.Equal(3, plan.Manifest.Ranges.Count);
+            Assert.Equal((uint)0x100, plan.Manifest.Ranges[0].Offset);
+            Assert.Equal((uint)0x200, plan.Manifest.Ranges[1].Offset);
+            Assert.Equal((uint)0x300, plan.Manifest.Ranges[2].Offset);
+            foreach (var r in plan.Manifest.Ranges)
+            {
+                Assert.Equal(1u, r.Length);
+                Assert.Equal("unknown", r.Category);
+                Assert.Equal("low", r.Confidence);
+            }
+        }
+
+        [Fact]
+        public void Plan_ExceedsMaxPayloadRanges_ThrowsExplicitFragmentationError_NoHugeAllocation()
+        {
+            // A worst-case alternating-byte diff must be rejected the instant the next range
+            // would exceed MaxPayloadRanges — proving the bound is enforced BEFORE any
+            // downstream materialization (payload files, manifest entries), never allocating
+            // millions of ranges/files (Copilot review finding: unbounded 16M ranges/files).
+            // Uses a normal-size (16 MiB) ROM buffer — only the first ~33 KiB alternates — so
+            // the limit is hit almost immediately without a slow/huge test.
+            int limit = BuildfileExportOptions.MaxPayloadRanges;
+            int alternatingLength = (limit + 1) * 2;
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            for (int i = 0; i < alternatingLength; i += 2)
+                target[i] = 0x01;
+
+            var ex = Assert.Throws<RomDiffCore.DiffRangeLimitExceededException>(() =>
+                BuildfileExportCore.Plan(MakeRom(clean, FE8U_CODE), MakeRom(target, FE8U_CODE),
+                    new BuildfileExportOptions { OutputDirectory = "unused" }));
+            Assert.Equal(limit, ex.Limit);
+        }
+
+        [Fact]
+        public void Export_ExceedsMaxPayloadRanges_FailsExplicitly_NoDestinationNoHugeAllocation()
+        {
+            // End-to-end: Export must surface the SAME bounded rejection through the public
+            // Export() API (via Plan()'s internal try/catch), never publish a destination, and
+            // never materialize the huge range/file set the limit exists to prevent.
+            int limit = BuildfileExportOptions.MaxPayloadRanges;
+            int alternatingLength = (limit + 1) * 2;
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            for (int i = 0; i < alternatingLength; i += 2)
+                target[i] = 0x01;
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                var result = BuildfileExportCore.Export(MakeRom(clean, FE8U_CODE), MakeRom(target, FE8U_CODE),
+                    new BuildfileExportOptions { OutputDirectory = outDir });
+                Assert.False(result.Success);
+                Assert.Contains("resource-safety limit", result.Error);
+                Assert.False(Directory.Exists(outDir));
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [Fact]
         public void Plan_ShorterTarget_IsRejected()
         {
             var clean = new byte[RomSize * 2]; // 32 MiB clean
@@ -533,6 +613,141 @@ namespace FEBuilderGBA.Core.Tests
             finally { Cleanup(parent); }
         }
 
+        [Fact]
+        public void Export_ProjectionOutcomeReasonEmbeddingScratchPath_IsSanitizedInManifestAndReadme()
+        {
+            // A caller-supplied ProjectionRunner (or a runner exception message) could otherwise
+            // echo the absolute scratch path back through its OWN outcome.Reason — not just
+            // through projected file content. That must be sanitized before it ever reaches
+            // m.Projection.Reason / m.Warnings / buildfile.json / README.md (Copilot review
+            // finding: projection scratch reason paths).
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x30] = 0x44;
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                var options = new BuildfileExportOptions
+                {
+                    OutputDirectory = outDir,
+                    ProjectionRunner = scratch =>
+                        BuildfileProjectionOutcome.Fail("could not write " + scratch + "\\rebuild_bin\\x.bin"),
+                };
+                var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target), options);
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("error", result.Manifest.Projection.Status);
+                Assert.DoesNotContain(parent, result.Manifest.Projection.Reason);
+                Assert.Contains("source", result.Manifest.Projection.Reason);
+                foreach (string w in result.Manifest.Warnings)
+                    Assert.DoesNotContain(parent, w);
+
+                string json = File.ReadAllText(Path.Combine(outDir, "buildfile.json"));
+                Assert.DoesNotContain(parent, json);
+                string readme = File.ReadAllText(Path.Combine(outDir, "README.md"));
+                Assert.DoesNotContain(parent, readme);
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [Fact]
+        public void Export_ProjectionRunnerThrows_ExceptionMessageWithScratchPath_IsSanitizedInManifest()
+        {
+            // The plugin-boundary catch around the ProjectionRunner call turns ANY thrown
+            // exception into an advisory failure reason — its Message must be sanitized exactly
+            // like a normal outcome.Reason (same Copilot review finding as above).
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x30] = 0x44;
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                var options = new BuildfileExportOptions
+                {
+                    OutputDirectory = outDir,
+                    ProjectionRunner = scratch =>
+                        throw new IOException("access denied: " + scratch),
+                };
+                var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target), options);
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("error", result.Manifest.Projection.Status);
+                Assert.DoesNotContain(parent, result.Manifest.Projection.Reason);
+
+                string json = File.ReadAllText(Path.Combine(outDir, "buildfile.json"));
+                Assert.DoesNotContain(parent, json);
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [Fact]
+        public void Export_ReadmeWrittenAfterProjection_ReflectsFinalStatusAndWarning()
+        {
+            // The README must be generated AFTER RunProjection finalizes manifest projection
+            // status/warnings — otherwise it would always show the initial "skipped" status,
+            // even when the projection actually succeeds/fails/refuses (Copilot review finding:
+            // README written before the projection warning was known).
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x2000] = 0x66;
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                var options = new BuildfileExportOptions
+                {
+                    OutputDirectory = outDir,
+                    ProjectionRunner = _ => BuildfileProjectionOutcome.Refuse("installed EA/BIN patch"),
+                };
+                var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target), options);
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("refused", result.Manifest.Projection.Status);
+                Assert.Contains(result.Manifest.Warnings, w => w.Contains("Source projection refused"));
+
+                string readme = File.ReadAllText(Path.Combine(outDir, "README.md"));
+                Assert.Contains("## Warnings", readme);
+                Assert.Contains("Source projection refused", readme);
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [Fact]
+        public void Export_PatchDirectoryListingFailure_ManifestReasonIsStableAndPathFree()
+        {
+            // An existing-but-inaccessible patch base directory must surface as a stable,
+            // PATH-FREE manifest reason — never the raw exception message or the absolute
+            // patch base directory (Copilot review finding: enumError absolute path / per-record
+            // raw exception path). Deterministic injection via the internal
+            // PatchDirectoryListerForTest seam (no flaky real permission changes needed).
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x2000] = 0x66;
+
+            string patchBase = Path.Combine(Path.GetTempPath(), "bfx_patch_fail_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(patchBase);
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                var options = new BuildfileExportOptions
+                {
+                    OutputDirectory = outDir,
+                    PatchBaseDirectory = patchBase,
+                    PatchDirectoryListerForTest = _ => throw new IOException("Access to the path '" + patchBase + "' is denied."),
+                };
+                var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target), options);
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("unavailable", result.Manifest.Patches.Status);
+                Assert.DoesNotContain(patchBase, result.Manifest.Patches.Reason);
+                Assert.DoesNotContain("Access to the path", result.Manifest.Patches.Reason);
+                Assert.Equal("patch enumeration failed; check patch library directory permissions",
+                    result.Manifest.Patches.Reason);
+
+                string json = File.ReadAllText(Path.Combine(outDir, "buildfile.json"));
+                Assert.DoesNotContain(patchBase, json);
+            }
+            finally { Cleanup(parent); try { Directory.Delete(patchBase, true); } catch { } }
+        }
+
         [SkippableFact]
         public void Export_ProjectionCleanupFailure_AbortsExport_NoDestination()
         {
@@ -680,6 +895,26 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Contains("injected read failure", error);
             }
             finally { try { Directory.Delete(patchBase, true); } catch { } }
+        }
+
+        [Fact]
+        public void TryEnumeratePatches_ListingFailureDistinguishesMissingFromAccessDenied()
+        {
+            bool missing = PatchMetadataCore.TryEnumeratePatches(
+                "missing", null, "en", File.ReadAllLines,
+                _ => throw new DirectoryNotFoundException("missing"),
+                out var missingPatches, out string missingError);
+            Assert.True(missing);
+            Assert.Empty(missingPatches);
+            Assert.Equal("", missingError);
+
+            bool denied = PatchMetadataCore.TryEnumeratePatches(
+                "denied", null, "en", File.ReadAllLines,
+                _ => throw new UnauthorizedAccessException("denied"),
+                out var deniedPatches, out string deniedError);
+            Assert.False(denied);
+            Assert.Empty(deniedPatches);
+            Assert.Equal("denied", deniedError);
         }
 
         [Fact]

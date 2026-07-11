@@ -31,6 +31,26 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Thrown by <see cref="CompareWithFillBounded"/> when the diff would produce more
+        /// distinct changed ranges than the caller's resource-safety limit. A pathological
+        /// alternating-byte diff (worst case: one range every other byte) must be rejected
+        /// with a stable, explicit error immediately — BEFORE the range list grows past the
+        /// limit — rather than silently materializing millions of ranges (and, downstream,
+        /// millions of payload files).
+        /// </summary>
+        public sealed class DiffRangeLimitExceededException : Exception
+        {
+            public int Limit { get; }
+
+            public DiffRangeLimitExceededException(int limit)
+                : base("Diff produced more than " + limit +
+                      " distinct changed ranges; refusing (resource-safety limit).")
+            {
+                Limit = limit;
+            }
+        }
+
+        /// <summary>
         /// Compare two byte arrays and return contiguous diff ranges.
         /// Compares up to the shorter length, then merges any trailing extra region.
         /// </summary>
@@ -152,6 +172,64 @@ namespace FEBuilderGBA
 
             if (diffStart >= 0)
             {
+                uint len = (uint)(target.Length - diffStart);
+                result.Ranges.Add(new DiffRange { Offset = (uint)diffStart, Length = len });
+                result.TotalDiffBytes += len;
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Bounded variant of <see cref="CompareWithFill"/>: identical semantics (still
+        /// maxGap-0 — no merging of unchanged bytes into payloads), but throws
+        /// <see cref="DiffRangeLimitExceededException"/> the instant the NEXT range would
+        /// exceed <paramref name="maxRanges"/>, before it is added to the result. This bounds
+        /// memory/allocation for a pathological diff (e.g. a worst-case alternating-byte
+        /// pattern across a 32 MiB ROM, which would otherwise produce millions of one-byte
+        /// ranges) so resource-safety is enforced BEFORE any downstream materialization
+        /// (payload files, manifest entries). The existing unbounded <see cref="CompareWithFill"/>
+        /// is left completely unchanged for callers that do not need this bound.
+        /// </summary>
+        public static DiffResult CompareWithFillBounded(byte[] baseline, byte[] target, byte fillByte, int maxRanges)
+        {
+            if (baseline == null) throw new ArgumentNullException(nameof(baseline));
+            if (target == null) throw new ArgumentNullException(nameof(target));
+            if (target.Length < baseline.Length)
+                throw new ArgumentException("Target must not be shorter than the baseline.", nameof(target));
+            if (maxRanges <= 0)
+                throw new ArgumentOutOfRangeException(nameof(maxRanges), "maxRanges must be positive.");
+
+            var result = new DiffResult
+            {
+                Rom1Size = (uint)baseline.Length,
+                Rom2Size = (uint)target.Length,
+            };
+
+            int diffStart = -1;
+            for (int i = 0; i < target.Length; i++)
+            {
+                byte baseByte = i < baseline.Length ? baseline[i] : fillByte;
+                if (target[i] != baseByte)
+                {
+                    if (diffStart < 0)
+                        diffStart = i;
+                }
+                else if (diffStart >= 0)
+                {
+                    if (result.Ranges.Count >= maxRanges)
+                        throw new DiffRangeLimitExceededException(maxRanges);
+                    uint len = (uint)(i - diffStart);
+                    result.Ranges.Add(new DiffRange { Offset = (uint)diffStart, Length = len });
+                    result.TotalDiffBytes += len;
+                    diffStart = -1;
+                }
+            }
+
+            if (diffStart >= 0)
+            {
+                if (result.Ranges.Count >= maxRanges)
+                    throw new DiffRangeLimitExceededException(maxRanges);
                 uint len = (uint)(target.Length - diffStart);
                 result.Ranges.Add(new DiffRange { Offset = (uint)diffStart, Length = len });
                 result.TotalDiffBytes += len;

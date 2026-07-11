@@ -122,20 +122,54 @@ namespace FEBuilderGBA
         /// <summary>Internal read seam for deterministic enumeration-failure coverage.</summary>
         internal static bool TryEnumeratePatches(string patchBaseDir, ROM rom, string lang,
             Func<string, string[]> readAllLines, out List<PatchInfo> patches, out string error)
+            => TryEnumeratePatches(patchBaseDir, rom, lang, readAllLines, null, out patches, out error);
+
+        /// <summary>
+        /// Internal read + directory-listing seam. <paramref name="listPatchFiles"/> defaults to
+        /// a recursive <c>PATCH_*.txt</c> scan when <c>null</c>; injecting it lets tests simulate
+        /// a directory-enumeration ACCESS failure deterministically (no flaky real permission
+        /// changes needed).
+        /// </summary>
+        internal static bool TryEnumeratePatches(string patchBaseDir, ROM rom, string lang,
+            Func<string, string[]> readAllLines, Func<string, string[]> listPatchFiles,
+            out List<PatchInfo> patches, out string error)
         {
             patches = new List<PatchInfo>();
             error = "";
-            if (!Directory.Exists(patchBaseDir))
-                return true; // missing directory is not a failure here — an empty result
+            // A null/empty patchBaseDir never touches the filesystem — legacy callers rely on
+            // this resolving to "successful empty" (preserved on purpose; see remarks below).
+            if (string.IsNullOrEmpty(patchBaseDir))
+                return true;
+
+            Func<string, string[]> list = listPatchFiles
+                ?? (dir => Directory.GetFiles(dir, "PATCH_*.txt", SearchOption.AllDirectories));
+
+            string[] patchFiles;
+            try
+            {
+                // Guard the ACTUAL enumeration — NOT a separate Directory.Exists probe. An
+                // existing-but-inaccessible directory (permission/IO/path-too-long) must be
+                // reported as a real failure, never silently downgraded to "empty" (Copilot
+                // review finding: Directory.Exists inaccessible=>empty). A genuinely MISSING
+                // directory still resolves to "successful empty" via DirectoryNotFoundException,
+                // matching the historical contract and mirroring IsPatchLibraryEmpty's pattern.
+                patchFiles = list(patchBaseDir);
+            }
+            catch (DirectoryNotFoundException)
+            {
+                return true;
+            }
+            catch (Exception ex) when (IsExpectedFileSystemException(ex))
+            {
+                error = ex.Message;
+                return false;
+            }
 
             try
             {
                 // Enumerate EVERY PATCH_*.txt recursively, matching WinForms PatchForm.ScanPatchs
                 // (SearchOption.AllDirectories); each patch is named by its NAME param (fallback =
-                // filename minus the PATCH_ prefix). Materialize the enumeration so a lazy
-                // traversal fault is caught here rather than escaping the guard.
-                string[] patchFiles = Directory.GetFiles(patchBaseDir, "PATCH_*.txt", SearchOption.AllDirectories);
-
+                // filename minus the PATCH_ prefix).
                 foreach (string file in patchFiles.OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
                 {
                     string fileName = Path.GetFileNameWithoutExtension(file);

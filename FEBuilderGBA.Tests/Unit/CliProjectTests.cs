@@ -45,6 +45,42 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
+        public void FindRepoRoot_RecognizesNormalDotGitDirectory()
+        {
+            string parent = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "cli_repo_dir_" + System.Guid.NewGuid().ToString("N"));
+            string repoRoot = System.IO.Path.Combine(parent, "repo");
+            string nested = System.IO.Path.Combine(repoRoot, "sub", "dir");
+            System.IO.Directory.CreateDirectory(System.IO.Path.Combine(repoRoot, ".git"));
+            System.IO.Directory.CreateDirectory(nested);
+            try
+            {
+                Assert.Equal(repoRoot, CliProgram.FindRepoRoot(nested));
+            }
+            finally { try { System.IO.Directory.Delete(parent, true); } catch { } }
+        }
+
+        [Fact]
+        public void FindRepoRoot_RecognizesLinkedWorktreeDotGitFile()
+        {
+            // A linked `git worktree add` checkout has a `.git` FILE (containing a `gitdir: ...`
+            // pointer) instead of a `.git` directory. FindRepoRoot must recognize both so patch
+            // base directory resolution keeps working when the CLI runs from a worktree (Copilot
+            // review finding: worktree-safe repo root / `.git` file fallback).
+            string parent = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "cli_repo_wt_" + System.Guid.NewGuid().ToString("N"));
+            string repoRoot = System.IO.Path.Combine(parent, "worktree-checkout");
+            string nested = System.IO.Path.Combine(repoRoot, "sub", "dir");
+            System.IO.Directory.CreateDirectory(repoRoot);
+            System.IO.Directory.CreateDirectory(nested);
+            System.IO.File.WriteAllText(System.IO.Path.Combine(repoRoot, ".git"),
+                "gitdir: " + System.IO.Path.Combine(parent, "main-repo", ".git", "worktrees", "worktree-checkout") + "\n");
+            try
+            {
+                Assert.Equal(repoRoot, CliProgram.FindRepoRoot(nested));
+            }
+            finally { try { System.IO.Directory.Delete(parent, true); } catch { } }
+        }
+
+        [Fact]
         public void CliAppServices_ShowError_DoesNotThrow()
         {
             var svc = new CliAppServices();

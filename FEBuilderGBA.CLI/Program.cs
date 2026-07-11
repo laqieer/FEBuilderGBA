@@ -3589,14 +3589,21 @@ namespace FEBuilderGBA.CLI
         }
 
         /// <summary>
-        /// Walk up from a directory to find the repo root (contains .git).
+        /// Walk up from a directory to find the repo root (contains .git). In a normal repository
+        /// clone, <c>.git</c> is a directory; in a linked <c>git worktree</c> (e.g. <c>git
+        /// worktree add</c>), <c>.git</c> is instead a FILE containing a <c>gitdir: ...</c>
+        /// pointer. Both must be recognized so patch-base-directory resolution (and anything else
+        /// relying on repo-root detection) keeps working when the CLI runs from a worktree
+        /// checkout. Internal (not private) so <c>FEBuilderGBA.Tests</c> can exercise it directly
+        /// via the existing <c>InternalsVisibleTo</c> seam.
         /// </summary>
-        static string FindRepoRoot(string startDir)
+        internal static string FindRepoRoot(string startDir)
         {
             string dir = startDir;
             while (!string.IsNullOrEmpty(dir))
             {
-                if (Directory.Exists(Path.Combine(dir, ".git")))
+                string gitPath = Path.Combine(dir, ".git");
+                if (Directory.Exists(gitPath) || File.Exists(gitPath))
                     return dir;
                 dir = Path.GetDirectoryName(dir);
             }

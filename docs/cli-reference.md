@@ -238,19 +238,36 @@ project/
 ```
 
 Authority model: `buildfile.json` + `data/` are the sole build authority (consumed by
-issue #1936, which applies/verifies a recipe). `main.event` is a derived interoperability
+issue #1936, which applies/verifies a recipe). Payload ranges come directly from an authoritative,
+bounded byte-level diff (`maxGap=0`: unchanged bytes are never folded into a payload); a decomp-diff
+classifier then advisorily annotates each authoritative range with a best-effort category/confidence/
+suggestion, falling back to a stable `unknown`/low-confidence/manual-review record for any single
+range whose classifier faults — a classification failure never drops, reorders, resizes, or otherwise
+changes the authoritative ranges, and never aborts the export. To bound worst-case fragmentation
+(e.g. a large alternating-byte diff), the exporter rejects a diff producing more than 16,384 distinct
+changed ranges with an explicit, path-free resource-safety error **before** any payload/manifest file
+is materialized; ordinary mods are far below this limit. `main.event` is a derived interoperability
 surface; the installed-patch inventory in the manifest is advisory (its `config/patch2/{version}`
 directory is resolved by existence only and enumerated under a guard, so a missing, empty,
-slow, or unreadable patch library yields `unavailable` and never aborts the export); the `source/` projection
+slow, or unreadable patch library yields `unavailable` and never aborts the export; a directory that
+exists but cannot actually be enumerated — permissions, I/O, path failures — is distinguished from a
+directory that is simply absent, and any enumeration/parameter/relative-path failure is reported in
+the manifest as a stable, fixed, path-free reason string — never the raw exception message or the
+absolute patch library/patch file path); the `source/` projection
 is a non-composable best-effort — the projector receives only the ROM and a private scratch
 directory (created as a unique sibling OUTSIDE the publish stage on the same volume, moved into
 `source/` only on complete success). Before publish its text files are normalized to LF and the
-exporter-owned scratch path is stripped (the exporter does **not** claim to sanitize arbitrary
+exporter-owned scratch path is stripped from projected file contents AND from the projection outcome's
+success/refused/error/exception reason, from publish-failure diagnostics, and from cleanup-failure
+diagnostics alike (the exporter does **not** claim to sanitize arbitrary
 absolute paths a projector might otherwise embed); on refusal/error the scratch is removed and
 verified gone, and if it cannot be removed the export aborts rather than publish a partial
 `source/`. Authoritative-output failures also verify stage/scratch cleanup; if the filesystem
 blocks removal, the failure names the residual temporary path instead of silently claiming
-cleanup. If the target extends the clean ROM, the exporter picks the
+cleanup. `README.md` is written only after the `source/` projection outcome (if requested) has been
+finalized, so a projection refusal/error warning is guaranteed to appear consistently across the
+generated README, the manifest, and CLI-facing warnings; `buildfile.json` is still written last. If
+the target extends the clean ROM, the exporter picks the
 most frequent extension byte (lowest byte on ties) as the fill and emits only sparse override
 ranges, so a large mostly-`FF`/`00` extension never becomes a giant payload. Emulator/playtest
 validation is issue #1932.

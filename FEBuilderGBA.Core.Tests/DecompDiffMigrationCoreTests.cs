@@ -315,6 +315,71 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void ClassifyRangeSafe_OverrideThrows_FallsBackToStableUnclassifiedRecord()
+        {
+            // A faulting classifier override must degrade ONLY the one range to a stable
+            // Unknown/Low/manual record — it must never propagate the exception, and the
+            // caller's exact offset/length/changed-bytes must be preserved (Copilot review
+            // finding: AnalyzeWithFill's previous single try/catch could silently truncate the
+            // whole report after one classifier fault).
+            var rom = MakeFe8uRom(new byte[0x1000000]);
+            RangeClassifierOverride faulty = (r, built, offset, span, changed, map, resolver) =>
+                throw new InvalidOperationException("injected classifier fault");
+
+            MigrationRange result = DecompDiffMigrationCore.ClassifyRangeSafe(
+                rom, rom.Data, offset: 0x1234, spanLength: 8, changedBytes: 8,
+                map: null, resolver: null, overrideClassifier: faulty);
+
+            Assert.Equal(0x1234u, result.Offset);
+            Assert.Equal(8u, result.SpanLength);
+            Assert.Equal(8u, result.ChangedBytes);
+            Assert.Equal(MigrationCategory.Unknown, result.Category);
+            Assert.Equal(MigrationConfidence.Low, result.Confidence);
+            Assert.True(result.Manual);
+        }
+
+        [Fact]
+        public void ClassifyRangeSafe_OverrideReturnsNull_FallsBackToStableUnclassifiedRecord()
+        {
+            // An override that returns null (a "bad" advisory classifier, not necessarily a
+            // thrown exception) must be treated exactly like a fault — never omit the range.
+            var rom = MakeFe8uRom(new byte[0x1000000]);
+            RangeClassifierOverride returnsNull = (r, built, offset, span, changed, map, resolver) => null;
+
+            MigrationRange result = DecompDiffMigrationCore.ClassifyRangeSafe(
+                rom, rom.Data, offset: 0x5678, spanLength: 3, changedBytes: 3,
+                map: null, resolver: null, overrideClassifier: returnsNull);
+
+            Assert.Equal(0x5678u, result.Offset);
+            Assert.Equal(3u, result.SpanLength);
+            Assert.Equal(MigrationCategory.Unknown, result.Category);
+            Assert.Equal(MigrationConfidence.Low, result.Confidence);
+        }
+
+        [Fact]
+        public void ClassifyRangeSafe_NoOverride_MatchesRealClassifierResult()
+        {
+            // With no override (the production default), ClassifyRangeSafe must return exactly
+            // what the real single-range classifier used by AnalyzeInternal would produce —
+            // proving the exporter's direct per-range use of this seam is behavior-identical to
+            // the analyzer's own internal loop.
+            uint off = 0x900000;
+            var (built, edited) = MakePair(0x1000000, off, 4);
+            var rom = MakeFe8uRom(built);
+
+            var report = DecompDiffMigrationCore.Analyze(rom, edited, null, null);
+            Assert.Single(report.Ranges);
+
+            MigrationRange direct = DecompDiffMigrationCore.ClassifyRangeSafe(
+                rom, built, off, spanLength: 4, changedBytes: 4, map: null, resolver: null);
+
+            Assert.Equal(report.Ranges[0].Category, direct.Category);
+            Assert.Equal(report.Ranges[0].Confidence, direct.Confidence);
+            Assert.Equal(report.Ranges[0].Offset, direct.Offset);
+            Assert.Equal(report.Ranges[0].SpanLength, direct.SpanLength);
+        }
+
+        [Fact]
         public void Analyze_NullEdited_NoThrow_EmptyReport()
         {
             var rom = MakeFe8uRom(new byte[0x1000000]);

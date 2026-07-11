@@ -129,5 +129,77 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains("AA", tsv);
             Assert.Contains("BB", tsv);
         }
+
+        [Fact]
+        public void CompareWithFillBounded_WithinLimit_MatchesUnboundedResult()
+        {
+            byte[] baseline = new byte[] { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05 };
+            byte[] target = new byte[] { 0xFF, 0x01, 0x02, 0x03, 0xFF, 0x05 };
+            var unbounded = RomDiffCore.CompareWithFill(baseline, target, 0x00);
+            var bounded = RomDiffCore.CompareWithFillBounded(baseline, target, 0x00, maxRanges: 16384);
+            Assert.Equal(unbounded.Ranges.Count, bounded.Ranges.Count);
+            for (int i = 0; i < unbounded.Ranges.Count; i++)
+            {
+                Assert.Equal(unbounded.Ranges[i].Offset, bounded.Ranges[i].Offset);
+                Assert.Equal(unbounded.Ranges[i].Length, bounded.Ranges[i].Length);
+            }
+            Assert.Equal(unbounded.TotalDiffBytes, bounded.TotalDiffBytes);
+        }
+
+        [Fact]
+        public void CompareWithFillBounded_ExactlyAtLimit_Succeeds()
+        {
+            // 4 separated one-byte ranges (limit == 4) must succeed — the limit check is a
+            // "would EXCEED" check, not an off-by-one under-count.
+            byte[] baseline = new byte[8];
+            byte[] target = (byte[])baseline.Clone();
+            target[0] = 1; target[2] = 1; target[4] = 1; target[6] = 1;
+            var bounded = RomDiffCore.CompareWithFillBounded(baseline, target, 0x00, maxRanges: 4);
+            Assert.Equal(4, bounded.Ranges.Count);
+        }
+
+        [Fact]
+        public void CompareWithFillBounded_ExceedsLimit_ThrowsDiffRangeLimitExceeded()
+        {
+            // A pathological alternating-byte diff (every other byte differs) must be rejected
+            // the instant the (limit+1)th range would be produced — proving the bound is
+            // enforced BEFORE any downstream materialization, without allocating millions of
+            // ranges for a large ROM (Copilot review finding: unbounded 16M ranges/files).
+            const int limit = 16384;
+            // limit+1 separated one-byte diff ranges, each 2 bytes apart (1 changed + 1 same).
+            int neededLength = (limit + 1) * 2;
+            byte[] baseline = new byte[neededLength];
+            byte[] target = (byte[])baseline.Clone();
+            for (int i = 0; i < neededLength; i += 2)
+                target[i] = 0x01;
+
+            var ex = Assert.Throws<RomDiffCore.DiffRangeLimitExceededException>(() =>
+                RomDiffCore.CompareWithFillBounded(baseline, target, 0x00, maxRanges: limit));
+            Assert.Equal(limit, ex.Limit);
+        }
+
+        [Fact]
+        public void CompareWithFillBounded_NonPositiveMaxRanges_Throws()
+        {
+            byte[] rom = new byte[] { 0x00 };
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                RomDiffCore.CompareWithFillBounded(rom, rom, 0x00, maxRanges: 0));
+        }
+
+        [Fact]
+        public void CompareWithFill_ThreeArgOverload_StillUnboundedForLargeAlternatingDiff()
+        {
+            // Regression guard: the existing public 3-argument CompareWithFill must remain
+            // completely unaffected by the new bounded overload — it never throws regardless of
+            // range count.
+            const int rangeCount = 5000;
+            byte[] baseline = new byte[rangeCount * 2];
+            byte[] target = (byte[])baseline.Clone();
+            for (int i = 0; i < target.Length; i += 2)
+                target[i] = 0x01;
+
+            var result = RomDiffCore.CompareWithFill(baseline, target, 0x00);
+            Assert.Equal(rangeCount, result.Ranges.Count);
+        }
     }
 }

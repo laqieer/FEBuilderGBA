@@ -284,8 +284,32 @@ namespace FEBuilderGBA
         /// <summary>Internal failure-injection seam used by staged-publication tests.</summary>
         internal Action<string> BeforePayloadWriteForTest { get; set; }
 
+        /// <summary>
+        /// Internal advisory-classifier override for deterministic fault-injection tests
+        /// (default null = the real <see cref="DecompDiffMigrationCore"/> classifier is used;
+        /// production behavior is unchanged). Never affects which authoritative payload
+        /// ranges are emitted — only their advisory category/confidence/suggestion.
+        /// </summary>
+        internal RangeClassifierOverride ClassifierOverrideForTest { get; set; }
+
+        /// <summary>
+        /// Internal patch-directory-listing override for deterministic enumeration-failure
+        /// tests (default null = the real recursive <c>PATCH_*.txt</c> scan is used; production
+        /// behavior is unchanged). Lets tests simulate an existing-but-inaccessible patch
+        /// library directory without relying on flaky real permission changes.
+        /// </summary>
+        internal Func<string, string[]> PatchDirectoryListerForTest { get; set; }
+
         /// <summary>Maximum accepted target size (32 MiB).</summary>
         public const int MaxRomSize = 32 * 1024 * 1024;
+
+        /// <summary>
+        /// Maximum number of distinct payload ranges a single export will materialize
+        /// (resource-safety bound; see <see cref="RomDiffCore.CompareWithFillBounded"/>). A
+        /// pathological alternating-byte diff across a 32 MiB ROM could otherwise produce on
+        /// the order of 16 million one-byte ranges/files.
+        /// </summary>
+        public const int MaxPayloadRanges = 16384;
     }
 
     /// <summary>Result of an export attempt.</summary>
@@ -511,34 +535,51 @@ namespace FEBuilderGBA
                 };
             }
 
-            // Fill-aware diff feeding the SAME classification pipeline (maxGap 0 so every
-            // range byte differs from clean-or-fill and is owned exactly once).
-            MigrationReport report = DecompDiffMigrationCore.AnalyzeWithFill(
-                cleanRom, target, fill, map: null, resolver: null, maxGap: 0);
+            // AUTHORITATIVE diff: payload ranges come DIRECTLY from the fill-aware byte
+            // comparator (maxGap 0 — every range byte differs from clean-or-fill and is
+            // owned exactly once), using the BOUNDED overload so a pathological
+            // alternating-byte diff is rejected immediately with an explicit error instead
+            // of materializing an unbounded number of ranges/files before we ever touch the
+            // filesystem (Copilot review finding: unbounded 16M-range worst case).
+            //
+            // Classification is looked up per-range AFTERWARDS via the never-throwing
+            // ClassifyRangeSafe seam and is advisory-only: a classifier fault (or an injected
+            // bad classifier under test, via options.ClassifierOverrideForTest) degrades that
+            // ONE range to a stable unknown/low-confidence/manual-review record and can NEVER
+            // omit, reorder, or resize the authoritative range itself (Copilot review finding:
+            // AnalyzeWithFill's single try/catch around the whole loop could silently return a
+            // PARTIAL report on a mid-loop classifier fault — going straight to the diff result
+            // here removes that failure mode entirely).
+            RomDiffCore.DiffResult diff = RomDiffCore.CompareWithFillBounded(
+                clean, target, fill, BuildfileExportOptions.MaxPayloadRanges);
 
             uint totalChanged = 0;
             int index = 0;
-            foreach (MigrationRange mr in report.Ranges)
+            foreach (RomDiffCore.DiffRange dr in diff.Ranges)
             {
-                string rel = "data/" + PayloadName(index, mr.Offset, mr.SpanLength);
-                byte[] payload = Slice(target, mr.Offset, mr.SpanLength);
+                MigrationRange mr = DecompDiffMigrationCore.ClassifyRangeSafe(
+                    cleanRom, clean, dr.Offset, dr.Length, dr.Length,
+                    map: null, resolver: null, options.ClassifierOverrideForTest);
+
+                string rel = "data/" + PayloadName(index, dr.Offset, dr.Length);
+                byte[] payload = Slice(target, dr.Offset, dr.Length);
 
                 m.Ranges.Add(new BuildfileRange
                 {
                     Index = index,
-                    Offset = mr.Offset,
-                    GbaAddress = Hex32(U.toPointer(mr.Offset)),
-                    Length = mr.SpanLength,
-                    ChangedBytes = mr.ChangedBytes,
+                    Offset = dr.Offset,
+                    GbaAddress = Hex32(U.toPointer(dr.Offset)),
+                    Length = dr.Length,
+                    ChangedBytes = dr.Length,
                     Category = CategoryWord(mr.Category),
                     Confidence = ConfidenceWord(mr.Confidence),
                     Suggestion = mr.Suggestion ?? "",
                     Payload = rel,
                     PayloadSha256 = Sha256Hex(payload),
                 });
-                plan.Payloads.Add(new BuildfilePayloadSpan { RelativePath = rel, Offset = mr.Offset, Length = mr.SpanLength });
+                plan.Payloads.Add(new BuildfilePayloadSpan { RelativePath = rel, Offset = dr.Offset, Length = dr.Length });
 
-                totalChanged += mr.ChangedBytes;
+                totalChanged += dr.Length;
                 index++;
             }
             m.TotalRanges = m.Ranges.Count;
@@ -635,12 +676,19 @@ namespace FEBuilderGBA
                     File.WriteAllBytes(full, bytes);
                 }
 
-                // 2) Derived EA installer + README.
+                // 2) Derived EA installer (does not depend on projection status).
                 WriteTextLf(Path.Combine(stage, "main.event"), GenerateMainEvent(plan));
-                WriteTextLf(Path.Combine(stage, "README.md"), GenerateReadme(plan.Manifest));
 
-                // 3) Optional advisory source projection (external scratch → stage/source on success).
+                // 3) Optional advisory source projection (external scratch → stage/source on
+                // success). MUST run BEFORE the README is generated: the README surfaces the
+                // projection status/warning, and generating it first would freeze a stale
+                // "skipped" status even when the projection later succeeds/fails/refuses
+                // (Copilot review finding: README-before-projection-warning).
                 RunProjection(plan.Manifest, stage, projectionScratch, options);
+
+                // 3.5) README — written AFTER projection so it reflects the FINAL manifest
+                // status/warnings (including a projection refusal/error warning, when present).
+                WriteTextLf(Path.Combine(stage, "README.md"), GenerateReadme(plan.Manifest));
 
                 // 4) Re-read + verify every payload hash before we publish.
                 foreach (BuildfileRange r in plan.Manifest.Ranges)
@@ -775,6 +823,12 @@ namespace FEBuilderGBA
                 // authoritative export). This is deliberately broad and scoped to the delegate call.
                 outcome = BuildfileProjectionOutcome.Fail(ex.Message);
             }
+            // Sanitize the exporter-owned scratch path out of the outcome's reason IMMEDIATELY —
+            // before it is ever stored in the manifest or embedded in a thrown message. This
+            // covers success/refused/error/exception outcomes uniformly, since a caller-supplied
+            // runner or its exception message could otherwise echo the absolute scratch path back
+            // (Copilot review finding: projection scratch reason paths).
+            outcome.Reason = SanitizeScratchPath(outcome.Reason, scratch);
 
             if (outcome.Status == BuildfileProjectionStatus.Success)
             {
@@ -792,7 +846,7 @@ namespace FEBuilderGBA
                 }
                 catch (Exception ex) when (IsExpectedFileSystemException(ex))
                 {
-                    outcome = BuildfileProjectionOutcome.Fail("publish failed: " + ex.Message);
+                    outcome = BuildfileProjectionOutcome.Fail(SanitizeScratchPath("publish failed: " + ex.Message, scratch));
                 }
             }
 
@@ -803,10 +857,10 @@ namespace FEBuilderGBA
             string primaryReason = outcome.Reason ?? "";
             if (!DeleteAndVerifyGone(scratch, out string cleanupError))
             {
-                throw new IOException(
+                throw new IOException(SanitizeScratchPath(
                     "Source projection " + StatusWord(outcome.Status) + " (" + primaryReason +
                     ") and its scratch could not be removed (" + scratch + "): " + cleanupError +
-                    "; refusing to publish.");
+                    "; refusing to publish.", scratch));
             }
 
             switch (outcome.Status)
@@ -863,10 +917,6 @@ namespace FEBuilderGBA
         static bool SanitizeAndNormalizeTree(string scratchDir, out string error)
         {
             error = "";
-            string scratchAbs = Path.TrimEndingDirectorySeparator(Path.GetFullPath(scratchDir));
-            string scratchFwd = scratchAbs.Replace('\\', '/');
-            // JSON/C-style escaped Windows spelling: backslashes are doubled (C:\\temp\\...).
-            string scratchEsc = scratchAbs.Replace("\\", "\\\\");
             string[] textExt = { ".rebuild", ".event", ".txt", ".s", ".asm", ".json", ".md", ".inc", ".c", ".h" };
 
             string[] files;
@@ -878,7 +928,7 @@ namespace FEBuilderGBA
             }
             catch (Exception ex) when (IsExpectedFileSystemException(ex))
             {
-                error = "enumerate failed: " + ex.Message;
+                error = SanitizeScratchPath("enumerate failed: " + ex.Message, scratchDir);
                 return false;
             }
 
@@ -891,7 +941,10 @@ namespace FEBuilderGBA
                 try { text = File.ReadAllText(file); }
                 catch (Exception ex) when (IsExpectedFileSystemException(ex))
                 {
-                    error = "read failed for " + file + ": " + ex.Message;
+                    // `file` is itself an absolute path UNDER scratchDir — sanitize it too so an
+                    // enumeration/read failure can never leak the scratch location (Copilot
+                    // review finding: per-record/per-file raw exception path).
+                    error = SanitizeScratchPath("read failed for " + file + ": " + ex.Message, scratchDir);
                     return false;
                 }
 
@@ -899,19 +952,36 @@ namespace FEBuilderGBA
                 // spellings). The unique guid in the path makes this boundary-safe: it cannot be
                 // a prefix of an unrelated fixed-width token. We do NOT claim to strip arbitrary
                 // absolute paths a projector might otherwise embed.
-                string sanitized = NormalizeLf(text
-                    .Replace(scratchEsc, "source")
-                    .Replace(scratchAbs, "source")
-                    .Replace(scratchFwd, "source"));
+                string sanitized = NormalizeLf(SanitizeScratchPath(text, scratchDir));
 
                 try { File.WriteAllText(file, sanitized); }
                 catch (Exception ex) when (IsExpectedFileSystemException(ex))
                 {
-                    error = "write failed for " + file + ": " + ex.Message;
+                    error = SanitizeScratchPath("write failed for " + file + ": " + ex.Message, scratchDir);
                     return false;
                 }
             }
             return true;
+        }
+
+        // Strip the exporter-owned scratch absolute path (native, forward-slash, and
+        // JSON/C-escaped spellings) from arbitrary text, replacing it with "source". Shared by
+        // BOTH projected file content (SanitizeAndNormalizeTree) and every projection outcome
+        // reason / thrown message (RunProjection) so no scratch/environment location can leak
+        // into the manifest, warnings, or README through ANY path (success reason, refusal
+        // reason, runner-exception message, or publish-sanitize error). We only strip the
+        // scratch path we control — never claims to strip arbitrary absolute paths a projector
+        // might otherwise emit. Never throws: an unresolvable scratchDir returns text unchanged.
+        static string SanitizeScratchPath(string text, string scratchDir)
+        {
+            if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(scratchDir)) return text ?? "";
+            string scratchAbs;
+            try { scratchAbs = Path.TrimEndingDirectorySeparator(Path.GetFullPath(scratchDir)); }
+            catch (Exception ex) when (IsExpectedFileSystemException(ex)) { return text; }
+            string scratchFwd = scratchAbs.Replace('\\', '/');
+            // JSON/C-style escaped Windows spelling: backslashes are doubled (C:\\temp\\...).
+            string scratchEsc = scratchAbs.Replace("\\", "\\\\");
+            return text.Replace(scratchEsc, "source").Replace(scratchAbs, "source").Replace(scratchFwd, "source");
         }
 
         // -------------------------------------------------------- patch inventory
@@ -923,7 +993,7 @@ namespace FEBuilderGBA
             string version = targetRom.RomInfo?.VersionToFilename ?? "";
             inv.BaseRelative = string.IsNullOrEmpty(version) ? "config/patch2" : "config/patch2/" + version;
 
-            if (string.IsNullOrEmpty(baseDir) || !Directory.Exists(baseDir))
+            if (string.IsNullOrEmpty(baseDir))
             {
                 inv.Status = "unavailable";
                 inv.Reason = "patch library not found; raw recipe is complete without it";
@@ -931,12 +1001,16 @@ namespace FEBuilderGBA
             }
 
             List<PatchMetadataCore.PatchInfo> patches;
-            if (!PatchMetadataCore.TryEnumeratePatches(baseDir, targetRom, options.Language ?? "en", out patches, out string enumError))
+            if (!PatchMetadataCore.TryEnumeratePatches(baseDir, targetRom, options.Language ?? "en",
+                    File.ReadAllLines, options.PatchDirectoryListerForTest, out patches, out _))
             {
                 // Enumeration FAILED (distinct from an empty directory) → unavailable, not
-                // "available with zero entries".
+                // "available with zero entries". The manifest reason is a STABLE, path-free
+                // string: the underlying error may contain the absolute patch base directory
+                // (from the underlying OS exception message) and must never be serialized into
+                // buildfile.json (Copilot review finding: enumError absolute path).
                 inv.Status = "unavailable";
-                inv.Reason = "patch enumeration failed: " + enumError;
+                inv.Reason = "patch enumeration failed; check patch library directory permissions";
                 return inv;
             }
             if (patches.Count == 0)
@@ -1000,7 +1074,10 @@ namespace FEBuilderGBA
             }
             catch (Exception ex) when (IsExpectedFileSystemException(ex))
             {
-                rec.Reason += "; raw parameters unavailable: " + ex.Message;
+                // Stable, path-free reason: `ex.Message` may embed the absolute patch file path
+                // and must never be serialized into buildfile.json (Copilot review finding:
+                // per-record raw exception path).
+                rec.Reason += "; raw parameters unavailable";
                 return;
             }
             if (parsed == null) return;
@@ -1022,7 +1099,10 @@ namespace FEBuilderGBA
             }
             catch (Exception ex) when (IsExpectedFileSystemException(ex))
             {
-                rec.Reason += "; relative path unavailable: " + ex.Message;
+                // Stable, path-free reason: `ex.Message` (and `patchFilePath`) may embed an
+                // absolute path and must never be serialized into buildfile.json (Copilot review
+                // finding: per-record raw exception path).
+                rec.Reason += "; relative path unavailable";
                 return Path.GetFileName(patchFilePath);
             }
         }
