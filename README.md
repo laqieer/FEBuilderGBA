@@ -113,7 +113,9 @@ dotnet run --project FEBuilderGBA.CLI -- --export-buildfile --rom=modified.gba -
 # buildfile.json + data/ are authoritative; derived main.event is real-toolchain tested when bundled EA is available.
 # Each range's gbaAddress is always 0x08000000 + offset, including header offsets 0 and 1.
 # --with-source rejects linked sidecars and re-walks the moved source tree before publication.
+# --with-source also rejects Unix FIFOs, sockets, and device nodes before opening projection files.
 # Stage/scratch names use a bounded stable hash and are atomically reserved; collisions are never reused.
+# Final publication is an atomic no-replace rename; a race-created destination is never replaced.
 # On Windows, use standard drive/UNC paths; device namespaces (\\?\, \\.\, and \??\) are rejected.
 # ROM aliases retain platform-accurate link semantics; Windows long paths keep handle-level identity checks.
 # Windows aliases use 128-bit file identity with a FAT/exFAT-compatible 64-bit fallback.

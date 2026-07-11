@@ -558,6 +558,9 @@ namespace FEBuilderGBA
         /// <summary>Internal failure-injection seam used by staged-publication tests.</summary>
         internal Action<string> BeforePayloadWriteForTest { get; set; }
 
+        /// <summary>Internal hook for creating a destination race immediately before publish.</summary>
+        internal Action<string> BeforePublishForTest { get; set; }
+
         /// <summary>
         /// Internal advisory-classifier override for deterministic fault-injection tests
         /// (default null = the real <see cref="DecompDiffMigrationCore"/> classifier is used;
@@ -952,10 +955,97 @@ namespace FEBuilderGBA
         [return: MarshalAs(UnmanagedType.Bool)]
         static extern bool CreateDirectoryWindows(string path, IntPtr securityAttributes);
 
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true,
+            EntryPoint = "MoveFileExW")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool MoveFileNoReplaceWindows(
+            string existingPath,
+            string newPath,
+            uint flags);
+
         [DllImport("libc", SetLastError = true, EntryPoint = "mkdir")]
         static extern int CreateDirectoryUnix(
             [MarshalAs(UnmanagedType.LPUTF8Str)] string path,
             uint mode);
+
+        [DllImport("libc", SetLastError = true, EntryPoint = "renameat2")]
+        static extern int MoveDirectoryNoReplaceLinux(
+            int oldDirectoryFd,
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string oldPath,
+            int newDirectoryFd,
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string newPath,
+            uint flags);
+
+        [DllImport("libc", SetLastError = true, EntryPoint = "renamex_np")]
+        static extern int MoveDirectoryNoReplaceDarwin(
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string oldPath,
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string newPath,
+            uint flags);
+
+        internal static void PublishDirectoryNoReplace(string source, string destination)
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                if (MoveFileNoReplaceWindows(
+                    ToWindowsExtendedPath(source),
+                    ToWindowsExtendedPath(destination),
+                    0))
+                    return;
+                ThrowPublishError(Marshal.GetLastWin32Error());
+            }
+
+            // Browser storage is single-process; retain an explicit destination check because
+            // native no-replace rename APIs are unavailable in WebAssembly.
+            if (OperatingSystem.IsBrowser())
+            {
+                if (Directory.Exists(destination) || File.Exists(destination))
+                    ThrowPublishError(183);
+                Directory.Move(source, destination);
+                return;
+            }
+
+            int result;
+            try
+            {
+                if (OperatingSystem.IsLinux() || OperatingSystem.IsAndroid())
+                {
+                    const int AtCurrentWorkingDirectory = -100;
+                    const uint RenameNoReplace = 1;
+                    result = MoveDirectoryNoReplaceLinux(
+                        AtCurrentWorkingDirectory, source,
+                        AtCurrentWorkingDirectory, destination,
+                        RenameNoReplace);
+                }
+                else if (OperatingSystem.IsMacOS()
+                    || OperatingSystem.IsIOS()
+                    || OperatingSystem.IsMacCatalyst())
+                {
+                    const uint RenameExclusive = 0x00000004;
+                    result = MoveDirectoryNoReplaceDarwin(source, destination, RenameExclusive);
+                }
+                else
+                {
+                    throw new PlatformNotSupportedException(
+                        "Atomic no-replace directory publication is unavailable on this platform.");
+                }
+            }
+            catch (EntryPointNotFoundException ex)
+            {
+                throw new PlatformNotSupportedException(
+                    "Atomic no-replace directory publication is unavailable on this platform.", ex);
+            }
+
+            if (result == 0)
+                return;
+            ThrowPublishError(Marshal.GetLastWin32Error());
+        }
+
+        static void ThrowPublishError(int error)
+        {
+            if (error == 17 || error == 80 || error == 183)
+                throw new IOException("Destination already exists; refusing to replace.");
+            throw new IOException("Atomic directory publication failed (native error " + error + ").");
+        }
 
         /// <summary>
         /// Plan and publish a buildfile project. Stages the whole tree in a uniquely
@@ -1072,8 +1162,10 @@ namespace FEBuilderGBA
                 // 5) buildfile.json LAST (the authority file marks a complete project).
                 WriteTextLf(Path.Combine(stage, "buildfile.json"), SerializeManifest(plan.Manifest));
 
-                // 6) Publish with a single directory rename.
-                Directory.Move(stage, outDir);
+                // 6) Publish with one atomic no-replace directory rename. The destination
+                // must remain absent even if another process creates it after preflight.
+                options.BeforePublishForTest?.Invoke(outDir);
+                PublishDirectoryNoReplace(stage, outDir);
             }
             catch (Exception ex)
             {
@@ -1386,6 +1478,9 @@ namespace FEBuilderGBA
                 string ext = Path.GetExtension(file).ToLowerInvariant();
                 if (Array.IndexOf(textExt, ext) < 0) continue;
 
+                if (!ValidatePlainProjectionFile(file, scratchDir, out error))
+                    return false;
+
                 string text;
                 try { text = File.ReadAllText(file); }
                 catch (Exception ex) when (IsExpectedFileSystemException(ex))
@@ -1403,6 +1498,9 @@ namespace FEBuilderGBA
                 // absolute paths a projector might otherwise embed.
                 string sanitized = NormalizeLf(SanitizeScratchPath(text, scratchDir));
 
+                if (!ValidatePlainProjectionFile(file, scratchDir, out error))
+                    return false;
+
                 try { File.WriteAllText(file, sanitized); }
                 catch (Exception ex) when (IsExpectedFileSystemException(ex))
                 {
@@ -1413,7 +1511,7 @@ namespace FEBuilderGBA
             return true;
         }
 
-        static bool TryEnumeratePlainProjectionTree(
+        internal static bool TryEnumeratePlainProjectionTree(
             string rootDirectory,
             string sanitizeRoot,
             out List<string> files,
@@ -1443,9 +1541,24 @@ namespace FEBuilderGBA
                             return false;
                         }
                         if ((attributes & FileAttributes.Directory) != 0)
+                        {
+                            if (!ProjectionFileSystemSafety.TryValidateDirectory(
+                                entry, out string directoryTypeError))
+                            {
+                                error = SanitizeScratchPath(
+                                    "projection contains a non-directory entry: " + entry
+                                    + " (" + directoryTypeError + ")",
+                                    sanitizeRoot);
+                                return false;
+                            }
                             pending.Push(entry);
+                        }
                         else
+                        {
+                            if (!ValidatePlainProjectionFile(entry, sanitizeRoot, out error))
+                                return false;
                             files.Add(entry);
+                        }
                     }
                 }
                 return true;
@@ -1487,6 +1600,53 @@ namespace FEBuilderGBA
             {
                 error = SanitizeScratchPath(
                     "projection contains a symlink/junction directory: " + directory,
+                    scratchDir);
+                return false;
+            }
+            if (!ProjectionFileSystemSafety.TryValidateDirectory(
+                directory, out string directoryTypeError))
+            {
+                error = SanitizeScratchPath(
+                    "projection path is not a plain directory: " + directory
+                    + " (" + directoryTypeError + ")",
+                    scratchDir);
+                return false;
+            }
+            return true;
+        }
+
+        static bool ValidatePlainProjectionFile(
+            string file,
+            string scratchDir,
+            out string error)
+        {
+            error = "";
+            FileAttributes attributes;
+            try
+            {
+                attributes = File.GetAttributes(file);
+            }
+            catch (Exception ex) when (IsExpectedFileSystemException(ex))
+            {
+                error = SanitizeScratchPath(
+                    "cannot inspect projection file: " + ex.Message,
+                    scratchDir);
+                return false;
+            }
+
+            if ((attributes & (FileAttributes.Directory | FileAttributes.ReparsePoint)) != 0)
+            {
+                error = SanitizeScratchPath(
+                    "projection contains a non-regular file: " + file,
+                    scratchDir);
+                return false;
+            }
+            if (!ProjectionFileSystemSafety.TryValidateRegularFile(
+                file, out string fileTypeError))
+            {
+                error = SanitizeScratchPath(
+                    "projection contains a non-regular file: " + file
+                    + " (" + fileTypeError + ")",
                     scratchDir);
                 return false;
             }

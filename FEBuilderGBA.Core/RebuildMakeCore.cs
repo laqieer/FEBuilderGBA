@@ -110,9 +110,8 @@ namespace FEBuilderGBA
 
             string fullManifestPath = Path.GetFullPath(manifestPath);
             string baseDir = Path.GetDirectoryName(fullManifestPath) ?? Directory.GetCurrentDirectory();
-            ValidateReadableRegularFile(fullManifestPath, "rebuild manifest", getAttributes);
-
-            string[] lines = File.ReadAllLines(fullManifestPath);
+            string[] lines = ReadAllLinesFromRegularFile(
+                fullManifestPath, "rebuild manifest", getAttributes);
             bool hasCrc32 = false;
             bool hasRebuildAddress = false;
             for (int lineIndex = 0; lineIndex < lines.Length; lineIndex++)
@@ -234,16 +233,40 @@ namespace FEBuilderGBA
             string description,
             Func<string, FileAttributes> getAttributes)
         {
+            ValidateRegularFileMetadata(path, description, getAttributes);
+
+            using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                stream.CopyTo(Stream.Null);
+            }
+        }
+
+        static string[] ReadAllLinesFromRegularFile(
+            string path,
+            string description,
+            Func<string, FileAttributes> getAttributes)
+        {
+            ValidateRegularFileMetadata(path, description, getAttributes);
+            return File.ReadAllLines(path);
+        }
+
+        static void ValidateRegularFileMetadata(
+            string path,
+            string description,
+            Func<string, FileAttributes> getAttributes)
+        {
             if (!File.Exists(path))
                 throw new InvalidDataException("Missing " + description + ": " + path);
 
             FileAttributes attributes = getAttributes(path);
             if ((attributes & (FileAttributes.Directory | FileAttributes.ReparsePoint)) != 0)
                 throw new InvalidDataException(description + " is not a regular file: " + path);
-
-            using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+            if (!ProjectionFileSystemSafety.TryValidateRegularFile(
+                path, out string fileTypeError))
             {
-                stream.CopyTo(Stream.Null);
+                throw new InvalidDataException(
+                    description + " is not a regular file: " + path
+                    + " (" + fileTypeError + ").");
             }
         }
 

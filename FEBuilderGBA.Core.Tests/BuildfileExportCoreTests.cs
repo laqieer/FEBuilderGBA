@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
@@ -28,6 +29,11 @@ namespace FEBuilderGBA.Core.Tests
         const string FE8U_CODE = "BE8E01";
         const string FE7U_CODE = "AE7E01";
         const int RomSize = 0x1000000; // 16 MiB, a normal FE8U size
+
+        [DllImport("libc", EntryPoint = "mkfifo", SetLastError = true)]
+        static extern int CreateFifoUnix(
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string path,
+            uint mode);
 
         static ROM MakeRom(byte[] data, string code = FE8U_CODE)
         {
@@ -525,6 +531,34 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void Export_EmptyDestinationCreatedAtPublish_IsNotReplaced()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x10] = 0xA;
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                var options = new BuildfileExportOptions
+                {
+                    OutputDirectory = outDir,
+                    BeforePublishForTest = path => Directory.CreateDirectory(path),
+                };
+
+                var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target), options);
+
+                Assert.False(result.Success);
+                Assert.Contains("already exists", result.Error);
+                Assert.True(Directory.Exists(outDir));
+                Assert.Empty(Directory.GetFileSystemEntries(outDir));
+                Assert.DoesNotContain(Directory.GetDirectories(parent), d =>
+                    Path.GetFileName(d).Contains(".stage-"));
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [Fact]
         public void Export_StagedPayloadWriteFailure_RemovesStageAndDestination()
         {
             var clean = new byte[RomSize];
@@ -683,6 +717,98 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.DoesNotContain(Directory.GetDirectories(outDir), d => Path.GetFileName(d).StartsWith("."));
             }
             finally { Cleanup(parent); }
+        }
+
+        [Theory]
+        [InlineData(0x8000, true)]
+        [InlineData(0x81A4, true)]
+        [InlineData(0x1000, false)]
+        [InlineData(0x2000, false)]
+        [InlineData(0x4000, false)]
+        [InlineData(0x6000, false)]
+        [InlineData(0xA000, false)]
+        [InlineData(0xC000, false)]
+        public void ProjectionFileSystemSafety_RegularMode_RejectsEverySpecialType(
+            int mode,
+            bool expected)
+        {
+            Assert.Equal(expected, ProjectionFileSystemSafety.IsRegularFileMode(mode));
+        }
+
+        [SkippableFact]
+        public void TryEnumeratePlainProjectionTree_UnixFifo_IsRejectedWithoutOpening()
+        {
+            Skip.IfNot(
+                OperatingSystem.IsLinux() || OperatingSystem.IsMacOS(),
+                "Unix FIFO inode types are available only on Linux/macOS CI.");
+
+            string root = Path.Combine(
+                Path.GetTempPath(), "bff" + Guid.NewGuid().ToString("N").Substring(0, 8));
+            Directory.CreateDirectory(root);
+            try
+            {
+                string fifo = Path.Combine(root, "p");
+                Assert.True(
+                    CreateFifoUnix(fifo, 0x180) == 0,
+                    "mkfifo failed with native error " + Marshal.GetLastWin32Error());
+
+                bool success = BuildfileExportCore.TryEnumeratePlainProjectionTree(
+                    root, root, out List<string> files, out string error);
+
+                Assert.False(success);
+                Assert.Empty(files);
+                Assert.Contains("non-regular file", error);
+                Assert.Contains("0x1000", error);
+            }
+            finally { Cleanup(root); }
+        }
+
+        [SkippableFact]
+        public void TryEnumeratePlainProjectionTree_UnixSocket_IsRejectedWithoutOpening()
+        {
+            Skip.IfNot(
+                OperatingSystem.IsLinux() || OperatingSystem.IsMacOS(),
+                "Unix socket inode types are available only on Linux/macOS CI.");
+
+            string root = Path.Combine(
+                Path.GetTempPath(), "bfs" + Guid.NewGuid().ToString("N").Substring(0, 8));
+            Directory.CreateDirectory(root);
+            string socketPath = Path.Combine(root, "s");
+            Socket socket = null;
+            try
+            {
+                socket = new Socket(
+                    AddressFamily.Unix,
+                    SocketType.Stream,
+                    ProtocolType.Unspecified);
+                socket.Bind(new UnixDomainSocketEndPoint(socketPath));
+
+                bool success = BuildfileExportCore.TryEnumeratePlainProjectionTree(
+                    root, root, out List<string> files, out string error);
+
+                Assert.False(success);
+                Assert.Empty(files);
+                Assert.Contains("non-regular file", error);
+                Assert.Contains("0xC000", error);
+            }
+            finally
+            {
+                socket?.Dispose();
+                try { File.Delete(socketPath); } catch { }
+                Cleanup(root);
+            }
+        }
+
+        [SkippableFact]
+        public void ProjectionFileSystemSafety_UnixCharacterDevice_IsRejectedWithoutOpening()
+        {
+            Skip.IfNot(
+                OperatingSystem.IsLinux() || OperatingSystem.IsMacOS(),
+                "Unix device inode types are available only on Linux/macOS CI.");
+
+            Assert.False(ProjectionFileSystemSafety.TryValidateRegularFile(
+                "/dev/null", out string error));
+            Assert.Contains("0x2000", error);
         }
 
         [SkippableFact]

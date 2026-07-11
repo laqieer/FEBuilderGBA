@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net.Sockets;
 using Xunit;
 
 namespace FEBuilderGBA.Core.Tests
@@ -321,6 +322,28 @@ namespace FEBuilderGBA.Core.Tests
                     + "@BIN 00100000 rebuild_bin" + Path.DirectorySeparatorChar + "data.bin\n");
 
                 RebuildMakeCore.ValidateProjectionOutput(manifestPath);
+            }
+        }
+
+        [SkippableFact]
+        public void ValidateProjectionOutput_RejectsUnixSocketManifestAsNonRegular()
+        {
+            Skip.IfNot(
+                OperatingSystem.IsLinux() || OperatingSystem.IsMacOS(),
+                "Unix socket inode types are available only on Linux/macOS CI.");
+
+            using (var tmp = new TempDir())
+            using (var socket = new Socket(
+                AddressFamily.Unix,
+                SocketType.Stream,
+                ProtocolType.Unspecified))
+            {
+                string manifestPath = Path.Combine(tmp.Path, "rom.rebuild");
+                socket.Bind(new UnixDomainSocketEndPoint(manifestPath));
+
+                InvalidDataException ex = Assert.Throws<InvalidDataException>(
+                    () => RebuildMakeCore.ValidateProjectionOutput(manifestPath));
+                Assert.Contains("rebuild manifest is not a regular file", ex.Message);
             }
         }
 
