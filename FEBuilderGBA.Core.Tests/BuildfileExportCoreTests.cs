@@ -140,6 +140,23 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal("0x08000100", plan.Manifest.Ranges[0].GbaAddress);
         }
 
+        [Theory]
+        [InlineData(0, "0x08000000")]
+        [InlineData(1, "0x08000001")]
+        public void Plan_HeaderOffset_AlwaysUsesMappedGbaAddress(int offset, string expectedAddress)
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[offset] = 0xA5;
+
+            var plan = BuildfileExportCore.Plan(MakeRom(clean), MakeRom(target),
+                new BuildfileExportOptions { OutputDirectory = "unused" });
+
+            var range = Assert.Single(plan.Manifest.Ranges);
+            Assert.Equal((uint)offset, range.Offset);
+            Assert.Equal(expectedAddress, range.GbaAddress);
+        }
+
         [Fact]
         public void Plan_FaultingClassifierOverride_DoesNotDropOrReorderAuthoritativeRanges()
         {

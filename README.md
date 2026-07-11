@@ -111,6 +111,7 @@ dotnet run --project FEBuilderGBA.CLI -- --pointercalc --rom=source.gba --target
 dotnet run --project FEBuilderGBA.CLI -- --rebuild --rom=modified.gba --fromrom=vanilla.gba
 dotnet run --project FEBuilderGBA.CLI -- --export-buildfile --rom=modified.gba --clean=original.gba --out=project/
 # buildfile.json + data/ are authoritative; derived main.event is real-toolchain tested when bundled EA is available.
+# Each range's gbaAddress is always 0x08000000 + offset, including header offsets 0 and 1.
 # --with-source rejects linked sidecar ancestors and validates every referenced file before publishing source/.
 # Stage/scratch names use a bounded stable hash and are atomically reserved; collisions are never reused.
 # On Windows, use standard drive/UNC paths; device namespaces (\\?\, \\.\, and \??\) are rejected.

@@ -188,6 +188,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             // game-code region (0xA0..0xC0) untouched so it still detects as FE8U.
             var modded = new byte[clean.Length * 2];
             Array.Copy(clean, modded, clean.Length);
+            modded[1] ^= 0xFF;
             modded[0x100000] = 0xA1;
             modded[0x100001] = 0xA2;
             modded[0x200000] = 0xB7;
@@ -209,6 +210,13 @@ namespace FEBuilderGBA.E2ETests.Tests
             Assert.True(File.Exists(Path.Combine(outDir, "buildfile.json")), "buildfile.json missing");
             Assert.True(File.Exists(Path.Combine(outDir, "main.event")), "main.event missing");
             Assert.False(Directory.Exists(Path.Combine(outDir, "source")), "projection must be off by default");
+
+            using (var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(outDir, "buildfile.json"))))
+            {
+                JsonElement headerRange = doc.RootElement.GetProperty("ranges").EnumerateArray()
+                    .Single(range => range.GetProperty("offset").GetUInt32() == 1u);
+                Assert.Equal("0x08000001", headerRange.GetProperty("gbaAddress").GetString());
+            }
 
             byte[] recon = ReconstructFromProject(outDir, clean);
             Assert.True(recon.SequenceEqual(modded), "Independent reconstruction did not match the modded ROM exactly.");

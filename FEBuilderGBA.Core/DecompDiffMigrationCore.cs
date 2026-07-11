@@ -329,7 +329,9 @@ namespace FEBuilderGBA
                 ChangedBytes = c.ChangedBytes,
             };
 
-            uint startPtr = U.toPointer(c.Offset);
+            uint startPtr = c.Offset <= 1
+                ? 0x08000000u + c.Offset
+                : U.toPointer(c.Offset);
             uint endOffsetExclusive = (uint)Math.Min((ulong)c.Offset + c.SpanLength, uint.MaxValue);
 
             // --- nearest symbol (span-covering resolver from #1130) ---

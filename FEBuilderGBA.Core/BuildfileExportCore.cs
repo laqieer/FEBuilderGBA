@@ -851,7 +851,7 @@ namespace FEBuilderGBA
                 {
                     Index = index,
                     Offset = dr.Offset,
-                    GbaAddress = Hex32(U.toPointer(dr.Offset)),
+                    GbaAddress = Hex32(0x08000000u + dr.Offset),
                     Length = dr.Length,
                     ChangedBytes = dr.Length,
                     Category = CategoryWord(mr.Category),

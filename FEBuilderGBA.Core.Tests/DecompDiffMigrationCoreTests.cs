@@ -138,6 +138,46 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(".rodata", r.Section);
         }
 
+        [Theory]
+        [InlineData(0)]
+        [InlineData(1)]
+        public void Analyze_HeaderOffset_UsesMappedAddressForSymbolLookup(int offset)
+        {
+            var (built, edited) = MakePair(0x1000000, (uint)offset, 1);
+            var rom = MakeFe8uRom(built);
+            var (map, resolver) = BuildMap(string.Join("\n", new[]
+            {
+                " .text          0x08000000       0x10 build/src/header.o",
+                "                0x08000000                gRomStart",
+            }));
+
+            var report = DecompDiffMigrationCore.Analyze(rom, edited, map, resolver);
+
+            var range = Assert.Single(report.Ranges);
+            Assert.Equal("gRomStart", range.Symbol);
+            Assert.True(range.SymbolCovers);
+            Assert.Equal((uint)offset, range.SymbolOffset);
+        }
+
+        [Fact]
+        public void ClassifyRangeSafe_OutOfWindowOffset_RetainsUnmappedSymbolLookup()
+        {
+            var built = new byte[16];
+            var rom = MakeFe8uRom();
+            var (map, resolver) = BuildMap(string.Join("\n", new[]
+            {
+                " .data          0x02000000       0x10 build/src/extra.o",
+                "                0x02000000                gOutOfWindowData",
+            }));
+
+            MigrationRange range = DecompDiffMigrationCore.ClassifyRangeSafe(
+                rom, built, 0x02000000, 1, 1, map, resolver);
+
+            Assert.Equal("gOutOfWindowData", range.Symbol);
+            Assert.True(range.SymbolCovers);
+            Assert.Equal(0u, range.SymbolOffset);
+        }
+
         [Fact]
         public void Analyze_GraphicsSectionSymbol_NotCovering_GivesGraphicsLowOrMedium()
         {
