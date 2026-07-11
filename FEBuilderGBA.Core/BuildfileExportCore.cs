@@ -138,12 +138,12 @@ namespace FEBuilderGBA
         /// attribute/target-read fault also raises an explicit <see cref="IOException"/>. Never
         /// broad-catches or silently accepts uncertainty.
         ///
-        /// PRECONDITION: the caller MUST reject raw parent-traversal (<c>..</c>) segments first
-        /// (see <see cref="ContainsParentTraversal"/>). This method normalizes via
-        /// <see cref="Path.GetFullPath(string)"/>, which resolves <c>..</c> LEXICALLY before any
-        /// symlink is followed; a <c>..</c> that follows a symlinked component would therefore
-        /// diverge from the physical filesystem. A residual <c>..</c> after normalization is
-        /// treated as a fail-closed <see cref="IOException"/>, never silently mis-resolved.
+        /// Raw parent-traversal (<c>..</c>) segments are rejected at this public boundary before
+        /// normalization (see <see cref="ContainsParentTraversal"/>). This method normalizes via
+        /// <see cref="Path.GetFullPath(string)"/>, which would otherwise resolve <c>..</c>
+        /// LEXICALLY before any symlink is followed; a <c>..</c> after a symlinked component can
+        /// diverge from the physical filesystem. A traversal segment is therefore always a
+        /// fail-closed <see cref="IOException"/>, never silently mis-resolved.
         /// </summary>
         public static string ResolvePhysicalPath(string path)
             => ResolvePhysicalPath(path, File.GetAttributes);
@@ -153,6 +153,8 @@ namespace FEBuilderGBA
             Func<string, FileAttributes> getAttributes)
         {
             if (getAttributes == null) throw new ArgumentNullException(nameof(getAttributes));
+            if (ContainsParentTraversal(path))
+                throw new IOException("Path must not contain parent-directory (..) segments: " + path);
             string full = Path.GetFullPath(path);
             string root = Path.GetPathRoot(full);
             if (string.IsNullOrEmpty(root))

@@ -285,7 +285,9 @@ benign symlinked ancestor such as macOS `/var → /private/var` are accepted; co
 case-insensitive on Windows/macOS; a symlink/junction output parent directory (single-entry check
 — the atomic publish only needs the stage and destination to share one real immediate parent); a
 pre-existing `--out`; a clean/modded version mismatch; a modded ROM shorter than clean or larger
-than 32 MiB. A non-canonical (but same-version) clean baseline is an explicit warning, not a
+than 32 MiB. Input sizes are read from filesystem metadata and rejected before either ROM is
+loaded, so an oversized file is never allocated merely to report that limit. A non-canonical
+(but same-version) clean baseline is an explicit warning, not a
 rejection. The `--out` path is normalized (full-path + trailing-separator trim, roots preserved)
 before all checks, so `--out=project/` and `--out=project` behave identically. Global switches
 (`--help`, `--version`) still take precedence over the verb in either order. A final-component

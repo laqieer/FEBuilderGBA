@@ -1165,6 +1165,25 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void PathSafety_ResolvePhysical_ParentTraversalRejectedBeforeInspection()
+        {
+            string traversed = Path.Combine(Path.GetTempPath(), "link", "..", "secret.gba");
+            bool inspected = false;
+
+            IOException ex = Assert.Throws<IOException>(() =>
+                BuildfilePathSafety.ResolvePhysicalPath(traversed, _ =>
+                {
+                    inspected = true;
+                    return FileAttributes.Normal;
+                }));
+
+            Assert.Contains("parent-directory", ex.Message);
+            Assert.False(inspected);
+            Assert.Throws<IOException>(() =>
+                BuildfilePathSafety.SamePhysicalFile(traversed, traversed));
+        }
+
+        [Fact]
         public void PathSafety_ResolvePhysical_AttributeAccessFailure_FailsClosed()
         {
             string blocked = Path.Combine(

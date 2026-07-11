@@ -24,6 +24,7 @@ namespace FEBuilderGBA.E2ETests.Tests
     public class CliExportBuildfileE2ETests : IDisposable
     {
         private static readonly string CliExe = AppRunner.FindCliExePath();
+        private const long MaxBuildfileRomSize = 32L * 1024 * 1024;
         private readonly List<string> _tempPaths = new();
 
         public void Dispose()
@@ -90,6 +91,46 @@ namespace FEBuilderGBA.E2ETests.Tests
                 $"--export-buildfile --rom=\"{Path.Combine(Path.GetTempPath(), "nope.gba")}\" --clean=\"{Path.Combine(Path.GetTempPath(), "nope2.gba")}\" --out=\"{outDir}\"",
                 timeoutMs: 15_000);
             Assert.Equal(1, code);
+            Assert.False(Directory.Exists(outDir));
+        }
+
+        [Fact]
+        public void ExportBuildfile_OversizedModdedRom_RejectedBeforeLoad()
+        {
+            string modded = TempPath(".gba");
+            string clean = TempPath(".clean.gba");
+            using (FileStream stream = File.Create(modded))
+                stream.SetLength(MaxBuildfileRomSize + 1);
+            using (FileStream stream = File.Create(clean))
+                stream.SetLength(1024);
+            string outDir = TempPath("_proj");
+
+            var (code, _, stderr) = AppRunner.Run(CliExe,
+                $"--export-buildfile --rom=\"{modded}\" --clean=\"{clean}\" --out=\"{outDir}\"",
+                timeoutMs: 15_000);
+
+            Assert.Equal(1, code);
+            Assert.Contains("exceeds", stderr);
+            Assert.False(Directory.Exists(outDir));
+        }
+
+        [Fact]
+        public void ExportBuildfile_ModdedRomShorterThanClean_RejectedBeforeLoad()
+        {
+            string modded = TempPath(".gba");
+            string clean = TempPath(".clean.gba");
+            using (FileStream stream = File.Create(modded))
+                stream.SetLength(1024);
+            using (FileStream stream = File.Create(clean))
+                stream.SetLength(2048);
+            string outDir = TempPath("_proj");
+
+            var (code, _, stderr) = AppRunner.Run(CliExe,
+                $"--export-buildfile --rom=\"{modded}\" --clean=\"{clean}\" --out=\"{outDir}\"",
+                timeoutMs: 15_000);
+
+            Assert.Equal(1, code);
+            Assert.Contains("shorter", stderr);
             Assert.False(Directory.Exists(outDir));
         }
 

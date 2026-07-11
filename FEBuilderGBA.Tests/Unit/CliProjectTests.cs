@@ -81,6 +81,36 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
+        public void ValidateBuildfileRomLengths_AcceptsTargetAtLimit()
+        {
+            Assert.True(CliProgram.ValidateBuildfileRomLengths(
+                FEBuilderGBA.BuildfileExportOptions.MaxRomSize,
+                16 * 1024 * 1024,
+                out string error));
+            Assert.Equal("", error);
+        }
+
+        [Fact]
+        public void ValidateBuildfileRomLengths_RejectsOversizedTarget()
+        {
+            Assert.False(CliProgram.ValidateBuildfileRomLengths(
+                (long)FEBuilderGBA.BuildfileExportOptions.MaxRomSize + 1,
+                16 * 1024 * 1024,
+                out string error));
+            Assert.Contains("exceeds", error);
+        }
+
+        [Fact]
+        public void ValidateBuildfileRomLengths_RejectsTargetShorterThanClean()
+        {
+            Assert.False(CliProgram.ValidateBuildfileRomLengths(
+                8 * 1024 * 1024,
+                16 * 1024 * 1024,
+                out string error));
+            Assert.Contains("shorter", error);
+        }
+
+        [Fact]
         public void CliAppServices_ShowError_DoesNotThrow()
         {
             var svc = new CliAppServices();

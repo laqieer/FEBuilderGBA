@@ -1297,6 +1297,7 @@ namespace FEBuilderGBA.CLI
             // to different physical paths and are accepted; aliases of the same file are rejected.
             // All BEFORE loading or writing; explicit failures, never broad-caught away.
             string moddedPhysical, cleanPhysical, outFull, outParent;
+            long moddedLength, cleanLength;
             try
             {
                 moddedPhysical = BuildfilePathSafety.ResolvePhysicalPath(moddedPath);
@@ -1309,6 +1310,8 @@ namespace FEBuilderGBA.CLI
                     Console.Error.WriteLine("Error: --rom (modded) and --clean resolve to the same file; they must be different ROMs.");
                     return 1;
                 }
+                moddedLength = new FileInfo(moddedPhysical).Length;
+                cleanLength = new FileInfo(cleanPhysical).Length;
                 if (Directory.Exists(outFull) || File.Exists(outFull))
                 {
                     Console.Error.WriteLine($"Error: Output path already exists: {outFull}");
@@ -1328,6 +1331,12 @@ namespace FEBuilderGBA.CLI
             catch (Exception ex)
             {
                 Console.Error.WriteLine($"Error: invalid path: {ex.Message}");
+                return 1;
+            }
+
+            if (!ValidateBuildfileRomLengths(moddedLength, cleanLength, out string lengthError))
+            {
+                Console.Error.WriteLine("Error: " + lengthError);
                 return 1;
             }
 
@@ -1409,6 +1418,25 @@ namespace FEBuilderGBA.CLI
             foreach (string w in result.Warnings)
                 Console.WriteLine($"  Warning: {w}");
             return 0;
+        }
+
+        internal static bool ValidateBuildfileRomLengths(
+            long moddedLength,
+            long cleanLength,
+            out string error)
+        {
+            error = "";
+            if (moddedLength < cleanLength)
+            {
+                error = $"Modded ROM ({moddedLength} bytes) is shorter than the clean ROM ({cleanLength} bytes); refusing.";
+                return false;
+            }
+            if (moddedLength > BuildfileExportOptions.MaxRomSize)
+            {
+                error = $"Modded ROM ({moddedLength} bytes) exceeds the {BuildfileExportOptions.MaxRomSize}-byte (32 MiB) limit.";
+                return false;
+            }
+            return true;
         }
 
         /// <summary>
