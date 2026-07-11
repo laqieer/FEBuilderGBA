@@ -47,9 +47,9 @@ below is verified against the PR's current head:
 5. Each path is a mode-`100644` regular Git blob with PNG signature `89 50 4E 47 0D 0A 1A 0A`, decodes as a PNG,
    and has been visually inspected for relevance, authenticity, and private data. Symlinks, executable files,
    submodules, Git LFS pointers, malformed images, and uncertain content are ineligible.
-6. Neither the PR title/body nor any commit message contains GitHub's case-insensitive closing-keyword forms
-   `close/closes/closed`, `fix/fixes/fixed`, or `resolve/resolves/resolved` before the parent issue reference. The
-   helper uses only `Ref #N`.
+6. Neither the PR title/body nor any commit message uses a GitHub closing keyword with an issue reference.
+   Forbidden case-insensitive keyword families are `close/closes/closed`, `fix/fixes/fixed`, and
+   `resolve/resolves/resolved`; the helper references its parent only as `Ref #N`.
 7. The PR body has a concrete all-checked test plan and this exact block with a bare plan-comment URL:
    ```markdown
    ## Review Gate

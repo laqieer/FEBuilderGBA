@@ -68,9 +68,10 @@ dotnet run --project tools/WinCapture -c Release -- "Editor Title" pr-screenshot
     - The plan gate is never exempt. Skip the PR gate only when every canonical predicate in
       `DEVELOPMENT-WORKFLOW.md` → **Screenshot-only helper PR exemption** is independently verified against the
       current head: REST `author_association` in `OWNER`/`MEMBER`/`COLLABORATOR`, `isCrossRepository == false`, an
-      accepted parent plan, `docs:` title, only added mode-`100644` PNG blobs under `pr-screenshots/` with the
-      correct signature plus successful decode and visual inspection, no GitHub closing keyword in the title,
-      body, or commits, an all-checked test plan, and the exact PR-body marker
+      accepted parent plan, `docs:` title, a base-to-head name/status diff containing only added (`A`) paths under
+      `pr-screenshots/` that end in lowercase `.png`, mode-`100644` PNG blobs with the correct signature plus
+      successful decode and visual inspection, no GitHub closing keyword in the title/body or commits, an
+      all-checked test plan, and the exact PR-body marker
       `Review-Gate-Exemption: screenshot-only-helper`.
     - The marker alone is never sufficient. If any predicate is absent, ambiguous, or later becomes false, run the
       normal branch below. An eligible PR skips only the independent PR review; safety screening, CI, freshness,
