@@ -1093,7 +1093,13 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.True(replaced);
                 Assert.True(result.Success, result.Error);
                 Assert.Equal("error", result.Manifest.Projection.Status);
-                Assert.Contains("regular file", result.Manifest.Projection.Reason);
+                // The exact diagnostic text differs by platform here: Windows opens the reparse
+                // point (FILE_FLAG_OPEN_REPARSE_POINT) and rejects it by attribute inspection
+                // ("... is not a plain regular file"), while Unix rejects the symlink earlier, at
+                // the O_NOFOLLOW open() call itself ("Cannot open projection entry without
+                // following links"). Both wrap through the same "capture failed: " prefix, so
+                // assert that stable, platform-independent contract instead of either message.
+                Assert.Contains("capture failed", result.Manifest.Projection.Reason);
                 Assert.False(Directory.Exists(Path.Combine(outDir, "source")));
                 Assert.Equal(ExternalContent, File.ReadAllText(external));
             }
@@ -1291,7 +1297,13 @@ namespace FEBuilderGBA.Core.Tests
                 }
                 Assert.True(result.Success, result.Error);
                 Assert.Equal("error", result.Manifest.Projection.Status);
-                Assert.Contains("plain directory", result.Manifest.Projection.Reason);
+                // The exact diagnostic text differs by platform here: Windows opens the reparse
+                // point (FILE_FLAG_OPEN_REPARSE_POINT) and rejects it by attribute inspection
+                // ("... is not a plain directory"), while Unix rejects the symlinked root earlier,
+                // at the O_NOFOLLOW open() call itself ("Cannot open projection root without
+                // following links"). Both wrap through the same "capture failed: " prefix, so
+                // assert that stable, platform-independent contract instead of either message.
+                Assert.Contains("capture failed", result.Manifest.Projection.Reason);
                 Assert.False(Directory.Exists(Path.Combine(outDir, "source")));
                 Assert.Equal(Original, File.ReadAllText(externalFile));
                 Assert.True(ReconstructFromProject(outDir, clean).SequenceEqual(target));
