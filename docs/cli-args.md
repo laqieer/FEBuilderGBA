@@ -2,22 +2,25 @@
 
 This document tracks the **E2E-covered** primary commands of the cross-platform `FEBuilderGBA.CLI`
 tool and their alignment with the original WinForms CLI. The table below is *not* the complete
-command set — it lists the commands exercised by `FEBuilderGBA.E2ETests/Tests/CliArgsE2ETests.cs`.
+command set — it lists commands exercised by `FEBuilderGBA.E2ETests/Tests/CliArgsE2ETests.cs`
+and command-specific E2E suites such as `CliExportBuildfileE2ETests.cs`.
 
-For the **full command set** (the `Main` dispatcher in `FEBuilderGBA.CLI/Program.cs` routes 67
+For the **full command set** (the `Main` dispatcher in `FEBuilderGBA.CLI/Program.cs` routes 68
 distinct user-facing commands), see [`docs/cli-reference.md`](cli-reference.md) or run:
 
 ```bash
 FEBuilderGBA.CLI --help
 ```
 
-E2E tests are in `FEBuilderGBA.E2ETests/Tests/CliArgsE2ETests.cs`.
+E2E tests are in `FEBuilderGBA.E2ETests/Tests/CliArgsE2ETests.cs` and sibling command-specific
+test files in that directory.
 
 ## Primary Commands (E2E-covered)
 
 The **WinForms Alignment** column tracks whether the cross-platform CLI output is aligned with the
 original WinForms CLI (`FEBuilderGBA.exe`). "ALIGNED" means the CLI produces equivalent or better
-output for that command compared to the WinForms exe.
+output for that command compared to the WinForms exe. "CLI-ONLY (N/A)" marks commands that have no
+WinForms CLI counterpart to align against.
 
 | Argument | Description | Required Args | E2E Status | WinForms Alignment |
 |---|---|---|---|---|
@@ -30,6 +33,7 @@ output for that command compared to the WinForms exe.
 | `--decreasecolor` | Quantize image palette | `--in`, `--out` (opt: `--paletteno`, `--json`) | E2E COVERED | ALIGNED |
 | `--pointercalc` | Search pointer references | `--rom`, `--target`, `--address` | E2E COVERED | ALIGNED |
 | `--rebuild` | Rebuild/defragment ROM | `--rom` (opt: `--fromrom`) | E2E COVERED | ALIGNED |
+| `--export-buildfile` | Export a deterministic buildfile recipe of the clean→modded delta | `--rom`, `--clean`, `--out` (opt: `--force-version`, `--with-source`) | E2E COVERED | CLI-ONLY (N/A) |
 | `--songexchange` | Copy song between ROMs | `--rom`, `--fromrom`, `--fromsong`, `--tosong` | E2E COVERED | ALIGNED |
 | `--convertmap1picture` | Convert image to map tiles | `--in`, one or more of `--outImg`/`--outTSA`/`--outPal` (opt: `--json`) | E2E COVERED | ALIGNED |
 | `--translate` | Dump or import ROM text | `--rom` | E2E COVERED | ALIGNED |
@@ -61,7 +65,9 @@ output for that command compared to the WinForms exe.
 | `--patch=<path>` | Specify UPS patch file | `--applyups` |
 | `--rom2=<path>` | Second ROM file to compare against | `--diff` |
 | `--in=<path>` | Input file | `--decreasecolor`, `--convertmap1picture`, `--translate`, `--lz77`, `--import-palette`, `--import-battle-anime` |
-| `--out=<path>` | Output file | `--decreasecolor`, `--translate`, `--translate-roundtrip`, `--translate_batch`, `--export-map-settings`, `--lz77`, `--export-palette`, `--export-battle-anime`, `--diff` |
+| `--out=<path>` | Output file | `--decreasecolor`, `--translate`, `--translate-roundtrip`, `--translate_batch`, `--export-map-settings`, `--lz77`, `--export-palette`, `--export-battle-anime`, `--diff`, `--export-buildfile` (new project directory, must not exist) |
+| `--clean=<path>` | Clean/baseline ROM of the same version; its SHA-256 is the reproducibility identity | `--export-buildfile` |
+| `--with-source` | Also emit an advisory, non-authoritative `source/` projection (opt-in) | `--export-buildfile` |
 | `--dir=<path>` | Input directory of portraits | `--import-portrait-all` |
 | `--addr=<hex>` | ROM address (raw offset or `0x08…` pointer) | `--export-palette`, `--import-palette` |
 | `--colors=<n>` | Number of palette colors (default: 16, range 1-256) | `--export-palette` |

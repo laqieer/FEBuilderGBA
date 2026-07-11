@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net.Sockets;
 using Xunit;
 
 namespace FEBuilderGBA.Core.Tests
@@ -304,6 +305,164 @@ namespace FEBuilderGBA.Core.Tests
                 Directory.CreateDirectory(Path);
             }
             public void Dispose() { try { Directory.Delete(Path, true); } catch { } }
+        }
+
+        [Fact]
+        public void ValidateProjectionOutput_AcceptsCompleteManifestAndSidecar()
+        {
+            using (var tmp = new TempDir())
+            {
+                string sidecarDir = Path.Combine(tmp.Path, "rebuild_bin");
+                Directory.CreateDirectory(sidecarDir);
+                File.WriteAllBytes(Path.Combine(sidecarDir, "data.bin"), new byte[] { 1, 2, 3 });
+                string manifestPath = Path.Combine(tmp.Path, "rom.rebuild");
+                File.WriteAllText(manifestPath,
+                    "@_CRC32 12345678\n"
+                    + "@_REBUILDADDRESS 00100000\n"
+                    + "@BIN 00100000 rebuild_bin" + Path.DirectorySeparatorChar + "data.bin\n");
+
+                RebuildMakeCore.ValidateProjectionOutput(manifestPath);
+            }
+        }
+
+        [SkippableFact]
+        public void ValidateProjectionOutput_RejectsUnixSocketManifestAsNonRegular()
+        {
+            Skip.IfNot(
+                OperatingSystem.IsLinux() || OperatingSystem.IsMacOS(),
+                "Unix socket inode types are available only on Linux/macOS CI.");
+
+            // Darwin limits filesystem-backed Unix socket paths to 104 bytes. Its
+            // Path.GetTempPath() value is long, so bind through the short /tmp alias.
+            string socketRoot = Path.Combine(
+                OperatingSystem.IsMacOS() ? "/tmp" : Path.GetTempPath(),
+                "fr" + Guid.NewGuid().ToString("N"));
+            string manifestPath = Path.Combine(socketRoot, "rom.rebuild");
+            Directory.CreateDirectory(socketRoot);
+            try
+            {
+                using (var socket = new Socket(
+                    AddressFamily.Unix,
+                    SocketType.Stream,
+                    ProtocolType.Unspecified))
+                {
+                    socket.Bind(new UnixDomainSocketEndPoint(manifestPath));
+
+                    InvalidDataException ex = Assert.Throws<InvalidDataException>(
+                        () => RebuildMakeCore.ValidateProjectionOutput(manifestPath));
+                    Assert.Contains("rebuild manifest is not a regular file", ex.Message);
+                }
+            }
+            finally
+            {
+                try { File.Delete(manifestPath); } catch { }
+                try { Directory.Delete(socketRoot); } catch { }
+            }
+        }
+
+        [Fact]
+        public void ValidateProjectionOutput_RejectsMissingReferencedSidecar()
+        {
+            using (var tmp = new TempDir())
+            {
+                string manifestPath = Path.Combine(tmp.Path, "rom.rebuild");
+                File.WriteAllText(manifestPath,
+                    "@_CRC32 12345678\n"
+                    + "@_REBUILDADDRESS 00100000\n"
+                    + "@BIN 00100000 rebuild_bin" + Path.DirectorySeparatorChar + "missing.bin\n");
+
+                InvalidDataException ex = Assert.Throws<InvalidDataException>(
+                    () => RebuildMakeCore.ValidateProjectionOutput(manifestPath));
+                Assert.Contains("Missing rebuild sidecar", ex.Message);
+            }
+        }
+
+        [Fact]
+        public void ValidateProjectionOutput_RejectsSidecarOutsideScratch()
+        {
+            using (var tmp = new TempDir())
+            {
+                string outsidePath = Path.Combine(Path.GetDirectoryName(tmp.Path), "outside-" + Guid.NewGuid().ToString("N") + ".bin");
+                try
+                {
+                    File.WriteAllBytes(outsidePath, new byte[] { 1 });
+                    string manifestPath = Path.Combine(tmp.Path, "rom.rebuild");
+                    File.WriteAllText(manifestPath,
+                        "@_CRC32 12345678\n"
+                        + "@_REBUILDADDRESS 00100000\n"
+                        + "@BIN 00100000 .." + Path.DirectorySeparatorChar + Path.GetFileName(outsidePath) + "\n");
+
+                    InvalidDataException ex = Assert.Throws<InvalidDataException>(
+                        () => RebuildMakeCore.ValidateProjectionOutput(manifestPath));
+                    Assert.Contains("escapes its scratch directory", ex.Message);
+                }
+                finally
+                {
+                    try { File.Delete(outsidePath); } catch { }
+                }
+            }
+        }
+
+        [Fact]
+        public void ValidateProjectionOutput_RejectsReparsePointAncestor()
+        {
+            using (var tmp = new TempDir())
+            {
+                string sidecarDir = Path.Combine(tmp.Path, "rebuild_bin");
+                string sidecarPath = Path.Combine(sidecarDir, "data.bin");
+                Directory.CreateDirectory(sidecarDir);
+                File.WriteAllBytes(sidecarPath, new byte[] { 1 });
+                string manifestPath = Path.Combine(tmp.Path, "rom.rebuild");
+                File.WriteAllText(manifestPath,
+                    "@_CRC32 12345678\n"
+                    + "@_REBUILDADDRESS 00100000\n"
+                    + "@BIN 00100000 rebuild_bin" + Path.DirectorySeparatorChar + "data.bin\n");
+
+                InvalidDataException ex = Assert.Throws<InvalidDataException>(() =>
+                    RebuildMakeCore.ValidateProjectionOutput(
+                        manifestPath,
+                        path =>
+                        {
+                            if (BuildfilePathSafety.PathsEqual(path, sidecarPath))
+                                throw new InvalidOperationException(
+                                    "Sidecar metadata was inspected before its ancestor chain.");
+                            FileAttributes attributes = File.GetAttributes(path);
+                            return BuildfilePathSafety.PathsEqual(path, sidecarDir)
+                                ? attributes | FileAttributes.ReparsePoint
+                                : attributes;
+                        }));
+                Assert.Contains("symlink/junction directory", ex.Message);
+            }
+        }
+
+        [Fact]
+        public void RebuildMakeCore_ManifestWriteFailure_IsNotSwallowed()
+        {
+            byte[] modified = BuildModified();
+            ROM vanilla = BuildVanilla();
+            var previousRom = CoreState.ROM;
+            try
+            {
+                var modifiedRom = new ROM();
+                modifiedRom.SwapNewROMDataDirect((byte[])modified.Clone());
+                CoreState.ROM = modifiedRom;
+
+                using (var tmp = new TempDir())
+                {
+                    string manifestPath = Path.Combine(tmp.Path, "manifest-is-a-directory.rebuild");
+                    Directory.CreateDirectory(manifestPath);
+
+                    Exception ex = Record.Exception(() =>
+                        RebuildMakeCore.Make(
+                            modified, vanilla, REBUILD_ADDR, BuildStructList(), manifestPath));
+                    Assert.NotNull(ex);
+                    Assert.True(ex is IOException || ex is UnauthorizedAccessException, ex.ToString());
+                }
+            }
+            finally
+            {
+                CoreState.ROM = previousRom;
+            }
         }
 
         [Fact]

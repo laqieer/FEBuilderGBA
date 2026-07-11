@@ -95,130 +95,237 @@ namespace FEBuilderGBA
         /// <param name="lang">Language suffix ("en", "zh", or "" for Japanese).</param>
         /// <returns>List of parsed patches, sorted by directory name.</returns>
         public static List<PatchInfo> EnumeratePatches(string patchBaseDir, ROM rom, string lang)
-        {
-            var result = new List<PatchInfo>();
-            if (!Directory.Exists(patchBaseDir))
-                return result;
+            => EnumeratePatches(patchBaseDir, rom, lang, File.ReadAllLines, null);
 
-            // Enumerate EVERY PATCH_*.txt recursively, matching WinForms
-            // PatchForm.ScanPatchs (SearchOption.AllDirectories). The previous
-            // "one patchFiles[0] per top-level directory" behavior dropped patches
-            // living in subdirectories (e.g. config/patch2/FE8U/SYSTEM/PATCH_*.txt),
-            // so hardcoding/installed patches were never loaded and the
-            // [HardCoding] filter could never match anything (#1376). Each patch is
-            // named by its NAME param (fallback = filename minus the PATCH_ prefix),
-            // matching WinForms.
+        /// <summary>Internal read/listing seam for legacy per-file tolerance coverage.</summary>
+        internal static List<PatchInfo> EnumeratePatches(string patchBaseDir, ROM rom, string lang,
+            Func<string, string[]> readAllLines, Func<string, string[]> listPatchFiles)
+        {
+            var patches = new List<PatchInfo>();
+            if (string.IsNullOrEmpty(patchBaseDir))
+                return patches;
+
+            Func<string, string[]> list = listPatchFiles
+                ?? (dir => Directory.GetFiles(dir, "PATCH_*.txt", SearchOption.AllDirectories));
+
             string[] patchFiles;
             try
             {
-                patchFiles = Directory.GetFiles(patchBaseDir, "PATCH_*.txt", SearchOption.AllDirectories);
+                patchFiles = list(patchBaseDir);
             }
-            catch (Exception ex)
+            catch (DirectoryNotFoundException)
             {
-                // Log before returning empty so a real failure (PathTooLong, permission
-                // denied, ...) is distinguishable from a genuinely empty patch dir —
-                // otherwise it silently regresses into "0 patches", the exact
-                // silent-empty class of bug this change fixes. Log.Error is
-                // params string[] (joined with spaces), so concatenate — do NOT use {0}.
-                Log.Error("PatchMetadataCore.EnumeratePatches failed for '" + patchBaseDir + "': " + ex.ToString());
-                return result;
+                return patches;
+            }
+            catch (Exception ex) when (IsExpectedFileSystemException(ex))
+            {
+                Log.Error("PatchMetadataCore.EnumeratePatches failed for '" + patchBaseDir + "': " + ex.Message);
+                return patches;
             }
 
             foreach (string file in patchFiles.OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
             {
-                // Default display name = the file name without the "PATCH_" prefix
-                // (ParsePatchFile overrides it from a NAME / NAME.{lang} param).
-                string fileName = Path.GetFileNameWithoutExtension(file);
-                string defaultName = fileName.StartsWith("PATCH_", StringComparison.OrdinalIgnoreCase)
-                    ? fileName.Substring("PATCH_".Length)
-                    : fileName;
-
-                var info = ParsePatchFile(file, defaultName, rom, lang);
-                // Group by the patch's real containing folder (e.g. "SYSTEM") so the
-                // CLI --patch-name folder filter keeps working with recursion; the
-                // display Name stays the per-file default/NAME param.
-                string containingDir = Path.GetFileName(Path.GetDirectoryName(file) ?? "") ?? "";
-                if (!string.IsNullOrEmpty(containingDir))
-                    info.DirectoryName = containingDir;
-                result.Add(info);
+                string defaultName = GetDefaultPatchName(file);
+                PatchInfo info = ParsePatchFileTolerant(file, defaultName, rom, lang, readAllLines);
+                SetContainingDirectory(info, file);
+                patches.Add(info);
             }
-            return result;
+            return patches;
         }
+
+        /// <summary>
+        /// Enumerate + parse patch metadata, distinguishing a genuinely EMPTY directory
+        /// (returns <c>true</c> with an empty list) from an enumeration/parse FAILURE (returns
+        /// <c>false</c> with an explicit <paramref name="error"/>). Only documented filesystem/
+        /// access/path exceptions are caught — programmer defects (NullReference, argument-null,
+        /// index-out-of-range, invalid-operation, …) propagate so real bugs are not hidden.
+        /// </summary>
+        public static bool TryEnumeratePatches(string patchBaseDir, ROM rom, string lang,
+            out List<PatchInfo> patches, out string error)
+            => TryEnumeratePatches(patchBaseDir, rom, lang, File.ReadAllLines, out patches, out error);
+
+        /// <summary>Internal read seam for deterministic enumeration-failure coverage.</summary>
+        internal static bool TryEnumeratePatches(string patchBaseDir, ROM rom, string lang,
+            Func<string, string[]> readAllLines, out List<PatchInfo> patches, out string error)
+            => TryEnumeratePatches(patchBaseDir, rom, lang, readAllLines, null, out patches, out error);
+
+        /// <summary>
+        /// Internal read + directory-listing seam. <paramref name="listPatchFiles"/> defaults to
+        /// a recursive <c>PATCH_*.txt</c> scan when <c>null</c>; injecting it lets tests simulate
+        /// a directory-enumeration ACCESS failure deterministically (no flaky real permission
+        /// changes needed).
+        /// </summary>
+        internal static bool TryEnumeratePatches(string patchBaseDir, ROM rom, string lang,
+            Func<string, string[]> readAllLines, Func<string, string[]> listPatchFiles,
+            out List<PatchInfo> patches, out string error)
+        {
+            patches = new List<PatchInfo>();
+            error = "";
+            // A null/empty patchBaseDir never touches the filesystem — legacy callers rely on
+            // this resolving to "successful empty" (preserved on purpose; see remarks below).
+            if (string.IsNullOrEmpty(patchBaseDir))
+                return true;
+
+            Func<string, string[]> list = listPatchFiles
+                ?? (dir => Directory.GetFiles(dir, "PATCH_*.txt", SearchOption.AllDirectories));
+
+            string[] patchFiles;
+            try
+            {
+                // Guard the ACTUAL enumeration — NOT a separate Directory.Exists probe. An
+                // existing-but-inaccessible directory (permission/IO/path-too-long) must be
+                // reported as a real failure, never silently downgraded to "empty" (Copilot
+                // review finding: Directory.Exists inaccessible=>empty). A genuinely MISSING
+                // directory still resolves to "successful empty" via DirectoryNotFoundException,
+                // matching the historical contract and mirroring IsPatchLibraryEmpty's pattern.
+                patchFiles = list(patchBaseDir);
+            }
+            catch (DirectoryNotFoundException)
+            {
+                return true;
+            }
+            catch (Exception ex) when (IsExpectedFileSystemException(ex))
+            {
+                error = ex.Message;
+                return false;
+            }
+
+            try
+            {
+                // Enumerate EVERY PATCH_*.txt recursively, matching WinForms PatchForm.ScanPatchs
+                // (SearchOption.AllDirectories); each patch is named by its NAME param (fallback =
+                // filename minus the PATCH_ prefix).
+                foreach (string file in patchFiles.OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
+                {
+                    string defaultName = GetDefaultPatchName(file);
+                    var info = ParsePatchFileStrict(file, defaultName, rom, lang, readAllLines);
+                    SetContainingDirectory(info, file);
+                    patches.Add(info);
+                }
+            }
+            catch (Exception ex) when (IsExpectedFileSystemException(ex))
+            {
+                patches = new List<PatchInfo>();
+                error = ex.Message;
+                return false;
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// True for documented filesystem/access/path/format exceptions that advisory patch
+        /// enumeration may legitimately encounter. Excludes programmer defects (argument-null,
+        /// null-reference, index-out-of-range, invalid-operation) so they are never swallowed.
+        /// </summary>
+        internal static bool IsExpectedFileSystemException(Exception ex)
+            => ex is IOException
+            || ex is UnauthorizedAccessException
+            || ex is System.Security.SecurityException
+            || ex is NotSupportedException
+            || ex.GetType() == typeof(ArgumentException);
 
         /// <summary>
         /// Parse a PATCH_*.txt metadata file.
         /// </summary>
         public static PatchInfo ParsePatchFile(string patchFilePath, string dirName, ROM rom, string lang)
+            => ParsePatchFileTolerant(patchFilePath, dirName, rom, lang, File.ReadAllLines);
+
+        static PatchInfo ParsePatchFileTolerant(string patchFilePath, string dirName, ROM rom, string lang,
+            Func<string, string[]> readAllLines)
         {
-            var info = new PatchInfo
+            try
+            {
+                return ParsePatchFileStrict(patchFilePath, dirName, rom, lang, readAllLines);
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorF("PatchMetadataCore: Failed to parse {0}: {1}", patchFilePath, ex.Message);
+                return CreatePatchInfo(patchFilePath, dirName);
+            }
+        }
+
+        static string GetDefaultPatchName(string file)
+        {
+            string fileName = Path.GetFileNameWithoutExtension(file);
+            return fileName.StartsWith("PATCH_", StringComparison.OrdinalIgnoreCase)
+                ? fileName.Substring("PATCH_".Length)
+                : fileName;
+        }
+
+        static void SetContainingDirectory(PatchInfo info, string file)
+        {
+            // Group by the patch's real containing folder (e.g. "SYSTEM") so the CLI
+            // --patch-name folder filter keeps working with recursion.
+            string containingDir = Path.GetFileName(Path.GetDirectoryName(file) ?? "") ?? "";
+            if (!string.IsNullOrEmpty(containingDir))
+                info.DirectoryName = containingDir;
+        }
+
+        static PatchInfo ParsePatchFileStrict(string patchFilePath, string dirName, ROM rom, string lang,
+            Func<string, string[]> readAllLines)
+        {
+            var info = CreatePatchInfo(patchFilePath, dirName);
+            string[] lines = readAllLines(patchFilePath);
+            string? patchedIf = null;
+
+            foreach (string rawLine in lines)
+            {
+                string line = rawLine.Trim();
+                if (line.StartsWith("//")) continue;
+
+                // Localized NAME
+                if (!string.IsNullOrEmpty(lang) && line.StartsWith($"NAME.{lang}=", StringComparison.OrdinalIgnoreCase))
+                    info.Name = line.Substring($"NAME.{lang}=".Length).Trim();
+                else if (line.StartsWith("NAME=", StringComparison.OrdinalIgnoreCase) && info.Name == dirName)
+                    info.Name = line.Substring(5).Trim();
+
+                // Localized INFO
+                if (!string.IsNullOrEmpty(lang) && line.StartsWith($"INFO.{lang}=", StringComparison.OrdinalIgnoreCase))
+                    info.Description = CleanDescription(line.Substring($"INFO.{lang}=".Length));
+                else if (line.StartsWith("INFO=", StringComparison.OrdinalIgnoreCase) && string.IsNullOrEmpty(info.Description))
+                    info.Description = CleanDescription(line.Substring(5));
+
+                if (line.StartsWith("AUTHOR=", StringComparison.OrdinalIgnoreCase))
+                    info.Author = line.Substring(7).Trim();
+
+                if (line.StartsWith("TAG=", StringComparison.OrdinalIgnoreCase))
+                    info.Tags = line.Substring(4).Trim();
+
+                if (line.StartsWith("TYPE=", StringComparison.OrdinalIgnoreCase))
+                    info.Type = line.Substring(5).Trim();
+
+                if (line.StartsWith("PATCHED_IF:", StringComparison.OrdinalIgnoreCase))
+                    patchedIf = line.Substring(11);
+            }
+
+            if (!string.IsNullOrEmpty(patchedIf))
+                info.Status = CheckPatchInstalled(patchedIf, rom, Path.GetDirectoryName(patchFilePath) ?? "");
+
+            var allDeps = ParsePatchDependencies(lines, lang);
+            info.DependencyCount = allDeps.Count;
+            if (allDeps.Count > 0)
+            {
+                var missing = new List<PatchDependency>();
+                foreach (var dep in allDeps)
+                {
+                    dep.IsSatisfied = EvaluateIfCondition(dep.Condition, rom);
+                    if (!dep.IsSatisfied)
+                        missing.Add(dep);
+                }
+                info.UnsatisfiedDependencyCount = missing.Count;
+                info.UnsatisfiedDependencies = missing;
+            }
+            return info;
+        }
+
+        static PatchInfo CreatePatchInfo(string patchFilePath, string dirName)
+            => new PatchInfo
             {
                 Name = dirName,
                 DirectoryName = dirName,
                 DirectoryPath = Path.GetDirectoryName(patchFilePath) ?? "",
                 PatchFilePath = patchFilePath,
             };
-
-            try
-            {
-                string[] lines = File.ReadAllLines(patchFilePath);
-                string? patchedIf = null;
-
-                foreach (string rawLine in lines)
-                {
-                    string line = rawLine.Trim();
-                    if (line.StartsWith("//")) continue;
-
-                    // Localized NAME
-                    if (!string.IsNullOrEmpty(lang) && line.StartsWith($"NAME.{lang}=", StringComparison.OrdinalIgnoreCase))
-                        info.Name = line.Substring($"NAME.{lang}=".Length).Trim();
-                    else if (line.StartsWith("NAME=", StringComparison.OrdinalIgnoreCase) && info.Name == dirName)
-                        info.Name = line.Substring(5).Trim();
-
-                    // Localized INFO
-                    if (!string.IsNullOrEmpty(lang) && line.StartsWith($"INFO.{lang}=", StringComparison.OrdinalIgnoreCase))
-                        info.Description = CleanDescription(line.Substring($"INFO.{lang}=".Length));
-                    else if (line.StartsWith("INFO=", StringComparison.OrdinalIgnoreCase) && string.IsNullOrEmpty(info.Description))
-                        info.Description = CleanDescription(line.Substring(5));
-
-                    if (line.StartsWith("AUTHOR=", StringComparison.OrdinalIgnoreCase))
-                        info.Author = line.Substring(7).Trim();
-
-                    if (line.StartsWith("TAG=", StringComparison.OrdinalIgnoreCase))
-                        info.Tags = line.Substring(4).Trim();
-
-                    if (line.StartsWith("TYPE=", StringComparison.OrdinalIgnoreCase))
-                        info.Type = line.Substring(5).Trim();
-
-                    if (line.StartsWith("PATCHED_IF:", StringComparison.OrdinalIgnoreCase))
-                        patchedIf = line.Substring(11);
-                }
-
-                if (!string.IsNullOrEmpty(patchedIf))
-                    info.Status = CheckPatchInstalled(patchedIf, rom, Path.GetDirectoryName(patchFilePath) ?? "");
-
-                // Check dependencies (IF: lines)
-                var allDeps = GetPatchDependencies(patchFilePath, lang);
-                info.DependencyCount = allDeps.Count;
-                if (allDeps.Count > 0)
-                {
-                    var missing = new List<PatchDependency>();
-                    foreach (var dep in allDeps)
-                    {
-                        dep.IsSatisfied = EvaluateIfCondition(dep.Condition, rom);
-                        if (!dep.IsSatisfied)
-                            missing.Add(dep);
-                    }
-                    info.UnsatisfiedDependencyCount = missing.Count;
-                    info.UnsatisfiedDependencies = missing;
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.ErrorF("PatchMetadataCore: Failed to parse {0}: {1}", patchFilePath, ex.Message);
-            }
-
-            return info;
-        }
 
         /// <summary>
         /// Check if a patch is installed by evaluating a PATCHED_IF condition string.
@@ -345,74 +452,72 @@ namespace FEBuilderGBA
         /// <returns>List of dependency conditions.</returns>
         public static List<PatchDependency> GetPatchDependencies(string patchFilePath, string lang = "")
         {
-            var result = new List<PatchDependency>();
-            if (!File.Exists(patchFilePath)) return result;
+            if (!File.Exists(patchFilePath)) return new List<PatchDependency>();
 
             try
             {
-                string[] lines = File.ReadAllLines(patchFilePath);
-                string ifComment = "";
-                string ifCommentLocalized = "";
-
-                // First pass: collect IF_COMMENT values
-                foreach (string rawLine in lines)
-                {
-                    string line = rawLine.Trim();
-                    if (line.StartsWith("//")) continue;
-
-                    int sep = line.IndexOf('=');
-                    if (sep < 0) continue;
-
-                    string key = line.Substring(0, sep).Trim();
-                    string value = line.Substring(sep + 1).Trim();
-
-                    if (!string.IsNullOrEmpty(lang) &&
-                        key.Equals($"IF_COMMENT.{lang}", StringComparison.OrdinalIgnoreCase))
-                        ifCommentLocalized = value;
-                    else if (key.Equals("IF_COMMENT", StringComparison.OrdinalIgnoreCase) &&
-                             string.IsNullOrEmpty(ifCommentLocalized))
-                        ifComment = value;
-                }
-
-                string resolvedComment = !string.IsNullOrEmpty(ifCommentLocalized) ? ifCommentLocalized : ifComment;
-
-                // Second pass: collect IF: conditions
-                foreach (string rawLine in lines)
-                {
-                    string line = rawLine.Trim();
-                    if (line.StartsWith("//")) continue;
-
-                    // IF: lines use colon-separated key format: IF:address=bytes
-                    if (!line.StartsWith("IF:", StringComparison.OrdinalIgnoreCase)) continue;
-
-                    // Extract the condition part after "IF:"
-                    string condition = line.Substring(3).Trim();
-
-                    // Strip trailing inline comments (e.g. "//need Anti-Huffman")
-                    int commentIdx = condition.IndexOf("//");
-                    string inlineComment = "";
-                    if (commentIdx >= 0)
-                    {
-                        inlineComment = condition.Substring(commentIdx + 2).Trim();
-                        condition = condition.Substring(0, commentIdx).Trim();
-                    }
-
-                    // Use inline comment if IF_COMMENT is not present
-                    string depComment = !string.IsNullOrEmpty(resolvedComment) ? resolvedComment
-                        : !string.IsNullOrEmpty(inlineComment) ? inlineComment : "";
-
-                    result.Add(new PatchDependency
-                    {
-                        Condition = condition,
-                        Comment = depComment,
-                    });
-                }
+                return ParsePatchDependencies(File.ReadAllLines(patchFilePath), lang);
             }
             catch (Exception ex)
             {
                 Log.ErrorF("PatchMetadataCore.GetPatchDependencies: {0}: {1}", patchFilePath, ex.Message);
+                return new List<PatchDependency>();
+            }
+        }
+
+        static List<PatchDependency> ParsePatchDependencies(string[] lines, string lang)
+        {
+            var result = new List<PatchDependency>();
+            string ifComment = "";
+            string ifCommentLocalized = "";
+
+            // First pass: collect IF_COMMENT values
+            foreach (string rawLine in lines)
+            {
+                string line = rawLine.Trim();
+                if (line.StartsWith("//")) continue;
+
+                int sep = line.IndexOf('=');
+                if (sep < 0) continue;
+
+                string key = line.Substring(0, sep).Trim();
+                string value = line.Substring(sep + 1).Trim();
+
+                if (!string.IsNullOrEmpty(lang) &&
+                    key.Equals($"IF_COMMENT.{lang}", StringComparison.OrdinalIgnoreCase))
+                    ifCommentLocalized = value;
+                else if (key.Equals("IF_COMMENT", StringComparison.OrdinalIgnoreCase) &&
+                         string.IsNullOrEmpty(ifCommentLocalized))
+                    ifComment = value;
             }
 
+            string resolvedComment = !string.IsNullOrEmpty(ifCommentLocalized) ? ifCommentLocalized : ifComment;
+
+            // Second pass: collect IF: conditions
+            foreach (string rawLine in lines)
+            {
+                string line = rawLine.Trim();
+                if (line.StartsWith("//")) continue;
+                if (!line.StartsWith("IF:", StringComparison.OrdinalIgnoreCase)) continue;
+
+                string condition = line.Substring(3).Trim();
+                int commentIdx = condition.IndexOf("//");
+                string inlineComment = "";
+                if (commentIdx >= 0)
+                {
+                    inlineComment = condition.Substring(commentIdx + 2).Trim();
+                    condition = condition.Substring(0, commentIdx).Trim();
+                }
+
+                string depComment = !string.IsNullOrEmpty(resolvedComment) ? resolvedComment
+                    : !string.IsNullOrEmpty(inlineComment) ? inlineComment : "";
+
+                result.Add(new PatchDependency
+                {
+                    Condition = condition,
+                    Comment = depComment,
+                });
+            }
             return result;
         }
 
