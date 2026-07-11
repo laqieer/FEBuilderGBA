@@ -71,6 +71,7 @@ namespace FEBuilderGBA.Core.Tests
                             return path;
                     }
                 }
+
                 dir = Path.GetDirectoryName(dir);
             }
             return null;
@@ -679,7 +680,7 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void Export_ProjectionSuccess_MovesScratchToSource_SanitizesScratchPath()
+        public void Export_ProjectionSuccess_SnapshotsToFreshSource_SanitizesScratchPath()
         {
             var clean = new byte[RomSize];
             var target = (byte[])clean.Clone();
@@ -715,6 +716,173 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.DoesNotContain(Directory.GetDirectories(parent), d =>
                     Path.GetFileName(d).Contains(".psrc-") || Path.GetFileName(d).Contains(".stage-"));
                 Assert.DoesNotContain(Directory.GetDirectories(outDir), d => Path.GetFileName(d).StartsWith("."));
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [Fact]
+        public void Export_ProjectionRunsBeforePublishStageExists()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x2000] = 0x70;
+
+            var (outDir, parent) = FreshOut();
+            bool sawPublishStage = true;
+            try
+            {
+                var result = BuildfileExportCore.Export(
+                    MakeRom(clean),
+                    MakeRom(target),
+                    new BuildfileExportOptions
+                    {
+                        OutputDirectory = outDir,
+                        ProjectionRunner = scratch =>
+                        {
+                            sawPublishStage = Directory.GetDirectories(
+                                Path.GetDirectoryName(scratch)).Any(
+                                    path => Path.GetFileName(path).Contains(".stage-"));
+                            return BuildfileProjectionOutcome.Refuse("test refusal");
+                        },
+                    });
+
+                Assert.True(result.Success, result.Error);
+                Assert.False(sawPublishStage);
+                Assert.Equal("refused", result.Manifest.Projection.Status);
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [Fact]
+        public void Export_ProjectionSnapshot_PreservesEmptyDirectories()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x2000] = 0x71;
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                var result = BuildfileExportCore.Export(
+                    MakeRom(clean),
+                    MakeRom(target),
+                    new BuildfileExportOptions
+                    {
+                        OutputDirectory = outDir,
+                        ProjectionRunner = scratch =>
+                        {
+                            Directory.CreateDirectory(
+                                Path.Combine(scratch, "empty", "nested"));
+                            return BuildfileProjectionOutcome.Ok();
+                        },
+                    });
+
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("success", result.Manifest.Projection.Status);
+                string nested = Path.Combine(outDir, "source", "empty", "nested");
+                Assert.True(Directory.Exists(nested));
+                Assert.Empty(Directory.GetFileSystemEntries(nested));
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [Fact]
+        public void Export_ProjectionSnapshot_EntryLimitFailsAdvisoryProjectionClosed()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x2000] = 0x72;
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                var result = BuildfileExportCore.Export(
+                    MakeRom(clean),
+                    MakeRom(target),
+                    new BuildfileExportOptions
+                    {
+                        OutputDirectory = outDir,
+                        ProjectionSnapshotMaxEntriesForTest = 2,
+                        ProjectionRunner = scratch =>
+                        {
+                            File.WriteAllText(Path.Combine(scratch, "a.bin"), "a");
+                            File.WriteAllText(Path.Combine(scratch, "b.bin"), "b");
+                            File.WriteAllText(Path.Combine(scratch, "c.bin"), "c");
+                            return BuildfileProjectionOutcome.Ok();
+                        },
+                    });
+
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("error", result.Manifest.Projection.Status);
+                Assert.Contains("2-entry limit", result.Manifest.Projection.Reason);
+                Assert.False(Directory.Exists(Path.Combine(outDir, "source")));
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [Fact]
+        public void Export_ProjectionSnapshot_ByteLimitFailsAdvisoryProjectionClosed()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x2000] = 0x73;
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                var result = BuildfileExportCore.Export(
+                    MakeRom(clean),
+                    MakeRom(target),
+                    new BuildfileExportOptions
+                    {
+                        OutputDirectory = outDir,
+                        ProjectionSnapshotMaxBytesForTest = 4,
+                        ProjectionRunner = scratch =>
+                        {
+                            File.WriteAllBytes(
+                                Path.Combine(scratch, "too-large.bin"),
+                                new byte[] { 1, 2, 3, 4, 5 });
+                            return BuildfileProjectionOutcome.Ok();
+                        },
+                    });
+
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("error", result.Manifest.Projection.Status);
+                Assert.Contains("4-byte limit", result.Manifest.Projection.Reason);
+                Assert.False(Directory.Exists(Path.Combine(outDir, "source")));
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [Fact]
+        public void Export_ProjectionSnapshot_InvalidUtf8TextIsAdvisoryError()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x2000] = 0x74;
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                var result = BuildfileExportCore.Export(
+                    MakeRom(clean),
+                    MakeRom(target),
+                    new BuildfileExportOptions
+                    {
+                        OutputDirectory = outDir,
+                        ProjectionRunner = scratch =>
+                        {
+                            File.WriteAllBytes(
+                                Path.Combine(scratch, "invalid.txt"),
+                                new byte[] { 0xC3, 0x28 });
+                            return BuildfileProjectionOutcome.Ok();
+                        },
+                    });
+
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("error", result.Manifest.Projection.Status);
+                Assert.Contains("not valid UTF-8", result.Manifest.Projection.Reason);
+                Assert.False(Directory.Exists(Path.Combine(outDir, "source")));
             }
             finally { Cleanup(parent); }
         }
@@ -937,6 +1105,80 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [SkippableFact]
+        public void Export_ProjectionAncestorReplacedDuringCapture_UsesHeldDirectory()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x2000] = 0x76;
+            var (outDir, parent) = FreshOut();
+            string externalRoot = Path.Combine(
+                Path.GetTempPath(), "bfx_ancestor_external_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(externalRoot);
+            string externalFile = Path.Combine(externalRoot, "victim.event");
+            const string ExternalContent = "external-secret\n";
+            const string OriginalContent = "held-original\n";
+            File.WriteAllText(externalFile, ExternalContent);
+            Exception swapError = null;
+            bool replaced = false;
+            try
+            {
+                var options = new BuildfileExportOptions
+                {
+                    OutputDirectory = outDir,
+                    ProjectionRunner = scratch =>
+                    {
+                        string nested = Path.Combine(scratch, "nested");
+                        Directory.CreateDirectory(nested);
+                        File.WriteAllText(
+                            Path.Combine(nested, "victim.event"),
+                            OriginalContent);
+                        return BuildfileProjectionOutcome.Ok();
+                    },
+                    BeforeProjectionFileOpenForTest = file =>
+                    {
+                        if (replaced || Path.GetFileName(file) != "victim.event")
+                            return;
+                        replaced = true;
+                        string nested = Path.GetDirectoryName(file);
+                        string moved = nested + "-moved";
+                        try
+                        {
+                            Directory.Move(nested, moved);
+                            Directory.CreateSymbolicLink(nested, externalRoot);
+                        }
+                        catch (Exception ex)
+                        {
+                            swapError = ex;
+                        }
+                    },
+                };
+
+                BuildfileExportResult result =
+                    BuildfileExportCore.Export(MakeRom(clean), MakeRom(target), options);
+
+                if (swapError != null)
+                {
+                    Skip.If(true, "Cannot replace an opened projection ancestor here: "
+                        + swapError.Message);
+                    return;
+                }
+                Assert.True(replaced);
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("success", result.Manifest.Projection.Status);
+                Assert.Equal(
+                    OriginalContent,
+                    File.ReadAllText(
+                        Path.Combine(outDir, "source", "nested", "victim.event")));
+                Assert.Equal(ExternalContent, File.ReadAllText(externalFile));
+            }
+            finally
+            {
+                Cleanup(parent);
+                try { Directory.Delete(externalRoot, true); } catch { }
+            }
+        }
+
+        [SkippableFact]
         public void Export_ProjectionHardLinkedTextAndBinary_AreRematerialized()
         {
             var clean = new byte[RomSize];
@@ -1049,7 +1291,7 @@ namespace FEBuilderGBA.Core.Tests
                 }
                 Assert.True(result.Success, result.Error);
                 Assert.Equal("error", result.Manifest.Projection.Status);
-                Assert.Contains("symlink/junction directory", result.Manifest.Projection.Reason);
+                Assert.Contains("plain directory", result.Manifest.Projection.Reason);
                 Assert.False(Directory.Exists(Path.Combine(outDir, "source")));
                 Assert.Equal(Original, File.ReadAllText(externalFile));
                 Assert.True(ReconstructFromProject(outDir, clean).SequenceEqual(target));
@@ -1062,7 +1304,7 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [SkippableFact]
-        public void Export_ProjectionDescendantReplacedAfterMove_IsRemovedWithoutExternalMutation()
+        public void Export_FreshProjectionDescendantReplacedBeforeValidation_IsRemovedWithoutExternalMutation()
         {
             var clean = new byte[RomSize];
             var target = (byte[])clean.Clone();
@@ -1121,7 +1363,72 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [SkippableFact]
-        public void Export_UnsafeMovedProjectionCannotBeRemoved_AbortsWithoutExternalMutation()
+        public void Export_FreshProjectionRootReplacedBeforeValidation_PublishesAdvisoryError()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x2000] = 0x79;
+
+            var (outDir, parent) = FreshOut();
+            string external = Path.Combine(
+                Path.GetTempPath(), "bfx_fresh_external_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(external);
+            string externalFile = Path.Combine(external, "outside.txt");
+            const string Original = "external-content\n";
+            File.WriteAllText(externalFile, Original);
+            Exception linkError = null;
+            try
+            {
+                var options = new BuildfileExportOptions
+                {
+                    OutputDirectory = outDir,
+                    ProjectionRunner = scratch =>
+                    {
+                        File.WriteAllText(
+                            Path.Combine(scratch, "projection.txt"),
+                            "complete\n");
+                        return BuildfileProjectionOutcome.Ok();
+                    },
+                    AfterProjectionMoveForTest = source =>
+                    {
+                        Directory.Delete(source, true);
+                        try { Directory.CreateSymbolicLink(source, external); }
+                        catch (Exception ex) { linkError = ex; }
+                    },
+                };
+
+                var result = BuildfileExportCore.Export(
+                    MakeRom(clean),
+                    MakeRom(target),
+                    options);
+                if (linkError != null)
+                {
+                    Skip.If(true, "Cannot create a fresh-source symlink here: "
+                        + linkError.Message);
+                    return;
+                }
+
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("error", result.Manifest.Projection.Status);
+                Assert.Empty(result.Manifest.Projection.Directory);
+                Assert.False(Directory.Exists(Path.Combine(outDir, "source")));
+                Assert.Equal(Original, File.ReadAllText(externalFile));
+                Assert.Contains(
+                    "Source projection error",
+                    File.ReadAllText(Path.Combine(outDir, "README.md")));
+                Assert.Contains(
+                    "\"status\": \"error\"",
+                    File.ReadAllText(Path.Combine(outDir, "buildfile.json")));
+            }
+            finally
+            {
+                Cleanup(parent);
+                try { Directory.Delete(external, true); } catch { }
+            }
+        }
+
+        [SkippableFact]
+        public void Export_UnsafeMaterializedProjectionCannotBeRemoved_AbortsWithoutExternalMutation()
         {
             var clean = new byte[RomSize];
             var target = (byte[])clean.Clone();
@@ -1162,7 +1469,7 @@ namespace FEBuilderGBA.Core.Tests
                 }
 
                 Assert.False(result.Success);
-                Assert.Contains("Unsafe moved projection could not be removed", result.Error);
+                Assert.Contains("Unsafe materialized projection could not be removed", result.Error);
                 Assert.False(Directory.Exists(outDir));
                 Assert.Equal(Original, File.ReadAllText(externalFile));
                 Assert.DoesNotContain(Directory.GetDirectories(parent), d =>
@@ -1687,7 +1994,7 @@ namespace FEBuilderGBA.Core.Tests
 
                 var ids = new Queue<Guid>(new[]
                 {
-                    stageCollisionId, stageId, scratchCollisionId, scratchId,
+                    scratchCollisionId, scratchId, stageCollisionId, stageId,
                 });
                 var options = new BuildfileExportOptions
                 {
@@ -1774,6 +2081,32 @@ namespace FEBuilderGBA.Core.Tests
             {
                 try { Directory.Delete(root, true); } catch { }
             }
+        }
+
+        [Fact]
+        public void AtomicDirectoryOperations_BrowserFailClosedBeforeFilesystemAccess()
+        {
+            string root = Path.Combine(
+                Path.GetTempPath(),
+                "bfx-browser-" + Guid.NewGuid().ToString("N"));
+            string source = Path.Combine(root, "source");
+            string destination = Path.Combine(root, "destination");
+
+            PlatformNotSupportedException reservationError =
+                Assert.Throws<PlatformNotSupportedException>(() =>
+                    BuildfileExportCore.TryCreateDirectoryExclusive(
+                        source,
+                        isBrowser: true));
+            Assert.Contains("atomic directory reservation", reservationError.Message);
+
+            PlatformNotSupportedException publicationError =
+                Assert.Throws<PlatformNotSupportedException>(() =>
+                    BuildfileExportCore.PublishDirectoryNoReplace(
+                        source,
+                        destination,
+                        isBrowser: true));
+            Assert.Contains("atomic no-replace publication", publicationError.Message);
+            Assert.False(Directory.Exists(root));
         }
 
         [Fact]
@@ -1987,6 +2320,48 @@ namespace FEBuilderGBA.Core.Tests
                     original,
                     alias,
                     try128BitIdentity: false));
+            }
+            finally { try { Directory.Delete(root, true); } catch { } }
+        }
+
+        [SkippableFact]
+        public void ProjectionFileSystemSafety_SameOpenedFile_DetectsHardLinks()
+        {
+            Skip.If(
+                OperatingSystem.IsBrowser(),
+                "Browser does not expose native opened-file identities.");
+
+            string root = Path.Combine(
+                Path.GetTempPath(),
+                "bfx-opened-identity-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
+            string original = Path.Combine(root, "original.gba");
+            string alias = Path.Combine(root, "alias.gba");
+            string distinct = Path.Combine(root, "distinct.gba");
+            File.WriteAllBytes(original, new byte[16]);
+            File.WriteAllBytes(distinct, new byte[16]);
+            try
+            {
+                if (!CreateHardLink(alias, original))
+                {
+                    Skip.If(true, "Cannot create a hard link here; native error "
+                        + Marshal.GetLastWin32Error());
+                    return;
+                }
+
+                using FileStream originalStream =
+                    ProjectionFileSystemSafety.OpenRegularFileForRead(original);
+                using FileStream aliasStream =
+                    ProjectionFileSystemSafety.OpenRegularFileForRead(alias);
+                using FileStream distinctStream =
+                    ProjectionFileSystemSafety.OpenRegularFileForRead(distinct);
+
+                Assert.True(ProjectionFileSystemSafety.SameOpenedFile(
+                    originalStream,
+                    aliasStream));
+                Assert.False(ProjectionFileSystemSafety.SameOpenedFile(
+                    originalStream,
+                    distinctStream));
             }
             finally { try { Directory.Delete(root, true); } catch { } }
         }

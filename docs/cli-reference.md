@@ -258,24 +258,26 @@ directory that is simply absent, and any enumeration/parameter/relative-path fai
 the manifest as a stable, fixed, path-free reason string — never the raw exception message or the
 absolute patch library/patch file path). This strict exporter inventory is separate from the legacy
 Patch Manager/CLI enumeration path, which logs an unreadable individual definition and retains all
-other successfully parsed patches. The `source/` projection
-is a non-composable best-effort — the projector receives only the ROM and a private scratch
-directory (created as a unique sibling OUTSIDE the publish stage on the same volume, moved into
-`source/` only on complete success). Every projected final entry is opened no-follow, validated as
-a regular file on that exact handle, and read through the same handle. Text files are normalized
-to LF, and both text and binary files are atomically replaced with fresh exporter-owned inodes
-before and after the move to `source/`; this severs external hard links and prevents later
-cross-mutation. Before publish the
-exporter-owned scratch path is stripped from projected file contents AND from the projection outcome's
-success/refused/error/exception reason, from publish-failure diagnostics, and from cleanup-failure
-diagnostics alike (the exporter does **not** claim to sanitize arbitrary
-absolute paths a projector might otherwise embed); on refusal/error the scratch is removed and
-verified gone, and if it cannot be removed the export aborts rather than publish a partial
-`source/`. Authoritative-output failures also verify stage/scratch cleanup; if the filesystem
-blocks removal, the failure names the residual temporary path instead of silently claiming
-cleanup. `README.md` is written only after the `source/` projection outcome (if requested) has been
-finalized, so a projection refusal/error warning is guaranteed to appear consistently across the
-generated README, the manifest, and CLI-facing warnings; `buildfile.json` is still written last. If
+other successfully parsed patches. The optional `source/` projection is a non-composable
+best-effort produced only by the built-in synchronous `RebuildProducerCore` path. It first writes
+to an exporter-private scratch tree while **no publish stage exists**. The exporter opens the root
+once and captures descendants handle-relatively (`openat` on Unix; `NtCreateFile` with a held
+`RootDirectory` on Windows), rejecting links and non-regular nodes without following replaceable
+ancestor pathnames. The immutable snapshot is limited to 32,768 entries, 256 MiB of file data,
+and bounded path depth/metadata; it preserves empty directories, normalizes valid UTF-8 text to LF,
+strips only the exporter-owned scratch path,
+and leaves binary bytes unchanged. Invalid UTF-8, a limit breach, or any capture fault downgrades
+only the advisory projection to `error`.
+
+Scratch is deleted and verified gone before the private atomic-publish stage is reserved. Near the
+publication boundary, the snapshot is materialized into a brand-new `source/`; no runner-owned
+inode or hard link is ever published. A late unsafe source replacement is removed and recorded
+consistently as a projection error in `README.md` and `buildfile.json`; inability to remove it
+aborts the export. Refusal/error cleanup and authoritative-output failures likewise verify
+stage/scratch removal and report any residual temporary path. The projector is synchronous by
+contract; as with every user-owned output, a separate process running as the same OS identity can
+modify files after publication, so consumers must still treat loose project files as mutable.
+If
 the target extends the clean ROM, the exporter picks the
 most frequent extension byte (lowest byte on ties) as the fill and emits only sparse override
 ranges, so a large mostly-`FF`/`00` extension never becomes a giant payload. Emulator/playtest
@@ -287,8 +289,8 @@ contains a parent-directory (`..`) path segment (rejected up front — `Path.Get
 `..` lexically before symlinks are resolved, which can diverge from the physical filesystem, so
 the exporter fails closed; ordinary and `.`-relative paths are fine); a nonexistent input ROM;
 `--rom` and `--clean` that resolve to the **same physical file** — each input is canonicalized to
-its realpath (following symlinks/junctions **including ancestor links**) and those exact resolved
-paths are the ones compared *and loaded*, so `C:\real\mod.gba` and `C:\link\mod.gba` (with
+its realpath (following symlinks/junctions **including ancestor links**) for preflight, so
+`C:\real\mod.gba` and `C:\link\mod.gba` (with
 `C:\link → C:\real`) are rejected as one file, while two *distinct* ROMs that merely share a
 benign symlinked ancestor such as macOS `/var → /private/var` are accepted; comparison is
 case-insensitive on Windows/macOS; on Windows, any device-namespace spelling (`\\?\`, `\\.\`,
@@ -300,8 +302,10 @@ forms—use a standard drive or UNC path instead; a symlink/junction output pare
 pre-existing `--out`; a clean/modded version mismatch; a modded ROM shorter than clean or larger
 than 32 MiB; or either ROM input not being a plain regular file. Each final ROM entry is opened
 no-follow, validated on the exact handle, bounded by that handle's length, and read completely
-through the same handle before parsing; a FIFO/device cannot block or produce an unbounded read,
-and a pathname replacement cannot redirect the later load. A non-canonical
+through the same handle before parsing. The two authoritative opened handles are identity-compared
+again (`volume + file ID` on Windows; `(device,inode)` on Unix), so a regular-file replacement or
+hard-link alias cannot collapse the inputs after preflight; a FIFO/device cannot block or produce
+an unbounded read, and pathname replacement cannot redirect the later byte load. A non-canonical
 (but same-version) clean baseline is an explicit warning, not a
 rejection. The `--out` path is normalized (full-path + trailing-separator trim, roots preserved)
 before all checks, so `--out=project/` and `--out=project` behave identically. Global switches
@@ -310,9 +314,9 @@ symlink is allowed as long as it resolves to a *distinct* physical file from the
 Windows additionally compares volume serial + 128-bit file ID, with the older 64-bit handle
 identity as a capability fallback for FAT/FAT32/exFAT and other filesystems that do not expose
 `FileIdInfo`. Hard links, mounted-drive aliases, and local-drive/UNC aliases of the same file are
-therefore rejected even when their resolved path strings differ. Hard-link identity is not
-portably detectable and remains out of scope on other platforms; the macOS case comparison is
-conservatively case-insensitive.
+therefore rejected even when their resolved path strings differ; Unix hard links are rejected by
+the final opened `(device,inode)` comparison. The macOS path preflight remains conservatively
+case-insensitive.
 
 **Exit code:** 0 on success, 1 on error.
 

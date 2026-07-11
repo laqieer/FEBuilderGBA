@@ -32,7 +32,7 @@ using Microsoft.Win32.SafeHandles;
 namespace FEBuilderGBA
 {
     /// <summary>Status of the optional source-aware rebuild projection.</summary>
-    public enum BuildfileProjectionStatus
+    internal enum BuildfileProjectionStatus
     {
         Skipped = 0,
         Success = 1,
@@ -40,8 +40,8 @@ namespace FEBuilderGBA
         Error = 3,
     }
 
-    /// <summary>Outcome returned by a caller-supplied projection runner.</summary>
-    public sealed class BuildfileProjectionOutcome
+    /// <summary>Outcome of the built-in advisory source projection.</summary>
+    internal sealed class BuildfileProjectionOutcome
     {
         public BuildfileProjectionStatus Status { get; set; } = BuildfileProjectionStatus.Skipped;
         public string Reason { get; set; } = "";
@@ -57,12 +57,11 @@ namespace FEBuilderGBA
     }
 
     /// <summary>
-    /// Optional source projection runner. It must produce its artifacts INTO
-    /// <paramref name="scratchDir"/> (an empty, private directory the exporter owns
-    /// and will move to <c>source/</c> only on <see cref="BuildfileProjectionStatus.Success"/>).
-    /// It must never throw; any fault should be reported as a Refused/Error outcome.
+    /// Test-only source projection seam. Production exports use the built-in synchronous
+    /// <see cref="RebuildProducerCore"/> projection. A test runner must finish all work before
+    /// returning; detached workers are outside this internal fault-injection contract.
     /// </summary>
-    public delegate BuildfileProjectionOutcome BuildfileProjectionRunner(string scratchDir);
+    internal delegate BuildfileProjectionOutcome BuildfileProjectionRunner(string scratchDir);
 
     /// <summary>
     /// Canonical path helpers shared by the exporter and its CLI front-end.
@@ -552,8 +551,11 @@ namespace FEBuilderGBA
         /// <summary>Language used when enumerating patch metadata (default "en").</summary>
         public string Language { get; set; } = "en";
 
-        /// <summary>Optional source-aware projection runner; null = projection skipped.</summary>
-        public BuildfileProjectionRunner ProjectionRunner { get; set; }
+        /// <summary>Include the built-in advisory source projection.</summary>
+        public bool IncludeSourceProjection { get; set; }
+
+        /// <summary>Internal synchronous projection override for deterministic tests.</summary>
+        internal BuildfileProjectionRunner ProjectionRunner { get; set; }
 
         /// <summary>Internal failure-injection seam used by staged-publication tests.</summary>
         internal Action<string> BeforePayloadWriteForTest { get; set; }
@@ -580,13 +582,19 @@ namespace FEBuilderGBA
         /// <summary>Internal deterministic name source for stage-collision tests.</summary>
         internal Func<Guid> GuidFactoryForTest { get; set; }
 
-        /// <summary>Internal hook for simulating a projection-root swap after the source move.</summary>
+        /// <summary>Internal hook for simulating a fresh-source swap before its final validation.</summary>
         internal Action<string> AfterProjectionMoveForTest { get; set; }
 
         /// <summary>Internal hook for simulating a final-entry swap immediately before open.</summary>
         internal Action<string> BeforeProjectionFileOpenForTest { get; set; }
 
-        /// <summary>Internal failure injection for unsafe moved-projection cleanup.</summary>
+        /// <summary>Internal projection snapshot entry-limit override for bounded tests.</summary>
+        internal int? ProjectionSnapshotMaxEntriesForTest { get; set; }
+
+        /// <summary>Internal projection snapshot byte-limit override for bounded tests.</summary>
+        internal long? ProjectionSnapshotMaxBytesForTest { get; set; }
+
+        /// <summary>Internal failure injection for unsafe materialized-source cleanup.</summary>
         internal Func<string, bool> UnsafeMovedProjectionCleanupForTest { get; set; }
 
         /// <summary>Maximum accepted target size (32 MiB).</summary>
@@ -599,6 +607,12 @@ namespace FEBuilderGBA
         /// the order of 16 million one-byte ranges/files.
         /// </summary>
         public const int MaxPayloadRanges = 16384;
+
+        /// <summary>Maximum directories plus files accepted from an advisory projection.</summary>
+        public const int MaxProjectionSnapshotEntries = 32768;
+
+        /// <summary>Maximum total bytes captured from an advisory projection (256 MiB).</summary>
+        public const long MaxProjectionSnapshotBytes = 256L * 1024 * 1024;
     }
 
     /// <summary>Result of an export attempt.</summary>
@@ -915,7 +929,17 @@ namespace FEBuilderGBA
         }
 
         internal static bool TryCreateDirectoryExclusive(string path)
+            => TryCreateDirectoryExclusive(path, OperatingSystem.IsBrowser());
+
+        internal static bool TryCreateDirectoryExclusive(string path, bool isBrowser)
         {
+            if (isBrowser)
+            {
+                throw new PlatformNotSupportedException(
+                    "Buildfile export requires native atomic directory reservation; "
+                    + "Browser storage is unsupported.");
+            }
+
             if (OperatingSystem.IsWindows())
             {
                 // Raw CreateDirectoryW does not receive .NET's automatic long-path handling.
@@ -929,15 +953,6 @@ namespace FEBuilderGBA
                     return false;
                 throw new IOException(
                     "Could not reserve temporary directory (Win32 error " + error + "): " + path);
-            }
-
-            // Browser storage is single-process; native libc is unavailable there.
-            if (OperatingSystem.IsBrowser())
-            {
-                if (Directory.Exists(path) || File.Exists(path))
-                    return false;
-                Directory.CreateDirectory(path);
-                return true;
             }
 
             if (CreateDirectoryUnix(path, 0x1C0) == 0) // 0700: exporter-private stage/scratch
@@ -986,7 +1001,23 @@ namespace FEBuilderGBA
             uint flags);
 
         internal static void PublishDirectoryNoReplace(string source, string destination)
+            => PublishDirectoryNoReplace(
+                source,
+                destination,
+                OperatingSystem.IsBrowser());
+
+        internal static void PublishDirectoryNoReplace(
+            string source,
+            string destination,
+            bool isBrowser)
         {
+            if (isBrowser)
+            {
+                throw new PlatformNotSupportedException(
+                    "Buildfile export requires native atomic no-replace publication; "
+                    + "Browser storage is unsupported.");
+            }
+
             if (OperatingSystem.IsWindows())
             {
                 if (MoveFileNoReplaceWindows(
@@ -995,16 +1026,6 @@ namespace FEBuilderGBA
                     0))
                     return;
                 ThrowPublishError(Marshal.GetLastWin32Error());
-            }
-
-            // Browser storage is single-process; retain an explicit destination check because
-            // native no-replace rename APIs are unavailable in WebAssembly.
-            if (OperatingSystem.IsBrowser())
-            {
-                if (Directory.Exists(destination) || File.Exists(destination))
-                    ThrowPublishError(183);
-                Directory.Move(source, destination);
-                return;
             }
 
             int result;
@@ -1109,25 +1130,34 @@ namespace FEBuilderGBA
             string name = Path.GetFileName(outDir);
             string stage = null;
             string projectionScratch = null;
+            ProjectionTreeSnapshot projectionSnapshot = null;
 
             try
             {
-                // Reserve each private tree with an atomic create-new operation. A generated-name
-                // collision is never reused, overwritten, or deleted; retry with a fresh name.
-                stage = ReserveUniqueSiblingDirectory(
-                    parent,
-                    MakeTemporaryDirectoryPrefix(name, "stage"),
-                    options.GuidFactoryForTest);
-                if (options.ProjectionRunner != null)
+                if (options.IncludeSourceProjection
+                    || options.ProjectionRunner != null)
                 {
-                    // The optional projection scratch is a UNIQUE SIBLING OUTSIDE the publish
-                    // stage (same parent -> same volume). It moves into stage/source only after
-                    // complete projection success.
+                    // No publish stage exists while projection code runs. The synchronous
+                    // built-in projector receives only its private scratch; after return, the
+                    // tree is captured through held handles and deleted before a stage is born.
                     projectionScratch = ReserveUniqueSiblingDirectory(
                         parent,
                         MakeTemporaryDirectoryPrefix(name, "psrc"),
                         options.GuidFactoryForTest);
+                    projectionSnapshot = RunProjection(
+                        plan.Manifest,
+                        cleanRom,
+                        targetRom,
+                        projectionScratch,
+                        options);
                 }
+
+                // Reserve the publish stage only after projection has quiesced and its path has
+                // been removed. A generated-name collision is never reused or deleted.
+                stage = ReserveUniqueSiblingDirectory(
+                    parent,
+                    MakeTemporaryDirectoryPrefix(name, "stage"),
+                    options.GuidFactoryForTest);
                 Directory.CreateDirectory(Path.Combine(stage, "data"));
 
                 // 1) Raw payloads.
@@ -1142,14 +1172,7 @@ namespace FEBuilderGBA
                 // 2) Derived EA installer (does not depend on projection status).
                 WriteTextLf(Path.Combine(stage, "main.event"), GenerateMainEvent(plan));
 
-                // 3) Optional advisory source projection (external scratch → stage/source on
-                // success). MUST run BEFORE the README is generated: the README surfaces the
-                // projection status/warning, and generating it first would freeze a stale
-                // "skipped" status even when the projection later succeeds/fails/refuses
-                // (Copilot review finding: README-before-projection-warning).
-                RunProjection(plan.Manifest, stage, projectionScratch, options);
-
-                // 3.5) README — written AFTER projection so it reflects the FINAL manifest
+                // 3) README — written after projection so it reflects the final manifest
                 // status/warnings (including a projection refusal/error warning, when present).
                 WriteTextLf(Path.Combine(stage, "README.md"), GenerateReadme(plan.Manifest));
 
@@ -1165,9 +1188,42 @@ namespace FEBuilderGBA
                 // 5) buildfile.json LAST (the authority file marks a complete project).
                 WriteTextLf(Path.Combine(stage, "buildfile.json"), SerializeManifest(plan.Manifest));
 
-                // 6) Publish with one atomic no-replace directory rename. The destination
-                // must remain absent even if another process creates it after preflight.
+                // A detached test runner must not be able to leave or recreate its private
+                // scratch after capture. Production projection is synchronous and built in.
+                if (!string.IsNullOrEmpty(projectionScratch)
+                    && !DeleteAndVerifyGone(
+                        projectionScratch,
+                        out string finalScratchCleanupError))
+                {
+                    throw new IOException(
+                        "Projection scratch was recreated or could not be removed: "
+                        + finalScratchCleanupError);
+                }
+
+                // Preserve the destination-race seam before source materialization. No callback
+                // or unrelated work runs after a successful fresh source is validated.
                 options.BeforePublishForTest?.Invoke(outDir);
+
+                // 6) Materialize any successful projection from the immutable snapshot into a
+                // fresh exporter-owned source tree at the publication boundary.
+                if (projectionSnapshot != null)
+                {
+                    if (!TryMaterializeProjectionSnapshot(
+                        projectionSnapshot,
+                        stage,
+                        options,
+                        out string materializeError))
+                    {
+                        RemoveUnsafeMaterializedProjection(stage, options);
+                        MarkProjectionMaterializationError(
+                            plan.Manifest,
+                            materializeError);
+                        RewriteProjectionMetadata(stage, plan.Manifest);
+                    }
+                }
+
+                // 7) Publish with one atomic no-replace directory rename. The destination must
+                // remain absent even if another process creates it after preflight.
                 PublishDirectoryNoReplace(stage, outDir);
             }
             catch (Exception ex)
@@ -1268,90 +1324,76 @@ namespace FEBuilderGBA
 
         // -------------------------------------------------------------- projection
 
-        static void RunProjection(BuildfileManifest m, string stage, string scratch, BuildfileExportOptions options)
+        static ProjectionTreeSnapshot RunProjection(
+            BuildfileManifest m,
+            ROM cleanRom,
+            ROM targetRom,
+            string scratch,
+            BuildfileExportOptions options)
         {
-            if (options.ProjectionRunner == null)
+            BuildfileProjectionRunner runner = options.ProjectionRunner;
+            if (runner == null && options.IncludeSourceProjection)
+            {
+                runner = path => RunBuiltInProjection(
+                    cleanRom,
+                    targetRom,
+                    path);
+            }
+            if (runner == null)
             {
                 m.Projection.Status = "skipped";
                 m.Projection.Reason = "source projection not requested";
-                return;
+                return null;
             }
 
             BuildfileProjectionOutcome outcome;
             try
             {
-                outcome = options.ProjectionRunner(scratch) ?? BuildfileProjectionOutcome.Fail("projection returned no outcome");
+                outcome = runner(scratch)
+                    ?? BuildfileProjectionOutcome.Fail("projection returned no outcome");
             }
             catch (Exception ex)
             {
-                // Plugin boundary: the projection runner is arbitrary caller-supplied code, so ANY
-                // fault it raises is treated as an advisory projection failure (never corrupts the
-                // authoritative export). This is deliberately broad and scoped to the delegate call.
+                // Projection is advisory. The built-in path reports its own outcome; this broad
+                // boundary also keeps an internal fault-injection runner from corrupting the
+                // authoritative export.
                 outcome = BuildfileProjectionOutcome.Fail(ex.Message);
             }
             // Sanitize the exporter-owned scratch path out of the outcome's reason IMMEDIATELY —
             // before it is ever stored in the manifest or embedded in a thrown message. This
-            // covers success/refused/error/exception outcomes uniformly, since a caller-supplied
-            // runner or its exception message could otherwise echo the absolute scratch path back
+            // covers success/refused/error/exception outcomes uniformly, since a projector
+            // outcome or exception message could otherwise echo the absolute scratch path back
             // (Copilot review finding: projection scratch reason paths).
             outcome.Reason = SanitizeScratchPath(outcome.Reason, scratch);
 
+            ProjectionTreeSnapshot snapshot = null;
             if (outcome.Status == BuildfileProjectionStatus.Success)
             {
+                int maxEntries = options.ProjectionSnapshotMaxEntriesForTest
+                    ?? BuildfileExportOptions.MaxProjectionSnapshotEntries;
+                long maxBytes = options.ProjectionSnapshotMaxBytesForTest
+                    ?? BuildfileExportOptions.MaxProjectionSnapshotBytes;
                 try
                 {
-                    if (!SanitizeAndNormalizeTree(
+                    snapshot = ProjectionTreeSnapshotReader.Capture(
                         scratch,
-                        options.BeforeProjectionFileOpenForTest,
-                        out string sanitizeError))
-                        throw new IOException(sanitizeError);
-                    if (!ValidatePlainProjectionDirectory(scratch, scratch, out string rootError))
-                        throw new IOException(rootError);
-                    // Move the external scratch INTO the stage as source/ only now that it is
-                    // complete and sanitized. This is the sole way source/ ever gets published.
-                    string sourceDir = Path.Combine(stage, "source");
-                    Directory.Move(scratch, sourceDir);
-                    options.AfterProjectionMoveForTest?.Invoke(sourceDir);
-                    if (!SanitizeAndNormalizeTree(
-                        sourceDir,
-                        options.BeforeProjectionFileOpenForTest,
-                        out string movedTreeError))
-                    {
-                        bool removed;
-                        string movedCleanupError;
-                        if (options.UnsafeMovedProjectionCleanupForTest != null)
-                        {
-                            removed = options.UnsafeMovedProjectionCleanupForTest(sourceDir);
-                            movedCleanupError = removed ? "" : "injected cleanup failure";
-                        }
-                        else
-                        {
-                            removed = DeleteAndVerifyGone(sourceDir, out movedCleanupError);
-                        }
-                        if (!removed)
-                        {
-                            // This must escape the advisory projection catch below: publishing a
-                            // stage that still contains an unsafe moved source is never allowed.
-                            throw new InvalidOperationException(
-                                "Unsafe moved projection could not be removed: " + movedCleanupError);
-                        }
-                        throw new IOException(movedTreeError);
-                    }
-                    m.Projection.Status = "success";
-                    m.Projection.Reason = outcome.Reason ?? "";
-                    m.Projection.Directory = "source";
-                    return;
+                        maxEntries,
+                        maxBytes,
+                        options.BeforeProjectionFileOpenForTest);
+                    SanitizeProjectionSnapshot(snapshot, scratch, maxBytes);
                 }
                 catch (Exception ex) when (IsExpectedFileSystemException(ex))
                 {
-                    outcome = BuildfileProjectionOutcome.Fail(SanitizeScratchPath("publish failed: " + ex.Message, scratch));
+                    snapshot = null;
+                    outcome = BuildfileProjectionOutcome.Fail(
+                        SanitizeScratchPath(
+                            "capture failed: " + ex.Message,
+                            scratch));
                 }
             }
 
-            // Refusal / error (or a non-null runner reporting skipped): delete the EXTERNAL
-            // scratch and VERIFY it is gone. A cleanup failure must not let the export publish a
-            // partial scratch — surface it and abort by throwing, preserving the original
-            // projection reason as primary context.
+            // The runner-owned scratch is never mutated or published. Delete it for every outcome
+            // and verify absence before any exporter-owned source tree can be materialized.
             string primaryReason = outcome.Reason ?? "";
             if (!DeleteAndVerifyGone(scratch, out string cleanupError))
             {
@@ -1359,6 +1401,15 @@ namespace FEBuilderGBA
                     "Source projection " + StatusWord(outcome.Status) + " (" + primaryReason +
                     ") and its scratch could not be removed (" + scratch + "): " + cleanupError +
                     "; refusing to publish.", scratch));
+            }
+
+            if (outcome.Status == BuildfileProjectionStatus.Success
+                && snapshot != null)
+            {
+                m.Projection.Status = "success";
+                m.Projection.Reason = primaryReason;
+                m.Projection.Directory = "source";
+                return snapshot;
             }
 
             switch (outcome.Status)
@@ -1370,6 +1421,200 @@ namespace FEBuilderGBA
             m.Projection.Reason = primaryReason;
             if (m.Projection.Status != "skipped")
                 m.Warnings.Add("Source projection " + m.Projection.Status + ": " + primaryReason);
+            return null;
+        }
+
+        static BuildfileProjectionOutcome RunBuiltInProjection(
+            ROM cleanRom,
+            ROM targetRom,
+            string scratch)
+        {
+            try
+            {
+                uint rebuildAddress = U.toOffset(targetRom.RomInfo.extends_address);
+                string manifestPath = Path.Combine(scratch, "rom.rebuild");
+                RebuildProducerCore.MakeWithProducer(
+                    targetRom,
+                    cleanRom,
+                    rebuildAddress,
+                    manifestPath,
+                    isUseOtherGraphics: true,
+                    isUseOAMSP: false);
+                RebuildMakeCore.ValidateProjectionOutput(manifestPath);
+                return BuildfileProjectionOutcome.Ok();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BuildfileProjectionOutcome.Refuse(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return BuildfileProjectionOutcome.Fail(ex.Message);
+            }
+        }
+
+        static void SanitizeProjectionSnapshot(
+            ProjectionTreeSnapshot snapshot,
+            string scratch,
+            long maxBytes)
+        {
+            long totalBytes = 0;
+            foreach (ProjectionTreeSnapshotFile file in snapshot.Files)
+            {
+                if (IsProjectionTextFile(file.RelativePath))
+                {
+                    try
+                    {
+                        string text;
+                        using (var input = new MemoryStream(file.Data, writable: false))
+                        using (var reader = new StreamReader(
+                            input,
+                            new UTF8Encoding(false, true),
+                            detectEncodingFromByteOrderMarks: true))
+                        {
+                            text = reader.ReadToEnd();
+                        }
+                        string sanitized = NormalizeLf(SanitizeScratchPath(text, scratch));
+                        file.Data = new UTF8Encoding(false).GetBytes(sanitized);
+                    }
+                    catch (DecoderFallbackException ex)
+                    {
+                        throw new IOException(
+                            "Projection text is not valid UTF-8: "
+                            + file.RelativePath,
+                            ex);
+                    }
+                }
+
+                if (file.Data.LongLength > maxBytes - totalBytes)
+                {
+                    throw new IOException(
+                        "Sanitized projection snapshot exceeds the "
+                        + maxBytes + "-byte limit.");
+                }
+                totalBytes += file.Data.LongLength;
+            }
+        }
+
+        static bool TryMaterializeProjectionSnapshot(
+            ProjectionTreeSnapshot snapshot,
+            string stage,
+            BuildfileExportOptions options,
+            out string error)
+        {
+            string source = Path.Combine(stage, "source");
+            error = "";
+            try
+            {
+                if (!TryCreateDirectoryExclusive(source))
+                {
+                    error = "Exporter-owned source directory already exists.";
+                    return false;
+                }
+
+                foreach (string relativeDirectory in snapshot.Directories)
+                {
+                    Directory.CreateDirectory(
+                        ProjectionSnapshotPath(source, relativeDirectory));
+                }
+                foreach (ProjectionTreeSnapshotFile file in snapshot.Files)
+                {
+                    string path = ProjectionSnapshotPath(source, file.RelativePath);
+                    string parent = Path.GetDirectoryName(path);
+                    if (!string.IsNullOrEmpty(parent))
+                        Directory.CreateDirectory(parent);
+                    using var output = new FileStream(
+                        path,
+                        FileMode.CreateNew,
+                        FileAccess.Write,
+                        FileShare.None);
+                    output.Write(file.Data, 0, file.Data.Length);
+                }
+
+                // The historical hook name is retained for test compatibility; the source is no
+                // longer moved from runner scratch and is entirely exporter-owned.
+                options.AfterProjectionMoveForTest?.Invoke(source);
+                if (!TryEnumeratePlainProjectionTree(
+                    source,
+                    stage,
+                    out _,
+                    out error))
+                {
+                    return false;
+                }
+                return true;
+            }
+            catch (Exception ex) when (IsExpectedFileSystemException(ex))
+            {
+                error = SanitizeScratchPath(
+                    "Could not materialize projection snapshot: " + ex.Message,
+                    stage);
+                return false;
+            }
+        }
+
+        static string ProjectionSnapshotPath(string source, string relativePath)
+        {
+            string nativeRelative = relativePath.Replace(
+                '/',
+                Path.DirectorySeparatorChar);
+            string full = Path.GetFullPath(Path.Combine(source, nativeRelative));
+            string root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(source))
+                + Path.DirectorySeparatorChar;
+            StringComparison comparison = (OperatingSystem.IsWindows()
+                || OperatingSystem.IsMacOS())
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+            if (!full.StartsWith(root, comparison))
+                throw new IOException("Projection snapshot path escapes source.");
+            return full;
+        }
+
+        static void RemoveUnsafeMaterializedProjection(
+            string stage,
+            BuildfileExportOptions options)
+        {
+            string source = Path.Combine(stage, "source");
+            bool removed;
+            string cleanupError;
+            if (options.UnsafeMovedProjectionCleanupForTest != null)
+            {
+                removed = options.UnsafeMovedProjectionCleanupForTest(source);
+                cleanupError = removed ? "" : "injected cleanup failure";
+            }
+            else
+            {
+                removed = DeleteAndVerifyGone(source, out cleanupError);
+            }
+            if (!removed)
+            {
+                throw new InvalidOperationException(
+                    "Unsafe materialized projection could not be removed: "
+                    + cleanupError);
+            }
+        }
+
+        static void MarkProjectionMaterializationError(
+            BuildfileManifest manifest,
+            string reason)
+        {
+            manifest.Projection.Status = "error";
+            manifest.Projection.Reason = reason ?? "";
+            manifest.Projection.Directory = "";
+            manifest.Warnings.Add(
+                "Source projection error: " + manifest.Projection.Reason);
+        }
+
+        static void RewriteProjectionMetadata(
+            string stage,
+            BuildfileManifest manifest)
+        {
+            WriteTextLf(
+                Path.Combine(stage, "README.md"),
+                GenerateReadme(manifest));
+            WriteTextLf(
+                Path.Combine(stage, "buildfile.json"),
+                SerializeManifest(manifest));
         }
 
         static string StatusWord(BuildfileProjectionStatus s)
@@ -1467,81 +1712,24 @@ namespace FEBuilderGBA
             }
         }
 
-        // Normalize an advisory projection tree before publication: LF line endings and removal
-        // of the (exporter-owned) scratch absolute path so no environment/scratch location leaks
-        // into source/. We only sanitize the scratch path we control — we do NOT claim to strip
-        // arbitrary absolute paths a projector might emit. Fail-closed on any read/write fault so
-        // a partial/leaky source/ is never published.
-        static bool SanitizeAndNormalizeTree(
-            string scratchDir,
-            Action<string> beforeFileOpenForTest,
-            out string error)
+        static bool IsProjectionTextFile(string path)
         {
-            error = "";
-            string[] textExt = { ".rebuild", ".event", ".txt", ".s", ".asm", ".json", ".md", ".inc", ".c", ".h" };
-
-            if (!TryEnumeratePlainProjectionTree(
-                scratchDir, scratchDir, out List<string> files, out error))
-                return false;
-
-            foreach (string file in files)
+            switch (Path.GetExtension(path).ToLowerInvariant())
             {
-                string ext = Path.GetExtension(file).ToLowerInvariant();
-                bool isText = Array.IndexOf(textExt, ext) >= 0;
-                string temporary = file + ".materialize-" + Guid.NewGuid().ToString("N");
-                try
-                {
-                    beforeFileOpenForTest?.Invoke(file);
-                    using (FileStream input =
-                        ProjectionFileSystemSafety.OpenRegularFileForRead(file))
-                    using (var output = new FileStream(
-                        temporary,
-                        FileMode.CreateNew,
-                        FileAccess.Write,
-                        FileShare.None))
-                    {
-                        if (isText)
-                        {
-                            string text;
-                            using (var reader = new StreamReader(
-                                input,
-                                Encoding.UTF8,
-                                detectEncodingFromByteOrderMarks: true,
-                                bufferSize: 4096,
-                                leaveOpen: true))
-                            {
-                                text = reader.ReadToEnd();
-                            }
-
-                            // Strip only the exporter-owned scratch path (escaped, native, then
-                            // forward spellings). The unique guid in the path makes this
-                            // boundary-safe: it cannot prefix an unrelated fixed-width token.
-                            string sanitized = NormalizeLf(
-                                SanitizeScratchPath(text, scratchDir));
-                            byte[] normalized = new UTF8Encoding(false).GetBytes(sanitized);
-                            output.Write(normalized, 0, normalized.Length);
-                        }
-                        else
-                        {
-                            input.CopyTo(output);
-                        }
-                    }
-
-                    // Replacing the directory entry with our new file severs any hard link to an
-                    // external inode. The source handle is already closed, so Windows can replace
-                    // the entry while Unix performs the same operation atomically.
-                    File.Move(temporary, file, overwrite: true);
-                }
-                catch (Exception ex) when (IsExpectedFileSystemException(ex))
-                {
-                    try { if (File.Exists(temporary)) File.Delete(temporary); } catch { }
-                    error = SanitizeScratchPath(
-                        "materialization failed for " + file + ": " + ex.Message,
-                        scratchDir);
+                case ".rebuild":
+                case ".event":
+                case ".txt":
+                case ".s":
+                case ".asm":
+                case ".json":
+                case ".md":
+                case ".inc":
+                case ".c":
+                case ".h":
+                    return true;
+                default:
                     return false;
-                }
             }
-            return true;
         }
 
         internal static bool TryEnumeratePlainProjectionTree(

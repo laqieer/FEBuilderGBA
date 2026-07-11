@@ -192,7 +192,7 @@ namespace FEBuilderGBA.Core.Tests
             // Regression guard: the existing public 3-argument CompareWithFill must remain
             // completely unaffected by the new bounded overload — it never throws regardless of
             // range count.
-            const int rangeCount = 5000;
+            int rangeCount = BuildfileExportOptions.MaxPayloadRanges + 1;
             byte[] baseline = new byte[rangeCount * 2];
             byte[] target = (byte[])baseline.Clone();
             for (int i = 0; i < target.Length; i += 2)
