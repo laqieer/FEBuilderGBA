@@ -1140,14 +1140,16 @@ namespace FEBuilderGBA.Core.Tests
             try
             {
                 string name = Path.GetFileName(outDir);
+                string stagePrefix = BuildfileExportCore.MakeTemporaryDirectoryPrefix(name, "stage");
+                string scratchPrefix = BuildfileExportCore.MakeTemporaryDirectoryPrefix(name, "psrc");
                 Guid stageCollisionId = Guid.Parse("11111111-1111-1111-1111-111111111111");
                 Guid stageId = Guid.Parse("22222222-2222-2222-2222-222222222222");
                 Guid scratchCollisionId = Guid.Parse("33333333-3333-3333-3333-333333333333");
                 Guid scratchId = Guid.Parse("44444444-4444-4444-4444-444444444444");
                 string stageCollision = Path.Combine(
-                    parent, "." + name + ".stage-" + stageCollisionId.ToString("N"));
+                    parent, stagePrefix + stageCollisionId.ToString("N"));
                 string scratchCollision = Path.Combine(
-                    parent, "." + name + ".psrc-" + scratchCollisionId.ToString("N"));
+                    parent, scratchPrefix + scratchCollisionId.ToString("N"));
                 Directory.CreateDirectory(stageCollision);
                 Directory.CreateDirectory(scratchCollision);
                 File.WriteAllText(Path.Combine(stageCollision, "owner.txt"), "stage-owner");
@@ -1174,6 +1176,44 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal("scratch-owner", File.ReadAllText(Path.Combine(scratchCollision, "owner.txt")));
                 Assert.True(File.Exists(Path.Combine(outDir, "source", "projection.txt")));
                 Assert.Empty(ids);
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [Fact]
+        public void Export_LongValidOutputBasename_UsesBoundedTemporaryComponents()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x2000] = 0x69;
+
+            string parent = Path.Combine(
+                Path.GetTempPath(), "feb_buildfile_component_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(parent);
+            string outputName = new string('o', 230);
+            string outDir = Path.Combine(parent, outputName);
+            try
+            {
+                string stagePrefix = BuildfileExportCore.MakeTemporaryDirectoryPrefix(outputName, "stage");
+                string scratchPrefix = BuildfileExportCore.MakeTemporaryDirectoryPrefix(outputName, "psrc");
+                Assert.True((stagePrefix + Guid.NewGuid().ToString("N")).Length < 255);
+                Assert.True((scratchPrefix + Guid.NewGuid().ToString("N")).Length < 255);
+
+                var result = BuildfileExportCore.Export(
+                    MakeRom(clean),
+                    MakeRom(target),
+                    new BuildfileExportOptions
+                    {
+                        OutputDirectory = outDir,
+                        ProjectionRunner = scratch =>
+                        {
+                            File.WriteAllText(Path.Combine(scratch, "projection.txt"), "complete\n");
+                            return BuildfileProjectionOutcome.Ok();
+                        },
+                    });
+
+                Assert.True(result.Success, result.Error);
+                Assert.True(File.Exists(Path.Combine(outDir, "source", "projection.txt")));
             }
             finally { Cleanup(parent); }
         }

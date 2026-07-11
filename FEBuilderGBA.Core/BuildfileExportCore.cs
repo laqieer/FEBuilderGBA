@@ -813,6 +813,12 @@ namespace FEBuilderGBA
                 + TemporaryDirectoryReservationAttempts + " name collisions.");
         }
 
+        internal static string MakeTemporaryDirectoryPrefix(string outputName, string kind)
+        {
+            string outputHash = Sha256Hex(Encoding.UTF8.GetBytes(outputName ?? "")).Substring(0, 16);
+            return ".febuild-" + outputHash + "." + kind + "-";
+        }
+
         internal static bool TryCreateDirectoryExclusive(string path)
         {
             if (OperatingSystem.IsWindows())
@@ -934,14 +940,18 @@ namespace FEBuilderGBA
                 // Reserve each private tree with an atomic create-new operation. A generated-name
                 // collision is never reused, overwritten, or deleted; retry with a fresh name.
                 stage = ReserveUniqueSiblingDirectory(
-                    parent, "." + name + ".stage-", options.GuidFactoryForTest);
+                    parent,
+                    MakeTemporaryDirectoryPrefix(name, "stage"),
+                    options.GuidFactoryForTest);
                 if (options.ProjectionRunner != null)
                 {
                     // The optional projection scratch is a UNIQUE SIBLING OUTSIDE the publish
                     // stage (same parent -> same volume). It moves into stage/source only after
                     // complete projection success.
                     projectionScratch = ReserveUniqueSiblingDirectory(
-                        parent, "." + name + ".psrc-", options.GuidFactoryForTest);
+                        parent,
+                        MakeTemporaryDirectoryPrefix(name, "psrc"),
+                        options.GuidFactoryForTest);
                 }
                 Directory.CreateDirectory(Path.Combine(stage, "data"));
 
