@@ -247,13 +247,18 @@ changes the authoritative ranges, and never aborts the export. To bound worst-ca
 (e.g. a large alternating-byte diff), the exporter rejects a diff producing more than 16,384 distinct
 changed ranges with an explicit, path-free resource-safety error **before** any payload/manifest file
 is materialized; ordinary mods are far below this limit. `main.event` is a derived interoperability
-surface; the installed-patch inventory in the manifest is advisory (its `config/patch2/{version}`
+surface; its deterministic structural checks are supplemented by a gated real-ColorzCore test that,
+when a complete bundled EA toolchain is available, must rebuild the declared extension fill and
+payload bytes exactly. The installed-patch inventory in the manifest is advisory (its
+`config/patch2/{version}`
 directory is resolved by existence only and enumerated under a guard, so a missing, empty,
 slow, or unreadable patch library yields `unavailable` and never aborts the export; a directory that
 exists but cannot actually be enumerated — permissions, I/O, path failures — is distinguished from a
 directory that is simply absent, and any enumeration/parameter/relative-path failure is reported in
 the manifest as a stable, fixed, path-free reason string — never the raw exception message or the
-absolute patch library/patch file path); the `source/` projection
+absolute patch library/patch file path). This strict exporter inventory is separate from the legacy
+Patch Manager/CLI enumeration path, which logs an unreadable individual definition and retains all
+other successfully parsed patches. The `source/` projection
 is a non-composable best-effort — the projector receives only the ROM and a private scratch
 directory (created as a unique sibling OUTSIDE the publish stage on the same volume, moved into
 `source/` only on complete success). Before publish its text files are normalized to LF and the

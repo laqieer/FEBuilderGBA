@@ -95,15 +95,40 @@ namespace FEBuilderGBA
         /// <param name="lang">Language suffix ("en", "zh", or "" for Japanese).</param>
         /// <returns>List of parsed patches, sorted by directory name.</returns>
         public static List<PatchInfo> EnumeratePatches(string patchBaseDir, ROM rom, string lang)
+            => EnumeratePatches(patchBaseDir, rom, lang, File.ReadAllLines, null);
+
+        /// <summary>Internal read/listing seam for legacy per-file tolerance coverage.</summary>
+        internal static List<PatchInfo> EnumeratePatches(string patchBaseDir, ROM rom, string lang,
+            Func<string, string[]> readAllLines, Func<string, string[]> listPatchFiles)
         {
-            // Preserve the historical API/behavior: on a filesystem/access failure, LOG and
-            // return an empty list (callers that need to distinguish "empty" from "failed" use
-            // TryEnumeratePatches instead).
-            if (!TryEnumeratePatches(patchBaseDir, rom, lang, out List<PatchInfo> patches, out string error))
+            var patches = new List<PatchInfo>();
+            if (string.IsNullOrEmpty(patchBaseDir))
+                return patches;
+
+            Func<string, string[]> list = listPatchFiles
+                ?? (dir => Directory.GetFiles(dir, "PATCH_*.txt", SearchOption.AllDirectories));
+
+            string[] patchFiles;
+            try
             {
-                // Log.Error is params string[] (joined with spaces) — concatenate, do NOT use {0}.
-                Log.Error("PatchMetadataCore.EnumeratePatches failed for '" + patchBaseDir + "': " + error);
-                return new List<PatchInfo>();
+                patchFiles = list(patchBaseDir);
+            }
+            catch (DirectoryNotFoundException)
+            {
+                return patches;
+            }
+            catch (Exception ex) when (IsExpectedFileSystemException(ex))
+            {
+                Log.Error("PatchMetadataCore.EnumeratePatches failed for '" + patchBaseDir + "': " + ex.Message);
+                return patches;
+            }
+
+            foreach (string file in patchFiles.OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
+            {
+                string defaultName = GetDefaultPatchName(file);
+                PatchInfo info = ParsePatchFileTolerant(file, defaultName, rom, lang, readAllLines);
+                SetContainingDirectory(info, file);
+                patches.Add(info);
             }
             return patches;
         }
@@ -172,17 +197,9 @@ namespace FEBuilderGBA
                 // filename minus the PATCH_ prefix).
                 foreach (string file in patchFiles.OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
                 {
-                    string fileName = Path.GetFileNameWithoutExtension(file);
-                    string defaultName = fileName.StartsWith("PATCH_", StringComparison.OrdinalIgnoreCase)
-                        ? fileName.Substring("PATCH_".Length)
-                        : fileName;
-
+                    string defaultName = GetDefaultPatchName(file);
                     var info = ParsePatchFileStrict(file, defaultName, rom, lang, readAllLines);
-                    // Group by the patch's real containing folder (e.g. "SYSTEM") so the CLI
-                    // --patch-name folder filter keeps working with recursion.
-                    string containingDir = Path.GetFileName(Path.GetDirectoryName(file) ?? "") ?? "";
-                    if (!string.IsNullOrEmpty(containingDir))
-                        info.DirectoryName = containingDir;
+                    SetContainingDirectory(info, file);
                     patches.Add(info);
                 }
             }
@@ -211,16 +228,37 @@ namespace FEBuilderGBA
         /// Parse a PATCH_*.txt metadata file.
         /// </summary>
         public static PatchInfo ParsePatchFile(string patchFilePath, string dirName, ROM rom, string lang)
+            => ParsePatchFileTolerant(patchFilePath, dirName, rom, lang, File.ReadAllLines);
+
+        static PatchInfo ParsePatchFileTolerant(string patchFilePath, string dirName, ROM rom, string lang,
+            Func<string, string[]> readAllLines)
         {
             try
             {
-                return ParsePatchFileStrict(patchFilePath, dirName, rom, lang, File.ReadAllLines);
+                return ParsePatchFileStrict(patchFilePath, dirName, rom, lang, readAllLines);
             }
             catch (Exception ex)
             {
                 Log.ErrorF("PatchMetadataCore: Failed to parse {0}: {1}", patchFilePath, ex.Message);
                 return CreatePatchInfo(patchFilePath, dirName);
             }
+        }
+
+        static string GetDefaultPatchName(string file)
+        {
+            string fileName = Path.GetFileNameWithoutExtension(file);
+            return fileName.StartsWith("PATCH_", StringComparison.OrdinalIgnoreCase)
+                ? fileName.Substring("PATCH_".Length)
+                : fileName;
+        }
+
+        static void SetContainingDirectory(PatchInfo info, string file)
+        {
+            // Group by the patch's real containing folder (e.g. "SYSTEM") so the CLI
+            // --patch-name folder filter keeps working with recursion.
+            string containingDir = Path.GetFileName(Path.GetDirectoryName(file) ?? "") ?? "";
+            if (!string.IsNullOrEmpty(containingDir))
+                info.DirectoryName = containingDir;
         }
 
         static PatchInfo ParsePatchFileStrict(string patchFilePath, string dirName, ROM rom, string lang,

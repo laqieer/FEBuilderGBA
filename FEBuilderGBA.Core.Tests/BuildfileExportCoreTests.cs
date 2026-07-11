@@ -49,6 +49,26 @@ namespace FEBuilderGBA.Core.Tests
             try { if (Directory.Exists(parent)) Directory.Delete(parent, true); } catch { }
         }
 
+        static string FindBuiltColorzCore()
+        {
+            string dir = AppContext.BaseDirectory;
+            for (int i = 0; i < 12 && dir != null; i++)
+            {
+                foreach (string config in new[] { "Release", "Debug" })
+                {
+                    foreach (string name in new[] { "ColorzCore.exe", "ColorzCore" })
+                    {
+                        string path = Path.Combine(dir, "tools", "ColorzCore", "ColorzCore",
+                            "bin", "Core", config, "net6.0", name);
+                        if (File.Exists(path))
+                            return path;
+                    }
+                }
+                dir = Path.GetDirectoryName(dir);
+            }
+            return null;
+        }
+
         static string Sha256Hex(byte[] data)
         {
             var sb = new StringBuilder();
@@ -386,7 +406,7 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Contains("POP", ev);
                 Assert.Equal(1, CountOccurrences(ev, "PUSH"));
                 Assert.Equal(1, CountOccurrences(ev, "POP"));
-                Assert.Contains("FILL 0x1000000 1 0xFF", ev);
+                Assert.Contains("FILL 0x1000000 0xFF", ev);
                 // one ORG + #incbin per payload range
                 int incbin = CountOccurrences(ev, "#incbin");
                 Assert.Equal(result.Manifest.Ranges.Count, incbin);
@@ -395,6 +415,70 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.DoesNotContain("\r\n", ev);
             }
             finally { Cleanup(parent); }
+        }
+
+        [SkippableFact]
+        public void Export_MainEvent_RealColorzCore_ReconstructsTarget()
+        {
+            string exe = FindBuiltColorzCore();
+            Skip.If(exe == null,
+                "ColorzCore is not built; deterministic main.event assertions still run.");
+
+            var clean = new byte[RomSize];
+            var target = new byte[RomSize * 2];
+            Array.Copy(clean, target, RomSize);
+            Array.Fill(target, (byte)0xFF, RomSize, RomSize);
+            target[0x400] = 0xA1;
+            target[RomSize + 0x8] = 0x55;
+
+            var (outDir, parent) = FreshOut();
+            Config savedConfig = CoreState.Config;
+            Undo savedUndo = CoreState.Undo;
+            ROM savedRom = CoreState.ROM;
+            try
+            {
+                var export = BuildfileExportCore.Export(
+                    MakeRom(clean),
+                    MakeRom(target),
+                    new BuildfileExportOptions { OutputDirectory = outDir });
+                Assert.True(export.Success, export.Error);
+
+                CoreState.Config = new Config { ["event_assembler"] = exe };
+
+                string probeFile = Path.Combine(parent, "probe.event");
+                File.WriteAllText(probeFile, "ORG 0x200\nBYTE 0x12 0x34\n");
+                ROM probeRom = MakeRom((byte[])clean.Clone());
+                CoreState.ROM = probeRom;
+                CoreState.Undo = new Undo();
+                var probe = EventAssemblerCompileCore.CompileAndInsert(
+                    probeRom,
+                    probeFile,
+                    EventAssemblerCompileCore.FreeAreaMode.None,
+                    CoreState.Undo.NewUndoData("buildfile-ea-probe"),
+                    SymbolUtil.DebugSymbol.None);
+                Skip.IfNot(probe.Success,
+                    "A complete Event Assembler toolchain is unavailable: " + probe.ErrorMessage);
+
+                ROM rebuilt = MakeRom((byte[])clean.Clone());
+                CoreState.ROM = rebuilt;
+                CoreState.Undo = new Undo();
+                var result = EventAssemblerCompileCore.CompileAndInsert(
+                    rebuilt,
+                    Path.Combine(outDir, "main.event"),
+                    EventAssemblerCompileCore.FreeAreaMode.None,
+                    CoreState.Undo.NewUndoData("buildfile-main-event"),
+                    SymbolUtil.DebugSymbol.None);
+
+                Assert.True(result.Success, result.ErrorMessage);
+                Assert.Equal(target, rebuilt.Data);
+            }
+            finally
+            {
+                CoreState.Config = savedConfig;
+                CoreState.Undo = savedUndo;
+                CoreState.ROM = savedRom;
+                Cleanup(parent);
+            }
         }
 
         [Fact]
