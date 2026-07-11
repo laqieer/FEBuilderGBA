@@ -66,10 +66,12 @@ independent PR review invocation/comment; safety screening, required CI, branch 
 feedback checks, merge confirmation, post-merge CI, and worktree cleanup remain mandatory.
 
 Use `gh api repos/laqieer/FEBuilderGBA/pulls/<N> --jq .author_association`,
-`gh pr view --json isCrossRepository,title,body`, the paginated
-`gh api --paginate 'repos/laqieer/FEBuilderGBA/pulls/<N>/commits?per_page=100' --jq '.[].commit.message'`, a
-base-to-head `git diff --name-status --find-renames`, and `git ls-tree`/blob inspection to verify the criteria; do
-not infer eligibility from the title, filename extension, marker, or a truncated commit list.
+`gh pr view --json isCrossRepository,title,body,baseRefOid,headRefOid`, a base-to-head
+`git diff --name-status --find-renames`, and `git ls-tree`/blob inspection to verify the criteria. After fetching
+and verifying the complete base/head history from the trusted same repository, require
+`git rev-parse --is-shallow-repository` to return `false` and inspect every message with
+`git --no-pager log --format=%B <baseRefOid>..<headRefOid>`. Do not infer eligibility from the title, filename
+extension, marker, a shallow clone, or an API commit list (GitHub's PR-commits endpoint caps results at 250).
 
 ### Branch A — developer = Claude Code CLI (consult Copilot CLI)
 

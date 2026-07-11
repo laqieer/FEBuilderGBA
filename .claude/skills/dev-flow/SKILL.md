@@ -70,8 +70,8 @@ dotnet run --project tools/WinCapture -c Release -- "Editor Title" pr-screenshot
       current head: REST `author_association` in `OWNER`/`MEMBER`/`COLLABORATOR`, `isCrossRepository == false`, an
       accepted parent plan, `docs:` title, a base-to-head name/status diff containing only added (`A`) paths under
       `pr-screenshots/` that end in lowercase `.png`, mode-`100644` PNG blobs with the correct signature plus
-      successful decode and visual inspection, no GitHub closing keyword in the title/body or commits, an
-      all-checked test plan, and the exact PR-body marker
+      successful decode and visual inspection, no GitHub closing keyword paired with any issue reference in the
+      title/body or commits, an all-checked test plan, and the exact PR-body marker
       `Review-Gate-Exemption: screenshot-only-helper`.
     - The marker alone is never sufficient. If any predicate is absent, ambiguous, or later becomes false, run the
       normal branch below. An eligible PR skips only the independent PR review; safety screening, CI, freshness,
