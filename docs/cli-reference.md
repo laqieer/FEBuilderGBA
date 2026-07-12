@@ -334,6 +334,96 @@ case-insensitive.
 
 ---
 
+### `--build-buildfile`
+
+Independently **rebuild a ROM** from a schema-v1 buildfile recipe. The reconstruction is
+driven **solely** by `buildfile.json` + `data/`: this verb never executes or parses
+`main.event`, invokes ColorzCore, consumes `source/`, or trusts the advisory patch inventory,
+projection metadata, or warnings — none of those surfaces can influence a single output byte.
+It never mutates the clean ROM or any project file.
+
+| Option | Required | Description |
+|---|---|---|
+| `--clean=<path>` | Yes | Clean/baseline ROM. Must exactly match the recipe's declared clean size + CRC32 + SHA-256 + version. |
+| `--project=<dir>` | Yes | The recipe directory (must contain `buildfile.json` + `data/`). |
+| `--out=<path>` | Yes | New destination ROM. **Must not already exist**; published atomically, never overwriting. |
+
+```
+FEBuilderGBA.CLI --build-buildfile --clean=original.gba --project=project/ --out=rebuilt.gba
+```
+
+The consumer opens `buildfile.json` as an exact no-follow regular file, bounds it to 16 MiB,
+requires strict UTF-8 (an optional UTF-8 BOM only), rejects duplicate JSON property names, and
+requires `schemaVersion == 1`. It then enforces the full recipe contract before allocating the
+target: exact clean identity (size/CRC32/SHA-256/canonical flag) and version equal to the clean
+ROM's; a target no smaller than clean and no larger than 32 MiB; `dataDirectory == "data"`;
+extension present exactly when the target extends clean (`start == clean size`,
+`length == target - clean`, canonical `0xNN` fill); at most 16,384 ranges with contiguous
+zero-based indices, exact `totalRanges`, strictly ordered non-touching positive ranges,
+checked in-bounds offset arithmetic, canonical `gbaAddress` (`0x08000000 + offset`),
+`changedBytes == length`, unique canonical `data/{index:D4}_{offset:X6}_{length}.bin` payload
+paths, canonical CRC/SHA spellings, and an exact `totalChangedBytes` total. `data/` is captured
+through the same handle-relative, no-follow snapshot reader used by the exporter (relative names
+are mapped back under the `data/` prefix), rejecting symlinks/reparse points/devices,
+subdirectories, missing payloads, extra payloads, case-colliding names, any payload whose
+length or SHA-256 does not match the manifest, and any claimed changed byte equal to its clean
+or extension-fill baseline. The target is then reconstructed as clean bytes +
+the declared extension fill + the validated payloads in manifest order (a payload may override
+the fill or span the clean/extension boundary), and its recomputed CRC32/SHA-256 must match the
+recipe's declared target before anything is published.
+
+The project root is physically resolved once before manifest/data access. The verified ROM is
+published to `--out` by writing an exclusively-reserved, bounded fixed-ASCII-name staging file
+in the destination's own parent directory, flushing it durably, fully closing the handle, and then
+committing it with an atomic **no-replace** rename (`MoveFileExW` without replace on Windows,
+`renameat2(RENAME_NOREPLACE)` on Linux, `renamex_np(RENAME_EXCL)` on macOS). A destination that
+appears after the pre-check is preserved and the build fails; on any failure the staging file is
+removed and its removal verified.
+
+**Rejections (exit 1, no output):** an unknown command-specific option; missing
+`--clean`/`--project`/`--out`; a `--clean` or `--project` value containing a `..` segment; a
+Windows device-namespace path; a nonexistent clean ROM or project directory; a clean ROM larger
+than 32 MiB or not a plain regular file; a pre-existing `--out`; any structural/identity/size/
+range/path/hash/bounds violation above; or a rebuilt ROM whose recomputed identity does not match
+the recipe's declared target. Global switches (`--help`, `--version`) take precedence over the
+verb in either order.
+
+**Exit code:** 0 on success, 1 on any usage/validation/identity/I/O/publication error.
+
+---
+
+### `--buildfile-roundtrip`
+
+Prove a modded ROM is **reproducible** from its recipe: internally export the recipe (with the
+advisory `source/` projection **off**), independently rebuild from it in a private atomically
+reserved scratch tree, and compare the rebuilt bytes to the already-opened `--rom` bytes — the
+**sole** drift oracle. No project or output is left behind.
+
+| Option | Required | Description |
+|---|---|---|
+| `--rom=<path>` | Yes | The **modified** ROM to prove reproducible (the export target and the comparison oracle). |
+| `--clean=<path>` | Yes | Clean/baseline ROM of the **same version** (must be a different physical file from `--rom`). |
+| `--force-version=<VER>` | No | Applies only to loading the modified `--rom`. |
+
+```
+FEBuilderGBA.CLI --buildfile-roundtrip --rom=modified.gba --clean=original.gba
+```
+
+`--rom` and `--clean` use the exact regular-file, bounded-read, parent-traversal, and
+device-namespace ingestion contract of `--export-buildfile` (including opened-handle identity
+rejection of the same file). The verb reserves a private bounded-name scratch parent atomically,
+passes an absent child project path to the exporter, reconstructs from the published project with
+the production consumer, always removes and verifies the scratch tree, and compares the rebuilt
+bytes to the exact expected `--rom` bytes. A byte difference **or** a declared-target identity
+mismatch is reproducibility **drift** (exit 2, with a first-difference offset/length summary), not
+a usage error. Cleanup failure is an error (exit 1) even after an otherwise exact comparison.
+
+**Exit codes:** **0** = the rebuilt ROM is byte-for-byte identical to `--rom`; **2** = a completed
+round-trip whose rebuilt bytes drift from `--rom` (or whose declared target identity drifts); **1**
+= usage, validation, I/O, or scratch-cleanup error.
+
+---
+
 ### `--songexchange`
 
 Copy a song from one ROM to another.
@@ -1219,6 +1309,8 @@ Each finding prints as `ERROR [CODE] msg` (stderr) or `WARN [CODE] msg` (stdout)
 | `--pointercalc` | Required | — | — | — | `--target`, `--address` | No |
 | `--rebuild` | Required | Required | — | — | — | No |
 | `--export-buildfile` | Required | — | — | Required | `--clean` | Full |
+| `--build-buildfile` | — | — | — | Required | `--clean`, `--project` | Partial |
+| `--buildfile-roundtrip` | Required | — | — | — | `--clean` | Full |
 | `--songexchange` | Required | Required | — | — | `--fromsong`, `--tosong` | Partial |
 | `--convertmap1picture` | — | — | Required | — | one or more of `--outImg`/`--outTSA`/`--outPal` | No |
 | `--translate` | Required | — | Optional | Optional | — | Full |
@@ -1254,7 +1346,7 @@ Each finding prints as `ERROR [CODE] msg` (stderr) or `WARN [CODE] msg` (stdout)
 |---|---|
 | `0` | Success (or no errors for `--lint`). |
 | `1` | Error: missing arguments, file not found, operation failed, or lint found ERROR-severity issues. |
-| `2` | Advisory / validation / no-write outcome — no fatal error, but the operation did not fully succeed. Examples: a `--translate-roundtrip` / `--data-roundtrip` / `--roundtrip-asset` mismatch, a `--checksum` INVALID header, `--export-portrait-all` rendering some portraits, a `--write-shop` not-owned / ROM-only / refused list, a `--verify-asset` byte mismatch, a `--merge3` merged **with conflicts** (output still written), or a `--build-project` with no enabled build section. |
+| `2` | Advisory / validation / no-write outcome — no fatal error, but the operation did not fully succeed. Examples: a `--translate-roundtrip` / `--data-roundtrip` / `--roundtrip-asset` mismatch, `--buildfile-roundtrip` byte or declared-target drift, a `--checksum` INVALID header, `--export-portrait-all` rendering some portraits, a `--write-shop` not-owned / ROM-only / refused list, a `--verify-asset` byte mismatch, a `--merge3` merged **with conflicts** (output still written), or a `--build-project` with no enabled build section. |
 | `3` | Internal read-only-invariant violation — a READ-ONLY exporter (`--export-voicegroup`, `--export-battle-anim-decomp`) detected that the in-memory ROM was mutated and aborted without writing. |
 
 ---

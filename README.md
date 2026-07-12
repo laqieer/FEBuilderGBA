@@ -26,7 +26,7 @@ README
 |---------|--------|-------------|
 | `FEBuilderGBA.Core` | net9.0 | Cross-platform core library: ROM manipulation, undo, LZ77, Huffman/text encoding, patch detection, translation, caching, git/archive, event ASM/disassembler, struct export, and ~100 other per-class seams. See [docs/CORE-SEAMS.md](docs/CORE-SEAMS.md) for the full catalog. |
 | `FEBuilderGBA` | net9.0-windows | WinForms GUI application — **stable; bug fixes only** (see [GUI strategy](docs/GUI-STRATEGY.md)) |
-| `FEBuilderGBA.CLI` | net9.0 | Cross-platform command-line tool (68 commands<sup>[†](#cli-command-count)</sup> — UPS/patch, lint, rebuild, buildfile export, disasm, translate, struct/data export-import, portrait/MIDI/battle-anime/palette, decomp project mode, and more). Full reference: [docs/cli-reference.md](docs/cli-reference.md) · arg table: [docs/cli-args.md](docs/cli-args.md). |
+| `FEBuilderGBA.CLI` | net9.0 | Cross-platform command-line tool (70 commands<sup>[†](#cli-command-count)</sup> — UPS/patch, lint, rebuild, buildfile export/build/round-trip, disasm, translate, struct/data export-import, portrait/MIDI/battle-anime/palette, decomp project mode, and more). Full reference: [docs/cli-reference.md](docs/cli-reference.md) · arg table: [docs/cli-args.md](docs/cli-args.md). |
 | `FEBuilderGBA.SkiaSharp` | net9.0 | SkiaSharp `IImageService` (GBA 4bpp/8bpp tiles, palette conversion) + `SkiaFontRasterizer` (cross-platform GDI-parity glyph rendering for translation-font auto-generation). |
 | `FEBuilderGBA.Avalonia` | net9.0 | Cross-platform Avalonia GUI: 324 editors (unit/item/class/map/event/AI/text/audio/graphics/portrait/world-map/support/arena/monster/summon/menu/credits) with read/write + undo, image PNG import, hex editor, pointer/free-space tools, cross-editor jump/pick navigation, decomp-project mode, and Help → Check for Updates to open the latest release when a newer build exists. Full editor inventory: [docs/avalonia-forms.md](docs/avalonia-forms.md) · gap analysis: [docs/avalonia-gap-analysis.md](docs/avalonia-gap-analysis.md). |
 | `FEBuilderGBA.Tests` | net9.0-windows | WinForms unit and integration tests |
@@ -35,7 +35,7 @@ README
 | `FEBuilderGBA.Android.Tests` | net9.0-android | On-device instrumentation head: reflection-runs the SkiaSharp byte-parity / version-guard suites on an Android emulator (not run by `dotnet test`). |
 | `FEBuilderGBA.E2ETests` | net9.0-windows | End-to-end GUI/CLI tests |
 
-<a id="cli-command-count">†</a> **CLI command count = 68**: distinct top-level command branches in the `FEBuilderGBA.CLI/Program.cs` dispatch table, collapsing the two documented aliases (`--help`/`-h`, `--test`/`--testonly`); `--project` and `--resolve-addr` are counted as separate user-facing commands. The canonical full list is [docs/cli-reference.md](docs/cli-reference.md).
+<a id="cli-command-count">†</a> **CLI command count = 70**: distinct top-level command branches in the `FEBuilderGBA.CLI/Program.cs` dispatch table, collapsing the two documented aliases (`--help`/`-h`, `--test`/`--testonly`); `--project` and `--resolve-addr` are counted as separate user-facing commands. The canonical full list is [docs/cli-reference.md](docs/cli-reference.md).
 
 > **🧭 GUI strategy — two front-ends, two standards.** The **WinForms GUI**
 > (`FEBuilderGBA`) is the mature, widely-used desktop app; its goal is
@@ -124,6 +124,15 @@ dotnet run --project FEBuilderGBA.CLI -- --export-buildfile --rom=modified.gba -
 # On Windows, use standard drive/UNC paths; device namespaces (\\?\, \\.\, and \??\) are rejected.
 # ROM aliases retain platform-accurate link semantics; Windows long paths keep handle-level identity checks.
 # Windows paths and exact opened handles use 128-bit file identity with a capability-only 64-bit fallback.
+dotnet run --project FEBuilderGBA.CLI -- --build-buildfile --clean=original.gba --project=project/ --out=rebuilt.gba
+# Rebuilds ONLY from buildfile.json + data/; main.event/ColorzCore/source/patches/projection are never used.
+# Enforces exact clean identity + version, schema v1, UTF-8/JSON/dup-key, and every size/range/path/hash/changed-byte bound.
+# data/ is captured no-follow/handle-relative; symlinks, subdirs, missing/extra/mismatched payloads are rejected.
+# Publishes atomically to a new --out via bounded-name same-parent staging + durable-flush no-replace rename; never overwrites. Exit 0/1.
+dotnet run --project FEBuilderGBA.CLI -- --buildfile-roundtrip --rom=modified.gba --clean=original.gba
+# Exports (source projection off) into private scratch, independently rebuilds, and byte-compares against --rom.
+# The already-opened --rom bytes are the sole drift oracle; scratch is always removed and verified.
+# Exit 0 = byte-for-byte reproducible; 2 = reproducibility drift (first-difference reported); 1 = usage/validation/IO.
 dotnet run --project FEBuilderGBA.CLI -- --songexchange --rom=dest.gba --fromrom=source.gba --fromsong=1 --tosong=2
 dotnet run --project FEBuilderGBA.CLI -- --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin --outPal=palette.bin --json
 dotnet run --project FEBuilderGBA.CLI -- --translate --rom=rom.gba --out=texts.tsv
@@ -346,7 +355,7 @@ FEBuilderGBA.sln
 │   ├── NameResolver.cs                    Entity name resolution with caching
 │   ├── SongNameResolverCore.cs            Song name resolution (Sound Room name + SE-list fallback)
 │   └── WriteValidator.cs                  ROM write validation utilities
-├── FEBuilderGBA.CLI/            net9.0    (cross-platform CLI — 68 commands)
+├── FEBuilderGBA.CLI/            net9.0    (cross-platform CLI — 70 commands)
 ├── FEBuilderGBA.SkiaSharp/      net9.0    (image backend)
 ├── FEBuilderGBA.Avalonia/       net9.0    (cross-platform GUI — 324 editors, with ambient undo, dirty tracking, data export/import, full Options dialog with 20+ external tool paths)
 ├── FEBuilderGBA/                net9.0-windows (WinForms GUI)

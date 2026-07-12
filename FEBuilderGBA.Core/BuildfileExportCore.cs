@@ -22,7 +22,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -2205,21 +2204,17 @@ namespace FEBuilderGBA
             return buf;
         }
 
+        // Canonical schema-v1 spellings are shared with the #1936 consumer via
+        // BuildfileFormat so the emit side and the validate side can never diverge.
         static string PayloadName(int index, uint offset, uint length)
-            => index.ToString("D4") + "_" + offset.ToString("X6") + "_" + length + ".bin";
+            => BuildfileFormat.PayloadName(index, offset, length);
 
         static string RelToNative(string rel) => rel.Replace('/', Path.DirectorySeparatorChar);
 
-        static string Hex32(uint v) => "0x" + v.ToString("X8");
-        static string Hex8(byte v) => "0x" + v.ToString("X2");
+        static string Hex32(uint v) => BuildfileFormat.Hex32(v);
+        static string Hex8(byte v) => BuildfileFormat.Hex8(v);
 
-        static string Sha256Hex(byte[] data)
-        {
-            byte[] hash = SHA256.HashData(data);
-            var sb = new StringBuilder(hash.Length * 2);
-            foreach (byte b in hash) sb.Append(b.ToString("x2"));
-            return sb.ToString();
-        }
+        static string Sha256Hex(byte[] data) => BuildfileFormat.Sha256Hex(data);
 
         static string NormalizeLf(string s) => s.Replace("\r\n", "\n").Replace("\r", "\n");
 
