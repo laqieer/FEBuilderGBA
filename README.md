@@ -131,8 +131,14 @@ dotnet run --project FEBuilderGBA.CLI -- --build-buildfile --clean=original.gba 
 # --out must remain outside project/data by physical entry identity (including aliases), rechecked before bounded-name durable no-replace publication. Exit 0/1.
 dotnet run --project FEBuilderGBA.CLI -- --buildfile-roundtrip --rom=modified.gba --clean=original.gba
 # Exports (source projection off) into private scratch, independently rebuilds, and byte-compares against --rom.
-# The already-opened --rom bytes are the sole drift oracle; scratch is always removed and verified.
-# Exit 0 = byte-for-byte reproducible; 2 = reproducibility drift (first-difference reported); 1 = usage/validation/IO.
+# The already-opened --rom bytes are the sole drift oracle; no project/output is intentionally published.
+# Scratch cleanup is attempted and verified after every export/rebuild attempt; deletion failure is a hard
+# error (exit 1) reporting the residual scratch path — this is not an absolute guarantee no scratch can remain
+# (e.g. a crash before cleanup runs, or external interference).
+# Exit 0 = byte-for-byte reproducible; 2 = reproducibility drift; 1 = usage/validation/IO/cleanup failure.
+# Byte/length drift reports the first-difference offset (or first length-difference offset); a
+# declared-target-identity-only drift (rebuilt bytes match --rom but the recipe's own declared target
+# crc32/sha256 do not) instead reports the declared-vs-actual crc32/sha256 hashes, not an offset.
 dotnet run --project FEBuilderGBA.CLI -- --songexchange --rom=dest.gba --fromrom=source.gba --fromsong=1 --tosong=2
 dotnet run --project FEBuilderGBA.CLI -- --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin --outPal=palette.bin --json
 dotnet run --project FEBuilderGBA.CLI -- --translate --rom=rom.gba --out=texts.tsv

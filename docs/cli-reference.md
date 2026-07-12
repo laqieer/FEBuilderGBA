@@ -409,7 +409,9 @@ switches (`--help`, `--version`) take precedence over the verb in either order.
 Prove a modded ROM is **reproducible** from its recipe: internally export the recipe (with the
 advisory `source/` projection **off**), independently rebuild from it in a private atomically
 reserved scratch tree, and compare the rebuilt bytes to the already-opened `--rom` bytes — the
-**sole** drift oracle. No project or output is left behind.
+**sole** drift oracle. No project or output is *intentionally* published; this is not an absolute
+guarantee that no scratch can remain (e.g. a crash before cleanup runs, or external interference) —
+see the cleanup-failure exit code below.
 
 | Option | Required | Description |
 |---|---|---|
@@ -425,14 +427,18 @@ FEBuilderGBA.CLI --buildfile-roundtrip --rom=modified.gba --clean=original.gba
 device-namespace ingestion contract of `--export-buildfile` (including opened-handle identity
 rejection of the same file). The verb reserves a private bounded-name scratch parent atomically,
 passes an absent child project path to the exporter, reconstructs from the published project with
-the production consumer, always removes and verifies the scratch tree, and compares the rebuilt
-bytes to the exact expected `--rom` bytes. A byte difference **or** a declared-target identity
-mismatch is reproducibility **drift** (exit 2, with a first-difference offset/length summary), not
-a usage error. Cleanup failure is an error (exit 1) even after an otherwise exact comparison.
+the production consumer, then attempts to remove the scratch tree and verifies it is gone. A byte
+or length difference is reproducibility **drift** (exit 2) reporting the first-difference offset
+(or first length-difference offset) between the rebuilt and expected bytes. A **declared-target-
+identity-only** drift — the rebuilt bytes match `--rom` exactly, but the recipe's own declared
+target crc32/sha256 do not match the recomputed ones — is also exit 2, but instead reports the
+declared-vs-actual crc32/sha256 hashes; it has no byte offset to report. Neither case is a usage
+error. Scratch-cleanup failure is a hard error (exit 1) even after an otherwise exact comparison,
+and it reports the residual scratch path from the underlying deletion failure.
 
 **Exit codes:** **0** = the rebuilt ROM is byte-for-byte identical to `--rom`; **2** = a completed
 round-trip whose rebuilt bytes drift from `--rom` (or whose declared target identity drifts); **1**
-= usage, validation, I/O, or scratch-cleanup error.
+= usage, validation, I/O, or scratch-cleanup error (the latter reports the residual scratch path).
 
 ---
 

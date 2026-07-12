@@ -299,7 +299,7 @@ namespace FEBuilderGBA
             if (!string.Equals(m.DataDirectory, "data", StringComparison.Ordinal))
                 throw new BuildfileValidationException(
                     "dataDirectory must be \"data\" (got \"" + m.DataDirectory + "\").");
-            ValidateAdvisoryStructure(root);
+            PopulateAndValidateAdvisoryStructure(root, m);
 
             // Exact clean identity (size + canonical crc32 + sha256 + canonical flag).
             JsonElement cleanEl = RequireObject(root, "clean");
@@ -481,7 +481,7 @@ namespace FEBuilderGBA
             if (requireCanonicalFlag)
                 id.IsCanonicalOriginal = RequireBool(el, "isCanonicalOriginal");
             else if (el.TryGetProperty("isCanonicalOriginal", out _))
-                RequireBool(el, "isCanonicalOriginal");
+                id.IsCanonicalOriginal = RequireBool(el, "isCanonicalOriginal");
             return id;
         }
 
@@ -900,11 +900,17 @@ namespace FEBuilderGBA
             }
         }
 
-        static void ValidateAdvisoryStructure(JsonElement root)
+        // Populates the advisory (non-authority) portions of the manifest POCO while
+        // performing EXACTLY the same structural/type validation as before. Advisory
+        // values are recorded for round-trip fidelity (e.g. re-export, diagnostics,
+        // review tooling) but — per the file header — can NEVER influence a single
+        // reconstructed target byte; only clean bytes, extension geometry/fill, and
+        // ranges/payloads do that.
+        static void PopulateAndValidateAdvisoryStructure(JsonElement root, BuildfileManifest m)
         {
-            OptionalString(root, "tool");
-            OptionalString(root, "game");
-            OptionalString(root, "entryEvent");
+            m.Tool = OptionalString(root, "tool");
+            m.Game = OptionalString(root, "game");
+            m.EntryEvent = OptionalString(root, "entryEvent");
 
             if (root.TryGetProperty("patches", out JsonElement patches))
             {
@@ -912,9 +918,12 @@ namespace FEBuilderGBA
                     throw new BuildfileValidationException(
                         "buildfile.json property 'patches' must be an object.");
                 RejectUnknownProperties(patches, "patches object", PatchInventoryPropertyNames);
-                OptionalString(patches, "status");
-                OptionalString(patches, "reason");
-                OptionalString(patches, "baseRelative");
+                var patchInventory = new BuildfilePatchInventory
+                {
+                    Status = OptionalString(patches, "status"),
+                    Reason = OptionalString(patches, "reason"),
+                    BaseRelative = OptionalString(patches, "baseRelative"),
+                };
 
                 if (patches.TryGetProperty("installed", out JsonElement installed))
                 {
@@ -928,11 +937,14 @@ namespace FEBuilderGBA
                                 "buildfile.json patches.installed entries must be objects.");
                         RejectUnknownProperties(
                             record, "patch record object", PatchRecordPropertyNames);
-                        OptionalString(record, "name");
-                        OptionalString(record, "path");
-                        OptionalString(record, "status");
-                        OptionalString(record, "confidence");
-                        OptionalString(record, "reason");
+                        var patchRecord = new BuildfilePatchRecord
+                        {
+                            Name = OptionalString(record, "name"),
+                            Path = OptionalString(record, "path"),
+                            Status = OptionalString(record, "status"),
+                            Confidence = OptionalString(record, "confidence"),
+                            Reason = OptionalString(record, "reason"),
+                        };
 
                         if (record.TryGetProperty("params", out JsonElement parameters))
                         {
@@ -947,12 +959,19 @@ namespace FEBuilderGBA
                                         "buildfile.json patch params entries must be objects.");
                                 RejectUnknownProperties(
                                     parameter, "patch param object", PatchParamPropertyNames);
-                                OptionalString(parameter, "key");
-                                OptionalString(parameter, "value");
+                                patchRecord.Params.Add(new BuildfilePatchParam
+                                {
+                                    Key = OptionalString(parameter, "key"),
+                                    Value = OptionalString(parameter, "value"),
+                                });
                             }
                         }
+
+                        patchInventory.Installed.Add(patchRecord);
                     }
                 }
+
+                m.Patches = patchInventory;
             }
 
             if (root.TryGetProperty("projection", out JsonElement projection))
@@ -961,16 +980,23 @@ namespace FEBuilderGBA
                     throw new BuildfileValidationException(
                         "buildfile.json property 'projection' must be an object.");
                 RejectUnknownProperties(projection, "projection object", ProjectionPropertyNames);
-                OptionalString(projection, "status");
-                OptionalString(projection, "reason");
-                if (projection.TryGetProperty("directory", out JsonElement directory)
-                    && directory.ValueKind != JsonValueKind.String
-                    && directory.ValueKind != JsonValueKind.Null)
+                var projectionInfo = new BuildfileProjectionInfo
                 {
-                    throw new BuildfileValidationException(
-                        "buildfile.json property 'projection.directory' "
-                        + "must be a string or null.");
+                    Status = OptionalString(projection, "status"),
+                    Reason = OptionalString(projection, "reason"),
+                };
+                if (projection.TryGetProperty("directory", out JsonElement directory))
+                {
+                    if (directory.ValueKind == JsonValueKind.String)
+                        projectionInfo.Directory = directory.GetString();
+                    else if (directory.ValueKind == JsonValueKind.Null)
+                        projectionInfo.Directory = null;
+                    else
+                        throw new BuildfileValidationException(
+                            "buildfile.json property 'projection.directory' "
+                            + "must be a string or null.");
                 }
+                m.Projection = projectionInfo;
             }
 
             if (root.TryGetProperty("warnings", out JsonElement warnings))
@@ -978,12 +1004,15 @@ namespace FEBuilderGBA
                 if (warnings.ValueKind != JsonValueKind.Array)
                     throw new BuildfileValidationException(
                         "buildfile.json property 'warnings' must be an array.");
+                var warningList = new List<string>();
                 foreach (JsonElement warning in warnings.EnumerateArray())
                 {
                     if (warning.ValueKind != JsonValueKind.String)
                         throw new BuildfileValidationException(
                             "buildfile.json warnings entries must be strings.");
+                    warningList.Add(warning.GetString() ?? "");
                 }
+                m.Warnings = warningList;
             }
         }
 

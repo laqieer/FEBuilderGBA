@@ -423,6 +423,89 @@ namespace FEBuilderGBA.Core.Tests
 
             Assert.True(result.Success, result.Error);
             Assert.True(target.SequenceEqual(result.TargetBytes));
+            Assert.Null(result.Manifest.Projection.Directory);
+        }
+
+        [Fact]
+        public void Build_AdvisoryFieldsWithDistinctiveValues_ArePreservedOnManifest_ReconstructionStillExact()
+        {
+            byte[] target = TargetEqualSize();
+            string projectDir = ExportValidProject(target);
+            MutateManifest(projectDir, root =>
+            {
+                root["tool"] = "distinctive-tool-9f3a";
+                root["game"] = "distinctive-game-2b71";
+                root["entryEvent"] = "distinctive-entry-c04d.event";
+                root["target"].AsObject()["isCanonicalOriginal"] = true;
+
+                var parameter = new JsonObject
+                {
+                    ["key"] = "distinctive-param-key",
+                    ["value"] = "distinctive-param-value",
+                };
+                var parameters = new JsonArray { parameter };
+                var record = new JsonObject
+                {
+                    ["name"] = "distinctive-patch-name",
+                    ["path"] = "distinctive/patch/path.ups",
+                    ["status"] = "distinctive-record-status",
+                    ["confidence"] = "distinctive-confidence",
+                    ["reason"] = "distinctive-record-reason",
+                    ["params"] = parameters,
+                };
+                var installed = new JsonArray { record };
+                root["patches"] = new JsonObject
+                {
+                    ["status"] = "distinctive-patches-status",
+                    ["reason"] = "distinctive-patches-reason",
+                    ["baseRelative"] = "distinctive/base/relative",
+                    ["installed"] = installed,
+                };
+
+                root["projection"] = new JsonObject
+                {
+                    ["status"] = "distinctive-projection-status",
+                    ["reason"] = "distinctive-projection-reason",
+                    ["directory"] = "distinctive/projection/dir",
+                };
+
+                var warnings = new JsonArray { "distinctive warning one", "distinctive warning two" };
+                root["warnings"] = warnings;
+            });
+
+            BuildfileBuildResult result =
+                BuildfileBuildCore.Build(MakeRom(SharedClean), projectDir, new BuildfileBuildOptions());
+
+            Assert.True(result.Success, result.Error);
+            Assert.True(result.TargetIdentityMatches);
+            Assert.True(target.SequenceEqual(result.TargetBytes));
+
+            BuildfileManifest m = result.Manifest;
+            Assert.Equal("distinctive-tool-9f3a", m.Tool);
+            Assert.Equal("distinctive-game-2b71", m.Game);
+            Assert.Equal("distinctive-entry-c04d.event", m.EntryEvent);
+            Assert.True(m.Target.IsCanonicalOriginal);
+
+            Assert.Equal("distinctive-patches-status", m.Patches.Status);
+            Assert.Equal("distinctive-patches-reason", m.Patches.Reason);
+            Assert.Equal("distinctive/base/relative", m.Patches.BaseRelative);
+            BuildfilePatchRecord patchRecord = Assert.Single(m.Patches.Installed);
+            Assert.Equal("distinctive-patch-name", patchRecord.Name);
+            Assert.Equal("distinctive/patch/path.ups", patchRecord.Path);
+            Assert.Equal("distinctive-record-status", patchRecord.Status);
+            Assert.Equal("distinctive-confidence", patchRecord.Confidence);
+            Assert.Equal("distinctive-record-reason", patchRecord.Reason);
+            BuildfilePatchParam patchParam = Assert.Single(patchRecord.Params);
+            Assert.Equal("distinctive-param-key", patchParam.Key);
+            Assert.Equal("distinctive-param-value", patchParam.Value);
+
+            Assert.Equal("distinctive-projection-status", m.Projection.Status);
+            Assert.Equal("distinctive-projection-reason", m.Projection.Reason);
+            Assert.Equal("distinctive/projection/dir", m.Projection.Directory);
+
+            Assert.Equal(
+                new[] { "distinctive warning one", "distinctive warning two" },
+                m.Warnings);
         }
 
         [Fact]
@@ -609,6 +692,48 @@ namespace FEBuilderGBA.Core.Tests
             string projectDir = ExportValidProject(TargetEqualSize());
             MutateManifest(projectDir, root => root["totalChangedBytes"] = 999999u);
             AssertBuildFails(projectDir, "totalChangedBytes");
+        }
+
+        // Exact resource-guard boundary: exactly MaxPayloadRanges entries must PASS the
+        // count guard and advance to the next (per-element) validation error — proving
+        // the guard is "> Max", not "== Max" or ">= Max". A JsonArray of `null` entries
+        // keeps this fast and avoids materializing 16,384 payload files.
+        [Fact]
+        public void Build_RangesAtMaxPayloadRanges_PassesCountGuard_FailsOnElementValidation()
+        {
+            const int count = BuildfileBuildOptions.MaxPayloadRanges;
+            string projectDir = ExportValidProject(TargetEqualSize());
+            MutateManifest(projectDir, root =>
+            {
+                var ranges = new JsonArray();
+                for (int i = 0; i < count; i++) ranges.Add(null);
+                root["ranges"] = ranges;
+                root["totalRanges"] = count;
+                root["totalChangedBytes"] = 0u;
+            });
+            AssertBuildFails(projectDir, "Each range must be a JSON object");
+        }
+
+        // MaxPayloadRanges + 1 must fail AT the explicit exceeds-limit guard itself —
+        // totalRanges is kept consistent with the array length so the guard under test
+        // is unambiguously the count-exceeds check, not the totalRanges-mismatch check.
+        [Fact]
+        public void Build_RangesExceedingMaxPayloadRanges_FailsAtCountGuard()
+        {
+            const int max = BuildfileBuildOptions.MaxPayloadRanges;
+            const int count = max + 1;
+            string projectDir = ExportValidProject(TargetEqualSize());
+            MutateManifest(projectDir, root =>
+            {
+                var ranges = new JsonArray();
+                for (int i = 0; i < count; i++) ranges.Add(null);
+                root["ranges"] = ranges;
+                root["totalRanges"] = count;
+                root["totalChangedBytes"] = 0u;
+            });
+            AssertBuildFails(
+                projectDir,
+                "ranges count " + count + " exceeds the " + max + " limit");
         }
 
         // ------------------------------------------------------------------ payload faults
