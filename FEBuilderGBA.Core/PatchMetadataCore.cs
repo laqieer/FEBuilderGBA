@@ -862,10 +862,20 @@ namespace FEBuilderGBA
         /// hardening) used by both <see cref="TryParsePatchFileStrictBounded"/> (metadata) and
         /// <see cref="TryParsePatchParamsBounded"/> (raw params). Contract:
         /// <list type="bullet">
-        /// <item>Opens the file with the exact production <see cref="FileStream"/> parameters
-        /// (<see cref="FileMode.Open"/>, <see cref="FileAccess.Read"/>, <see cref="FileShare.Read"/>)
-        /// used by <see cref="File.ReadLines(string)"/>/<see cref="File.ReadAllLines(string)"/>,
-        /// via an overload that accepts a test-only opener for deterministic fault injection.</item>
+        /// <item>Opens the file through the shared no-follow, exact-regular-file primitive
+        /// <see cref="ProjectionFileSystemSafety.OpenRegularFileForRead(string)"/> — the SAME
+        /// production opener used for ROM/manifest ingestion elsewhere in Core — via an overload
+        /// that accepts a test-only opener for deterministic fault injection. A final PATCH_*.txt
+        /// path entry that is a symlink/reparse point, or any other non-plain-regular-file type,
+        /// is refused before a single byte is ever read (closing a #1965 finding: the prior plain
+        /// <see cref="FileStream"/> constructor transparently followed a final symlink, letting an
+        /// external target's bytes flow into advisory <c>patches.installed[].params</c>). A
+        /// genuinely missing final file or missing parent directory still resolves to the typed
+        /// <see cref="FileNotFoundException"/>/<see cref="DirectoryNotFoundException"/> pair the
+        /// callers below already treat as a successful empty result — this open never precedes
+        /// that check with a separate <see cref="File.Exists(string)"/> probe, so no TOCTOU gap is
+        /// reintroduced. Ancestor-directory symlinks earlier in the path are outside this
+        /// final-entry guarantee by design.</item>
         /// <item>Reads <see cref="FileStream.Length"/> FIRST and rejects immediately when it
         /// already exceeds <paramref name="maxBytes"/> — a sparse/huge reported length is never
         /// used to size an allocation, only compared as a plain <c>long</c>.</item>
@@ -916,7 +926,8 @@ namespace FEBuilderGBA
         /// <summary>Internal stream-opener seam for deterministic byte-bound tests (sparse/huge
         /// reported length, growth-after-length races, fault-after-N-bytes) without needing real
         /// multi-MiB files on disk. Production always calls the parameterless overload above,
-        /// which binds the exact production <see cref="FileStream"/> parameters.</summary>
+        /// which binds the production <see cref="ProjectionFileSystemSafety.OpenRegularFileForRead(string)"/>
+        /// no-follow opener — this seam is never reachable from any production code path.</summary>
         internal static bool TryReadBoundedFileLines(
             string patchFilePath,
             long maxBytes,
@@ -943,8 +954,14 @@ namespace FEBuilderGBA
             lines = null;
             bytesRead = 0;
 
+            // #1965/#1936 information-disclosure remediation: the production default MUST open
+            // the final path entry through the shared no-follow, exact-regular-file primitive
+            // (never a plain FileStream constructor, which transparently follows a final
+            // symlink) so a PATCH_*.txt replaced with a symlink to an arbitrary external file
+            // can never have its target bytes read into an advisory record. Only a test may
+            // substitute a different opener, for deterministic fault injection.
             Func<string, FileStream> open = openFileStreamForTest
-                ?? (path => new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read));
+                ?? ProjectionFileSystemSafety.OpenRegularFileForRead;
 
             using FileStream stream = open(patchFilePath);
 
@@ -1073,11 +1090,20 @@ namespace FEBuilderGBA
         /// is instead detected by <see cref="FileNotFoundException"/>/<see cref="DirectoryNotFoundException"/>
         /// raised while opening it, both of which resolve to a successful EMPTY result (matching
         /// the historical <c>File.Exists</c> contract exactly, without the TOCTOU gap a separate
-        /// existence probe would reintroduce). Every OTHER expected filesystem/access exception
-        /// (<see cref="IOException"/>, <see cref="UnauthorizedAccessException"/>,
-        /// <see cref="System.Security.SecurityException"/>) is left to PROPAGATE to the caller,
-        /// which degrades the record with a stable, path-free reason instead of silently
-        /// reporting "no params".
+        /// existence probe would reintroduce). The open itself goes through the shared no-follow,
+        /// exact-regular-file primitive (<see cref="ProjectionFileSystemSafety.OpenRegularFileForRead(string)"/>),
+        /// so a final PATCH_*.txt path entry that is a symlink/reparse point or any other
+        /// non-plain-regular-file type is refused (a non-missing <see cref="IOException"/>) before
+        /// a single byte of whatever it points at is ever read (#1965/#1936: closes the
+        /// information-disclosure path where a plain <see cref="FileStream"/> would transparently
+        /// follow such a link). On Browser, the platform-unsupported native check itself raises
+        /// <see cref="PlatformNotSupportedException"/> instead of silently falling back to an
+        /// unsafe open. Every OTHER expected filesystem/access exception
+        /// (<see cref="IOException"/> and subclasses, <see cref="UnauthorizedAccessException"/>,
+        /// <see cref="System.Security.SecurityException"/>, <see cref="NotSupportedException"/>)
+        /// is left to PROPAGATE to the caller, which degrades the record with a stable, path-free
+        /// reason instead of silently reporting "no params". Ancestor-directory symlinks earlier
+        /// in <paramref name="patchFilePath"/> are outside this final-entry guarantee by design.
         /// </summary>
         internal static bool TryParsePatchParamsBounded(
             string patchFilePath, int maxEntries, long maxBytes, out List<PatchParam> result, out long bytesRead)
@@ -1086,9 +1112,9 @@ namespace FEBuilderGBA
         /// <summary>Internal stream-opener seam for deterministic fault-injection tests (e.g. a
         /// fault raised after N genuine bytes have already been read, proving the aggregate byte
         /// accounting in <paramref name="bytesRead"/> survives the exception). Production always
-        /// calls the parameterless overload above, which binds the exact production
-        /// <see cref="FileStream"/> parameters — this seam is never reachable from any
-        /// production code path.</summary>
+        /// calls the parameterless overload above, which binds the production
+        /// <see cref="ProjectionFileSystemSafety.OpenRegularFileForRead(string)"/> no-follow
+        /// opener — this seam is never reachable from any production code path.</summary>
         internal static bool TryParsePatchParamsBounded(
             string patchFilePath, int maxEntries, long maxBytes,
             Func<string, FileStream> openFileStreamForTest,

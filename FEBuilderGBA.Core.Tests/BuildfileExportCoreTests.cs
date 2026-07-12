@@ -1212,6 +1212,58 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(File.Exists(path));
         }
 
+        // ---- #1965/#1936: typed missing-path classification on the native no-follow open,
+        // load-bearing for PatchMetadataCore's success-empty contract on a genuinely missing
+        // final file / missing parent directory ----
+
+        [Fact]
+        public void OpenRegularFileForRead_MissingFinalFile_ThrowsFileNotFoundException()
+        {
+            string dir = Path.Combine(
+                Path.GetTempPath(), "bfx_missingfinal_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            try
+            {
+                string missing = Path.Combine(dir, "does-not-exist.txt");
+
+                // A missing final file (existing parent directory) must map to
+                // FileNotFoundException on both Windows (ERROR_FILE_NOT_FOUND) and Unix
+                // (ENOENT) — this is the exact classification PatchMetadataCore relies on to
+                // resolve a genuinely missing PATCH_*.txt to a success-empty result rather
+                // than a propagating fault.
+                Assert.Throws<FileNotFoundException>(
+                    () => ProjectionFileSystemSafety.OpenRegularFileForRead(missing));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void OpenRegularFileForRead_MissingParentDirectory_ThrowsTypedMissingException()
+        {
+            string dir = Path.Combine(
+                Path.GetTempPath(), "bfx_missingparent_" + Guid.NewGuid().ToString("N"));
+            // Intentionally do NOT create `dir` — its parent-of-target directory is itself
+            // missing.
+            string missing = Path.Combine(dir, "does-not-exist.txt");
+
+            // Windows' CreateFileW natively distinguishes ERROR_PATH_NOT_FOUND (missing parent)
+            // from ERROR_FILE_NOT_FOUND (missing final file). POSIX lstat/open only ever
+            // report ENOENT for both cases — there is no OS-level distinction to surface
+            // without reintroducing a File.Exists/Directory.Exists precheck (forbidden: would
+            // reintroduce TOCTOU). Both outcomes are treated identically as success-empty by
+            // PatchMetadataCore, so this divergence is contract-neutral for callers.
+            if (OperatingSystem.IsWindows())
+            {
+                Assert.Throws<DirectoryNotFoundException>(
+                    () => ProjectionFileSystemSafety.OpenRegularFileForRead(missing));
+            }
+            else
+            {
+                Assert.Throws<FileNotFoundException>(
+                    () => ProjectionFileSystemSafety.OpenRegularFileForRead(missing));
+            }
+        }
+
         [SkippableFact]
         public void Export_ProjectionFileReplacedWithFifoBeforeOpen_IsRejectedWithoutBlocking()
         {
@@ -2150,6 +2202,77 @@ namespace FEBuilderGBA.Core.Tests
             finally { Cleanup(parent); }
         }
 
+        [SkippableFact]
+        public void Export_FinalPatchFileSymlinkOutsideRoot_DegradesAdvisoryWithoutLeakingSentinel()
+        {
+            // #1965/#1936: a final PATCH_*.txt entry replaced with a symlink pointing OUTSIDE the
+            // patch root, at a file containing a unique sentinel key=value. The default bounded
+            // reader must reject this via ProjectionFileSystemSafety.OpenRegularFileForRead
+            // (no-follow, exact-regular-file) instead of transparently following it — so the
+            // sentinel must never surface in the advisory inventory, the manifest reason, or the
+            // serialized buildfile.json, while the AUTHORITATIVE recipe/payload export still
+            // succeeds in full.
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x10] = 0x7;
+
+            var (outDir, parent) = FreshOut();
+            string externalRoot = Path.Combine(
+                Path.GetTempPath(), "bfx_patchlink_external_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(externalRoot);
+            const string SentinelKey = "SENTINEL_1936";
+            const string SentinelValue = "leak-me-if-you-can";
+            string externalTarget = Path.Combine(externalRoot, "outside-secrets.txt");
+            File.WriteAllText(externalTarget,
+                "TYPE=ADDR\nNAME=Should Not Appear\n" + SentinelKey + "=" + SentinelValue + "\n");
+
+            try
+            {
+                string patchBase = Path.Combine(parent, "patch2");
+                Directory.CreateDirectory(patchBase);
+                string linkPath = Path.Combine(patchBase, "PATCH_Link.txt");
+                try
+                {
+                    File.CreateSymbolicLink(linkPath, externalTarget);
+                }
+                catch (Exception ex)
+                {
+                    Skip.If(true, "Cannot create a file symlink here: " + ex.Message);
+                    return;
+                }
+
+                var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target),
+                    new BuildfileExportOptions
+                    {
+                        OutputDirectory = outDir,
+                        PatchBaseDirectory = patchBase,
+                    });
+
+                // Authoritative export (recipe/payload) remains fully successful — only the
+                // advisory patch inventory degrades.
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("unavailable", result.Manifest.Patches.Status);
+                Assert.Empty(result.Manifest.Patches.Installed);
+                Assert.DoesNotContain(SentinelValue, result.Manifest.Patches.Reason);
+                Assert.DoesNotContain(SentinelKey, result.Manifest.Patches.Reason);
+                Assert.DoesNotContain(externalRoot, result.Manifest.Patches.Reason);
+                Assert.DoesNotContain(patchBase, result.Manifest.Patches.Reason);
+                Assert.True(target.SequenceEqual(ReconstructFromProject(outDir, clean)));
+
+                string json = File.ReadAllText(Path.Combine(outDir, "buildfile.json"));
+                Assert.DoesNotContain(SentinelValue, json);
+                Assert.DoesNotContain(SentinelKey, json);
+                Assert.DoesNotContain(externalRoot.Replace('\\', '/'), json);
+                Assert.DoesNotContain(patchBase.Replace('\\', '/'), json);
+                Assert.DoesNotContain("Should Not Appear", json);
+            }
+            finally
+            {
+                Cleanup(parent);
+                try { Directory.Delete(externalRoot, true); } catch { }
+            }
+        }
+
         // ---------------------------------------------------------------
         // Shared advisory-item budget (16,384) — bounded exporter producer.
         // Real 16,384 constant, no test-only override, per the approved design.
@@ -2389,12 +2512,18 @@ namespace FEBuilderGBA.Core.Tests
         [InlineData(typeof(UnauthorizedAccessException))]
         [InlineData(typeof(IOException))]
         [InlineData(typeof(System.Security.SecurityException))]
+        [InlineData(typeof(PlatformNotSupportedException))]
         public void TryAppendRawParamsBounded_ExpectedFileSystemFault_DegradesRecordPathFreeWithEmptyParams(Type exceptionType)
         {
             // #1965 L3 correction: deterministic opener-injection proving ALL THREE expected
             // filesystem/access fault classes (not just IOException-via-a-mid-read-fault) reach
             // the exporter's catch and produce the SAME stable, path-free degradation — empty
             // params, no thrown exception across this seam, no absolute path in the reason.
+            // PlatformNotSupportedException (#1965/#1936 correction) covers the new default
+            // opener's Browser classification (ProjectionFileSystemSafety.OpenRegularFileForRead
+            // throws PlatformNotSupportedException on Browser instead of an unsafe fallback) —
+            // this injected double proves the exporter degrades path-free instead of crashing,
+            // without needing an actual Browser runtime.
             var (outDir, parent) = FreshOut();
             try
             {

@@ -257,7 +257,15 @@ slow, or unreadable patch library yields `unavailable` and never aborts the expo
 exists but cannot actually be enumerated — permissions, I/O, path failures — is distinguished from a
 directory that is simply absent, and any enumeration/parameter/relative-path failure is reported in
 the manifest as a stable, fixed, path-free reason string — never the raw exception message or the
-absolute patch library/patch file path). The advisory patch inventory (every installed/unknown
+absolute patch library/patch file path). Each individual `PATCH_*.txt` FINAL entry (the definition
+file itself, not its ancestor directories, which remain out of scope for this guarantee) is opened
+no-follow and must be an exact regular file: a symlink, reparse point, or other non-regular-file
+type is refused before a single byte is read (closing an information-disclosure path where a
+final-entry symlink pointing outside the patch library could otherwise leak an external target
+file's content into the advisory inventory), and a Browser host fails closed rather than falling
+back to an unsafe open — both cases degrade the same way as any other expected filesystem fault
+(stable, path-free reason; authoritative recipe/payload export unaffected), while a genuinely
+missing final file or missing parent directory still resolves to a successful, empty result. The advisory patch inventory (every installed/unknown
 record plus its nested raw parameters) and the manifest's `warnings` share ONE internal
 16,384-item resource-safety budget; the exporter is a *bounded producer* — patch-file discovery,
 per-record, and per-parameter counting are all checked against the remaining budget **before**

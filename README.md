@@ -145,6 +145,13 @@ dotnet run --project FEBuilderGBA.CLI -- --export-buildfile --rom=modified.gba -
 # (per-file or aggregate) degrades the WHOLE advisory patch inventory the same way the
 # 16,384-item budget does, and accepted files still decode byte-identically to the legacy
 # File.ReadLines/File.ReadAllLines APIs.
+# Each PATCH_*.txt FINAL entry is opened no-follow through the same exact-regular-file
+# primitive used for ROM/projection I/O: a symlink, reparse point, or other non-regular-file
+# type is refused before any byte is read (ancestor directories of the patch library are out
+# of scope for this guarantee), Browser hosts fail closed instead of falling back to an
+# unsafe open, and a genuinely missing final file or missing parent directory still resolves
+# to a successful, empty result rather than propagating a fault.
+
 dotnet run --project FEBuilderGBA.CLI -- --build-buildfile --clean=original.gba --project=project/ --out=rebuilt.gba
 # Rebuilds ONLY from buildfile.json + data/; main.event/ColorzCore/source/patches/projection are never used.
 # Enforces exact clean identity + version, schema v1, UTF-8/JSON/dup-key, exact object members/types, and every size/range/path/hash/changed-byte bound.

@@ -1864,6 +1864,7 @@ namespace FEBuilderGBA.Core.Tests
         [InlineData(typeof(UnauthorizedAccessException))]
         [InlineData(typeof(IOException))]
         [InlineData(typeof(System.Security.SecurityException))]
+        [InlineData(typeof(PlatformNotSupportedException))]
         public void TryParsePatchParamsBounded_ExpectedFileSystemFault_PropagatesExactExceptionType(Type exceptionType)
         {
             // Deterministic opener-injection (#1965 L3 correction) replaces the prior
@@ -1871,6 +1872,11 @@ namespace FEBuilderGBA.Core.Tests
             // reliably throws UnauthorizedAccessException on Windows) — every expected
             // filesystem/access fault class must propagate as its EXACT type from
             // TryParsePatchParamsBounded, on every platform, deterministically.
+            // PlatformNotSupportedException (#1965/#1936 correction) covers the new default
+            // opener's own Browser classification (ProjectionFileSystemSafety.OpenRegularFileForRead
+            // throws PlatformNotSupportedException on Browser instead of an unsafe fallback);
+            // this seam-injected double proves that exact type propagates here too, without
+            // needing an actual Browser runtime.
             string tempDir = Path.Combine(Path.GetTempPath(), "ParamsBoundedExactFault_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(tempDir);
             try
@@ -2150,6 +2156,104 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal(n, bytesRead);
             }
             finally { Directory.Delete(tempDir, true); }
+        }
+
+        // ---- #1965/#1936: default (production) opener rejects a final PATCH_*.txt symlink
+        // without ever reading/returning its target's content ----
+
+        [SkippableFact]
+        public void TryReadBoundedFileLines_DefaultOpener_FinalSymlink_RejectsWithoutFollowing()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "BoundedSymlink_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            string externalDir = Path.Combine(Path.GetTempPath(), "BoundedSymlinkExternal_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(externalDir);
+            try
+            {
+                const string SentinelValue = "super-secret-target-value-1936";
+                string externalTarget = Path.Combine(externalDir, "outside.txt");
+                File.WriteAllText(externalTarget, "SECRET_KEY=" + SentinelValue + "\n");
+
+                string linkPath = Path.Combine(tempDir, "PATCH_Link.txt");
+                try
+                {
+                    File.CreateSymbolicLink(linkPath, externalTarget);
+                }
+                catch (Exception ex)
+                {
+                    Skip.If(true, "Cannot create a file symlink here: " + ex.Message);
+                    return;
+                }
+
+                List<string> lines = null;
+                long bytesRead = 0;
+                Exception caught = Record.Exception(() =>
+                    PatchMetadataCore.TryReadBoundedFileLines(
+                        linkPath, PatchMetadataCore.MaxPatchDefinitionBytes, maxLines: int.MaxValue,
+                        out lines, out bytesRead));
+
+                // The DEFAULT (no injected opener) production path must refuse a final symlink
+                // through ProjectionFileSystemSafety.OpenRegularFileForRead — never transparently
+                // follow it via a plain FileStream, which would read the external target's bytes.
+                Assert.NotNull(caught);
+                Assert.IsAssignableFrom<IOException>(caught);
+                Assert.DoesNotContain(SentinelValue, caught.Message);
+                Assert.DoesNotContain(externalTarget, caught.Message);
+                Assert.Null(lines);
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+                Directory.Delete(externalDir, true);
+            }
+        }
+
+        [SkippableFact]
+        public void TryParsePatchParamsBounded_DefaultOpener_FinalSymlink_RejectsWithoutReadingTarget()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "ParamsBoundedSymlink_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            string externalDir = Path.Combine(Path.GetTempPath(), "ParamsBoundedSymlinkExternal_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(externalDir);
+            try
+            {
+                const string SentinelValue = "super-secret-target-value-1936";
+                string externalTarget = Path.Combine(externalDir, "outside.txt");
+                File.WriteAllText(externalTarget, "SECRET_KEY=" + SentinelValue + "\n");
+
+                string linkPath = Path.Combine(tempDir, "PATCH_Link.txt");
+                try
+                {
+                    File.CreateSymbolicLink(linkPath, externalTarget);
+                }
+                catch (Exception ex)
+                {
+                    Skip.If(true, "Cannot create a file symlink here: " + ex.Message);
+                    return;
+                }
+
+                List<PatchMetadataCore.PatchParam> result = null;
+                long bytesRead = 0;
+                Exception caught = Record.Exception(() =>
+                    PatchMetadataCore.TryParsePatchParamsBounded(
+                        linkPath, maxEntries: 100, maxBytes: PatchMetadataCore.MaxPatchDefinitionBytes,
+                        out result, out bytesRead));
+
+                // Per the documented contract, only FileNotFoundException/DirectoryNotFoundException
+                // (a genuinely missing final file/parent) resolve to a successful empty result;
+                // a rejected symlink is a non-missing IOException that PROPAGATES — it must never
+                // resolve to a silent empty/"no params" success that could mask a read that
+                // actually happened.
+                Assert.NotNull(caught);
+                Assert.IsAssignableFrom<IOException>(caught);
+                Assert.DoesNotContain(SentinelValue, caught.Message);
+                Assert.DoesNotContain(externalTarget, caught.Message);
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+                Directory.Delete(externalDir, true);
+            }
         }
     }
 }

@@ -184,8 +184,18 @@ the "### Graphics System" overview in `CLAUDE.md`.
   and raw-parameter capture (`TryParsePatchParamsBounded`) no longer use lazy `File.ReadLines` — a
   single pathological line was still materialized in full BEFORE any line-count guard ran, an
   independent byte-level OOM vector. Both now go through one shared helper,
-  `PatchMetadataCore.TryReadBoundedFileLines`, which opens the file via the same production
-  `FileStream` used elsewhere, rejects on `FileStream.Length` alone before any read (defeating a
+  `PatchMetadataCore.TryReadBoundedFileLines`, which opens the file through the SAME shared
+  fail-closed, no-follow, exact-regular-file primitive as the rest of the exporter,
+  `ProjectionFileSystemSafety.OpenRegularFileForRead` (#1965/#1936 correction — the bounded
+  reader previously opened `PATCH_*.txt` with a plain `FileStream` constructor, which
+  transparently follows a final-entry symlink/reparse point and could serialize an external
+  target file's content into advisory `patches.installed[].params`); a final entry that is a
+  symlink, reparse point, or any non-regular-file type is refused before a single byte is read,
+  and Browser hosts fail closed with `PlatformNotSupportedException` rather than an unsafe
+  fallback path. This final-entry guarantee does not extend to ancestor directories of the patch
+  library (out of scope by design; see `ProjectionFileSystemSafety.cs`'s own ancestor-link
+  handling for the projection/ROM paths that DO cover ancestors). Once opened, the helper
+  rejects on `FileStream.Length` alone before any read (defeating a
   sparse/huge-length file), then reads at most `cap+1` bytes on that SAME handle so a file that
   grows after the `Length` check is still caught, and only THEN decodes the accepted bytes with a
   default-constructed `StreamReader` (BOM auto-detection + non-strict UTF-8 replacement fallback),
@@ -227,7 +237,14 @@ the "### Graphics System" overview in `CLAUDE.md`.
   const` — there is no code path that lets a caller widen them at runtime. `TryParsePatchParamsBounded`
   also drops its former `File.Exists` precheck (a stale-existence race window); only a
   `FileNotFoundException`/`DirectoryNotFoundException` raised while opening now maps to a
-  successful-empty result (matching the old `File.Exists == false` contract), while
+  successful-empty result (matching the old `File.Exists == false` contract) — since the
+  bounded reader now opens through `ProjectionFileSystemSafety.OpenRegularFileForRead`, these
+  two typed exceptions originate from that primitive's own native-error classification
+  (Windows `ERROR_FILE_NOT_FOUND`/`ERROR_PATH_NOT_FOUND`; Unix `ENOENT`/`ENOTDIR` from either
+  the initial `lstat` or the later no-follow `open()` race) rather than a separate existence
+  check, so a genuinely missing final file or missing parent directory still degrades to
+  success-empty while a rejected symlink, reparse point, or other non-regular-file type is a
+  distinct, non-missing `IOException` that propagates — while
   `UnauthorizedAccessException`/`IOException`/`SecurityException`/etc. propagate to
   `TryAppendRawParamsBounded`'s caller for the existing generic path-free degradation — no broad
   catch converts an access fault into an empty/missing result, and the catch there deliberately

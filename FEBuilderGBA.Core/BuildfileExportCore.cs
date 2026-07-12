@@ -2439,7 +2439,12 @@ namespace FEBuilderGBA
         /// <summary>Internal stream-opener seam for deterministic fault-injection tests (#1965
         /// L2 correction: proving the aggregate byte accounting stays monotonic across a
         /// fault-after-N-bytes read). Production always calls the parameterless overload above,
-        /// which binds the exact production <see cref="FileStream"/> parameters.</summary>
+        /// which binds the production default opener — <see
+        /// cref="ProjectionFileSystemSafety.OpenRegularFileForRead(string)"/> — a no-follow,
+        /// exact-regular-file open that refuses a final-entry symlink/reparse point/non-regular
+        /// type before any byte is read (#1965/#1936 correction: this seam previously bound a
+        /// plain <see cref="FileStream"/> constructor, which transparently followed such a
+        /// final entry).</summary>
         internal static bool TryAppendRawParamsBounded(
             BuildfilePatchRecord rec, string patchFilePath, int maxEntries, long maxBytes,
             Func<string, FileStream> openFileStreamForTest,
