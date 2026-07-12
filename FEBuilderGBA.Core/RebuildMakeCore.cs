@@ -94,24 +94,58 @@ namespace FEBuilderGBA
         /// <summary>
         /// Validate that a generated rebuild projection is complete before its caller reports
         /// success. The manifest must be a readable regular file with both required headers, and
-        /// every referenced sidecar must be a readable regular file beneath the manifest directory.
+        /// every referenced sidecar must be an openable regular file beneath the manifest
+        /// directory. Sidecar bodies are read later by the bounded handle-relative snapshot.
         /// </summary>
         public static void ValidateProjectionOutput(string manifestPath)
-            => ValidateProjectionOutput(manifestPath, File.GetAttributes);
+            => ValidateProjectionOutput(
+                manifestPath,
+                File.GetAttributes,
+                ProjectionFileSystemSafety.OpenRegularFileForRead,
+                BuildfileExportOptions.MaxProjectionSnapshotBytes);
 
         internal static void ValidateProjectionOutput(
             string manifestPath,
             Func<string, FileAttributes> getAttributes)
+            => ValidateProjectionOutput(
+                manifestPath,
+                getAttributes,
+                ProjectionFileSystemSafety.OpenRegularFileForRead,
+                BuildfileExportOptions.MaxProjectionSnapshotBytes);
+
+        internal static void ValidateProjectionOutput(
+            string manifestPath,
+            Func<string, FileAttributes> getAttributes,
+            long maxManifestBytes)
+            => ValidateProjectionOutput(
+                manifestPath,
+                getAttributes,
+                ProjectionFileSystemSafety.OpenRegularFileForRead,
+                maxManifestBytes);
+
+        internal static void ValidateProjectionOutput(
+            string manifestPath,
+            Func<string, FileAttributes> getAttributes,
+            Func<string, Stream> openRegularFileForRead,
+            long maxManifestBytes)
         {
             if (string.IsNullOrEmpty(manifestPath))
                 throw new ArgumentNullException(nameof(manifestPath));
             if (getAttributes == null)
                 throw new ArgumentNullException(nameof(getAttributes));
+            if (openRegularFileForRead == null)
+                throw new ArgumentNullException(nameof(openRegularFileForRead));
+            if (maxManifestBytes <= 0)
+                throw new ArgumentOutOfRangeException(nameof(maxManifestBytes));
 
             string fullManifestPath = Path.GetFullPath(manifestPath);
             string baseDir = Path.GetDirectoryName(fullManifestPath) ?? Directory.GetCurrentDirectory();
             string[] lines = ReadAllLinesFromRegularFile(
-                fullManifestPath, "rebuild manifest", getAttributes);
+                fullManifestPath,
+                "rebuild manifest",
+                getAttributes,
+                openRegularFileForRead,
+                maxManifestBytes);
             bool hasCrc32 = false;
             bool hasRebuildAddress = false;
             for (int lineIndex = 0; lineIndex < lines.Length; lineIndex++)
@@ -192,7 +226,8 @@ namespace FEBuilderGBA
                 ValidateReadableRegularFile(
                     sidecarPath,
                     "rebuild sidecar at line " + (lineIndex + 1),
-                    getAttributes);
+                    getAttributes,
+                    openRegularFileForRead);
             }
 
             if (!hasCrc32 || !hasRebuildAddress)
@@ -231,26 +266,60 @@ namespace FEBuilderGBA
         static void ValidateReadableRegularFile(
             string path,
             string description,
-            Func<string, FileAttributes> getAttributes)
+            Func<string, FileAttributes> getAttributes,
+            Func<string, Stream> openRegularFileForRead)
         {
             ValidateRegularFileMetadata(path, description, getAttributes);
 
-            using (FileStream stream =
-                ProjectionFileSystemSafety.OpenRegularFileForRead(path))
+            using (Stream stream = openRegularFileForRead(path))
             {
-                stream.CopyTo(Stream.Null);
+                if (stream == null || !stream.CanRead)
+                    throw new InvalidDataException(description + " is not readable.");
             }
         }
 
         static string[] ReadAllLinesFromRegularFile(
             string path,
             string description,
-            Func<string, FileAttributes> getAttributes)
+            Func<string, FileAttributes> getAttributes,
+            Func<string, Stream> openRegularFileForRead,
+            long maxBytes)
         {
             ValidateRegularFileMetadata(path, description, getAttributes);
+            byte[] data;
+            using (Stream stream = openRegularFileForRead(path))
+            {
+                if (stream == null || !stream.CanRead || !stream.CanSeek)
+                    throw new InvalidDataException(description + " is not readable.");
+
+                long length = stream.Length;
+                if (length < 0 || length > int.MaxValue || length > maxBytes)
+                {
+                    throw new InvalidDataException(
+                        description + " exceeds the " + maxBytes + "-byte validation limit.");
+                }
+
+                data = new byte[(int)length];
+                int offset = 0;
+                while (offset < data.Length)
+                {
+                    int count = stream.Read(data, offset, data.Length - offset);
+                    if (count == 0)
+                    {
+                        throw new InvalidDataException(
+                            description + " changed while being validated.");
+                    }
+                    offset += count;
+                }
+                if (stream.ReadByte() != -1)
+                {
+                    throw new InvalidDataException(
+                        description + " changed while being validated.");
+                }
+            }
+
             var lines = new List<string>();
-            using (FileStream stream =
-                ProjectionFileSystemSafety.OpenRegularFileForRead(path))
+            using (var stream = new MemoryStream(data, writable: false))
             using (var reader = new StreamReader(stream))
             {
                 string line;

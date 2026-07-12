@@ -863,6 +863,39 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void Export_BuiltInProjection_PropagatesByteLimitToManifestValidation()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x2000] = 0x74;
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                var result = BuildfileExportCore.Export(
+                    MakeRom(clean),
+                    MakeRom(target),
+                    new BuildfileExportOptions
+                    {
+                        OutputDirectory = outDir,
+                        IncludeSourceProjection = true,
+                        ProjectionSnapshotMaxBytesForTest = 1,
+                        BuiltInProjectionProducerForTest = (_, _, _, manifestPath) =>
+                            File.WriteAllText(
+                                manifestPath,
+                                "@_CRC32 12345678\n"
+                                + "@_REBUILDADDRESS 00100000\n"),
+                    });
+
+                Assert.True(result.Success, result.Error);
+                    Assert.Contains("1-byte validation limit", result.Manifest.Projection.Reason);
+                    Assert.Equal("error", result.Manifest.Projection.Status);
+                Assert.False(Directory.Exists(Path.Combine(outDir, "source")));
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [Fact]
         public void Export_ProjectionSnapshot_InvalidUtf8TextIsAdvisoryError()
         {
             var clean = new byte[RomSize];

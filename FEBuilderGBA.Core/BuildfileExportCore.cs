@@ -637,6 +637,9 @@ namespace FEBuilderGBA
         /// <summary>Internal synchronous projection override for deterministic tests.</summary>
         internal BuildfileProjectionRunner ProjectionRunner { get; set; }
 
+        /// <summary>Internal built-in producer override for deterministic validation tests.</summary>
+        internal Action<ROM, ROM, uint, string> BuiltInProjectionProducerForTest { get; set; }
+
         /// <summary>Internal failure-injection seam used by staged-publication tests.</summary>
         internal Action<string> BeforePayloadWriteForTest { get; set; }
 
@@ -1412,13 +1415,17 @@ namespace FEBuilderGBA
             string scratch,
             BuildfileExportOptions options)
         {
+            long maxBytes = options.ProjectionSnapshotMaxBytesForTest
+                ?? BuildfileExportOptions.MaxProjectionSnapshotBytes;
             BuildfileProjectionRunner runner = options.ProjectionRunner;
             if (runner == null && options.IncludeSourceProjection)
             {
                 runner = path => RunBuiltInProjection(
                     cleanRom,
                     targetRom,
-                    path);
+                    path,
+                    maxBytes,
+                    options.BuiltInProjectionProducerForTest);
             }
             if (runner == null)
             {
@@ -1452,8 +1459,6 @@ namespace FEBuilderGBA
             {
                 int maxEntries = options.ProjectionSnapshotMaxEntriesForTest
                     ?? BuildfileExportOptions.MaxProjectionSnapshotEntries;
-                long maxBytes = options.ProjectionSnapshotMaxBytesForTest
-                    ?? BuildfileExportOptions.MaxProjectionSnapshotBytes;
                 try
                 {
                     snapshot = ProjectionTreeSnapshotReader.Capture(
@@ -1508,20 +1513,32 @@ namespace FEBuilderGBA
         static BuildfileProjectionOutcome RunBuiltInProjection(
             ROM cleanRom,
             ROM targetRom,
-            string scratch)
+            string scratch,
+            long maxProjectionBytes,
+            Action<ROM, ROM, uint, string> producerForTest)
         {
             try
             {
                 uint rebuildAddress = U.toOffset(targetRom.RomInfo.extends_address);
                 string manifestPath = Path.Combine(scratch, "rom.rebuild");
-                RebuildProducerCore.MakeWithProducer(
-                    targetRom,
-                    cleanRom,
-                    rebuildAddress,
+                if (producerForTest == null)
+                {
+                    RebuildProducerCore.MakeWithProducer(
+                        targetRom,
+                        cleanRom,
+                        rebuildAddress,
+                        manifestPath,
+                        isUseOtherGraphics: true,
+                        isUseOAMSP: false);
+                }
+                else
+                {
+                    producerForTest(targetRom, cleanRom, rebuildAddress, manifestPath);
+                }
+                RebuildMakeCore.ValidateProjectionOutput(
                     manifestPath,
-                    isUseOtherGraphics: true,
-                    isUseOAMSP: false);
-                RebuildMakeCore.ValidateProjectionOutput(manifestPath);
+                    File.GetAttributes,
+                    maxProjectionBytes);
                 return BuildfileProjectionOutcome.Ok();
             }
             catch (InvalidOperationException ex)

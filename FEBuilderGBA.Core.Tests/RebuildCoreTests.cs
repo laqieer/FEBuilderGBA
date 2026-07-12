@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net.Sockets;
+using System.Text;
 using Xunit;
 
 namespace FEBuilderGBA.Core.Tests
@@ -307,6 +308,49 @@ namespace FEBuilderGBA.Core.Tests
             public void Dispose() { try { Directory.Delete(Path, true); } catch { } }
         }
 
+        sealed class ReadForbiddenStream : Stream
+        {
+            public bool WasDisposed { get; private set; }
+            public override bool CanRead => true;
+            public override bool CanSeek => false;
+            public override bool CanWrite => false;
+            public override long Length => throw new NotSupportedException();
+            public override long Position
+            {
+                get => throw new NotSupportedException();
+                set => throw new NotSupportedException();
+            }
+
+            public override void Flush() { }
+            public override int Read(byte[] buffer, int offset, int count)
+                => throw new InvalidOperationException("Sidecar body was read.");
+            public override long Seek(long offset, SeekOrigin origin)
+                => throw new NotSupportedException();
+            public override void SetLength(long value)
+                => throw new NotSupportedException();
+            public override void Write(byte[] buffer, int offset, int count)
+                => throw new NotSupportedException();
+
+            protected override void Dispose(bool disposing)
+            {
+                WasDisposed = true;
+                base.Dispose(disposing);
+            }
+        }
+
+        sealed class ReportedLengthStream : MemoryStream
+        {
+            readonly long ReportedLength;
+
+            public ReportedLengthStream(byte[] data, long reportedLength)
+                : base(data, writable: false)
+            {
+                ReportedLength = reportedLength;
+            }
+
+            public override long Length => ReportedLength;
+        }
+
         [Fact]
         public void ValidateProjectionOutput_AcceptsCompleteManifestAndSidecar()
         {
@@ -322,6 +366,95 @@ namespace FEBuilderGBA.Core.Tests
                     + "@BIN 00100000 rebuild_bin" + Path.DirectorySeparatorChar + "data.bin\n");
 
                 RebuildMakeCore.ValidateProjectionOutput(manifestPath);
+            }
+        }
+
+        [Fact]
+        public void ValidateProjectionOutput_DoesNotReadSidecarBodyBeforeSnapshot()
+        {
+            using (var tmp = new TempDir())
+            {
+                string sidecarDir = Path.Combine(tmp.Path, "rebuild_bin");
+                Directory.CreateDirectory(sidecarDir);
+                string sidecarPath = Path.Combine(sidecarDir, "data.bin");
+                File.WriteAllBytes(sidecarPath, new byte[] { 1, 2, 3 });
+                string manifestPath = Path.Combine(tmp.Path, "rom.rebuild");
+                File.WriteAllText(manifestPath,
+                    "@_CRC32 12345678\n"
+                    + "@_REBUILDADDRESS 00100000\n"
+                    + "@BIN 00100000 rebuild_bin" + Path.DirectorySeparatorChar + "data.bin\n");
+                var sidecarStream = new ReadForbiddenStream();
+
+                RebuildMakeCore.ValidateProjectionOutput(
+                    manifestPath,
+                    File.GetAttributes,
+                    path => BuildfilePathSafety.PathsEqual(path, sidecarPath)
+                        ? sidecarStream
+                        : ProjectionFileSystemSafety.OpenRegularFileForRead(path),
+                    1024);
+
+                Assert.True(sidecarStream.WasDisposed);
+            }
+        }
+
+        [Fact]
+        public void ValidateProjectionOutput_RejectsManifestBeyondReadLimit()
+        {
+            using (var tmp = new TempDir())
+            {
+                string manifestPath = Path.Combine(tmp.Path, "rom.rebuild");
+                File.WriteAllText(manifestPath,
+                    "@_CRC32 12345678\n"
+                    + "@_REBUILDADDRESS 00100000\n");
+
+                InvalidDataException ex = Assert.Throws<InvalidDataException>(() =>
+                    RebuildMakeCore.ValidateProjectionOutput(
+                        manifestPath,
+                        File.GetAttributes,
+                        ProjectionFileSystemSafety.OpenRegularFileForRead,
+                        16));
+
+                Assert.Equal(
+                    "rebuild manifest exceeds the 16-byte validation limit.",
+                    ex.Message);
+            }
+        }
+
+        [Fact]
+        public void ValidateProjectionOutput_RejectsManifestThatShrinksWhileRead()
+        {
+            AssertManifestLengthChangeRejected(actualLengthDelta: -1);
+        }
+
+        [Fact]
+        public void ValidateProjectionOutput_RejectsManifestThatGrowsWhileRead()
+        {
+            AssertManifestLengthChangeRejected(actualLengthDelta: 1);
+        }
+
+        static void AssertManifestLengthChangeRejected(int actualLengthDelta)
+        {
+            using (var tmp = new TempDir())
+            {
+                string manifestPath = Path.Combine(tmp.Path, "rom.rebuild");
+                File.WriteAllText(manifestPath, "metadata placeholder");
+                byte[] complete = Encoding.UTF8.GetBytes(
+                    "@_CRC32 12345678\n"
+                    + "@_REBUILDADDRESS 00100000\n");
+                int actualLength = complete.Length + actualLengthDelta;
+                var actual = new byte[actualLength];
+                Array.Copy(complete, actual, Math.Min(complete.Length, actual.Length));
+
+                InvalidDataException ex = Assert.Throws<InvalidDataException>(() =>
+                    RebuildMakeCore.ValidateProjectionOutput(
+                        manifestPath,
+                        File.GetAttributes,
+                        _ => new ReportedLengthStream(actual, complete.Length),
+                        1024));
+
+                Assert.Equal(
+                    "rebuild manifest changed while being validated.",
+                    ex.Message);
             }
         }
 
