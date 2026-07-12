@@ -1343,7 +1343,7 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Generate the derived Event Assembler installer from the plan. Uses EA's
-        /// documented <c>ORG Offset</c> and <c>FILL Amount Size Value</c> forms; payload
+        /// documented <c>ORG Offset</c> and <c>FILL Amount Value</c> forms; payload
         /// writes follow the fill so sparse overrides win. The JSON remains the authority.
         /// </summary>
         public static string GenerateMainEvent(BuildfileExportPlan plan)
@@ -1359,7 +1359,7 @@ namespace FEBuilderGBA
             {
                 sb.Append("ORG 0x" + m.Extension.Start.ToString("X") + "\n");
                 sb.Append("FILL 0x" + m.Extension.Length.ToString("X")
-                    + " 1 " + m.Extension.FillByte + "\n");
+                    + " " + m.Extension.FillByte + "\n");
             }
 
             foreach (BuildfileRange r in m.Ranges)
