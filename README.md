@@ -124,10 +124,20 @@ dotnet run --project FEBuilderGBA.CLI -- --export-buildfile --rom=modified.gba -
 # On Windows, use standard drive/UNC paths; device namespaces (\\?\, \\.\, and \??\) are rejected.
 # ROM aliases retain platform-accurate link semantics; Windows long paths keep handle-level identity checks.
 # Windows paths and exact opened handles use 128-bit file identity with a capability-only 64-bit fallback.
+# The advisory patch inventory (patches.installed + nested params) and warnings share ONE
+# internal 16,384-item resource-safety budget; an oversized patch library DEGRADES the advisory
+# patch inventory to "unavailable" (a stable, path-free reason) rather than truncating it or
+# failing export — the authoritative recipe/payloads/manifest still export successfully.
 dotnet run --project FEBuilderGBA.CLI -- --build-buildfile --clean=original.gba --project=project/ --out=rebuilt.gba
 # Rebuilds ONLY from buildfile.json + data/; main.event/ColorzCore/source/patches/projection are never used.
 # Enforces exact clean identity + version, schema v1, UTF-8/JSON/dup-key, exact object members/types, and every size/range/path/hash/changed-byte bound.
 # data/ is captured no-follow/handle-relative; symlinks, subdirs, missing/extra/mismatched payloads are rejected.
+# The SAME shared 16,384-item advisory budget applies here as a hard structural-validation
+# failure: a supplied buildfile.json whose combined patches.installed + nested params +
+# warnings exceeds the cap is rejected BEFORE any of those advisory arrays are materialized
+# into POCOs/lists (fails closed rather than allocating unboundedly for a hostile/corrupt file).
+# Staging cleanup/collision classification never uses File.Exists (which can misreport success
+# on a non-file replacement or an inspection failure); every failure fails closed with the exact path.
 # --out must remain outside project/data by physical entry identity (including aliases), rechecked before bounded-name durable no-replace publication. Exit 0/1.
 dotnet run --project FEBuilderGBA.CLI -- --buildfile-roundtrip --rom=modified.gba --clean=original.gba
 # Exports (source projection off) into private scratch, independently rebuilds, and byte-compares against --rom.

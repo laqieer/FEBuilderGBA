@@ -21,6 +21,37 @@ namespace FEBuilderGBA
         /// <summary>GBA cartridge ROM window base (offset 0 maps to 0x08000000).</summary>
         internal const uint GbaRomBase = 0x08000000u;
 
+        /// <summary>
+        /// Shared resource-safety bound on the COMBINED count of advisory buildfile.json
+        /// items — <c>patches.installed</c> records, every nested <c>patches.installed[].params</c>
+        /// entry, and <c>warnings</c> entries — counted together as ONE global total (#1936
+        /// consumer / #1935 exporter). Exposed as public const aliases on
+        /// <see cref="BuildfileExportOptions.MaxAdvisoryItems"/> and
+        /// <see cref="BuildfileBuildOptions.MaxAdvisoryItems"/> so both sides can never drift.
+        /// There is deliberately NO mutable/test-only override: the real 16,384 value is exact
+        /// enough to prove pass-at-cap / fail-at-cap+1 deterministically without materializing
+        /// gigabytes of test fixtures.
+        /// </summary>
+        internal const int MaxAdvisoryItems = 16384;
+
+        /// <summary>
+        /// Overflow-safe budget consumption: adds <paramref name="additional"/> to
+        /// <paramref name="total"/> and returns <c>true</c> only when the resulting combined
+        /// total is still within <see cref="MaxAdvisoryItems"/>. On failure <paramref name="total"/>
+        /// is left UNCHANGED (the caller should fail closed rather than partially consume the
+        /// budget). Uses 64-bit arithmetic internally so a huge <paramref name="additional"/>
+        /// (e.g. a maliciously large declared JSON array length) can never wrap a 32-bit
+        /// accumulator into a false pass.
+        /// </summary>
+        internal static bool TryConsumeAdvisoryItems(ref int total, int additional)
+        {
+            if (additional < 0) throw new ArgumentOutOfRangeException(nameof(additional));
+            long candidate = (long)total + additional;
+            if (candidate > MaxAdvisoryItems) return false;
+            total = (int)candidate;
+            return true;
+        }
+
         /// <summary>Lowercase 64-character hex SHA-256 of <paramref name="data"/>.</summary>
         internal static string Sha256Hex(byte[] data)
         {

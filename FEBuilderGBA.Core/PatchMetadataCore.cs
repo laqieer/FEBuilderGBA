@@ -225,6 +225,140 @@ namespace FEBuilderGBA
             || ex.GetType() == typeof(ArgumentException);
 
         /// <summary>
+        /// Exporter-only bounded discovery seam (#1936 review remediation). Identical contract
+        /// to the unbounded internal <see cref="TryEnumeratePatches(string,ROM,string,Func{string,string[]},Func{string,string[]},out List{PatchInfo},out string)"/>
+        /// overload except patch-FILE discovery is bounded to <paramref name="maxFiles"/>:
+        /// <list type="bullet">
+        /// <item>Production discovery (no injected <paramref name="listPatchFiles"/>) uses LAZY
+        /// <see cref="Directory.EnumerateFiles(string,string,SearchOption)"/> and stops the
+        /// instant more than <paramref name="maxFiles"/> entries have been seen — a pathological
+        /// directory can never force an unbounded eager array into memory before the bound is
+        /// even checked. Expected filesystem faults raised DURING lazy iteration (not only at
+        /// enumerable creation) are caught exactly like the eager path.</item>
+        /// <item>An injected test lister still returns an eager array, but its LENGTH is checked
+        /// against the bound BEFORE a single patch file is parsed, so a deterministic
+        /// fault-injection test can prove the over-budget rejection without needing a lazy
+        /// filesystem seam.</item>
+        /// </list>
+        /// On a bound breach, <paramref name="patches"/> is the empty list (never partial) and
+        /// <paramref name="error"/> is a stable, path-free reason. <paramref name="limitExceeded"/>
+        /// is a TYPED signal distinguishing the two distinct failure causes so the caller never
+        /// has to string-sniff <paramref name="error"/>: <c>true</c> when discovery exceeds
+        /// <paramref name="maxFiles"/> or a patch metadata file exceeds the corresponding raw-line
+        /// bound; <c>false</c> (with <paramref name="error"/> still populated) for a real
+        /// filesystem/access fault (missing/unreadable directory contents, I/O error, etc.) that
+        /// has nothing to do with the resource budget. Per-file metadata scanning also uses the bounded LAZY
+        /// <see cref="TryParsePatchFileStrictBounded"/> (capped at <paramref name="maxFiles"/> raw
+        /// lines) rather than the unbounded eager <see cref="ParsePatchFileStrict"/> used by the
+        /// legacy <see cref="TryEnumeratePatches(string,ROM,string,Func{string,string[]},Func{string,string[]},out List{PatchInfo},out string)"/>
+        /// path, so no advisory-eligible patch file is ever fully materialized into memory before
+        /// its bounded raw-parameter pass runs.
+        /// </summary>
+        internal static bool TryEnumeratePatchesBounded(string patchBaseDir, ROM rom, string lang,
+            Func<string, string[]> listPatchFiles,
+            int maxFiles, out List<PatchInfo> patches, out string error, out bool limitExceeded)
+        {
+            patches = new List<PatchInfo>();
+            error = "";
+            limitExceeded = false;
+            if (string.IsNullOrEmpty(patchBaseDir))
+                return true;
+
+            var discovered = new List<string>();
+            if (listPatchFiles != null)
+            {
+                string[] files;
+                try
+                {
+                    files = listPatchFiles(patchBaseDir);
+                }
+                catch (DirectoryNotFoundException)
+                {
+                    return true;
+                }
+                catch (Exception ex) when (IsExpectedFileSystemException(ex))
+                {
+                    error = ex.Message;
+                    return false;
+                }
+                // Guard the injected test double's length BEFORE parsing a single file.
+                if (files.Length > maxFiles)
+                {
+                    limitExceeded = true;
+                    error = "advisory patch source exceeds the internal file-discovery bound";
+                    return false;
+                }
+                discovered.AddRange(files);
+            }
+            else
+            {
+                IEnumerable<string> lazy;
+                try
+                {
+                    lazy = Directory.EnumerateFiles(patchBaseDir, "PATCH_*.txt", SearchOption.AllDirectories);
+                }
+                catch (DirectoryNotFoundException)
+                {
+                    return true;
+                }
+                catch (Exception ex) when (IsExpectedFileSystemException(ex))
+                {
+                    error = ex.Message;
+                    return false;
+                }
+
+                try
+                {
+                    foreach (string file in lazy)
+                    {
+                        if (discovered.Count >= maxFiles)
+                        {
+                            limitExceeded = true;
+                            error = "advisory patch source exceeds the internal file-discovery bound";
+                            return false;
+                        }
+                        discovered.Add(file);
+                    }
+                }
+                catch (Exception ex) when (IsExpectedFileSystemException(ex))
+                {
+                    // Fault arising DURING lazy iteration, not only at enumerable creation.
+                    error = ex.Message;
+                    return false;
+                }
+            }
+
+            try
+            {
+                foreach (string file in discovered.OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
+                {
+                    string defaultName = GetDefaultPatchName(file);
+                    // Bounded LAZY metadata scan (see TryParsePatchFileStrictBounded) — never an
+                    // eager whole-file read — so a pathological file can't force an unbounded
+                    // read just to extract NAME/TYPE/PATCHED_IF metadata. A line-bound breach
+                    // rejects the whole inventory rather than accepting a truncated PatchInfo.
+                    if (!TryParsePatchFileStrictBounded(
+                        file, defaultName, rom, lang, maxFiles, out PatchInfo info))
+                    {
+                        patches = new List<PatchInfo>();
+                        limitExceeded = true;
+                        error = "advisory patch metadata exceeds the internal line-scan bound";
+                        return false;
+                    }
+                    SetContainingDirectory(info, file);
+                    patches.Add(info);
+                }
+            }
+            catch (Exception ex) when (IsExpectedFileSystemException(ex))
+            {
+                patches = new List<PatchInfo>();
+                error = ex.Message;
+                return false;
+            }
+            return true;
+        }
+
+        /// <summary>
         /// Parse a PATCH_*.txt metadata file.
         /// </summary>
         public static PatchInfo ParsePatchFile(string patchFilePath, string dirName, ROM rom, string lang)
@@ -263,9 +397,48 @@ namespace FEBuilderGBA
 
         static PatchInfo ParsePatchFileStrict(string patchFilePath, string dirName, ROM rom, string lang,
             Func<string, string[]> readAllLines)
+            => ParsePatchFileStrictFromLines(patchFilePath, dirName, rom, lang, readAllLines(patchFilePath));
+
+        /// <summary>
+        /// Exporter-only bounded metadata-scan seam (#1965 PR feedback remediation, companion to
+        /// <see cref="TryEnumeratePatchesBounded"/>/<see cref="TryParsePatchParamsBounded"/>):
+        /// identical NAME/INFO/AUTHOR/TAG/TYPE/PATCHED_IF/dependency parsing semantics to
+        /// <see cref="ParsePatchFileStrict"/>, but reads at most <paramref name="maxLines"/>
+        /// lines LAZILY via <see cref="File.ReadLines(string)"/> instead of eagerly loading the
+        /// WHOLE file into a <c>string[]</c> first. If another line exists, this method returns
+        /// <c>false</c> and no partial <see cref="PatchInfo"/>; a pathological patch file can
+        /// neither force an unbounded eager read nor masquerade as accepted truncated metadata.
+        /// This is a DISTINCT bound from the shared
+        /// <see cref="BuildfileFormat.MaxAdvisoryItems"/> advisory-item budget (it caps raw lines
+        /// scanned for metadata, not advisory POCOs/list entries) — reusing the same constant is
+        /// simply a convenient, already-reviewed, generously-sized ceiling. Any legitimate patch
+        /// file (always far smaller) parses identically to <see cref="ParsePatchFileStrict"/>.
+        /// </summary>
+        internal static bool TryParsePatchFileStrictBounded(
+            string patchFilePath,
+            string dirName,
+            ROM rom,
+            string lang,
+            int maxLines,
+            out PatchInfo info)
+        {
+            if (maxLines < 0) throw new ArgumentOutOfRangeException(nameof(maxLines));
+            info = null;
+            var bounded = new List<string>();
+            foreach (string rawLine in File.ReadLines(patchFilePath))
+            {
+                if (bounded.Count >= maxLines)
+                    return false;
+                bounded.Add(rawLine);
+            }
+            info = ParsePatchFileStrictFromLines(patchFilePath, dirName, rom, lang, bounded);
+            return true;
+        }
+
+        static PatchInfo ParsePatchFileStrictFromLines(
+            string patchFilePath, string dirName, ROM rom, string lang, IReadOnlyList<string> lines)
         {
             var info = CreatePatchInfo(patchFilePath, dirName);
-            string[] lines = readAllLines(patchFilePath);
             string? patchedIf = null;
 
             foreach (string rawLine in lines)
@@ -465,7 +638,7 @@ namespace FEBuilderGBA
             }
         }
 
-        static List<PatchDependency> ParsePatchDependencies(string[] lines, string lang)
+        static List<PatchDependency> ParsePatchDependencies(IReadOnlyList<string> lines, string lang)
         {
             var result = new List<PatchDependency>();
             string ifComment = "";
@@ -641,6 +814,47 @@ namespace FEBuilderGBA
                 });
             }
             return result;
+        }
+
+        /// <summary>
+        /// Exporter-only bounded seam (#1936 review remediation). Identical key=value parsing
+        /// semantics to <see cref="ParsePatchParams"/> but reads lines LAZILY via
+        /// <see cref="File.ReadLines(string)"/> and stops the instant accepting the next entry
+        /// would exceed <paramref name="maxEntries"/>, returning <c>false</c> WITHOUT ever
+        /// materializing that over-budget entry (so a pathological patch file with millions of
+        /// <c>key=value</c> lines can never be fully read into memory just to prove it is too
+        /// large). Returns <c>true</c> with the complete (bounded) list when the file has at
+        /// most <paramref name="maxEntries"/> entries.
+        /// </summary>
+        internal static bool TryParsePatchParamsBounded(
+            string patchFilePath, int maxEntries, out List<PatchParam> result)
+        {
+            result = new List<PatchParam>();
+            if (maxEntries < 0) return false;
+            if (!File.Exists(patchFilePath)) return true;
+
+            foreach (string rawLine in File.ReadLines(patchFilePath))
+            {
+                string line = rawLine.Trim();
+                if (line.StartsWith("//")) continue;
+
+                int sep = line.IndexOf('=');
+                if (sep < 0) continue;
+
+                if (result.Count >= maxEntries)
+                    return false; // would exceed the bound — stop before materializing it
+
+                string key = line.Substring(0, sep).Trim();
+                string value = line.Substring(sep + 1).Trim();
+
+                result.Add(new PatchParam
+                {
+                    RawKey = key,
+                    Value = value,
+                    KeyParts = key.Split(':'),
+                });
+            }
+            return true;
         }
 
         /// <summary>

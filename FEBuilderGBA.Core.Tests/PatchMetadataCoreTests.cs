@@ -1429,5 +1429,155 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains("download", PatchMetadataCore.NotInitializedMessage, System.StringComparison.OrdinalIgnoreCase);
             Assert.NotEqual(AndroidResourceNoticeCore.PatchLibraryUnavailableMessage, PatchMetadataCore.NotInitializedMessage);
         }
+
+        // ---- #1965 PR feedback remediation: bounded/lazy metadata-scan seam ----
+        // Companion to TryEnumeratePatchesBounded's exporter-only metadata-scan fix: the
+        // exporter must never fully materialize a discovered patch file via an eager
+        // File.ReadAllLines just to extract NAME/TYPE/PATCHED_IF metadata (the same "stop
+        // before materializing more than the bound" invariant that already applies to raw
+        // param parsing via TryParsePatchParamsBounded).
+
+        [Fact]
+        public void TryParsePatchFileStrictBounded_MetadataWithinBound_ParsesIdenticallyToUnbounded()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "PatchBoundedMeta_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                string patchFile = Path.Combine(tempDir, "PATCH_Test.txt");
+                File.WriteAllLines(patchFile, new[]
+                {
+                    "NAME=TestPatchJP",
+                    "NAME.en=Test Patch English",
+                    "TYPE=BIN",
+                    "TAG=#ENGINE #TEST",
+                    "AUTHOR=TestAuthor",
+                    "PATCHED_IF:0x10=0xAB 0xCD",
+                });
+
+                byte[] data = new byte[0x100];
+                data[0x10] = 0xAB;
+                data[0x11] = 0xCD;
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(data);
+
+                var unbounded = PatchMetadataCore.ParsePatchFile(patchFile, "TestDir", rom, "en");
+                bool withinBound = PatchMetadataCore.TryParsePatchFileStrictBounded(
+                    patchFile, "TestDir", rom, "en", 100, out var bounded);
+
+                Assert.True(withinBound);
+                Assert.Equal(unbounded.Name, bounded.Name);
+                Assert.Equal(unbounded.Type, bounded.Type);
+                Assert.Equal(unbounded.Tags, bounded.Tags);
+                Assert.Equal(unbounded.Author, bounded.Author);
+                Assert.Equal(unbounded.Status, bounded.Status);
+            }
+            finally { Directory.Delete(tempDir, true); }
+        }
+
+        [Fact]
+        public void TryParsePatchFileStrictBounded_MetadataBeyondLineBound_FailsWithoutPartialInfo()
+        {
+            // A bounded scan must never turn an oversized patch into a plausible partial record.
+            // It reports the breach and returns no PatchInfo so the exporter can degrade the
+            // entire advisory inventory.
+            string tempDir = Path.Combine(Path.GetTempPath(), "PatchBoundedMetaCut_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                string patchFile = Path.Combine(tempDir, "PATCH_Test.txt");
+                var lines = new List<string> { "TYPE=BIN" };
+                for (int i = 0; i < 10; i++)
+                    lines.Add("// filler " + i);
+                lines.Add("NAME=TooLate"); // placed at line index 11 (0-based)
+                File.WriteAllLines(patchFile, lines);
+
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x100]);
+
+                bool withinBound = PatchMetadataCore.TryParsePatchFileStrictBounded(
+                    patchFile, "DefaultName", rom, "en", 5, out var bounded);
+
+                Assert.False(withinBound);
+                Assert.Null(bounded);
+            }
+            finally { Directory.Delete(tempDir, true); }
+        }
+
+        [Theory]
+        [InlineData(BuildfileFormat.MaxAdvisoryItems, true)]
+        [InlineData(BuildfileFormat.MaxAdvisoryItems + 1, false)]
+        public void TryParsePatchFileStrictBounded_SharedLimitBoundary_IsExact(
+            int lineCount,
+            bool expectedWithinBound)
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "PatchBoundedMetaBoundary_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                string patchFile = Path.Combine(tempDir, "PATCH_Test.txt");
+                var lines = new List<string>(lineCount);
+                for (int i = 0; i < lineCount; i++)
+                    lines.Add("// bounded metadata line " + i);
+                File.WriteAllLines(patchFile, lines);
+
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x100]);
+
+                bool withinBound = PatchMetadataCore.TryParsePatchFileStrictBounded(
+                    patchFile,
+                    "DefaultName",
+                    rom,
+                    "en",
+                    BuildfileFormat.MaxAdvisoryItems,
+                    out var info);
+
+                Assert.Equal(expectedWithinBound, withinBound);
+                Assert.Equal(expectedWithinBound, info != null);
+            }
+            finally { Directory.Delete(tempDir, true); }
+        }
+
+        [Fact]
+        public void TryEnumeratePatchesBounded_MetadataLineBreach_ClearsPartialInventoryAndSignalsLimit()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "PatchBoundedMetaInventory_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                string first = Path.Combine(tempDir, "PATCH_A.txt");
+                string oversized = Path.Combine(tempDir, "PATCH_B.txt");
+                File.WriteAllLines(first, new[] { "NAME=AcceptedFirst" });
+                File.WriteAllLines(oversized, new[]
+                {
+                    "NAME=Oversized",
+                    "// filler 1",
+                    "// filler 2",
+                    "// filler 3",
+                    "// filler 4",
+                    "// cap plus one",
+                });
+
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x100]);
+
+                bool success = PatchMetadataCore.TryEnumeratePatchesBounded(
+                    tempDir,
+                    rom,
+                    "en",
+                    _ => new[] { first, oversized },
+                    5,
+                    out var patches,
+                    out string error,
+                    out bool limitExceeded);
+
+                Assert.False(success);
+                Assert.True(limitExceeded);
+                Assert.Empty(patches);
+                Assert.Contains("line-scan bound", error, StringComparison.Ordinal);
+                Assert.DoesNotContain(tempDir, error, StringComparison.Ordinal);
+            }
+            finally { Directory.Delete(tempDir, true); }
+        }
     }
 }

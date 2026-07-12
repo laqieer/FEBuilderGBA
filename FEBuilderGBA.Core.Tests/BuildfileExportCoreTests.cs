@@ -2150,6 +2150,203 @@ namespace FEBuilderGBA.Core.Tests
             finally { Cleanup(parent); }
         }
 
+        // ---------------------------------------------------------------
+        // Shared advisory-item budget (16,384) — bounded exporter producer.
+        // Real 16,384 constant, no test-only override, per the approved design.
+        // ---------------------------------------------------------------
+
+        [Fact]
+        public void Export_PatchListingAtCapPlusOne_DegradesInventoryBeforeParsing()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x10] = 0x5;
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                string patchBase = Path.Combine(parent, "patch2");
+                Directory.CreateDirectory(patchBase);
+
+                // Every one of these MaxAdvisoryItems + 1 paths does NOT exist on disk. The
+                // file-discovery cap must reject the injected listing on length alone, before a
+                // single file is opened/parsed (Copilot review finding: unbounded eager listing
+                // materialization).
+                var fakeFiles = new string[BuildfileExportOptions.MaxAdvisoryItems + 1];
+                for (int i = 0; i < fakeFiles.Length; i++)
+                    fakeFiles[i] = Path.Combine(patchBase, "PATCH_fake_" + i + ".txt");
+
+                var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target),
+                    new BuildfileExportOptions
+                    {
+                        OutputDirectory = outDir,
+                        PatchBaseDirectory = patchBase,
+                        PatchDirectoryListerForTest = _ => fakeFiles,
+                    });
+
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("unavailable", result.Manifest.Patches.Status);
+                Assert.Empty(result.Manifest.Patches.Installed);
+                // This is a genuine resource-BUDGET breach (more files discovered than
+                // MaxAdvisoryItems), not a filesystem/permission fault, so it MUST use the same
+                // shared, stable AdvisoryBudgetExceededReason every other advisory-budget breach
+                // uses — never the generic "check directory permissions" reason (Copilot review
+                // finding: BuildPatchInventory previously string-discarded the typed distinction
+                // via `out _`, always reporting the generic permission reason here).
+                Assert.Equal(BuildfileExportCore.AdvisoryBudgetExceededReason, result.Manifest.Patches.Reason);
+                Assert.DoesNotContain(patchBase, result.Manifest.Patches.Reason);
+
+                string json = File.ReadAllText(Path.Combine(outDir, "buildfile.json"));
+                Assert.DoesNotContain(patchBase.Replace('\\', '/'), json);
+            }
+            finally { Cleanup(parent); }
+        }
+
+        // Note: the companion "real filesystem/access fault during discovery keeps the generic
+        // permission reason, never the budget reason" case is ALREADY covered by the pre-existing
+        // Export_PatchDirectoryListingFailure_ManifestReasonIsStableAndPathFree test below (an
+        // injected IOException from PatchDirectoryListerForTest) — re-verified against the typed
+        // `limitExceeded` signal added above (it stays false for this fault, so the reason is
+        // unaffected); no duplicate test added.
+
+        [Fact]
+        public void Export_PatchFileWithParamsOverCap_DegradesInventoryWithoutPartialRecords()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x10] = 0x9;
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                string patchBase = Path.Combine(parent, "patch2");
+                string dir = Path.Combine(patchBase, "BIG");
+                Directory.CreateDirectory(dir);
+
+                var lines = new List<string> { "TYPE=ADDR", "NAME=Big Patch" };
+                int paramCount = BuildfileExportOptions.MaxAdvisoryItems + 1;
+                for (int i = 0; i < paramCount; i++)
+                    lines.Add("KEY" + i + "=" + i);
+                string patchFile = Path.Combine(dir, "PATCH_Big.txt");
+                File.WriteAllLines(patchFile, lines);
+
+                var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target),
+                    new BuildfileExportOptions
+                    {
+                        OutputDirectory = outDir,
+                        PatchBaseDirectory = patchBase,
+                    });
+
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("unavailable", result.Manifest.Patches.Status);
+                // No partial/truncated installed record survives a params-budget breach — the
+                // WHOLE inventory degrades (Copilot review finding: unbounded nested params).
+                Assert.Empty(result.Manifest.Patches.Installed);
+                Assert.DoesNotContain(patchBase, result.Manifest.Patches.Reason);
+
+                string json = File.ReadAllText(Path.Combine(outDir, "buildfile.json"));
+                Assert.DoesNotContain(patchBase.Replace('\\', '/'), json);
+                Assert.DoesNotContain("Big Patch", json);
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [Fact]
+        public void Export_LateProjectionWarning_DegradesPatchesWhenCombinedTotalExceedsCap()
+        {
+            var clean = new byte[RomSize]; // all-zero clean => exactly one "non-canonical" warning
+            var target = (byte[])clean.Clone();
+            target[0x10] = 0x3;
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                string patchBase = Path.Combine(parent, "patch2");
+                string dir = Path.Combine(patchBase, "NEARCAP");
+                Directory.CreateDirectory(dir);
+
+                // One record whose own item (1) + params exactly fills the budget once the
+                // pre-existing "non-canonical clean" warning (1) is accounted for at Plan()
+                // time — i.e. it is exactly AT the cap and available.
+                var lines = new List<string> { "TYPE=ADDR", "NAME=Near Cap Patch" };
+                int paramCount = BuildfileExportOptions.MaxAdvisoryItems - 2;
+                for (int i = 0; i < paramCount; i++)
+                    lines.Add("KEY" + i + "=" + i);
+                File.WriteAllLines(Path.Combine(dir, "PATCH_NearCap.txt"), lines);
+
+                var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target),
+                    new BuildfileExportOptions
+                    {
+                        OutputDirectory = outDir,
+                        PatchBaseDirectory = patchBase,
+                        // Forces a SECOND warning to be appended AFTER BuildPatchInventory's
+                        // budget was already reserved during Plan() (Copilot review finding:
+                        // late warning mutation not accounted for by the original reservation).
+                        ProjectionRunner = scratch => BuildfileProjectionOutcome.Refuse("forcing a late warning"),
+                    });
+
+                Assert.True(result.Success, result.Error);
+                Assert.Contains(result.Manifest.Warnings, w => w.Contains("Source projection refused"));
+                // The combined total (2 warnings + 1 record + (cap-2) params == cap+1) now
+                // exceeds the shared budget, so the patch inventory (never the warnings) is
+                // degraded — the authoritative export itself remains fully usable.
+                Assert.Equal("unavailable", result.Manifest.Patches.Status);
+                Assert.Empty(result.Manifest.Patches.Installed);
+                Assert.DoesNotContain(patchBase, result.Manifest.Patches.Reason);
+
+                Assert.True(File.Exists(Path.Combine(outDir, "buildfile.json")));
+                Assert.True(target.SequenceEqual(ReconstructFromProject(outDir, clean)));
+            }
+            finally { Cleanup(parent); }
+        }
+
+        // ---------------------------------------------------------------
+        // Tri-state fail-closed path-attribute inspection (Copilot review finding:
+        // File.Exists silently reports "gone" for a directory/reparse replacement or an
+        // inspection fault).
+        // ---------------------------------------------------------------
+
+        [Fact]
+        public void ProbePathAttributes_RegularFileDirectoryOrReparse_IsPresent()
+        {
+            Assert.Equal(BuildfileExportCore.PathAttributeProbeResult.Present,
+                BuildfileExportCore.ProbePathAttributes("f", _ => FileAttributes.Normal, out _, out string e1));
+            Assert.Equal("", e1);
+
+            Assert.Equal(BuildfileExportCore.PathAttributeProbeResult.Present,
+                BuildfileExportCore.ProbePathAttributes("d", _ => FileAttributes.Directory, out _, out string e2));
+            Assert.Equal("", e2);
+
+            Assert.Equal(BuildfileExportCore.PathAttributeProbeResult.Present,
+                BuildfileExportCore.ProbePathAttributes("r", _ => FileAttributes.ReparsePoint, out _, out string e3));
+            Assert.Equal("", e3);
+        }
+
+        [Fact]
+        public void ProbePathAttributes_NotFound_IsAbsent()
+        {
+            Assert.Equal(BuildfileExportCore.PathAttributeProbeResult.Absent,
+                BuildfileExportCore.ProbePathAttributes(
+                    "missing-file", _ => throw new FileNotFoundException("gone"), out _, out string e1));
+            Assert.Equal("", e1);
+
+            Assert.Equal(BuildfileExportCore.PathAttributeProbeResult.Absent,
+                BuildfileExportCore.ProbePathAttributes(
+                    "missing-dir", _ => throw new DirectoryNotFoundException("gone"), out _, out string e2));
+            Assert.Equal("", e2);
+        }
+
+        [Fact]
+        public void ProbePathAttributes_ExpectedInspectionFault_IsUnknown_FailClosed()
+        {
+            var result = BuildfileExportCore.ProbePathAttributes(
+                "blocked-path", _ => throw new UnauthorizedAccessException("denied"),
+                out _, out string fault);
+
+            Assert.Equal(BuildfileExportCore.PathAttributeProbeResult.Unknown, result);
+            Assert.Contains("denied", fault);
+        }
+
         [Fact]
         public void TryEnumeratePatches_DistinguishesMissingAndEmptyFromFailure()
         {

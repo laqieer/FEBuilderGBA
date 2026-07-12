@@ -521,6 +521,94 @@ namespace FEBuilderGBA.Core.Tests
             AssertBuildFails(projectDir, "warnings");
         }
 
+        // --------------------------------------------- shared advisory-item budget (16,384)
+
+        static JsonArray StringArray(int count)
+        {
+            var arr = new JsonArray();
+            for (int i = 0; i < count; i++) arr.Add("advisory-item-" + i);
+            return arr;
+        }
+
+        static JsonArray NullArray(int count)
+        {
+            var arr = new JsonArray();
+            for (int i = 0; i < count; i++) arr.Add((JsonNode)null);
+            return arr;
+        }
+
+        [Fact]
+        public void Build_AdvisoryBudget_ExactlyAtCap_Succeeds()
+        {
+            byte[] target = TargetEqualSize();
+            string projectDir = ExportValidProject(target);
+            MutateManifest(projectDir, root =>
+            {
+                root["warnings"] = StringArray(BuildfileBuildOptions.MaxAdvisoryItems);
+            });
+
+            BuildfileBuildResult result =
+                BuildfileBuildCore.Build(MakeRom(SharedClean), projectDir, new BuildfileBuildOptions());
+
+            Assert.True(result.Success, result.Error);
+            Assert.True(target.SequenceEqual(result.TargetBytes));
+            Assert.Equal(BuildfileBuildOptions.MaxAdvisoryItems, result.Manifest.Warnings.Count);
+        }
+
+        [Fact]
+        public void Build_AdvisoryBudget_WarningsOnlyOverCap_FailsAtBudgetGuardBeforeTypeValidation()
+        {
+            // Every entry is JSON null (would also fail the "warnings entries must be strings"
+            // type check) — the shared-budget guard must reject BEFORE that per-entry check even
+            // looks at a single entry.
+            string projectDir = ExportValidProject(TargetEqualSize());
+            MutateManifest(projectDir, root =>
+            {
+                root["warnings"] = NullArray(BuildfileBuildOptions.MaxAdvisoryItems + 1);
+            });
+            AssertBuildFails(projectDir, "advisory item");
+        }
+
+        [Fact]
+        public void Build_AdvisoryBudget_InstalledOnlyOverCap_FailsAtBudgetGuardBeforeObjectValidation()
+        {
+            // Every entry is JSON null (would also fail the "entries must be objects" check) —
+            // the shared-budget guard must reject BEFORE that per-entry check looks at a single
+            // entry.
+            string projectDir = ExportValidProject(TargetEqualSize());
+            MutateManifest(projectDir, root =>
+            {
+                root["patches"].AsObject()["installed"] =
+                    NullArray(BuildfileBuildOptions.MaxAdvisoryItems + 1);
+            });
+            AssertBuildFails(projectDir, "advisory item");
+        }
+
+        [Fact]
+        public void Build_AdvisoryBudget_NestedParamsTripSharedTotalBeforeParamTypeValidation()
+        {
+            // One VALID installed record (consumes 1 of the shared budget) whose own `params`
+            // array alone has exactly MaxAdvisoryItems null entries — 1 + MaxAdvisoryItems is
+            // one over the shared cap, so the params array must be rejected by the shared-budget
+            // guard from INSIDE the record loop, before a single param entry's object/type is
+            // validated.
+            string projectDir = ExportValidProject(TargetEqualSize());
+            MutateManifest(projectDir, root =>
+            {
+                var record = new JsonObject
+                {
+                    ["name"] = "n",
+                    ["path"] = "p",
+                    ["status"] = "installed",
+                    ["confidence"] = "high",
+                    ["reason"] = "r",
+                    ["params"] = NullArray(BuildfileBuildOptions.MaxAdvisoryItems),
+                };
+                root["patches"].AsObject()["installed"] = new JsonArray { record };
+            });
+            AssertBuildFails(projectDir, "advisory item");
+        }
+
         [Fact]
         public void Build_NonUtf8Manifest_Fails()
         {
@@ -1053,6 +1141,87 @@ namespace FEBuilderGBA.Core.Tests
         {
             string missing = Path.Combine(FreshParent(), "never-created");
             Assert.True(BuildfileBuildCore.DeleteTreeAndVerifyGone(missing, out string error), error);
+        }
+
+        // ---------------------------------------------------------------
+        // BuildfileBuildCore.DeleteFileAndVerifyGone: delegate-injected fail-closed cleanup
+        // (Copilot review finding: File.Exists can report cleanup success on a non-file
+        // replacement or an inspection failure). No File.Exists anywhere in this path; every
+        // false detail includes the exact path.
+        // ---------------------------------------------------------------
+
+        [Fact]
+        public void DeleteFileAndVerifyGone_DeleteThrowsExpectedFault_FailsClosed_WithExactPath()
+        {
+            bool ok = BuildfileBuildCore.DeleteFileAndVerifyGone(
+                "toxic-staging-file",
+                _ => throw new IOException("disk full"),
+                _ => FileAttributes.Normal,
+                out string error);
+
+            Assert.False(ok);
+            Assert.Contains("disk full", error);
+            Assert.Contains("toxic-staging-file", error);
+        }
+
+        [Fact]
+        public void DeleteFileAndVerifyGone_DeleteReportsMissingButAttributesShowReplacedDirectory_FailsClosed_WithExactPath()
+        {
+            // Delete THINKS the path is already gone (FileNotFoundException), but a
+            // post-delete attribute probe shows a directory now sits at the same path — the
+            // old File.Exists check would have silently reported "gone" for a directory
+            // replacement (Copilot review finding).
+            bool ok = BuildfileBuildCore.DeleteFileAndVerifyGone(
+                "replaced-with-directory",
+                _ => throw new FileNotFoundException("missing"),
+                _ => FileAttributes.Directory,
+                out string error);
+
+            Assert.False(ok);
+            Assert.Contains("path still present after delete", error);
+            Assert.Contains("replaced-with-directory", error);
+        }
+
+        [Fact]
+        public void DeleteFileAndVerifyGone_DeleteReportsMissingButAttributesShowReparsePoint_FailsClosed_WithExactPath()
+        {
+            bool ok = BuildfileBuildCore.DeleteFileAndVerifyGone(
+                "replaced-with-reparse-point",
+                _ => throw new DirectoryNotFoundException("missing"),
+                _ => FileAttributes.ReparsePoint,
+                out string error);
+
+            Assert.False(ok);
+            Assert.Contains("path still present after delete", error);
+            Assert.Contains("replaced-with-reparse-point", error);
+        }
+
+        [Fact]
+        public void DeleteFileAndVerifyGone_PostDeleteVerificationThrowsExpectedFault_FailsClosed_WithExactPath()
+        {
+            bool ok = BuildfileBuildCore.DeleteFileAndVerifyGone(
+                "unverifiable-staging-file",
+                _ => { },
+                _ => throw new UnauthorizedAccessException("locked"),
+                out string error);
+
+            Assert.False(ok);
+            Assert.Contains("could not verify path absence", error);
+            Assert.Contains("locked", error);
+            Assert.Contains("unverifiable-staging-file", error);
+        }
+
+        [Fact]
+        public void DeleteFileAndVerifyGone_DeleteSucceeds_AttributesConfirmAbsent_ReturnsTrue()
+        {
+            bool ok = BuildfileBuildCore.DeleteFileAndVerifyGone(
+                "gone-staging-file",
+                _ => { },
+                _ => throw new FileNotFoundException("gone"),
+                out string error);
+
+            Assert.True(ok, error);
+            Assert.Equal("", error);
         }
 
         // ------------------------------------------------------------------------- helpers

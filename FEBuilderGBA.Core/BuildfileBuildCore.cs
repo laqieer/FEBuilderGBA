@@ -43,6 +43,19 @@ namespace FEBuilderGBA
         public const int MaxJsonDepth = 64;
 
         /// <summary>
+        /// Shared resource-safety bound on the COMBINED advisory <c>patches.installed</c> +
+        /// nested <c>params</c> + <c>warnings</c> item count (see
+        /// <see cref="BuildfileFormat.MaxAdvisoryItems"/>, the single source of truth this
+        /// alias references so the exporter and consumer values can never drift). A supplied
+        /// buildfile.json exceeding this combined total is a structural validation failure
+        /// (rejected BEFORE any advisory POCO/list is materialized) — unlike the exporter,
+        /// which degrades an oversized advisory patch inventory to <c>"unavailable"</c> instead
+        /// of failing, because the consumer is independently validating externally supplied
+        /// input rather than producing it.
+        /// </summary>
+        public const int MaxAdvisoryItems = BuildfileFormat.MaxAdvisoryItems;
+
+        /// <summary>
         /// Test-only manifest byte-cap override so the oversized-manifest rejection can be
         /// proven cheaply without materializing a 16 MiB file. Internal by design: it is
         /// NOT a hidden command-line flag or environment bypass and has no production surface.
@@ -805,9 +818,29 @@ namespace FEBuilderGBA
                 {
                     stream = new FileStream(stage, FileMode.CreateNew, FileAccess.Write, FileShare.None);
                 }
-                catch (IOException) when (File.Exists(stage))
+                catch (IOException createEx)
                 {
-                    continue; // name collision — reserve a different sibling
+                    // Classify the CreateNew failure with the shared tri-state attribute
+                    // inspector instead of File.Exists: only a directly-observed PRESENT path
+                    // (regular file, directory, or reparse point) is treated as a genuine name
+                    // collision; an ABSENT path means the failure had some other cause and the
+                    // original create exception is preserved; an inspection fault aborts fail-
+                    // closed with the exact stage path rather than guessing "gone" (Copilot
+                    // review finding: File.Exists silently reports false on inspection failure
+                    // or a non-file replacement, which could misclassify either as "no
+                    // collision").
+                    switch (BuildfileExportCore.ProbePathAttributes(
+                        stage, File.GetAttributes, out _, out string faultDetail))
+                    {
+                        case BuildfileExportCore.PathAttributeProbeResult.Present:
+                            continue; // genuine name collision — reserve a different sibling
+                        case BuildfileExportCore.PathAttributeProbeResult.Absent:
+                            throw; // not a collision — surface the original create failure
+                        default:
+                            throw new IOException(
+                                "Could not classify a staging create failure for '" + stage
+                                + "': " + faultDetail, createEx);
+                    }
                 }
                 try
                 {
@@ -836,25 +869,36 @@ namespace FEBuilderGBA
         }
 
         static bool DeleteFileAndVerifyGone(string path, out string error)
+            => DeleteFileAndVerifyGone(path, File.Delete, File.GetAttributes, out error);
+
+        /// <summary>
+        /// Internal delegate-injected overload used by deterministic cleanup tests: delete the
+        /// file, then verify its absence through the SHARED tri-state
+        /// <see cref="BuildfileExportCore.VerifyPathAbsent"/> contract (never <c>File.Exists</c>,
+        /// which silently reports "gone" for a directory/reparse-point replacement or an
+        /// inspection fault). Every <c>false</c> detail includes the exact <paramref name="path"/>.
+        /// </summary>
+        internal static bool DeleteFileAndVerifyGone(
+            string path,
+            Action<string> deleteFile,
+            Func<string, FileAttributes> getAttributes,
+            out string error)
         {
+            if (deleteFile == null) throw new ArgumentNullException(nameof(deleteFile));
+            if (getAttributes == null) throw new ArgumentNullException(nameof(getAttributes));
             error = "";
             try
             {
-                File.Delete(path);
+                deleteFile(path);
             }
             catch (FileNotFoundException) { }
             catch (DirectoryNotFoundException) { }
             catch (Exception ex) when (IsExpectedIo(ex))
             {
-                error = ex.Message;
+                error = "could not delete path '" + path + "': " + ex.Message;
                 return false;
             }
-            if (File.Exists(path))
-            {
-                error = "staging file still present after delete";
-                return false;
-            }
-            return true;
+            return BuildfileExportCore.VerifyPathAbsent(path, getAttributes, out error);
         }
 
         // --------------------------------------------------------- scratch reservation
@@ -906,8 +950,18 @@ namespace FEBuilderGBA
         // review tooling) but — per the file header — can NEVER influence a single
         // reconstructed target byte; only clean bytes, extension geometry/fill, and
         // ranges/payloads do that.
+        //
+        // Resource safety: `patches.installed` + every nested `params` array + `warnings`
+        // share ONE running budget (BuildfileFormat.MaxAdvisoryItems, 16,384) so a hostile or
+        // corrupt buildfile.json cannot force an unbounded number of advisory POCOs/list
+        // entries into memory. Each array's declared length is consumed from the shared budget
+        // via JsonElement.GetArrayLength BEFORE that array is enumerated/materialized — an
+        // over-budget array is rejected immediately, before a single record/param/warning of
+        // it is read.
         static void PopulateAndValidateAdvisoryStructure(JsonElement root, BuildfileManifest m)
         {
+            int advisoryItemTotal = 0;
+
             m.Tool = OptionalString(root, "tool");
             m.Game = OptionalString(root, "game");
             m.EntryEvent = OptionalString(root, "entryEvent");
@@ -930,6 +984,10 @@ namespace FEBuilderGBA
                     if (installed.ValueKind != JsonValueKind.Array)
                         throw new BuildfileValidationException(
                             "buildfile.json property 'patches.installed' must be an array.");
+                    ConsumeAdvisoryBudget(
+                        ref advisoryItemTotal,
+                        installed.GetArrayLength(),
+                        "property 'patches.installed'");
                     foreach (JsonElement record in installed.EnumerateArray())
                     {
                         if (record.ValueKind != JsonValueKind.Object)
@@ -952,6 +1010,10 @@ namespace FEBuilderGBA
                                 throw new BuildfileValidationException(
                                     "buildfile.json property 'patches.installed.params' "
                                     + "must be an array.");
+                            ConsumeAdvisoryBudget(
+                                ref advisoryItemTotal,
+                                parameters.GetArrayLength(),
+                                "property 'patches.installed[].params'");
                             foreach (JsonElement parameter in parameters.EnumerateArray())
                             {
                                 if (parameter.ValueKind != JsonValueKind.Object)
@@ -1004,6 +1066,10 @@ namespace FEBuilderGBA
                 if (warnings.ValueKind != JsonValueKind.Array)
                     throw new BuildfileValidationException(
                         "buildfile.json property 'warnings' must be an array.");
+                ConsumeAdvisoryBudget(
+                    ref advisoryItemTotal,
+                    warnings.GetArrayLength(),
+                    "property 'warnings'");
                 var warningList = new List<string>();
                 foreach (JsonElement warning in warnings.EnumerateArray())
                 {
@@ -1013,6 +1079,24 @@ namespace FEBuilderGBA
                     warningList.Add(warning.GetString() ?? "");
                 }
                 m.Warnings = warningList;
+            }
+        }
+
+        // Consumes `additional` items from the shared combined advisory-item budget (patches
+        // installed + every nested params array + warnings, counted globally) BEFORE the caller
+        // enumerates/materializes the corresponding JSON array. Fails closed with a stable,
+        // explicit context + combined-total + limit message the instant the shared total would
+        // exceed BuildfileFormat.MaxAdvisoryItems — the array itself is never enumerated.
+        static void ConsumeAdvisoryBudget(ref int advisoryItemTotal, int additional, string context)
+        {
+            int before = advisoryItemTotal;
+            if (!BuildfileFormat.TryConsumeAdvisoryItems(ref advisoryItemTotal, additional))
+            {
+                throw new BuildfileValidationException(
+                    "buildfile.json " + context + " would bring the combined advisory item total "
+                    + "(patches.installed + nested params + warnings) to "
+                    + ((long)before + additional)
+                    + ", exceeding the " + BuildfileFormat.MaxAdvisoryItems + "-item limit.");
             }
         }
 

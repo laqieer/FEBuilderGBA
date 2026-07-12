@@ -780,6 +780,16 @@ namespace FEBuilderGBA
 
         /// <summary>Maximum bytes accepted from one projection text file (16 MiB).</summary>
         public const long MaxProjectionTextFileBytes = 16L * 1024 * 1024;
+
+        /// <summary>
+        /// Shared resource-safety bound on the COMBINED advisory <c>patches.installed</c> +
+        /// nested <c>params</c> + <c>warnings</c> item count (see
+        /// <see cref="BuildfileFormat.MaxAdvisoryItems"/>, the single source of truth this
+        /// alias references so the exporter and consumer values can never drift). An oversized
+        /// advisory patch inventory degrades to <c>"unavailable"</c> rather than aborting the
+        /// export; authoritative ranges/payloads are unaffected.
+        /// </summary>
+        public const int MaxAdvisoryItems = BuildfileFormat.MaxAdvisoryItems;
     }
 
     /// <summary>Result of an export attempt.</summary>
@@ -1059,10 +1069,14 @@ namespace FEBuilderGBA
             // byte-for-byte equality before we ever publish (defensive, never expected to fail).
             VerifyReconstruction(clean, target, fill, plan.Payloads);
 
-            // Advisory patch inventory is internally guarded (TryEnumeratePatches distinguishes
-            // empty from failure; per-record helpers surface degradation in the record reason).
-            // Programmer defects deliberately propagate so real exporter bugs are not hidden.
-            m.Patches = BuildPatchInventory(cleanRom, targetRom, options);
+            // Advisory patch inventory is internally guarded (TryEnumeratePatchesBounded
+            // distinguishes empty from failure/budget-breach; per-record helpers surface
+            // degradation in the record reason). The shared combined advisory-item budget
+            // starts at the warnings already recorded above (e.g. the non-canonical-clean
+            // warning) so patches+params+warnings are counted globally, exactly like the
+            // consumer. Programmer defects deliberately propagate so real exporter bugs are not
+            // hidden.
+            m.Patches = BuildPatchInventory(cleanRom, targetRom, options, m.Warnings.Count);
 
             return plan;
         }
@@ -1317,6 +1331,13 @@ namespace FEBuilderGBA
                         targetRom,
                         projectionScratch,
                         options);
+
+                    // RunProjection may have appended a "Source projection refused/error"
+                    // warning AFTER the patch inventory budget above was already reserved
+                    // (Copilot review finding: late warning mutation). Recompute the combined
+                    // total now, before the manifest is first serialized, and degrade the patch
+                    // inventory (never the warnings) if it no longer fits.
+                    EnforceAdvisoryBudgetAfterLateWarnings(plan.Manifest);
                 }
 
                 // Reserve the publish stage only after projection has quiesced and its path has
@@ -1385,6 +1406,11 @@ namespace FEBuilderGBA
                         MarkProjectionMaterializationError(
                             plan.Manifest,
                             materializeError);
+                        // The materialization-error warning just added is ANOTHER late mutation
+                        // relative to the original patch budget reservation; recompute before
+                        // the manifest is rewritten so the published buildfile.json is
+                        // internally consistent (Copilot review finding).
+                        EnforceAdvisoryBudgetAfterLateWarnings(plan.Manifest);
                         RewriteProjectionMetadata(stage, plan.Manifest);
                     }
                 }
@@ -1865,25 +1891,19 @@ namespace FEBuilderGBA
             if (getAttributes == null) throw new ArgumentNullException(nameof(getAttributes));
             error = "";
             bool recursive;
-            try
+            switch (ProbePathAttributes(dir, getAttributes, out FileAttributes attributes, out string probeFault))
             {
-                // If an external projection runner replaced the reserved root with a symlink or
-                // junction, delete only that link. Never recursively traverse an external target.
-                FileAttributes attributes = getAttributes(dir);
-                recursive = (attributes & FileAttributes.ReparsePoint) == 0;
-            }
-            catch (FileNotFoundException)
-            {
-                return VerifyPathAbsent(dir, getAttributes, out error);
-            }
-            catch (DirectoryNotFoundException)
-            {
-                return VerifyPathAbsent(dir, getAttributes, out error);
-            }
-            catch (Exception ex) when (IsExpectedFileSystemException(ex))
-            {
-                error = "could not inspect path before delete '" + dir + "': " + ex.Message;
-                return false;
+                case PathAttributeProbeResult.Absent:
+                    return VerifyPathAbsent(dir, getAttributes, out error);
+                case PathAttributeProbeResult.Unknown:
+                    error = "could not inspect path before delete '" + dir + "': " + probeFault;
+                    return false;
+                default:
+                    // If an external projection runner replaced the reserved root with a symlink
+                    // or junction, delete only that link. Never recursively traverse an external
+                    // target.
+                    recursive = (attributes & FileAttributes.ReparsePoint) == 0;
+                    break;
             }
 
             try
@@ -1908,30 +1928,90 @@ namespace FEBuilderGBA
             return VerifyPathAbsent(dir, getAttributes, out error);
         }
 
-        static bool VerifyPathAbsent(
+        /// <summary>Tri-state outcome of inspecting a path's filesystem attributes.</summary>
+        internal enum PathAttributeProbeResult
+        {
+            /// <summary>The path does not exist (FileNotFoundException/DirectoryNotFoundException).</summary>
+            Absent,
+            /// <summary>Attributes were returned — the path exists (regular file, directory, or reparse point).</summary>
+            Present,
+            /// <summary>
+            /// Inspection faulted on an expected filesystem/access/security/argument exception;
+            /// existence could not be determined either way. Callers MUST fail closed rather
+            /// than infer absence or presence from this outcome.
+            /// </summary>
+            Unknown,
+        }
+
+        /// <summary>
+        /// Shared fail-closed tri-state path-attribute inspector used by every Buildfile staging
+        /// cleanup/collision seam (<see cref="DeleteAndVerifyGone"/>/<see cref="VerifyPathAbsent"/>
+        /// here, and <c>BuildfileBuildCore</c>'s staging delete/collision paths). Deliberately
+        /// narrower than a bare <c>try/catch</c>: only <see cref="FileNotFoundException"/>/
+        /// <see cref="DirectoryNotFoundException"/> mean <see cref="PathAttributeProbeResult.Absent"/>;
+        /// any successfully returned attributes (including a directory or reparse point) mean
+        /// <see cref="PathAttributeProbeResult.Present"/> — <c>File.Exists</c> is never used here
+        /// because it silently reports <c>false</c> for a directory/reparse-point replacement or
+        /// for an inspection fault, which can misclassify a non-file replacement or a permission
+        /// failure as "gone" (Copilot review finding). Any other expected filesystem/access/
+        /// security/argument exception is <see cref="PathAttributeProbeResult.Unknown"/> with the
+        /// exact <paramref name="path"/> and fault detail; unexpected (programmer-defect)
+        /// exceptions are NOT caught here and propagate.
+        /// </summary>
+        internal static PathAttributeProbeResult ProbePathAttributes(
+            string path,
+            Func<string, FileAttributes> getAttributes,
+            out FileAttributes attributes,
+            out string faultDetail)
+        {
+            attributes = default;
+            faultDetail = "";
+            try
+            {
+                attributes = getAttributes(path);
+                return PathAttributeProbeResult.Present;
+            }
+            catch (FileNotFoundException)
+            {
+                return PathAttributeProbeResult.Absent;
+            }
+            catch (DirectoryNotFoundException)
+            {
+                return PathAttributeProbeResult.Absent;
+            }
+            catch (Exception ex) when (IsExpectedFileSystemException(ex))
+            {
+                faultDetail = ex.Message;
+                return PathAttributeProbeResult.Unknown;
+            }
+        }
+
+        /// <summary>
+        /// Verify a path is absent using the shared tri-state <see cref="ProbePathAttributes"/>
+        /// inspector: <see cref="PathAttributeProbeResult.Absent"/> ⇒ <c>true</c>;
+        /// <see cref="PathAttributeProbeResult.Present"/> (a regular file, directory, OR reparse
+        /// point/replacement) ⇒ <c>false</c> with the exact path; an inspection fault
+        /// (<see cref="PathAttributeProbeResult.Unknown"/>) ⇒ <c>false</c> with the exact path
+        /// and fault detail — never reported as success. Internal (not private) so
+        /// <c>BuildfileBuildCore</c>'s staging cleanup can reuse the exact same fail-closed
+        /// contract instead of re-implementing it.
+        /// </summary>
+        internal static bool VerifyPathAbsent(
             string path,
             Func<string, FileAttributes> getAttributes,
             out string error)
         {
-            error = "";
-            try
+            switch (ProbePathAttributes(path, getAttributes, out _, out string faultDetail))
             {
-                getAttributes(path);
-                error = "path still present after delete: '" + path + "'";
-                return false;
-            }
-            catch (FileNotFoundException)
-            {
-                return true;
-            }
-            catch (DirectoryNotFoundException)
-            {
-                return true;
-            }
-            catch (Exception ex) when (IsExpectedFileSystemException(ex))
-            {
-                error = "could not verify path absence '" + path + "': " + ex.Message;
-                return false;
+                case PathAttributeProbeResult.Absent:
+                    error = "";
+                    return true;
+                case PathAttributeProbeResult.Present:
+                    error = "path still present after delete: '" + path + "'";
+                    return false;
+                default:
+                    error = "could not verify path absence '" + path + "': " + faultDetail;
+                    return false;
             }
         }
 
@@ -2104,7 +2184,17 @@ namespace FEBuilderGBA
 
         // -------------------------------------------------------- patch inventory
 
-        static BuildfilePatchInventory BuildPatchInventory(ROM cleanRom, ROM targetRom, BuildfileExportOptions options)
+        // Stable, path-free reason used whenever the advisory patch inventory is degraded to
+        // "unavailable" because it (or the combined patches+params+warnings total) would
+        // exceed the shared BuildfileFormat.MaxAdvisoryItems resource-safety budget. Never the
+        // raw exception message or an absolute path (Copilot review finding pattern). Internal
+        // (not private) so deterministic tests can assert against the EXACT constant rather than
+        // a duplicated string literal that could silently drift from production.
+        internal const string AdvisoryBudgetExceededReason =
+            "advisory patch inventory exceeds the internal item budget; degraded to unavailable";
+
+        static BuildfilePatchInventory BuildPatchInventory(
+            ROM cleanRom, ROM targetRom, BuildfileExportOptions options, int existingAdvisoryItemCount)
         {
             var inv = new BuildfilePatchInventory();
             string baseDir = options.PatchBaseDirectory;
@@ -2118,17 +2208,36 @@ namespace FEBuilderGBA
                 return inv;
             }
 
+            // Bounded producer (Copilot review finding: an unbounded eager Directory.GetFiles
+            // listing plus unbounded per-record raw-parameter reads could materialize far more
+            // advisory data than the consumer will ever accept). Production discovery is a lazy
+            // Directory.EnumerateFiles scan that stops as soon as more than MaxAdvisoryItems
+            // files are seen; an injected test lister's eager array is length-guarded before a
+            // single file is parsed. Per-file metadata scanning is itself bounded/lazy (see
+            // PatchMetadataCore.TryParsePatchFileStrictBounded), so no discovered file is fully
+            // read into memory before its raw-parameter pass is bounded too, and no oversized
+            // metadata file can be accepted as a truncated record.
             List<PatchMetadataCore.PatchInfo> patches;
-            if (!PatchMetadataCore.TryEnumeratePatches(baseDir, targetRom, options.Language ?? "en",
-                    File.ReadAllLines, options.PatchDirectoryListerForTest, out patches, out _))
+            if (!PatchMetadataCore.TryEnumeratePatchesBounded(baseDir, targetRom, options.Language ?? "en",
+                    options.PatchDirectoryListerForTest,
+                    BuildfileFormat.MaxAdvisoryItems, out patches, out _, out bool advisoryLimitExceeded))
             {
-                // Enumeration FAILED (distinct from an empty directory) → unavailable, not
-                // "available with zero entries". The manifest reason is a STABLE, path-free
-                // string: the underlying error may contain the absolute patch base directory
-                // (from the underlying OS exception message) and must never be serialized into
-                // buildfile.json (Copilot review finding: enumError absolute path).
+                // Enumeration FAILED for one of two DISTINCT causes, disambiguated by the typed
+                // `advisoryLimitExceeded` signal rather than string-sniffing the raw error
+                // (Copilot review finding: a cap+1 file-discovery breach must report the SAME
+                // stable AdvisoryBudgetExceededReason as every other advisory-budget breach, not
+                // the generic filesystem-permission reason): a genuine resource-bound breach
+                // (too many patch files or raw metadata lines) uses the shared budget
+                // reason; a real filesystem/access fault (missing/unreadable directory contents,
+                // I/O error, etc. — unrelated to the resource bound) keeps the generic, STABLE,
+                // path-free reason. The underlying error may contain the absolute patch base
+                // directory (from the underlying OS exception message) and must never be
+                // serialized into buildfile.json (Copilot review finding: enumError absolute
+                // path) — neither branch below ever surfaces it.
                 inv.Status = "unavailable";
-                inv.Reason = "patch enumeration failed; check patch library directory permissions";
+                inv.Reason = advisoryLimitExceeded
+                    ? AdvisoryBudgetExceededReason
+                    : "patch enumeration failed; check patch library directory permissions";
                 return inv;
             }
             if (patches.Count == 0)
@@ -2138,7 +2247,15 @@ namespace FEBuilderGBA
                 return inv;
             }
 
-            inv.Status = "available";
+            // Consume each emitted installed/unknown record and all of its raw params from the
+            // SAME shared combined-item budget the consumer enforces, starting at the manifest's
+            // already-existing warning count, BEFORE adding either to the inventory. On any
+            // breach the ENTIRE advisory patch inventory degrades to unavailable — no partial/
+            // truncated installed list is ever kept (Copilot review finding: unbounded
+            // patches.installed + nested params materialization).
+            int advisoryBudget = existingAdvisoryItemCount;
+            var installed = new List<BuildfilePatchRecord>();
+            bool overBudget = false;
             foreach (PatchMetadataCore.PatchInfo p in patches)
             {
                 if (p == null) continue;
@@ -2159,6 +2276,12 @@ namespace FEBuilderGBA
                         continue; // not installed → not part of the ROM
                 }
 
+                if (!BuildfileFormat.TryConsumeAdvisoryItems(ref advisoryBudget, 1))
+                {
+                    overBudget = true;
+                    break;
+                }
+
                 var rec = new BuildfilePatchRecord
                 {
                     Name = !string.IsNullOrEmpty(p.Name) ? p.Name : (p.DirectoryName ?? ""),
@@ -2167,28 +2290,91 @@ namespace FEBuilderGBA
                     Reason = reason,
                 };
                 rec.Path = RelativePatchPath(baseDir, p.PatchFilePath, rec);
-                AppendRawParams(rec, p.PatchFilePath);
-                inv.Installed.Add(rec);
+
+                int remainingBudget = BuildfileFormat.MaxAdvisoryItems - advisoryBudget;
+                if (!TryAppendRawParamsBounded(rec, p.PatchFilePath, remainingBudget, out int consumedParams))
+                {
+                    overBudget = true;
+                    break;
+                }
+                if (!BuildfileFormat.TryConsumeAdvisoryItems(ref advisoryBudget, consumedParams))
+                {
+                    overBudget = true;
+                    break;
+                }
+
+                installed.Add(rec);
             }
 
+            if (overBudget)
+            {
+                inv.Status = "unavailable";
+                inv.Reason = AdvisoryBudgetExceededReason;
+                inv.Installed.Clear();
+                return inv;
+            }
+
+            inv.Status = "available";
             // Deterministic ordering: sort by definition-relative path (ordinal).
-            inv.Installed = inv.Installed
+            inv.Installed = installed
                 .OrderBy(r => r.Path, StringComparer.Ordinal)
                 .ThenBy(r => r.Name, StringComparer.Ordinal)
                 .ToList();
             return inv;
         }
 
-        // Append the raw parameter declarations to a record. Only documented filesystem/access
-        // exceptions are caught; a failure is surfaced in the record reason (never a silent empty
-        // list). Programmer defects propagate.
-        static void AppendRawParams(BuildfilePatchRecord rec, string patchFilePath)
+        /// <summary>
+        /// Recompute the combined advisory item total (patches.installed + nested params +
+        /// warnings) AFTER a projection step may have appended a warning the original
+        /// <see cref="BuildPatchInventory"/> budget reservation could not have accounted for
+        /// (Copilot review finding: late warning mutation after the patch budget was already
+        /// reserved). If the recomputed total still fits, the manifest is left untouched. If it
+        /// no longer fits, the advisory patch inventory (never the warnings themselves) is
+        /// degraded to unavailable so the exported manifest remains consumable — warnings are
+        /// exporter-owned and bounded, and only fail explicitly if THEY ALONE exceed the budget
+        /// (a condition ordinary export flows cannot reach).
+        /// </summary>
+        static void EnforceAdvisoryBudgetAfterLateWarnings(BuildfileManifest m)
         {
-            if (string.IsNullOrEmpty(patchFilePath)) return;
+            int total = 0;
+            if (!BuildfileFormat.TryConsumeAdvisoryItems(ref total, m.Warnings.Count))
+            {
+                throw new InvalidOperationException(
+                    "Internal advisory warnings alone exceed the "
+                    + BuildfileFormat.MaxAdvisoryItems + "-item budget.");
+            }
+
+            if (m.Patches == null || m.Patches.Installed.Count == 0)
+                return;
+
+            int patchItems = 0;
+            foreach (BuildfilePatchRecord rec in m.Patches.Installed)
+                patchItems += 1 + rec.Params.Count;
+
+            if (!BuildfileFormat.TryConsumeAdvisoryItems(ref total, patchItems))
+            {
+                m.Patches.Status = "unavailable";
+                m.Patches.Reason = AdvisoryBudgetExceededReason;
+                m.Patches.Installed.Clear();
+            }
+        }
+
+        // Append the raw parameter declarations to a record, bounded to at most
+        // `maxEntries` params. Only documented filesystem/access exceptions are caught; a read
+        // failure is surfaced in the record reason (never a silent empty list, and never a
+        // budget breach). Programmer defects propagate. Returns false — WITHOUT mutating
+        // `rec.Params` further — the instant the file's params would exceed `maxEntries`; the
+        // caller treats that as an advisory-budget breach for the whole inventory.
+        static bool TryAppendRawParamsBounded(
+            BuildfilePatchRecord rec, string patchFilePath, int maxEntries, out int consumedCount)
+        {
+            consumedCount = 0;
+            if (string.IsNullOrEmpty(patchFilePath)) return true;
             List<PatchMetadataCore.PatchParam> parsed;
+            bool withinBound;
             try
             {
-                parsed = PatchMetadataCore.ParsePatchParams(patchFilePath);
+                withinBound = PatchMetadataCore.TryParsePatchParamsBounded(patchFilePath, maxEntries, out parsed);
             }
             catch (Exception ex) when (IsExpectedFileSystemException(ex))
             {
@@ -2196,14 +2382,17 @@ namespace FEBuilderGBA
                 // and must never be serialized into buildfile.json (Copilot review finding:
                 // per-record raw exception path).
                 rec.Reason += "; raw parameters unavailable";
-                return;
+                return true;
             }
-            if (parsed == null) return;
+            if (!withinBound) return false;
+            if (parsed == null) return true;
             foreach (PatchMetadataCore.PatchParam pp in parsed)
             {
                 if (pp == null) continue;
                 rec.Params.Add(new BuildfilePatchParam { Key = pp.RawKey ?? "", Value = pp.Value ?? "" });
             }
+            consumedCount = rec.Params.Count;
+            return true;
         }
 
         // Compute the patch's definition-relative forward-slash path. A path-format fault is an

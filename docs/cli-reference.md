@@ -257,7 +257,15 @@ slow, or unreadable patch library yields `unavailable` and never aborts the expo
 exists but cannot actually be enumerated — permissions, I/O, path failures — is distinguished from a
 directory that is simply absent, and any enumeration/parameter/relative-path failure is reported in
 the manifest as a stable, fixed, path-free reason string — never the raw exception message or the
-absolute patch library/patch file path). This strict exporter inventory is separate from the legacy
+absolute patch library/patch file path). The advisory patch inventory (every installed/unknown
+record plus its nested raw parameters) and the manifest's `warnings` share ONE internal
+16,384-item resource-safety budget; the exporter is a *bounded producer* — patch-file discovery,
+per-record, and per-parameter counting are all checked against the remaining budget **before**
+anything is materialized, and a warning appended late (e.g. by the optional source projection,
+after the patch inventory budget was already reserved) is re-checked against the same shared
+total. Exceeding the budget at any point degrades the **entire** advisory patch inventory to
+`unavailable` with the same stable, path-free reason — never a partial/truncated installed list,
+and the authoritative recipe/payloads/manifest still export successfully. This strict exporter inventory is separate from the legacy
 Patch Manager/CLI enumeration path, which logs an unreadable individual definition and retains all
 other successfully parsed patches. The optional `source/` projection is a non-composable
 best-effort produced only by the built-in synchronous `RebuildProducerCore` path. It first writes
@@ -391,6 +399,18 @@ The identity recheck detects same-path replacement during reconstruction. As wit
 based desktop tools, a privileged concurrent remap in the narrow interval after the final identity
 check and before the staging-file open is outside this command's guarantee; the publication layer
 still rejects reparse-point parents, destination replacement, and no-replace rename races.
+
+`patches.installed` (with its nested `params` arrays) and `warnings` share the SAME internal
+16,384-item resource-safety budget the exporter uses. Unlike the exporter (which *degrades* an
+oversized patch library to `unavailable`), the consumer treats an over-cap combined total as a
+**structural validation failure**: each array's declared length is checked against the shared
+running budget *before* that array is enumerated, so a hostile or corrupt buildfile.json cannot
+force an unbounded number of advisory records/params/warnings into memory — the build is rejected
+before a single over-budget POCO/list entry is materialized. Staging-file cleanup (after a failed
+publish) and the staging create-collision check never use `File.Exists`, which can silently
+report "gone" for a directory/reparse-point replacement or for an inspection fault; instead a
+shared tri-state attribute inspection classifies each outcome and fails closed, with the exact
+path, whenever existence cannot be positively confirmed.
 
 **Rejections (exit 1, no output):** an unknown command-specific option; missing
 `--clean`/`--project`/`--out`; a `--clean` or `--project` value containing a `..` segment; a
