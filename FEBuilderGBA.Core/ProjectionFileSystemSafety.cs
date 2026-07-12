@@ -106,16 +106,45 @@ namespace FEBuilderGBA
             => TryValidateUnixType(path, DirectoryFileType, "directory", out error);
 
         internal static bool TryValidateRegularFile(string path, out string error)
-            => TryValidateUnixType(path, RegularFileType, "regular file", out error);
+            => TryValidateRegularFile(path, OperatingSystem.IsBrowser(), out error);
+
+        internal static bool TryValidateRegularFile(
+            string path,
+            bool isBrowser,
+            out string error)
+            => TryValidateUnixType(
+                path,
+                RegularFileType,
+                "regular file",
+                isBrowser,
+                out error);
 
         static bool TryValidateUnixType(
             string path,
             int expectedType,
             string expectedDescription,
             out string error)
+            => TryValidateUnixType(
+                path,
+                expectedType,
+                expectedDescription,
+                OperatingSystem.IsBrowser(),
+                out error);
+
+        static bool TryValidateUnixType(
+            string path,
+            int expectedType,
+            string expectedDescription,
+            bool isBrowser,
+            out string error)
         {
             error = "";
-            if (OperatingSystem.IsWindows() || OperatingSystem.IsBrowser())
+            if (isBrowser)
+            {
+                error = "native file-type inspection is unavailable on Browser";
+                return false;
+            }
+            if (OperatingSystem.IsWindows())
                 return true;
 
             if (!OperatingSystem.IsLinux()
@@ -146,9 +175,17 @@ namespace FEBuilderGBA
         /// as a regular disk file before returning a readable stream that owns the handle.
         /// </summary>
         public static FileStream OpenRegularFileForRead(string path)
+            => OpenRegularFileForRead(path, OperatingSystem.IsBrowser());
+
+        internal static FileStream OpenRegularFileForRead(string path, bool isBrowser)
         {
             if (string.IsNullOrEmpty(path))
                 throw new ArgumentException("Path is empty.", nameof(path));
+            if (isBrowser)
+            {
+                throw new PlatformNotSupportedException(
+                    "Exact regular-file validation is unavailable on Browser.");
+            }
 
             if (OperatingSystem.IsWindows())
                 return OpenRegularWindows(path);
@@ -157,12 +194,6 @@ namespace FEBuilderGBA
                 || OperatingSystem.IsMacCatalyst())
             {
                 return OpenRegularUnix(path);
-            }
-            if (OperatingSystem.IsBrowser())
-            {
-                if (!TryValidateRegularFile(path, out string browserError))
-                    throw new IOException(browserError);
-                return new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
             }
 
             throw new PlatformNotSupportedException(

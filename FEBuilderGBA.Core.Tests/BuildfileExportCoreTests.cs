@@ -1036,6 +1036,28 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains("regular file", error.Message);
         }
 
+        [Fact]
+        public void OpenRegularFileForRead_BrowserFailsClosedBeforePathAccess()
+        {
+            string path = Path.Combine(
+                Path.GetTempPath(),
+                "bfx_browser_" + Guid.NewGuid().ToString("N") + ".gba");
+
+            Assert.False(ProjectionFileSystemSafety.TryValidateRegularFile(
+                path,
+                isBrowser: true,
+                out string validationError));
+            Assert.Contains("Browser", validationError);
+
+            PlatformNotSupportedException openError =
+                Assert.Throws<PlatformNotSupportedException>(() =>
+                    ProjectionFileSystemSafety.OpenRegularFileForRead(
+                        path,
+                        isBrowser: true));
+            Assert.Contains("Browser", openError.Message);
+            Assert.False(File.Exists(path));
+        }
+
         [SkippableFact]
         public void Export_ProjectionFileReplacedWithFifoBeforeOpen_IsRejectedWithoutBlocking()
         {
