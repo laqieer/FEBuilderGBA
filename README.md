@@ -111,15 +111,16 @@ dotnet run --project FEBuilderGBA.CLI -- --pointercalc --rom=source.gba --target
 dotnet run --project FEBuilderGBA.CLI -- --rebuild --rom=modified.gba --fromrom=vanilla.gba
 dotnet run --project FEBuilderGBA.CLI -- --export-buildfile --rom=modified.gba --clean=original.gba --out=project/
 # buildfile.json + data/ are authoritative; derived main.event is real-toolchain tested when bundled EA is available.
+# main.event emits ColorzCore's FILL Amount Size Value form with byte-sized fills (size 1).
 # Each range's gbaAddress is always 0x08000000 + offset, including header offsets 0 and 1.
 # ROM inputs are opened no-follow, identity-compared, bounded, and read through exact handles.
 # --with-source captures a bounded handle-relative snapshot, then creates a fresh private source/.
-# Projection scratch is deleted before the atomic publish stage exists; hard links are never published.
+# Projection scratch is deleted before the stage exists; test-mutated source candidates are rematerialized.
 # Stage/scratch names use a bounded stable hash and are atomically reserved; collisions are never reused.
 # Final publication is an atomic no-replace rename; a race-created destination is never replaced.
 # On Windows, use standard drive/UNC paths; device namespaces (\\?\, \\.\, and \??\) are rejected.
 # ROM aliases retain platform-accurate link semantics; Windows long paths keep handle-level identity checks.
-# Windows aliases use 128-bit file identity with a FAT/exFAT-compatible 64-bit fallback.
+# Windows paths and exact opened handles use 128-bit file identity with a capability-only 64-bit fallback.
 dotnet run --project FEBuilderGBA.CLI -- --songexchange --rom=dest.gba --fromrom=source.gba --fromsong=1 --tosong=2
 dotnet run --project FEBuilderGBA.CLI -- --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin --outPal=palette.bin --json
 dotnet run --project FEBuilderGBA.CLI -- --translate --rom=rom.gba --out=texts.tsv
