@@ -234,8 +234,23 @@ namespace FEBuilderGBA
         /// <see cref="Directory.EnumerateFiles(string,string,SearchOption)"/> and stops the
         /// instant more than <paramref name="maxFiles"/> entries have been seen — a pathological
         /// directory can never force an unbounded eager array into memory before the bound is
-        /// even checked. Expected filesystem faults raised DURING lazy iteration (not only at
-        /// enumerable creation) are caught exactly like the eager path.</item>
+        /// even checked. Because the enumerable is LAZY, a missing <paramref name="patchBaseDir"/>
+        /// does not throw at the point <see cref="Directory.EnumerateFiles(string,string,SearchOption)"/>
+        /// is called — <see cref="DirectoryNotFoundException"/> only surfaces once iteration
+        /// actually begins (#1936 Finding A correction). A dedicated catch around that iteration
+        /// therefore resolves a missing directory to the SAME successful-empty result
+        /// (<paramref name="patches"/> empty, <paramref name="error"/> empty,
+        /// <paramref name="limitExceeded"/> <c>false</c>) as the eager/injected-lister branch
+        /// below and the unbounded <see cref="TryEnumeratePatches(string,ROM,string,Func{string,string[]},Func{string,string[]},out List{PatchInfo},out string)"/>
+        /// path already provide — never the generic degraded-failure outcome a broad
+        /// <see cref="IOException"/> catch alone would produce (since
+        /// <see cref="DirectoryNotFoundException"/> is itself an <see cref="IOException"/>
+        /// subclass and would otherwise be caught first by that broad clause). Every OTHER
+        /// expected filesystem fault raised DURING lazy iteration (not only at enumerable
+        /// creation) is still caught exactly like the eager path and degrades the whole
+        /// inventory. A directory that DISAPPEARS again later, after per-file metadata parsing
+        /// has begun, is unaffected by this correction and remains a failure/unavailable result
+        /// by the existing baseline contract.</item>
         /// <item>An injected test lister still returns an eager array, but its LENGTH is checked
         /// against the bound BEFORE a single patch file is parsed, so a deterministic
         /// fault-injection test can prove the over-budget rejection without needing a lazy
@@ -338,6 +353,21 @@ namespace FEBuilderGBA
                         }
                         discovered.Add(file);
                     }
+                }
+                catch (DirectoryNotFoundException)
+                {
+                    // #1936 Finding A: Directory.EnumerateFiles is LAZY — it does not touch the
+                    // filesystem (and so cannot throw) at the `lazy = Directory.EnumerateFiles(...)`
+                    // call site above; a missing patchBaseDir only surfaces
+                    // DirectoryNotFoundException here, at the first MoveNext() inside this
+                    // foreach. This dedicated catch — placed BEFORE the broad expected-fault
+                    // catch below, so it is never shadowed by `ex is IOException` — restores the
+                    // same "missing patch directory resolves to successful-empty" contract the
+                    // eager/injected-lister branch above (and the unbounded TryEnumeratePatches
+                    // path) already honors. No discovered entries are parsed on this path:
+                    // discovery always finishes (successfully or not) before the per-file
+                    // metadata-parsing loop below ever begins.
+                    return true;
                 }
                 catch (Exception ex) when (IsExpectedFileSystemException(ex))
                 {

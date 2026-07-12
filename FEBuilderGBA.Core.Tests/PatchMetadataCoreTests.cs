@@ -1586,6 +1586,46 @@ namespace FEBuilderGBA.Core.Tests
             finally { Directory.Delete(tempDir, true); }
         }
 
+        [Fact]
+        public void TryEnumeratePatchesBounded_ProductionLazyPath_MissingPatchRoot_SucceedsEmpty()
+        {
+            // #1936 Finding A: the PRODUCTION discovery path (listPatchFiles: null) uses LAZY
+            // Directory.EnumerateFiles, which does not touch the filesystem — and so cannot
+            // throw — at the point it is called; a missing patchBaseDir only raises
+            // DirectoryNotFoundException once the internal foreach actually begins iterating.
+            // Before the fix, that exception fell through to the broad
+            // `catch (Exception ex) when (IsExpectedFileSystemException(ex))` clause (since
+            // DirectoryNotFoundException IS an IOException) and was reported as a real failure.
+            // A definitely nonexistent patch root must instead resolve to the SAME
+            // successful-empty contract the eager/injected-lister branch and the unbounded
+            // TryEnumeratePatches path already honor: true, empty patches, empty error,
+            // limitExceeded false — proven here with listPatchFiles left null so PRODUCTION
+            // lazy discovery (not an injected test double) is what actually runs.
+            string missingRoot = Path.Combine(
+                Path.GetTempPath(), "PatchBoundedMissingRoot_" + Guid.NewGuid().ToString("N"));
+            // Deliberately do NOT create missingRoot.
+            Assert.False(Directory.Exists(missingRoot));
+
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(new byte[0x100]);
+
+            bool success = PatchMetadataCore.TryEnumeratePatchesBounded(
+                missingRoot,
+                rom,
+                "en",
+                listPatchFiles: null,
+                maxFiles: 16384,
+                maxAggregateBytes: PatchMetadataCore.MaxMetadataAggregateBytes,
+                out var patches,
+                out string error,
+                out bool limitExceeded);
+
+            Assert.True(success);
+            Assert.Empty(patches);
+            Assert.Equal("", error);
+            Assert.False(limitExceeded);
+        }
+
         // ---- #1965: shared byte-first helper (TryReadBoundedFileLines) unit coverage ----
 
         static string WriteBytes(string dir, string name, byte[] data)

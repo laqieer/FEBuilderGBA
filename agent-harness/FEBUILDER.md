@@ -33,7 +33,7 @@ Python CLI Harness (cli-anything-febuildergba)
 
 The Python harness (`cli_anything/febuildergba/febuildergba_cli.py`) exposes its surface as six
 **Click command groups** (each with subcommands) plus a set of **standalone top-level commands**.
-These harness commands are a *subset* of the backend's ~68 `FEBuilderGBA.CLI` verbs — see the
+These harness commands are a *subset* of the backend's ~70 `FEBuilderGBA.CLI` verbs — see the
 Coverage note below.
 
 ### Command groups
@@ -65,7 +65,7 @@ Coverage note below.
 
 > A hidden interactive `repl` command also exists (not part of the normal command surface).
 >
-> **Coverage:** the harness currently wraps roughly a third of the backend's ~68
+> **Coverage:** the harness currently wraps roughly a third of the backend's ~70
 > `FEBuilderGBA.CLI` verbs — the harness Click commands above are a subset of the full CLI
 > ([`docs/cli-reference.md`](../docs/cli-reference.md)). Closing that harness↔CLI coverage gap is
 > tracked in [#1933](https://github.com/laqieer/FEBuilderGBA/issues/1933).
