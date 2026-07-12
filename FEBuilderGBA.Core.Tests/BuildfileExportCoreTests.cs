@@ -1973,6 +1973,41 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(result);
             Assert.Contains("could not inspect path before delete", error);
             Assert.Contains("denied", error);
+            Assert.Contains("blocked", error);
+        }
+
+        [Fact]
+        public void DeleteAndVerifyGone_DeleteThrows_FailsClosed_WithReasonAndPath()
+        {
+            bool result = BuildfileExportCore.DeleteAndVerifyGone(
+                "toxic-dir",
+                (_, _) => throw new IOException("disk full"),
+                _ => FileAttributes.Directory,
+                out string error);
+
+            Assert.False(result);
+            Assert.Contains("could not delete path", error);
+            Assert.Contains("disk full", error);
+            Assert.Contains("toxic-dir", error);
+        }
+
+        [Fact]
+        public void DeleteAndVerifyGone_PostDeleteVerificationThrows_FailsClosed_WithReasonAndPath()
+        {
+            bool deleted = false;
+
+            bool result = BuildfileExportCore.DeleteAndVerifyGone(
+                "verify-dir",
+                (_, _) => { deleted = true; },
+                _ => deleted
+                    ? throw new UnauthorizedAccessException("locked")
+                    : FileAttributes.Directory,
+                out string error);
+
+            Assert.False(result);
+            Assert.Contains("could not verify path absence", error);
+            Assert.Contains("locked", error);
+            Assert.Contains("verify-dir", error);
         }
 
         [Fact]
@@ -2008,7 +2043,8 @@ namespace FEBuilderGBA.Core.Tests
                 out string error);
 
             Assert.False(result);
-            Assert.Equal("path still present after delete", error);
+            Assert.Contains("path still present after delete", error);
+            Assert.Contains("replaced", error);
         }
 
         [SkippableFact]

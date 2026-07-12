@@ -571,9 +571,25 @@ namespace FEBuilderGBA.CLI
             string scratchParent,
             BuildfileRoundTripOperations operations,
             out string error)
-            => operations?.DeleteScratch != null
+        {
+            bool ok = operations?.DeleteScratch != null
                 ? operations.DeleteScratch(scratchParent, out error)
                 : BuildfileBuildCore.DeleteTreeAndVerifyGone(scratchParent, out error);
+
+            // On cleanup failure, guarantee the residual scratch path is present in `error` for
+            // the CLI's exit-1 diagnostic — but never duplicate it if the underlying delegate
+            // (e.g. BuildfileBuildCore.DeleteTreeAndVerifyGone -> BuildfileExportCore's
+            // DeleteAndVerifyGone/VerifyPathAbsent) already embedded it.
+            if (!ok && !string.IsNullOrEmpty(scratchParent)
+                && (string.IsNullOrEmpty(error)
+                    || !error.Contains(scratchParent, StringComparison.Ordinal)))
+            {
+                error = string.IsNullOrEmpty(error)
+                    ? "residual scratch path: " + scratchParent
+                    : error + " (residual scratch path: " + scratchParent + ")";
+            }
+            return ok;
+        }
 
         static void CleanupRoundTripScratch(
             string scratchParent,

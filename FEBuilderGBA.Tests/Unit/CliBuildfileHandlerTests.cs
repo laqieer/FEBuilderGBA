@@ -158,6 +158,7 @@ namespace FEBuilderGBA.Tests.Unit
         [Fact]
         public void RoundTrip_ScratchCleanupFailure_MapsToExit1()
         {
+            string capturedScratchPath = null;
             var ops = new BuildfileRoundTripOperations
             {
                 Export = (clean, target, outDir) =>
@@ -170,6 +171,7 @@ namespace FEBuilderGBA.Tests.Unit
                 },
                 DeleteScratch = (string path, out string error) =>
                 {
+                    capturedScratchPath = path;
                     BuildfileBuildCore.DeleteTreeAndVerifyGone(path, out _);
                     error = "injected cleanup verification failure";
                     return false;
@@ -185,8 +187,59 @@ namespace FEBuilderGBA.Tests.Unit
                 new StringWriter(),
                 errWriter);
 
+            string stderr = errWriter.ToString();
             Assert.Equal(1, code);
-            Assert.Contains("cleanup incomplete", errWriter.ToString(), StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("cleanup incomplete", stderr, StringComparison.OrdinalIgnoreCase);
+            Assert.NotNull(capturedScratchPath);
+            Assert.Contains(capturedScratchPath, stderr, StringComparison.Ordinal);
+            Assert.Equal(
+                1,
+                stderr.Split(capturedScratchPath, StringSplitOptions.None).Length - 1);
+        }
+
+        [Fact]
+        public void RoundTrip_ScratchCleanupFailure_WithPath_DoesNotDuplicateResidualPath()
+        {
+            string capturedScratchPath = null;
+            var ops = new BuildfileRoundTripOperations
+            {
+                Export = (clean, target, outDir) =>
+                    new BuildfileExportResult { Success = true, PublishedPath = outDir },
+                Reconstruct = (clean, projectDir) => new BuildfileBuildResult
+                {
+                    Success = true,
+                    TargetBytes = new byte[] { 1, 2, 3 },
+                    TargetIdentityMatches = true,
+                },
+                DeleteScratch = (string path, out string error) =>
+                {
+                    capturedScratchPath = path;
+                    BuildfileBuildCore.DeleteTreeAndVerifyGone(path, out _);
+                    error = "injected cleanup verification failure at '" + path + "'";
+                    return false;
+                },
+            };
+
+            var errWriter = new StringWriter();
+            int code = CliProgram.RunBuildfileRoundTrip(
+                new ROM(),
+                new ROM(),
+                new byte[] { 1, 2, 3 },
+                ops,
+                new StringWriter(),
+                errWriter);
+
+            string stderr = errWriter.ToString();
+            Assert.Equal(1, code);
+            Assert.Contains("cleanup incomplete", stderr, StringComparison.OrdinalIgnoreCase);
+            Assert.NotNull(capturedScratchPath);
+            Assert.Equal(
+                1,
+                stderr.Split(capturedScratchPath, StringSplitOptions.None).Length - 1);
+            Assert.DoesNotContain(
+                "residual scratch path:",
+                stderr,
+                StringComparison.OrdinalIgnoreCase);
         }
 
         [Fact]

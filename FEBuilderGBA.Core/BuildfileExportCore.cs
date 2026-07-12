@@ -1882,7 +1882,7 @@ namespace FEBuilderGBA
             }
             catch (Exception ex) when (IsExpectedFileSystemException(ex))
             {
-                error = "could not inspect path before delete: " + ex.Message;
+                error = "could not inspect path before delete '" + dir + "': " + ex.Message;
                 return false;
             }
 
@@ -1902,7 +1902,7 @@ namespace FEBuilderGBA
             {
                 // Only expected filesystem/access faults are cleanup detail; a programmer defect
                 // during cleanup propagates rather than being recorded as pass/fail data.
-                error = ex.Message;
+                error = "could not delete path '" + dir + "': " + ex.Message;
                 return false;
             }
             return VerifyPathAbsent(dir, getAttributes, out error);
@@ -1917,7 +1917,7 @@ namespace FEBuilderGBA
             try
             {
                 getAttributes(path);
-                error = "path still present after delete";
+                error = "path still present after delete: '" + path + "'";
                 return false;
             }
             catch (FileNotFoundException)
@@ -1930,7 +1930,7 @@ namespace FEBuilderGBA
             }
             catch (Exception ex) when (IsExpectedFileSystemException(ex))
             {
-                error = "could not verify path absence: " + ex.Message;
+                error = "could not verify path absence '" + path + "': " + ex.Message;
                 return false;
             }
         }
