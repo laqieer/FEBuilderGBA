@@ -170,8 +170,9 @@ the "### Graphics System" overview in `CLAUDE.md`.
   the export fails; unsupported native entry points fail closed.
   Projection implementation note (superseding the legacy move/in-place-sanitize description in the
   long entry above): production `--with-source` has no public arbitrary-runner hook. The built-in
-  synchronous projector finishes in a private scratch while no publish stage exists. The exporter
-  captures that tree handle-relatively into bounded managed memory, sanitizes valid UTF-8 text,
+  synchronous projector finishes in a private scratch while no publish stage exists. Manifest
+  parsing uses the snapshot byte ceiling and opens referenced sidecars without pre-reading their
+  bodies. The exporter captures that tree handle-relatively into bounded managed memory, sanitizes valid UTF-8 text,
   deletes/verifies scratch absence, and only then reserves the private stage. A fresh `source/` is
   materialized from the immutable snapshot immediately before the no-replace publish; no
   runner-owned inode or hard link enters the stage. The internal source-swap fault seam validates

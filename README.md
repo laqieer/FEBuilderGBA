@@ -114,7 +114,7 @@ dotnet run --project FEBuilderGBA.CLI -- --export-buildfile --rom=modified.gba -
 # main.event emits ColorzCore's byte-wise FILL Amount Value form.
 # Each range's gbaAddress is always 0x08000000 + offset, including header offsets 0 and 1.
 # ROM inputs are opened no-follow, identity-compared, bounded, and read through exact handles.
-# --with-source captures a bounded handle-relative snapshot, then creates a fresh private source/.
+# --with-source bounds manifest parsing, defers sidecar reads to a bounded handle-relative snapshot, then creates source/.
 # Projection scratch is deleted before the stage exists; test-mutated source candidates are rematerialized.
 # Stage/scratch names use a bounded stable hash and are atomically reserved; collisions are never reused.
 # Final publication is an atomic no-replace rename; a race-created destination is never replaced.
