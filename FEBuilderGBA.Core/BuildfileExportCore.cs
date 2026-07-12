@@ -92,8 +92,8 @@ namespace FEBuilderGBA
     /// Comparison is OS-appropriate: case-insensitive on Windows/macOS (conservative — per-volume
     /// case sensitivity is not probed), case-sensitive elsewhere. Windows additionally compares
     /// the volume serial + 128-bit file ID, catching hard links, local UNC aliases, and mounted
-    /// drive aliases that cannot be collapsed lexically. Hard-link identity remains out of scope
-    /// on other platforms.
+    /// drive aliases that cannot be collapsed lexically. Final opened-handle identity checks also
+    /// reject hard-link aliases on Unix via device/inode comparison.
     /// </summary>
     public static class BuildfilePathSafety
     {
@@ -677,6 +677,9 @@ namespace FEBuilderGBA
         /// <summary>Internal projection snapshot byte-limit override for bounded tests.</summary>
         internal long? ProjectionSnapshotMaxBytesForTest { get; set; }
 
+        /// <summary>Internal projection text-file byte-limit override for bounded tests.</summary>
+        internal long? ProjectionTextFileMaxBytesForTest { get; set; }
+
         /// <summary>Internal failure injection for unsafe materialized-source cleanup.</summary>
         internal Func<string, bool> UnsafeMovedProjectionCleanupForTest { get; set; }
 
@@ -696,6 +699,9 @@ namespace FEBuilderGBA
 
         /// <summary>Maximum total bytes captured from an advisory projection (256 MiB).</summary>
         public const long MaxProjectionSnapshotBytes = 256L * 1024 * 1024;
+
+        /// <summary>Maximum bytes accepted from one projection text file (16 MiB).</summary>
+        public const long MaxProjectionTextFileBytes = 16L * 1024 * 1024;
     }
 
     /// <summary>Result of an export attempt.</summary>
@@ -1417,6 +1423,10 @@ namespace FEBuilderGBA
         {
             long maxBytes = options.ProjectionSnapshotMaxBytesForTest
                 ?? BuildfileExportOptions.MaxProjectionSnapshotBytes;
+            int maxEntries = options.ProjectionSnapshotMaxEntriesForTest
+                ?? BuildfileExportOptions.MaxProjectionSnapshotEntries;
+            long maxTextFileBytes = options.ProjectionTextFileMaxBytesForTest
+                ?? BuildfileExportOptions.MaxProjectionTextFileBytes;
             BuildfileProjectionRunner runner = options.ProjectionRunner;
             if (runner == null && options.IncludeSourceProjection)
             {
@@ -1425,6 +1435,8 @@ namespace FEBuilderGBA
                     targetRom,
                     path,
                     maxBytes,
+                    maxEntries,
+                    maxTextFileBytes,
                     options.BuiltInProjectionProducerForTest);
             }
             if (runner == null)
@@ -1457,16 +1469,19 @@ namespace FEBuilderGBA
             ProjectionTreeSnapshot snapshot = null;
             if (outcome.Status == BuildfileProjectionStatus.Success)
             {
-                int maxEntries = options.ProjectionSnapshotMaxEntriesForTest
-                    ?? BuildfileExportOptions.MaxProjectionSnapshotEntries;
                 try
                 {
                     snapshot = ProjectionTreeSnapshotReader.Capture(
                         scratch,
                         maxEntries,
                         maxBytes,
+                        maxTextFileBytes,
                         options.BeforeProjectionFileOpenForTest);
-                    SanitizeProjectionSnapshot(snapshot, scratch, maxBytes);
+                    SanitizeProjectionSnapshot(
+                        snapshot,
+                        scratch,
+                        maxBytes,
+                        maxTextFileBytes);
                 }
                 catch (Exception ex) when (IsExpectedFileSystemException(ex))
                 {
@@ -1515,6 +1530,8 @@ namespace FEBuilderGBA
             ROM targetRom,
             string scratch,
             long maxProjectionBytes,
+            int maxProjectionEntries,
+            long maxProjectionTextFileBytes,
             Action<ROM, ROM, uint, string> producerForTest)
         {
             try
@@ -1538,7 +1555,8 @@ namespace FEBuilderGBA
                 RebuildMakeCore.ValidateProjectionOutput(
                     manifestPath,
                     File.GetAttributes,
-                    maxProjectionBytes);
+                    Math.Min(maxProjectionBytes, maxProjectionTextFileBytes),
+                    maxProjectionEntries);
                 return BuildfileProjectionOutcome.Ok();
             }
             catch (InvalidOperationException ex)
@@ -1554,24 +1572,23 @@ namespace FEBuilderGBA
         static void SanitizeProjectionSnapshot(
             ProjectionTreeSnapshot snapshot,
             string scratch,
-            long maxBytes)
+            long maxBytes,
+            long maxTextFileBytes)
         {
             long totalBytes = 0;
             foreach (ProjectionTreeSnapshotFile file in snapshot.Files)
             {
-                if (IsProjectionTextFile(file.RelativePath))
+                if (ProjectionTextEncoding.IsTextFile(file.RelativePath))
                 {
+                    if (file.Data.LongLength > maxTextFileBytes)
+                    {
+                        throw new IOException(
+                            "Projection text file exceeds the "
+                            + maxTextFileBytes + "-byte text-file limit.");
+                    }
                     try
                     {
-                        string text;
-                        using (var input = new MemoryStream(file.Data, writable: false))
-                        using (var reader = new StreamReader(
-                            input,
-                            new UTF8Encoding(false, true),
-                            detectEncodingFromByteOrderMarks: true))
-                        {
-                            text = reader.ReadToEnd();
-                        }
+                        string text = ProjectionTextEncoding.DecodeStrictUtf8(file.Data);
                         string sanitized = NormalizeLf(SanitizeScratchPath(text, scratch));
                         file.Data = new UTF8Encoding(false).GetBytes(sanitized);
                     }
@@ -1837,26 +1854,6 @@ namespace FEBuilderGBA
             {
                 error = "could not verify path absence: " + ex.Message;
                 return false;
-            }
-        }
-
-        static bool IsProjectionTextFile(string path)
-        {
-            switch (Path.GetExtension(path).ToLowerInvariant())
-            {
-                case ".rebuild":
-                case ".event":
-                case ".txt":
-                case ".s":
-                case ".asm":
-                case ".json":
-                case ".md":
-                case ".inc":
-                case ".c":
-                case ".h":
-                    return true;
-                default:
-                    return false;
             }
         }
 

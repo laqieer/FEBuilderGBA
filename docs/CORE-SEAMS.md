@@ -171,8 +171,11 @@ the "### Graphics System" overview in `CLAUDE.md`.
   Projection implementation note (superseding the legacy move/in-place-sanitize description in the
   long entry above): production `--with-source` has no public arbitrary-runner hook. The built-in
   synchronous projector finishes in a private scratch while no publish stage exists. Manifest
-  parsing uses the snapshot byte ceiling and opens referenced sidecars without pre-reading their
-  bodies. The exporter captures that tree handle-relatively into bounded managed memory, sanitizes valid UTF-8 text,
+  parsing uses the 16 MiB projection-text ceiling, caps sidecar directives at the 32,768-entry
+  ceiling, bounds line count/length, and opens referenced sidecars without pre-reading their
+  bodies. The exporter captures that tree handle-relatively into bounded managed memory, rejects
+  any individual text file above 16 MiB before allocation, and sanitizes strict UTF-8 text only
+  (a UTF-8 BOM is accepted and removed; UTF-16/32 BOMs are rejected),
   deletes/verifies scratch absence, and only then reserves the private stage. A fresh `source/` is
   materialized from the immutable snapshot immediately before the no-replace publish; no
   runner-owned inode or hard link enters the stage. The internal source-swap fault seam validates

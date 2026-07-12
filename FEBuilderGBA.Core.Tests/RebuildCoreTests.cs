@@ -421,6 +421,100 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void ValidateProjectionOutput_RejectsExcessiveSidecarDirectivesBeforeNextOpen()
+        {
+            using (var tmp = new TempDir())
+            {
+                string sidecarDir = Path.Combine(tmp.Path, "rebuild_bin");
+                Directory.CreateDirectory(sidecarDir);
+                string sidecarPath = Path.Combine(sidecarDir, "data.bin");
+                File.WriteAllBytes(sidecarPath, new byte[] { 1 });
+                string relativePath = "rebuild_bin" + Path.DirectorySeparatorChar + "data.bin";
+                string manifestPath = Path.Combine(tmp.Path, "rom.rebuild");
+                File.WriteAllText(manifestPath,
+                    "@_CRC32 12345678\n"
+                    + "@_REBUILDADDRESS 00100000\n"
+                    + "@BIN 00100000 " + relativePath + "\n"
+                    + "@BIN 00100001 " + relativePath + "\n"
+                    + "@BIN 00100002 " + relativePath + "\n");
+                int sidecarOpenCount = 0;
+
+                InvalidDataException ex = Assert.Throws<InvalidDataException>(() =>
+                    RebuildMakeCore.ValidateProjectionOutput(
+                        manifestPath,
+                        File.GetAttributes,
+                        path =>
+                        {
+                            if (BuildfilePathSafety.PathsEqual(path, sidecarPath))
+                                sidecarOpenCount++;
+                            return ProjectionFileSystemSafety.OpenRegularFileForRead(path);
+                        },
+                        1024,
+                        2));
+
+                Assert.Equal(
+                    "Rebuild projection manifest exceeds the 2-sidecar directive limit.",
+                    ex.Message);
+                Assert.Equal(2, sidecarOpenCount);
+            }
+        }
+
+        [Fact]
+        public void ValidateProjectionOutput_RejectsExcessiveManifestLinesBeforeParsing()
+        {
+            using (var tmp = new TempDir())
+            {
+                const int maxSidecarDirectives = 1;
+                int maxLines = RebuildMakeCore.GetProjectionManifestLineLimit(
+                    maxSidecarDirectives);
+                var manifest = new StringBuilder();
+                manifest.AppendLine("@_CRC32 12345678");
+                manifest.AppendLine("@_REBUILDADDRESS 00100000");
+                for (int i = 0; i < maxLines - 1; i++)
+                    manifest.AppendLine("#");
+                string manifestPath = Path.Combine(tmp.Path, "rom.rebuild");
+                File.WriteAllText(manifestPath, manifest.ToString());
+
+                InvalidDataException ex = Assert.Throws<InvalidDataException>(() =>
+                    RebuildMakeCore.ValidateProjectionOutput(
+                        manifestPath,
+                        File.GetAttributes,
+                        ProjectionFileSystemSafety.OpenRegularFileForRead,
+                        1024 * 1024,
+                        maxSidecarDirectives));
+
+                Assert.Equal(
+                    "Rebuild projection manifest exceeds the "
+                    + maxLines + "-line validation limit.",
+                    ex.Message);
+            }
+        }
+
+        [Fact]
+        public void ValidateProjectionOutput_RejectsUtf16BomManifest()
+        {
+            using (var tmp = new TempDir())
+            {
+                string manifestPath = Path.Combine(tmp.Path, "rom.rebuild");
+                byte[] text = Encoding.Unicode.GetBytes(
+                    "@_CRC32 12345678\n"
+                    + "@_REBUILDADDRESS 00100000\n");
+                var data = new byte[text.Length + 2];
+                data[0] = 0xFF;
+                data[1] = 0xFE;
+                Array.Copy(text, 0, data, 2, text.Length);
+                File.WriteAllBytes(manifestPath, data);
+
+                InvalidDataException ex = Assert.Throws<InvalidDataException>(() =>
+                    RebuildMakeCore.ValidateProjectionOutput(manifestPath));
+
+                Assert.Equal(
+                    "rebuild manifest is not valid UTF-8.",
+                    ex.Message);
+            }
+        }
+
+        [Fact]
         public void ValidateProjectionOutput_RejectsManifestThatShrinksWhileRead()
         {
             AssertManifestLengthChangeRejected(actualLengthDelta: -1);

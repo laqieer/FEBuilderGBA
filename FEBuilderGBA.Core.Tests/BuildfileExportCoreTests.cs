@@ -896,6 +896,88 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void Export_BuiltInProjection_PropagatesEntryLimitToManifestValidation()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x2000] = 0x75;
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                var result = BuildfileExportCore.Export(
+                    MakeRom(clean),
+                    MakeRom(target),
+                    new BuildfileExportOptions
+                    {
+                        OutputDirectory = outDir,
+                        IncludeSourceProjection = true,
+                        ProjectionSnapshotMaxEntriesForTest = 1,
+                        BuiltInProjectionProducerForTest = (_, _, _, manifestPath) =>
+                        {
+                            string sidecarDir = Path.Combine(
+                                Path.GetDirectoryName(manifestPath),
+                                "rebuild_bin");
+                            Directory.CreateDirectory(sidecarDir);
+                            File.WriteAllBytes(
+                                Path.Combine(sidecarDir, "data.bin"),
+                                new byte[] { 1 });
+                            File.WriteAllText(
+                                manifestPath,
+                                "@_CRC32 12345678\n"
+                                + "@_REBUILDADDRESS 00100000\n"
+                                + "@BIN 00100000 rebuild_bin"
+                                + Path.DirectorySeparatorChar + "data.bin\n"
+                                + "@BIN 00100001 rebuild_bin"
+                                + Path.DirectorySeparatorChar + "data.bin\n");
+                        },
+                    });
+
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("error", result.Manifest.Projection.Status);
+                Assert.Contains(
+                    "1-sidecar directive limit",
+                    result.Manifest.Projection.Reason);
+                Assert.False(Directory.Exists(Path.Combine(outDir, "source")));
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [Fact]
+        public void Export_ProjectionSnapshot_TextFileLimitFailsBeforeSanitization()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x2000] = 0x76;
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                var result = BuildfileExportCore.Export(
+                    MakeRom(clean),
+                    MakeRom(target),
+                    new BuildfileExportOptions
+                    {
+                        OutputDirectory = outDir,
+                        ProjectionTextFileMaxBytesForTest = 4,
+                        ProjectionRunner = scratch =>
+                        {
+                            File.WriteAllText(Path.Combine(scratch, "too-large.txt"), "12345");
+                            return BuildfileProjectionOutcome.Ok();
+                        },
+                    });
+
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("error", result.Manifest.Projection.Status);
+                Assert.Contains(
+                    "4-byte text-file limit",
+                    result.Manifest.Projection.Reason);
+                Assert.False(Directory.Exists(Path.Combine(outDir, "source")));
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [Fact]
         public void Export_ProjectionSnapshot_InvalidUtf8TextIsAdvisoryError()
         {
             var clean = new byte[RomSize];
@@ -924,6 +1006,78 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal("error", result.Manifest.Projection.Status);
                 Assert.Contains("not valid UTF-8", result.Manifest.Projection.Reason);
                 Assert.False(Directory.Exists(Path.Combine(outDir, "source")));
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [Fact]
+        public void Export_ProjectionSnapshot_Utf16BomTextIsAdvisoryError()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x2000] = 0x77;
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                var result = BuildfileExportCore.Export(
+                    MakeRom(clean),
+                    MakeRom(target),
+                    new BuildfileExportOptions
+                    {
+                        OutputDirectory = outDir,
+                        ProjectionRunner = scratch =>
+                        {
+                            File.WriteAllBytes(
+                                Path.Combine(scratch, "utf16.txt"),
+                                new byte[] { 0xFF, 0xFE, 0x41, 0x00 });
+                            return BuildfileProjectionOutcome.Ok();
+                        },
+                    });
+
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("error", result.Manifest.Projection.Status);
+                Assert.Contains("not valid UTF-8", result.Manifest.Projection.Reason);
+                Assert.False(Directory.Exists(Path.Combine(outDir, "source")));
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [Fact]
+        public void Export_ProjectionSnapshot_Utf8BomIsAcceptedAndRemoved()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x2000] = 0x78;
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                var result = BuildfileExportCore.Export(
+                    MakeRom(clean),
+                    MakeRom(target),
+                    new BuildfileExportOptions
+                    {
+                        OutputDirectory = outDir,
+                        ProjectionRunner = scratch =>
+                        {
+                            File.WriteAllBytes(
+                                Path.Combine(scratch, "utf8.txt"),
+                                new byte[]
+                                {
+                                    0xEF, 0xBB, 0xBF,
+                                    (byte)'l', (byte)'i', (byte)'n', (byte)'e',
+                                    (byte)'\r', (byte)'\n',
+                                });
+                            return BuildfileProjectionOutcome.Ok();
+                        },
+                    });
+
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("success", result.Manifest.Projection.Status);
+                Assert.Equal(
+                    Encoding.UTF8.GetBytes("line\n"),
+                    File.ReadAllBytes(Path.Combine(outDir, "source", "utf8.txt")));
             }
             finally { Cleanup(parent); }
         }

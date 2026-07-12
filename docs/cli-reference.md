@@ -265,9 +265,11 @@ to an exporter-private scratch tree while **no publish stage exists**. The expor
 once and captures descendants handle-relatively (`openat` on Unix; `NtCreateFile` with a held
 `RootDirectory` on Windows), rejecting links and non-regular nodes without following replaceable
 ancestor pathnames. The immutable snapshot is limited to 32,768 entries, 256 MiB of file data,
-and bounded path depth/metadata. Pre-capture manifest parsing uses the same byte ceiling and only
-opens referenced sidecars; their bodies are read by the bounded handle-relative capture. The
-snapshot preserves empty directories, normalizes valid UTF-8 text to LF,
+16 MiB per text file, and bounded path depth/metadata. Pre-capture manifest parsing uses that
+16 MiB text ceiling, rejects more than 32,768 sidecar directives, bounds line count/length, and
+only opens sidecars before their bodies are read by the bounded handle-relative capture. The
+snapshot preserves empty directories, accepts/removes a UTF-8 BOM, rejects UTF-16/32 BOMs, and
+normalizes strict UTF-8 text to LF,
 strips only the exporter-owned scratch path,
 and leaves binary bytes unchanged. Invalid UTF-8, a limit breach, or any capture fault downgrades
 only the advisory projection to `error`.

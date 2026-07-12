@@ -116,7 +116,8 @@ dotnet run --project FEBuilderGBA.CLI -- --export-buildfile --rom=modified.gba -
 # ROM inputs are opened no-follow, identity-compared, bounded, and read through exact handles.
 # The force-version value is mandatory; valueless forms fail before command I/O.
 # Browser builds fail closed because exact no-follow ROM opening is unavailable.
-# --with-source bounds manifest parsing, defers sidecar reads to a bounded handle-relative snapshot, then creates source/.
+# --with-source caps manifests at 16 MiB with bounded lines/directives, then defers sidecar bodies to bounded capture.
+# Projection text files are capped at 16 MiB and strict UTF-8; UTF-8 BOM is accepted, UTF-16/32 BOMs are rejected.
 # Projection scratch is deleted before the stage exists; test-mutated source candidates are rematerialized.
 # Stage/scratch names use a bounded stable hash and are atomically reserved; collisions are never reused.
 # Final publication is an atomic no-replace rename; a race-created destination is never replaced.

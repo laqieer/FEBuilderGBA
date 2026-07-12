@@ -102,7 +102,8 @@ namespace FEBuilderGBA
                 manifestPath,
                 File.GetAttributes,
                 ProjectionFileSystemSafety.OpenRegularFileForRead,
-                BuildfileExportOptions.MaxProjectionSnapshotBytes);
+                BuildfileExportOptions.MaxProjectionTextFileBytes,
+                BuildfileExportOptions.MaxProjectionSnapshotEntries);
 
         internal static void ValidateProjectionOutput(
             string manifestPath,
@@ -111,7 +112,8 @@ namespace FEBuilderGBA
                 manifestPath,
                 getAttributes,
                 ProjectionFileSystemSafety.OpenRegularFileForRead,
-                BuildfileExportOptions.MaxProjectionSnapshotBytes);
+                BuildfileExportOptions.MaxProjectionTextFileBytes,
+                BuildfileExportOptions.MaxProjectionSnapshotEntries);
 
         internal static void ValidateProjectionOutput(
             string manifestPath,
@@ -121,13 +123,39 @@ namespace FEBuilderGBA
                 manifestPath,
                 getAttributes,
                 ProjectionFileSystemSafety.OpenRegularFileForRead,
-                maxManifestBytes);
+                maxManifestBytes,
+                BuildfileExportOptions.MaxProjectionSnapshotEntries);
+
+        internal static void ValidateProjectionOutput(
+            string manifestPath,
+            Func<string, FileAttributes> getAttributes,
+            long maxManifestBytes,
+            int maxSidecarDirectives)
+            => ValidateProjectionOutput(
+                manifestPath,
+                getAttributes,
+                ProjectionFileSystemSafety.OpenRegularFileForRead,
+                maxManifestBytes,
+                maxSidecarDirectives);
 
         internal static void ValidateProjectionOutput(
             string manifestPath,
             Func<string, FileAttributes> getAttributes,
             Func<string, Stream> openRegularFileForRead,
             long maxManifestBytes)
+            => ValidateProjectionOutput(
+                manifestPath,
+                getAttributes,
+                openRegularFileForRead,
+                maxManifestBytes,
+                BuildfileExportOptions.MaxProjectionSnapshotEntries);
+
+        internal static void ValidateProjectionOutput(
+            string manifestPath,
+            Func<string, FileAttributes> getAttributes,
+            Func<string, Stream> openRegularFileForRead,
+            long maxManifestBytes,
+            int maxSidecarDirectives)
         {
             if (string.IsNullOrEmpty(manifestPath))
                 throw new ArgumentNullException(nameof(manifestPath));
@@ -137,6 +165,8 @@ namespace FEBuilderGBA
                 throw new ArgumentNullException(nameof(openRegularFileForRead));
             if (maxManifestBytes <= 0)
                 throw new ArgumentOutOfRangeException(nameof(maxManifestBytes));
+            if (maxSidecarDirectives <= 0)
+                throw new ArgumentOutOfRangeException(nameof(maxSidecarDirectives));
 
             string fullManifestPath = Path.GetFullPath(manifestPath);
             string baseDir = Path.GetDirectoryName(fullManifestPath) ?? Directory.GetCurrentDirectory();
@@ -145,9 +175,11 @@ namespace FEBuilderGBA
                 "rebuild manifest",
                 getAttributes,
                 openRegularFileForRead,
-                maxManifestBytes);
+                maxManifestBytes,
+                maxSidecarDirectives);
             bool hasCrc32 = false;
             bool hasRebuildAddress = false;
+            int sidecarDirectiveCount = 0;
             for (int lineIndex = 0; lineIndex < lines.Length; lineIndex++)
             {
                 string line = U.ClipComment(lines[lineIndex]);
@@ -172,6 +204,14 @@ namespace FEBuilderGBA
                     && tokens[0] != "@MIXLZ77")
                 {
                     continue;
+                }
+
+                sidecarDirectiveCount++;
+                if (sidecarDirectiveCount > maxSidecarDirectives)
+                {
+                    throw new InvalidDataException(
+                        "Rebuild projection manifest exceeds the "
+                        + maxSidecarDirectives + "-sidecar directive limit.");
                 }
 
                 int filenameIndex = 2;
@@ -283,7 +323,8 @@ namespace FEBuilderGBA
             string description,
             Func<string, FileAttributes> getAttributes,
             Func<string, Stream> openRegularFileForRead,
-            long maxBytes)
+            long maxBytes,
+            int maxSidecarDirectives)
         {
             ValidateRegularFileMetadata(path, description, getAttributes);
             byte[] data;
@@ -318,15 +359,92 @@ namespace FEBuilderGBA
                 }
             }
 
+            try
+            {
+                ProjectionTextEncoding.ValidateStrictUtf8(data);
+            }
+            catch (DecoderFallbackException ex)
+            {
+                throw new InvalidDataException(
+                    description + " is not valid UTF-8.",
+                    ex);
+            }
+            ValidateManifestResourceShape(data, maxSidecarDirectives);
+
             var lines = new List<string>();
-            using (var stream = new MemoryStream(data, writable: false))
-            using (var reader = new StreamReader(stream))
+            using (var reader = ProjectionTextEncoding.CreateStrictUtf8Reader(data))
             {
                 string line;
                 while ((line = reader.ReadLine()) != null)
                     lines.Add(line);
             }
             return lines.ToArray();
+        }
+
+        const int ProjectionManifestLinesPerSidecar = 4;
+        const int ProjectionManifestNonSidecarLineAllowance = 4096;
+        const int MaxProjectionManifestLineBytes = 64 * 1024;
+
+        internal static int GetProjectionManifestLineLimit(int maxSidecarDirectives)
+        {
+            if (maxSidecarDirectives <= 0)
+                throw new ArgumentOutOfRangeException(nameof(maxSidecarDirectives));
+            long limit = (long)maxSidecarDirectives * ProjectionManifestLinesPerSidecar
+                + ProjectionManifestNonSidecarLineAllowance;
+            return limit > int.MaxValue ? int.MaxValue : (int)limit;
+        }
+
+        static void ValidateManifestResourceShape(
+            byte[] data,
+            int maxSidecarDirectives)
+        {
+            int maxLines = GetProjectionManifestLineLimit(maxSidecarDirectives);
+            int lineCount = 0;
+            int lineBytes = 0;
+            bool previousWasCarriageReturn = false;
+
+            for (int i = 0; i < data.Length; i++)
+            {
+                byte value = data[i];
+                if (value == (byte)'\r')
+                {
+                    lineCount++;
+                    lineBytes = 0;
+                    previousWasCarriageReturn = true;
+                }
+                else if (value == (byte)'\n')
+                {
+                    if (!previousWasCarriageReturn)
+                        lineCount++;
+                    lineBytes = 0;
+                    previousWasCarriageReturn = false;
+                }
+                else
+                {
+                    previousWasCarriageReturn = false;
+                    lineBytes++;
+                    if (lineBytes > MaxProjectionManifestLineBytes)
+                    {
+                        throw new InvalidDataException(
+                            "Rebuild projection manifest line exceeds the "
+                            + MaxProjectionManifestLineBytes + "-byte validation limit.");
+                    }
+                }
+
+                if (lineCount > maxLines)
+                {
+                    throw new InvalidDataException(
+                        "Rebuild projection manifest exceeds the "
+                        + maxLines + "-line validation limit.");
+                }
+            }
+
+            if (lineBytes > 0 && ++lineCount > maxLines)
+            {
+                throw new InvalidDataException(
+                    "Rebuild projection manifest exceeds the "
+                    + maxLines + "-line validation limit.");
+            }
         }
 
         static void ValidateRegularFileMetadata(

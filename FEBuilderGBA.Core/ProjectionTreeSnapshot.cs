@@ -21,6 +21,75 @@ namespace FEBuilderGBA
         internal byte[] Data { get; set; } = Array.Empty<byte>();
     }
 
+    internal static class ProjectionTextEncoding
+    {
+        internal static bool IsTextFile(string path)
+        {
+            switch (Path.GetExtension(path).ToLowerInvariant())
+            {
+                case ".rebuild":
+                case ".event":
+                case ".txt":
+                case ".s":
+                case ".asm":
+                case ".json":
+                case ".md":
+                case ".inc":
+                case ".c":
+                case ".h":
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        internal static void ValidateStrictUtf8(byte[] data)
+        {
+            if (data == null)
+                throw new ArgumentNullException(nameof(data));
+            int offset = Utf8BomLength(data);
+            new UTF8Encoding(false, true).GetCharCount(
+                data,
+                offset,
+                data.Length - offset);
+        }
+
+        internal static string DecodeStrictUtf8(byte[] data)
+        {
+            if (data == null)
+                throw new ArgumentNullException(nameof(data));
+            int offset = Utf8BomLength(data);
+            return new UTF8Encoding(false, true).GetString(
+                data,
+                offset,
+                data.Length - offset);
+        }
+
+        internal static StreamReader CreateStrictUtf8Reader(byte[] data)
+        {
+            if (data == null)
+                throw new ArgumentNullException(nameof(data));
+            int offset = Utf8BomLength(data);
+            var stream = new MemoryStream(
+                data,
+                offset,
+                data.Length - offset,
+                writable: false);
+            return new StreamReader(
+                stream,
+                new UTF8Encoding(false, true),
+                detectEncodingFromByteOrderMarks: false);
+        }
+
+        static int Utf8BomLength(byte[] data)
+            => data.Length >= 3
+                && data[0] == 0xEF
+                && data[1] == 0xBB
+                && data[2] == 0xBF
+                ? 3
+                : 0;
+    }
+
     /// <summary>
     /// Captures a projection tree without resolving child pathnames after the root is opened.
     /// Unix uses openat relative to held directory descriptors; Windows uses NtCreateFile with
@@ -119,6 +188,7 @@ namespace FEBuilderGBA
             internal string RootPath { get; set; } = "";
             internal int MaxEntries { get; set; }
             internal long MaxBytes { get; set; }
+            internal long MaxTextFileBytes { get; set; }
             internal int EntryCount { get; set; }
             internal long TotalBytes { get; set; }
             internal long TotalPathCharacters { get; set; }
@@ -221,6 +291,7 @@ namespace FEBuilderGBA
             string rootPath,
             int maxEntries,
             long maxBytes,
+            long maxTextFileBytes,
             Action<string> beforeFileOpen)
         {
             if (string.IsNullOrEmpty(rootPath))
@@ -229,12 +300,15 @@ namespace FEBuilderGBA
                 throw new ArgumentOutOfRangeException(nameof(maxEntries));
             if (maxBytes <= 0)
                 throw new ArgumentOutOfRangeException(nameof(maxBytes));
+            if (maxTextFileBytes <= 0)
+                throw new ArgumentOutOfRangeException(nameof(maxTextFileBytes));
 
             var state = new CaptureState
             {
                 RootPath = Path.GetFullPath(rootPath),
                 MaxEntries = maxEntries,
                 MaxBytes = maxBytes,
+                MaxTextFileBytes = maxTextFileBytes,
                 BeforeFileOpen = beforeFileOpen,
             };
 
@@ -734,6 +808,13 @@ namespace FEBuilderGBA
                 throw new IOException(
                     "Projection snapshot exceeds the "
                     + state.MaxBytes + "-byte limit.");
+            }
+            if (ProjectionTextEncoding.IsTextFile(relativePath)
+                && length > state.MaxTextFileBytes)
+            {
+                throw new IOException(
+                    "Projection text file exceeds the "
+                    + state.MaxTextFileBytes + "-byte text-file limit.");
             }
 
             var data = new byte[(int)length];
