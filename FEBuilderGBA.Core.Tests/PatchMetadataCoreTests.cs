@@ -1809,6 +1809,85 @@ namespace FEBuilderGBA.Core.Tests
             finally { Directory.Delete(tempDir, true); }
         }
 
+        // #1965 length-drift correction: reuses the SAME GrowthAfterLengthFileStream double
+        // above (it only overrides Length — it never changes what is actually read), but with a
+        // reported Length that under-reports the real backing data while BOTH the reported
+        // Length and the real data stay comfortably under maxBytes. Before this correction, the
+        // shared reader only rejected growth that breached maxBytes — growth that merely passed
+        // the handle's OWN captured Length, while staying within the caller's byte budget, was
+        // silently accepted and decoded, publishing a longer/changed advisory text than the
+        // Length actually validated at open time.
+        [Fact]
+        public void TryReadBoundedFileLines_WithinCapGrowthAfterLengthCheck_RejectsWithSurplusBytesRead()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "BoundedHelperWithinCapGrowth_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                const int reportedLength = 8;
+                const int maxBytes = 1024; // comfortably above both the reported length AND the real data below
+                byte[] realData = System.Text.Encoding.ASCII.GetBytes(new string('d', reportedLength + 5));
+                string path = WriteBytes(tempDir, "PATCH_WithinCapGrowth.txt", realData);
+
+                bool ok = PatchMetadataCore.TryReadBoundedFileLines(
+                    path,
+                    maxBytes: maxBytes,
+                    maxLines: int.MaxValue,
+                    // Length under-reports (well within maxBytes), but the handle's real
+                    // underlying data is larger than that reported Length — still well within
+                    // maxBytes overall. Must still be rejected: the accepted-buffer contract is
+                    // exact-length-through-EOF, not "anything up to maxBytes".
+                    openFileStreamForTest: p => new GrowthAfterLengthFileStream(p, reportedLength),
+                    lines: out var lines,
+                    bytesRead: out long bytesRead);
+
+                Assert.False(ok);
+                Assert.Null(lines);
+                // Deliberately not asserting an exact chunk-size-specific surplus count — only
+                // that genuinely-consumed bytes exceeded the (under-reported) captured Length.
+                Assert.True(bytesRead > reportedLength,
+                    $"Expected bytesRead ({bytesRead}) to exceed the reported length ({reportedLength}).");
+            }
+            finally { Directory.Delete(tempDir, true); }
+        }
+
+        // #1965 length-drift correction: the OPPOSITE direction from the growth case above — the
+        // handle reports a Length that OVER-reports what it can actually deliver (the file was
+        // truncated/shrunk between the Length read and EOF). Before this correction, the shared
+        // reader only checked `total > maxBytes` and `read <= 0` (genuine EOF) — a shorter file
+        // than the validated Length decoded successfully as long as it stayed under maxBytes,
+        // publishing a shorter/changed advisory text than the Length actually validated.
+        [Fact]
+        public void TryReadBoundedFileLines_PrematureEofBelowReportedLength_RejectsAndPreservesBytesRead()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "BoundedHelperPrematureEof_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                const int actualLength = 8;
+                byte[] realData = System.Text.Encoding.ASCII.GetBytes(new string('c', actualLength));
+                string path = WriteBytes(tempDir, "PATCH_PrematureEof.txt", realData);
+
+                bool ok = PatchMetadataCore.TryReadBoundedFileLines(
+                    path,
+                    maxBytes: 1024,
+                    maxLines: int.MaxValue,
+                    // Length over-reports by one byte beyond what the handle can actually
+                    // deliver. maxBytes sits comfortably above the (over-)reported Length, so
+                    // the early Length>maxBytes reject never fires — only the post-loop
+                    // total==length equality check can catch this premature EOF.
+                    openFileStreamForTest: p => new GrowthAfterLengthFileStream(p, actualLength + 1),
+                    lines: out var lines,
+                    bytesRead: out long bytesRead);
+
+                Assert.False(ok);
+                Assert.Null(lines);
+                Assert.Equal(actualLength, bytesRead); // bytes genuinely consumed before the
+                                                        // rejection remain visible.
+            }
+            finally { Directory.Delete(tempDir, true); }
+        }
+
         // ---- #1965: TryParsePatchParamsBounded byte-first coverage ----
 
         [Fact]
@@ -1861,6 +1940,41 @@ namespace FEBuilderGBA.Core.Tests
                     out var resultOver, out _);
                 Assert.False(okOver);
                 Assert.Empty(resultOver); // NOT partially populated with the first `maxEntries` items
+            }
+            finally { Directory.Delete(tempDir, true); }
+        }
+
+        // #1965 length-drift correction: reuses the same GrowthAfterLengthFileStream double
+        // used by TryReadBoundedFileLines' own within-cap-growth coverage above, proving the
+        // shared reader's length-drift rejection is visible all the way through
+        // TryParsePatchParamsBounded — no partial/changed params list is ever produced, and
+        // `result` stays the empty list constructed at method entry rather than any params
+        // parsed from the (rejected) surplus bytes.
+        [Fact]
+        public void TryParsePatchParamsBounded_WithinCapGrowthAfterLengthCheck_FailsWithEmptyResult()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "ParamsBoundedWithinCapGrowth_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                const int reportedLength = 8;
+                const int maxBytes = 1024;
+                byte[] realData = System.Text.Encoding.ASCII.GetBytes("A=1\nB=2\nC=3\n"); // > reportedLength, well within maxBytes
+                Assert.True(realData.Length > reportedLength);
+                string path = WriteBytes(tempDir, "PATCH_ParamsWithinCapGrowth.txt", realData);
+
+                bool ok = PatchMetadataCore.TryParsePatchParamsBounded(
+                    path,
+                    maxEntries: int.MaxValue,
+                    maxBytes: maxBytes,
+                    openFileStreamForTest: p => new GrowthAfterLengthFileStream(p, reportedLength),
+                    result: out var result,
+                    bytesRead: out long bytesRead);
+
+                Assert.False(ok);
+                Assert.Empty(result); // no partial params — never populated from rejected bytes
+                Assert.True(bytesRead > reportedLength,
+                    $"Expected bytesRead ({bytesRead}) to exceed the reported length ({reportedLength}).");
             }
             finally { Directory.Delete(tempDir, true); }
         }

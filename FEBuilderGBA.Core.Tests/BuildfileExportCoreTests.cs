@@ -2565,6 +2565,70 @@ namespace FEBuilderGBA.Core.Tests
             finally { Cleanup(parent); }
         }
 
+        // Fake FileStream double (duplicated from the equivalent private nested type in
+        // PatchMetadataCoreTests — these test fakes are file-local by established convention, no
+        // shared test-helper file exists in this repo) that under/over-reports its Length
+        // relative to what the handle actually delivers — simulates the file growing OR
+        // shrinking between the Length check and the read (or a Length that simply lied).
+        sealed class GrowthAfterLengthFileStream : FileStream
+        {
+            readonly long _reportedLength;
+            public GrowthAfterLengthFileStream(string path, long reportedLength)
+                : base(path, FileMode.Open, FileAccess.Read, FileShare.Read)
+            {
+                _reportedLength = reportedLength;
+            }
+            public override long Length => _reportedLength;
+        }
+
+        [Fact]
+        public void TryAppendRawParamsBounded_WithinCapGrowthAfterLengthCheck_FailsWithNoConsumedParams()
+        {
+            // #1965 length-drift correction: proves the exporter-facing false path for a file
+            // that grows past the Length captured at open time while staying comfortably within
+            // maxBytes — the shared reader must reject this BEFORE any raw parameter is ever
+            // appended to `rec.Params`, and `consumedCount` must stay 0 (never partially
+            // populated from the rejected surplus bytes). This intentionally does NOT add a new
+            // production inventory seam — it exercises the existing `openFileStreamForTest`
+            // fault-injection seam already used by the fault-after-N-bytes coverage above.
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                string patchBase = Path.Combine(parent, "patch2");
+                Directory.CreateDirectory(patchBase);
+                string patchPath = Path.Combine(patchBase, "PATCH_WithinCapGrowth.txt");
+                const int reportedLength = 8;
+                const long maxBytes = 1024; // comfortably above both the reported length AND the real data below
+                File.WriteAllText(patchPath, "TYPE=ADDR\nNAME=Growth Patch\nKEY1=value1\n"); // > reportedLength, well within maxBytes
+                long realLength = new FileInfo(patchPath).Length;
+                Assert.True(realLength > reportedLength);
+
+                var rec = new BuildfilePatchRecord
+                {
+                    Name = "Growth Patch",
+                    Status = "installed",
+                    Confidence = "high",
+                    Reason = "test-seed",
+                };
+
+                bool ok = BuildfileExportCore.TryAppendRawParamsBounded(
+                    rec,
+                    patchPath,
+                    maxEntries: 100,
+                    maxBytes: maxBytes,
+                    openFileStreamForTest: p => new GrowthAfterLengthFileStream(p, reportedLength),
+                    consumedCount: out int consumedCount,
+                    bytesRead: out long bytesRead);
+
+                Assert.False(ok);
+                Assert.Equal(0, consumedCount);
+                Assert.Empty(rec.Params); // no partial params ever appended from rejected bytes
+                Assert.True(bytesRead > reportedLength,
+                    $"Expected bytesRead ({bytesRead}) to exceed the reported length ({reportedLength}).");
+            }
+            finally { Cleanup(parent); }
+        }
+
         [Fact]
         public void BuildPatchInventoryBounded_MaxParamsAggregateBytesAboveImmutableCeiling_Throws()
         {

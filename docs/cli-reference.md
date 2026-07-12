@@ -282,6 +282,18 @@ this initial length check is distinct from, and precedes, the separate cap+1 pro
 length check is passed, a bounded read of at most cap+1 bytes on the same handle still catches a
 file that **grows beyond the cap after that check**, again before the surplus byte is ever
 written or decoded — so no partial line is ever decoded or returned on either kind of rejection.
+The reader also enforces exact length-drift detection on that same handle: accepted bytes
+reaching decode must equal the `FileStream.Length` captured at open time **exactly**. Any byte
+read past that captured length is rejected before it is written into the accepted buffer or
+decoded — even when the running total is still comfortably within the 16 MiB cap — and reaching
+genuine end-of-file with **fewer** bytes than that captured length (a premature EOF) is rejected
+the same way. `bytesRead` stays monotonic and visible to the caller on either rejection; a false
+length-drift result immediately degrades/clears/stops the enclosing advisory pass, so no later
+file in that pass can exploit any remaining aggregate byte budget. This is a length-drift check,
+not an immutable-snapshot guarantee: an in-place mutation that leaves the file's length
+unchanged, or bytes appended strictly **after the final observed EOF**, are both outside what
+this check can detect — an append visible **before** that EOF is instead read as surplus and
+rejected the same way.
 The reader never allocates a buffer sized to the full 16 MiB cap for
 every file: reads are issued as fixed **64 KiB** `ArrayPool`-rented chunk requests, and the
 initial accepted in-memory storage capacity is sized from that already-validated `FileStream.Length`

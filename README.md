@@ -133,7 +133,18 @@ dotnet run --project FEBuilderGBA.CLI -- --export-buildfile --rom=modified.gba -
 # 16 MiB is rejected up front, before any read is issued. Once that length check is passed,
 # a separate cap+1 probe (reading at most cap+1 bytes on the same handle) still detects a
 # file that GROWS beyond the cap after the length check, again before the surplus byte is
-# ever written or decoded. The reader never allocates a buffer sized to the full 16 MiB cap
+# ever written or decoded. The reader also enforces exact length-drift detection on that same
+# handle: accepted bytes reaching decode must equal the FileStream.Length captured at open time
+# EXACTLY. Any byte read past that captured length is rejected before it is written or decoded,
+# even when the running total is still comfortably within the 16 MiB cap, and reaching genuine
+# EOF with FEWER bytes than that captured length (a premature EOF) is rejected the same way.
+# bytesRead stays monotonic and visible to the caller on either rejection; a false length-drift
+# result immediately degrades/clears/stops the enclosing advisory pass, so no later file in that
+# pass can exploit any remaining aggregate byte budget. This is a length-drift check, not an
+# immutable-snapshot guarantee: an in-place mutation that leaves the file's length unchanged, or
+# bytes appended strictly AFTER THE FINAL OBSERVED EOF, are both outside what this check can
+# detect — an append visible BEFORE that EOF is instead read as surplus and rejected the same
+# way. The reader never allocates a buffer sized to the full 16 MiB cap
 # for every file: it issues fixed 64 KiB ArrayPool-rented chunk requests, and its initial
 # accepted in-memory storage capacity is based on the already-validated FileStream.Length
 # (so at most 16 MiB, never the unvalidated raw/sparse-reported value), growing further only

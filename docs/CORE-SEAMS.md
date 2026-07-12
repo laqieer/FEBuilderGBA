@@ -201,7 +201,21 @@ the "### Graphics System" overview in `CLAUDE.md`.
   default-constructed `StreamReader` (BOM auto-detection + non-strict UTF-8 replacement fallback),
   matching `File.ReadLines`/`File.ReadAllLines` decode semantics byte-for-byte on any within-budget
   file. Any breach — `Length` over cap, or cap+1 bytes read — returns no lines at all; a partial
-  line is never decoded or returned. The helper is CHUNKED, not single-buffer: bytes are read
+  line is never decoded or returned. Length-drift correction (#1965 follow-up): bytes reaching
+  decode must equal that SAME captured `Length` EXACTLY, not merely stay at-or-under `cap`/`cap+1`.
+  After every positive read, `total`/`bytesRead` are updated FIRST and then compared against BOTH
+  `maxBytes` AND the captured `length` — a breach of either rejects before the surplus chunk is
+  ever written into the accepting buffer, so growth past this handle's own observed `Length` is
+  caught even while the running total still fits comfortably under `maxBytes` (a prior version
+  only compared against `maxBytes` here). Symmetrically, once genuine EOF is reached (a read
+  returning 0 — the shared no-follow opener guarantees a regular, synchronous `FileStream`, so a
+  short but POSITIVE read is never itself EOF and the loop simply requests more), a running total
+  LESS than the captured `length` (the file shrank/was truncated after `Length` was read) is
+  rejected the same way, before `ms.Position`/`StreamReader` ever run. Bytes genuinely consumed
+  before either rejection remain visible via the incrementally-updated `bytesRead` below. This is
+  a length-drift DETECTOR, not an immutable-snapshot guarantee: an in-place mutation that leaves
+  the file's length unchanged, or bytes appended strictly after the final observed EOF, both
+  remain outside what this check can detect. The helper is CHUNKED, not single-buffer: bytes are read
   through a small, fixed, pooled (`ArrayPool<byte>`) `ReadChunkBytes` (64 KiB) request buffer —
   never one allocated to the full per-file cap — with each individual `Read` clamped to that chunk
   size (or less, near the remaining budget); the accepting `MemoryStream` starts sized only from

@@ -908,7 +908,10 @@ namespace FEBuilderGBA
         /// final-entry guarantee by design.</item>
         /// <item>Reads <see cref="FileStream.Length"/> FIRST and rejects immediately when it
         /// already exceeds <paramref name="maxBytes"/> — a sparse/huge reported length is never
-        /// used to size an allocation, only compared as a plain <c>long</c>.</item>
+        /// used to size an allocation, only compared as a plain <c>long</c>. That SAME captured
+        /// <c>length</c> value is then held for the rest of the read as the exact byte count this
+        /// call must observe through EOF (#1965 length-drift correction) — it is read from the
+        /// handle exactly once and never re-queried.</item>
         /// <item>Bytes are read through a small, FIXED, pooled (<see cref="ArrayPool{T}"/>)
         /// chunk buffer (<see cref="ReadChunkBytes"/>, 64 KiB) — NEVER a buffer sized to
         /// <paramref name="maxBytes"/>. Each individual read request is additionally clamped to
@@ -917,11 +920,23 @@ namespace FEBuilderGBA
         /// fixed chunk size in a single call. The accepting <see cref="MemoryStream"/> starts at
         /// a size hint taken from the ALREADY-VALIDATED (≤ <paramref name="maxBytes"/>)
         /// <see cref="FileStream.Length"/>, or a small default if that length is non-positive —
-        /// it grows only as bytes actually arrive, never pre-sized to the cap. If the stream
-        /// actually yields more than <paramref name="maxBytes"/> bytes in total (it grew after
-        /// the length check, or lied about its length), the breach is detected and the whole
-        /// read is rejected BEFORE the surplus chunk is ever written into the accepting buffer
-        /// or decoded.</item>
+        /// it grows only as bytes actually arrive, never pre-sized to the cap. After EVERY
+        /// positive read, <paramref name="bytesRead"/> is updated first and the accumulated total
+        /// is compared BOTH against <paramref name="maxBytes"/> AND against the captured
+        /// <c>length</c> — a breach of EITHER bound rejects the whole read BEFORE the surplus
+        /// chunk is ever written into the accepting buffer or decoded (#1965 length-drift
+        /// correction: a prior version only checked <paramref name="maxBytes"/> here, silently
+        /// accepting a handle that grew past its own captured <c>Length</c> as long as the
+        /// growth still fit under the caller's byte budget). Symmetrically, reaching genuine EOF
+        /// (a zero-byte read — the shared no-follow opener guarantees a regular, synchronous
+        /// <see cref="FileStream"/>, so a short positive read is never itself EOF and the loop
+        /// keeps requesting more) with a running total LESS than the captured <c>length</c> — a
+        /// premature EOF, e.g. the file was truncated after <c>Length</c> was read — is likewise
+        /// rejected before any decode: accepted bytes reaching the decoder must equal the
+        /// captured <c>length</c> EXACTLY, never merely "at or under it". This is a length-drift
+        /// detector, not an immutable-snapshot guarantee: an in-place mutation that leaves the
+        /// file's length unchanged, or bytes appended strictly after the final observed EOF,
+        /// are both outside what this check can detect.</item>
         /// <item><paramref name="bytesRead"/> is updated INCREMENTALLY after every individual
         /// successful chunk read (not just once at the end) — so if a LATER read on the same
         /// handle throws (a genuine I/O fault partway through), the bytes genuinely consumed
@@ -1026,15 +1041,38 @@ namespace FEBuilderGBA
 
                     int read = stream.Read(chunk, 0, requestSize);
                     if (read <= 0)
-                        break; // genuine EOF.
+                        break; // Genuine EOF — the shared no-follow opener guarantees a regular,
+                               // synchronous FileStream, so a zero-byte read here can only mean
+                               // true end-of-file, never a transient short read that could still
+                               // yield more bytes on a later call (a short but POSITIVE read,
+                               // handled below, is therefore never treated as EOF — the loop
+                               // keeps requesting more).
 
                     total += read;
                     bytesRead = total; // incremental — visible even if the NEXT read throws.
-                    if (total > maxBytes)
+                    if (total > maxBytes || total > length)
                         return false; // growth-after-Length / sparse-length lie; reject BEFORE
-                                      // writing the surplus chunk into the accepted buffer.
+                                      // writing the surplus chunk into the accepted buffer,
+                                      // whether the growth breaches the caller's byte budget
+                                      // (total > maxBytes) or merely the Length observed when
+                                      // this handle was opened (total > length, #1965
+                                      // length-drift correction — previously only maxBytes was
+                                      // checked here, silently accepting growth that stayed
+                                      // under the caller's cap but past this handle's own
+                                      // captured Length).
                     ms.Write(chunk, 0, read);
                 }
+
+                // #1965 length-drift correction: EOF was just reached (read <= 0 above) with
+                // `total` guaranteed <= `length` by the in-loop check above — the only
+                // remaining drift this equality check can still catch is a SHORT read relative
+                // to the Length observed when the handle was opened (the file shrank/was
+                // truncated between that Length read and EOF). Accepting a shorter file here
+                // would let a silently-truncated/swapped file decode as if it were the exact
+                // file whose Length was already validated against maxBytes above.
+                if (total != length)
+                    return false; // premature EOF — bytes genuinely consumed before this
+                                  // rejection remain visible through `bytesRead` above.
             }
             finally
             {
