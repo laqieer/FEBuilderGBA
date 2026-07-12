@@ -128,6 +128,23 @@ dotnet run --project FEBuilderGBA.CLI -- --export-buildfile --rom=modified.gba -
 # internal 16,384-item resource-safety budget; an oversized patch library DEGRADES the advisory
 # patch inventory to "unavailable" (a stable, path-free reason) rather than truncating it or
 # failing export — the authoritative recipe/payloads/manifest still export successfully.
+# Each PATCH_*.txt definition is also byte-bounded: 16 MiB per file, rejected on raw BYTES
+# BEFORE a single line is decoded. An oversized or sparse-reported FileStream.Length above
+# 16 MiB is rejected up front, before any read is issued. Once that length check is passed,
+# a separate cap+1 probe (reading at most cap+1 bytes on the same handle) still detects a
+# file that GROWS beyond the cap after the length check, again before the surplus byte is
+# ever written or decoded. The reader never allocates a buffer sized to the full 16 MiB cap
+# for every file: it issues fixed 64 KiB ArrayPool-rented chunk requests, and its initial
+# accepted in-memory storage capacity is based on the already-validated FileStream.Length
+# (so at most 16 MiB, never the unvalidated raw/sparse-reported value), growing further only
+# as bytes are actually accepted — it never blindly pre-allocates the full 16 MiB cap for a
+# small file. Raw lines are counted against an independent raw-line cap DURING decoding, not
+# after, so no partial line list is ever produced or returned on a breach. The metadata scan
+# and the raw-params scan each additionally enforce their OWN separate 64 MiB aggregate byte budget across every file
+# in that pass (128 MiB worst case across both passes combined); any byte-bound breach
+# (per-file or aggregate) degrades the WHOLE advisory patch inventory the same way the
+# 16,384-item budget does, and accepted files still decode byte-identically to the legacy
+# File.ReadLines/File.ReadAllLines APIs.
 dotnet run --project FEBuilderGBA.CLI -- --build-buildfile --clean=original.gba --project=project/ --out=rebuilt.gba
 # Rebuilds ONLY from buildfile.json + data/; main.event/ColorzCore/source/patches/projection are never used.
 # Enforces exact clean identity + version, schema v1, UTF-8/JSON/dup-key, exact object members/types, and every size/range/path/hash/changed-byte bound.

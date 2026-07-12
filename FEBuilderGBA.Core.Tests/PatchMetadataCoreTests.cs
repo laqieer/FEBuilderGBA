@@ -1430,12 +1430,12 @@ namespace FEBuilderGBA.Core.Tests
             Assert.NotEqual(AndroidResourceNoticeCore.PatchLibraryUnavailableMessage, PatchMetadataCore.NotInitializedMessage);
         }
 
-        // ---- #1965 PR feedback remediation: bounded/lazy metadata-scan seam ----
+        // ---- #1965 PR feedback remediation: byte-first bounded metadata/params scan ----
         // Companion to TryEnumeratePatchesBounded's exporter-only metadata-scan fix: the
         // exporter must never fully materialize a discovered patch file via an eager
-        // File.ReadAllLines just to extract NAME/TYPE/PATCHED_IF metadata (the same "stop
-        // before materializing more than the bound" invariant that already applies to raw
-        // param parsing via TryParsePatchParamsBounded).
+        // File.ReadAllLines/File.ReadLines just to extract NAME/TYPE/PATCHED_IF metadata or
+        // key=value params. Every bounded read now rejects on BYTES (16 MiB per file, 64 MiB
+        // aggregate per pass) BEFORE a single line is ever decoded.
 
         [Fact]
         public void TryParsePatchFileStrictBounded_MetadataWithinBound_ParsesIdenticallyToUnbounded()
@@ -1463,9 +1463,11 @@ namespace FEBuilderGBA.Core.Tests
 
                 var unbounded = PatchMetadataCore.ParsePatchFile(patchFile, "TestDir", rom, "en");
                 bool withinBound = PatchMetadataCore.TryParsePatchFileStrictBounded(
-                    patchFile, "TestDir", rom, "en", 100, out var bounded);
+                    patchFile, "TestDir", rom, "en", 100, PatchMetadataCore.MaxPatchDefinitionBytes,
+                    out var bounded, out long bytesRead);
 
                 Assert.True(withinBound);
+                Assert.True(bytesRead > 0);
                 Assert.Equal(unbounded.Name, bounded.Name);
                 Assert.Equal(unbounded.Type, bounded.Type);
                 Assert.Equal(unbounded.Tags, bounded.Tags);
@@ -1496,7 +1498,8 @@ namespace FEBuilderGBA.Core.Tests
                 rom.SwapNewROMDataDirect(new byte[0x100]);
 
                 bool withinBound = PatchMetadataCore.TryParsePatchFileStrictBounded(
-                    patchFile, "DefaultName", rom, "en", 5, out var bounded);
+                    patchFile, "DefaultName", rom, "en", 5, PatchMetadataCore.MaxPatchDefinitionBytes,
+                    out var bounded, out long bytesRead);
 
                 Assert.False(withinBound);
                 Assert.Null(bounded);
@@ -1530,7 +1533,9 @@ namespace FEBuilderGBA.Core.Tests
                     rom,
                     "en",
                     BuildfileFormat.MaxAdvisoryItems,
-                    out var info);
+                    PatchMetadataCore.MaxPatchDefinitionBytes,
+                    out var info,
+                    out long bytesRead);
 
                 Assert.Equal(expectedWithinBound, withinBound);
                 Assert.Equal(expectedWithinBound, info != null);
@@ -1567,6 +1572,7 @@ namespace FEBuilderGBA.Core.Tests
                     "en",
                     _ => new[] { first, oversized },
                     5,
+                    PatchMetadataCore.MaxMetadataAggregateBytes,
                     out var patches,
                     out string error,
                     out bool limitExceeded);
@@ -1576,6 +1582,572 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Empty(patches);
                 Assert.Contains("line-scan bound", error, StringComparison.Ordinal);
                 Assert.DoesNotContain(tempDir, error, StringComparison.Ordinal);
+            }
+            finally { Directory.Delete(tempDir, true); }
+        }
+
+        // ---- #1965: shared byte-first helper (TryReadBoundedFileLines) unit coverage ----
+
+        static string WriteBytes(string dir, string name, byte[] data)
+        {
+            string path = Path.Combine(dir, name);
+            File.WriteAllBytes(path, data);
+            return path;
+        }
+
+        [Fact]
+        public void TryReadBoundedFileLines_SingleLineOverCapPlusOne_RejectsWithoutPartialLines()
+        {
+            // A single line with NO newline, one byte over the cap: File.ReadLines would
+            // materialize the whole oversized line before any count-based guard ever ran. The
+            // byte-first helper must reject on bytes alone, before decoding a single line.
+            string tempDir = Path.Combine(Path.GetTempPath(), "BoundedHelperSingleLine_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                const int cap = 10;
+                byte[] data = System.Text.Encoding.ASCII.GetBytes(new string('a', cap + 1));
+                string path = WriteBytes(tempDir, "PATCH_Big.txt", data);
+
+                bool ok = PatchMetadataCore.TryReadBoundedFileLines(
+                    path, cap, maxLines: int.MaxValue, lines: out var lines, bytesRead: out long bytesRead);
+
+                Assert.False(ok);
+                Assert.Null(lines);
+            }
+            finally { Directory.Delete(tempDir, true); }
+        }
+
+        [Fact]
+        public void TryReadBoundedFileLines_MaxBytesAboveImmutableCeiling_Throws()
+        {
+            // #1965 L3 correction ("opposite hypothesis" check): a caller invoking the shared
+            // helper directly with a maxBytes wider than the immutable MaxPatchDefinitionBytes
+            // per-file ceiling must be rejected outright — this is the seam that actually
+            // allocates the read buffer, so it is the correct place to enforce the immutable
+            // bound regardless of what any upstream caller intended to pass.
+            string tempDir = Path.Combine(Path.GetTempPath(), "BoundedHelperCeiling_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                string path = WriteBytes(tempDir, "PATCH_Small.txt", System.Text.Encoding.ASCII.GetBytes("NAME=X\n"));
+
+                Assert.Throws<ArgumentOutOfRangeException>(() =>
+                    PatchMetadataCore.TryReadBoundedFileLines(
+                        path,
+                        maxBytes: PatchMetadataCore.MaxPatchDefinitionBytes + 1,
+                        maxLines: int.MaxValue,
+                        lines: out _,
+                        bytesRead: out _));
+            }
+            finally { Directory.Delete(tempDir, true); }
+        }
+
+        [Fact]
+        public void TryReadBoundedFileLines_ExactlyAtCap_SucceedsAndDecodesIdentically()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "BoundedHelperExactCap_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                const int cap = 12; // "NAME=TESTAB" + LF == 12 bytes exactly
+                byte[] data = System.Text.Encoding.ASCII.GetBytes("NAME=TESTAB\n");
+                Assert.Equal(cap, data.Length);
+                string path = WriteBytes(tempDir, "PATCH_Exact.txt", data);
+
+                bool ok = PatchMetadataCore.TryReadBoundedFileLines(
+                    path, cap, maxLines: int.MaxValue, lines: out var lines, bytesRead: out long bytesRead);
+
+                Assert.True(ok);
+                Assert.Equal(cap, bytesRead);
+                Assert.Single(lines);
+                Assert.Equal("NAME=TESTAB", lines[0]);
+            }
+            finally { Directory.Delete(tempDir, true); }
+        }
+
+        [Fact]
+        public void TryReadBoundedFileLines_ZeroBudget_EmptyFileSucceeds_NonEmptyFileFails()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "BoundedHelperZeroBudget_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                string emptyPath = WriteBytes(tempDir, "PATCH_Empty.txt", Array.Empty<byte>());
+                string nonEmptyPath = WriteBytes(tempDir, "PATCH_NonEmpty.txt", new byte[] { 0x41 });
+
+                bool emptyOk = PatchMetadataCore.TryReadBoundedFileLines(
+                    emptyPath, 0, maxLines: int.MaxValue, lines: out var emptyLines, bytesRead: out long emptyBytesRead);
+                bool nonEmptyOk = PatchMetadataCore.TryReadBoundedFileLines(
+                    nonEmptyPath, 0, maxLines: int.MaxValue, lines: out var nonEmptyLines, bytesRead: out long nonEmptyBytesRead);
+
+                Assert.True(emptyOk);
+                Assert.Empty(emptyLines);
+                Assert.Equal(0, emptyBytesRead);
+                Assert.False(nonEmptyOk);
+                Assert.Null(nonEmptyLines);
+            }
+            finally { Directory.Delete(tempDir, true); }
+        }
+
+        // Fake FileStream double that reports a huge Length without any backing data actually
+        // existing on disk — proves the sparse/huge-Length case is rejected on the Length
+        // comparison alone, never by attempting to allocate/read that many bytes.
+        sealed class SparseHugeLengthFileStream : FileStream
+        {
+            readonly long _fakeLength;
+            public SparseHugeLengthFileStream(string path, long fakeLength)
+                : base(path, FileMode.Open, FileAccess.Read, FileShare.Read)
+            {
+                _fakeLength = fakeLength;
+            }
+            public override long Length => _fakeLength;
+        }
+
+        [Fact]
+        public void TryReadBoundedFileLines_SparseHugeLength_RejectsWithoutReadingBuffer()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "BoundedHelperSparse_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                string path = WriteBytes(tempDir, "PATCH_Sparse.txt", new byte[] { 0x41 });
+
+                bool ok = PatchMetadataCore.TryReadBoundedFileLines(
+                    path,
+                    maxBytes: 1024,
+                    maxLines: int.MaxValue,
+                    openFileStreamForTest: p => new SparseHugeLengthFileStream(p, long.MaxValue / 2),
+                    lines: out var lines,
+                    bytesRead: out long bytesRead);
+
+                Assert.False(ok);
+                Assert.Null(lines);
+                Assert.Equal(0, bytesRead);
+            }
+            finally { Directory.Delete(tempDir, true); }
+        }
+
+        // Fake FileStream double that under-reports its Length (within the cap) but actually
+        // yields MORE bytes than the cap when read — simulates the file growing between the
+        // Length check and the read (or a Length that simply lied).
+        sealed class GrowthAfterLengthFileStream : FileStream
+        {
+            readonly long _reportedLength;
+            public GrowthAfterLengthFileStream(string path, long reportedLength)
+                : base(path, FileMode.Open, FileAccess.Read, FileShare.Read)
+            {
+                _reportedLength = reportedLength;
+            }
+            public override long Length => _reportedLength;
+        }
+
+        [Fact]
+        public void TryReadBoundedFileLines_GrowthAfterLengthCheck_RejectsAtCapPlusOne()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "BoundedHelperGrowth_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                const int cap = 8;
+                byte[] realData = System.Text.Encoding.ASCII.GetBytes(new string('b', cap + 5)); // actually bigger than cap
+                string path = WriteBytes(tempDir, "PATCH_Growth.txt", realData);
+
+                bool ok = PatchMetadataCore.TryReadBoundedFileLines(
+                    path,
+                    maxBytes: cap,
+                    maxLines: int.MaxValue,
+                    // Length under-reports as exactly the cap (within bound), but the handle's
+                    // real underlying data is larger — the read loop must catch the growth.
+                    openFileStreamForTest: p => new GrowthAfterLengthFileStream(p, cap),
+                    lines: out var lines,
+                    bytesRead: out long bytesRead);
+
+                Assert.False(ok);
+                Assert.Null(lines);
+            }
+            finally { Directory.Delete(tempDir, true); }
+        }
+
+        // ---- #1965: TryParsePatchParamsBounded byte-first coverage ----
+
+        [Fact]
+        public void TryParsePatchParamsBounded_SingleLineOverCapPlusOne_FailsWithoutPartialParams()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "ParamsBoundedSingleLine_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                const int cap = 10;
+                string path = WriteBytes(tempDir, "PATCH_Big.txt",
+                    System.Text.Encoding.ASCII.GetBytes("KEY=" + new string('v', cap)));
+
+                bool ok = PatchMetadataCore.TryParsePatchParamsBounded(
+                    path, maxEntries: 100, maxBytes: cap, out var result, out long bytesRead);
+
+                Assert.False(ok);
+                Assert.Empty(result);
+            }
+            finally { Directory.Delete(tempDir, true); }
+        }
+
+        [Fact]
+        public void TryParsePatchParamsBounded_ParsedEntryCapExact_SucceedsFull_CapPlusOne_ReturnsEmptyNotPartial()
+        {
+            // #1965 L3 correction: the blocking regression this guards against — `result` was
+            // populated directly during parsing and left PARTIALLY filled (up to maxEntries
+            // items) on a maxEntries breach, contradicting both the XML doc contract and the
+            // caller's whole-record-degradation expectation. `result` must be the EMPTY list
+            // constructed at method entry on every false path, never a partial parse.
+            string tempDir = Path.Combine(Path.GetTempPath(), "ParamsBoundedEntryCap_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                const int maxEntries = 3;
+                string exactContent = string.Concat(Enumerable.Range(0, maxEntries).Select(i => $"KEY{i}=value{i}\n"));
+                string exactPath = WriteBytes(tempDir, "PATCH_ExactEntries.txt", System.Text.Encoding.ASCII.GetBytes(exactContent));
+
+                bool okExact = PatchMetadataCore.TryParsePatchParamsBounded(
+                    exactPath, maxEntries: maxEntries, maxBytes: PatchMetadataCore.MaxPatchDefinitionBytes,
+                    out var resultExact, out _);
+                Assert.True(okExact);
+                Assert.Equal(maxEntries, resultExact.Count);
+
+                string overContent = string.Concat(Enumerable.Range(0, maxEntries + 1).Select(i => $"KEY{i}=value{i}\n"));
+                string overPath = WriteBytes(tempDir, "PATCH_OverEntries.txt", System.Text.Encoding.ASCII.GetBytes(overContent));
+
+                bool okOver = PatchMetadataCore.TryParsePatchParamsBounded(
+                    overPath, maxEntries: maxEntries, maxBytes: PatchMetadataCore.MaxPatchDefinitionBytes,
+                    out var resultOver, out _);
+                Assert.False(okOver);
+                Assert.Empty(resultOver); // NOT partially populated with the first `maxEntries` items
+            }
+            finally { Directory.Delete(tempDir, true); }
+        }
+
+        [Fact]
+        public void TryParsePatchParamsBounded_MissingFile_SucceedsEmpty()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "ParamsBoundedMissing_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                string missing = Path.Combine(tempDir, "PATCH_DoesNotExist.txt");
+
+                bool ok = PatchMetadataCore.TryParsePatchParamsBounded(
+                    missing, maxEntries: 100, maxBytes: PatchMetadataCore.MaxPatchDefinitionBytes,
+                    out var result, out long bytesRead);
+
+                Assert.True(ok);
+                Assert.Empty(result);
+                Assert.Equal(0, bytesRead);
+            }
+            finally { Directory.Delete(tempDir, true); }
+        }
+
+        [Fact]
+        public void TryParsePatchParamsBounded_MissingParentDirectory_SucceedsEmpty()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "ParamsBoundedMissingDir_" + Guid.NewGuid().ToString("N"));
+            // Deliberately do NOT create tempDir — the parent directory itself is missing.
+            string missing = Path.Combine(tempDir, "sub", "PATCH_DoesNotExist.txt");
+
+            bool ok = PatchMetadataCore.TryParsePatchParamsBounded(
+                missing, maxEntries: 100, maxBytes: PatchMetadataCore.MaxPatchDefinitionBytes,
+                out var result, out long bytesRead);
+
+            Assert.True(ok);
+            Assert.Empty(result);
+        }
+
+        [Theory]
+        [InlineData(typeof(UnauthorizedAccessException))]
+        [InlineData(typeof(IOException))]
+        [InlineData(typeof(System.Security.SecurityException))]
+        public void TryParsePatchParamsBounded_ExpectedFileSystemFault_PropagatesExactExceptionType(Type exceptionType)
+        {
+            // Deterministic opener-injection (#1965 L3 correction) replaces the prior
+            // platform-dependent `Assert.ThrowsAny<Exception>` directory probe (which only
+            // reliably throws UnauthorizedAccessException on Windows) — every expected
+            // filesystem/access fault class must propagate as its EXACT type from
+            // TryParsePatchParamsBounded, on every platform, deterministically.
+            string tempDir = Path.Combine(Path.GetTempPath(), "ParamsBoundedExactFault_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                string path = Path.Combine(tempDir, "PATCH_Fault.txt");
+                Func<string, FileStream> throwingOpener = p =>
+                    throw (Exception)Activator.CreateInstance(exceptionType, "simulated fault (test double)");
+
+                Assert.Throws(exceptionType, () =>
+                    PatchMetadataCore.TryParsePatchParamsBounded(
+                        path, maxEntries: 100, maxBytes: PatchMetadataCore.MaxPatchDefinitionBytes,
+                        throwingOpener, out _, out _));
+            }
+            finally { Directory.Delete(tempDir, true); }
+        }
+
+        [Fact]
+        public void TryReadBoundedFileLines_Utf8Bom_And_Utf16Bom_And_NewlineVarieties_MatchFileReadLines()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "BoundedHelperEncoding_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                // UTF-8 BOM + CRLF/LF/CR mixture + unterminated final line.
+                byte[] utf8Bom = { 0xEF, 0xBB, 0xBF };
+                string content = "line1\r\nline2\nline3\rline4"; // no trailing newline on line4
+                byte[] utf8Data = utf8Bom.Concat(System.Text.Encoding.UTF8.GetBytes(content)).ToArray();
+                string utf8Path = WriteBytes(tempDir, "PATCH_Utf8Bom.txt", utf8Data);
+
+                var expected = File.ReadLines(utf8Path).ToList();
+                bool ok = PatchMetadataCore.TryReadBoundedFileLines(
+                    utf8Path, PatchMetadataCore.MaxPatchDefinitionBytes, maxLines: int.MaxValue, out var actual, out _);
+
+                Assert.True(ok);
+                Assert.Equal(expected, actual);
+
+                // UTF-16 LE BOM.
+                byte[] utf16Data = System.Text.Encoding.Unicode.GetBytes("\uFEFFhello\r\nworld");
+                string utf16Path = WriteBytes(tempDir, "PATCH_Utf16Bom.txt", utf16Data);
+                var expected16 = File.ReadLines(utf16Path).ToList();
+                bool ok16 = PatchMetadataCore.TryReadBoundedFileLines(
+                    utf16Path, PatchMetadataCore.MaxPatchDefinitionBytes, maxLines: int.MaxValue, out var actual16, out _);
+                Assert.True(ok16);
+                Assert.Equal(expected16, actual16);
+
+                // Invalid UTF-8 byte sequence — StreamReader default (non-strict) replacement
+                // fallback must match File.ReadLines exactly (U+FFFD), never throw.
+                byte[] invalidUtf8 = { 0x4E, 0x41, 0x4D, 0x45, 0x3D, 0xFF, 0xFE, 0x0A }; // "NAME=" + invalid bytes + LF
+                string invalidPath = WriteBytes(tempDir, "PATCH_InvalidUtf8.txt", invalidUtf8);
+                var expectedInvalid = File.ReadLines(invalidPath).ToList();
+                bool okInvalid = PatchMetadataCore.TryReadBoundedFileLines(
+                    invalidPath, PatchMetadataCore.MaxPatchDefinitionBytes, maxLines: int.MaxValue, out var actualInvalid, out _);
+                Assert.True(okInvalid);
+                Assert.Equal(expectedInvalid, actualInvalid);
+            }
+            finally { Directory.Delete(tempDir, true); }
+        }
+
+        // ---- #1965: aggregate byte-budget breaches (metadata pass + params pass) ----
+
+        [Fact]
+        public void TryEnumeratePatchesBounded_AggregateBytesCapPlusOne_ClearsPriorAcceptedRecords()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "PatchAggregateMeta_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                // Two small files whose COMBINED bytes exceed a tiny deterministic aggregate cap,
+                // even though neither breaches the (generous) per-file/line bound alone.
+                string first = Path.Combine(tempDir, "PATCH_A.txt");
+                string second = Path.Combine(tempDir, "PATCH_B.txt");
+                File.WriteAllText(first, "NAME=First\n");
+                File.WriteAllText(second, "NAME=Second\n");
+                long firstLen = new FileInfo(first).Length;
+                long secondLen = new FileInfo(second).Length;
+                long tinyAggregate = firstLen + secondLen - 1; // one byte short of fitting both
+
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x100]);
+
+                bool success = PatchMetadataCore.TryEnumeratePatchesBounded(
+                    tempDir,
+                    rom,
+                    "en",
+                    _ => new[] { first, second },
+                    maxFiles: 16384,
+                    maxAggregateBytes: tinyAggregate,
+                    out var patches,
+                    out string error,
+                    out bool limitExceeded);
+
+                Assert.False(success);
+                Assert.True(limitExceeded);
+                Assert.Empty(patches); // the accepted "First" record must NOT survive
+                Assert.Contains("line-scan bound", error, StringComparison.Ordinal);
+                Assert.DoesNotContain(tempDir, error, StringComparison.Ordinal);
+            }
+            finally { Directory.Delete(tempDir, true); }
+        }
+
+        [Fact]
+        public void TryEnumeratePatchesBounded_MaxAggregateBytesAboveImmutableCeiling_Throws()
+        {
+            // #1965 L3 correction: the parameterized aggregate budget exists ONLY so
+            // deterministic tests can exercise a breach with small fixtures — it must never be
+            // usable to WIDEN the immutable production ceiling. Proves the "opposite hypothesis"
+            // (a caller invoking the bounded helper directly with too-large a limit) is rejected,
+            // not silently honored.
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(new byte[0x100]);
+
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                PatchMetadataCore.TryEnumeratePatchesBounded(
+                    Path.GetTempPath(),
+                    rom,
+                    "en",
+                    _ => Array.Empty<string>(),
+                    maxFiles: 16384,
+                    maxAggregateBytes: PatchMetadataCore.MaxMetadataAggregateBytes + 1,
+                    out _, out _, out _));
+        }
+
+        // ---- #1965 L2 correction: chunked/pooled ingestion, in-loop raw-line cap, and
+        // exception-safe incremental byte accounting ----
+
+        // Fake FileStream double that records the largest single `count` ever requested from
+        // Read(byte[],int,int) — proves the chunked helper never sizes a single read request to
+        // the (16 MiB) production per-file cap, only to the small fixed chunk size.
+        sealed class RecordingMaxRequestFileStream : FileStream
+        {
+            public int MaxRequestedCount { get; private set; }
+            public RecordingMaxRequestFileStream(string path)
+                : base(path, FileMode.Open, FileAccess.Read, FileShare.Read) { }
+            public override int Read(byte[] buffer, int offset, int count)
+            {
+                MaxRequestedCount = Math.Max(MaxRequestedCount, count);
+                return base.Read(buffer, offset, count);
+            }
+        }
+
+        [Fact]
+        public void TryReadBoundedFileLines_TinyFileWithProductionCap_NeverRequestsMoreThanChunkSize()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "BoundedHelperChunkSize_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                string path = WriteBytes(tempDir, "PATCH_Tiny.txt", System.Text.Encoding.ASCII.GetBytes("NAME=Tiny\n"));
+                RecordingMaxRequestFileStream captured = null;
+
+                bool ok = PatchMetadataCore.TryReadBoundedFileLines(
+                    path,
+                    maxBytes: PatchMetadataCore.MaxPatchDefinitionBytes, // production 16 MiB cap
+                    maxLines: int.MaxValue,
+                    openFileStreamForTest: p => captured = new RecordingMaxRequestFileStream(p),
+                    lines: out var lines,
+                    bytesRead: out long bytesRead);
+
+                Assert.True(ok);
+                Assert.NotNull(captured);
+                // The regression this guards against: a naive implementation allocates/requests
+                // a buffer sized to the FULL per-file cap for every file, even a 10-byte one.
+                Assert.True(captured.MaxRequestedCount <= PatchMetadataCore.ReadChunkBytes);
+                Assert.True(captured.MaxRequestedCount < PatchMetadataCore.MaxPatchDefinitionBytes);
+            }
+            finally { Directory.Delete(tempDir, true); }
+        }
+
+        [Fact]
+        public void TryReadBoundedFileLines_RawLineCapExact_SucceedsFull_CapPlusOne_RejectsWithoutPartial()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "BoundedHelperRawLineCap_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                const int maxLines = 5;
+                string exactContent = string.Concat(Enumerable.Repeat("x\n", maxLines));
+                string exactPath = WriteBytes(tempDir, "PATCH_ExactLines.txt", System.Text.Encoding.ASCII.GetBytes(exactContent));
+
+                bool okExact = PatchMetadataCore.TryReadBoundedFileLines(
+                    exactPath, maxBytes: 1024, maxLines: maxLines, out var linesExact, out _);
+                Assert.True(okExact);
+                Assert.Equal(maxLines, linesExact.Count);
+
+                string overContent = string.Concat(Enumerable.Repeat("x\n", maxLines + 1));
+                string overPath = WriteBytes(tempDir, "PATCH_OverLines.txt", System.Text.Encoding.ASCII.GetBytes(overContent));
+
+                bool okOver = PatchMetadataCore.TryReadBoundedFileLines(
+                    overPath, maxBytes: 1024, maxLines: maxLines, out var linesOver, out _);
+                Assert.False(okOver);
+                Assert.Null(linesOver); // no partial line list is ever produced on a raw-line breach
+            }
+            finally { Directory.Delete(tempDir, true); }
+        }
+
+        [Fact]
+        public void TryParsePatchParamsBounded_NonEntryLinesExceedRawLineCap_RejectsEmptyNotPartial()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "ParamsRawLineCap_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                // None of these lines are ever a parsed KEY=VALUE entry, so the pre-existing
+                // maxEntries (parsed-entry) bound never trips — only the raw-line cap can
+                // reject this file, proving it protects against an unbounded raw List<string>
+                // even when every line is a blank/comment/non-entry line.
+                int lineCount = PatchMetadataCore.MaxRawParamLines + 1;
+                var sb = new System.Text.StringBuilder();
+                for (int i = 0; i < lineCount; i++) sb.Append("// comment\n");
+                string path = WriteBytes(tempDir, "PATCH_ManyComments.txt", System.Text.Encoding.ASCII.GetBytes(sb.ToString()));
+
+                bool ok = PatchMetadataCore.TryParsePatchParamsBounded(
+                    path, maxEntries: 1_000_000, maxBytes: PatchMetadataCore.MaxPatchDefinitionBytes,
+                    out var result, out long bytesRead);
+
+                Assert.False(ok);
+            }
+            finally { Directory.Delete(tempDir, true); }
+        }
+
+        // Fault-injecting FileStream double (see the equivalent duplicated type in
+        // BuildfileExportCoreTests — these test fakes are intentionally file-local, no shared
+        // test-helper file exists in this repo) that yields exactly N genuine bytes read from a
+        // REAL small backing file, then throws IOException on any subsequent read.
+        sealed class FaultAfterNBytesFileStream : FileStream
+        {
+            readonly long _faultAfter;
+            long _totalRead;
+            public FaultAfterNBytesFileStream(string path, long faultAfter)
+                : base(path, FileMode.Open, FileAccess.Read, FileShare.Read)
+            {
+                _faultAfter = faultAfter;
+            }
+            public override int Read(byte[] buffer, int offset, int count)
+            {
+                if (_totalRead >= _faultAfter)
+                    throw new IOException("Simulated I/O fault after N bytes (test double).");
+                int allowed = (int)Math.Min(count, _faultAfter - _totalRead);
+                int read = base.Read(buffer, offset, allowed);
+                _totalRead += read;
+                return read;
+            }
+        }
+
+        [Fact]
+        public void TryReadBoundedFileLines_FaultAfterNBytes_PreservesBytesReadThroughException()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "BoundedHelperFault_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                const int n = 10;
+                byte[] data = System.Text.Encoding.ASCII.GetBytes(new string('a', 50));
+                string path = WriteBytes(tempDir, "PATCH_Fault.txt", data);
+
+                IOException caught = null;
+                long bytesRead = 0;
+                try
+                {
+                    PatchMetadataCore.TryReadBoundedFileLines(
+                        path,
+                        maxBytes: 1024,
+                        maxLines: int.MaxValue,
+                        openFileStreamForTest: p => new FaultAfterNBytesFileStream(p, n),
+                        lines: out var lines,
+                        bytesRead: out bytesRead);
+                }
+                catch (IOException ex)
+                {
+                    caught = ex;
+                }
+
+                Assert.NotNull(caught);
+                // The bytes genuinely read before the fault must survive via the `out` alias —
+                // never reset to 0 — so an aggregate byte budget downstream still accounts for
+                // them (#1965 L2 correction).
+                Assert.Equal(n, bytesRead);
             }
             finally { Directory.Delete(tempDir, true); }
         }

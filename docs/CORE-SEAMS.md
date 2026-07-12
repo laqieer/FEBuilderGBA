@@ -179,15 +179,68 @@ the "### Graphics System" overview in `CLAUDE.md`.
   failure classes occurred via a TYPED `out bool limitExceeded` signal rather than
   string-sniffing its error message: only a genuine discovery/metadata-bound breach maps to the
   stable `AdvisoryBudgetExceededReason`, while a real filesystem/access fault keeps the
-  separate generic, path-free permission reason. Per-file metadata scanning
-  (`PatchMetadataCore.TryParsePatchFileStrictBounded`) is itself bounded/lazy via
-  `File.ReadLines` rather than an eager `File.ReadAllLines`, so a pathological patch file
-  can never be fully materialized into memory just to extract its NAME/TYPE/PATCHED_IF
-  metadata; exceeding the line bound returns no partial patch record and degrades the whole
-  inventory. The legacy tolerant `ParsePatchFile`/`ParsePatchFileStrict` path used by
-  `TryEnumeratePatches` is unaffected. Any breach — discovery, metadata, per-record, or per-param —
-  degrades the ENTIRE inventory to `unavailable` with the stable `AdvisoryBudgetExceededReason`
-  (never a partial/truncated list). `EnforceAdvisoryBudgetAfterLateWarnings` re-checks the combined
+  separate generic, path-free permission reason. Follow-up byte-bound hardening (further #1965 PR
+  feedback remediation): per-file metadata scanning (`PatchMetadataCore.TryParsePatchFileStrictBounded`)
+  and raw-parameter capture (`TryParsePatchParamsBounded`) no longer use lazy `File.ReadLines` — a
+  single pathological line was still materialized in full BEFORE any line-count guard ran, an
+  independent byte-level OOM vector. Both now go through one shared helper,
+  `PatchMetadataCore.TryReadBoundedFileLines`, which opens the file via the same production
+  `FileStream` used elsewhere, rejects on `FileStream.Length` alone before any read (defeating a
+  sparse/huge-length file), then reads at most `cap+1` bytes on that SAME handle so a file that
+  grows after the `Length` check is still caught, and only THEN decodes the accepted bytes with a
+  default-constructed `StreamReader` (BOM auto-detection + non-strict UTF-8 replacement fallback),
+  matching `File.ReadLines`/`File.ReadAllLines` decode semantics byte-for-byte on any within-budget
+  file. Any breach — `Length` over cap, or cap+1 bytes read — returns no lines at all; a partial
+  line is never decoded or returned. The helper is CHUNKED, not single-buffer: bytes are read
+  through a small, fixed, pooled (`ArrayPool<byte>`) `ReadChunkBytes` (64 KiB) request buffer —
+  never one allocated to the full per-file cap — with each individual `Read` clamped to that chunk
+  size (or less, near the remaining budget); the accepting `MemoryStream` starts sized only from
+  the already-validated (≤ cap) `Length` as a hint (or a small default), growing solely as bytes
+  actually arrive. This avoids the cumulative large-object-heap churn a naive "allocate `cap+1`
+  bytes per file" design would incur across a real patch library (thousands of files, most far
+  smaller than the cap). `bytesRead` is updated INCREMENTALLY after every individual successful
+  chunk read (not just once at the end), so if a later read on the same handle throws a genuine
+  I/O fault, the bytes genuinely consumed before that fault remain visible to the caller through
+  this `out` parameter — callers (including `TryAppendRawParamsBounded`) must never reset it to
+  zero in a catch block, or genuinely-read bytes would evade an aggregate byte budget. Decoded
+  lines are appended ONE AT A TIME during `StreamReader.ReadLine()`, checked against an explicit
+  `maxLines` argument BEFORE each line is added — never after decoding the complete file into an
+  unbounded list first, closing a companion OOM vector where a within-byte-budget file consisting
+  of millions of tiny/blank/comment lines (none of which ever parse as a KEY=VALUE entry, so the
+  parsed-entry `maxEntries` bound never trips) could otherwise force an unbounded raw line list.
+  The metadata pass reuses its existing `maxLines` bound; the raw-parameter pass uses a new
+  immutable alias, `PatchMetadataCore.MaxRawParamLines` (= `BuildfileFormat.MaxAdvisoryItems`).
+  On either a byte-cap or raw-line-cap breach the helper clears the line list to `null` — no
+  partial result is ever produced. Each `PATCH_*.txt` is capped at `MaxPatchDefinitionBytes`
+  (16 MiB); the metadata-discovery pass additionally tracks a running total against
+  `MaxMetadataAggregateBytes` (a separate 64 MiB aggregate, threaded as an explicit
+  `maxAggregateBytes` parameter through `TryEnumeratePatchesBounded` — always
+  `PatchMetadataCore.MaxMetadataAggregateBytes` in production, never a mutable override), and the
+  raw-parameter-capture pass independently tracks its own running total against
+  `BuildfileExportOptions.MaxPatchParamsAggregateBytes` (also a separate 64 MiB aggregate,
+  128 MiB worst case combined with the metadata pass). Production `BuildPatchInventory` is a
+  thin wrapper that unconditionally binds this immutable constant into the ordinary parameterized
+  internal helper `BuildPatchInventoryBounded(..., long maxParamsAggregateBytes)` — the parameter
+  is reachable ONLY by a test calling `BuildPatchInventoryBounded` directly with a small
+  deterministic value, never through any options field, so there is no mutable/nullable
+  production-honored cap-override hook. Both aggregate caps and the per-file cap are `public
+  const` — there is no code path that lets a caller widen them at runtime. `TryParsePatchParamsBounded`
+  also drops its former `File.Exists` precheck (a stale-existence race window); only a
+  `FileNotFoundException`/`DirectoryNotFoundException` raised while opening now maps to a
+  successful-empty result (matching the old `File.Exists == false` contract), while
+  `UnauthorizedAccessException`/`IOException`/`SecurityException`/etc. propagate to
+  `TryAppendRawParamsBounded`'s caller for the existing generic path-free degradation — no broad
+  catch converts an access fault into an empty/missing result, and the catch there deliberately
+  does NOT reset the incrementally-accumulated `bytesRead` to zero, so bytes genuinely read before
+  the fault still count against the caller's aggregate params budget. A pathological patch file can
+  therefore never be fully materialized into memory — on raw bytes OR on decoded lines — just to
+  extract its NAME/TYPE/PATCHED_IF metadata or its raw parameters; exceeding either bound returns no
+  partial patch record and degrades the whole inventory. The legacy tolerant
+  `ParsePatchFile`/`ParsePatchFileStrict`/`ParsePatchParams` paths used by `TryEnumeratePatches` and
+  other non-bounded callers are unaffected and still use the original eager/lazy `File.ReadAllLines`/
+  `File.ReadLines` APIs. Any breach — discovery, metadata, per-record, or per-param, byte or
+  aggregate-byte or item-count — degrades the ENTIRE inventory to `unavailable` with the stable
+  `AdvisoryBudgetExceededReason` (never a partial/truncated list). `EnforceAdvisoryBudgetAfterLateWarnings` re-checks the combined
   total after `RunProjection` and after `MarkProjectionMaterializationError` may have
   appended a warning AFTER the patch budget was already reserved, degrading patches (never
   warnings) if the late total no longer fits. Separately, `VerifyPathAbsent`/`DeleteAndVerifyGone`

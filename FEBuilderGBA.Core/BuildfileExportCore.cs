@@ -790,6 +790,19 @@ namespace FEBuilderGBA
         /// export; authoritative ranges/payloads are unaffected.
         /// </summary>
         public const int MaxAdvisoryItems = BuildfileFormat.MaxAdvisoryItems;
+
+        /// <summary>
+        /// Immutable production cap (64 MiB; #1965 review remediation) on the COMBINED bytes
+        /// read across every patch file's raw key=value params during one
+        /// <see cref="BuildfileExportCore.BuildPatchInventory"/> pass. Independent from the
+        /// metadata-pass aggregate (<see cref="PatchMetadataCore.MaxMetadataAggregateBytes"/>)
+        /// and from the per-file 16 MiB cap
+        /// (<see cref="PatchMetadataCore.MaxPatchDefinitionBytes"/>), which still applies to each
+        /// individual file within this pass. Worst case across BOTH aggregate passes reading the
+        /// SAME patch library is therefore 128 MiB (64 MiB metadata + 64 MiB params), never
+        /// unbounded.
+        /// </summary>
+        public const long MaxPatchParamsAggregateBytes = 64L * 1024 * 1024;
     }
 
     /// <summary>Result of an export attempt.</summary>
@@ -2193,9 +2206,44 @@ namespace FEBuilderGBA
         internal const string AdvisoryBudgetExceededReason =
             "advisory patch inventory exceeds the internal item budget; degraded to unavailable";
 
+        // Production always calls this thin wrapper, which unconditionally binds the immutable
+        // 64 MiB BuildfileExportOptions.MaxPatchParamsAggregateBytes constant — there is no
+        // mutable/nullable options field that can widen or bypass it at runtime. Deterministic
+        // tests call BuildPatchInventoryBounded directly with a small value instead (see below).
         static BuildfilePatchInventory BuildPatchInventory(
             ROM cleanRom, ROM targetRom, BuildfileExportOptions options, int existingAdvisoryItemCount)
+            => BuildPatchInventoryBounded(
+                cleanRom, targetRom, options, existingAdvisoryItemCount,
+                BuildfileExportOptions.MaxPatchParamsAggregateBytes);
+
+        /// <summary>
+        /// Ordinary parameterized core helper (#1965 follow-up correction: the prior
+        /// <c>PatchParamsAggregateBytesForTest</c> nullable options field was a production-
+        /// reachable mutable cap override and has been removed entirely). This helper is NOT
+        /// reachable through any user/options/test mutable state — production's only caller,
+        /// <see cref="BuildPatchInventory"/> above, always passes the immutable
+        /// <see cref="BuildfileExportOptions.MaxPatchParamsAggregateBytes"/> constant. Only a
+        /// test that calls this method directly (bypassing <c>BuildPatchInventory</c> entirely)
+        /// can exercise a different aggregate cap, and no production code path does so.
+        /// </summary>
+        internal static BuildfilePatchInventory BuildPatchInventoryBounded(
+            ROM cleanRom, ROM targetRom, BuildfileExportOptions options, int existingAdvisoryItemCount,
+            long maxParamsAggregateBytes)
         {
+            // #1965 L3 correction: same immutability guarantee as PatchMetadataCore's own
+            // aggregate-cap validation — a caller (production or test) is never allowed to
+            // WIDEN the params-pass aggregate budget past the immutable
+            // BuildfileExportOptions.MaxPatchParamsAggregateBytes ceiling through this seam.
+            // Small deterministic test values remain fully supported; anything larger throws.
+            if (maxParamsAggregateBytes < 0
+                || maxParamsAggregateBytes > BuildfileExportOptions.MaxPatchParamsAggregateBytes)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(maxParamsAggregateBytes),
+                    "maxParamsAggregateBytes must be within 0.."
+                        + BuildfileExportOptions.MaxPatchParamsAggregateBytes
+                        + " (the immutable MaxPatchParamsAggregateBytes ceiling).");
+            }
             var inv = new BuildfilePatchInventory();
             string baseDir = options.PatchBaseDirectory;
             string version = targetRom.RomInfo?.VersionToFilename ?? "";
@@ -2220,7 +2268,8 @@ namespace FEBuilderGBA
             List<PatchMetadataCore.PatchInfo> patches;
             if (!PatchMetadataCore.TryEnumeratePatchesBounded(baseDir, targetRom, options.Language ?? "en",
                     options.PatchDirectoryListerForTest,
-                    BuildfileFormat.MaxAdvisoryItems, out patches, out _, out bool advisoryLimitExceeded))
+                    BuildfileFormat.MaxAdvisoryItems, PatchMetadataCore.MaxMetadataAggregateBytes,
+                    out patches, out _, out bool advisoryLimitExceeded))
             {
                 // Enumeration FAILED for one of two DISTINCT causes, disambiguated by the typed
                 // `advisoryLimitExceeded` signal rather than string-sniffing the raw error
@@ -2254,6 +2303,13 @@ namespace FEBuilderGBA
             // truncated installed list is ever kept (Copilot review finding: unbounded
             // patches.installed + nested params materialization).
             int advisoryBudget = existingAdvisoryItemCount;
+            // Separate AGGREGATE byte budget for this whole raw-params pass (#1965; production's
+            // ONLY caller — the BuildPatchInventory wrapper above — always passes the immutable
+            // 64 MiB MaxPatchParamsAggregateBytes constant here; there is no mutable/nullable
+            // options field that can override it), independent of the metadata-pass aggregate
+            // and of the per-file 16 MiB cap (which still bounds each individual file's own read
+            // within this pass).
+            long paramsAggregateBytesUsed = 0;
             var installed = new List<BuildfilePatchRecord>();
             bool overBudget = false;
             foreach (PatchMetadataCore.PatchInfo p in patches)
@@ -2292,11 +2348,16 @@ namespace FEBuilderGBA
                 rec.Path = RelativePatchPath(baseDir, p.PatchFilePath, rec);
 
                 int remainingBudget = BuildfileFormat.MaxAdvisoryItems - advisoryBudget;
-                if (!TryAppendRawParamsBounded(rec, p.PatchFilePath, remainingBudget, out int consumedParams))
+                long remainingParamsAggregate = maxParamsAggregateBytes - paramsAggregateBytesUsed;
+                long perFileByteCap = Math.Min(
+                    PatchMetadataCore.MaxPatchDefinitionBytes, Math.Max(0, remainingParamsAggregate));
+                if (!TryAppendRawParamsBounded(
+                    rec, p.PatchFilePath, remainingBudget, perFileByteCap, out int consumedParams, out long paramsBytesRead))
                 {
                     overBudget = true;
                     break;
                 }
+                paramsAggregateBytesUsed += paramsBytesRead;
                 if (!BuildfileFormat.TryConsumeAdvisoryItems(ref advisoryBudget, consumedParams))
                 {
                     overBudget = true;
@@ -2359,22 +2420,40 @@ namespace FEBuilderGBA
             }
         }
 
-        // Append the raw parameter declarations to a record, bounded to at most
-        // `maxEntries` params. Only documented filesystem/access exceptions are caught; a read
-        // failure is surfaced in the record reason (never a silent empty list, and never a
-        // budget breach). Programmer defects propagate. Returns false — WITHOUT mutating
-        // `rec.Params` further — the instant the file's params would exceed `maxEntries`; the
-        // caller treats that as an advisory-budget breach for the whole inventory.
+        // Append the raw parameter declarations to a record, bounded to at most `maxEntries`
+        // params AND `maxBytes` raw bytes read (#1965: the byte cap rejects an oversized file
+        // BEFORE a single line is decoded). Only documented filesystem/access exceptions
+        // (excluding FileNotFoundException/DirectoryNotFoundException, which
+        // TryParsePatchParamsBounded itself resolves to a successful empty result) are caught
+        // here; a read failure is surfaced in the record reason (never a silent empty list, and
+        // never a budget breach). Programmer defects propagate. Returns false — WITHOUT mutating
+        // `rec.Params` further — the instant the file's params would exceed `maxEntries` OR
+        // `maxBytes`; the caller treats either as an advisory-budget breach for the whole
+        // inventory.
         static bool TryAppendRawParamsBounded(
-            BuildfilePatchRecord rec, string patchFilePath, int maxEntries, out int consumedCount)
+            BuildfilePatchRecord rec, string patchFilePath, int maxEntries, long maxBytes,
+            out int consumedCount, out long bytesRead)
+            => TryAppendRawParamsBounded(
+                rec, patchFilePath, maxEntries, maxBytes, null, out consumedCount, out bytesRead);
+
+        /// <summary>Internal stream-opener seam for deterministic fault-injection tests (#1965
+        /// L2 correction: proving the aggregate byte accounting stays monotonic across a
+        /// fault-after-N-bytes read). Production always calls the parameterless overload above,
+        /// which binds the exact production <see cref="FileStream"/> parameters.</summary>
+        internal static bool TryAppendRawParamsBounded(
+            BuildfilePatchRecord rec, string patchFilePath, int maxEntries, long maxBytes,
+            Func<string, FileStream> openFileStreamForTest,
+            out int consumedCount, out long bytesRead)
         {
             consumedCount = 0;
+            bytesRead = 0;
             if (string.IsNullOrEmpty(patchFilePath)) return true;
             List<PatchMetadataCore.PatchParam> parsed;
             bool withinBound;
             try
             {
-                withinBound = PatchMetadataCore.TryParsePatchParamsBounded(patchFilePath, maxEntries, out parsed);
+                withinBound = PatchMetadataCore.TryParsePatchParamsBounded(
+                    patchFilePath, maxEntries, maxBytes, openFileStreamForTest, out parsed, out bytesRead);
             }
             catch (Exception ex) when (IsExpectedFileSystemException(ex))
             {
@@ -2382,6 +2461,11 @@ namespace FEBuilderGBA
                 // and must never be serialized into buildfile.json (Copilot review finding:
                 // per-record raw exception path).
                 rec.Reason += "; raw parameters unavailable";
+                // Deliberately NOT resetting bytesRead to 0 here (#1965 L2 correction):
+                // TryReadBoundedFileLines updates it INCREMENTALLY as each chunk is genuinely
+                // consumed, so `bytesRead` already reflects real bytes read before this fault —
+                // resetting it would let those bytes evade the caller's aggregate byte budget
+                // even though they were truly read from disk.
                 return true;
             }
             if (!withinBound) return false;

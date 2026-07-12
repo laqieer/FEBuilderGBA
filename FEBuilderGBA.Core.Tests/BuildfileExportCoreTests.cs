@@ -2251,6 +2251,213 @@ namespace FEBuilderGBA.Core.Tests
             finally { Cleanup(parent); }
         }
 
+        // ---------------------------------------------------------------
+        // #1965: byte-bound caps — 16 MiB per PATCH definition, 64 MiB aggregate metadata
+        // pass, separate 64 MiB aggregate params pass. Production ALWAYS binds the immutable
+        // constants (BuildfileExportOptions.MaxPatchParamsAggregateBytes /
+        // PatchMetadataCore.MaxMetadataAggregateBytes) — there is no mutable/nullable options
+        // field that can override either cap. Deterministic small-fixture coverage of the
+        // params-pass aggregate breach therefore calls the ordinary parameterized internal core
+        // helper `BuildfileExportCore.BuildPatchInventoryBounded` directly with a small value,
+        // bypassing the public Export() entry point entirely (that helper is unreachable from
+        // any production code path with anything other than the immutable constant).
+        // ---------------------------------------------------------------
+
+        [Fact]
+        public void BuildPatchInventoryBounded_ParamsAggregateByteBudgetBreach_DegradesWholeInventoryPathFree()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x10] = 0x7;
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                string patchBase = Path.Combine(parent, "patch2");
+                string dirA = Path.Combine(patchBase, "AAA");
+                string dirB = Path.Combine(patchBase, "BBB");
+                Directory.CreateDirectory(dirA);
+                Directory.CreateDirectory(dirB);
+
+                // Two small, individually-tiny patch files whose COMBINED raw-params bytes
+                // exceed a deterministic tiny aggregate cap, even though neither breaches the
+                // (generous) per-file 16 MiB cap or the per-record advisory item count alone.
+                File.WriteAllText(Path.Combine(dirA, "PATCH_A.txt"),
+                    "TYPE=ADDR\nNAME=First Patch\nKEY1=value1\n");
+                File.WriteAllText(Path.Combine(dirB, "PATCH_B.txt"),
+                    "TYPE=ADDR\nNAME=Second Patch\nKEY2=value2\n");
+                long firstParamsBytes = new FileInfo(Path.Combine(dirA, "PATCH_A.txt")).Length;
+                long secondParamsBytes = new FileInfo(Path.Combine(dirB, "PATCH_B.txt")).Length;
+
+                var options = new BuildfileExportOptions
+                {
+                    OutputDirectory = outDir,
+                    PatchBaseDirectory = patchBase,
+                };
+
+                // One byte short of fitting both files' raw-params bytes — deterministic, no
+                // real 64 MiB fixture needed. Only this direct test call ever passes anything
+                // other than BuildfileExportOptions.MaxPatchParamsAggregateBytes.
+                BuildfilePatchInventory inv = BuildfileExportCore.BuildPatchInventoryBounded(
+                    MakeRom(clean), MakeRom(target), options, existingAdvisoryItemCount: 0,
+                    maxParamsAggregateBytes: firstParamsBytes + secondParamsBytes - 1);
+
+                Assert.Equal("unavailable", inv.Status);
+                // No partial/truncated installed record survives an aggregate-budget breach —
+                // the WHOLE inventory degrades, not just the second (over-budget) record.
+                Assert.Empty(inv.Installed);
+                Assert.Equal(BuildfileExportCore.AdvisoryBudgetExceededReason, inv.Reason);
+                Assert.DoesNotContain(patchBase, inv.Reason);
+            }
+            finally { Cleanup(parent); }
+        }
+
+        // Fault-injecting FileStream double (duplicated from the equivalent private nested type
+        // in PatchMetadataCoreTests — these test fakes are file-local by established
+        // convention, no shared test-helper file exists in this repo) that yields exactly N
+        // genuine bytes read from a REAL small backing file, then throws IOException on any
+        // subsequent read — simulating a mid-read I/O fault partway through a file (#1965 L2
+        // correction: proves the exporter's aggregate byte accounting stays monotonic/path-free
+        // even when the underlying read genuinely fails after some bytes were consumed).
+        sealed class FaultAfterNBytesFileStream : FileStream
+        {
+            readonly long _faultAfter;
+            long _totalRead;
+            public FaultAfterNBytesFileStream(string path, long faultAfter)
+                : base(path, FileMode.Open, FileAccess.Read, FileShare.Read)
+            {
+                _faultAfter = faultAfter;
+            }
+            public override int Read(byte[] buffer, int offset, int count)
+            {
+                if (_totalRead >= _faultAfter)
+                    throw new IOException("Simulated I/O fault after N bytes (test double).");
+                int allowed = (int)Math.Min(count, _faultAfter - _totalRead);
+                int read = base.Read(buffer, offset, allowed);
+                _totalRead += read;
+                return read;
+            }
+        }
+
+        [Fact]
+        public void TryAppendRawParamsBounded_FaultAfterNBytes_PreservesBytesReadAndDegradesRecordPathFree()
+        {
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                string patchBase = Path.Combine(parent, "patch2");
+                Directory.CreateDirectory(patchBase);
+                string patchPath = Path.Combine(patchBase, "PATCH_Fault.txt");
+                const int n = 12;
+                File.WriteAllText(patchPath, "TYPE=ADDR\nNAME=Fault Patch\nKEY1=value_longer_than_n\n");
+                long realLength = new FileInfo(patchPath).Length;
+                Assert.True(realLength > n); // the fault must trigger before EOF is reached
+
+                var rec = new BuildfilePatchRecord
+                {
+                    Name = "Fault Patch",
+                    Status = "installed",
+                    Confidence = "high",
+                    Reason = "test-seed",
+                };
+
+                bool ok = BuildfileExportCore.TryAppendRawParamsBounded(
+                    rec,
+                    patchPath,
+                    maxEntries: 100,
+                    maxBytes: PatchMetadataCore.MaxPatchDefinitionBytes,
+                    openFileStreamForTest: p => new FaultAfterNBytesFileStream(p, n),
+                    consumedCount: out int consumedCount,
+                    bytesRead: out long bytesRead);
+
+                // An expected FS fault resolves to a successful (true) but degraded record —
+                // never a silent empty params list, never a thrown exception across this seam.
+                Assert.True(ok);
+                Assert.Equal(0, consumedCount);
+                Assert.Equal(n, bytesRead); // genuinely-read bytes must survive the fault path,
+                                             // NOT be reset to 0 in the catch block, so the
+                                             // caller's aggregate params budget still accounts
+                                             // for them.
+                Assert.Contains("raw parameters unavailable", rec.Reason, StringComparison.Ordinal);
+                Assert.DoesNotContain(patchPath, rec.Reason, StringComparison.Ordinal);
+                Assert.DoesNotContain(patchBase, rec.Reason, StringComparison.Ordinal);
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [Theory]
+        [InlineData(typeof(UnauthorizedAccessException))]
+        [InlineData(typeof(IOException))]
+        [InlineData(typeof(System.Security.SecurityException))]
+        public void TryAppendRawParamsBounded_ExpectedFileSystemFault_DegradesRecordPathFreeWithEmptyParams(Type exceptionType)
+        {
+            // #1965 L3 correction: deterministic opener-injection proving ALL THREE expected
+            // filesystem/access fault classes (not just IOException-via-a-mid-read-fault) reach
+            // the exporter's catch and produce the SAME stable, path-free degradation — empty
+            // params, no thrown exception across this seam, no absolute path in the reason.
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                string patchBase = Path.Combine(parent, "patch2");
+                Directory.CreateDirectory(patchBase);
+                string patchPath = Path.Combine(patchBase, "PATCH_Fault.txt");
+                File.WriteAllText(patchPath, "TYPE=ADDR\nNAME=Fault Patch\nKEY1=value1\n");
+
+                var rec = new BuildfilePatchRecord
+                {
+                    Name = "Fault Patch",
+                    Status = "installed",
+                    Confidence = "high",
+                    Reason = "test-seed",
+                };
+
+                Func<string, FileStream> throwingOpener = p =>
+                    throw (Exception)Activator.CreateInstance(exceptionType, "simulated fault (test double)");
+
+                bool ok = BuildfileExportCore.TryAppendRawParamsBounded(
+                    rec,
+                    patchPath,
+                    maxEntries: 100,
+                    maxBytes: PatchMetadataCore.MaxPatchDefinitionBytes,
+                    openFileStreamForTest: throwingOpener,
+                    consumedCount: out int consumedCount,
+                    bytesRead: out long bytesRead);
+
+                Assert.True(ok);
+                Assert.Equal(0, consumedCount);
+                // No bytes were genuinely consumed before this immediate-open fault — the
+                // accounting must stay exactly 0, not just "not reset to something wrong".
+                Assert.Equal(0, bytesRead);
+                Assert.Empty(rec.Params);
+                Assert.Contains("raw parameters unavailable", rec.Reason, StringComparison.Ordinal);
+                Assert.DoesNotContain(patchPath, rec.Reason, StringComparison.Ordinal);
+                Assert.DoesNotContain(patchBase, rec.Reason, StringComparison.Ordinal);
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [Fact]
+        public void BuildPatchInventoryBounded_MaxParamsAggregateBytesAboveImmutableCeiling_Throws()
+        {
+            // #1965 L3 correction ("opposite hypothesis" check): a caller invoking the extracted
+            // core helper directly with an aggregate cap wider than the immutable
+            // BuildfileExportOptions.MaxPatchParamsAggregateBytes ceiling must be rejected
+            // outright, never silently honored as a widened budget.
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+
+            var options = new BuildfileExportOptions
+            {
+                OutputDirectory = Path.GetTempPath(),
+                PatchBaseDirectory = null,
+            };
+
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                BuildfileExportCore.BuildPatchInventoryBounded(
+                    MakeRom(clean), MakeRom(target), options, existingAdvisoryItemCount: 0,
+                    maxParamsAggregateBytes: BuildfileExportOptions.MaxPatchParamsAggregateBytes + 1));
+        }
+
         [Fact]
         public void Export_LateProjectionWarning_DegradesPatchesWhenCombinedTotalExceedsCap()
         {

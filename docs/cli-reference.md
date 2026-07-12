@@ -265,7 +265,33 @@ anything is materialized, and a warning appended late (e.g. by the optional sour
 after the patch inventory budget was already reserved) is re-checked against the same shared
 total. Exceeding the budget at any point degrades the **entire** advisory patch inventory to
 `unavailable` with the same stable, path-free reason — never a partial/truncated installed list,
-and the authoritative recipe/payloads/manifest still export successfully. This strict exporter inventory is separate from the legacy
+and the authoritative recipe/payloads/manifest still export successfully. Independently of that
+item-count budget, every individual `PATCH_*.txt` definition read during metadata discovery and
+raw-parameter capture is byte-bounded: each file is capped at **16 MiB**, rejected on the raw byte
+count **before** any line is decoded. A `FileStream.Length` reported above 16 MiB — including an
+oversized or sparse-huge-reported length — is rejected **up front, before any read is issued**;
+this initial length check is distinct from, and precedes, the separate cap+1 probe. Once that
+length check is passed, a bounded read of at most cap+1 bytes on the same handle still catches a
+file that **grows beyond the cap after that check**, again before the surplus byte is ever
+written or decoded — so no partial line is ever decoded or returned on either kind of rejection.
+The reader never allocates a buffer sized to the full 16 MiB cap for
+every file: reads are issued as fixed **64 KiB** `ArrayPool`-rented chunk requests, and the
+initial accepted in-memory storage capacity is sized from that already-validated `FileStream.Length`
+(so at most 16 MiB, never the unvalidated raw/sparse-reported value) and grows
+**only** as bytes are actually accepted — never blindly pre-allocated to the full cap for a small
+file — so a library of thousands of mostly-small files does not incur cumulative large-buffer
+allocation. Raw lines are
+also counted against an independent raw-line cap **during** decoding, not after a full file is
+materialized into a line list — so a within-byte-budget file consisting of massive numbers of
+tiny/blank lines cannot force an unbounded line list either; no partial line list is ever produced
+or returned on any breach. The metadata-discovery pass and the raw-parameter-capture pass each also
+track their own running total against a **separate 64 MiB aggregate cap per pass** (128 MiB
+worst case if both passes are near their cap at once); breaching either the per-file or the
+aggregate byte cap degrades the entire advisory patch inventory to `unavailable` the same way the
+16,384-item budget does — never a partial/truncated installed list. Accepted bytes are decoded
+with the same BOM-detecting, non-strict-UTF-8 (replacement-fallback) semantics as the legacy
+`File.ReadLines`/`File.ReadAllLines` APIs, so any file within budget parses byte-identically to
+the unbounded legacy path. This strict exporter inventory is separate from the legacy
 Patch Manager/CLI enumeration path, which logs an unreadable individual definition and retains all
 other successfully parsed patches. The optional `source/` projection is a non-composable
 best-effort produced only by the built-in synchronous `RebuildProducerCore` path. It first writes
