@@ -177,21 +177,9 @@ namespace FEBuilderGBA
 
             if (OperatingSystem.IsWindows())
             {
-                if (!GetFileInformationByHandle(
-                        first.SafeFileHandle,
-                        out WindowsFileInformation firstInfo)
-                    || !GetFileInformationByHandle(
-                        second.SafeFileHandle,
-                        out WindowsFileInformation secondInfo))
-                {
-                    throw new IOException(
-                        "Cannot compare opened Windows file identities (Win32 error "
-                        + Marshal.GetLastPInvokeError() + ").");
-                }
-
-                return firstInfo.VolumeSerialNumber == secondInfo.VolumeSerialNumber
-                    && firstInfo.FileIndexHigh == secondInfo.FileIndexHigh
-                    && firstInfo.FileIndexLow == secondInfo.FileIndexLow;
+                return BuildfilePathSafety.SameWindowsFileIdentity(
+                    first.SafeFileHandle,
+                    second.SafeFileHandle);
             }
 
             if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()

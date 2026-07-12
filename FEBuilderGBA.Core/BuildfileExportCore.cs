@@ -345,18 +345,77 @@ namespace FEBuilderGBA
         {
             using SafeFileHandle handleA = OpenWindowsIdentityHandle(pathA);
             using SafeFileHandle handleB = OpenWindowsIdentityHandle(pathB);
+            return SameWindowsFileIdentity(
+                handleA,
+                handleB,
+                pathA,
+                pathB,
+                try128BitIdentity);
+        }
 
-            if (try128BitIdentity
-                && TryReadWindowsFileIdentity128(handleA, out WindowsFileIdentity128 identity128A)
-                && TryReadWindowsFileIdentity128(handleB, out WindowsFileIdentity128 identity128B))
+        internal static bool SameWindowsFileIdentity(
+            SafeFileHandle handleA,
+            SafeFileHandle handleB,
+            bool try128BitIdentity = true)
+        {
+            if (handleA == null) throw new ArgumentNullException(nameof(handleA));
+            if (handleB == null) throw new ArgumentNullException(nameof(handleB));
+            return SameWindowsFileIdentity(
+                handleA,
+                handleB,
+                "first opened file",
+                "second opened file",
+                try128BitIdentity);
+        }
+
+        static bool SameWindowsFileIdentity(
+            SafeFileHandle handleA,
+            SafeFileHandle handleB,
+            string labelA,
+            string labelB,
+            bool try128BitIdentity)
+        {
+            if (try128BitIdentity)
             {
-                return identity128A.VolumeSerialNumber == identity128B.VolumeSerialNumber
-                    && identity128A.FileIdLow == identity128B.FileIdLow
-                    && identity128A.FileIdHigh == identity128B.FileIdHigh;
+                bool hasIdentity128A = TryReadWindowsFileIdentity128(
+                    handleA,
+                    out WindowsFileIdentity128 identity128A,
+                    out int identity128ErrorA);
+                bool hasIdentity128B = TryReadWindowsFileIdentity128(
+                    handleB,
+                    out WindowsFileIdentity128 identity128B,
+                    out int identity128ErrorB);
+                if (hasIdentity128A && hasIdentity128B)
+                {
+                    return identity128A.VolumeSerialNumber == identity128B.VolumeSerialNumber
+                        && identity128A.FileIdLow == identity128B.FileIdLow
+                        && identity128A.FileIdHigh == identity128B.FileIdHigh;
+                }
+                if (!hasIdentity128A
+                    && !IsWindowsFileIdInfoUnavailable(identity128ErrorA))
+                {
+                    throw new IOException(
+                        "Cannot inspect Windows FileIdInfo for " + labelA
+                        + " (Win32 error " + identity128ErrorA + ").");
+                }
+                if (!hasIdentity128B
+                    && !IsWindowsFileIdInfoUnavailable(identity128ErrorB))
+                {
+                    throw new IOException(
+                        "Cannot inspect Windows FileIdInfo for " + labelB
+                        + " (Win32 error " + identity128ErrorB + ").");
+                }
+                if (hasIdentity128A != hasIdentity128B)
+                {
+                    // FileIdInfo availability is filesystem-scoped. Handles on opposite sides
+                    // of that capability boundary cannot identify the same file, and comparing
+                    // the ReFS side through its legacy non-unique index would weaken the result.
+                    return false;
+                }
             }
 
-            WindowsFileIdentity64 identity64A = ReadWindowsFileIdentity64(handleA, pathA);
-            WindowsFileIdentity64 identity64B = ReadWindowsFileIdentity64(handleB, pathB);
+            WindowsFileIdentity64 identity64A = ReadWindowsFileIdentity64(handleA, labelA);
+            WindowsFileIdentity64 identity64B = ReadWindowsFileIdentity64(handleB, labelB);
             return identity64A.VolumeSerialNumber == identity64B.VolumeSerialNumber
                 && identity64A.FileIndexLow == identity64B.FileIndexLow
                 && identity64A.FileIndexHigh == identity64B.FileIndexHigh;
@@ -385,26 +444,47 @@ namespace FEBuilderGBA
 
         static bool TryReadWindowsFileIdentity128(
             SafeFileHandle handle,
-            out WindowsFileIdentity128 identity)
+            out WindowsFileIdentity128 identity,
+            out int error)
         {
-            return GetFileInformationByHandleEx(
+            if (GetFileInformationByHandleEx(
                 handle,
                 FileInfoByHandleClass.FileIdInfo,
                 out identity,
-                (uint)Marshal.SizeOf<WindowsFileIdentity128>());
+                (uint)Marshal.SizeOf<WindowsFileIdentity128>()))
+            {
+                error = 0;
+                return true;
+            }
+
+            error = Marshal.GetLastPInvokeError();
+            return false;
         }
 
         static WindowsFileIdentity64 ReadWindowsFileIdentity64(
             SafeFileHandle handle,
-            string path)
+            string label)
         {
             if (!GetFileInformationByHandle(handle, out WindowsFileIdentity64 identity))
             {
                 int error = Marshal.GetLastWin32Error();
                 throw new IOException(
-                    "Cannot inspect Windows file identity: " + path + " (Win32 error " + error + ").");
+                    "Cannot inspect Windows file identity for " + label
+                    + " (Win32 error " + error + ").");
             }
             return identity;
+        }
+
+        static bool IsWindowsFileIdInfoUnavailable(int error)
+        {
+            const int ErrorInvalidFunction = 1;
+            const int ErrorNotSupported = 50;
+            const int ErrorInvalidParameter = 87;
+            const int ErrorCallNotImplemented = 120;
+            return error == ErrorInvalidFunction
+                || error == ErrorNotSupported
+                || error == ErrorInvalidParameter
+                || error == ErrorCallNotImplemented;
         }
 
         enum FileInfoByHandleClass
@@ -1263,7 +1343,7 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Generate the derived Event Assembler installer from the plan. Uses EA's
-        /// documented <c>ORG Offset</c> and <c>FILL Amount Value</c> forms; payload
+        /// documented <c>ORG Offset</c> and <c>FILL Amount Size Value</c> forms; payload
         /// writes follow the fill so sparse overrides win. The JSON remains the authority.
         /// </summary>
         public static string GenerateMainEvent(BuildfileExportPlan plan)
@@ -1278,7 +1358,8 @@ namespace FEBuilderGBA
             if (m.Extension != null)
             {
                 sb.Append("ORG 0x" + m.Extension.Start.ToString("X") + "\n");
-                sb.Append("FILL 0x" + m.Extension.Length.ToString("X") + " " + m.Extension.FillByte + "\n");
+                sb.Append("FILL 0x" + m.Extension.Length.ToString("X")
+                    + " 1 " + m.Extension.FillByte + "\n");
             }
 
             foreach (BuildfileRange r in m.Ranges)
@@ -1506,30 +1587,8 @@ namespace FEBuilderGBA
             error = "";
             try
             {
-                if (!TryCreateDirectoryExclusive(source))
-                {
-                    error = "Exporter-owned source directory already exists.";
+                if (!TryWriteProjectionSnapshot(snapshot, source, out error))
                     return false;
-                }
-
-                foreach (string relativeDirectory in snapshot.Directories)
-                {
-                    Directory.CreateDirectory(
-                        ProjectionSnapshotPath(source, relativeDirectory));
-                }
-                foreach (ProjectionTreeSnapshotFile file in snapshot.Files)
-                {
-                    string path = ProjectionSnapshotPath(source, file.RelativePath);
-                    string parent = Path.GetDirectoryName(path);
-                    if (!string.IsNullOrEmpty(parent))
-                        Directory.CreateDirectory(parent);
-                    using var output = new FileStream(
-                        path,
-                        FileMode.CreateNew,
-                        FileAccess.Write,
-                        FileShare.None);
-                    output.Write(file.Data, 0, file.Data.Length);
-                }
 
                 // The historical hook name is retained for test compatibility; the source is no
                 // longer moved from runner scratch and is entirely exporter-owned.
@@ -1542,6 +1601,25 @@ namespace FEBuilderGBA
                 {
                     return false;
                 }
+
+                // The callback is an internal fault-injection seam. Discard every inode it could
+                // have touched, then recreate the final source only from the immutable snapshot.
+                // A regular-file replacement or hard link can therefore never survive into the
+                // published tree even though it passes the plain-file type check above.
+                if (options.AfterProjectionMoveForTest != null)
+                {
+                    if (!DeleteAndVerifyGone(source, out string discardError))
+                    {
+                        error = SanitizeScratchPath(
+                            "Could not discard validated projection candidate: "
+                            + discardError,
+                            stage);
+                        return false;
+                    }
+
+                    if (!TryWriteProjectionSnapshot(snapshot, source, out error))
+                        return false;
+                }
                 return true;
             }
             catch (Exception ex) when (IsExpectedFileSystemException(ex))
@@ -1551,6 +1629,39 @@ namespace FEBuilderGBA
                     stage);
                 return false;
             }
+        }
+
+        static bool TryWriteProjectionSnapshot(
+            ProjectionTreeSnapshot snapshot,
+            string source,
+            out string error)
+        {
+            error = "";
+            if (!TryCreateDirectoryExclusive(source))
+            {
+                error = "Exporter-owned source directory already exists.";
+                return false;
+            }
+
+            foreach (string relativeDirectory in snapshot.Directories)
+            {
+                Directory.CreateDirectory(
+                    ProjectionSnapshotPath(source, relativeDirectory));
+            }
+            foreach (ProjectionTreeSnapshotFile file in snapshot.Files)
+            {
+                string path = ProjectionSnapshotPath(source, file.RelativePath);
+                string parent = Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(parent))
+                    Directory.CreateDirectory(parent);
+                using var output = new FileStream(
+                    path,
+                    FileMode.CreateNew,
+                    FileAccess.Write,
+                    FileShare.None);
+                output.Write(file.Data, 0, file.Data.Length);
+            }
+            return true;
         }
 
         static string ProjectionSnapshotPath(string source, string relativePath)

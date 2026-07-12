@@ -431,7 +431,7 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Contains("POP", ev);
                 Assert.Equal(1, CountOccurrences(ev, "PUSH"));
                 Assert.Equal(1, CountOccurrences(ev, "POP"));
-                Assert.Contains("FILL 0x1000000 0xFF", ev);
+                Assert.Contains("FILL 0x1000000 1 0xFF", ev);
                 // one ORG + #incbin per payload range
                 int incbin = CountOccurrences(ev, "#incbin");
                 Assert.Equal(result.Manifest.Ranges.Count, incbin);
@@ -1366,6 +1366,78 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.True(ReconstructFromProject(outDir, clean).SequenceEqual(target));
                 Assert.DoesNotContain(Directory.GetDirectories(parent), d =>
                     Path.GetFileName(d).Contains(".psrc-") || Path.GetFileName(d).Contains(".stage-"));
+            }
+            finally
+            {
+                Cleanup(parent);
+                try { Directory.Delete(external, true); } catch { }
+            }
+        }
+
+        [SkippableFact]
+        public void Export_FreshProjectionFileReplacedWithHardLink_RematerializesOwnedInode()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x2000] = 0x79;
+
+            var (outDir, parent) = FreshOut();
+            string external = Path.Combine(
+                Path.GetTempPath(), "bfx_fresh_hardlink_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(external);
+            string externalFile = Path.Combine(external, "outside.txt");
+            const string ExternalContent = "external-content\n";
+            File.WriteAllText(externalFile, ExternalContent);
+            string linkError = null;
+            try
+            {
+                var options = new BuildfileExportOptions
+                {
+                    OutputDirectory = outDir,
+                    ProjectionRunner = scratch =>
+                    {
+                        File.WriteAllText(
+                            Path.Combine(scratch, "projection.txt"),
+                            "snapshot-content\n");
+                        return BuildfileProjectionOutcome.Ok();
+                    },
+                    AfterProjectionMoveForTest = source =>
+                    {
+                        string projectedFile = Path.Combine(source, "projection.txt");
+                        File.Delete(projectedFile);
+                        if (!CreateHardLink(projectedFile, externalFile))
+                        {
+                            linkError = "Cannot create a hard link here; native error "
+                                + Marshal.GetLastPInvokeError();
+                        }
+                    },
+                };
+
+                var result = BuildfileExportCore.Export(
+                    MakeRom(clean),
+                    MakeRom(target),
+                    options);
+                Skip.If(linkError != null, linkError);
+
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("success", result.Manifest.Projection.Status);
+                string publishedFile = Path.Combine(
+                    outDir,
+                    "source",
+                    "projection.txt");
+                Assert.Equal("snapshot-content\n", File.ReadAllText(publishedFile));
+                using (FileStream publishedStream =
+                    ProjectionFileSystemSafety.OpenRegularFileForRead(publishedFile))
+                using (FileStream externalStream =
+                    ProjectionFileSystemSafety.OpenRegularFileForRead(externalFile))
+                {
+                    Assert.False(ProjectionFileSystemSafety.SameOpenedFile(
+                        publishedStream,
+                        externalStream));
+                }
+
+                File.WriteAllText(publishedFile, "published-change\n");
+                Assert.Equal(ExternalContent, File.ReadAllText(externalFile));
             }
             finally
             {
