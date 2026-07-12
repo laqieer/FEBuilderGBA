@@ -431,7 +431,15 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Contains("POP", ev);
                 Assert.Equal(1, CountOccurrences(ev, "PUSH"));
                 Assert.Equal(1, CountOccurrences(ev, "POP"));
-                Assert.Contains("FILL 0x1000000 1 0xFF", ev);
+                // ColorzCore 0bca76f ParseFillStatement accepts amount + optional value only.
+                string fillLine = ev.Split('\n').Single(
+                    line => line.StartsWith("FILL ", StringComparison.Ordinal));
+                Assert.Equal("FILL 0x1000000 0xFF", fillLine);
+                Assert.Equal(
+                    3,
+                    fillLine.Split(
+                        new[] { ' ' },
+                        StringSplitOptions.RemoveEmptyEntries).Length);
                 // one ORG + #incbin per payload range
                 int incbin = CountOccurrences(ev, "#incbin");
                 Assert.Equal(result.Manifest.Ranges.Count, incbin);

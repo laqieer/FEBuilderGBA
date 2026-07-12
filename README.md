@@ -111,7 +111,7 @@ dotnet run --project FEBuilderGBA.CLI -- --pointercalc --rom=source.gba --target
 dotnet run --project FEBuilderGBA.CLI -- --rebuild --rom=modified.gba --fromrom=vanilla.gba
 dotnet run --project FEBuilderGBA.CLI -- --export-buildfile --rom=modified.gba --clean=original.gba --out=project/
 # buildfile.json + data/ are authoritative; derived main.event is real-toolchain tested when bundled EA is available.
-# main.event emits ColorzCore's FILL Amount Size Value form with byte-sized fills (size 1).
+# main.event emits ColorzCore's byte-wise FILL Amount Value form.
 # Each range's gbaAddress is always 0x08000000 + offset, including header offsets 0 and 1.
 # ROM inputs are opened no-follow, identity-compared, bounded, and read through exact handles.
 # --with-source captures a bounded handle-relative snapshot, then creates a fresh private source/.

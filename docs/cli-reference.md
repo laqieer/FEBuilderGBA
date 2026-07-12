@@ -231,7 +231,7 @@ Output layout:
 ```
 project/
   buildfile.json   # canonical machine-readable manifest (schema v1) — the ONLY build authority
-  main.event       # derived Event Assembler installer (PUSH / ORG / FILL Amount Size Value / #incbin / POP)
+  main.event       # derived Event Assembler installer (PUSH / ORG / FILL Amount Value / #incbin / POP)
   README.md        # generated layout + authority notes (no absolute paths)
   data/            # one raw payload per range: <index>_<offset>_<length>.bin
   source/          # optional advisory projection (only with --with-source, non-composable)
@@ -247,10 +247,10 @@ changes the authoritative ranges, and never aborts the export. To bound worst-ca
 (e.g. a large alternating-byte diff), the exporter rejects a diff producing more than 16,384 distinct
 changed ranges with an explicit, path-free resource-safety error **before** any payload/manifest file
 is materialized; ordinary mods are far below this limit. `main.event` is a derived interoperability
-surface; it emits extension bytes with ColorzCore's `FILL Amount Size Value` form
-(`FILL <length> 1 <fillByte>`). Its deterministic structural checks are supplemented by a gated
-real-ColorzCore test that, when a complete bundled EA toolchain is available, must rebuild the
-declared extension fill and payload bytes exactly. The installed-patch inventory in the manifest is advisory (its
+surface; it emits extension bytes with ColorzCore's byte-wise `FILL Amount Value` form
+(`FILL <length> <fillByte>`). A non-skippable structural test pins that two-operand parser contract;
+a gated real-ColorzCore test additionally rebuilds the declared extension fill and payload bytes
+exactly when a complete bundled EA toolchain is available. The installed-patch inventory in the manifest is advisory (its
 `config/patch2/{version}`
 directory is resolved by existence only and enumerated under a guard, so a missing, empty,
 slow, or unreadable patch library yields `unavailable` and never aborts the export; a directory that
