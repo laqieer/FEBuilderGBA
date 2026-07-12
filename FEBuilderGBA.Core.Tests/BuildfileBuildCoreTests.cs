@@ -635,6 +635,34 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains("limit", result.Error, StringComparison.OrdinalIgnoreCase);
         }
 
+        // #1936/#1935 review remediation: the consumer's own test-only manifest byte-cap seam
+        // must be non-widening, the same shape as the exporter's
+        // BuildfileExportCore.ResolveManifestByteCap seam.
+
+        [Fact]
+        public void ResolveMaxManifestBytes_NoOverride_ResolvesToProductionConstant()
+        {
+            Assert.Equal(
+                BuildfileBuildOptions.MaxManifestBytes,
+                BuildfileBuildCore.ResolveMaxManifestBytes(null));
+        }
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(-1)]
+        public void ResolveMaxManifestBytes_ZeroOrNegativeOverride_Throws(int invalid)
+        {
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                BuildfileBuildCore.ResolveMaxManifestBytes(invalid));
+        }
+
+        [Fact]
+        public void ResolveMaxManifestBytes_WideningOverride_Throws()
+        {
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                BuildfileBuildCore.ResolveMaxManifestBytes(BuildfileBuildOptions.MaxManifestBytes + 1));
+        }
+
         // ------------------------------------------------------------ extension geometry
 
         [Fact]

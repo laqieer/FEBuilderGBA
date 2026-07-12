@@ -30,8 +30,13 @@ namespace FEBuilderGBA
     /// <summary>Options for the strict schema-v1 buildfile consumer.</summary>
     public sealed class BuildfileBuildOptions
     {
-        /// <summary>Maximum accepted <c>buildfile.json</c> size (16 MiB).</summary>
-        public const int MaxManifestBytes = 16 * 1024 * 1024;
+        /// <summary>
+        /// Maximum accepted <c>buildfile.json</c> size (16 MiB), aliasing the single source of
+        /// truth <see cref="BuildfileFormat.MaxManifestBytes"/> so the consumer and the exporter
+        /// (<see cref="BuildfileExportOptions.MaxManifestBytes"/>) can never drift from each
+        /// other (#1936/#1935 shared-cap correction).
+        /// </summary>
+        public const int MaxManifestBytes = BuildfileFormat.MaxManifestBytes;
 
         /// <summary>Maximum accepted target size (32 MiB), mirroring the exporter.</summary>
         public const int MaxRomSize = 32 * 1024 * 1024;
@@ -59,10 +64,17 @@ namespace FEBuilderGBA
         /// Test-only manifest byte-cap override so the oversized-manifest rejection can be
         /// proven cheaply without materializing a 16 MiB file. Internal by design: it is
         /// NOT a hidden command-line flag or environment bypass and has no production surface.
+        /// A supplied value is validated to <c>1..MaxManifestBytes</c> the moment it is read
+        /// (see <see cref="BuildfileBuildCore.ResolveMaxManifestBytes"/>) so this seam can only
+        /// ever NARROW the cap for a test, never widen it past what a real buildfile.json
+        /// consumer accepts — the same non-widening shape as the exporter's own
+        /// <see cref="BuildfileExportCore.ResolveManifestByteCap"/> seam (#1936/#1935 review
+        /// remediation).
         /// </summary>
         internal int? MaxManifestBytesForTest { get; set; }
 
-        internal long EffectiveMaxManifestBytes => MaxManifestBytesForTest ?? MaxManifestBytes;
+        internal long EffectiveMaxManifestBytes
+            => BuildfileBuildCore.ResolveMaxManifestBytes(MaxManifestBytesForTest);
     }
 
     /// <summary>Outcome of a strict schema-v1 buildfile reconstruction.</summary>
@@ -496,6 +508,34 @@ namespace FEBuilderGBA
             else if (el.TryGetProperty("isCanonicalOriginal", out _))
                 id.IsCanonicalOriginal = RequireBool(el, "isCanonicalOriginal");
             return id;
+        }
+
+        /// <summary>
+        /// Resolve the effective manifest byte cap for one build/reconstruction, validating
+        /// that a test-only override
+        /// (<see cref="BuildfileBuildOptions.MaxManifestBytesForTest"/>) cannot WIDEN past the
+        /// immutable production ceiling (<see cref="BuildfileBuildOptions.MaxManifestBytes"/>)
+        /// — the same non-widening shape as the exporter's own
+        /// <see cref="BuildfileExportCore.ResolveManifestByteCap"/> (#1936/#1935 review
+        /// remediation). Production (<c>maxManifestBytesForTest == null</c>) always resolves to
+        /// the immutable ceiling; there is no mutable production path that can reach a
+        /// different value.
+        /// </summary>
+        internal static long ResolveMaxManifestBytes(int? maxManifestBytesForTest)
+        {
+            if (!maxManifestBytesForTest.HasValue)
+                return BuildfileBuildOptions.MaxManifestBytes;
+
+            int v = maxManifestBytesForTest.Value;
+            if (v < 1 || v > BuildfileBuildOptions.MaxManifestBytes)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(maxManifestBytesForTest),
+                    "maxManifestBytesForTest must be within 1.."
+                        + BuildfileBuildOptions.MaxManifestBytes
+                        + " (the immutable MaxManifestBytes ceiling).");
+            }
+            return v;
         }
 
         static byte[] ReadManifestBytes(string manifestPath, BuildfileBuildOptions options)

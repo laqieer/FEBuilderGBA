@@ -35,6 +35,19 @@ namespace FEBuilderGBA
         internal const int MaxAdvisoryItems = 16384;
 
         /// <summary>
+        /// Shared resource-safety bound on the maximum accepted/emitted <c>buildfile.json</c>
+        /// size in exact UTF-8 bytes (16 MiB), INCLUDING the trailing LF
+        /// <see cref="BuildfileExportCore.SerializeManifest"/> always appends (#1936 consumer /
+        /// #1935 exporter follow-up: the exporter previously had no matching byte cap of its
+        /// own, so it could publish a <c>buildfile.json</c> its own consumer would refuse to
+        /// open). Exposed as aliases on <see cref="BuildfileBuildOptions.MaxManifestBytes"/> and
+        /// <see cref="BuildfileExportOptions.MaxManifestBytes"/> so producer and consumer can
+        /// never drift from each other. This is the ONLY literal spelling of the 16 MiB value —
+        /// every other reference is an alias of this constant.
+        /// </summary>
+        internal const int MaxManifestBytes = 16 * 1024 * 1024;
+
+        /// <summary>
         /// Overflow-safe budget consumption: adds <paramref name="additional"/> to
         /// <paramref name="total"/> and returns <c>true</c> only when the resulting combined
         /// total is still within <see cref="MaxAdvisoryItems"/>. On failure <paramref name="total"/>

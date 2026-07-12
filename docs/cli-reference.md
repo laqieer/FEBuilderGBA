@@ -339,6 +339,24 @@ output failures likewise verify stage/scratch removal and report any residual te
 projector is synchronous by contract; as with every user-owned output, a separate process running
 as the same OS identity can modify files after publication, so consumers must still treat loose
 project files as mutable.
+
+Independently of the advisory item-count and per-patch-file byte budgets above, the exporter also
+guarantees the published `buildfile.json` itself can never exceed the **same 16 MiB** cap its own
+`--build-buildfile` consumer enforces (below) — one shared constant neither side maintains a
+separate copy of, so the two can never drift apart. Before both the initial manifest write and any
+later rewrite triggered by a late materialization-error warning, the exact UTF-8 byte count of the
+serialized manifest (including its trailing newline — the identical text that is actually written
+to disk) is measured against that cap. Within budget, nothing changes. Over budget with an
+available advisory patch inventory, the **entire** inventory (never a partial/truncated list, and
+never any authoritative range/payload/identity/extension/projection field) degrades to
+`unavailable` with its own stable, path-free reason, and the manifest is re-measured; if it is
+still over budget afterward — or there was no inventory left to degrade — the export fails before
+either file is published, and the same existing stage/scratch cleanup applies. This closes a
+producer/consumer gap: previously only the consumer enforced a manifest size bound, so a
+serialized manifest could exceed it — a defect BOTH sides now share exactly one immutable
+constant to prevent (this guarantee covers only the exporter's own serialization size; the
+consumer's other structural/identity/payload/filesystem validations, and any post-publication
+mutation of the published project, are unaffected and remain independently enforced).
 If
 the target extends the clean ROM, the exporter picks the
 most frequent extension byte (lowest byte on ties) as the fill and emits only sparse override
@@ -406,7 +424,13 @@ It never mutates the clean ROM or any project file.
 FEBuilderGBA.CLI --build-buildfile --clean=original.gba --project=project/ --out=rebuilt.gba
 ```
 
-The consumer opens `buildfile.json` as an exact no-follow regular file, bounds it to 16 MiB,
+The consumer opens `buildfile.json` as an exact no-follow regular file, bounds it to 16 MiB (the
+SAME shared cap `--export-buildfile` now also enforces on every manifest it publishes — see
+above — so an exporter-produced manifest is never rejected here SOLELY because exporter-owned
+serialization exceeded that shared cap; post-publication mutation and every other structural/
+identity/payload/filesystem validation described below remain independently enforced regardless
+of origin. A hand-edited or third-party-produced buildfile.json is not exempt and is rejected
+outright if it exceeds it),
 requires strict UTF-8 (an optional UTF-8 BOM only), rejects duplicate JSON property names, and
 requires `schemaVersion == 1`. Every schema-v1 object has an exact member allowlist: unknown
 members and wrong-typed optional/advisory members are rejected, while validated advisory values

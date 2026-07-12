@@ -162,11 +162,24 @@ dotnet run --project FEBuilderGBA.CLI -- --export-buildfile --rom=modified.gba -
 # of scope for this guarantee), Browser hosts fail closed instead of falling back to an
 # unsafe open, and a genuinely missing final file or missing parent directory still resolves
 # to a successful, empty result rather than propagating a fault.
+# The published buildfile.json itself is also capped at the SAME shared 16 MiB the consumer
+# enforces (see --build-buildfile below) — measured by exact UTF-8 byte count, including the
+# trailing newline, before both the initial write and any later rewrite. Over cap with an
+# available advisory patch inventory degrades it ENTIRELY (never a partial/truncated list);
+# still over cap afterward (or nothing left to degrade) aborts the export before publication
+# rather than ever writing an oversized manifest — closing a prior producer/consumer gap where
+# only the consumer enforced this bound.
 
 dotnet run --project FEBuilderGBA.CLI -- --build-buildfile --clean=original.gba --project=project/ --out=rebuilt.gba
 # Rebuilds ONLY from buildfile.json + data/; main.event/ColorzCore/source/patches/projection are never used.
 # Enforces exact clean identity + version, schema v1, UTF-8/JSON/dup-key, exact object members/types, and every size/range/path/hash/changed-byte bound.
 # data/ is captured no-follow/handle-relative; symlinks, subdirs, missing/extra/mismatched payloads are rejected.
+# buildfile.json is bounded to 16 MiB — the SAME shared cap --export-buildfile now also enforces
+# on every manifest it publishes, so an exporter-produced manifest is never rejected here SOLELY
+# because exporter-owned serialization exceeded that shared cap; post-publication mutation and
+# every other structural/identity/payload/filesystem validation below remain independently
+# enforced regardless of origin. A hand-edited or third-party-produced buildfile.json is not
+# exempt and is rejected if oversized.
 # The SAME shared 16,384-item advisory budget applies here as a hard structural-validation
 # failure: a supplied buildfile.json whose combined patches.installed + nested params +
 # warnings exceeds the cap is rejected BEFORE any of those advisory arrays are materialized

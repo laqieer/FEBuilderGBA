@@ -761,6 +761,19 @@ namespace FEBuilderGBA
         /// <summary>Internal failure injection for unsafe materialized-source cleanup.</summary>
         internal Func<string, bool> UnsafeMovedProjectionCleanupForTest { get; set; }
 
+        /// <summary>
+        /// Internal cheap manifest-byte-cap override so the oversized-manifest degrade/fail
+        /// paths can be proven deterministically without materializing a real 16 MiB
+        /// <c>buildfile.json</c> (#1936/#1935 shared-cap correction). Internal by design: it is
+        /// NOT a hidden command-line flag, config field, or environment bypass and has no
+        /// production surface — production always resolves to the immutable
+        /// <see cref="MaxManifestBytes"/> ceiling (see the validating resolver in
+        /// <see cref="BuildfileExportCore.ResolveManifestByteCap"/>, which rejects any value
+        /// outside <c>1..MaxManifestBytes</c> so this seam can only ever narrow the cap for a
+        /// test, never widen it past what a real consumer accepts).
+        /// </summary>
+        internal long? MaxManifestBytesForTest { get; set; }
+
         /// <summary>Maximum accepted target size (32 MiB).</summary>
         public const int MaxRomSize = 32 * 1024 * 1024;
 
@@ -803,6 +816,18 @@ namespace FEBuilderGBA
         /// unbounded.
         /// </summary>
         public const long MaxPatchParamsAggregateBytes = 64L * 1024 * 1024;
+
+        /// <summary>
+        /// Maximum accepted/emitted <c>buildfile.json</c> size in exact UTF-8 bytes (16 MiB,
+        /// including the trailing LF), aliasing the single source of truth
+        /// <see cref="BuildfileFormat.MaxManifestBytes"/> so the exporter can never publish a
+        /// manifest its own independent consumer (<see cref="BuildfileBuildOptions.MaxManifestBytes"/>)
+        /// would refuse to open (#1936/#1935 shared-cap correction: the exporter previously had
+        /// no matching byte cap of its own). Over-cap manifests degrade the advisory patch
+        /// inventory first (never authoritative fields) and only fail the export if that alone
+        /// is not enough — see <see cref="BuildfileExportCore.TryPrepareManifestForByteCap"/>.
+        /// </summary>
+        public const int MaxManifestBytes = BuildfileFormat.MaxManifestBytes;
     }
 
     /// <summary>Result of an export attempt.</summary>
@@ -1373,6 +1398,20 @@ namespace FEBuilderGBA
                 // 2) Derived EA installer (does not depend on projection status).
                 WriteTextLf(Path.Combine(stage, "main.event"), GenerateMainEvent(plan));
 
+                // Enforce the shared producer/consumer manifest byte cap BEFORE either the
+                // README or buildfile.json is written, so a degraded advisory patch inventory
+                // (when the serialized manifest would otherwise exceed the cap) is reflected in
+                // BOTH files consistently (#1936/#1935 shared-cap correction). Nothing mutates
+                // plan.Manifest between here and the buildfile.json write below, so one check
+                // covers both destinations.
+                if (!TryPrepareManifestForByteCap(plan.Manifest, options.MaxManifestBytesForTest))
+                {
+                    throw new InvalidOperationException(
+                        "Manifest exceeds the shared "
+                        + BuildfileExportOptions.MaxManifestBytes
+                        + "-byte producer/consumer budget even after degrading the advisory patch inventory.");
+                }
+
                 // 3) README — written after projection so it reflects the final manifest
                 // status/warnings (including a projection refusal/error warning, when present).
                 WriteTextLf(Path.Combine(stage, "README.md"), GenerateReadme(plan.Manifest));
@@ -1424,6 +1463,18 @@ namespace FEBuilderGBA
                         // the manifest is rewritten so the published buildfile.json is
                         // internally consistent (Copilot review finding).
                         EnforceAdvisoryBudgetAfterLateWarnings(plan.Manifest);
+                        // The same materialization-error warning can independently push the
+                        // manifest back over the shared byte cap even when the item-count
+                        // budget above still fits; recheck/degrade before the rewrite so
+                        // README + buildfile.json remain coherent and consumer-compatible
+                        // (#1936/#1935 shared-cap correction).
+                        if (!TryPrepareManifestForByteCap(plan.Manifest, options.MaxManifestBytesForTest))
+                        {
+                            throw new InvalidOperationException(
+                                "Manifest exceeds the shared "
+                                + BuildfileExportOptions.MaxManifestBytes
+                                + "-byte producer/consumer budget even after degrading the advisory patch inventory.");
+                        }
                         RewriteProjectionMetadata(stage, plan.Manifest);
                     }
                 }
@@ -2206,6 +2257,16 @@ namespace FEBuilderGBA
         internal const string AdvisoryBudgetExceededReason =
             "advisory patch inventory exceeds the internal item budget; degraded to unavailable";
 
+        // Stable, path-free reason used whenever the advisory patch inventory is degraded to
+        // "unavailable" because the SERIALIZED manifest — not the advisory item count — would
+        // exceed the shared BuildfileFormat.MaxManifestBytes producer/consumer byte budget
+        // (#1936/#1935 shared-cap correction). Distinct from AdvisoryBudgetExceededReason
+        // because this is an independent budget dimension (bytes, not item count) that can be
+        // breached even when the item-count budget is not. Internal (not private) so
+        // deterministic tests can assert against the EXACT constant.
+        internal const string ManifestByteBudgetExceededReason =
+            "serialized buildfile.json exceeds the shared manifest byte budget; degraded to unavailable";
+
         // Production always calls this thin wrapper, which unconditionally binds the immutable
         // 64 MiB BuildfileExportOptions.MaxPatchParamsAggregateBytes constant — there is no
         // mutable/nullable options field that can widen or bypass it at runtime. Deterministic
@@ -2418,6 +2479,81 @@ namespace FEBuilderGBA
                 m.Patches.Reason = AdvisoryBudgetExceededReason;
                 m.Patches.Installed.Clear();
             }
+        }
+
+        // -------------------------------------------------------- manifest byte cap
+
+        /// <summary>
+        /// Resolve the effective manifest byte cap for one export, validating a test-only
+        /// override cannot WIDEN past the immutable production ceiling
+        /// (<see cref="BuildfileExportOptions.MaxManifestBytes"/>) — mirrors the existing
+        /// non-widening validation in <see cref="BuildPatchInventoryBounded"/>. Production
+        /// (<c>maxManifestBytesForTest == null</c>) always resolves to the immutable ceiling;
+        /// there is no mutable production path that can reach a different value.
+        /// </summary>
+        internal static long ResolveManifestByteCap(long? maxManifestBytesForTest)
+        {
+            if (!maxManifestBytesForTest.HasValue)
+                return BuildfileExportOptions.MaxManifestBytes;
+
+            long v = maxManifestBytesForTest.Value;
+            if (v < 1 || v > BuildfileExportOptions.MaxManifestBytes)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(maxManifestBytesForTest),
+                    "maxManifestBytesForTest must be within 1.."
+                        + BuildfileExportOptions.MaxManifestBytes
+                        + " (the immutable MaxManifestBytes ceiling).");
+            }
+            return v;
+        }
+
+        // Exact UTF-8 byte count of the manifest AS IT WOULD ACTUALLY BE WRITTEN — the same
+        // NormalizeLf(...) + "\n"-terminated text SerializeManifest produces and WriteTextLf
+        // persists — so this measurement can never drift from what is really published.
+        static long SerializedManifestByteCount(BuildfileManifest manifest)
+            => Encoding.UTF8.GetByteCount(SerializeManifest(manifest));
+
+        /// <summary>
+        /// Ensure <paramref name="manifest"/> will serialize to no more than
+        /// <see cref="BuildfileExportOptions.MaxManifestBytes"/> exact UTF-8 bytes (or the
+        /// validated <paramref name="maxManifestBytesForTest"/> override) BEFORE it is ever
+        /// written to disk (#1936/#1935 shared-cap correction: the exporter previously had no
+        /// matching byte cap of its own, so it could publish a <c>buildfile.json</c> its own
+        /// consumer, <see cref="BuildfileBuildCore"/>, would refuse to open). Called at BOTH
+        /// manifest write sites — before the initial README/buildfile.json write and again
+        /// before <see cref="RewriteProjectionMetadata"/> — since a late projection-error
+        /// warning can independently push a previously-fitting manifest back over the cap.
+        /// <para>
+        /// If already within budget, returns true unchanged. If over budget and the advisory
+        /// patch inventory has installed entries, degrades ONLY
+        /// <c>Patches.Status</c>/<c>Patches.Reason</c> and clears <c>Patches.Installed</c> (never
+        /// ranges, payload hashes, identity, extension, projection, or warnings), then
+        /// re-measures. Returns false — leaving the manifest exactly as degraded, never
+        /// truncated — only when it is STILL over budget (nothing left advisory to degrade, or
+        /// the degrade was not enough); the caller must then abort publication without writing
+        /// the over-budget manifest.
+        /// </para>
+        /// </summary>
+        internal static bool TryPrepareManifestForByteCap(
+            BuildfileManifest manifest, long? maxManifestBytesForTest)
+        {
+            long cap = ResolveManifestByteCap(maxManifestBytesForTest);
+
+            if (SerializedManifestByteCount(manifest) <= cap)
+                return true;
+
+            if (manifest.Patches != null && manifest.Patches.Installed.Count > 0)
+            {
+                manifest.Patches.Status = "unavailable";
+                manifest.Patches.Reason = ManifestByteBudgetExceededReason;
+                manifest.Patches.Installed.Clear();
+
+                if (SerializedManifestByteCount(manifest) <= cap)
+                    return true;
+            }
+
+            return false;
         }
 
         // Append the raw parameter declarations to a record, bounded to at most `maxEntries`
