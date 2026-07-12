@@ -230,6 +230,48 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.False(equal);
             Assert.Equal(3, offset);
             Assert.Contains("Length mismatch", detail);
+            Assert.Contains("identical prefix length=3 bytes", detail);
+            Assert.Contains("first length difference at offset 0x3", detail);
+            Assert.DoesNotContain("through offset", detail);
+        }
+
+        [Fact]
+        public void OutputBoundary_SamePathDirectoryReplacement_IsDetected()
+        {
+            string parent = Path.Combine(
+                Path.GetTempPath(),
+                "bfb_boundary_" + Guid.NewGuid().ToString("N"));
+            string project = Path.Combine(parent, "project");
+            string data = Path.Combine(project, "data");
+            string outputParent = Path.Combine(parent, "output");
+            string movedProject = Path.Combine(parent, "moved-project");
+            Directory.CreateDirectory(data);
+            Directory.CreateDirectory(outputParent);
+            try
+            {
+                Assert.True(CliProgram.TryValidateBuildfileOutputBoundary(
+                    project,
+                    outputParent,
+                    out BuildfileOutputBoundary initial,
+                    out string initialError),
+                    initialError);
+
+                Directory.Move(project, movedProject);
+                Directory.CreateDirectory(Path.Combine(project, "data"));
+
+                Assert.True(CliProgram.TryValidateBuildfileOutputBoundary(
+                    project,
+                    outputParent,
+                    out BuildfileOutputBoundary current,
+                    out string currentError),
+                    currentError);
+                Assert.False(initial.HasSameEntries(current));
+            }
+            finally
+            {
+                if (Directory.Exists(parent))
+                    Directory.Delete(parent, recursive: true);
+            }
         }
     }
 }

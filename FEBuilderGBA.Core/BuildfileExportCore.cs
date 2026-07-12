@@ -132,6 +132,42 @@ namespace FEBuilderGBA
             => string.Equals(NormalizeFullPath(a), NormalizeFullPath(b), PathComparison);
 
         /// <summary>
+        /// True when <paramref name="candidatePath"/> is the same physical directory as, or has
+        /// an ancestor with the same filesystem identity as, <paramref name="rootPath"/>.
+        /// Physical entry identity catches alternate drive/UNC/mount spellings that normalized
+        /// path-prefix comparison cannot.
+        /// </summary>
+        public static bool IsSameOrDescendantPath(string candidatePath, string rootPath)
+            => IsSameOrDescendantPath(
+                candidatePath,
+                rootPath,
+                SameResolvedPhysicalFile);
+
+        internal static bool IsSameOrDescendantPath(
+            string candidatePath,
+            string rootPath,
+            Func<string, string, bool> sameIdentity)
+        {
+            if (sameIdentity == null) throw new ArgumentNullException(nameof(sameIdentity));
+            string candidate = NormalizeFullPath(candidatePath);
+            string root = NormalizeFullPath(rootPath);
+            while (true)
+            {
+                if (string.Equals(candidate, root, PathComparison)
+                    || sameIdentity(candidate, root))
+                    return true;
+
+                string parent = Path.GetDirectoryName(candidate);
+                if (string.IsNullOrEmpty(parent))
+                    return false;
+                parent = NormalizeFullPath(parent);
+                if (string.Equals(parent, candidate, PathComparison))
+                    return false;
+                candidate = parent;
+            }
+        }
+
+        /// <summary>
         /// True when the RAW path value contains a path segment that is exactly <c>..</c>
         /// (parent-directory traversal). Splits on the platform's directory separators
         /// (<c>/</c> and <c>\</c> on Windows; only <c>/</c> on Unix, where <c>\</c> is a legal
@@ -331,10 +367,15 @@ namespace FEBuilderGBA
             resolvedB = NormalizeFullPath(resolvedB);
             if (string.Equals(resolvedA, resolvedB, PathComparison))
                 return true;
-            if (!OperatingSystem.IsWindows())
-                return false;
-
-            return SameWindowsFileIdentity(resolvedA, resolvedB);
+            if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux()
+                || OperatingSystem.IsMacOS() || OperatingSystem.IsAndroid()
+                || OperatingSystem.IsIOS() || OperatingSystem.IsMacCatalyst())
+            {
+                return ProjectionFileSystemSafety.SameExistingFileSystemEntry(
+                    resolvedA,
+                    resolvedB);
+            }
+            return false;
         }
 
         internal static bool SameWindowsFileIdentity(
@@ -350,6 +391,44 @@ namespace FEBuilderGBA
                 pathA,
                 pathB,
                 try128BitIdentity);
+        }
+
+        internal static FileSystemEntryIdentity ReadWindowsFileSystemEntryIdentity(
+            string path,
+            bool try128BitIdentity = true)
+        {
+            using SafeFileHandle handle = OpenWindowsIdentityHandle(path);
+            if (try128BitIdentity)
+            {
+                bool hasIdentity128 = TryReadWindowsFileIdentity128(
+                    handle,
+                    out WindowsFileIdentity128 identity128,
+                    out int identity128Error);
+                if (hasIdentity128)
+                {
+                    return new FileSystemEntryIdentity(
+                        FileSystemEntryIdentityKind.Windows128,
+                        identity128.VolumeSerialNumber,
+                        identity128.FileIdLow,
+                        identity128.FileIdHigh);
+                }
+                if (!IsWindowsFileIdInfoUnavailable(identity128Error))
+                {
+                    throw new IOException(
+                        "Cannot inspect Windows FileIdInfo for " + path
+                        + " (Win32 error " + identity128Error + ").");
+                }
+            }
+
+            WindowsFileIdentity64 identity64 =
+                ReadWindowsFileIdentity64(handle, path);
+            ulong fileIndex = ((ulong)identity64.FileIndexHigh << 32)
+                | identity64.FileIndexLow;
+            return new FileSystemEntryIdentity(
+                FileSystemEntryIdentityKind.Windows64,
+                identity64.VolumeSerialNumber,
+                fileIndex,
+                0);
         }
 
         internal static bool SameWindowsFileIdentity(

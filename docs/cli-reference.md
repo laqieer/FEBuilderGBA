@@ -346,7 +346,7 @@ It never mutates the clean ROM or any project file.
 |---|---|---|
 | `--clean=<path>` | Yes | Clean/baseline ROM. Must exactly match the recipe's declared clean size + CRC32 + SHA-256 + version. |
 | `--project=<dir>` | Yes | The recipe directory (must contain `buildfile.json` + `data/`). |
-| `--out=<path>` | Yes | New destination ROM. **Must not already exist**; published atomically, never overwriting. |
+| `--out=<path>` | Yes | New destination ROM. **Must not already exist or be inside `project/data`**; published atomically, never overwriting. |
 
 ```
 FEBuilderGBA.CLI --build-buildfile --clean=original.gba --project=project/ --out=rebuilt.gba
@@ -374,21 +374,31 @@ the declared extension fill + the validated payloads in manifest order (a payloa
 the fill or span the clean/extension boundary), and its recomputed CRC32/SHA-256 must match the
 recipe's declared target before anything is published.
 
-The project root is physically resolved once before manifest/data access. The verified ROM is
-published to `--out` by writing an exclusively-reserved, bounded fixed-ASCII-name staging file
-in the destination's own parent directory, flushing it durably, fully closing the handle, and then
-committing it with an atomic **no-replace** rename (`MoveFileExW` without replace on Windows,
+The project root and output parent are physically resolved before manifest/data access. Every
+output-parent ancestor is compared to authoritative project `data/` by filesystem entry identity
+(device/inode on Unix; volume + file ID on Windows), so alternate drive/UNC/mount aliases are
+rejected along with ordinary descendants. The boundary and project-root identity are checked
+again immediately before publication, so a successful build cannot poison the next build with an
+undeclared payload. The verified ROM is published to `--out` by writing an exclusively-reserved,
+bounded fixed-ASCII-name staging file in the destination's own parent directory, flushing it
+durably, fully closing the handle, and then committing it with an atomic **no-replace** rename
+(`MoveFileExW` without replace on Windows,
 `renameat2(RENAME_NOREPLACE)` on Linux, `renamex_np(RENAME_EXCL)` on macOS). A destination that
 appears after the pre-check is preserved and the build fails; on any failure the staging file is
 removed and its removal verified.
 
+The identity recheck detects same-path replacement during reconstruction. As with other pathname-
+based desktop tools, a privileged concurrent remap in the narrow interval after the final identity
+check and before the staging-file open is outside this command's guarantee; the publication layer
+still rejects reparse-point parents, destination replacement, and no-replace rename races.
+
 **Rejections (exit 1, no output):** an unknown command-specific option; missing
 `--clean`/`--project`/`--out`; a `--clean` or `--project` value containing a `..` segment; a
 Windows device-namespace path; a nonexistent clean ROM or project directory; a clean ROM larger
-than 32 MiB or not a plain regular file; a pre-existing `--out`; any structural/identity/size/
-range/path/hash/bounds violation above; or a rebuilt ROM whose recomputed identity does not match
-the recipe's declared target. Global switches (`--help`, `--version`) take precedence over the
-verb in either order.
+than 32 MiB or not a plain regular file; a pre-existing `--out`; an output parent physically at
+or below project `data/`; any structural/identity/size/range/path/hash/bounds violation above; or
+a rebuilt ROM whose recomputed identity does not match the recipe's declared target. Global
+switches (`--help`, `--version`) take precedence over the verb in either order.
 
 **Exit code:** 0 on success, 1 on any usage/validation/identity/I/O/publication error.
 

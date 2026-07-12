@@ -342,8 +342,11 @@ namespace FEBuilderGBA
             bool extensionPropertyPresent =
                 root.TryGetProperty("extension", out JsonElement extEl);
             if (extensionPropertyPresent && extEl.ValueKind == JsonValueKind.Null)
-                throw new BuildfileValidationException(
-                    "extension must be omitted (not null) when there is no ROM extension.");
+            {
+                throw new BuildfileValidationException(hasExtension
+                    ? "extension must be an object (not null) when the target extends the clean ROM."
+                    : "extension must be omitted (not null) when the target size equals the clean size.");
+            }
             if (hasExtension)
             {
                 if (!extensionPropertyPresent)

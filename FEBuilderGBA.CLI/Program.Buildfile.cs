@@ -16,6 +16,31 @@ namespace FEBuilderGBA.CLI
 {
     internal delegate bool BuildfileScratchDelete(string path, out string error);
 
+    internal readonly struct BuildfileOutputBoundary
+    {
+        internal string ProjectPhysical { get; }
+        internal FileSystemEntryIdentity ProjectIdentity { get; }
+        internal FileSystemEntryIdentity DataIdentity { get; }
+        internal FileSystemEntryIdentity OutputParentIdentity { get; }
+
+        internal BuildfileOutputBoundary(
+            string projectPhysical,
+            FileSystemEntryIdentity projectIdentity,
+            FileSystemEntryIdentity dataIdentity,
+            FileSystemEntryIdentity outputParentIdentity)
+        {
+            ProjectPhysical = projectPhysical;
+            ProjectIdentity = projectIdentity;
+            DataIdentity = dataIdentity;
+            OutputParentIdentity = outputParentIdentity;
+        }
+
+        internal bool HasSameEntries(BuildfileOutputBoundary other)
+            => ProjectIdentity.Equals(other.ProjectIdentity)
+            && DataIdentity.Equals(other.DataIdentity)
+            && OutputParentIdentity.Equals(other.OutputParentIdentity);
+    }
+
     static partial class Program
     {
         // -------------------------------------------------------------- --build-buildfile
@@ -108,6 +133,16 @@ namespace FEBuilderGBA.CLI
                 return 1;
             }
 
+            if (!TryValidateBuildfileOutputBoundary(
+                projectFull,
+                outParent,
+                out BuildfileOutputBoundary initialBoundary,
+                out string boundaryError))
+            {
+                Console.Error.WriteLine("Error: " + boundaryError);
+                return 1;
+            }
+
             // Load the clean ROM through the exact no-follow regular-file + bounded-read contract.
             string cleanPhysical;
             try
@@ -157,7 +192,10 @@ namespace FEBuilderGBA.CLI
             }
 
             BuildfileBuildResult build =
-                BuildfileBuildCore.Build(cleanRom, projectFull, new BuildfileBuildOptions());
+                BuildfileBuildCore.Build(
+                    cleanRom,
+                    initialBoundary.ProjectPhysical,
+                    new BuildfileBuildOptions());
             if (!build.Success)
             {
                 Console.Error.WriteLine("Error: " + build.Error);
@@ -170,6 +208,26 @@ namespace FEBuilderGBA.CLI
                 Console.Error.WriteLine(
                     "Error: reconstructed ROM does not match the recipe's declared target identity; "
                     + "refusing to publish. " + build.TargetIdentityDetail);
+                return 1;
+            }
+
+            if (!TryValidateBuildfileOutputBoundary(
+                projectFull,
+                outParent,
+                out BuildfileOutputBoundary currentBoundary,
+                out boundaryError))
+            {
+                Console.Error.WriteLine(
+                    "Error: project/output boundary changed before publication: "
+                    + boundaryError);
+                return 1;
+            }
+            if (!initialBoundary.HasSameEntries(currentBoundary))
+            {
+                Console.Error.WriteLine(
+                    "Error: Recipe project, data directory, or output parent changed "
+                    + "before publication; "
+                    + "refusing to write output.");
                 return 1;
             }
 
@@ -189,6 +247,58 @@ namespace FEBuilderGBA.CLI
                 Console.WriteLine($"  Extension: {m.Extension.Length} bytes from 0x{m.Extension.Start:X} filled with {m.Extension.FillByte}");
             Console.WriteLine($"  Ranges: {m.TotalRanges} ({m.TotalChangedBytes} changed bytes)");
             return 0;
+        }
+
+        internal static bool TryValidateBuildfileOutputBoundary(
+            string projectPath,
+            string outParent,
+            out BuildfileOutputBoundary boundary,
+            out string error)
+        {
+            boundary = default;
+            error = "";
+            try
+            {
+                string projectPhysical =
+                    BuildfilePathSafety.ResolvePhysicalPath(projectPath);
+                string dataPath = Path.Combine(projectPhysical, "data");
+                if (!Directory.Exists(dataPath))
+                {
+                    error = "Recipe data directory not found: " + dataPath;
+                    return false;
+                }
+
+                string dataPhysical = BuildfilePathSafety.ResolvePhysicalPath(dataPath);
+                string outParentPhysical =
+                    BuildfilePathSafety.ResolvePhysicalPath(outParent);
+                if (BuildfilePathSafety.IsSameOrDescendantPath(
+                    outParentPhysical,
+                    dataPhysical))
+                {
+                    error = "Output parent must remain outside the authoritative "
+                        + "project data directory: " + dataPhysical;
+                    return false;
+                }
+
+                boundary = new BuildfileOutputBoundary(
+                    projectPhysical,
+                    ProjectionFileSystemSafety.CaptureExistingFileSystemEntryIdentity(
+                        projectPhysical),
+                    ProjectionFileSystemSafety.CaptureExistingFileSystemEntryIdentity(
+                        dataPhysical),
+                    ProjectionFileSystemSafety.CaptureExistingFileSystemEntryIdentity(
+                        outParentPhysical));
+                return true;
+            }
+            catch (Exception ex) when (ex is IOException
+                || ex is UnauthorizedAccessException
+                || ex is NotSupportedException
+                || ex is System.Security.SecurityException
+                || ex is ArgumentException)
+            {
+                error = "Invalid project/output path: " + ex.Message;
+                return false;
+            }
         }
 
         // ----------------------------------------------------------- --buildfile-roundtrip
@@ -539,7 +649,9 @@ namespace FEBuilderGBA.CLI
             if (rebuilt.Length != expected.Length)
             {
                 firstDifferenceOffset = min;
-                detail = $"Length mismatch: rebuilt={rebuilt.Length} bytes, expected={expected.Length} bytes (identical through offset 0x{min:X}).";
+                detail = $"Length mismatch: rebuilt={rebuilt.Length} bytes, "
+                    + $"expected={expected.Length} bytes; identical prefix length={min} bytes; "
+                    + $"first length difference at offset 0x{min:X}.";
                 return false;
             }
             return true;

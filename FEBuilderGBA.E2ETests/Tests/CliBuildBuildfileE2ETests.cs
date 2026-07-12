@@ -143,6 +143,32 @@ namespace FEBuilderGBA.E2ETests.Tests
             Assert.False(File.Exists(outFile));
         }
 
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void BuildBuildfile_OutputAtOrInsideData_Returns1_WithoutMutatingProject(
+            bool nested)
+        {
+            string parent = TempPath("_output_guard");
+            string projectDir = Path.Combine(parent, "project");
+            string dataDir = Path.Combine(projectDir, "data");
+            Directory.CreateDirectory(dataDir);
+            string cleanPath = Path.Combine(parent, "clean.gba");
+            File.WriteAllBytes(cleanPath, new byte[] { 0 });
+            string outParent = nested ? Path.Combine(dataDir, "nested") : dataDir;
+            Directory.CreateDirectory(outParent);
+            string outFile = Path.Combine(outParent, "rebuilt.gba");
+
+            var (code, _, stderr) = AppRunner.Run(CliExe,
+                $"--build-buildfile --clean=\"{cleanPath}\" --project=\"{projectDir}\" --out=\"{outFile}\"",
+                timeoutMs: 15_000);
+
+            Assert.Equal(1, code);
+            Assert.Contains("authoritative project data directory", stderr);
+            Assert.False(File.Exists(outFile));
+            Assert.Empty(Directory.GetFiles(dataDir, "*", SearchOption.AllDirectories));
+        }
+
         [Fact]
         public void BuildfileRoundtrip_MissingRom_Returns1()
         {

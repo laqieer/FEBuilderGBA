@@ -6,6 +6,46 @@ using Microsoft.Win32.SafeHandles;
 
 namespace FEBuilderGBA
 {
+    internal enum FileSystemEntryIdentityKind : byte
+    {
+        Unix = 1,
+        Windows64 = 2,
+        Windows128 = 3,
+    }
+
+    /// <summary>Opaque stable identity of one existing filesystem entry.</summary>
+    public readonly struct FileSystemEntryIdentity : IEquatable<FileSystemEntryIdentity>
+    {
+        readonly FileSystemEntryIdentityKind _kind;
+        readonly ulong _first;
+        readonly ulong _second;
+        readonly ulong _third;
+
+        internal FileSystemEntryIdentity(
+            FileSystemEntryIdentityKind kind,
+            ulong first,
+            ulong second,
+            ulong third)
+        {
+            _kind = kind;
+            _first = first;
+            _second = second;
+            _third = third;
+        }
+
+        public bool Equals(FileSystemEntryIdentity other)
+            => _kind == other._kind
+            && _first == other._first
+            && _second == other._second
+            && _third == other._third;
+
+        public override bool Equals(object obj)
+            => obj is FileSystemEntryIdentity other && Equals(other);
+
+        public override int GetHashCode()
+            => HashCode.Combine((byte)_kind, _first, _second, _third);
+    }
+
     /// <summary>
     /// Filesystem-type checks used before projected files are read or published.
     /// .NET's Unix <see cref="FileAttributes"/> projection does not distinguish regular files
@@ -243,6 +283,33 @@ namespace FEBuilderGBA
             throw new PlatformNotSupportedException(
                 "Opened file identity comparison is unavailable on this platform.");
         }
+
+        public static FileSystemEntryIdentity CaptureExistingFileSystemEntryIdentity(
+            string path)
+        {
+            if (OperatingSystem.IsWindows())
+                return BuildfilePathSafety.ReadWindowsFileSystemEntryIdentity(path);
+
+            if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()
+                || OperatingSystem.IsAndroid() || OperatingSystem.IsIOS()
+                || OperatingSystem.IsMacCatalyst())
+            {
+                if (!TryGetUnixFileStatus(path, out UnixFileStatus status, out string error))
+                    throw new IOException(error);
+                return new FileSystemEntryIdentity(
+                    FileSystemEntryIdentityKind.Unix,
+                    unchecked((ulong)status.Dev),
+                    unchecked((ulong)status.Ino),
+                    0);
+            }
+
+            throw new PlatformNotSupportedException(
+                "Filesystem-entry identity comparison is unavailable on this platform.");
+        }
+
+        internal static bool SameExistingFileSystemEntry(string firstPath, string secondPath)
+            => CaptureExistingFileSystemEntryIdentity(firstPath)
+                .Equals(CaptureExistingFileSystemEntryIdentity(secondPath));
 
         static FileStream OpenRegularUnix(string path)
         {

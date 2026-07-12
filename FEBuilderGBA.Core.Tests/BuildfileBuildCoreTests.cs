@@ -512,6 +512,14 @@ namespace FEBuilderGBA.Core.Tests
             AssertBuildFails(projectDir, "extension");
         }
 
+        [Fact]
+        public void Build_ExtensionNullWhenSizesDiffer_ReportsRequiredObject()
+        {
+            string projectDir = ExportValidProject(TargetExtended());
+            MutateManifest(projectDir, root => root["extension"] = null);
+            AssertBuildFails(projectDir, "object (not null)");
+        }
+
         // ------------------------------------------------------------------ range invariants
 
         [Fact]
@@ -678,6 +686,47 @@ namespace FEBuilderGBA.Core.Tests
             AssertBuildFails(projectDir, "subdirector");
         }
 
+        [SkippableFact]
+        public void Build_CaseCollidingPayloadNames_Fail()
+        {
+            string projectDir = ExportValidProject(TargetEqualSize());
+            string dataDir = Path.Combine(projectDir, "data");
+            string[] payloads = Directory.GetFiles(dataDir)
+                .OrderBy(path => new FileInfo(path).Length)
+                .ThenBy(path => Path.GetFileName(path), StringComparer.Ordinal)
+                .ToArray();
+            Assert.True(payloads.Length >= 2);
+
+            string source = payloads[0];
+            string removed = payloads[payloads.Length - 1];
+            string caseVariant = Path.Combine(
+                dataDir, Path.GetFileNameWithoutExtension(source) + ".BIN");
+            try
+            {
+                File.Copy(source, caseVariant);
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            {
+                Skip.If(true, "Filesystem cannot create case-colliding payload names: " + ex.Message);
+                return;
+            }
+
+            int collisionCount = Directory.GetFiles(dataDir).Count(path =>
+                string.Equals(
+                    Path.GetFileName(path),
+                    Path.GetFileName(source),
+                    StringComparison.OrdinalIgnoreCase));
+            if (collisionCount < 2)
+            {
+                Skip.If(true, "Filesystem does not preserve distinct case-colliding names.");
+                return;
+            }
+
+            // Keep the validated entry/byte caps satisfied so the explicit collision check runs.
+            File.Delete(removed);
+            AssertBuildFails(projectDir, "case-colliding");
+        }
+
         [Fact]
         public void Build_WrongPayloadLength_Fails()
         {
@@ -710,6 +759,44 @@ namespace FEBuilderGBA.Core.Tests
         {
             string projectDir = Path.Combine(FreshParent(), "does-not-exist");
             AssertBuildFails(projectDir, "not found");
+        }
+
+        [Fact]
+        public void PathContainment_HandlesRootDescendantAndSiblingPrefix()
+        {
+            string parent = FreshParent();
+            string data = Path.Combine(parent, "data");
+            string nested = Path.Combine(data, "nested");
+            string sibling = Path.Combine(parent, "data2");
+            Directory.CreateDirectory(nested);
+            Directory.CreateDirectory(sibling);
+
+            Assert.True(BuildfilePathSafety.IsSameOrDescendantPath(data, data));
+            Assert.True(BuildfilePathSafety.IsSameOrDescendantPath(nested, data));
+            Assert.False(BuildfilePathSafety.IsSameOrDescendantPath(sibling, data));
+            Assert.True(BuildfilePathSafety.IsSameOrDescendantPath(
+                nested,
+                Path.GetPathRoot(parent)));
+        }
+
+        [Fact]
+        public void PathContainment_WalksAncestorsByFilesystemIdentity()
+        {
+            string parent = FreshParent();
+            string realData = Path.Combine(parent, "real-data");
+            string aliasData = Path.Combine(parent, "alias-data");
+            string aliasNested = Path.Combine(aliasData, "nested");
+            Directory.CreateDirectory(realData);
+            Directory.CreateDirectory(aliasNested);
+
+            bool SameIdentity(string candidate, string root)
+                => BuildfilePathSafety.PathsEqual(candidate, aliasData)
+                    && BuildfilePathSafety.PathsEqual(root, realData);
+
+            Assert.True(BuildfilePathSafety.IsSameOrDescendantPath(
+                aliasNested,
+                realData,
+                SameIdentity));
         }
 
         [Fact]
