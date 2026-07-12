@@ -183,6 +183,8 @@ the "### Graphics System" overview in `CLAUDE.md`.
   inputs are opened as exact regular-file handles, the opened identities are compared again
   (Windows volume/128-bit `FileIdInfo`, with capability-only legacy fallback; Unix device/inode), their lengths are bounded before allocation, and
   their bytes are read exactly once through those handles before `ROM.LoadFromBytes`.
+  Browser builds fail closed before pathname access because they cannot provide those exact-open
+  and opened-file identity guarantees.
   Windows path hardening: `NormalizeFullPath` rejects the entire Win32 device-namespace class
   (`\\?\`, `\\.\`, `\??\`, extended-drive/extended-UNC, and slash variants after `GetFullPath`)
   before component inspection; `ResolvePhysicalPath` and link-target normalization share that

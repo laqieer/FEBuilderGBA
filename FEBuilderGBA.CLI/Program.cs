@@ -41,6 +41,13 @@ namespace FEBuilderGBA.CLI
                 return 0;
             }
 
+            if (argsDic.TryGetValue("--force-version", out string forceVersion)
+                && string.IsNullOrWhiteSpace(forceVersion))
+            {
+                Console.Error.WriteLine("Error: --force-version requires a non-empty value.");
+                return 1;
+            }
+
             if (argsDic.ContainsKey("--makeups"))
             {
                 return RunMakeUps(argsDic);

@@ -293,7 +293,8 @@ validation is issue #1932.
 like `--with-soruce`); missing `--rom`/`--clean`/`--out`; a `--rom` or `--clean` value that
 contains a parent-directory (`..`) path segment (rejected up front — `Path.GetFullPath` collapses
 `..` lexically before symlinks are resolved, which can diverge from the physical filesystem, so
-the exporter fails closed; ordinary and `.`-relative paths are fine); a nonexistent input ROM;
+the exporter fails closed; ordinary and `.`-relative paths are fine); a valueless
+`--force-version` or `--force-version=` (rejected globally before command I/O); a nonexistent input ROM;
 `--rom` and `--clean` that resolve to the **same physical file** — each input is canonicalized to
 its realpath (following symlinks/junctions **including ancestor links**) for preflight, so
 `C:\real\mod.gba` and `C:\link\mod.gba` (with
@@ -312,7 +313,9 @@ through the same handle before parsing. The two authoritative opened handles are
 again (128-bit `FileIdInfo` plus volume on Windows, with the legacy 64-bit file index used only when
 that capability is unavailable; `(device,inode)` on Unix), so a regular-file replacement or hard-
 link alias cannot collapse the inputs after preflight; a FIFO/device cannot block or produce an
-unbounded read, and pathname replacement cannot redirect the later byte load. A non-canonical
+unbounded read, and pathname replacement cannot redirect the later byte load. Browser builds fail
+closed before pathname access because they do not expose the required native no-follow open and
+opened-file identity primitives. A non-canonical
 (but same-version) clean baseline is an explicit warning, not a
 rejection. The `--out` path is normalized (full-path + trailing-separator trim, roots preserved)
 before all checks, so `--out=project/` and `--out=project` behave identically. Global switches

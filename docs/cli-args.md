@@ -61,7 +61,7 @@ WinForms CLI counterpart to align against.
 |---|---|---|
 | `--rom=<path>` | Specify ROM file to load | Most commands |
 | `--fromrom=<path>` | Specify original/source ROM (auto-detected if omitted for `--makeups`/`--rebuild`) | `--makeups`, `--rebuild`, `--songexchange` |
-| `--force-version=<VER>` | Force ROM version (FE6, FE7J, FE7U, FE8J, FE8U) | Any ROM command |
+| `--force-version=<VER>` | Force ROM version (FE6, FE7J, FE7U, FE8J, FE8U); the value is mandatory, and valueless forms exit 1 before command I/O | Any ROM command |
 | `--patch=<path>` | Specify UPS patch file | `--applyups` |
 | `--rom2=<path>` | Second ROM file to compare against | `--diff` |
 | `--in=<path>` | Input file | `--decreasecolor`, `--convertmap1picture`, `--translate`, `--lz77`, `--import-palette`, `--import-battle-anime` |

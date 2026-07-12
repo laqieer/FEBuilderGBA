@@ -84,6 +84,32 @@ namespace FEBuilderGBA.E2ETests.Tests
             Assert.Contains("--out", stderr);
         }
 
+        [Theory]
+        [InlineData("--force-version")]
+        [InlineData("--force-version=")]
+        [InlineData("--force-version=\" \"")]
+        public void ExportBuildfile_EmptyForceVersion_Returns1_NoOutput(string argument)
+        {
+            string outDir = TempPath("_proj");
+            var (code, _, stderr) = AppRunner.Run(CliExe,
+                $"--export-buildfile --rom=missing.gba --clean=missing-clean.gba --out=\"{outDir}\" {argument}",
+                timeoutMs: 15_000);
+
+            Assert.Equal(1, code);
+            Assert.Contains("--force-version requires a non-empty value", stderr);
+            Assert.False(Directory.Exists(outDir));
+        }
+
+        [Fact]
+        public void EmptyForceVersion_IsRejectedBeforeOtherCommandDispatch()
+        {
+            var (code, _, stderr) = AppRunner.Run(CliExe,
+                "--rom-info --rom=missing.gba --force-version=", timeoutMs: 15_000);
+
+            Assert.Equal(1, code);
+            Assert.Contains("--force-version requires a non-empty value", stderr);
+        }
+
         [Fact]
         public void ExportBuildfile_NonexistentRom_Returns1_NoOutput()
         {
@@ -339,6 +365,16 @@ namespace FEBuilderGBA.E2ETests.Tests
             var (vCode, vOut, _) = AppRunner.Run(CliExe, "--export-buildfile --version", timeoutMs: 15_000);
             Assert.Equal(0, vCode);
             Assert.Contains("Version", vOut, StringComparison.OrdinalIgnoreCase);
+
+            var (h3Code, h3Out, _) = AppRunner.Run(CliExe,
+                "--export-buildfile --force-version --help", timeoutMs: 15_000);
+            Assert.Equal(0, h3Code);
+            Assert.Contains("--export-buildfile", h3Out);
+
+            var (v2Code, v2Out, _) = AppRunner.Run(CliExe,
+                "--version --force-version=", timeoutMs: 15_000);
+            Assert.Equal(0, v2Code);
+            Assert.Contains("Version", v2Out, StringComparison.OrdinalIgnoreCase);
         }
 
         [SkippableFact]
