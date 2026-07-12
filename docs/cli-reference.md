@@ -354,9 +354,11 @@ FEBuilderGBA.CLI --build-buildfile --clean=original.gba --project=project/ --out
 
 The consumer opens `buildfile.json` as an exact no-follow regular file, bounds it to 16 MiB,
 requires strict UTF-8 (an optional UTF-8 BOM only), rejects duplicate JSON property names, and
-requires `schemaVersion == 1`. It then enforces the full recipe contract before allocating the
-target: exact clean identity (size/CRC32/SHA-256/canonical flag) and version equal to the clean
-ROM's; a target no smaller than clean and no larger than 32 MiB; `dataDirectory == "data"`;
+requires `schemaVersion == 1`. Every schema-v1 object has an exact member allowlist: unknown
+members and wrong-typed optional/advisory members are rejected, while validated advisory values
+remain non-authoritative. It then enforces the full recipe contract before allocating the target:
+exact clean identity (size/CRC32/SHA-256/canonical flag) and version equal to the clean ROM's; a
+target no smaller than clean and no larger than 32 MiB; `dataDirectory == "data"`;
 extension present exactly when the target extends clean (`start == clean size`,
 `length == target - clean`, canonical `0xNN` fill); at most 16,384 ranges with contiguous
 zero-based indices, exact `totalRanges`, strictly ordered non-touching positive ranges,

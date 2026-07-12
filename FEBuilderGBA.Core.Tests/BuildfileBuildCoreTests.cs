@@ -80,6 +80,11 @@ namespace FEBuilderGBA.Core.Tests
             File.WriteAllText(path, root.ToJsonString());
         }
 
+        static string FirstPayloadFile(string projectDir)
+            => Directory.GetFiles(Path.Combine(projectDir, "data"))
+                .OrderBy(path => Path.GetFileName(path), StringComparer.Ordinal)
+                .First();
+
         static string Sha256Hex(byte[] data)
         {
             var sb = new StringBuilder();
@@ -312,6 +317,127 @@ namespace FEBuilderGBA.Core.Tests
             AssertBuildFails(projectDir, "duplicate");
         }
 
+        [Theory]
+        [InlineData("root")]
+        [InlineData("clean")]
+        [InlineData("target")]
+        [InlineData("extension")]
+        [InlineData("range")]
+        public void Build_UnknownPropertyInSchemaObject_Fails(string objectName)
+        {
+            byte[] target = objectName == "extension" ? TargetExtended() : TargetEqualSize();
+            string projectDir = ExportValidProject(target);
+            MutateManifest(projectDir, root =>
+            {
+                JsonObject targetObject;
+                switch (objectName)
+                {
+                    case "root":
+                        targetObject = root;
+                        break;
+                    case "clean":
+                        targetObject = root["clean"].AsObject();
+                        break;
+                    case "target":
+                        targetObject = root["target"].AsObject();
+                        break;
+                    case "extension":
+                        targetObject = root["extension"].AsObject();
+                        break;
+                    default:
+                        targetObject = root["ranges"].AsArray()[0].AsObject();
+                        break;
+                }
+                targetObject["unexpectedMember"] = true;
+            });
+            AssertBuildFails(projectDir, "unknown property");
+        }
+
+        [Fact]
+        public void Build_RangeOptionalStringWrongType_Fails()
+        {
+            string projectDir = ExportValidProject(TargetEqualSize());
+            MutateManifest(projectDir, root => root["ranges"][0]["category"] = 7);
+            AssertBuildFails(projectDir, "category");
+        }
+
+        [Fact]
+        public void Build_TargetOptionalCanonicalFlagWrongType_Fails()
+        {
+            string projectDir = ExportValidProject(TargetEqualSize());
+            MutateManifest(projectDir, root =>
+                root["target"]["isCanonicalOriginal"] = "false");
+            AssertBuildFails(projectDir, "isCanonicalOriginal");
+        }
+
+        [Theory]
+        [InlineData("patches")]
+        [InlineData("projection")]
+        public void Build_UnknownPropertyInAdvisoryObject_Fails(string objectName)
+        {
+            string projectDir = ExportValidProject(TargetEqualSize());
+            MutateManifest(projectDir, root =>
+                root[objectName].AsObject()["unexpectedMember"] = true);
+            AssertBuildFails(projectDir, "unknown property");
+        }
+
+        [Theory]
+        [InlineData("record")]
+        [InlineData("parameter")]
+        public void Build_UnknownPropertyInNestedPatchObject_Fails(string objectName)
+        {
+            string projectDir = ExportValidProject(TargetEqualSize());
+            MutateManifest(projectDir, root =>
+            {
+                var parameter = new JsonObject
+                {
+                    ["key"] = "key",
+                    ["value"] = "value",
+                };
+                var parameters = new JsonArray();
+                parameters.Add(parameter);
+                var record = new JsonObject
+                {
+                    ["params"] = parameters,
+                };
+                var installed = new JsonArray();
+                installed.Add(record);
+                root["patches"].AsObject()["installed"] = installed;
+
+                JsonObject targetObject = objectName == "record" ? record : parameter;
+                targetObject["unexpectedMember"] = true;
+            });
+            AssertBuildFails(projectDir, "unknown property");
+        }
+
+        [Fact]
+        public void Build_ProjectionNullDirectory_RemainsValid()
+        {
+            byte[] target = TargetEqualSize();
+            string projectDir = ExportValidProject(target);
+            MutateManifest(projectDir, root =>
+                root["projection"].AsObject()["directory"] = null);
+
+            BuildfileBuildResult result =
+                BuildfileBuildCore.Build(MakeRom(SharedClean), projectDir, new BuildfileBuildOptions());
+
+            Assert.True(result.Success, result.Error);
+            Assert.True(target.SequenceEqual(result.TargetBytes));
+        }
+
+        [Fact]
+        public void Build_WarningWithWrongType_Fails()
+        {
+            string projectDir = ExportValidProject(TargetEqualSize());
+            MutateManifest(projectDir, root =>
+            {
+                var warnings = new JsonArray();
+                warnings.Add(7);
+                root["warnings"] = warnings;
+            });
+            AssertBuildFails(projectDir, "warnings");
+        }
+
         [Fact]
         public void Build_NonUtf8Manifest_Fails()
         {
@@ -483,7 +609,7 @@ namespace FEBuilderGBA.Core.Tests
         public void Build_TamperedPayloadBytes_Fails()
         {
             string projectDir = ExportValidProject(TargetEqualSize());
-            string payload = Directory.GetFiles(Path.Combine(projectDir, "data")).First();
+            string payload = FirstPayloadFile(projectDir);
             byte[] bytes = File.ReadAllBytes(payload);
             bytes[0] ^= 0xFF;
             File.WriteAllBytes(payload, bytes);
@@ -495,7 +621,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             byte[] target = TargetEqualSize();
             string projectDir = ExportValidProject(target);
-            string payload = Directory.GetFiles(Path.Combine(projectDir, "data")).First();
+            string payload = FirstPayloadFile(projectDir);
             byte[] bytes = File.ReadAllBytes(payload);
             bytes[0] = SharedClean[0x100];
             File.WriteAllBytes(payload, bytes);
@@ -518,7 +644,7 @@ namespace FEBuilderGBA.Core.Tests
         public void Build_MissingPayloadFile_Fails()
         {
             string projectDir = ExportValidProject(TargetEqualSize());
-            File.Delete(Directory.GetFiles(Path.Combine(projectDir, "data")).First());
+            File.Delete(FirstPayloadFile(projectDir));
             AssertBuildFails(projectDir, "payload");
         }
 
@@ -558,7 +684,7 @@ namespace FEBuilderGBA.Core.Tests
             string projectDir = ExportValidProject(TargetEqualSize());
             // Truncate a payload so total captured bytes stay within the bound and the explicit
             // per-payload length check (not the capture byte limit) rejects it.
-            string payload = Directory.GetFiles(Path.Combine(projectDir, "data")).First();
+            string payload = FirstPayloadFile(projectDir);
             File.WriteAllBytes(payload, Array.Empty<byte>());
             AssertBuildFails(projectDir, "length");
         }
@@ -567,7 +693,7 @@ namespace FEBuilderGBA.Core.Tests
         public void Build_SymlinkPayload_Fails()
         {
             string projectDir = ExportValidProject(TargetEqualSize());
-            string payload = Directory.GetFiles(Path.Combine(projectDir, "data")).First();
+            string payload = FirstPayloadFile(projectDir);
             string target = Path.Combine(FreshParent(), "elsewhere.bin");
             File.WriteAllBytes(target, new byte[] { 0 });
             File.Delete(payload);

@@ -126,7 +126,7 @@ dotnet run --project FEBuilderGBA.CLI -- --export-buildfile --rom=modified.gba -
 # Windows paths and exact opened handles use 128-bit file identity with a capability-only 64-bit fallback.
 dotnet run --project FEBuilderGBA.CLI -- --build-buildfile --clean=original.gba --project=project/ --out=rebuilt.gba
 # Rebuilds ONLY from buildfile.json + data/; main.event/ColorzCore/source/patches/projection are never used.
-# Enforces exact clean identity + version, schema v1, UTF-8/JSON/dup-key, and every size/range/path/hash/changed-byte bound.
+# Enforces exact clean identity + version, schema v1, UTF-8/JSON/dup-key, exact object members/types, and every size/range/path/hash/changed-byte bound.
 # data/ is captured no-follow/handle-relative; symlinks, subdirs, missing/extra/mismatched payloads are rejected.
 # Publishes atomically to a new --out via bounded-name same-parent staging + durable-flush no-replace rename; never overwrites. Exit 0/1.
 dotnet run --project FEBuilderGBA.CLI -- --buildfile-roundtrip --rom=modified.gba --clean=original.gba

@@ -77,6 +77,11 @@ namespace FEBuilderGBA.E2ETests.Tests
             return outDir;
         }
 
+        private static string FirstPayloadFile(string projectDir)
+            => Directory.GetFiles(Path.Combine(projectDir, "data"))
+                .OrderBy(path => Path.GetFileName(path), StringComparer.Ordinal)
+                .First();
+
         // ------------------------------------------------------- argument validation (no ROM)
 
         [Fact]
@@ -281,7 +286,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             File.WriteAllBytes(moddedPath, modded);
             string projectDir = ExportProject(moddedPath, cleanPath);
 
-            string payload = Directory.GetFiles(Path.Combine(projectDir, "data")).First();
+            string payload = FirstPayloadFile(projectDir);
             byte[] bytes = File.ReadAllBytes(payload);
             bytes[0] ^= 0xFF;
             File.WriteAllBytes(payload, bytes);

@@ -102,6 +102,50 @@ namespace FEBuilderGBA
             public BuildfileValidationException(string message) : base(message) { }
         }
 
+        static readonly HashSet<string> RootPropertyNames =
+            new HashSet<string>(StringComparer.Ordinal)
+            {
+                "schemaVersion", "tool", "game", "version", "entryEvent", "dataDirectory",
+                "clean", "target", "extension", "totalRanges", "totalChangedBytes", "ranges",
+                "patches", "projection", "warnings",
+            };
+        static readonly HashSet<string> RomIdentityPropertyNames =
+            new HashSet<string>(StringComparer.Ordinal)
+            {
+                "size", "crc32", "sha256", "isCanonicalOriginal",
+            };
+        static readonly HashSet<string> ExtensionPropertyNames =
+            new HashSet<string>(StringComparer.Ordinal)
+            {
+                "start", "length", "fillByte",
+            };
+        static readonly HashSet<string> RangePropertyNames =
+            new HashSet<string>(StringComparer.Ordinal)
+            {
+                "index", "offset", "gbaAddress", "length", "changedBytes",
+                "category", "confidence", "suggestion", "payload", "payloadSha256",
+            };
+        static readonly HashSet<string> PatchInventoryPropertyNames =
+            new HashSet<string>(StringComparer.Ordinal)
+            {
+                "status", "reason", "baseRelative", "installed",
+            };
+        static readonly HashSet<string> PatchRecordPropertyNames =
+            new HashSet<string>(StringComparer.Ordinal)
+            {
+                "name", "path", "status", "confidence", "reason", "params",
+            };
+        static readonly HashSet<string> PatchParamPropertyNames =
+            new HashSet<string>(StringComparer.Ordinal)
+            {
+                "key", "value",
+            };
+        static readonly HashSet<string> ProjectionPropertyNames =
+            new HashSet<string>(StringComparer.Ordinal)
+            {
+                "status", "reason", "directory",
+            };
+
         // ----------------------------------------------------------------- reconstruct
 
         /// <summary>
@@ -233,6 +277,7 @@ namespace FEBuilderGBA
             JsonElement root = doc.RootElement;
             if (root.ValueKind != JsonValueKind.Object)
                 throw new BuildfileValidationException("buildfile.json root must be a JSON object.");
+            RejectUnknownProperties(root, "root object", RootPropertyNames);
 
             int schema = RequireInt(root, "schemaVersion");
             if (schema != 1)
@@ -254,6 +299,7 @@ namespace FEBuilderGBA
             if (!string.Equals(m.DataDirectory, "data", StringComparison.Ordinal))
                 throw new BuildfileValidationException(
                     "dataDirectory must be \"data\" (got \"" + m.DataDirectory + "\").");
+            ValidateAdvisoryStructure(root);
 
             // Exact clean identity (size + canonical crc32 + sha256 + canonical flag).
             JsonElement cleanEl = RequireObject(root, "clean");
@@ -305,6 +351,7 @@ namespace FEBuilderGBA
                         "extension is required when the target extends the clean ROM.");
                 if (extEl.ValueKind != JsonValueKind.Object)
                     throw new BuildfileValidationException("extension must be an object.");
+                RejectUnknownProperties(extEl, "extension object", ExtensionPropertyNames);
                 uint start = RequireUInt(extEl, "start");
                 uint length = RequireUInt(extEl, "length");
                 string fillByte = RequireString(extEl, "fillByte");
@@ -347,6 +394,7 @@ namespace FEBuilderGBA
             {
                 if (rEl.ValueKind != JsonValueKind.Object)
                     throw new BuildfileValidationException("Each range must be a JSON object.");
+                RejectUnknownProperties(rEl, "range object", RangePropertyNames);
                 int rangeIndex = RequireInt(rEl, "index");
                 uint offset = RequireUInt(rEl, "offset");
                 uint length = RequireUInt(rEl, "length");
@@ -419,6 +467,8 @@ namespace FEBuilderGBA
 
         static BuildfileRomIdentity ReadRomIdentity(JsonElement el, bool requireCanonicalFlag)
         {
+            string context = requireCanonicalFlag ? "clean object" : "target object";
+            RejectUnknownProperties(el, context, RomIdentityPropertyNames);
             var id = new BuildfileRomIdentity
             {
                 Size = RequireUInt(el, "size"),
@@ -427,6 +477,8 @@ namespace FEBuilderGBA
             };
             if (requireCanonicalFlag)
                 id.IsCanonicalOriginal = RequireBool(el, "isCanonicalOriginal");
+            else if (el.TryGetProperty("isCanonicalOriginal", out _))
+                RequireBool(el, "isCanonicalOriginal");
             return id;
         }
 
@@ -829,6 +881,109 @@ namespace FEBuilderGBA
 
         // ------------------------------------------------------------- strict JSON reads
 
+        static void RejectUnknownProperties(
+            JsonElement element,
+            string context,
+            HashSet<string> allowedNames)
+        {
+            foreach (JsonProperty property in element.EnumerateObject())
+            {
+                if (!allowedNames.Contains(property.Name))
+                {
+                    throw new BuildfileValidationException(
+                        "buildfile.json " + context + " contains unknown property '"
+                        + property.Name + "'.");
+                }
+            }
+        }
+
+        static void ValidateAdvisoryStructure(JsonElement root)
+        {
+            OptionalString(root, "tool");
+            OptionalString(root, "game");
+            OptionalString(root, "entryEvent");
+
+            if (root.TryGetProperty("patches", out JsonElement patches))
+            {
+                if (patches.ValueKind != JsonValueKind.Object)
+                    throw new BuildfileValidationException(
+                        "buildfile.json property 'patches' must be an object.");
+                RejectUnknownProperties(patches, "patches object", PatchInventoryPropertyNames);
+                OptionalString(patches, "status");
+                OptionalString(patches, "reason");
+                OptionalString(patches, "baseRelative");
+
+                if (patches.TryGetProperty("installed", out JsonElement installed))
+                {
+                    if (installed.ValueKind != JsonValueKind.Array)
+                        throw new BuildfileValidationException(
+                            "buildfile.json property 'patches.installed' must be an array.");
+                    foreach (JsonElement record in installed.EnumerateArray())
+                    {
+                        if (record.ValueKind != JsonValueKind.Object)
+                            throw new BuildfileValidationException(
+                                "buildfile.json patches.installed entries must be objects.");
+                        RejectUnknownProperties(
+                            record, "patch record object", PatchRecordPropertyNames);
+                        OptionalString(record, "name");
+                        OptionalString(record, "path");
+                        OptionalString(record, "status");
+                        OptionalString(record, "confidence");
+                        OptionalString(record, "reason");
+
+                        if (record.TryGetProperty("params", out JsonElement parameters))
+                        {
+                            if (parameters.ValueKind != JsonValueKind.Array)
+                                throw new BuildfileValidationException(
+                                    "buildfile.json property 'patches.installed.params' "
+                                    + "must be an array.");
+                            foreach (JsonElement parameter in parameters.EnumerateArray())
+                            {
+                                if (parameter.ValueKind != JsonValueKind.Object)
+                                    throw new BuildfileValidationException(
+                                        "buildfile.json patch params entries must be objects.");
+                                RejectUnknownProperties(
+                                    parameter, "patch param object", PatchParamPropertyNames);
+                                OptionalString(parameter, "key");
+                                OptionalString(parameter, "value");
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (root.TryGetProperty("projection", out JsonElement projection))
+            {
+                if (projection.ValueKind != JsonValueKind.Object)
+                    throw new BuildfileValidationException(
+                        "buildfile.json property 'projection' must be an object.");
+                RejectUnknownProperties(projection, "projection object", ProjectionPropertyNames);
+                OptionalString(projection, "status");
+                OptionalString(projection, "reason");
+                if (projection.TryGetProperty("directory", out JsonElement directory)
+                    && directory.ValueKind != JsonValueKind.String
+                    && directory.ValueKind != JsonValueKind.Null)
+                {
+                    throw new BuildfileValidationException(
+                        "buildfile.json property 'projection.directory' "
+                        + "must be a string or null.");
+                }
+            }
+
+            if (root.TryGetProperty("warnings", out JsonElement warnings))
+            {
+                if (warnings.ValueKind != JsonValueKind.Array)
+                    throw new BuildfileValidationException(
+                        "buildfile.json property 'warnings' must be an array.");
+                foreach (JsonElement warning in warnings.EnumerateArray())
+                {
+                    if (warning.ValueKind != JsonValueKind.String)
+                        throw new BuildfileValidationException(
+                            "buildfile.json warnings entries must be strings.");
+                }
+            }
+        }
+
         static JsonElement RequireProperty(JsonElement parent, string name)
         {
             if (parent.ValueKind != JsonValueKind.Object
@@ -895,9 +1050,13 @@ namespace FEBuilderGBA
         static string OptionalString(JsonElement parent, string name)
         {
             if (parent.ValueKind == JsonValueKind.Object
-                && parent.TryGetProperty(name, out JsonElement value)
-                && value.ValueKind == JsonValueKind.String)
+                && parent.TryGetProperty(name, out JsonElement value))
+            {
+                if (value.ValueKind != JsonValueKind.String)
+                    throw new BuildfileValidationException(
+                        "buildfile.json property '" + name + "' must be a string.");
                 return value.GetString() ?? "";
+            }
             return "";
         }
 
