@@ -14,7 +14,12 @@ import sys
 import click
 
 from cli_anything.febuildergba import __version__
-from cli_anything.febuildergba.core.session import Session
+from cli_anything.febuildergba.core.session import (
+    HISTORY_OP_DATA_EXPORT,
+    HISTORY_OP_DATA_IMPORT,
+    HISTORY_OP_IMPORT_PALETTE,
+    Session,
+)
 
 
 # ── Global state ──────────────────────────────────────────────────────
@@ -237,7 +242,7 @@ def data_export_cmd(ctx, table, out, force_version):
     result = export_table(rom, table, out, fv)
     _check_exit_code(result, f"Data export ({table})")
     if _session:
-        _session.record_operation("data_export", {"table": table, "out": out})
+        _session.record_operation(HISTORY_OP_DATA_EXPORT, {"table": table, "out": out})
     _output(result, f"Exported {table} to {out}")
 
 
@@ -254,7 +259,7 @@ def data_import_cmd(ctx, table, in_file, force_version):
     result = import_table(rom, table, in_file, fv)
     _check_exit_code(result, f"Data import ({table})")
     if _session:
-        _session.record_operation("data_import", {"table": table, "in": in_file})
+        _session.record_operation(HISTORY_OP_DATA_IMPORT, {"table": table, "in": in_file})
         _session.mark_modified()
     _output(result, f"Imported {table} from {in_file}")
 
@@ -780,7 +785,7 @@ def palette_import_cmd(ctx, addr, in_path, force_version):
     result = import_palette(rom, addr, in_path, fv)
     _check_exit_code(result, "Palette import")
     if _session:
-        _session.record_operation("import_palette", {"addr": addr})
+        _session.record_operation(HISTORY_OP_IMPORT_PALETTE, {"addr": addr})
         _session.mark_modified()
     _output(result, f"Palette imported at {addr}: {in_path}")
 

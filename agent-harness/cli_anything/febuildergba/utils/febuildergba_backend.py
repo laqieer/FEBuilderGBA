@@ -115,6 +115,10 @@ def run_cli(args: list[str], capture: bool = True,
         raise RuntimeError(
             f"Command timed out after {timeout}s: {' '.join(cmd)}"
         )
+    except OSError as e:
+        raise RuntimeError(
+            f"Failed to run {' '.join(cmd)}: {e}"
+        ) from e
 
 
 def successful_output_size(result: subprocess.CompletedProcess,
@@ -155,7 +159,7 @@ def check_backend() -> dict:
             "command": cmd,
             "version": version,
         }
-    except RuntimeError as e:
+    except (RuntimeError, OSError) as e:
         return {
             "available": False,
             "error": str(e),

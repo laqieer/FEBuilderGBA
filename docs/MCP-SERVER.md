@@ -136,7 +136,7 @@ an over-length value is rejected as `-32602`, never silently defaulted or trunca
 
 | # | Tool | Click equivalent | Notes |
 |---|------|-------------------|-------|
-| 1 | `backend_check` | `check` | Never errors; `available: false` is a normal result. |
+| 1 | `backend_check` | `check` | Never errors; missing, non-executable, timed-out, and other OS-level launch failures are normalized to `available: false`. |
 | 2 | `session_open` | `session open` | Requires `rom_path`; rejects files that fail local GBA header validation before opening session state. |
 | 3 | `session_close` | `session close` | Never errors when no session is open. |
 | 4 | `session_status` | `session status` | |
@@ -212,6 +212,8 @@ or tampered non-ROM session paths fail closed with `rom_header: null`.
   filesystem identity as the active session's ROM (including symlink/hardlink aliases). Failures,
   advisory-only checks, and explicit overrides to a *different* ROM never dirty the session and
   never fabricate history.
+- Shared Click/MCP history uses the same identifiers: `data_export`, `data_import`, and
+  `import_palette`.
 - Calling a ROM-mutating tool with an explicit `rom_path` that differs from the open session's ROM
   never creates or mutates session state — and if no session is open at all, none of these tools
   ever create "phantom" session state as a side effect.

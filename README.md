@@ -686,7 +686,9 @@ is confirmed to be a regular file. Session ownership recognizes symlink/hardlink
 quantization exposes the backend's 2..256 maximum-color contract (or 1 when palette slot zero is
 not reserved), and malformed launcher arguments fail before the server can fall back to the
 default session. The checksum tool also rejects non-ROM paths before backend invocation while
-still reporting a genuine header-checksum mismatch as advisory data.
+still reporting a genuine header-checksum mismatch as advisory data. Backend launch failures are
+reported as ordinary unavailable status, and shared Click/MCP session history keeps stable
+operation identifiers.
 
 The `.mcp.json` at the repo root auto-configures Claude Code to use it as `febuildergba-cli`
 (`python ./agent-harness/febuildergba_mcp.py`). See

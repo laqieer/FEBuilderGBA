@@ -20,7 +20,12 @@ from pathlib import Path
 import pytest
 
 from cli_anything.febuildergba import mcp_server as srv
-from cli_anything.febuildergba.core.session import Session
+from cli_anything.febuildergba.core.session import (
+    HISTORY_OP_DATA_EXPORT,
+    HISTORY_OP_DATA_IMPORT,
+    HISTORY_OP_IMPORT_PALETTE,
+    Session,
+)
 
 
 # ── Fixtures ────────────────────────────────────────────────────────────
@@ -785,7 +790,7 @@ class TestDataExportHistoryAndModified:
         self._fake_export(monkeypatch, 0)
         resp = _call_tool(initialized_state, "data_export", {"table": "units", "out_path": "units.tsv"})
         assert resp["result"]["isError"] is False
-        assert initialized_state.session.state.history[-1]["op"] == "data_export"
+        assert initialized_state.session.state.history[-1]["op"] == HISTORY_OP_DATA_EXPORT
 
     def test_failure_does_not_record_history(self, initialized_state, monkeypatch, tmp_path):
         rom = str(tmp_path / "r.gba")
@@ -827,7 +832,7 @@ class TestDataExportHistoryAndModified:
         )
 
         assert resp["result"]["isError"] is False
-        assert initialized_state.session.state.history[-1]["op"] == "data_export"
+        assert initialized_state.session.state.history[-1]["op"] == HISTORY_OP_DATA_EXPORT
 
 
 class TestDataImportModifiedFlag:
@@ -885,7 +890,7 @@ class TestDataImportModifiedFlag:
 
         assert resp["result"]["isError"] is False
         assert initialized_state.session.state.modified is True
-        assert initialized_state.session.state.history[-1]["op"] == "data_import"
+        assert initialized_state.session.state.history[-1]["op"] == HISTORY_OP_DATA_IMPORT
 
     def test_no_phantom_session_when_none_open(self, initialized_state, monkeypatch):
         assert initialized_state.session.is_open() is False
@@ -915,7 +920,7 @@ class TestPaletteImportSessionEffects:
         resp = _call_tool(initialized_state, "palette_import", {"addr": "0x5524", "in_path": "p.pal"})
         assert resp["result"]["isError"] is False
         assert initialized_state.session.state.modified is True
-        assert initialized_state.session.state.history[-1]["op"] == "palette_import"
+        assert initialized_state.session.state.history[-1]["op"] == HISTORY_OP_IMPORT_PALETTE
 
     def test_failure_does_not_record_history_or_mark_modified(
             self, initialized_state, monkeypatch, tmp_path):
@@ -962,7 +967,7 @@ class TestPaletteImportSessionEffects:
 
         assert resp["result"]["isError"] is False
         assert initialized_state.session.state.modified is True
-        assert initialized_state.session.state.history[-1]["op"] == "palette_import"
+        assert initialized_state.session.state.history[-1]["op"] == HISTORY_OP_IMPORT_PALETTE
 
 
 class TestImageQuantizeContract:
@@ -1252,6 +1257,26 @@ class TestAdvisoryVsHardErrors:
         assert resp["result"]["isError"] is False
         payload = json.loads(resp["result"]["content"][0]["text"])
         assert payload["available"] is False
+
+    def test_backend_os_probe_failure_is_not_a_tool_error(
+            self, initialized_state, monkeypatch):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+        monkeypatch.setattr(backend, "find_febuildergba_cli", lambda: ["blocked-cli"])
+
+        def fail_launch(*args, **kwargs):
+            raise PermissionError("execution denied")
+
+        monkeypatch.setattr(backend.subprocess, "run", fail_launch)
+
+        resp = _call_tool(initialized_state, "backend_check", {})
+
+        assert resp["result"]["isError"] is False
+        payload = json.loads(resp["result"]["content"][0]["text"])
+        assert payload["available"] is False
+        assert payload["error"] == (
+            "Failed to run blocked-cli --version: execution denied"
+        )
+        assert payload["error_truncated"] is False
 
 
 # ── Bounds ────────────────────────────────────────────────────────────────

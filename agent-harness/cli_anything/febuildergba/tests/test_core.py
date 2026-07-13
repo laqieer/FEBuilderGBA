@@ -58,6 +58,30 @@ class TestBackend:
         assert result["available"] is False
         assert result["error"] == "probe failed"
 
+    def test_run_cli_wraps_os_launch_failure(self, monkeypatch):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+        monkeypatch.setattr(backend, "find_febuildergba_cli", lambda: ["blocked-cli"])
+
+        def fail_launch(*args, **kwargs):
+            raise PermissionError("execution denied")
+
+        monkeypatch.setattr(backend.subprocess, "run", fail_launch)
+
+        with pytest.raises(RuntimeError, match="execution denied"):
+            backend.run_cli(["--version"])
+
+    def test_check_backend_normalizes_os_probe_failure(self, monkeypatch):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+        monkeypatch.setattr(backend, "find_febuildergba_cli", lambda: ["blocked-cli"])
+
+        def fail_version():
+            raise PermissionError("execution denied")
+
+        monkeypatch.setattr(backend, "get_version", fail_version)
+        result = backend.check_backend()
+
+        assert result == {"available": False, "error": "execution denied"}
+
 
 class TestOutputFileReporting:
     @pytest.mark.parametrize(

@@ -31,6 +31,9 @@ import sys
 
 from cli_anything.febuildergba import __version__
 from cli_anything.febuildergba.core.session import (
+    HISTORY_OP_DATA_EXPORT,
+    HISTORY_OP_DATA_IMPORT,
+    HISTORY_OP_IMPORT_PALETTE,
     MAX_HISTORY_ENTRIES,
     MAX_SESSION_PATH_LEN,
     MAX_SESSION_VERSION_LEN,
@@ -658,7 +661,7 @@ def _h_data_export(session, args):
     result = export_table(rom_path, table, out_path, force_version)
     is_error = result["exit_code"] != 0
     if not is_error and _same_as_session_rom(session, rom_path):
-        session.record_operation("data_export", {"table": table, "out": out_path})
+        session.record_operation(HISTORY_OP_DATA_EXPORT, {"table": table, "out": out_path})
     return result, is_error
 
 
@@ -670,7 +673,7 @@ def _h_data_import(session, args):
     result = import_table(rom_path, table, in_path, force_version)
     is_error = result["exit_code"] != 0
     if not is_error and _same_as_session_rom(session, rom_path):
-        session.record_operation("data_import", {"table": table, "in": in_path})
+        session.record_operation(HISTORY_OP_DATA_IMPORT, {"table": table, "in": in_path})
         session.mark_modified()
     return result, is_error
 
@@ -785,7 +788,7 @@ def _h_palette_import(session, args):
     result = import_palette(rom_path, args["addr"], args["in_path"], force_version)
     is_error = result["exit_code"] != 0
     if not is_error and _same_as_session_rom(session, rom_path):
-        session.record_operation("palette_import", {"addr": args["addr"]})
+        session.record_operation(HISTORY_OP_IMPORT_PALETTE, {"addr": args["addr"]})
         session.mark_modified()
     return result, is_error
 

@@ -18,6 +18,9 @@ MAX_SESSION_PATH_LEN = 4096
 MAX_SESSION_ROM_SIZE = 0xFFFFFFFF
 MAX_SESSION_TIMESTAMP = 10_000_000_000
 MAX_SESSION_VERSION_LEN = 64
+HISTORY_OP_DATA_EXPORT = "data_export"
+HISTORY_OP_DATA_IMPORT = "data_import"
+HISTORY_OP_IMPORT_PALETTE = "import_palette"
 
 
 def _valid_string(value, max_len: int, allow_empty: bool = True) -> bool:
