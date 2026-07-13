@@ -26,7 +26,7 @@ README
 |---------|--------|-------------|
 | `FEBuilderGBA.Core` | net9.0 | Cross-platform core library: ROM manipulation, undo, LZ77, Huffman/text encoding, patch detection, translation, caching, git/archive, event ASM/disassembler, struct export, and ~100 other per-class seams. See [docs/CORE-SEAMS.md](docs/CORE-SEAMS.md) for the full catalog. |
 | `FEBuilderGBA` | net9.0-windows | WinForms GUI application — **stable; bug fixes only** (see [GUI strategy](docs/GUI-STRATEGY.md)) |
-| `FEBuilderGBA.CLI` | net9.0 | Cross-platform command-line tool (68 commands<sup>[†](#cli-command-count)</sup> — UPS/patch, lint, rebuild, buildfile export, disasm, translate, struct/data export-import, portrait/MIDI/battle-anime/palette, decomp project mode, and more). Full reference: [docs/cli-reference.md](docs/cli-reference.md) · arg table: [docs/cli-args.md](docs/cli-args.md). |
+| `FEBuilderGBA.CLI` | net9.0 | Cross-platform command-line tool (70 commands<sup>[†](#cli-command-count)</sup> — UPS/patch, lint, rebuild, buildfile export/build/round-trip, disasm, translate, struct/data export-import, portrait/MIDI/battle-anime/palette, decomp project mode, and more). Full reference: [docs/cli-reference.md](docs/cli-reference.md) · arg table: [docs/cli-args.md](docs/cli-args.md). |
 | `FEBuilderGBA.SkiaSharp` | net9.0 | SkiaSharp `IImageService` (GBA 4bpp/8bpp tiles, palette conversion) + `SkiaFontRasterizer` (cross-platform GDI-parity glyph rendering for translation-font auto-generation). |
 | `FEBuilderGBA.Avalonia` | net9.0 | Cross-platform Avalonia GUI: 324 editors (unit/item/class/map/event/AI/text/audio/graphics/portrait/world-map/support/arena/monster/summon/menu/credits) with read/write + undo, image PNG import, hex editor, pointer/free-space tools, cross-editor jump/pick navigation, decomp-project mode, and Help → Check for Updates to open the latest release when a newer build exists. Full editor inventory: [docs/avalonia-forms.md](docs/avalonia-forms.md) · gap analysis: [docs/avalonia-gap-analysis.md](docs/avalonia-gap-analysis.md). |
 | `FEBuilderGBA.Tests` | net9.0-windows | WinForms unit and integration tests |
@@ -35,7 +35,7 @@ README
 | `FEBuilderGBA.Android.Tests` | net9.0-android | On-device instrumentation head: reflection-runs the SkiaSharp byte-parity / version-guard suites on an Android emulator (not run by `dotnet test`). |
 | `FEBuilderGBA.E2ETests` | net9.0-windows | End-to-end GUI/CLI tests |
 
-<a id="cli-command-count">†</a> **CLI command count = 68**: distinct top-level command branches in the `FEBuilderGBA.CLI/Program.cs` dispatch table, collapsing the two documented aliases (`--help`/`-h`, `--test`/`--testonly`); `--project` and `--resolve-addr` are counted as separate user-facing commands. The canonical full list is [docs/cli-reference.md](docs/cli-reference.md).
+<a id="cli-command-count">†</a> **CLI command count = 70**: distinct top-level command branches in the `FEBuilderGBA.CLI/Program.cs` dispatch table, collapsing the two documented aliases (`--help`/`-h`, `--test`/`--testonly`); `--project` and `--resolve-addr` are counted as separate user-facing commands. The canonical full list is [docs/cli-reference.md](docs/cli-reference.md).
 
 > **🧭 GUI strategy — two front-ends, two standards.** The **WinForms GUI**
 > (`FEBuilderGBA`) is the mature, widely-used desktop app; its goal is
@@ -124,6 +124,89 @@ dotnet run --project FEBuilderGBA.CLI -- --export-buildfile --rom=modified.gba -
 # On Windows, use standard drive/UNC paths; device namespaces (\\?\, \\.\, and \??\) are rejected.
 # ROM aliases retain platform-accurate link semantics; Windows long paths keep handle-level identity checks.
 # Windows paths and exact opened handles use 128-bit file identity with a capability-only 64-bit fallback.
+# The advisory patch inventory (patches.installed + nested params) and warnings share ONE
+# internal 16,384-item resource-safety budget; an oversized patch library DEGRADES the advisory
+# patch inventory to "unavailable" (a stable, path-free reason) rather than truncating it or
+# failing export — the authoritative recipe/payloads/manifest still export successfully.
+# Each PATCH_*.txt definition is also byte-bounded: 16 MiB per file, rejected on raw BYTES
+# BEFORE a single line is decoded. An oversized or sparse-reported FileStream.Length above
+# 16 MiB is rejected up front, before any read is issued. Once that length check is passed,
+# a separate cap+1 probe (reading at most cap+1 bytes on the same handle) still detects a
+# file that GROWS beyond the cap after the length check, again before the surplus byte is
+# ever written or decoded. The reader also enforces exact length-drift detection on that same
+# handle: accepted bytes reaching decode must equal the FileStream.Length captured at open time
+# EXACTLY. Any byte read past that captured length is rejected before it is written or decoded,
+# even when the running total is still comfortably within the 16 MiB cap, and reaching genuine
+# EOF with FEWER bytes than that captured length (a premature EOF) is rejected the same way.
+# bytesRead stays monotonic and visible to the caller on either rejection; a false length-drift
+# result immediately degrades/clears/stops the enclosing advisory pass, so no later file in that
+# pass can exploit any remaining aggregate byte budget. This is a length-drift check, not an
+# immutable-snapshot guarantee: an in-place mutation that leaves the file's length unchanged, or
+# bytes appended strictly AFTER THE FINAL OBSERVED EOF, are both outside what this check can
+# detect — an append visible BEFORE that EOF is instead read as surplus and rejected the same
+# way. The reader never allocates a buffer sized to the full 16 MiB cap
+# for every file: it issues fixed 64 KiB ArrayPool-rented chunk requests, and its initial
+# accepted in-memory storage capacity is based on the already-validated FileStream.Length
+# (so at most 16 MiB, never the unvalidated raw/sparse-reported value), growing further only
+# as bytes are actually accepted — it never blindly pre-allocates the full 16 MiB cap for a
+# small file. Raw lines are counted against an independent raw-line cap DURING decoding, not
+# after, so no partial line list is ever produced or returned on a breach. The metadata scan
+# and the raw-params scan each additionally enforce their OWN separate 64 MiB aggregate byte budget across every file
+# in that pass (128 MiB worst case across both passes combined); any byte-bound breach
+# (per-file or aggregate) degrades the WHOLE advisory patch inventory the same way the
+# 16,384-item budget does, and accepted files still decode byte-identically to the legacy
+# File.ReadLines/File.ReadAllLines APIs. The one deliberate behavioral difference is
+# install-marker CLASSIFICATION: this bounded metadata scan classifies a file-backed $FGREP
+# install marker (one the shared resolver would resolve by opening the external file it names)
+# as "unknown" BEFORE any filename access, whereas the public/unbounded Patch Manager, CLI,
+# patch scanner, and rebuild paths still resolve it (shipped patches depend on that legacy
+# behavior); the bounded raw advisory params read from the patch definition itself are unchanged.
+# Each PATCH_*.txt FINAL entry is opened no-follow through the same exact-regular-file
+# primitive used for ROM/projection I/O: a symlink, reparse point, or other non-regular-file
+# type is refused before any byte is read (ancestor directories of the patch library are out
+# of scope for this guarantee), and Browser hosts fail closed instead of falling back to an
+# unsafe open. The shared bounded reader itself never swallows a missing entry: it lets
+# FileNotFoundException/DirectoryNotFoundException propagate and each caller decides. A missing
+# patch ROOT at INITIAL discovery is a successful empty listing; a definition file that was
+# already discovered but is missing or faulting when the bounded METADATA pass opens it degrades
+# the WHOLE advisory inventory to "unavailable" with a generic, path-free filesystem reason
+# (NOT success-empty and NOT a resource-budget reason); only the later bounded raw-PARAMS pass
+# maps a missing file to successful, empty params.
+# The published buildfile.json itself is also capped at the SAME shared 16 MiB the consumer
+# enforces (see --build-buildfile below) — measured by exact UTF-8 byte count, including the
+# trailing newline, before both the initial write and any later rewrite. Over cap with an
+# available advisory patch inventory degrades it ENTIRELY (never a partial/truncated list);
+# still over cap afterward (or nothing left to degrade) aborts the export before publication
+# rather than ever writing an oversized manifest — closing a prior producer/consumer gap where
+# only the consumer enforced this bound.
+
+dotnet run --project FEBuilderGBA.CLI -- --build-buildfile --clean=original.gba --project=project/ --out=rebuilt.gba
+# Rebuilds ONLY from buildfile.json + data/; main.event/ColorzCore/source/patches/projection are never used.
+# Enforces exact clean identity + version, schema v1, UTF-8/JSON/dup-key, exact object members/types, and every size/range/path/hash/changed-byte bound.
+# data/ is captured no-follow/handle-relative; symlinks, subdirs, missing/extra/mismatched payloads are rejected.
+# buildfile.json is bounded to 16 MiB — the SAME shared cap --export-buildfile now also enforces
+# on every manifest it publishes, so an exporter-produced manifest is never rejected here SOLELY
+# because exporter-owned serialization exceeded that shared cap; post-publication mutation and
+# every other structural/identity/payload/filesystem validation below remain independently
+# enforced regardless of origin. A hand-edited or third-party-produced buildfile.json is not
+# exempt and is rejected if oversized.
+# The SAME shared 16,384-item advisory budget applies here as a hard structural-validation
+# failure: a supplied buildfile.json whose combined patches.installed + nested params +
+# warnings exceeds the cap is rejected BEFORE any of those advisory arrays are materialized
+# into POCOs/lists (fails closed rather than allocating unboundedly for a hostile/corrupt file).
+# Staging cleanup/collision classification never uses File.Exists (which can misreport success
+# on a non-file replacement or an inspection failure); every failure fails closed with the exact path.
+# --out must remain outside project/data by physical entry identity (including aliases), rechecked before bounded-name durable no-replace publication. Exit 0/1.
+dotnet run --project FEBuilderGBA.CLI -- --buildfile-roundtrip --rom=modified.gba --clean=original.gba
+# Exports (source projection off) into private scratch, independently rebuilds, and byte-compares against --rom.
+# The already-opened --rom bytes are the sole drift oracle; no project/output is intentionally published.
+# Scratch cleanup is attempted and verified after every export/rebuild attempt; deletion failure is a hard
+# error (exit 1) reporting the residual scratch path — this is not an absolute guarantee no scratch can remain
+# (e.g. a crash before cleanup runs, or external interference).
+# Exit 0 = byte-for-byte reproducible; 2 = reproducibility drift; 1 = usage/validation/IO/cleanup failure.
+# Byte/length drift reports the first-difference offset (or first length-difference offset); a
+# declared-target-identity-only drift (rebuilt bytes match --rom but the recipe's own declared target
+# crc32/sha256 do not) instead reports the declared-vs-actual crc32/sha256 hashes, not an offset.
 dotnet run --project FEBuilderGBA.CLI -- --songexchange --rom=dest.gba --fromrom=source.gba --fromsong=1 --tosong=2
 dotnet run --project FEBuilderGBA.CLI -- --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin --outPal=palette.bin --json
 dotnet run --project FEBuilderGBA.CLI -- --translate --rom=rom.gba --out=texts.tsv
@@ -346,7 +429,7 @@ FEBuilderGBA.sln
 │   ├── NameResolver.cs                    Entity name resolution with caching
 │   ├── SongNameResolverCore.cs            Song name resolution (Sound Room name + SE-list fallback)
 │   └── WriteValidator.cs                  ROM write validation utilities
-├── FEBuilderGBA.CLI/            net9.0    (cross-platform CLI — 68 commands)
+├── FEBuilderGBA.CLI/            net9.0    (cross-platform CLI — 70 commands)
 ├── FEBuilderGBA.SkiaSharp/      net9.0    (image backend)
 ├── FEBuilderGBA.Avalonia/       net9.0    (cross-platform GUI — 324 editors, with ambient undo, dirty tracking, data export/import, full Options dialog with 20+ external tool paths)
 ├── FEBuilderGBA/                net9.0-windows (WinForms GUI)

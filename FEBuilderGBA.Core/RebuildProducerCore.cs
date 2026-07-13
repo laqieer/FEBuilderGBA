@@ -13128,10 +13128,14 @@ namespace FEBuilderGBA
         //   1. PATCHED_IFNOT-installed (e.g. FE8U/MNC2Fix, TYPE=EA, only PATCHED_IFNOT):
         //      WF IsInstalled treats a matched PATCHED_IFNOT as installed (its detail
         //      string contains "PATCHED_IF"); the fast CheckIF returns "E"/"" there.
-        //   2. EA/BIN install markers using $FGREP <file> file-inclusion / $XGREP
-        //      signatures (162 such PATCHED_IF rows in the FE8U tree): Core's resolver
-        //      does not port FGREP file-inclusion, so it yields NOT_FOUND and never "I"
-        //      even when the patch IS installed.
+        //   2. EA/BIN install markers whose signature Core's resolver could NOT resolve
+        //      byte-faithfully at the time of the #1325 review ($FGREP <file> file-inclusion
+        //      and $XGREP signatures — 162 such PATCHED_IF rows in the FE8U tree): the
+        //      resolver yielded NOT_FOUND and never "I" even when the patch IS installed.
+        //      (HISTORICAL NOTE: $FGREP file-inclusion has SINCE been byte-faithfully ported
+        //      in s2pf-18/#1261, so today only $XGREP and genuinely unsupported macros stay
+        //      unresolved on this arm; CheckIF=="I" is unsound regardless of that porting,
+        //      which is why EaBinInstallStatus replaced it.)
         // The dangerous direction is exactly a false-NEGATIVE (say "safe" when an
         // installed EA/BIN patch is present), so the gate must NOT use CheckIF=="I".
         //
@@ -13140,8 +13144,10 @@ namespace FEBuilderGBA
         // (PatchForm.cs:199, "detail CheckIF contains PATCHED_IF"). It inspects BOTH
         // install markers (PATCHED_IF match OR PATCHED_IFNOT match => Installed, fixing
         // #1) and, crucially, returns Unknown for any marker whose signature Core
-        // cannot resolve ($FGREP file-inclusion / $XGREP / unsupported macro, fixing
-        // #2). The gate REFUSES on Installed OR Unknown — so it never says "safe" while
+        // cannot resolve byte-faithfully ($XGREP / unsupported macro — NOT $FGREP
+        // file-inclusion, which is byte-faithfully resolved as of s2pf-18/#1261; an
+        // absent/empty $FGREP signature is NotInstalled, mirroring WF). This fixes #2.
+        // The gate REFUSES on Installed OR Unknown — so it never says "safe" while
         // a patch could be present. NotInstalled (every marker resolvable, none
         // matched) is the only "allow". The sole residual gap is an EA/BIN patch with
         // NO install marker at all, which WF's OWN IsInstalled likewise reports as
@@ -13152,14 +13158,16 @@ namespace FEBuilderGBA
         // predicate is the inverse — its conservative error mode is OVER-refusal of a
         // not-installed-but-unresolvable patch, which is safe.)
         //
-        // CONSERVATIVE-CURRENT-SCOPE / over-refusal tradeoff. Because the EA/BIN arms
-        // are ENTIRELY un-ported, an Unknown ($FGREP file-inclusion) marker on a ROM
-        // where the patch is actually NOT installed still refuses. That is SOUND but
-        // over-conservative; it means a VANILLA FE8U whose tree carries such markers
-        // can refuse. Narrowing it (so vanilla FE8U passes the gate, which the s2pf-17
-        // gate-open needs to be useful on FE8U) requires porting FGREP file-inclusion
-        // install-resolution — DEFERRED, a precise prerequisite for s2pf-17, NOT this
-        // slice. Soundness (no false-negative) is the priority here and is achieved.
+        // CONSERVATIVE-CURRENT-SCOPE / over-refusal tradeoff. The producer still cannot
+        // EMIT EA/BIN patch bytes, so the gate refuses on Installed OR Unknown; an Unknown
+        // marker on a ROM where the patch is actually NOT installed therefore still refuses.
+        // That is SOUND but over-conservative. The Unknown bucket is now ONLY $XGREP and
+        // genuinely unsupported macros: $FGREP <file> file-inclusion is byte-faithfully
+        // resolved as of s2pf-18/#1261, and an absent/empty $FGREP signature now resolves to
+        // NotInstalled, so a VANILLA FE8U tree carrying such $FGREP markers no longer refuses
+        // on that basis (the s2pf-17 gate-usefulness narrowing this originally deferred). Any
+        // residual over-refusal comes only from the remaining Unknown ($XGREP/unsupported)
+        // bucket. Soundness (no false-negative) is the priority here and is achieved.
         // ====================================================================
 
         /// <summary>
@@ -13181,17 +13189,21 @@ namespace FEBuilderGBA
         /// <para>
         /// <b>SOUNDNESS.</b> Refusing on Installed OR Unknown means the gate never reports "safe" while an
         /// EA/BIN patch could be present (the dangerous false-negative). The original CheckIF=="I" draft
-        /// was UNSOUND (Copilot plan review, issue #1325): CheckIF=="I" misses PATCHED_IFNOT-installed and
-        /// $FGREP-file-inclusion-signature patches. See <see cref="PatchHardCodeScanner.EaBinInstallStatus"/>
+        /// was UNSOUND (Copilot plan review, issue #1325): CheckIF=="I" misses PATCHED_IFNOT-installed
+        /// patches (and, at the time of that review, install markers whose signature the resolver could not
+        /// yet resolve — $FGREP file-inclusion, byte-faithfully ported since s2pf-18/#1261, plus $XGREP).
+        /// See <see cref="PatchHardCodeScanner.EaBinInstallStatus"/>
         /// and the block comment above for the full argument and the inherited WF blind spot
         /// (marker-less EA/BIN patches).
         /// </para>
         /// <para>
-        /// <b>CONSERVATIVE CURRENT SCOPE.</b> Today the EA/BIN arms are ENTIRELY un-ported, so this flags
-        /// ANY Installed-or-Unknown EA/BIN patch. The Unknown bucket ($FGREP file-inclusion / $XGREP) makes
-        /// it OVER-refuse a not-installed-but-unresolvable patch — sound, but it can refuse a VANILLA FE8U.
-        /// Narrowing that (port FGREP file-inclusion install-resolution) is the precise prerequisite for the
-        /// s2pf-17 gate-open to be useful on FE8U, and is deliberately NOT implemented here.
+        /// <b>CONSERVATIVE CURRENT SCOPE.</b> The producer still cannot EMIT EA/BIN patch bytes, so this
+        /// flags ANY Installed-or-Unknown EA/BIN patch. The Unknown bucket is now only $XGREP and genuinely
+        /// unsupported macros: $FGREP file-inclusion is byte-faithfully resolved as of s2pf-18/#1261, and an
+        /// absent/empty $FGREP signature resolves to NotInstalled, so a VANILLA FE8U tree carrying $FGREP
+        /// markers no longer over-refuses on that basis (the s2pf-17 gate-usefulness narrowing this
+        /// paragraph originally deferred). Any residual over-refusal comes only from the remaining Unknown
+        /// ($XGREP/unsupported) bucket.
         /// </para>
         /// <para>The ROM is passed EXPLICITLY (never <c>CoreState.ROM</c>), exactly like the
         /// orchestrator, so headless tests and off-thread rebuilds use the right instance.</para>
@@ -13247,9 +13259,12 @@ namespace FEBuilderGBA
                 }
 
                 // SOUND install check: refuse on Installed (the bytes ARE present) OR Unknown (the install
-                // signature is unresolvable — e.g. $FGREP file-inclusion — so we cannot PROVE absence).
-                // NOT CheckIF=="I", which misses PATCHED_IFNOT-installed and $FGREP-signature patches
-                // (false-negatives — Copilot plan review, issue #1325). Only NotInstalled is allowed.
+                // signature is unresolvable — e.g. $XGREP or a genuinely unsupported macro — so we cannot
+                // PROVE absence). NOT CheckIF=="I", which is unsound: at #1325-review time it missed
+                // PATCHED_IFNOT-installed patches AND $FGREP-signature patches (Copilot plan review,
+                // issue #1325). $FGREP file-inclusion has since been byte-faithfully ported (s2pf-18/#1261),
+                // so EaBinInstallStatus resolves it today (an absent/empty $FGREP signature => NotInstalled);
+                // PATCHED_IFNOT remains the residual CheckIF gap. Only NotInstalled is allowed.
                 PatchHardCodeScanner.InstallStatusEnum status =
                     PatchHardCodeScanner.EaBinInstallStatus(rom, patch);
                 if (status == PatchHardCodeScanner.InstallStatusEnum.Installed
@@ -15921,12 +15936,14 @@ namespace FEBuilderGBA
         // arms are wired LIVE). So the IsComplete gate can flip TRUE and OPEN. The
         // per-ROM s2pf-12 backstop (PatchFormHasUnportableInstalledPatch) runs FIRST
         // in the public MakeWithProducer and remains the LOAD-BEARING soundness net:
-        // a ROM carrying an installed-but-unemittable EA/BIN patch (a MENU patch, or
-        // an Unknown $FGREP-signature install) STILL refuses — so the gate is open AND
-        // sound (no --force, no bypass). On a vanilla FE8U the gate is open; whether
-        // MakeWithProducer then PROCEEDS or the s2pf-12 backstop OVER-refuses depends on
-        // the $FGREP file-inclusion install-resolution (the s2pf-18 prerequisite) — see
-        // the test CorePatchProducer_* and the MakeWithProducer docstring.
+        // a ROM carrying an installed-but-unemittable EA/BIN patch (a MENU patch, or an
+        // Unknown $XGREP / unsupported-macro-signature install) STILL refuses — so the gate
+        // is open AND sound (no --force, no bypass). On a vanilla FE8U the gate is open and
+        // the s2pf-12 backstop no longer OVER-refuses on a $FGREP basis: $FGREP file-inclusion
+        // install-resolution landed in s2pf-18 (#1261) and is now byte-faithfully resolved,
+        // so an absent/empty $FGREP signature reads as NotInstalled. Only a genuinely Unknown
+        // $XGREP/unsupported signature refuses — see the test CorePatchProducer_* and the
+        // MakeWithProducer docstring.
         // ====================================================================
 
         /// <summary>
@@ -15973,7 +15990,7 @@ namespace FEBuilderGBA
         /// a real rebuild), so this gate can flip OPEN. It is NOT the only safety net: the per-ROM
         /// s2pf-12 backstop (<see cref="PatchFormHasUnportableInstalledPatch"/>) runs FIRST and refuses
         /// any ROM carrying an installed-but-unemittable EA/BIN patch (a MENU patch or an Unknown
-        /// $FGREP-signature install) — so the gate is open AND sound.
+        /// $XGREP/unsupported-macro-signature install) — so the gate is open AND sound.
         /// </para>
         /// <para>
         /// <b>FORWARD-LOOKING (post-gate, NOT a blocker for the IsComplete flip).</b>
@@ -16013,8 +16030,10 @@ namespace FEBuilderGBA
             //    installed-but-unemittable EA/BIN patch must still refuse rather than silently relocate
             //    the wrong bytes (= ROM corruption). The check is SOUND (no false-negative): it refuses
             //    whenever install status cannot be PROVEN NotInstalled, so it never reports "safe" while a
-            //    patch could be present. (The naive CheckIF=="I" predicate would be unsound — it misses
-            //    PATCHED_IFNOT-installed and $FGREP-signature patches; Copilot plan review, issue #1325.)
+            //    patch could be present. (The naive CheckIF=="I" predicate would be unsound — at #1325-review
+            //    time it missed PATCHED_IFNOT-installed AND $FGREP-signature patches; Copilot plan review,
+            //    issue #1325. $FGREP has since been byte-faithfully ported (s2pf-18/#1261) and is resolved by
+            //    EaBinInstallStatus, so today's residual Unknowns are $XGREP/unsupported macros.)
             string unportablePatch = FirstUnportableInstalledPatchName(rom);
             if (unportablePatch != null)
             {

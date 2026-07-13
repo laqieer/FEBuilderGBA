@@ -20,6 +20,7 @@ using System.Text;
 using System.Text.Json;
 using FEBuilderGBA;
 using Xunit;
+using BoundedPatchReadFailureKind = FEBuilderGBA.PatchMetadataCore.BoundedPatchReadFailureKind;
 
 namespace FEBuilderGBA.Core.Tests
 {
@@ -1212,6 +1213,58 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(File.Exists(path));
         }
 
+        // ---- #1965/#1936: typed missing-path classification on the native no-follow open,
+        // load-bearing for PatchMetadataCore's success-empty contract on a genuinely missing
+        // final file / missing parent directory ----
+
+        [Fact]
+        public void OpenRegularFileForRead_MissingFinalFile_ThrowsFileNotFoundException()
+        {
+            string dir = Path.Combine(
+                Path.GetTempPath(), "bfx_missingfinal_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            try
+            {
+                string missing = Path.Combine(dir, "does-not-exist.txt");
+
+                // A missing final file (existing parent directory) must map to
+                // FileNotFoundException on both Windows (ERROR_FILE_NOT_FOUND) and Unix
+                // (ENOENT) — this is the exact classification PatchMetadataCore relies on to
+                // resolve a genuinely missing PATCH_*.txt to a success-empty result rather
+                // than a propagating fault.
+                Assert.Throws<FileNotFoundException>(
+                    () => ProjectionFileSystemSafety.OpenRegularFileForRead(missing));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void OpenRegularFileForRead_MissingParentDirectory_ThrowsTypedMissingException()
+        {
+            string dir = Path.Combine(
+                Path.GetTempPath(), "bfx_missingparent_" + Guid.NewGuid().ToString("N"));
+            // Intentionally do NOT create `dir` — its parent-of-target directory is itself
+            // missing.
+            string missing = Path.Combine(dir, "does-not-exist.txt");
+
+            // Windows' CreateFileW natively distinguishes ERROR_PATH_NOT_FOUND (missing parent)
+            // from ERROR_FILE_NOT_FOUND (missing final file). POSIX lstat/open only ever
+            // report ENOENT for both cases — there is no OS-level distinction to surface
+            // without reintroducing a File.Exists/Directory.Exists precheck (forbidden: would
+            // reintroduce TOCTOU). Both outcomes are treated identically as success-empty by
+            // PatchMetadataCore, so this divergence is contract-neutral for callers.
+            if (OperatingSystem.IsWindows())
+            {
+                Assert.Throws<DirectoryNotFoundException>(
+                    () => ProjectionFileSystemSafety.OpenRegularFileForRead(missing));
+            }
+            else
+            {
+                Assert.Throws<FileNotFoundException>(
+                    () => ProjectionFileSystemSafety.OpenRegularFileForRead(missing));
+            }
+        }
+
         [SkippableFact]
         public void Export_ProjectionFileReplacedWithFifoBeforeOpen_IsRejectedWithoutBlocking()
         {
@@ -1939,13 +1992,37 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal("unavailable", result.Manifest.Patches.Status);
                 Assert.DoesNotContain(patchBase, result.Manifest.Patches.Reason);
                 Assert.DoesNotContain("Access to the path", result.Manifest.Patches.Reason);
-                Assert.Equal("patch enumeration failed; check patch library directory permissions",
+                Assert.Equal(BuildfileExportCore.AdvisoryPatchInventoryFileSystemReason,
                     result.Manifest.Patches.Reason);
 
                 string json = File.ReadAllText(Path.Combine(outDir, "buildfile.json"));
                 Assert.DoesNotContain(patchBase, json);
             }
             finally { Cleanup(parent); try { Directory.Delete(patchBase, true); } catch { } }
+        }
+
+        [Fact]
+        public void MapAdvisoryPatchFailureKindToReason_ExhaustiveAndPathFree()
+        {
+            Assert.Equal(
+                BuildfileExportCore.AdvisoryResourceBudgetExceededReason,
+                BuildfileExportCore.MapAdvisoryPatchFailureKindToReason(
+                    BoundedPatchReadFailureKind.ResourceLimit));
+            Assert.Equal(
+                BuildfileExportCore.AdvisoryPatchInventoryFileSystemReason,
+                BuildfileExportCore.MapAdvisoryPatchFailureKindToReason(
+                    BoundedPatchReadFailureKind.FileSystem));
+
+            string changed = BuildfileExportCore.MapAdvisoryPatchFailureKindToReason(
+                BoundedPatchReadFailureKind.ContentChanged);
+            string fixturePath = Path.Combine(Path.GetTempPath(), "fixture-path-1965", "PATCH_Test.txt");
+            Assert.Equal(BuildfileExportCore.AdvisorySourceChangedReason, changed);
+            Assert.DoesNotContain(fixturePath, changed, StringComparison.Ordinal);
+            Assert.DoesNotContain("simulated fault detail", changed, StringComparison.OrdinalIgnoreCase);
+
+            Assert.Throws<InvalidOperationException>(() =>
+                BuildfileExportCore.MapAdvisoryPatchFailureKindToReason(
+                    BoundedPatchReadFailureKind.None));
         }
 
         [Fact]
@@ -1973,6 +2050,41 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(result);
             Assert.Contains("could not inspect path before delete", error);
             Assert.Contains("denied", error);
+            Assert.Contains("blocked", error);
+        }
+
+        [Fact]
+        public void DeleteAndVerifyGone_DeleteThrows_FailsClosed_WithReasonAndPath()
+        {
+            bool result = BuildfileExportCore.DeleteAndVerifyGone(
+                "toxic-dir",
+                (_, _) => throw new IOException("disk full"),
+                _ => FileAttributes.Directory,
+                out string error);
+
+            Assert.False(result);
+            Assert.Contains("could not delete path", error);
+            Assert.Contains("disk full", error);
+            Assert.Contains("toxic-dir", error);
+        }
+
+        [Fact]
+        public void DeleteAndVerifyGone_PostDeleteVerificationThrows_FailsClosed_WithReasonAndPath()
+        {
+            bool deleted = false;
+
+            bool result = BuildfileExportCore.DeleteAndVerifyGone(
+                "verify-dir",
+                (_, _) => { deleted = true; },
+                _ => deleted
+                    ? throw new UnauthorizedAccessException("locked")
+                    : FileAttributes.Directory,
+                out string error);
+
+            Assert.False(result);
+            Assert.Contains("could not verify path absence", error);
+            Assert.Contains("locked", error);
+            Assert.Contains("verify-dir", error);
         }
 
         [Fact]
@@ -2008,7 +2120,8 @@ namespace FEBuilderGBA.Core.Tests
                 out string error);
 
             Assert.False(result);
-            Assert.Equal("path still present after delete", error);
+            Assert.Contains("path still present after delete", error);
+            Assert.Contains("replaced", error);
         }
 
         [SkippableFact]
@@ -2112,6 +2225,708 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.DoesNotContain(result.Manifest.Patches.Installed, p => p.Name == "SYSTEM");
             }
             finally { Cleanup(parent); }
+        }
+
+        [SkippableFact]
+        public void Export_FinalPatchFileSymlinkOutsideRoot_DegradesAdvisoryWithoutLeakingSentinel()
+        {
+            // #1965/#1936: a final PATCH_*.txt entry replaced with a symlink pointing OUTSIDE the
+            // patch root, at a file containing a unique sentinel key=value. The default bounded
+            // reader must reject this via ProjectionFileSystemSafety.OpenRegularFileForRead
+            // (no-follow, exact-regular-file) instead of transparently following it — so the
+            // sentinel must never surface in the advisory inventory, the manifest reason, or the
+            // serialized buildfile.json, while the AUTHORITATIVE recipe/payload export still
+            // succeeds in full.
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x10] = 0x7;
+
+            var (outDir, parent) = FreshOut();
+            string externalRoot = Path.Combine(
+                Path.GetTempPath(), "bfx_patchlink_external_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(externalRoot);
+            const string SentinelKey = "SENTINEL_1936";
+            const string SentinelValue = "leak-me-if-you-can";
+            string externalTarget = Path.Combine(externalRoot, "outside-secrets.txt");
+            File.WriteAllText(externalTarget,
+                "TYPE=ADDR\nNAME=Should Not Appear\n" + SentinelKey + "=" + SentinelValue + "\n");
+
+            try
+            {
+                string patchBase = Path.Combine(parent, "patch2");
+                Directory.CreateDirectory(patchBase);
+                string linkPath = Path.Combine(patchBase, "PATCH_Link.txt");
+                try
+                {
+                    File.CreateSymbolicLink(linkPath, externalTarget);
+                }
+                catch (Exception ex)
+                {
+                    Skip.If(true, "Cannot create a file symlink here: " + ex.Message);
+                    return;
+                }
+
+                var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target),
+                    new BuildfileExportOptions
+                    {
+                        OutputDirectory = outDir,
+                        PatchBaseDirectory = patchBase,
+                    });
+
+                // Authoritative export (recipe/payload) remains fully successful — only the
+                // advisory patch inventory degrades.
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("unavailable", result.Manifest.Patches.Status);
+                Assert.Empty(result.Manifest.Patches.Installed);
+                Assert.DoesNotContain(SentinelValue, result.Manifest.Patches.Reason);
+                Assert.DoesNotContain(SentinelKey, result.Manifest.Patches.Reason);
+                Assert.DoesNotContain(externalRoot, result.Manifest.Patches.Reason);
+                Assert.DoesNotContain(patchBase, result.Manifest.Patches.Reason);
+                Assert.True(target.SequenceEqual(ReconstructFromProject(outDir, clean)));
+
+                string json = File.ReadAllText(Path.Combine(outDir, "buildfile.json"));
+                Assert.DoesNotContain(SentinelValue, json);
+                Assert.DoesNotContain(SentinelKey, json);
+                Assert.DoesNotContain(externalRoot.Replace('\\', '/'), json);
+                Assert.DoesNotContain(patchBase.Replace('\\', '/'), json);
+                Assert.DoesNotContain("Should Not Appear", json);
+            }
+            finally
+            {
+                Cleanup(parent);
+                try { Directory.Delete(externalRoot, true); } catch { }
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // Shared advisory-item budget (16,384) — bounded exporter producer.
+        // Real 16,384 constant, no test-only override, per the approved design.
+        // ---------------------------------------------------------------
+
+        [Fact]
+        public void Export_PatchListingAtCapPlusOne_DegradesInventoryBeforeParsing()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x10] = 0x5;
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                string patchBase = Path.Combine(parent, "patch2");
+                Directory.CreateDirectory(patchBase);
+
+                // Every one of these MaxAdvisoryItems + 1 paths does NOT exist on disk. The
+                // file-discovery cap must reject the injected listing on length alone, before a
+                // single file is opened/parsed (Copilot review finding: unbounded eager listing
+                // materialization).
+                var fakeFiles = new string[BuildfileExportOptions.MaxAdvisoryItems + 1];
+                for (int i = 0; i < fakeFiles.Length; i++)
+                    fakeFiles[i] = Path.Combine(patchBase, "PATCH_fake_" + i + ".txt");
+
+                var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target),
+                    new BuildfileExportOptions
+                    {
+                        OutputDirectory = outDir,
+                        PatchBaseDirectory = patchBase,
+                        PatchDirectoryListerForTest = _ => fakeFiles,
+                    });
+
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("unavailable", result.Manifest.Patches.Status);
+                Assert.Empty(result.Manifest.Patches.Installed);
+                // This is a genuine resource-BUDGET breach (more files discovered than
+                // MaxAdvisoryItems), not a filesystem/permission fault, so it MUST use the same
+                // shared, stable AdvisoryResourceBudgetExceededReason every other advisory-budget breach
+                // uses — never the generic "check directory permissions" reason (Copilot review
+                // finding: BuildPatchInventory previously string-discarded the typed distinction
+                // via `out _`, always reporting the generic permission reason here).
+                Assert.Equal(BuildfileExportCore.AdvisoryResourceBudgetExceededReason, result.Manifest.Patches.Reason);
+                Assert.DoesNotContain(patchBase, result.Manifest.Patches.Reason);
+
+                string json = File.ReadAllText(Path.Combine(outDir, "buildfile.json"));
+                Assert.DoesNotContain(patchBase.Replace('\\', '/'), json);
+            }
+            finally { Cleanup(parent); }
+        }
+
+        // Note: the companion "real filesystem/access fault during discovery keeps the generic
+        // permission reason, never the budget reason" case is ALREADY covered by the pre-existing
+        // Export_PatchDirectoryListingFailure_ManifestReasonIsStableAndPathFree test below (an
+        // injected IOException from PatchDirectoryListerForTest) — re-verified against the typed
+        // failure-kind plumbing added above (`FileSystem` maps to the same generic reason), so
+        // no duplicate test was added.
+
+        [Fact]
+        public void Export_PatchFileWithParamsOverCap_DegradesInventoryWithoutPartialRecords()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x10] = 0x9;
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                string patchBase = Path.Combine(parent, "patch2");
+                string dir = Path.Combine(patchBase, "BIG");
+                Directory.CreateDirectory(dir);
+
+                var lines = new List<string> { "TYPE=ADDR", "NAME=Big Patch" };
+                int paramCount = BuildfileExportOptions.MaxAdvisoryItems + 1;
+                for (int i = 0; i < paramCount; i++)
+                    lines.Add("KEY" + i + "=" + i);
+                string patchFile = Path.Combine(dir, "PATCH_Big.txt");
+                File.WriteAllLines(patchFile, lines);
+
+                var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target),
+                    new BuildfileExportOptions
+                    {
+                        OutputDirectory = outDir,
+                        PatchBaseDirectory = patchBase,
+                    });
+
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("unavailable", result.Manifest.Patches.Status);
+                // No partial/truncated installed record survives a params-budget breach — the
+                // WHOLE inventory degrades (Copilot review finding: unbounded nested params).
+                Assert.Empty(result.Manifest.Patches.Installed);
+                Assert.DoesNotContain(patchBase, result.Manifest.Patches.Reason);
+
+                string json = File.ReadAllText(Path.Combine(outDir, "buildfile.json"));
+                Assert.DoesNotContain(patchBase.Replace('\\', '/'), json);
+                Assert.DoesNotContain("Big Patch", json);
+            }
+            finally { Cleanup(parent); }
+        }
+
+        // ---------------------------------------------------------------
+        // #1965: byte-bound caps — 16 MiB per PATCH definition, 64 MiB aggregate metadata
+        // pass, separate 64 MiB aggregate params pass. Production ALWAYS binds the immutable
+        // constants (BuildfileExportOptions.MaxPatchParamsAggregateBytes /
+        // PatchMetadataCore.MaxMetadataAggregateBytes) — there is no mutable/nullable options
+        // field that can override either cap. Deterministic small-fixture coverage of the
+        // params-pass aggregate breach therefore calls the ordinary parameterized internal core
+        // helper `BuildfileExportCore.BuildPatchInventoryBounded` directly with a small value,
+        // bypassing the public Export() entry point entirely (that helper is unreachable from
+        // any production code path with anything other than the immutable constant).
+        // ---------------------------------------------------------------
+
+        [Fact]
+        public void BuildPatchInventoryBounded_ParamsAggregateByteBudgetBreach_DegradesWholeInventoryPathFree()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x10] = 0x7;
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                string patchBase = Path.Combine(parent, "patch2");
+                string dirA = Path.Combine(patchBase, "AAA");
+                string dirB = Path.Combine(patchBase, "BBB");
+                Directory.CreateDirectory(dirA);
+                Directory.CreateDirectory(dirB);
+
+                // Two small, individually-tiny patch files whose COMBINED raw-params bytes
+                // exceed a deterministic tiny aggregate cap, even though neither breaches the
+                // (generous) per-file 16 MiB cap or the per-record advisory item count alone.
+                File.WriteAllText(Path.Combine(dirA, "PATCH_A.txt"),
+                    "TYPE=ADDR\nNAME=First Patch\nKEY1=value1\n");
+                File.WriteAllText(Path.Combine(dirB, "PATCH_B.txt"),
+                    "TYPE=ADDR\nNAME=Second Patch\nKEY2=value2\n");
+                long firstParamsBytes = new FileInfo(Path.Combine(dirA, "PATCH_A.txt")).Length;
+                long secondParamsBytes = new FileInfo(Path.Combine(dirB, "PATCH_B.txt")).Length;
+
+                var options = new BuildfileExportOptions
+                {
+                    OutputDirectory = outDir,
+                    PatchBaseDirectory = patchBase,
+                };
+
+                // One byte short of fitting both files' raw-params bytes — deterministic, no
+                // real 64 MiB fixture needed. Only this direct test call ever passes anything
+                // other than BuildfileExportOptions.MaxPatchParamsAggregateBytes.
+                BuildfilePatchInventory inv = BuildfileExportCore.BuildPatchInventoryBounded(
+                    MakeRom(clean), MakeRom(target), options, existingAdvisoryItemCount: 0,
+                    maxParamsAggregateBytes: firstParamsBytes + secondParamsBytes - 1,
+                    out var failureKind);
+
+                Assert.Equal("unavailable", inv.Status);
+                Assert.Equal(BoundedPatchReadFailureKind.ResourceLimit, failureKind);
+                // No partial/truncated installed record survives an aggregate-budget breach —
+                // the WHOLE inventory degrades, not just the second (over-budget) record.
+                Assert.Empty(inv.Installed);
+                Assert.Equal(BuildfileExportCore.AdvisoryResourceBudgetExceededReason, inv.Reason);
+                Assert.DoesNotContain(patchBase, inv.Reason);
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [Fact]
+        public void Export_FGrepInstallMarker_ProducesUnknownRecord_WithoutReadingSignatureFile()
+        {
+            // #1936 bounded-exporter $FGREP escape, END-TO-END. What this test proves and what it
+            // does NOT:
+            //  - PROVES bounded CLASSIFICATION: the exporter emits an "available" advisory
+            //    inventory with the file-backed $FGREP patch as "unknown" (never "installed"),
+            //    while the SAME fixture resolves to "installed" through the legacy unbounded
+            //    CheckPatchInstalled path (it reads sig.bin and matches the planted ROM bytes) —
+            //    so the "unknown" is the deliberate bounded refusal, not a vacuous non-match.
+            //  - PROVES authoritative independence: the raw recipe still reconstructs the target
+            //    EXACTLY; the advisory record never touches authoritative bytes.
+            //  - The "signature body absent from JSON" assertion below is a useful non-leak
+            //    sanity check, but by itself it does NOT prove the file was never read (even the
+            //    old resolver used the bytes only to classify and never serialized them). The
+            //    positive "resolver is never invoked" no-read guarantee is proven directly by the
+            //    injected-resolver unit test
+            //    TryParsePatchFileStrictBounded_FGrepMarker_ResolverNeverInvoked.
+            byte[] signature = Encoding.ASCII.GetBytes("FGSIG1936XY"); // unique external body
+            string sigHex = string.Join(" ", signature.Select(b => "0x" + b.ToString("X2")));
+
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x10] = 0x9;
+            signature.CopyTo(target, 0x200); // 4-aligned, so legacy FGREP resolves+matches
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                string patchBase = Path.Combine(parent, "patch2");
+                string patchDir = Path.Combine(patchBase, "FGREPTEST");
+                Directory.CreateDirectory(patchDir);
+                File.WriteAllBytes(Path.Combine(patchDir, "sig.bin"), signature);
+                string patchFile = Path.Combine(patchDir, "PATCH_Fg.txt");
+                File.WriteAllLines(patchFile, new[]
+                {
+                    "TYPE=ADDR",
+                    "NAME=FGrep Patch",
+                    "PATCHED_IF:$FGREP4 sig.bin=" + sigHex,
+                });
+
+                // Non-vacuous guard: the legacy unbounded path resolves this SAME fixture to
+                // Installed (it reads sig.bin and matches the planted ROM bytes).
+                var legacy = PatchMetadataCore.ParsePatchFile(patchFile, "FGREPTEST", MakeRom(target), "en");
+                Assert.Equal(PatchMetadataCore.PatchStatus.Installed, legacy.Status);
+
+                var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target),
+                    new BuildfileExportOptions
+                    {
+                        OutputDirectory = outDir,
+                        PatchBaseDirectory = patchBase,
+                    });
+
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("available", result.Manifest.Patches.Status);
+                var rec = Assert.Single(result.Manifest.Patches.Installed);
+                Assert.Equal("unknown", rec.Status);
+
+                // Non-leak sanity check (see method-level note: NOT itself a no-read proof): the
+                // external signature body does not appear in the serialized manifest (payloads
+                // are separate data/*.bin files; the manifest holds only paths + hashes).
+                string json = File.ReadAllText(Path.Combine(outDir, "buildfile.json"));
+                Assert.DoesNotContain("FGSIG1936XY", json);
+
+                // Authoritative reconstruction is exact — the advisory record never touches it.
+                Assert.True(target.SequenceEqual(ReconstructFromProject(outDir, clean)));
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [Fact]
+        public void Export_MetadataFileLengthOverPerFileCap_DegradesWithGenericResourceReason()
+        {
+            // #1936 diagnostic-accuracy: a per-file byte Length breach (metadata pass) must map
+            // to the SAME generic, path-free resource reason as every other advisory resource
+            // budget breach — never a raw path and never the stale "item budget" wording. A
+            // sparse SetLength keeps the fixture from materializing 16+ MiB of real bytes.
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x10] = 0xB;
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                string patchBase = Path.Combine(parent, "patch2");
+                Directory.CreateDirectory(patchBase);
+                string patchFile = Path.Combine(patchBase, "PATCH_Big.txt");
+                using (var fs = new FileStream(patchFile, FileMode.CreateNew, FileAccess.Write))
+                    fs.SetLength(PatchMetadataCore.MaxPatchDefinitionBytes + 1); // sparse, no real bytes
+
+                var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target),
+                    new BuildfileExportOptions
+                    {
+                        OutputDirectory = outDir,
+                        PatchBaseDirectory = patchBase,
+                    });
+
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("unavailable", result.Manifest.Patches.Status);
+                Assert.Empty(result.Manifest.Patches.Installed);
+                Assert.Equal(BuildfileExportCore.AdvisoryResourceBudgetExceededReason,
+                    result.Manifest.Patches.Reason);
+                Assert.DoesNotContain("item budget", result.Manifest.Patches.Reason);
+                Assert.DoesNotContain(patchBase, result.Manifest.Patches.Reason);
+                Assert.DoesNotContain(patchFile, result.Manifest.Patches.Reason);
+            }
+            finally { Cleanup(parent); }
+        }
+
+        // genuine bytes read from a REAL small backing file, then throws IOException on any
+        // subsequent read — simulating a mid-read I/O fault partway through a file (#1965 L2
+        // correction: proves the exporter's aggregate byte accounting stays monotonic/path-free
+        // even when the underlying read genuinely fails after some bytes were consumed).
+        sealed class FaultAfterNBytesFileStream : FileStream
+        {
+            readonly long _faultAfter;
+            long _totalRead;
+            public FaultAfterNBytesFileStream(string path, long faultAfter)
+                : base(path, FileMode.Open, FileAccess.Read, FileShare.Read)
+            {
+                _faultAfter = faultAfter;
+            }
+            public override int Read(byte[] buffer, int offset, int count)
+            {
+                if (_totalRead >= _faultAfter)
+                    throw new IOException("Simulated I/O fault after N bytes (test double).");
+                int allowed = (int)Math.Min(count, _faultAfter - _totalRead);
+                int read = base.Read(buffer, offset, allowed);
+                _totalRead += read;
+                return read;
+            }
+        }
+
+        [Fact]
+        public void TryAppendRawParamsBounded_FaultAfterNBytes_PreservesBytesReadAndDegradesRecordPathFree()
+        {
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                string patchBase = Path.Combine(parent, "patch2");
+                Directory.CreateDirectory(patchBase);
+                string patchPath = Path.Combine(patchBase, "PATCH_Fault.txt");
+                const int n = 12;
+                File.WriteAllText(patchPath, "TYPE=ADDR\nNAME=Fault Patch\nKEY1=value_longer_than_n\n");
+                long realLength = new FileInfo(patchPath).Length;
+                Assert.True(realLength > n); // the fault must trigger before EOF is reached
+
+                var rec = new BuildfilePatchRecord
+                {
+                    Name = "Fault Patch",
+                    Status = "installed",
+                    Confidence = "high",
+                    Reason = "test-seed",
+                };
+
+                bool ok = BuildfileExportCore.TryAppendRawParamsBounded(
+                    rec,
+                    patchPath,
+                    maxEntries: 100,
+                    maxBytes: PatchMetadataCore.MaxPatchDefinitionBytes,
+                    openFileStreamForTest: p => new FaultAfterNBytesFileStream(p, n),
+                    consumedCount: out int consumedCount,
+                    bytesRead: out long bytesRead,
+                    failureKind: out var failureKind);
+
+                // An expected FS fault resolves to a successful (true) but degraded record —
+                // never a silent empty params list, never a thrown exception across this seam.
+                Assert.True(ok);
+                Assert.Equal(BoundedPatchReadFailureKind.None, failureKind);
+                Assert.Equal(0, consumedCount);
+                Assert.Equal(n, bytesRead); // genuinely-read bytes must survive the fault path,
+                                             // NOT be reset to 0 in the catch block, so the
+                                             // caller's aggregate params budget still accounts
+                                             // for them.
+                Assert.Contains("raw parameters unavailable", rec.Reason, StringComparison.Ordinal);
+                Assert.DoesNotContain(patchPath, rec.Reason, StringComparison.Ordinal);
+                Assert.DoesNotContain(patchBase, rec.Reason, StringComparison.Ordinal);
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [Theory]
+        [InlineData(typeof(UnauthorizedAccessException))]
+        [InlineData(typeof(IOException))]
+        [InlineData(typeof(System.Security.SecurityException))]
+        [InlineData(typeof(PlatformNotSupportedException))]
+        public void TryAppendRawParamsBounded_ExpectedFileSystemFault_DegradesRecordPathFreeWithEmptyParams(Type exceptionType)
+        {
+            // #1965 L3 correction: deterministic opener-injection proving ALL THREE expected
+            // filesystem/access fault classes (not just IOException-via-a-mid-read-fault) reach
+            // the exporter's catch and produce the SAME stable, path-free degradation — empty
+            // params, no thrown exception across this seam, no absolute path in the reason.
+            // PlatformNotSupportedException (#1965/#1936 correction) covers the new default
+            // opener's Browser classification (ProjectionFileSystemSafety.OpenRegularFileForRead
+            // throws PlatformNotSupportedException on Browser instead of an unsafe fallback) —
+            // this injected double proves the exporter degrades path-free instead of crashing,
+            // without needing an actual Browser runtime.
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                string patchBase = Path.Combine(parent, "patch2");
+                Directory.CreateDirectory(patchBase);
+                string patchPath = Path.Combine(patchBase, "PATCH_Fault.txt");
+                File.WriteAllText(patchPath, "TYPE=ADDR\nNAME=Fault Patch\nKEY1=value1\n");
+
+                var rec = new BuildfilePatchRecord
+                {
+                    Name = "Fault Patch",
+                    Status = "installed",
+                    Confidence = "high",
+                    Reason = "test-seed",
+                };
+
+                Func<string, FileStream> throwingOpener = p =>
+                    throw (Exception)Activator.CreateInstance(exceptionType, "simulated fault (test double)");
+
+                bool ok = BuildfileExportCore.TryAppendRawParamsBounded(
+                    rec,
+                    patchPath,
+                    maxEntries: 100,
+                    maxBytes: PatchMetadataCore.MaxPatchDefinitionBytes,
+                    openFileStreamForTest: throwingOpener,
+                    consumedCount: out int consumedCount,
+                    bytesRead: out long bytesRead,
+                    failureKind: out var failureKind);
+
+                Assert.True(ok);
+                Assert.Equal(BoundedPatchReadFailureKind.None, failureKind);
+                Assert.Equal(0, consumedCount);
+                // No bytes were genuinely consumed before this immediate-open fault — the
+                // accounting must stay exactly 0, not just "not reset to something wrong".
+                Assert.Equal(0, bytesRead);
+                Assert.Empty(rec.Params);
+                Assert.Contains("raw parameters unavailable", rec.Reason, StringComparison.Ordinal);
+                Assert.DoesNotContain(patchPath, rec.Reason, StringComparison.Ordinal);
+                Assert.DoesNotContain(patchBase, rec.Reason, StringComparison.Ordinal);
+            }
+            finally { Cleanup(parent); }
+        }
+
+        // Fake FileStream double (duplicated from the equivalent private nested type in
+        // PatchMetadataCoreTests — these test fakes are file-local by established convention, no
+        // shared test-helper file exists in this repo) that under/over-reports its Length
+        // relative to what the handle actually delivers — simulates the file growing OR
+        // shrinking between the Length check and the read (or a Length that simply lied).
+        sealed class GrowthAfterLengthFileStream : FileStream
+        {
+            readonly long _reportedLength;
+            public GrowthAfterLengthFileStream(string path, long reportedLength)
+                : base(path, FileMode.Open, FileAccess.Read, FileShare.Read)
+            {
+                _reportedLength = reportedLength;
+            }
+            public override long Length => _reportedLength;
+        }
+
+        [Fact]
+        public void TryAppendRawParamsBounded_WithinCapGrowthAfterLengthCheck_FailsWithNoConsumedParams()
+        {
+            // #1965 length-drift correction: proves the exporter-facing false path for a file
+            // that grows past the Length captured at open time while staying comfortably within
+            // maxBytes — the shared reader must reject this BEFORE any raw parameter is ever
+            // appended to `rec.Params`, and `consumedCount` must stay 0 (never partially
+            // populated from the rejected surplus bytes). This intentionally does NOT add a new
+            // production inventory seam — it exercises the existing `openFileStreamForTest`
+            // fault-injection seam already used by the fault-after-N-bytes coverage above.
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                string patchBase = Path.Combine(parent, "patch2");
+                Directory.CreateDirectory(patchBase);
+                string patchPath = Path.Combine(patchBase, "PATCH_WithinCapGrowth.txt");
+                const int reportedLength = 8;
+                const long maxBytes = 1024; // comfortably above both the reported length AND the real data below
+                File.WriteAllText(patchPath, "TYPE=ADDR\nNAME=Growth Patch\nKEY1=value1\n"); // > reportedLength, well within maxBytes
+                long realLength = new FileInfo(patchPath).Length;
+                Assert.True(realLength > reportedLength);
+
+                var rec = new BuildfilePatchRecord
+                {
+                    Name = "Growth Patch",
+                    Status = "installed",
+                    Confidence = "high",
+                    Reason = "test-seed",
+                };
+
+                bool ok = BuildfileExportCore.TryAppendRawParamsBounded(
+                    rec,
+                    patchPath,
+                    maxEntries: 100,
+                    maxBytes: maxBytes,
+                    openFileStreamForTest: p => new GrowthAfterLengthFileStream(p, reportedLength),
+                    consumedCount: out int consumedCount,
+                    bytesRead: out long bytesRead,
+                    failureKind: out var failureKind);
+
+                Assert.False(ok);
+                Assert.Equal(BoundedPatchReadFailureKind.ContentChanged, failureKind);
+                Assert.Equal(0, consumedCount);
+                Assert.Empty(rec.Params); // no partial params ever appended from rejected bytes
+                Assert.True(bytesRead > reportedLength,
+                    $"Expected bytesRead ({bytesRead}) to exceed the reported length ({reportedLength}).");
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [Fact]
+        public void BuildPatchInventoryBounded_ParamsContentChanged_DegradesWholeInventoryPathFree()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x10] = 0x17;
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                string patchBase = Path.Combine(parent, "patch2");
+                Directory.CreateDirectory(patchBase);
+                string patchPath = Path.Combine(patchBase, "PATCH_WithinCapGrowth.txt");
+                const int reportedLength = 8;
+                File.WriteAllText(patchPath, "TYPE=ADDR\nNAME=Growth Patch\nKEY1=value1\n");
+                Assert.True(new FileInfo(patchPath).Length > reportedLength);
+
+                var options = new BuildfileExportOptions
+                {
+                    OutputDirectory = outDir,
+                    PatchBaseDirectory = patchBase,
+                };
+
+                BuildfilePatchInventory inv = BuildfileExportCore.BuildPatchInventoryBounded(
+                    MakeRom(clean),
+                    MakeRom(target),
+                    options,
+                    existingAdvisoryItemCount: 0,
+                    maxParamsAggregateBytes: BuildfileExportOptions.MaxPatchParamsAggregateBytes,
+                    openPatchParamsFileStreamForTest: p => new GrowthAfterLengthFileStream(p, reportedLength),
+                    out var failureKind);
+
+                Assert.Equal("unavailable", inv.Status);
+                Assert.Equal(BoundedPatchReadFailureKind.ContentChanged, failureKind);
+                Assert.Empty(inv.Installed);
+                Assert.Equal(BuildfileExportCore.AdvisorySourceChangedReason, inv.Reason);
+                Assert.DoesNotContain(patchBase, inv.Reason, StringComparison.Ordinal);
+                Assert.DoesNotContain(patchPath, inv.Reason, StringComparison.Ordinal);
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [Fact]
+        public void BuildPatchInventoryBounded_MaxParamsAggregateBytesAboveImmutableCeiling_Throws()
+        {
+            // #1965 L3 correction ("opposite hypothesis" check): a caller invoking the extracted
+            // core helper directly with an aggregate cap wider than the immutable
+            // BuildfileExportOptions.MaxPatchParamsAggregateBytes ceiling must be rejected
+            // outright, never silently honored as a widened budget.
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+
+            var options = new BuildfileExportOptions
+            {
+                OutputDirectory = Path.GetTempPath(),
+                PatchBaseDirectory = null,
+            };
+
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                BuildfileExportCore.BuildPatchInventoryBounded(
+                    MakeRom(clean), MakeRom(target), options, existingAdvisoryItemCount: 0,
+                    maxParamsAggregateBytes: BuildfileExportOptions.MaxPatchParamsAggregateBytes + 1,
+                    out _));
+        }
+
+        [Fact]
+        public void Export_LateProjectionWarning_DegradesPatchesWhenCombinedTotalExceedsCap()
+        {
+            var clean = new byte[RomSize]; // all-zero clean => exactly one "non-canonical" warning
+            var target = (byte[])clean.Clone();
+            target[0x10] = 0x3;
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                string patchBase = Path.Combine(parent, "patch2");
+                string dir = Path.Combine(patchBase, "NEARCAP");
+                Directory.CreateDirectory(dir);
+
+                // One record whose own item (1) + params exactly fills the budget once the
+                // pre-existing "non-canonical clean" warning (1) is accounted for at Plan()
+                // time — i.e. it is exactly AT the cap and available.
+                var lines = new List<string> { "TYPE=ADDR", "NAME=Near Cap Patch" };
+                int paramCount = BuildfileExportOptions.MaxAdvisoryItems - 2;
+                for (int i = 0; i < paramCount; i++)
+                    lines.Add("KEY" + i + "=" + i);
+                File.WriteAllLines(Path.Combine(dir, "PATCH_NearCap.txt"), lines);
+
+                var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target),
+                    new BuildfileExportOptions
+                    {
+                        OutputDirectory = outDir,
+                        PatchBaseDirectory = patchBase,
+                        // Forces a SECOND warning to be appended AFTER BuildPatchInventory's
+                        // budget was already reserved during Plan() (Copilot review finding:
+                        // late warning mutation not accounted for by the original reservation).
+                        ProjectionRunner = scratch => BuildfileProjectionOutcome.Refuse("forcing a late warning"),
+                    });
+
+                Assert.True(result.Success, result.Error);
+                Assert.Contains(result.Manifest.Warnings, w => w.Contains("Source projection refused"));
+                // The combined total (2 warnings + 1 record + (cap-2) params == cap+1) now
+                // exceeds the shared budget, so the patch inventory (never the warnings) is
+                // degraded — the authoritative export itself remains fully usable.
+                Assert.Equal("unavailable", result.Manifest.Patches.Status);
+                Assert.Empty(result.Manifest.Patches.Installed);
+                Assert.DoesNotContain(patchBase, result.Manifest.Patches.Reason);
+
+                Assert.True(File.Exists(Path.Combine(outDir, "buildfile.json")));
+                Assert.True(target.SequenceEqual(ReconstructFromProject(outDir, clean)));
+            }
+            finally { Cleanup(parent); }
+        }
+
+        // ---------------------------------------------------------------
+        // Tri-state fail-closed path-attribute inspection (Copilot review finding:
+        // File.Exists silently reports "gone" for a directory/reparse replacement or an
+        // inspection fault).
+        // ---------------------------------------------------------------
+
+        [Fact]
+        public void ProbePathAttributes_RegularFileDirectoryOrReparse_IsPresent()
+        {
+            Assert.Equal(BuildfileExportCore.PathAttributeProbeResult.Present,
+                BuildfileExportCore.ProbePathAttributes("f", _ => FileAttributes.Normal, out _, out string e1));
+            Assert.Equal("", e1);
+
+            Assert.Equal(BuildfileExportCore.PathAttributeProbeResult.Present,
+                BuildfileExportCore.ProbePathAttributes("d", _ => FileAttributes.Directory, out _, out string e2));
+            Assert.Equal("", e2);
+
+            Assert.Equal(BuildfileExportCore.PathAttributeProbeResult.Present,
+                BuildfileExportCore.ProbePathAttributes("r", _ => FileAttributes.ReparsePoint, out _, out string e3));
+            Assert.Equal("", e3);
+        }
+
+        [Fact]
+        public void ProbePathAttributes_NotFound_IsAbsent()
+        {
+            Assert.Equal(BuildfileExportCore.PathAttributeProbeResult.Absent,
+                BuildfileExportCore.ProbePathAttributes(
+                    "missing-file", _ => throw new FileNotFoundException("gone"), out _, out string e1));
+            Assert.Equal("", e1);
+
+            Assert.Equal(BuildfileExportCore.PathAttributeProbeResult.Absent,
+                BuildfileExportCore.ProbePathAttributes(
+                    "missing-dir", _ => throw new DirectoryNotFoundException("gone"), out _, out string e2));
+            Assert.Equal("", e2);
+        }
+
+        [Fact]
+        public void ProbePathAttributes_ExpectedInspectionFault_IsUnknown_FailClosed()
+        {
+            var result = BuildfileExportCore.ProbePathAttributes(
+                "blocked-path", _ => throw new UnauthorizedAccessException("denied"),
+                out _, out string fault);
+
+            Assert.Equal(BuildfileExportCore.PathAttributeProbeResult.Unknown, result);
+            Assert.Contains("denied", fault);
         }
 
         [Fact]
@@ -2981,6 +3796,367 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.DoesNotContain(Directory.GetDirectories(realParent), d => Path.GetFileName(d).Contains(".stage-"));
             }
             finally { try { Directory.Delete(root, true); } catch { } }
+        }
+
+        // ---------------------------------------------------------------
+        // #1936/#1935: shared 16 MiB producer/consumer manifest byte cap. BuildfileExportCore
+        // must never publish a buildfile.json its own independent consumer (BuildfileBuildCore)
+        // would refuse to open (root cause: the exporter previously had no byte cap of its own).
+        // ---------------------------------------------------------------
+
+        [Fact]
+        public void ManifestByteCap_IsSharedAcrossFormatBuildAndExportOptions()
+        {
+            Assert.Equal(16 * 1024 * 1024, BuildfileFormat.MaxManifestBytes);
+            // The consumer's own constant must remain exactly 16 MiB and must never drift from
+            // the shared source of truth.
+            Assert.Equal(BuildfileFormat.MaxManifestBytes, BuildfileBuildOptions.MaxManifestBytes);
+            Assert.Equal(BuildfileFormat.MaxManifestBytes, BuildfileExportOptions.MaxManifestBytes);
+        }
+
+        [Fact]
+        public void TryPrepareManifestForByteCap_ExactCap_Succeeds()
+        {
+            var manifest = new BuildfileManifest();
+            long exact = Encoding.UTF8.GetByteCount(BuildfileExportCore.SerializeManifest(manifest));
+
+            Assert.True(BuildfileExportCore.TryPrepareManifestForByteCap(manifest, exact));
+        }
+
+        [Fact]
+        public void TryPrepareManifestForByteCap_OneByteOverWithNoDegradableInventory_Fails()
+        {
+            var manifest = new BuildfileManifest();
+            long exact = Encoding.UTF8.GetByteCount(BuildfileExportCore.SerializeManifest(manifest));
+
+            // One byte below the manifest's actual size ("cap+1" relative to the content) —
+            // nothing installed to degrade, so the manifest is left exactly as-is and this must
+            // fail outright, never truncate/partially serialize.
+            Assert.False(BuildfileExportCore.TryPrepareManifestForByteCap(manifest, exact - 1));
+            Assert.Empty(manifest.Patches.Installed);
+            Assert.Equal("unavailable", manifest.Patches.Status); // default, untouched
+        }
+
+        [Fact]
+        public void TryPrepareManifestForByteCap_MultibyteContent_MeasuresUtf8BytesNotChars()
+        {
+            var manifest = new BuildfileManifest();
+            // Each '\u65E5' is one UTF-16 char but 3 UTF-8 bytes — repeated enough times that the
+            // byte/char gap is large and unambiguous.
+            manifest.Warnings.Add(new string('\u65E5', 200));
+            string json = BuildfileExportCore.SerializeManifest(manifest);
+            int charLength = json.Length;
+            long byteLength = Encoding.UTF8.GetByteCount(json);
+            Assert.True(byteLength > charLength); // sanity: the fixture really is multibyte
+
+            // A char-counting (WRONG) implementation would consider this within budget; a
+            // byte-counting (CORRECT) implementation must reject it (nothing installed to
+            // degrade, so this proves rejection, not silent truncation).
+            Assert.False(BuildfileExportCore.TryPrepareManifestForByteCap(manifest, charLength));
+            // The true byte count must be accepted.
+            Assert.True(BuildfileExportCore.TryPrepareManifestForByteCap(manifest, byteLength));
+        }
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(-1)]
+        public void ResolveManifestByteCap_ZeroOrNegativeOverride_Throws(long invalid)
+        {
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                BuildfileExportCore.ResolveManifestByteCap(invalid));
+        }
+
+        [Fact]
+        public void ResolveManifestByteCap_WideningOverride_Throws()
+        {
+            // #1936/#1935 non-widening guarantee: a test-only override can only ever NARROW the
+            // cap below the immutable production ceiling, mirroring
+            // BuildPatchInventoryBounded_MaxParamsAggregateBytesAboveImmutableCeiling_Throws.
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                BuildfileExportCore.ResolveManifestByteCap(BuildfileExportOptions.MaxManifestBytes + 1L));
+        }
+
+        [Fact]
+        public void ResolveManifestByteCap_NoOverride_ResolvesToProductionConstant()
+        {
+            Assert.Equal(BuildfileExportOptions.MaxManifestBytes, BuildfileExportCore.ResolveManifestByteCap(null));
+        }
+
+        [Fact]
+        public void Export_SmallManifestByteCap_DegradesAvailablePatchInventoryAllOrNothing_ThenBuildRoundTripsSuccessfully()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x10] = 0x21;
+
+            string patchParent = Path.Combine(
+                Path.GetTempPath(), "bfx_capC_patch_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(patchParent);
+            string patchBase = Path.Combine(patchParent, "patch2");
+            string dir = Path.Combine(patchBase, "CAP");
+            Directory.CreateDirectory(dir);
+            // A modestly sized (not real-16-MiB-cap-sized) single param value — big enough that
+            // the WITH-patches manifest is measurably larger than the degraded (no-patches)
+            // manifest, but small enough to keep this test cheap/fast (the real-cap magnitude is
+            // covered separately below).
+            string value = new string('B', 4000);
+            File.WriteAllText(
+                Path.Combine(dir, "PATCH_Cap.txt"),
+                "TYPE=ADDR\nNAME=Cap Patch\nKEY1=" + value + "\n");
+
+            var (outDirCalib, parentCalib) = FreshOut();
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                var calibResult = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target),
+                    new BuildfileExportOptions { OutputDirectory = outDirCalib, PatchBaseDirectory = patchBase });
+                Assert.True(calibResult.Success, calibResult.Error);
+                Assert.Equal("available", calibResult.Manifest.Patches.Status);
+                Assert.Single(calibResult.Manifest.Patches.Installed);
+
+                BuildfileManifest calibManifest = calibResult.Manifest;
+                long withPatchesBytes = Encoding.UTF8.GetByteCount(BuildfileExportCore.SerializeManifest(calibManifest));
+
+                // Compute the EXACT degraded size analytically — the same mutation
+                // TryPrepareManifestForByteCap itself performs — instead of guessing a
+                // threshold or running a second uncontrolled export.
+                calibManifest.Patches.Status = "unavailable";
+                calibManifest.Patches.Reason = BuildfileExportCore.ManifestByteBudgetExceededReason;
+                calibManifest.Patches.Installed.Clear();
+                long degradedBytes = Encoding.UTF8.GetByteCount(BuildfileExportCore.SerializeManifest(calibManifest));
+
+                Assert.True(degradedBytes < withPatchesBytes,
+                    "Test fixture assumption: degrading the patch inventory must shrink the manifest.");
+
+                // A cap strictly between the degraded size and the with-patches size: too small
+                // for the full inventory, comfortably large enough after degrade.
+                long cap = degradedBytes + ((withPatchesBytes - degradedBytes) / 2);
+                Assert.InRange(cap, degradedBytes, withPatchesBytes - 1);
+
+                var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target),
+                    new BuildfileExportOptions
+                    {
+                        OutputDirectory = outDir,
+                        PatchBaseDirectory = patchBase,
+                        MaxManifestBytesForTest = cap,
+                    });
+
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("unavailable", result.Manifest.Patches.Status);
+                Assert.Equal(BuildfileExportCore.ManifestByteBudgetExceededReason, result.Manifest.Patches.Reason);
+                Assert.Empty(result.Manifest.Patches.Installed);
+                Assert.DoesNotContain(patchBase, result.Manifest.Patches.Reason);
+
+                long publishedBytes = new FileInfo(Path.Combine(outDir, "buildfile.json")).Length;
+                Assert.True(publishedBytes <= cap);
+                // NOTE: GenerateReadme does not enumerate patch names/status/reason text (it is
+                // generic boilerplate), so asserting on README content here would not actually
+                // exercise or prove anything about degradation ordering/coherence — the real
+                // ordering guarantee (byte-cap check runs before the README write) is reviewed
+                // directly in Export(...)/TryPrepareManifestForByteCap, not asserted via README
+                // text. The one guarantee this test DOES prove textually is that the raw patch
+                // param VALUE never reaches the published buildfile.json:
+                Assert.DoesNotContain(value, File.ReadAllText(Path.Combine(outDir, "buildfile.json")));
+
+                // Authoritative fields (ranges/payload hashes/identity) are never touched by the
+                // degrade — the fully independent consumer must still reconstruct the target.
+                BuildfileBuildResult buildResult =
+                    BuildfileBuildCore.Build(MakeRom(clean), outDir, new BuildfileBuildOptions());
+                Assert.True(buildResult.Success, buildResult.Error);
+                Assert.True(buildResult.TargetIdentityMatches);
+                Assert.True(target.SequenceEqual(buildResult.TargetBytes));
+            }
+            finally
+            {
+                Cleanup(parentCalib);
+                Cleanup(parent);
+                try { Directory.Delete(patchParent, true); } catch { }
+            }
+        }
+
+        [SkippableFact]
+        public void Export_LateRewriteAfterMaterializationError_PushesManifestOverByteCap_FailsWithoutPublishOrResidue()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x2000] = 0x51;
+
+            string external = Path.Combine(
+                Path.GetTempPath(), "bfx_capD_external_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(external);
+            File.WriteAllText(Path.Combine(external, "outside.txt"), "external-content\n");
+            try
+            {
+                // Phase 1 (calibration): the SAME real scenario with NO cap override — the
+                // production 16 MiB cap is comfortably large enough that this run is
+                // unaffected, but it tells us EXACTLY how many bytes the real,
+                // materialization-error-rewritten manifest needs (no guessed threshold).
+                Exception linkErrorA = null;
+                var (outDirA, parentA) = FreshOut();
+                long finalManifestBytes;
+                try
+                {
+                    var optionsA = new BuildfileExportOptions
+                    {
+                        OutputDirectory = outDirA,
+                        ProjectionRunner = scratch =>
+                        {
+                            File.WriteAllText(Path.Combine(scratch, "projection.txt"), "complete\n");
+                            return BuildfileProjectionOutcome.Ok();
+                        },
+                        AfterProjectionMoveForTest = source =>
+                        {
+                            Directory.Delete(source, true);
+                            try { Directory.CreateSymbolicLink(source, external); }
+                            catch (Exception ex) { linkErrorA = ex; }
+                        },
+                    };
+                    var resultA = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target), optionsA);
+                    if (linkErrorA != null)
+                    {
+                        Skip.If(true, "Cannot create a fresh-source symlink here: " + linkErrorA.Message);
+                        return;
+                    }
+                    Assert.True(resultA.Success, resultA.Error);
+                    Assert.Equal("error", resultA.Manifest.Projection.Status);
+                    Assert.Empty(resultA.Manifest.Patches.Installed); // nothing degradable, by design
+                    finalManifestBytes = new FileInfo(Path.Combine(outDirA, "buildfile.json")).Length;
+                }
+                finally { Cleanup(parentA); }
+
+                // Phase 2 (real route under test): the identical scenario, but with a test-only
+                // cap ONE BYTE below the known real post-rewrite size. The EARLIER (pre-error,
+                // "success") manifest lacks the later-appended error warning and is therefore
+                // smaller, so the FIRST byte-cap check (before README) passes; only the SECOND
+                // check — immediately before the real RewriteProjectionMetadata call — can fail,
+                // since there is still no advisory patch inventory installed to degrade.
+                Exception linkError = null;
+                var (outDir, parent) = FreshOut();
+                try
+                {
+                    var options = new BuildfileExportOptions
+                    {
+                        OutputDirectory = outDir,
+                        MaxManifestBytesForTest = finalManifestBytes - 1,
+                        ProjectionRunner = scratch =>
+                        {
+                            File.WriteAllText(Path.Combine(scratch, "projection.txt"), "complete\n");
+                            return BuildfileProjectionOutcome.Ok();
+                        },
+                        AfterProjectionMoveForTest = source =>
+                        {
+                            Directory.Delete(source, true);
+                            try { Directory.CreateSymbolicLink(source, external); }
+                            catch (Exception ex) { linkError = ex; }
+                        },
+                    };
+                    var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target), options);
+                    if (linkError != null)
+                    {
+                        Skip.If(true, "Cannot create a fresh-source symlink here: " + linkError.Message);
+                        return;
+                    }
+
+                    Assert.False(result.Success);
+                    Assert.Contains("byte", result.Error, StringComparison.OrdinalIgnoreCase);
+                    Assert.False(Directory.Exists(outDir)); // no destination published
+                    // No stage/scratch sibling residue left behind either — the existing outer
+                    // catch's cleanup ran, no NEW cleanup logic was added for this failure.
+                    Assert.Empty(Directory.GetDirectories(parent));
+                }
+                finally { Cleanup(parent); }
+            }
+            finally { try { Directory.Delete(external, true); } catch { } }
+        }
+
+        [Fact]
+        public void Export_RealCapExceeded_DegradesPatchInventory_PublishesUnderCap_AndBuildSucceeds()
+        {
+            // REQUIRED real-cap regression (#1936/#1935): NO manifest cap override anywhere in
+            // this test. A single accepted, at-per-file-cap (16 MiB) patch param payload alone
+            // makes the serialized buildfile.json exceed the REAL 16 MiB producer/consumer cap
+            // on the pre-fix baseline (which has no byte-cap check at all, so it would publish
+            // an oversized manifest BuildfileBuildCore.Build then refuses to open). Kept to a
+            // single ~16 MiB string allocation/file (bounded, deterministic cleanup).
+            //
+            // Blue-team review: this method deliberately references ONLY members that already
+            // exist on the pre-fix baseline (BuildfileBuildOptions.MaxManifestBytes,
+            // BuildfilePatchInventory.Status/Reason/Installed) so it COMPILES unchanged at
+            // baseline, and asserts the actual published byte count against the consumer's own
+            // cap IMMEDIATELY after Export.Success — BEFORE any degradation-specific
+            // assertion — so it fails FIRST at that exact byte-count defect
+            // (16,779,064 > 16,777,216) on baseline rather than at a missing-member compile
+            // error or an unrelated/later assertion. The new-constant-specific assertions
+            // (BuildfileExportOptions.MaxManifestBytes, ManifestByteBudgetExceededReason) are
+            // deliberately NOT used here; a stable semantic substring stands in for the exact
+            // reason constant instead.
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x10] = 0x37;
+
+            string patchParent = Path.Combine(
+                Path.GetTempPath(), "bfx_capE_patch_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(patchParent);
+            string patchBase = Path.Combine(patchParent, "patch2");
+            string dir = Path.Combine(patchBase, "CAP");
+            Directory.CreateDirectory(dir);
+
+            // Sized so the RAW patch file itself sits EXACTLY at the immutable per-file 16 MiB
+            // cap (PatchMetadataCore.MaxPatchDefinitionBytes) — comfortably under the separate
+            // 64 MiB metadata/params aggregate caps and the 16,384-item advisory cap (one
+            // record + one param + at most one warning) — so ONLY the new manifest byte cap is
+            // exercised here, nothing else rejects/degrades this fixture first.
+            const string header = "TYPE=ADDR\nNAME=CapPatch\nKEY1=";
+            int headerBytes = Encoding.UTF8.GetByteCount(header);
+            long totalFileBytes = PatchMetadataCore.MaxPatchDefinitionBytes;
+            long valueLength = totalFileBytes - headerBytes - 1; // reserve exactly 1 byte for the trailing LF
+            string value = new string('A', (int)valueLength);
+            string patchFile = Path.Combine(dir, "PATCH_Cap.txt");
+            File.WriteAllText(patchFile, header + value + "\n");
+            Assert.Equal(totalFileBytes, new FileInfo(patchFile).Length);
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target),
+                    new BuildfileExportOptions
+                    {
+                        OutputDirectory = outDir,
+                        PatchBaseDirectory = patchBase,
+                        // NO MaxManifestBytesForTest override — this is the real production cap.
+                    });
+
+                Assert.True(result.Success, result.Error);
+
+                // The proof-critical assertion: the actual published byte count must fit the
+                // REAL consumer cap. On the pre-fix baseline this is the FIRST thing that fails
+                // (a real 16,779,064-byte manifest against the real 16,777,216-byte cap) — no
+                // degradation ever ran, so checking status/reason first would still fail here,
+                // but checking the byte count FIRST pins the exact defect this regression closes
+                // rather than a downstream symptom of it.
+                var manifestFile = new FileInfo(Path.Combine(outDir, "buildfile.json"));
+                Assert.True(manifestFile.Length <= BuildfileBuildOptions.MaxManifestBytes,
+                    $"Published buildfile.json ({manifestFile.Length} bytes) must fit the real {BuildfileBuildOptions.MaxManifestBytes}-byte consumer cap.");
+
+                // Only reachable once the byte-cap defect above is actually fixed: the advisory
+                // patch inventory must have been the thing that degraded (never a partial list,
+                // never a path leaking into the reason).
+                Assert.Equal("unavailable", result.Manifest.Patches.Status);
+                Assert.Contains("manifest byte budget", result.Manifest.Patches.Reason, StringComparison.OrdinalIgnoreCase);
+                Assert.Empty(result.Manifest.Patches.Installed);
+                Assert.DoesNotContain(patchBase, result.Manifest.Patches.Reason);
+
+                BuildfileBuildResult buildResult =
+                    BuildfileBuildCore.Build(MakeRom(clean), outDir, new BuildfileBuildOptions());
+                Assert.True(buildResult.Success, buildResult.Error);
+                Assert.True(buildResult.TargetIdentityMatches);
+                Assert.True(target.SequenceEqual(buildResult.TargetBytes));
+            }
+            finally
+            {
+                Cleanup(parent);
+                try { Directory.Delete(patchParent, true); } catch { }
+            }
         }
 
         // --------------------------------------------------------------- utilities

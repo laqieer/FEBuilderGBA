@@ -73,7 +73,7 @@ dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 
 ### Command-Line Tools
 
-> The examples below are a **representative subset**. The canonical full CLI reference (all 68
+> The examples below are a **representative subset**. The canonical full CLI reference (all 70
 > commands — distinct top-level dispatch-table branches in `FEBuilderGBA.CLI/Program.cs`, collapsing
 > the `--help`/`-h` and `--test`/`--testonly` aliases) lives in
 > **[docs/cli-reference.md](docs/cli-reference.md)**; the argument table is in

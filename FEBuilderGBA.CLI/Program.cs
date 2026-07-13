@@ -9,7 +9,7 @@ using FEBuilderGBA.SkiaSharp;
 
 namespace FEBuilderGBA.CLI
 {
-    static class Program
+    static partial class Program
     {
         // Raw, ORDERED argv — preserved so commands that accept REPEATABLE flags
         // (e.g. --write-source --field=X --value=Y --field=A --value=B) can recover
@@ -86,6 +86,16 @@ namespace FEBuilderGBA.CLI
             if (argsDic.ContainsKey("--export-buildfile"))
             {
                 return RunExportBuildfile(argsDic);
+            }
+
+            if (argsDic.ContainsKey("--build-buildfile"))
+            {
+                return RunBuildBuildfile(argsDic);
+            }
+
+            if (argsDic.ContainsKey("--buildfile-roundtrip"))
+            {
+                return RunBuildfileRoundTrip(argsDic);
             }
 
             if (argsDic.ContainsKey("--songexchange"))
@@ -483,6 +493,12 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("                           (requires --rom=<modded>, --clean=<clean>, --out=<new-project-dir>)");
             Console.WriteLine("    --clean=<path>         Clean/baseline ROM (same version as --rom); its sha256 is the identity");
             Console.WriteLine("    --with-source          Also emit an advisory source/ projection (opt-in, non-authoritative)");
+            Console.WriteLine("  --build-buildfile        Independently rebuild a ROM from a schema-v1 buildfile recipe");
+            Console.WriteLine("                           (requires --clean=<clean>, --project=<recipe-dir>, --out=<new-rom>)");
+            Console.WriteLine("                           buildfile.json + data/ are the ONLY authority; exit 0 success, 1 error");
+            Console.WriteLine("  --buildfile-roundtrip    Export then independently rebuild and byte-compare against --rom");
+            Console.WriteLine("                           (requires --rom=<modified>, --clean=<clean>; opt --force-version)");
+            Console.WriteLine("                           exit 0 exact, 2 reproducibility drift, 1 usage/validation/IO error");
             Console.WriteLine("  --songexchange           Copy song between ROMs (requires --rom, --fromrom, --fromsong, --tosong)");
             Console.WriteLine("  --convertmap1picture     Convert image to map tiles (requires --in and one or more of --outImg, --outTSA, --outPal; --json for machine output)");
             Console.WriteLine("  --translate              Dump or import ROM text (requires --rom)");
@@ -690,6 +706,8 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  FEBuilderGBA.CLI --pointercalc --rom=source.gba --target=target.gba --address=0x100,0x200");
             Console.WriteLine("  FEBuilderGBA.CLI --rebuild --rom=modified.gba --fromrom=original.gba");
             Console.WriteLine("  FEBuilderGBA.CLI --export-buildfile --rom=modified.gba --clean=original.gba --out=project/");
+            Console.WriteLine("  FEBuilderGBA.CLI --build-buildfile --clean=original.gba --project=project/ --out=rebuilt.gba");
+            Console.WriteLine("  FEBuilderGBA.CLI --buildfile-roundtrip --rom=modified.gba --clean=original.gba");
             Console.WriteLine("  FEBuilderGBA.CLI --songexchange --rom=dest.gba --fromrom=source.gba --fromsong=0x1A --tosong=0x1A");
             Console.WriteLine("  FEBuilderGBA.CLI --migrate-diff --project=decomp/ --rom2=edited.gba --out=migrate.tsv");
             Console.WriteLine("  FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin --outPal=palette.bin");

@@ -3,9 +3,10 @@
 This document tracks the **E2E-covered** primary commands of the cross-platform `FEBuilderGBA.CLI`
 tool and their alignment with the original WinForms CLI. The table below is *not* the complete
 command set — it lists commands exercised by `FEBuilderGBA.E2ETests/Tests/CliArgsE2ETests.cs`
-and command-specific E2E suites such as `CliExportBuildfileE2ETests.cs`.
+and command-specific E2E suites such as `CliExportBuildfileE2ETests.cs` and
+`CliBuildBuildfileE2ETests.cs`.
 
-For the **full command set** (the `Main` dispatcher in `FEBuilderGBA.CLI/Program.cs` routes 68
+For the **full command set** (the `Main` dispatcher in `FEBuilderGBA.CLI/Program.cs` routes 70
 distinct user-facing commands), see [`docs/cli-reference.md`](cli-reference.md) or run:
 
 ```bash
@@ -34,6 +35,8 @@ WinForms CLI counterpart to align against.
 | `--pointercalc` | Search pointer references | `--rom`, `--target`, `--address` | E2E COVERED | ALIGNED |
 | `--rebuild` | Rebuild/defragment ROM | `--rom` (opt: `--fromrom`) | E2E COVERED | ALIGNED |
 | `--export-buildfile` | Export a deterministic buildfile recipe of the clean→modded delta | `--rom`, `--clean`, `--out` (opt: `--force-version`, `--with-source`) | E2E COVERED | CLI-ONLY (N/A) |
+| `--build-buildfile` | Independently rebuild a ROM from a schema-v1 buildfile recipe (buildfile.json + data/ only) | `--clean`, `--project`, `--out` | E2E COVERED (RomLocator-gated) | CLI-ONLY (N/A) |
+| `--buildfile-roundtrip` | Export → independent rebuild → byte-compare against `--rom`; exit 0 exact / 2 drift / 1 error | `--rom`, `--clean` (opt: `--force-version`) | E2E COVERED (RomLocator-gated) | CLI-ONLY (N/A) |
 | `--songexchange` | Copy song between ROMs | `--rom`, `--fromrom`, `--fromsong`, `--tosong` | E2E COVERED | ALIGNED |
 | `--convertmap1picture` | Convert image to map tiles | `--in`, one or more of `--outImg`/`--outTSA`/`--outPal` (opt: `--json`) | E2E COVERED | ALIGNED |
 | `--translate` | Dump or import ROM text | `--rom` | E2E COVERED | ALIGNED |
@@ -65,8 +68,9 @@ WinForms CLI counterpart to align against.
 | `--patch=<path>` | Specify UPS patch file | `--applyups` |
 | `--rom2=<path>` | Second ROM file to compare against | `--diff` |
 | `--in=<path>` | Input file | `--decreasecolor`, `--convertmap1picture`, `--translate`, `--lz77`, `--import-palette`, `--import-battle-anime` |
-| `--out=<path>` | Output file | `--decreasecolor`, `--translate`, `--translate-roundtrip`, `--translate_batch`, `--export-map-settings`, `--lz77`, `--export-palette`, `--export-battle-anime`, `--diff`, `--export-buildfile` (new project directory, must not exist) |
-| `--clean=<path>` | Clean/baseline ROM of the same version; its SHA-256 is the reproducibility identity | `--export-buildfile` |
+| `--out=<path>` | Output file | `--decreasecolor`, `--translate`, `--translate-roundtrip`, `--translate_batch`, `--export-map-settings`, `--lz77`, `--export-palette`, `--export-battle-anime`, `--diff`, `--export-buildfile` (new project directory, must not exist), `--build-buildfile` (new destination ROM, must not exist) |
+| `--clean=<path>` | Clean/baseline ROM of the same version; its SHA-256 is the reproducibility identity | `--export-buildfile`, `--build-buildfile`, `--buildfile-roundtrip` |
+| `--project=<dir>` | Schema-v1 buildfile recipe directory (contains `buildfile.json` + `data/`; the sole build authority) | `--build-buildfile` |
 | `--with-source` | Also emit an advisory, non-authoritative `source/` projection (opt-in) | `--export-buildfile` |
 | `--dir=<path>` | Input directory of portraits | `--import-portrait-all` |
 | `--addr=<hex>` | ROM address (raw offset or `0x08…` pointer) | `--export-palette`, `--import-palette` |

@@ -257,7 +257,73 @@ slow, or unreadable patch library yields `unavailable` and never aborts the expo
 exists but cannot actually be enumerated — permissions, I/O, path failures — is distinguished from a
 directory that is simply absent, and any enumeration/parameter/relative-path failure is reported in
 the manifest as a stable, fixed, path-free reason string — never the raw exception message or the
-absolute patch library/patch file path). This strict exporter inventory is separate from the legacy
+absolute patch library/patch file path). Each individual `PATCH_*.txt` FINAL entry (the definition
+file itself, not its ancestor directories, which remain out of scope for this guarantee) is opened
+no-follow and must be an exact regular file: a symlink, reparse point, or other non-regular-file
+type is refused before a single byte is read (closing an information-disclosure path where a
+final-entry symlink pointing outside the patch library could otherwise leak an external target
+file's content into the advisory inventory), and a Browser host fails closed rather than falling
+back to an unsafe open — both cases degrade the same way as any other expected filesystem fault
+(stable, path-free reason; authoritative recipe/payload export unaffected). The shared bounded
+reader itself never swallows a missing entry: `FileNotFoundException`/`DirectoryNotFoundException`
+propagate and each caller decides. A missing patch ROOT during INITIAL discovery is a successful
+empty listing; a definition file that was already discovered but is missing or faulting when the
+bounded METADATA pass opens it degrades the WHOLE advisory inventory to `unavailable` with a
+generic, path-free filesystem reason (NOT success-empty and NOT a resource-budget reason); only
+the later bounded raw-PARAMETER pass maps a missing file to a successful, empty parameter list.
+The advisory patch inventory (every installed/unknown
+record plus its nested raw parameters) and the manifest's `warnings` share ONE internal
+16,384-item resource-safety budget; the exporter is a *bounded producer* — patch-file discovery,
+per-record, and per-parameter counting are all checked against the remaining budget **before**
+anything is materialized, and a warning appended late (e.g. by the optional source projection,
+after the patch inventory budget was already reserved) is re-checked against the same shared
+total. Exceeding the budget at any point degrades the **entire** advisory patch inventory to
+`unavailable` with the same stable, path-free reason — never a partial/truncated installed list,
+and the authoritative recipe/payloads/manifest still export successfully. Independently of that
+item-count budget, every individual `PATCH_*.txt` definition read during metadata discovery and
+raw-parameter capture is byte-bounded: each file is capped at **16 MiB**, rejected on the raw byte
+count **before** any line is decoded. A `FileStream.Length` reported above 16 MiB — including an
+oversized or sparse-huge-reported length — is rejected **up front, before any read is issued**;
+this initial length check is distinct from, and precedes, the separate cap+1 probe. Once that
+length check is passed, a bounded read of at most cap+1 bytes on the same handle still catches a
+file that **grows beyond the cap after that check**, again before the surplus byte is ever
+written or decoded — so no partial line is ever decoded or returned on either kind of rejection.
+The reader also enforces exact length-drift detection on that same handle: accepted bytes
+reaching decode must equal the `FileStream.Length` captured at open time **exactly**. Any byte
+read past that captured length is rejected before it is written into the accepted buffer or
+decoded — even when the running total is still comfortably within the 16 MiB cap — and reaching
+genuine end-of-file with **fewer** bytes than that captured length (a premature EOF) is rejected
+the same way. `bytesRead` stays monotonic and visible to the caller on either rejection; a false
+length-drift result immediately degrades/clears/stops the enclosing advisory pass, so no later
+file in that pass can exploit any remaining aggregate byte budget. This is a length-drift check,
+not an immutable-snapshot guarantee: an in-place mutation that leaves the file's length
+unchanged, or bytes appended strictly **after the final observed EOF**, are both outside what
+this check can detect — an append visible **before** that EOF is instead read as surplus and
+rejected the same way.
+The reader never allocates a buffer sized to the full 16 MiB cap for
+every file: reads are issued as fixed **64 KiB** `ArrayPool`-rented chunk requests, and the
+initial accepted in-memory storage capacity is sized from that already-validated `FileStream.Length`
+(so at most 16 MiB, never the unvalidated raw/sparse-reported value) and grows
+**only** as bytes are actually accepted — never blindly pre-allocated to the full cap for a small
+file — so a library of thousands of mostly-small files does not incur cumulative large-buffer
+allocation. Raw lines are
+also counted against an independent raw-line cap **during** decoding, not after a full file is
+materialized into a line list — so a within-byte-budget file consisting of massive numbers of
+tiny/blank lines cannot force an unbounded line list either; no partial line list is ever produced
+or returned on any breach. The metadata-discovery pass and the raw-parameter-capture pass each also
+track their own running total against a **separate 64 MiB aggregate cap per pass** (128 MiB
+worst case if both passes are near their cap at once); breaching either the per-file or the
+aggregate byte cap degrades the entire advisory patch inventory to `unavailable` the same way the
+16,384-item budget does — never a partial/truncated installed list. Accepted bytes are decoded
+with the same BOM-detecting, non-strict-UTF-8 (replacement-fallback) semantics as the legacy
+`File.ReadLines`/`File.ReadAllLines` APIs, so any file within budget is **decoded**
+byte-identically to the unbounded legacy path. The one deliberate behavioral difference is
+install-marker **classification**: this bounded metadata scan classifies a file-backed `$FGREP`
+install marker (one the shared resolver would resolve by opening the external file it names) as
+`unknown` **before** any filename access, whereas the public/unbounded Patch Manager, CLI, patch
+scanner, and rebuild paths still resolve it (shipped patches depend on that legacy behavior); the
+bounded raw advisory params read from the patch definition itself are unchanged. This strict
+exporter inventory is separate from the legacy
 Patch Manager/CLI enumeration path, which logs an unreadable individual definition and retains all
 other successfully parsed patches. The optional `source/` projection is a non-composable
 best-effort produced only by the built-in synchronous `RebuildProducerCore` path. It first writes
@@ -285,6 +351,24 @@ output failures likewise verify stage/scratch removal and report any residual te
 projector is synchronous by contract; as with every user-owned output, a separate process running
 as the same OS identity can modify files after publication, so consumers must still treat loose
 project files as mutable.
+
+Independently of the advisory item-count and per-patch-file byte budgets above, the exporter also
+guarantees the published `buildfile.json` itself can never exceed the **same 16 MiB** cap its own
+`--build-buildfile` consumer enforces (below) — one shared constant neither side maintains a
+separate copy of, so the two can never drift apart. Before both the initial manifest write and any
+later rewrite triggered by a late materialization-error warning, the exact UTF-8 byte count of the
+serialized manifest (including its trailing newline — the identical text that is actually written
+to disk) is measured against that cap. Within budget, nothing changes. Over budget with an
+available advisory patch inventory, the **entire** inventory (never a partial/truncated list, and
+never any authoritative range/payload/identity/extension/projection field) degrades to
+`unavailable` with its own stable, path-free reason, and the manifest is re-measured; if it is
+still over budget afterward — or there was no inventory left to degrade — the export fails before
+either file is published, and the same existing stage/scratch cleanup applies. This closes a
+producer/consumer gap: previously only the consumer enforced a manifest size bound, so a
+serialized manifest could exceed it — a defect BOTH sides now share exactly one immutable
+constant to prevent (this guarantee covers only the exporter's own serialization size; the
+consumer's other structural/identity/payload/filesystem validations, and any post-publication
+mutation of the published project, are unaffected and remain independently enforced).
 If
 the target extends the clean ROM, the exporter picks the
 most frequent extension byte (lowest byte on ties) as the fill and emits only sparse override
@@ -331,6 +415,132 @@ the final opened `(device,inode)` comparison. The macOS path preflight remains c
 case-insensitive.
 
 **Exit code:** 0 on success, 1 on error.
+
+---
+
+### `--build-buildfile`
+
+Independently **rebuild a ROM** from a schema-v1 buildfile recipe. The reconstruction is
+driven **solely** by `buildfile.json` + `data/`: this verb never executes or parses
+`main.event`, invokes ColorzCore, consumes `source/`, or trusts the advisory patch inventory,
+projection metadata, or warnings — none of those surfaces can influence a single output byte.
+It never mutates the clean ROM or any project file.
+
+| Option | Required | Description |
+|---|---|---|
+| `--clean=<path>` | Yes | Clean/baseline ROM. Must exactly match the recipe's declared clean size + CRC32 + SHA-256 + version. |
+| `--project=<dir>` | Yes | The recipe directory (must contain `buildfile.json` + `data/`). |
+| `--out=<path>` | Yes | New destination ROM. **Must not already exist or be inside `project/data`**; published atomically, never overwriting. |
+
+```
+FEBuilderGBA.CLI --build-buildfile --clean=original.gba --project=project/ --out=rebuilt.gba
+```
+
+The consumer opens `buildfile.json` as an exact no-follow regular file, bounds it to 16 MiB (the
+SAME shared cap `--export-buildfile` now also enforces on every manifest it publishes — see
+above — so an exporter-produced manifest is never rejected here SOLELY because exporter-owned
+serialization exceeded that shared cap; post-publication mutation and every other structural/
+identity/payload/filesystem validation described below remain independently enforced regardless
+of origin. A hand-edited or third-party-produced buildfile.json is not exempt and is rejected
+outright if it exceeds it),
+requires strict UTF-8 (an optional UTF-8 BOM only), rejects duplicate JSON property names, and
+requires `schemaVersion == 1`. Every schema-v1 object has an exact member allowlist: unknown
+members and wrong-typed optional/advisory members are rejected, while validated advisory values
+remain non-authoritative. It then enforces the full recipe contract before allocating the target:
+exact clean identity (size/CRC32/SHA-256/canonical flag) and version equal to the clean ROM's; a
+target no smaller than clean and no larger than 32 MiB; `dataDirectory == "data"`;
+extension present exactly when the target extends clean (`start == clean size`,
+`length == target - clean`, canonical `0xNN` fill); at most 16,384 ranges with contiguous
+zero-based indices, exact `totalRanges`, strictly ordered non-touching positive ranges,
+checked in-bounds offset arithmetic, canonical `gbaAddress` (`0x08000000 + offset`),
+`changedBytes == length`, unique canonical `data/{index:D4}_{offset:X6}_{length}.bin` payload
+paths, canonical CRC/SHA spellings, and an exact `totalChangedBytes` total. `data/` is captured
+through the same handle-relative, no-follow snapshot reader used by the exporter (relative names
+are mapped back under the `data/` prefix), rejecting symlinks/reparse points/devices,
+subdirectories, missing payloads, extra payloads, case-colliding names, any payload whose
+length or SHA-256 does not match the manifest, and any claimed changed byte equal to its clean
+or extension-fill baseline. The target is then reconstructed as clean bytes +
+the declared extension fill + the validated payloads in manifest order (a payload may override
+the fill or span the clean/extension boundary), and its recomputed CRC32/SHA-256 must match the
+recipe's declared target before anything is published.
+
+The project root and output parent are physically resolved before manifest/data access. Every
+output-parent ancestor is compared to authoritative project `data/` by filesystem entry identity
+(device/inode on Unix; volume + file ID on Windows), so alternate drive/UNC/mount aliases are
+rejected along with ordinary descendants. The boundary and project-root identity are checked
+again immediately before publication, so a successful build cannot poison the next build with an
+undeclared payload. The verified ROM is published to `--out` by writing an exclusively-reserved,
+bounded fixed-ASCII-name staging file in the destination's own parent directory, flushing it
+durably, fully closing the handle, and then committing it with an atomic **no-replace** rename
+(`MoveFileExW` without replace on Windows,
+`renameat2(RENAME_NOREPLACE)` on Linux, `renamex_np(RENAME_EXCL)` on macOS). A destination that
+appears after the pre-check is preserved and the build fails; on any failure the staging file is
+removed and its removal verified.
+
+The identity recheck detects same-path replacement during reconstruction. As with other pathname-
+based desktop tools, a privileged concurrent remap in the narrow interval after the final identity
+check and before the staging-file open is outside this command's guarantee; the publication layer
+still rejects reparse-point parents, destination replacement, and no-replace rename races.
+
+`patches.installed` (with its nested `params` arrays) and `warnings` share the SAME internal
+16,384-item resource-safety budget the exporter uses. Unlike the exporter (which *degrades* an
+oversized patch library to `unavailable`), the consumer treats an over-cap combined total as a
+**structural validation failure**: each array's declared length is checked against the shared
+running budget *before* that array is enumerated, so a hostile or corrupt buildfile.json cannot
+force an unbounded number of advisory records/params/warnings into memory — the build is rejected
+before a single over-budget POCO/list entry is materialized. Staging-file cleanup (after a failed
+publish) and the staging create-collision check never use `File.Exists`, which can silently
+report "gone" for a directory/reparse-point replacement or for an inspection fault; instead a
+shared tri-state attribute inspection classifies each outcome and fails closed, with the exact
+path, whenever existence cannot be positively confirmed.
+
+**Rejections (exit 1, no output):** an unknown command-specific option; missing
+`--clean`/`--project`/`--out`; a `--clean` or `--project` value containing a `..` segment; a
+Windows device-namespace path; a nonexistent clean ROM or project directory; a clean ROM larger
+than 32 MiB or not a plain regular file; a pre-existing `--out`; an output parent physically at
+or below project `data/`; any structural/identity/size/range/path/hash/bounds violation above; or
+a rebuilt ROM whose recomputed identity does not match the recipe's declared target. Global
+switches (`--help`, `--version`) take precedence over the verb in either order.
+
+**Exit code:** 0 on success, 1 on any usage/validation/identity/I/O/publication error.
+
+---
+
+### `--buildfile-roundtrip`
+
+Prove a modded ROM is **reproducible** from its recipe: internally export the recipe (with the
+advisory `source/` projection **off**), independently rebuild from it in a private atomically
+reserved scratch tree, and compare the rebuilt bytes to the already-opened `--rom` bytes — the
+**sole** drift oracle. No project or output is *intentionally* published; this is not an absolute
+guarantee that no scratch can remain (e.g. a crash before cleanup runs, or external interference) —
+see the cleanup-failure exit code below.
+
+| Option | Required | Description |
+|---|---|---|
+| `--rom=<path>` | Yes | The **modified** ROM to prove reproducible (the export target and the comparison oracle). |
+| `--clean=<path>` | Yes | Clean/baseline ROM of the **same version** (must be a different physical file from `--rom`). |
+| `--force-version=<VER>` | No | Applies only to loading the modified `--rom`. |
+
+```
+FEBuilderGBA.CLI --buildfile-roundtrip --rom=modified.gba --clean=original.gba
+```
+
+`--rom` and `--clean` use the exact regular-file, bounded-read, parent-traversal, and
+device-namespace ingestion contract of `--export-buildfile` (including opened-handle identity
+rejection of the same file). The verb reserves a private bounded-name scratch parent atomically,
+passes an absent child project path to the exporter, reconstructs from the published project with
+the production consumer, then attempts to remove the scratch tree and verifies it is gone. A byte
+or length difference is reproducibility **drift** (exit 2) reporting the first-difference offset
+(or first length-difference offset) between the rebuilt and expected bytes. A **declared-target-
+identity-only** drift — the rebuilt bytes match `--rom` exactly, but the recipe's own declared
+target crc32/sha256 do not match the recomputed ones — is also exit 2, but instead reports the
+declared-vs-actual crc32/sha256 hashes; it has no byte offset to report. Neither case is a usage
+error. Scratch-cleanup failure is a hard error (exit 1) even after an otherwise exact comparison,
+and it reports the residual scratch path from the underlying deletion failure.
+
+**Exit codes:** **0** = the rebuilt ROM is byte-for-byte identical to `--rom`; **2** = a completed
+round-trip whose rebuilt bytes drift from `--rom` (or whose declared target identity drifts); **1**
+= usage, validation, I/O, or scratch-cleanup error (the latter reports the residual scratch path).
 
 ---
 
@@ -1219,6 +1429,8 @@ Each finding prints as `ERROR [CODE] msg` (stderr) or `WARN [CODE] msg` (stdout)
 | `--pointercalc` | Required | — | — | — | `--target`, `--address` | No |
 | `--rebuild` | Required | Required | — | — | — | No |
 | `--export-buildfile` | Required | — | — | Required | `--clean` | Full |
+| `--build-buildfile` | — | — | — | Required | `--clean`, `--project` | Partial |
+| `--buildfile-roundtrip` | Required | — | — | — | `--clean` | Full |
 | `--songexchange` | Required | Required | — | — | `--fromsong`, `--tosong` | Partial |
 | `--convertmap1picture` | — | — | Required | — | one or more of `--outImg`/`--outTSA`/`--outPal` | No |
 | `--translate` | Required | — | Optional | Optional | — | Full |
@@ -1254,7 +1466,7 @@ Each finding prints as `ERROR [CODE] msg` (stderr) or `WARN [CODE] msg` (stdout)
 |---|---|
 | `0` | Success (or no errors for `--lint`). |
 | `1` | Error: missing arguments, file not found, operation failed, or lint found ERROR-severity issues. |
-| `2` | Advisory / validation / no-write outcome — no fatal error, but the operation did not fully succeed. Examples: a `--translate-roundtrip` / `--data-roundtrip` / `--roundtrip-asset` mismatch, a `--checksum` INVALID header, `--export-portrait-all` rendering some portraits, a `--write-shop` not-owned / ROM-only / refused list, a `--verify-asset` byte mismatch, a `--merge3` merged **with conflicts** (output still written), or a `--build-project` with no enabled build section. |
+| `2` | Advisory / validation / no-write outcome — no fatal error, but the operation did not fully succeed. Examples: a `--translate-roundtrip` / `--data-roundtrip` / `--roundtrip-asset` mismatch, `--buildfile-roundtrip` byte or declared-target drift, a `--checksum` INVALID header, `--export-portrait-all` rendering some portraits, a `--write-shop` not-owned / ROM-only / refused list, a `--verify-asset` byte mismatch, a `--merge3` merged **with conflicts** (output still written), or a `--build-project` with no enabled build section. |
 | `3` | Internal read-only-invariant violation — a READ-ONLY exporter (`--export-voicegroup`, `--export-battle-anim-decomp`) detected that the in-memory ROM was mutated and aborted without writing. |
 
 ---
