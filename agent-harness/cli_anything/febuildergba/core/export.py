@@ -125,16 +125,16 @@ def rebuild(rom_path: str, from_rom: str,
 
 
 def decrease_color(input_path: str, output_path: str,
-                   palette_no: int = 0,
+                   palette_no: int = 16,
                    no_scale: bool = False,
                    no_reserve_1st: bool = False,
                    ignore_tsa: bool = False) -> dict:
-    """Quantize an image palette for GBA (16 colors).
+    """Quantize an image palette to a bounded color count for GBA.
 
     Args:
         input_path: Input image file.
         output_path: Output image file.
-        palette_no: Palette number (default 0).
+        palette_no: Maximum color count (default 16).
         no_scale: Don't scale to GBA 5-bit color.
         no_reserve_1st: Don't reserve palette slot 0 for transparency.
         ignore_tsa: Ignore TSA 8x8 tile constraints.

@@ -557,6 +557,14 @@ class TestDiscovery:
         schema = srv.TOOL_SCHEMAS["text_roundtrip"]
         assert "out_prefix" not in schema["properties"]
 
+    def test_image_quantize_schema_uses_backend_color_count_range(self):
+        tool = next(t for t in srv.TOOL_DEFS if t["name"] == "image_quantize")
+        prop = tool["inputSchema"]["properties"]["palette_no"]
+        assert prop["minimum"] == 1
+        assert prop["maximum"] == 256
+        assert prop["default"] == 16
+        assert "Maximum color count" in prop["description"]
+
     def test_all_schemas_closed(self):
         for tool in srv.TOOL_DEFS:
             assert tool["inputSchema"]["additionalProperties"] is False, tool["name"]
@@ -796,6 +804,28 @@ class TestDataExportHistoryAndModified:
         assert resp["result"]["isError"] is False
         assert len(initialized_state.session.state.history) == before
 
+    def test_hardlink_alias_records_session_history(
+            self, initialized_state, monkeypatch, tmp_path):
+        rom = tmp_path / "r.gba"
+        alias = tmp_path / "alias.gba"
+        rom.write_bytes(b"rom")
+        os.link(rom, alias)
+        initialized_state.session.open_rom(str(rom), "FE8U", 3)
+        self._fake_export(monkeypatch, 0)
+
+        resp = _call_tool(
+            initialized_state,
+            "data_export",
+            {
+                "table": "units",
+                "out_path": "units.tsv",
+                "rom_path": str(alias),
+            },
+        )
+
+        assert resp["result"]["isError"] is False
+        assert initialized_state.session.state.history[-1]["op"] == "data_export"
+
 
 class TestDataImportModifiedFlag:
     def _fake_import(self, monkeypatch, exit_code=0):
@@ -830,6 +860,29 @@ class TestDataImportModifiedFlag:
                             "rom_path": str(tmp_path / "other.gba")})
         assert resp["result"]["isError"] is False
         assert initialized_state.session.state.modified is False
+
+    def test_hardlink_alias_marks_session_modified(
+            self, initialized_state, monkeypatch, tmp_path):
+        rom = tmp_path / "r.gba"
+        alias = tmp_path / "alias.gba"
+        rom.write_bytes(b"rom")
+        os.link(rom, alias)
+        initialized_state.session.open_rom(str(rom), "FE8U", 3)
+        self._fake_import(monkeypatch, 0)
+
+        resp = _call_tool(
+            initialized_state,
+            "data_import",
+            {
+                "table": "units",
+                "in_path": "u.tsv",
+                "rom_path": str(alias),
+            },
+        )
+
+        assert resp["result"]["isError"] is False
+        assert initialized_state.session.state.modified is True
+        assert initialized_state.session.state.history[-1]["op"] == "data_import"
 
     def test_no_phantom_session_when_none_open(self, initialized_state, monkeypatch):
         assert initialized_state.session.is_open() is False
@@ -884,6 +937,117 @@ class TestPaletteImportSessionEffects:
         assert resp["result"]["isError"] is False
         assert initialized_state.session.state.modified is False
         assert len(initialized_state.session.state.history) == before
+
+    def test_hardlink_alias_records_history_and_marks_modified(
+            self, initialized_state, monkeypatch, tmp_path):
+        rom = tmp_path / "r.gba"
+        alias = tmp_path / "alias.gba"
+        rom.write_bytes(b"rom")
+        os.link(rom, alias)
+        initialized_state.session.open_rom(str(rom), "FE8U", 3)
+        self._fake_import_palette(monkeypatch, 0)
+
+        resp = _call_tool(
+            initialized_state,
+            "palette_import",
+            {
+                "addr": "0x5524",
+                "in_path": "p.pal",
+                "rom_path": str(alias),
+            },
+        )
+
+        assert resp["result"]["isError"] is False
+        assert initialized_state.session.state.modified is True
+        assert initialized_state.session.state.history[-1]["op"] == "palette_import"
+
+
+class TestImageQuantizeContract:
+    def _fake_quantize(self, monkeypatch, calls):
+        def fake(
+                in_path, out_path, palette_no, no_scale,
+                no_reserve_1st, ignore_tsa):
+            calls.append({
+                "palette_no": palette_no,
+                "no_reserve_1st": no_reserve_1st,
+            })
+            return {
+                "output_path": out_path,
+                "file_size": 0,
+                "exit_code": 0,
+                "stdout": "",
+                "stderr": "",
+            }
+
+        monkeypatch.setattr(
+            "cli_anything.febuildergba.core.export.decrease_color",
+            fake,
+        )
+
+    @pytest.mark.parametrize(
+        ("arguments", "expected_colors"),
+        [
+            ({"in_path": "in.png", "out_path": "out.png"}, 16),
+            (
+                {
+                    "in_path": "in.png",
+                    "out_path": "out.png",
+                    "palette_no": 256,
+                },
+                256,
+            ),
+            (
+                {
+                    "in_path": "in.png",
+                    "out_path": "out.png",
+                    "palette_no": 1,
+                    "no_reserve_1st": True,
+                },
+                1,
+            ),
+        ],
+    )
+    def test_backend_color_ranges_reach_wrapper(
+            self, initialized_state, monkeypatch, arguments, expected_colors):
+        calls = []
+        self._fake_quantize(monkeypatch, calls)
+
+        resp = _call_tool(initialized_state, "image_quantize", arguments)
+
+        assert resp["result"]["isError"] is False
+        assert calls[0]["palette_no"] == expected_colors
+
+    def test_one_color_requires_no_reserve(
+            self, initialized_state, monkeypatch):
+        calls = []
+        self._fake_quantize(monkeypatch, calls)
+
+        resp = _call_tool(
+            initialized_state,
+            "image_quantize",
+            {
+                "in_path": "in.png",
+                "out_path": "out.png",
+                "palette_no": 1,
+            },
+        )
+
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+        assert calls == []
+
+    @pytest.mark.parametrize("palette_no", [0, 257])
+    def test_color_count_outside_backend_range_is_invalid_params(
+            self, initialized_state, palette_no):
+        resp = _call_tool(
+            initialized_state,
+            "image_quantize",
+            {
+                "in_path": "in.png",
+                "out_path": "out.png",
+                "palette_no": palette_no,
+            },
+        )
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
 
 
 class TestForceVersionPrecedence:
@@ -1437,7 +1601,70 @@ def _repo_root() -> Path:
     pytest.skip("Cannot find repo root containing agent-harness/febuildergba_mcp.py")
 
 
+class TestLauncherArguments:
+    @pytest.mark.parametrize(
+        ("argv", "expected"),
+        [
+            ([], None),
+            (["--session-file", "session.json"], "session.json"),
+            (["--session-file=session.json"], "session.json"),
+        ],
+    )
+    def test_parse_argv_accepts_only_documented_forms(self, argv, expected):
+        assert srv._parse_argv(argv) == expected
+
+    @pytest.mark.parametrize(
+        "argv",
+        [
+            ["--session-file"],
+            ["--session-file="],
+            ["--session-file", " "],
+            ["--session-file", "a.json", "--session-file", "b.json"],
+            ["--session", "session.json"],
+            ["--sesion-file", "session.json"],
+            ["unexpected.json"],
+        ],
+    )
+    def test_parse_argv_rejects_malformed_or_unknown_arguments(self, argv):
+        with pytest.raises(SystemExit) as exc_info:
+            srv._parse_argv(argv)
+        assert exc_info.value.code == 2
+
+
 class TestLauncherSubprocess:
+    @pytest.mark.parametrize(
+        "args",
+        [
+            ["--session-file"],
+            ["--session-file="],
+            ["--session", "session.json"],
+            ["--sesion-file", "session.json"],
+            ["unexpected.json"],
+        ],
+    )
+    def test_launcher_rejects_bad_arguments_before_starting_server(self, args):
+        root = _repo_root()
+        launcher = root / "agent-harness" / "febuildergba_mcp.py"
+        initialize = json.dumps({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": _init_params(),
+        })
+
+        proc = subprocess.run(
+            [sys.executable, str(launcher), *args],
+            input=initialize + "\n",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=10,
+        )
+
+        assert proc.returncode == 2
+        assert proc.stdout == ""
+        assert proc.stderr.strip()
+
     def test_launcher_initialize_roundtrip(self):
         root = _repo_root()
         launcher = root / "agent-harness" / "febuildergba_mcp.py"

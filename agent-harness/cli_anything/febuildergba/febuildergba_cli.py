@@ -527,12 +527,23 @@ def image():
 @image.command("quantize")
 @click.option("-i", "--input-file", "in_file", required=True, help="Input image")
 @click.option("-o", "--out", required=True, help="Output image")
-@click.option("--palette-no", default=0, type=int, help="Palette number")
+@click.option(
+    "--palette-no",
+    default=16,
+    show_default=True,
+    type=click.IntRange(1, 256),
+    help="Maximum color count (minimum 2, or 1 with --no-reserve-1st)",
+)
 @click.option("--no-scale", is_flag=True, help="Don't scale to GBA 5-bit")
 @click.option("--no-reserve-1st", is_flag=True, help="Don't reserve slot 0")
 @click.option("--ignore-tsa", is_flag=True, help="Ignore TSA constraints")
 def image_quantize_cmd(in_file, out, palette_no, no_scale, no_reserve_1st, ignore_tsa):
-    """Quantize image palette to 16 colors for GBA."""
+    """Quantize an image palette to a bounded color count for GBA."""
+    if palette_no < 2 and not no_reserve_1st:
+        raise click.BadParameter(
+            "must be at least 2 unless --no-reserve-1st is set",
+            param_hint="'--palette-no'",
+        )
     from cli_anything.febuildergba.core.export import decrease_color
     result = decrease_color(in_file, out, palette_no, no_scale, no_reserve_1st, ignore_tsa)
     _check_exit_code(result, "Image quantize")

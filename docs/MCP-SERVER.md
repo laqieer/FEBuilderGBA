@@ -32,7 +32,10 @@ python agent-harness/febuildergba_mcp.py [--session-file PATH]
 
 `--session-file PATH` pins the server to a specific session JSON file (same format/location
 conventions as the Click CLI's `--session-file`); if omitted, the default
-`~/.cli-anything-febuildergba/sessions/default.json` is used.
+`~/.cli-anything-febuildergba/sessions/default.json` is used. Startup accepts only the documented
+option in `--session-file PATH` or `--session-file=PATH` form. Missing, empty, duplicate,
+abbreviated, unknown, or positional arguments exit with status 2 before the server loop starts,
+so malformed configuration cannot silently fall back to the default session.
 
 ## `.mcp.json` registration
 
@@ -149,7 +152,7 @@ an over-length value is rejected as `-32602`, never silently defaulted or trunca
 | 14 | `text_search` | `text search` | `limit` bounded 1..500 (default 50); bounded/paginated result. |
 | 15 | `text_roundtrip` | `text roundtrip` | Exit 2 (mismatches found) is a structured, non-error result. **No `out_prefix` param** — kept read-only; use the Click CLI for diagnostic diff files. |
 | 16 | `rom_lint` | `lint` | `limit` bounded 1..1000 (default 200) per array. |
-| 17 | `image_quantize` | `image quantize` | No ROM required. **Overwrites** `out_path`. |
+| 17 | `image_quantize` | `image quantize` | No ROM required. `palette_no` is a maximum color count (default 16, range 2..256; 1 is allowed only with `no_reserve_1st: true`). **Overwrites** `out_path`. |
 | 18 | `image_convert_map` | `image convert-map` | No ROM required. **Overwrites** `out_img`/`out_tsa`. |
 | 19 | `palette_export` | `palette export` | **Overwrites** `out_path`. |
 | 20 | `palette_import` | `palette import` | **Overwrites ROM data in place.** |
@@ -200,12 +203,15 @@ or tampered non-ROM session paths fail closed with `rom_header: null`.
   a failed GBA check never reaches the backend and never creates session state.
   `session_close`/`session_status`/`session_history` operate on the same `Session`; persisted
   path/version/size/timestamp/modified/history fields are type-checked and bounded on load.
-- A successful **session-owned** `data_export` (i.e. the resolved ROM path normalizes to the same
-  file as the active session's ROM) records a history entry.
+- A successful **session-owned** `data_export` records a history entry. Ownership uses filesystem
+  identity when both paths are available, so symlink and hardlink aliases of the active ROM count
+  as the same file; normalized absolute-path comparison is retained only as the unavailable-path
+  fallback.
 - A successful **in-place** `data_import`/`palette_import` records a history entry **and** sets
-  `modified: true` — but only when the backend exited 0 **and** the normalized resolved target
-  equals the active session's ROM. Failures, advisory-only checks, and explicit overrides to a
-  *different* ROM never dirty the session and never fabricate history.
+  `modified: true` — but only when the backend exited 0 **and** the resolved target has the same
+  filesystem identity as the active session's ROM (including symlink/hardlink aliases). Failures,
+  advisory-only checks, and explicit overrides to a *different* ROM never dirty the session and
+  never fabricate history.
 - Calling a ROM-mutating tool with an explicit `rom_path` that differs from the open session's ROM
   never creates or mutates session state — and if no session is open at all, none of these tools
   ever create "phantom" session state as a side effect.

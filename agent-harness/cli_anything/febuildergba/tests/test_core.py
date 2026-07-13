@@ -104,6 +104,98 @@ class TestOutputFileReporting:
         assert result["file_size"] == 0
 
 
+class TestImageQuantizeContract:
+    def test_core_wrapper_uses_backend_color_count_semantics(self, monkeypatch):
+        from cli_anything.febuildergba.core import export
+        calls = []
+
+        def fake_run_cli(args):
+            calls.append(args)
+            return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
+
+        monkeypatch.setattr(export, "run_cli", fake_run_cli)
+
+        export.decrease_color("in.png", "out.png")
+        export.decrease_color("in.png", "out.png", 256)
+
+        assert "--paletteno=16" in calls[0]
+        assert "--paletteno=256" in calls[1]
+
+    @pytest.mark.parametrize(
+        ("args", "expected_colors"),
+        [
+            ([], 16),
+            (["--palette-no", "256"], 256),
+            (["--palette-no", "1", "--no-reserve-1st"], 1),
+        ],
+    )
+    def test_click_wrapper_accepts_backend_color_ranges(
+            self, monkeypatch, args, expected_colors):
+        from click.testing import CliRunner
+        from cli_anything.febuildergba import febuildergba_cli
+        from cli_anything.febuildergba.core import export
+        calls = []
+
+        def fake_decrease_color(
+                in_path, out_path, palette_no, no_scale,
+                no_reserve_1st, ignore_tsa):
+            calls.append({
+                "in_path": in_path,
+                "out_path": out_path,
+                "palette_no": palette_no,
+                "no_reserve_1st": no_reserve_1st,
+            })
+            return {
+                "output_path": out_path,
+                "file_size": 0,
+                "exit_code": 0,
+                "stdout": "",
+                "stderr": "",
+            }
+
+        monkeypatch.setattr(export, "decrease_color", fake_decrease_color)
+        result = CliRunner().invoke(
+            febuildergba_cli.cli,
+            [
+                "--session-file", "session.json",
+                "image", "quantize",
+                "--input-file", "in.png",
+                "--out", "out.png",
+                *args,
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert calls[0]["palette_no"] == expected_colors
+
+    def test_click_wrapper_rejects_one_color_when_slot_zero_is_reserved(
+            self, monkeypatch):
+        from click.testing import CliRunner
+        from cli_anything.febuildergba import febuildergba_cli
+        from cli_anything.febuildergba.core import export
+        calls = []
+        monkeypatch.setattr(
+            export,
+            "decrease_color",
+            lambda *args: calls.append(args),
+        )
+
+        result = CliRunner().invoke(
+            febuildergba_cli.cli,
+            [
+                "--session-file", "session.json",
+                "image", "quantize",
+                "--input-file", "in.png",
+                "--out", "out.png",
+                "--palette-no", "1",
+            ],
+        )
+
+        assert result.exit_code == 2
+        assert "must be at least 2 unless --no-reserve-1st is set" in result.output
+        assert calls == []
+
+
 # ── Session tests ─────────────────────────────────────────────────────
 
 class TestSession:

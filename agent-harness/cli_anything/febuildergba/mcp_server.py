@@ -23,6 +23,7 @@ and no patch/rebuild/repair/event/music mutation tools. See
 ``docs/MCP-SERVER.md`` for the full reference.
 """
 
+import argparse
 import json
 import math
 import os
@@ -389,12 +390,21 @@ TOOL_DEFS = [
     ),
     _tool(
         "image_quantize",
-        "Quantize an image's palette to 16 colors for GBA (no ROM required)." + _OVERWRITE_WARNING,
+        "Quantize an image to a bounded color count for GBA (no ROM required)."
+        + _OVERWRITE_WARNING,
         {
             "in_path": _path_prop("Input image file."),
             "out_path": _path_prop("Output image file."),
-            "palette_no": {"type": "integer", "minimum": 0, "maximum": 15,
-                           "description": "Palette number (default 0)."},
+            "palette_no": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 256,
+                "default": 16,
+                "description": (
+                    "Maximum color count (default 16; minimum 2, or 1 when "
+                    "no_reserve_1st is true)."
+                ),
+            },
             "no_scale": {"type": "boolean", "description": "Don't scale to GBA 5-bit color."},
             "no_reserve_1st": {"type": "boolean", "description": "Don't reserve palette slot 0."},
             "ignore_tsa": {"type": "boolean", "description": "Ignore TSA 8x8 tile constraints."},
@@ -492,10 +502,15 @@ def _same_as_session_rom(session, rom_path):
     if not session.is_open():
         return False
     try:
-        return (os.path.normcase(os.path.abspath(rom_path))
-                == os.path.normcase(os.path.abspath(session.state.rom_path)))
+        return os.path.samefile(rom_path, session.state.rom_path)
     except (OSError, TypeError, ValueError):
-        return False
+        try:
+            return (
+                os.path.normcase(os.path.abspath(rom_path))
+                == os.path.normcase(os.path.abspath(session.state.rom_path))
+            )
+        except (OSError, TypeError, ValueError):
+            return False
 
 
 def _bound_string_fields(d):
@@ -742,7 +757,7 @@ def _h_image_quantize(session, args):
     from cli_anything.febuildergba.core.export import decrease_color
     result = decrease_color(
         args["in_path"], args["out_path"],
-        args.get("palette_no", 0), args.get("no_scale", False),
+        args.get("palette_no", 16), args.get("no_scale", False),
         args.get("no_reserve_1st", False), args.get("ignore_tsa", False),
     )
     return result, result["exit_code"] != 0
@@ -965,6 +980,16 @@ def _h_tools_call(state, params):
     err = validate_schema(TOOL_SCHEMAS[name], arguments)
     if err:
         raise _ProtocolError(INVALID_PARAMS, f"Invalid arguments for '{name}': {err}")
+    if (
+        name == "image_quantize"
+        and arguments.get("palette_no", 16) < 2
+        and not arguments.get("no_reserve_1st", False)
+    ):
+        raise _ProtocolError(
+            INVALID_PARAMS,
+            "Invalid arguments for 'image_quantize': palette_no must be >= 2 "
+            "unless no_reserve_1st is true",
+        )
 
     handler = TOOL_HANDLERS[name]
     try:
@@ -1233,26 +1258,34 @@ def serve(session_file=None, in_stream=None, out_stream=None):
 
 
 def _parse_argv(argv):
-    session_file = None
-    i = 0
-    while i < len(argv):
-        arg = argv[i]
-        if arg == "--session-file" and i + 1 < len(argv):
-            session_file = argv[i + 1]
-            i += 2
-        elif arg.startswith("--session-file="):
-            session_file = arg.split("=", 1)[1]
-            i += 1
-        else:
-            i += 1
-    return session_file
+    def nonempty_session_file(value):
+        if not value.strip():
+            raise argparse.ArgumentTypeError("must not be empty")
+        return value
+
+    parser = argparse.ArgumentParser(
+        prog="cli-anything-febuildergba-mcp",
+        allow_abbrev=False,
+    )
+    parser.add_argument(
+        "--session-file",
+        action="append",
+        type=nonempty_session_file,
+        metavar="PATH",
+        help="Use a specific persistent session JSON file.",
+    )
+    parsed = parser.parse_args(argv)
+    if parsed.session_file and len(parsed.session_file) > 1:
+        parser.error("--session-file may be specified only once")
+    return parsed.session_file[0] if parsed.session_file else None
 
 
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     session_file = _parse_argv(argv)
     serve(session_file)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
