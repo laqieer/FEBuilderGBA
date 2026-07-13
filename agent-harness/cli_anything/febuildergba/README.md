@@ -74,6 +74,12 @@ cli-anything-febuildergba lz77 -i data.lz77 -o data.bin --decompress
 cli-anything-febuildergba --json rom info roms/FE8U.gba
 ```
 
+`rom info`, `rom header`, and `session open` reject existing files that fail the local GBA ROM
+check (at least 1 MiB, a complete header, the fixed `0x96` byte, and the header complement
+checksum) before invoking the backend or decoding header fields. Automatic version detection used
+by `patch list` applies the same check and returns `unknown` for invalid files without decoding
+their game-code bytes.
+
 ### Session Mode
 
 ```bash

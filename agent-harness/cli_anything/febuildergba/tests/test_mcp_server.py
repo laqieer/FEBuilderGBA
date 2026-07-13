@@ -70,6 +70,17 @@ def _call_tool(state, name, arguments=None, id_=1):
     )))
 
 
+def _write_valid_test_rom(path):
+    rom = bytearray(0x100000)
+    rom[0xA0:0xAC] = b"FIRE EMBLEM\x00"
+    rom[0xAC:0xB0] = b"BE8E"
+    rom[0xB0:0xB2] = b"01"
+    rom[0xB2] = 0x96
+    rom[0xBC] = 0x01
+    rom[0xBD] = 0xF3
+    path.write_bytes(rom)
+
+
 # ── Version negotiation ─────────────────────────────────────────────────
 
 class TestVersionNegotiation:
@@ -219,6 +230,50 @@ class TestFraming:
     def test_single_notification_emits_nothing(self, initialized_state):
         resp = srv.handle_line(initialized_state, json.dumps(_notif("notifications/initialized")))
         assert resp is None
+
+    def test_initialize_notification_is_ignored_without_consuming_lifecycle(self, state):
+        resp = srv.handle_line(state, json.dumps(_notif(
+            "initialize", _init_params(),
+        )))
+        assert resp is None
+        assert state.initialized is False
+
+        real = srv.handle_line(state, json.dumps(_req(
+            "initialize", _init_params(), id_=7,
+        )))
+        assert real["id"] == 7
+        assert real["result"]["protocolVersion"] == "2025-03-26"
+        assert state.initialized is True
+
+    def test_tools_call_notification_does_not_execute_handler(
+            self, initialized_state, monkeypatch):
+        called = []
+
+        def destructive_handler(session, arguments):
+            called.append(True)
+            return {"status": "closed"}, False
+
+        monkeypatch.setitem(
+            srv.TOOL_HANDLERS, "session_close", destructive_handler,
+        )
+        resp = srv.handle_line(initialized_state, json.dumps(_notif(
+            "tools/call", {"name": "session_close", "arguments": {}},
+        )))
+        assert resp is None
+        assert called == []
+
+    @pytest.mark.parametrize(
+        "method",
+        ["notifications/initialized", "notifications/cancelled"],
+    )
+    def test_notification_only_method_rejects_request(
+            self, initialized_state, method):
+        resp = srv.handle_line(
+            initialized_state, json.dumps(_req(method, {}, id_=9)),
+        )
+        assert resp["id"] == 9
+        assert resp["error"]["code"] == srv.INVALID_REQUEST
+        assert "notification-only" in resp["error"]["message"]
 
     def test_notification_to_unknown_method_is_suppressed(self, initialized_state):
         resp = srv.handle_line(initialized_state, json.dumps(_notif("bogus/method")))
@@ -518,6 +573,23 @@ class TestResources:
         for key in data:
             assert key not in ("bytes", "raw", "data", "rom_bytes")
 
+    def test_rom_metadata_resource_rejects_stale_non_rom_session(
+            self, initialized_state, tmp_path):
+        not_rom = tmp_path / "document.bin"
+        content = bytearray(0x100000)
+        content[0xA0:0xAC] = b"LOCAL SECRET"
+        content[0xAC:0xB0] = b"LEAK"
+        content[0xB2] = 0x96
+        content[0xBD] = 0x00  # Correct value would be 0xE3.
+        not_rom.write_bytes(content)
+        initialized_state.session.open_rom(str(not_rom), "FE8U", len(content))
+
+        data = self._read(initialized_state, "febuildergba://rom/metadata")
+        assert data["open"] is True
+        assert data["rom_header"] is None
+        assert "header checksum mismatch" in data["rom_header_error"]
+        assert "LOCAL SECRET" not in json.dumps(data)
+
 
 # ── Tool business logic: session precedence / history / modified flag ───
 
@@ -528,6 +600,48 @@ class TestSessionPrecedence:
         assert result["isError"] is True
         payload = json.loads(result["content"][0]["text"])
         assert "No ROM specified" in payload["error"]
+
+    @pytest.mark.parametrize("tool_name", ["rom_info", "session_open"])
+    def test_non_rom_path_is_rejected_without_content_disclosure(
+            self, initialized_state, tmp_path, tool_name):
+        not_rom = tmp_path / "document.bin"
+        content = bytearray(0x100000)
+        content[0xA0:0xAC] = b"LOCAL SECRET"
+        content[0xAC:0xB0] = b"LEAK"
+        content[0xB2] = 0x96
+        content[0xBD] = 0x00  # Correct value would be 0xE3.
+        not_rom.write_bytes(content)
+
+        resp = _call_tool(
+            initialized_state, tool_name, {"rom_path": str(not_rom)},
+        )
+        result = resp["result"]
+        assert result["isError"] is True
+        text = result["content"][0]["text"]
+        assert "header checksum mismatch" in text
+        assert "LOCAL SECRET" not in text
+        assert initialized_state.session.is_open() is False
+        assert initialized_state.session.state.history == []
+        assert initialized_state.session.path.exists() is False
+
+    def test_session_open_accepts_valid_rom_without_backend(
+            self, initialized_state, tmp_path, monkeypatch):
+        from cli_anything.febuildergba.core import project
+        rom_path = tmp_path / "fe8u.gba"
+        _write_valid_test_rom(rom_path)
+
+        def unavailable_backend(args):
+            raise RuntimeError("backend unavailable")
+
+        monkeypatch.setattr(project, "run_cli", unavailable_backend)
+        resp = _call_tool(
+            initialized_state, "session_open", {"rom_path": str(rom_path)},
+        )
+        result = resp["result"]
+        assert result["isError"] is False
+        assert initialized_state.session.is_open() is True
+        assert initialized_state.session.state.rom_version == "FE8U"
+        assert initialized_state.session.state.history[-1]["op"] == "open"
 
     def test_explicit_rom_path_overrides_session(self, initialized_state, monkeypatch, tmp_path):
         initialized_state.session.open_rom(str(tmp_path / "session_rom.gba"), "FE8U", 1)
@@ -867,6 +981,35 @@ class TestBounds:
         srv._bound_string_fields(d)
         assert d["stdout_truncated"] is False
         assert "stdout_original_length" not in d
+
+    @pytest.mark.parametrize("tool_name", ["rom_info", "session_open"])
+    def test_rom_metadata_lint_output_is_bounded(
+            self, initialized_state, monkeypatch, tool_name):
+        big = "x" * (srv.MAX_STRING_LEN + 17)
+
+        def fake_rom_info(rom_path, force_version=""):
+            return {
+                "rom_path": rom_path,
+                "rom_size": 1,
+                "rom_size_hex": "0x1",
+                "rom_size_mb": 0.0,
+                "detected_version": "FE8U",
+                "force_version": force_version,
+                "lint_output": big,
+                "lint_exit_code": 0,
+            }
+
+        monkeypatch.setattr(
+            "cli_anything.febuildergba.core.project.rom_info",
+            fake_rom_info,
+        )
+        resp = _call_tool(
+            initialized_state, tool_name, {"rom_path": "test.gba"},
+        )
+        payload = json.loads(resp["result"]["content"][0]["text"])
+        assert len(payload["lint_output"]) == srv.MAX_STRING_LEN
+        assert payload["lint_output_truncated"] is True
+        assert payload["lint_output_original_length"] == len(big)
 
     # ── maxLength bounds on agent-controlled free strings (item 7) ──────
 

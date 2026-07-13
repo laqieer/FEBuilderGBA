@@ -460,10 +460,10 @@ def _same_as_session_rom(session, rom_path):
 
 
 def _bound_string_fields(d):
-    """Bound stdout/stderr/raw_output to MAX_STRING_LEN with truncation metadata."""
+    """Bound backend text fields to MAX_STRING_LEN with truncation metadata."""
     if not isinstance(d, dict):
         return d
-    for key in ("stdout", "stderr", "raw_output"):
+    for key in ("stdout", "stderr", "raw_output", "lint_output"):
         if key in d and isinstance(d[key], str):
             s = d[key]
             if len(s) > MAX_STRING_LEN:
@@ -954,6 +954,11 @@ _DISPATCH = {
     "notifications/initialized": _h_notifications_initialized,
     "notifications/cancelled": _h_notifications_cancelled,
 }
+_NOTIFICATION_METHODS = frozenset((
+    "notifications/initialized",
+    "notifications/cancelled",
+))
+_REQUEST_METHODS = frozenset(_DISPATCH) - _NOTIFICATION_METHODS
 
 # Methods allowed before initialize (ping is explicitly excepted from the
 # "initialize first" lifecycle rule).
@@ -982,6 +987,18 @@ def _process_message(state, msg):
         # Invalid Request response with id null.
         return _err(msg_id, INVALID_REQUEST,
                     "Invalid Request: 'method' must be a non-empty string")
+
+    # JSON-RPC notifications never receive a response, but request-only MCP
+    # methods must not execute without an id: tools/call can be destructive,
+    # and an initialize notification could otherwise consume the lifecycle.
+    if is_notification and method in _REQUEST_METHODS:
+        return None
+    if not is_notification and method in _NOTIFICATION_METHODS:
+        return _err(
+            msg_id,
+            INVALID_REQUEST,
+            f"Invalid Request: '{method}' is notification-only",
+        )
 
     if method not in _PRE_INIT_METHODS and not state.initialized:
         if is_notification:

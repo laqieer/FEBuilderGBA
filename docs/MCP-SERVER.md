@@ -128,11 +128,11 @@ truncated (see [Output bounds](#output-bounds) for the separate, output-side tru
 | # | Tool | Click equivalent | Notes |
 |---|------|-------------------|-------|
 | 1 | `backend_check` | `check` | Never errors; `available: false` is a normal result. |
-| 2 | `session_open` | `session open` | Requires `rom_path`. |
+| 2 | `session_open` | `session open` | Requires `rom_path`; rejects files that fail local GBA header validation before opening session state. |
 | 3 | `session_close` | `session close` | Never errors when no session is open. |
 | 4 | `session_status` | `session status` | |
 | 5 | `session_history` | `session history` | `count` bounded 1..100 (default 10). |
-| 6 | `rom_info` | `rom info` | |
+| 6 | `rom_info` | `rom info` | Rejects files that fail local GBA header validation before backend invocation or version decoding. |
 | 7 | `rom_validate` | `rom validate` | Header heuristic; never calls the backend. |
 | 8 | `rom_list_tables` | `rom tables` | |
 | 9 | `rom_checksum` | `rom checksum` | Exit 2 (invalid header) is a structured, non-error result. |
@@ -169,7 +169,10 @@ and/or mutate ROM data or session state in place); the other 12 are
 
 All resources return `application/json` text — never raw ROM bytes or arbitrary file contents.
 Reading an unknown `uri` is `-32002`. Output is bounded (session history is capped at the same 100
-entries the `Session` class itself enforces on write).
+entries the `Session` class itself enforces on write). ROM header metadata is decoded only after
+the active path passes the same local GBA check (at least 1 MiB, a complete header, and the fixed
+`0x96` byte plus the header complement checksum); stale or tampered non-ROM session paths fail
+closed with `rom_header: null`.
 
 | URI | Contents |
 |---|---|
@@ -183,8 +186,9 @@ entries the `Session` class itself enforces on write).
   both is a **tool execution error** (`isError: true`), not a protocol error.
 - **Common force-version resolution:** explicit `force_version` argument, else the active
   session's `force_version` (independently of how `rom_path` was resolved).
-- `session_open` uses the same `rom_info` + `Session.open_rom` as the Click CLI; `session_close`/
-  `session_status`/`session_history` operate on the same `Session`.
+- `session_open` uses the same locally validated `rom_info` + `Session.open_rom` as the Click CLI;
+  a failed GBA check never reaches the backend and never creates session state.
+  `session_close`/`session_status`/`session_history` operate on the same `Session`.
 - A successful **session-owned** `data_export` (i.e. the resolved ROM path normalizes to the same
   file as the active session's ROM) records a history entry.
 - A successful **in-place** `data_import`/`palette_import` records a history entry **and** sets

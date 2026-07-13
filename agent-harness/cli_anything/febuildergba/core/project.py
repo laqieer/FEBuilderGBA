@@ -7,11 +7,60 @@ from typing import Optional
 from cli_anything.febuildergba.utils.febuildergba_backend import run_cli
 
 
+_MIN_ROM_SIZE = 0x100000
+_GBA_HEADER_SIZE = 0xC0
+_GBA_FIXED_VALUE_OFFSET = 0xB2
+_GBA_FIXED_VALUE = 0x96
+_GBA_CHECKSUM_START = 0xA0
+_GBA_CHECKSUM_OFFSET = 0xBD
+_GBA_CHECKSUM_BIAS = 0x19
+
+
+def _read_validated_header(rom_path: str) -> tuple[bytes, int]:
+    """Read a GBA header and validate it from the same open file handle."""
+    if not os.path.isfile(rom_path):
+        raise FileNotFoundError(f"ROM file not found: {rom_path}")
+
+    with open(rom_path, "rb") as f:
+        rom_size = os.fstat(f.fileno()).st_size
+        if rom_size < _MIN_ROM_SIZE:
+            raise ValueError(f"Invalid GBA ROM (smaller than 1 MiB): {rom_path}")
+        header = f.read(_GBA_HEADER_SIZE)
+
+    if len(header) < _GBA_HEADER_SIZE:
+        raise ValueError(f"Invalid GBA ROM (incomplete header): {rom_path}")
+    if header[_GBA_FIXED_VALUE_OFFSET] != _GBA_FIXED_VALUE:
+        raise ValueError(f"Invalid GBA ROM (missing fixed header byte): {rom_path}")
+    expected_checksum = (
+        -sum(header[_GBA_CHECKSUM_START:_GBA_CHECKSUM_OFFSET])
+        - _GBA_CHECKSUM_BIAS
+    ) & 0xFF
+    if header[_GBA_CHECKSUM_OFFSET] != expected_checksum:
+        raise ValueError(f"Invalid GBA ROM (header checksum mismatch): {rom_path}")
+    return header, rom_size
+
+
+def _detect_version_from_header(header: bytes, force_version: str = "") -> str:
+    if force_version:
+        return force_version
+    if len(header) >= 0xB0:
+        game_code = header[0xAC:0xB0].decode("ascii", errors="replace")
+        version_map = {
+            "AFEJ": "FE6",
+            "AE7J": "FE7J",
+            "AE7E": "FE7U",
+            "BE8J": "FE8J",
+            "BE8E": "FE8U",
+        }
+        return version_map.get(game_code, f"unknown ({game_code})")
+    return "unknown"
+
+
 def rom_info(rom_path: str, force_version: str = "") -> dict:
     """Get ROM information by running --lint to validate and load the ROM.
 
-    Uses --lint (which fully loads the ROM) as the primary validation path.
-    Falls back to local header detection if the backend is unavailable.
+    Validates the local GBA header before invoking the backend, then uses
+    --lint for full ROM validation when the backend is available.
 
     Args:
         rom_path: Path to the .gba ROM file.
@@ -20,10 +69,7 @@ def rom_info(rom_path: str, force_version: str = "") -> dict:
     Returns:
         Dict with ROM metadata.
     """
-    if not os.path.isfile(rom_path):
-        raise FileNotFoundError(f"ROM file not found: {rom_path}")
-
-    rom_size = os.path.getsize(rom_path)
+    header, rom_size = _read_validated_header(rom_path)
 
     # Try --lint for full ROM validation (loads ROM, checks integrity)
     lint_output = ""
@@ -40,8 +86,8 @@ def rom_info(rom_path: str, force_version: str = "") -> dict:
         # Backend not available — fall back to local header detection
         pass
 
-    # Detect version from header (always available, no backend needed)
-    detected_version = _detect_version(rom_path, force_version)
+    # Detect version from the already validated header (no second path read).
+    detected_version = _detect_version_from_header(header, force_version)
 
     return {
         "rom_path": os.path.abspath(rom_path),
@@ -61,22 +107,9 @@ def _detect_version(rom_path: str, force_version: str = "") -> str:
         return force_version
 
     try:
-        with open(rom_path, "rb") as f:
-            header = f.read(0xC0)
-
-        # Check game code at offset 0xAC (4 bytes)
-        if len(header) >= 0xB0:
-            game_code = header[0xAC:0xB0].decode("ascii", errors="replace")
-            # Known game codes
-            version_map = {
-                "AFEJ": "FE6",
-                "AE7J": "FE7J",
-                "AE7E": "FE7U",
-                "BE8J": "FE8J",
-                "BE8E": "FE8U",
-            }
-            return version_map.get(game_code, f"unknown ({game_code})")
-    except Exception:
+        header, _rom_size = _read_validated_header(rom_path)
+        return _detect_version_from_header(header)
+    except (FileNotFoundError, ValueError, OSError):
         pass
     return "unknown"
 
@@ -87,21 +120,13 @@ def validate_rom(rom_path: str) -> bool:
     Validates:
     - File exists and is >= 1 MB
     - File is at least 0xC0 bytes (full GBA header)
-    - Fixed header byte at 0xB2 is 0x96 (GBA ROM header complement check)
+    - Fixed header byte at 0xB2 is 0x96
+    - Header complement checksum at 0xBD matches bytes 0xA0..0xBC
     """
-    if not os.path.isfile(rom_path):
-        return False
     try:
-        size = os.path.getsize(rom_path)
-        if size < 0x100000:
-            return False
-        with open(rom_path, "rb") as f:
-            header = f.read(0xC0)
-        if len(header) < 0xC0:
-            return False
-        # GBA ROMs have a fixed 0x96 at offset 0xB2
-        return header[0xB2] == 0x96
-    except Exception:
+        _read_validated_header(rom_path)
+        return True
+    except (FileNotFoundError, ValueError, OSError):
         return False
 
 
@@ -136,14 +161,7 @@ def rom_header(rom_path: str) -> dict:
         Dict with header fields: title, game_code, maker_code,
         unit_code, device_type, software_version, header_checksum.
     """
-    if not os.path.isfile(rom_path):
-        raise FileNotFoundError(f"ROM file not found: {rom_path}")
-
-    with open(rom_path, "rb") as f:
-        header = f.read(0xC0)
-
-    if len(header) < 0xBE:
-        raise ValueError(f"File too small for GBA header: {len(header)} bytes")
+    header, _rom_size = _read_validated_header(rom_path)
 
     title = header[0xA0:0xAC].decode("ascii", errors="replace").rstrip("\x00")
     game_code = header[0xAC:0xB0].decode("ascii", errors="replace")

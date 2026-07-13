@@ -12,6 +12,14 @@ import time
 import pytest
 
 
+def _write_valid_test_rom(path, game_code):
+    rom = bytearray(0x100000)
+    rom[0xAC:0xB0] = game_code
+    rom[0xB2] = 0x96
+    rom[0xBD] = (-sum(rom[0xA0:0xBD]) - 0x19) & 0xFF
+    path.write_bytes(rom)
+
+
 # ── Backend availability tests ────────────────────────────────────────
 
 class TestBackend:
@@ -174,29 +182,65 @@ class TestProject:
         small.write_bytes(b"\x00" * 100)
         assert not validate_rom(str(small))
 
+    def test_rom_info_rejects_existing_non_rom_before_backend(
+            self, tmp_path, monkeypatch):
+        from cli_anything.febuildergba.core import project
+        not_rom = tmp_path / "document.bin"
+        data = bytearray(0x100000)
+        data[0xA0:0xAC] = b"LOCAL SECRET"
+        data[0xAC:0xB0] = b"LEAK"
+        data[0xB2] = 0x96
+        data[0xBD] = 0x00  # Correct value would be 0xE3.
+        not_rom.write_bytes(data)
+        backend_calls = []
+        monkeypatch.setattr(
+            project, "run_cli", lambda args: backend_calls.append(args),
+        )
+
+        with pytest.raises(ValueError, match="header checksum mismatch"):
+            project.rom_info(str(not_rom))
+
+        assert backend_calls == []
+
+    def test_rom_info_accepts_valid_header_without_backend(
+            self, tmp_path, monkeypatch):
+        from cli_anything.febuildergba.core import project
+        rom = bytearray(0x100000)
+        rom[0xA0:0xAC] = b"FIRE EMBLEM\x00"
+        rom[0xAC:0xB0] = b"BE8E"
+        rom[0xB0:0xB2] = b"01"
+        rom[0xB2] = 0x96
+        rom[0xBC] = 0x01
+        rom[0xBD] = 0xF3
+        path = tmp_path / "fe8u.gba"
+        path.write_bytes(rom)
+
+        def unavailable_backend(args):
+            raise RuntimeError("backend unavailable")
+
+        monkeypatch.setattr(project, "run_cli", unavailable_backend)
+        result = project.rom_info(str(path))
+
+        assert result["detected_version"] == "FE8U"
+        assert result["rom_size"] == len(rom)
+        assert result["lint_exit_code"] == -1
+
     def test_detect_version_fe8u(self, tmp_path):
         from cli_anything.febuildergba.core.project import _detect_version
-        # Create fake ROM with FE8U game code at offset 0xAC
-        rom = bytearray(0xB0)
-        rom[0xAC:0xB0] = b"BE8E"
         path = tmp_path / "fe8u.gba"
-        path.write_bytes(bytes(rom))
+        _write_valid_test_rom(path, b"BE8E")
         assert _detect_version(str(path)) == "FE8U"
 
     def test_detect_version_fe7u(self, tmp_path):
         from cli_anything.febuildergba.core.project import _detect_version
-        rom = bytearray(0xB0)
-        rom[0xAC:0xB0] = b"AE7E"
         path = tmp_path / "fe7u.gba"
-        path.write_bytes(bytes(rom))
+        _write_valid_test_rom(path, b"AE7E")
         assert _detect_version(str(path)) == "FE7U"
 
     def test_detect_version_fe6(self, tmp_path):
         from cli_anything.febuildergba.core.project import _detect_version
-        rom = bytearray(0xB0)
-        rom[0xAC:0xB0] = b"AFEJ"
         path = tmp_path / "fe6.gba"
-        path.write_bytes(bytes(rom))
+        _write_valid_test_rom(path, b"AFEJ")
         assert _detect_version(str(path)) == "FE6"
 
     def test_detect_version_forced(self, tmp_path):
@@ -205,12 +249,23 @@ class TestProject:
 
     def test_detect_version_unknown(self, tmp_path):
         from cli_anything.febuildergba.core.project import _detect_version
-        rom = bytearray(0xB0)
-        rom[0xAC:0xB0] = b"XXXX"
         path = tmp_path / "unknown.gba"
-        path.write_bytes(bytes(rom))
+        _write_valid_test_rom(path, b"XXXX")
         result = _detect_version(str(path))
         assert "unknown" in result
+
+    def test_detect_version_invalid_file_does_not_decode_game_code(self, tmp_path):
+        from cli_anything.febuildergba.core.project import _detect_version
+        not_rom = tmp_path / "document.bin"
+        data = bytearray(0x100000)
+        data[0xAC:0xB0] = b"LEAK"
+        data[0xB2] = 0x96
+        data[0xBD] = 0x00
+        not_rom.write_bytes(data)
+
+        result = _detect_version(str(not_rom))
+        assert result == "unknown"
+        assert "LEAK" not in result
 
 
 # ── Data tests ────────────────────────────────────────────────────────
@@ -286,7 +341,7 @@ class TestRomHeader:
     """Tests for core/project.py rom_header."""
 
     def test_header_fe8u(self, tmp_path):
-        from cli_anything.febuildergba.core.project import rom_header
+        from cli_anything.febuildergba.core.project import rom_header, validate_rom
         rom = bytearray(0x100000)  # 1 MB min
         rom[0xA0:0xAC] = b"FIRE EMBLEM\x00"
         rom[0xAC:0xB0] = b"BE8E"
@@ -295,20 +350,34 @@ class TestRomHeader:
         rom[0xB3] = 0x00
         rom[0xB4] = 0x00
         rom[0xBC] = 0x01
-        rom[0xBD] = 0x42
+        rom[0xBD] = 0xF3
         path = tmp_path / "fe8u.gba"
         path.write_bytes(bytes(rom))
+        assert validate_rom(str(path)) is True
         result = rom_header(str(path))
         assert result["game_code"] == "BE8E"
         assert result["title"].startswith("FIRE EMBLEM")
         assert result["maker_code"] == "01"
         assert result["software_version"] == 1
-        assert result["header_checksum"] == 0x42
+        assert result["header_checksum"] == 0xF3
 
     def test_header_missing_file(self):
         from cli_anything.febuildergba.core.project import rom_header
         with pytest.raises(FileNotFoundError):
             rom_header("/nonexistent.gba")
+
+    def test_header_rejects_existing_non_rom(self, tmp_path):
+        from cli_anything.febuildergba.core.project import rom_header
+        not_rom = tmp_path / "document.bin"
+        data = bytearray(0x100000)
+        data[0xA0:0xAC] = b"LOCAL SECRET"
+        data[0xAC:0xB0] = b"LEAK"
+        data[0xB2] = 0x96
+        data[0xBD] = 0x00  # Correct value would be 0xE3.
+        not_rom.write_bytes(data)
+
+        with pytest.raises(ValueError, match="header checksum mismatch"):
+            rom_header(str(not_rom))
 
 
 # ── ROM save tests ────────────────────────────────────────────────────
