@@ -51,21 +51,9 @@ namespace FEBuilderGBA.E2ETests.Tests
         }
 
         // Build a modded FE8U copy: known in-clean edits + a modest sparse extension. Keeps the
-        // header/game-code region intact so it still detects as FE8U, and stays well under 32 MiB.
+        // header/game-code region intact so it still detects as FE8U.
         private static byte[] MakeModded(byte[] clean)
-        {
-            var modded = new byte[clean.Length + 0x40000]; // + 256 KiB extension
-            Array.Copy(clean, modded, clean.Length);
-            modded[1] ^= 0xFF;
-            modded[0x100000] = 0xA1;
-            modded[0x100001] = 0xA2;
-            modded[0x200000] = 0xB7;
-            for (int i = clean.Length; i < modded.Length; i++) modded[i] = 0xFF;
-            modded[clean.Length + 0x10] = 0x01;
-            modded[clean.Length + 0x11] = 0x02;
-            modded[modded.Length - 1] = 0x03;
-            return modded;
-        }
+            => BuildfileRomFixture.CreateModdedCopy(clean);
 
         private string ExportProject(string moddedPath, string cleanPath)
         {

@@ -25,7 +25,6 @@ namespace FEBuilderGBA.E2ETests.Tests
     public class CliExportBuildfileE2ETests : IDisposable
     {
         private static readonly string CliExe = AppRunner.FindCliExePath();
-        private const long MaxBuildfileRomSize = 32L * 1024 * 1024;
         private readonly List<string> _tempPaths = new();
 
         public void Dispose()
@@ -127,7 +126,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             string modded = TempPath(".gba");
             string clean = TempPath(".clean.gba");
             using (FileStream stream = File.Create(modded))
-                stream.SetLength(MaxBuildfileRomSize + 1);
+                stream.SetLength(BuildfileRomFixture.MaxRomSize + 1L);
             using (FileStream stream = File.Create(clean))
                 stream.SetLength(1024);
             string outDir = TempPath("_proj");
@@ -212,16 +211,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             // Build a modded copy: known disjoint edits inside the clean region + a sparse
             // extension (mostly 0xFF with a couple of non-fill overrides). Keep the header /
             // game-code region (0xA0..0xC0) untouched so it still detects as FE8U.
-            var modded = new byte[clean.Length * 2];
-            Array.Copy(clean, modded, clean.Length);
-            modded[1] ^= 0xFF;
-            modded[0x100000] = 0xA1;
-            modded[0x100001] = 0xA2;
-            modded[0x200000] = 0xB7;
-            for (int i = clean.Length; i < modded.Length; i++) modded[i] = 0xFF;
-            modded[clean.Length + 0x10] = 0x01;
-            modded[clean.Length + 0x11] = 0x02;
-            modded[modded.Length - 1] = 0x03;
+            byte[] modded = BuildfileRomFixture.CreateModdedCopy(clean);
 
             string moddedPath = TempPath(".gba");
             File.WriteAllBytes(moddedPath, modded);
