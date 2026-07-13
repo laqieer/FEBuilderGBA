@@ -541,6 +541,10 @@ ROMS_DIR=/path/to/roms dotnet test FEBuilderGBA.E2ETests/FEBuilderGBA.E2ETests.c
 ```
 
 ROM files expected in `ROMS_DIR`: `FE6.gba`, `FE7J.gba`, `FE7U.gba`, `FE8J.gba`, `FE8U.gba`.
+Buildfile success fixtures use a preferred 256 KiB sparse extension clamped to the remaining
+32 MiB buildfile budget; insufficient extension headroom is a test failure, not a skip. Avoid
+fixture sizing derived from the whole ROM length (for example, `clean.Length * 2`), because
+private test ROMs may already contain valid expansions.
 
 If `ROMS_DIR` is **not set at all**, `RomLocator` falls back to a `roms/` directory beside `FEBuilderGBA.sln` (useful during local development).  Set `ROMS_DIR=""` to explicitly suppress that fallback and force all ROM tests to skip.
 
