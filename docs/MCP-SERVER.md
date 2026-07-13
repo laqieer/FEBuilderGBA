@@ -230,6 +230,11 @@ or tampered non-ROM session paths fail closed with `rom_header: null`.
   never fabricate history.
 - Shared Click/MCP history uses the same identifiers: `data_export`, `data_import`, and
   `import_palette`.
+- Every Click history-producing ROM command applies the same filesystem-identity ownership rule,
+  so an explicit operation on another ROM cannot contaminate the active session and a
+  symlink/hardlink alias still counts as the active ROM. Click commands that write a separate
+  output ROM record history without marking the active input ROM modified; they set `modified`
+  only when the reported output destination identifies the active ROM.
 - Calling a ROM-mutating tool with an explicit `rom_path` that differs from the open session's ROM
   never creates or mutates session state — and if no session is open at all, none of these tools
   ever create "phantom" session state as a side effect.
@@ -252,7 +257,9 @@ or tampered non-ROM session paths fail closed with `rom_header: null`.
 
 | Field / tool | Bound | Metadata |
 |---|---|---|
-| `stdout` / `stderr` / `raw_output` / `lint_output` / execution `error` (any tool) | 65,536 chars | `<field>_truncated`, `<field>_original_length` |
+| `stdout` / `stderr` / `raw_output` / `lint_output` / execution `error` / `version` (any tool) | 65,536 chars | `<field>_truncated`, `<field>_original_length` |
+| Successful backend version probe | 4,096 chars | Over-limit probes become `available: false`; no version text is returned |
+| `names_resolve` each requested name | 4,096 chars, with unrequested backend keys omitted | `names_truncated`, `names_truncated_count`, `names_original_lengths`, `names_omitted_count` |
 | `text_search` matches (count) | default 50, max 500 (`limit` param) | `total`, `returned`, `truncated` |
 | `text_search` each match's `text` | 4,096 chars | per-match `text_truncated`, aggregate `matches_text_truncated_count` |
 | `rom_lint` `errors`/`warnings`/`info` (count) | default 200, max 1000 (`limit` param, applied per array) | `<array>_total`, `<array>_truncated` |

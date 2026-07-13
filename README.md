@@ -689,7 +689,13 @@ default session. The checksum tool also rejects non-ROM paths before backend inv
 still reporting a genuine header-checksum mismatch as advisory data. Backend launch failures are
 reported as ordinary unavailable status, and shared Click/MCP session history keeps stable
 operation identifiers. Stale close requests are skipped instead of deleting a session that
-another process reopened concurrently.
+another process reopened concurrently. Every Click history-producing ROM command uses the same
+filesystem-identity ownership rule as MCP, so explicit operations on another ROM cannot alter the
+active session while hard-link aliases still count as the same ROM. Commands that write a
+separate output ROM record history without marking the active input ROM modified; they set
+`modified` only when the reported destination identifies the active ROM. Successful backend
+version probes are limited to 4,096 characters, and `names_resolve` limits each requested name to
+4,096 characters with truthful per-name truncation metadata.
 
 The `.mcp.json` at the repo root auto-configures Claude Code to use it as `febuildergba-cli`
 (`python ./agent-harness/febuildergba_mcp.py`). See

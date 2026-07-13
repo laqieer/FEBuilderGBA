@@ -47,6 +47,27 @@ class TestBackend:
         with pytest.raises(RuntimeError, match="no version text"):
             backend.get_version()
 
+    def test_get_version_accepts_exact_output_limit(self, monkeypatch):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+        text = "v" * backend.MAX_VERSION_TEXT_LEN
+        result = subprocess.CompletedProcess(
+            ["cli", "--version"], 0, stdout=text, stderr="",
+        )
+        monkeypatch.setattr(backend, "run_cli", lambda args: result)
+
+        assert backend.get_version() == text
+
+    def test_get_version_rejects_output_over_limit(self, monkeypatch):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+        text = "v" * (backend.MAX_VERSION_TEXT_LEN + 1)
+        result = subprocess.CompletedProcess(
+            ["cli", "--version"], 0, stdout=text, stderr="",
+        )
+        monkeypatch.setattr(backend, "run_cli", lambda args: result)
+
+        with pytest.raises(RuntimeError, match="output exceeded 4096 characters"):
+            backend.get_version()
+
     def test_check_backend_reports_probe_failure(self, monkeypatch):
         from cli_anything.febuildergba.utils import febuildergba_backend as backend
         monkeypatch.setattr(backend, "find_febuildergba_cli", lambda: ["cli"])
@@ -579,6 +600,222 @@ class TestSession:
         assert not path.exists()
         assert (tmp_path / "test_session.json.lock").read_bytes()[:1] == b"\0"
         assert not hasattr(sess, "save")
+
+
+_CLICK_SESSION_COMMAND_CASES = (
+    (
+        "cli_anything.febuildergba.core.verbs.repair_header",
+        ("rom", "repair-header"),
+        "repair_header",
+        True,
+    ),
+    (
+        "cli_anything.febuildergba.core.data.export_table",
+        ("data", "export", "units", "--out", "out.tsv"),
+        "data_export",
+        False,
+    ),
+    (
+        "cli_anything.febuildergba.core.data.import_table",
+        ("data", "import", "units", "--input-file", "in.tsv"),
+        "data_import",
+        True,
+    ),
+    (
+        "cli_anything.febuildergba.core.text.import_text",
+        ("text", "import", "--input-file", "text.tsv"),
+        "text_import",
+        True,
+    ),
+    (
+        "cli_anything.febuildergba.core.export.apply_ups",
+        ("patch", "apply", "patch.ups"),
+        "patch_apply",
+        False,
+    ),
+    (
+        "cli_anything.febuildergba.core.verbs.import_midi",
+        ("import-midi", "1A", "--in", "song.mid"),
+        "import_midi",
+        True,
+    ),
+    (
+        "cli_anything.febuildergba.core.verbs.compile_event",
+        ("compile-event", "--in", "script.event", "--out", "out.gba"),
+        "compile_event",
+        False,
+    ),
+    (
+        "cli_anything.febuildergba.core.verbs.import_palette",
+        ("palette", "import", "--addr", "0x5524", "--in", "palette.pal"),
+        "import_palette",
+        True,
+    ),
+    (
+        "cli_anything.febuildergba.core.export.apply_patch",
+        ("patch", "apply-bin", "patch.txt"),
+        "patch_apply_bin",
+        True,
+    ),
+    (
+        "cli_anything.febuildergba.core.export.rebuild",
+        ("rebuild", "--from-rom", "clean.gba"),
+        "rebuild",
+        False,
+    ),
+)
+
+
+class TestClickSessionOwnership:
+    @staticmethod
+    def _result(output_path):
+        return {
+            "exit_code": 0,
+            "repaired": True,
+            "stdout": "",
+            "stderr": "",
+            "output_path": output_path,
+            "file_size": 1,
+        }
+
+    @staticmethod
+    def _open_session(tmp_path, rom_path):
+        from cli_anything.febuildergba.core.session import Session
+        session_path = tmp_path / "session.json"
+        session = Session(str(session_path))
+        session.open_rom(str(rom_path), "FE8U", rom_path.stat().st_size)
+        return session_path
+
+    @pytest.mark.parametrize(
+        ("backend_target", "command_args", "expected_op", "expected_modified"),
+        _CLICK_SESSION_COMMAND_CASES,
+    )
+    def test_explicit_other_rom_is_not_attributed(
+        self,
+        tmp_path,
+        monkeypatch,
+        backend_target,
+        command_args,
+        expected_op,
+        expected_modified,
+    ):
+        from click.testing import CliRunner
+        from cli_anything.febuildergba.core.session import Session
+        from cli_anything.febuildergba.febuildergba_cli import cli
+
+        active_rom = tmp_path / "active.gba"
+        other_rom = tmp_path / "other.gba"
+        active_rom.write_bytes(b"active")
+        other_rom.write_bytes(b"other")
+        session_path = self._open_session(tmp_path, active_rom)
+        output_path = str(tmp_path / "out.gba")
+        monkeypatch.setattr(
+            backend_target,
+            lambda *args, **kwargs: self._result(output_path),
+        )
+
+        result = CliRunner().invoke(
+            cli,
+            [
+                "--json",
+                "--rom",
+                str(other_rom),
+                "--session-file",
+                str(session_path),
+                *command_args,
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        persisted = Session(str(session_path))
+        assert [entry["op"] for entry in persisted.state.history] == ["open"]
+        assert persisted.state.modified is False
+
+    @pytest.mark.parametrize(
+        ("backend_target", "command_args", "expected_op", "expected_modified"),
+        _CLICK_SESSION_COMMAND_CASES,
+    )
+    def test_hardlink_alias_is_attributed(
+        self,
+        tmp_path,
+        monkeypatch,
+        backend_target,
+        command_args,
+        expected_op,
+        expected_modified,
+    ):
+        from click.testing import CliRunner
+        from cli_anything.febuildergba.core.session import Session
+        from cli_anything.febuildergba.febuildergba_cli import cli
+
+        active_rom = tmp_path / "active.gba"
+        alias_rom = tmp_path / "alias.gba"
+        active_rom.write_bytes(b"active")
+        os.link(active_rom, alias_rom)
+        session_path = self._open_session(tmp_path, active_rom)
+        output_path = str(tmp_path / "out.gba")
+        monkeypatch.setattr(
+            backend_target,
+            lambda *args, **kwargs: self._result(output_path),
+        )
+
+        result = CliRunner().invoke(
+            cli,
+            [
+                "--json",
+                "--rom",
+                str(alias_rom),
+                "--session-file",
+                str(session_path),
+                *command_args,
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        persisted = Session(str(session_path))
+        assert [entry["op"] for entry in persisted.state.history] == [
+            "open",
+            expected_op,
+        ]
+        assert persisted.state.modified is expected_modified
+
+    def test_compile_event_in_place_marks_session_modified(
+            self, tmp_path, monkeypatch):
+        from click.testing import CliRunner
+        from cli_anything.febuildergba.core.session import Session
+        from cli_anything.febuildergba.febuildergba_cli import cli
+
+        active_rom = tmp_path / "active.gba"
+        alias_rom = tmp_path / "alias.gba"
+        active_rom.write_bytes(b"active")
+        os.link(active_rom, alias_rom)
+        session_path = self._open_session(tmp_path, active_rom)
+        monkeypatch.setattr(
+            "cli_anything.febuildergba.core.verbs.compile_event",
+            lambda *args, **kwargs: self._result(str(alias_rom)),
+        )
+
+        result = CliRunner().invoke(
+            cli,
+            [
+                "--json",
+                "--rom",
+                str(alias_rom),
+                "--session-file",
+                str(session_path),
+                "compile-event",
+                "--in",
+                "script.event",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        persisted = Session(str(session_path))
+        assert [entry["op"] for entry in persisted.state.history] == [
+            "open",
+            "compile_event",
+        ]
+        assert persisted.state.modified is True
 
 
 # ── Project tests ─────────────────────────────────────────────────────

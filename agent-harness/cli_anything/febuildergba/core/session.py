@@ -376,6 +376,21 @@ class Session:
             allow_empty=False,
         )
 
+    def owns_rom(self, rom_path: str) -> bool:
+        """Return whether *rom_path* identifies this session's ROM."""
+        if not self.is_open() or not rom_path:
+            return False
+        try:
+            return os.path.samefile(self.state.rom_path, rom_path)
+        except (OSError, TypeError, ValueError):
+            try:
+                return (
+                    os.path.normcase(os.path.abspath(self.state.rom_path))
+                    == os.path.normcase(os.path.abspath(rom_path))
+                )
+            except (OSError, TypeError, ValueError):
+                return False
+
     def _add_history(self, op: str, details: dict):
         entry = {
             "op": op,

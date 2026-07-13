@@ -1363,6 +1363,41 @@ class TestBounds:
         )
         assert "error" not in resp
 
+    def test_names_resolve_bounds_each_requested_name(
+            self, initialized_state, monkeypatch, tmp_path):
+        rom = str(tmp_path / "r.gba")
+        initialized_state.session.open_rom(rom, "FE8U", 1)
+        overlong = "N" * (srv.MAX_ITEM_STRING_LEN + 17)
+
+        def fake_resolve(rom_path, kind, ids, force_version=""):
+            return {
+                "names": {"1": overlong, "2": "short", "999": "extra"},
+                "count": 3,
+                "stdout": "",
+                "exit_code": 0,
+            }
+
+        monkeypatch.setattr(
+            "cli_anything.febuildergba.core.export.resolve_names",
+            fake_resolve,
+        )
+
+        resp = _call_tool(
+            initialized_state,
+            "names_resolve",
+            {"kind": "unit", "ids": [1, 2]},
+        )
+        payload = json.loads(resp["result"]["content"][0]["text"])
+
+        assert len(payload["names"]["1"]) == srv.MAX_ITEM_STRING_LEN
+        assert payload["names"]["2"] == "short"
+        assert "999" not in payload["names"]
+        assert payload["count"] == 2
+        assert payload["names_truncated"] is True
+        assert payload["names_truncated_count"] == 1
+        assert payload["names_original_lengths"] == {"1": len(overlong)}
+        assert payload["names_omitted_count"] == 1
+
     def test_stdout_field_bounded(self):
         big = "x" * (srv.MAX_STRING_LEN + 10)
         d = {"stdout": big}
@@ -1376,6 +1411,41 @@ class TestBounds:
         srv._bound_string_fields(d)
         assert d["stdout_truncated"] is False
         assert "stdout_original_length" not in d
+
+    def test_version_field_bounded(self):
+        big = "v" * (srv.MAX_STRING_LEN + 10)
+        d = {"version": big}
+        srv._bound_string_fields(d)
+        assert len(d["version"]) == srv.MAX_STRING_LEN
+        assert d["version_truncated"] is True
+        assert d["version_original_length"] == len(big)
+
+    def test_backend_check_rejects_overlong_version_at_source(
+            self, initialized_state, monkeypatch):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        monkeypatch.setattr(
+            backend, "find_febuildergba_cli", lambda: ["fake-cli"],
+        )
+        monkeypatch.setattr(
+            backend,
+            "run_cli",
+            lambda args: subprocess.CompletedProcess(
+                ["fake-cli", "--version"],
+                0,
+                stdout="v" * (backend.MAX_VERSION_TEXT_LEN + 1),
+                stderr="",
+            ),
+        )
+
+        resp = _call_tool(initialized_state, "backend_check", {})
+        payload = json.loads(resp["result"]["content"][0]["text"])
+
+        assert payload["available"] is False
+        assert payload["error"] == (
+            "FEBuilderGBA.CLI version check output exceeded 4096 characters"
+        )
+        assert "version" not in payload
 
     @pytest.mark.parametrize("tool_name", ["rom_info", "session_open"])
     def test_rom_metadata_lint_output_is_bounded(

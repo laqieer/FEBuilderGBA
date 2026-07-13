@@ -12,6 +12,8 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+MAX_VERSION_TEXT_LEN = 4096
+
 
 def find_febuildergba_cli() -> list[str]:
     """Find the FEBuilderGBA.CLI executable.
@@ -139,7 +141,13 @@ def get_version() -> str:
             f"FEBuilderGBA.CLI version check failed with exit code "
             f"{result.returncode}{suffix}"
         )
-    version = result.stdout.strip()
+    raw_version = result.stdout or ""
+    if len(raw_version) > MAX_VERSION_TEXT_LEN:
+        raise RuntimeError(
+            "FEBuilderGBA.CLI version check output exceeded "
+            f"{MAX_VERSION_TEXT_LEN} characters"
+        )
+    version = raw_version.strip()
     if not version:
         raise RuntimeError("FEBuilderGBA.CLI version check returned no version text")
     return version

@@ -502,26 +502,18 @@ def _resolve_rom(session, args, need_force=True):
     return rom_path, force_version
 
 
-def _same_as_session_rom(session, rom_path):
-    if not session.is_open():
-        return False
-    try:
-        return os.path.samefile(rom_path, session.state.rom_path)
-    except (OSError, TypeError, ValueError):
-        try:
-            return (
-                os.path.normcase(os.path.abspath(rom_path))
-                == os.path.normcase(os.path.abspath(session.state.rom_path))
-            )
-        except (OSError, TypeError, ValueError):
-            return False
-
-
 def _bound_string_fields(d):
     """Bound backend text fields to MAX_STRING_LEN with truncation metadata."""
     if not isinstance(d, dict):
         return d
-    for key in ("stdout", "stderr", "raw_output", "lint_output", "error"):
+    for key in (
+        "stdout",
+        "stderr",
+        "raw_output",
+        "lint_output",
+        "error",
+        "version",
+    ):
         if key in d and isinstance(d[key], str):
             s = d[key]
             if len(s) > MAX_STRING_LEN:
@@ -531,6 +523,38 @@ def _bound_string_fields(d):
             else:
                 d[f"{key}_truncated"] = False
     return d
+
+
+def _bound_resolved_names(result, requested_ids):
+    """Bound requested name values without applying the generic 100-item cap."""
+    names = result.get("names")
+    if not isinstance(names, dict):
+        return result
+
+    bounded = {}
+    original_lengths = {}
+    for numeric_id in requested_ids:
+        key = str(numeric_id)
+        if key not in names:
+            continue
+        value = names[key]
+        if not isinstance(value, str):
+            value = str(value)
+        if len(value) > MAX_ITEM_STRING_LEN:
+            original_lengths[key] = len(value)
+            value = value[:MAX_ITEM_STRING_LEN]
+        bounded[key] = value
+
+    result["names"] = bounded
+    result["count"] = len(bounded)
+    result["names_truncated"] = bool(original_lengths)
+    result["names_truncated_count"] = len(original_lengths)
+    result["names_omitted_count"] = max(0, len(names) - len(bounded))
+    if original_lengths:
+        result["names_original_lengths"] = original_lengths
+    else:
+        result.pop("names_original_lengths", None)
+    return result
 
 
 def _bound_strings_recursive(value, max_len=MAX_ITEM_STRING_LEN, depth=0):
@@ -662,7 +686,7 @@ def _h_data_export(session, args):
     out_path = args["out_path"]
     result = export_table(rom_path, table, out_path, force_version)
     is_error = result["exit_code"] != 0
-    if not is_error and _same_as_session_rom(session, rom_path):
+    if not is_error and session.owns_rom(rom_path):
         session.record_operation(HISTORY_OP_DATA_EXPORT, {"table": table, "out": out_path})
     return result, is_error
 
@@ -674,7 +698,7 @@ def _h_data_import(session, args):
     in_path = args["in_path"]
     result = import_table(rom_path, table, in_path, force_version)
     is_error = result["exit_code"] != 0
-    if not is_error and _same_as_session_rom(session, rom_path):
+    if not is_error and session.owns_rom(rom_path):
         session.record_operation(
             HISTORY_OP_DATA_IMPORT, {"table": table, "in": in_path}, modified=True,
         )
@@ -693,6 +717,7 @@ def _h_names_resolve(session, args):
     from cli_anything.febuildergba.core.export import resolve_names
     rom_path, force_version = _resolve_rom(session, args)
     result = resolve_names(rom_path, args["kind"], args["ids"], force_version)
+    _bound_resolved_names(result, args["ids"])
     return result, result["exit_code"] != 0
 
 
@@ -790,7 +815,7 @@ def _h_palette_import(session, args):
     rom_path, force_version = _resolve_rom(session, args)
     result = import_palette(rom_path, args["addr"], args["in_path"], force_version)
     is_error = result["exit_code"] != 0
-    if not is_error and _same_as_session_rom(session, rom_path):
+    if not is_error and session.owns_rom(rom_path):
         session.record_operation(
             HISTORY_OP_IMPORT_PALETTE, {"addr": args["addr"]}, modified=True,
         )
