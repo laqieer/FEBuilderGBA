@@ -10,6 +10,7 @@ backend availability.
 
 import json
 import io
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -334,6 +335,17 @@ class TestFraming:
 class TestProtocolErrors:
     def test_parse_error(self, initialized_state):
         resp = srv.handle_line(initialized_state, "{not json")
+        assert resp["error"]["code"] == srv.PARSE_ERROR
+        assert resp["id"] is None
+
+    @pytest.mark.parametrize("constant", ["NaN", "Infinity", "-Infinity"])
+    def test_nonstandard_json_constant_is_parse_error(
+            self, initialized_state, constant):
+        line = (
+            '{"jsonrpc":"2.0","id":1,"method":"ping",'
+            f'"params":{{"_meta":{constant}}}}}'
+        )
+        resp = srv.handle_line(initialized_state, line)
         assert resp["error"]["code"] == srv.PARSE_ERROR
         assert resp["id"] is None
 
@@ -1027,6 +1039,24 @@ class TestBounds:
                           {"kind": "unit", "ids": list(range(257))})
         assert resp["error"]["code"] == srv.INVALID_PARAMS
 
+    @pytest.mark.parametrize("invalid_id", [-1, 1 << 32])
+    def test_names_resolve_id_outside_uint32_is_invalid_params(
+            self, initialized_state, invalid_id):
+        resp = _call_tool(
+            initialized_state,
+            "names_resolve",
+            {"kind": "unit", "ids": [invalid_id]},
+        )
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+
+    def test_names_resolve_uint32_boundaries_pass_schema(self, initialized_state):
+        resp = _call_tool(
+            initialized_state,
+            "names_resolve",
+            {"kind": "unit", "ids": [0, 0xFFFFFFFF]},
+        )
+        assert "error" not in resp
+
     def test_stdout_field_bounded(self):
         big = "x" * (srv.MAX_STRING_LEN + 10)
         d = {"stdout": big}
@@ -1418,6 +1448,46 @@ class TestLauncherSubprocess:
                 proc.wait(timeout=10)
             except subprocess.TimeoutExpired:
                 proc.kill()
+
+    def test_launcher_forces_utf8_over_legacy_pipe_encoding(self):
+        root = _repo_root()
+        launcher = root / "agent-harness" / "febuildergba_mcp.py"
+        method = "m\u00e9thode"
+        requests = [
+            json.dumps(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "initialize",
+                    "params": _init_params(),
+                },
+                ensure_ascii=False,
+            ),
+            json.dumps(_req(method, id_=2), ensure_ascii=False),
+        ]
+        env = os.environ.copy()
+        env["PYTHONIOENCODING"] = "cp1252"
+        env["PYTHONUTF8"] = "0"
+
+        proc = subprocess.run(
+            [sys.executable, str(launcher)],
+            input=("\n".join(requests) + "\n").encode("utf-8"),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=env,
+            timeout=10,
+            check=False,
+        )
+
+        assert proc.returncode == 0, proc.stderr.decode("utf-8", errors="replace")
+        responses = [
+            json.loads(line)
+            for line in proc.stdout.decode("utf-8").splitlines()
+            if line.strip()
+        ]
+        assert len(responses) == 2
+        assert responses[1]["error"]["code"] == srv.METHOD_NOT_FOUND
+        assert responses[1]["error"]["message"] == f"Method not found: {method}"
 
 
 # ── .mcp.json registration ────────────────────────────────────────────────

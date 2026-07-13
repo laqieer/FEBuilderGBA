@@ -67,11 +67,14 @@ the package has been `pip install`-ed.
   are both honored verbatim when requested in `initialize`. Newer MCP revisions are intentionally
   not advertised until their contracts are implemented and tested here.
 - **Framing:** every JSON-RPC message — a single object, or a JSON array batch — is exactly one
-  flushed, UTF-8 line on stdout. All logs/diagnostics go to stderr; nothing else is ever written to
-  stdout. Input lines are capped at 1,048,576 characters and batches at 64 entries; an oversized
-  line is drained before the next message is processed. Even an unexpected failure escaping the
-  server's dispatch loop emits a single flushed, generic `-32603` response (`id: null`) rather
-  than silently dying or dropping the line — the loop always keeps processing subsequent lines.
+  flushed, UTF-8 line on stdout. The real stdin/stdout/stderr text streams are explicitly
+  reconfigured to UTF-8 before the loop, overriding locale-dependent legacy pipe encodings. All
+  logs/diagnostics go to stderr; nothing else is ever written to stdout. Input lines are capped at
+  1,048,576 characters and batches at 64 entries; an oversized line is drained before the next
+  message is processed. Non-standard `NaN`/`Infinity` JSON tokens are rejected as parse errors.
+  Even an unexpected failure escaping the server's dispatch loop emits a single flushed, generic
+  `-32603` response (`id: null`) rather than silently dying or dropping the line — the loop always
+  keeps processing subsequent lines.
 - **Lifecycle:** `initialize` must be called before any other operation, **except `ping`**, which
   is always allowed. Calling anything else first gets `-32600 Invalid Request`. `initialize` itself
   must **not** be sent as part of a JSON-RPC batch (batching it returns `-32600` for that entry),
@@ -101,7 +104,7 @@ the package has been `pip install`-ed.
 
 | Code | Meaning | When |
 |---|---|---|
-| `-32700` | Parse error | The line isn't valid JSON. |
+| `-32700` | Parse error | The line isn't valid JSON, including non-standard `NaN`/`Infinity` tokens. |
 | `-32600` | Invalid Request | Wrong `jsonrpc` version, malformed request/notification shape, missing/empty/non-string `method`, non-object `params`, invalid `id` (null/bool/object), an empty or over-64-entry batch, an over-1,048,576-character line, `initialize` sent inside a batch, duplicate `initialize` after a successful one, or an operation attempted before `initialize` (except `ping`). |
 | `-32601` | Method not found | `method` is a well-formed, non-empty string but doesn't match any registered method. |
 | `-32602` | Invalid params | Malformed method-specific params shape (see above), unexpected/extra params fields, malformed `initialize` fields, an **unknown tool name**, or **schema-invalid tool arguments** (missing required field, wrong type, out-of-bounds, unexpected/extra property, over-length string — schemas are closed with `additionalProperties: false`). |
@@ -229,7 +232,7 @@ closed with `rom_header: null`.
 | `rom_lint` each array item string | 4,096 chars | aggregate `<array>_items_truncated_count` |
 | `session_history` entries | 1..100 (`count` param) | bounded slice of the capped 100-entry history |
 | Every string in `session_status` / `session_history` tool output | 4,096 chars, applied recursively | top-level `truncated` boolean |
-| `names_resolve` `ids` | 1..256 entries | schema-enforced (`-32602` if exceeded) |
+| `names_resolve` `ids` | 1..256 entries; each 0..4,294,967,295 | count and unsigned 32-bit value range are schema-enforced (`-32602` if exceeded) |
 | Every string value inside a resource payload (session/history/rom_header) | 4,096 chars, applied recursively | top-level `truncated` boolean (never exposes raw bytes — resources never contained raw bytes to begin with) |
 | Resource collection size / nesting | 100 items per object/array / 16 levels | extra entries or deeper containers are replaced/truncated with top-level `truncated: true` |
 | Input line / JSON-RPC batch | 1,048,576 chars / 64 entries | schema-independent `-32600` request guard |

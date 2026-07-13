@@ -678,7 +678,9 @@ data/text export-import-roundtrip, name resolution, linting, image/palette conve
 session management) as 21 MCP tools plus 3 resources. Unlike the computer-use server above, it needs
 only a Python 3.10+ standard library — no Windows dependency, no extra packages, no MCP SDK.
 Its closed schemas reject empty file paths, and multi-table exports report only the declared
-per-table output names rather than unrelated files sharing the same prefix.
+per-table output names rather than unrelated files sharing the same prefix. The stdio transport
+forces UTF-8, rejects non-standard JSON constants, and validates entity IDs as unsigned 32-bit
+values before backend dispatch.
 
 The `.mcp.json` at the repo root auto-configures Claude Code to use it as `febuildergba-cli`
 (`python ./agent-harness/febuildergba_mcp.py`). See

@@ -60,6 +60,7 @@ LINT_MAX_LIMIT = 1000
 HISTORY_MIN = 1
 HISTORY_MAX = MAX_HISTORY_ENTRIES
 NAMES_MAX_IDS = 256
+NAMES_MAX_ID = 0xFFFFFFFF
 
 # Per-item/recursive string bound applied to individual result items (a
 # single text-search match, a single lint line, or any string value inside a
@@ -332,9 +333,17 @@ TOOL_DEFS = [
             "kind": {"type": "string", "enum": ["unit", "class", "item", "song"],
                      "description": "Entity type."},
             "ids": {
-                "type": "array", "items": {"type": "integer"},
+                "type": "array",
+                "items": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": NAMES_MAX_ID,
+                },
                 "minItems": 1, "maxItems": NAMES_MAX_IDS,
-                "description": f"Entity IDs to resolve (1..{NAMES_MAX_IDS}).",
+                "description": (
+                    f"Unsigned 32-bit entity IDs to resolve "
+                    f"(1..{NAMES_MAX_IDS} entries)."
+                ),
             },
             "rom_path": _ROM_PATH_PROP,
             "force_version": _FORCE_VERSION_PROP,
@@ -1113,6 +1122,10 @@ def _handle_single(state, item, in_batch):
     return _process_message(state, item)
 
 
+def _reject_json_constant(value):
+    raise ValueError(f"invalid JSON constant: {value}")
+
+
 def handle_line(state, line):
     """Parse and process one line of input. Returns a JSON-serializable
     response (dict or list), or None if nothing should be written."""
@@ -1120,7 +1133,7 @@ def handle_line(state, line):
         return _err(None, INVALID_REQUEST,
                     f"Invalid Request: input exceeds {MAX_REQUEST_LINE_CHARS} characters")
     try:
-        payload = json.loads(line)
+        payload = json.loads(line, parse_constant=_reject_json_constant)
     except (json.JSONDecodeError, ValueError):
         return _err(None, PARSE_ERROR, "Parse error: invalid JSON")
 
@@ -1142,10 +1155,25 @@ def handle_line(state, line):
 
 # ── Entry point ──────────────────────────────────────────────────────────
 
+def _reconfigure_utf8(stream):
+    """Configure a real standard text stream for the MCP UTF-8 contract."""
+    reconfigure = getattr(stream, "reconfigure", None)
+    if callable(reconfigure):
+        reconfigure(encoding="utf-8", errors="strict")
+
+
 def serve(session_file=None, in_stream=None, out_stream=None):
     """Run the stdio JSON-RPC loop until stdin is closed."""
-    in_stream = in_stream or sys.stdin
-    out_stream = out_stream or sys.stdout
+    if in_stream is None:
+        in_stream = sys.stdin
+    if out_stream is None:
+        out_stream = sys.stdout
+    if in_stream is sys.stdin:
+        _reconfigure_utf8(sys.stdin)
+    if out_stream is sys.stdout:
+        _reconfigure_utf8(sys.stdout)
+    if in_stream is sys.stdin or out_stream is sys.stdout:
+        _reconfigure_utf8(sys.stderr)
 
     session = Session(session_file) if session_file else Session()
     state = _ServerState(session)

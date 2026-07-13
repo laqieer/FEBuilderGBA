@@ -109,7 +109,7 @@ def _detect_version(rom_path: str, force_version: str = "") -> str:
     try:
         header, _rom_size = _read_validated_header(rom_path)
         return _detect_version_from_header(header)
-    except (FileNotFoundError, ValueError, OSError):
+    except (FileNotFoundError, ValueError, OSError, TypeError):
         pass
     return "unknown"
 
@@ -126,7 +126,7 @@ def validate_rom(rom_path: str) -> bool:
     try:
         _read_validated_header(rom_path)
         return True
-    except (FileNotFoundError, ValueError, OSError):
+    except (FileNotFoundError, ValueError, OSError, TypeError):
         return False
 
 

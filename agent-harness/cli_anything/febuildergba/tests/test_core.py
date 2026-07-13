@@ -256,6 +256,11 @@ class TestProject:
         small.write_bytes(b"\x00" * 100)
         assert not validate_rom(str(small))
 
+    @pytest.mark.parametrize("bad_path", [None, [], {}])
+    def test_validate_rom_non_path_returns_false(self, bad_path):
+        from cli_anything.febuildergba.core.project import validate_rom
+        assert validate_rom(bad_path) is False
+
     def test_rom_info_rejects_existing_non_rom_before_backend(
             self, tmp_path, monkeypatch):
         from cli_anything.febuildergba.core import project
@@ -320,6 +325,11 @@ class TestProject:
     def test_detect_version_forced(self, tmp_path):
         from cli_anything.febuildergba.core.project import _detect_version
         assert _detect_version("any_path", "FE8U") == "FE8U"
+
+    @pytest.mark.parametrize("bad_path", [None, [], {}])
+    def test_detect_version_non_path_returns_unknown(self, bad_path):
+        from cli_anything.febuildergba.core.project import _detect_version
+        assert _detect_version(bad_path) == "unknown"
 
     def test_detect_version_unknown(self, tmp_path):
         from cli_anything.febuildergba.core.project import _detect_version
