@@ -2264,6 +2264,12 @@ namespace FEBuilderGBA
         internal const string AdvisoryResourceBudgetExceededReason =
             "advisory patch inventory exceeds an internal resource budget; degraded to unavailable";
 
+        internal const string AdvisorySourceChangedReason =
+            "advisory patch source changed during bounded read";
+
+        internal const string AdvisoryPatchInventoryFileSystemReason =
+            "patch enumeration failed; check patch library directory permissions";
+
         // Stable, path-free reason used whenever the advisory patch inventory is degraded to
         // "unavailable" because the SERIALIZED manifest — not any advisory resource budget —
         // would exceed the shared BuildfileFormat.MaxManifestBytes producer/consumer byte budget
@@ -2274,15 +2280,44 @@ namespace FEBuilderGBA
         internal const string ManifestByteBudgetExceededReason =
             "serialized buildfile.json exceeds the shared manifest byte budget; degraded to unavailable";
 
+        internal static string MapAdvisoryPatchFailureKindToReason(
+            PatchMetadataCore.BoundedPatchReadFailureKind failureKind)
+            => failureKind switch
+            {
+                PatchMetadataCore.BoundedPatchReadFailureKind.ResourceLimit
+                    => AdvisoryResourceBudgetExceededReason,
+                PatchMetadataCore.BoundedPatchReadFailureKind.ContentChanged
+                    => AdvisorySourceChangedReason,
+                PatchMetadataCore.BoundedPatchReadFailureKind.FileSystem
+                    => AdvisoryPatchInventoryFileSystemReason,
+                PatchMetadataCore.BoundedPatchReadFailureKind.None
+                    => throw new InvalidOperationException(
+                        "Bounded patch read failure kind None cannot be mapped on a failure path."),
+                _ => throw new ArgumentOutOfRangeException(nameof(failureKind)),
+            };
+
         // Production always calls this thin wrapper, which unconditionally binds the immutable
         // 64 MiB BuildfileExportOptions.MaxPatchParamsAggregateBytes constant — there is no
         // mutable/nullable options field that can widen or bypass it at runtime. Deterministic
         // tests call BuildPatchInventoryBounded directly with a small value instead (see below).
         static BuildfilePatchInventory BuildPatchInventory(
             ROM cleanRom, ROM targetRom, BuildfileExportOptions options, int existingAdvisoryItemCount)
-            => BuildPatchInventoryBounded(
-                cleanRom, targetRom, options, existingAdvisoryItemCount,
-                BuildfileExportOptions.MaxPatchParamsAggregateBytes);
+        {
+            BuildfilePatchInventory inventory = BuildPatchInventoryBounded(
+                cleanRom,
+                targetRom,
+                options,
+                existingAdvisoryItemCount,
+                BuildfileExportOptions.MaxPatchParamsAggregateBytes,
+                out PatchMetadataCore.BoundedPatchReadFailureKind failureKind);
+            if (failureKind != PatchMetadataCore.BoundedPatchReadFailureKind.None
+                && !string.Equals(inventory.Status, "unavailable", StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    "Bounded patch inventory failure kind must only accompany an unavailable inventory.");
+            }
+            return inventory;
+        }
 
         /// <summary>
         /// Ordinary parameterized core helper (#1965 follow-up correction: the prior
@@ -2296,7 +2331,22 @@ namespace FEBuilderGBA
         /// </summary>
         internal static BuildfilePatchInventory BuildPatchInventoryBounded(
             ROM cleanRom, ROM targetRom, BuildfileExportOptions options, int existingAdvisoryItemCount,
-            long maxParamsAggregateBytes)
+            long maxParamsAggregateBytes,
+            out PatchMetadataCore.BoundedPatchReadFailureKind failureKind)
+            => BuildPatchInventoryBounded(
+                cleanRom,
+                targetRom,
+                options,
+                existingAdvisoryItemCount,
+                maxParamsAggregateBytes,
+                null,
+                out failureKind);
+
+        internal static BuildfilePatchInventory BuildPatchInventoryBounded(
+            ROM cleanRom, ROM targetRom, BuildfileExportOptions options, int existingAdvisoryItemCount,
+            long maxParamsAggregateBytes,
+            Func<string, FileStream> openPatchParamsFileStreamForTest,
+            out PatchMetadataCore.BoundedPatchReadFailureKind failureKind)
         {
             // #1965 L3 correction: same immutability guarantee as PatchMetadataCore's own
             // aggregate-cap validation — a caller (production or test) is never allowed to
@@ -2313,6 +2363,7 @@ namespace FEBuilderGBA
                         + " (the immutable MaxPatchParamsAggregateBytes ceiling).");
             }
             var inv = new BuildfilePatchInventory();
+            failureKind = PatchMetadataCore.BoundedPatchReadFailureKind.None;
             string baseDir = options.PatchBaseDirectory;
             string version = targetRom.RomInfo?.VersionToFilename ?? "";
             inv.BaseRelative = string.IsNullOrEmpty(version) ? "config/patch2" : "config/patch2/" + version;
@@ -2340,24 +2391,17 @@ namespace FEBuilderGBA
             if (!PatchMetadataCore.TryEnumeratePatchesBounded(baseDir, targetRom, options.Language ?? "en",
                     options.PatchDirectoryListerForTest,
                     BuildfileFormat.MaxAdvisoryItems, PatchMetadataCore.MaxMetadataAggregateBytes,
-                    out patches, out _, out bool advisoryLimitExceeded))
+                    out patches,
+                    out _,
+                    out failureKind))
             {
-                // Enumeration FAILED for one of two DISTINCT causes, disambiguated by the typed
-                // `advisoryLimitExceeded` signal rather than string-sniffing the raw error
-                // (Copilot review finding: a cap+1 file-discovery breach must report the SAME
-                // stable AdvisoryResourceBudgetExceededReason as every other advisory-budget breach, not
-                // the generic filesystem-permission reason): a genuine resource-bound breach
-                // (too many patch files or raw metadata lines) uses the shared budget
-                // reason; a real filesystem/access fault (missing/unreadable directory contents,
-                // I/O error, etc. — unrelated to the resource bound) keeps the generic, STABLE,
-                // path-free reason. The underlying error may contain the absolute patch base
-                // directory (from the underlying OS exception message) and must never be
-                // serialized into buildfile.json (Copilot review finding: enumError absolute
-                // path) — neither branch below ever surfaces it.
+                // Enumeration FAILED for one of the explicit bounded-read failure kinds:
+                // resource limit, content drift, or filesystem/access fault. The raw internal
+                // error may contain absolute paths or exception detail and must never be
+                // serialized into buildfile.json, so the manifest reason is derived ONLY from
+                // the typed failure kind here.
                 inv.Status = "unavailable";
-                inv.Reason = advisoryLimitExceeded
-                    ? AdvisoryResourceBudgetExceededReason
-                    : "patch enumeration failed; check patch library directory permissions";
+                inv.Reason = MapAdvisoryPatchFailureKindToReason(failureKind);
                 return inv;
             }
             if (patches.Count == 0)
@@ -2382,7 +2426,6 @@ namespace FEBuilderGBA
             // within this pass).
             long paramsAggregateBytesUsed = 0;
             var installed = new List<BuildfilePatchRecord>();
-            bool overBudget = false;
             foreach (PatchMetadataCore.PatchInfo p in patches)
             {
                 if (p == null) continue;
@@ -2405,7 +2448,7 @@ namespace FEBuilderGBA
 
                 if (!BuildfileFormat.TryConsumeAdvisoryItems(ref advisoryBudget, 1))
                 {
-                    overBudget = true;
+                    failureKind = PatchMetadataCore.BoundedPatchReadFailureKind.ResourceLimit;
                     break;
                 }
 
@@ -2423,25 +2466,32 @@ namespace FEBuilderGBA
                 long perFileByteCap = Math.Min(
                     PatchMetadataCore.MaxPatchDefinitionBytes, Math.Max(0, remainingParamsAggregate));
                 if (!TryAppendRawParamsBounded(
-                    rec, p.PatchFilePath, remainingBudget, perFileByteCap, out int consumedParams, out long paramsBytesRead))
+                    rec,
+                    p.PatchFilePath,
+                    remainingBudget,
+                    perFileByteCap,
+                    openPatchParamsFileStreamForTest,
+                    out int consumedParams,
+                    out long paramsBytesRead,
+                    out PatchMetadataCore.BoundedPatchReadFailureKind appendFailureKind))
                 {
-                    overBudget = true;
+                    failureKind = appendFailureKind;
                     break;
                 }
                 paramsAggregateBytesUsed += paramsBytesRead;
                 if (!BuildfileFormat.TryConsumeAdvisoryItems(ref advisoryBudget, consumedParams))
                 {
-                    overBudget = true;
+                    failureKind = PatchMetadataCore.BoundedPatchReadFailureKind.ResourceLimit;
                     break;
                 }
 
                 installed.Add(rec);
             }
 
-            if (overBudget)
+            if (failureKind != PatchMetadataCore.BoundedPatchReadFailureKind.None)
             {
                 inv.Status = "unavailable";
-                inv.Reason = AdvisoryResourceBudgetExceededReason;
+                inv.Reason = MapAdvisoryPatchFailureKindToReason(failureKind);
                 inv.Installed.Clear();
                 return inv;
             }
@@ -2573,14 +2623,23 @@ namespace FEBuilderGBA
         // TryParsePatchParamsBounded itself resolves to a successful empty result) are caught
         // here; a read failure is surfaced in the record reason (never a silent empty list, and
         // never a budget breach). Programmer defects propagate. Returns false — WITHOUT mutating
-        // `rec.Params` further — the instant the file's params would exceed `maxEntries` OR
-        // `maxBytes`; the caller treats either as an advisory-budget breach for the whole
-        // inventory.
+        // `rec.Params` further — the instant the file's params would exceed `maxEntries` /
+        // `maxBytes` OR the bounded read detects content drift; the caller maps the typed
+        // failure kind to the corresponding whole-inventory advisory degradation reason.
         static bool TryAppendRawParamsBounded(
             BuildfilePatchRecord rec, string patchFilePath, int maxEntries, long maxBytes,
-            out int consumedCount, out long bytesRead)
+            out int consumedCount,
+            out long bytesRead,
+            out PatchMetadataCore.BoundedPatchReadFailureKind failureKind)
             => TryAppendRawParamsBounded(
-                rec, patchFilePath, maxEntries, maxBytes, null, out consumedCount, out bytesRead);
+                rec,
+                patchFilePath,
+                maxEntries,
+                maxBytes,
+                null,
+                out consumedCount,
+                out bytesRead,
+                out failureKind);
 
         /// <summary>Internal stream-opener seam for deterministic fault-injection tests (#1965
         /// L2 correction: proving the aggregate byte accounting stays monotonic across a
@@ -2594,17 +2653,26 @@ namespace FEBuilderGBA
         internal static bool TryAppendRawParamsBounded(
             BuildfilePatchRecord rec, string patchFilePath, int maxEntries, long maxBytes,
             Func<string, FileStream> openFileStreamForTest,
-            out int consumedCount, out long bytesRead)
+            out int consumedCount,
+            out long bytesRead,
+            out PatchMetadataCore.BoundedPatchReadFailureKind failureKind)
         {
             consumedCount = 0;
             bytesRead = 0;
+            failureKind = PatchMetadataCore.BoundedPatchReadFailureKind.None;
             if (string.IsNullOrEmpty(patchFilePath)) return true;
             List<PatchMetadataCore.PatchParam> parsed;
             bool withinBound;
             try
             {
                 withinBound = PatchMetadataCore.TryParsePatchParamsBounded(
-                    patchFilePath, maxEntries, maxBytes, openFileStreamForTest, out parsed, out bytesRead);
+                    patchFilePath,
+                    maxEntries,
+                    maxBytes,
+                    openFileStreamForTest,
+                    out parsed,
+                    out bytesRead,
+                    out failureKind);
             }
             catch (Exception ex) when (IsExpectedFileSystemException(ex))
             {

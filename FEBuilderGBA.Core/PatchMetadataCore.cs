@@ -22,6 +22,14 @@ namespace FEBuilderGBA
             NotInstalled
         }
 
+        internal enum BoundedPatchReadFailureKind
+        {
+            None,
+            ResourceLimit,
+            ContentChanged,
+            FileSystem,
+        }
+
         /// <summary>Metadata extracted from a single patch directory.</summary>
         public class PatchInfo
         {
@@ -237,10 +245,11 @@ namespace FEBuilderGBA
         /// <paramref name="patchBaseDir"/> exactly once, up front: ABSENT ⇒ a root that was never
         /// downloaded / already removed BEFORE discovery began ⇒ the SAME successful-empty result
         /// as an empty root (<paramref name="patches"/> empty, <paramref name="error"/> empty,
-        /// <paramref name="limitExceeded"/> <c>false</c>); UNKNOWN (an inspection fault) ⇒ the
-        /// inventory is unavailable (<c>false</c>, <paramref name="error"/> = fault detail,
-        /// <paramref name="limitExceeded"/> <c>false</c>) — a fault is never inferred as absence;
-        /// PRESENT ⇒ continue to bounded discovery.</item>
+        /// <paramref name="failureKind"/> <see cref="BoundedPatchReadFailureKind.None"/>);
+        /// UNKNOWN (an inspection fault) ⇒ the inventory is unavailable (<c>false</c>,
+        /// <paramref name="error"/> = fault detail, <paramref name="failureKind"/>
+        /// <see cref="BoundedPatchReadFailureKind.FileSystem"/>) — a fault is never inferred as
+        /// absence; PRESENT ⇒ continue to bounded discovery.</item>
         /// <item>Discovery then flows through ONE shared bounded <c>foreach</c> over an
         /// <see cref="IEnumerable{T}"/> seam: production binds the LAZY
         /// <see cref="Directory.EnumerateFiles(string,string,SearchOption)"/> enumerable; an
@@ -252,27 +261,30 @@ namespace FEBuilderGBA
         /// LAZILY during a later <c>MoveNext</c>, INCLUDING a <see cref="DirectoryNotFoundException"/>
         /// raised AFTER the successful entry probe (a genuine discovery race where the root
         /// disappears mid-scan) — degrades the whole inventory to unavailable (<c>false</c>,
-        /// <paramref name="error"/> populated, <paramref name="limitExceeded"/> <c>false</c>); it
-        /// is NEVER reshaped into successful-empty, and a null injected enumerable is left as a
-        /// programmer defect rather than success-shaped. Discovery always finishes fully before
-        /// the per-file metadata parse begins, so a partially enumerated set never publishes any
+        /// <paramref name="error"/> populated, <paramref name="failureKind"/>
+        /// <see cref="BoundedPatchReadFailureKind.FileSystem"/>); it is NEVER reshaped into
+        /// successful-empty, and a null injected enumerable is left as a programmer defect
+        /// rather than success-shaped. Discovery always finishes fully before the per-file
+        /// metadata parse begins, so a partially enumerated set never publishes any
         /// <see cref="PatchInfo"/>.</item>
         /// </list>
-        /// On a bound breach, <paramref name="patches"/> is the empty list (never partial) and
-        /// <paramref name="error"/> is a stable, path-free reason. <paramref name="limitExceeded"/>
-        /// is a TYPED signal distinguishing the two distinct failure causes so the caller never
-        /// has to string-sniff <paramref name="error"/>: <c>true</c> when discovery exceeds
-        /// <paramref name="maxFiles"/> or a patch metadata file exceeds the corresponding raw-line
-        /// bound; <c>false</c> (with <paramref name="error"/> still populated) for a real
-        /// filesystem/access fault (missing/unreadable directory contents, I/O error, etc.) that
-        /// has nothing to do with the resource budget. A definition file that WAS already
-        /// discovered but is missing or faulting when the bounded metadata pass opens it (a
+        /// On any typed false path, <paramref name="patches"/> is the empty list (never partial) and
+        /// <paramref name="error"/> is a stable, path-free reason for resource/content-drift
+        /// false paths. <paramref name="failureKind"/> is the TYPED classification the caller
+        /// uses instead of string-sniffing <paramref name="error"/>:
+        /// <see cref="BoundedPatchReadFailureKind.ResourceLimit"/> for discovery/item/byte/line
+        /// bounds, <see cref="BoundedPatchReadFailureKind.ContentChanged"/> when a discovered
+        /// metadata file changes length during the bounded read, and
+        /// <see cref="BoundedPatchReadFailureKind.FileSystem"/> for a real filesystem/access
+        /// fault (missing/unreadable directory contents, I/O error, etc.) that has nothing to
+        /// do with the resource budget. A definition file that WAS already discovered but is
+        /// missing or faulting when the bounded metadata pass opens it (a
         /// <see cref="FileNotFoundException"/>/<see cref="DirectoryNotFoundException"/> or other
         /// expected filesystem fault raised by <see cref="TryParsePatchFileStrictBounded"/>) is
         /// exactly this case: the whole inventory degrades to <c>false</c> with
-        /// <paramref name="limitExceeded"/> <c>false</c> and a generic path-free reason — it is
-        /// NEVER re-interpreted as the successful-empty missing-root result nor as a resource
-        /// bound. Per-file metadata scanning also uses the bounded LAZY
+        /// <paramref name="failureKind"/> <see cref="BoundedPatchReadFailureKind.FileSystem"/>
+        /// — it is NEVER re-interpreted as the successful-empty missing-root result nor as a
+        /// resource bound. Per-file metadata scanning also uses the bounded LAZY
         /// <see cref="TryParsePatchFileStrictBounded"/> (capped at <paramref name="maxFiles"/> raw
         /// lines, at most <see cref="MaxPatchDefinitionBytes"/> bytes per file, and at most
         /// <paramref name="maxAggregateBytes"/> bytes summed across every file in this scan)
@@ -285,10 +297,39 @@ namespace FEBuilderGBA
         /// (rather than hardcoded) purely so deterministic tests can exercise an aggregate-budget
         /// breach with small fixtures instead of real 64 MiB files.
         /// </summary>
-        internal static bool TryEnumeratePatchesBounded(string patchBaseDir, ROM rom, string lang,
+        internal static bool TryEnumeratePatchesBounded(
+            string patchBaseDir,
+            ROM rom,
+            string lang,
             Func<string, IEnumerable<string>> listPatchFiles,
-            int maxFiles, long maxAggregateBytes,
-            out List<PatchInfo> patches, out string error, out bool limitExceeded)
+            int maxFiles,
+            long maxAggregateBytes,
+            out List<PatchInfo> patches,
+            out string error,
+            out BoundedPatchReadFailureKind failureKind)
+            => TryEnumeratePatchesBounded(
+                patchBaseDir,
+                rom,
+                lang,
+                listPatchFiles,
+                maxFiles,
+                maxAggregateBytes,
+                null,
+                out patches,
+                out error,
+                out failureKind);
+
+        internal static bool TryEnumeratePatchesBounded(
+            string patchBaseDir,
+            ROM rom,
+            string lang,
+            Func<string, IEnumerable<string>> listPatchFiles,
+            int maxFiles,
+            long maxAggregateBytes,
+            Func<string, FileStream> openMetadataFileStreamForTest,
+            out List<PatchInfo> patches,
+            out string error,
+            out BoundedPatchReadFailureKind failureKind)
         {
             // #1965 L3 correction: the parameterized aggregate budget exists so deterministic
             // tests can exercise a breach with small fixtures — it must NEVER be usable to
@@ -303,7 +344,7 @@ namespace FEBuilderGBA
                         + " (the immutable MaxMetadataAggregateBytes ceiling).");
             patches = new List<PatchInfo>();
             error = "";
-            limitExceeded = false;
+            failureKind = BoundedPatchReadFailureKind.None;
             if (string.IsNullOrEmpty(patchBaseDir))
                 return true;
 
@@ -313,9 +354,9 @@ namespace FEBuilderGBA
             // unreadable-but-present root as "successfully empty"):
             //   * ABSENT  — a root never downloaded / already removed BEFORE discovery began =>
             //               the SAME successful-empty result as an empty root (patches empty,
-            //               error empty, limitExceeded false).
+            //               error empty, failureKind None).
             //   * UNKNOWN — an inspection fault => the inventory is unavailable (false, error =
-            //               fault detail, limitExceeded false); a fault is never inferred as
+            //               fault detail, failureKind FileSystem); a fault is never inferred as
             //               absence.
             //   * PRESENT — the root exists at entry; fall through to bounded discovery. Any
             //               LATER disappearance/fault (a genuine race) is handled by the shared
@@ -326,6 +367,7 @@ namespace FEBuilderGBA
                 case BuildfileExportCore.PathAttributeProbeResult.Absent:
                     return true;
                 case BuildfileExportCore.PathAttributeProbeResult.Unknown:
+                    failureKind = BoundedPatchReadFailureKind.FileSystem;
                     error = probeFault;
                     return false;
                 // PathAttributeProbeResult.Present => continue.
@@ -342,7 +384,7 @@ namespace FEBuilderGBA
             // factory OR LAZILY during a later MoveNext, INCLUDING a DirectoryNotFoundException
             // raised AFTER the successful entry probe (a genuine discovery race where the root
             // disappears mid-scan) — degrades the whole inventory to unavailable (false, error
-            // populated, limitExceeded stays false) and is NEVER reshaped into successful-empty.
+            // populated, failureKind FileSystem) and is NEVER reshaped into successful-empty.
             // A null injected enumerable is left as a programmer defect (NullReferenceException
             // from foreach), deliberately NOT success-shaped. Discovery always finishes fully
             // before the per-file metadata parse below, so a partially enumerated set never
@@ -356,7 +398,7 @@ namespace FEBuilderGBA
                 {
                     if (discovered.Count >= maxFiles)
                     {
-                        limitExceeded = true;
+                        failureKind = BoundedPatchReadFailureKind.ResourceLimit;
                         error = "advisory patch source exceeds the internal file-discovery bound";
                         return false;
                     }
@@ -365,6 +407,7 @@ namespace FEBuilderGBA
             }
             catch (Exception ex) when (IsExpectedFileSystemException(ex))
             {
+                failureKind = BoundedPatchReadFailureKind.FileSystem;
                 error = ex.Message;
                 return false;
             }
@@ -390,11 +433,32 @@ namespace FEBuilderGBA
                     // breach rejects the whole inventory rather than accepting a truncated
                     // PatchInfo.
                     if (!TryParsePatchFileStrictBounded(
-                        file, defaultName, rom, lang, maxFiles, perFileCap, out PatchInfo info, out long bytesRead))
+                        file,
+                        defaultName,
+                        rom,
+                        lang,
+                        maxFiles,
+                        perFileCap,
+                        PatchMacroAddressResolverCore.Resolve,
+                        openMetadataFileStreamForTest,
+                        out PatchInfo info,
+                        out long bytesRead,
+                        out failureKind))
                     {
                         patches = new List<PatchInfo>();
-                        limitExceeded = true;
-                        error = "advisory patch metadata exceeds the internal line-scan bound";
+                        error = failureKind switch
+                        {
+                            BoundedPatchReadFailureKind.ResourceLimit
+                                => "advisory patch metadata exceeds the internal line-scan bound",
+                            BoundedPatchReadFailureKind.ContentChanged
+                                => BuildfileExportCore.AdvisorySourceChangedReason,
+                            BoundedPatchReadFailureKind.FileSystem
+                                => BuildfileExportCore.AdvisoryPatchInventoryFileSystemReason,
+                            BoundedPatchReadFailureKind.None
+                                => throw new InvalidOperationException(
+                                    "TryParsePatchFileStrictBounded returned false with failure kind None."),
+                            _ => throw new ArgumentOutOfRangeException(nameof(failureKind)),
+                        };
                         return false;
                     }
                     aggregateBytesUsed += bytesRead;
@@ -405,6 +469,7 @@ namespace FEBuilderGBA
             catch (Exception ex) when (IsExpectedFileSystemException(ex))
             {
                 patches = new List<PatchInfo>();
+                failureKind = BoundedPatchReadFailureKind.FileSystem;
                 error = ex.Message;
                 return false;
             }
@@ -461,7 +526,7 @@ namespace FEBuilderGBA
         /// <see cref="TryEnumeratePatchesBounded"/>/<see cref="TryParsePatchParamsBounded"/>):
         /// identical NAME/INFO/AUTHOR/TAG/TYPE/PATCHED_IF/dependency parsing semantics to
         /// <see cref="ParsePatchFileStrict"/>, but the file is read through the shared
-        /// byte-first <see cref="TryReadBoundedFileLines(string,long,out List{string},out long)"/>
+        /// byte-first <see cref="TryReadBoundedFileLines"/>
         /// helper instead of the unbounded eager <see cref="File.ReadAllLines(string)"/>/lazy
         /// <see cref="File.ReadLines(string)"/> APIs. <paramref name="maxBytes"/> (bound to
         /// <see cref="MaxPatchDefinitionBytes"/>, further capped by the caller's remaining
@@ -473,10 +538,11 @@ namespace FEBuilderGBA
         /// from the shared <see cref="BuildfileFormat.MaxAdvisoryItems"/> advisory-item budget
         /// (it caps raw lines scanned for metadata, not advisory POCOs/list entries) — reusing
         /// the same constant is simply a convenient, already-reviewed, generously-sized ceiling.
-        /// Either bound breaching returns <c>false</c> and no partial <see cref="PatchInfo"/>; a
-        /// pathological patch file can neither force an unbounded read nor masquerade as an
-        /// accepted truncated record. Any legitimate patch file (always far smaller than either
-        /// cap) is DECODED byte-for-byte and line-for-line identically to
+        /// Either bound breaching — or a content-drift length change detected during the bounded
+        /// read — returns <c>false</c> and no partial <see cref="PatchInfo"/>; a pathological
+        /// patch file can neither force an unbounded read nor masquerade as an accepted
+        /// truncated record. Any legitimate patch file (always far smaller than either cap) is
+        /// DECODED byte-for-byte and line-for-line identically to
         /// <see cref="ParsePatchFileStrict"/>. The ONE deliberate behavioral difference is
         /// install-marker CLASSIFICATION: a file-backed <c>$FGREP</c> install marker — which the
         /// shared resolver would otherwise resolve by opening the external file named in the
@@ -497,14 +563,15 @@ namespace FEBuilderGBA
             int maxLines,
             long maxBytes,
             out PatchInfo info,
-            out long bytesRead)
+            out long bytesRead,
+            out BoundedPatchReadFailureKind failureKind)
             => TryParsePatchFileStrictBounded(
                 patchFilePath, dirName, rom, lang, maxLines, maxBytes,
-                PatchMacroAddressResolverCore.Resolve, out info, out bytesRead);
+                PatchMacroAddressResolverCore.Resolve, null, out info, out bytesRead, out failureKind);
 
         /// <summary>
         /// #1936 NON-PRODUCTION test seam. Behaves EXACTLY like the production
-        /// <see cref="TryParsePatchFileStrictBounded(string,string,ROM,string,int,long,out PatchInfo,out long)"/>
+        /// <see cref="TryParsePatchFileStrictBounded"/>
         /// overload (same byte/line caps, same bounded read, same file-backed <c>$FGREP</c>
         /// Unknown carve-out) except the shared macro address <paramref name="resolver"/> is
         /// injected instead of hard-bound to
@@ -526,18 +593,53 @@ namespace FEBuilderGBA
             long maxBytes,
             MacroAddressResolver resolver,
             out PatchInfo info,
-            out long bytesRead)
+            out long bytesRead,
+            out BoundedPatchReadFailureKind failureKind)
+            => TryParsePatchFileStrictBounded(
+                patchFilePath,
+                dirName,
+                rom,
+                lang,
+                maxLines,
+                maxBytes,
+                resolver,
+                null,
+                out info,
+                out bytesRead,
+                out failureKind);
+
+        static bool TryParsePatchFileStrictBounded(
+            string patchFilePath,
+            string dirName,
+            ROM rom,
+            string lang,
+            int maxLines,
+            long maxBytes,
+            MacroAddressResolver resolver,
+            Func<string, FileStream> openFileStreamForTest,
+            out PatchInfo info,
+            out long bytesRead,
+            out BoundedPatchReadFailureKind failureKind)
         {
             if (resolver == null) throw new ArgumentNullException(nameof(resolver));
             if (maxLines < 0) throw new ArgumentOutOfRangeException(nameof(maxLines));
             if (maxBytes < 0) throw new ArgumentOutOfRangeException(nameof(maxBytes));
             info = null;
+            failureKind = BoundedPatchReadFailureKind.None;
             // maxLines is enforced INSIDE the shared helper, during line splitting, before a
             // breaching line is ever appended to the returned list (#1965 L2 correction) — no
             // separate post-hoc List.Count check is needed (or safe: that would have already
             // materialized every line into memory first).
-            if (!TryReadBoundedFileLines(patchFilePath, maxBytes, maxLines, out List<string> lines, out bytesRead))
-                return false; // byte-cap OR raw-line-cap breach — no partial PatchInfo is ever produced.
+            if (!TryReadBoundedFileLines(
+                    patchFilePath,
+                    maxBytes,
+                    maxLines,
+                    openFileStreamForTest,
+                    out List<string> lines,
+                    out bytesRead,
+                    out failureKind))
+                return false; // byte-cap / raw-line-cap / content-drift breach — no partial
+                              // PatchInfo is ever produced.
             // Exporter-bounded metadata scan (#1936): never let an install-marker classification
             // open/read an external file. A file-backed $FGREP marker is classified Unknown
             // before any Path.Combine/File.Exists/File.ReadAllBytes runs.
@@ -618,7 +720,7 @@ namespace FEBuilderGBA
         /// <see cref="PatchMacroAddressResolverCore.Resolve(ROM,string,string,uint)"/> exactly.
         /// Every production path binds that real resolver; the ONLY code that ever passes a
         /// different delegate is the internal test-only
-        /// <see cref="TryParsePatchFileStrictBounded(string,string,ROM,string,int,long,MacroAddressResolver,out PatchInfo,out long)"/>
+        /// <see cref="TryParsePatchFileStrictBounded"/>
         /// overload, which lets a bounded-metadata test PROVE the resolver is never invoked for a
         /// file-backed <c>$FGREP</c> marker. It is never surfaced through options, public API, or
         /// mutable state, and cannot influence any byte/line cap.
@@ -1032,12 +1134,15 @@ namespace FEBuilderGBA
         /// <see cref="FileStream.Length"/>, or a small default if that length is non-positive —
         /// it grows only as bytes actually arrive, never pre-sized to the cap. After EVERY
         /// positive read, <paramref name="bytesRead"/> is updated first and the accumulated total
-        /// is compared BOTH against <paramref name="maxBytes"/> AND against the captured
-        /// <c>length</c> — a breach of EITHER bound rejects the whole read BEFORE the surplus
-        /// chunk is ever written into the accepting buffer or decoded (#1965 length-drift
-        /// correction: a prior version only checked <paramref name="maxBytes"/> here, silently
-        /// accepting a handle that grew past its own captured <c>Length</c> as long as the
-        /// growth still fit under the caller's byte budget). Symmetrically, reaching genuine EOF
+        /// is compared against the captured <c>length</c> FIRST, then against
+        /// <paramref name="maxBytes"/> — a breach of EITHER bound rejects the whole read BEFORE
+        /// the surplus chunk is ever written into the accepting buffer or decoded (#1965
+        /// length-drift correction: a prior version only checked <paramref name="maxBytes"/>
+        /// here, silently accepting a handle that grew past its own captured <c>Length</c> as
+        /// long as the growth still fit under the caller's byte budget). Because the captured
+        /// <c>length</c> already passed the initial <c>length &lt;= maxBytes</c> check, any
+        /// in-loop over-budget read also proves growth and therefore classifies as content
+        /// change, not resource limit. Symmetrically, reaching genuine EOF
         /// (a zero-byte read — the shared no-follow opener guarantees a regular, synchronous
         /// <see cref="FileStream"/>, so a short positive read is never itself EOF and the loop
         /// keeps requesting more) with a running total LESS than the captured <c>length</c> — a
@@ -1071,14 +1176,27 @@ namespace FEBuilderGBA
         /// <see cref="File.ReadLines(string)"/>, so any within-budget file yields a raw line list
         /// byte-identical to the legacy unbounded path (this shared reader performs no install-marker
         /// classification — the exporter-bounded file-backed <c>$FGREP</c> Unknown carve-out is
-        /// applied later, by <see cref="TryParsePatchFileStrictBounded(string,string,ROM,string,int,long,out PatchInfo,out long)"/>).</item>
+        /// applied later, by <see cref="TryParsePatchFileStrictBounded"/>).</item>
         /// </list>
-        /// On any byte-cap or raw-line-cap breach, returns <c>false</c> with
-        /// <paramref name="lines"/> left <c>null</c> — no partial line list is ever produced.
+        /// On any byte-cap/raw-line-cap/content-drift breach, returns <c>false</c> with
+        /// <paramref name="lines"/> left <c>null</c> and <paramref name="failureKind"/>
+        /// describing the reason — no partial line list is ever produced.
         /// </summary>
         internal static bool TryReadBoundedFileLines(
-            string patchFilePath, long maxBytes, int maxLines, out List<string> lines, out long bytesRead)
-            => TryReadBoundedFileLines(patchFilePath, maxBytes, maxLines, null, out lines, out bytesRead);
+            string patchFilePath,
+            long maxBytes,
+            int maxLines,
+            out List<string> lines,
+            out long bytesRead,
+            out BoundedPatchReadFailureKind failureKind)
+            => TryReadBoundedFileLines(
+                patchFilePath,
+                maxBytes,
+                maxLines,
+                null,
+                out lines,
+                out bytesRead,
+                out failureKind);
 
         /// <summary>Internal stream-opener seam for deterministic byte-bound tests (sparse/huge
         /// reported length, growth-after-length races, fault-after-N-bytes) without needing real
@@ -1091,7 +1209,8 @@ namespace FEBuilderGBA
             int maxLines,
             Func<string, FileStream> openFileStreamForTest,
             out List<string> lines,
-            out long bytesRead)
+            out long bytesRead,
+            out BoundedPatchReadFailureKind failureKind)
         {
             if (maxBytes < 0) throw new ArgumentOutOfRangeException(nameof(maxBytes));
             // Immutable per-file cap enforcement (#1965 L3 correction): no internal caller —
@@ -1110,6 +1229,7 @@ namespace FEBuilderGBA
             if (maxLines < 0) throw new ArgumentOutOfRangeException(nameof(maxLines));
             lines = null;
             bytesRead = 0;
+            failureKind = BoundedPatchReadFailureKind.None;
 
             // #1965/#1936 information-disclosure remediation: the production default MUST open
             // the final path entry through the shared no-follow, exact-regular-file primitive
@@ -1124,8 +1244,11 @@ namespace FEBuilderGBA
 
             long length = stream.Length;
             if (length > maxBytes)
+            {
+                failureKind = BoundedPatchReadFailureKind.ResourceLimit;
                 return false; // early Length reject — never allocate a buffer sized by an
                               // untrusted/sparse reported Length.
+            }
 
             // Trusted size HINT only (Length has already passed the <= maxBytes check above, so
             // it is safe to use as a starting capacity) — NEVER the full byte budget. A file
@@ -1147,7 +1270,10 @@ namespace FEBuilderGBA
                     // can never overflow — the prior long.MaxValue special case is gone.
                     long remainingCapPlusOne = maxBytes + 1 - total;
                     if (remainingCapPlusOne <= 0)
+                    {
+                        failureKind = BoundedPatchReadFailureKind.ResourceLimit;
                         return false; // already at/over budget from a prior iteration.
+                    }
                     int requestSize = (int)Math.Min(ReadChunkBytes, remainingCapPlusOne);
 
 
@@ -1162,16 +1288,21 @@ namespace FEBuilderGBA
 
                     total += read;
                     bytesRead = total; // incremental — visible even if the NEXT read throws.
-                    if (total > maxBytes || total > length)
+                    if (total > length)
+                    {
+                        failureKind = BoundedPatchReadFailureKind.ContentChanged;
                         return false; // growth-after-Length / sparse-length lie; reject BEFORE
-                                      // writing the surplus chunk into the accepted buffer,
-                                      // whether the growth breaches the caller's byte budget
-                                      // (total > maxBytes) or merely the Length observed when
-                                      // this handle was opened (total > length, #1965
-                                      // length-drift correction — previously only maxBytes was
-                                      // checked here, silently accepting growth that stayed
-                                      // under the caller's cap but past this handle's own
-                                      // captured Length).
+                                      // writing the surplus chunk into the accepted buffer. The
+                                      // captured Length has already passed the <= maxBytes
+                                      // precheck, so any in-loop over-budget read NECESSARILY
+                                      // also proves growth beyond that captured Length and must
+                                      // therefore classify ContentChanged first.
+                    }
+                    if (total > maxBytes)
+                    {
+                        failureKind = BoundedPatchReadFailureKind.ResourceLimit;
+                        return false;
+                    }
                     ms.Write(chunk, 0, read);
                 }
 
@@ -1183,8 +1314,11 @@ namespace FEBuilderGBA
                 // would let a silently-truncated/swapped file decode as if it were the exact
                 // file whose Length was already validated against maxBytes above.
                 if (total != length)
+                {
+                    failureKind = BoundedPatchReadFailureKind.ContentChanged;
                     return false; // premature EOF — bytes genuinely consumed before this
                                   // rejection remain visible through `bytesRead` above.
+                }
             }
             finally
             {
@@ -1200,6 +1334,7 @@ namespace FEBuilderGBA
                 if (result.Count >= maxLines)
                 {
                     lines = null;
+                    failureKind = BoundedPatchReadFailureKind.ResourceLimit;
                     return false; // raw-line-cap breach — no partial line list is ever produced.
                 }
                 result.Add(line);
@@ -1256,13 +1391,17 @@ namespace FEBuilderGBA
         /// Exporter-only bounded seam (#1936 review remediation, byte-bounded per #1965).
         /// Identical key=value parsing semantics to <see cref="ParsePatchParams"/> but the file
         /// is read through the shared byte-first
-        /// <see cref="TryReadBoundedFileLines(string,long,out List{string},out long)"/> helper
+        /// <see cref="TryReadBoundedFileLines"/> helper
         /// instead of the unbounded eager <see cref="File.ReadAllLines(string)"/>/lazy
         /// <see cref="File.ReadLines(string)"/> APIs — a pathological patch file with one
         /// arbitrarily-large raw line can never be materialized before <paramref name="maxBytes"/>
         /// (bound to <see cref="MaxPatchDefinitionBytes"/>, further capped by the caller's
-        /// remaining params-pass aggregate budget) rejects it. <paramref name="maxEntries"/> is
-        /// the pre-existing, still-independent parsed-entry advisory bound: once the accepted
+        /// remaining params-pass aggregate budget) rejects it. The same shared bounded read also
+        /// fail-closes on detected length drift (growth/truncation between the captured
+        /// <see cref="FileStream.Length"/> and EOF) with
+        /// <paramref name="failureKind"/> = <see cref="BoundedPatchReadFailureKind.ContentChanged"/>,
+        /// still without publishing partial params. <paramref name="maxEntries"/> is the
+        /// pre-existing, still-independent parsed-entry advisory bound: once the accepted
         /// (within-<paramref name="maxBytes"/>) lines are parsed, accepting the next entry past
         /// <paramref name="maxEntries"/> returns <c>false</c> WITHOUT keeping any partial params
         /// list built so far — the whole record is degraded by the caller, never truncated.
@@ -1286,8 +1425,20 @@ namespace FEBuilderGBA
         /// in <paramref name="patchFilePath"/> are outside this final-entry guarantee by design.
         /// </summary>
         internal static bool TryParsePatchParamsBounded(
-            string patchFilePath, int maxEntries, long maxBytes, out List<PatchParam> result, out long bytesRead)
-            => TryParsePatchParamsBounded(patchFilePath, maxEntries, maxBytes, null, out result, out bytesRead);
+            string patchFilePath,
+            int maxEntries,
+            long maxBytes,
+            out List<PatchParam> result,
+            out long bytesRead,
+            out BoundedPatchReadFailureKind failureKind)
+            => TryParsePatchParamsBounded(
+                patchFilePath,
+                maxEntries,
+                maxBytes,
+                null,
+                out result,
+                out bytesRead,
+                out failureKind);
 
         /// <summary>Internal stream-opener seam for deterministic fault-injection tests (e.g. a
         /// fault raised after N genuine bytes have already been read, proving the aggregate byte
@@ -1298,19 +1449,29 @@ namespace FEBuilderGBA
         internal static bool TryParsePatchParamsBounded(
             string patchFilePath, int maxEntries, long maxBytes,
             Func<string, FileStream> openFileStreamForTest,
-            out List<PatchParam> result, out long bytesRead)
+            out List<PatchParam> result,
+            out long bytesRead,
+            out BoundedPatchReadFailureKind failureKind)
         {
             result = new List<PatchParam>();
             bytesRead = 0;
-            if (maxEntries < 0) return false;
-            if (maxBytes < 0) return false;
+            failureKind = BoundedPatchReadFailureKind.None;
+            if (maxEntries < 0) throw new ArgumentOutOfRangeException(nameof(maxEntries));
+            if (maxBytes < 0) throw new ArgumentOutOfRangeException(nameof(maxBytes));
 
             List<string> lines;
             try
             {
                 if (!TryReadBoundedFileLines(
-                        patchFilePath, maxBytes, MaxRawParamLines, openFileStreamForTest, out lines, out bytesRead))
-                    return false; // byte-cap or raw-line-cap breach — no partial params list is ever produced.
+                        patchFilePath,
+                        maxBytes,
+                        MaxRawParamLines,
+                        openFileStreamForTest,
+                        out lines,
+                        out bytesRead,
+                        out failureKind))
+                    return false; // byte-cap / raw-line-cap / content-drift breach — no partial
+                                  // params list is ever produced.
             }
             catch (FileNotFoundException)
             {
@@ -1336,8 +1497,11 @@ namespace FEBuilderGBA
                 if (sep < 0) continue;
 
                 if (parsed.Count >= maxEntries)
+                {
+                    failureKind = BoundedPatchReadFailureKind.ResourceLimit;
                     return false; // would exceed the bound — `result` stays the empty list above,
                                   // the locally-built `parsed` list is simply discarded.
+                }
 
                 string key = line.Substring(0, sep).Trim();
                 string value = line.Substring(sep + 1).Trim();

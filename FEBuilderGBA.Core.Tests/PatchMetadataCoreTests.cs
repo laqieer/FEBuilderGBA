@@ -2,6 +2,7 @@ using Xunit;
 using FEBuilderGBA;
 using System.IO;
 using System.Linq;
+using BoundedPatchReadFailureKind = FEBuilderGBA.PatchMetadataCore.BoundedPatchReadFailureKind;
 
 namespace FEBuilderGBA.Core.Tests
 {
@@ -222,8 +223,9 @@ namespace FEBuilderGBA.Core.Tests
                 // Bounded exporter path refuses the file-backed marker -> Unknown.
                 bool ok = PatchMetadataCore.TryParsePatchFileStrictBounded(
                     patchFile, "FG", rom, "en", 100, PatchMetadataCore.MaxPatchDefinitionBytes,
-                    out var bounded, out long _);
+                    out var bounded, out long _, out var failureKind);
                 Assert.True(ok);
+                Assert.Equal(BoundedPatchReadFailureKind.None, failureKind);
                 Assert.Equal(PatchMetadataCore.PatchStatus.Unknown, bounded.Status);
             }
             finally { try { Directory.Delete(root, true); } catch { /* best-effort */ } }
@@ -265,8 +267,9 @@ namespace FEBuilderGBA.Core.Tests
 
                 bool ok = PatchMetadataCore.TryParsePatchFileStrictBounded(
                     patchFile, "FG", rom, "en", 100, PatchMetadataCore.MaxPatchDefinitionBytes,
-                    out var bounded, out long _);
+                    out var bounded, out long _, out var failureKind);
                 Assert.True(ok);
+                Assert.Equal(BoundedPatchReadFailureKind.None, failureKind);
                 Assert.Equal(PatchMetadataCore.PatchStatus.Unknown, bounded.Status);
             }
             finally { try { Directory.Delete(root, true); } catch { /* best-effort */ } }
@@ -300,8 +303,9 @@ namespace FEBuilderGBA.Core.Tests
 
                 bool ok = PatchMetadataCore.TryParsePatchFileStrictBounded(
                     patchFile, "FG", rom, "en", 100, PatchMetadataCore.MaxPatchDefinitionBytes,
-                    out var bounded, out long _);
+                    out var bounded, out long _, out var failureKind);
                 Assert.True(ok);
+                Assert.Equal(BoundedPatchReadFailureKind.None, failureKind);
                 Assert.Equal(PatchMetadataCore.PatchStatus.Unknown, bounded.Status);
             }
             finally { try { Directory.Delete(root, true); } catch { /* best-effort */ } }
@@ -333,8 +337,9 @@ namespace FEBuilderGBA.Core.Tests
 
                 bool ok = PatchMetadataCore.TryParsePatchFileStrictBounded(
                     patchFile, "Grep", rom, "en", 100, PatchMetadataCore.MaxPatchDefinitionBytes,
-                    out var bounded, out long _);
+                    out var bounded, out long _, out var failureKind);
                 Assert.True(ok);
+                Assert.Equal(BoundedPatchReadFailureKind.None, failureKind);
                 Assert.Equal(PatchMetadataCore.PatchStatus.Installed, bounded.Status);
             }
             finally { try { Directory.Delete(root, true); } catch { /* best-effort */ } }
@@ -395,9 +400,10 @@ namespace FEBuilderGBA.Core.Tests
 
                 bool ok = PatchMetadataCore.TryParsePatchFileStrictBounded(
                     patchFile, "FG", rom, "en", 100, PatchMetadataCore.MaxPatchDefinitionBytes,
-                    spy, out var bounded, out long _);
+                    spy, out var bounded, out long _, out var failureKind);
 
                 Assert.True(ok);
+                Assert.Equal(BoundedPatchReadFailureKind.None, failureKind);
                 Assert.Equal(0, calls); // proven: resolver never reached
                 Assert.Equal(PatchMetadataCore.PatchStatus.Unknown, bounded.Status);
             }
@@ -440,9 +446,10 @@ namespace FEBuilderGBA.Core.Tests
 
                 bool ok = PatchMetadataCore.TryParsePatchFileStrictBounded(
                     patchFile, "Grep", rom, "en", 100, PatchMetadataCore.MaxPatchDefinitionBytes,
-                    spy, out var bounded, out long _);
+                    spy, out var bounded, out long _, out var failureKind);
 
                 Assert.True(ok);
+                Assert.Equal(BoundedPatchReadFailureKind.None, failureKind);
                 Assert.Equal(1, calls); // proven: seam routes real resolution through the delegate
                 Assert.Equal(PatchMetadataCore.PatchStatus.Installed, bounded.Status);
             }
@@ -1773,15 +1780,60 @@ namespace FEBuilderGBA.Core.Tests
                 var unbounded = PatchMetadataCore.ParsePatchFile(patchFile, "TestDir", rom, "en");
                 bool withinBound = PatchMetadataCore.TryParsePatchFileStrictBounded(
                     patchFile, "TestDir", rom, "en", 100, PatchMetadataCore.MaxPatchDefinitionBytes,
-                    out var bounded, out long bytesRead);
+                    out var bounded, out long bytesRead, out var failureKind);
 
                 Assert.True(withinBound);
+                Assert.Equal(BoundedPatchReadFailureKind.None, failureKind);
                 Assert.True(bytesRead > 0);
                 Assert.Equal(unbounded.Name, bounded.Name);
                 Assert.Equal(unbounded.Type, bounded.Type);
                 Assert.Equal(unbounded.Tags, bounded.Tags);
                 Assert.Equal(unbounded.Author, bounded.Author);
                 Assert.Equal(unbounded.Status, bounded.Status);
+            }
+            finally { Directory.Delete(tempDir, true); }
+        }
+
+        [Theory]
+        [InlineData(-1)]
+        [InlineData(1)]
+        public void TryEnumeratePatchesBounded_MetadataLengthDrift_FailsContentChangedPathFree(
+            int reportedLengthDelta)
+        {
+            string tempDir = Path.Combine(
+                Path.GetTempPath(), "PatchBoundedMetaDrift_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                string patchFile = Path.Combine(tempDir, "PATCH_Drift.txt");
+                File.WriteAllText(patchFile, "NAME=Drift\n");
+                long actualLength = new FileInfo(patchFile).Length;
+                long reportedLength = actualLength + reportedLengthDelta;
+                Assert.True(reportedLength > 0);
+
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x100]);
+
+                bool success = PatchMetadataCore.TryEnumeratePatchesBounded(
+                    tempDir,
+                    rom,
+                    "en",
+                    _ => new[] { patchFile },
+                    maxFiles: 16384,
+                    maxAggregateBytes: PatchMetadataCore.MaxMetadataAggregateBytes,
+                    openMetadataFileStreamForTest: p => new GrowthAfterLengthFileStream(p, reportedLength),
+                    out var patches,
+                    out string error,
+                    out var failureKind);
+
+                Assert.False(success);
+                Assert.Equal(BoundedPatchReadFailureKind.ContentChanged, failureKind);
+                Assert.Empty(patches);
+                Assert.Equal(BuildfileExportCore.AdvisorySourceChangedReason, error);
+                Assert.DoesNotContain(tempDir, error, StringComparison.Ordinal);
+                Assert.DoesNotContain(patchFile, error, StringComparison.Ordinal);
+                Assert.NotEqual(BuildfileExportCore.AdvisoryResourceBudgetExceededReason, error);
+                Assert.NotEqual(BuildfileExportCore.AdvisoryPatchInventoryFileSystemReason, error);
             }
             finally { Directory.Delete(tempDir, true); }
         }
@@ -1808,9 +1860,10 @@ namespace FEBuilderGBA.Core.Tests
 
                 bool withinBound = PatchMetadataCore.TryParsePatchFileStrictBounded(
                     patchFile, "DefaultName", rom, "en", 5, PatchMetadataCore.MaxPatchDefinitionBytes,
-                    out var bounded, out long bytesRead);
+                    out var bounded, out long bytesRead, out var failureKind);
 
                 Assert.False(withinBound);
+                Assert.Equal(BoundedPatchReadFailureKind.ResourceLimit, failureKind);
                 Assert.Null(bounded);
             }
             finally { Directory.Delete(tempDir, true); }
@@ -1844,9 +1897,13 @@ namespace FEBuilderGBA.Core.Tests
                     BuildfileFormat.MaxAdvisoryItems,
                     PatchMetadataCore.MaxPatchDefinitionBytes,
                     out var info,
-                    out long bytesRead);
+                    out long bytesRead,
+                    out var failureKind);
 
                 Assert.Equal(expectedWithinBound, withinBound);
+                Assert.Equal(
+                    expectedWithinBound ? BoundedPatchReadFailureKind.None : BoundedPatchReadFailureKind.ResourceLimit,
+                    failureKind);
                 Assert.Equal(expectedWithinBound, info != null);
             }
             finally { Directory.Delete(tempDir, true); }
@@ -1884,10 +1941,10 @@ namespace FEBuilderGBA.Core.Tests
                     PatchMetadataCore.MaxMetadataAggregateBytes,
                     out var patches,
                     out string error,
-                    out bool limitExceeded);
+                    out var failureKind);
 
                 Assert.False(success);
-                Assert.True(limitExceeded);
+                Assert.Equal(BoundedPatchReadFailureKind.ResourceLimit, failureKind);
                 Assert.Empty(patches);
                 Assert.Contains("line-scan bound", error, StringComparison.Ordinal);
                 Assert.DoesNotContain(tempDir, error, StringComparison.Ordinal);
@@ -1903,7 +1960,7 @@ namespace FEBuilderGBA.Core.Tests
             // (BuildfileExportCore.ProbePathAttributes over File.GetAttributes) rather than a lazy
             // Directory.EnumerateFiles foreach or a bare Directory.Exists. A root that is ABSENT
             // at method entry (never downloaded / already removed BEFORE discovery began) is the
-            // successful-empty case: true, empty patches, empty error, limitExceeded false — the
+            // successful-empty case: true, empty patches, empty error, failureKind None — the
             // SAME contract the unbounded TryEnumeratePatches path honors. (Contrast the
             // discovery-RACE regressions below, where a root PRESENT at entry disappears/faults
             // mid-enumeration and instead degrades the whole inventory to unavailable.) Proven
@@ -1926,12 +1983,12 @@ namespace FEBuilderGBA.Core.Tests
                 maxAggregateBytes: PatchMetadataCore.MaxMetadataAggregateBytes,
                 out var patches,
                 out string error,
-                out bool limitExceeded);
+                out var failureKind);
 
             Assert.True(success);
+            Assert.Equal(BoundedPatchReadFailureKind.None, failureKind);
             Assert.Empty(patches);
             Assert.Equal("", error);
-            Assert.False(limitExceeded);
         }
 
         [Fact]
@@ -1966,10 +2023,10 @@ namespace FEBuilderGBA.Core.Tests
                     maxAggregateBytes: PatchMetadataCore.MaxMetadataAggregateBytes,
                     out var patches,
                     out string error,
-                    out bool limitExceeded);
+                    out var failureKind);
 
                 Assert.True(success);
-                Assert.False(limitExceeded);
+                Assert.Equal(BoundedPatchReadFailureKind.None, failureKind);
                 Assert.Equal("", error);
                 Assert.Equal(2, patches.Count);
             }
@@ -1981,7 +2038,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             // #1936 missing-file contract (b): a path already RETURNED by discovery but MISSING
             // when the bounded METADATA pass opens it is a whole-inventory FILESYSTEM fault —
-            // false, empty patches, limitExceeded FALSE. It is NEVER the successful-empty
+            // false, empty patches, failureKind FileSystem. It is NEVER the successful-empty
             // missing-ROOT case (a) and NEVER a resource-budget breach. The injected listing
             // names a definition file that never exists on disk.
             string tempDir = Path.Combine(
@@ -2003,10 +2060,10 @@ namespace FEBuilderGBA.Core.Tests
                     PatchMetadataCore.MaxMetadataAggregateBytes,
                     out var patches,
                     out string error,
-                    out bool limitExceeded);
+                    out var failureKind);
 
                 Assert.False(success);
-                Assert.False(limitExceeded); // filesystem fault, NOT a resource-budget breach
+                Assert.Equal(BoundedPatchReadFailureKind.FileSystem, failureKind);
                 Assert.Empty(patches);
                 Assert.NotEqual("", error);
             }
@@ -2021,7 +2078,7 @@ namespace FEBuilderGBA.Core.Tests
             // lister seam throws DirectoryNotFoundException SYNCHRONOUSLY when invoked (a child
             // path that raced away AFTER the successful entry probe). This must degrade the whole
             // inventory to unavailable: false, empty patches, nonempty error carrying the injected
-            // detail, limitExceeded FALSE (a filesystem race, not a resource cap). This lambda is
+            // detail, failureKind FileSystem (a filesystem race, not a resource cap). This lambda is
             // source-compatible with old head; it is a behavioral RED against old head, which
             // caught a DirectoryNotFoundException from the lister and (incorrectly) returned true
             // (successful-empty), masking the race.
@@ -2043,10 +2100,10 @@ namespace FEBuilderGBA.Core.Tests
                     PatchMetadataCore.MaxMetadataAggregateBytes,
                     out var patches,
                     out string error,
-                    out bool limitExceeded);
+                    out var failureKind);
 
                 Assert.False(success);
-                Assert.False(limitExceeded); // discovery race, NOT a resource-budget breach
+                Assert.Equal(BoundedPatchReadFailureKind.FileSystem, failureKind);
                 Assert.Empty(patches);
                 Assert.Contains(detail, error, StringComparison.Ordinal);
             }
@@ -2074,8 +2131,8 @@ namespace FEBuilderGBA.Core.Tests
             // directly. The yielded definition — which WOULD parse to a valid PatchInfo if it were
             // ever reached — must NEVER be parsed or published: discovery finishes (faults) fully
             // before the per-file metadata pass begins. Result: false, EMPTY patches (non-vacuous
-            // proof the yielded entry was not published), nonempty non-limit error, limitExceeded
-            // FALSE.
+            // proof the yielded entry was not published), nonempty non-limit error, failureKind
+            // FileSystem.
             string tempDir = Path.Combine(
                 Path.GetTempPath(), "PatchBoundedRaceIterator_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(tempDir);
@@ -2099,10 +2156,10 @@ namespace FEBuilderGBA.Core.Tests
                     PatchMetadataCore.MaxMetadataAggregateBytes,
                     out var patches,
                     out string error,
-                    out bool limitExceeded);
+                    out var failureKind);
 
                 Assert.False(success);
-                Assert.False(limitExceeded); // discovery race, NOT a resource-budget breach
+                Assert.Equal(BoundedPatchReadFailureKind.FileSystem, failureKind);
                 Assert.Empty(patches);       // the yielded definition was never parsed/published
                 Assert.Contains(detail, error, StringComparison.Ordinal);
             }
@@ -2133,10 +2190,17 @@ namespace FEBuilderGBA.Core.Tests
                 string path = WriteBytes(tempDir, "PATCH_Big.txt", data);
 
                 bool ok = PatchMetadataCore.TryReadBoundedFileLines(
-                    path, cap, maxLines: int.MaxValue, lines: out var lines, bytesRead: out long bytesRead);
+                    path,
+                    cap,
+                    maxLines: int.MaxValue,
+                    lines: out var lines,
+                    bytesRead: out long bytesRead,
+                    failureKind: out var failureKind);
 
                 Assert.False(ok);
+                Assert.Equal(BoundedPatchReadFailureKind.ResourceLimit, failureKind);
                 Assert.Null(lines);
+                Assert.Equal(0, bytesRead);
             }
             finally { Directory.Delete(tempDir, true); }
         }
@@ -2161,7 +2225,8 @@ namespace FEBuilderGBA.Core.Tests
                         maxBytes: PatchMetadataCore.MaxPatchDefinitionBytes + 1,
                         maxLines: int.MaxValue,
                         lines: out _,
-                        bytesRead: out _));
+                        bytesRead: out _,
+                        failureKind: out _));
             }
             finally { Directory.Delete(tempDir, true); }
         }
@@ -2179,9 +2244,15 @@ namespace FEBuilderGBA.Core.Tests
                 string path = WriteBytes(tempDir, "PATCH_Exact.txt", data);
 
                 bool ok = PatchMetadataCore.TryReadBoundedFileLines(
-                    path, cap, maxLines: int.MaxValue, lines: out var lines, bytesRead: out long bytesRead);
+                    path,
+                    cap,
+                    maxLines: int.MaxValue,
+                    lines: out var lines,
+                    bytesRead: out long bytesRead,
+                    failureKind: out var failureKind);
 
                 Assert.True(ok);
+                Assert.Equal(BoundedPatchReadFailureKind.None, failureKind);
                 Assert.Equal(cap, bytesRead);
                 Assert.Single(lines);
                 Assert.Equal("NAME=TESTAB", lines[0]);
@@ -2200,14 +2271,26 @@ namespace FEBuilderGBA.Core.Tests
                 string nonEmptyPath = WriteBytes(tempDir, "PATCH_NonEmpty.txt", new byte[] { 0x41 });
 
                 bool emptyOk = PatchMetadataCore.TryReadBoundedFileLines(
-                    emptyPath, 0, maxLines: int.MaxValue, lines: out var emptyLines, bytesRead: out long emptyBytesRead);
+                    emptyPath,
+                    0,
+                    maxLines: int.MaxValue,
+                    lines: out var emptyLines,
+                    bytesRead: out long emptyBytesRead,
+                    failureKind: out var emptyFailureKind);
                 bool nonEmptyOk = PatchMetadataCore.TryReadBoundedFileLines(
-                    nonEmptyPath, 0, maxLines: int.MaxValue, lines: out var nonEmptyLines, bytesRead: out long nonEmptyBytesRead);
+                    nonEmptyPath,
+                    0,
+                    maxLines: int.MaxValue,
+                    lines: out var nonEmptyLines,
+                    bytesRead: out long nonEmptyBytesRead,
+                    failureKind: out var nonEmptyFailureKind);
 
                 Assert.True(emptyOk);
+                Assert.Equal(BoundedPatchReadFailureKind.None, emptyFailureKind);
                 Assert.Empty(emptyLines);
                 Assert.Equal(0, emptyBytesRead);
                 Assert.False(nonEmptyOk);
+                Assert.Equal(BoundedPatchReadFailureKind.ResourceLimit, nonEmptyFailureKind);
                 Assert.Null(nonEmptyLines);
             }
             finally { Directory.Delete(tempDir, true); }
@@ -2242,9 +2325,11 @@ namespace FEBuilderGBA.Core.Tests
                     maxLines: int.MaxValue,
                     openFileStreamForTest: p => new SparseHugeLengthFileStream(p, long.MaxValue / 2),
                     lines: out var lines,
-                    bytesRead: out long bytesRead);
+                    bytesRead: out long bytesRead,
+                    failureKind: out var failureKind);
 
                 Assert.False(ok);
+                Assert.Equal(BoundedPatchReadFailureKind.ResourceLimit, failureKind);
                 Assert.Null(lines);
                 Assert.Equal(0, bytesRead);
             }
@@ -2284,10 +2369,14 @@ namespace FEBuilderGBA.Core.Tests
                     // real underlying data is larger — the read loop must catch the growth.
                     openFileStreamForTest: p => new GrowthAfterLengthFileStream(p, cap),
                     lines: out var lines,
-                    bytesRead: out long bytesRead);
+                    bytesRead: out long bytesRead,
+                    failureKind: out var failureKind);
 
                 Assert.False(ok);
+                Assert.Equal(BoundedPatchReadFailureKind.ContentChanged, failureKind);
                 Assert.Null(lines);
+                Assert.True(bytesRead > cap,
+                    $"Expected bytesRead ({bytesRead}) to exceed the captured cap/length ({cap}).");
             }
             finally { Directory.Delete(tempDir, true); }
         }
@@ -2322,9 +2411,11 @@ namespace FEBuilderGBA.Core.Tests
                     // exact-length-through-EOF, not "anything up to maxBytes".
                     openFileStreamForTest: p => new GrowthAfterLengthFileStream(p, reportedLength),
                     lines: out var lines,
-                    bytesRead: out long bytesRead);
+                    bytesRead: out long bytesRead,
+                    failureKind: out var failureKind);
 
                 Assert.False(ok);
+                Assert.Equal(BoundedPatchReadFailureKind.ContentChanged, failureKind);
                 Assert.Null(lines);
                 // Deliberately not asserting an exact chunk-size-specific surplus count — only
                 // that genuinely-consumed bytes exceeded the (under-reported) captured Length.
@@ -2361,9 +2452,11 @@ namespace FEBuilderGBA.Core.Tests
                     // total==length equality check can catch this premature EOF.
                     openFileStreamForTest: p => new GrowthAfterLengthFileStream(p, actualLength + 1),
                     lines: out var lines,
-                    bytesRead: out long bytesRead);
+                    bytesRead: out long bytesRead,
+                    failureKind: out var failureKind);
 
                 Assert.False(ok);
+                Assert.Equal(BoundedPatchReadFailureKind.ContentChanged, failureKind);
                 Assert.Null(lines);
                 Assert.Equal(actualLength, bytesRead); // bytes genuinely consumed before the
                                                         // rejection remain visible.
@@ -2385,9 +2478,15 @@ namespace FEBuilderGBA.Core.Tests
                     System.Text.Encoding.ASCII.GetBytes("KEY=" + new string('v', cap)));
 
                 bool ok = PatchMetadataCore.TryParsePatchParamsBounded(
-                    path, maxEntries: 100, maxBytes: cap, out var result, out long bytesRead);
+                    path,
+                    maxEntries: 100,
+                    maxBytes: cap,
+                    out var result,
+                    out long bytesRead,
+                    out var failureKind);
 
                 Assert.False(ok);
+                Assert.Equal(BoundedPatchReadFailureKind.ResourceLimit, failureKind);
                 Assert.Empty(result);
             }
             finally { Directory.Delete(tempDir, true); }
@@ -2411,8 +2510,9 @@ namespace FEBuilderGBA.Core.Tests
 
                 bool okExact = PatchMetadataCore.TryParsePatchParamsBounded(
                     exactPath, maxEntries: maxEntries, maxBytes: PatchMetadataCore.MaxPatchDefinitionBytes,
-                    out var resultExact, out _);
+                    out var resultExact, out _, out var exactFailureKind);
                 Assert.True(okExact);
+                Assert.Equal(BoundedPatchReadFailureKind.None, exactFailureKind);
                 Assert.Equal(maxEntries, resultExact.Count);
 
                 string overContent = string.Concat(Enumerable.Range(0, maxEntries + 1).Select(i => $"KEY{i}=value{i}\n"));
@@ -2420,8 +2520,9 @@ namespace FEBuilderGBA.Core.Tests
 
                 bool okOver = PatchMetadataCore.TryParsePatchParamsBounded(
                     overPath, maxEntries: maxEntries, maxBytes: PatchMetadataCore.MaxPatchDefinitionBytes,
-                    out var resultOver, out _);
+                    out var resultOver, out _, out var overFailureKind);
                 Assert.False(okOver);
+                Assert.Equal(BoundedPatchReadFailureKind.ResourceLimit, overFailureKind);
                 Assert.Empty(resultOver); // NOT partially populated with the first `maxEntries` items
             }
             finally { Directory.Delete(tempDir, true); }
@@ -2452,9 +2553,11 @@ namespace FEBuilderGBA.Core.Tests
                     maxBytes: maxBytes,
                     openFileStreamForTest: p => new GrowthAfterLengthFileStream(p, reportedLength),
                     result: out var result,
-                    bytesRead: out long bytesRead);
+                    bytesRead: out long bytesRead,
+                    failureKind: out var failureKind);
 
                 Assert.False(ok);
+                Assert.Equal(BoundedPatchReadFailureKind.ContentChanged, failureKind);
                 Assert.Empty(result); // no partial params — never populated from rejected bytes
                 Assert.True(bytesRead > reportedLength,
                     $"Expected bytesRead ({bytesRead}) to exceed the reported length ({reportedLength}).");
@@ -2473,9 +2576,10 @@ namespace FEBuilderGBA.Core.Tests
 
                 bool ok = PatchMetadataCore.TryParsePatchParamsBounded(
                     missing, maxEntries: 100, maxBytes: PatchMetadataCore.MaxPatchDefinitionBytes,
-                    out var result, out long bytesRead);
+                    out var result, out long bytesRead, out var failureKind);
 
                 Assert.True(ok);
+                Assert.Equal(BoundedPatchReadFailureKind.None, failureKind);
                 Assert.Empty(result);
                 Assert.Equal(0, bytesRead);
             }
@@ -2491,9 +2595,10 @@ namespace FEBuilderGBA.Core.Tests
 
             bool ok = PatchMetadataCore.TryParsePatchParamsBounded(
                 missing, maxEntries: 100, maxBytes: PatchMetadataCore.MaxPatchDefinitionBytes,
-                out var result, out long bytesRead);
+                out var result, out long bytesRead, out var failureKind);
 
             Assert.True(ok);
+            Assert.Equal(BoundedPatchReadFailureKind.None, failureKind);
             Assert.Empty(result);
         }
 
@@ -2525,7 +2630,7 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Throws(exceptionType, () =>
                     PatchMetadataCore.TryParsePatchParamsBounded(
                         path, maxEntries: 100, maxBytes: PatchMetadataCore.MaxPatchDefinitionBytes,
-                        throwingOpener, out _, out _));
+                        throwingOpener, out _, out _, out _));
             }
             finally { Directory.Delete(tempDir, true); }
         }
@@ -2545,9 +2650,15 @@ namespace FEBuilderGBA.Core.Tests
 
                 var expected = File.ReadLines(utf8Path).ToList();
                 bool ok = PatchMetadataCore.TryReadBoundedFileLines(
-                    utf8Path, PatchMetadataCore.MaxPatchDefinitionBytes, maxLines: int.MaxValue, out var actual, out _);
+                    utf8Path,
+                    PatchMetadataCore.MaxPatchDefinitionBytes,
+                    maxLines: int.MaxValue,
+                    out var actual,
+                    out _,
+                    out var utf8FailureKind);
 
                 Assert.True(ok);
+                Assert.Equal(BoundedPatchReadFailureKind.None, utf8FailureKind);
                 Assert.Equal(expected, actual);
 
                 // UTF-16 LE BOM.
@@ -2555,8 +2666,14 @@ namespace FEBuilderGBA.Core.Tests
                 string utf16Path = WriteBytes(tempDir, "PATCH_Utf16Bom.txt", utf16Data);
                 var expected16 = File.ReadLines(utf16Path).ToList();
                 bool ok16 = PatchMetadataCore.TryReadBoundedFileLines(
-                    utf16Path, PatchMetadataCore.MaxPatchDefinitionBytes, maxLines: int.MaxValue, out var actual16, out _);
+                    utf16Path,
+                    PatchMetadataCore.MaxPatchDefinitionBytes,
+                    maxLines: int.MaxValue,
+                    out var actual16,
+                    out _,
+                    out var utf16FailureKind);
                 Assert.True(ok16);
+                Assert.Equal(BoundedPatchReadFailureKind.None, utf16FailureKind);
                 Assert.Equal(expected16, actual16);
 
                 // Invalid UTF-8 byte sequence — StreamReader default (non-strict) replacement
@@ -2565,8 +2682,14 @@ namespace FEBuilderGBA.Core.Tests
                 string invalidPath = WriteBytes(tempDir, "PATCH_InvalidUtf8.txt", invalidUtf8);
                 var expectedInvalid = File.ReadLines(invalidPath).ToList();
                 bool okInvalid = PatchMetadataCore.TryReadBoundedFileLines(
-                    invalidPath, PatchMetadataCore.MaxPatchDefinitionBytes, maxLines: int.MaxValue, out var actualInvalid, out _);
+                    invalidPath,
+                    PatchMetadataCore.MaxPatchDefinitionBytes,
+                    maxLines: int.MaxValue,
+                    out var actualInvalid,
+                    out _,
+                    out var invalidFailureKind);
                 Assert.True(okInvalid);
+                Assert.Equal(BoundedPatchReadFailureKind.None, invalidFailureKind);
                 Assert.Equal(expectedInvalid, actualInvalid);
             }
             finally { Directory.Delete(tempDir, true); }
@@ -2603,10 +2726,10 @@ namespace FEBuilderGBA.Core.Tests
                     maxAggregateBytes: tinyAggregate,
                     out var patches,
                     out string error,
-                    out bool limitExceeded);
+                    out var failureKind);
 
                 Assert.False(success);
-                Assert.True(limitExceeded);
+                Assert.Equal(BoundedPatchReadFailureKind.ResourceLimit, failureKind);
                 Assert.Empty(patches); // the accepted "First" record must NOT survive
                 Assert.Contains("line-scan bound", error, StringComparison.Ordinal);
                 Assert.DoesNotContain(tempDir, error, StringComparison.Ordinal);
@@ -2670,9 +2793,11 @@ namespace FEBuilderGBA.Core.Tests
                     maxLines: int.MaxValue,
                     openFileStreamForTest: p => captured = new RecordingMaxRequestFileStream(p),
                     lines: out var lines,
-                    bytesRead: out long bytesRead);
+                    bytesRead: out long bytesRead,
+                    failureKind: out var failureKind);
 
                 Assert.True(ok);
+                Assert.Equal(BoundedPatchReadFailureKind.None, failureKind);
                 Assert.NotNull(captured);
                 // The regression this guards against: a naive implementation allocates/requests
                 // a buffer sized to the FULL per-file cap for every file, even a 10-byte one.
@@ -2694,16 +2819,28 @@ namespace FEBuilderGBA.Core.Tests
                 string exactPath = WriteBytes(tempDir, "PATCH_ExactLines.txt", System.Text.Encoding.ASCII.GetBytes(exactContent));
 
                 bool okExact = PatchMetadataCore.TryReadBoundedFileLines(
-                    exactPath, maxBytes: 1024, maxLines: maxLines, out var linesExact, out _);
+                    exactPath,
+                    maxBytes: 1024,
+                    maxLines: maxLines,
+                    out var linesExact,
+                    out _,
+                    out var exactFailureKind);
                 Assert.True(okExact);
+                Assert.Equal(BoundedPatchReadFailureKind.None, exactFailureKind);
                 Assert.Equal(maxLines, linesExact.Count);
 
                 string overContent = string.Concat(Enumerable.Repeat("x\n", maxLines + 1));
                 string overPath = WriteBytes(tempDir, "PATCH_OverLines.txt", System.Text.Encoding.ASCII.GetBytes(overContent));
 
                 bool okOver = PatchMetadataCore.TryReadBoundedFileLines(
-                    overPath, maxBytes: 1024, maxLines: maxLines, out var linesOver, out _);
+                    overPath,
+                    maxBytes: 1024,
+                    maxLines: maxLines,
+                    out var linesOver,
+                    out _,
+                    out var overFailureKind);
                 Assert.False(okOver);
+                Assert.Equal(BoundedPatchReadFailureKind.ResourceLimit, overFailureKind);
                 Assert.Null(linesOver); // no partial line list is ever produced on a raw-line breach
             }
             finally { Directory.Delete(tempDir, true); }
@@ -2727,9 +2864,11 @@ namespace FEBuilderGBA.Core.Tests
 
                 bool ok = PatchMetadataCore.TryParsePatchParamsBounded(
                     path, maxEntries: 1_000_000, maxBytes: PatchMetadataCore.MaxPatchDefinitionBytes,
-                    out var result, out long bytesRead);
+                    out var result, out long bytesRead, out var failureKind);
 
                 Assert.False(ok);
+                Assert.Equal(BoundedPatchReadFailureKind.ResourceLimit, failureKind);
+                Assert.Empty(result);
             }
             finally { Directory.Delete(tempDir, true); }
         }
@@ -2779,7 +2918,8 @@ namespace FEBuilderGBA.Core.Tests
                         maxLines: int.MaxValue,
                         openFileStreamForTest: p => new FaultAfterNBytesFileStream(p, n),
                         lines: out var lines,
-                        bytesRead: out bytesRead);
+                        bytesRead: out bytesRead,
+                        failureKind: out _);
                 }
                 catch (IOException ex)
                 {
@@ -2824,10 +2964,11 @@ namespace FEBuilderGBA.Core.Tests
 
                 List<string> lines = null;
                 long bytesRead = 0;
+                BoundedPatchReadFailureKind failureKind = default;
                 Exception caught = Record.Exception(() =>
                     PatchMetadataCore.TryReadBoundedFileLines(
                         linkPath, PatchMetadataCore.MaxPatchDefinitionBytes, maxLines: int.MaxValue,
-                        out lines, out bytesRead));
+                        out lines, out bytesRead, out failureKind));
 
                 // The DEFAULT (no injected opener) production path must refuse a final symlink
                 // through ProjectionFileSystemSafety.OpenRegularFileForRead — never transparently
@@ -2871,10 +3012,11 @@ namespace FEBuilderGBA.Core.Tests
 
                 List<PatchMetadataCore.PatchParam> result = null;
                 long bytesRead = 0;
+                BoundedPatchReadFailureKind failureKind = default;
                 Exception caught = Record.Exception(() =>
                     PatchMetadataCore.TryParsePatchParamsBounded(
                         linkPath, maxEntries: 100, maxBytes: PatchMetadataCore.MaxPatchDefinitionBytes,
-                        out result, out bytesRead));
+                        out result, out bytesRead, out failureKind));
 
                 // Per the documented contract, only FileNotFoundException/DirectoryNotFoundException
                 // (a genuinely missing final file/parent) resolve to a successful empty result;

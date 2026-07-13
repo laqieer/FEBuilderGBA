@@ -20,6 +20,7 @@ using System.Text;
 using System.Text.Json;
 using FEBuilderGBA;
 using Xunit;
+using BoundedPatchReadFailureKind = FEBuilderGBA.PatchMetadataCore.BoundedPatchReadFailureKind;
 
 namespace FEBuilderGBA.Core.Tests
 {
@@ -1991,13 +1992,37 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal("unavailable", result.Manifest.Patches.Status);
                 Assert.DoesNotContain(patchBase, result.Manifest.Patches.Reason);
                 Assert.DoesNotContain("Access to the path", result.Manifest.Patches.Reason);
-                Assert.Equal("patch enumeration failed; check patch library directory permissions",
+                Assert.Equal(BuildfileExportCore.AdvisoryPatchInventoryFileSystemReason,
                     result.Manifest.Patches.Reason);
 
                 string json = File.ReadAllText(Path.Combine(outDir, "buildfile.json"));
                 Assert.DoesNotContain(patchBase, json);
             }
             finally { Cleanup(parent); try { Directory.Delete(patchBase, true); } catch { } }
+        }
+
+        [Fact]
+        public void MapAdvisoryPatchFailureKindToReason_ExhaustiveAndPathFree()
+        {
+            Assert.Equal(
+                BuildfileExportCore.AdvisoryResourceBudgetExceededReason,
+                BuildfileExportCore.MapAdvisoryPatchFailureKindToReason(
+                    BoundedPatchReadFailureKind.ResourceLimit));
+            Assert.Equal(
+                BuildfileExportCore.AdvisoryPatchInventoryFileSystemReason,
+                BuildfileExportCore.MapAdvisoryPatchFailureKindToReason(
+                    BoundedPatchReadFailureKind.FileSystem));
+
+            string changed = BuildfileExportCore.MapAdvisoryPatchFailureKindToReason(
+                BoundedPatchReadFailureKind.ContentChanged);
+            string fixturePath = Path.Combine(Path.GetTempPath(), "fixture-path-1965", "PATCH_Test.txt");
+            Assert.Equal(BuildfileExportCore.AdvisorySourceChangedReason, changed);
+            Assert.DoesNotContain(fixturePath, changed, StringComparison.Ordinal);
+            Assert.DoesNotContain("simulated fault detail", changed, StringComparison.OrdinalIgnoreCase);
+
+            Assert.Throws<InvalidOperationException>(() =>
+                BuildfileExportCore.MapAdvisoryPatchFailureKindToReason(
+                    BoundedPatchReadFailureKind.None));
         }
 
         [Fact]
@@ -2329,8 +2354,8 @@ namespace FEBuilderGBA.Core.Tests
         // permission reason, never the budget reason" case is ALREADY covered by the pre-existing
         // Export_PatchDirectoryListingFailure_ManifestReasonIsStableAndPathFree test below (an
         // injected IOException from PatchDirectoryListerForTest) — re-verified against the typed
-        // `limitExceeded` signal added above (it stays false for this fault, so the reason is
-        // unaffected); no duplicate test added.
+        // failure-kind plumbing added above (`FileSystem` maps to the same generic reason), so
+        // no duplicate test was added.
 
         [Fact]
         public void Export_PatchFileWithParamsOverCap_DegradesInventoryWithoutPartialRecords()
@@ -2423,9 +2448,11 @@ namespace FEBuilderGBA.Core.Tests
                 // other than BuildfileExportOptions.MaxPatchParamsAggregateBytes.
                 BuildfilePatchInventory inv = BuildfileExportCore.BuildPatchInventoryBounded(
                     MakeRom(clean), MakeRom(target), options, existingAdvisoryItemCount: 0,
-                    maxParamsAggregateBytes: firstParamsBytes + secondParamsBytes - 1);
+                    maxParamsAggregateBytes: firstParamsBytes + secondParamsBytes - 1,
+                    out var failureKind);
 
                 Assert.Equal("unavailable", inv.Status);
+                Assert.Equal(BoundedPatchReadFailureKind.ResourceLimit, failureKind);
                 // No partial/truncated installed record survives an aggregate-budget breach —
                 // the WHOLE inventory degrades, not just the second (over-budget) record.
                 Assert.Empty(inv.Installed);
@@ -2597,11 +2624,13 @@ namespace FEBuilderGBA.Core.Tests
                     maxBytes: PatchMetadataCore.MaxPatchDefinitionBytes,
                     openFileStreamForTest: p => new FaultAfterNBytesFileStream(p, n),
                     consumedCount: out int consumedCount,
-                    bytesRead: out long bytesRead);
+                    bytesRead: out long bytesRead,
+                    failureKind: out var failureKind);
 
                 // An expected FS fault resolves to a successful (true) but degraded record —
                 // never a silent empty params list, never a thrown exception across this seam.
                 Assert.True(ok);
+                Assert.Equal(BoundedPatchReadFailureKind.None, failureKind);
                 Assert.Equal(0, consumedCount);
                 Assert.Equal(n, bytesRead); // genuinely-read bytes must survive the fault path,
                                              // NOT be reset to 0 in the catch block, so the
@@ -2656,9 +2685,11 @@ namespace FEBuilderGBA.Core.Tests
                     maxBytes: PatchMetadataCore.MaxPatchDefinitionBytes,
                     openFileStreamForTest: throwingOpener,
                     consumedCount: out int consumedCount,
-                    bytesRead: out long bytesRead);
+                    bytesRead: out long bytesRead,
+                    failureKind: out var failureKind);
 
                 Assert.True(ok);
+                Assert.Equal(BoundedPatchReadFailureKind.None, failureKind);
                 Assert.Equal(0, consumedCount);
                 // No bytes were genuinely consumed before this immediate-open fault — the
                 // accounting must stay exactly 0, not just "not reset to something wrong".
@@ -2724,13 +2755,57 @@ namespace FEBuilderGBA.Core.Tests
                     maxBytes: maxBytes,
                     openFileStreamForTest: p => new GrowthAfterLengthFileStream(p, reportedLength),
                     consumedCount: out int consumedCount,
-                    bytesRead: out long bytesRead);
+                    bytesRead: out long bytesRead,
+                    failureKind: out var failureKind);
 
                 Assert.False(ok);
+                Assert.Equal(BoundedPatchReadFailureKind.ContentChanged, failureKind);
                 Assert.Equal(0, consumedCount);
                 Assert.Empty(rec.Params); // no partial params ever appended from rejected bytes
                 Assert.True(bytesRead > reportedLength,
                     $"Expected bytesRead ({bytesRead}) to exceed the reported length ({reportedLength}).");
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [Fact]
+        public void BuildPatchInventoryBounded_ParamsContentChanged_DegradesWholeInventoryPathFree()
+        {
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x10] = 0x17;
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                string patchBase = Path.Combine(parent, "patch2");
+                Directory.CreateDirectory(patchBase);
+                string patchPath = Path.Combine(patchBase, "PATCH_WithinCapGrowth.txt");
+                const int reportedLength = 8;
+                File.WriteAllText(patchPath, "TYPE=ADDR\nNAME=Growth Patch\nKEY1=value1\n");
+                Assert.True(new FileInfo(patchPath).Length > reportedLength);
+
+                var options = new BuildfileExportOptions
+                {
+                    OutputDirectory = outDir,
+                    PatchBaseDirectory = patchBase,
+                };
+
+                BuildfilePatchInventory inv = BuildfileExportCore.BuildPatchInventoryBounded(
+                    MakeRom(clean),
+                    MakeRom(target),
+                    options,
+                    existingAdvisoryItemCount: 0,
+                    maxParamsAggregateBytes: BuildfileExportOptions.MaxPatchParamsAggregateBytes,
+                    openPatchParamsFileStreamForTest: p => new GrowthAfterLengthFileStream(p, reportedLength),
+                    out var failureKind);
+
+                Assert.Equal("unavailable", inv.Status);
+                Assert.Equal(BoundedPatchReadFailureKind.ContentChanged, failureKind);
+                Assert.Empty(inv.Installed);
+                Assert.Equal(BuildfileExportCore.AdvisorySourceChangedReason, inv.Reason);
+                Assert.DoesNotContain(patchBase, inv.Reason, StringComparison.Ordinal);
+                Assert.DoesNotContain(patchPath, inv.Reason, StringComparison.Ordinal);
             }
             finally { Cleanup(parent); }
         }
@@ -2754,7 +2829,8 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Throws<ArgumentOutOfRangeException>(() =>
                 BuildfileExportCore.BuildPatchInventoryBounded(
                     MakeRom(clean), MakeRom(target), options, existingAdvisoryItemCount: 0,
-                    maxParamsAggregateBytes: BuildfileExportOptions.MaxPatchParamsAggregateBytes + 1));
+                    maxParamsAggregateBytes: BuildfileExportOptions.MaxPatchParamsAggregateBytes + 1,
+                    out _));
         }
 
         [Fact]
