@@ -264,6 +264,30 @@ class TestFraming:
 
         assert resp["id"] == (17 if with_id else None)
         assert resp["error"]["code"] == srv.INVALID_REQUEST
+        assert "params must be an object or array" in resp["error"]["message"]
+
+    def test_request_method_notification_with_array_params_is_suppressed(
+            self, initialized_state):
+        message = {
+            "jsonrpc": "2.0",
+            "method": "ping",
+            "params": [],
+        }
+        assert srv.handle_line(
+            initialized_state, json.dumps(message),
+        ) is None
+
+    def test_array_params_request_reaches_method_validation(
+            self, initialized_state):
+        message = {
+            "jsonrpc": "2.0",
+            "id": 18,
+            "method": "ping",
+            "params": [],
+        }
+        resp = srv.handle_line(initialized_state, json.dumps(message))
+        assert resp["id"] == 18
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
         assert "params must be an object" in resp["error"]["message"]
 
     def test_initialize_notification_is_ignored_without_consuming_lifecycle(self, state):
@@ -410,11 +434,18 @@ class TestProtocolErrors:
         assert resp["id"] is None
 
     def test_excessive_json_nesting_is_parse_error(self, initialized_state):
-        depth = sys.getrecursionlimit() + 100
+        depth = srv.MAX_JSON_NESTING_DEPTH + 1
         line = "[" * depth + "0" + "]" * depth
         resp = srv.handle_line(initialized_state, line)
         assert resp["error"]["code"] == srv.PARSE_ERROR
         assert resp["id"] is None
+
+    def test_json_nesting_scanner_ignores_delimiters_in_strings(
+            self, initialized_state):
+        delimiters = '[{"escaped":"\\"]}]' * (srv.MAX_JSON_NESTING_DEPTH + 1)
+        request = _req("ping", {"_meta": {"text": delimiters}})
+        resp = srv.handle_line(initialized_state, json.dumps(request))
+        assert resp["result"] == {}
 
     def test_bad_version_does_not_echo_invalid_bool_id(self, initialized_state):
         request = {"jsonrpc": "1.0", "id": True, "method": "ping"}
@@ -428,7 +459,7 @@ class TestProtocolErrors:
         assert resp["error"]["code"] == srv.INVALID_REQUEST
 
     def test_invalid_request_params_not_object(self, initialized_state):
-        resp = srv.handle_line(initialized_state, json.dumps({"jsonrpc": "2.0", "id": 1, "method": "ping", "params": [1, 2]}))
+        resp = srv.handle_line(initialized_state, json.dumps({"jsonrpc": "2.0", "id": 1, "method": "ping", "params": "bad"}))
         assert resp["error"]["code"] == srv.INVALID_REQUEST
 
     def test_invalid_request_not_an_object(self, initialized_state):
@@ -1180,6 +1211,39 @@ class TestForceVersionPrecedence:
 # ── Advisory vs hard tool errors ──────────────────────────────────────────
 
 class TestAdvisoryVsHardErrors:
+    @pytest.mark.parametrize("tool_name", ["rom_info", "session_open"])
+    def test_metadata_lint_exit_is_advisory(
+            self, initialized_state, monkeypatch, tmp_path, tool_name):
+        rom = str(tmp_path / "r.gba")
+
+        def fake_rom_info(rom_path, force_version=""):
+            return {
+                "rom_path": rom_path,
+                "rom_size": 0x100000,
+                "rom_size_hex": "0x100000",
+                "rom_size_mb": 1.0,
+                "detected_version": "FE8U",
+                "force_version": force_version,
+                "lint_output": "Lint: 1 issue(s) found",
+                "lint_exit_code": 1,
+            }
+
+        monkeypatch.setattr(
+            "cli_anything.febuildergba.core.project.rom_info",
+            fake_rom_info,
+        )
+
+        resp = _call_tool(
+            initialized_state, tool_name, {"rom_path": rom},
+        )
+        payload = json.loads(resp["result"]["content"][0]["text"])
+
+        assert resp["result"]["isError"] is False
+        assert payload["lint_exit_code"] == 1
+        if tool_name == "session_open":
+            assert payload["status"] == "opened"
+            assert initialized_state.session.is_open()
+
     def test_checksum_advisory_exit2_is_not_error(self, initialized_state, monkeypatch, tmp_path):
         rom_path = tmp_path / "r.gba"
         _write_valid_test_rom(rom_path)

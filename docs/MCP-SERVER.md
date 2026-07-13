@@ -76,11 +76,12 @@ the package has been `pip install`-ed.
   the following line is still processed. All logs/diagnostics go to stderr; nothing else is ever
   written to stdout. Input lines are capped at 1,048,576 characters and batches at 64 entries; an
   oversized line is drained before the next message is processed. Non-standard `NaN`/`Infinity`
-  JSON tokens, integer tokens over 78 digits, and decoder recursion from excessive nesting are
-  rejected as parse errors. Request IDs are limited to strings of at most 4,096 characters or
-  integers with at most 256 bits of magnitude. Even an unexpected failure escaping the server's
-  dispatch loop emits a single flushed, generic `-32603` response (`id: null`) rather than
-  silently dying or dropping the line — the loop always keeps processing subsequent lines.
+  JSON tokens, integer tokens over 78 digits, JSON nesting beyond 64 levels, and any defensive
+  decoder `RecursionError` are rejected as parse errors. Request IDs are limited to strings of at
+  most 4,096 characters or integers with at most 256 bits of magnitude. Even an unexpected
+  failure escaping the server's dispatch loop emits a single flushed, generic `-32603` response
+  (`id: null`) rather than silently dying or dropping the line — the loop always keeps processing
+  subsequent lines.
 - **Lifecycle:** `initialize` must be called before any other operation, **except `ping`**, which
   is always allowed. Calling anything else first gets `-32600 Invalid Request`. `initialize` itself
   must **not** be sent as part of a JSON-RPC batch (batching it returns `-32600` for that entry),
@@ -92,7 +93,9 @@ the package has been `pip install`-ed.
   but *unrecognized* `protocolVersion` still negotiates the latest supported version rather than
   failing — only a missing/non-string/empty `protocolVersion` is rejected.
 - **Method-specific params:** the operational request methods below validate their own `params`
-  shape and reject unexpected fields as `-32602` (forward-compatible `_meta` is accepted):
+  shape and reject unexpected fields as `-32602` (forward-compatible `_meta` is accepted).
+  JSON-RPC object and array params are both structurally valid; MCP request handlers below require
+  objects, while an id-less notification with array params remains silent as required:
   - `ping`: no fields besides optional `_meta`.
   - `tools/list` / `resources/list`: only an optional string `cursor` plus optional `_meta`.
   - `tools/call`: only `name` (required string), optional `arguments` (object), optional `_meta`.
@@ -252,8 +255,13 @@ or tampered non-ROM session paths fail closed with `rom_header: null`.
   as a **structured, non-error advisory** result (e.g. "header is invalid", "round-trip found
   mismatches") — `isError` stays `false`; the structured payload (e.g. `valid: false`,
   `lossless: false`) carries the signal.
-- Any other non-zero/unexpected exit code becomes a **tool execution error**
-  (`isError: true`), with the backend's `stdout`/`stderr` preserved (bounded, see below).
+- `rom_info` and `session_open` are metadata exceptions: their embedded `--lint` probe is advisory.
+  A nonzero `lint_exit_code` is returned in the payload without setting `isError` or preventing a
+  locally header-valid ROM from opening. Use `rom_lint` when lint findings must determine tool
+  success.
+- Outside those advisory cases, any other non-zero/unexpected exit code becomes a **tool
+  execution error** (`isError: true`), with the backend's `stdout`/`stderr` preserved (bounded,
+  see below).
 - `backend_check` reporting `available: false` is itself a normal, non-error result (the backend
   simply isn't installed/built yet, or its version probe failed/returned no version text).
 - The 300-second backend subprocess timeout (`core/verbs.py` / `febuildergba_backend.run_cli`) is
@@ -276,6 +284,7 @@ or tampered non-ROM session paths fail closed with `rom_header: null`.
 | Every string value inside a resource payload (session/history/rom_header) | 4,096 chars, applied recursively | top-level `truncated` boolean (never exposes raw bytes — resources never contained raw bytes to begin with) |
 | Resource collection size / nesting | 100 items per object/array / 16 levels | extra entries or deeper containers are replaced/truncated with top-level `truncated: true` |
 | Input line / JSON-RPC batch | 1,048,576 chars / 64 entries | schema-independent `-32600` request guard |
+| Input JSON nesting | 64 object/array levels; delimiters inside quoted strings are ignored | over-limit input is `-32700` before decoder behavior can vary by Python version |
 | JSON-RPC request ID | string up to 4,096 chars or integer magnitude up to 256 bits; integer tokens are pre-limited to 78 digits | invalid ID is `-32600` with `id: null`; an overlong integer token is `-32700` |
 | ROM/file path arguments (`rom_path`, `out_path`, `in_path`, `out_img`, `out_tsa`) | 1..4,096 chars when present | schema `minLength`/`maxLength` — empty or over-length input is `-32602`, not silently defaulted/truncated |
 | `query` (text_search) | 4,096 chars | schema `maxLength` |

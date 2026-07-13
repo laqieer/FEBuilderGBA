@@ -87,6 +87,7 @@ MAX_TABLE_NAME_LEN = 128
 MAX_ADDR_LEN = 64
 MAX_REQUEST_LINE_CHARS = 1024 * 1024
 MAX_BATCH_ITEMS = 64
+MAX_JSON_NESTING_DEPTH = 64
 MAX_RESOURCE_COLLECTION_ITEMS = 100
 MAX_RESOURCE_NESTING_DEPTH = 16
 if MAX_HISTORY_ENTRIES > MAX_RESOURCE_COLLECTION_ITEMS:
@@ -1177,8 +1178,12 @@ def _validate_shape(item):
                     "Invalid Request: id must be a non-null string of at most "
                     f"{MAX_REQUEST_ID_STRING_LEN} characters or an integer "
                     f"of at most {MAX_INTEGER_BITS} bits")
-    if "params" in item and not isinstance(item["params"], dict):
-        return _err(item.get("id"), INVALID_REQUEST, "Invalid Request: params must be an object")
+    if "params" in item and not isinstance(item["params"], (dict, list)):
+        return _err(
+            item.get("id"),
+            INVALID_REQUEST,
+            "Invalid Request: params must be an object or array",
+        )
     return None
 
 
@@ -1209,12 +1214,38 @@ def _parse_json_int(value):
     return int(value)
 
 
+def _json_nesting_exceeds_limit(value):
+    depth = 0
+    in_string = False
+    escaped = False
+    for char in value:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+        elif char in "[{":
+            depth += 1
+            if depth > MAX_JSON_NESTING_DEPTH:
+                return True
+        elif char in "]}":
+            depth = max(0, depth - 1)
+    return False
+
+
 def handle_line(state, line):
     """Parse and process one line of input. Returns a JSON-serializable
     response (dict or list), or None if nothing should be written."""
     if len(line) > MAX_REQUEST_LINE_CHARS:
         return _err(None, INVALID_REQUEST,
                     f"Invalid Request: input exceeds {MAX_REQUEST_LINE_CHARS} characters")
+    if _json_nesting_exceeds_limit(line):
+        return _err(None, PARSE_ERROR, "Parse error: invalid JSON")
     try:
         payload = json.loads(
             line,

@@ -681,10 +681,12 @@ Its closed schemas reject empty file paths, and multi-table exports report only 
 per-table output names rather than unrelated files sharing the same prefix. The stdio transport
 forces UTF-8, rejects non-standard JSON constants, and validates entity IDs as unsigned 32-bit
 values before backend dispatch. JSON-RPC request IDs are bounded to 4,096-character strings or
-256-bit integers, and excessive integer tokens or decoder nesting produce parse errors without
-terminating the server before the next request. A missing session JSON stays in memory without
-creating its parent directory or lock sidecar, so stateless Click commands do not require a
-writable session location. ROM headers are read only after the opened descriptor itself
+256-bit integers, and excessive integer tokens or JSON nesting beyond 64 levels produce parse
+errors without terminating the server before the next request. JSON-RPC array params remain
+structurally valid, but MCP request handlers require objects while notifications never receive
+validation responses. A missing session JSON stays in memory without creating its parent
+directory or lock sidecar, so stateless Click commands do not require a writable session
+location. ROM headers are read only after the opened descriptor itself
 is confirmed to be a regular 1..32 MiB file. MCP checksum is computed locally from that same
 validated header buffer, so it never reopens a swappable path in the backend. Session ownership
 recognizes symlink/hardlink aliases. Lint findings are classified only from the CLI's explicit
