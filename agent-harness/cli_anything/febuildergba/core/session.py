@@ -163,7 +163,8 @@ class Session:
         self.lock_path = Path(f"{self.path}.lock")
         self._transaction_active = False
         self.state = SessionState()
-        self.refresh()
+        if self.path.exists():
+            self.refresh()
 
     @staticmethod
     def _lock_is_contended(exc: OSError) -> bool:

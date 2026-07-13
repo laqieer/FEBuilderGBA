@@ -66,12 +66,15 @@ HISTORY_MIN = 1
 HISTORY_MAX = MAX_HISTORY_ENTRIES
 NAMES_MAX_IDS = 256
 NAMES_MAX_ID = 0xFFFFFFFF
+MAX_INTEGER_BITS = 256
+MAX_JSON_INTEGER_DIGITS = len(str((1 << MAX_INTEGER_BITS) - 1))
 
 # Per-item/recursive string bound applied to individual result items (a
 # single text-search match, a single lint line, or any string value inside a
 # session tool/resource payload) — deliberately smaller than MAX_STRING_LEN,
 # which bounds whole stdout/stderr/raw_output blobs.
 MAX_ITEM_STRING_LEN = 4096
+MAX_REQUEST_ID_STRING_LEN = MAX_ITEM_STRING_LEN
 
 # Agent-controlled free-string input bounds (tool schemas). Enum-constrained
 # strings (force_version, mode, kind, table's own enum-like values, etc.)
@@ -572,7 +575,7 @@ def _bound_strings_recursive(value, max_len=MAX_ITEM_STRING_LEN, depth=0):
             return value[:max_len], True
         return value, False
     if isinstance(value, int) and not isinstance(value, bool):
-        if value.bit_length() > 256:
+        if value.bit_length() > MAX_INTEGER_BITS:
             return None, True
         return value, False
     if isinstance(value, float):
@@ -1153,16 +1156,27 @@ def _validate_shape(item):
     if not isinstance(item, dict):
         return _err(None, INVALID_REQUEST, "Invalid Request: message must be an object")
     id_value = item.get("id")
-    id_valid = ("id" not in item
-                or (not isinstance(id_value, bool)
-                    and isinstance(id_value, (str, int))))
+    id_valid = (
+        "id" not in item
+        or (
+            isinstance(id_value, str)
+            and len(id_value) <= MAX_REQUEST_ID_STRING_LEN
+        )
+        or (
+            not isinstance(id_value, bool)
+            and isinstance(id_value, int)
+            and id_value.bit_length() <= MAX_INTEGER_BITS
+        )
+    )
     response_id = id_value if "id" in item and id_valid else None
     if item.get("jsonrpc") != "2.0":
         return _err(response_id, INVALID_REQUEST,
                     "Invalid Request: jsonrpc must be '2.0'")
     if not id_valid:
         return _err(None, INVALID_REQUEST,
-                    "Invalid Request: id must be a non-null string or integer")
+                    "Invalid Request: id must be a non-null string of at most "
+                    f"{MAX_REQUEST_ID_STRING_LEN} characters or an integer "
+                    f"of at most {MAX_INTEGER_BITS} bits")
     if "params" in item and not isinstance(item["params"], dict):
         return _err(item.get("id"), INVALID_REQUEST, "Invalid Request: params must be an object")
     return None
@@ -1188,6 +1202,13 @@ def _reject_json_constant(value):
     raise ValueError(f"invalid JSON constant: {value}")
 
 
+def _parse_json_int(value):
+    digits = value[1:] if value.startswith("-") else value
+    if len(digits) > MAX_JSON_INTEGER_DIGITS:
+        raise ValueError("JSON integer exceeds digit limit")
+    return int(value)
+
+
 def handle_line(state, line):
     """Parse and process one line of input. Returns a JSON-serializable
     response (dict or list), or None if nothing should be written."""
@@ -1195,8 +1216,12 @@ def handle_line(state, line):
         return _err(None, INVALID_REQUEST,
                     f"Invalid Request: input exceeds {MAX_REQUEST_LINE_CHARS} characters")
     try:
-        payload = json.loads(line, parse_constant=_reject_json_constant)
-    except (json.JSONDecodeError, ValueError):
+        payload = json.loads(
+            line,
+            parse_constant=_reject_json_constant,
+            parse_int=_parse_json_int,
+        )
+    except (json.JSONDecodeError, RecursionError, ValueError):
         return _err(None, PARSE_ERROR, "Parse error: invalid JSON")
 
     if isinstance(payload, list):

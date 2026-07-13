@@ -333,11 +333,23 @@ class TestFraming:
         assert resp["id"] is None
         assert resp["error"]["code"] == srv.INVALID_REQUEST
 
-    def test_arbitrary_string_and_integer_ids_roundtrip(self, initialized_state):
+    def test_bounded_string_and_integer_ids_roundtrip(self, initialized_state):
         resp = srv.handle_line(initialized_state, json.dumps(_req("ping", id_="abc-123")))
         assert resp["id"] == "abc-123"
         resp2 = srv.handle_line(initialized_state, json.dumps(_req("ping", id_=42)))
         assert resp2["id"] == 42
+
+        max_string = "i" * srv.MAX_REQUEST_ID_STRING_LEN
+        resp3 = srv.handle_line(
+            initialized_state, json.dumps(_req("ping", id_=max_string)),
+        )
+        assert resp3["id"] == max_string
+
+        max_integer = (1 << srv.MAX_INTEGER_BITS) - 1
+        resp4 = srv.handle_line(
+            initialized_state, json.dumps(_req("ping", id_=max_integer)),
+        )
+        assert resp4["id"] == max_integer
 
 
 # ── Protocol errors ──────────────────────────────────────────────────────
@@ -370,6 +382,38 @@ class TestProtocolErrors:
     def test_invalid_request_bool_id(self, initialized_state):
         resp = srv.handle_line(initialized_state, json.dumps({"jsonrpc": "2.0", "id": True, "method": "ping"}))
         assert resp["error"]["code"] == srv.INVALID_REQUEST
+        assert resp["id"] is None
+
+    def test_invalid_request_overlong_string_id(self, initialized_state):
+        request = _req(
+            "ping", id_="i" * (srv.MAX_REQUEST_ID_STRING_LEN + 1),
+        )
+        resp = srv.handle_line(initialized_state, json.dumps(request))
+        assert resp["error"]["code"] == srv.INVALID_REQUEST
+        assert resp["id"] is None
+
+    def test_invalid_request_overwide_integer_id(self, initialized_state):
+        request = _req("ping", id_=1 << srv.MAX_INTEGER_BITS)
+        resp = srv.handle_line(initialized_state, json.dumps(request))
+        assert resp["error"]["code"] == srv.INVALID_REQUEST
+        assert resp["id"] is None
+
+    def test_overlong_integer_token_is_parse_error(self, initialized_state):
+        integer = "9" * (srv.MAX_JSON_INTEGER_DIGITS + 1)
+        line = (
+            '{"jsonrpc":"2.0","id":'
+            + integer
+            + ',"method":"ping","params":{}}'
+        )
+        resp = srv.handle_line(initialized_state, line)
+        assert resp["error"]["code"] == srv.PARSE_ERROR
+        assert resp["id"] is None
+
+    def test_excessive_json_nesting_is_parse_error(self, initialized_state):
+        depth = sys.getrecursionlimit() + 100
+        line = "[" * depth + "0" + "]" * depth
+        resp = srv.handle_line(initialized_state, line)
+        assert resp["error"]["code"] == srv.PARSE_ERROR
         assert resp["id"] is None
 
     def test_bad_version_does_not_echo_invalid_bool_id(self, initialized_state):

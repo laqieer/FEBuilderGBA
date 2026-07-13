@@ -76,9 +76,11 @@ the package has been `pip install`-ed.
   the following line is still processed. All logs/diagnostics go to stderr; nothing else is ever
   written to stdout. Input lines are capped at 1,048,576 characters and batches at 64 entries; an
   oversized line is drained before the next message is processed. Non-standard `NaN`/`Infinity`
-  JSON tokens are also rejected as parse errors. Even an unexpected failure escaping the server's
-  dispatch loop emits a single flushed, generic `-32603` response (`id: null`) rather than silently
-  dying or dropping the line — the loop always keeps processing subsequent lines.
+  JSON tokens, integer tokens over 78 digits, and decoder recursion from excessive nesting are
+  rejected as parse errors. Request IDs are limited to strings of at most 4,096 characters or
+  integers with at most 256 bits of magnitude. Even an unexpected failure escaping the server's
+  dispatch loop emits a single flushed, generic `-32603` response (`id: null`) rather than
+  silently dying or dropping the line — the loop always keeps processing subsequent lines.
 - **Lifecycle:** `initialize` must be called before any other operation, **except `ping`**, which
   is always allowed. Calling anything else first gets `-32600 Invalid Request`. `initialize` itself
   must **not** be sent as part of a JSON-RPC batch (batching it returns `-32600` for that entry),
@@ -216,6 +218,10 @@ or tampered non-ROM session paths fail closed with `rom_header: null`.
   close request returns `stale_session` instead of deleting a concurrently reopened session. If
   a session is reopened or closed while a backend call runs, its later operation attribution is
   skipped rather than reviving stale state.
+  Constructing a session whose JSON file does not exist keeps the default closed state in memory
+  without creating the parent directory or lock sidecar; explicit refreshes and all mutations
+  still use the transaction lock. This keeps stateless Click commands usable when the default
+  session location is read-only or unavailable.
   A refresh filesystem failure emits at most one generic warning per minute and serves the last
   known read snapshot; mutations still reload transactionally, return `isError` on failure, and
   never stale-write.
@@ -270,6 +276,7 @@ or tampered non-ROM session paths fail closed with `rom_header: null`.
 | Every string value inside a resource payload (session/history/rom_header) | 4,096 chars, applied recursively | top-level `truncated` boolean (never exposes raw bytes — resources never contained raw bytes to begin with) |
 | Resource collection size / nesting | 100 items per object/array / 16 levels | extra entries or deeper containers are replaced/truncated with top-level `truncated: true` |
 | Input line / JSON-RPC batch | 1,048,576 chars / 64 entries | schema-independent `-32600` request guard |
+| JSON-RPC request ID | string up to 4,096 chars or integer magnitude up to 256 bits; integer tokens are pre-limited to 78 digits | invalid ID is `-32600` with `id: null`; an overlong integer token is `-32700` |
 | ROM/file path arguments (`rom_path`, `out_path`, `in_path`, `out_img`, `out_tsa`) | 1..4,096 chars when present | schema `minLength`/`maxLength` — empty or over-length input is `-32602`, not silently defaulted/truncated |
 | `query` (text_search) | 4,096 chars | schema `maxLength` |
 | `table` (data tools) | 128 chars | schema `maxLength` |
@@ -357,7 +364,7 @@ with the shared operational contract suite exercised under both advertised revis
 strict `initialize` conformance (required `protocolVersion`/`capabilities`/`clientInfo.name`/
 `clientInfo.version`, missing/malformed-field rejection, duplicate-initialize rejection),
 lifecycle, single/batch framing (including mixed request/notification/invalid batches, empty
-batches, notification-only batches, arbitrary string/integer IDs), every protocol error code
+batches, notification-only batches, bounded string/integer IDs), every protocol error code
 (including missing/empty/non-string `method` as Invalid Request vs. an unknown-but-valid method
 name as Method not found), method-specific params tightening (unknown fields rejected, `_meta`
 always allowed) for `ping`/`tools/list`/`resources/list`/`tools/call`/`resources/read`, the

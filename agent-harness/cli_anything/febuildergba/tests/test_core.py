@@ -294,6 +294,72 @@ class TestSession:
         sess = Session(str(tmp_path / "test_session.json"))
         assert not sess.is_open()
 
+    def test_missing_session_does_not_create_lock(self, tmp_path, monkeypatch):
+        from cli_anything.febuildergba.core.session import Session
+        path = tmp_path / "missing" / "test_session.json"
+
+        def fail_if_called(_self):
+            raise AssertionError("missing session must not acquire a lock")
+
+        monkeypatch.setattr(Session, "_acquire_lock", fail_if_called)
+
+        sess = Session(str(path))
+
+        assert not sess.is_open()
+        assert not path.parent.exists()
+        assert not (tmp_path / "missing" / "test_session.json.lock").exists()
+
+    @pytest.mark.parametrize("command", ["check", "lz77"])
+    def test_stateless_click_command_does_not_lock_missing_session(
+            self, tmp_path, monkeypatch, command):
+        from click.testing import CliRunner
+        from cli_anything.febuildergba import febuildergba_cli
+        from cli_anything.febuildergba.core import session as session_module
+        from cli_anything.febuildergba.core import verbs
+        from cli_anything.febuildergba.utils import febuildergba_backend
+
+        session_dir = tmp_path / "unavailable-session-dir"
+        monkeypatch.setattr(
+            session_module, "_default_session_dir", lambda: session_dir,
+        )
+
+        def fail_if_called(_self):
+            raise AssertionError("stateless command must not acquire a session lock")
+
+        monkeypatch.setattr(
+            session_module.Session, "_acquire_lock", fail_if_called,
+        )
+        if command == "check":
+            monkeypatch.setattr(
+                febuildergba_backend,
+                "check_backend",
+                lambda: {
+                    "available": True,
+                    "version": "test",
+                    "command": "test-cli",
+                },
+            )
+            args = ["check"]
+        else:
+            monkeypatch.setattr(
+                verbs,
+                "lz77_file",
+                lambda mode, in_file, out: {
+                    "exit_code": 0,
+                    "stdout": "",
+                    "stderr": "",
+                    "file_size": 1,
+                },
+            )
+            args = [
+                "lz77", "-i", "in.bin", "-o", "out.bin", "--compress",
+            ]
+
+        result = CliRunner().invoke(febuildergba_cli.cli, args)
+
+        assert result.exit_code == 0, result.output
+        assert not session_dir.exists()
+
     def test_open_rom(self, tmp_path):
         from cli_anything.febuildergba.core.session import Session
         sess = Session(str(tmp_path / "test_session.json"))
