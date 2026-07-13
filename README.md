@@ -688,7 +688,8 @@ not reserved), and malformed launcher arguments fail before the server can fall 
 default session. The checksum tool also rejects non-ROM paths before backend invocation while
 still reporting a genuine header-checksum mismatch as advisory data. Backend launch failures are
 reported as ordinary unavailable status, and shared Click/MCP session history keeps stable
-operation identifiers.
+operation identifiers. Stale close requests are skipped instead of deleting a session that
+another process reopened concurrently.
 
 The `.mcp.json` at the repo root auto-configures Claude Code to use it as `febuildergba-cli`
 (`python ./agent-harness/febuildergba_mcp.py`). See

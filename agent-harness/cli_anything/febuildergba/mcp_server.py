@@ -255,7 +255,7 @@ TOOL_DEFS = [
     ),
     _tool(
         "session_close",
-        "Close the current session, if any (never errors when no session is open).",
+        "Close the observed session generation, if any; stale closes are skipped.",
         {}, [], _ANNOT_DESTRUCTIVE,
     ),
     _tool(
@@ -609,7 +609,8 @@ def _h_session_open(session, args):
 def _h_session_close(session, args):
     if not session.is_open():
         return {"status": "no_session"}, False
-    session.close()
+    if not session.close():
+        return {"status": "stale_session"}, False
     return {"status": "closed"}, False
 
 

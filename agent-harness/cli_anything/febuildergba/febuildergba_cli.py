@@ -889,7 +889,12 @@ def session_close_cmd():
     if not _session.is_open():
         _output({"status": "no_session"}, "No active session")
         return
-    _session.close()
+    if not _session.close():
+        _output(
+            {"status": "stale_session"},
+            "Session changed concurrently; close skipped",
+        )
+        return
     _output({"status": "closed"}, "Session closed")
 
 

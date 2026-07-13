@@ -244,9 +244,34 @@ class TestSession:
         from cli_anything.febuildergba.core.session import Session
         sess = Session(str(tmp_path / "test_session.json"))
         sess.open_rom("/fake/rom.gba", "FE8U")
-        sess.close()
+        assert sess.close() is True
         assert not sess.is_open()
         assert not (tmp_path / "test_session.json").exists()
+
+    def test_click_close_reports_stale_session(self, monkeypatch):
+        from click.testing import CliRunner
+        from cli_anything.febuildergba import febuildergba_cli
+
+        class StaleSession:
+            def is_open(self):
+                return True
+
+            def close(self):
+                return False
+
+        stale_session = StaleSession()
+        monkeypatch.setattr(
+            febuildergba_cli,
+            "Session",
+            lambda session_file: stale_session,
+        )
+
+        result = CliRunner().invoke(
+            febuildergba_cli.cli,
+            ["--json", "--session-file", "session.json", "session", "close"],
+        )
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output) == {"status": "stale_session"}
 
     def test_record_operation(self, tmp_path):
         from cli_anything.febuildergba.core.session import Session
@@ -463,13 +488,30 @@ class TestSession:
         assert [entry["op"] for entry in stale.state.history] == ["open"]
         assert stale.state.modified is False
 
+    def test_stale_close_is_skipped_after_reopen(self, tmp_path):
+        from cli_anything.febuildergba.core.session import Session
+        path = str(tmp_path / "test_session.json")
+        stale = Session(path)
+        stale.open_rom("/fake/a.gba", "FE8U")
+        current = Session(path)
+        current.open_rom("/fake/b.gba", "FE8U")
+
+        assert stale.close() is False
+        assert stale.state.session_id == current.state.session_id
+        assert stale.state.rom_path.endswith("b.gba")
+
+        persisted = Session(path)
+        assert persisted.state.session_id == current.state.session_id
+        assert persisted.state.rom_path.endswith("b.gba")
+        assert [entry["op"] for entry in persisted.state.history] == ["open"]
+
     def test_stale_operation_is_skipped_after_close(self, tmp_path):
         from cli_anything.febuildergba.core.session import Session
         path = str(tmp_path / "test_session.json")
         stale = Session(path)
         stale.open_rom("/fake/rom.gba", "FE8U")
         current = Session(path)
-        current.close()
+        assert current.close() is True
 
         assert stale.record_operation("stale") is False
         assert not (tmp_path / "test_session.json").exists()

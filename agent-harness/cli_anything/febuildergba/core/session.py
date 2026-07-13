@@ -358,12 +358,16 @@ class Session:
             return True
 
     def close(self):
+        token = self._generation_token()
         with self._transaction():
+            if token is None or token != self._generation_token():
+                return False
             self.state = SessionState()
             try:
                 self.path.unlink()
             except FileNotFoundError:
                 pass
+            return True
 
     def is_open(self) -> bool:
         return _valid_string(

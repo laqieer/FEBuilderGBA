@@ -138,7 +138,7 @@ an over-length value is rejected as `-32602`, never silently defaulted or trunca
 |---|------|-------------------|-------|
 | 1 | `backend_check` | `check` | Never errors; missing, non-executable, timed-out, and other OS-level launch failures are normalized to `available: false`. |
 | 2 | `session_open` | `session open` | Requires `rom_path`; rejects files that fail local GBA header validation before opening session state. |
-| 3 | `session_close` | `session close` | Never errors when no session is open. |
+| 3 | `session_close` | `session close` | Never errors when no session is open; returns `stale_session` without closing if another process reopened the session first. |
 | 4 | `session_status` | `session status` | |
 | 5 | `session_history` | `session history` | `count` bounded 1..100 (default 10). |
 | 6 | `rom_info` | `rom info` | Rejects files that fail local GBA header validation before backend invocation or version decoding. |
@@ -212,8 +212,10 @@ or tampered non-ROM session paths fail closed with `rom_header: null`.
   and merges under a bounded five-second `<session>.lock` sidecar transaction, then atomically
   replaces the JSON file. The sidecar intentionally persists after close; it uses Windows'
   mandatory byte-zero lock and POSIX's advisory whole-sidecar `flock`, while the sidecar prevents
-  atomic replacement from bypassing either lock. If a session is reopened or closed while a
-  backend call runs, its later operation attribution is skipped rather than reviving stale state.
+  atomic replacement from bypassing either lock. Every close is generation-guarded, so a stale
+  close request returns `stale_session` instead of deleting a concurrently reopened session. If
+  a session is reopened or closed while a backend call runs, its later operation attribution is
+  skipped rather than reviving stale state.
   A refresh filesystem failure emits at most one generic warning per minute and serves the last
   known read snapshot; mutations still reload transactionally, return `isError` on failure, and
   never stale-write.

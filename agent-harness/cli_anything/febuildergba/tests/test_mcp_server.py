@@ -747,6 +747,26 @@ class TestSessionPrecedence:
         assert initialized_state.session.state.rom_version == "FE8U"
         assert initialized_state.session.state.history[-1]["op"] == "open"
 
+    def test_stale_session_close_does_not_delete_reopened_session(
+            self, initialized_state):
+        session = initialized_state.session
+        session.open_rom("/fake/a.gba", "FE8U", 1)
+        current = Session(str(session.path))
+        current.open_rom("/fake/b.gba", "FE8U", 1)
+
+        response = _call_tool(initialized_state, "session_close")
+        result = response["result"]
+        payload = json.loads(result["content"][0]["text"])
+
+        assert result["isError"] is False
+        assert payload == {"status": "stale_session"}
+        assert session.state.session_id == current.state.session_id
+        assert session.state.rom_path.endswith("b.gba")
+
+        persisted = Session(str(session.path))
+        assert persisted.state.session_id == current.state.session_id
+        assert persisted.state.rom_path.endswith("b.gba")
+
     def test_explicit_rom_path_overrides_session(self, initialized_state, monkeypatch, tmp_path):
         initialized_state.session.open_rom(str(tmp_path / "session_rom.gba"), "FE8U", 1)
         seen = {}
