@@ -316,6 +316,20 @@ class TestSession:
 
         assert sess.state.history == []
 
+    def test_legacy_session_file_loads_without_session_id(self, tmp_path):
+        from cli_anything.febuildergba.core.session import Session
+        path = tmp_path / "test_session.json"
+        path.write_text(json.dumps({
+            "rom_path": "/fake/rom.gba",
+            "created_at": 1.0,
+            "history": [{"op": "open"}],
+        }))
+
+        sess = Session(str(path))
+
+        assert sess.is_open()
+        assert sess.state.session_id == ""
+
     def test_info_output(self, tmp_path):
         from cli_anything.febuildergba.core.session import Session
         sess = Session(str(tmp_path / "test_session.json"))
@@ -418,6 +432,111 @@ class TestSession:
         sess = Session(str(tmp_path / "test_session.json"))
         sess.open_rom("/fake/rom.gba", "FE8U", force_version="FE8U")
         assert sess.state.force_version == "FE8U"
+
+    def test_stale_sessions_merge_same_generation_history(self, tmp_path):
+        from cli_anything.febuildergba.core.session import Session
+        path = str(tmp_path / "test_session.json")
+        first = Session(path)
+        first.open_rom("/fake/rom.gba", "FE8U")
+        second = Session(path)
+
+        assert first.record_operation("first")
+        assert second.record_operation("second")
+
+        reloaded = Session(path)
+        assert [entry["op"] for entry in reloaded.state.history][-2:] == [
+            "first", "second",
+        ]
+
+    def test_stale_operation_is_skipped_after_reopen(self, tmp_path):
+        from cli_anything.febuildergba.core.session import Session
+        path = str(tmp_path / "test_session.json")
+        stale = Session(path)
+        stale.open_rom("/fake/rom.gba", "FE8U")
+        old_id = stale.state.session_id
+        current = Session(path)
+        current.open_rom("/fake/rom.gba", "FE8U")
+
+        assert current.state.session_id != old_id
+        assert stale.record_operation("stale", modified=True) is False
+        assert stale.state.session_id == current.state.session_id
+        assert [entry["op"] for entry in stale.state.history] == ["open"]
+        assert stale.state.modified is False
+
+    def test_stale_operation_is_skipped_after_close(self, tmp_path):
+        from cli_anything.febuildergba.core.session import Session
+        path = str(tmp_path / "test_session.json")
+        stale = Session(path)
+        stale.open_rom("/fake/rom.gba", "FE8U")
+        current = Session(path)
+        current.close()
+
+        assert stale.record_operation("stale") is False
+        assert not (tmp_path / "test_session.json").exists()
+        assert not stale.is_open()
+
+    def test_record_operation_can_atomically_mark_modified(self, tmp_path):
+        from cli_anything.febuildergba.core.session import Session
+        sess = Session(str(tmp_path / "test_session.json"))
+        sess.open_rom("/fake/rom.gba", "FE8U")
+
+        assert sess.record_operation("import", modified=True)
+
+        assert sess.state.history[-1]["op"] == "import"
+        assert sess.state.modified is True
+
+    def test_stale_session_cannot_overwrite_reopened_rom(self, tmp_path):
+        from cli_anything.febuildergba.core.session import Session
+        path = str(tmp_path / "test_session.json")
+        server_session = Session(path)
+        server_session.open_rom("/fake/a.gba", "FE8U")
+        external_session = Session(path)
+        external_session.open_rom("/fake/b.gba", "FE8U")
+
+        assert server_session.record_operation("data_export") is False
+
+        persisted = Session(path)
+        assert persisted.state.rom_path.endswith("b.gba")
+        assert [entry["op"] for entry in persisted.state.history] == ["open"]
+
+    def test_lock_timeout_does_not_change_disk(self, tmp_path, monkeypatch):
+        from cli_anything.febuildergba.core import session as session_module
+        from cli_anything.febuildergba.core.session import Session
+        path = tmp_path / "test_session.json"
+        sess = Session(str(path))
+        sess.open_rom("/fake/rom.gba", "FE8U")
+        before = path.read_bytes()
+        monkeypatch.setattr(session_module, "SESSION_LOCK_TIMEOUT_SECONDS", 0)
+        monkeypatch.setattr(sess, "_try_acquire_lock", lambda lock_file: False)
+
+        with pytest.raises(TimeoutError, match="Timed out waiting for session lock"):
+            sess.record_operation("blocked")
+
+        assert path.read_bytes() == before
+
+    def test_transaction_reentrancy_is_rejected_and_releases_lock(self, tmp_path):
+        from cli_anything.febuildergba.core.session import Session
+        sess = Session(str(tmp_path / "test_session.json"))
+        sess.open_rom("/fake/rom.gba", "FE8U")
+
+        with sess._transaction():
+            with pytest.raises(RuntimeError, match="Nested session transaction"):
+                with sess._transaction():
+                    pass
+
+        sess.refresh()
+        assert sess.record_operation("after_nested_transaction") is True
+
+    def test_lock_sidecar_persists_after_close_and_save_is_not_public(self, tmp_path):
+        from cli_anything.febuildergba.core.session import Session
+        path = tmp_path / "test_session.json"
+        sess = Session(str(path))
+        sess.open_rom("/fake/rom.gba", "FE8U")
+        sess.close()
+
+        assert not path.exists()
+        assert (tmp_path / "test_session.json.lock").read_bytes()[:1] == b"\0"
+        assert not hasattr(sess, "save")
 
 
 # ── Project tests ─────────────────────────────────────────────────────
@@ -734,6 +853,23 @@ class TestSessionState:
         assert state.updated_at == 0.0
         assert state.history == [{"op": "kept"}]
         assert state.modified is False
+
+    def test_from_dict_sanitizes_invalid_session_id(self):
+        from cli_anything.febuildergba.core.session import (
+            MAX_SESSION_ID_LEN,
+            SessionState,
+        )
+
+        wrong_type = SessionState.from_dict({"session_id": []})
+        overlong = SessionState.from_dict({
+            "session_id": "x" * (MAX_SESSION_ID_LEN + 1),
+        })
+        legacy = SessionState.from_dict({"rom_path": "/test.gba"})
+
+        assert wrong_type.session_id == ""
+        assert overlong.session_id == ""
+        assert legacy.session_id == ""
+        assert legacy.rom_path == "/test.gba"
 
 
 # ── ROM header tests ──────────────────────────────────────────────────

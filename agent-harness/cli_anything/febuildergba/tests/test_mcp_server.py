@@ -1696,6 +1696,152 @@ class TestServeRegression:
         assert lines[0]["error"]["code"] == srv.INVALID_REQUEST
         assert lines[1]["result"] == {}
 
+    def test_serve_refreshes_before_status_and_resource_lines(self, tmp_path):
+        session_path = tmp_path / "session.json"
+        initial = Session(str(session_path))
+        initial.open_rom("/fake/a.gba", "FE8U")
+        external = Session(str(session_path))
+
+        class InterleavingInput(io.StringIO):
+            def __init__(self, text, after_initialize):
+                super().__init__(text)
+                self.reads = 0
+                self.after_initialize = after_initialize
+
+            def readline(self, *args, **kwargs):
+                if self.reads == 1:
+                    self.after_initialize()
+                self.reads += 1
+                return super().readline(*args, **kwargs)
+
+        initialize = json.dumps(_req("initialize", _init_params()))
+        status = json.dumps(_req(
+            "tools/call", {"name": "session_status", "arguments": {}}, id_=2,
+        ))
+        resource = json.dumps(_req(
+            "resources/read", {"uri": "febuildergba://session"}, id_=3,
+        ))
+        in_stream = InterleavingInput(
+            "\n".join((initialize, status, resource)) + "\n",
+            lambda: external.open_rom("/fake/b.gba", "FE8U"),
+        )
+        out_stream = io.StringIO()
+
+        srv.serve(
+            session_file=str(session_path),
+            in_stream=in_stream,
+            out_stream=out_stream,
+        )
+
+        responses = [json.loads(line) for line in out_stream.getvalue().splitlines()]
+        status_payload = json.loads(responses[1]["result"]["content"][0]["text"])
+        resource_payload = json.loads(responses[2]["result"]["contents"][0]["text"])
+        assert status_payload["rom_path"].endswith("b.gba")
+        assert resource_payload["rom_path"].endswith("b.gba")
+
+    def test_serve_data_export_after_reopen_does_not_restore_stale_session(
+            self, tmp_path, monkeypatch):
+        from cli_anything.febuildergba.core import data
+
+        session_path = tmp_path / "session.json"
+        initial = Session(str(session_path))
+        initial.open_rom("/fake/a.gba", "FE8U")
+        external = Session(str(session_path))
+
+        def export_then_reopen(*args):
+            external.open_rom("/fake/b.gba", "FE8U")
+            return {"exit_code": 0, "stdout": "", "stderr": ""}
+
+        monkeypatch.setattr(data, "export_table", export_then_reopen)
+        initialize = json.dumps(_req("initialize", _init_params()))
+        export = json.dumps(_req(
+            "tools/call",
+            {
+                "name": "data_export",
+                "arguments": {
+                    "rom_path": "/fake/a.gba",
+                    "table": "units",
+                    "out_path": "units.tsv",
+                },
+            },
+            id_=2,
+        ))
+        in_stream = io.StringIO("\n".join((initialize, export)) + "\n")
+        out_stream = io.StringIO()
+
+        srv.serve(
+            session_file=str(session_path),
+            in_stream=in_stream,
+            out_stream=out_stream,
+        )
+
+        responses = [json.loads(line) for line in out_stream.getvalue().splitlines()]
+        assert responses[1]["result"]["isError"] is False
+        persisted = Session(str(session_path))
+        assert persisted.state.rom_path.endswith("b.gba")
+        assert [entry["op"] for entry in persisted.state.history] == ["open"]
+
+    def test_serve_refresh_oserror_uses_last_known_state_and_throttles_warning(
+            self, tmp_path, monkeypatch, capsys):
+        real_refresh = Session.refresh
+        calls = {"count": 0}
+
+        def refresh_once_then_fail(session):
+            calls["count"] += 1
+            if calls["count"] == 1:
+                return real_refresh(session)
+            raise OSError("sensitive path")
+
+        monkeypatch.setattr(Session, "refresh", refresh_once_then_fail)
+        in_stream = io.StringIO(
+            json.dumps(_req("ping", id_=1))
+            + "\n"
+            + json.dumps(_req("ping", id_=2))
+            + "\n"
+        )
+        out_stream = io.StringIO()
+
+        srv.serve(
+            session_file=str(tmp_path / "session.json"),
+            in_stream=in_stream,
+            out_stream=out_stream,
+        )
+
+        responses = [json.loads(line) for line in out_stream.getvalue().splitlines()]
+        captured = capsys.readouterr()
+        warning = "[febuildergba-mcp] session refresh failed; using last-known state"
+        assert [response["result"] for response in responses] == [{}, {}]
+        assert captured.err.count(warning) == 1
+        assert "sensitive path" not in captured.err
+
+    def test_mcp_lock_timeout_returns_tool_error_without_disk_write(
+            self, tmp_path, monkeypatch):
+        from cli_anything.febuildergba.core import data
+        from cli_anything.febuildergba.core import session as session_module
+
+        session_path = tmp_path / "session.json"
+        session = Session(str(session_path))
+        session.open_rom("/fake/a.gba", "FE8U")
+        before = session_path.read_bytes()
+        state = srv._ServerState(session)
+        state.initialized = True
+        monkeypatch.setattr(
+            data,
+            "export_table",
+            lambda *args: {"exit_code": 0, "stdout": "", "stderr": ""},
+        )
+        monkeypatch.setattr(session_module, "SESSION_LOCK_TIMEOUT_SECONDS", 0)
+        monkeypatch.setattr(session, "_try_acquire_lock", lambda lock_file: False)
+
+        response = _call_tool(
+            state,
+            "data_export",
+            {"table": "units", "out_path": "units.tsv"},
+        )
+
+        assert response["result"]["isError"] is True
+        assert session_path.read_bytes() == before
+
 
 # ── Launcher subprocess: real framing/flushing over a pipe ───────────────
 

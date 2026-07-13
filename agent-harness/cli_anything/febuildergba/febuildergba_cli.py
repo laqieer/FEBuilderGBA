@@ -197,8 +197,7 @@ def rom_repair_header_cmd(ctx, rom_file, force_version):
     result = repair_header(path, fv)
     _check_exit_code(result, "Repair header")
     if _session and result["repaired"]:
-        _session.record_operation("repair_header", {"rom": path})
-        _session.mark_modified()
+        _session.record_operation("repair_header", {"rom": path}, modified=True)
     _output(result, result.get("stdout", "") or f"Header checksum OK: {path}")
 
 
@@ -259,8 +258,9 @@ def data_import_cmd(ctx, table, in_file, force_version):
     result = import_table(rom, table, in_file, fv)
     _check_exit_code(result, f"Data import ({table})")
     if _session:
-        _session.record_operation(HISTORY_OP_DATA_IMPORT, {"table": table, "in": in_file})
-        _session.mark_modified()
+        _session.record_operation(
+            HISTORY_OP_DATA_IMPORT, {"table": table, "in": in_file}, modified=True,
+        )
     _output(result, f"Imported {table} from {in_file}")
 
 
@@ -373,8 +373,7 @@ def text_import_cmd(ctx, in_file, force_version):
     result = import_text(rom, in_file, fv)
     _check_exit_code(result, "Text import")
     if _session:
-        _session.record_operation("text_import", {"in": in_file})
-        _session.mark_modified()
+        _session.record_operation("text_import", {"in": in_file}, modified=True)
     _output(result, f"Imported text from {in_file}")
 
 
@@ -500,8 +499,7 @@ def patch_apply_cmd(ctx, patch_file, out):
     result = apply_ups(rom, patch_file, out)
     _check_exit_code(result, "Patch apply")
     if _session:
-        _session.record_operation("patch_apply", {"patch": patch_file})
-        _session.mark_modified()
+        _session.record_operation("patch_apply", {"patch": patch_file}, modified=True)
     _output(result, f"Applied patch: {patch_file} -> {result.get('output_path', '')}")
 
 
@@ -655,8 +653,7 @@ def import_midi_cmd(ctx, song_id, in_path, force_version):
     result = import_midi(rom, song_id, in_path, fv)
     _check_exit_code(result, "MIDI import")
     if _session:
-        _session.record_operation("import_midi", {"song_id": song_id})
-        _session.mark_modified()
+        _session.record_operation("import_midi", {"song_id": song_id}, modified=True)
     _output(result, f"MIDI imported into song {song_id}: {in_path}")
 
 
@@ -698,8 +695,7 @@ def compile_event_cmd(ctx, in_path, out, force_version):
     result = compile_event(rom, in_path, out, fv)
     _check_exit_code(result, "Event compile")  # exit 1 = tool missing or compile failure
     if _session:
-        _session.record_operation("compile_event", {"in": in_path})
-        _session.mark_modified()
+        _session.record_operation("compile_event", {"in": in_path}, modified=True)
     _output(result, result.get("stdout", "") or f"Compiled {in_path}")
 
 
@@ -785,8 +781,7 @@ def palette_import_cmd(ctx, addr, in_path, force_version):
     result = import_palette(rom, addr, in_path, fv)
     _check_exit_code(result, "Palette import")
     if _session:
-        _session.record_operation(HISTORY_OP_IMPORT_PALETTE, {"addr": addr})
-        _session.mark_modified()
+        _session.record_operation(HISTORY_OP_IMPORT_PALETTE, {"addr": addr}, modified=True)
     _output(result, f"Palette imported at {addr}: {in_path}")
 
 
@@ -804,8 +799,9 @@ def patch_apply_bin_cmd(ctx, patch_file, force_version):
     result = apply_patch(rom, patch_file, fv)
     _check_exit_code(result, "Patch apply")
     if _session:
-        _session.record_operation("patch_apply_bin", {"patch": patch_file})
-        _session.mark_modified()
+        _session.record_operation(
+            "patch_apply_bin", {"patch": patch_file}, modified=True,
+        )
     _output(result, result.get("stdout", ""))
 
 

@@ -205,8 +205,18 @@ or tampered non-ROM session paths fail closed with `rom_header: null`.
   path/version/size/timestamp/modified/history fields are type-checked and bounded on load.
 - Parser-malformed persisted content (including invalid UTF-8, excessive integer digits,
   excessive nesting, non-standard numeric constants, or non-finite numeric overflow) and session
-  files over 8 MiB load closed. Filesystem and out-of-memory faults are not masked and continue to
-  surface to the caller.
+  files over 8 MiB load closed. Out-of-memory and programming faults remain unmasked; direct and
+  startup session filesystem faults surface to the caller. Only per-line live-server refresh
+  `OSError` uses the throttled last-known-state degradation described below.
+- The shared Click/MCP session refreshes before each real MCP input line. Every mutation reloads
+  and merges under a bounded five-second `<session>.lock` sidecar transaction, then atomically
+  replaces the JSON file. The sidecar intentionally persists after close; it uses Windows'
+  mandatory byte-zero lock and POSIX's advisory whole-sidecar `flock`, while the sidecar prevents
+  atomic replacement from bypassing either lock. If a session is reopened or closed while a
+  backend call runs, its later operation attribution is skipped rather than reviving stale state.
+  A refresh filesystem failure emits at most one generic warning per minute and serves the last
+  known read snapshot; mutations still reload transactionally, return `isError` on failure, and
+  never stale-write.
 - A successful **session-owned** `data_export` records a history entry. Ownership uses filesystem
   identity when both paths are available, so symlink and hardlink aliases of the active ROM count
   as the same file; normalized absolute-path comparison is retained only as the unavailable-path

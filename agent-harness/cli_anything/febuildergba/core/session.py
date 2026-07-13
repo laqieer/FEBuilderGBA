@@ -7,7 +7,11 @@ across multiple CLI invocations via a JSON session file.
 import json
 import math
 import os
+import errno
+import tempfile
 import time
+import uuid
+from contextlib import contextmanager
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Optional
@@ -16,10 +20,13 @@ from typing import Optional
 MAX_HISTORY_ENTRIES = 100
 MAX_SESSION_FILE_BYTES = 8 * 1024 * 1024
 MAX_SESSION_INTEGER_DIGITS = 20
+MAX_SESSION_ID_LEN = 64
 MAX_SESSION_PATH_LEN = 4096
 MAX_SESSION_ROM_SIZE = 0xFFFFFFFF
 MAX_SESSION_TIMESTAMP = 10_000_000_000
 MAX_SESSION_VERSION_LEN = 64
+SESSION_LOCK_TIMEOUT_SECONDS = 5.0
+SESSION_LOCK_RETRY_SECONDS = 0.05
 HISTORY_OP_DATA_EXPORT = "data_export"
 HISTORY_OP_DATA_IMPORT = "data_import"
 HISTORY_OP_IMPORT_PALETTE = "import_palette"
@@ -77,6 +84,7 @@ def _nonnegative_number(value, max_value: float, default: float = 0.0):
 @dataclass
 class SessionState:
     """Persistent session state."""
+    session_id: str = ""
     rom_path: str = ""
     rom_version: str = ""
     rom_size: int = 0
@@ -104,6 +112,9 @@ class SessionState:
         rom_path = data.get("rom_path", "")
         if not _valid_string(rom_path, MAX_SESSION_PATH_LEN):
             rom_path = ""
+        session_id = data.get("session_id", "")
+        if not _valid_string(session_id, MAX_SESSION_ID_LEN):
+            session_id = ""
         rom_version = data.get("rom_version", "")
         if not _valid_string(rom_version, MAX_SESSION_VERSION_LEN):
             rom_version = ""
@@ -115,6 +126,7 @@ class SessionState:
             modified = False
 
         return cls(
+            session_id=session_id,
             rom_path=rom_path,
             rom_version=rom_version,
             rom_size=_nonnegative_int(
@@ -140,45 +152,6 @@ def _default_session_dir() -> Path:
     return Path.home() / ".cli-anything-febuildergba" / "sessions"
 
 
-def _locked_save_json(path: str, data: dict) -> None:
-    """Write JSON with best-effort file locking."""
-    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-    try:
-        f = open(path, "r+")
-    except FileNotFoundError:
-        f = open(path, "w")
-    with f:
-        _locked = False
-        try:
-            import msvcrt
-            msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, 1)
-            _locked = True
-        except (ImportError, OSError):
-            try:
-                import fcntl
-                fcntl.flock(f.fileno(), fcntl.LOCK_EX)
-                _locked = True
-            except (ImportError, OSError):
-                pass
-        try:
-            f.seek(0)
-            f.truncate()
-            json.dump(data, f, indent=2)
-            f.flush()
-        finally:
-            if _locked:
-                try:
-                    import msvcrt
-                    f.seek(0)
-                    msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
-                except (ImportError, OSError):
-                    try:
-                        import fcntl
-                        fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-                    except (ImportError, OSError):
-                        pass
-
-
 class Session:
     """Manages persistent session state."""
 
@@ -187,13 +160,93 @@ class Session:
             self.path = Path(session_path)
         else:
             self.path = _default_session_dir() / "default.json"
+        self.lock_path = Path(f"{self.path}.lock")
+        self._transaction_active = False
         self.state = SessionState()
-        if self.path.exists():
-            self._load()
+        self.refresh()
 
-    def _load(self):
-        with open(self.path, "rb") as f:
-            content = f.read(MAX_SESSION_FILE_BYTES + 1)
+    @staticmethod
+    def _lock_is_contended(exc: OSError) -> bool:
+        return (
+            exc.errno in (errno.EACCES, errno.EAGAIN)
+            or getattr(exc, "winerror", None) in (33, 36)
+        )
+
+    def _try_acquire_lock(self, lock_file) -> bool:
+        lock_file.seek(0)
+        try:
+            if os.name == "nt":
+                import msvcrt
+                msvcrt.locking(lock_file.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(
+                    lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB,
+                )
+        except OSError as exc:
+            if self._lock_is_contended(exc):
+                return False
+            raise
+        return True
+
+    def _acquire_lock(self):
+        os.makedirs(self.lock_path.parent, exist_ok=True)
+        lock_file = open(self.lock_path, "a+b")
+        acquired = False
+        try:
+            lock_file.seek(0, os.SEEK_END)
+            if lock_file.tell() == 0:
+                lock_file.write(b"\0")
+                lock_file.flush()
+            deadline = time.monotonic() + SESSION_LOCK_TIMEOUT_SECONDS
+            while not self._try_acquire_lock(lock_file):
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise TimeoutError("Timed out waiting for session lock")
+                time.sleep(min(SESSION_LOCK_RETRY_SECONDS, remaining))
+            acquired = True
+            return lock_file
+        finally:
+            if not acquired:
+                lock_file.close()
+
+    @staticmethod
+    def _unlock(lock_file) -> None:
+        lock_file.seek(0)
+        if os.name == "nt":
+            import msvcrt
+            msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+
+    @contextmanager
+    def _transaction(self, reload_state: bool = True):
+        if self._transaction_active:
+            raise RuntimeError("Nested session transaction")
+        self._transaction_active = True
+        lock_file = None
+        try:
+            lock_file = self._acquire_lock()
+            if reload_state:
+                self._load_unlocked()
+            yield
+        finally:
+            try:
+                if lock_file is not None:
+                    self._unlock(lock_file)
+            finally:
+                if lock_file is not None:
+                    lock_file.close()
+                self._transaction_active = False
+
+    def _load_unlocked(self):
+        try:
+            with open(self.path, "rb") as f:
+                content = f.read(MAX_SESSION_FILE_BYTES + 1)
+        except FileNotFoundError:
+            self.state = SessionState()
+            return
         try:
             if len(content) > MAX_SESSION_FILE_BYTES:
                 self.state = SessionState()
@@ -209,9 +262,39 @@ class Session:
             return
         self.state = SessionState.from_dict(data)
 
-    def save(self):
+    def _write_unlocked(self):
         self.state.updated_at = time.time()
-        _locked_save_json(str(self.path), self.state.to_dict())
+        os.makedirs(self.path.parent, exist_ok=True)
+        descriptor, temp_path = tempfile.mkstemp(
+            prefix=f".{self.path.name}.",
+            suffix=".tmp",
+            dir=self.path.parent,
+        )
+        stream = None
+        try:
+            stream = os.fdopen(descriptor, "w", encoding="utf-8")
+            descriptor = None
+            json.dump(self.state.to_dict(), stream, indent=2, allow_nan=False)
+            stream.flush()
+            os.fsync(stream.fileno())
+            stream.close()
+            stream = None
+            os.replace(temp_path, self.path)
+            temp_path = None
+        finally:
+            if stream is not None:
+                stream.close()
+            elif descriptor is not None:
+                os.close(descriptor)
+            if temp_path is not None:
+                try:
+                    os.unlink(temp_path)
+                except FileNotFoundError:
+                    pass
+
+    def refresh(self):
+        with self._transaction(reload_state=False):
+            self._load_unlocked()
 
     def open_rom(self, rom_path: str, version: str = "", rom_size: int = 0,
                  force_version: str = ""):
@@ -233,28 +316,54 @@ class Session:
         if len(abs_rom_path) > MAX_SESSION_PATH_LEN:
             raise ValueError("Absolute ROM path exceeds the session path limit")
 
-        self.state.rom_path = abs_rom_path
-        self.state.rom_version = version
-        self.state.rom_size = rom_size
-        self.state.force_version = force_version
-        self.state.created_at = time.time()
-        self.state.modified = False
-        self.state.history = []
-        self._add_history("open", {"rom": rom_path, "version": version})
-        self.save()
+        with self._transaction():
+            self.state = SessionState(
+                session_id=uuid.uuid4().hex,
+                rom_path=abs_rom_path,
+                rom_version=version,
+                rom_size=rom_size,
+                force_version=force_version,
+                created_at=time.time(),
+            )
+            self._add_history("open", {"rom": rom_path, "version": version})
+            self._write_unlocked()
 
-    def record_operation(self, op: str, details: dict = None):
-        self._add_history(op, details or {})
-        self.save()
+    def _generation_token(self):
+        if not self.is_open():
+            return None
+        normalized_path = os.path.normcase(os.path.abspath(self.state.rom_path))
+        if _valid_string(
+                self.state.session_id, MAX_SESSION_ID_LEN, allow_empty=False):
+            return ("session_id", self.state.session_id, normalized_path)
+        return ("legacy", self.state.created_at, normalized_path)
+
+    def record_operation(self, op: str, details: dict = None, *, modified: bool = False):
+        token = self._generation_token()
+        with self._transaction():
+            if token is None or token != self._generation_token():
+                return False
+            self._add_history(op, details or {})
+            if modified:
+                self.state.modified = True
+            self._write_unlocked()
+            return True
 
     def mark_modified(self):
-        self.state.modified = True
-        self.save()
+        token = self._generation_token()
+        with self._transaction():
+            if token is None or token != self._generation_token():
+                return False
+            self.state.modified = True
+            self._write_unlocked()
+            return True
 
     def close(self):
-        self.state = SessionState()
-        if self.path.exists():
-            self.path.unlink()
+        with self._transaction():
+            self.state = SessionState()
+            try:
+                self.path.unlink()
+            except FileNotFoundError:
+                pass
 
     def is_open(self) -> bool:
         return _valid_string(

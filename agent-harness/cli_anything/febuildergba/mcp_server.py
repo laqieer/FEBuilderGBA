@@ -28,6 +28,7 @@ import json
 import math
 import os
 import sys
+import time
 
 from cli_anything.febuildergba import __version__
 from cli_anything.febuildergba.core.session import (
@@ -673,8 +674,9 @@ def _h_data_import(session, args):
     result = import_table(rom_path, table, in_path, force_version)
     is_error = result["exit_code"] != 0
     if not is_error and _same_as_session_rom(session, rom_path):
-        session.record_operation(HISTORY_OP_DATA_IMPORT, {"table": table, "in": in_path})
-        session.mark_modified()
+        session.record_operation(
+            HISTORY_OP_DATA_IMPORT, {"table": table, "in": in_path}, modified=True,
+        )
     return result, is_error
 
 
@@ -788,8 +790,9 @@ def _h_palette_import(session, args):
     result = import_palette(rom_path, args["addr"], args["in_path"], force_version)
     is_error = result["exit_code"] != 0
     if not is_error and _same_as_session_rom(session, rom_path):
-        session.record_operation(HISTORY_OP_IMPORT_PALETTE, {"addr": args["addr"]})
-        session.mark_modified()
+        session.record_operation(
+            HISTORY_OP_IMPORT_PALETTE, {"addr": args["addr"]}, modified=True,
+        )
     return result, is_error
 
 
@@ -1218,6 +1221,7 @@ def serve(session_file=None, in_stream=None, out_stream=None):
 
     session = Session(session_file) if session_file else Session()
     state = _ServerState(session)
+    last_refresh_warning = float("-inf")
 
     while True:
         raw_line = in_stream.readline(MAX_REQUEST_LINE_CHARS + 2)
@@ -1245,6 +1249,17 @@ def serve(session_file=None, in_stream=None, out_stream=None):
         line = raw_line.strip()
         if not line:
             continue
+        try:
+            session.refresh()
+        except OSError:
+            now = time.monotonic()
+            if now - last_refresh_warning >= 60.0:
+                print(
+                    "[febuildergba-mcp] session refresh failed; using last-known state",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                last_refresh_warning = now
         try:
             response = handle_line(state, line)
         except Exception as e:  # never let an unexpected bug kill the loop
