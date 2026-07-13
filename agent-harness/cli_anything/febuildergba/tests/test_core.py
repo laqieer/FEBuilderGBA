@@ -256,6 +256,41 @@ class TestProject:
         small.write_bytes(b"\x00" * 100)
         assert not validate_rom(str(small))
 
+    def test_read_validated_header_checks_opened_descriptor(
+            self, tmp_path, monkeypatch):
+        from cli_anything.febuildergba.core import project
+        path = tmp_path / "fe8u.gba"
+        _write_valid_test_rom(path, b"BE8E")
+        real_open = project.os.open
+        monkeypatch.setattr(
+            project.os,
+            "open",
+            lambda open_path, flags: real_open(os.devnull, flags),
+        )
+
+        with pytest.raises(ValueError, match="not a regular file"):
+            project._read_validated_header(str(path))
+
+    def test_read_validated_header_uses_safe_descriptor_flags(
+            self, tmp_path, monkeypatch):
+        from cli_anything.febuildergba.core import project
+        path = tmp_path / "fe8u.gba"
+        _write_valid_test_rom(path, b"BE8E")
+        calls = []
+        real_open = project.os.open
+
+        def tracking_open(open_path, flags):
+            calls.append((open_path, flags))
+            return real_open(open_path, flags)
+
+        monkeypatch.setattr(project.os, "open", tracking_open)
+        project._read_validated_header(str(path))
+
+        assert len(calls) == 1
+        assert calls[0][1] == project._rom_open_flags()
+        if hasattr(project.os, "O_NONBLOCK"):
+            assert calls[0][1] & project.os.O_NONBLOCK
+
     @pytest.mark.parametrize("bad_path", [None, [], {}])
     def test_validate_rom_non_path_returns_false(self, bad_path):
         from cli_anything.febuildergba.core.project import validate_rom

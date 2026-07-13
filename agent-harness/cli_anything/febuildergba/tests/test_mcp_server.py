@@ -607,6 +607,21 @@ class TestResources:
 
         assert len(data["history"]) == srv.HISTORY_MAX
         assert data["history"][0]["op"] == "op_20"
+        assert data["truncated"] is True
+
+    def test_session_history_resource_exact_cap_is_not_truncated(
+            self, initialized_state, tmp_path):
+        initialized_state.session.open_rom(str(tmp_path / "r.gba"), "FE8U", 1)
+        initialized_state.session.state.history = [
+            {"op": f"op_{i}"}
+            for i in range(srv.HISTORY_MAX)
+        ]
+
+        data = self._read(initialized_state, "febuildergba://session/history")
+
+        assert len(data["history"]) == srv.HISTORY_MAX
+        assert data["history"][0]["op"] == "op_0"
+        assert data["truncated"] is False
 
     def test_session_history_resource_bounds_nested_collections(
             self, initialized_state, tmp_path):

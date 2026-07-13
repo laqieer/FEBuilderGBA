@@ -2,6 +2,7 @@
 
 import os
 import shutil
+import stat
 from typing import Optional
 
 from cli_anything.febuildergba.utils.febuildergba_backend import run_cli
@@ -16,16 +17,33 @@ _GBA_CHECKSUM_OFFSET = 0xBD
 _GBA_CHECKSUM_BIAS = 0x19
 
 
+def _rom_open_flags() -> int:
+    flags = os.O_RDONLY
+    for name in ("O_BINARY", "O_NONBLOCK", "O_CLOEXEC", "O_NOINHERIT"):
+        flags |= getattr(os, name, 0)
+    return flags
+
+
 def _read_validated_header(rom_path: str) -> tuple[bytes, int]:
     """Read a GBA header and validate it from the same open file handle."""
     if not os.path.isfile(rom_path):
         raise FileNotFoundError(f"ROM file not found: {rom_path}")
 
-    with open(rom_path, "rb") as f:
-        rom_size = os.fstat(f.fileno()).st_size
-        if rom_size < _MIN_ROM_SIZE:
-            raise ValueError(f"Invalid GBA ROM (smaller than 1 MiB): {rom_path}")
-        header = f.read(_GBA_HEADER_SIZE)
+    fd = os.open(rom_path, _rom_open_flags())
+    try:
+        opened_stat = os.fstat(fd)
+        if not stat.S_ISREG(opened_stat.st_mode):
+            raise ValueError(f"Invalid GBA ROM (not a regular file): {rom_path}")
+        f = os.fdopen(fd, "rb", closefd=True)
+        fd = None
+        with f:
+            rom_size = opened_stat.st_size
+            if rom_size < _MIN_ROM_SIZE:
+                raise ValueError(f"Invalid GBA ROM (smaller than 1 MiB): {rom_path}")
+            header = f.read(_GBA_HEADER_SIZE)
+    finally:
+        if fd is not None:
+            os.close(fd)
 
     if len(header) < _GBA_HEADER_SIZE:
         raise ValueError(f"Invalid GBA ROM (incomplete header): {rom_path}")

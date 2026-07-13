@@ -681,7 +681,8 @@ Its closed schemas reject empty file paths, and multi-table exports report only 
 per-table output names rather than unrelated files sharing the same prefix. The stdio transport
 forces UTF-8, rejects non-standard JSON constants, and validates entity IDs as unsigned 32-bit
 values before backend dispatch. Malformed UTF-8 lines produce parse errors without terminating
-the server before the next request.
+the server before the next request. ROM headers are read only after the opened descriptor itself
+is confirmed to be a regular file.
 
 The `.mcp.json` at the repo root auto-configures Claude Code to use it as `febuildergba-cli`
 (`python ./agent-harness/febuildergba_mcp.py`). See

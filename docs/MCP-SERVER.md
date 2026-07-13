@@ -175,12 +175,14 @@ and/or mutate ROM data or session state in place); the other 12 are
 
 All resources return `application/json` text — never raw ROM bytes or arbitrary file contents.
 Reading an unknown `uri` is `-32002`. Output is bounded (session history is capped at the same 100
-entries the `Session` class enforces on load and write, then sliced again by the resource).
-Persisted session fields with invalid types or over-limit paths are discarded, so the session
-loads closed rather than bypassing online tool schemas. ROM header metadata is decoded only after
-the active path passes the same local GBA check (at least 1 MiB, a complete header, and the fixed
-`0x96` byte plus the header complement checksum); stale or tampered non-ROM session paths fail
-closed with `rom_header: null`.
+entries the `Session` class enforces on load and write, then sliced again by the resource; direct
+in-memory overflow sets `truncated: true`). Persisted session fields with invalid types or
+over-limit paths are discarded, so the session loads closed rather than bypassing online tool
+schemas. ROM header metadata is decoded only after the opened descriptor is confirmed to be a
+regular file and passes the same local GBA check (at least 1 MiB, a complete header, and the fixed
+`0x96` byte plus the header complement checksum). Where supported, the descriptor is opened
+nonblocking before its type is checked, so a pathname race to a FIFO cannot hang the server; stale
+or tampered non-ROM session paths fail closed with `rom_header: null`.
 
 | URI | Contents |
 |---|---|

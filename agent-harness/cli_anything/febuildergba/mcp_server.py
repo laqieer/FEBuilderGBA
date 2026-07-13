@@ -81,6 +81,8 @@ MAX_REQUEST_LINE_CHARS = 1024 * 1024
 MAX_BATCH_ITEMS = 64
 MAX_RESOURCE_COLLECTION_ITEMS = 100
 MAX_RESOURCE_NESTING_DEPTH = 16
+if MAX_HISTORY_ENTRIES > MAX_RESOURCE_COLLECTION_ITEMS:
+    raise RuntimeError("Session history cap exceeds the MCP resource collection cap")
 
 # rom_checksum / data_roundtrip / text_roundtrip additionally treat backend
 # exit code 2 as a structured, non-error advisory result (see the exit-code
@@ -562,10 +564,10 @@ def _bound_strings_recursive(value, max_len=MAX_ITEM_STRING_LEN, depth=0):
     return value, False
 
 
-def _bounded_payload(payload):
+def _bounded_payload(payload, pre_truncated=False):
     """Bound every string in a JSON object and expose aggregate metadata."""
     bounded, truncated = _bound_strings_recursive(payload)
-    bounded["truncated"] = truncated
+    bounded["truncated"] = pre_truncated or truncated
     return bounded
 
 
@@ -817,14 +819,17 @@ def _read_session_resource(session):
 def _read_session_history_resource(session):
     if not session.is_open():
         payload = {"open": False, "history": []}
+        source_truncated = False
     else:
         # Session also clamps persisted state on load; slice again so direct
         # in-memory mutation cannot violate the resource contract.
+        source_history = session.state.history
+        source_truncated = len(source_history) > MAX_HISTORY_ENTRIES
         payload = {
             "open": True,
-            "history": session.state.history[-MAX_HISTORY_ENTRIES:],
+            "history": source_history[-MAX_HISTORY_ENTRIES:],
         }
-    return _bounded_payload(payload)
+    return _bounded_payload(payload, pre_truncated=source_truncated)
 
 
 def _read_rom_metadata_resource(session):
