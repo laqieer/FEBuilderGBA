@@ -68,13 +68,14 @@ the package has been `pip install`-ed.
   not advertised until their contracts are implemented and tested here.
 - **Framing:** every JSON-RPC message — a single object, or a JSON array batch — is exactly one
   flushed, UTF-8 line on stdout. The real stdin/stdout/stderr text streams are explicitly
-  reconfigured to UTF-8 before the loop, overriding locale-dependent legacy pipe encodings. All
-  logs/diagnostics go to stderr; nothing else is ever written to stdout. Input lines are capped at
-  1,048,576 characters and batches at 64 entries; an oversized line is drained before the next
-  message is processed. Non-standard `NaN`/`Infinity` JSON tokens are rejected as parse errors.
-  Even an unexpected failure escaping the server's dispatch loop emits a single flushed, generic
-  `-32603` response (`id: null`) rather than silently dying or dropping the line — the loop always
-  keeps processing subsequent lines.
+  reconfigured to UTF-8 before the loop, overriding locale-dependent legacy pipe encodings.
+  Malformed UTF-8 bytes are preserved only long enough to reject that complete line with `-32700`;
+  the following line is still processed. All logs/diagnostics go to stderr; nothing else is ever
+  written to stdout. Input lines are capped at 1,048,576 characters and batches at 64 entries; an
+  oversized line is drained before the next message is processed. Non-standard `NaN`/`Infinity`
+  JSON tokens are also rejected as parse errors. Even an unexpected failure escaping the server's
+  dispatch loop emits a single flushed, generic `-32603` response (`id: null`) rather than silently
+  dying or dropping the line — the loop always keeps processing subsequent lines.
 - **Lifecycle:** `initialize` must be called before any other operation, **except `ping`**, which
   is always allowed. Calling anything else first gets `-32600 Invalid Request`. `initialize` itself
   must **not** be sent as part of a JSON-RPC batch (batching it returns `-32600` for that entry),
@@ -104,7 +105,7 @@ the package has been `pip install`-ed.
 
 | Code | Meaning | When |
 |---|---|---|
-| `-32700` | Parse error | The line isn't valid JSON, including non-standard `NaN`/`Infinity` tokens. |
+| `-32700` | Parse error | The line isn't valid UTF-8/JSON, including non-standard `NaN`/`Infinity` tokens. |
 | `-32600` | Invalid Request | Wrong `jsonrpc` version, malformed request/notification shape, missing/empty/non-string `method`, non-object `params`, invalid `id` (null/bool/object), an empty or over-64-entry batch, an over-1,048,576-character line, `initialize` sent inside a batch, duplicate `initialize` after a successful one, or an operation attempted before `initialize` (except `ping`). |
 | `-32601` | Method not found | `method` is a well-formed, non-empty string but doesn't match any registered method. |
 | `-32602` | Invalid params | Malformed method-specific params shape (see above), unexpected/extra params fields, malformed `initialize` fields, an **unknown tool name**, or **schema-invalid tool arguments** (missing required field, wrong type, out-of-bounds, unexpected/extra property, over-length string — schemas are closed with `additionalProperties: false`). |

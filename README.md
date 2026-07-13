@@ -680,7 +680,8 @@ only a Python 3.10+ standard library — no Windows dependency, no extra package
 Its closed schemas reject empty file paths, and multi-table exports report only the declared
 per-table output names rather than unrelated files sharing the same prefix. The stdio transport
 forces UTF-8, rejects non-standard JSON constants, and validates entity IDs as unsigned 32-bit
-values before backend dispatch.
+values before backend dispatch. Malformed UTF-8 lines produce parse errors without terminating
+the server before the next request.
 
 The `.mcp.json` at the repo root auto-configures Claude Code to use it as `febuildergba-cli`
 (`python ./agent-harness/febuildergba_mcp.py`). See

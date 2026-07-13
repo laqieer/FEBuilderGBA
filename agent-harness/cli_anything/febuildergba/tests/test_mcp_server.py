@@ -1489,6 +1489,36 @@ class TestLauncherSubprocess:
         assert responses[1]["error"]["code"] == srv.METHOD_NOT_FOUND
         assert responses[1]["error"]["message"] == f"Method not found: {method}"
 
+    def test_launcher_rejects_invalid_utf8_and_recovers(self):
+        root = _repo_root()
+        launcher = root / "agent-harness" / "febuildergba_mcp.py"
+        good_request = json.dumps(_req("ping", id_=2)).encode("utf-8") + b"\n"
+        payload = (
+            b'{"jsonrpc":"2.0","id":1,"method":"pi\xffng"}\n'
+            + good_request
+        )
+
+        proc = subprocess.run(
+            [sys.executable, str(launcher)],
+            input=payload,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=10,
+            check=False,
+        )
+
+        assert proc.returncode == 0, proc.stderr.decode("utf-8", errors="replace")
+        responses = [
+            json.loads(line)
+            for line in proc.stdout.decode("utf-8").splitlines()
+            if line.strip()
+        ]
+        assert len(responses) == 2
+        assert responses[0]["id"] is None
+        assert responses[0]["error"]["code"] == srv.PARSE_ERROR
+        assert responses[1]["id"] == 2
+        assert responses[1]["result"] == {}
+
 
 # ── .mcp.json registration ────────────────────────────────────────────────
 

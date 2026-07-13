@@ -1155,11 +1155,15 @@ def handle_line(state, line):
 
 # ── Entry point ──────────────────────────────────────────────────────────
 
-def _reconfigure_utf8(stream):
+def _reconfigure_utf8(stream, errors="strict"):
     """Configure a real standard text stream for the MCP UTF-8 contract."""
     reconfigure = getattr(stream, "reconfigure", None)
     if callable(reconfigure):
-        reconfigure(encoding="utf-8", errors="strict")
+        reconfigure(encoding="utf-8", errors=errors)
+
+
+def _contains_invalid_utf8(text):
+    return any(0xDC80 <= ord(char) <= 0xDCFF for char in text)
 
 
 def serve(session_file=None, in_stream=None, out_stream=None):
@@ -1169,7 +1173,9 @@ def serve(session_file=None, in_stream=None, out_stream=None):
     if out_stream is None:
         out_stream = sys.stdout
     if in_stream is sys.stdin:
-        _reconfigure_utf8(sys.stdin)
+        # Preserve malformed bytes as low surrogates long enough to reject
+        # the complete line without losing framing or terminating the loop.
+        _reconfigure_utf8(sys.stdin, errors="surrogateescape")
     if out_stream is sys.stdout:
         _reconfigure_utf8(sys.stdout)
     if in_stream is sys.stdin or out_stream is sys.stdout:
@@ -1191,6 +1197,12 @@ def serve(session_file=None, in_stream=None, out_stream=None):
                 None, INVALID_REQUEST,
                 f"Invalid Request: input exceeds {MAX_REQUEST_LINE_CHARS} characters",
             )
+            out_stream.write(json.dumps(response) + "\n")
+            out_stream.flush()
+            continue
+
+        if _contains_invalid_utf8(raw_line):
+            response = _err(None, PARSE_ERROR, "Parse error: invalid UTF-8")
             out_stream.write(json.dumps(response) + "\n")
             out_stream.flush()
             continue
