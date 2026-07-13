@@ -207,6 +207,31 @@ def import_palette(rom_path: str, addr: str, in_path: str,
     return out
 
 
+def lz77_file(mode: str, in_path: str, out_path: str) -> dict:
+    """LZ77 compress or decompress an arbitrary file (``--lz77``, issue #1942).
+
+    Pure file operation — no ROM/``--rom`` involved. ``mode`` must be exactly
+    ``"compress"`` or ``"decompress"``.
+
+    Returns dict with ``mode``, ``input_path``, ``output_path``, ``file_size``
+    plus the common fields.
+    """
+    if mode not in ("compress", "decompress"):
+        raise ValueError(f"Invalid lz77 mode: {mode!r}. Use 'compress' or 'decompress'.")
+
+    args = ["--lz77", f"--in={in_path}", f"--out={out_path}", f"--{mode}"]
+
+    result = run_cli(args)
+    out = _base_result(result)
+    out.update({
+        "mode": mode,
+        "input_path": in_path,
+        "output_path": out_path,
+        "file_size": os.path.getsize(out_path) if os.path.isfile(out_path) else 0,
+    })
+    return out
+
+
 def compile_event(rom_path: str, in_path: str, out_path: str = "",
                   force_version: str = "") -> dict:
     """Compile an ``.event`` script with the bundled/configured EA/ColorzCore

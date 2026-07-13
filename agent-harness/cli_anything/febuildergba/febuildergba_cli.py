@@ -828,6 +828,26 @@ def pointercalc_cmd(ctx, target, address, force_version):
     _output(result, result.get("stdout", ""))
 
 
+# ── LZ77 command ──────────────────────────────────────────────────────
+
+@cli.command("lz77")
+@click.option("-i", "--input-file", "in_file", required=True, help="Input file")
+@click.option("-o", "--out", required=True, help="Output file")
+@click.option("--compress", "compress_flag", is_flag=True, help="Compress the input")
+@click.option("--decompress", "decompress_flag", is_flag=True, help="Decompress the input")
+def lz77_cmd(in_file, out, compress_flag, decompress_flag):
+    """LZ77 compress or decompress a file. No ROM required."""
+    if compress_flag and decompress_flag:
+        raise click.UsageError("Use exactly one of --compress or --decompress")
+    if not compress_flag and not decompress_flag:
+        raise click.UsageError("Specify --compress or --decompress")
+    from cli_anything.febuildergba.core.verbs import lz77_file
+    mode = "compress" if compress_flag else "decompress"
+    result = lz77_file(mode, in_file, out)
+    _check_exit_code(result, "LZ77")
+    _output(result, f"LZ77 {mode}ed: {out} ({result['file_size']} bytes)")
+
+
 # ── Session commands ──────────────────────────────────────────────────
 
 @cli.group()
@@ -952,6 +972,7 @@ def repl(project_path):
         "lint-oam <addr>": "Validate OAM sprite data",
         "patch apply-bin <file>": "Apply BIN patch",
         "disasm -o <file>": "Disassemble ROM",
+        "lz77 -i <file> -o <file> --compress|--decompress": "LZ77 compress/decompress a file",
         "check": "Check backend availability",
         "help": "Show this help",
         "quit/exit": "Exit REPL",

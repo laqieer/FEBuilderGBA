@@ -1,0 +1,1126 @@
+"""Public tests for the dependency-free stdio MCP adapter (issue #1942).
+
+These tests are entirely private-ROM-free: protocol/framing/schema behavior
+is exercised by mocking the ``core.*`` wrappers the same way ``test_verbs.py``
+does (monkeypatching the module-level function that each handler imports at
+call time). The only real-backend test here is the LZ77 roundtrip (see
+``test_verbs.py``), and it is synthetic (no ROM) and skip-gated only on
+backend availability.
+"""
+
+import json
+import io
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+from cli_anything.febuildergba import mcp_server as srv
+from cli_anything.febuildergba.core.session import Session
+
+
+# ── Fixtures ────────────────────────────────────────────────────────────
+
+@pytest.fixture
+def state(tmp_path):
+    session = Session(str(tmp_path / "session.json"))
+    return srv._ServerState(session)
+
+
+def _init_params(protocol_version="2025-03-26", **overrides):
+    """A realistic, fully-conformant 'initialize' params object: object
+    capabilities + object clientInfo with non-empty string name/version, as
+    required by the server's initialize conformance checks."""
+    params = {
+        "protocolVersion": protocol_version,
+        "capabilities": {"roots": {"listChanged": True}},
+        "clientInfo": {"name": "febuildergba-test-client", "version": "1.0.0"},
+    }
+    params.update(overrides)
+    return params
+
+
+@pytest.fixture
+def initialized_state(state):
+    srv.handle_line(state, json.dumps({
+        "jsonrpc": "2.0", "id": 1, "method": "initialize",
+        "params": _init_params(),
+    }))
+    return state
+
+
+def _req(method, params=None, id_=1):
+    msg = {"jsonrpc": "2.0", "id": id_, "method": method}
+    if params is not None:
+        msg["params"] = params
+    return msg
+
+
+def _notif(method, params=None):
+    msg = {"jsonrpc": "2.0", "method": method}
+    if params is not None:
+        msg["params"] = params
+    return msg
+
+
+def _call_tool(state, name, arguments=None, id_=1):
+    return srv.handle_line(state, json.dumps(_req(
+        "tools/call", {"name": name, "arguments": arguments or {}}, id_,
+    )))
+
+
+# ── Version negotiation ─────────────────────────────────────────────────
+
+class TestVersionNegotiation:
+    def test_latest_requested(self, state):
+        resp = srv.handle_line(state, json.dumps(_req("initialize", _init_params("2025-03-26"))))
+        assert resp["result"]["protocolVersion"] == "2025-03-26"
+
+    def test_older_supported_requested(self, state):
+        resp = srv.handle_line(state, json.dumps(_req("initialize", _init_params("2024-11-05"))))
+        assert resp["result"]["protocolVersion"] == "2024-11-05"
+
+    def test_unsupported_falls_back_to_latest(self, state):
+        # A well-formed-but-unrecognized protocolVersion still negotiates
+        # the latest supported version rather than failing.
+        resp = srv.handle_line(state, json.dumps(_req("initialize", _init_params("1999-01-01"))))
+        assert resp["result"]["protocolVersion"] == srv.LATEST_PROTOCOL_VERSION
+
+    def test_capabilities_shape(self, state):
+        resp = srv.handle_line(state, json.dumps(_req("initialize", _init_params())))
+        caps = resp["result"]["capabilities"]
+        assert caps["tools"] == {"listChanged": False}
+        assert caps["resources"] == {"subscribe": False, "listChanged": False}
+
+
+# ── Initialize conformance ───────────────────────────────────────────────
+
+class TestInitializeConformance:
+    def test_missing_protocol_version_is_invalid_params(self, state):
+        params = _init_params()
+        del params["protocolVersion"]
+        resp = srv.handle_line(state, json.dumps(_req("initialize", params)))
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+
+    def test_non_string_protocol_version_is_invalid_params(self, state):
+        resp = srv.handle_line(state, json.dumps(_req("initialize", _init_params(protocol_version=123))))
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+
+    def test_empty_protocol_version_is_invalid_params(self, state):
+        resp = srv.handle_line(state, json.dumps(_req("initialize", _init_params(protocol_version=""))))
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+
+    def test_missing_capabilities_is_invalid_params(self, state):
+        params = _init_params()
+        del params["capabilities"]
+        resp = srv.handle_line(state, json.dumps(_req("initialize", params)))
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+
+    def test_malformed_capabilities_is_invalid_params(self, state):
+        resp = srv.handle_line(state, json.dumps(_req("initialize", _init_params(capabilities="nope"))))
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+
+    def test_missing_client_info_is_invalid_params(self, state):
+        params = _init_params()
+        del params["clientInfo"]
+        resp = srv.handle_line(state, json.dumps(_req("initialize", params)))
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+
+    def test_client_info_not_object_is_invalid_params(self, state):
+        resp = srv.handle_line(state, json.dumps(_req("initialize", _init_params(clientInfo="nope"))))
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+
+    def test_client_info_missing_name_is_invalid_params(self, state):
+        resp = srv.handle_line(state, json.dumps(_req(
+            "initialize", _init_params(clientInfo={"version": "1.0.0"}))))
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+
+    def test_client_info_empty_name_is_invalid_params(self, state):
+        resp = srv.handle_line(state, json.dumps(_req(
+            "initialize", _init_params(clientInfo={"name": "", "version": "1.0.0"}))))
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+
+    def test_client_info_missing_version_is_invalid_params(self, state):
+        resp = srv.handle_line(state, json.dumps(_req(
+            "initialize", _init_params(clientInfo={"name": "client"}))))
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+
+    def test_client_info_non_string_version_is_invalid_params(self, state):
+        resp = srv.handle_line(state, json.dumps(_req(
+            "initialize", _init_params(clientInfo={"name": "client", "version": 1}))))
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+
+    def test_well_formed_initialize_succeeds(self, state):
+        resp = srv.handle_line(state, json.dumps(_req("initialize", _init_params())))
+        assert resp["result"]["protocolVersion"] == "2025-03-26"
+
+    def test_duplicate_initialize_is_invalid_request(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps(_req("initialize", _init_params(), id_=2)))
+        assert resp["error"]["code"] == srv.INVALID_REQUEST
+
+
+# ── Lifecycle ────────────────────────────────────────────────────────────
+
+class TestLifecycle:
+    def test_operation_before_initialize_is_invalid_request(self, state):
+        resp = srv.handle_line(state, json.dumps(_req("tools/list")))
+        assert resp["error"]["code"] == srv.INVALID_REQUEST
+
+    def test_ping_allowed_before_initialize(self, state):
+        resp = srv.handle_line(state, json.dumps(_req("ping")))
+        assert resp["result"] == {}
+
+    def test_tools_list_allowed_after_initialize(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps(_req("tools/list")))
+        assert "tools" in resp["result"]
+
+    def test_initialize_cannot_be_batched(self, state):
+        batch = [_req("initialize", _init_params(), id_=1)]
+        resp = srv.handle_line(state, json.dumps(batch))
+        assert isinstance(resp, list) and len(resp) == 1
+        assert resp[0]["error"]["code"] == srv.INVALID_REQUEST
+
+
+# ── Framing: single / batch / notifications ─────────────────────────────
+
+class TestFraming:
+    def test_single_message_returns_dict(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps(_req("ping")))
+        assert isinstance(resp, dict)
+
+    def test_batch_of_requests_returns_list_in_order(self, initialized_state):
+        batch = [_req("ping", id_=1), _req("ping", id_=2)]
+        resp = srv.handle_line(initialized_state, json.dumps(batch))
+        assert isinstance(resp, list) and len(resp) == 2
+        assert [r["id"] for r in resp] == [1, 2]
+
+    def test_mixed_batch_request_notification_invalid(self, initialized_state):
+        batch = [
+            _req("ping", id_=1),
+            _notif("notifications/cancelled"),
+            {"jsonrpc": "1.0", "id": 2, "method": "ping"},  # invalid
+        ]
+        resp = srv.handle_line(initialized_state, json.dumps(batch))
+        # notification produces no entry; ping + invalid produce 2 entries
+        assert isinstance(resp, list) and len(resp) == 2
+        assert resp[0]["result"] == {}
+        assert resp[1]["error"]["code"] == srv.INVALID_REQUEST
+
+    def test_empty_batch_is_invalid_request(self, initialized_state):
+        resp = srv.handle_line(initialized_state, "[]")
+        assert resp["error"]["code"] == srv.INVALID_REQUEST
+
+    def test_notification_only_batch_emits_nothing(self, initialized_state):
+        batch = [_notif("notifications/cancelled"), _notif("notifications/initialized")]
+        resp = srv.handle_line(initialized_state, json.dumps(batch))
+        assert resp is None
+
+    def test_single_notification_emits_nothing(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps(_notif("notifications/initialized")))
+        assert resp is None
+
+    def test_notification_to_unknown_method_is_suppressed(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps(_notif("bogus/method")))
+        assert resp is None
+
+    def test_malformed_method_without_id_is_not_suppressed(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps({"jsonrpc": "2.0"}))
+        assert resp["id"] is None
+        assert resp["error"]["code"] == srv.INVALID_REQUEST
+
+    def test_malformed_method_without_id_in_batch_returns_entry(self, initialized_state):
+        batch = [{"jsonrpc": "2.0"}, _notif("notifications/initialized")]
+        resp = srv.handle_line(initialized_state, json.dumps(batch))
+        assert isinstance(resp, list) and len(resp) == 1
+        assert resp[0]["id"] is None
+        assert resp[0]["error"]["code"] == srv.INVALID_REQUEST
+
+    def test_oversized_batch_is_rejected_as_one_invalid_request(self, initialized_state):
+        batch = [_req("ping", id_=i) for i in range(srv.MAX_BATCH_ITEMS + 1)]
+        resp = srv.handle_line(initialized_state, json.dumps(batch))
+        assert isinstance(resp, dict)
+        assert resp["id"] is None
+        assert resp["error"]["code"] == srv.INVALID_REQUEST
+
+    def test_arbitrary_string_and_integer_ids_roundtrip(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps(_req("ping", id_="abc-123")))
+        assert resp["id"] == "abc-123"
+        resp2 = srv.handle_line(initialized_state, json.dumps(_req("ping", id_=42)))
+        assert resp2["id"] == 42
+
+
+# ── Protocol errors ──────────────────────────────────────────────────────
+
+class TestProtocolErrors:
+    def test_parse_error(self, initialized_state):
+        resp = srv.handle_line(initialized_state, "{not json")
+        assert resp["error"]["code"] == srv.PARSE_ERROR
+        assert resp["id"] is None
+
+    def test_invalid_request_bad_version(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps({"jsonrpc": "1.0", "id": 1, "method": "ping"}))
+        assert resp["error"]["code"] == srv.INVALID_REQUEST
+
+    def test_invalid_request_null_id(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps({"jsonrpc": "2.0", "id": None, "method": "ping"}))
+        assert resp["error"]["code"] == srv.INVALID_REQUEST
+
+    def test_invalid_request_bool_id(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps({"jsonrpc": "2.0", "id": True, "method": "ping"}))
+        assert resp["error"]["code"] == srv.INVALID_REQUEST
+        assert resp["id"] is None
+
+    def test_bad_version_does_not_echo_invalid_bool_id(self, initialized_state):
+        request = {"jsonrpc": "1.0", "id": True, "method": "ping"}
+        resp = srv.handle_line(initialized_state, json.dumps(request))
+        assert resp["error"]["code"] == srv.INVALID_REQUEST
+        assert resp["id"] is None
+
+    def test_oversized_input_line_is_invalid_request(self, initialized_state):
+        resp = srv.handle_line(initialized_state, "x" * (srv.MAX_REQUEST_LINE_CHARS + 1))
+        assert resp["id"] is None
+        assert resp["error"]["code"] == srv.INVALID_REQUEST
+
+    def test_invalid_request_params_not_object(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps({"jsonrpc": "2.0", "id": 1, "method": "ping", "params": [1, 2]}))
+        assert resp["error"]["code"] == srv.INVALID_REQUEST
+
+    def test_invalid_request_not_an_object(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps(42))
+        assert resp["error"]["code"] == srv.INVALID_REQUEST
+
+    def test_invalid_request_missing_method(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps({"jsonrpc": "2.0", "id": 1}))
+        assert resp["error"]["code"] == srv.INVALID_REQUEST
+
+    def test_invalid_request_empty_method(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps({"jsonrpc": "2.0", "id": 1, "method": ""}))
+        assert resp["error"]["code"] == srv.INVALID_REQUEST
+
+    def test_invalid_request_non_string_method(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps({"jsonrpc": "2.0", "id": 1, "method": 42}))
+        assert resp["error"]["code"] == srv.INVALID_REQUEST
+
+    def test_method_not_found_unknown_method(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps(_req("bogus/method")))
+        assert resp["error"]["code"] == srv.METHOD_NOT_FOUND
+
+    def test_invalid_params_unknown_tool(self, initialized_state):
+        resp = _call_tool(initialized_state, "no_such_tool")
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+
+    def test_invalid_params_missing_required_arg(self, initialized_state):
+        resp = _call_tool(initialized_state, "data_export", {"table": "units"})  # missing out_path
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+
+    def test_invalid_params_unexpected_property(self, initialized_state):
+        resp = _call_tool(initialized_state, "rom_info", {"bogus_extra": 1})
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+
+    def test_invalid_params_wrong_type(self, initialized_state):
+        resp = _call_tool(initialized_state, "session_history", {"count": "ten"})
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+
+    def test_invalid_params_bool_not_accepted_as_int(self, initialized_state):
+        resp = _call_tool(initialized_state, "session_history", {"count": True})
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+
+    def test_invalid_params_out_of_bounds(self, initialized_state):
+        resp = _call_tool(initialized_state, "session_history", {"count": 0})
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+        resp2 = _call_tool(initialized_state, "session_history", {"count": 101})
+        assert resp2["error"]["code"] == srv.INVALID_PARAMS
+
+    def test_invalid_params_tools_call_missing_name(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps(_req("tools/call", {"arguments": {}})))
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+
+    def test_unknown_resource_is_resource_not_found(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps(_req("resources/read", {"uri": "febuildergba://nope"})))
+        assert resp["error"]["code"] == srv.RESOURCE_NOT_FOUND
+
+    def test_invalid_params_resources_read_missing_uri(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps(_req("resources/read", {})))
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+
+
+# ── Method-specific params tightening (tools/call, resources/read,
+# tools/list, resources/list, ping) ───────────────────────────────────────
+
+class TestMethodSpecificParams:
+    def test_ping_rejects_unknown_field(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps(_req("ping", {"bogus": 1})))
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+
+    def test_ping_allows_meta(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps(_req("ping", {"_meta": {"x": 1}})))
+        assert resp["result"] == {}
+
+    def test_ping_allows_no_params(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps(_req("ping")))
+        assert resp["result"] == {}
+
+    def test_tools_list_rejects_unknown_field(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps(_req("tools/list", {"bogus": 1})))
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+
+    def test_tools_list_allows_cursor_and_meta(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps(
+            _req("tools/list", {"cursor": "abc", "_meta": {}})))
+        assert "tools" in resp["result"]
+
+    def test_tools_list_rejects_non_string_cursor(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps(_req("tools/list", {"cursor": 1})))
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+
+    def test_resources_list_rejects_unknown_field(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps(_req("resources/list", {"bogus": 1})))
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+
+    def test_resources_list_allows_cursor_and_meta(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps(
+            _req("resources/list", {"cursor": "abc", "_meta": {}})))
+        assert "resources" in resp["result"]
+
+    def test_tools_call_rejects_unknown_field(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps(
+            _req("tools/call", {"name": "backend_check", "bogus": 1})))
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+
+    def test_tools_call_allows_meta(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps(
+            _req("tools/call", {"name": "backend_check", "arguments": {}, "_meta": {"trace": "x"}})))
+        assert "result" in resp
+
+    def test_resources_read_rejects_unknown_field(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps(
+            _req("resources/read", {"uri": "febuildergba://session", "bogus": 1})))
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+
+    def test_resources_read_allows_meta(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps(
+            _req("resources/read", {"uri": "febuildergba://session", "_meta": {}})))
+        assert "result" in resp
+
+
+# ── Tool / resource discovery ────────────────────────────────────────────
+
+EXPECTED_TOOLS = {
+    "backend_check", "session_open", "session_close", "session_status",
+    "session_history", "rom_info", "rom_validate", "rom_list_tables",
+    "rom_checksum", "data_export", "data_import", "data_roundtrip",
+    "names_resolve", "text_search", "text_roundtrip", "rom_lint",
+    "image_quantize", "image_convert_map", "palette_export",
+    "palette_import", "lz77",
+}
+
+DESTRUCTIVE_TOOLS = {
+    "session_open", "session_close", "data_export", "data_import",
+    "image_quantize", "image_convert_map", "palette_export",
+    "palette_import", "lz77",
+}
+
+
+class TestDiscovery:
+    def test_exactly_21_tools(self):
+        assert len(srv.TOOL_DEFS) == 21
+        assert {t["name"] for t in srv.TOOL_DEFS} == EXPECTED_TOOLS
+
+    def test_tools_list_matches_defs(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps(_req("tools/list")))
+        names = {t["name"] for t in resp["result"]["tools"]}
+        assert names == EXPECTED_TOOLS
+
+    def test_no_forbidden_tools(self):
+        forbidden = {"run_command", "patch_apply", "rebuild", "repair_header",
+                     "compile_event", "import_midi", "export_midi", "songexchange"}
+        names = {t["name"] for t in srv.TOOL_DEFS}
+        assert names.isdisjoint(forbidden)
+
+    def test_annotation_matrix_exact(self):
+        for tool in srv.TOOL_DEFS:
+            ann = tool["annotations"]
+            assert ann["openWorldHint"] is False
+            if tool["name"] in DESTRUCTIVE_TOOLS:
+                assert ann["readOnlyHint"] is False, tool["name"]
+                assert ann["destructiveHint"] is True, tool["name"]
+            else:
+                assert ann["readOnlyHint"] is True, tool["name"]
+                assert ann["destructiveHint"] is False, tool["name"]
+
+    def test_destructive_count_is_9(self):
+        destructive = [t for t in srv.TOOL_DEFS if t["annotations"]["destructiveHint"]]
+        assert len(destructive) == 9
+        assert {t["name"] for t in destructive} == DESTRUCTIVE_TOOLS
+
+    def test_text_roundtrip_has_no_out_prefix_param(self):
+        schema = srv.TOOL_SCHEMAS["text_roundtrip"]
+        assert "out_prefix" not in schema["properties"]
+
+    def test_all_schemas_closed(self):
+        for tool in srv.TOOL_DEFS:
+            assert tool["inputSchema"]["additionalProperties"] is False, tool["name"]
+
+    def test_three_resources_exact(self):
+        uris = {r["uri"] for r in srv.RESOURCE_DEFS}
+        assert uris == {
+            "febuildergba://session",
+            "febuildergba://session/history",
+            "febuildergba://rom/metadata",
+        }
+
+    def test_resources_list_method(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps(_req("resources/list")))
+        uris = {r["uri"] for r in resp["result"]["resources"]}
+        assert len(uris) == 3
+        for r in resp["result"]["resources"]:
+            assert r["mimeType"] == "application/json"
+
+
+# ── Resources: content + no raw bytes ────────────────────────────────────
+
+class TestResources:
+    def _read(self, state, uri):
+        resp = srv.handle_line(state, json.dumps(_req("resources/read", {"uri": uri})))
+        content = resp["result"]["contents"][0]
+        assert content["mimeType"] == "application/json"
+        return json.loads(content["text"])
+
+    def test_session_resource_closed(self, initialized_state):
+        data = self._read(initialized_state, "febuildergba://session")
+        assert data == {"open": False, "truncated": False}
+
+    def test_session_history_resource_closed(self, initialized_state):
+        data = self._read(initialized_state, "febuildergba://session/history")
+        assert data["open"] is False
+        assert data["history"] == []
+
+    def test_rom_metadata_resource_closed(self, initialized_state):
+        data = self._read(initialized_state, "febuildergba://rom/metadata")
+        assert data == {"open": False, "truncated": False}
+
+    def test_rom_metadata_resource_open_no_raw_bytes(self, initialized_state, monkeypatch, tmp_path):
+        initialized_state.session.open_rom(str(tmp_path / "r.gba"), "FE8U", 123)
+
+        def fake_rom_header(path):
+            return {"rom_path": path, "title": "T", "game_code": "BE8E",
+                    "maker_code": "01", "unit_code": 0, "device_type": 0,
+                    "software_version": 0, "header_checksum": 0x91}
+        monkeypatch.setattr("cli_anything.febuildergba.core.project.rom_header", fake_rom_header)
+
+        data = self._read(initialized_state, "febuildergba://rom/metadata")
+        assert data["open"] is True
+        assert data["rom_header"]["game_code"] == "BE8E"
+        # no raw byte payloads anywhere in the metadata
+        blob = json.dumps(data)
+        assert "\\u0000" not in blob  # no embedded binary/null bytes leaked in
+        for key in data:
+            assert key not in ("bytes", "raw", "data", "rom_bytes")
+
+
+# ── Tool business logic: session precedence / history / modified flag ───
+
+class TestSessionPrecedence:
+    def test_missing_rom_and_no_session_is_tool_error(self, initialized_state):
+        resp = _call_tool(initialized_state, "rom_info", {})
+        result = resp["result"]
+        assert result["isError"] is True
+        payload = json.loads(result["content"][0]["text"])
+        assert "No ROM specified" in payload["error"]
+
+    def test_explicit_rom_path_overrides_session(self, initialized_state, monkeypatch, tmp_path):
+        initialized_state.session.open_rom(str(tmp_path / "session_rom.gba"), "FE8U", 1)
+        seen = {}
+
+        def fake_rom_info(rom_path, force_version=""):
+            seen["rom_path"] = rom_path
+            return {"rom_path": rom_path, "rom_size": 1, "rom_size_hex": "0x1",
+                    "rom_size_mb": 0.0, "detected_version": "FE7U",
+                    "force_version": force_version, "lint_output": "", "lint_exit_code": 0}
+        monkeypatch.setattr("cli_anything.febuildergba.core.project.rom_info", fake_rom_info)
+
+        resp = _call_tool(initialized_state, "rom_info", {"rom_path": "explicit.gba"})
+        assert resp["result"]["isError"] is False
+        assert seen["rom_path"] == "explicit.gba"
+
+    def test_falls_back_to_session_rom(self, initialized_state, monkeypatch, tmp_path):
+        rom_path = str(tmp_path / "session_rom.gba")
+        initialized_state.session.open_rom(rom_path, "FE8U", 1)
+        seen = {}
+
+        def fake_rom_info(rp, force_version=""):
+            seen["rom_path"] = rp
+            return {"rom_path": rp, "rom_size": 1, "rom_size_hex": "0x1",
+                    "rom_size_mb": 0.0, "detected_version": "FE8U",
+                    "force_version": force_version, "lint_output": "", "lint_exit_code": 0}
+        monkeypatch.setattr("cli_anything.febuildergba.core.project.rom_info", fake_rom_info)
+
+        resp = _call_tool(initialized_state, "rom_info", {})
+        assert resp["result"]["isError"] is False
+        assert seen["rom_path"] == rom_path
+
+
+class TestDataExportHistoryAndModified:
+    def _fake_export(self, monkeypatch, exit_code=0):
+        def fake(rom_path, table, out_path, force_version=""):
+            return {"table": table, "output_files": [out_path], "output_path": out_path,
+                    "exit_code": exit_code, "stdout": "", "stderr": ""}
+        monkeypatch.setattr("cli_anything.febuildergba.core.data.export_table", fake)
+
+    def test_success_on_session_rom_records_history(self, initialized_state, monkeypatch, tmp_path):
+        rom = str(tmp_path / "r.gba")
+        initialized_state.session.open_rom(rom, "FE8U", 1)
+        self._fake_export(monkeypatch, 0)
+        resp = _call_tool(initialized_state, "data_export", {"table": "units", "out_path": "units.tsv"})
+        assert resp["result"]["isError"] is False
+        assert initialized_state.session.state.history[-1]["op"] == "data_export"
+
+    def test_failure_does_not_record_history(self, initialized_state, monkeypatch, tmp_path):
+        rom = str(tmp_path / "r.gba")
+        initialized_state.session.open_rom(rom, "FE8U", 1)
+        before = len(initialized_state.session.state.history)
+        self._fake_export(monkeypatch, 1)
+        resp = _call_tool(initialized_state, "data_export", {"table": "units", "out_path": "units.tsv"})
+        assert resp["result"]["isError"] is True
+        assert len(initialized_state.session.state.history) == before
+
+    def test_other_rom_override_does_not_record_history(self, initialized_state, monkeypatch, tmp_path):
+        rom = str(tmp_path / "r.gba")
+        initialized_state.session.open_rom(rom, "FE8U", 1)
+        before = len(initialized_state.session.state.history)
+        self._fake_export(monkeypatch, 0)
+        resp = _call_tool(initialized_state, "data_export",
+                           {"table": "units", "out_path": "units.tsv",
+                            "rom_path": str(tmp_path / "other.gba")})
+        assert resp["result"]["isError"] is False
+        assert len(initialized_state.session.state.history) == before
+
+
+class TestDataImportModifiedFlag:
+    def _fake_import(self, monkeypatch, exit_code=0):
+        def fake(rom_path, table, in_path, force_version=""):
+            return {"table": table, "input_path": in_path, "exit_code": exit_code,
+                    "stdout": "", "stderr": ""}
+        monkeypatch.setattr("cli_anything.febuildergba.core.data.import_table", fake)
+
+    def test_success_on_session_rom_marks_modified(self, initialized_state, monkeypatch, tmp_path):
+        rom = str(tmp_path / "r.gba")
+        initialized_state.session.open_rom(rom, "FE8U", 1)
+        assert initialized_state.session.state.modified is False
+        self._fake_import(monkeypatch, 0)
+        resp = _call_tool(initialized_state, "data_import", {"table": "units", "in_path": "u.tsv"})
+        assert resp["result"]["isError"] is False
+        assert initialized_state.session.state.modified is True
+
+    def test_failure_never_marks_modified(self, initialized_state, monkeypatch, tmp_path):
+        rom = str(tmp_path / "r.gba")
+        initialized_state.session.open_rom(rom, "FE8U", 1)
+        self._fake_import(monkeypatch, 1)
+        resp = _call_tool(initialized_state, "data_import", {"table": "units", "in_path": "u.tsv"})
+        assert resp["result"]["isError"] is True
+        assert initialized_state.session.state.modified is False
+
+    def test_other_rom_override_never_marks_modified(self, initialized_state, monkeypatch, tmp_path):
+        rom = str(tmp_path / "r.gba")
+        initialized_state.session.open_rom(rom, "FE8U", 1)
+        self._fake_import(monkeypatch, 0)
+        resp = _call_tool(initialized_state, "data_import",
+                           {"table": "units", "in_path": "u.tsv",
+                            "rom_path": str(tmp_path / "other.gba")})
+        assert resp["result"]["isError"] is False
+        assert initialized_state.session.state.modified is False
+
+    def test_no_phantom_session_when_none_open(self, initialized_state, monkeypatch):
+        assert initialized_state.session.is_open() is False
+        self._fake_import(monkeypatch, 0)
+        resp = _call_tool(initialized_state, "data_import",
+                           {"table": "units", "in_path": "u.tsv", "rom_path": "explicit.gba"})
+        assert resp["result"]["isError"] is False
+        assert initialized_state.session.is_open() is False
+
+
+class TestPaletteImportSessionEffects:
+    """palette_import must follow the same session-owned history/modified
+    rules as data_import: only on success AND same-as-session-ROM."""
+
+    def _fake_import_palette(self, monkeypatch, exit_code=0):
+        def fake(rom_path, addr, in_path, force_version=""):
+            return {"rom_path": rom_path, "addr": addr, "input_path": in_path,
+                    "exit_code": exit_code, "stdout": "", "stderr": ""}
+        monkeypatch.setattr("cli_anything.febuildergba.core.verbs.import_palette", fake)
+
+    def test_success_on_session_rom_records_history_and_marks_modified(
+            self, initialized_state, monkeypatch, tmp_path):
+        rom = str(tmp_path / "r.gba")
+        initialized_state.session.open_rom(rom, "FE8U", 1)
+        assert initialized_state.session.state.modified is False
+        self._fake_import_palette(monkeypatch, 0)
+        resp = _call_tool(initialized_state, "palette_import", {"addr": "0x5524", "in_path": "p.pal"})
+        assert resp["result"]["isError"] is False
+        assert initialized_state.session.state.modified is True
+        assert initialized_state.session.state.history[-1]["op"] == "palette_import"
+
+    def test_failure_does_not_record_history_or_mark_modified(
+            self, initialized_state, monkeypatch, tmp_path):
+        rom = str(tmp_path / "r.gba")
+        initialized_state.session.open_rom(rom, "FE8U", 1)
+        before = len(initialized_state.session.state.history)
+        self._fake_import_palette(monkeypatch, 1)
+        resp = _call_tool(initialized_state, "palette_import", {"addr": "0x5524", "in_path": "p.pal"})
+        assert resp["result"]["isError"] is True
+        assert initialized_state.session.state.modified is False
+        assert len(initialized_state.session.state.history) == before
+
+    def test_other_rom_override_does_not_record_history_or_mark_modified(
+            self, initialized_state, monkeypatch, tmp_path):
+        rom = str(tmp_path / "r.gba")
+        initialized_state.session.open_rom(rom, "FE8U", 1)
+        before = len(initialized_state.session.state.history)
+        self._fake_import_palette(monkeypatch, 0)
+        resp = _call_tool(initialized_state, "palette_import",
+                           {"addr": "0x5524", "in_path": "p.pal",
+                            "rom_path": str(tmp_path / "other.gba")})
+        assert resp["result"]["isError"] is False
+        assert initialized_state.session.state.modified is False
+        assert len(initialized_state.session.state.history) == before
+
+
+class TestForceVersionPrecedence:
+    """Explicit force_version wins over the session's; the session's is used
+    only as a fallback when the argument is omitted."""
+
+    def test_explicit_force_version_overrides_session(self, initialized_state, monkeypatch, tmp_path):
+        rom = str(tmp_path / "r.gba")
+        initialized_state.session.open_rom(rom, "FE8U", 1, "FE8U")
+        seen = {}
+
+        def fake_rom_info(rom_path, force_version=""):
+            seen["force_version"] = force_version
+            return {"rom_path": rom_path, "rom_size": 1, "rom_size_hex": "0x1",
+                    "rom_size_mb": 0.0, "detected_version": "FE8U",
+                    "force_version": force_version, "lint_output": "", "lint_exit_code": 0}
+        monkeypatch.setattr("cli_anything.febuildergba.core.project.rom_info", fake_rom_info)
+
+        resp = _call_tool(initialized_state, "rom_info", {"force_version": "FE7U"})
+        assert resp["result"]["isError"] is False
+        assert seen["force_version"] == "FE7U"
+
+    def test_falls_back_to_session_force_version(self, initialized_state, monkeypatch, tmp_path):
+        rom = str(tmp_path / "r.gba")
+        initialized_state.session.open_rom(rom, "FE8U", 1, "FE8J")
+        seen = {}
+
+        def fake_rom_info(rom_path, force_version=""):
+            seen["force_version"] = force_version
+            return {"rom_path": rom_path, "rom_size": 1, "rom_size_hex": "0x1",
+                    "rom_size_mb": 0.0, "detected_version": "FE8U",
+                    "force_version": force_version, "lint_output": "", "lint_exit_code": 0}
+        monkeypatch.setattr("cli_anything.febuildergba.core.project.rom_info", fake_rom_info)
+
+        resp = _call_tool(initialized_state, "rom_info", {})
+        assert resp["result"]["isError"] is False
+        assert seen["force_version"] == "FE8J"
+
+    def test_no_force_version_anywhere_is_empty(self, initialized_state, monkeypatch, tmp_path):
+        rom = str(tmp_path / "r.gba")
+        initialized_state.session.open_rom(rom, "FE8U", 1)  # no force_version
+        seen = {}
+
+        def fake_rom_info(rom_path, force_version=""):
+            seen["force_version"] = force_version
+            return {"rom_path": rom_path, "rom_size": 1, "rom_size_hex": "0x1",
+                    "rom_size_mb": 0.0, "detected_version": "FE8U",
+                    "force_version": force_version, "lint_output": "", "lint_exit_code": 0}
+        monkeypatch.setattr("cli_anything.febuildergba.core.project.rom_info", fake_rom_info)
+
+        resp = _call_tool(initialized_state, "rom_info", {})
+        assert resp["result"]["isError"] is False
+        assert seen["force_version"] == ""
+
+
+# ── Advisory vs hard tool errors ──────────────────────────────────────────
+
+class TestAdvisoryVsHardErrors:
+    def test_checksum_advisory_exit2_is_not_error(self, initialized_state, monkeypatch, tmp_path):
+        rom = str(tmp_path / "r.gba")
+        initialized_state.session.open_rom(rom, "FE8U", 1)
+
+        def fake_checksum(rom_path, force_version=""):
+            return {"exit_code": 2, "stdout": "", "stderr": "", "rom_path": rom_path,
+                    "valid": False, "actual": "0xAB", "expected": "0xCD"}
+        monkeypatch.setattr("cli_anything.febuildergba.core.verbs.checksum", fake_checksum)
+
+        resp = _call_tool(initialized_state, "rom_checksum", {})
+        assert resp["result"]["isError"] is False
+
+    def test_checksum_hard_exit1_is_error(self, initialized_state, monkeypatch, tmp_path):
+        rom = str(tmp_path / "r.gba")
+        initialized_state.session.open_rom(rom, "FE8U", 1)
+
+        def fake_checksum(rom_path, force_version=""):
+            return {"exit_code": 1, "stdout": "", "stderr": "boom", "rom_path": rom_path,
+                    "valid": None, "actual": None, "expected": None}
+        monkeypatch.setattr("cli_anything.febuildergba.core.verbs.checksum", fake_checksum)
+
+        resp = _call_tool(initialized_state, "rom_checksum", {})
+        assert resp["result"]["isError"] is True
+
+    def test_data_roundtrip_advisory_exit2(self, initialized_state, monkeypatch, tmp_path):
+        rom = str(tmp_path / "r.gba")
+        initialized_state.session.open_rom(rom, "FE8U", 1)
+
+        def fake(rom_path, table, force_version=""):
+            return {"table": table, "lossless": False, "exit_code": 2, "stdout": "", "stderr": ""}
+        monkeypatch.setattr("cli_anything.febuildergba.core.data.roundtrip_table", fake)
+
+        resp = _call_tool(initialized_state, "data_roundtrip", {})
+        assert resp["result"]["isError"] is False
+
+    def test_text_roundtrip_advisory_exit2_is_not_error(self, initialized_state, monkeypatch, tmp_path):
+        rom = str(tmp_path / "r.gba")
+        initialized_state.session.open_rom(rom, "FE8U", 1)
+
+        def fake(rom_path, output_prefix="", force_version=""):
+            return {"lossless": False, "exit_code": 2, "stdout": "", "stderr": ""}
+        monkeypatch.setattr("cli_anything.febuildergba.core.text.roundtrip_text", fake)
+
+        resp = _call_tool(initialized_state, "text_roundtrip", {})
+        assert resp["result"]["isError"] is False
+
+    def test_text_roundtrip_hard_exit1_is_error(self, initialized_state, monkeypatch, tmp_path):
+        rom = str(tmp_path / "r.gba")
+        initialized_state.session.open_rom(rom, "FE8U", 1)
+
+        def fake(rom_path, output_prefix="", force_version=""):
+            return {"lossless": None, "exit_code": 1, "stdout": "", "stderr": "boom"}
+        monkeypatch.setattr("cli_anything.febuildergba.core.text.roundtrip_text", fake)
+
+        resp = _call_tool(initialized_state, "text_roundtrip", {})
+        assert resp["result"]["isError"] is True
+
+    def test_backend_unavailable_is_not_a_tool_error(self, initialized_state, monkeypatch):
+        def fake_check_backend():
+            return {"available": False, "error": "not found"}
+        monkeypatch.setattr("cli_anything.febuildergba.utils.febuildergba_backend.check_backend",
+                            fake_check_backend)
+        resp = _call_tool(initialized_state, "backend_check", {})
+        assert resp["result"]["isError"] is False
+        payload = json.loads(resp["result"]["content"][0]["text"])
+        assert payload["available"] is False
+
+
+# ── Bounds ────────────────────────────────────────────────────────────────
+
+class TestBounds:
+    def test_text_search_default_and_max_limit_schema(self):
+        schema = srv.TOOL_SCHEMAS["text_search"]["properties"]["limit"]
+        assert schema["maximum"] == 500
+
+    def test_text_search_truncation_metadata(self, initialized_state, monkeypatch, tmp_path):
+        rom = str(tmp_path / "r.gba")
+        initialized_state.session.open_rom(rom, "FE8U", 1)
+        matches = [{"id": str(i), "text": f"row{i}"} for i in range(120)]
+
+        def fake_search(rom_path, query, force_version=""):
+            return {"query": query, "matches": matches, "match_count": len(matches), "exit_code": 0}
+        monkeypatch.setattr("cli_anything.febuildergba.core.text.search_text", fake_search)
+
+        resp = _call_tool(initialized_state, "text_search", {"query": "row", "limit": 50})
+        payload = json.loads(resp["result"]["content"][0]["text"])
+        assert payload["total"] == 120
+        assert payload["returned"] == 50
+        assert payload["truncated"] is True
+
+    def test_lint_bounds_metadata(self, initialized_state, monkeypatch, tmp_path):
+        rom = str(tmp_path / "r.gba")
+        initialized_state.session.open_rom(rom, "FE8U", 1)
+        errors = [f"ERROR {i}" for i in range(250)]
+
+        def fake_lint(rom_path, force_version=""):
+            return {"rom_path": rom_path, "clean": False, "error_count": len(errors),
+                    "warning_count": 0, "errors": errors, "warnings": [], "info": [],
+                    "exit_code": 0, "raw_output": ""}
+        monkeypatch.setattr("cli_anything.febuildergba.core.lint.lint_rom", fake_lint)
+
+        resp = _call_tool(initialized_state, "rom_lint", {"limit": 200})
+        payload = json.loads(resp["result"]["content"][0]["text"])
+        assert payload["errors_total"] == 250
+        assert len(payload["errors"]) == 200
+        assert payload["errors_truncated"] is True
+
+    def test_names_resolve_ids_max_256(self, initialized_state):
+        resp = _call_tool(initialized_state, "names_resolve",
+                          {"kind": "unit", "ids": list(range(257))})
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+
+    def test_stdout_field_bounded(self):
+        big = "x" * (srv.MAX_STRING_LEN + 10)
+        d = {"stdout": big}
+        srv._bound_string_fields(d)
+        assert len(d["stdout"]) == srv.MAX_STRING_LEN
+        assert d["stdout_truncated"] is True
+        assert d["stdout_original_length"] == len(big)
+
+    def test_short_stdout_not_marked_truncated(self):
+        d = {"stdout": "short"}
+        srv._bound_string_fields(d)
+        assert d["stdout_truncated"] is False
+        assert "stdout_original_length" not in d
+
+    # ── maxLength bounds on agent-controlled free strings (item 7) ──────
+
+    def test_rom_path_over_max_length_is_invalid_params(self, initialized_state):
+        too_long = "a" * (srv.MAX_PATH_LEN + 1)
+        resp = _call_tool(initialized_state, "rom_info", {"rom_path": too_long})
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+
+    def test_out_path_over_max_length_is_invalid_params(self, initialized_state):
+        too_long = "a" * (srv.MAX_PATH_LEN + 1)
+        resp = _call_tool(initialized_state, "data_export",
+                          {"table": "units", "out_path": too_long})
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+
+    def test_query_over_max_length_is_invalid_params(self, initialized_state):
+        too_long = "a" * (srv.MAX_QUERY_LEN + 1)
+        resp = _call_tool(initialized_state, "text_search", {"query": too_long})
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+
+    def test_table_over_max_length_is_invalid_params(self, initialized_state):
+        too_long = "a" * (srv.MAX_TABLE_NAME_LEN + 1)
+        resp = _call_tool(initialized_state, "data_export",
+                          {"table": too_long, "out_path": "out.tsv"})
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+
+    def test_addr_over_max_length_is_invalid_params(self, initialized_state):
+        too_long = "a" * (srv.MAX_ADDR_LEN + 1)
+        resp = _call_tool(initialized_state, "palette_export",
+                          {"addr": too_long, "out_path": "out.pal"})
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+
+    def test_rom_path_at_max_length_is_accepted_by_schema(self, initialized_state):
+        # Exactly at the bound must still validate (schema-wise); the tool
+        # will then fail for business reasons (file doesn't exist) — that's
+        # an isError result, never a protocol error.
+        at_bound = "a" * srv.MAX_PATH_LEN
+        resp = _call_tool(initialized_state, "rom_info", {"rom_path": at_bound})
+        assert "error" not in resp
+
+    # ── Per-item / recursive truncation metadata (item 8) ───────────────
+
+    def test_text_search_match_text_is_truncated_per_item(self, initialized_state, monkeypatch, tmp_path):
+        rom = str(tmp_path / "r.gba")
+        initialized_state.session.open_rom(rom, "FE8U", 1)
+        overlong = "x" * (srv.MAX_ITEM_STRING_LEN + 500)
+        matches = [{"id": "1", "text": overlong}, {"id": "2", "text": "short"}]
+
+        def fake_search(rom_path, query, force_version=""):
+            return {"query": query, "matches": matches, "match_count": len(matches), "exit_code": 0}
+        monkeypatch.setattr("cli_anything.febuildergba.core.text.search_text", fake_search)
+
+        resp = _call_tool(initialized_state, "text_search", {"query": "x"})
+        payload = json.loads(resp["result"]["content"][0]["text"])
+        assert len(payload["matches"][0]["text"]) == srv.MAX_ITEM_STRING_LEN
+        assert payload["matches"][0]["text_truncated"] is True
+        assert payload["matches"][1]["text_truncated"] is False
+        assert payload["matches_text_truncated_count"] == 1
+
+    def test_lint_array_strings_truncated_per_item(self, initialized_state, monkeypatch, tmp_path):
+        rom = str(tmp_path / "r.gba")
+        initialized_state.session.open_rom(rom, "FE8U", 1)
+        overlong = "E" * (srv.MAX_ITEM_STRING_LEN + 100)
+
+        def fake_lint(rom_path, force_version=""):
+            return {"rom_path": rom_path, "clean": False, "error_count": 1,
+                    "warning_count": 0, "errors": [overlong], "warnings": [], "info": [],
+                    "exit_code": 0, "raw_output": ""}
+        monkeypatch.setattr("cli_anything.febuildergba.core.lint.lint_rom", fake_lint)
+
+        resp = _call_tool(initialized_state, "rom_lint", {})
+        payload = json.loads(resp["result"]["content"][0]["text"])
+        assert len(payload["errors"][0]) == srv.MAX_ITEM_STRING_LEN
+        assert payload["errors_items_truncated_count"] == 1
+
+    def test_session_history_resource_bounds_overlong_values(self, initialized_state, tmp_path):
+        rom = str(tmp_path / "r.gba")
+        initialized_state.session.open_rom(rom, "FE8U", 1)
+        overlong = "z" * (srv.MAX_ITEM_STRING_LEN + 250)
+        initialized_state.session.record_operation("data_export", {"out": overlong})
+
+        resp = srv.handle_line(initialized_state, json.dumps(
+            _req("resources/read", {"uri": "febuildergba://session/history"})))
+        payload = json.loads(resp["result"]["contents"][0]["text"])
+        last = payload["history"][-1]
+        assert len(last["out"]) == srv.MAX_ITEM_STRING_LEN
+        assert payload["truncated"] is True
+
+    def test_session_history_tool_bounds_overlong_values(self, initialized_state, tmp_path):
+        initialized_state.session.open_rom(str(tmp_path / "r.gba"), "FE8U", 1)
+        overlong = "z" * (srv.MAX_ITEM_STRING_LEN + 250)
+        initialized_state.session.record_operation("data_export", {"out": overlong})
+
+        resp = _call_tool(initialized_state, "session_history", {"count": 1})
+        payload = json.loads(resp["result"]["content"][0]["text"])
+        assert len(payload["history"][0]["out"]) == srv.MAX_ITEM_STRING_LEN
+        assert payload["truncated"] is True
+
+    def test_session_status_tool_bounds_persisted_values(self, initialized_state, tmp_path):
+        initialized_state.session.open_rom(str(tmp_path / "r.gba"), "FE8U", 1)
+        initialized_state.session.state.rom_path = (
+            "z" * (srv.MAX_ITEM_STRING_LEN + 250)
+        )
+
+        resp = _call_tool(initialized_state, "session_status", {})
+        payload = json.loads(resp["result"]["content"][0]["text"])
+        assert len(payload["rom_path"]) == srv.MAX_ITEM_STRING_LEN
+        assert payload["truncated"] is True
+
+    def test_session_resource_not_truncated_for_short_values(self, initialized_state, tmp_path):
+        rom = str(tmp_path / "r.gba")
+        initialized_state.session.open_rom(rom, "FE8U", 1)
+        resp = srv.handle_line(initialized_state, json.dumps(
+            _req("resources/read", {"uri": "febuildergba://session"})))
+        payload = json.loads(resp["result"]["contents"][0]["text"])
+        assert payload["truncated"] is False
+
+
+# ── Schema validator unit tests ──────────────────────────────────────────
+
+class TestSchemaValidator:
+    def test_object_missing_required(self):
+        schema = {"type": "object", "properties": {"a": {"type": "string"}}, "required": ["a"]}
+        assert srv.validate_schema(schema, {}) is not None
+
+    def test_object_additional_properties_false(self):
+        schema = {"type": "object", "properties": {"a": {"type": "string"}},
+                  "required": [], "additionalProperties": False}
+        assert srv.validate_schema(schema, {"b": 1}) is not None
+        assert srv.validate_schema(schema, {"a": "x"}) is None
+
+    def test_bool_rejected_for_integer(self):
+        schema = {"type": "integer"}
+        assert srv.validate_schema(schema, True) is not None
+        assert srv.validate_schema(schema, 1) is None
+
+    def test_enum(self):
+        schema = {"type": "string", "enum": ["a", "b"]}
+        assert srv.validate_schema(schema, "c") is not None
+        assert srv.validate_schema(schema, "a") is None
+
+    def test_array_bounds(self):
+        schema = {"type": "array", "items": {"type": "integer"}, "minItems": 1, "maxItems": 2}
+        assert srv.validate_schema(schema, []) is not None
+        assert srv.validate_schema(schema, [1, 2, 3]) is not None
+        assert srv.validate_schema(schema, [1]) is None
+
+
+# ── serve() outer-loop regression: unexpected failures must not be silent ──
+
+class TestServeRegression:
+    def test_unexpected_failure_emits_internal_error_and_recovers(self, tmp_path, monkeypatch):
+        """A bug in handle_line() itself (not a _ProtocolError, not caught
+        anywhere else) must still produce a flushed -32603 response with a
+        generic message (id null) — and the loop must keep processing
+        subsequent lines rather than dying or silently dropping the line."""
+        calls = {"n": 0}
+        real_handle_line = srv.handle_line
+
+        def flaky_handle_line(state, line):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise RuntimeError("boom: a secret internal detail")
+            return real_handle_line(state, line)
+
+        monkeypatch.setattr(srv, "handle_line", flaky_handle_line)
+
+        good_req = json.dumps(_req("ping"))
+        in_stream = io.StringIO("this line triggers the bug\n" + good_req + "\n")
+        out_stream = io.StringIO()
+
+        srv.serve(session_file=str(tmp_path / "session.json"),
+                  in_stream=in_stream, out_stream=out_stream)
+
+        lines = [l for l in out_stream.getvalue().splitlines() if l.strip()]
+        assert len(lines) == 2
+
+        first = json.loads(lines[0])
+        assert first["id"] is None
+        assert first["error"]["code"] == srv.INTERNAL_ERROR
+        assert first["error"]["message"] == "Internal error"
+        assert "boom" not in json.dumps(first)  # never leak exception text to the client
+
+        second = json.loads(lines[1])
+        # The important assertion is that the loop kept running after the
+        # injected failure and processed the next line normally.
+        assert second["jsonrpc"] == "2.0"
+        assert second["result"] == {}
+
+    def test_oversized_line_is_drained_and_next_request_is_processed(self, tmp_path):
+        oversized = "x" * (srv.MAX_REQUEST_LINE_CHARS + 100)
+        good_req = json.dumps(_req("ping"))
+        in_stream = io.StringIO(oversized + "\n" + good_req + "\n")
+        out_stream = io.StringIO()
+
+        srv.serve(session_file=str(tmp_path / "session.json"),
+                  in_stream=in_stream, out_stream=out_stream)
+
+        lines = [json.loads(line) for line in out_stream.getvalue().splitlines()]
+        assert len(lines) == 2
+        assert lines[0]["error"]["code"] == srv.INVALID_REQUEST
+        assert lines[1]["result"] == {}
+
+
+# ── Launcher subprocess: real framing/flushing over a pipe ───────────────
+
+def _repo_root() -> Path:
+    p = Path(__file__).resolve()
+    for _ in range(8):
+        p = p.parent
+        if (p / "agent-harness" / "febuildergba_mcp.py").is_file():
+            return p
+    pytest.skip("Cannot find repo root containing agent-harness/febuildergba_mcp.py")
+
+
+class TestLauncherSubprocess:
+    def test_launcher_initialize_roundtrip(self):
+        root = _repo_root()
+        launcher = root / "agent-harness" / "febuildergba_mcp.py"
+        proc = subprocess.Popen(
+            [sys.executable, str(launcher)],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True, bufsize=1,
+        )
+        try:
+            req = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize",
+                              "params": _init_params()})
+            proc.stdin.write(req + "\n")
+            proc.stdin.flush()
+
+            line = proc.stdout.readline()
+            assert line.strip(), "expected a flushed one-line JSON-RPC response"
+            resp = json.loads(line)
+            assert resp["id"] == 1
+            assert resp["result"]["protocolVersion"] == "2025-03-26"
+        finally:
+            proc.stdin.close()
+            try:
+                proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+
+
+# ── .mcp.json registration ────────────────────────────────────────────────
+
+class TestMcpJsonRegistration:
+    def test_febuildergba_cli_registered(self):
+        root = _repo_root()
+        mcp_json = root / ".mcp.json"
+        data = json.loads(mcp_json.read_text(encoding="utf-8"))
+        servers = data["mcpServers"]
+        assert "febuildergba-cli" in servers
+        entry = servers["febuildergba-cli"]
+        assert entry["type"] == "stdio"
+        assert entry["command"] == "python"
+        assert any("febuildergba_mcp.py" in a for a in entry["args"])
+        # the pre-existing computer-use entry point must be preserved
+        assert "febuildergba-computer-use" in servers

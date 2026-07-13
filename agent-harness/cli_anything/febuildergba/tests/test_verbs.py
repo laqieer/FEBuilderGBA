@@ -166,6 +166,100 @@ class TestCompileEventUnit:
         assert not any(a.startswith("--out") for a in rec.args)
 
 
+class TestLZ77Unit:
+    """core.verbs.lz77_file (issue #1942) — no ROM/--rom involved."""
+
+    def test_compress_args(self, rec):
+        verbs.lz77_file("compress", "in.bin", "out.lz")
+        assert rec.args == ["--lz77", "--in=in.bin", "--out=out.lz", "--compress"]
+
+    def test_decompress_args(self, rec):
+        verbs.lz77_file("decompress", "in.lz", "out.bin")
+        assert rec.args == ["--lz77", "--in=in.lz", "--out=out.bin", "--decompress"]
+
+    def test_invalid_mode_raises_without_calling_backend(self, rec):
+        with pytest.raises(ValueError):
+            verbs.lz77_file("frobnicate", "in.bin", "out.bin")
+        assert rec.args is None  # run_cli must never be invoked
+
+    def test_result_shape(self, rec, tmp_path):
+        out = tmp_path / "out.lz"
+        out.write_bytes(b"\x10\x03\x00\x00AB")
+        rec.returncode = 0
+        rec.stdout = "Compressed: out.lz (6 bytes, 200%)"
+        result = verbs.lz77_file("compress", "in.bin", str(out))
+        assert result["mode"] == "compress"
+        assert result["input_path"] == "in.bin"
+        assert result["output_path"] == str(out)
+        assert result["file_size"] == 6
+        assert result["exit_code"] == 0
+
+
+class TestLZ77ClickLayer:
+    def test_requires_compress_or_decompress(self, monkeypatch):
+        monkeypatch.setattr("cli_anything.febuildergba.core.verbs.lz77_file",
+                            lambda *a, **k: pytest.fail("should not be called"))
+        res = CliRunner().invoke(febuildergba_cli.cli,
+                                 ["lz77", "-i", "in.bin", "-o", "out.bin"])
+        assert res.exit_code != 0
+
+    def test_rejects_both_flags(self, monkeypatch):
+        monkeypatch.setattr("cli_anything.febuildergba.core.verbs.lz77_file",
+                            lambda *a, **k: pytest.fail("should not be called"))
+        res = CliRunner().invoke(febuildergba_cli.cli,
+                                 ["lz77", "-i", "in.bin", "-o", "out.bin",
+                                  "--compress", "--decompress"])
+        assert res.exit_code != 0
+
+    def test_compress_success(self, monkeypatch):
+        def fake(mode, in_path, out_path):
+            assert mode == "compress"
+            return {"mode": mode, "input_path": in_path, "output_path": out_path,
+                    "file_size": 4, "exit_code": 0, "stdout": "ok", "stderr": ""}
+        monkeypatch.setattr("cli_anything.febuildergba.core.verbs.lz77_file", fake)
+        res = CliRunner().invoke(febuildergba_cli.cli,
+                                 ["--json", "lz77", "-i", "in.bin", "-o", "out.bin", "--compress"])
+        assert res.exit_code == 0, res.output
+        assert '"mode": "compress"' in res.output
+
+    def test_backend_failure_raises(self, monkeypatch):
+        def fake(mode, in_path, out_path):
+            return {"mode": mode, "input_path": in_path, "output_path": out_path,
+                    "file_size": 0, "exit_code": 1, "stdout": "", "stderr": "bad input"}
+        monkeypatch.setattr("cli_anything.febuildergba.core.verbs.lz77_file", fake)
+        res = CliRunner().invoke(febuildergba_cli.cli,
+                                 ["lz77", "-i", "in.bin", "-o", "out.bin", "--decompress"])
+        assert res.exit_code != 0
+
+
+class TestLZ77RealBackendRoundtrip:
+    """Synthetic (no ROM) compress/decompress roundtrip against the real
+    backend. Skip-gated ONLY on backend availability — never on a data
+    mismatch (a genuine roundtrip failure must fail the test).
+    """
+
+    def test_compress_decompress_roundtrip(self, tmp_path):
+        from cli_anything.febuildergba.utils.febuildergba_backend import check_backend
+        if not check_backend().get("available"):
+            pytest.skip("FEBuilderGBA.CLI backend not available (build it first)")
+
+        original = tmp_path / "payload.bin"
+        # Synthetic, ROM-free payload with some repetition (compressible).
+        payload = (b"Hello FEBuilderGBA LZ77 roundtrip! " * 8) + bytes(range(64))
+        original.write_bytes(payload)
+
+        compressed = tmp_path / "payload.lz"
+        decompressed = tmp_path / "payload.out"
+
+        comp_result = verbs.lz77_file("compress", str(original), str(compressed))
+        assert comp_result["exit_code"] == 0, comp_result["stderr"]
+        assert compressed.is_file()
+
+        decomp_result = verbs.lz77_file("decompress", str(compressed), str(decompressed))
+        assert decomp_result["exit_code"] == 0, decomp_result["stderr"]
+        assert decompressed.read_bytes() == payload
+
+
 # ── Click-layer regression guard (checksum exit-2 must NOT raise) ─────
 
 class TestChecksumClickLayer:

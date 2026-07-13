@@ -66,6 +66,10 @@ cli-anything-febuildergba --rom roms/FE8U.gba palette import --addr 0x5524 -i pa
 cli-anything-febuildergba --rom roms/FE8U.gba import-midi 1A -i song.mid
 cli-anything-febuildergba --rom roms/FE8U.gba compile-event -i script.event
 
+# LZ77 compress/decompress an arbitrary file (no ROM required)
+cli-anything-febuildergba lz77 -i data.bin -o data.lz77 --compress
+cli-anything-febuildergba lz77 -i data.lz77 -o data.bin --decompress
+
 # JSON output (for agents)
 cli-anything-febuildergba --json rom info roms/FE8U.gba
 ```
@@ -103,9 +107,20 @@ cli-anything-febuildergba session status
 
 Standalone commands: `lint`, `disasm`, `songexchange`, `names`, `portrait`, `export-midi`,
 **`import-midi`**, `disasm-event`, **`compile-event`**, `lint-oam`, `rebuild`, `pointercalc`,
-**`export-map-settings-raw`**, `check`.
+**`export-map-settings-raw`**, **`lz77`**, `check`.
 
 Unwrapped standalone backend commands: `--export-buildfile`, `--build-buildfile`, `--buildfile-roundtrip`.
+
+## MCP server (issue #1942)
+
+In addition to the Click CLI, this package ships a **dependency-free stdio MCP (Model Context
+Protocol) server** at `agent-harness/cli_anything/febuildergba/mcp_server.py`, launched via
+`agent-harness/febuildergba_mcp.py` (registered in the repo's [`.mcp.json`](../../../.mcp.json) as
+`febuildergba-cli`, alongside the existing Windows `febuildergba-computer-use` entry). It exposes
+21 explicit tools (a closed, non-mutating-beyond-declared-scope subset — no generic command
+runner, no patch/rebuild/repair/event/music tools) and 3 read-only resources over newline-delimited
+JSON-RPC 2.0. See **[`docs/MCP-SERVER.md`](../../../docs/MCP-SERVER.md)** for the full reference
+(protocol versions, tool/resource list, schemas, safety annotations, session semantics, bounds).
 
 ## CLI verb coverage (harness ↔ CLI)
 
@@ -114,7 +129,7 @@ The harness wraps a growing subset of `FEBuilderGBA.CLI`'s ~70 verbs (see
 maps every backend verb to its harness command and coverage status; closing the remaining gap is
 tracked in [#1933](https://github.com/laqieer/FEBuilderGBA/issues/1933).
 
-**Status:** ✅ wrapped · 🆕 wrapped in #1933 · ⬜ not yet wrapped · ➖ n/a (dev/modifier/help). **~33 of ~70 wrapped.**
+**Status:** ✅ wrapped · 🆕 wrapped in #1933 · 🆕🔧 wrapped in #1942 (MCP server) · ⬜ not yet wrapped · ➖ n/a (dev/modifier/help). **~34 of ~70 wrapped.**
 
 | CLI verb | Harness command | Status |
 |---|---|---|
@@ -163,7 +178,8 @@ tracked in [#1933](https://github.com/laqieer/FEBuilderGBA/issues/1933).
 | `--buildfile-roundtrip` | — | ⬜ |
 | `--export-map-settings` | `export-map-settings-raw` | 🆕 |
 | `--freespace` / `--hex-dump` | — | ⬜ |
-| `--expand-table` / `--merge3` / `--lz77` | — | ⬜ |
+| `--expand-table` / `--merge3` | — | ⬜ |
+| `--lz77` | `lz77` | 🆕🔧 |
 | Decomp-project verbs (`--project`, `--export-asset`, `--build-project`, …) | — | ⬜ |
 | `--help` / `--force-detail` / `--test` / `--lastrom` | — | ➖ |
 
@@ -184,6 +200,7 @@ and 28 more. Run `cli-anything-febuildergba rom tables` for the full list.
 
 ```bash
 cd agent-harness
+pip install -e .[test]   # bounded pytest>=8,<9
 python -m pytest cli_anything/febuildergba/tests/ -v -s
 ```
 
@@ -192,6 +209,11 @@ If you run `pytest` from the **repo root** instead, set `PYTHONPATH` so the pack
 ```bash
 PYTHONPATH=agent-harness python -m pytest agent-harness/cli_anything/febuildergba/tests/ -q
 ```
+
+`tests/test_mcp_server.py` covers the MCP JSON-RPC adapter (protocol negotiation, lifecycle,
+batching, all protocol error codes, the 21-tool/3-resource surface, schema validation, session
+semantics, and bounds) and is just as synthetic/private-ROM-free as the rest of the suite; the one
+real-backend LZ77 roundtrip test in `test_verbs.py` is skip-gated on backend availability only.
 
 Unit tests use synthetic data (no ROM/backend). The real-backend E2E tests are skip-gated on
 `roms/*.gba` + a built `FEBuilderGBA.CLI` (set `FEBUILDERGBA_CLI_EXE` to override discovery); the

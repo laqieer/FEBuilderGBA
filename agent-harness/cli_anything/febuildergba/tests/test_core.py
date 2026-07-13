@@ -5,10 +5,50 @@ All tests use synthetic data — no external dependencies required.
 
 import json
 import os
+import subprocess
 import tempfile
 import time
 
 import pytest
+
+
+# ── Backend availability tests ────────────────────────────────────────
+
+class TestBackend:
+    def test_get_version_success(self, monkeypatch):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+        result = subprocess.CompletedProcess(["cli", "--version"], 0,
+                                             stdout="FEBuilderGBA 1.2.3\n", stderr="")
+        monkeypatch.setattr(backend, "run_cli", lambda args: result)
+        assert backend.get_version() == "FEBuilderGBA 1.2.3"
+
+    def test_get_version_rejects_failed_probe(self, monkeypatch):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+        result = subprocess.CompletedProcess(["cli", "--version"], 7,
+                                             stdout="", stderr="SDK unavailable")
+        monkeypatch.setattr(backend, "run_cli", lambda args: result)
+        with pytest.raises(RuntimeError, match="exit code 7"):
+            backend.get_version()
+
+    def test_get_version_rejects_empty_probe(self, monkeypatch):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+        result = subprocess.CompletedProcess(["cli", "--version"], 0,
+                                             stdout=" \n", stderr="")
+        monkeypatch.setattr(backend, "run_cli", lambda args: result)
+        with pytest.raises(RuntimeError, match="no version text"):
+            backend.get_version()
+
+    def test_check_backend_reports_probe_failure(self, monkeypatch):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+        monkeypatch.setattr(backend, "find_febuildergba_cli", lambda: ["cli"])
+
+        def fail_version():
+            raise RuntimeError("probe failed")
+
+        monkeypatch.setattr(backend, "get_version", fail_version)
+        result = backend.check_backend()
+        assert result["available"] is False
+        assert result["error"] == "probe failed"
 
 
 # ── Session tests ─────────────────────────────────────────────────────

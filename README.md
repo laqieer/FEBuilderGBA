@@ -671,6 +671,18 @@ python -m venv .venv
 
 The `.mcp.json` at the repo root auto-configures Claude Code to use the server as `febuildergba-computer-use`. After setup, its tools (screenshot, click, type_text, key_press, mouse_move, scroll, drag, get_screen_size, wait, find_window, focus_window) appear in Claude Code sessions opened from this repo.
 
+## MCP CLI Server (cross-platform)
+
+A second, dependency-free MCP server exposes the `agent-harness` FEBuilderGBA CLI (ROM info/validate,
+data/text export-import-roundtrip, name resolution, linting, image/palette conversion, LZ77, and
+session management) as 21 MCP tools plus 3 resources. Unlike the computer-use server above, it needs
+only a Python 3.10+ standard library — no Windows dependency, no extra packages, no MCP SDK.
+
+The `.mcp.json` at the repo root auto-configures Claude Code to use it as `febuildergba-cli`
+(`python ./agent-harness/febuildergba_mcp.py`). See
+[docs/MCP-SERVER.md](docs/MCP-SERVER.md) for the full tool/resource reference, protocol details,
+and setup instructions.
+
 README for Korean character table
 ===
 

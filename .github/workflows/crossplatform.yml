@@ -66,6 +66,38 @@ jobs:
           **/avalonia-tests.trx
         if-no-files-found: ignore
 
+  mcp-adapter-tests:
+    name: MCP adapter tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install harness test dependencies
+      working-directory: agent-harness
+      run: python -m pip install --disable-pip-version-check --no-input -e ".[test]"
+
+    - name: Run ROM-free MCP contract tests
+      working-directory: agent-harness
+      env:
+        # Keep this contract job independent of runner-installed .NET SDKs.
+        # The real-backend LZ77 seam is covered by explicit local validation.
+        FEBUILDERGBA_CLI_EXE: ${{ runner.temp }}/mcp-contract-no-backend
+      run: >-
+        python -m pytest
+        cli_anything/febuildergba/tests/test_core.py
+        cli_anything/febuildergba/tests/test_verbs.py
+        cli_anything/febuildergba/tests/test_mcp_server.py
+        -q
+
   publish:
     needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'

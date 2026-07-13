@@ -120,7 +120,17 @@ def run_cli(args: list[str], capture: bool = True,
 def get_version() -> str:
     """Get FEBuilderGBA version string."""
     result = run_cli(["--version"])
-    return result.stdout.strip()
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "").strip()
+        suffix = f": {detail[:4096]}" if detail else ""
+        raise RuntimeError(
+            f"FEBuilderGBA.CLI version check failed with exit code "
+            f"{result.returncode}{suffix}"
+        )
+    version = result.stdout.strip()
+    if not version:
+        raise RuntimeError("FEBuilderGBA.CLI version check returned no version text")
+    return version
 
 
 def check_backend() -> dict:

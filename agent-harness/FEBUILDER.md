@@ -22,12 +22,35 @@ Python CLI Harness (cli-anything-febuildergba)
     ├── Stateful session (JSON) — tracks ROM path, version, undo log
     ├── JSON output mode — machine-readable for agents
     ├── REPL — interactive command loop
+    ├── MCP stdio server (cli-anything-febuildergba-mcp / mcp_server.py, #1942)
+    │     — dependency-free JSON-RPC 2.0 adapter reusing the same Session +
+    │       core wrappers, exposing 21 tools + 3 resources (see
+    │       docs/MCP-SERVER.md); registered in .mcp.json as "febuildergba-cli"
     │
     └── Backend: FEBuilderGBA.CLI (dotnet run / published exe)
          │
          └── FEBuilderGBA.Core (.NET 9.0 library)
               └── ROM manipulation, Huffman text, event scripts, etc.
 ```
+
+### MCP server startup (#1942)
+
+Two equivalent ways to start the stdio MCP server:
+
+```bash
+# 1. Installed console script (after `pip install -e agent-harness`)
+cli-anything-febuildergba-mcp [--session-file PATH]
+
+# 2. Cross-platform launcher, no install required (bootstraps sys.path itself)
+python agent-harness/febuildergba_mcp.py [--session-file PATH]
+```
+
+The repo's [`.mcp.json`](../.mcp.json) registers option 2 as `febuildergba-cli`
+(`command: "python"`, `args: ["./agent-harness/febuildergba_mcp.py"]`), alongside the
+pre-existing Windows `febuildergba-computer-use` entry. The server speaks newline-delimited
+JSON-RPC 2.0 on stdin/stdout only (protocol versions `2025-03-26` and `2024-11-05`); it never
+shells out to Click and never imports an MCP SDK — see
+[`docs/MCP-SERVER.md`](../docs/MCP-SERVER.md) for the full tool/resource reference.
 
 ## Command Layout
 
@@ -61,14 +84,19 @@ Coverage note below.
 | `lint-oam` | Validate battle-animation OAM data |
 | `rebuild` | ROM defragmentation/rebuild |
 | `pointercalc` | Search for pointer references in ROM |
+| `lz77` | LZ77 compress/decompress an arbitrary file (no ROM required, #1942) |
 | `check` | Verify the `FEBuilderGBA.CLI` backend is available |
 
 > A hidden interactive `repl` command also exists (not part of the normal command surface).
 >
-> **Coverage:** the harness currently wraps roughly a third of the backend's ~70
-> `FEBuilderGBA.CLI` verbs — the harness Click commands above are a subset of the full CLI
-> ([`docs/cli-reference.md`](../docs/cli-reference.md)). Closing that harness↔CLI coverage gap is
-> tracked in [#1933](https://github.com/laqieer/FEBuilderGBA/issues/1933).
+> **Coverage:** the harness currently wraps roughly **34 of ~70** (was ~33 before `lz77` was added
+> in #1942) of the backend's `FEBuilderGBA.CLI` verbs — the harness Click commands above are a
+> subset of the full CLI ([`docs/cli-reference.md`](../docs/cli-reference.md)). Closing that
+> harness↔CLI coverage gap is tracked in
+> [#1933](https://github.com/laqieer/FEBuilderGBA/issues/1933); the MCP stdio adapter surface
+> itself (21 tools) is tracked in
+> [#1942](https://github.com/laqieer/FEBuilderGBA/issues/1942) and is intentionally a curated,
+> non-mutating-beyond-declared-scope subset of these Click commands, not a 1:1 mirror.
 
 ## Data Formats
 
@@ -93,3 +121,19 @@ ROM versions are auto-detected via binary signature matching:
 - Text uses Huffman compression — encode/decode requires full ROM init
 - Event scripts have 100+ argument types — parsing is complex
 - Graphics use GBA-specific formats (4bpp tiles, LZ77 compression, OAM sprites)
+
+## Tests
+
+```bash
+cd agent-harness
+pip install -e .[test]   # bounded pytest>=8,<9
+python -m pytest cli_anything/febuildergba/tests/ -v -s
+```
+
+Key suites: `tests/test_core.py` (session/project/data/text/lint units), `tests/test_verbs.py`
+(issue #1933 verb wrappers + the #1942 `lz77_file`/`lz77` Click command, including a synthetic
+skip-gated real-backend LZ77 roundtrip), and `tests/test_mcp_server.py` (issue #1942 — the MCP
+JSON-RPC adapter: protocol version negotiation, lifecycle, single/batch framing, every protocol
+error code, the 21-tool/3-resource surface, closed schemas, safety annotations, session
+precedence/history/modified semantics, and output bounds). All of the above are private-ROM-free.
+`tests/test_full_e2e.py` is the real-backend, real-ROM end-to-end suite.
