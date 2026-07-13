@@ -92,6 +92,157 @@ class TestBackend:
         with pytest.raises(RuntimeError, match="execution denied"):
             backend.run_cli(["--version"])
 
+    def test_run_cli_outside_bounded_context_keeps_subprocess_run_seam(
+            self, monkeypatch):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        calls = []
+        expected = subprocess.CompletedProcess(
+            ["legacy-cli", "--version"], 0, stdout="full output", stderr="",
+        )
+        monkeypatch.setattr(
+            backend, "find_febuildergba_cli", lambda: ["legacy-cli"],
+        )
+
+        def fake_run(*args, **kwargs):
+            calls.append((args, kwargs))
+            return expected
+
+        def should_not_use_popen(*args, **kwargs):
+            raise AssertionError("outside bounded capture must use subprocess.run")
+
+        monkeypatch.setattr(backend.subprocess, "run", fake_run)
+        monkeypatch.setattr(backend.subprocess, "Popen", should_not_use_popen)
+
+        assert backend.run_cli(["--version"], timeout=17) is expected
+        assert backend.run_cli(["--no-capture"], capture=False, timeout=19) is expected
+        assert calls == [
+            (
+                (["legacy-cli", "--version"],),
+                {"capture_output": True, "text": True, "timeout": 17},
+            ),
+            (
+                (["legacy-cli", "--no-capture"],),
+                {"capture_output": False, "text": True, "timeout": 19},
+            ),
+        ]
+
+    def test_bounded_capture_concurrently_drains_both_pipes(
+            self, monkeypatch):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        limit = 257
+        chars_per_stream = 2_097_152
+        script = (
+            "import sys\n"
+            "for _ in range(1024):\n"
+            "    sys.stdout.write('o' * 2048)\n"
+            "    sys.stdout.flush()\n"
+            "    sys.stderr.write('e' * 2048)\n"
+            "    sys.stderr.flush()\n"
+        )
+        monkeypatch.setattr(
+            backend, "find_febuildergba_cli",
+            lambda: [sys.executable, "-c", script],
+        )
+
+        with backend.bounded_capture(limit):
+            result = backend.run_cli([], timeout=15)
+
+        assert isinstance(result.stdout, str)
+        assert isinstance(result.stderr, str)
+        assert result.stdout == "o" * limit
+        assert result.stderr == "e" * limit
+        assert len(result.stdout) == limit
+        assert len(result.stderr) == limit
+        assert result.stdout.truncated is True
+        assert result.stderr.truncated is True
+        assert result.stdout.original_length == chars_per_stream
+        assert result.stderr.original_length == chars_per_stream
+
+    def test_bounded_capture_strip_preserves_source_metadata(
+            self, monkeypatch):
+        from cli_anything.febuildergba.core import verbs
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        stdout_source = " \tWXYZ \n"
+        stderr_source = "\n EEEE \t"
+        script = (
+            "import sys\n"
+            f"sys.stdout.write({stdout_source!r})\n"
+            f"sys.stderr.write({stderr_source!r})\n"
+        )
+        monkeypatch.setattr(
+            backend, "find_febuildergba_cli",
+            lambda: [sys.executable, "-c", script],
+        )
+
+        with backend.bounded_capture(6):
+            result = backend.run_cli([])
+
+        stdout = result.stdout.strip()
+        stderr = result.stderr.strip()
+        assert stdout == "WXYZ"
+        assert stderr == "EEEE"
+        assert stdout.truncated is True
+        assert stderr.truncated is True
+        assert stdout.original_length == len(stdout_source)
+        assert stderr.original_length == len(stderr_source)
+
+        # _base_result is an existing no-argument .strip() core wrapper.
+        wrapped = verbs._base_result(result)
+        assert wrapped["stdout"].original_length == len(stdout_source)
+        assert wrapped["stderr"].original_length == len(stderr_source)
+        assert wrapped["stdout"].truncated is True
+        assert wrapped["stderr"].truncated is True
+
+    def test_bounded_capture_decodes_multibyte_output_across_chunks(
+            self, monkeypatch):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        # Write every UTF-8 byte separately so TextIOWrapper must carry
+        # incomplete code points across underlying pipe reads.
+        script = (
+            "import os, sys, time\n"
+            "data = b'\\xe2\\x82\\xac\\xe6\\xbc\\xa2\\xf0\\x9f\\x99\\x82'\n"
+            "for fd in (sys.stdout.fileno(), sys.stderr.fileno()):\n"
+            "    for byte in data:\n"
+            "        os.write(fd, bytes((byte,)))\n"
+            "        time.sleep(0.001)\n"
+        )
+        monkeypatch.setattr(
+            backend, "find_febuildergba_cli",
+            lambda: [sys.executable, "-c", script],
+        )
+        monkeypatch.setattr(backend, "_OUTPUT_READ_CHARS", 1)
+
+        with backend.bounded_capture(10):
+            result = backend.run_cli([])
+
+        assert result.stdout == "€漢🙂"
+        assert result.stderr == "€漢🙂"
+        assert result.stdout.original_length == 3
+        assert result.stderr.original_length == 3
+        assert result.stdout.truncated is False
+        assert result.stderr.truncated is False
+
+    def test_bounded_capture_timeout_uses_existing_runtime_error(
+            self, monkeypatch):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        monkeypatch.setattr(
+            backend, "find_febuildergba_cli",
+            lambda: [sys.executable, "-c", "import time; time.sleep(60)"],
+        )
+        started = time.monotonic()
+        with backend.bounded_capture(16):
+            with pytest.raises(
+                    RuntimeError,
+                    match=r"Command timed out after 0.1s: .*",
+            ):
+                backend.run_cli([], timeout=0.1)
+        assert time.monotonic() - started < 3
+
     def test_check_backend_normalizes_os_probe_failure(self, monkeypatch):
         from cli_anything.febuildergba.utils import febuildergba_backend as backend
         monkeypatch.setattr(backend, "find_febuildergba_cli", lambda: ["blocked-cli"])

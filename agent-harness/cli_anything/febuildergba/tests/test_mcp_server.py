@@ -1456,7 +1456,7 @@ class TestAdvisoryVsHardErrors:
         def fail_launch(*args, **kwargs):
             raise PermissionError("execution denied")
 
-        monkeypatch.setattr(backend.subprocess, "run", fail_launch)
+        monkeypatch.setattr(backend.subprocess, "Popen", fail_launch)
 
         resp = _call_tool(initialized_state, "backend_check", {})
 
@@ -1587,6 +1587,65 @@ class TestBounds:
         assert len(d["version"]) == srv.MAX_STRING_LEN
         assert d["version_truncated"] is True
         assert d["version_original_length"] == len(big)
+
+    @pytest.mark.parametrize(
+        "field",
+        ["stdout", "stderr", "raw_output", "lint_output", "version", "error"],
+    )
+    def test_source_bounded_metadata_is_honored_for_every_backend_field(
+            self, field):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        original_length = srv.MAX_STRING_LEN + 23
+        d = {
+            field: backend._BoundedOutput(
+                "x" * srv.MAX_STRING_LEN,
+                original_length,
+                True,
+            ),
+        }
+        srv._bound_string_fields(d)
+
+        assert len(d[field]) == srv.MAX_STRING_LEN
+        assert d[f"{field}_truncated"] is True
+        assert d[f"{field}_original_length"] == original_length
+
+    def test_mcp_backend_capture_reports_source_metadata_after_strip(
+            self, initialized_state, monkeypatch):
+        from cli_anything.febuildergba.core import verbs
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        # A small dynamic MCP cap keeps the real-child test focused.  The core
+        # wrapper strips the captured prefix; without source metadata the
+        # post-handler fallback would see a short plain string and lie.
+        monkeypatch.setattr(srv, "MAX_STRING_LEN", 8)
+        stdout_source = " " + "o" * 10 + " "
+        stderr_source = " " + "e" * 10 + " "
+        script = (
+            "import sys\n"
+            f"sys.stdout.write({stdout_source!r})\n"
+            f"sys.stderr.write({stderr_source!r})\n"
+        )
+        monkeypatch.setattr(
+            backend, "find_febuildergba_cli",
+            lambda: [sys.executable, "-c", script],
+        )
+        monkeypatch.setattr(verbs, "run_cli", backend.run_cli)
+
+        resp = _call_tool(
+            initialized_state,
+            "lz77",
+            {"mode": "compress", "in_path": "in.bin", "out_path": "out.bin"},
+        )
+        payload = json.loads(resp["result"]["content"][0]["text"])
+
+        assert resp["result"]["isError"] is False
+        assert payload["stdout"] == "o" * 7
+        assert payload["stderr"] == "e" * 7
+        assert payload["stdout_truncated"] is True
+        assert payload["stderr_truncated"] is True
+        assert payload["stdout_original_length"] == len(stdout_source)
+        assert payload["stderr_original_length"] == len(stderr_source)
 
     def test_backend_check_rejects_overlong_version_at_source(
             self, initialized_state, monkeypatch):

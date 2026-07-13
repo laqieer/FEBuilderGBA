@@ -294,11 +294,17 @@ or tampered non-ROM session paths fail closed with `rom_header: null`.
 | `table` (data tools) | 128 chars | schema `maxLength` |
 | `addr` (palette tools) | 64 chars | schema `maxLength` |
 
+For MCP backend invocations, stdout and stderr are bounded **while their pipes are concurrently
+drained**, not only when the response is serialized. The server retains at most the 65,536-character
+decoded prefix of each stream, continues discarding/draining the remainder to avoid a pipe deadlock,
+and reports the exact decoded source length when truncation occurred. Click callers retain their
+existing full-capture behavior.
+
 All input-side bounds above are enforced by the closed JSON Schema itself (rejected as
-`-32602 Invalid params`, never silently coerced/truncated); the output-side bounds
-(stdout/stderr/matches/lint arrays/session tool and resource strings) are enforced by the server
-after the backend call, with explicit truncation metadata so a client can always tell when it's
-seeing a partial value.
+`-32602 Invalid params`, never silently coerced/truncated). Backend stdout/stderr are bounded
+during pipe draining as described above; other output-side bounds (matches, lint arrays, session
+tool and resource strings) are enforced by the server before serialization, with explicit
+truncation metadata so a client can always tell when it is seeing a partial value.
 
 ## Click-group mapping
 

@@ -705,7 +705,10 @@ active session while hard-link aliases still count as the same ROM. Commands tha
 separate output ROM record history without marking the active input ROM modified; they set
 `modified` only when the reported destination identifies the active ROM. Successful backend
 version probes are limited to 4,096 characters, and `names_resolve` limits each requested name to
-4,096 characters with truthful per-name truncation metadata.
+4,096 characters with truthful per-name truncation metadata. For MCP tool calls, backend stdout
+and stderr are bounded to a 65,536-character decoded prefix while both pipes are concurrently
+drained; discarded remainder is still counted for truthful truncation metadata. This pipe-level
+bound prevents unbounded backend buffering without changing Click callers' full-capture behavior.
 
 The `.mcp.json` at the repo root auto-configures Claude Code to use it as `febuildergba-cli`
 (`python ./agent-harness/febuildergba_mcp.py`). See

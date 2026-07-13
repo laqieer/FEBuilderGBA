@@ -520,7 +520,22 @@ def _bound_string_fields(d):
     ):
         if key in d and isinstance(d[key], str):
             s = d[key]
-            if len(s) > MAX_STRING_LEN:
+            source_truncated = bool(getattr(s, "truncated", False))
+            source_length = getattr(s, "original_length", None)
+            if (
+                source_truncated
+                and not isinstance(source_length, bool)
+                and isinstance(source_length, int)
+                and source_length >= len(s)
+            ):
+                # Bounded capture has already retained the source prefix while
+                # draining the pipe.  Core wrappers may have called .strip(),
+                # so source metadata rather than this shortened value is the
+                # only truthful original-length record.
+                d[key] = str(s)
+                d[f"{key}_truncated"] = True
+                d[f"{key}_original_length"] = source_length
+            elif len(s) > MAX_STRING_LEN:
                 d[key] = s[:MAX_STRING_LEN]
                 d[f"{key}_truncated"] = True
                 d[f"{key}_original_length"] = len(s)
@@ -1029,7 +1044,12 @@ def _h_tools_call(state, params):
 
     handler = TOOL_HANDLERS[name]
     try:
-        payload, is_error = handler(state.session, arguments)
+        # Scope bounded capture to all MCP tool handlers.  The shared core
+        # wrappers keep their Click behavior because their run_cli calls only
+        # observe this ContextVar during this dynamic handler scope.
+        from cli_anything.febuildergba.utils.febuildergba_backend import bounded_capture
+        with bounded_capture(MAX_STRING_LEN):
+            payload, is_error = handler(state.session, arguments)
     except Exception as e:  # tool business/backend failure -> isError result, never a protocol error
         payload, is_error = {"error": str(e)}, True
 

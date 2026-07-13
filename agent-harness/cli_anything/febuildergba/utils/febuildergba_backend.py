@@ -9,10 +9,209 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
+import time
+from contextlib import contextmanager
+from contextvars import ContextVar
 from pathlib import Path
 from typing import Optional
 
 MAX_VERSION_TEXT_LEN = 4096
+_OUTPUT_READ_CHARS = 8192
+_CLEANUP_TIMEOUT_SECONDS = 0.5
+
+# ``run_cli`` is shared with the Click surface, which must retain its historic
+# full-capture behavior.  MCP enables this ContextVar only while a tool handler
+# runs, so that its untrusted backend output is bounded at the pipe boundary.
+_bounded_capture_limit: ContextVar[Optional[int]] = ContextVar(
+    "febuildergba_bounded_capture_limit",
+    default=None,
+)
+
+
+class _BoundedOutput(str):
+    """A captured text prefix whose source length survives string trimming."""
+
+    def __new__(cls, value: str, original_length: int, truncated: bool):
+        obj = super().__new__(cls, value)
+        obj.original_length = original_length
+        obj.truncated = truncated
+        return obj
+
+    def strip(self, chars=None):
+        # str.strip returns a plain str, so explicitly rebuild the metadata
+        # carrier used by all existing core wrappers.
+        return type(self)(
+            super().strip(chars),
+            self.original_length,
+            self.truncated,
+        )
+
+
+class _BoundedStreamCapture:
+    """Incrementally count decoded text while retaining only its prefix."""
+
+    def __init__(self, limit: int):
+        self.limit = limit
+        self.parts: list[str] = []
+        self.retained_length = 0
+        self.original_length = 0
+        self.error = None
+
+    def add(self, text: str) -> None:
+        self.original_length += len(text)
+        remaining = self.limit - self.retained_length
+        if remaining > 0:
+            prefix = text[:remaining]
+            self.parts.append(prefix)
+            self.retained_length += len(prefix)
+
+    def value(self) -> _BoundedOutput:
+        return _BoundedOutput(
+            "".join(self.parts),
+            self.original_length,
+            self.original_length > self.limit,
+        )
+
+
+@contextmanager
+def bounded_capture(max_chars: int):
+    """Bound captured stdout/stderr for the dynamic scope of one caller.
+
+    Callers outside this context continue through the legacy
+    ``subprocess.run(capture_output=...)`` seam unchanged.
+    """
+    if isinstance(max_chars, bool) or not isinstance(max_chars, int) or max_chars < 0:
+        raise ValueError("max_chars must be a non-negative integer")
+    token = _bounded_capture_limit.set(max_chars)
+    try:
+        yield
+    finally:
+        _bounded_capture_limit.reset(token)
+
+
+def _drain_bounded_stream(stream, captured: _BoundedStreamCapture) -> None:
+    """Drain one text pipe to EOF without retaining data beyond its prefix."""
+    try:
+        while True:
+            text = stream.read(_OUTPUT_READ_CHARS)
+            if not text:
+                return
+            captured.add(text)
+    except (OSError, UnicodeError, ValueError) as exc:
+        # Surface a pipe/decoder failure after the parent has bounded cleanup.
+        captured.error = exc
+    finally:
+        try:
+            stream.close()
+        except (OSError, ValueError):
+            pass
+
+
+def _force_close_pipe(stream) -> None:
+    """Close an OS pipe without waiting on a reader's TextIOWrapper lock."""
+    try:
+        os.close(stream.fileno())
+    except (OSError, ValueError):
+        pass
+
+
+def _cleanup_bounded_process(process, streams, readers) -> None:
+    """Bound teardown when a process or an inherited pipe refuses to finish."""
+    if process.poll() is None:
+        try:
+            process.kill()
+        except OSError:
+            pass
+    try:
+        process.wait(timeout=_CLEANUP_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired:
+        pass
+
+    for stream in streams:
+        _force_close_pipe(stream)
+
+    deadline = time.monotonic() + _CLEANUP_TIMEOUT_SECONDS
+    for reader in readers:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        reader.join(remaining)
+
+
+def _run_cli_bounded(
+        cmd: list[str], timeout: int, max_chars: int) -> subprocess.CompletedProcess:
+    """Run a command with concurrent, bounded decoded stdout/stderr capture."""
+    process = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+    )
+    # Popen creates these streams whenever PIPE is requested.  The explicit
+    # guard keeps the reader contract clear to type checkers and future edits.
+    if process.stdout is None or process.stderr is None:
+        raise OSError("Failed to create backend output pipes")
+
+    stdout_capture = _BoundedStreamCapture(max_chars)
+    stderr_capture = _BoundedStreamCapture(max_chars)
+    readers = [
+        threading.Thread(
+            target=_drain_bounded_stream,
+            args=(process.stdout, stdout_capture),
+            daemon=True,
+        ),
+        threading.Thread(
+            target=_drain_bounded_stream,
+            args=(process.stderr, stderr_capture),
+            daemon=True,
+        ),
+    ]
+    deadline = time.monotonic() + timeout
+    try:
+        for reader in readers:
+            reader.start()
+
+        # Poll rather than waiting for one pipe at a time: both reader threads
+        # keep draining while this deadline covers process completion *and* EOF
+        # from both pipes (including accidentally inherited pipe handles).
+        while process.poll() is None:
+            if stdout_capture.error is not None:
+                raise stdout_capture.error
+            if stderr_capture.error is not None:
+                raise stderr_capture.error
+            if time.monotonic() >= deadline:
+                raise subprocess.TimeoutExpired(cmd, timeout)
+            time.sleep(min(0.01, max(0.0, deadline - time.monotonic())))
+
+        while any(reader.is_alive() for reader in readers):
+            if stdout_capture.error is not None:
+                raise stdout_capture.error
+            if stderr_capture.error is not None:
+                raise stderr_capture.error
+            if time.monotonic() >= deadline:
+                raise subprocess.TimeoutExpired(cmd, timeout)
+            for reader in readers:
+                reader.join(min(0.01, max(0.0, deadline - time.monotonic())))
+        if stdout_capture.error is not None:
+            raise stdout_capture.error
+        if stderr_capture.error is not None:
+            raise stderr_capture.error
+    except BaseException:
+        _cleanup_bounded_process(
+            process,
+            (process.stdout, process.stderr),
+            readers,
+        )
+        raise
+
+    return subprocess.CompletedProcess(
+        cmd,
+        process.returncode,
+        stdout=stdout_capture.value(),
+        stderr=stderr_capture.value(),
+    )
 
 
 def find_febuildergba_cli() -> list[str]:
@@ -101,6 +300,9 @@ def run_cli(args: list[str], capture: bool = True,
     """
     cmd = find_febuildergba_cli() + args
     try:
+        max_chars = _bounded_capture_limit.get()
+        if max_chars is not None and capture:
+            return _run_cli_bounded(cmd, timeout, max_chars)
         result = subprocess.run(
             cmd,
             capture_output=capture,
