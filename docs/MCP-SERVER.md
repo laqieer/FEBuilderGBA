@@ -62,9 +62,10 @@ the package has been `pip install`-ed.
 
 ## Protocol versions, framing, errors, batching
 
-- **Protocol versions:** `2025-03-26` (latest, used when the client's requested version is a
-  well-formed but unrecognized string) and `2024-11-05` are both honored verbatim when requested in
-  `initialize`.
+- **Protocol versions:** `2025-03-26` (the newer/default revision implemented by this server, used
+  when the client's requested version is a well-formed but unrecognized string) and `2024-11-05`
+  are both honored verbatim when requested in `initialize`. Newer MCP revisions are intentionally
+  not advertised until their contracts are implemented and tested here.
 - **Framing:** every JSON-RPC message — a single object, or a JSON array batch — is exactly one
   flushed, UTF-8 line on stdout. All logs/diagnostics go to stderr; nothing else is ever written to
   stdout. Input lines are capped at 1,048,576 characters and batches at 64 entries; an oversized
@@ -169,7 +170,9 @@ and/or mutate ROM data or session state in place); the other 12 are
 
 All resources return `application/json` text — never raw ROM bytes or arbitrary file contents.
 Reading an unknown `uri` is `-32002`. Output is bounded (session history is capped at the same 100
-entries the `Session` class itself enforces on write). ROM header metadata is decoded only after
+entries the `Session` class enforces on load and write, then sliced again by the resource).
+Persisted session fields with invalid types or over-limit paths are discarded, so the session
+loads closed rather than bypassing online tool schemas. ROM header metadata is decoded only after
 the active path passes the same local GBA check (at least 1 MiB, a complete header, and the fixed
 `0x96` byte plus the header complement checksum); stale or tampered non-ROM session paths fail
 closed with `rom_header: null`.
@@ -188,7 +191,8 @@ closed with `rom_header: null`.
   session's `force_version` (independently of how `rom_path` was resolved).
 - `session_open` uses the same locally validated `rom_info` + `Session.open_rom` as the Click CLI;
   a failed GBA check never reaches the backend and never creates session state.
-  `session_close`/`session_status`/`session_history` operate on the same `Session`.
+  `session_close`/`session_status`/`session_history` operate on the same `Session`; persisted
+  path/version/size/timestamp/modified/history fields are type-checked and bounded on load.
 - A successful **session-owned** `data_export` (i.e. the resolved ROM path normalizes to the same
   file as the active session's ROM) records a history entry.
 - A successful **in-place** `data_import`/`palette_import` records a history entry **and** sets
@@ -217,7 +221,7 @@ closed with `rom_header: null`.
 
 | Field / tool | Bound | Metadata |
 |---|---|---|
-| `stdout` / `stderr` / `raw_output` (any tool) | 65,536 chars | `<field>_truncated`, `<field>_original_length` |
+| `stdout` / `stderr` / `raw_output` / `lint_output` / execution `error` (any tool) | 65,536 chars | `<field>_truncated`, `<field>_original_length` |
 | `text_search` matches (count) | default 50, max 500 (`limit` param) | `total`, `returned`, `truncated` |
 | `text_search` each match's `text` | 4,096 chars | per-match `text_truncated`, aggregate `matches_text_truncated_count` |
 | `rom_lint` `errors`/`warnings`/`info` (count) | default 200, max 1000 (`limit` param, applied per array) | `<array>_total`, `<array>_truncated` |
@@ -226,6 +230,7 @@ closed with `rom_header: null`.
 | Every string in `session_status` / `session_history` tool output | 4,096 chars, applied recursively | top-level `truncated` boolean |
 | `names_resolve` `ids` | 1..256 entries | schema-enforced (`-32602` if exceeded) |
 | Every string value inside a resource payload (session/history/rom_header) | 4,096 chars, applied recursively | top-level `truncated` boolean (never exposes raw bytes — resources never contained raw bytes to begin with) |
+| Resource collection size / nesting | 100 items per object/array / 16 levels | extra entries or deeper containers are replaced/truncated with top-level `truncated: true` |
 | Input line / JSON-RPC batch | 1,048,576 chars / 64 entries | schema-independent `-32600` request guard |
 | ROM/file path arguments (`rom_path`, `out_path`, `in_path`, `out_img`, `out_tsa`) | 4,096 chars | schema `maxLength` — over-length input is `-32602`, not silently truncated |
 | `query` (text_search) | 4,096 chars | schema `maxLength` |

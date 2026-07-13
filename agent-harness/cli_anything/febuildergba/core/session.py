@@ -5,11 +5,50 @@ across multiple CLI invocations via a JSON session file.
 """
 
 import json
+import math
 import os
 import time
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Optional
+
+
+MAX_HISTORY_ENTRIES = 100
+MAX_SESSION_PATH_LEN = 4096
+MAX_SESSION_ROM_SIZE = 0xFFFFFFFF
+MAX_SESSION_TIMESTAMP = 10_000_000_000
+MAX_SESSION_VERSION_LEN = 64
+
+
+def _valid_string(value, max_len: int, allow_empty: bool = True) -> bool:
+    return (
+        isinstance(value, str)
+        and len(value) <= max_len
+        and (allow_empty or bool(value))
+    )
+
+
+def _nonnegative_int(value, max_value: int, default: int = 0) -> int:
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int)
+        or value < 0
+        or value > max_value
+    ):
+        return default
+    return value
+
+
+def _nonnegative_number(value, max_value: float, default: float = 0.0):
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or value < 0
+        or value > max_value
+        or (isinstance(value, float) and not math.isfinite(value))
+    ):
+        return default
+    return value
 
 
 @dataclass
@@ -29,7 +68,48 @@ class SessionState:
 
     @classmethod
     def from_dict(cls, data: dict) -> "SessionState":
-        return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
+        if not isinstance(data, dict):
+            return cls()
+        history = data.get("history", [])
+        if not isinstance(history, list):
+            history = []
+        history = [
+            entry for entry in history
+            if isinstance(entry, dict)
+        ][-MAX_HISTORY_ENTRIES:]
+
+        rom_path = data.get("rom_path", "")
+        if not _valid_string(rom_path, MAX_SESSION_PATH_LEN):
+            rom_path = ""
+        rom_version = data.get("rom_version", "")
+        if not _valid_string(rom_version, MAX_SESSION_VERSION_LEN):
+            rom_version = ""
+        force_version = data.get("force_version", "")
+        if not _valid_string(force_version, MAX_SESSION_VERSION_LEN):
+            force_version = ""
+        modified = data.get("modified", False)
+        if not isinstance(modified, bool):
+            modified = False
+
+        return cls(
+            rom_path=rom_path,
+            rom_version=rom_version,
+            rom_size=_nonnegative_int(
+                data.get("rom_size", 0),
+                MAX_SESSION_ROM_SIZE,
+            ),
+            force_version=force_version,
+            created_at=_nonnegative_number(
+                data.get("created_at", 0.0),
+                MAX_SESSION_TIMESTAMP,
+            ),
+            updated_at=_nonnegative_number(
+                data.get("updated_at", 0.0),
+                MAX_SESSION_TIMESTAMP,
+            ),
+            history=history,
+            modified=modified,
+        )
 
 
 def _default_session_dir() -> Path:
@@ -102,7 +182,25 @@ class Session:
 
     def open_rom(self, rom_path: str, version: str = "", rom_size: int = 0,
                  force_version: str = ""):
-        self.state.rom_path = os.path.abspath(rom_path)
+        if not _valid_string(rom_path, MAX_SESSION_PATH_LEN, allow_empty=False):
+            raise ValueError("ROM path must be a non-empty bounded string")
+        if not _valid_string(version, MAX_SESSION_VERSION_LEN):
+            raise ValueError("ROM version must be a bounded string")
+        if not _valid_string(force_version, MAX_SESSION_VERSION_LEN):
+            raise ValueError("Force version must be a bounded string")
+        if (
+            isinstance(rom_size, bool)
+            or not isinstance(rom_size, int)
+            or rom_size < 0
+            or rom_size > MAX_SESSION_ROM_SIZE
+        ):
+            raise ValueError("ROM size must be a bounded non-negative integer")
+
+        abs_rom_path = os.path.abspath(rom_path)
+        if len(abs_rom_path) > MAX_SESSION_PATH_LEN:
+            raise ValueError("Absolute ROM path exceeds the session path limit")
+
+        self.state.rom_path = abs_rom_path
         self.state.rom_version = version
         self.state.rom_size = rom_size
         self.state.force_version = force_version
@@ -126,7 +224,11 @@ class Session:
             self.path.unlink()
 
     def is_open(self) -> bool:
-        return bool(self.state.rom_path)
+        return _valid_string(
+            self.state.rom_path,
+            MAX_SESSION_PATH_LEN,
+            allow_empty=False,
+        )
 
     def _add_history(self, op: str, details: dict):
         entry = {
@@ -135,9 +237,8 @@ class Session:
             **details,
         }
         self.state.history.append(entry)
-        # Keep last 100 entries
-        if len(self.state.history) > 100:
-            self.state.history = self.state.history[-100:]
+        if len(self.state.history) > MAX_HISTORY_ENTRIES:
+            self.state.history = self.state.history[-MAX_HISTORY_ENTRIES:]
 
     def info(self) -> dict:
         return {

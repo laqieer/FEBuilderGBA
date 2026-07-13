@@ -70,6 +70,17 @@ def _call_tool(state, name, arguments=None, id_=1):
     )))
 
 
+def _initialized_state_from_session_payload(tmp_path, payload):
+    session_path = tmp_path / "persisted-session.json"
+    session_path.write_text(json.dumps(payload))
+    state = srv._ServerState(Session(str(session_path)))
+    response = srv.handle_line(state, json.dumps(_req(
+        "initialize", _init_params(),
+    )))
+    assert "result" in response
+    return state
+
+
 def _write_valid_test_rom(path):
     rom = bytearray(0x100000)
     rom[0xA0:0xAC] = b"FIRE EMBLEM\x00"
@@ -230,6 +241,19 @@ class TestFraming:
     def test_single_notification_emits_nothing(self, initialized_state):
         resp = srv.handle_line(initialized_state, json.dumps(_notif("notifications/initialized")))
         assert resp is None
+
+    @pytest.mark.parametrize("with_id", [True, False])
+    def test_explicit_null_params_is_invalid_request(
+            self, initialized_state, with_id):
+        message = {"jsonrpc": "2.0", "method": "ping", "params": None}
+        if with_id:
+            message["id"] = 17
+
+        resp = srv.handle_line(initialized_state, json.dumps(message))
+
+        assert resp["id"] == (17 if with_id else None)
+        assert resp["error"]["code"] == srv.INVALID_REQUEST
+        assert "params must be an object" in resp["error"]["message"]
 
     def test_initialize_notification_is_ignored_without_consuming_lifecycle(self, state):
         resp = srv.handle_line(state, json.dumps(_notif(
@@ -448,6 +472,14 @@ class TestMethodSpecificParams:
             _req("tools/call", {"name": "backend_check", "arguments": {}, "_meta": {"trace": "x"}})))
         assert "result" in resp
 
+    def test_tools_call_rejects_null_arguments(self, initialized_state):
+        resp = srv.handle_line(initialized_state, json.dumps(_req(
+            "tools/call",
+            {"name": "backend_check", "arguments": None},
+        )))
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+        assert "'arguments' must be an object" in resp["error"]["message"]
+
     def test_resources_read_rejects_unknown_field(self, initialized_state):
         resp = srv.handle_line(initialized_state, json.dumps(
             _req("resources/read", {"uri": "febuildergba://session", "bogus": 1})))
@@ -550,6 +582,33 @@ class TestResources:
         data = self._read(initialized_state, "febuildergba://session/history")
         assert data["open"] is False
         assert data["history"] == []
+
+    def test_session_history_resource_caps_direct_overflow(
+            self, initialized_state, tmp_path):
+        initialized_state.session.open_rom(str(tmp_path / "r.gba"), "FE8U", 1)
+        initialized_state.session.state.history = [
+            {"op": f"op_{i}"}
+            for i in range(srv.HISTORY_MAX + 20)
+        ]
+
+        data = self._read(initialized_state, "febuildergba://session/history")
+
+        assert len(data["history"]) == srv.HISTORY_MAX
+        assert data["history"][0]["op"] == "op_20"
+
+    def test_session_history_resource_bounds_nested_collections(
+            self, initialized_state, tmp_path):
+        initialized_state.session.open_rom(str(tmp_path / "r.gba"), "FE8U", 1)
+        initialized_state.session.state.history = [{
+            "nested": list(range(srv.MAX_RESOURCE_COLLECTION_ITEMS + 20)),
+            "huge_number": 1 << 4096,
+        }]
+
+        data = self._read(initialized_state, "febuildergba://session/history")
+
+        assert len(data["history"][0]["nested"]) == srv.MAX_RESOURCE_COLLECTION_ITEMS
+        assert data["history"][0]["huge_number"] is None
+        assert data["truncated"] is True
 
     def test_rom_metadata_resource_closed(self, initialized_state):
         data = self._read(initialized_state, "febuildergba://rom/metadata")
@@ -1083,6 +1142,83 @@ class TestBounds:
         payload = json.loads(resp["result"]["content"][0]["text"])
         assert len(payload["errors"][0]) == srv.MAX_ITEM_STRING_LEN
         assert payload["errors_items_truncated_count"] == 1
+
+    def test_tool_error_string_is_bounded(self, initialized_state, monkeypatch):
+        overlong = "E" * (srv.MAX_STRING_LEN + 123)
+
+        def fail(_session, _arguments):
+            raise RuntimeError(overlong)
+
+        monkeypatch.setitem(srv.TOOL_HANDLERS, "backend_check", fail)
+        resp = _call_tool(initialized_state, "backend_check")
+        payload = json.loads(resp["result"]["content"][0]["text"])
+
+        assert resp["result"]["isError"] is True
+        assert len(payload["error"]) == srv.MAX_STRING_LEN
+        assert payload["error_truncated"] is True
+        assert payload["error_original_length"] == len(overlong)
+
+    @pytest.mark.parametrize(
+        "bad_path",
+        [
+            ["not", "a", "path"],
+            {"not": "a path"},
+            "x" * (srv.MAX_PATH_LEN + 1),
+        ],
+        ids=["list", "object", "overlong"],
+    )
+    def test_persisted_invalid_rom_path_fails_closed_on_all_surfaces(
+            self, tmp_path, bad_path):
+        state = _initialized_state_from_session_payload(tmp_path, {
+            "rom_path": bad_path,
+            "history": [{"op": "should-not-be-exposed-while-closed"}],
+        })
+
+        status = _call_tool(state, "session_status")
+        status_payload = json.loads(status["result"]["content"][0]["text"])
+        assert status_payload["open"] is False
+        assert status_payload["rom_path"] == ""
+
+        history = _call_tool(state, "session_history")
+        history_payload = json.loads(history["result"]["content"][0]["text"])
+        assert history_payload["open"] is False
+        assert history_payload["history"] == []
+
+        info = _call_tool(state, "rom_info")
+        info_payload = json.loads(info["result"]["content"][0]["text"])
+        assert info["result"]["isError"] is True
+        assert "No ROM specified" in info_payload["error"]
+
+        resource = srv.handle_line(state, json.dumps(_req(
+            "resources/read", {"uri": "febuildergba://rom/metadata"},
+        )))
+        resource_payload = json.loads(
+            resource["result"]["contents"][0]["text"],
+        )
+        assert resource_payload == {"open": False, "truncated": False}
+
+    def test_persisted_invalid_force_version_fails_before_handler(
+            self, tmp_path, monkeypatch):
+        state = _initialized_state_from_session_payload(tmp_path, {
+            "rom_path": str(tmp_path / "r.gba"),
+            "force_version": "INVALID",
+        })
+        calls = []
+
+        def should_not_run(*args, **kwargs):
+            calls.append((args, kwargs))
+            raise AssertionError("rom_info handler must not run")
+
+        monkeypatch.setattr(
+            "cli_anything.febuildergba.core.project.rom_info",
+            should_not_run,
+        )
+        resp = _call_tool(state, "rom_info")
+        payload = json.loads(resp["result"]["content"][0]["text"])
+
+        assert resp["result"]["isError"] is True
+        assert "force_version is invalid" in payload["error"]
+        assert calls == []
 
     def test_session_history_resource_bounds_overlong_values(self, initialized_state, tmp_path):
         rom = str(tmp_path / "r.gba")

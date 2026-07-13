@@ -31,17 +31,20 @@ def export_table(rom_path: str, table: str, output_path: str,
 
     result = run_cli(args)
 
-    # Determine output files (return full paths)
-    if table == "all":
-        out_dir = os.path.dirname(os.path.abspath(output_path)) or "."
-        prefix = os.path.basename(output_path)
-        files = [
-            os.path.join(out_dir, f)
-            for f in os.listdir(out_dir)
-            if f.startswith(prefix) and f.endswith(".tsv")
-        ]
-    else:
-        files = [os.path.abspath(output_path)] if os.path.isfile(output_path) else []
+    files = []
+    if result.returncode == 0:
+        # Determine output files (return full paths) only after success so a
+        # failed backend cannot make stale pre-existing files look produced.
+        if table == "all":
+            out_dir = os.path.dirname(os.path.abspath(output_path)) or "."
+            prefix = os.path.basename(output_path)
+            files = [
+                os.path.join(out_dir, f)
+                for f in os.listdir(out_dir)
+                if f.startswith(prefix) and f.endswith(".tsv")
+            ]
+        elif os.path.isfile(output_path):
+            files = [os.path.abspath(output_path)]
 
     return {
         "table": table,

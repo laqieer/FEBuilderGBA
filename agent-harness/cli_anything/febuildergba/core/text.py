@@ -5,7 +5,10 @@ import os
 import tempfile
 from typing import Optional
 
-from cli_anything.febuildergba.utils.febuildergba_backend import run_cli
+from cli_anything.febuildergba.utils.febuildergba_backend import (
+    run_cli,
+    successful_output_size,
+)
 
 
 def export_text(rom_path: str, output_path: str,
@@ -26,7 +29,7 @@ def export_text(rom_path: str, output_path: str,
 
     result = run_cli(args)
 
-    file_size = os.path.getsize(output_path) if os.path.isfile(output_path) else 0
+    file_size = successful_output_size(result, output_path)
 
     return {
         "output_path": output_path,

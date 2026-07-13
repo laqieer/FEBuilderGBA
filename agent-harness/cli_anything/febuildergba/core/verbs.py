@@ -11,10 +11,12 @@ checksum is invalid" (advisory, non-fatal), so ``checksum()`` maps it to
 ``lint_oam`` (see #1933 review board).
 """
 
-import os
 import re
 
-from cli_anything.febuildergba.utils.febuildergba_backend import run_cli
+from cli_anything.febuildergba.utils.febuildergba_backend import (
+    run_cli,
+    successful_output_size,
+)
 
 
 def _base_result(result) -> dict:
@@ -142,7 +144,7 @@ def export_map_settings_raw(rom_path: str, out_path: str,
     out.update({
         "rom_path": rom_path,
         "output_path": out_path,
-        "file_size": os.path.getsize(out_path) if os.path.isfile(out_path) else 0,
+        "file_size": successful_output_size(result, out_path),
     })
     return out
 
@@ -185,7 +187,7 @@ def export_palette(rom_path: str, addr: str, out_path: str,
         "rom_path": rom_path,
         "addr": addr,
         "output_path": out_path,
-        "file_size": os.path.getsize(out_path) if os.path.isfile(out_path) else 0,
+        "file_size": successful_output_size(result, out_path),
     })
     return out
 
@@ -227,7 +229,7 @@ def lz77_file(mode: str, in_path: str, out_path: str) -> dict:
         "mode": mode,
         "input_path": in_path,
         "output_path": out_path,
-        "file_size": os.path.getsize(out_path) if os.path.isfile(out_path) else 0,
+        "file_size": successful_output_size(result, out_path),
     })
     return out
 

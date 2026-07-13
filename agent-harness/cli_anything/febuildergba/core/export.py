@@ -1,7 +1,10 @@
 """Export pipeline — UPS patches, disassembly, rebuild, image, music, maps."""
 
 import os
-from cli_anything.febuildergba.utils.febuildergba_backend import run_cli
+from cli_anything.febuildergba.utils.febuildergba_backend import (
+    run_cli,
+    successful_output_size,
+)
 
 
 def create_ups(rom_path: str, output_path: str,
@@ -22,7 +25,7 @@ def create_ups(rom_path: str, output_path: str,
 
     result = run_cli(args)
 
-    file_size = os.path.getsize(output_path) if os.path.isfile(output_path) else 0
+    file_size = successful_output_size(result, output_path)
 
     return {
         "output_path": output_path,
@@ -84,7 +87,7 @@ def disassemble(rom_path: str, output_path: str,
 
     result = run_cli(args)
 
-    file_size = os.path.getsize(output_path) if os.path.isfile(output_path) else 0
+    file_size = successful_output_size(result, output_path)
 
     return {
         "output_path": output_path,
@@ -151,7 +154,7 @@ def decrease_color(input_path: str, output_path: str,
 
     result = run_cli(args)
 
-    file_size = os.path.getsize(output_path) if os.path.isfile(output_path) else 0
+    file_size = successful_output_size(result, output_path)
 
     return {
         "output_path": output_path,
@@ -304,7 +307,7 @@ def render_portrait(rom_path: str, unit_id: int, output_path: str,
 
     result = run_cli(args)
 
-    file_size = os.path.getsize(output_path) if os.path.isfile(output_path) else 0
+    file_size = successful_output_size(result, output_path)
 
     return {
         "unit_id": unit_id,
@@ -336,7 +339,7 @@ def export_midi(rom_path: str, song_id: str, output_path: str,
 
     result = run_cli(args)
 
-    file_size = os.path.getsize(output_path) if os.path.isfile(output_path) else 0
+    file_size = successful_output_size(result, output_path)
 
     return {
         "song_id": song_id,

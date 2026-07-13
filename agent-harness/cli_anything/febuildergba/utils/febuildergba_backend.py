@@ -117,6 +117,14 @@ def run_cli(args: list[str], capture: bool = True,
         )
 
 
+def successful_output_size(result: subprocess.CompletedProcess,
+                           output_path: str) -> int:
+    """Return an output file's size only when the backend succeeded."""
+    if result.returncode != 0 or not os.path.isfile(output_path):
+        return 0
+    return os.path.getsize(output_path)
+
+
 def get_version() -> str:
     """Get FEBuilderGBA version string."""
     result = run_cli(["--version"])

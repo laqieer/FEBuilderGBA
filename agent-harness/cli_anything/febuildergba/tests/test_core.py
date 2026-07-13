@@ -59,6 +59,51 @@ class TestBackend:
         assert result["error"] == "probe failed"
 
 
+class TestOutputFileReporting:
+    @pytest.mark.parametrize(
+        ("module_name", "invoke"),
+        [
+            ("cli_anything.febuildergba.core.export",
+             lambda module, out: module.create_ups("r.gba", out)),
+            ("cli_anything.febuildergba.core.export",
+             lambda module, out: module.disassemble("r.gba", out)),
+            ("cli_anything.febuildergba.core.export",
+             lambda module, out: module.decrease_color("in.png", out)),
+            ("cli_anything.febuildergba.core.export",
+             lambda module, out: module.render_portrait("r.gba", 1, out)),
+            ("cli_anything.febuildergba.core.export",
+             lambda module, out: module.export_midi("r.gba", "1A", out)),
+            ("cli_anything.febuildergba.core.text",
+             lambda module, out: module.export_text("r.gba", out)),
+            ("cli_anything.febuildergba.core.verbs",
+             lambda module, out: module.export_map_settings_raw("r.gba", out)),
+            ("cli_anything.febuildergba.core.verbs",
+             lambda module, out: module.export_palette("r.gba", "0x5524", out)),
+            ("cli_anything.febuildergba.core.verbs",
+             lambda module, out: module.lz77_file("compress", "in.bin", out)),
+        ],
+    )
+    def test_failed_wrappers_do_not_report_stale_output(
+            self, module_name, invoke, monkeypatch, tmp_path):
+        import importlib
+
+        module = importlib.import_module(module_name)
+        output = tmp_path / "stale.bin"
+        output.write_bytes(b"stale")
+        monkeypatch.setattr(
+            module,
+            "run_cli",
+            lambda args: subprocess.CompletedProcess(
+                args, 1, stdout="", stderr="backend failed",
+            ),
+        )
+
+        result = invoke(module, str(output))
+
+        assert result["exit_code"] == 1
+        assert result["file_size"] == 0
+
+
 # ── Session tests ─────────────────────────────────────────────────────
 
 class TestSession:
@@ -118,12 +163,41 @@ class TestSession:
         assert len(sess2.state.history) == 2
 
     def test_history_limit(self, tmp_path):
-        from cli_anything.febuildergba.core.session import Session
+        from cli_anything.febuildergba.core.session import (
+            MAX_HISTORY_ENTRIES,
+            Session,
+        )
         sess = Session(str(tmp_path / "test_session.json"))
         sess.open_rom("/fake/rom.gba", "FE8U")
         for i in range(150):
             sess.record_operation(f"op_{i}", {})
-        assert len(sess.state.history) <= 100
+        assert len(sess.state.history) == MAX_HISTORY_ENTRIES
+
+    def test_loaded_history_is_clamped(self, tmp_path):
+        from cli_anything.febuildergba.core.session import Session
+        path = tmp_path / "test_session.json"
+        history = [{"op": f"op_{i}"} for i in range(150)]
+        path.write_text(json.dumps({
+            "rom_path": "/fake/rom.gba",
+            "history": history,
+        }))
+
+        sess = Session(str(path))
+
+        assert len(sess.state.history) == 100
+        assert sess.state.history[0]["op"] == "op_50"
+
+    def test_loaded_non_list_history_is_discarded(self, tmp_path):
+        from cli_anything.febuildergba.core.session import Session
+        path = tmp_path / "test_session.json"
+        path.write_text(json.dumps({
+            "rom_path": "/fake/rom.gba",
+            "history": "not-a-list",
+        }))
+
+        sess = Session(str(path))
+
+        assert sess.state.history == []
 
     def test_info_output(self, tmp_path):
         from cli_anything.febuildergba.core.session import Session
@@ -297,6 +371,24 @@ class TestData:
         with pytest.raises(ValueError, match="Unknown table"):
             export_table("fake.gba", "nonexistent_table", "out.tsv")
 
+    def test_failed_export_does_not_report_stale_output(
+            self, tmp_path, monkeypatch):
+        from cli_anything.febuildergba.core import data
+        output = tmp_path / "units.tsv"
+        output.write_text("stale")
+        monkeypatch.setattr(
+            data,
+            "run_cli",
+            lambda args: subprocess.CompletedProcess(
+                args, 1, stdout="", stderr="backend failed",
+            ),
+        )
+
+        result = data.export_table("fake.gba", "units", str(output))
+
+        assert result["exit_code"] == 1
+        assert result["output_files"] == []
+
     def test_empty_tsv(self, tmp_path):
         from cli_anything.febuildergba.core.data import read_tsv
         tsv = tmp_path / "empty.tsv"
@@ -333,6 +425,36 @@ class TestSessionState:
              "history": [], "modified": False, "extra_key": "ignored"}
         state = SessionState.from_dict(d)
         assert state.rom_path == "/test.gba"
+
+    def test_from_dict_non_object_returns_default(self):
+        from cli_anything.febuildergba.core.session import SessionState
+        state = SessionState.from_dict(["not", "an", "object"])
+        assert state == SessionState()
+
+    def test_from_dict_sanitizes_invalid_persisted_fields(self):
+        from cli_anything.febuildergba.core.session import (
+            MAX_SESSION_PATH_LEN,
+            SessionState,
+        )
+        state = SessionState.from_dict({
+            "rom_path": "x" * (MAX_SESSION_PATH_LEN + 1),
+            "rom_version": ["FE8U"],
+            "rom_size": 1 << 100,
+            "force_version": {"version": "FE8U"},
+            "created_at": float("nan"),
+            "updated_at": -1,
+            "history": ["bad", {"op": "kept"}],
+            "modified": "yes",
+        })
+
+        assert state.rom_path == ""
+        assert state.rom_version == ""
+        assert state.rom_size == 0
+        assert state.force_version == ""
+        assert state.created_at == 0.0
+        assert state.updated_at == 0.0
+        assert state.history == [{"op": "kept"}]
+        assert state.modified is False
 
 
 # ── ROM header tests ──────────────────────────────────────────────────

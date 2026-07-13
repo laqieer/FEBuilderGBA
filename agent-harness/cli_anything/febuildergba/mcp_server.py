@@ -13,9 +13,10 @@ Every JSON-RPC message (a single object, or a JSON array batch) is exactly
 one line of flushed, UTF-8 JSON on stdout. All logging/diagnostics go to
 stderr. Nothing else is ever written to stdout.
 
-Supported protocol versions: ``2025-03-26`` (latest/default) and
-``2024-11-05``. The client's requested ``protocolVersion`` is honored if it
-is one of these two; otherwise the server negotiates the latest.
+Supported protocol versions: ``2025-03-26`` (the newer/default revision
+implemented here) and ``2024-11-05``. The client's requested
+``protocolVersion`` is honored if it is one of these two; otherwise the
+server negotiates its default supported revision.
 
 Only 21 tools are exposed (see ``TOOL_DEFS``) — no generic command runner,
 and no patch/rebuild/repair/event/music mutation tools. See
@@ -23,11 +24,17 @@ and no patch/rebuild/repair/event/music mutation tools. See
 """
 
 import json
+import math
 import os
 import sys
 
 from cli_anything.febuildergba import __version__
-from cli_anything.febuildergba.core.session import Session
+from cli_anything.febuildergba.core.session import (
+    MAX_HISTORY_ENTRIES,
+    MAX_SESSION_PATH_LEN,
+    MAX_SESSION_VERSION_LEN,
+    Session,
+)
 
 
 # ── Protocol constants ─────────────────────────────────────────────────
@@ -51,7 +58,7 @@ TEXT_SEARCH_MAX_LIMIT = 500
 LINT_DEFAULT_LIMIT = 200
 LINT_MAX_LIMIT = 1000
 HISTORY_MIN = 1
-HISTORY_MAX = 100
+HISTORY_MAX = MAX_HISTORY_ENTRIES
 NAMES_MAX_IDS = 256
 
 # Per-item/recursive string bound applied to individual result items (a
@@ -65,12 +72,14 @@ MAX_ITEM_STRING_LEN = 4096
 # don't need a maxLength; free-form paths/queries do, so a malicious/buggy
 # caller can never grow unbounded session history/resource payloads through
 # these inputs.
-MAX_PATH_LEN = 4096
+MAX_PATH_LEN = MAX_SESSION_PATH_LEN
 MAX_QUERY_LEN = 4096
 MAX_TABLE_NAME_LEN = 128
 MAX_ADDR_LEN = 64
 MAX_REQUEST_LINE_CHARS = 1024 * 1024
 MAX_BATCH_ITEMS = 64
+MAX_RESOURCE_COLLECTION_ITEMS = 100
+MAX_RESOURCE_NESTING_DEPTH = 16
 
 # rom_checksum / data_roundtrip / text_roundtrip additionally treat backend
 # exit code 2 as a structured, non-error advisory result (see the exit-code
@@ -445,7 +454,20 @@ def _resolve_rom(session, args, need_force=True):
     if need_force:
         force_version = args.get("force_version") or ""
         if not force_version and session.is_open():
-            force_version = session.state.force_version
+            stored_force_version = session.state.force_version
+            valid_force_versions = _FORCE_VERSION_PROP["enum"]
+            if (
+                not isinstance(stored_force_version, str)
+                or len(stored_force_version) > MAX_SESSION_VERSION_LEN
+                or (
+                    stored_force_version
+                    and stored_force_version not in valid_force_versions
+                )
+            ):
+                raise _ToolInputError(
+                    "Stored session force_version is invalid; reopen the session."
+                )
+            force_version = stored_force_version
     return rom_path, force_version
 
 
@@ -455,7 +477,7 @@ def _same_as_session_rom(session, rom_path):
     try:
         return (os.path.normcase(os.path.abspath(rom_path))
                 == os.path.normcase(os.path.abspath(session.state.rom_path)))
-    except OSError:
+    except (OSError, TypeError, ValueError):
         return False
 
 
@@ -463,7 +485,7 @@ def _bound_string_fields(d):
     """Bound backend text fields to MAX_STRING_LEN with truncation metadata."""
     if not isinstance(d, dict):
         return d
-    for key in ("stdout", "stderr", "raw_output", "lint_output"):
+    for key in ("stdout", "stderr", "raw_output", "lint_output", "error"):
         if key in d and isinstance(d[key], str):
             s = d[key]
             if len(s) > MAX_STRING_LEN:
@@ -475,7 +497,7 @@ def _bound_string_fields(d):
     return d
 
 
-def _bound_strings_recursive(value, max_len=MAX_ITEM_STRING_LEN):
+def _bound_strings_recursive(value, max_len=MAX_ITEM_STRING_LEN, depth=0):
     """Recursively truncate every string value (inside dicts/lists) to
     ``max_len`` characters. Used to bound session tool/resource payloads
     (session/history/rom_header) so a pathological persisted entry or header
@@ -489,19 +511,36 @@ def _bound_strings_recursive(value, max_len=MAX_ITEM_STRING_LEN):
         if len(value) > max_len:
             return value[:max_len], True
         return value, False
+    if isinstance(value, int) and not isinstance(value, bool):
+        if value.bit_length() > 256:
+            return None, True
+        return value, False
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            return None, True
+        return value, False
     if isinstance(value, dict):
+        if depth >= MAX_RESOURCE_NESTING_DEPTH:
+            return None, True
         out = {}
-        truncated = False
-        for k, v in value.items():
-            bv, t = _bound_strings_recursive(v, max_len)
-            out[k] = bv
+        items = list(value.items())
+        truncated = len(items) > MAX_RESOURCE_COLLECTION_ITEMS
+        for k, v in items[:MAX_RESOURCE_COLLECTION_ITEMS]:
+            key = str(k)
+            if len(key) > max_len:
+                key = key[:max_len]
+                truncated = True
+            bv, t = _bound_strings_recursive(v, max_len, depth + 1)
+            out[key] = bv
             truncated = truncated or t
         return out, truncated
     if isinstance(value, list):
+        if depth >= MAX_RESOURCE_NESTING_DEPTH:
+            return None, True
         out = []
-        truncated = False
-        for item in value:
-            bv, t = _bound_strings_recursive(item, max_len)
+        truncated = len(value) > MAX_RESOURCE_COLLECTION_ITEMS
+        for item in value[:MAX_RESOURCE_COLLECTION_ITEMS]:
+            bv, t = _bound_strings_recursive(item, max_len, depth + 1)
             out.append(bv)
             truncated = truncated or t
         return out, truncated
@@ -764,8 +803,12 @@ def _read_session_history_resource(session):
     if not session.is_open():
         payload = {"open": False, "history": []}
     else:
-        # Session already caps history at 100 entries on write (see core/session.py).
-        payload = {"open": True, "history": session.state.history}
+        # Session also clamps persisted state on load; slice again so direct
+        # in-memory mutation cannot violate the resource contract.
+        payload = {
+            "open": True,
+            "history": session.state.history[-MAX_HISTORY_ENTRIES:],
+        }
     return _bounded_payload(payload)
 
 
@@ -778,7 +821,7 @@ def _read_rom_metadata_resource(session):
         # rom_header returns only parsed metadata fields (title, game_code,
         # etc.) — never raw ROM bytes or arbitrary file contents.
         payload["rom_header"] = rom_header(session.state.rom_path)
-    except (FileNotFoundError, ValueError, OSError) as e:
+    except (FileNotFoundError, ValueError, OSError, TypeError, _ToolInputError) as e:
         payload["rom_header"] = None
         payload["rom_header_error"] = str(e)
     return _bounded_payload(payload)
@@ -894,8 +937,6 @@ def _h_tools_call(state, params):
     if not isinstance(name, str) or not name:
         raise _ProtocolError(INVALID_PARAMS, "tools/call requires a string 'name'")
     arguments = params.get("arguments", {})
-    if arguments is None:
-        arguments = {}
     if not isinstance(arguments, dict):
         raise _ProtocolError(INVALID_PARAMS, "'arguments' must be an object")
     if name not in TOOL_SCHEMAS:
@@ -1012,8 +1053,6 @@ def _process_message(state, msg):
                                                    f"Method not found: {method}")
 
     params = msg.get("params", {})
-    if params is None:
-        params = {}
 
     try:
         result = handler(state, params)
@@ -1047,7 +1086,7 @@ def _validate_shape(item):
     if not id_valid:
         return _err(None, INVALID_REQUEST,
                     "Invalid Request: id must be a non-null string or integer")
-    if "params" in item and item["params"] is not None and not isinstance(item["params"], dict):
+    if "params" in item and not isinstance(item["params"], dict):
         return _err(item.get("id"), INVALID_REQUEST, "Invalid Request: params must be an object")
     return None
 
