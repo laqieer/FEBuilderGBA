@@ -14,6 +14,8 @@ from typing import Optional
 
 
 MAX_HISTORY_ENTRIES = 100
+MAX_SESSION_FILE_BYTES = 8 * 1024 * 1024
+MAX_SESSION_INTEGER_DIGITS = 20
 MAX_SESSION_PATH_LEN = 4096
 MAX_SESSION_ROM_SIZE = 0xFFFFFFFF
 MAX_SESSION_TIMESTAMP = 10_000_000_000
@@ -21,6 +23,24 @@ MAX_SESSION_VERSION_LEN = 64
 HISTORY_OP_DATA_EXPORT = "data_export"
 HISTORY_OP_DATA_IMPORT = "data_import"
 HISTORY_OP_IMPORT_PALETTE = "import_palette"
+
+
+def _parse_session_int(value: str) -> int:
+    signless = value[1:] if value.startswith("-") else value
+    if len(signless) > MAX_SESSION_INTEGER_DIGITS:
+        raise ValueError("Session integer exceeds digit limit")
+    return int(value)
+
+
+def _parse_session_float(value: str) -> float:
+    parsed = float(value)
+    if not math.isfinite(parsed):
+        raise ValueError("Session float must be finite")
+    return parsed
+
+
+def _reject_session_constant(value: str):
+    raise ValueError(f"Non-standard JSON constant: {value}")
 
 
 def _valid_string(value, max_len: int, allow_empty: bool = True) -> bool:
@@ -172,12 +192,22 @@ class Session:
             self._load()
 
     def _load(self):
+        with open(self.path, "rb") as f:
+            content = f.read(MAX_SESSION_FILE_BYTES + 1)
         try:
-            with open(self.path) as f:
-                data = json.load(f)
-            self.state = SessionState.from_dict(data)
-        except (json.JSONDecodeError, KeyError):
+            if len(content) > MAX_SESSION_FILE_BYTES:
+                self.state = SessionState()
+                return
+            data = json.loads(
+                content,
+                parse_int=_parse_session_int,
+                parse_float=_parse_session_float,
+                parse_constant=_reject_session_constant,
+            )
+        except (ValueError, RecursionError):
             self.state = SessionState()
+            return
+        self.state = SessionState.from_dict(data)
 
     def save(self):
         self.state.updated_at = time.time()

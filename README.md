@@ -674,7 +674,7 @@ The `.mcp.json` at the repo root auto-configures Claude Code to use the server a
 ## MCP CLI Server (cross-platform)
 
 A second, dependency-free MCP server exposes the `agent-harness` FEBuilderGBA CLI (ROM info/validate,
-data/text export-import-roundtrip, name resolution, linting, image/palette conversion, LZ77, and
+data export/import/roundtrip, text search/roundtrip, name resolution, linting, image/palette conversion, LZ77, and
 session management) as 21 MCP tools plus 3 resources. Unlike the computer-use server above, it needs
 only a Python 3.10+ standard library — no Windows dependency, no extra packages, no MCP SDK.
 Its closed schemas reject empty file paths, and multi-table exports report only the declared

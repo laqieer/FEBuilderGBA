@@ -24,6 +24,8 @@ from cli_anything.febuildergba.core.session import (
     HISTORY_OP_DATA_EXPORT,
     HISTORY_OP_DATA_IMPORT,
     HISTORY_OP_IMPORT_PALETTE,
+    MAX_SESSION_FILE_BYTES,
+    MAX_SESSION_INTEGER_DIGITS,
     Session,
 )
 
@@ -1725,6 +1727,35 @@ def _readline_with_timeout(stream, timeout):
     return value
 
 
+def _write_malformed_session(path, kind):
+    if kind == "invalid_utf8":
+        path.write_bytes(b'{"rom_path":"/fake/rom.gba\xff"}')
+    elif kind == "excessive_integer_digits":
+        path.write_bytes(
+            b'{"rom_path":"/fake/rom.gba","rom_size":'
+            + b"9" * (MAX_SESSION_INTEGER_DIGITS + 1)
+            + b"}"
+        )
+    elif kind == "nonstandard_constant":
+        path.write_bytes(
+            b'{"rom_path":"/fake/rom.gba","history":[{"value":NaN}]}'
+        )
+    elif kind == "float_overflow":
+        path.write_bytes(
+            b'{"rom_path":"/fake/rom.gba","history":[{"value":1e1000000}]}'
+        )
+    elif kind == "excessive_nesting":
+        depth = sys.getrecursionlimit() + 1
+        path.write_bytes(b"[" * depth + b"0" + b"]" * depth)
+    elif kind == "oversized":
+        content = b'{"rom_path":"/fake/rom.gba"}'
+        path.write_bytes(
+            content + b" " * (MAX_SESSION_FILE_BYTES + 1 - len(content))
+        )
+    else:
+        raise ValueError(f"Unknown malformed session kind: {kind}")
+
+
 class TestLauncherArguments:
     @pytest.mark.parametrize(
         ("argv", "expected"),
@@ -1884,6 +1915,61 @@ class TestLauncherSubprocess:
         assert responses[0]["error"]["code"] == srv.PARSE_ERROR
         assert responses[1]["id"] == 2
         assert responses[1]["result"] == {}
+
+    @pytest.mark.parametrize(
+        "kind",
+        [
+            "invalid_utf8",
+            "excessive_integer_digits",
+            "nonstandard_constant",
+            "float_overflow",
+            "excessive_nesting",
+            "oversized",
+        ],
+    )
+    def test_launcher_malformed_session_loads_closed(self, tmp_path, kind):
+        root = _repo_root()
+        launcher = root / "agent-harness" / "febuildergba_mcp.py"
+        session_path = tmp_path / f"{kind}.json"
+        _write_malformed_session(session_path, kind)
+        proc = subprocess.Popen(
+            [sys.executable, str(launcher), "--session-file", str(session_path)],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True, bufsize=1,
+        )
+        try:
+            initialize = json.dumps({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": _init_params(),
+            })
+            proc.stdin.write(initialize + "\n")
+            proc.stdin.flush()
+            initialize_response = json.loads(
+                _readline_with_timeout(proc.stdout, 10)
+            )
+            assert initialize_response["id"] == 1
+            assert "result" in initialize_response
+
+            status_request = json.dumps(_req(
+                "tools/call",
+                {"name": "session_status", "arguments": {}},
+                id_=2,
+            ))
+            proc.stdin.write(status_request + "\n")
+            proc.stdin.flush()
+            status_response = json.loads(_readline_with_timeout(proc.stdout, 10))
+            assert status_response["id"] == 2
+            status = json.loads(status_response["result"]["content"][0]["text"])
+            assert status["open"] is False
+            assert proc.poll() is None
+        finally:
+            proc.stdin.close()
+            try:
+                proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                proc.kill()
 
 
 # ── .mcp.json registration ────────────────────────────────────────────────

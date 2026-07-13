@@ -203,6 +203,10 @@ or tampered non-ROM session paths fail closed with `rom_header: null`.
   a failed GBA check never reaches the backend and never creates session state.
   `session_close`/`session_status`/`session_history` operate on the same `Session`; persisted
   path/version/size/timestamp/modified/history fields are type-checked and bounded on load.
+- Parser-malformed persisted content (including invalid UTF-8, excessive integer digits,
+  excessive nesting, non-standard numeric constants, or non-finite numeric overflow) and session
+  files over 8 MiB load closed. Filesystem and out-of-memory faults are not masked and continue to
+  surface to the caller.
 - A successful **session-owned** `data_export` records a history entry. Ownership uses filesystem
   identity when both paths are available, so symlink and hardlink aliases of the active ROM count
   as the same file; normalized absolute-path comparison is retained only as the unavailable-path

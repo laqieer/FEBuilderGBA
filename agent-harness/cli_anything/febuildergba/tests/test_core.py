@@ -6,6 +6,7 @@ All tests use synthetic data — no external dependencies required.
 import json
 import os
 import subprocess
+import sys
 import tempfile
 import time
 
@@ -338,6 +339,78 @@ class TestSession:
         path = tmp_path / "test_session.json"
         path.write_text("not valid json {{{")
         sess = Session(str(path))
+        assert not sess.is_open()
+
+    def test_invalid_utf8_session_loads_closed(self, tmp_path):
+        from cli_anything.febuildergba.core.session import Session
+        path = tmp_path / "test_session.json"
+        path.write_bytes(b'{"rom_path":"/fake/rom.gba\xff"}')
+
+        sess = Session(str(path))
+
+        assert not sess.is_open()
+
+    def test_excessive_integer_digits_session_loads_closed(self, tmp_path):
+        from cli_anything.febuildergba.core.session import (
+            MAX_SESSION_INTEGER_DIGITS,
+            Session,
+        )
+        path = tmp_path / "test_session.json"
+        path.write_bytes(
+            b'{"rom_path":"/fake/rom.gba","rom_size":'
+            + b"9" * (MAX_SESSION_INTEGER_DIGITS + 1)
+            + b"}"
+        )
+
+        sess = Session(str(path))
+
+        assert not sess.is_open()
+
+    def test_nonstandard_constant_session_loads_closed(self, tmp_path):
+        from cli_anything.febuildergba.core.session import Session
+        path = tmp_path / "test_session.json"
+        path.write_bytes(
+            b'{"rom_path":"/fake/rom.gba","history":[{"value":NaN}]}'
+        )
+
+        sess = Session(str(path))
+
+        assert not sess.is_open()
+
+    def test_float_overflow_session_loads_closed(self, tmp_path):
+        from cli_anything.febuildergba.core.session import Session
+        path = tmp_path / "test_session.json"
+        path.write_bytes(
+            b'{"rom_path":"/fake/rom.gba","history":[{"value":1e1000000}]}'
+        )
+
+        sess = Session(str(path))
+
+        assert not sess.is_open()
+
+    def test_excessive_nesting_session_loads_closed(self, tmp_path):
+        from cli_anything.febuildergba.core.session import Session
+        path = tmp_path / "test_session.json"
+        depth = sys.getrecursionlimit() + 1
+        path.write_bytes(b"[" * depth + b"0" + b"]" * depth)
+
+        sess = Session(str(path))
+
+        assert not sess.is_open()
+
+    def test_oversized_session_file_loads_closed(self, tmp_path):
+        from cli_anything.febuildergba.core.session import (
+            MAX_SESSION_FILE_BYTES,
+            Session,
+        )
+        path = tmp_path / "test_session.json"
+        content = b'{"rom_path":"/fake/rom.gba"}'
+        path.write_bytes(
+            content + b" " * (MAX_SESSION_FILE_BYTES + 1 - len(content))
+        )
+
+        sess = Session(str(path))
+
         assert not sess.is_open()
 
     def test_force_version_stored(self, tmp_path):
