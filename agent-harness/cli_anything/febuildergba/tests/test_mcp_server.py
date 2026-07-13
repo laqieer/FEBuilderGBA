@@ -11,8 +11,10 @@ backend availability.
 import json
 import io
 import os
+import queue
 import subprocess
 import sys
+import threading
 from pathlib import Path
 
 import pytest
@@ -42,12 +44,13 @@ def _init_params(protocol_version="2025-03-26", **overrides):
     return params
 
 
-@pytest.fixture
-def initialized_state(state):
-    srv.handle_line(state, json.dumps({
+@pytest.fixture(params=srv.SUPPORTED_PROTOCOL_VERSIONS)
+def initialized_state(state, request):
+    response = srv.handle_line(state, json.dumps({
         "jsonrpc": "2.0", "id": 1, "method": "initialize",
-        "params": _init_params(),
+        "params": _init_params(request.param),
     }))
+    assert response["result"]["protocolVersion"] == request.param
     return state
 
 
@@ -1107,8 +1110,10 @@ class TestForceVersionPrecedence:
 
 class TestAdvisoryVsHardErrors:
     def test_checksum_advisory_exit2_is_not_error(self, initialized_state, monkeypatch, tmp_path):
-        rom = str(tmp_path / "r.gba")
-        initialized_state.session.open_rom(rom, "FE8U", 1)
+        rom_path = tmp_path / "r.gba"
+        _write_valid_test_rom(rom_path)
+        rom = str(rom_path)
+        initialized_state.session.open_rom(rom, "FE8U", rom_path.stat().st_size)
 
         def fake_checksum(rom_path, force_version=""):
             return {"exit_code": 2, "stdout": "", "stderr": "", "rom_path": rom_path,
@@ -1119,8 +1124,10 @@ class TestAdvisoryVsHardErrors:
         assert resp["result"]["isError"] is False
 
     def test_checksum_hard_exit1_is_error(self, initialized_state, monkeypatch, tmp_path):
-        rom = str(tmp_path / "r.gba")
-        initialized_state.session.open_rom(rom, "FE8U", 1)
+        rom_path = tmp_path / "r.gba"
+        _write_valid_test_rom(rom_path)
+        rom = str(rom_path)
+        initialized_state.session.open_rom(rom, "FE8U", rom_path.stat().st_size)
 
         def fake_checksum(rom_path, force_version=""):
             return {"exit_code": 1, "stdout": "", "stderr": "boom", "rom_path": rom_path,
@@ -1129,6 +1136,79 @@ class TestAdvisoryVsHardErrors:
 
         resp = _call_tool(initialized_state, "rom_checksum", {})
         assert resp["result"]["isError"] is True
+
+    @pytest.mark.parametrize("explicit_path", [False, True])
+    def test_checksum_rejects_non_rom_before_backend_without_disclosure(
+            self, initialized_state, monkeypatch, tmp_path, explicit_path):
+        not_rom = tmp_path / "document.bin"
+        content = bytearray(0x100000)
+        content[0xA0:0xAC] = b"LOCAL SECRET"
+        content[0xAC:0xB0] = b"LEAK"
+        not_rom.write_bytes(content)
+        backend_calls = []
+
+        def fake_checksum(rom_path, force_version=""):
+            backend_calls.append((rom_path, force_version))
+            return {
+                "exit_code": 2,
+                "stdout": "LOCAL SECRET LEAK",
+                "stderr": "",
+            }
+
+        monkeypatch.setattr(
+            "cli_anything.febuildergba.core.verbs.checksum",
+            fake_checksum,
+        )
+        arguments = {"rom_path": str(not_rom)} if explicit_path else {}
+        if not explicit_path:
+            initialized_state.session.open_rom(
+                str(not_rom), "FE8U", not_rom.stat().st_size,
+            )
+
+        resp = _call_tool(initialized_state, "rom_checksum", arguments)
+
+        result = resp["result"]
+        assert result["isError"] is True
+        text = result["content"][0]["text"]
+        assert "missing fixed header byte" in text
+        assert "LOCAL SECRET" not in text
+        assert "LEAK" not in text
+        assert backend_calls == []
+
+    def test_checksum_allows_header_checksum_mismatch(
+            self, initialized_state, monkeypatch, tmp_path):
+        rom_path = tmp_path / "bad-checksum.gba"
+        _write_valid_test_rom(rom_path)
+        content = bytearray(rom_path.read_bytes())
+        content[0xBD] ^= 0xFF
+        rom_path.write_bytes(content)
+        backend_calls = []
+
+        def fake_checksum(rom_path_arg, force_version=""):
+            backend_calls.append((rom_path_arg, force_version))
+            return {
+                "exit_code": 2,
+                "stdout": "",
+                "stderr": "",
+                "rom_path": rom_path_arg,
+                "valid": False,
+                "actual": "0x00",
+                "expected": "0xFF",
+            }
+
+        monkeypatch.setattr(
+            "cli_anything.febuildergba.core.verbs.checksum",
+            fake_checksum,
+        )
+
+        resp = _call_tool(
+            initialized_state,
+            "rom_checksum",
+            {"rom_path": str(rom_path)},
+        )
+
+        assert resp["result"]["isError"] is False
+        assert backend_calls == [(str(rom_path), "")]
 
     def test_data_roundtrip_advisory_exit2(self, initialized_state, monkeypatch, tmp_path):
         rom = str(tmp_path / "r.gba")
@@ -1601,6 +1681,25 @@ def _repo_root() -> Path:
     pytest.skip("Cannot find repo root containing agent-harness/febuildergba_mcp.py")
 
 
+def _readline_with_timeout(stream, timeout):
+    result = queue.Queue(maxsize=1)
+
+    def read_line():
+        try:
+            result.put((True, stream.readline()))
+        except Exception as exc:
+            result.put((False, exc))
+
+    threading.Thread(target=read_line, daemon=True).start()
+    try:
+        ok, value = result.get(timeout=timeout)
+    except queue.Empty:
+        pytest.fail(f"timed out after {timeout} seconds waiting for launcher output")
+    if not ok:
+        raise value
+    return value
+
+
 class TestLauncherArguments:
     @pytest.mark.parametrize(
         ("argv", "expected"),
@@ -1679,7 +1778,7 @@ class TestLauncherSubprocess:
             proc.stdin.write(req + "\n")
             proc.stdin.flush()
 
-            line = proc.stdout.readline()
+            line = _readline_with_timeout(proc.stdout, 10)
             assert line.strip(), "expected a flushed one-line JSON-RPC response"
             resp = json.loads(line)
             assert resp["id"] == 1

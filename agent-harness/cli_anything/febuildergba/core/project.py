@@ -24,8 +24,9 @@ def _rom_open_flags() -> int:
     return flags
 
 
-def _read_validated_header(rom_path: str) -> tuple[bytes, int]:
-    """Read a GBA header and validate it from the same open file handle."""
+def _read_validated_header(
+        rom_path: str, require_checksum: bool = True) -> tuple[bytes, int]:
+    """Read and validate a GBA header from the same open file handle."""
     if not os.path.isfile(rom_path):
         raise FileNotFoundError(f"ROM file not found: {rom_path}")
 
@@ -49,13 +50,25 @@ def _read_validated_header(rom_path: str) -> tuple[bytes, int]:
         raise ValueError(f"Invalid GBA ROM (incomplete header): {rom_path}")
     if header[_GBA_FIXED_VALUE_OFFSET] != _GBA_FIXED_VALUE:
         raise ValueError(f"Invalid GBA ROM (missing fixed header byte): {rom_path}")
-    expected_checksum = (
-        -sum(header[_GBA_CHECKSUM_START:_GBA_CHECKSUM_OFFSET])
-        - _GBA_CHECKSUM_BIAS
-    ) & 0xFF
-    if header[_GBA_CHECKSUM_OFFSET] != expected_checksum:
-        raise ValueError(f"Invalid GBA ROM (header checksum mismatch): {rom_path}")
+    if require_checksum:
+        expected_checksum = (
+            -sum(header[_GBA_CHECKSUM_START:_GBA_CHECKSUM_OFFSET])
+            - _GBA_CHECKSUM_BIAS
+        ) & 0xFF
+        if header[_GBA_CHECKSUM_OFFSET] != expected_checksum:
+            raise ValueError(
+                f"Invalid GBA ROM (header checksum mismatch): {rom_path}",
+            )
     return header, rom_size
+
+
+def validate_checksum_target(rom_path: str) -> None:
+    """Reject non-ROM paths before invoking the checksum backend.
+
+    A mismatched header checksum is intentionally allowed because measuring
+    that mismatch is the checksum command's purpose.
+    """
+    _read_validated_header(rom_path, require_checksum=False)
 
 
 def _detect_version_from_header(header: bytes, force_version: str = "") -> str:

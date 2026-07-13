@@ -685,7 +685,8 @@ the server before the next request. ROM headers are read only after the opened d
 is confirmed to be a regular file. Session ownership recognizes symlink/hardlink aliases, image
 quantization exposes the backend's 2..256 maximum-color contract (or 1 when palette slot zero is
 not reserved), and malformed launcher arguments fail before the server can fall back to the
-default session.
+default session. The checksum tool also rejects non-ROM paths before backend invocation while
+still reporting a genuine header-checksum mismatch as advisory data.
 
 The `.mcp.json` at the repo root auto-configures Claude Code to use it as `febuildergba-cli`
 (`python ./agent-harness/febuildergba_mcp.py`). See

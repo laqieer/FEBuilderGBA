@@ -144,7 +144,7 @@ an over-length value is rejected as `-32602`, never silently defaulted or trunca
 | 6 | `rom_info` | `rom info` | Rejects files that fail local GBA header validation before backend invocation or version decoding. |
 | 7 | `rom_validate` | `rom validate` | Header heuristic; never calls the backend. |
 | 8 | `rom_list_tables` | `rom tables` | |
-| 9 | `rom_checksum` | `rom checksum` | Exit 2 (invalid header) is a structured, non-error result. |
+| 9 | `rom_checksum` | `rom checksum` | Rejects non-regular, undersized, incomplete, or fixed-byte-invalid paths before backend invocation. A checksum mismatch is allowed through and exit 2 is a structured, non-error result. |
 | 10 | `data_export` | `data export` | **Overwrites** `out_path` (or its expansion for `table: "all"`). |
 | 11 | `data_import` | `data import` | **Overwrites ROM data in place.** |
 | 12 | `data_roundtrip` | `data roundtrip` | Exit 2 (mismatches found) is a structured, non-error result. |
@@ -327,7 +327,8 @@ treating "backend unavailable" as a protocol-level failure.
 
 ## Tests
 
-`agent-harness/cli_anything/febuildergba/tests/test_mcp_server.py` — protocol version negotiation,
+`agent-harness/cli_anything/febuildergba/tests/test_mcp_server.py` — protocol version negotiation
+with the shared operational contract suite exercised under both advertised revisions,
 strict `initialize` conformance (required `protocolVersion`/`capabilities`/`clientInfo.name`/
 `clientInfo.version`, missing/malformed-field rejection, duplicate-initialize rejection),
 lifecycle, single/batch framing (including mixed request/notification/invalid batches, empty
@@ -343,7 +344,8 @@ roundtrip/text roundtrip exit 2 vs. exit 1), session precedence/history/`modifie
 `force_version` precedence/fallback, "no raw bytes" resource content, output bounds (including
 per-item text-search/lint-array truncation metadata and recursive resource-string truncation), a
 `serve()` regression proving an unexpected internal failure emits a generic `-32603` response and
-does not stop later lines from being handled, unknown methods/tools/resources, a real subprocess
-launcher framing/flushing round-trip, and `.mcp.json` registration. All of it is private-ROM-free;
+does not stop later lines from being handled, checksum-path rejection before backend invocation,
+unknown methods/tools/resources, a real subprocess launcher framing/flushing round-trip with a
+bounded read timeout, and `.mcp.json` registration. All of it is private-ROM-free;
 `agent-harness/cli_anything/febuildergba/tests/test_verbs.py` carries the one synthetic (no-ROM),
 skip-gated-on-backend-availability real-backend LZ77 compress/decompress roundtrip test.

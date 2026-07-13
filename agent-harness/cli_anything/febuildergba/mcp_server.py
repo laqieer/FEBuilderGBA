@@ -642,8 +642,10 @@ def _h_rom_list_tables(session, args):
 
 
 def _h_rom_checksum(session, args):
+    from cli_anything.febuildergba.core.project import validate_checksum_target
     from cli_anything.febuildergba.core.verbs import checksum
     rom_path, force_version = _resolve_rom(session, args)
+    validate_checksum_target(rom_path)
     result = checksum(rom_path, force_version)
     return result, result["exit_code"] not in (0, 2)
 

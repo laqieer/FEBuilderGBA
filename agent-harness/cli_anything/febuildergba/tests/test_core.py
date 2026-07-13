@@ -383,6 +383,24 @@ class TestProject:
         if hasattr(project.os, "O_NONBLOCK"):
             assert calls[0][1] & project.os.O_NONBLOCK
 
+    def test_checksum_target_allows_bad_header_checksum(self, tmp_path):
+        from cli_anything.febuildergba.core import project
+        path = tmp_path / "bad-checksum.gba"
+        _write_valid_test_rom(path, b"BE8E")
+        content = bytearray(path.read_bytes())
+        content[0xBD] ^= 0xFF
+        path.write_bytes(content)
+
+        project.validate_checksum_target(str(path))
+
+    def test_checksum_target_rejects_missing_fixed_header_byte(self, tmp_path):
+        from cli_anything.febuildergba.core import project
+        path = tmp_path / "not-rom.bin"
+        path.write_bytes(b"\x00" * 0x100000)
+
+        with pytest.raises(ValueError, match="missing fixed header byte"):
+            project.validate_checksum_target(str(path))
+
     @pytest.mark.parametrize("bad_path", [None, [], {}])
     def test_validate_rom_non_path_returns_false(self, bad_path):
         from cli_anything.febuildergba.core.project import validate_rom
