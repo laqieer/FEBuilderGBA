@@ -1139,16 +1139,17 @@ class TestAdvisoryVsHardErrors:
     def test_checksum_advisory_exit2_is_not_error(self, initialized_state, monkeypatch, tmp_path):
         rom_path = tmp_path / "r.gba"
         _write_valid_test_rom(rom_path)
+        content = bytearray(rom_path.read_bytes())
+        content[0xBD] ^= 0xFF
+        rom_path.write_bytes(content)
         rom = str(rom_path)
         initialized_state.session.open_rom(rom, "FE8U", rom_path.stat().st_size)
 
-        def fake_checksum(rom_path, force_version=""):
-            return {"exit_code": 2, "stdout": "", "stderr": "", "rom_path": rom_path,
-                    "valid": False, "actual": "0xAB", "expected": "0xCD"}
-        monkeypatch.setattr("cli_anything.febuildergba.core.verbs.checksum", fake_checksum)
-
         resp = _call_tool(initialized_state, "rom_checksum", {})
         assert resp["result"]["isError"] is False
+        payload = json.loads(resp["result"]["content"][0]["text"])
+        assert payload["exit_code"] == 2
+        assert payload["valid"] is False
 
     def test_checksum_hard_exit1_is_error(self, initialized_state, monkeypatch, tmp_path):
         rom_path = tmp_path / "r.gba"
@@ -1156,10 +1157,13 @@ class TestAdvisoryVsHardErrors:
         rom = str(rom_path)
         initialized_state.session.open_rom(rom, "FE8U", rom_path.stat().st_size)
 
-        def fake_checksum(rom_path, force_version=""):
+        def fake_checksum(rom_path):
             return {"exit_code": 1, "stdout": "", "stderr": "boom", "rom_path": rom_path,
                     "valid": None, "actual": None, "expected": None}
-        monkeypatch.setattr("cli_anything.febuildergba.core.verbs.checksum", fake_checksum)
+        monkeypatch.setattr(
+            "cli_anything.febuildergba.core.project.checksum_header",
+            fake_checksum,
+        )
 
         resp = _call_tool(initialized_state, "rom_checksum", {})
         assert resp["result"]["isError"] is True
@@ -1211,21 +1215,9 @@ class TestAdvisoryVsHardErrors:
         rom_path.write_bytes(content)
         backend_calls = []
 
-        def fake_checksum(rom_path_arg, force_version=""):
-            backend_calls.append((rom_path_arg, force_version))
-            return {
-                "exit_code": 2,
-                "stdout": "",
-                "stderr": "",
-                "rom_path": rom_path_arg,
-                "valid": False,
-                "actual": "0x00",
-                "expected": "0xFF",
-            }
-
         monkeypatch.setattr(
             "cli_anything.febuildergba.core.verbs.checksum",
-            fake_checksum,
+            lambda *args, **kwargs: backend_calls.append((args, kwargs)),
         )
 
         resp = _call_tool(
@@ -1235,7 +1227,75 @@ class TestAdvisoryVsHardErrors:
         )
 
         assert resp["result"]["isError"] is False
-        assert backend_calls == [(str(rom_path), "")]
+        payload = json.loads(resp["result"]["content"][0]["text"])
+        assert payload["exit_code"] == 2
+        assert payload["valid"] is False
+        assert payload["actual"] != payload["expected"]
+        assert backend_calls == []
+
+    def test_checksum_uses_validated_header_after_path_swap(
+            self, initialized_state, monkeypatch, tmp_path):
+        from cli_anything.febuildergba.core import project
+
+        rom_path = tmp_path / "r.gba"
+        replacement = tmp_path / "replacement.gba"
+        _write_valid_test_rom(rom_path)
+        _write_valid_test_rom(replacement)
+        replacement_content = bytearray(replacement.read_bytes())
+        replacement_content[0xBD] ^= 0xFF
+        replacement.write_bytes(replacement_content)
+        real_read = project._read_validated_header
+        backend_calls = []
+
+        def read_then_swap(path, require_checksum=True):
+            result = real_read(path, require_checksum)
+            os.replace(replacement, path)
+            return result
+
+        monkeypatch.setattr(project, "_read_validated_header", read_then_swap)
+        monkeypatch.setattr(
+            "cli_anything.febuildergba.core.verbs.checksum",
+            lambda *args, **kwargs: backend_calls.append((args, kwargs)),
+        )
+
+        resp = _call_tool(
+            initialized_state,
+            "rom_checksum",
+            {"rom_path": str(rom_path)},
+        )
+        payload = json.loads(resp["result"]["content"][0]["text"])
+
+        assert resp["result"]["isError"] is False
+        assert payload["exit_code"] == 0
+        assert payload["valid"] is True
+        assert payload["actual"] == payload["expected"]
+        assert backend_calls == []
+
+    @pytest.mark.parametrize("tool_name", ["session_open", "rom_info"])
+    def test_rom_gate_rejects_over_32_mib_before_backend(
+            self, initialized_state, monkeypatch, tmp_path, tool_name):
+        from cli_anything.febuildergba.core import project
+
+        rom_path = tmp_path / "oversized.gba"
+        _write_valid_test_rom(rom_path)
+        with rom_path.open("r+b") as stream:
+            stream.truncate(project._MAX_ROM_SIZE + 1)
+        backend_calls = []
+        monkeypatch.setattr(
+            project,
+            "run_cli",
+            lambda args: backend_calls.append(args),
+        )
+
+        resp = _call_tool(
+            initialized_state,
+            tool_name,
+            {"rom_path": str(rom_path)},
+        )
+
+        assert resp["result"]["isError"] is True
+        assert "larger than 32 MiB" in resp["result"]["content"][0]["text"]
+        assert backend_calls == []
 
     def test_data_roundtrip_advisory_exit2(self, initialized_state, monkeypatch, tmp_path):
         rom = str(tmp_path / "r.gba")

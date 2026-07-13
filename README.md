@@ -682,7 +682,9 @@ per-table output names rather than unrelated files sharing the same prefix. The 
 forces UTF-8, rejects non-standard JSON constants, and validates entity IDs as unsigned 32-bit
 values before backend dispatch. Malformed UTF-8 lines produce parse errors without terminating
 the server before the next request. ROM headers are read only after the opened descriptor itself
-is confirmed to be a regular file. Session ownership recognizes symlink/hardlink aliases, image
+is confirmed to be a regular 1..32 MiB file. MCP checksum is computed locally from that same
+validated header buffer, so it never reopens a swappable path in the backend. Session ownership
+recognizes symlink/hardlink aliases, image
 quantization exposes the backend's 2..256 maximum-color contract (or 1 when palette slot zero is
 not reserved), and malformed launcher arguments fail before the server can fall back to the
 default session. The checksum tool also rejects non-ROM paths before backend invocation while

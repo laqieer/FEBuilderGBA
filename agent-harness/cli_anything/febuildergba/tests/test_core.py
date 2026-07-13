@@ -878,6 +878,49 @@ class TestProject:
         if hasattr(project.os, "O_NONBLOCK"):
             assert calls[0][1] & project.os.O_NONBLOCK
 
+    def test_read_validated_header_accepts_exact_32_mib(self, tmp_path):
+        from cli_anything.febuildergba.core import project
+        path = tmp_path / "max-size.gba"
+        _write_valid_test_rom(path, b"BE8E")
+        with path.open("r+b") as stream:
+            stream.truncate(project._MAX_ROM_SIZE)
+
+        header, size = project._read_validated_header(str(path))
+
+        assert size == project._MAX_ROM_SIZE
+        assert header[0xAC:0xB0] == b"BE8E"
+
+    def test_rom_info_rejects_over_32_mib_before_backend(
+            self, tmp_path, monkeypatch):
+        from cli_anything.febuildergba.core import project
+        path = tmp_path / "oversized.gba"
+        _write_valid_test_rom(path, b"BE8E")
+        with path.open("r+b") as stream:
+            stream.truncate(project._MAX_ROM_SIZE + 1)
+        backend_calls = []
+        fdopen_calls = []
+        real_fdopen = project.os.fdopen
+        monkeypatch.setattr(
+            project,
+            "run_cli",
+            lambda args: backend_calls.append(args),
+        )
+        monkeypatch.setattr(
+            project.os,
+            "fdopen",
+            lambda *args, **kwargs: (
+                fdopen_calls.append(args),
+                real_fdopen(*args, **kwargs),
+            )[1],
+        )
+
+        with pytest.raises(ValueError, match="larger than 32 MiB"):
+            project.rom_info(str(path))
+
+        assert backend_calls == []
+        assert fdopen_calls == []
+        assert project.validate_rom(str(path)) is False
+
     def test_checksum_target_allows_bad_header_checksum(self, tmp_path):
         from cli_anything.febuildergba.core import project
         path = tmp_path / "bad-checksum.gba"
@@ -895,6 +938,24 @@ class TestProject:
 
         with pytest.raises(ValueError, match="missing fixed header byte"):
             project.validate_checksum_target(str(path))
+
+    def test_checksum_header_reports_valid_and_invalid(self, tmp_path):
+        from cli_anything.febuildergba.core import project
+        path = tmp_path / "checksum.gba"
+        _write_valid_test_rom(path, b"BE8E")
+
+        valid = project.checksum_header(str(path))
+        assert valid["exit_code"] == 0
+        assert valid["valid"] is True
+        assert valid["actual"] == valid["expected"]
+
+        content = bytearray(path.read_bytes())
+        content[0xBD] ^= 0xFF
+        path.write_bytes(content)
+        invalid = project.checksum_header(str(path))
+        assert invalid["exit_code"] == 2
+        assert invalid["valid"] is False
+        assert invalid["actual"] != invalid["expected"]
 
     @pytest.mark.parametrize("bad_path", [None, [], {}])
     def test_validate_rom_non_path_returns_false(self, bad_path):

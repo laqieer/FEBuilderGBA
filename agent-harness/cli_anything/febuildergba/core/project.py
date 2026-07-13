@@ -9,6 +9,7 @@ from cli_anything.febuildergba.utils.febuildergba_backend import run_cli
 
 
 _MIN_ROM_SIZE = 0x100000
+_MAX_ROM_SIZE = 0x2000000
 _GBA_HEADER_SIZE = 0xC0
 _GBA_FIXED_VALUE_OFFSET = 0xB2
 _GBA_FIXED_VALUE = 0x96
@@ -35,12 +36,14 @@ def _read_validated_header(
         opened_stat = os.fstat(fd)
         if not stat.S_ISREG(opened_stat.st_mode):
             raise ValueError(f"Invalid GBA ROM (not a regular file): {rom_path}")
+        rom_size = opened_stat.st_size
+        if rom_size < _MIN_ROM_SIZE:
+            raise ValueError(f"Invalid GBA ROM (smaller than 1 MiB): {rom_path}")
+        if rom_size > _MAX_ROM_SIZE:
+            raise ValueError(f"Invalid GBA ROM (larger than 32 MiB): {rom_path}")
         f = os.fdopen(fd, "rb", closefd=True)
         fd = None
         with f:
-            rom_size = opened_stat.st_size
-            if rom_size < _MIN_ROM_SIZE:
-                raise ValueError(f"Invalid GBA ROM (smaller than 1 MiB): {rom_path}")
             header = f.read(_GBA_HEADER_SIZE)
     finally:
         if fd is not None:
@@ -69,6 +72,32 @@ def validate_checksum_target(rom_path: str) -> None:
     that mismatch is the checksum command's purpose.
     """
     _read_validated_header(rom_path, require_checksum=False)
+
+
+def checksum_header(rom_path: str) -> dict:
+    """Compute the header checksum from one bounded, validated descriptor."""
+    header, _rom_size = _read_validated_header(
+        rom_path,
+        require_checksum=False,
+    )
+    actual = header[_GBA_CHECKSUM_OFFSET]
+    expected = (
+        -sum(header[_GBA_CHECKSUM_START:_GBA_CHECKSUM_OFFSET])
+        - _GBA_CHECKSUM_BIAS
+    ) & 0xFF
+    valid = actual == expected
+    return {
+        "exit_code": 0 if valid else 2,
+        "stdout": (
+            f"Header checksum: 0x{actual:02X} "
+            f"(expected: 0x{expected:02X})"
+        ),
+        "stderr": "",
+        "rom_path": rom_path,
+        "valid": valid,
+        "actual": f"0x{actual:02X}",
+        "expected": f"0x{expected:02X}",
+    }
 
 
 def _detect_version_from_header(header: bytes, force_version: str = "") -> str:
@@ -149,7 +178,7 @@ def validate_rom(rom_path: str) -> bool:
     """Check if file looks like a valid GBA ROM.
 
     Validates:
-    - File exists and is >= 1 MB
+    - File exists and is between 1 MiB and 32 MiB
     - File is at least 0xC0 bytes (full GBA header)
     - Fixed header byte at 0xB2 is 0x96
     - Header complement checksum at 0xBD matches bytes 0xA0..0xBC

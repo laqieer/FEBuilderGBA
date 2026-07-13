@@ -137,14 +137,14 @@ an over-length value is rejected as `-32602`, never silently defaulted or trunca
 | # | Tool | Click equivalent | Notes |
 |---|------|-------------------|-------|
 | 1 | `backend_check` | `check` | Never errors; missing, non-executable, timed-out, and other OS-level launch failures are normalized to `available: false`. |
-| 2 | `session_open` | `session open` | Requires `rom_path`; rejects files that fail local GBA header validation before opening session state. |
+| 2 | `session_open` | `session open` | Requires `rom_path`; rejects files outside 1..32 MiB or that fail local GBA header validation before opening session state. |
 | 3 | `session_close` | `session close` | Never errors when no session is open; returns `stale_session` without closing if another process reopened the session first. |
 | 4 | `session_status` | `session status` | |
 | 5 | `session_history` | `session history` | `count` bounded 1..100 (default 10). |
-| 6 | `rom_info` | `rom info` | Rejects files that fail local GBA header validation before backend invocation or version decoding. |
-| 7 | `rom_validate` | `rom validate` | Header heuristic; never calls the backend. |
+| 6 | `rom_info` | `rom info` | Rejects files outside 1..32 MiB or that fail local GBA header validation before backend invocation or version decoding. |
+| 7 | `rom_validate` | `rom validate` | 1..32 MiB header heuristic; never calls the backend. |
 | 8 | `rom_list_tables` | `rom tables` | |
-| 9 | `rom_checksum` | `rom checksum` | Rejects non-regular, undersized, incomplete, or fixed-byte-invalid paths before backend invocation. A checksum mismatch is allowed through and exit 2 is a structured, non-error result. |
+| 9 | `rom_checksum` | `rom checksum` | Computes from one locally opened, regular 1..32 MiB descriptor; the backend never reopens the path. A checksum mismatch is exit 2 and remains a structured, non-error result. |
 | 10 | `data_export` | `data export` | **Overwrites** `out_path` (or its expansion for `table: "all"`). |
 | 11 | `data_import` | `data import` | **Overwrites ROM data in place.** |
 | 12 | `data_roundtrip` | `data roundtrip` | Exit 2 (mismatches found) is a structured, non-error result. |
