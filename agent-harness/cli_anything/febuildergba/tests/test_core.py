@@ -105,6 +105,48 @@ class TestBackend:
         assert result == {"available": False, "error": "execution denied"}
 
 
+class TestLint:
+    def test_clean_summary_is_not_an_error(self, monkeypatch):
+        from cli_anything.febuildergba.core import lint
+        result = subprocess.CompletedProcess(
+            ["cli", "--lint"], 0, stdout="Lint: No errors found.\n", stderr="",
+        )
+        monkeypatch.setattr(lint, "run_cli", lambda args: result)
+
+        parsed = lint.lint_rom("r.gba")
+
+        assert parsed["clean"] is True
+        assert parsed["error_count"] == 0
+        assert parsed["warning_count"] == 0
+        assert parsed["errors"] == []
+        assert parsed["warnings"] == []
+        assert parsed["info"] == ["Lint: No errors found."]
+
+    def test_only_severity_markers_create_findings(self, monkeypatch):
+        from cli_anything.febuildergba.core import lint
+        stdout = "\n".join([
+            "Lint: 2 issue(s) found:",
+            "  [ERROR] 0x08000000: broken pointer",
+            "  [WARNING] 0x08000004: suspicious value",
+            "Informational warning and error words",
+        ])
+        result = subprocess.CompletedProcess(
+            ["cli", "--lint"], 1, stdout=stdout, stderr="",
+        )
+        monkeypatch.setattr(lint, "run_cli", lambda args: result)
+
+        parsed = lint.lint_rom("r.gba")
+
+        assert parsed["clean"] is False
+        assert parsed["error_count"] == 1
+        assert parsed["warning_count"] == 1
+        assert parsed["errors"] == ["  [ERROR] 0x08000000: broken pointer"]
+        assert parsed["warnings"] == [
+            "  [WARNING] 0x08000004: suspicious value",
+        ]
+        assert "Informational warning and error words" in parsed["info"]
+
+
 class TestOutputFileReporting:
     @pytest.mark.parametrize(
         ("module_name", "invoke"),

@@ -151,7 +151,7 @@ an over-length value is rejected as `-32602`, never silently defaulted or trunca
 | 13 | `names_resolve` | `names` | `ids` bounded to 1..256 entries. |
 | 14 | `text_search` | `text search` | `limit` bounded 1..500 (default 50); bounded/paginated result. |
 | 15 | `text_roundtrip` | `text roundtrip` | Exit 2 (mismatches found) is a structured, non-error result. **No `out_prefix` param** — kept read-only; use the Click CLI for diagnostic diff files. |
-| 16 | `rom_lint` | `lint` | `limit` bounded 1..1000 (default 200) per array. |
+| 16 | `rom_lint` | `lint` | `limit` bounded 1..1000 (default 200) per array. Only leading `[ERROR]` and `[WARNING]` CLI severity markers create findings; `Lint: No errors found.` remains informational. |
 | 17 | `image_quantize` | `image quantize` | No ROM required. `palette_no` is a maximum color count (default 16, range 2..256; 1 is allowed only with `no_reserve_1st: true`). **Overwrites** `out_path`. |
 | 18 | `image_convert_map` | `image convert-map` | No ROM required. **Overwrites** `out_img`/`out_tsa`. |
 | 19 | `palette_export` | `palette export` | **Overwrites** `out_path`. |
@@ -371,6 +371,11 @@ per-item text-search/lint-array truncation metadata and recursive resource-strin
 `serve()` regression proving an unexpected internal failure emits a generic `-32603` response and
 does not stop later lines from being handled, checksum-path rejection before backend invocation,
 unknown methods/tools/resources, a real subprocess launcher framing/flushing round-trip with a
-bounded read timeout, and `.mcp.json` registration. All of it is private-ROM-free;
+bounded read timeout, and `.mcp.json` registration. All of it is private-ROM-free.
+
+`agent-harness/cli_anything/febuildergba/tests/test_core.py` — shared backend, project, session,
+and Click-adapter behavior. Its lint parser regressions prove that the clean summary is not an
+error and only explicit CLI severity markers create findings.
+
 `agent-harness/cli_anything/febuildergba/tests/test_verbs.py` carries the one synthetic (no-ROM),
 skip-gated-on-backend-availability real-backend LZ77 compress/decompress roundtrip test.

@@ -1,6 +1,12 @@
 """ROM lint/validation — wraps FEBuilderGBA.CLI --lint."""
 
+import re
+
 from cli_anything.febuildergba.utils.febuildergba_backend import run_cli
+
+
+_ERROR_LINE = re.compile(r"^\s*\[ERROR\](?:\s|$)", re.IGNORECASE)
+_WARNING_LINE = re.compile(r"^\s*\[WARNING\](?:\s|$)", re.IGNORECASE)
 
 
 def lint_rom(rom_path: str, force_version: str = "") -> dict:
@@ -19,10 +25,11 @@ def lint_rom(rom_path: str, force_version: str = "") -> dict:
 
     result = run_cli(args)
 
-    # Parse output for errors and warnings
+    # The CLI emits explicit severity markers for findings. Do not classify
+    # summary text such as "Lint: No errors found." by incidental words.
     lines = result.stdout.strip().splitlines() if result.stdout else []
-    errors = [l for l in lines if "ERROR" in l.upper()]
-    warnings = [l for l in lines if "WARNING" in l.upper() or "WARN" in l.upper()]
+    errors = [line for line in lines if _ERROR_LINE.match(line)]
+    warnings = [line for line in lines if _WARNING_LINE.match(line)]
     info_lines = [l for l in lines if l and l not in errors and l not in warnings]
 
     return {

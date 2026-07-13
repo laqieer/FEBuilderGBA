@@ -684,7 +684,9 @@ values before backend dispatch. Malformed UTF-8 lines produce parse errors witho
 the server before the next request. ROM headers are read only after the opened descriptor itself
 is confirmed to be a regular 1..32 MiB file. MCP checksum is computed locally from that same
 validated header buffer, so it never reopens a swappable path in the backend. Session ownership
-recognizes symlink/hardlink aliases, image
+recognizes symlink/hardlink aliases. Lint findings are classified only from the CLI's explicit
+`[ERROR]` and `[WARNING]` severity markers, so the clean `Lint: No errors found.` summary remains
+informational. Image
 quantization exposes the backend's 2..256 maximum-color contract (or 1 when palette slot zero is
 not reserved), and malformed launcher arguments fail before the server can fall back to the
 default session. The checksum tool also rejects non-ROM paths before backend invocation while
