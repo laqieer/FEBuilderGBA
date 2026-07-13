@@ -155,13 +155,23 @@ dotnet run --project FEBuilderGBA.CLI -- --export-buildfile --rom=modified.gba -
 # in that pass (128 MiB worst case across both passes combined); any byte-bound breach
 # (per-file or aggregate) degrades the WHOLE advisory patch inventory the same way the
 # 16,384-item budget does, and accepted files still decode byte-identically to the legacy
-# File.ReadLines/File.ReadAllLines APIs.
+# File.ReadLines/File.ReadAllLines APIs. The one deliberate behavioral difference is
+# install-marker CLASSIFICATION: this bounded metadata scan classifies a file-backed $FGREP
+# install marker (one the shared resolver would resolve by opening the external file it names)
+# as "unknown" BEFORE any filename access, whereas the public/unbounded Patch Manager, CLI,
+# patch scanner, and rebuild paths still resolve it (shipped patches depend on that legacy
+# behavior); the bounded raw advisory params read from the patch definition itself are unchanged.
 # Each PATCH_*.txt FINAL entry is opened no-follow through the same exact-regular-file
 # primitive used for ROM/projection I/O: a symlink, reparse point, or other non-regular-file
 # type is refused before any byte is read (ancestor directories of the patch library are out
-# of scope for this guarantee), Browser hosts fail closed instead of falling back to an
-# unsafe open, and a genuinely missing final file or missing parent directory still resolves
-# to a successful, empty result rather than propagating a fault.
+# of scope for this guarantee), and Browser hosts fail closed instead of falling back to an
+# unsafe open. The shared bounded reader itself never swallows a missing entry: it lets
+# FileNotFoundException/DirectoryNotFoundException propagate and each caller decides. A missing
+# patch ROOT at INITIAL discovery is a successful empty listing; a definition file that was
+# already discovered but is missing or faulting when the bounded METADATA pass opens it degrades
+# the WHOLE advisory inventory to "unavailable" with a generic, path-free filesystem reason
+# (NOT success-empty and NOT a resource-budget reason); only the later bounded raw-PARAMS pass
+# maps a missing file to successful, empty params.
 # The published buildfile.json itself is also capped at the SAME shared 16 MiB the consumer
 # enforces (see --build-buildfile below) — measured by exact UTF-8 byte count, including the
 # trailing newline, before both the initial write and any later rewrite. Over cap with an

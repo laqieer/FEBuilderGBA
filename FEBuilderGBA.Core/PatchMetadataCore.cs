@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace FEBuilderGBA
 {
@@ -263,7 +264,14 @@ namespace FEBuilderGBA
         /// <paramref name="maxFiles"/> or a patch metadata file exceeds the corresponding raw-line
         /// bound; <c>false</c> (with <paramref name="error"/> still populated) for a real
         /// filesystem/access fault (missing/unreadable directory contents, I/O error, etc.) that
-        /// has nothing to do with the resource budget. Per-file metadata scanning also uses the bounded LAZY
+        /// has nothing to do with the resource budget. A definition file that WAS already
+        /// discovered but is missing or faulting when the bounded metadata pass opens it (a
+        /// <see cref="FileNotFoundException"/>/<see cref="DirectoryNotFoundException"/> or other
+        /// expected filesystem fault raised by <see cref="TryParsePatchFileStrictBounded"/>) is
+        /// exactly this case: the whole inventory degrades to <c>false</c> with
+        /// <paramref name="limitExceeded"/> <c>false</c> and a generic path-free reason — it is
+        /// NEVER re-interpreted as the successful-empty missing-root result nor as a resource
+        /// bound. Per-file metadata scanning also uses the bounded LAZY
         /// <see cref="TryParsePatchFileStrictBounded"/> (capped at <paramref name="maxFiles"/> raw
         /// lines, at most <see cref="MaxPatchDefinitionBytes"/> bytes per file, and at most
         /// <paramref name="maxAggregateBytes"/> bytes summed across every file in this scan)
@@ -458,7 +466,11 @@ namespace FEBuilderGBA
 
         static PatchInfo ParsePatchFileStrict(string patchFilePath, string dirName, ROM rom, string lang,
             Func<string, string[]> readAllLines)
-            => ParsePatchFileStrictFromLines(patchFilePath, dirName, rom, lang, readAllLines(patchFilePath));
+            // Legacy unbounded parser: full public/WinForms parity — file-backed $FGREP install
+            // markers still resolve through the real resolver (shipped patches depend on it).
+            => ParsePatchFileStrictFromLines(
+                patchFilePath, dirName, rom, lang, readAllLines(patchFilePath),
+                allowFileBackedConditions: true, PatchMacroAddressResolverCore.Resolve);
 
         /// <summary>
         /// Exporter-only bounded metadata-scan seam (#1965 PR feedback remediation, companion to
@@ -480,7 +492,18 @@ namespace FEBuilderGBA
         /// Either bound breaching returns <c>false</c> and no partial <see cref="PatchInfo"/>; a
         /// pathological patch file can neither force an unbounded read nor masquerade as an
         /// accepted truncated record. Any legitimate patch file (always far smaller than either
-        /// cap) parses identically to <see cref="ParsePatchFileStrict"/>.
+        /// cap) is DECODED byte-for-byte and line-for-line identically to
+        /// <see cref="ParsePatchFileStrict"/>. The ONE deliberate behavioral difference is
+        /// install-marker CLASSIFICATION: a file-backed <c>$FGREP</c> install marker — which the
+        /// shared resolver would otherwise resolve by opening the external file named in the
+        /// marker — is classified <see cref="PatchStatus.Unknown"/> here BEFORE any
+        /// <see cref="Path.Combine(string,string)"/>/<see cref="File.Exists(string)"/>/
+        /// <see cref="File.ReadAllBytes(string)"/> touches that external filename (#1936),
+        /// whereas <see cref="ParsePatchFileStrict"/> and every public/unbounded Patch Manager /
+        /// CLI / scanner / rebuild path still resolves it (256 shipped patches depend on that
+        /// legacy behavior). <c>$GREP</c>/<c>$XGREP</c>, pointer/text macros, fixed/bare-hex
+        /// addresses, and the bounded raw advisory params read from THIS patch definition are
+        /// all unchanged.
         /// </summary>
         internal static bool TryParsePatchFileStrictBounded(
             string patchFilePath,
@@ -491,7 +514,37 @@ namespace FEBuilderGBA
             long maxBytes,
             out PatchInfo info,
             out long bytesRead)
+            => TryParsePatchFileStrictBounded(
+                patchFilePath, dirName, rom, lang, maxLines, maxBytes,
+                PatchMacroAddressResolverCore.Resolve, out info, out bytesRead);
+
+        /// <summary>
+        /// #1936 NON-PRODUCTION test seam. Behaves EXACTLY like the production
+        /// <see cref="TryParsePatchFileStrictBounded(string,string,ROM,string,int,long,out PatchInfo,out long)"/>
+        /// overload (same byte/line caps, same bounded read, same file-backed <c>$FGREP</c>
+        /// Unknown carve-out) except the shared macro address <paramref name="resolver"/> is
+        /// injected instead of hard-bound to
+        /// <see cref="PatchMacroAddressResolverCore.Resolve(ROM,string,string,uint)"/>. It exists
+        /// solely so a test can PROVE the resolver is never invoked for a file-backed
+        /// <c>$FGREP</c> marker (inject a delegate that throws/increments and assert zero calls)
+        /// and IS invoked for a <c>$GREP</c> marker (inject a delegate returning a valid address
+        /// and assert it ran) — making the escape a positive, non-vacuous guarantee rather than
+        /// an inferred one. <paramref name="resolver"/> is internal-only, never reachable through
+        /// options / public API / mutable state, and — like the production overload — validates
+        /// and therefore cannot widen <paramref name="maxLines"/>/<paramref name="maxBytes"/>.
+        /// </summary>
+        internal static bool TryParsePatchFileStrictBounded(
+            string patchFilePath,
+            string dirName,
+            ROM rom,
+            string lang,
+            int maxLines,
+            long maxBytes,
+            MacroAddressResolver resolver,
+            out PatchInfo info,
+            out long bytesRead)
         {
+            if (resolver == null) throw new ArgumentNullException(nameof(resolver));
             if (maxLines < 0) throw new ArgumentOutOfRangeException(nameof(maxLines));
             if (maxBytes < 0) throw new ArgumentOutOfRangeException(nameof(maxBytes));
             info = null;
@@ -501,12 +554,17 @@ namespace FEBuilderGBA
             // materialized every line into memory first).
             if (!TryReadBoundedFileLines(patchFilePath, maxBytes, maxLines, out List<string> lines, out bytesRead))
                 return false; // byte-cap OR raw-line-cap breach — no partial PatchInfo is ever produced.
-            info = ParsePatchFileStrictFromLines(patchFilePath, dirName, rom, lang, lines);
+            // Exporter-bounded metadata scan (#1936): never let an install-marker classification
+            // open/read an external file. A file-backed $FGREP marker is classified Unknown
+            // before any Path.Combine/File.Exists/File.ReadAllBytes runs.
+            info = ParsePatchFileStrictFromLines(
+                patchFilePath, dirName, rom, lang, lines, allowFileBackedConditions: false, resolver);
             return true;
         }
 
         static PatchInfo ParsePatchFileStrictFromLines(
-            string patchFilePath, string dirName, ROM rom, string lang, IReadOnlyList<string> lines)
+            string patchFilePath, string dirName, ROM rom, string lang, IReadOnlyList<string> lines,
+            bool allowFileBackedConditions, MacroAddressResolver resolver)
         {
             var info = CreatePatchInfo(patchFilePath, dirName);
             string? patchedIf = null;
@@ -542,7 +600,8 @@ namespace FEBuilderGBA
             }
 
             if (!string.IsNullOrEmpty(patchedIf))
-                info.Status = CheckPatchInstalled(patchedIf, rom, Path.GetDirectoryName(patchFilePath) ?? "");
+                info.Status = CheckPatchInstalled(
+                    patchedIf, rom, Path.GetDirectoryName(patchFilePath) ?? "", allowFileBackedConditions, resolver);
 
             var allDeps = ParsePatchDependencies(lines, lang);
             info.DependencyCount = allDeps.Count;
@@ -571,6 +630,18 @@ namespace FEBuilderGBA
             };
 
         /// <summary>
+        /// Shared-resolver injection point (#1936 NON-PRODUCTION test seam). Matches
+        /// <see cref="PatchMacroAddressResolverCore.Resolve(ROM,string,string,uint)"/> exactly.
+        /// Every production path binds that real resolver; the ONLY code that ever passes a
+        /// different delegate is the internal test-only
+        /// <see cref="TryParsePatchFileStrictBounded(string,string,ROM,string,int,long,MacroAddressResolver,out PatchInfo,out long)"/>
+        /// overload, which lets a bounded-metadata test PROVE the resolver is never invoked for a
+        /// file-backed <c>$FGREP</c> marker. It is never surfaced through options, public API, or
+        /// mutable state, and cannot influence any byte/line cap.
+        /// </summary>
+        internal delegate uint MacroAddressResolver(ROM rom, string addrString, string basedir, uint startOffset);
+
+        /// <summary>
         /// Check if a patch is installed by evaluating a PATCHED_IF condition string.
         /// Fixed <c>0xADDR</c> / bare-hex addresses are hex-parsed directly. Any
         /// <c>$</c>-prefixed address macro — the full family handled by
@@ -591,6 +662,22 @@ namespace FEBuilderGBA
             => CheckPatchInstalled(condition, rom, "");
 
         public static PatchStatus CheckPatchInstalled(string condition, ROM rom, string basedir)
+            => CheckPatchInstalled(
+                condition, rom, basedir, allowFileBackedConditions: true,
+                PatchMacroAddressResolverCore.Resolve);
+
+        // Shared install-marker evaluator. Public overloads (and the legacy unbounded parser)
+        // pass allowFileBackedConditions: true, preserving full WinForms parity — including
+        // opening the external .bin named by a file-backed $FGREP marker. The exporter's
+        // bounded metadata scan (TryParsePatchFileStrictBounded) passes false: a file-backed
+        // $FGREP marker is classified Unknown BEFORE the resolver, Path.Combine, or any external
+        // File.Exists/File.ReadAllBytes runs (#1936). $GREP/$XGREP, pointer/text macros, and
+        // fixed/bare-hex addresses are unaffected by the flag. `resolver` is the shared macro
+        // address resolver: production always binds PatchMacroAddressResolverCore.Resolve; only
+        // the internal test seam injects a fake to prove file-backed markers never reach it.
+        static PatchStatus CheckPatchInstalled(
+            string condition, ROM rom, string basedir, bool allowFileBackedConditions,
+            MacroAddressResolver resolver)
         {
             try
             {
@@ -603,6 +690,15 @@ namespace FEBuilderGBA
                 byte[] expected = ParseByteArray(dataStr);
                 if (expected.Length == 0) return PatchStatus.Unknown;
 
+                // #1936 bounded-exporter escape: a file-backed $FGREP marker would make the
+                // shared resolver do arbitrary Path.Combine/File.Exists/File.ReadAllBytes on an
+                // external file. In the exporter's bounded metadata pass that is refused up
+                // front — classified Unknown BEFORE the resolver is ever invoked. Detection
+                // mirrors the resolver's own case-sensitive $FGREP grammar exactly; $GREP,
+                // $XGREP, pointer/text macros stay on the normal resolver path.
+                if (!allowFileBackedConditions && IsFileBackedResolverCondition(addrStr))
+                    return PatchStatus.Unknown;
+
                 // Fixed addresses keep the original hex parse: patch metadata contains
                 // BARE hex like "2C2F0" that the resolver's atoi0x reads as DECIMAL, so
                 // only $-prefixed macros ($GREP/$XGREP/$FGREP/$P32/$TEXTID/$<addr> deref)
@@ -610,7 +706,7 @@ namespace FEBuilderGBA
                 uint addr;
                 if (addrStr.StartsWith("$", StringComparison.Ordinal))
                 {
-                    addr = PatchMacroAddressResolverCore.Resolve(rom, addrStr, basedir, 0x100);
+                    addr = resolver(rom, addrStr, basedir, 0x100);
                     // NOT_FOUND (0xFFFFFFFF) — the macro/pattern didn't resolve (e.g. a GREP
                     // pattern absent from the ROM) → the patch is simply not installed.
                     if (addr == U.NOT_FOUND) return PatchStatus.NotInstalled;
@@ -635,6 +731,30 @@ namespace FEBuilderGBA
             {
                 return PatchStatus.Unknown;
             }
+        }
+
+        /// <summary>
+        /// True only for a <c>$</c>-prefixed install-marker address whose value matches the
+        /// file-backed <c>$FGREP</c> form of the shared
+        /// <see cref="PatchMacroAddressResolverCore"/> GREP grammar — i.e. one that would make
+        /// the resolver do arbitrary <see cref="Path.Combine(string,string)"/> /
+        /// <see cref="File.Exists(string)"/> / <see cref="File.ReadAllBytes(string)"/> against an
+        /// external <c>.bin</c>. Detection is deliberately identical (same regex, same
+        /// case-sensitive <c>F</c> capture group) to the resolver's own grammar so the bounded
+        /// exporter refuses exactly the file-backed markers the resolver would otherwise open —
+        /// no more, no less. <c>$GREP</c>/<c>$XGREP</c>, pointer/text macros, and fixed/bare-hex
+        /// addresses all return <c>false</c> (they never open an external file).
+        /// </summary>
+        static bool IsFileBackedResolverCondition(string addrStr)
+        {
+            if (string.IsNullOrEmpty(addrStr)) return false;
+            if (addrStr[0] != '$') return false;
+            string value = addrStr.Substring(1);
+            // Mirrors PatchMacroAddressResolverCore's GREP-family grammar exactly; the
+            // file-backed variant is the "F" capture group ($FGREP<align> <filename>).
+            Match m = RegexCache.Match(value, @"^(F|X)?GREP([0-9]+)(ENDA|END)?\+?([0-9]+)? ");
+            return m.Success && m.Groups.Count >= 5
+                && string.Equals(m.Groups[1].Value, "F", StringComparison.Ordinal);
         }
 
         /// <summary>
@@ -900,11 +1020,17 @@ namespace FEBuilderGBA
         /// is refused before a single byte is ever read (closing a #1965 finding: the prior plain
         /// <see cref="FileStream"/> constructor transparently followed a final symlink, letting an
         /// external target's bytes flow into advisory <c>patches.installed[].params</c>). A
-        /// genuinely missing final file or missing parent directory still resolves to the typed
-        /// <see cref="FileNotFoundException"/>/<see cref="DirectoryNotFoundException"/> pair the
-        /// callers below already treat as a successful empty result — this open never precedes
-        /// that check with a separate <see cref="File.Exists(string)"/> probe, so no TOCTOU gap is
-        /// reintroduced. Ancestor-directory symlinks earlier in the path are outside this
+        /// genuinely missing final file or missing parent directory surfaces as the typed
+        /// <see cref="FileNotFoundException"/>/<see cref="DirectoryNotFoundException"/> pair, which
+        /// this shared reader deliberately PROPAGATES rather than swallowing — each caller decides
+        /// what a missing file means: the raw-PARAMS pass (<see cref="TryParsePatchParamsBounded"/>)
+        /// maps it to a successful empty result (matching the historical
+        /// <see cref="File.Exists(string)"/> contract), whereas the METADATA pass
+        /// (<see cref="TryParsePatchFileStrictBounded"/>) leaves it to propagate so an
+        /// already-discovered-then-missing definition degrades the whole advisory inventory to
+        /// unavailable. This open never precedes that check with a separate
+        /// <see cref="File.Exists(string)"/> probe, so no TOCTOU gap is reintroduced.
+        /// Ancestor-directory symlinks earlier in the path are outside this
         /// final-entry guarantee by design.</item>
         /// <item>Reads <see cref="FileStream.Length"/> FIRST and rejects immediately when it
         /// already exceeds <paramref name="maxBytes"/> — a sparse/huge reported length is never
@@ -958,8 +1084,10 @@ namespace FEBuilderGBA
         /// accepted in-memory buffer: BOM auto-detection (UTF-8/UTF-16 LE/BE) plus the default
         /// non-strict UTF-8 fallback (U+FFFD replacement on invalid sequences) — identical
         /// decode/line-splitting contract (CRLF/LF/CR, unterminated final line) to
-        /// <see cref="File.ReadLines(string)"/>, so any within-budget file parses byte-identically
-        /// to the legacy unbounded path.</item>
+        /// <see cref="File.ReadLines(string)"/>, so any within-budget file yields a raw line list
+        /// byte-identical to the legacy unbounded path (this shared reader performs no install-marker
+        /// classification — the exporter-bounded file-backed <c>$FGREP</c> Unknown carve-out is
+        /// applied later, by <see cref="TryParsePatchFileStrictBounded(string,string,ROM,string,int,long,out PatchInfo,out long)"/>).</item>
         /// </list>
         /// On any byte-cap or raw-line-cap breach, returns <c>false</c> with
         /// <paramref name="lines"/> left <c>null</c> — no partial line list is ever produced.

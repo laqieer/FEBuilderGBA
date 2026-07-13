@@ -1164,6 +1164,61 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(Directory.Exists(scratch));
         }
 
+        [Theory]
+        [InlineData("nested/child-")]
+        [InlineData("nested\\child-")]
+        [InlineData("a/b/c-")]
+        public void ReserveScratchDirectory_SeparatorBearingPrefix_Throws_NoDirectoryCreated(string prefix)
+        {
+            // #1936 prefix-escape guard: a prefix containing a directory separator could redirect
+            // the reservation into a NESTED subtree instead of a direct child. It must throw
+            // ArgumentException(nameof(prefix)) BEFORE any filesystem creation — nothing outside
+            // or nested under parent is created.
+            string parent = FreshParent();
+            int before = Directory.GetDirectories(parent, "*", SearchOption.AllDirectories).Length;
+
+            var ex = Assert.Throws<ArgumentException>(
+                () => BuildfileBuildCore.ReserveScratchDirectory(parent, prefix));
+            Assert.Equal("prefix", ex.ParamName);
+
+            int after = Directory.GetDirectories(parent, "*", SearchOption.AllDirectories).Length;
+            Assert.Equal(before, after); // no nested/child directory materialized
+        }
+
+        [Fact]
+        public void ReserveScratchDirectory_RootedPrefix_Throws_NoOutsideDirectoryCreated()
+        {
+            // A rooted prefix would escape parent entirely (Path.Combine discards parent for a
+            // rooted second argument). It must throw before any create attempt, and the rooted
+            // location must NOT be created.
+            string parent = FreshParent();
+            string outside = Path.Combine(FreshParent(), "escaped-");
+            Assert.True(Path.IsPathRooted(outside));
+
+            var ex = Assert.Throws<ArgumentException>(
+                () => BuildfileBuildCore.ReserveScratchDirectory(parent, outside));
+            Assert.Equal("prefix", ex.ParamName);
+
+            // No directory whose name starts with the rooted prefix leaked outside parent.
+            string outsideParent = Path.GetDirectoryName(outside)!;
+            Assert.Empty(Directory.GetDirectories(outsideParent, "escaped-*"));
+        }
+
+        [Fact]
+        public void ReserveScratchDirectory_PlainPrefix_Roundtrips_AsDirectChild()
+        {
+            // Valid null/empty/plain-fragment prefixes remain accepted and reserve a DIRECT child.
+            string parent = FreshParent();
+            string scratch = BuildfileBuildCore.ReserveScratchDirectory(parent, "plain-fragment-");
+            Assert.True(Directory.Exists(scratch));
+            Assert.Equal(parent, Path.GetDirectoryName(scratch)); // exactly one level below parent
+            Assert.StartsWith("plain-fragment-", Path.GetFileName(scratch));
+
+            string scratchNull = BuildfileBuildCore.ReserveScratchDirectory(parent, null);
+            Assert.True(Directory.Exists(scratchNull));
+            Assert.Equal(parent, Path.GetDirectoryName(scratchNull));
+        }
+
         [Fact]
         public void DeleteTreeAndVerifyGone_AlreadyAbsent_ReturnsTrue()
         {

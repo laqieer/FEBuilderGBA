@@ -2249,21 +2249,25 @@ namespace FEBuilderGBA
         // -------------------------------------------------------- patch inventory
 
         // Stable, path-free reason used whenever the advisory patch inventory is degraded to
-        // "unavailable" because it (or the combined patches+params+warnings total) would
-        // exceed the shared BuildfileFormat.MaxAdvisoryItems resource-safety budget. Never the
-        // raw exception message or an absolute path (Copilot review finding pattern). Internal
-        // (not private) so deterministic tests can assert against the EXACT constant rather than
-        // a duplicated string literal that could silently drift from production.
-        internal const string AdvisoryBudgetExceededReason =
-            "advisory patch inventory exceeds the internal item budget; degraded to unavailable";
+        // "unavailable" because one of several distinct internal RESOURCE budgets would be
+        // exceeded — file-discovery count, raw metadata line count, per-file byte length,
+        // aggregate byte total, or the shared BuildfileFormat.MaxAdvisoryItems combined item
+        // budget. A single GENERIC, path-free reason is used for ALL of these paths on purpose:
+        // the specific budget dimension breached is an internal implementation detail, not a
+        // consumer-facing distinction, and the reason must never leak the raw exception message
+        // or an absolute path (Copilot review finding pattern). Internal (not private) so
+        // deterministic tests can assert against the EXACT constant rather than a duplicated
+        // string literal that could silently drift from production.
+        internal const string AdvisoryResourceBudgetExceededReason =
+            "advisory patch inventory exceeds an internal resource budget; degraded to unavailable";
 
         // Stable, path-free reason used whenever the advisory patch inventory is degraded to
-        // "unavailable" because the SERIALIZED manifest — not the advisory item count — would
-        // exceed the shared BuildfileFormat.MaxManifestBytes producer/consumer byte budget
-        // (#1936/#1935 shared-cap correction). Distinct from AdvisoryBudgetExceededReason
-        // because this is an independent budget dimension (bytes, not item count) that can be
-        // breached even when the item-count budget is not. Internal (not private) so
-        // deterministic tests can assert against the EXACT constant.
+        // "unavailable" because the SERIALIZED manifest — not any advisory resource budget —
+        // would exceed the shared BuildfileFormat.MaxManifestBytes producer/consumer byte budget
+        // (#1936/#1935 shared-cap correction). Distinct from AdvisoryResourceBudgetExceededReason
+        // because this is an independent budget dimension (serialized bytes, not the advisory
+        // resource budgets) that can be breached even when those are not. Internal (not private)
+        // so deterministic tests can assert against the EXACT constant.
         internal const string ManifestByteBudgetExceededReason =
             "serialized buildfile.json exceeds the shared manifest byte budget; degraded to unavailable";
 
@@ -2335,7 +2339,7 @@ namespace FEBuilderGBA
                 // Enumeration FAILED for one of two DISTINCT causes, disambiguated by the typed
                 // `advisoryLimitExceeded` signal rather than string-sniffing the raw error
                 // (Copilot review finding: a cap+1 file-discovery breach must report the SAME
-                // stable AdvisoryBudgetExceededReason as every other advisory-budget breach, not
+                // stable AdvisoryResourceBudgetExceededReason as every other advisory-budget breach, not
                 // the generic filesystem-permission reason): a genuine resource-bound breach
                 // (too many patch files or raw metadata lines) uses the shared budget
                 // reason; a real filesystem/access fault (missing/unreadable directory contents,
@@ -2346,7 +2350,7 @@ namespace FEBuilderGBA
                 // path) — neither branch below ever surfaces it.
                 inv.Status = "unavailable";
                 inv.Reason = advisoryLimitExceeded
-                    ? AdvisoryBudgetExceededReason
+                    ? AdvisoryResourceBudgetExceededReason
                     : "patch enumeration failed; check patch library directory permissions";
                 return inv;
             }
@@ -2431,7 +2435,7 @@ namespace FEBuilderGBA
             if (overBudget)
             {
                 inv.Status = "unavailable";
-                inv.Reason = AdvisoryBudgetExceededReason;
+                inv.Reason = AdvisoryResourceBudgetExceededReason;
                 inv.Installed.Clear();
                 return inv;
             }
@@ -2476,7 +2480,7 @@ namespace FEBuilderGBA
             if (!BuildfileFormat.TryConsumeAdvisoryItems(ref total, patchItems))
             {
                 m.Patches.Status = "unavailable";
-                m.Patches.Reason = AdvisoryBudgetExceededReason;
+                m.Patches.Reason = AdvisoryResourceBudgetExceededReason;
                 m.Patches.Installed.Clear();
             }
         }

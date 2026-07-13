@@ -141,6 +141,315 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void CheckPatchInstalled_FGrep_LegacyTraversalPattern_Installed()
+        {
+            // #1936: the PUBLIC/legacy CheckPatchInstalled must PRESERVE file-backed $FGREP
+            // resolution INCLUDING `..` traversal — 256 shipped patches legitimately use paths
+            // like ../../FE7U/...; this path is deliberately NOT hardened. Only the exporter's
+            // bounded metadata pass refuses file-backed markers.
+            string root = Path.Combine(Path.GetTempPath(), "fe_fgrep_trav_" + Guid.NewGuid().ToString("N"));
+            string sub = Path.Combine(root, "sub");
+            Directory.CreateDirectory(sub);
+            try
+            {
+                byte[] pattern = { 0xAB, 0xCD, 0xEF, 0x12 };
+                File.WriteAllBytes(Path.Combine(root, "sig.bin"), pattern);
+
+                byte[] data = new byte[0x1000];
+                pattern.CopyTo(data, 0x200); // 4-aligned
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(data);
+
+                // basedir = sub, marker references ../sig.bin -> resolves up into root.
+                var status = PatchMetadataCore.CheckPatchInstalled(
+                    "$FGREP4 ../sig.bin=0xAB 0xCD 0xEF 0x12", rom, sub);
+                Assert.Equal(PatchMetadataCore.PatchStatus.Installed, status);
+            }
+            finally { try { Directory.Delete(root, true); } catch { /* best-effort */ } }
+        }
+
+        [Theory]
+        [InlineData("relative")]
+        [InlineData("traversal")]
+        [InlineData("rooted")]
+        public void TryParsePatchFileStrictBounded_FGrepMarker_ClassifiedUnknown_WhileLegacyInstalled(string form)
+        {
+            // #1936 bounded-exporter escape: a file-backed $FGREP install marker is classified
+            // Unknown BEFORE the resolver/Path.Combine/File.Exists/File.ReadAllBytes ever run.
+            // Every path form (relative, `..` traversal, rooted/absolute) is refused identically.
+            // The SAME fixture resolves to Installed through the legacy unbounded parser, so the
+            // Unknown result is the bounded refusal, not a vacuous non-match.
+            string root = Path.Combine(Path.GetTempPath(), "fe_fgrep_bnd_" + Guid.NewGuid().ToString("N"));
+            string patchDir = Path.Combine(root, "patch");
+            Directory.CreateDirectory(patchDir);
+            try
+            {
+                byte[] pattern = { 0xAB, 0xCD, 0xEF, 0x12 };
+                string fileRef;
+                switch (form)
+                {
+                    case "traversal":
+                        File.WriteAllBytes(Path.Combine(root, "sig.bin"), pattern);
+                        fileRef = "../sig.bin";
+                        break;
+                    case "rooted":
+                        string abs = Path.Combine(root, "abs_sig.bin");
+                        File.WriteAllBytes(abs, pattern);
+                        fileRef = abs; // rooted -> Path.Combine ignores basedir
+                        break;
+                    default:
+                        File.WriteAllBytes(Path.Combine(patchDir, "sig.bin"), pattern);
+                        fileRef = "sig.bin";
+                        break;
+                }
+                string patchFile = Path.Combine(patchDir, "PATCH_Fg.txt");
+                File.WriteAllLines(patchFile, new[]
+                {
+                    "TYPE=ADDR",
+                    "NAME=FGrep",
+                    "PATCHED_IF:$FGREP4 " + fileRef + "=0xAB 0xCD 0xEF 0x12",
+                });
+
+                byte[] data = new byte[0x1000];
+                pattern.CopyTo(data, 0x200);
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(data);
+
+                // Non-vacuous: legacy unbounded path resolves the SAME fixture to Installed.
+                var legacy = PatchMetadataCore.ParsePatchFile(patchFile, "FG", rom, "en");
+                Assert.Equal(PatchMetadataCore.PatchStatus.Installed, legacy.Status);
+
+                // Bounded exporter path refuses the file-backed marker -> Unknown.
+                bool ok = PatchMetadataCore.TryParsePatchFileStrictBounded(
+                    patchFile, "FG", rom, "en", 100, PatchMetadataCore.MaxPatchDefinitionBytes,
+                    out var bounded, out long _);
+                Assert.True(ok);
+                Assert.Equal(PatchMetadataCore.PatchStatus.Unknown, bounded.Status);
+            }
+            finally { try { Directory.Delete(root, true); } catch { /* best-effort */ } }
+        }
+
+        [SkippableFact]
+        public void TryParsePatchFileStrictBounded_FGrepMarker_FinalSymlinkTarget_ClassifiedUnknown()
+        {
+            // #1936: a file-backed $FGREP whose target is a SYMLINK. The legacy path follows the
+            // link and matches (Installed); the bounded path never opens it (Unknown). Skipped
+            // where symlink creation is unavailable.
+            string root = Path.Combine(Path.GetTempPath(), "fe_fgrep_link_" + Guid.NewGuid().ToString("N"));
+            string patchDir = Path.Combine(root, "patch");
+            Directory.CreateDirectory(patchDir);
+            try
+            {
+                byte[] pattern = { 0xAB, 0xCD, 0xEF, 0x12 };
+                string realSig = Path.Combine(root, "real_sig.bin");
+                File.WriteAllBytes(realSig, pattern);
+                string linkSig = Path.Combine(patchDir, "sig.bin");
+                try { File.CreateSymbolicLink(linkSig, realSig); }
+                catch (Exception ex) { Skip.If(true, "Cannot create a file symlink here: " + ex.Message); return; }
+
+                string patchFile = Path.Combine(patchDir, "PATCH_Fg.txt");
+                File.WriteAllLines(patchFile, new[]
+                {
+                    "TYPE=ADDR",
+                    "NAME=FGrep",
+                    "PATCHED_IF:$FGREP4 sig.bin=0xAB 0xCD 0xEF 0x12",
+                });
+
+                byte[] data = new byte[0x1000];
+                pattern.CopyTo(data, 0x200);
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(data);
+
+                var legacy = PatchMetadataCore.ParsePatchFile(patchFile, "FG", rom, "en");
+                Assert.Equal(PatchMetadataCore.PatchStatus.Installed, legacy.Status);
+
+                bool ok = PatchMetadataCore.TryParsePatchFileStrictBounded(
+                    patchFile, "FG", rom, "en", 100, PatchMetadataCore.MaxPatchDefinitionBytes,
+                    out var bounded, out long _);
+                Assert.True(ok);
+                Assert.Equal(PatchMetadataCore.PatchStatus.Unknown, bounded.Status);
+            }
+            finally { try { Directory.Delete(root, true); } catch { /* best-effort */ } }
+        }
+
+        [Fact]
+        public void TryParsePatchFileStrictBounded_FGrepMarker_OversizedTarget_ClassifiedUnknownWithoutReading()
+        {
+            // #1936: the file-backed $FGREP target is an OVERSIZED (16 MiB + 1) regular file.
+            // The bounded parser classifies Unknown WITHOUT ever opening it, so the oversized
+            // signature file is never read (a sparse SetLength keeps the fixture from
+            // materializing real bytes; the legacy path would instead read the whole file).
+            string root = Path.Combine(Path.GetTempPath(), "fe_fgrep_big_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
+            try
+            {
+                string sig = Path.Combine(root, "sig.bin");
+                using (var fs = new FileStream(sig, FileMode.CreateNew, FileAccess.Write))
+                    fs.SetLength(PatchMetadataCore.MaxPatchDefinitionBytes + 1); // sparse
+
+                string patchFile = Path.Combine(root, "PATCH_Fg.txt");
+                File.WriteAllLines(patchFile, new[]
+                {
+                    "TYPE=ADDR",
+                    "NAME=FGrep",
+                    "PATCHED_IF:$FGREP4 sig.bin=0xAB",
+                });
+
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x1000]);
+
+                bool ok = PatchMetadataCore.TryParsePatchFileStrictBounded(
+                    patchFile, "FG", rom, "en", 100, PatchMetadataCore.MaxPatchDefinitionBytes,
+                    out var bounded, out long _);
+                Assert.True(ok);
+                Assert.Equal(PatchMetadataCore.PatchStatus.Unknown, bounded.Status);
+            }
+            finally { try { Directory.Delete(root, true); } catch { /* best-effort */ } }
+        }
+
+        [Fact]
+        public void TryParsePatchFileStrictBounded_NonFileBackedGrepMarker_StillResolvesInstalled()
+        {
+            // #1936 narrowness guard: the bounded escape refuses ONLY file-backed $FGREP. A
+            // $GREP marker (no external file) still resolves normally through the bounded
+            // parser, proving the Unknown results above are the FGREP refusal — not a blanket
+            // "bounded parser can't classify install markers" regression.
+            string root = Path.Combine(Path.GetTempPath(), "fe_grep_bnd_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
+            try
+            {
+                string patchFile = Path.Combine(root, "PATCH_Grep.txt");
+                File.WriteAllLines(patchFile, new[]
+                {
+                    "TYPE=ADDR",
+                    "NAME=Grep",
+                    "PATCHED_IF:$GREP4 0xAB 0xCD 0xEF 0x12=0xAB 0xCD 0xEF 0x12",
+                });
+
+                byte[] data = new byte[0x1000];
+                new byte[] { 0xAB, 0xCD, 0xEF, 0x12 }.CopyTo(data, 0x200);
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(data);
+
+                bool ok = PatchMetadataCore.TryParsePatchFileStrictBounded(
+                    patchFile, "Grep", rom, "en", 100, PatchMetadataCore.MaxPatchDefinitionBytes,
+                    out var bounded, out long _);
+                Assert.True(ok);
+                Assert.Equal(PatchMetadataCore.PatchStatus.Installed, bounded.Status);
+            }
+            finally { try { Directory.Delete(root, true); } catch { /* best-effort */ } }
+        }
+
+        [Theory]
+        [InlineData("PATCHED_IF")]
+        [InlineData("PATCHED_IFNOT")]
+        public void TryParsePatchFileStrictBounded_FGrepMarker_ResolverNeverInvoked(string markerKey)
+        {
+            // #1936 positive no-read proof: the absence of the signature body from serialized
+            // output is a weak signal (even the legacy resolver only USED the bytes to classify
+            // and never serialized them). This asserts the stronger property directly — for a
+            // file-backed $FGREP marker the shared address resolver is NEVER invoked at all, so
+            // no Path.Combine/File.Exists/File.ReadAllBytes on the external filename can occur.
+            // The injected resolver THROWS if called; the marker must still classify Unknown.
+            //
+            // Both marker keys are covered on purpose:
+            //   * PATCHED_IF    — the live path: proves the NEW pre-resolver bounded refusal
+            //                     classifies file-backed $FGREP as Unknown before any resolver/I/O.
+            //   * PATCHED_IFNOT — legacy-IGNORED today (PatchMetadataCore only parses lines that
+            //                     start exactly "PATCHED_IF:", so this key never reaches a resolver
+            //                     at all). We assert the same zero-calls/Unknown invariant to SEAL
+            //                     it against a future regression that starts honoring PATCHED_IFNOT
+            //                     without threading the pre-resolver $FGREP carve-out through it.
+            string root = Path.Combine(Path.GetTempPath(), "fe_fgrep_noresolve_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
+            try
+            {
+                // A real signature file exists and WOULD match if the resolver ran. For the
+                // PATCHED_IF row this makes the Unknown result a NON-VACUOUS pre-resolver refusal
+                // (not a missing-file NotInstalled): the resolver, had it been reached, would have
+                // matched and yielded Installed. This rationale applies ONLY to the PATCHED_IF row;
+                // the PATCHED_IFNOT row is legacy-ignored (documented above) and its Unknown is the
+                // default status with no marker parsed, independent of this fixture.
+                byte[] pattern = { 0xAB, 0xCD, 0xEF, 0x12 };
+                File.WriteAllBytes(Path.Combine(root, "sig.bin"), pattern);
+                string patchFile = Path.Combine(root, "PATCH_Fg.txt");
+                File.WriteAllLines(patchFile, new[]
+                {
+                    "TYPE=ADDR",
+                    "NAME=FGrep",
+                    markerKey + ":$FGREP4 sig.bin=0xAB 0xCD 0xEF 0x12",
+                });
+
+                byte[] data = new byte[0x1000];
+                pattern.CopyTo(data, 0x200);
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(data);
+
+                int calls = 0;
+                PatchMetadataCore.MacroAddressResolver spy = (r, addr, basedir, start) =>
+                {
+                    calls++;
+                    throw new InvalidOperationException(
+                        "resolver MUST NOT be invoked for a bounded file-backed $FGREP marker: " + addr);
+                };
+
+                bool ok = PatchMetadataCore.TryParsePatchFileStrictBounded(
+                    patchFile, "FG", rom, "en", 100, PatchMetadataCore.MaxPatchDefinitionBytes,
+                    spy, out var bounded, out long _);
+
+                Assert.True(ok);
+                Assert.Equal(0, calls); // proven: resolver never reached
+                Assert.Equal(PatchMetadataCore.PatchStatus.Unknown, bounded.Status);
+            }
+            finally { try { Directory.Delete(root, true); } catch { /* best-effort */ } }
+        }
+
+        [Fact]
+        public void TryParsePatchFileStrictBounded_NonFileBackedGrepMarker_ResolverIsInvoked()
+        {
+            // #1936 non-vacuous companion to the no-read proof above: the SAME injected-resolver
+            // seam is exercised with a $GREP (non-file-backed) marker and the resolver IS
+            // invoked, returning a valid address so the marker classifies Installed. This proves
+            // the seam/plumbing actually routes resolution through the injected delegate — i.e.
+            // the "zero calls" assertion for $FGREP is a real refusal, not a dead code path that
+            // never calls the resolver for anything.
+            string root = Path.Combine(Path.GetTempPath(), "fe_grep_resolve_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
+            try
+            {
+                string patchFile = Path.Combine(root, "PATCH_Grep.txt");
+                File.WriteAllLines(patchFile, new[]
+                {
+                    "TYPE=ADDR",
+                    "NAME=Grep",
+                    "PATCHED_IF:$GREP4 0xAB 0xCD 0xEF 0x12=0xAB 0xCD 0xEF 0x12",
+                });
+
+                byte[] data = new byte[0x1000];
+                new byte[] { 0xAB, 0xCD, 0xEF, 0x12 }.CopyTo(data, 0x200);
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(data);
+
+                int calls = 0;
+                PatchMetadataCore.MacroAddressResolver spy = (r, addr, basedir, start) =>
+                {
+                    calls++;
+                    Assert.StartsWith("$GREP", addr); // routed the non-file-backed macro here
+                    return 0x200u; // valid address; expected bytes match at 0x200 -> Installed
+                };
+
+                bool ok = PatchMetadataCore.TryParsePatchFileStrictBounded(
+                    patchFile, "Grep", rom, "en", 100, PatchMetadataCore.MaxPatchDefinitionBytes,
+                    spy, out var bounded, out long _);
+
+                Assert.True(ok);
+                Assert.Equal(1, calls); // proven: seam routes real resolution through the delegate
+                Assert.Equal(PatchMetadataCore.PatchStatus.Installed, bounded.Status);
+            }
+            finally { try { Directory.Delete(root, true); } catch { /* best-effort */ } }
+        }
+
+        [Fact]
         public void CheckPatchInstalled_GrepZeroAlignment_NoHang_NotInstalled()
         {
             // $GREP0 (zero alignment) must NOT infinite-loop U.Grep (blocksize step 0);
@@ -1624,6 +1933,43 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Empty(patches);
             Assert.Equal("", error);
             Assert.False(limitExceeded);
+        }
+
+        [Fact]
+        public void TryEnumeratePatchesBounded_DiscoveredPathMissingDuringMetadata_FailsNonLimitFault()
+        {
+            // #1936 missing-file contract (b): a path already RETURNED by discovery but MISSING
+            // when the bounded METADATA pass opens it is a whole-inventory FILESYSTEM fault —
+            // false, empty patches, limitExceeded FALSE. It is NEVER the successful-empty
+            // missing-ROOT case (a) and NEVER a resource-budget breach. The injected listing
+            // names a definition file that never exists on disk.
+            string tempDir = Path.Combine(
+                Path.GetTempPath(), "PatchBoundedMissingMeta_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                string missing = Path.Combine(tempDir, "PATCH_Missing.txt"); // deliberately NOT created
+
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x100]);
+
+                bool success = PatchMetadataCore.TryEnumeratePatchesBounded(
+                    tempDir,
+                    rom,
+                    "en",
+                    _ => new[] { missing },
+                    5,
+                    PatchMetadataCore.MaxMetadataAggregateBytes,
+                    out var patches,
+                    out string error,
+                    out bool limitExceeded);
+
+                Assert.False(success);
+                Assert.False(limitExceeded); // filesystem fault, NOT a resource-budget breach
+                Assert.Empty(patches);
+                Assert.NotEqual("", error);
+            }
+            finally { Directory.Delete(tempDir, true); }
         }
 
         // ---- #1965: shared byte-first helper (TryReadBoundedFileLines) unit coverage ----

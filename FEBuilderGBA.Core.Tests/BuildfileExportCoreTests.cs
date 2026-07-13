@@ -2312,11 +2312,11 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Empty(result.Manifest.Patches.Installed);
                 // This is a genuine resource-BUDGET breach (more files discovered than
                 // MaxAdvisoryItems), not a filesystem/permission fault, so it MUST use the same
-                // shared, stable AdvisoryBudgetExceededReason every other advisory-budget breach
+                // shared, stable AdvisoryResourceBudgetExceededReason every other advisory-budget breach
                 // uses — never the generic "check directory permissions" reason (Copilot review
                 // finding: BuildPatchInventory previously string-discarded the typed distinction
                 // via `out _`, always reporting the generic permission reason here).
-                Assert.Equal(BuildfileExportCore.AdvisoryBudgetExceededReason, result.Manifest.Patches.Reason);
+                Assert.Equal(BuildfileExportCore.AdvisoryResourceBudgetExceededReason, result.Manifest.Patches.Reason);
                 Assert.DoesNotContain(patchBase, result.Manifest.Patches.Reason);
 
                 string json = File.ReadAllText(Path.Combine(outDir, "buildfile.json"));
@@ -2429,15 +2429,121 @@ namespace FEBuilderGBA.Core.Tests
                 // No partial/truncated installed record survives an aggregate-budget breach —
                 // the WHOLE inventory degrades, not just the second (over-budget) record.
                 Assert.Empty(inv.Installed);
-                Assert.Equal(BuildfileExportCore.AdvisoryBudgetExceededReason, inv.Reason);
+                Assert.Equal(BuildfileExportCore.AdvisoryResourceBudgetExceededReason, inv.Reason);
                 Assert.DoesNotContain(patchBase, inv.Reason);
             }
             finally { Cleanup(parent); }
         }
 
-        // Fault-injecting FileStream double (duplicated from the equivalent private nested type
-        // in PatchMetadataCoreTests — these test fakes are file-local by established
-        // convention, no shared test-helper file exists in this repo) that yields exactly N
+        [Fact]
+        public void Export_FGrepInstallMarker_ProducesUnknownRecord_WithoutReadingSignatureFile()
+        {
+            // #1936 bounded-exporter $FGREP escape, END-TO-END. What this test proves and what it
+            // does NOT:
+            //  - PROVES bounded CLASSIFICATION: the exporter emits an "available" advisory
+            //    inventory with the file-backed $FGREP patch as "unknown" (never "installed"),
+            //    while the SAME fixture resolves to "installed" through the legacy unbounded
+            //    CheckPatchInstalled path (it reads sig.bin and matches the planted ROM bytes) —
+            //    so the "unknown" is the deliberate bounded refusal, not a vacuous non-match.
+            //  - PROVES authoritative independence: the raw recipe still reconstructs the target
+            //    EXACTLY; the advisory record never touches authoritative bytes.
+            //  - The "signature body absent from JSON" assertion below is a useful non-leak
+            //    sanity check, but by itself it does NOT prove the file was never read (even the
+            //    old resolver used the bytes only to classify and never serialized them). The
+            //    positive "resolver is never invoked" no-read guarantee is proven directly by the
+            //    injected-resolver unit test
+            //    TryParsePatchFileStrictBounded_FGrepMarker_ResolverNeverInvoked.
+            byte[] signature = Encoding.ASCII.GetBytes("FGSIG1936XY"); // unique external body
+            string sigHex = string.Join(" ", signature.Select(b => "0x" + b.ToString("X2")));
+
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x10] = 0x9;
+            signature.CopyTo(target, 0x200); // 4-aligned, so legacy FGREP resolves+matches
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                string patchBase = Path.Combine(parent, "patch2");
+                string patchDir = Path.Combine(patchBase, "FGREPTEST");
+                Directory.CreateDirectory(patchDir);
+                File.WriteAllBytes(Path.Combine(patchDir, "sig.bin"), signature);
+                string patchFile = Path.Combine(patchDir, "PATCH_Fg.txt");
+                File.WriteAllLines(patchFile, new[]
+                {
+                    "TYPE=ADDR",
+                    "NAME=FGrep Patch",
+                    "PATCHED_IF:$FGREP4 sig.bin=" + sigHex,
+                });
+
+                // Non-vacuous guard: the legacy unbounded path resolves this SAME fixture to
+                // Installed (it reads sig.bin and matches the planted ROM bytes).
+                var legacy = PatchMetadataCore.ParsePatchFile(patchFile, "FGREPTEST", MakeRom(target), "en");
+                Assert.Equal(PatchMetadataCore.PatchStatus.Installed, legacy.Status);
+
+                var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target),
+                    new BuildfileExportOptions
+                    {
+                        OutputDirectory = outDir,
+                        PatchBaseDirectory = patchBase,
+                    });
+
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("available", result.Manifest.Patches.Status);
+                var rec = Assert.Single(result.Manifest.Patches.Installed);
+                Assert.Equal("unknown", rec.Status);
+
+                // Non-leak sanity check (see method-level note: NOT itself a no-read proof): the
+                // external signature body does not appear in the serialized manifest (payloads
+                // are separate data/*.bin files; the manifest holds only paths + hashes).
+                string json = File.ReadAllText(Path.Combine(outDir, "buildfile.json"));
+                Assert.DoesNotContain("FGSIG1936XY", json);
+
+                // Authoritative reconstruction is exact — the advisory record never touches it.
+                Assert.True(target.SequenceEqual(ReconstructFromProject(outDir, clean)));
+            }
+            finally { Cleanup(parent); }
+        }
+
+        [Fact]
+        public void Export_MetadataFileLengthOverPerFileCap_DegradesWithGenericResourceReason()
+        {
+            // #1936 diagnostic-accuracy: a per-file byte Length breach (metadata pass) must map
+            // to the SAME generic, path-free resource reason as every other advisory resource
+            // budget breach — never a raw path and never the stale "item budget" wording. A
+            // sparse SetLength keeps the fixture from materializing 16+ MiB of real bytes.
+            var clean = new byte[RomSize];
+            var target = (byte[])clean.Clone();
+            target[0x10] = 0xB;
+
+            var (outDir, parent) = FreshOut();
+            try
+            {
+                string patchBase = Path.Combine(parent, "patch2");
+                Directory.CreateDirectory(patchBase);
+                string patchFile = Path.Combine(patchBase, "PATCH_Big.txt");
+                using (var fs = new FileStream(patchFile, FileMode.CreateNew, FileAccess.Write))
+                    fs.SetLength(PatchMetadataCore.MaxPatchDefinitionBytes + 1); // sparse, no real bytes
+
+                var result = BuildfileExportCore.Export(MakeRom(clean), MakeRom(target),
+                    new BuildfileExportOptions
+                    {
+                        OutputDirectory = outDir,
+                        PatchBaseDirectory = patchBase,
+                    });
+
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("unavailable", result.Manifest.Patches.Status);
+                Assert.Empty(result.Manifest.Patches.Installed);
+                Assert.Equal(BuildfileExportCore.AdvisoryResourceBudgetExceededReason,
+                    result.Manifest.Patches.Reason);
+                Assert.DoesNotContain("item budget", result.Manifest.Patches.Reason);
+                Assert.DoesNotContain(patchBase, result.Manifest.Patches.Reason);
+                Assert.DoesNotContain(patchFile, result.Manifest.Patches.Reason);
+            }
+            finally { Cleanup(parent); }
+        }
+
         // genuine bytes read from a REAL small backing file, then throws IOException on any
         // subsequent read — simulating a mid-read I/O fault partway through a file (#1965 L2
         // correction: proves the exporter's aggregate byte accounting stays monotonic/path-free

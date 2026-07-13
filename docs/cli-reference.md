@@ -264,8 +264,14 @@ type is refused before a single byte is read (closing an information-disclosure 
 final-entry symlink pointing outside the patch library could otherwise leak an external target
 file's content into the advisory inventory), and a Browser host fails closed rather than falling
 back to an unsafe open — both cases degrade the same way as any other expected filesystem fault
-(stable, path-free reason; authoritative recipe/payload export unaffected), while a genuinely
-missing final file or missing parent directory still resolves to a successful, empty result. The advisory patch inventory (every installed/unknown
+(stable, path-free reason; authoritative recipe/payload export unaffected). The shared bounded
+reader itself never swallows a missing entry: `FileNotFoundException`/`DirectoryNotFoundException`
+propagate and each caller decides. A missing patch ROOT during INITIAL discovery is a successful
+empty listing; a definition file that was already discovered but is missing or faulting when the
+bounded METADATA pass opens it degrades the WHOLE advisory inventory to `unavailable` with a
+generic, path-free filesystem reason (NOT success-empty and NOT a resource-budget reason); only
+the later bounded raw-PARAMETER pass maps a missing file to a successful, empty parameter list.
+The advisory patch inventory (every installed/unknown
 record plus its nested raw parameters) and the manifest's `warnings` share ONE internal
 16,384-item resource-safety budget; the exporter is a *bounded producer* — patch-file discovery,
 per-record, and per-parameter counting are all checked against the remaining budget **before**
@@ -310,8 +316,14 @@ worst case if both passes are near their cap at once); breaching either the per-
 aggregate byte cap degrades the entire advisory patch inventory to `unavailable` the same way the
 16,384-item budget does — never a partial/truncated installed list. Accepted bytes are decoded
 with the same BOM-detecting, non-strict-UTF-8 (replacement-fallback) semantics as the legacy
-`File.ReadLines`/`File.ReadAllLines` APIs, so any file within budget parses byte-identically to
-the unbounded legacy path. This strict exporter inventory is separate from the legacy
+`File.ReadLines`/`File.ReadAllLines` APIs, so any file within budget is **decoded**
+byte-identically to the unbounded legacy path. The one deliberate behavioral difference is
+install-marker **classification**: this bounded metadata scan classifies a file-backed `$FGREP`
+install marker (one the shared resolver would resolve by opening the external file it names) as
+`unknown` **before** any filename access, whereas the public/unbounded Patch Manager, CLI, patch
+scanner, and rebuild paths still resolve it (shipped patches depend on that legacy behavior); the
+bounded raw advisory params read from the patch definition itself are unchanged. This strict
+exporter inventory is separate from the legacy
 Patch Manager/CLI enumeration path, which logs an unreadable individual definition and retains all
 other successfully parsed patches. The optional `source/` projection is a non-composable
 best-effort produced only by the built-in synchronous `RebuildProducerCore` path. It first writes

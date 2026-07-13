@@ -946,11 +946,24 @@ namespace FEBuilderGBA
         /// <summary>
         /// Atomically reserve a uniquely named private scratch directory under
         /// <paramref name="parent"/> (exclusive create-new; a name collision is never reused).
+        /// The reserved directory is always a DIRECT child of <paramref name="parent"/>: a
+        /// <paramref name="prefix"/> that is rooted, or that contains a platform directory
+        /// separator, would let the reservation escape that promise (into a sibling, ancestor,
+        /// or nested subtree) and is rejected with <see cref="ArgumentException"/> BEFORE any
+        /// filesystem creation is attempted. A null/empty/plain-fragment prefix is accepted.
         /// </summary>
         public static string ReserveScratchDirectory(string parent, string prefix)
         {
             if (string.IsNullOrEmpty(parent))
                 throw new ArgumentException("Scratch parent is required.", nameof(parent));
+            // #1936 prefix-escape guard: reject a rooted or path-bearing prefix up front so the
+            // reserved directory can only ever be a direct child of parent. Checked before the
+            // loop/exclusive-create so no outside or nested directory is created on rejection.
+            if (!string.IsNullOrEmpty(prefix)
+                && (Path.IsPathRooted(prefix) || ContainsDirectorySeparator(prefix)))
+                throw new ArgumentException(
+                    "Scratch prefix must be a plain name fragment (not rooted, no directory separators).",
+                    nameof(prefix));
             for (int attempt = 0; attempt < 64; attempt++)
             {
                 string candidate = Path.Combine(parent, (prefix ?? "") + Guid.NewGuid().ToString("N"));
@@ -960,6 +973,15 @@ namespace FEBuilderGBA
             throw new IOException(
                 "Could not reserve a unique scratch directory after repeated name collisions.");
         }
+
+        // True when the fragment contains either platform directory separator so a
+        // reservation can never be redirected outside parent's direct children (checked on
+        // both '/' and '\' regardless of the running OS, since either can escape on Windows).
+        static bool ContainsDirectorySeparator(string fragment)
+            => fragment.IndexOf(Path.DirectorySeparatorChar) >= 0
+                || fragment.IndexOf(Path.AltDirectorySeparatorChar) >= 0
+                || fragment.IndexOf('/') >= 0
+                || fragment.IndexOf('\\') >= 0;
 
         /// <summary>Delete a directory tree and verify it is gone (shared exporter contract).</summary>
         public static bool DeleteTreeAndVerifyGone(string dir, out string error)
