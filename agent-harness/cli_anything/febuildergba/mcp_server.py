@@ -184,6 +184,7 @@ def validate_schema(schema, value):
 
 _ROM_PATH_PROP = {
     "type": "string",
+    "minLength": 1,
     "maxLength": MAX_PATH_LEN,
     "description": "Path to a .gba ROM file. If omitted, the active session's ROM is used.",
 }
@@ -198,7 +199,12 @@ _FORCE_VERSION_PROP = {
 
 
 def _path_prop(description):
-    return {"type": "string", "maxLength": MAX_PATH_LEN, "description": description}
+    return {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": MAX_PATH_LEN,
+        "description": description,
+    }
 
 _ANNOT_RO = {"readOnlyHint": True, "destructiveHint": False, "openWorldHint": False}
 _ANNOT_DESTRUCTIVE = {"readOnlyHint": False, "destructiveHint": True, "openWorldHint": False}

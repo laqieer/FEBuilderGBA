@@ -389,6 +389,33 @@ class TestData:
         assert result["exit_code"] == 1
         assert result["output_files"] == []
 
+    def test_all_export_reports_only_declared_table_outputs(
+            self, tmp_path, monkeypatch):
+        from cli_anything.febuildergba.core import data
+        output = tmp_path / "tables"
+        expected = tmp_path / "tables.units.tsv"
+        stale = tmp_path / "tables.stale.tsv"
+        expected.write_text("new")
+        stale.write_text("old")
+        monkeypatch.setattr(data, "list_tables", lambda: ["units", "items"])
+        monkeypatch.setattr(
+            data,
+            "run_cli",
+            lambda args: subprocess.CompletedProcess(
+                args, 0, stdout="exported", stderr="",
+            ),
+        )
+
+        result = data.export_table("fake.gba", "all", str(output))
+
+        assert result["output_files"] == [str(expected.resolve())]
+        assert str(stale.resolve()) not in result["output_files"]
+
+    def test_export_rejects_empty_output_path(self):
+        from cli_anything.febuildergba.core.data import export_table
+        with pytest.raises(ValueError, match="must not be empty"):
+            export_table("fake.gba", "units", "")
+
     def test_empty_tsv(self, tmp_path):
         from cli_anything.febuildergba.core.data import read_tsv
         tsv = tmp_path / "empty.tsv"

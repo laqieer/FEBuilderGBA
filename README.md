@@ -677,6 +677,8 @@ A second, dependency-free MCP server exposes the `agent-harness` FEBuilderGBA CL
 data/text export-import-roundtrip, name resolution, linting, image/palette conversion, LZ77, and
 session management) as 21 MCP tools plus 3 resources. Unlike the computer-use server above, it needs
 only a Python 3.10+ standard library — no Windows dependency, no extra packages, no MCP SDK.
+Its closed schemas reject empty file paths, and multi-table exports report only the declared
+per-table output names rather than unrelated files sharing the same prefix.
 
 The `.mcp.json` at the repo root auto-configures Claude Code to use it as `febuildergba-cli`
 (`python ./agent-harness/febuildergba_mcp.py`). See

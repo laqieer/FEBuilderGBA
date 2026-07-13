@@ -1083,6 +1083,38 @@ class TestBounds:
                           {"table": "units", "out_path": too_long})
         assert resp["error"]["code"] == srv.INVALID_PARAMS
 
+    @pytest.mark.parametrize(
+        ("tool_name", "arguments"),
+        [
+            ("session_open", {"rom_path": ""}),
+            ("rom_info", {"rom_path": ""}),
+            ("data_export", {"table": "units", "out_path": ""}),
+            ("data_import", {"table": "units", "in_path": ""}),
+            ("image_quantize", {"in_path": "", "out_path": "out.png"}),
+            ("image_quantize", {"in_path": "in.png", "out_path": ""}),
+            (
+                "image_convert_map",
+                {"in_path": "", "out_img": "out.img", "out_tsa": "out.tsa"},
+            ),
+            (
+                "image_convert_map",
+                {"in_path": "in.png", "out_img": "", "out_tsa": "out.tsa"},
+            ),
+            (
+                "image_convert_map",
+                {"in_path": "in.png", "out_img": "out.img", "out_tsa": ""},
+            ),
+            ("palette_export", {"addr": "0x100", "out_path": ""}),
+            ("palette_import", {"addr": "0x100", "in_path": ""}),
+            ("lz77", {"mode": "compress", "in_path": "", "out_path": "out.bin"}),
+            ("lz77", {"mode": "compress", "in_path": "in.bin", "out_path": ""}),
+        ],
+    )
+    def test_empty_path_is_invalid_params(
+            self, initialized_state, tool_name, arguments):
+        resp = _call_tool(initialized_state, tool_name, arguments)
+        assert resp["error"]["code"] == srv.INVALID_PARAMS
+
     def test_query_over_max_length_is_invalid_params(self, initialized_state):
         too_long = "a" * (srv.MAX_QUERY_LEN + 1)
         resp = _call_tool(initialized_state, "text_search", {"query": too_long})

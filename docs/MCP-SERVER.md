@@ -121,10 +121,11 @@ export-midi/songexchange tools are exposed — this is a deliberately curated, c
 Click CLI's surface, not a 1:1 mirror. Every tool's `inputSchema` is closed
 (`additionalProperties: false`) with explicit types/bounds/enums — no silent coercion (a JSON
 `true`/`false` is never accepted where an integer is expected). Every agent-controlled free-form
-string is also `maxLength`-bounded: ROM/file paths (`rom_path`, `out_path`, `in_path`, `out_img`,
-`out_tsa`) at 4,096 chars, `text_search`'s `query` at 4,096 chars, `table` names at 128 chars, and
-palette `addr` at 64 chars — an over-length value is rejected as `-32602`, never silently
-truncated (see [Output bounds](#output-bounds) for the separate, output-side truncation rules).
+string is also bounded: ROM/file paths (`rom_path`, `out_path`, `in_path`, `out_img`, `out_tsa`)
+must be non-empty when present and are capped at 4,096 chars, `text_search`'s `query` is capped at
+4,096 chars, `table` names at 128 chars, and palette `addr` at 64 chars. An empty required path or
+an over-length value is rejected as `-32602`, never silently defaulted or truncated (see
+[Output bounds](#output-bounds) for the separate, output-side truncation rules).
 
 | # | Tool | Click equivalent | Notes |
 |---|------|-------------------|-------|
@@ -232,7 +233,7 @@ closed with `rom_header: null`.
 | Every string value inside a resource payload (session/history/rom_header) | 4,096 chars, applied recursively | top-level `truncated` boolean (never exposes raw bytes — resources never contained raw bytes to begin with) |
 | Resource collection size / nesting | 100 items per object/array / 16 levels | extra entries or deeper containers are replaced/truncated with top-level `truncated: true` |
 | Input line / JSON-RPC batch | 1,048,576 chars / 64 entries | schema-independent `-32600` request guard |
-| ROM/file path arguments (`rom_path`, `out_path`, `in_path`, `out_img`, `out_tsa`) | 4,096 chars | schema `maxLength` — over-length input is `-32602`, not silently truncated |
+| ROM/file path arguments (`rom_path`, `out_path`, `in_path`, `out_img`, `out_tsa`) | 1..4,096 chars when present | schema `minLength`/`maxLength` — empty or over-length input is `-32602`, not silently defaulted/truncated |
 | `query` (text_search) | 4,096 chars | schema `maxLength` |
 | `table` (data tools) | 128 chars | schema `maxLength` |
 | `addr` (palette tools) | 64 chars | schema `maxLength` |

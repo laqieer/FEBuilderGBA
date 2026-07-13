@@ -21,8 +21,11 @@ def export_table(rom_path: str, table: str, output_path: str,
     Returns:
         Dict with export results.
     """
-    if table != "all" and table not in list_tables():
-        raise ValueError(f"Unknown table: {table}. Use 'all' or one of: {', '.join(list_tables())}")
+    table_names = list_tables()
+    if table != "all" and table not in table_names:
+        raise ValueError(f"Unknown table: {table}. Use 'all' or one of: {', '.join(table_names)}")
+    if not isinstance(output_path, str) or not output_path:
+        raise ValueError("Output path must not be empty")
 
     args = ["--export-data", f"--rom={rom_path}", f"--table={table}",
             f"--out={output_path}"]
@@ -36,12 +39,10 @@ def export_table(rom_path: str, table: str, output_path: str,
         # Determine output files (return full paths) only after success so a
         # failed backend cannot make stale pre-existing files look produced.
         if table == "all":
-            out_dir = os.path.dirname(os.path.abspath(output_path)) or "."
-            prefix = os.path.basename(output_path)
             files = [
-                os.path.join(out_dir, f)
-                for f in os.listdir(out_dir)
-                if f.startswith(prefix) and f.endswith(".tsv")
+                os.path.abspath(f"{output_path}.{table_name}.tsv")
+                for table_name in table_names
+                if os.path.isfile(f"{output_path}.{table_name}.tsv")
             ]
         elif os.path.isfile(output_path):
             files = [os.path.abspath(output_path)]
