@@ -231,31 +231,32 @@ namespace FEBuilderGBA
         /// to the unbounded internal <see cref="TryEnumeratePatches(string,ROM,string,Func{string,string[]},Func{string,string[]},out List{PatchInfo},out string)"/>
         /// overload except patch-FILE discovery is bounded to <paramref name="maxFiles"/>:
         /// <list type="bullet">
-        /// <item>Production discovery (no injected <paramref name="listPatchFiles"/>) uses LAZY
-        /// <see cref="Directory.EnumerateFiles(string,string,SearchOption)"/> and stops the
-        /// instant more than <paramref name="maxFiles"/> entries have been seen — a pathological
-        /// directory can never force an unbounded eager array into memory before the bound is
-        /// even checked. Because the enumerable is LAZY, a missing <paramref name="patchBaseDir"/>
-        /// does not throw at the point <see cref="Directory.EnumerateFiles(string,string,SearchOption)"/>
-        /// is called — <see cref="DirectoryNotFoundException"/> only surfaces once iteration
-        /// actually begins (#1936 Finding A correction). A dedicated catch around that iteration
-        /// therefore resolves a missing directory to the SAME successful-empty result
-        /// (<paramref name="patches"/> empty, <paramref name="error"/> empty,
-        /// <paramref name="limitExceeded"/> <c>false</c>) as the eager/injected-lister branch
-        /// below and the unbounded <see cref="TryEnumeratePatches(string,ROM,string,Func{string,string[]},Func{string,string[]},out List{PatchInfo},out string)"/>
-        /// path already provide — never the generic degraded-failure outcome a broad
-        /// <see cref="IOException"/> catch alone would produce (since
-        /// <see cref="DirectoryNotFoundException"/> is itself an <see cref="IOException"/>
-        /// subclass and would otherwise be caught first by that broad clause). Every OTHER
-        /// expected filesystem fault raised DURING lazy iteration (not only at enumerable
-        /// creation) is still caught exactly like the eager path and degrades the whole
-        /// inventory. A directory that DISAPPEARS again later, after per-file metadata parsing
-        /// has begun, is unaffected by this correction and remains a failure/unavailable result
-        /// by the existing baseline contract.</item>
-        /// <item>An injected test lister still returns an eager array, but its LENGTH is checked
-        /// against the bound BEFORE a single patch file is parsed, so a deterministic
-        /// fault-injection test can prove the over-budget rejection without needing a lazy
-        /// filesystem seam.</item>
+        /// <item>A tri-state ENTRY probe (shared fail-closed
+        /// <see cref="BuildfileExportCore.ProbePathAttributes"/>, never <c>Directory.Exists</c> —
+        /// which swallows access/security faults into a bare <c>false</c>) classifies
+        /// <paramref name="patchBaseDir"/> exactly once, up front: ABSENT ⇒ a root that was never
+        /// downloaded / already removed BEFORE discovery began ⇒ the SAME successful-empty result
+        /// as an empty root (<paramref name="patches"/> empty, <paramref name="error"/> empty,
+        /// <paramref name="limitExceeded"/> <c>false</c>); UNKNOWN (an inspection fault) ⇒ the
+        /// inventory is unavailable (<c>false</c>, <paramref name="error"/> = fault detail,
+        /// <paramref name="limitExceeded"/> <c>false</c>) — a fault is never inferred as absence;
+        /// PRESENT ⇒ continue to bounded discovery.</item>
+        /// <item>Discovery then flows through ONE shared bounded <c>foreach</c> over an
+        /// <see cref="IEnumerable{T}"/> seam: production binds the LAZY
+        /// <see cref="Directory.EnumerateFiles(string,string,SearchOption)"/> enumerable; an
+        /// injected test lister binds any <see cref="IEnumerable{T}"/> (e.g. a custom iterator).
+        /// BOTH iterate the IDENTICAL lazy path — there is no separate eager-array length guard —
+        /// and the loop stops the instant more than <paramref name="maxFiles"/> entries are seen,
+        /// so a pathological directory can never force an unbounded read before the bound is even
+        /// checked. Any expected filesystem fault — thrown SYNCHRONOUSLY by the lister factory OR
+        /// LAZILY during a later <c>MoveNext</c>, INCLUDING a <see cref="DirectoryNotFoundException"/>
+        /// raised AFTER the successful entry probe (a genuine discovery race where the root
+        /// disappears mid-scan) — degrades the whole inventory to unavailable (<c>false</c>,
+        /// <paramref name="error"/> populated, <paramref name="limitExceeded"/> <c>false</c>); it
+        /// is NEVER reshaped into successful-empty, and a null injected enumerable is left as a
+        /// programmer defect rather than success-shaped. Discovery always finishes fully before
+        /// the per-file metadata parse begins, so a partially enumerated set never publishes any
+        /// <see cref="PatchInfo"/>.</item>
         /// </list>
         /// On a bound breach, <paramref name="patches"/> is the empty list (never partial) and
         /// <paramref name="error"/> is a stable, path-free reason. <paramref name="limitExceeded"/>
@@ -285,7 +286,7 @@ namespace FEBuilderGBA
         /// breach with small fixtures instead of real 64 MiB files.
         /// </summary>
         internal static bool TryEnumeratePatchesBounded(string patchBaseDir, ROM rom, string lang,
-            Func<string, string[]> listPatchFiles,
+            Func<string, IEnumerable<string>> listPatchFiles,
             int maxFiles, long maxAggregateBytes,
             out List<PatchInfo> patches, out string error, out bool limitExceeded)
         {
@@ -306,83 +307,66 @@ namespace FEBuilderGBA
             if (string.IsNullOrEmpty(patchBaseDir))
                 return true;
 
-            var discovered = new List<string>();
-            if (listPatchFiles != null)
+            // #1965 discovery-race preflight: classify the patch root EXACTLY ONCE at method
+            // entry with the shared fail-closed tri-state probe (never Directory.Exists, which
+            // swallows access/security faults into a bare false and would misclassify an
+            // unreadable-but-present root as "successfully empty"):
+            //   * ABSENT  — a root never downloaded / already removed BEFORE discovery began =>
+            //               the SAME successful-empty result as an empty root (patches empty,
+            //               error empty, limitExceeded false).
+            //   * UNKNOWN — an inspection fault => the inventory is unavailable (false, error =
+            //               fault detail, limitExceeded false); a fault is never inferred as
+            //               absence.
+            //   * PRESENT — the root exists at entry; fall through to bounded discovery. Any
+            //               LATER disappearance/fault (a genuine race) is handled by the shared
+            //               discovery loop below and degrades unavailable, NOT successful-empty.
+            switch (BuildfileExportCore.ProbePathAttributes(
+                patchBaseDir, File.GetAttributes, out _, out string probeFault))
             {
-                string[] files;
-                try
-                {
-                    files = listPatchFiles(patchBaseDir);
-                }
-                catch (DirectoryNotFoundException)
-                {
+                case BuildfileExportCore.PathAttributeProbeResult.Absent:
                     return true;
-                }
-                catch (Exception ex) when (IsExpectedFileSystemException(ex))
-                {
-                    error = ex.Message;
+                case BuildfileExportCore.PathAttributeProbeResult.Unknown:
+                    error = probeFault;
                     return false;
-                }
-                // Guard the injected test double's length BEFORE parsing a single file.
-                if (files.Length > maxFiles)
-                {
-                    limitExceeded = true;
-                    error = "advisory patch source exceeds the internal file-discovery bound";
-                    return false;
-                }
-                discovered.AddRange(files);
+                // PathAttributeProbeResult.Present => continue.
             }
-            else
-            {
-                IEnumerable<string> lazy;
-                try
-                {
-                    lazy = Directory.EnumerateFiles(patchBaseDir, "PATCH_*.txt", SearchOption.AllDirectories);
-                }
-                catch (DirectoryNotFoundException)
-                {
-                    return true;
-                }
-                catch (Exception ex) when (IsExpectedFileSystemException(ex))
-                {
-                    error = ex.Message;
-                    return false;
-                }
 
-                try
+            var discovered = new List<string>();
+            // Shared bounded discovery seam (#1965): production binds the LAZY
+            // Directory.EnumerateFiles enumerable; a test binds an injected IEnumerable<string>
+            // (e.g. a custom iterator). BOTH flow through the SAME bounded foreach so the injected
+            // seam exercises the exact lazy-iteration path production uses — there is no separate
+            // eager-array length guard. The loop stops the instant more than maxFiles entries are
+            // seen, so a pathological directory can never force an unbounded read before the bound
+            // is checked. Any expected filesystem fault — thrown SYNCHRONOUSLY by the lister
+            // factory OR LAZILY during a later MoveNext, INCLUDING a DirectoryNotFoundException
+            // raised AFTER the successful entry probe (a genuine discovery race where the root
+            // disappears mid-scan) — degrades the whole inventory to unavailable (false, error
+            // populated, limitExceeded stays false) and is NEVER reshaped into successful-empty.
+            // A null injected enumerable is left as a programmer defect (NullReferenceException
+            // from foreach), deliberately NOT success-shaped. Discovery always finishes fully
+            // before the per-file metadata parse below, so a partially enumerated set never
+            // publishes any PatchInfo.
+            try
+            {
+                IEnumerable<string> source = listPatchFiles != null
+                    ? listPatchFiles(patchBaseDir)
+                    : Directory.EnumerateFiles(patchBaseDir, "PATCH_*.txt", SearchOption.AllDirectories);
+                foreach (string file in source)
                 {
-                    foreach (string file in lazy)
+                    if (discovered.Count >= maxFiles)
                     {
-                        if (discovered.Count >= maxFiles)
-                        {
-                            limitExceeded = true;
-                            error = "advisory patch source exceeds the internal file-discovery bound";
-                            return false;
-                        }
-                        discovered.Add(file);
+                        limitExceeded = true;
+                        error = "advisory patch source exceeds the internal file-discovery bound";
+                        return false;
                     }
+                    discovered.Add(file);
                 }
-                catch (DirectoryNotFoundException)
-                {
-                    // #1936 Finding A: Directory.EnumerateFiles is LAZY — it does not touch the
-                    // filesystem (and so cannot throw) at the `lazy = Directory.EnumerateFiles(...)`
-                    // call site above; a missing patchBaseDir only surfaces
-                    // DirectoryNotFoundException here, at the first MoveNext() inside this
-                    // foreach. This dedicated catch — placed BEFORE the broad expected-fault
-                    // catch below, so it is never shadowed by `ex is IOException` — restores the
-                    // same "missing patch directory resolves to successful-empty" contract the
-                    // eager/injected-lister branch above (and the unbounded TryEnumeratePatches
-                    // path) already honors. No discovered entries are parsed on this path:
-                    // discovery always finishes (successfully or not) before the per-file
-                    // metadata-parsing loop below ever begins.
-                    return true;
-                }
-                catch (Exception ex) when (IsExpectedFileSystemException(ex))
-                {
-                    // Fault arising DURING lazy iteration, not only at enumerable creation.
-                    error = ex.Message;
-                    return false;
-                }
+            }
+            catch (Exception ex) when (IsExpectedFileSystemException(ex))
+            {
+                error = ex.Message;
+                return false;
             }
 
             try

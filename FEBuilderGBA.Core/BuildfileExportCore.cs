@@ -736,9 +736,12 @@ namespace FEBuilderGBA
         /// Internal patch-directory-listing override for deterministic enumeration-failure
         /// tests (default null = the real recursive <c>PATCH_*.txt</c> scan is used; production
         /// behavior is unchanged). Lets tests simulate an existing-but-inaccessible patch
-        /// library directory without relying on flaky real permission changes.
+        /// library directory — or a discovery race that faults mid-enumeration — without relying
+        /// on flaky real permission changes. Typed as <see cref="IEnumerable{T}"/> so an injected
+        /// lister shares the SAME bounded lazy <c>foreach</c> production uses (a custom iterator
+        /// can yield some entries then throw); an array-returning lambda remains source-compatible.
         /// </summary>
-        internal Func<string, string[]> PatchDirectoryListerForTest { get; set; }
+        internal Func<string, IEnumerable<string>> PatchDirectoryListerForTest { get; set; }
 
         /// <summary>Internal deterministic name source for stage-collision tests.</summary>
         internal Func<Guid> GuidFactoryForTest { get; set; }
@@ -2323,13 +2326,16 @@ namespace FEBuilderGBA
 
             // Bounded producer (Copilot review finding: an unbounded eager Directory.GetFiles
             // listing plus unbounded per-record raw-parameter reads could materialize far more
-            // advisory data than the consumer will ever accept). Production discovery is a lazy
+            // advisory data than the consumer will ever accept). A tri-state entry probe first
+            // distinguishes a patch root that is absent at entry (successful empty listing) from
+            // a later filesystem race (unavailable). Production discovery is then a lazy
             // Directory.EnumerateFiles scan that stops as soon as more than MaxAdvisoryItems
-            // files are seen; an injected test lister's eager array is length-guarded before a
-            // single file is parsed. Per-file metadata scanning is itself bounded/lazy (see
-            // PatchMetadataCore.TryParsePatchFileStrictBounded), so no discovered file is fully
-            // read into memory before its raw-parameter pass is bounded too, and no oversized
-            // metadata file can be accepted as a truncated record.
+            // files are seen; an injected test lister shares that SAME bounded lazy foreach (no
+            // separate eager length-guard), so any fault it raises — synchronously or mid-
+            // enumeration — degrades the inventory to unavailable. Per-file metadata scanning is
+            // itself bounded/lazy (see PatchMetadataCore.TryParsePatchFileStrictBounded), so no
+            // discovered file is fully read into memory before its raw-parameter pass is bounded
+            // too, and no oversized metadata file can be accepted as a truncated record.
             List<PatchMetadataCore.PatchInfo> patches;
             if (!PatchMetadataCore.TryEnumeratePatchesBounded(baseDir, targetRom, options.Language ?? "en",
                     options.PatchDirectoryListerForTest,

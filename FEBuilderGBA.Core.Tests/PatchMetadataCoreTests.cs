@@ -1898,18 +1898,17 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void TryEnumeratePatchesBounded_ProductionLazyPath_MissingPatchRoot_SucceedsEmpty()
         {
-            // #1936 Finding A: the PRODUCTION discovery path (listPatchFiles: null) uses LAZY
-            // Directory.EnumerateFiles, which does not touch the filesystem — and so cannot
-            // throw — at the point it is called; a missing patchBaseDir only raises
-            // DirectoryNotFoundException once the internal foreach actually begins iterating.
-            // Before the fix, that exception fell through to the broad
-            // `catch (Exception ex) when (IsExpectedFileSystemException(ex))` clause (since
-            // DirectoryNotFoundException IS an IOException) and was reported as a real failure.
-            // A definitely nonexistent patch root must instead resolve to the SAME
-            // successful-empty contract the eager/injected-lister branch and the unbounded
-            // TryEnumeratePatches path already honor: true, empty patches, empty error,
-            // limitExceeded false — proven here with listPatchFiles left null so PRODUCTION
-            // lazy discovery (not an injected test double) is what actually runs.
+            // #1965 discovery-race preflight: the PRODUCTION discovery path (listPatchFiles null)
+            // first classifies the patch root with the shared fail-closed tri-state entry probe
+            // (BuildfileExportCore.ProbePathAttributes over File.GetAttributes) rather than a lazy
+            // Directory.EnumerateFiles foreach or a bare Directory.Exists. A root that is ABSENT
+            // at method entry (never downloaded / already removed BEFORE discovery began) is the
+            // successful-empty case: true, empty patches, empty error, limitExceeded false — the
+            // SAME contract the unbounded TryEnumeratePatches path honors. (Contrast the
+            // discovery-RACE regressions below, where a root PRESENT at entry disappears/faults
+            // mid-enumeration and instead degrades the whole inventory to unavailable.) Proven
+            // here with listPatchFiles left null so PRODUCTION discovery — not an injected test
+            // double — is what actually runs against a definitely-nonexistent root.
             string missingRoot = Path.Combine(
                 Path.GetTempPath(), "PatchBoundedMissingRoot_" + Guid.NewGuid().ToString("N"));
             // Deliberately do NOT create missingRoot.
@@ -1933,6 +1932,48 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Empty(patches);
             Assert.Equal("", error);
             Assert.False(limitExceeded);
+        }
+
+        [Fact]
+        public void TryEnumeratePatchesBounded_FileDiscoveryExactlyAtLimit_Succeeds()
+        {
+            // Exactly maxFiles discovered entries must be accepted; only maxFiles + 1 overflows.
+            string tempDir = Path.Combine(
+                Path.GetTempPath(), "PatchBoundedExactLimit_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                string first = Path.Combine(tempDir, "PATCH_First.txt");
+                string second = Path.Combine(tempDir, "PATCH_Second.txt");
+                File.WriteAllLines(first, new[] { "NAME=First" });
+                File.WriteAllLines(second, new[] { "NAME=Second" });
+
+                IEnumerable<string> EnumerateExactlyTwo()
+                {
+                    yield return first;
+                    yield return second;
+                }
+
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x100]);
+
+                bool success = PatchMetadataCore.TryEnumeratePatchesBounded(
+                    tempDir,
+                    rom,
+                    "en",
+                    _ => EnumerateExactlyTwo(),
+                    maxFiles: 2,
+                    maxAggregateBytes: PatchMetadataCore.MaxMetadataAggregateBytes,
+                    out var patches,
+                    out string error,
+                    out bool limitExceeded);
+
+                Assert.True(success);
+                Assert.False(limitExceeded);
+                Assert.Equal("", error);
+                Assert.Equal(2, patches.Count);
+            }
+            finally { Directory.Delete(tempDir, true); }
         }
 
         [Fact]
@@ -1968,6 +2009,102 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.False(limitExceeded); // filesystem fault, NOT a resource-budget breach
                 Assert.Empty(patches);
                 Assert.NotEqual("", error);
+            }
+            finally { Directory.Delete(tempDir, true); }
+        }
+
+        [Fact]
+        public void TryEnumeratePatchesBounded_ExistingRootListerFaultsSynchronously_FailsNonLimitFault()
+        {
+            // #1965 discovery-race regression A: the patch root EXISTS at method entry, so the new
+            // tri-state entry probe classifies it Present and discovery proceeds — but the shared
+            // lister seam throws DirectoryNotFoundException SYNCHRONOUSLY when invoked (a child
+            // path that raced away AFTER the successful entry probe). This must degrade the whole
+            // inventory to unavailable: false, empty patches, nonempty error carrying the injected
+            // detail, limitExceeded FALSE (a filesystem race, not a resource cap). This lambda is
+            // source-compatible with old head; it is a behavioral RED against old head, which
+            // caught a DirectoryNotFoundException from the lister and (incorrectly) returned true
+            // (successful-empty), masking the race.
+            string tempDir = Path.Combine(
+                Path.GetTempPath(), "PatchBoundedRaceFactory_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x100]);
+
+                const string detail = "child disappeared during discovery";
+                bool success = PatchMetadataCore.TryEnumeratePatchesBounded(
+                    tempDir,
+                    rom,
+                    "en",
+                    _ => throw new DirectoryNotFoundException(detail),
+                    5,
+                    PatchMetadataCore.MaxMetadataAggregateBytes,
+                    out var patches,
+                    out string error,
+                    out bool limitExceeded);
+
+                Assert.False(success);
+                Assert.False(limitExceeded); // discovery race, NOT a resource-budget breach
+                Assert.Empty(patches);
+                Assert.Contains(detail, error, StringComparison.Ordinal);
+            }
+            finally { Directory.Delete(tempDir, true); }
+        }
+
+        // #1965 discovery-race regression B helper: a LAZY iterator that yields one already-valid
+        // discovered path and then throws DirectoryNotFoundException on the NEXT MoveNext, exactly
+        // as Directory.EnumerateFiles surfaces a root that disappears mid-enumeration. Not
+        // source-compatible with old head's Func<string,string[]> seam by design — it exercises
+        // the new shared IEnumerable<string> lazy-foreach directly.
+        static IEnumerable<string> YieldOnceThenDirectoryNotFound(string firstFile, string faultDetail)
+        {
+            yield return firstFile;
+            throw new DirectoryNotFoundException(faultDetail);
+        }
+
+        [Fact]
+        public void TryEnumeratePatchesBounded_ListerIteratorFaultsAfterYield_FailsWithoutPublishingYielded()
+        {
+            // #1965 discovery-race regression B: the injected lister is a LAZY iterator that yields
+            // one genuinely-existing, parseable PATCH_*.txt path and then throws
+            // DirectoryNotFoundException on the next MoveNext. Because production and the injected
+            // seam now share the SAME bounded foreach, this exercises PARTIAL lazy discovery
+            // directly. The yielded definition — which WOULD parse to a valid PatchInfo if it were
+            // ever reached — must NEVER be parsed or published: discovery finishes (faults) fully
+            // before the per-file metadata pass begins. Result: false, EMPTY patches (non-vacuous
+            // proof the yielded entry was not published), nonempty non-limit error, limitExceeded
+            // FALSE.
+            string tempDir = Path.Combine(
+                Path.GetTempPath(), "PatchBoundedRaceIterator_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                // A REAL, parseable definition: if the yielded entry were ever parsed/published,
+                // patches would be non-empty and success true — so Empty(patches) is a real proof.
+                string yielded = Path.Combine(tempDir, "PATCH_Yielded.txt");
+                File.WriteAllLines(yielded, new[] { "NAME=Yielded" });
+
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x100]);
+
+                const string detail = "child disappeared during discovery";
+                bool success = PatchMetadataCore.TryEnumeratePatchesBounded(
+                    tempDir,
+                    rom,
+                    "en",
+                    _ => YieldOnceThenDirectoryNotFound(yielded, detail),
+                    5,
+                    PatchMetadataCore.MaxMetadataAggregateBytes,
+                    out var patches,
+                    out string error,
+                    out bool limitExceeded);
+
+                Assert.False(success);
+                Assert.False(limitExceeded); // discovery race, NOT a resource-budget breach
+                Assert.Empty(patches);       // the yielded definition was never parsed/published
+                Assert.Contains(detail, error, StringComparison.Ordinal);
             }
             finally { Directory.Delete(tempDir, true); }
         }
