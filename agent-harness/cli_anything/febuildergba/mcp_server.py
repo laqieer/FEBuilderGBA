@@ -1326,8 +1326,8 @@ def serve(session_file=None, in_stream=None, out_stream=None):
             out_stream.flush()
             continue
 
-        line = raw_line.strip()
-        if not line:
+        line = raw_line.rstrip("\r\n")
+        if not line or not line.strip(" \t"):
             continue
         try:
             session.refresh()

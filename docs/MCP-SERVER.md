@@ -72,6 +72,9 @@ the package has been `pip install`-ed.
 - **Framing:** every JSON-RPC message — a single object, or a JSON array batch — is exactly one
   flushed, UTF-8 line on stdout. The real stdin/stdout/stderr text streams are explicitly
   reconfigured to UTF-8 before the loop, overriding locale-dependent legacy pipe encodings.
+  Only terminal CR/LF framing is removed; valid JSON space/tab whitespace is preserved for the
+  decoder, and non-JSON whitespace such as vertical tab, form feed, or nonbreaking space is not
+  normalized into an accepted request.
   Malformed UTF-8 bytes are preserved only long enough to reject that complete line with `-32700`;
   the following line is still processed. All logs/diagnostics go to stderr; nothing else is ever
   written to stdout. Input lines are capped at 1,048,576 characters and batches at 64 entries; an

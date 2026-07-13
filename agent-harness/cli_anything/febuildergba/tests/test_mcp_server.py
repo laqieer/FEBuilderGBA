@@ -1902,6 +1902,39 @@ class TestSchemaValidator:
 # ── serve() outer-loop regression: unexpected failures must not be silent ──
 
 class TestServeRegression:
+    @pytest.mark.parametrize("invalid_whitespace", ["\v", "\f", "\u00A0"])
+    def test_non_json_whitespace_is_not_stripped(
+            self, tmp_path, invalid_whitespace):
+        request = json.dumps(_req("ping"))
+        in_stream = io.StringIO(
+            invalid_whitespace + request + invalid_whitespace + "\n",
+        )
+        out_stream = io.StringIO()
+
+        srv.serve(
+            session_file=str(tmp_path / "session.json"),
+            in_stream=in_stream,
+            out_stream=out_stream,
+        )
+
+        response = json.loads(out_stream.getvalue())
+        assert response["id"] is None
+        assert response["error"]["code"] == srv.PARSE_ERROR
+
+    def test_json_space_and_tab_framing_remains_valid(self, tmp_path):
+        request = json.dumps(_req("ping"))
+        in_stream = io.StringIO(" \t" + request + "\t \r\n")
+        out_stream = io.StringIO()
+
+        srv.serve(
+            session_file=str(tmp_path / "session.json"),
+            in_stream=in_stream,
+            out_stream=out_stream,
+        )
+
+        response = json.loads(out_stream.getvalue())
+        assert response["result"] == {}
+
     def test_unexpected_failure_emits_internal_error_and_recovers(self, tmp_path, monkeypatch):
         """A bug in handle_line() itself (not a _ProtocolError, not caught
         anywhere else) must still produce a flushed -32603 response with a

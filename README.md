@@ -684,7 +684,8 @@ values before backend dispatch. JSON-RPC request IDs are bounded to 4,096-charac
 256-bit integers, and excessive integer tokens or JSON nesting beyond 64 levels produce parse
 errors without terminating the server before the next request. JSON-RPC array params remain
 structurally valid, but MCP request handlers require objects while notifications never receive
-validation responses. A missing session JSON stays in memory without creating its parent
+validation responses. The stdio loop removes only CR/LF framing; non-JSON whitespace is left for
+the strict decoder to reject. A missing session JSON stays in memory without creating its parent
 directory or lock sidecar, so stateless Click commands do not require a writable session
 location. ROM headers are read only after the opened descriptor itself
 is confirmed to be a regular 1..32 MiB file. MCP checksum is computed locally from that same
