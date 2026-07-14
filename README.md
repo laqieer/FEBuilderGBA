@@ -712,6 +712,14 @@ version probes are limited to 4,096 characters, and `names_resolve` limits each 
 and stderr are bounded to a 65,536-character decoded prefix while both pipes are concurrently
 drained; discarded remainder is still counted for truthful truncation metadata. This pipe-level
 bound prevents unbounded backend buffering without changing Click callers' full-capture behavior.
+MCP response limits are per field and cardinality rather than one 65,536-character aggregate
+envelope: fixed schemas and documented item limits bound the total response, while JSON escaping
+may make its serialized representation longer than the retained character counts.
+Each bounded backend is also isolated in a POSIX process group or a Windows kill-on-close Job
+Object (assigned while the process is suspended). Timeout/error cleanup terminates that whole
+lifetime before joining pipe readers, and successful calls close it to reap stray descendants;
+Click's legacy subprocess path is unchanged. A POSIX descendant that deliberately creates a new
+session is outside this process-group contract.
 MCP backend stdin is detached to `DEVNULL`, so a backend tool cannot consume pending JSON-RPC
 protocol frames from the long-lived server; bounded MCP capture rejects `capture=False` before
 resolver or subprocess execution. `rom_info` and `session_open` now derive metadata only from
@@ -720,18 +728,26 @@ their locally validated descriptor and permanently return `lint_output: ""` and
 `rom_lint` validates and copies the opened ROM descriptor to a temporary `.gba` snapshot before
 the backend sees it. The same private-snapshot protection covers `data_export`, `data_roundtrip`,
 `names_resolve`, `text_search`, `text_roundtrip`, and `palette_export` while an MCP request is in
-flight, so none of them expose the caller's own path to the backend either. `data_import` and
+flight, so none of them expose the caller's own path to the backend either. MCP `text_search`
+passes its 1..500 result limit into the backend's bounded search command and parses only that
+bounded stdout; it does not create a complete temporary TSV export. `data_import` and
 `palette_import` mutate that private snapshot instead, and only copy a freshly revalidated result
 back through the originally opened descriptor — confirmed by descriptor identity, never by
-reopening the path — once the backend exits `0`; that write-back is identity-safe but not
-crash-atomic. For a session-owned ROM, the session lock is acquired before write-back; a lock
+reopening the path — once the backend exits `0` and the private snapshot has been removed
+successfully. The source digest is a point-in-time check immediately before write-back, not a
+cross-process content lock: a same-inode writer in the digest-to-write interval remains outside
+the protocol and may be overwritten. The write-back is descriptor-bound but not crash-atomic.
+For a session-owned ROM, the session lock is acquired before write-back; a lock
 timeout therefore leaves the original untouched, while a later session-file failure verifies that
 the committed bytes are still unchanged and restores the exact pre-commit bytes through the same
 descriptor before returning an error. Rollback refuses any path, size, or content change detected
 before restoration; concurrent body writes during restoration remain outside the non-transactional
-filesystem contract. Any other outcome, or a size/content/identity mismatch, leaves the original
-ROM and session history untouched. Any snapshot path that leaks into backend stdout/stderr is
-rewritten back to the caller's real path before an MCP response is returned. An MCP backend call
+filesystem contract. A failed pre-write check leaves the original ROM and session history
+untouched. Any snapshot path that leaks into backend stdout/stderr is rewritten back to the
+caller's real path before an MCP response is returned; replacement expansion is re-capped and the
+final response bound is re-enforced before serialization. Snapshot-cleanup errors are path-free
+for the same reason, as are validation errors for backend-mutated private snapshots and backend
+spawn/timeout/OS errors that contain a registered snapshot spelling. An MCP backend call
 for any `--rom` path that was not itself registered this way is refused before the resolver or
 subprocess ever runs, while Click continues to pass its own `--rom` path straight through for all
 of these commands exactly as before. MCP only accepts an explicit backend, prebuilt apphost, or

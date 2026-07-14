@@ -274,28 +274,37 @@ attacker-influenced text fed straight back to the calling agent.
 - **Read-only tools** (`data_export`, `data_roundtrip`, `names_resolve`, `text_search`,
   `text_roundtrip`, `palette_export`, `rom_lint`) copy the validated bytes into the snapshot and
   never reopen the resolved path, so the backend only ever sees the bytes validated up front, even
-  if the underlying file is replaced, removed, or resized mid-call.
+  if the underlying file is replaced, removed, or resized mid-call. `text_search` additionally
+  passes its 1..500 result limit into the backend's bounded search command and parses only that
+  bounded stdout; it never creates a complete temporary TSV export in MCP scope.
 - **Mutating tools** (`data_import`, `palette_import`) keep the original file descriptor open
   read-write for the whole call and hand the backend a snapshot copy to mutate. The mutated
   snapshot is committed back through that *same* descriptor only after the backend reports exit
-  code `0`, and only once the snapshot itself revalidates as a 1..32 MiB GBA ROM, the resolved
+  code `0`, the private snapshot has been removed successfully, and the captured bytes revalidate
+  as a 1..32 MiB GBA ROM. The resolved
   pathname still identifies the exact same file the descriptor was opened from (checked with
   `os.stat`/`os.fstat` via `os.path.samestat` **only** — never a string/normcase path comparison),
-  and the bytes originally read through that descriptor are still byte-for-byte unchanged. The
+  and the bytes originally read through that descriptor are still byte-for-byte unchanged at the
+  point-in-time digest immediately before write-back. There is no cross-process content lock
+  across the following write, so a same-inode writer in that interval remains outside the
+  protocol and may be overwritten. The
   write-back itself (rewind/write/truncate/flush/`fsync`, then a final size+identity re-check) is
-  **identity-safe but not crash-atomic**: interruption during write/truncate/flush/`fsync` can
+  **descriptor-bound but not crash-atomic**: interruption during write/truncate/flush/`fsync` can
   leave partially updated or mixed old/new bytes, retain an old trailing suffix when the
-  replacement is shorter, or leave completed writes not durably persisted. Any failed check —
-  including the backend itself failing, timing out, or raising — aborts with no write and no
-  session history/modified flag, exactly as if the tool call itself had failed. For a
+  replacement is shorter, or leave completed writes not durably persisted. Any failed pre-write
+  check — including the backend itself failing, timing out, or raising — aborts with no write and
+  no session history/modified flag, exactly as if the tool call itself had failed. For a
   session-owned ROM, the session lock is acquired before descriptor write-back, so a lock timeout
   commits nothing. If the matching session-file write then fails, the committed bytes are first
   verified unchanged and the exact pre-commit bytes are restored through that descriptor before
   the tool reports failure. Rollback refuses any path, size, or content change detected before
   restoration; concurrent body writes during restoration remain outside the non-transactional
   filesystem contract.
-- Every temporary snapshot is removed once its tool call returns, whether it succeeded, the
-  backend failed, or the call raised — never left behind.
+- Snapshot cleanup is attempted on every exit path. For mutating success, cleanup is a pre-commit
+  requirement: an unlink failure occurs before the original descriptor is touched, so the result
+  is safe to retry. A persistent filesystem cleanup failure is surfaced and can leave the private
+  snapshot for operator cleanup rather than being reported as a successful mutation; the error
+  text remains path-free.
 - `run_cli` additionally enforces an **MCP-only seam guard**: while a tool handler is executing,
   every `--rom` argument passed to the backend (either `--rom=<path>` or `--rom <path>`) must name
   a path already registered as a private snapshot by the tool's wrapper, or the call is rejected
@@ -303,9 +312,14 @@ attacker-influenced text fed straight back to the calling agent.
   spawned. This is a value/path check, not just an argv-shape allowlist, so it also fails closed
   on any future/unknown tool that forgets to snapshot. The guard is completely inert outside MCP's
   dynamic scope — the Click CLI's historic direct-path behavior is unchanged.
-- Internal snapshot paths are stripped from backend stdout/stderr before they reach a tool result
-  — callers only ever see their own resolved path, and `_BoundedOutput`'s `original_length`/
-  `truncated` metadata (see [Output bounds](#output-bounds)) survives the substitution.
+- Internal snapshot paths are stripped from backend stdout/stderr before they reach a tool result,
+  and backend spawn/timeout/OS errors replace every registered snapshot spelling with a path-free
+  placeholder. Callers only ever see their own resolved path in backend output, and
+  `_BoundedOutput`'s `original_length`/
+  `truncated` metadata (see [Output bounds](#output-bounds)) survives the substitution. If a
+  longer caller path expands the retained prefix, the substituted output is re-capped to that
+  prefix and marked truncated; the generic response boundary independently re-enforces its hard
+  cap before serialization.
 - `rom_checksum`'s advisory exit-2 "invalid header" result is computed locally and does not
   invoke the backend at all — it is unrelated to, and unaffected by, any of the above.
 
@@ -357,14 +371,30 @@ attacker-influenced text fed straight back to the calling agent.
 | `table` (data tools) | 128 chars | schema `maxLength` |
 | `addr` (palette tools) | 64 chars | schema `maxLength` |
 
+These are per-field and cardinality bounds, not a single 65,536-character limit on the complete
+serialized tool response. Fixed schemas plus the documented item/count limits keep every response
+finite; JSON escaping can make the wire representation longer than the retained character counts.
+
 For MCP backend invocations, stdout and stderr are bounded **while their pipes are concurrently
 drained**, not only when the response is serialized. The server retains at most the 65,536-character
 decoded prefix of each stream, continues discarding/draining the remainder to avoid a pipe deadlock,
 and reports the exact decoded source length when truncation occurred. Click callers retain their
-existing full-capture behavior. MCP backend stdin is detached to `DEVNULL`, preventing a backend
+existing full-capture behavior. Each bounded backend starts in a new POSIX process group or in a
+Windows kill-on-close Job Object assigned while the process is suspended. Timeout/error cleanup
+terminates that complete lifetime before pipe readers are joined, and a successful call closes the
+lifetime to reap descendants that detached their pipes. This remains bounded even when the direct
+backend parent exits before a pipe-inheriting child. Click's legacy subprocess path is unchanged.
+A POSIX descendant that deliberately creates a new session is outside this process-group contract.
+MCP backend stdin is detached to `DEVNULL`, preventing a backend
 tool from consuming pending JSON-RPC frames from the server's protocol input. A bounded MCP call
 with `capture=False` fails closed before backend resolution or subprocess launch, preventing
 protocol stdout/stdin inheritance.
+
+MCP `text_search` forwards the requested count bound to `FEBuilderGBA.CLI --search-text
+--limit=<n>`. The backend still computes the exact total match count, but emits at most `n`
+96-character previews plus that total, keeping capture and Python parsing bounded without a
+temporary full-text export. The Click harness omits this internal limit and retains its historical
+full-TSV search behavior.
 
 All input-side bounds above are enforced by the closed JSON Schema itself (rejected as
 `-32602 Invalid params`, never silently coerced/truncated). Backend stdout/stderr are bounded

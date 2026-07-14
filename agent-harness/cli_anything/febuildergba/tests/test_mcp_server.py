@@ -1147,11 +1147,20 @@ class TestMutatingSessionPersistence:
             ),
         ],
     )
-    @pytest.mark.parametrize("failure_mode", ["lock_timeout", "write_failure"])
+    @pytest.mark.parametrize(
+        "failure_mode",
+        [
+            "lock_timeout",
+            "write_failure",
+            "cleanup_failure",
+            "invalid_snapshot",
+        ],
+    )
     def test_session_failure_never_leaves_committed_rom_or_phantom_state(
             self, tool_name, module_name, arguments, failure_mode,
             initialized_state, monkeypatch, tmp_path):
         import importlib
+        from cli_anything.febuildergba.core import project
         from cli_anything.febuildergba.core import session as session_module
 
         module = importlib.import_module(module_name)
@@ -1175,8 +1184,12 @@ class TestMutatingSessionPersistence:
             )
             seen["snapshot_path"] = snapshot_path
             with open(snapshot_path, "r+b") as stream:
-                stream.seek(0x1000)
-                stream.write(b"MUTATED!")
+                if failure_mode == "invalid_snapshot":
+                    stream.seek(project._GBA_FIXED_VALUE_OFFSET)
+                    stream.write(b"\x00")
+                else:
+                    stream.seek(0x1000)
+                    stream.write(b"MUTATED!")
             return subprocess.CompletedProcess(
                 args, 0, stdout="", stderr="",
             )
@@ -1191,12 +1204,26 @@ class TestMutatingSessionPersistence:
                 "_try_acquire_lock",
                 lambda lock_file: False,
             )
-        else:
+        elif failure_mode == "write_failure":
             def fail_write():
                 raise PermissionError("session write denied")
 
             monkeypatch.setattr(
                 initialized_state.session, "_write_unlocked", fail_write,
+            )
+        elif failure_mode == "cleanup_failure":
+            real_unlink = project.os.unlink
+            cleanup_attempts = 0
+
+            def fail_first_snapshot_unlink(path):
+                nonlocal cleanup_attempts
+                cleanup_attempts += 1
+                if cleanup_attempts == 1:
+                    raise PermissionError("snapshot cleanup denied")
+                return real_unlink(path)
+
+            monkeypatch.setattr(
+                project.os, "unlink", fail_first_snapshot_unlink,
             )
 
         call_arguments = dict(arguments)
@@ -1208,6 +1235,11 @@ class TestMutatingSessionPersistence:
         assert initialized_state.session.state.to_dict() == before_state
         assert initialized_state.session.path.read_bytes() == before_session
         assert not os.path.exists(seen["snapshot_path"])
+        if failure_mode == "cleanup_failure":
+            assert cleanup_attempts == 2
+            assert seen["snapshot_path"] not in json.dumps(response)
+        if failure_mode == "invalid_snapshot":
+            assert seen["snapshot_path"] not in json.dumps(response)
 
 
 class TestImageQuantizeContract:
@@ -1354,6 +1386,46 @@ class TestForceVersionPrecedence:
 # ── Advisory vs hard tool errors ──────────────────────────────────────────
 
 class TestAdvisoryVsHardErrors:
+    @pytest.mark.parametrize(
+        "failure",
+        ["missing", "timeout"],
+    )
+    def test_backend_execution_error_does_not_expose_private_snapshot_path(
+            self, initialized_state, monkeypatch, tmp_path, failure):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        rom_path = tmp_path / "r.gba"
+        _write_valid_test_rom(rom_path)
+        seen = {}
+
+        monkeypatch.setattr(
+            backend, "find_febuildergba_cli", lambda: ["fake-backend"])
+
+        def fail_bounded(cmd, timeout, max_chars):
+            snapshot_path = next(
+                arg.split("=", 1)[1]
+                for arg in cmd
+                if isinstance(arg, str) and arg.startswith("--rom=")
+            )
+            seen["snapshot_path"] = snapshot_path
+            if failure == "missing":
+                raise FileNotFoundError("backend missing")
+            raise subprocess.TimeoutExpired(cmd, timeout)
+
+        monkeypatch.setattr(backend, "_run_cli_bounded", fail_bounded)
+
+        response = _call_tool(
+            initialized_state,
+            "text_search",
+            {"rom_path": str(rom_path), "query": "Eirika"},
+        )
+        serialized = json.dumps(response)
+
+        assert response["result"]["isError"] is True
+        assert seen["snapshot_path"] not in serialized
+        assert backend._PRIVATE_ROM_SNAPSHOT_LABEL in serialized
+        assert not os.path.exists(seen["snapshot_path"])
+
     @pytest.mark.parametrize("tool_name", ["rom_info", "session_open"])
     def test_metadata_lint_is_permanently_not_attempted(
             self, initialized_state, monkeypatch, tmp_path, tool_name):
@@ -1662,8 +1734,14 @@ class TestBounds:
         initialized_state.session.open_rom(rom, "FE8U", 1)
         matches = [{"id": str(i), "text": f"row{i}"} for i in range(120)]
 
-        def fake_search(rom_path, query, force_version=""):
-            return {"query": query, "matches": matches, "match_count": len(matches), "exit_code": 0}
+        def fake_search(rom_path, query, force_version="", limit=None):
+            assert limit == srv.TEXT_SEARCH_DEFAULT_LIMIT
+            return {
+                "query": query,
+                "matches": matches[:limit],
+                "match_count": len(matches),
+                "exit_code": 0,
+            }
         monkeypatch.setattr("cli_anything.febuildergba.core.text.search_text", fake_search)
 
         resp = _call_tool(initialized_state, "text_search", {"query": "row", "limit": 50})
@@ -1671,6 +1749,19 @@ class TestBounds:
         assert payload["total"] == 120
         assert payload["returned"] == 50
         assert payload["truncated"] is True
+
+    def test_backend_metadata_cannot_bypass_final_string_cap(self):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        source = backend._BoundedOutput(
+            "x" * (srv.MAX_STRING_LEN + 100),
+            original_length=10,
+            truncated=True,
+        )
+        payload = srv._bound_string_fields({"stdout": source})
+        assert len(payload["stdout"]) == srv.MAX_STRING_LEN
+        assert payload["stdout_truncated"] is True
+        assert payload["stdout_original_length"] == len(source)
 
     def test_lint_bounds_metadata(self, initialized_state, monkeypatch, tmp_path):
         rom = str(tmp_path / "r.gba")
@@ -1983,8 +2074,14 @@ class TestBounds:
         overlong = "x" * (srv.MAX_ITEM_STRING_LEN + 500)
         matches = [{"id": "1", "text": overlong}, {"id": "2", "text": "short"}]
 
-        def fake_search(rom_path, query, force_version=""):
-            return {"query": query, "matches": matches, "match_count": len(matches), "exit_code": 0}
+        def fake_search(rom_path, query, force_version="", limit=None):
+            assert limit == 50
+            return {
+                "query": query,
+                "matches": matches[:limit],
+                "match_count": len(matches),
+                "exit_code": 0,
+            }
         monkeypatch.setattr("cli_anything.febuildergba.core.text.search_text", fake_search)
 
         resp = _call_tool(initialized_state, "text_search", {"query": "x"})

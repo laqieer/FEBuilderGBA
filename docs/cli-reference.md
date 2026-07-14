@@ -898,7 +898,8 @@ required and optional flags. Each is verified against its `Run*` handler in
   `--addr=<hex>`; optional `--length=<int>` (default 256). **Exit:** 0 on success, 1 on
   usage error.
 - **`--search-text`** — Search the decoded text of every ROM text entry (case-insensitive).
-  Requires `--rom` and `--query=<text>`. **Exit:** 0 on success, 1 on usage error.
+  Requires `--rom` and `--query=<text>`; optional `--limit=<1-500>` bounds printed matches while
+  the final summary still reports the exact total. **Exit:** 0 on success, 1 on usage error.
 - **`--text-refs`** — List every ROM entry that references a text ID (via the text-ref table
   registry). Requires `--rom` and `--text-id=<hex|dec>`. **Exit:** 0 on success, 1 on usage
   error.

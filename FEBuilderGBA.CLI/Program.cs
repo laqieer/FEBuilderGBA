@@ -586,6 +586,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --length=<int>         Number of bytes to dump (default: 256)");
             Console.WriteLine("  --search-text            Search for text pattern across all ROM text entries (requires --rom, --query)");
             Console.WriteLine("    --query=<text>         Text pattern to search for (case-insensitive)");
+            Console.WriteLine("    --limit=<1-500>        Print at most this many matches (optional)");
             Console.WriteLine("  --text-refs              List ROM entries that reference a text ID (requires --rom, --text-id)");
             Console.WriteLine("    --text-id=<hex|dec>    Text ID to look up (e.g., 0x0213 or 531)");
             Console.WriteLine("  --list-patches           List available patches and their install status (requires --rom)");
@@ -4372,6 +4373,15 @@ namespace FEBuilderGBA.CLI
 
             string romPath = argsDic["--rom"];
             string query = argsDic["--query"];
+            int outputLimit = int.MaxValue;
+            bool boundedOutput = argsDic.ContainsKey("--limit");
+            if (boundedOutput &&
+                (!int.TryParse(argsDic["--limit"], out outputLimit) ||
+                 outputLimit < 1 || outputLimit > 500))
+            {
+                Console.Error.WriteLine("Error: --limit must be an integer from 1 through 500");
+                return 1;
+            }
 
             RomLoader.InitEnvironment();
             string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
@@ -4388,6 +4398,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine();
 
             int matches = 0;
+            int emitted = 0;
             foreach (var (textId, text) in entries)
             {
                 if (string.IsNullOrEmpty(text))
@@ -4395,12 +4406,18 @@ namespace FEBuilderGBA.CLI
 
                 if (text.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0)
                 {
-                    // Truncate long texts for display
-                    string display = text.Replace("\n", "\\n").Replace("\r", "");
-                    if (display.Length > 120)
-                        display = display.Substring(0, 117) + "...";
-                    Console.WriteLine($"  0x{textId:X04}  {display}");
                     matches++;
+                    if (emitted < outputLimit)
+                    {
+                        // Bounded mode keeps 500 rows plus the exact total
+                        // comfortably inside the MCP pipe-capture budget.
+                        int displayLimit = boundedOutput ? 96 : 120;
+                        string display = text.Replace("\n", "\\n").Replace("\r", "");
+                        if (display.Length > displayLimit)
+                            display = display.Substring(0, displayLimit - 3) + "...";
+                        Console.WriteLine($"  0x{textId:X04}  {display}");
+                        emitted++;
+                    }
                 }
             }
 

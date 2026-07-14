@@ -166,6 +166,17 @@ def _read_stream_exact(stream, size: int) -> bytes:
     return b"".join(chunks)
 
 
+def _remove_private_snapshot(path: str, phase: str) -> None:
+    """Remove an internal snapshot without exposing its path in errors."""
+    try:
+        os.unlink(path)
+    except FileNotFoundError:
+        return
+    except OSError as exc:
+        raise RuntimeError(
+            f"Failed to remove private ROM snapshot {phase}") from exc
+
+
 @contextmanager
 def validated_rom_snapshot(rom_path: str, require_checksum: bool = True):
     """Yield a secure snapshot copied from one validated ROM descriptor.
@@ -189,10 +200,7 @@ def validated_rom_snapshot(rom_path: str, require_checksum: bool = True):
         if snapshot_fd is not None:
             os.close(snapshot_fd)
         if snapshot_path is not None:
-            try:
-                os.unlink(snapshot_path)
-            except FileNotFoundError:
-                pass
+            _remove_private_snapshot(snapshot_path, "during cleanup")
 
 
 class MutatingRomSnapshot:
@@ -239,21 +247,38 @@ class MutatingRomSnapshot:
 
         Only then does this seek/write/truncate/flush/``os.fsync`` the
         original descriptor, followed by a final size + identity re-check.
+        There is no cross-process content lock between the point-in-time
+        digest in step 3 and the following write, so a same-inode writer in
+        that interval remains outside this protocol and may be overwritten.
 
-        This write-back is identity-safe (it only ever targets the exact
-        descriptor/path validated immediately beforehand) but it is **not
+        This write-back is descriptor-bound (it only ever targets the exact
+        descriptor validated immediately beforehand) but it is **not
         crash-atomic**: interruption during write/truncate/flush/fsync can
         leave partially updated or mixed old/new bytes, retain an old
         trailing suffix when the replacement is shorter, or leave completed
         writes not durably persisted. It does not provide all-or-nothing
         replacement.
         """
-        with _open_validated_rom(self.path, self._require_checksum) as (
-                mutated_stream, _mutated_header, mutated_size):
-            mutated_stream.seek(0)
-            mutated_bytes = mutated_stream.read(mutated_size)
-            if len(mutated_bytes) != mutated_size:
-                raise OSError("Failed to read complete mutated ROM snapshot")
+        try:
+            with _open_validated_rom(self.path, self._require_checksum) as (
+                    mutated_stream, _mutated_header, mutated_size):
+                mutated_stream.seek(0)
+                mutated_bytes = mutated_stream.read(mutated_size)
+                if len(mutated_bytes) != mutated_size:
+                    raise OSError(
+                        "Failed to read complete mutated ROM snapshot")
+        except (OSError, ValueError) as exc:
+            detail = str(exc).replace(
+                self.path, "<private ROM snapshot>")
+            raise RuntimeError(
+                f"Backend-mutated ROM snapshot validation failed: {detail}"
+            ) from exc
+
+        # Cleanup must succeed before touching the original descriptor.
+        # Otherwise an unlink failure after a successful write-back would
+        # turn committed state into an error-shaped response that is unsafe
+        # for the caller to retry.
+        _remove_private_snapshot(self.path, "before write-back")
 
         try:
             current_path_stat = os.stat(self._original_path)
@@ -391,8 +416,10 @@ def mutating_rom_snapshot(rom_path: str, require_checksum: bool = True):
     the entire body of the ``with`` block, so a later ``commit()`` writes
     back through the identical descriptor the source bytes/digest were
     captured from — never by reopening or replacing the caller's pathname.
-    The snapshot file is always removed on the way out, whether or not a
-    commit happened.
+    Snapshot cleanup is attempted on every exit path. A successful commit
+    requires cleanup before the original descriptor is touched; a persistent
+    cleanup failure is surfaced and may leave the private path for operator
+    cleanup.
     """
     snapshot_path = None
     snapshot_fd = None
@@ -419,10 +446,7 @@ def mutating_rom_snapshot(rom_path: str, require_checksum: bool = True):
         if snapshot_fd is not None:
             os.close(snapshot_fd)
         if snapshot_path is not None:
-            try:
-                os.unlink(snapshot_path)
-            except FileNotFoundError:
-                pass
+            _remove_private_snapshot(snapshot_path, "during cleanup")
 
 
 class _DirectRomHandle:

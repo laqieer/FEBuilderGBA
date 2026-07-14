@@ -28,6 +28,50 @@ def _touch(path) -> str:
     return str(path)
 
 
+def _process_is_active(process_id: int) -> bool:
+    if os.name != "nt":
+        try:
+            os.kill(process_id, 0)
+            return True
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return True
+
+    import ctypes
+    from ctypes import wintypes
+
+    process_query_limited_information = 0x1000
+    still_active = 259
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.OpenProcess.argtypes = [
+        wintypes.DWORD,
+        wintypes.BOOL,
+        wintypes.DWORD,
+    ]
+    kernel32.OpenProcess.restype = wintypes.HANDLE
+    kernel32.GetExitCodeProcess.argtypes = [
+        wintypes.HANDLE,
+        ctypes.POINTER(wintypes.DWORD),
+    ]
+    kernel32.GetExitCodeProcess.restype = wintypes.BOOL
+    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel32.CloseHandle.restype = wintypes.BOOL
+
+    handle = kernel32.OpenProcess(
+        process_query_limited_information, False, process_id)
+    if not handle:
+        return False
+    try:
+        exit_code = wintypes.DWORD()
+        if not kernel32.GetExitCodeProcess(
+                handle, ctypes.byref(exit_code)):
+            raise ctypes.WinError(ctypes.get_last_error())
+        return exit_code.value == still_active
+    finally:
+        kernel32.CloseHandle(handle)
+
+
 # Every MCP ROM-touching wrapper (issue #1942 / PR #1971): module import
 # path, function name (for readable parametrize ids), whether it mutates the
 # ROM, and a small adapter invoking it with the minimum valid arguments given
@@ -384,6 +428,176 @@ class TestBackend:
                 backend.run_cli([], timeout=0.1)
         assert time.monotonic() - started < 3
 
+    @pytest.mark.parametrize(
+        "failure",
+        ["missing", "timeout", "os_error"],
+    )
+    @pytest.mark.parametrize(
+        "arg_form",
+        ["equals-absolute", "two-token-absolute", "equals-relative"],
+    )
+    def test_execution_errors_redact_registered_snapshot_paths(
+            self, monkeypatch, tmp_path, failure, arg_form):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        snapshot = tmp_path / "private-snapshot.gba"
+        snapshot.write_bytes(b"x")
+        monkeypatch.chdir(tmp_path)
+        if arg_form == "equals-absolute":
+            rom_args = [f"--rom={snapshot}"]
+            private_spelling = str(snapshot)
+        elif arg_form == "two-token-absolute":
+            rom_args = ["--rom", str(snapshot)]
+            private_spelling = str(snapshot)
+        else:
+            rom_args = [f"--rom={snapshot.name}"]
+            private_spelling = snapshot.name
+
+        def fail_bounded(cmd, timeout, max_chars):
+            if failure == "missing":
+                raise FileNotFoundError("backend missing")
+            if failure == "timeout":
+                raise subprocess.TimeoutExpired(cmd, timeout)
+            raise PermissionError(
+                f"cannot execute {private_spelling} or {snapshot}")
+
+        monkeypatch.setattr(
+            backend, "find_febuildergba_cli", lambda: ["fake-backend"])
+        monkeypatch.setattr(backend, "_run_cli_bounded", fail_bounded)
+
+        with backend.prebuilt_backend_only():
+            with backend.register_rom_snapshot(str(snapshot)):
+                with backend.bounded_capture(16):
+                    with pytest.raises(RuntimeError) as exc_info:
+                        backend.run_cli(["--lint", *rom_args], timeout=1)
+
+        message = str(exc_info.value)
+        assert str(snapshot) not in message
+        assert private_spelling not in message
+        assert backend._PRIVATE_ROM_SNAPSHOT_LABEL in message
+
+    def test_execution_error_keeps_unregistered_caller_path(
+            self, monkeypatch, tmp_path):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        caller_path = str(tmp_path / "caller.gba")
+        monkeypatch.setattr(
+            backend, "find_febuildergba_cli", lambda: ["fake-backend"])
+
+        def timeout(*args, **kwargs):
+            raise subprocess.TimeoutExpired(["fake-backend"], 1)
+
+        monkeypatch.setattr(backend.subprocess, "run", timeout)
+
+        with pytest.raises(RuntimeError) as exc_info:
+            backend.run_cli([f"--rom={caller_path}"], timeout=1)
+
+        assert caller_path in str(exc_info.value)
+        assert backend._PRIVATE_ROM_SNAPSHOT_LABEL not in str(exc_info.value)
+
+    @pytest.mark.parametrize(
+        "inherit_pipes",
+        [False, True],
+        ids=["successful-parent", "timed-out-inherited-pipes"],
+    )
+    def test_bounded_capture_reaps_backend_descendants(
+            self, monkeypatch, tmp_path, inherit_pipes):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        ready = tmp_path / "child.ready"
+        trigger = tmp_path / "child.trigger"
+        sentinel = tmp_path / "child.survived"
+        child_pid = tmp_path / "child.pid"
+        child_script = (
+            "import pathlib, time\n"
+            f"ready = pathlib.Path({str(ready)!r})\n"
+            f"trigger = pathlib.Path({str(trigger)!r})\n"
+            f"sentinel = pathlib.Path({str(sentinel)!r})\n"
+            "ready.write_text('ready')\n"
+            "while not trigger.exists():\n"
+            "    time.sleep(0.01)\n"
+            "time.sleep(0.25)\n"
+            "sentinel.write_text('survived')\n"
+        )
+        stdio = "" if inherit_pipes else (
+            ", stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL")
+        parent_script = (
+            "import pathlib, subprocess, sys, time\n"
+            f"ready = pathlib.Path({str(ready)!r})\n"
+            f"child = subprocess.Popen("
+            f"[sys.executable, '-c', {child_script!r}]{stdio})\n"
+            f"pathlib.Path({str(child_pid)!r}).write_text(str(child.pid))\n"
+            "deadline = time.monotonic() + 5\n"
+            "while not ready.exists() and time.monotonic() < deadline:\n"
+            "    time.sleep(0.01)\n"
+            "if not ready.exists():\n"
+            "    raise SystemExit(3)\n"
+        )
+        monkeypatch.setattr(
+            backend,
+            "find_febuildergba_cli",
+            lambda: [sys.executable, "-c", parent_script],
+        )
+
+        created_readers = []
+        real_thread = backend.threading.Thread
+
+        def track_thread(*args, **kwargs):
+            reader = real_thread(*args, **kwargs)
+            created_readers.append(reader)
+            return reader
+
+        monkeypatch.setattr(backend.threading, "Thread", track_thread)
+
+        with backend.bounded_capture(32):
+            if inherit_pipes:
+                with pytest.raises(RuntimeError, match="timed out"):
+                    backend.run_cli([], timeout=1)
+            else:
+                result = backend.run_cli([], timeout=5)
+                assert result.returncode == 0
+
+        assert ready.is_file()
+        assert child_pid.is_file()
+        assert created_readers
+        assert all(not reader.is_alive() for reader in created_readers)
+
+        process_id = int(child_pid.read_text())
+        deadline = time.monotonic() + 0.5
+        while _process_is_active(process_id) and time.monotonic() < deadline:
+            time.sleep(0.01)
+        descendant_survived = _process_is_active(process_id)
+
+        trigger.write_text("continue")
+        time.sleep(0.5)
+        assert descendant_survived is False
+        assert not sentinel.exists()
+
+    @pytest.mark.skipif(os.name != "nt", reason="Windows Job Object only")
+    def test_windows_job_close_failure_retains_handle_for_retry(
+            self, monkeypatch):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        lifetime = backend._WindowsBoundedProcessLifetime()
+        job_handle = lifetime._handle
+        real_close = backend._close_windows_handle
+        retained = False
+        try:
+            def fail_close(_handle):
+                raise OSError("injected CloseHandle failure")
+
+            monkeypatch.setattr(backend, "_close_windows_handle", fail_close)
+            with pytest.raises(OSError, match="injected CloseHandle failure"):
+                lifetime.close()
+            retained = lifetime._handle == job_handle
+        finally:
+            monkeypatch.setattr(
+                backend, "_close_windows_handle", real_close)
+            lifetime.close()
+
+        assert retained is True
+        assert lifetime._handle is None
+
     def test_bounded_capture_detaches_backend_stdin_from_pending_frames(self):
         """A bounded backend must not consume the MCP server's next request."""
         harness_root = Path(__file__).resolve().parents[3]
@@ -667,11 +881,144 @@ class TestSanitizeSnapshotPath:
         assert result.original_length == 9000
         assert result.truncated is True
 
+    def test_replacement_expansion_is_recapped_to_retained_prefix(self):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+        source = backend._BoundedOutput(
+            "snap=/s", original_length=7, truncated=False)
+        result = backend.sanitize_snapshot_path(
+            source, "/s", "/a/much/longer/caller/path.gba")
+        assert isinstance(result, backend._BoundedOutput)
+        assert len(result) == len(source)
+        assert "/s" not in result
+        assert result.original_length == 7
+        assert result.truncated is True
+
     @pytest.mark.parametrize("bad_text", [None, 123, [], b"bytes-not-str"])
     def test_noop_for_non_string_input(self, bad_text):
         from cli_anything.febuildergba.utils import febuildergba_backend as backend
         assert backend.sanitize_snapshot_path(
             bad_text, "/tmp/snap.gba", "/rom/real.gba") is bad_text
+
+
+class TestBoundedTextSearch:
+    """MCP's text-search path must not create or parse a full TSV export."""
+
+    def test_uses_backend_limit_and_preserves_exact_total(
+            self, monkeypatch, tmp_path):
+        from cli_anything.febuildergba.core import text
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        rom_file = tmp_path / "rom.gba"
+        _write_valid_test_rom(rom_file, b"BE8E")
+        rom_path = str(rom_file)
+        calls = []
+        snapshot_paths = []
+        stdout = backend._BoundedOutput(
+            "ROM: snapshot.gba\n"
+            "Loading and decoding all text entries...\n"
+            "Searching 9 text entries for: \"a\"\n\n"
+            "  0x0001  Alpha\n"
+            "  0x0002  Beta\n\n"
+            "Found 7 matches in 9 text entries.\n",
+            original_length=170,
+            truncated=False,
+        )
+
+        def fake_run_cli(args):
+            calls.append(args)
+            snapshot_path = args[1].split("=", 1)[1]
+            snapshot_paths.append(snapshot_path)
+            assert snapshot_path != rom_path
+            assert os.path.isfile(snapshot_path)
+            assert os.path.abspath(snapshot_path) in (
+                backend._registered_rom_snapshots.get())
+            return subprocess.CompletedProcess(
+                args, 0, stdout=stdout, stderr="")
+
+        monkeypatch.setattr(text, "run_cli", fake_run_cli)
+        with backend.prebuilt_backend_only():
+            result = text.search_text(
+                rom_path, "a", force_version="FE8U", limit=2)
+
+        assert len(calls) == 1
+        assert calls[0][0] == "--search-text"
+        assert calls[0][2:] == [
+            "--query=a", "--limit=2", "--force-version=FE8U"]
+        assert len(snapshot_paths) == 1
+        assert not os.path.exists(snapshot_paths[0])
+        assert result == {
+            "query": "a",
+            "matches": [
+                {"id": "0x0001", "text": "Alpha"},
+                {"id": "0x0002", "text": "Beta"},
+            ],
+            "match_count": 7,
+            "exit_code": 0,
+        }
+
+    @pytest.mark.parametrize("limit", [True, 0, 501, "2"])
+    def test_rejects_invalid_limit_before_backend_resolution(
+            self, monkeypatch, limit):
+        from cli_anything.febuildergba.core import text
+
+        monkeypatch.setattr(
+            text,
+            "run_cli",
+            lambda _args: pytest.fail("backend must not run"),
+        )
+        with pytest.raises((TypeError, ValueError)):
+            text.search_text("rom.gba", "a", limit=limit)
+
+    def test_rejects_truncated_backend_output(self, monkeypatch):
+        from cli_anything.febuildergba.core import text
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        output = backend._BoundedOutput(
+            "  0x0001  Alpha\n", original_length=100000, truncated=True)
+        monkeypatch.setattr(
+            text,
+            "run_cli",
+            lambda args: subprocess.CompletedProcess(
+                args, 0, stdout=output, stderr=""),
+        )
+
+        with pytest.raises(RuntimeError, match="exceeded the capture limit"):
+            text.search_text("rom.gba", "a", limit=1)
+
+    def test_rejects_missing_bounded_rows(self, monkeypatch):
+        from cli_anything.febuildergba.core import text
+
+        output = (
+            "  0x0001  Alpha\n"
+            "Found 3 matches in 9 text entries.\n"
+        )
+        monkeypatch.setattr(
+            text,
+            "run_cli",
+            lambda args: subprocess.CompletedProcess(
+                args, 0, stdout=output, stderr=""),
+        )
+
+        with pytest.raises(RuntimeError, match="malformed bounded"):
+            text.search_text("rom.gba", "a", limit=2)
+
+    def test_stops_at_first_row_beyond_limit(self, monkeypatch):
+        from cli_anything.febuildergba.core import text
+
+        output = (
+            "  0x0001  Alpha\n"
+            "  0x0002  Beta\n"
+            "Found 2 matches in 9 text entries.\n"
+        )
+        monkeypatch.setattr(
+            text,
+            "run_cli",
+            lambda args: subprocess.CompletedProcess(
+                args, 0, stdout=output, stderr=""),
+        )
+
+        with pytest.raises(RuntimeError, match="exceeded.*row limit"):
+            text.search_text("rom.gba", "a", limit=1)
 
 
 class TestLint:
@@ -2095,6 +2442,7 @@ class TestMutatingRomSnapshot:
             self._mutate(mutator.path)
             mutator.commit()
             assert mutator.committed is True
+            assert not os.path.exists(mutator.path)
             snapshot_path = mutator.path
 
         assert rom_path.read_bytes()[0x1000:0x1000 + 8] == b"MUTATED!"
@@ -2148,6 +2496,37 @@ class TestMutatingRomSnapshot:
 
         assert rom_path.read_bytes() == original_bytes
         assert not os.path.isfile(snapshot_path)
+
+    def test_cleanup_failure_aborts_before_original_write(
+            self, tmp_path, monkeypatch):
+        from cli_anything.febuildergba.core import project
+
+        rom_path = tmp_path / "rom.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
+        original_bytes = rom_path.read_bytes()
+        real_unlink = project.os.unlink
+        attempts = 0
+
+        def fail_first_snapshot_unlink(path):
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                raise PermissionError("simulated cleanup refusal")
+            return real_unlink(path)
+
+        monkeypatch.setattr(project.os, "unlink", fail_first_snapshot_unlink)
+
+        with pytest.raises(
+                RuntimeError,
+                match="Failed to remove private ROM snapshot before write-back"):
+            with project.mutating_rom_snapshot(str(rom_path)) as mutator:
+                snapshot_path = mutator.path
+                self._mutate(snapshot_path)
+                mutator.commit()
+
+        assert attempts == 2
+        assert not os.path.exists(snapshot_path)
+        assert rom_path.read_bytes() == original_bytes
 
     def test_commit_rejects_replaced_original_path(self, tmp_path):
         from cli_anything.febuildergba.core import project
@@ -2207,8 +2586,10 @@ class TestMutatingRomSnapshot:
             with open(mutator.path, "r+b") as f:
                 f.seek(project._MAX_ROM_SIZE)
                 f.write(b"\x00")
-            with pytest.raises(ValueError, match="larger than 32 MiB"):
+            with pytest.raises(
+                    RuntimeError, match="larger than 32 MiB") as exc:
                 mutator.commit()
+            assert mutator.path not in str(exc.value)
             assert mutator.committed is False
 
     def test_commit_rejects_invalid_header_mutated_result(self, tmp_path):
@@ -2220,8 +2601,10 @@ class TestMutatingRomSnapshot:
             with open(mutator.path, "r+b") as f:
                 f.seek(project._GBA_FIXED_VALUE_OFFSET)
                 f.write(b"\x00")
-            with pytest.raises(ValueError, match="missing fixed header byte"):
+            with pytest.raises(
+                    RuntimeError, match="missing fixed header byte") as exc:
                 mutator.commit()
+            assert mutator.path not in str(exc.value)
             assert mutator.committed is False
 
     @pytest.mark.parametrize(

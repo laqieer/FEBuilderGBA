@@ -2,6 +2,7 @@
 
 import csv
 import os
+import re
 import tempfile
 from typing import Optional
 
@@ -11,6 +12,10 @@ from cli_anything.febuildergba.utils.febuildergba_backend import (
     successful_output_size,
 )
 from cli_anything.febuildergba.core.project import backend_rom_snapshot
+
+_MAX_BOUNDED_SEARCH_RESULTS = 500
+_SEARCH_RESULT_RE = re.compile(r"^\s*0x([0-9A-Fa-f]{1,8})\s{2}(.*)$")
+_SEARCH_TOTAL_RE = re.compile(r"^Found ([0-9]+) matches in [0-9]+ text entries\.$")
 
 
 def export_text(rom_path: str, output_path: str,
@@ -102,20 +107,98 @@ def roundtrip_text(rom_path: str, output_prefix: str = "",
     }
 
 
-def search_text(rom_path: str, query: str, force_version: str = "") -> dict:
+def _search_text_bounded(rom_path: str, query: str, force_version: str,
+                         limit: int) -> dict:
+    """Use the backend's bounded search output instead of a temporary export."""
+    if isinstance(limit, bool) or not isinstance(limit, int):
+        raise TypeError("limit must be an integer")
+    if limit < 1 or limit > _MAX_BOUNDED_SEARCH_RESULTS:
+        raise ValueError(
+            f"limit must be from 1 through {_MAX_BOUNDED_SEARCH_RESULTS}")
+
+    with backend_rom_snapshot(rom_path) as snapshot_path:
+        args = [
+            "--search-text",
+            f"--rom={snapshot_path}",
+            f"--query={query}",
+            f"--limit={limit}",
+        ]
+        if force_version:
+            args.append(f"--force-version={force_version}")
+
+        result = run_cli(args)
+        stderr = sanitize_snapshot_path(result.stderr, snapshot_path, rom_path)
+
+    if result.returncode != 0:
+        return {
+            "query": query,
+            "matches": [],
+            "match_count": 0,
+            "exit_code": result.returncode,
+            "stderr": stderr.strip() if stderr else "",
+        }
+
+    if getattr(result.stdout, "truncated", False):
+        raise RuntimeError("Bounded text-search output exceeded the capture limit")
+
+    matches = []
+    match_count = None
+    for line in result.stdout.splitlines():
+        match = _SEARCH_RESULT_RE.match(line)
+        if match:
+            if len(matches) >= limit:
+                raise RuntimeError(
+                    "Backend exceeded the bounded text-search row limit")
+            matches.append({
+                "id": f"0x{match.group(1).upper()}",
+                "text": match.group(2),
+            })
+            continue
+
+        total_match = _SEARCH_TOTAL_RE.match(line)
+        if total_match:
+            try:
+                match_count = int(total_match.group(1))
+            except ValueError as exc:
+                raise RuntimeError(
+                    "Backend returned an invalid text-search count") from exc
+
+    if (
+        match_count is None
+        or match_count > 2_147_483_647
+        or len(matches) != min(match_count, limit)
+    ):
+        raise RuntimeError("Backend returned malformed bounded text-search output")
+
+    return {
+        "query": query,
+        "matches": matches,
+        "match_count": match_count,
+        "exit_code": 0,
+    }
+
+
+def search_text(rom_path: str, query: str, force_version: str = "",
+                limit: Optional[int] = None) -> dict:
     """Search ROM text by substring.
 
-    Exports all text to a temporary TSV, then searches for the query
-    string in the text column.
+    Click retains its legacy full temporary-TSV search when ``limit`` is
+    omitted.  MCP supplies a limit and uses the backend's bounded
+    ``--search-text`` output, so neither a complete export nor an unbounded
+    Python match list is produced.
 
     Args:
         rom_path: Path to ROM file.
         query: Substring to search for (case-insensitive).
         force_version: Optional forced version.
+        limit: Optional maximum number of returned matches (1 through 500).
 
     Returns:
         Dict with matches (list of {id, text} dicts) and match count.
     """
+    if limit is not None:
+        return _search_text_bounded(rom_path, query, force_version, limit)
+
     # Export text to a temp file
     with tempfile.NamedTemporaryFile(suffix=".tsv", delete=False) as tmp:
         tmp_path = tmp.name

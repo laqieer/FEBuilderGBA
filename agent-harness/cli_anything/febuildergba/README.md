@@ -149,21 +149,28 @@ exactly as before this fix.
   process) replaces, removes, or grows/shrinks the original file mid-call, the backend still only
   ever sees the bytes that were validated up front. Outside MCP scope, only `lint_rom` does this;
   the other six pass the caller's path directly and apply no local validation, matching their
-  pre-#1942 Click behavior.
+  pre-#1942 Click behavior. MCP `search_text` also forwards its 1..500 result limit to the
+  backend's bounded search command and parses that bounded stdout instead of producing a complete
+  temporary TSV.
 - **Mutating wrappers** (`import_table`, `import_palette`), inside MCP scope, keep the *original*
   file descriptor open read-write for the whole call and hand the backend a snapshot copy to
   mutate. Only after the backend reports success (exit code 0) is the mutated snapshot committed
-  back — and only once every one of the following holds: the mutated snapshot is itself a valid
+  back — and only once the private snapshot has been removed successfully and every one of the
+  following holds: the mutated snapshot is itself a valid
   1..32 MiB GBA ROM; the original pathname still identifies the exact same file this descriptor
   was opened from (`os.stat` vs. `os.fstat` via `os.path.samestat` **only** — never a
   string/normcase fallback); and the bytes originally read through that descriptor are still
-  byte-for-byte unchanged. Only then is the descriptor rewound, written, truncated, flushed, and
-  `fsync`'d, with a final size/identity re-check immediately after. **This write-back is
-  identity-safe but not crash-atomic**: interruption during write/truncate/flush/`fsync` can
+  byte-for-byte unchanged at the point-in-time digest immediately before write-back. There is no
+  cross-process content lock across the following write, so a same-inode writer in that interval
+  remains outside the protocol and may be overwritten. Only then is the descriptor rewound,
+  written, truncated, flushed, and `fsync`'d, with a final size/identity re-check immediately
+  after. **This write-back is descriptor-bound but not crash-atomic**: interruption during
+  write/truncate/flush/`fsync` can
   leave partially updated or mixed old/new bytes, retain an old trailing suffix when the
-  replacement is shorter, or leave completed writes not durably persisted. Any check failing —
-  including the backend itself failing or timing out — aborts with no write and no session
-  history/modified flag. For a session-owned ROM, the session lock is acquired before write-back.
+  replacement is shorter, or leave completed writes not durably persisted. Any pre-write check
+  failing — including the backend itself failing or timing out — aborts with no write and no
+  session history/modified flag. For a session-owned ROM, the session lock is acquired before
+  write-back.
   A lock timeout therefore commits nothing; if writing the matching session history later fails,
   the committed bytes are verified unchanged and the exact pre-commit bytes are restored through
   the same descriptor before the tool returns an error. Rollback refuses any path, size, or
@@ -172,9 +179,10 @@ exactly as before this fix.
   hand the backend the caller's own path directly and their "commit" step is a no-op, because the
   backend already wrote the result straight to the real file — matching their pre-#1942 Click
   behavior.
-- Every temporary snapshot created above is removed once its wrapper returns, on every path
-  (success, backend failure, or an exception) — never left behind. Outside MCP scope, the eight
-  non-`lint` wrappers never create one in the first place.
+- Snapshot cleanup is attempted whenever a wrapper returns. Mutating success requires cleanup
+  before write-back; a persistent filesystem cleanup failure is surfaced and may leave the
+  private path for operator cleanup, but the error text does not disclose that internal path.
+  Outside MCP scope, the eight non-`lint` wrappers never create a snapshot in the first place.
 - Because MCP tool handlers are the only callers running with an untrusted, externally-configured
   backend command, `run_cli` additionally enforces an **MCP-only seam guard**: while a tool
   handler is executing, every `--rom` argument (either `--rom=<path>` or `--rom <path>`) must
@@ -186,6 +194,17 @@ exactly as before this fix.
 - Internal snapshot paths are stripped from backend stdout/stderr before they reach a caller
   (Click output or an MCP tool result) — the caller only ever sees their own path. Outside MCP
   scope, the eight non-`lint` wrappers never have a snapshot path to strip in the first place.
+  Cleanup and backend-mutated-snapshot validation errors are path-free as well; backend
+  spawn/timeout/OS errors replace every active registered snapshot spelling with a path-free
+  placeholder.
+- MCP output limits are per field and cardinality, not one 65,536-character aggregate JSON
+  envelope. Fixed schemas plus the documented item limits keep responses finite; JSON escaping
+  may make the serialized representation longer than the retained character counts.
+- Bounded MCP backends run in a new POSIX process group or a Windows kill-on-close Job Object
+  assigned before the suspended process begins execution. Timeout/error cleanup terminates the
+  complete lifetime before joining pipe readers; successful calls close it to reap any stray
+  descendants. Click retains its legacy subprocess path. A POSIX descendant that deliberately
+  starts a new session is outside this process-group contract.
 - `rom checksum`'s advisory exit-2 "invalid header" behavior is local, byte-level, and unrelated
   to the backend/snapshot mechanism — it is unaffected by any of the above.
 

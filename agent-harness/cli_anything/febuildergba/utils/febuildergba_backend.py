@@ -16,6 +16,7 @@ behavior: the guard is completely inert outside MCP's dynamic scope.
 """
 
 import os
+import signal
 import shutil
 import subprocess
 import sys
@@ -26,9 +27,252 @@ from contextvars import ContextVar
 from pathlib import Path
 from typing import Optional
 
+if os.name == "nt":
+    import ctypes
+    from ctypes import wintypes
+
 MAX_VERSION_TEXT_LEN = 4096
 _OUTPUT_READ_CHARS = 8192
 _CLEANUP_TIMEOUT_SECONDS = 0.5
+_WINDOWS_CREATE_SUSPENDED = 0x00000004
+_PRIVATE_ROM_SNAPSHOT_LABEL = "<private ROM snapshot>"
+
+
+class _PosixBoundedProcessLifetime:
+    """Own the isolated process group used by one bounded backend call."""
+
+    def __init__(self, process_id: int):
+        self.process_id = process_id
+
+    def resume(self) -> None:
+        pass
+
+    def terminate(self) -> None:
+        try:
+            os.killpg(self.process_id, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+
+    def close(self) -> None:
+        pass
+
+    def finish(self) -> None:
+        self.terminate()
+
+
+if os.name == "nt":
+    _TH32CS_SNAPTHREAD = 0x00000004
+    _THREAD_SUSPEND_RESUME = 0x0002
+    _JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x00002000
+    _JOB_OBJECT_EXTENDED_LIMIT_INFORMATION_CLASS = 9
+    _INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
+    _RESUME_THREAD_FAILED = 0xFFFFFFFF
+
+    class _JobObjectBasicLimitInformation(ctypes.Structure):
+        _fields_ = [
+            ("PerProcessUserTimeLimit", ctypes.c_int64),
+            ("PerJobUserTimeLimit", ctypes.c_int64),
+            ("LimitFlags", wintypes.DWORD),
+            ("MinimumWorkingSetSize", ctypes.c_size_t),
+            ("MaximumWorkingSetSize", ctypes.c_size_t),
+            ("ActiveProcessLimit", wintypes.DWORD),
+            ("Affinity", ctypes.c_size_t),
+            ("PriorityClass", wintypes.DWORD),
+            ("SchedulingClass", wintypes.DWORD),
+        ]
+
+    class _IoCounters(ctypes.Structure):
+        _fields_ = [
+            ("ReadOperationCount", ctypes.c_uint64),
+            ("WriteOperationCount", ctypes.c_uint64),
+            ("OtherOperationCount", ctypes.c_uint64),
+            ("ReadTransferCount", ctypes.c_uint64),
+            ("WriteTransferCount", ctypes.c_uint64),
+            ("OtherTransferCount", ctypes.c_uint64),
+        ]
+
+    class _JobObjectExtendedLimitInformation(ctypes.Structure):
+        _fields_ = [
+            ("BasicLimitInformation", _JobObjectBasicLimitInformation),
+            ("IoInfo", _IoCounters),
+            ("ProcessMemoryLimit", ctypes.c_size_t),
+            ("JobMemoryLimit", ctypes.c_size_t),
+            ("PeakProcessMemoryUsed", ctypes.c_size_t),
+            ("PeakJobMemoryUsed", ctypes.c_size_t),
+        ]
+
+    class _ThreadEntry32(ctypes.Structure):
+        _fields_ = [
+            ("dwSize", wintypes.DWORD),
+            ("cntUsage", wintypes.DWORD),
+            ("th32ThreadID", wintypes.DWORD),
+            ("th32OwnerProcessID", wintypes.DWORD),
+            ("tpBasePri", wintypes.LONG),
+            ("tpDeltaPri", wintypes.LONG),
+            ("dwFlags", wintypes.DWORD),
+        ]
+
+    _kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    _kernel32.CreateJobObjectW.argtypes = [
+        ctypes.c_void_p,
+        wintypes.LPCWSTR,
+    ]
+    _kernel32.CreateJobObjectW.restype = wintypes.HANDLE
+    _kernel32.SetInformationJobObject.argtypes = [
+        wintypes.HANDLE,
+        ctypes.c_int,
+        ctypes.c_void_p,
+        wintypes.DWORD,
+    ]
+    _kernel32.SetInformationJobObject.restype = wintypes.BOOL
+    _kernel32.AssignProcessToJobObject.argtypes = [
+        wintypes.HANDLE,
+        wintypes.HANDLE,
+    ]
+    _kernel32.AssignProcessToJobObject.restype = wintypes.BOOL
+    _kernel32.TerminateJobObject.argtypes = [
+        wintypes.HANDLE,
+        wintypes.UINT,
+    ]
+    _kernel32.TerminateJobObject.restype = wintypes.BOOL
+    _kernel32.CreateToolhelp32Snapshot.argtypes = [
+        wintypes.DWORD,
+        wintypes.DWORD,
+    ]
+    _kernel32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+    _kernel32.Thread32First.argtypes = [
+        wintypes.HANDLE,
+        ctypes.POINTER(_ThreadEntry32),
+    ]
+    _kernel32.Thread32First.restype = wintypes.BOOL
+    _kernel32.Thread32Next.argtypes = [
+        wintypes.HANDLE,
+        ctypes.POINTER(_ThreadEntry32),
+    ]
+    _kernel32.Thread32Next.restype = wintypes.BOOL
+    _kernel32.OpenThread.argtypes = [
+        wintypes.DWORD,
+        wintypes.BOOL,
+        wintypes.DWORD,
+    ]
+    _kernel32.OpenThread.restype = wintypes.HANDLE
+    _kernel32.ResumeThread.argtypes = [wintypes.HANDLE]
+    _kernel32.ResumeThread.restype = wintypes.DWORD
+    _kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+    _kernel32.CloseHandle.restype = wintypes.BOOL
+
+    def _windows_error(
+            operation: str, error_code: Optional[int] = None) -> OSError:
+        if error_code is None:
+            error_code = ctypes.get_last_error()
+        return ctypes.WinError(
+            error_code,
+            f"{operation} failed for bounded backend isolation",
+        )
+
+    def _close_windows_handle(handle) -> None:
+        if handle and not _kernel32.CloseHandle(handle):
+            raise _windows_error("CloseHandle")
+
+    class _WindowsBoundedProcessLifetime:
+        """Assign a suspended backend to a kill-on-close Windows Job."""
+
+        def __init__(self):
+            self._handle = _kernel32.CreateJobObjectW(None, None)
+            if not self._handle:
+                raise _windows_error("CreateJobObjectW")
+
+            info = _JobObjectExtendedLimitInformation()
+            info.BasicLimitInformation.LimitFlags = (
+                _JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE)
+            if not _kernel32.SetInformationJobObject(
+                    self._handle,
+                    _JOB_OBJECT_EXTENDED_LIMIT_INFORMATION_CLASS,
+                    ctypes.byref(info),
+                    ctypes.sizeof(info)):
+                error_code = ctypes.get_last_error()
+                close_error = None
+                try:
+                    _close_windows_handle(self._handle)
+                except OSError as exc:
+                    close_error = exc
+                finally:
+                    self._handle = None
+                error = _windows_error(
+                    "SetInformationJobObject", error_code)
+                if close_error is not None:
+                    raise error from close_error
+                raise error
+
+            self._process_id = None
+
+        def assign(self, process) -> None:
+            process_handle = wintypes.HANDLE(int(process._handle))
+            if not _kernel32.AssignProcessToJobObject(
+                    self._handle, process_handle):
+                raise _windows_error("AssignProcessToJobObject")
+            self._process_id = process.pid
+
+        def resume(self) -> None:
+            snapshot = _kernel32.CreateToolhelp32Snapshot(
+                _TH32CS_SNAPTHREAD, 0)
+            if snapshot == _INVALID_HANDLE_VALUE:
+                raise _windows_error("CreateToolhelp32Snapshot")
+
+            resumed = 0
+            close_error = None
+            try:
+                entry = _ThreadEntry32()
+                entry.dwSize = ctypes.sizeof(entry)
+                has_entry = _kernel32.Thread32First(
+                    snapshot, ctypes.byref(entry))
+                while has_entry:
+                    if entry.th32OwnerProcessID == self._process_id:
+                        thread_handle = _kernel32.OpenThread(
+                            _THREAD_SUSPEND_RESUME,
+                            False,
+                            entry.th32ThreadID,
+                        )
+                        if not thread_handle:
+                            raise _windows_error("OpenThread")
+                        try:
+                            prior_count = _kernel32.ResumeThread(thread_handle)
+                            if prior_count == _RESUME_THREAD_FAILED:
+                                raise _windows_error("ResumeThread")
+                            resumed += 1
+                        finally:
+                            _close_windows_handle(thread_handle)
+                    entry.dwSize = ctypes.sizeof(entry)
+                    has_entry = _kernel32.Thread32Next(
+                        snapshot, ctypes.byref(entry))
+            finally:
+                try:
+                    _close_windows_handle(snapshot)
+                except OSError as exc:
+                    close_error = exc
+
+            if close_error is not None:
+                raise close_error
+            if resumed == 0:
+                raise RuntimeError(
+                    "Failed to find the suspended bounded backend thread")
+
+        def terminate(self) -> None:
+            if self._handle and not _kernel32.TerminateJobObject(
+                    self._handle, 1):
+                raise _windows_error("TerminateJobObject")
+
+        def close(self) -> None:
+            if not self._handle:
+                return
+            handle = self._handle
+            _close_windows_handle(handle)
+            self._handle = None
+
+        def finish(self) -> None:
+            # KILL_ON_JOB_CLOSE removes successful-call descendants that
+            # detached their pipes and would otherwise outlive the backend.
+            self.close()
 
 # ``run_cli`` is shared with the Click surface, which must retain its historic
 # full-capture behavior.  MCP enables this ContextVar only while a tool handler
@@ -216,6 +460,39 @@ def _enforce_rom_snapshot_gate(args: list[str]) -> None:
             )
 
 
+def _registered_snapshot_spellings(cmd: list[str]) -> tuple[str, ...]:
+    """Return every active private-snapshot spelling present in *cmd*."""
+    registered = _registered_rom_snapshots.get()
+    if not registered:
+        return ()
+
+    spellings = set(registered)
+    index = 0
+    while index < len(cmd):
+        arg = cmd[index]
+        value = None
+        if isinstance(arg, str) and arg.startswith("--rom="):
+            value = arg.split("=", 1)[1]
+        elif (
+            arg == "--rom"
+            and index + 1 < len(cmd)
+            and isinstance(cmd[index + 1], str)
+        ):
+            value = cmd[index + 1]
+            index += 1
+        if value and os.path.abspath(value) in registered:
+            spellings.add(value)
+        index += 1
+    return tuple(sorted(spellings, key=len, reverse=True))
+
+
+def _redact_registered_snapshot_paths(text: str, cmd: list[str]) -> str:
+    """Remove active private-snapshot paths from caller-visible errors."""
+    for spelling in _registered_snapshot_spellings(cmd):
+        text = text.replace(spelling, _PRIVATE_ROM_SNAPSHOT_LABEL)
+    return text
+
+
 def _drain_bounded_stream(stream, captured: _BoundedStreamCapture) -> None:
     """Drain one text pipe to EOF without retaining data beyond its prefix."""
     try:
@@ -242,17 +519,62 @@ def _force_close_pipe(stream) -> None:
         pass
 
 
-def _cleanup_bounded_process(process, streams, readers) -> None:
+def _start_bounded_process(cmd: list[str]):
+    """Start one backend in an isolated lifetime container.
+
+    POSIX uses a new session/process group. Windows starts suspended, assigns
+    the process to a kill-on-close Job Object, then lets the caller start its
+    pipe readers before resuming the primary thread.
+    """
+    kwargs = {
+        "stdin": subprocess.DEVNULL,
+        "stdout": subprocess.PIPE,
+        "stderr": subprocess.PIPE,
+        "text": True,
+        "encoding": "utf-8",
+    }
+    if os.name != "nt":
+        process = subprocess.Popen(cmd, start_new_session=True, **kwargs)
+        return process, _PosixBoundedProcessLifetime(process.pid)
+
+    lifetime = _WindowsBoundedProcessLifetime()
+    process = None
+    try:
+        process = subprocess.Popen(
+            cmd,
+            creationflags=_WINDOWS_CREATE_SUSPENDED,
+            **kwargs,
+        )
+        lifetime.assign(process)
+        return process, lifetime
+    except BaseException:
+        if process is not None and process.poll() is None:
+            try:
+                process.kill()
+                process.wait(timeout=_CLEANUP_TIMEOUT_SECONDS)
+            except (OSError, subprocess.TimeoutExpired):
+                pass
+        lifetime.close()
+        raise
+
+
+def _cleanup_bounded_process(process, streams, readers, lifetime) -> None:
     """Bound teardown when a process or an inherited pipe refuses to finish."""
+    cleanup_errors = []
+    try:
+        lifetime.terminate()
+    except BaseException as exc:
+        cleanup_errors.append(exc)
+
     if process.poll() is None:
         try:
             process.kill()
-        except OSError:
-            pass
+        except OSError as exc:
+            cleanup_errors.append(exc)
     try:
         process.wait(timeout=_CLEANUP_TIMEOUT_SECONDS)
-    except subprocess.TimeoutExpired:
-        pass
+    except subprocess.TimeoutExpired as exc:
+        cleanup_errors.append(exc)
 
     for stream in streams:
         _force_close_pipe(stream)
@@ -263,22 +585,37 @@ def _cleanup_bounded_process(process, streams, readers) -> None:
         if remaining <= 0:
             break
         reader.join(remaining)
+    if any(reader.is_alive() for reader in readers):
+        cleanup_errors.append(
+            RuntimeError("Bounded backend pipe reader did not stop"))
+
+    try:
+        lifetime.close()
+    except BaseException as exc:
+        cleanup_errors.append(exc)
+
+    if cleanup_errors:
+        raise RuntimeError(
+            "Failed to fully terminate the bounded backend process tree"
+        ) from cleanup_errors[0]
 
 
 def _run_cli_bounded(
         cmd: list[str], timeout: int, max_chars: int) -> subprocess.CompletedProcess:
     """Run a command with concurrent, bounded decoded stdout/stderr capture."""
-    process = subprocess.Popen(
-        cmd,
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        encoding="utf-8",
-    )
+    process, lifetime = _start_bounded_process(cmd)
     # Popen creates these streams whenever PIPE is requested.  The explicit
     # guard keeps the reader contract clear to type checkers and future edits.
     if process.stdout is None or process.stderr is None:
+        _cleanup_bounded_process(
+            process,
+            tuple(
+                stream for stream in (process.stdout, process.stderr)
+                if stream is not None
+            ),
+            (),
+            lifetime,
+        )
         raise OSError("Failed to create backend output pipes")
 
     stdout_capture = _BoundedStreamCapture(max_chars)
@@ -299,6 +636,7 @@ def _run_cli_bounded(
     try:
         for reader in readers:
             reader.start()
+        lifetime.resume()
 
         # Poll rather than waiting for one pipe at a time: both reader threads
         # keep draining while this deadline covers process completion *and* EOF
@@ -330,8 +668,11 @@ def _run_cli_bounded(
             process,
             (process.stdout, process.stderr),
             readers,
+            lifetime,
         )
         raise
+
+    lifetime.finish()
 
     return subprocess.CompletedProcess(
         cmd,
@@ -460,17 +801,24 @@ def run_cli(args: list[str], capture: bool = True,
         )
         return result
     except FileNotFoundError:
+        command = _redact_registered_snapshot_paths(
+            " ".join(cmd), cmd)
         raise RuntimeError(
-            f"Failed to run: {' '.join(cmd)}\n"
+            f"Failed to run: {command}\n"
             "Is .NET 9.0 SDK installed? https://dotnet.microsoft.com/download"
         )
     except subprocess.TimeoutExpired:
+        command = _redact_registered_snapshot_paths(
+            " ".join(cmd), cmd)
         raise RuntimeError(
-            f"Command timed out after {timeout}s: {' '.join(cmd)}"
+            f"Command timed out after {timeout}s: {command}"
         )
     except OSError as e:
+        command = _redact_registered_snapshot_paths(
+            " ".join(cmd), cmd)
+        detail = _redact_registered_snapshot_paths(str(e), cmd)
         raise RuntimeError(
-            f"Failed to run {' '.join(cmd)}: {e}"
+            f"Failed to run {command}: {detail}"
         ) from e
 
 
@@ -484,7 +832,8 @@ def sanitize_snapshot_path(text, snapshot_path: str, real_path: str):
     must never reach a caller through stdout/stderr/result fields.  This is a
     cheap no-op unless *text* actually contains *snapshot_path*, so it is
     safe to call unconditionally after every snapshot-backed invocation
-    (Click included).
+    (Click included). For bounded MCP output, a longer caller path is capped
+    back to the already retained prefix length and marks the value truncated.
     """
     if not isinstance(text, str) or not text or not snapshot_path:
         return text
@@ -492,7 +841,13 @@ def sanitize_snapshot_path(text, snapshot_path: str, real_path: str):
         return text
     sanitized = text.replace(snapshot_path, real_path)
     if isinstance(text, _BoundedOutput):
-        return _BoundedOutput(sanitized, text.original_length, text.truncated)
+        retained_limit = len(text)
+        replacement_truncated = len(sanitized) > retained_limit
+        return _BoundedOutput(
+            sanitized[:retained_limit],
+            text.original_length,
+            text.truncated or replacement_truncated,
+        )
     return sanitized
 
 

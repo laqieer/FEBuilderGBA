@@ -522,6 +522,16 @@ def _bound_string_fields(d):
             s = d[key]
             source_truncated = bool(getattr(s, "truncated", False))
             source_length = getattr(s, "original_length", None)
+            if len(s) > MAX_STRING_LEN:
+                if (
+                    isinstance(source_length, bool)
+                    or not isinstance(source_length, int)
+                ):
+                    source_length = len(s)
+                else:
+                    source_length = max(source_length, len(s))
+                s = s[:MAX_STRING_LEN]
+                source_truncated = True
             if (
                 source_truncated
                 and not isinstance(source_length, bool)
@@ -766,10 +776,15 @@ def _h_text_search(session, args):
     from cli_anything.febuildergba.core.text import search_text
     rom_path, force_version = _resolve_rom(session, args)
     limit = args.get("limit", TEXT_SEARCH_DEFAULT_LIMIT)
-    result = search_text(rom_path, args["query"], force_version)
+    result = search_text(
+        rom_path,
+        args["query"],
+        force_version,
+        limit=limit,
+    )
     is_error = result.get("exit_code", 0) != 0
     matches = result.get("matches") or []
-    total = len(matches)
+    total = result.get("match_count", len(matches))
     bounded = matches[:limit]
     # Bound each match's own text to MAX_ITEM_STRING_LEN, in addition to the
     # count-based pagination above; track both per-item and aggregate
