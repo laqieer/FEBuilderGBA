@@ -298,7 +298,8 @@ For MCP backend invocations, stdout and stderr are bounded **while their pipes a
 drained**, not only when the response is serialized. The server retains at most the 65,536-character
 decoded prefix of each stream, continues discarding/draining the remainder to avoid a pipe deadlock,
 and reports the exact decoded source length when truncation occurred. Click callers retain their
-existing full-capture behavior.
+existing full-capture behavior. MCP backend stdin is detached to `DEVNULL`, preventing a backend
+tool from consuming pending JSON-RPC frames from the server's protocol input.
 
 All input-side bounds above are enforced by the closed JSON Schema itself (rejected as
 `-32602 Invalid params`, never silently coerced/truncated). Backend stdout/stderr are bounded

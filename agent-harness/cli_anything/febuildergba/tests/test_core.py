@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from pathlib import Path
 
 import pytest
 
@@ -242,6 +243,51 @@ class TestBackend:
             ):
                 backend.run_cli([], timeout=0.1)
         assert time.monotonic() - started < 3
+
+    def test_bounded_capture_detaches_backend_stdin_from_pending_frames(self):
+        """A bounded backend must not consume the MCP server's next request."""
+        harness_root = Path(__file__).resolve().parents[3]
+        backend_script = (
+            "import sys\n"
+            "sys.stdout.write('child-read=' + sys.stdin.read())\n"
+        )
+        outer_script = (
+            "import json\n"
+            "import sys\n"
+            "from cli_anything.febuildergba.utils import febuildergba_backend as backend\n"
+            f"backend.find_febuildergba_cli = lambda: [sys.executable, '-c', {backend_script!r}]\n"
+            "current_frame = sys.stdin.readline()\n"
+            "with backend.bounded_capture(64):\n"
+            "    result = backend.run_cli([])\n"
+            "print(json.dumps({\n"
+            "    'backend_output': str(result.stdout),\n"
+            "    'current_frame': current_frame,\n"
+            "    'next_frame': sys.stdin.readline(),\n"
+            "}))\n"
+        )
+        current_frame = '{"jsonrpc":"2.0","id":2,"method":"tools/call"}\n'
+        next_frame = '{"jsonrpc":"2.0","id":3,"method":"ping"}\n'
+        pending_input = current_frame + next_frame
+        env = os.environ.copy()
+        env["PYTHONPATH"] = str(harness_root) + os.pathsep + env.get("PYTHONPATH", "")
+
+        outer = subprocess.run(
+            [sys.executable, "-c", outer_script],
+            input=pending_input,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            env=env,
+        )
+        assert outer.returncode == 0, outer.stderr
+        observed = json.loads(outer.stdout)
+
+        # Before stdin=DEVNULL, the fake backend read the pending ping and the
+        # outer parent observed EOF.  This proves the real pipe boundary, not
+        # merely a mocked Popen keyword.
+        assert observed["backend_output"] == "child-read="
+        assert observed["current_frame"] == current_frame
+        assert observed["next_frame"] == next_frame
 
     def test_check_backend_normalizes_os_probe_failure(self, monkeypatch):
         from cli_anything.febuildergba.utils import febuildergba_backend as backend

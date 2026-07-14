@@ -144,6 +144,7 @@ def _run_cli_bounded(
     """Run a command with concurrent, bounded decoded stdout/stderr capture."""
     process = subprocess.Popen(
         cmd,
+        stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,

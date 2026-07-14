@@ -709,6 +709,8 @@ version probes are limited to 4,096 characters, and `names_resolve` limits each 
 and stderr are bounded to a 65,536-character decoded prefix while both pipes are concurrently
 drained; discarded remainder is still counted for truthful truncation metadata. This pipe-level
 bound prevents unbounded backend buffering without changing Click callers' full-capture behavior.
+MCP backend stdin is detached to `DEVNULL`, so a backend tool cannot consume pending JSON-RPC
+protocol frames from the long-lived server.
 
 The `.mcp.json` at the repo root auto-configures Claude Code to use it as `febuildergba-cli`
 (`python ./agent-harness/febuildergba_mcp.py`). See
