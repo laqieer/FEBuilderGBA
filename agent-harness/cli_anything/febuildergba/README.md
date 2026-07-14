@@ -157,10 +157,11 @@ exactly as before this fix.
   1..32 MiB GBA ROM; the original pathname still identifies the exact same file this descriptor
   was opened from (`os.stat` vs. `os.fstat` via `os.path.samestat` **only** — never a
   string/normcase fallback); and the bytes originally read through that descriptor are still
-  byte-for-byte unchanged. Only then is the descriptor rewound, truncated, written, flushed, and
+  byte-for-byte unchanged. Only then is the descriptor rewound, written, truncated, flushed, and
   `fsync`'d, with a final size/identity re-check immediately after. **This write-back is
-  identity-safe but not crash-atomic**: a crash between the truncate and the final write/`fsync`
-  can leave the file short of both the old and the new valid contents. Any check failing —
+  identity-safe but not crash-atomic**: interruption during write/truncate/flush/`fsync` can
+  leave partially updated or mixed old/new bytes, retain an old trailing suffix when the
+  replacement is shorter, or leave completed writes not durably persisted. Any check failing —
   including the backend itself failing or timing out — aborts with no write and no session
   history/modified flag. Outside MCP scope, both mutating wrappers hand the backend the caller's
   own path directly and their "commit" step is a no-op, because the backend already wrote the

@@ -217,14 +217,16 @@ class MutatingRomSnapshot:
            -byte unchanged (same size, same content) since the snapshot was
            taken.
 
-        Only then does this seek/truncate/write/flush/``os.fsync`` the
+        Only then does this seek/write/truncate/flush/``os.fsync`` the
         original descriptor, followed by a final size + identity re-check.
 
         This write-back is identity-safe (it only ever targets the exact
         descriptor/path validated immediately beforehand) but it is **not
-        crash-atomic**: a process crash between the truncate and the final
-        write/fsync can leave the original file short of both the old and
-        the new valid contents.
+        crash-atomic**: interruption during write/truncate/flush/fsync can
+        leave partially updated or mixed old/new bytes, retain an old
+        trailing suffix when the replacement is shorter, or leave completed
+        writes not durably persisted. It does not provide all-or-nothing
+        replacement.
         """
         with _open_validated_rom(self.path, self._require_checksum) as (
                 mutated_stream, _mutated_header, mutated_size):

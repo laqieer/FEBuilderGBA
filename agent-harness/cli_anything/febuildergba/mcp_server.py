@@ -1129,7 +1129,8 @@ def _process_message(state, msg):
         # Missing/empty/non-string 'method' is a malformed Request, not an
         # unrecognized-but-well-formed method name. Without a valid method,
         # the object is not a valid Notification and still requires an
-        # Invalid Request response with id null.
+        # Invalid Request response. Shape validation has already accepted
+        # msg_id, so the response preserves it when one was supplied.
         return _err(msg_id, INVALID_REQUEST,
                     "Invalid Request: 'method' must be a non-empty string")
 

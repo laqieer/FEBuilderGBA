@@ -469,14 +469,17 @@ class TestProtocolErrors:
     def test_invalid_request_missing_method(self, initialized_state):
         resp = srv.handle_line(initialized_state, json.dumps({"jsonrpc": "2.0", "id": 1}))
         assert resp["error"]["code"] == srv.INVALID_REQUEST
+        assert resp["id"] == 1
 
     def test_invalid_request_empty_method(self, initialized_state):
         resp = srv.handle_line(initialized_state, json.dumps({"jsonrpc": "2.0", "id": 1, "method": ""}))
         assert resp["error"]["code"] == srv.INVALID_REQUEST
+        assert resp["id"] == 1
 
     def test_invalid_request_non_string_method(self, initialized_state):
         resp = srv.handle_line(initialized_state, json.dumps({"jsonrpc": "2.0", "id": 1, "method": 42}))
         assert resp["error"]["code"] == srv.INVALID_REQUEST
+        assert resp["id"] == 1
 
     def test_method_not_found_unknown_method(self, initialized_state):
         resp = srv.handle_line(initialized_state, json.dumps(_req("bogus/method")))

@@ -282,9 +282,10 @@ attacker-influenced text fed straight back to the calling agent.
   pathname still identifies the exact same file the descriptor was opened from (checked with
   `os.stat`/`os.fstat` via `os.path.samestat` **only** — never a string/normcase path comparison),
   and the bytes originally read through that descriptor are still byte-for-byte unchanged. The
-  write-back itself (rewind/truncate/write/flush/`fsync`, then a final size+identity re-check) is
-  **identity-safe but not crash-atomic**: a crash between the truncate and the final write/`fsync`
-  can leave the file short of both the old and the new valid contents. Any failed check —
+  write-back itself (rewind/write/truncate/flush/`fsync`, then a final size+identity re-check) is
+  **identity-safe but not crash-atomic**: interruption during write/truncate/flush/`fsync` can
+  leave partially updated or mixed old/new bytes, retain an old trailing suffix when the
+  replacement is shorter, or leave completed writes not durably persisted. Any failed check —
   including the backend itself failing, timing out, or raising — aborts with no write and no
   session history/modified flag, exactly as if the tool call itself had failed.
 - Every temporary snapshot is removed once its tool call returns, whether it succeeded, the
