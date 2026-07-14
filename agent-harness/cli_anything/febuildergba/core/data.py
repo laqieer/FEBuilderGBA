@@ -72,7 +72,7 @@ def export_table(rom_path: str, table: str, output_path: str,
 
 
 def import_table(rom_path: str, table: str, input_path: str,
-                 force_version: str = "") -> dict:
+                 force_version: str = "", commit_mutation=None) -> dict:
     """Import struct data from TSV into ROM.
 
     Args:
@@ -80,6 +80,8 @@ def import_table(rom_path: str, table: str, input_path: str,
         table: Table name.
         input_path: Input TSV file path.
         force_version: Optional forced version.
+        commit_mutation: Optional internal callback that coordinates a
+            successful snapshot commit with session persistence.
 
     Returns:
         Dict with import results.
@@ -104,7 +106,10 @@ def import_table(rom_path: str, table: str, input_path: str,
         stdout = sanitize_snapshot_path(result.stdout, mutator.path, rom_path)
         stderr = sanitize_snapshot_path(result.stderr, mutator.path, rom_path)
         if result.returncode == 0:
-            mutator.commit()
+            if commit_mutation is None:
+                mutator.commit()
+            else:
+                commit_mutation(mutator)
 
     return {
         "table": table,

@@ -976,7 +976,18 @@ class TestDataExportHistoryAndModified:
 
 class TestDataImportModifiedFlag:
     def _fake_import(self, monkeypatch, exit_code=0):
-        def fake(rom_path, table, in_path, force_version=""):
+        class FakeMutation:
+            def commit(self):
+                pass
+
+            def rollback(self):
+                return True
+
+        def fake(
+                rom_path, table, in_path, force_version="",
+                commit_mutation=None):
+            if exit_code == 0 and commit_mutation is not None:
+                commit_mutation(FakeMutation())
             return {"table": table, "input_path": in_path, "exit_code": exit_code,
                     "stdout": "", "stderr": ""}
         monkeypatch.setattr("cli_anything.febuildergba.core.data.import_table", fake)
@@ -1045,7 +1056,18 @@ class TestPaletteImportSessionEffects:
     rules as data_import: only on success AND same-as-session-ROM."""
 
     def _fake_import_palette(self, monkeypatch, exit_code=0):
-        def fake(rom_path, addr, in_path, force_version=""):
+        class FakeMutation:
+            def commit(self):
+                pass
+
+            def rollback(self):
+                return True
+
+        def fake(
+                rom_path, addr, in_path, force_version="",
+                commit_mutation=None):
+            if exit_code == 0 and commit_mutation is not None:
+                commit_mutation(FakeMutation())
             return {"rom_path": rom_path, "addr": addr, "input_path": in_path,
                     "exit_code": exit_code, "stdout": "", "stderr": ""}
         monkeypatch.setattr("cli_anything.febuildergba.core.verbs.import_palette", fake)
@@ -1107,6 +1129,85 @@ class TestPaletteImportSessionEffects:
         assert resp["result"]["isError"] is False
         assert initialized_state.session.state.modified is True
         assert initialized_state.session.state.history[-1]["op"] == HISTORY_OP_IMPORT_PALETTE
+
+
+class TestMutatingSessionPersistence:
+    @pytest.mark.parametrize(
+        ("tool_name", "module_name", "arguments"),
+        [
+            (
+                "data_import",
+                "cli_anything.febuildergba.core.data",
+                {"table": "units", "in_path": "input.tsv"},
+            ),
+            (
+                "palette_import",
+                "cli_anything.febuildergba.core.verbs",
+                {"addr": "0x5524", "in_path": "input.gbapal"},
+            ),
+        ],
+    )
+    @pytest.mark.parametrize("failure_mode", ["lock_timeout", "write_failure"])
+    def test_session_failure_never_leaves_committed_rom_or_phantom_state(
+            self, tool_name, module_name, arguments, failure_mode,
+            initialized_state, monkeypatch, tmp_path):
+        import importlib
+        from cli_anything.febuildergba.core import session as session_module
+
+        module = importlib.import_module(module_name)
+        rom_path = tmp_path / "rom.gba"
+        input_path = tmp_path / arguments["in_path"]
+        _write_valid_test_rom(rom_path)
+        input_path.write_bytes(b"\x00\x00")
+        original_bytes = rom_path.read_bytes()
+        initialized_state.session.open_rom(
+            str(rom_path), "FE8U", len(original_bytes),
+        )
+        before_state = initialized_state.session.state.to_dict()
+        before_session = initialized_state.session.path.read_bytes()
+        seen = {}
+
+        def mutate_snapshot(args, **kwargs):
+            snapshot_path = next(
+                value[len("--rom="):]
+                for value in args
+                if value.startswith("--rom=")
+            )
+            seen["snapshot_path"] = snapshot_path
+            with open(snapshot_path, "r+b") as stream:
+                stream.seek(0x1000)
+                stream.write(b"MUTATED!")
+            return subprocess.CompletedProcess(
+                args, 0, stdout="", stderr="",
+            )
+
+        monkeypatch.setattr(module, "run_cli", mutate_snapshot)
+        if failure_mode == "lock_timeout":
+            monkeypatch.setattr(
+                session_module, "SESSION_LOCK_TIMEOUT_SECONDS", 0,
+            )
+            monkeypatch.setattr(
+                initialized_state.session,
+                "_try_acquire_lock",
+                lambda lock_file: False,
+            )
+        else:
+            def fail_write():
+                raise PermissionError("session write denied")
+
+            monkeypatch.setattr(
+                initialized_state.session, "_write_unlocked", fail_write,
+            )
+
+        call_arguments = dict(arguments)
+        call_arguments["in_path"] = str(input_path)
+        response = _call_tool(initialized_state, tool_name, call_arguments)
+
+        assert response["result"]["isError"] is True
+        assert rom_path.read_bytes() == original_bytes
+        assert initialized_state.session.state.to_dict() == before_state
+        assert initialized_state.session.path.read_bytes() == before_session
+        assert not os.path.exists(seen["snapshot_path"])
 
 
 class TestImageQuantizeContract:

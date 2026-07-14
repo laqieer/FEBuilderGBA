@@ -355,6 +355,41 @@ class Session:
             self._write_unlocked()
             return True
 
+    def record_operation_with_effect(
+            self, op: str, details: dict, apply_effect, rollback_effect,
+            *, modified: bool = False):
+        """Apply one external effect and persist its matching session entry.
+
+        The session lock is acquired before ``apply_effect``. If session
+        persistence then fails, ``rollback_effect`` runs before the lock is
+        released and the in-memory session snapshot is restored.
+        """
+        token = self._generation_token()
+        with self._transaction():
+            if token is None or token != self._generation_token():
+                return False
+
+            applied = False
+            try:
+                apply_effect()
+                applied = True
+                self._add_history(op, details or {})
+                if modified:
+                    self.state.modified = True
+                self._write_unlocked()
+            except BaseException:
+                if applied:
+                    try:
+                        rollback_effect()
+                    except BaseException as rollback_error:
+                        raise RuntimeError(
+                            "Session update and external-effect rollback both "
+                            "failed; external state may remain changed and "
+                            "requires recovery before retry"
+                        ) from rollback_error
+                raise
+            return True
+
     def mark_modified(self):
         token = self._generation_token()
         with self._transaction():

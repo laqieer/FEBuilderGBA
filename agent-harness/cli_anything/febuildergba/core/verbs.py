@@ -210,12 +210,14 @@ def export_palette(rom_path: str, addr: str, out_path: str,
 
 
 def import_palette(rom_path: str, addr: str, in_path: str,
-                   force_version: str = "") -> dict:
+                   force_version: str = "", commit_mutation=None) -> dict:
     """Import a palette file into the ROM in-place (``--import-palette``).
 
     The format is auto-detected from the file content/extension. The backend
     mutates a private snapshot; the result is only committed back through the
     originally opened writable descriptor after the backend reports success.
+    ``commit_mutation`` is an internal hook used to coordinate that commit
+    with session persistence.
     """
     with backend_mutating_rom_snapshot(rom_path) as mutator:
         args = ["--import-palette", f"--rom={mutator.path}",
@@ -226,7 +228,10 @@ def import_palette(rom_path: str, addr: str, in_path: str,
         result = run_cli(args)
         out = _base_result(result, mutator.path, rom_path)
         if result.returncode == 0:
-            mutator.commit()
+            if commit_mutation is None:
+                mutator.commit()
+            else:
+                commit_mutation(mutator)
     out.update({"rom_path": rom_path, "addr": addr, "input_path": in_path})
     return out
 

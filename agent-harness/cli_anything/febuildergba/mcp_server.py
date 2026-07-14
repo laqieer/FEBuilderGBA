@@ -708,17 +708,41 @@ def _h_data_export(session, args):
     return result, is_error
 
 
+def _commit_session_rom_mutation(session, mutator, op, details):
+    recorded = session.record_operation_with_effect(
+        op,
+        details,
+        mutator.commit,
+        mutator.rollback,
+        modified=True,
+    )
+    if not recorded:
+        raise RuntimeError(
+            "Session changed before the ROM mutation could be committed"
+        )
+
+
 def _h_data_import(session, args):
     from cli_anything.febuildergba.core.data import import_table
     rom_path, force_version = _resolve_rom(session, args)
     table = args["table"]
     in_path = args["in_path"]
-    result = import_table(rom_path, table, in_path, force_version)
-    is_error = result["exit_code"] != 0
-    if not is_error and session.owns_rom(rom_path):
-        session.record_operation(
-            HISTORY_OP_DATA_IMPORT, {"table": table, "in": in_path}, modified=True,
+    commit_mutation = None
+    if session.owns_rom(rom_path):
+        commit_mutation = lambda mutator: _commit_session_rom_mutation(
+            session,
+            mutator,
+            HISTORY_OP_DATA_IMPORT,
+            {"table": table, "in": in_path},
         )
+    result = import_table(
+        rom_path,
+        table,
+        in_path,
+        force_version,
+        commit_mutation=commit_mutation,
+    )
+    is_error = result["exit_code"] != 0
     return result, is_error
 
 
@@ -830,12 +854,22 @@ def _h_palette_export(session, args):
 def _h_palette_import(session, args):
     from cli_anything.febuildergba.core.verbs import import_palette
     rom_path, force_version = _resolve_rom(session, args)
-    result = import_palette(rom_path, args["addr"], args["in_path"], force_version)
-    is_error = result["exit_code"] != 0
-    if not is_error and session.owns_rom(rom_path):
-        session.record_operation(
-            HISTORY_OP_IMPORT_PALETTE, {"addr": args["addr"]}, modified=True,
+    commit_mutation = None
+    if session.owns_rom(rom_path):
+        commit_mutation = lambda mutator: _commit_session_rom_mutation(
+            session,
+            mutator,
+            HISTORY_OP_IMPORT_PALETTE,
+            {"addr": args["addr"]},
         )
+    result = import_palette(
+        rom_path,
+        args["addr"],
+        args["in_path"],
+        force_version,
+        commit_mutation=commit_mutation,
+    )
+    is_error = result["exit_code"] != 0
     return result, is_error
 
 

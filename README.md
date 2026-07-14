@@ -724,8 +724,13 @@ flight, so none of them expose the caller's own path to the backend either. `dat
 `palette_import` mutate that private snapshot instead, and only copy a freshly revalidated result
 back through the originally opened descriptor — confirmed by descriptor identity, never by
 reopening the path — once the backend exits `0`; that write-back is identity-safe but not
-crash-atomic, and any other outcome, or a size/content/identity mismatch, leaves the original ROM
-and session history untouched. Any snapshot path that leaks into backend stdout/stderr is
+crash-atomic. For a session-owned ROM, the session lock is acquired before write-back; a lock
+timeout therefore leaves the original untouched, while a later session-file failure verifies that
+the committed bytes are still unchanged and restores the exact pre-commit bytes through the same
+descriptor before returning an error. Rollback refuses any path, size, or content change detected
+before restoration; concurrent body writes during restoration remain outside the non-transactional
+filesystem contract. Any other outcome, or a size/content/identity mismatch, leaves the original
+ROM and session history untouched. Any snapshot path that leaks into backend stdout/stderr is
 rewritten back to the caller's real path before an MCP response is returned. An MCP backend call
 for any `--rom` path that was not itself registered this way is refused before the resolver or
 subprocess ever runs, while Click continues to pass its own `--rom` path straight through for all

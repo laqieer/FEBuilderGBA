@@ -149,6 +149,23 @@ def _hash_stream_exact(stream, size: int) -> bytes:
     return hasher.digest()
 
 
+def _read_stream_exact(stream, size: int) -> bytes:
+    """Return exactly *size* bytes from the start of *stream*, rejecting
+    either a shorter or longer current file."""
+    chunks = []
+    stream.seek(0)
+    remaining = size
+    while remaining > 0:
+        chunk = stream.read(min(_SNAPSHOT_CHUNK_BYTES, remaining))
+        if not chunk:
+            raise ValueError("ROM content shrank while the operation ran")
+        chunks.append(chunk)
+        remaining -= len(chunk)
+    if stream.read(1):
+        raise ValueError("ROM content grew while the operation ran")
+    return b"".join(chunks)
+
+
 @contextmanager
 def validated_rom_snapshot(rom_path: str, require_checksum: bool = True):
     """Yield a secure snapshot copied from one validated ROM descriptor.
@@ -199,6 +216,9 @@ class MutatingRomSnapshot:
         self._original_size = original_size
         self._original_digest = original_digest
         self._require_checksum = require_checksum
+        self._rollback_bytes = None
+        self._committed_size = None
+        self._committed_digest = None
 
     def commit(self) -> None:
         """Revalidate the mutated snapshot and write it back through the
@@ -250,7 +270,10 @@ class MutatingRomSnapshot:
                 f"ran: {self._original_path!r}"
             )
 
-        digest = _hash_stream_exact(self._original_stream, self._original_size)
+        original_bytes = _read_stream_exact(
+            self._original_stream, self._original_size,
+        )
+        digest = hashlib.sha256(original_bytes).digest()
         if digest != self._original_digest:
             raise ValueError(
                 "Refusing to commit: the original ROM's content changed "
@@ -280,7 +303,82 @@ class MutatingRomSnapshot:
                 "Refusing to confirm commit: the ROM path no longer "
                 f"identifies the just-written file: {self._original_path!r}"
             )
+        self._rollback_bytes = original_bytes
+        self._committed_size = len(mutated_bytes)
+        self._committed_digest = hashlib.sha256(mutated_bytes).digest()
         self.committed = True
+
+    def rollback(self) -> bool:
+        """Restore the exact pre-commit bytes after a successful commit.
+
+        This narrow rollback window is used when a session-owned MCP import
+        has written the ROM but cannot persist the matching session history.
+        It refuses a path, size, or content change detected before rollback;
+        concurrent body writes during rollback remain outside the
+        non-transactional filesystem contract.
+        """
+        if not self.committed or self._rollback_bytes is None:
+            return False
+
+        try:
+            current_path_stat = os.stat(self._original_path)
+        except OSError as exc:
+            raise ValueError(
+                "Refusing to roll back: cannot re-stat the original ROM path "
+                f"(it may have been removed/replaced): {self._original_path!r}"
+            ) from exc
+        fd_stat = os.fstat(self._original_stream.fileno())
+        if not os.path.samestat(current_path_stat, fd_stat):
+            raise ValueError(
+                "Refusing to roll back: the ROM path no longer identifies "
+                f"the committed file: {self._original_path!r}"
+            )
+        if fd_stat.st_size != self._committed_size:
+            raise ValueError(
+                "Refusing to roll back: the committed ROM size changed"
+            )
+        if (
+            _hash_stream_exact(self._original_stream, self._committed_size)
+            != self._committed_digest
+        ):
+            raise ValueError(
+                "Refusing to roll back: the committed ROM content changed"
+            )
+
+        self._original_stream.seek(0)
+        written = self._original_stream.write(self._rollback_bytes)
+        if written != len(self._rollback_bytes):
+            raise OSError("Failed to restore complete original ROM")
+        self._original_stream.truncate(self._original_size)
+        self._original_stream.flush()
+        os.fsync(self._original_stream.fileno())
+
+        post_fd_stat = os.fstat(self._original_stream.fileno())
+        if post_fd_stat.st_size != self._original_size:
+            raise OSError("ROM rollback size verification failed")
+        if (
+            _hash_stream_exact(self._original_stream, self._original_size)
+            != self._original_digest
+        ):
+            raise OSError("ROM rollback content verification failed")
+        try:
+            post_path_stat = os.stat(self._original_path)
+        except OSError as exc:
+            raise ValueError(
+                "Cannot verify the ROM path immediately after rollback: "
+                f"{self._original_path!r}"
+            ) from exc
+        if not os.path.samestat(post_path_stat, post_fd_stat):
+            raise ValueError(
+                "Refusing to confirm rollback: the ROM path no longer "
+                f"identifies the restored file: {self._original_path!r}"
+            )
+
+        self.committed = False
+        self._rollback_bytes = None
+        self._committed_size = None
+        self._committed_digest = None
+        return True
 
 
 @contextmanager

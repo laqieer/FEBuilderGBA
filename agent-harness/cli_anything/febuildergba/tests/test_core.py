@@ -1039,6 +1039,71 @@ class TestSession:
         assert path.read_bytes() == before_disk
         assert list(tmp_path.glob(".test_session.json.*.tmp")) == []
 
+    def test_record_operation_with_effect_rolls_back_effect_on_write_failure(
+            self, tmp_path, monkeypatch):
+        from cli_anything.febuildergba.core import session as session_module
+        from cli_anything.febuildergba.core.session import Session
+
+        path = tmp_path / "test_session.json"
+        sess = Session(str(path))
+        sess.open_rom("/fake/rom.gba", "FE8U", 1)
+        before_state = sess.state.to_dict()
+        before_disk = path.read_bytes()
+        effects = []
+
+        def fail_replace(source, destination):
+            raise PermissionError("replace denied")
+
+        monkeypatch.setattr(session_module.os, "replace", fail_replace)
+
+        with pytest.raises(PermissionError, match="replace denied"):
+            sess.record_operation_with_effect(
+                "import",
+                {"source": "units.tsv"},
+                lambda: effects.append("apply"),
+                lambda: effects.append("rollback"),
+                modified=True,
+            )
+
+        assert effects == ["apply", "rollback"]
+        assert sess.state.to_dict() == before_state
+        assert path.read_bytes() == before_disk
+        assert list(tmp_path.glob(".test_session.json.*.tmp")) == []
+
+    def test_record_operation_with_effect_surfaces_double_failure(
+            self, tmp_path, monkeypatch):
+        from cli_anything.febuildergba.core import session as session_module
+        from cli_anything.febuildergba.core.session import Session
+
+        path = tmp_path / "test_session.json"
+        sess = Session(str(path))
+        sess.open_rom("/fake/rom.gba", "FE8U", 1)
+        before_state = sess.state.to_dict()
+        before_disk = path.read_bytes()
+
+        def fail_replace(source, destination):
+            raise PermissionError("replace denied")
+
+        def fail_rollback():
+            raise OSError("rollback denied")
+
+        monkeypatch.setattr(session_module.os, "replace", fail_replace)
+
+        with pytest.raises(
+                RuntimeError, match="external state may remain changed") as exc:
+            sess.record_operation_with_effect(
+                "import",
+                {},
+                lambda: None,
+                fail_rollback,
+                modified=True,
+            )
+
+        assert isinstance(exc.value.__cause__, OSError)
+        assert sess.state.to_dict() == before_state
+        assert path.read_bytes() == before_disk
+        assert list(tmp_path.glob(".test_session.json.*.tmp")) == []
+
     def test_mark_modified_write_failure_rolls_back_memory_and_disk(
             self, tmp_path, monkeypatch):
         from cli_anything.febuildergba.core import session as session_module
@@ -1325,6 +1390,29 @@ class TestSession:
 
         assert sess.state.history[-1]["op"] == "import"
         assert sess.state.modified is True
+
+    def test_stale_record_operation_with_effect_never_applies_effect(
+            self, tmp_path):
+        from cli_anything.febuildergba.core.session import Session
+
+        path = str(tmp_path / "test_session.json")
+        stale = Session(path)
+        stale.open_rom("/fake/a.gba", "FE8U")
+        current = Session(path)
+        current.open_rom("/fake/b.gba", "FE8U")
+        effects = []
+
+        assert stale.record_operation_with_effect(
+            "import",
+            {},
+            lambda: effects.append("apply"),
+            lambda: effects.append("rollback"),
+            modified=True,
+        ) is False
+
+        assert effects == []
+        assert stale.state.session_id == current.state.session_id
+        assert stale.state.rom_path.endswith("b.gba")
 
     def test_stale_session_cannot_overwrite_reopened_rom(self, tmp_path):
         from cli_anything.febuildergba.core.session import Session
@@ -2011,6 +2099,41 @@ class TestMutatingRomSnapshot:
 
         assert rom_path.read_bytes()[0x1000:0x1000 + 8] == b"MUTATED!"
         assert not os.path.isfile(snapshot_path)
+
+    def test_rollback_restores_exact_precommit_bytes(self, tmp_path):
+        from cli_anything.febuildergba.core import project
+
+        rom_path = tmp_path / "rom.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
+        original_bytes = rom_path.read_bytes()
+
+        with project.mutating_rom_snapshot(str(rom_path)) as mutator:
+            self._mutate(mutator.path)
+            mutator.commit()
+            assert rom_path.read_bytes() != original_bytes
+            assert mutator.rollback() is True
+            assert mutator.committed is False
+            assert mutator.rollback() is False
+
+        assert rom_path.read_bytes() == original_bytes
+
+    def test_rollback_refuses_postcommit_content_drift(self, tmp_path):
+        from cli_anything.febuildergba.core import project
+
+        rom_path = tmp_path / "rom.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
+
+        with project.mutating_rom_snapshot(str(rom_path)) as mutator:
+            self._mutate(mutator.path)
+            mutator.commit()
+            mutator._original_stream.seek(0x2000)
+            mutator._original_stream.write(b"DRIFT!!!")
+            mutator._original_stream.flush()
+
+            with pytest.raises(ValueError, match="committed ROM content changed"):
+                mutator.rollback()
+
+            assert mutator.committed is True
 
     def test_uncommitted_mutation_never_touches_original(self, tmp_path):
         from cli_anything.febuildergba.core import project

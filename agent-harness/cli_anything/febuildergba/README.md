@@ -163,9 +163,15 @@ exactly as before this fix.
   leave partially updated or mixed old/new bytes, retain an old trailing suffix when the
   replacement is shorter, or leave completed writes not durably persisted. Any check failing —
   including the backend itself failing or timing out — aborts with no write and no session
-  history/modified flag. Outside MCP scope, both mutating wrappers hand the backend the caller's
-  own path directly and their "commit" step is a no-op, because the backend already wrote the
-  result straight to the real file — matching their pre-#1942 Click behavior.
+  history/modified flag. For a session-owned ROM, the session lock is acquired before write-back.
+  A lock timeout therefore commits nothing; if writing the matching session history later fails,
+  the committed bytes are verified unchanged and the exact pre-commit bytes are restored through
+  the same descriptor before the tool returns an error. Rollback refuses any path, size, or
+  content change detected before restoration; concurrent body writes during restoration remain
+  outside the non-transactional filesystem contract. Outside MCP scope, both mutating wrappers
+  hand the backend the caller's own path directly and their "commit" step is a no-op, because the
+  backend already wrote the result straight to the real file — matching their pre-#1942 Click
+  behavior.
 - Every temporary snapshot created above is removed once its wrapper returns, on every path
   (success, backend failure, or an exception) — never left behind. Outside MCP scope, the eight
   non-`lint` wrappers never create one in the first place.

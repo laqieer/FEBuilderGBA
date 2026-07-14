@@ -287,7 +287,13 @@ attacker-influenced text fed straight back to the calling agent.
   leave partially updated or mixed old/new bytes, retain an old trailing suffix when the
   replacement is shorter, or leave completed writes not durably persisted. Any failed check —
   including the backend itself failing, timing out, or raising — aborts with no write and no
-  session history/modified flag, exactly as if the tool call itself had failed.
+  session history/modified flag, exactly as if the tool call itself had failed. For a
+  session-owned ROM, the session lock is acquired before descriptor write-back, so a lock timeout
+  commits nothing. If the matching session-file write then fails, the committed bytes are first
+  verified unchanged and the exact pre-commit bytes are restored through that descriptor before
+  the tool reports failure. Rollback refuses any path, size, or content change detected before
+  restoration; concurrent body writes during restoration remain outside the non-transactional
+  filesystem contract.
 - Every temporary snapshot is removed once its tool call returns, whether it succeeded, the
   backend failed, or the call raised — never left behind.
 - `run_cli` additionally enforces an **MCP-only seam guard**: while a tool handler is executing,
