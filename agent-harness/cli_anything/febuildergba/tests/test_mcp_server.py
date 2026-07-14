@@ -1506,6 +1506,21 @@ class TestAdvisoryVsHardErrors:
         resp = _call_tool(initialized_state, "rom_checksum", {})
         assert resp["result"]["isError"] is True
 
+    def test_checksum_ignores_invalid_persisted_force_version(self, tmp_path):
+        rom_path = tmp_path / "r.gba"
+        _write_valid_test_rom(rom_path)
+        state = _initialized_state_from_session_payload(tmp_path, {
+            "rom_path": str(rom_path),
+            "force_version": "INVALID",
+        })
+
+        resp = _call_tool(state, "rom_checksum", {})
+        payload = json.loads(resp["result"]["content"][0]["text"])
+
+        assert resp["result"]["isError"] is False
+        assert payload["valid"] is True
+        assert payload["exit_code"] == 0
+
     @pytest.mark.parametrize("explicit_path", [False, True])
     def test_checksum_rejects_non_rom_before_backend_without_disclosure(
             self, initialized_state, monkeypatch, tmp_path, explicit_path):

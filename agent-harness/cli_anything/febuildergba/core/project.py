@@ -262,11 +262,9 @@ class MutatingRomSnapshot:
         try:
             with _open_validated_rom(self.path, self._require_checksum) as (
                     mutated_stream, _mutated_header, mutated_size):
-                mutated_stream.seek(0)
-                mutated_bytes = mutated_stream.read(mutated_size)
-                if len(mutated_bytes) != mutated_size:
-                    raise OSError(
-                        "Failed to read complete mutated ROM snapshot")
+                mutated_bytes = _read_stream_exact(
+                    mutated_stream, mutated_size,
+                )
         except (OSError, ValueError) as exc:
             detail = str(exc).replace(
                 self.path, "<private ROM snapshot>")

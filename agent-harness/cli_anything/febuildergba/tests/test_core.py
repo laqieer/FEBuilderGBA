@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -2732,6 +2733,36 @@ class TestMutatingRomSnapshot:
                 mutator.commit()
             assert mutator.path not in str(exc.value)
             assert mutator.committed is False
+
+    def test_commit_rejects_snapshot_growth_after_validation(
+            self, tmp_path, monkeypatch):
+        from cli_anything.febuildergba.core import project
+
+        rom_path = tmp_path / "rom.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
+        original_bytes = rom_path.read_bytes()
+
+        with project.mutating_rom_snapshot(str(rom_path)) as mutator:
+            real_open_validated_rom = project._open_validated_rom
+
+            @contextmanager
+            def grow_after_validation(path, require_checksum):
+                with real_open_validated_rom(path, require_checksum) as opened:
+                    with open(path, "ab") as stream:
+                        stream.write(b"\x00")
+                    yield opened
+
+            monkeypatch.setattr(
+                project, "_open_validated_rom", grow_after_validation,
+            )
+            with pytest.raises(
+                    RuntimeError, match="grew while the operation ran") as exc:
+                mutator.commit()
+
+            assert mutator.path not in str(exc.value)
+            assert mutator.committed is False
+
+        assert rom_path.read_bytes() == original_bytes
 
     def test_commit_rejects_invalid_header_mutated_result(self, tmp_path):
         from cli_anything.febuildergba.core import project

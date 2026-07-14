@@ -696,7 +696,10 @@ informational. Image
 quantization exposes the backend's 2..256 maximum-color contract (or 1 when palette slot zero is
 not reserved), and malformed launcher arguments fail before the server can fall back to the
 default session. The checksum tool also rejects non-ROM paths before backend invocation while
-still reporting a genuine header-checksum mismatch as advisory data. MCP bounded
+still reporting a genuine header-checksum mismatch as advisory data; because checksum is local
+and header-only, it ignores an explicit or persisted `force_version`. Mutating snapshot commit
+also re-reads the validated size and probes for trailing bytes, rejecting shrink or growth before
+the original descriptor is touched. MCP bounded
 launch/version-probe failures are reported as ordinary unavailable status, including invalid
 UTF-8, and shared
 Click/MCP session history keeps stable operation identifiers. Failed session writes/deletes

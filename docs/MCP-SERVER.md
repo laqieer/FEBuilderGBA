@@ -156,7 +156,7 @@ an over-length value is rejected as `-32602`, never silently defaulted or trunca
 | 6 | `rom_info` | `rom info` | Rejects files outside 1..32 MiB or that fail local GBA header validation; it never invokes the backend. `lint_output: ""` and `lint_exit_code: -1` permanently mean lint was not attempted; call `rom_lint`. |
 | 7 | `rom_validate` | `rom validate` | 1..32 MiB header heuristic; never calls the backend. |
 | 8 | `rom_list_tables` | `rom tables` | |
-| 9 | `rom_checksum` | `rom checksum` | Computes from one locally opened, regular 1..32 MiB descriptor; the backend never reopens the path. A checksum mismatch is exit 2 and remains a structured, non-error result. |
+| 9 | `rom_checksum` | `rom checksum` | Computes from one locally opened, regular 1..32 MiB descriptor and ignores `force_version`; the backend never reopens the path. A checksum mismatch is exit 2 and remains a structured, non-error result. |
 | 10 | `data_export` | `data export` | **Overwrites** `out_path` (or its expansion for `table: "all"`). |
 | 11 | `data_import` | `data import` | **Overwrites the resolved `rom_path` (or active session ROM) in place.** |
 | 12 | `data_roundtrip` | `data roundtrip` | Exit 2 (mismatches found) is a structured, non-error result. |
@@ -286,9 +286,10 @@ attacker-influenced text fed straight back to the calling agent.
   bounded stdout; it never creates a complete temporary TSV export in MCP scope.
 - **Mutating tools** (`data_import`, `palette_import`) keep the original file descriptor open
   read-write for the whole call and hand the backend a snapshot copy to mutate. The mutated
-  snapshot is committed back through that *same* descriptor only after the backend reports exit
-  code `0`, the private snapshot has been removed successfully, and the captured bytes revalidate
-  as a 1..32 MiB GBA ROM. The resolved
+  snapshot is read at its validated size with a trailing-byte probe, so shrink or post-validation
+  growth fails closed. It is committed back through that *same* descriptor only after the backend
+  reports exit code `0`, the private snapshot has been removed successfully, and the captured
+  bytes revalidate as a 1..32 MiB GBA ROM. The resolved
   pathname still identifies the exact same file the descriptor was opened from (checked with
   `os.stat`/`os.fstat` via `os.path.samestat` **only** — never a string/normcase path comparison),
   and the bytes originally read through that descriptor are still byte-for-byte unchanged at the
