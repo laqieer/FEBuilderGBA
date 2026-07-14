@@ -252,7 +252,9 @@ or tampered non-ROM session paths fail closed with `rom_header: null`.
   `modified: true` — but only when the backend exited 0 **and** the resolved target has the same
   filesystem identity as the active session's ROM (including symlink/hardlink aliases). Failures,
   advisory-only checks, and explicit overrides to a *different* ROM never dirty the session and
-  never fabricate history.
+  never fabricate history. The identity is checked again while holding the session lock,
+  immediately before snapshot commit, so replacing the session path during a hard-link-alias
+  import aborts without committing or attributing the old inode to the replacement.
 - Shared Click/MCP history uses the same identifiers: `data_export`, `data_import`, and
   `import_palette`.
 - Every Click history-producing ROM command applies the same filesystem-identity ownership rule,

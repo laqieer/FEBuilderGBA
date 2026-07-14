@@ -724,11 +724,19 @@ def _h_data_export(session, args):
     return result, is_error
 
 
-def _commit_session_rom_mutation(session, mutator, op, details):
+def _commit_session_rom_mutation(
+        session, mutator, rom_path, op, details):
+    def commit_if_still_owned():
+        if not session.owns_rom(rom_path):
+            raise RuntimeError(
+                "Session ROM no longer identifies the mutation target"
+            )
+        mutator.commit()
+
     recorded = session.record_operation_with_effect(
         op,
         details,
-        mutator.commit,
+        commit_if_still_owned,
         mutator.rollback,
         modified=True,
     )
@@ -748,6 +756,7 @@ def _h_data_import(session, args):
         commit_mutation = lambda mutator: _commit_session_rom_mutation(
             session,
             mutator,
+            rom_path,
             HISTORY_OP_DATA_IMPORT,
             {"table": table, "in": in_path},
         )
@@ -880,6 +889,7 @@ def _h_palette_import(session, args):
         commit_mutation = lambda mutator: _commit_session_rom_mutation(
             session,
             mutator,
+            rom_path,
             HISTORY_OP_IMPORT_PALETTE,
             {"addr": args["addr"]},
         )

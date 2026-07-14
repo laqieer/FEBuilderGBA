@@ -710,8 +710,10 @@ bounded to 16 nested levels, 100 collection members, 4,096-character strings/key
 scalars, and 128-character operation names; malformed persisted entries are dropped individually.
 Every Click history-producing ROM command uses the same
 filesystem-identity ownership rule as MCP, so explicit operations on another ROM cannot alter the
-active session while hard-link aliases still count as the same ROM. Commands that write a
-separate output ROM record history without marking the active input ROM modified; they set
+active session while hard-link aliases still count as the same ROM. In-place MCP imports repeat
+that identity check while holding the session lock immediately before commit, so replacing the
+session path during a hard-link-alias operation cannot mark the replacement modified. Commands
+that write a separate output ROM record history without marking the active input ROM modified; they set
 `modified` only when the reported destination identifies the active ROM. The `data_import` and
 `palette_import` MCP tools have no output-path argument: they overwrite the resolved explicit
 `rom_path`, or the active session ROM when `rom_path` is omitted. Successful backend

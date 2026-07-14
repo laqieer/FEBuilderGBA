@@ -1140,6 +1140,114 @@ class TestPaletteImportSessionEffects:
 
 
 class TestMutatingSessionPersistence:
+    def test_hardlink_alias_commit_rejects_replaced_session_path(
+            self, initialized_state, tmp_path):
+        rom_path = tmp_path / "rom.gba"
+        alias_path = tmp_path / "alias.gba"
+        replacement_path = tmp_path / "replacement.gba"
+        rom_path.write_bytes(b"original")
+        os.link(rom_path, alias_path)
+        initialized_state.session.open_rom(str(rom_path), "FE8U", 8)
+        before_state = initialized_state.session.state.to_dict()
+        replacement_path.write_bytes(b"replacement")
+        os.replace(replacement_path, rom_path)
+        effects = []
+
+        class FakeMutation:
+            def commit(self):
+                effects.append("commit")
+
+            def rollback(self):
+                effects.append("rollback")
+                return True
+
+        with pytest.raises(RuntimeError, match="no longer identifies"):
+            srv._commit_session_rom_mutation(
+                initialized_state.session,
+                FakeMutation(),
+                str(alias_path),
+                HISTORY_OP_DATA_IMPORT,
+                {"table": "units"},
+            )
+
+        assert effects == []
+        assert rom_path.read_bytes() == b"replacement"
+        assert alias_path.read_bytes() == b"original"
+        assert initialized_state.session.state.to_dict() == before_state
+        assert initialized_state.session._transaction_active is False
+
+    @pytest.mark.parametrize(
+        ("tool_name", "module_name", "func_name", "arguments"),
+        [
+            (
+                "data_import",
+                "cli_anything.febuildergba.core.data",
+                "import_table",
+                {"table": "units", "in_path": "input.tsv"},
+            ),
+            (
+                "palette_import",
+                "cli_anything.febuildergba.core.verbs",
+                "import_palette",
+                {"addr": "0x5524", "in_path": "input.gbapal"},
+            ),
+        ],
+    )
+    def test_hardlink_alias_ownership_is_rechecked_inside_transaction(
+            self, tool_name, module_name, func_name, arguments,
+            initialized_state, monkeypatch, tmp_path):
+        import importlib
+
+        module = importlib.import_module(module_name)
+        rom_path = tmp_path / "rom.gba"
+        alias_path = tmp_path / "alias.gba"
+        rom_path.write_bytes(b"rom")
+        os.link(rom_path, alias_path)
+        initialized_state.session.open_rom(str(rom_path), "FE8U", 3)
+        before_state = initialized_state.session.state.to_dict()
+        effects = []
+
+        class FakeMutation:
+            def commit(self):
+                effects.append("commit")
+
+            def rollback(self):
+                effects.append("rollback")
+                return True
+
+        def fake_import(*args, commit_mutation=None, **kwargs):
+            commit_mutation(FakeMutation())
+            raise AssertionError("ownership loss must abort before return")
+
+        real_owns_rom = initialized_state.session.owns_rom
+        ownership_checks = []
+
+        def owns_then_replaced(path):
+            ownership_checks.append(
+                initialized_state.session._transaction_active,
+            )
+            if len(ownership_checks) == 1:
+                return real_owns_rom(path)
+            return False
+
+        monkeypatch.setattr(module, func_name, fake_import)
+        monkeypatch.setattr(
+            initialized_state.session, "owns_rom", owns_then_replaced,
+        )
+
+        call_arguments = dict(arguments)
+        call_arguments["rom_path"] = str(alias_path)
+        response = _call_tool(
+            initialized_state, tool_name, call_arguments,
+        )
+        payload = json.loads(response["result"]["content"][0]["text"])
+
+        assert response["result"]["isError"] is True
+        assert "no longer identifies" in payload["error"]
+        assert ownership_checks == [False, True]
+        assert effects == []
+        assert initialized_state.session.state.to_dict() == before_state
+
     @pytest.mark.parametrize(
         ("tool_name", "module_name", "arguments"),
         [
