@@ -21,6 +21,15 @@ from cli_anything.febuildergba import febuildergba_cli
 from cli_anything.febuildergba.core import verbs
 
 
+def _write_valid_test_rom(path, game_code=b"BE8E"):
+    """Write a minimal, header-valid 1 MiB synthetic GBA ROM."""
+    rom = bytearray(0x100000)
+    rom[0xAC:0xB0] = game_code
+    rom[0xB2] = 0x96
+    rom[0xBD] = (-sum(rom[0xA0:0xBD]) - 0x19) & 0xFF
+    Path(path).write_bytes(rom)
+
+
 # ── Unit-test scaffolding: fake run_cli ───────────────────────────────
 
 class _Recorder:
@@ -31,9 +40,20 @@ class _Recorder:
         self.stdout = stdout
         self.stderr = stderr
         self.args = None
+        # The value of the first ``--rom=`` argument observed, and whether it
+        # pointed at an existing regular file at the instant of the call —
+        # used to assert wrappers hand the backend a live, private snapshot
+        # rather than the caller's original path (issue #1942 / PR #1971).
+        self.rom_arg = None
+        self.rom_arg_existed_during_call = None
 
     def __call__(self, args, **kwargs):
         self.args = args
+        for arg in args:
+            if isinstance(arg, str) and arg.startswith("--rom="):
+                self.rom_arg = arg[len("--rom="):]
+                self.rom_arg_existed_during_call = os.path.isfile(self.rom_arg)
+                break
         return SimpleNamespace(
             returncode=self.returncode, stdout=self.stdout, stderr=self.stderr
         )
@@ -139,20 +159,119 @@ class TestImportMidiUnit:
 
 
 class TestPaletteUnit:
-    def test_export_with_colors(self, rec):
-        verbs.export_palette("r.gba", "0x5524", "p.pal", colors=16)
-        assert rec.args == ["--export-palette", "--rom=r.gba",
+    def test_export_with_colors(self, rec, tmp_path):
+        rom_path = tmp_path / "r.gba"
+        _write_valid_test_rom(rom_path)
+        verbs.export_palette(str(rom_path), "0x5524", "p.pal", colors=16)
+        # A bare direct call (like Click) never enters MCP's
+        # prebuilt_backend_only() scope, so the backend receives the
+        # caller's real path unchanged (issue #1942 / PR #1971 legacy
+        # passthrough) — MCP-scoped snapshotting is covered by
+        # test_core.py's TestRomSnapshotAcrossAllWrappers.
+        assert rec.rom_arg is not None
+        assert rec.rom_arg == str(rom_path)
+        assert rec.rom_arg_existed_during_call is True
+        assert rec.args == ["--export-palette", f"--rom={rec.rom_arg}",
                             "--addr=0x5524", "--out=p.pal", "--colors=16"]
+        # No snapshot was created, so there is nothing to remove.
+        assert os.path.isfile(rec.rom_arg)
 
-    def test_export_without_colors_omits_flag(self, rec):
-        verbs.export_palette("r.gba", "0x5524", "p.pal")
+    def test_export_without_colors_omits_flag(self, rec, tmp_path):
+        rom_path = tmp_path / "r.gba"
+        _write_valid_test_rom(rom_path)
+        verbs.export_palette(str(rom_path), "0x5524", "p.pal")
         assert "--colors=0" not in rec.args
         assert not any(a.startswith("--colors") for a in rec.args)
 
-    def test_import_args(self, rec):
-        verbs.import_palette("r.gba", "0x5524", "p.pal")
-        assert rec.args == ["--import-palette", "--rom=r.gba",
+    def test_import_args(self, rec, tmp_path):
+        rom_path = tmp_path / "r.gba"
+        _write_valid_test_rom(rom_path)
+        verbs.import_palette(str(rom_path), "0x5524", "p.pal")
+        # Same legacy-passthrough contract as export, for the mutating
+        # wrapper's (no-op outside MCP) commit path.
+        assert rec.rom_arg is not None
+        assert rec.rom_arg == str(rom_path)
+        assert rec.args == ["--import-palette", f"--rom={rec.rom_arg}",
                             "--addr=0x5524", "--in=p.pal"]
+        # No snapshot was created, so there is nothing to remove.
+        assert os.path.isfile(rec.rom_arg)
+
+
+class TestPaletteClickLayer:
+    """Click's `rom palette export|import` commands keep working end-to-end
+    with a real ROM (issue #1942 / PR #1971): outside MCP's
+    ``prebuilt_backend_only`` scope these wrappers retain their historical,
+    direct-path behavior — no private snapshot, no local validation — so
+    the backend receives the caller's real path unchanged, exactly as
+    before this fix. MCP-scoped snapshot/commit coverage lives in
+    ``test_core.py``'s ``TestRomSnapshotAcrossAllWrappers`` /
+    ``TestMutatingWrappersCommitProtocol``."""
+
+    def test_export_success_with_real_rom(self, monkeypatch, tmp_path):
+        rom_path = tmp_path / "r.gba"
+        _write_valid_test_rom(rom_path)
+        out = tmp_path / "p.pal"
+
+        def fake_run_cli(args, **kwargs):
+            rom_arg = next(a for a in args if a.startswith("--rom="))[len("--rom="):]
+            assert rom_arg == str(rom_path), "Click keeps the direct path"
+            assert os.path.isfile(rom_arg)
+            Path(out).write_bytes(b"\x00" * 32)
+            return SimpleNamespace(
+                returncode=0, stdout="Exported: p.pal (32 bytes)", stderr="")
+
+        monkeypatch.setattr(
+            "cli_anything.febuildergba.core.verbs.run_cli", fake_run_cli)
+        res = CliRunner().invoke(
+            febuildergba_cli.cli,
+            ["--rom", str(rom_path), "palette", "export",
+             "--addr=0x5524", "-o", str(out)],
+        )
+        assert res.exit_code == 0, res.output
+        assert out.is_file()
+
+    def test_import_success_with_real_rom(self, monkeypatch, tmp_path):
+        rom_path = tmp_path / "r.gba"
+        _write_valid_test_rom(rom_path)
+        infile = tmp_path / "p.pal"
+        infile.write_bytes(b"\x00" * 32)
+
+        def fake_run_cli(args, **kwargs):
+            rom_arg = next(a for a in args if a.startswith("--rom="))[len("--rom="):]
+            assert rom_arg == str(rom_path), "Click keeps the direct path"
+            return SimpleNamespace(returncode=0, stdout="Imported.", stderr="")
+
+        monkeypatch.setattr(
+            "cli_anything.febuildergba.core.verbs.run_cli", fake_run_cli)
+        res = CliRunner().invoke(
+            febuildergba_cli.cli,
+            ["--rom", str(rom_path), "palette", "import",
+             "--addr=0x5524", "-i", str(infile)],
+        )
+        assert res.exit_code == 0, res.output
+        # The (no-op) commit ran against the real original path directly.
+        assert rom_path.is_file()
+
+    def test_import_backend_failure_raises_and_leaves_rom_untouched(
+            self, monkeypatch, tmp_path):
+        rom_path = tmp_path / "r.gba"
+        _write_valid_test_rom(rom_path)
+        original_bytes = rom_path.read_bytes()
+        infile = tmp_path / "p.pal"
+        infile.write_bytes(b"\x00" * 32)
+
+        def fake_run_cli(args, **kwargs):
+            return SimpleNamespace(returncode=1, stdout="", stderr="bad palette")
+
+        monkeypatch.setattr(
+            "cli_anything.febuildergba.core.verbs.run_cli", fake_run_cli)
+        res = CliRunner().invoke(
+            febuildergba_cli.cli,
+            ["--rom", str(rom_path), "palette", "import",
+             "--addr=0x5524", "-i", str(infile)],
+        )
+        assert res.exit_code != 0
+        assert rom_path.read_bytes() == original_bytes
 
 
 class TestCompileEventUnit:

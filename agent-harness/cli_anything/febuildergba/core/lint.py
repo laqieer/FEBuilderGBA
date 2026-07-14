@@ -3,7 +3,10 @@
 import re
 
 from cli_anything.febuildergba.core.project import validated_rom_snapshot
-from cli_anything.febuildergba.utils.febuildergba_backend import run_cli
+from cli_anything.febuildergba.utils.febuildergba_backend import (
+    run_cli,
+    sanitize_snapshot_path,
+)
 
 
 _ERROR_LINE = re.compile(r"^\s*\[ERROR\](?:\s|$)", re.IGNORECASE)
@@ -27,10 +30,11 @@ def lint_rom(rom_path: str, force_version: str = "") -> dict:
         if force_version:
             args.append(f"--force-version={force_version}")
         result = run_cli(args)
+        stdout = sanitize_snapshot_path(result.stdout, snapshot_path, rom_path)
 
     # The CLI emits explicit severity markers for findings. Do not classify
     # summary text such as "Lint: No errors found." by incidental words.
-    lines = result.stdout.strip().splitlines() if result.stdout else []
+    lines = stdout.strip().splitlines() if stdout else []
     errors = [line for line in lines if _ERROR_LINE.match(line)]
     warnings = [line for line in lines if _WARNING_LINE.match(line)]
     info_lines = [l for l in lines if l and l not in errors and l not in warnings]
@@ -44,5 +48,5 @@ def lint_rom(rom_path: str, force_version: str = "") -> dict:
         "warnings": warnings,
         "info": info_lines,
         "exit_code": result.returncode,
-        "raw_output": result.stdout.strip(),
+        "raw_output": stdout.strip() if stdout else "",
     }

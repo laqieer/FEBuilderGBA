@@ -4,8 +4,15 @@ import os
 import csv
 from typing import Optional
 
-from cli_anything.febuildergba.utils.febuildergba_backend import run_cli
-from cli_anything.febuildergba.core.project import list_tables
+from cli_anything.febuildergba.utils.febuildergba_backend import (
+    run_cli,
+    sanitize_snapshot_path,
+)
+from cli_anything.febuildergba.core.project import (
+    backend_mutating_rom_snapshot,
+    backend_rom_snapshot,
+    list_tables,
+)
 
 
 def export_table(rom_path: str, table: str, output_path: str,
@@ -27,12 +34,19 @@ def export_table(rom_path: str, table: str, output_path: str,
     if not isinstance(output_path, str) or not output_path:
         raise ValueError("Output path must not be empty")
 
-    args = ["--export-data", f"--rom={rom_path}", f"--table={table}",
-            f"--out={output_path}"]
-    if force_version:
-        args.append(f"--force-version={force_version}")
+    # The backend must never reopen the caller's mutable path after local
+    # validation; it receives a header-pinned, length-checked snapshot
+    # instead — but only inside MCP's dynamic scope. Outside MCP this is a
+    # no-op passthrough to `rom_path` (see `backend_rom_snapshot`).
+    with backend_rom_snapshot(rom_path) as snapshot_path:
+        args = ["--export-data", f"--rom={snapshot_path}", f"--table={table}",
+                f"--out={output_path}"]
+        if force_version:
+            args.append(f"--force-version={force_version}")
 
-    result = run_cli(args)
+        result = run_cli(args)
+        stdout = sanitize_snapshot_path(result.stdout, snapshot_path, rom_path)
+        stderr = sanitize_snapshot_path(result.stderr, snapshot_path, rom_path)
 
     files = []
     if result.returncode == 0:
@@ -52,8 +66,8 @@ def export_table(rom_path: str, table: str, output_path: str,
         "output_files": files,
         "output_path": output_path,
         "exit_code": result.returncode,
-        "stdout": result.stdout.strip(),
-        "stderr": result.stderr.strip() if result.stderr else "",
+        "stdout": stdout.strip() if stdout else "",
+        "stderr": stderr.strip() if stderr else "",
     }
 
 
@@ -76,19 +90,28 @@ def import_table(rom_path: str, table: str, input_path: str,
     if not os.path.isfile(input_path):
         raise FileNotFoundError(f"Input file not found: {input_path}")
 
-    args = ["--import-data", f"--rom={rom_path}", f"--table={table}",
-            f"--in={input_path}"]
-    if force_version:
-        args.append(f"--force-version={force_version}")
+    # Mutate a private snapshot; only commit back through the originally
+    # opened writable descriptor after the backend reports success — but
+    # only inside MCP's dynamic scope. Outside MCP this is a no-op
+    # passthrough to `rom_path` (see `backend_mutating_rom_snapshot`).
+    with backend_mutating_rom_snapshot(rom_path) as mutator:
+        args = ["--import-data", f"--rom={mutator.path}", f"--table={table}",
+                f"--in={input_path}"]
+        if force_version:
+            args.append(f"--force-version={force_version}")
 
-    result = run_cli(args)
+        result = run_cli(args)
+        stdout = sanitize_snapshot_path(result.stdout, mutator.path, rom_path)
+        stderr = sanitize_snapshot_path(result.stderr, mutator.path, rom_path)
+        if result.returncode == 0:
+            mutator.commit()
 
     return {
         "table": table,
         "input_path": input_path,
         "exit_code": result.returncode,
-        "stdout": result.stdout.strip(),
-        "stderr": result.stderr.strip() if result.returncode != 0 else "",
+        "stdout": stdout.strip() if stdout else "",
+        "stderr": stderr.strip() if result.returncode != 0 else "",
     }
 
 
@@ -104,18 +127,21 @@ def roundtrip_table(rom_path: str, table: str = "all",
     Returns:
         Dict with roundtrip validation results.
     """
-    args = ["--data-roundtrip", f"--rom={rom_path}", f"--table={table}"]
-    if force_version:
-        args.append(f"--force-version={force_version}")
+    with backend_rom_snapshot(rom_path) as snapshot_path:
+        args = ["--data-roundtrip", f"--rom={snapshot_path}", f"--table={table}"]
+        if force_version:
+            args.append(f"--force-version={force_version}")
 
-    result = run_cli(args)
+        result = run_cli(args)
+        stdout = sanitize_snapshot_path(result.stdout, snapshot_path, rom_path)
+        stderr = sanitize_snapshot_path(result.stderr, snapshot_path, rom_path)
 
     return {
         "table": table,
         "lossless": result.returncode == 0,
         "exit_code": result.returncode,
-        "stdout": result.stdout.strip(),
-        "stderr": result.stderr.strip() if result.returncode != 0 else "",
+        "stdout": stdout.strip() if stdout else "",
+        "stderr": stderr.strip() if result.returncode != 0 else "",
     }
 
 

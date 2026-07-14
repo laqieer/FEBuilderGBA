@@ -718,9 +718,20 @@ resolver or subprocess execution. `rom_info` and `session_open` now derive metad
 their locally validated descriptor and permanently return `lint_output: ""` and
 `lint_exit_code: -1` to mean lint was not attempted—call `rom_lint` for explicit linting.
 `rom_lint` validates and copies the opened ROM descriptor to a temporary `.gba` snapshot before
-the backend sees it. MCP only accepts an explicit backend, prebuilt apphost, or prebuilt DLL
-(`dotnet <dll>`); it never invokes `dotnet run`, build, restore, or NuGet. Click alone retains
-the development `dotnet run --project ... --` fallback.
+the backend sees it. The same private-snapshot protection covers `data_export`, `data_roundtrip`,
+`names_resolve`, `text_search`, `text_roundtrip`, and `palette_export` while an MCP request is in
+flight, so none of them expose the caller's own path to the backend either. `data_import` and
+`palette_import` mutate that private snapshot instead, and only copy a freshly revalidated result
+back through the originally opened descriptor — confirmed by descriptor identity, never by
+reopening the path — once the backend exits `0`; that write-back is identity-safe but not
+crash-atomic, and any other outcome, or a size/content/identity mismatch, leaves the original ROM
+and session history untouched. Any snapshot path that leaks into backend stdout/stderr is
+rewritten back to the caller's real path before an MCP response is returned. An MCP backend call
+for any `--rom` path that was not itself registered this way is refused before the resolver or
+subprocess ever runs, while Click continues to pass its own `--rom` path straight through for all
+of these commands exactly as before. MCP only accepts an explicit backend, prebuilt apphost, or
+prebuilt DLL (`dotnet <dll>`); it never invokes `dotnet run`, build, restore, or NuGet. Click alone
+retains the development `dotnet run --project ... --` fallback.
 
 The `.mcp.json` at the repo root auto-configures Claude Code to use it as `febuildergba-cli`
 (`python ./agent-harness/febuildergba_mcp.py`). See

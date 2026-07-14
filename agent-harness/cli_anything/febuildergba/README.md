@@ -128,6 +128,60 @@ runner, no patch/rebuild/repair/event/music tools) and 3 read-only resources ove
 JSON-RPC 2.0. See **[`docs/MCP-SERVER.md`](../../../docs/MCP-SERVER.md)** for the full reference
 (protocol versions, tool/resource list, schemas, safety annotations, session semantics, bounds).
 
+### ROM backend trust boundary (issue #1942 / PR #1971)
+
+The backend executable (`FEBuilderGBA.CLI`) is treated as **untrusted** for any `--rom` argument
+it receives, but only inside MCP's dynamic scope (`prebuilt_backend_only()`, entered for the
+duration of every MCP `tools/call`). Nine wrappers touch a ROM — `data export`/`import`/`roundtrip`,
+`names`, `text search`/`roundtrip`, `palette export`/`import`, and `lint` (the nine backend-ROM
+surfaces; `image`/`lz77`/`check` never take a `--rom`). Inside MCP scope, all nine open the
+caller's path themselves **exactly once**, validate it as a regular 1..32 MiB file with a complete
+GBA header (and checksum, except for `rom checksum` itself), and hand the backend a private
+temporary **snapshot** instead of the caller's path. `lint` is the one surface that also does this
+outside MCP: its always-on snapshot predates this fix. The other eight wrappers retain their
+original, pre-#1942 direct-path Click behavior outside MCP scope — the caller's own path is
+handed straight to the backend, with no local validation, no snapshot, and no temporary file,
+exactly as before this fix.
+
+- **Read-only wrappers** (`export_table`, `roundtrip_table`, `resolve_names`, `search_text`,
+  `roundtrip_text`, `export_palette`, `lint_rom`), inside MCP scope, copy the validated bytes into
+  the snapshot and never reopen the caller's path — so even if the backend (or a concurrent
+  process) replaces, removes, or grows/shrinks the original file mid-call, the backend still only
+  ever sees the bytes that were validated up front. Outside MCP scope, only `lint_rom` does this;
+  the other six pass the caller's path directly and apply no local validation, matching their
+  pre-#1942 Click behavior.
+- **Mutating wrappers** (`import_table`, `import_palette`), inside MCP scope, keep the *original*
+  file descriptor open read-write for the whole call and hand the backend a snapshot copy to
+  mutate. Only after the backend reports success (exit code 0) is the mutated snapshot committed
+  back — and only once every one of the following holds: the mutated snapshot is itself a valid
+  1..32 MiB GBA ROM; the original pathname still identifies the exact same file this descriptor
+  was opened from (`os.stat` vs. `os.fstat` via `os.path.samestat` **only** — never a
+  string/normcase fallback); and the bytes originally read through that descriptor are still
+  byte-for-byte unchanged. Only then is the descriptor rewound, truncated, written, flushed, and
+  `fsync`'d, with a final size/identity re-check immediately after. **This write-back is
+  identity-safe but not crash-atomic**: a crash between the truncate and the final write/`fsync`
+  can leave the file short of both the old and the new valid contents. Any check failing —
+  including the backend itself failing or timing out — aborts with no write and no session
+  history/modified flag. Outside MCP scope, both mutating wrappers hand the backend the caller's
+  own path directly and their "commit" step is a no-op, because the backend already wrote the
+  result straight to the real file — matching their pre-#1942 Click behavior.
+- Every temporary snapshot created above is removed once its wrapper returns, on every path
+  (success, backend failure, or an exception) — never left behind. Outside MCP scope, the eight
+  non-`lint` wrappers never create one in the first place.
+- Because MCP tool handlers are the only callers running with an untrusted, externally-configured
+  backend command, `run_cli` additionally enforces an **MCP-only seam guard**: while a tool
+  handler is executing, every `--rom` argument (either `--rom=<path>` or `--rom <path>`) must
+  name a path already registered as a private snapshot by the wrapper, or the call is rejected
+  *before* the backend is even resolved or
+  spawned — closed by default for any raw, unregistered, or future/unknown `--rom` invocation.
+  This guard is completely inert outside MCP's dynamic scope, so Click's historic direct-path
+  behavior is unchanged.
+- Internal snapshot paths are stripped from backend stdout/stderr before they reach a caller
+  (Click output or an MCP tool result) — the caller only ever sees their own path. Outside MCP
+  scope, the eight non-`lint` wrappers never have a snapshot path to strip in the first place.
+- `rom checksum`'s advisory exit-2 "invalid header" behavior is local, byte-level, and unrelated
+  to the backend/snapshot mechanism — it is unaffected by any of the above.
+
 ## CLI verb coverage (harness ↔ CLI)
 
 The harness wraps a growing subset of `FEBuilderGBA.CLI`'s ~70 verbs (see

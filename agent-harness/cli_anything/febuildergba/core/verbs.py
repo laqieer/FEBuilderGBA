@@ -15,16 +15,32 @@ import re
 
 from cli_anything.febuildergba.utils.febuildergba_backend import (
     run_cli,
+    sanitize_snapshot_path,
     successful_output_size,
+)
+from cli_anything.febuildergba.core.project import (
+    backend_mutating_rom_snapshot,
+    backend_rom_snapshot,
 )
 
 
-def _base_result(result) -> dict:
-    """Common fields shared by every wrapper result."""
+def _base_result(result, snapshot_path: str = None, rom_path: str = None) -> dict:
+    """Common fields shared by every wrapper result.
+
+    When both *snapshot_path* and *rom_path* are given, any leaked internal
+    snapshot path is sanitized out of stdout/stderr first (see
+    ``febuildergba_backend.sanitize_snapshot_path``); callers that don't use
+    a ROM snapshot simply omit these and get the historic behavior.
+    """
+    stdout = result.stdout
+    stderr = result.stderr
+    if snapshot_path and rom_path and snapshot_path != rom_path:
+        stdout = sanitize_snapshot_path(stdout, snapshot_path, rom_path)
+        stderr = sanitize_snapshot_path(stderr, snapshot_path, rom_path)
     return {
         "exit_code": result.returncode,
-        "stdout": result.stdout.strip() if result.stdout else "",
-        "stderr": result.stderr.strip() if result.stderr else "",
+        "stdout": stdout.strip() if stdout else "",
+        "stderr": stderr.strip() if stderr else "",
     }
 
 
@@ -174,15 +190,16 @@ def export_palette(rom_path: str, addr: str, out_path: str,
     ``colors`` (1..256) is optional; when None/0 the ``--colors`` flag is
     omitted and the backend default (16) applies.
     """
-    args = ["--export-palette", f"--rom={rom_path}",
-            f"--addr={addr}", f"--out={out_path}"]
-    if colors:
-        args.append(f"--colors={colors}")
-    if force_version:
-        args.append(f"--force-version={force_version}")
+    with backend_rom_snapshot(rom_path) as snapshot_path:
+        args = ["--export-palette", f"--rom={snapshot_path}",
+                f"--addr={addr}", f"--out={out_path}"]
+        if colors:
+            args.append(f"--colors={colors}")
+        if force_version:
+            args.append(f"--force-version={force_version}")
 
-    result = run_cli(args)
-    out = _base_result(result)
+        result = run_cli(args)
+        out = _base_result(result, snapshot_path, rom_path)
     out.update({
         "rom_path": rom_path,
         "addr": addr,
@@ -196,15 +213,20 @@ def import_palette(rom_path: str, addr: str, in_path: str,
                    force_version: str = "") -> dict:
     """Import a palette file into the ROM in-place (``--import-palette``).
 
-    The format is auto-detected from the file content/extension.
+    The format is auto-detected from the file content/extension. The backend
+    mutates a private snapshot; the result is only committed back through the
+    originally opened writable descriptor after the backend reports success.
     """
-    args = ["--import-palette", f"--rom={rom_path}",
-            f"--addr={addr}", f"--in={in_path}"]
-    if force_version:
-        args.append(f"--force-version={force_version}")
+    with backend_mutating_rom_snapshot(rom_path) as mutator:
+        args = ["--import-palette", f"--rom={mutator.path}",
+                f"--addr={addr}", f"--in={in_path}"]
+        if force_version:
+            args.append(f"--force-version={force_version}")
 
-    result = run_cli(args)
-    out = _base_result(result)
+        result = run_cli(args)
+        out = _base_result(result, mutator.path, rom_path)
+        if result.returncode == 0:
+            mutator.commit()
     out.update({"rom_path": rom_path, "addr": addr, "input_path": in_path})
     return out
 

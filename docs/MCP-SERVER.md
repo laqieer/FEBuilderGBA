@@ -257,6 +257,51 @@ or tampered non-ROM session paths fail closed with `rom_header: null`.
   never creates or mutates session state — and if no session is open at all, none of these tools
   ever create "phantom" session state as a side effect.
 
+## ROM backend trust boundary
+
+(Issue #1942 / PR #1971.) The backend executable is treated as **untrusted** for any `--rom`
+argument it receives — this matters most for MCP, where the backend command is externally
+configured (`FEBUILDERGBA_CLI_EXE`/`FEBUILDERGBA_CLI`) and its output is otherwise
+attacker-influenced text fed straight back to the calling agent.
+
+- **Every one of the nine backend-ROM tools** — `data_export`, `data_import`, `data_roundtrip`,
+  `names_resolve`, `text_search`, `text_roundtrip`, `palette_export`, `palette_import`, and
+  `rom_lint` (`image_quantize`/`image_convert_map`/`lz77`/`backend_check` never take a `--rom`) —
+  opens the resolved ROM path itself exactly once, validates it as a regular 1..32 MiB file with a
+  complete GBA header (and checksum, where applicable), and hands the backend a private temporary
+  **snapshot** instead of the resolved path. This is the same pattern `rom_lint` already used,
+  generalized to the rest of the ROM-touching surface — never a second, redundant snapshot.
+- **Read-only tools** (`data_export`, `data_roundtrip`, `names_resolve`, `text_search`,
+  `text_roundtrip`, `palette_export`, `rom_lint`) copy the validated bytes into the snapshot and
+  never reopen the resolved path, so the backend only ever sees the bytes validated up front, even
+  if the underlying file is replaced, removed, or resized mid-call.
+- **Mutating tools** (`data_import`, `palette_import`) keep the original file descriptor open
+  read-write for the whole call and hand the backend a snapshot copy to mutate. The mutated
+  snapshot is committed back through that *same* descriptor only after the backend reports exit
+  code `0`, and only once the snapshot itself revalidates as a 1..32 MiB GBA ROM, the resolved
+  pathname still identifies the exact same file the descriptor was opened from (checked with
+  `os.stat`/`os.fstat` via `os.path.samestat` **only** — never a string/normcase path comparison),
+  and the bytes originally read through that descriptor are still byte-for-byte unchanged. The
+  write-back itself (rewind/truncate/write/flush/`fsync`, then a final size+identity re-check) is
+  **identity-safe but not crash-atomic**: a crash between the truncate and the final write/`fsync`
+  can leave the file short of both the old and the new valid contents. Any failed check —
+  including the backend itself failing, timing out, or raising — aborts with no write and no
+  session history/modified flag, exactly as if the tool call itself had failed.
+- Every temporary snapshot is removed once its tool call returns, whether it succeeded, the
+  backend failed, or the call raised — never left behind.
+- `run_cli` additionally enforces an **MCP-only seam guard**: while a tool handler is executing,
+  every `--rom` argument passed to the backend (either `--rom=<path>` or `--rom <path>`) must name
+  a path already registered as a private snapshot by the tool's wrapper, or the call is rejected
+  *before* the backend is even resolved or
+  spawned. This is a value/path check, not just an argv-shape allowlist, so it also fails closed
+  on any future/unknown tool that forgets to snapshot. The guard is completely inert outside MCP's
+  dynamic scope — the Click CLI's historic direct-path behavior is unchanged.
+- Internal snapshot paths are stripped from backend stdout/stderr before they reach a tool result
+  — callers only ever see their own resolved path, and `_BoundedOutput`'s `original_length`/
+  `truncated` metadata (see [Output bounds](#output-bounds)) survives the substitution.
+- `rom_checksum`'s advisory exit-2 "invalid header" result is computed locally and does not
+  invoke the backend at all — it is unrelated to, and unaffected by, any of the above.
+
 ## Backend result handling
 
 - Exit code `0` is always a normal, non-error result.
@@ -266,11 +311,12 @@ or tampered non-ROM session paths fail closed with `rom_header: null`.
   `lossless: false`) carries the signal.
 - `rom_info` and `session_open` never run lint. Their permanent
   `lint_output: ""` / `lint_exit_code: -1` sentinels mean lint was not attempted; use
-  `rom_lint` when lint findings are needed. `rom_lint` validates and snapshots the opened
-  descriptor before invoking the backend. The snapshot pins the already-validated header and
-  rejects length drift while copying from that descriptor, so replacing the original pathname
-  cannot redirect lint. It does not claim transaction-level atomicity for concurrent, same-length
-  writes elsewhere in the ROM body.
+  `rom_lint` when lint findings are needed. Like every other read-only backend-ROM tool,
+  `rom_lint` validates and snapshots the opened descriptor before invoking the backend (see
+  [ROM backend trust boundary](#rom-backend-trust-boundary)); the snapshot
+  pins the already-validated header and rejects length drift while copying from that descriptor,
+  so replacing the original pathname cannot redirect lint. None of the read-only snapshots claim
+  transaction-level atomicity for concurrent, same-length writes elsewhere in the ROM body.
 - Outside those advisory cases, any other non-zero/unexpected exit code becomes a **tool
   execution error** (`isError: true`), with the backend's `stdout`/`stderr` preserved (bounded,
   see below).
@@ -414,7 +460,34 @@ bounded read timeout, and `.mcp.json` registration. All of it is private-ROM-fre
 
 `agent-harness/cli_anything/febuildergba/tests/test_core.py` — shared backend, project, session,
 and Click-adapter behavior. Its lint parser regressions prove that the clean summary is not an
-error and only explicit CLI severity markers create findings.
+error and only explicit CLI severity markers create findings. Its ROM-backend trust-boundary
+regressions (issue #1942 / PR #1971) cover: the MCP-only `run_cli` seam gate rejecting an
+unregistered/raw `--rom` value in either supported argument form before the backend is resolved
+or spawned, and staying inert
+outside MCP scope; the `backend_rom_snapshot`/`backend_mutating_rom_snapshot` dispatch helpers
+directly, pinning that they delegate to the always-on snapshot primitives inside MCP scope and
+yield the caller's own path with a no-op commit outside it; `sanitize_snapshot_path` stripping a
+leaked internal path from every occurrence in a string while preserving `_BoundedOutput`
+truncation metadata; `MutatingRomSnapshot`/`mutating_rom_snapshot` directly (successful
+write-back, an uncommitted mutation never touching the original, and commit refusing a replaced
+path, same-length content drift, an oversized mutated result, or an invalid-header mutated
+result); a class-wide table, exercised inside MCP scope, spanning all nine backend-ROM wrappers
+proving each receives a once-registered, since-removed snapshot instead of the original path (so
+`lint` is proven not to double-snapshot), rejects an oversized or non-ROM input before the backend
+runs, and — for the seven read-only wrappers — still sees the originally validated bytes even if
+the real path is replaced mid-call; a companion table, exercised outside MCP scope, proving the
+eight non-`lint` wrappers instead hand the backend the caller's own path with no local validation
+and a no-op mutating commit, matching their pre-#1942 behavior (`lint`'s always-on snapshot is
+intentionally excluded from that table); sanitization actually wired into wrapper output (not just
+the pure helper); and the two mutating wrappers' end-to-end commit protocol (success, backend
+failure, an oversized/invalid-header mutated result, and a replaced-path attempt, tolerant of
+either failing closed or being blocked outright by the platform's own file-sharing semantics),
+all exercised inside MCP scope.
 
 `agent-harness/cli_anything/febuildergba/tests/test_verbs.py` carries the one synthetic (no-ROM),
-skip-gated-on-backend-availability real-backend LZ77 compress/decompress roundtrip test.
+skip-gated-on-backend-availability real-backend LZ77 compress/decompress roundtrip test, plus
+fake-backend/real-ROM-fixture regressions proving Click's `rom palette export`/`import` commands
+keep their pre-#1942 direct-path behavior outside MCP scope (issue #1942 / PR #1971) — no local
+validation, no snapshot, the backend receives the caller's own path unchanged — while a failing
+backend still leaves the original file untouched; MCP-scoped snapshot/commit coverage for these
+same two wrappers is part of `test_core.py`'s class-wide tables above.

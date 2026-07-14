@@ -1,10 +1,16 @@
 """ROM project management — open, info, save, close."""
 
+import hashlib
 import os
 import shutil
 import stat
 import tempfile
 from contextlib import contextmanager
+
+from cli_anything.febuildergba.utils.febuildergba_backend import (
+    is_prebuilt_backend_only,
+    register_rom_snapshot,
+)
 
 
 _MIN_ROM_SIZE = 0x100000
@@ -18,8 +24,8 @@ _GBA_CHECKSUM_BIAS = 0x19
 _SNAPSHOT_CHUNK_BYTES = 64 * 1024
 
 
-def _rom_open_flags() -> int:
-    flags = os.O_RDONLY
+def _rom_open_flags(write: bool = False) -> int:
+    flags = os.O_RDWR if write else os.O_RDONLY
     for name in ("O_BINARY", "O_NONBLOCK", "O_CLOEXEC", "O_NOINHERIT"):
         flags |= getattr(os, name, 0)
     return flags
@@ -56,13 +62,21 @@ def _validate_opened_rom_header(
 
 
 @contextmanager
-def _open_validated_rom(rom_path: str, require_checksum: bool = True):
-    """Yield one validated, rewound ROM descriptor with its trusted header."""
-    fd = os.open(rom_path, _rom_open_flags())
+def _open_validated_rom(rom_path: str, require_checksum: bool = True,
+                         write: bool = False):
+    """Yield one validated, rewound ROM descriptor with its trusted header.
+
+    ``write=True`` opens the descriptor read-write (``O_RDWR``) and keeps it
+    open for the entire body of the ``with`` block — used by
+    ``mutating_rom_snapshot`` so the eventual write-back targets the exact
+    same open file the source bytes were validated/hashed from.
+    """
+    fd = os.open(rom_path, _rom_open_flags(write))
     try:
         opened_stat = os.fstat(fd)
         rom_size = _validate_opened_rom_size(rom_path, opened_stat)
-        with os.fdopen(fd, "rb", closefd=True) as stream:
+        mode = "r+b" if write else "rb"
+        with os.fdopen(fd, mode, closefd=True) as stream:
             fd = None
             header = stream.read(_GBA_HEADER_SIZE)
             _validate_opened_rom_header(rom_path, header, require_checksum)
@@ -78,6 +92,61 @@ def _read_validated_header(
     """Read and validate a GBA header from the same open file handle."""
     with _open_validated_rom(rom_path, require_checksum) as (_stream, header, size):
         return header, size
+
+
+def _copy_validated_rom_bytes(source, header: bytes, rom_size: int,
+                               rom_path: str, destination, hasher=None) -> None:
+    """Copy exactly ``rom_size`` validated bytes from *source* to
+    *destination*, rejecting any growth/shrink/change observed on *source*
+    while copying, optionally folding every written chunk into *hasher*.
+
+    *source* must already be rewound to offset 0, with *header* holding its
+    first ``_GBA_HEADER_SIZE`` bytes (the shape yielded by
+    ``_open_validated_rom``).
+    """
+    written = destination.write(header)
+    if written != len(header):
+        raise OSError("Failed to write complete ROM snapshot")
+    if hasher is not None:
+        hasher.update(header)
+    copied = written
+    source.seek(len(header))
+    while copied < rom_size:
+        chunk = source.read(min(_SNAPSHOT_CHUNK_BYTES, rom_size - copied))
+        if not chunk:
+            raise ValueError(
+                f"Invalid GBA ROM (changed while snapshotting): {rom_path}",
+            )
+        written = destination.write(chunk)
+        if written != len(chunk):
+            raise OSError("Failed to write complete ROM snapshot")
+        if hasher is not None:
+            hasher.update(chunk)
+        copied += written
+    if source.read(1) or os.fstat(source.fileno()).st_size != rom_size:
+        raise ValueError(
+            f"Invalid GBA ROM (changed while snapshotting): {rom_path}",
+        )
+    destination.flush()
+    if os.fstat(destination.fileno()).st_size != rom_size:
+        raise OSError("ROM snapshot length verification failed")
+
+
+def _hash_stream_exact(stream, size: int) -> bytes:
+    """Return the SHA-256 digest of exactly *size* bytes read from the start
+    of *stream*, raising ``ValueError`` if it is shorter or longer."""
+    hasher = hashlib.sha256()
+    stream.seek(0)
+    remaining = size
+    while remaining > 0:
+        chunk = stream.read(min(_SNAPSHOT_CHUNK_BYTES, remaining))
+        if not chunk:
+            raise ValueError("ROM content shrank while the backend ran")
+        hasher.update(chunk)
+        remaining -= len(chunk)
+    if stream.read(1):
+        raise ValueError("ROM content grew while the backend ran")
+    return hasher.digest()
 
 
 @contextmanager
@@ -96,29 +165,9 @@ def validated_rom_snapshot(rom_path: str, require_checksum: bool = True):
             snapshot_fd, snapshot_path = tempfile.mkstemp(suffix=".gba")
             with os.fdopen(snapshot_fd, "wb", closefd=True) as snapshot:
                 snapshot_fd = None
-                written = snapshot.write(header)
-                if written != len(header):
-                    raise OSError("Failed to write complete ROM snapshot")
-                copied = written
-                source.seek(len(header))
-                while copied < rom_size:
-                    chunk = source.read(min(_SNAPSHOT_CHUNK_BYTES, rom_size - copied))
-                    if not chunk:
-                        raise ValueError(
-                            f"Invalid GBA ROM (changed while snapshotting): {rom_path}",
-                        )
-                    written = snapshot.write(chunk)
-                    if written != len(chunk):
-                        raise OSError("Failed to write complete ROM snapshot")
-                    copied += written
-                if source.read(1) or os.fstat(source.fileno()).st_size != rom_size:
-                    raise ValueError(
-                        f"Invalid GBA ROM (changed while snapshotting): {rom_path}",
-                    )
-                snapshot.flush()
-                if os.fstat(snapshot.fileno()).st_size != rom_size:
-                    raise OSError("ROM snapshot length verification failed")
-        yield snapshot_path
+                _copy_validated_rom_bytes(source, header, rom_size, rom_path, snapshot)
+        with register_rom_snapshot(snapshot_path):
+            yield snapshot_path
     finally:
         if snapshot_fd is not None:
             os.close(snapshot_fd)
@@ -127,6 +176,214 @@ def validated_rom_snapshot(rom_path: str, require_checksum: bool = True):
                 os.unlink(snapshot_path)
             except FileNotFoundError:
                 pass
+
+
+class MutatingRomSnapshot:
+    """A private, backend-writable ROM snapshot paired with the original
+    writable descriptor it will eventually be committed back through.
+
+    Obtained from :func:`mutating_rom_snapshot`.  ``path`` is the registered
+    snapshot the backend must be pointed at.  The original file is left
+    completely untouched unless and until :meth:`commit` is called *and*
+    succeeds — callers should only call ``commit()`` after confirming the
+    backend itself reported success (exit code 0).
+    """
+
+    def __init__(self, path: str, original_stream, original_path: str,
+                 original_size: int, original_digest: bytes,
+                 require_checksum: bool):
+        self.path = path
+        self.committed = False
+        self._original_stream = original_stream
+        self._original_path = original_path
+        self._original_size = original_size
+        self._original_digest = original_digest
+        self._require_checksum = require_checksum
+
+    def commit(self) -> None:
+        """Revalidate the mutated snapshot and write it back through the
+        original file descriptor, iff every safety check below passes.
+
+        Order of checks (fail closed — raise, commit nothing — on any of
+        them):
+
+        1. The mutated snapshot must still be a regular, 1..32 MiB file with
+           a valid GBA header (and checksum, when ``require_checksum``).
+        2. The original path must still identify the exact same file this
+           descriptor was opened from.  This is checked with ``os.stat(path)``
+           against ``os.fstat(fd)`` via ``os.path.samestat`` *only* — never a
+           string/normcase path comparison fallback.
+        3. The bytes originally read through the descriptor must be byte-for
+           -byte unchanged (same size, same content) since the snapshot was
+           taken.
+
+        Only then does this seek/truncate/write/flush/``os.fsync`` the
+        original descriptor, followed by a final size + identity re-check.
+
+        This write-back is identity-safe (it only ever targets the exact
+        descriptor/path validated immediately beforehand) but it is **not
+        crash-atomic**: a process crash between the truncate and the final
+        write/fsync can leave the original file short of both the old and
+        the new valid contents.
+        """
+        with _open_validated_rom(self.path, self._require_checksum) as (
+                mutated_stream, _mutated_header, mutated_size):
+            mutated_stream.seek(0)
+            mutated_bytes = mutated_stream.read(mutated_size)
+            if len(mutated_bytes) != mutated_size:
+                raise OSError("Failed to read complete mutated ROM snapshot")
+
+        try:
+            current_path_stat = os.stat(self._original_path)
+        except OSError as exc:
+            raise ValueError(
+                "Refusing to commit: cannot re-stat the original ROM path "
+                f"(it may have been removed/replaced): {self._original_path!r}"
+            ) from exc
+        fd_stat = os.fstat(self._original_stream.fileno())
+        if not os.path.samestat(current_path_stat, fd_stat):
+            raise ValueError(
+                "Refusing to commit: the ROM path no longer identifies the "
+                "originally opened file — it was replaced while the backend "
+                f"ran: {self._original_path!r}"
+            )
+
+        digest = _hash_stream_exact(self._original_stream, self._original_size)
+        if digest != self._original_digest:
+            raise ValueError(
+                "Refusing to commit: the original ROM's content changed "
+                f"while the backend ran: {self._original_path!r}"
+            )
+
+        self._original_stream.seek(0)
+        written = self._original_stream.write(mutated_bytes)
+        if written != len(mutated_bytes):
+            raise OSError("Failed to write complete mutated ROM back")
+        self._original_stream.truncate(len(mutated_bytes))
+        self._original_stream.flush()
+        os.fsync(self._original_stream.fileno())
+
+        post_fd_stat = os.fstat(self._original_stream.fileno())
+        if post_fd_stat.st_size != len(mutated_bytes):
+            raise OSError("ROM write-back size verification failed")
+        try:
+            post_path_stat = os.stat(self._original_path)
+        except OSError as exc:
+            raise ValueError(
+                "Cannot verify the ROM path immediately after write-back: "
+                f"{self._original_path!r}"
+            ) from exc
+        if not os.path.samestat(post_path_stat, post_fd_stat):
+            raise ValueError(
+                "Refusing to confirm commit: the ROM path no longer "
+                f"identifies the just-written file: {self._original_path!r}"
+            )
+        self.committed = True
+
+
+@contextmanager
+def mutating_rom_snapshot(rom_path: str, require_checksum: bool = True):
+    """Hold the original ROM descriptor open read-write and yield a
+    :class:`MutatingRomSnapshot` wrapping a private, validated snapshot for
+    the backend to mutate.
+
+    The original file is opened exactly once and kept open (read-write) for
+    the entire body of the ``with`` block, so a later ``commit()`` writes
+    back through the identical descriptor the source bytes/digest were
+    captured from — never by reopening or replacing the caller's pathname.
+    The snapshot file is always removed on the way out, whether or not a
+    commit happened.
+    """
+    snapshot_path = None
+    snapshot_fd = None
+    try:
+        with _open_validated_rom(rom_path, require_checksum, write=True) as (
+                original_stream, header, rom_size):
+            snapshot_fd, snapshot_path = tempfile.mkstemp(suffix=".gba")
+            hasher = hashlib.sha256()
+            with os.fdopen(snapshot_fd, "wb", closefd=True) as snapshot:
+                snapshot_fd = None
+                _copy_validated_rom_bytes(
+                    original_stream, header, rom_size, rom_path, snapshot, hasher)
+            original_stream.seek(0)
+            with register_rom_snapshot(snapshot_path):
+                yield MutatingRomSnapshot(
+                    snapshot_path,
+                    original_stream,
+                    os.path.abspath(rom_path),
+                    rom_size,
+                    hasher.digest(),
+                    require_checksum,
+                )
+    finally:
+        if snapshot_fd is not None:
+            os.close(snapshot_fd)
+        if snapshot_path is not None:
+            try:
+                os.unlink(snapshot_path)
+            except FileNotFoundError:
+                pass
+
+
+class _DirectRomHandle:
+    """Legacy/Click counterpart to :class:`MutatingRomSnapshot`, used
+    outside MCP's ``prebuilt_backend_only`` scope (issue #1942 / PR #1971).
+
+    The backend is handed the caller's own path directly, exactly as every
+    mutating wrapper always did before this fix, so there is nothing to
+    write back — ``commit()`` only marks itself as having run.
+    """
+
+    def __init__(self, path: str):
+        self.path = path
+        self.committed = False
+
+    def commit(self) -> None:
+        self.committed = True
+
+
+@contextmanager
+def backend_rom_snapshot(rom_path: str, require_checksum: bool = True):
+    """Read-only ROM access for one backend invocation (issue #1942 / PR
+    #1971): private snapshot inside MCP, unchanged direct path outside it.
+
+    Inside MCP's ``prebuilt_backend_only`` dynamic scope this validates
+    *rom_path* and yields a private, registered snapshot — see
+    ``validated_rom_snapshot``, which this delegates to. Outside that scope
+    this performs no local validation at all and yields *rom_path*
+    unchanged: the historic, direct-path Click behavior every read-only
+    wrapper other than ``lint_rom`` had before this fix, preserved
+    byte-for-byte. ``lint_rom`` predates this fix and always used
+    ``validated_rom_snapshot`` directly and unconditionally; it does not go
+    through this function.
+    """
+    if not is_prebuilt_backend_only():
+        yield rom_path
+        return
+    with validated_rom_snapshot(rom_path, require_checksum) as snapshot_path:
+        yield snapshot_path
+
+
+@contextmanager
+def backend_mutating_rom_snapshot(rom_path: str, require_checksum: bool = True):
+    """Mutating ROM access for one backend invocation (issue #1942 / PR
+    #1971): private snapshot + validated write-back inside MCP, unchanged
+    direct path outside it.
+
+    Inside MCP's ``prebuilt_backend_only`` dynamic scope this yields a
+    :class:`MutatingRomSnapshot` bound to a private, backend-writable copy —
+    see ``mutating_rom_snapshot``, which this delegates to. Outside that
+    scope this yields a :class:`_DirectRomHandle` whose ``path`` is
+    *rom_path* itself and whose ``commit()`` is a no-op, because the backend
+    already wrote directly to the caller's original file: the historic,
+    direct-path Click behavior ``data_import``/``palette_import`` had before
+    this fix, preserved byte-for-byte.
+    """
+    if not is_prebuilt_backend_only():
+        yield _DirectRomHandle(rom_path)
+        return
+    with mutating_rom_snapshot(rom_path, require_checksum) as mutator:
+        yield mutator
 
 
 def validate_checksum_target(rom_path: str) -> None:

@@ -3,6 +3,16 @@
 This module finds and invokes the actual FEBuilderGBA.CLI binary.
 The CLI harness does NOT reimplement ROM manipulation — it calls
 the real .NET application for all operations.
+
+Trust boundary (issue #1942 / PR #1971): the backend executable is treated
+as untrusted for the purposes of any ``--rom`` argument.  ``run_cli``
+enforces a *seam guard* — while MCP's dynamic scope is active (see
+``prebuilt_backend_only``), every ``--rom`` argument (either the
+``--rom=<path>`` or two-token ``["--rom", "<path>"]`` form) must name a
+path already registered via ``register_rom_snapshot`` (in practice, a
+private validated snapshot created by ``core.project.validated_rom_snapshot``
+/ ``mutating_rom_snapshot``).  Click retains its historic direct-path
+behavior: the guard is completely inert outside MCP's dynamic scope.
 """
 
 import os
@@ -30,6 +40,15 @@ _bounded_capture_limit: ContextVar[Optional[int]] = ContextVar(
 _prebuilt_backend_only: ContextVar[bool] = ContextVar(
     "febuildergba_prebuilt_backend_only",
     default=False,
+)
+
+# Absolute paths of private ROM snapshots explicitly registered as safe for
+# ``run_cli`` to hand to the backend.  Only consulted while
+# ``_prebuilt_backend_only`` is active (see ``_enforce_rom_snapshot_gate``);
+# Click's direct-path invocations never populate or consult this set.
+_registered_rom_snapshots: ContextVar[frozenset] = ContextVar(
+    "febuildergba_registered_rom_snapshots",
+    default=frozenset(),
 )
 
 
@@ -102,6 +121,99 @@ def prebuilt_backend_only():
         yield
     finally:
         _prebuilt_backend_only.reset(token)
+
+
+def is_prebuilt_backend_only() -> bool:
+    """Return whether MCP's ``prebuilt_backend_only`` dynamic scope (issue
+    #1942 / PR #1971) is active right now.
+
+    ``core.project`` uses this to decide, per ROM-touching wrapper call,
+    whether to take the private-snapshot path (inside MCP) or the historic
+    direct-path Click behavior (outside MCP) — see
+    ``core.project.backend_rom_snapshot`` / ``backend_mutating_rom_snapshot``.
+    Always ``False`` for ordinary Click invocations, which never enter this
+    scope.
+    """
+    return _prebuilt_backend_only.get()
+
+
+@contextmanager
+def register_rom_snapshot(path: str):
+    """Register *path* as a trusted private ROM snapshot for this scope.
+
+    ``run_cli`` only accepts a ``--rom`` argument (``--rom=<path>`` or the
+    two-token ``["--rom", "<path>"]`` form) naming a registered path while
+    MCP's ``prebuilt_backend_only`` scope is active (see
+    ``_enforce_rom_snapshot_gate``).  Registration is scoped to the dynamic
+    extent of this context manager and is thread/task-local (``ContextVar``),
+    so it cannot leak into unrelated concurrent calls.
+
+    Wrapper authors should not normally call this directly — use
+    ``core.project.validated_rom_snapshot`` / ``mutating_rom_snapshot``,
+    which register their snapshot automatically.
+    """
+    absolute = os.path.abspath(path)
+    token = _registered_rom_snapshots.set(_registered_rom_snapshots.get() | {absolute})
+    try:
+        yield
+    finally:
+        _registered_rom_snapshots.reset(token)
+
+
+def _enforce_rom_snapshot_gate(args: list[str]) -> None:
+    """Fail closed on any ``--rom`` argument that is not a registered
+    private snapshot, while MCP's dynamic scope is active.
+
+    This is the run_cli trust-boundary seam for issue #1942 / PR #1971.  It
+    is intentionally not just an argv/flag-name allowlist: it inspects the
+    actual path value of every ``--rom`` argument — recognizing both the
+    single-token ``--rom=<path>`` form and the two-token ``["--rom",
+    "<path>"]`` form — and compares that value against paths explicitly
+    registered by ``register_rom_snapshot``. A two-token ``--rom`` with no
+    following element, or whose following element is not a non-empty
+    string, is rejected as a missing value. An unknown, future, or
+    accidentally-unwrapped ``--rom`` argument is rejected here — before
+    ``find_febuildergba_cli`` resolves a backend and before any subprocess
+    is started.
+
+    Completely inert outside MCP's dynamic scope: Click's historic
+    direct-path behavior is unaffected.
+    """
+    if not _prebuilt_backend_only.get():
+        return
+    registered = _registered_rom_snapshots.get()
+    index = 0
+    while index < len(args):
+        arg = args[index]
+        if not isinstance(arg, str):
+            index += 1
+            continue
+        if arg.startswith("--rom="):
+            rom_value = arg[len("--rom="):]
+            index += 1
+        elif arg == "--rom":
+            has_value = (
+                index + 1 < len(args)
+                and isinstance(args[index + 1], str)
+                and args[index + 1] != ""
+            )
+            if not has_value:
+                raise RuntimeError(
+                    "Refusing to invoke the backend: --rom requires a "
+                    "non-empty value (MCP requires every ROM command to "
+                    "consume a validated snapshot)"
+                )
+            rom_value = args[index + 1]
+            index += 2
+        else:
+            index += 1
+            continue
+        if os.path.abspath(rom_value) not in registered:
+            raise RuntimeError(
+                "Refusing to invoke the backend: --rom argument is not a "
+                "registered private ROM snapshot (MCP requires every ROM "
+                f"command to consume a validated snapshot): {rom_value!r}"
+            )
 
 
 def _drain_bounded_stream(stream, captured: _BoundedStreamCapture) -> None:
@@ -329,6 +441,7 @@ def run_cli(args: list[str], capture: bool = True,
     Raises:
         RuntimeError: If CLI not found or execution fails.
     """
+    _enforce_rom_snapshot_gate(args)
     max_chars = _bounded_capture_limit.get()
     if max_chars is not None and not capture:
         raise RuntimeError(
@@ -359,6 +472,28 @@ def run_cli(args: list[str], capture: bool = True,
         raise RuntimeError(
             f"Failed to run {' '.join(cmd)}: {e}"
         ) from e
+
+
+def sanitize_snapshot_path(text, snapshot_path: str, real_path: str):
+    """Replace a leaked internal *snapshot_path* with *real_path* in backend
+    output, preserving ``_BoundedOutput`` metadata (``original_length`` /
+    ``truncated``) when present.
+
+    Snapshot paths are internal implementation detail (see
+    ``core.project.validated_rom_snapshot`` / ``mutating_rom_snapshot``) and
+    must never reach a caller through stdout/stderr/result fields.  This is a
+    cheap no-op unless *text* actually contains *snapshot_path*, so it is
+    safe to call unconditionally after every snapshot-backed invocation
+    (Click included).
+    """
+    if not isinstance(text, str) or not text or not snapshot_path:
+        return text
+    if snapshot_path == real_path or snapshot_path not in text:
+        return text
+    sanitized = text.replace(snapshot_path, real_path)
+    if isinstance(text, _BoundedOutput):
+        return _BoundedOutput(sanitized, text.original_length, text.truncated)
+    return sanitized
 
 
 def successful_output_size(result: subprocess.CompletedProcess,

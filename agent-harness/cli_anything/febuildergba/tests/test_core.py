@@ -22,6 +22,57 @@ def _write_valid_test_rom(path, game_code):
     path.write_bytes(rom)
 
 
+def _touch(path) -> str:
+    """Create an empty file at *path* (a ``Path``) and return it as ``str``."""
+    Path(path).write_bytes(b"")
+    return str(path)
+
+
+# Every MCP ROM-touching wrapper (issue #1942 / PR #1971): module import
+# path, function name (for readable parametrize ids), whether it mutates the
+# ROM, and a small adapter invoking it with the minimum valid arguments given
+# ``(module, rom_path_str, tmp_path)``. Shared by the class-wide trust
+# boundary tests below so every wrapper is provably covered from one table.
+_ROM_SNAPSHOT_WRAPPERS = [
+    ("cli_anything.febuildergba.core.data", "export_table", False,
+     lambda module, rom, tmp_path: module.export_table(
+         rom, "units", str(tmp_path / "out.tsv"))),
+    ("cli_anything.febuildergba.core.data", "import_table", True,
+     lambda module, rom, tmp_path: module.import_table(
+         rom, "units", _touch(tmp_path / "in.tsv"))),
+    ("cli_anything.febuildergba.core.data", "roundtrip_table", False,
+     lambda module, rom, tmp_path: module.roundtrip_table(rom, "units")),
+    ("cli_anything.febuildergba.core.export", "resolve_names", False,
+     lambda module, rom, tmp_path: module.resolve_names(rom, "unit", [1, 2])),
+    ("cli_anything.febuildergba.core.text", "search_text", False,
+     lambda module, rom, tmp_path: module.search_text(rom, "Eirika")),
+    ("cli_anything.febuildergba.core.text", "roundtrip_text", False,
+     lambda module, rom, tmp_path: module.roundtrip_text(rom)),
+    ("cli_anything.febuildergba.core.verbs", "export_palette", False,
+     lambda module, rom, tmp_path: module.export_palette(
+         rom, "0x5524", str(tmp_path / "p.pal"))),
+    ("cli_anything.febuildergba.core.verbs", "import_palette", True,
+     lambda module, rom, tmp_path: module.import_palette(
+         rom, "0x5524", _touch(tmp_path / "p.pal"))),
+    ("cli_anything.febuildergba.core.lint", "lint_rom", False,
+     lambda module, rom, tmp_path: module.lint_rom(rom)),
+]
+_ROM_SNAPSHOT_WRAPPER_IDS = [w[1] for w in _ROM_SNAPSHOT_WRAPPERS]
+_READ_ONLY_ROM_WRAPPERS = [w for w in _ROM_SNAPSHOT_WRAPPERS if not w[2]]
+_READ_ONLY_ROM_WRAPPER_IDS = [w[1] for w in _READ_ONLY_ROM_WRAPPERS]
+_MUTATING_ROM_WRAPPERS = [w for w in _ROM_SNAPSHOT_WRAPPERS if w[2]]
+_MUTATING_ROM_WRAPPER_IDS = [w[1] for w in _MUTATING_ROM_WRAPPERS]
+
+# ``lint_rom`` predates issue #1942 / PR #1971 and always snapshotted, in
+# Click and MCP alike, so it is excluded here: this table is only the 8
+# wrappers whose *historical* (pre-fix) behavior was a raw, unvalidated,
+# direct ``--rom=<path>`` passthrough — the behavior that must remain
+# byte-for-byte outside MCP's ``prebuilt_backend_only`` scope.
+_LEGACY_PASSTHROUGH_WRAPPERS = [
+    w for w in _ROM_SNAPSHOT_WRAPPERS if w[1] != "lint_rom"]
+_LEGACY_PASSTHROUGH_WRAPPER_IDS = [w[1] for w in _LEGACY_PASSTHROUGH_WRAPPERS]
+
+
 def _configure_temporary_backend_root(tmp_path, monkeypatch, backend):
     """Point backend discovery at an isolated tree rooted at ``tmp_path``."""
     fake_module = tmp_path / "pkg" / "utils" / "febuildergba_backend.py"
@@ -401,6 +452,228 @@ class TestBackend:
         assert result == {"available": False, "error": "execution denied"}
 
 
+class TestRomSnapshotGate:
+    """run_cli's MCP-only trust-boundary seam guard (issue #1942 / PR #1971).
+
+    The guard runs before backend resolution/subprocess and is a no-op
+    outside MCP's ``prebuilt_backend_only`` dynamic scope, so Click's
+    historic direct-path behavior is unaffected.
+    """
+
+    def test_rejects_unregistered_rom_path_before_resolver_and_subprocess(
+            self, monkeypatch):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        def resolver_must_not_run():
+            raise AssertionError("resolver must not be called")
+
+        def subprocess_must_not_run(*args, **kwargs):
+            raise AssertionError("subprocess must not be called")
+
+        monkeypatch.setattr(backend, "find_febuildergba_cli", resolver_must_not_run)
+        monkeypatch.setattr(backend.subprocess, "run", subprocess_must_not_run)
+        monkeypatch.setattr(backend.subprocess, "Popen", subprocess_must_not_run)
+
+        with backend.prebuilt_backend_only():
+            with pytest.raises(RuntimeError, match="registered private ROM snapshot"):
+                backend.run_cli(["--lint", "--rom=/some/unregistered/rom.gba"])
+
+    def test_allows_registered_rom_path_under_mcp_scope(self, tmp_path, monkeypatch):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        rom = tmp_path / "snap.gba"
+        rom.write_bytes(b"x")
+        expected = subprocess.CompletedProcess(["cli"], 0, stdout="ok", stderr="")
+        monkeypatch.setattr(backend, "find_febuildergba_cli", lambda: ["cli"])
+        monkeypatch.setattr(backend.subprocess, "run", lambda *a, **k: expected)
+
+        with backend.prebuilt_backend_only():
+            with backend.register_rom_snapshot(str(rom)):
+                assert backend.run_cli(["--lint", f"--rom={rom}"]) is expected
+
+    def test_allows_registered_rom_path_two_token_form_under_mcp_scope(
+            self, tmp_path, monkeypatch):
+        """The two-token ``["--rom", "<path>"]`` form (issue #1942 / PR
+        #1971 follow-up) is validated identically to ``--rom=<path>``: a
+        registered snapshot path is accepted."""
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        rom = tmp_path / "snap.gba"
+        rom.write_bytes(b"x")
+        expected = subprocess.CompletedProcess(["cli"], 0, stdout="ok", stderr="")
+        monkeypatch.setattr(backend, "find_febuildergba_cli", lambda: ["cli"])
+        monkeypatch.setattr(backend.subprocess, "run", lambda *a, **k: expected)
+
+        with backend.prebuilt_backend_only():
+            with backend.register_rom_snapshot(str(rom)):
+                assert backend.run_cli(["--lint", "--rom", str(rom)]) is expected
+
+    def test_rejects_unregistered_rom_path_two_token_form_before_resolver_and_subprocess(
+            self, monkeypatch):
+        """Two-token counterpart of
+        ``test_rejects_unregistered_rom_path_before_resolver_and_subprocess``:
+        an unregistered path must fail before the resolver or subprocess
+        runs regardless of which ``--rom`` form carries it."""
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        def resolver_must_not_run():
+            raise AssertionError("resolver must not be called")
+
+        def subprocess_must_not_run(*args, **kwargs):
+            raise AssertionError("subprocess must not be called")
+
+        monkeypatch.setattr(backend, "find_febuildergba_cli", resolver_must_not_run)
+        monkeypatch.setattr(backend.subprocess, "run", subprocess_must_not_run)
+        monkeypatch.setattr(backend.subprocess, "Popen", subprocess_must_not_run)
+
+        with backend.prebuilt_backend_only():
+            with pytest.raises(RuntimeError, match="registered private ROM snapshot"):
+                backend.run_cli(["--lint", "--rom", "/some/unregistered/rom.gba"])
+
+    @pytest.mark.parametrize(
+        "trailing_args", [[], [""]], ids=["no-value", "empty-value"])
+    def test_rejects_missing_or_empty_two_token_value_before_resolver_and_subprocess(
+            self, monkeypatch, trailing_args):
+        """A two-token ``--rom`` with no following element, or an empty
+        following element, must be rejected as a missing value before the
+        resolver or subprocess runs — never falling through to the
+        registered-path check with an accidental empty/cwd-relative path."""
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        def resolver_must_not_run():
+            raise AssertionError("resolver must not be called")
+
+        def subprocess_must_not_run(*args, **kwargs):
+            raise AssertionError("subprocess must not be called")
+
+        monkeypatch.setattr(backend, "find_febuildergba_cli", resolver_must_not_run)
+        monkeypatch.setattr(backend.subprocess, "run", subprocess_must_not_run)
+        monkeypatch.setattr(backend.subprocess, "Popen", subprocess_must_not_run)
+
+        with backend.prebuilt_backend_only():
+            with pytest.raises(RuntimeError, match="requires a non-empty value"):
+                backend.run_cli(["--lint", "--rom", *trailing_args])
+
+    def test_gate_is_inert_outside_mcp_scope(self, monkeypatch):
+        """Legacy Click behavior: an unregistered --rom path is never
+        rejected by the gate outside MCP's prebuilt-backend dynamic scope."""
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        expected = subprocess.CompletedProcess(["cli"], 0, stdout="ok", stderr="")
+        monkeypatch.setattr(backend, "find_febuildergba_cli", lambda: ["cli"])
+        monkeypatch.setattr(backend.subprocess, "run", lambda *a, **k: expected)
+
+        assert backend._prebuilt_backend_only.get() is False
+        assert backend.run_cli(["--lint", "--rom=/anything/at/all.gba"]) is expected
+
+    def test_is_prebuilt_backend_only_accessor_mirrors_the_contextvar(self):
+        """``is_prebuilt_backend_only()`` is the public read accessor
+        ``core.project``'s conditional wrappers (``backend_rom_snapshot`` /
+        ``backend_mutating_rom_snapshot``) use to pick MCP-scoped private
+        snapshot vs. legacy direct-path behavior — it must always mirror
+        ``_prebuilt_backend_only`` exactly."""
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        assert backend.is_prebuilt_backend_only() is False
+        with backend.prebuilt_backend_only():
+            assert backend.is_prebuilt_backend_only() is True
+        assert backend.is_prebuilt_backend_only() is False
+
+    def test_registration_is_scoped_and_resets(self):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        assert backend._registered_rom_snapshots.get() == frozenset()
+        with backend.register_rom_snapshot("/a/b.gba"):
+            assert (
+                os.path.abspath("/a/b.gba") in backend._registered_rom_snapshots.get()
+            )
+        assert backend._registered_rom_snapshots.get() == frozenset()
+
+    def test_gate_only_inspects_rom_flagged_args(self, monkeypatch):
+        """Only ``--rom=`` is gated. Click-only verbs whose args never appear
+        in an MCP tool's argv (e.g. ``--rom2=`` for ``rom diff``) are out of
+        scope for this seam by design (issue #1942 / PR #1971 review)."""
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        expected = subprocess.CompletedProcess(["cli"], 0, stdout="ok", stderr="")
+        monkeypatch.setattr(backend, "find_febuildergba_cli", lambda: ["cli"])
+        monkeypatch.setattr(backend.subprocess, "run", lambda *a, **k: expected)
+
+        with backend.prebuilt_backend_only():
+            assert backend.run_cli(
+                ["--diff", "--rom2=/unregistered/other.gba"],
+            ) is expected
+
+    def test_metadata_only_mcp_tools_never_reach_the_gate(self, tmp_path):
+        """``rom_checksum``/``rom_info``/``rom_validate`` (issue #1942 / PR
+        #1971 invariant #2: "metadata/checksum remain local") are backed by
+        ``core.project`` functions that read the header locally and never
+        call ``run_cli`` at all — so they must keep working under MCP's
+        ``prebuilt_backend_only`` scope with *no* snapshot registered,
+        exactly as they did before this fix. This is what stands between
+        "every --rom path must be a registered snapshot" (invariant #1) and
+        these three real MCP tools, which intentionally carry no ``--rom=``
+        backend argument whatsoever.
+        """
+        from cli_anything.febuildergba.core.project import (
+            checksum_header, rom_info, validate_rom,
+        )
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        rom_path = tmp_path / "rom.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
+
+        with backend.prebuilt_backend_only():
+            assert backend._registered_rom_snapshots.get() == frozenset()
+            assert validate_rom(str(rom_path)) is True
+            assert rom_info(str(rom_path))["rom_size"] == rom_path.stat().st_size
+            assert checksum_header(str(rom_path))["exit_code"] in (0, 2)
+
+
+class TestSanitizeSnapshotPath:
+    """utils.febuildergba_backend.sanitize_snapshot_path (issue #1942 / PR
+    #1971) — internal snapshot paths must never leak through backend output,
+    while ``_BoundedOutput`` metadata (original_length/truncated) survives.
+    """
+
+    def test_noop_when_snapshot_path_absent(self):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+        text = "Lint: No errors found."
+        assert backend.sanitize_snapshot_path(
+            text, "/tmp/snap123.gba", "/rom/real.gba") is text
+
+    def test_replaces_every_occurrence(self):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+        text = "Processing /tmp/snap123.gba... done with /tmp/snap123.gba"
+        result = backend.sanitize_snapshot_path(
+            text, "/tmp/snap123.gba", "/rom/real.gba")
+        assert result == "Processing /rom/real.gba... done with /rom/real.gba"
+        assert "/tmp/snap123.gba" not in result
+
+    def test_noop_when_snapshot_equals_real_path(self):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+        text = "Processing /rom/real.gba"
+        assert backend.sanitize_snapshot_path(
+            text, "/rom/real.gba", "/rom/real.gba") is text
+
+    def test_preserves_bounded_output_metadata(self):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+        source = backend._BoundedOutput(
+            "leak: /tmp/snap123.gba", original_length=9000, truncated=True)
+        result = backend.sanitize_snapshot_path(
+            source, "/tmp/snap123.gba", "/rom/real.gba")
+        assert isinstance(result, backend._BoundedOutput)
+        assert result == "leak: /rom/real.gba"
+        assert result.original_length == 9000
+        assert result.truncated is True
+
+    @pytest.mark.parametrize("bad_text", [None, 123, [], b"bytes-not-str"])
+    def test_noop_for_non_string_input(self, bad_text):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+        assert backend.sanitize_snapshot_path(
+            bad_text, "/tmp/snap.gba", "/rom/real.gba") is bad_text
+
+
 class TestLint:
     def test_clean_summary_is_not_an_error(self, monkeypatch, tmp_path):
         from cli_anything.febuildergba.core import lint
@@ -452,23 +725,23 @@ class TestOutputFileReporting:
         ("module_name", "invoke"),
         [
             ("cli_anything.febuildergba.core.export",
-             lambda module, out: module.create_ups("r.gba", out)),
+             lambda module, out, rom: module.create_ups("r.gba", out)),
             ("cli_anything.febuildergba.core.export",
-             lambda module, out: module.disassemble("r.gba", out)),
+             lambda module, out, rom: module.disassemble("r.gba", out)),
             ("cli_anything.febuildergba.core.export",
-             lambda module, out: module.decrease_color("in.png", out)),
+             lambda module, out, rom: module.decrease_color("in.png", out)),
             ("cli_anything.febuildergba.core.export",
-             lambda module, out: module.render_portrait("r.gba", 1, out)),
+             lambda module, out, rom: module.render_portrait("r.gba", 1, out)),
             ("cli_anything.febuildergba.core.export",
-             lambda module, out: module.export_midi("r.gba", "1A", out)),
+             lambda module, out, rom: module.export_midi("r.gba", "1A", out)),
             ("cli_anything.febuildergba.core.text",
-             lambda module, out: module.export_text("r.gba", out)),
+             lambda module, out, rom: module.export_text("r.gba", out)),
             ("cli_anything.febuildergba.core.verbs",
-             lambda module, out: module.export_map_settings_raw("r.gba", out)),
+             lambda module, out, rom: module.export_map_settings_raw("r.gba", out)),
             ("cli_anything.febuildergba.core.verbs",
-             lambda module, out: module.export_palette("r.gba", "0x5524", out)),
+             lambda module, out, rom: module.export_palette(rom, "0x5524", out)),
             ("cli_anything.febuildergba.core.verbs",
-             lambda module, out: module.lz77_file("compress", "in.bin", out)),
+             lambda module, out, rom: module.lz77_file("compress", "in.bin", out)),
         ],
     )
     def test_failed_wrappers_do_not_report_stale_output(
@@ -478,6 +751,8 @@ class TestOutputFileReporting:
         module = importlib.import_module(module_name)
         output = tmp_path / "stale.bin"
         output.write_bytes(b"stale")
+        rom_path = tmp_path / "valid.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
         monkeypatch.setattr(
             module,
             "run_cli",
@@ -486,7 +761,7 @@ class TestOutputFileReporting:
             ),
         )
 
-        result = invoke(module, str(output))
+        result = invoke(module, str(output), str(rom_path))
 
         assert result["exit_code"] == 1
         assert result["file_size"] == 0
@@ -1706,6 +1981,785 @@ class TestProject:
         assert "LEAK" not in result
 
 
+class TestMutatingRomSnapshot:
+    """core.project.mutating_rom_snapshot / MutatingRomSnapshot.commit()
+    (issue #1942 / PR #1971) — the shared write-back protocol used by both
+    mutating wrappers (data.import_table, verbs.import_palette). Simulates
+    "the backend mutated the snapshot" by writing into ``mutator.path``
+    directly, since that is exactly what a real backend process does.
+    """
+
+    @staticmethod
+    def _mutate(path, marker=b"MUTATED!", offset=0x1000):
+        with open(path, "r+b") as f:
+            f.seek(offset)
+            f.write(marker)
+
+    def test_commit_writes_mutation_back_through_original_descriptor(
+            self, tmp_path):
+        from cli_anything.febuildergba.core import project
+        rom_path = tmp_path / "rom.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
+
+        with project.mutating_rom_snapshot(str(rom_path)) as mutator:
+            assert mutator.path != str(rom_path)
+            assert os.path.isfile(mutator.path)
+            self._mutate(mutator.path)
+            mutator.commit()
+            assert mutator.committed is True
+            snapshot_path = mutator.path
+
+        assert rom_path.read_bytes()[0x1000:0x1000 + 8] == b"MUTATED!"
+        assert not os.path.isfile(snapshot_path)
+
+    def test_uncommitted_mutation_never_touches_original(self, tmp_path):
+        from cli_anything.febuildergba.core import project
+        rom_path = tmp_path / "rom.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
+        original_bytes = rom_path.read_bytes()
+
+        with project.mutating_rom_snapshot(str(rom_path)) as mutator:
+            self._mutate(mutator.path)
+            snapshot_path = mutator.path
+            # Simulated backend failure: caller deliberately skips commit().
+
+        assert rom_path.read_bytes() == original_bytes
+        assert not os.path.isfile(snapshot_path)
+
+    def test_commit_rejects_replaced_original_path(self, tmp_path):
+        from cli_anything.febuildergba.core import project
+        rom_path = tmp_path / "rom.gba"
+        replacement = tmp_path / "replacement.bin"
+        _write_valid_test_rom(rom_path, b"BE8E")
+        replacement.write_bytes(b"NOT-A-ROM" * 20000)
+        replacement_bytes = replacement.read_bytes()
+
+        with project.mutating_rom_snapshot(str(rom_path)) as mutator:
+            self._mutate(mutator.path)
+            try:
+                os.replace(str(replacement), str(rom_path))
+            except OSError:
+                # Windows blocked the replace outright (open descriptor) —
+                # the legitimate mutation just proceeds normally against the
+                # (never actually replaced) original.
+                mutator.commit()
+                assert mutator.committed is True
+                assert rom_path.read_bytes()[0x1000:0x1000 + 8] == b"MUTATED!"
+                assert replacement.read_bytes() == replacement_bytes
+                return
+            with pytest.raises(ValueError, match="no longer identifies"):
+                mutator.commit()
+            assert mutator.committed is False
+
+        # The OS allowed the replace: the attacker's file must be left
+        # exactly as written — never overwritten by our write-back.
+        assert rom_path.read_bytes() == replacement_bytes
+
+    def test_commit_rejects_same_length_content_drift(self, tmp_path):
+        from cli_anything.febuildergba.core import project
+        rom_path = tmp_path / "rom.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
+
+        with project.mutating_rom_snapshot(str(rom_path)) as mutator:
+            self._mutate(mutator.path)
+            # Drift the original content through the very descriptor
+            # commit() will re-read from — simulating a second writer that
+            # touched the file while "the backend ran", without depending on
+            # OS-specific concurrent-handle sharing semantics.
+            stream = mutator._original_stream
+            stream.seek(0x2000)
+            stream.write(b"DRIFT!!!")
+            stream.flush()
+
+            with pytest.raises(ValueError, match="content changed"):
+                mutator.commit()
+            assert mutator.committed is False
+
+    def test_commit_rejects_oversized_mutated_result(self, tmp_path):
+        from cli_anything.febuildergba.core import project
+        rom_path = tmp_path / "rom.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
+
+        with project.mutating_rom_snapshot(str(rom_path)) as mutator:
+            with open(mutator.path, "r+b") as f:
+                f.seek(project._MAX_ROM_SIZE)
+                f.write(b"\x00")
+            with pytest.raises(ValueError, match="larger than 32 MiB"):
+                mutator.commit()
+            assert mutator.committed is False
+
+    def test_commit_rejects_invalid_header_mutated_result(self, tmp_path):
+        from cli_anything.febuildergba.core import project
+        rom_path = tmp_path / "rom.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
+
+        with project.mutating_rom_snapshot(str(rom_path)) as mutator:
+            with open(mutator.path, "r+b") as f:
+                f.seek(project._GBA_FIXED_VALUE_OFFSET)
+                f.write(b"\x00")
+            with pytest.raises(ValueError, match="missing fixed header byte"):
+                mutator.commit()
+            assert mutator.committed is False
+
+    @pytest.mark.parametrize(
+        "failure",
+        [RuntimeError("simulated backend crash"),
+         ValueError("simulated bad result"),
+         OSError("simulated backend exception")],
+    )
+    def test_snapshot_removed_when_body_raises_without_committing(
+            self, tmp_path, failure):
+        from cli_anything.febuildergba.core import project
+        rom_path = tmp_path / "rom.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
+        original_bytes = rom_path.read_bytes()
+        holder = {}
+
+        with pytest.raises(type(failure)):
+            with project.mutating_rom_snapshot(str(rom_path)) as mutator:
+                holder["path"] = mutator.path
+                raise failure
+
+        assert not os.path.isfile(holder["path"])
+        assert rom_path.read_bytes() == original_bytes
+
+    def test_snapshot_registered_during_body_and_deregistered_after(
+            self, tmp_path):
+        from cli_anything.febuildergba.core import project
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        rom_path = tmp_path / "rom.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
+
+        assert backend._registered_rom_snapshots.get() == frozenset()
+        with project.mutating_rom_snapshot(str(rom_path)) as mutator:
+            registered = backend._registered_rom_snapshots.get()
+            assert os.path.abspath(mutator.path) in registered
+            assert len(registered) == 1
+        assert backend._registered_rom_snapshots.get() == frozenset()
+
+
+class TestBackendRomSnapshotDispatch:
+    """core.project.backend_rom_snapshot / backend_mutating_rom_snapshot
+    (issue #1942 / PR #1971 follow-up fix): the shared MCP-conditional
+    dispatch every non-lint ROM-touching wrapper calls into instead of the
+    always-on primitives directly. Wrapper-level end-to-end coverage lives
+    in ``TestRomSnapshotAcrossAllWrappers`` /
+    ``TestLegacyClickPassthroughOutsideMcp`` /
+    ``TestMutatingWrappersCommitProtocol`` below; this pins the two
+    dispatch functions' own contract directly, in isolation from any single
+    wrapper's business logic.
+    """
+
+    def test_read_only_yields_the_original_path_unchanged_outside_mcp(
+            self, tmp_path):
+        from cli_anything.febuildergba.core import project
+
+        # Not even a valid ROM — outside MCP scope this must never be
+        # opened, copied, or validated at all.
+        missing_path = str(tmp_path / "does-not-exist.gba")
+        with project.backend_rom_snapshot(missing_path) as yielded:
+            assert yielded == missing_path
+
+    def test_read_only_delegates_to_validated_snapshot_inside_mcp(
+            self, tmp_path):
+        from cli_anything.febuildergba.core import project
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        rom_path = tmp_path / "rom.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
+
+        with backend.prebuilt_backend_only():
+            with project.backend_rom_snapshot(str(rom_path)) as snapshot_path:
+                assert snapshot_path != str(rom_path)
+                assert os.path.isfile(snapshot_path)
+            assert not os.path.isfile(snapshot_path)
+
+    def test_mutating_yields_a_pure_no_op_handle_outside_mcp(self, tmp_path):
+        from cli_anything.febuildergba.core import project
+
+        missing_path = str(tmp_path / "does-not-exist.gba")
+        with project.backend_mutating_rom_snapshot(missing_path) as mutator:
+            assert isinstance(mutator, project._DirectRomHandle)
+            assert mutator.path == missing_path
+            assert mutator.committed is False
+            mutator.commit()
+            assert mutator.committed is True
+        # commit() above never touched the filesystem at all.
+        assert not os.path.exists(missing_path)
+
+    def test_mutating_delegates_to_mutating_snapshot_inside_mcp(
+            self, tmp_path):
+        from cli_anything.febuildergba.core import project
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        rom_path = tmp_path / "rom.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
+
+        with backend.prebuilt_backend_only():
+            with project.backend_mutating_rom_snapshot(str(rom_path)) as mutator:
+                assert isinstance(mutator, project.MutatingRomSnapshot)
+                assert mutator.path != str(rom_path)
+                assert os.path.isfile(mutator.path)
+            assert not os.path.isfile(mutator.path)
+
+
+class TestRomSnapshotAcrossAllWrappers:
+    """Class-wide trust-boundary coverage for every MCP ROM-touching wrapper
+    (issue #1942 / PR #1971): inside MCP's ``prebuilt_backend_only`` dynamic
+    scope, each must hand the backend a private snapshot — never the
+    caller's original path — and remove it once the call returns. Also
+    proves lint does not double-snapshot (exactly one registration per call
+    — shared with the other 8 wrappers via the same
+    ``validated_rom_snapshot`` helper). The 8 non-lint wrappers' legacy
+    Click passthrough (no snapshot, no local validation, unmodified caller
+    path) outside MCP scope is covered separately by
+    ``TestLegacyClickPassthroughOutsideMcp`` below.
+    """
+
+    @pytest.mark.parametrize(
+        ("module_name", "func_name", "is_mutating", "invoke"),
+        _ROM_SNAPSHOT_WRAPPERS, ids=_ROM_SNAPSHOT_WRAPPER_IDS,
+    )
+    def test_backend_receives_a_removed_snapshot_registered_exactly_once(
+            self, module_name, func_name, is_mutating, invoke,
+            monkeypatch, tmp_path):
+        import importlib
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        module = importlib.import_module(module_name)
+        rom_path = tmp_path / "rom.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
+        seen = {}
+
+        def inspect(args, **kwargs):
+            rom_arg = next(
+                a[len("--rom="):] for a in args if a.startswith("--rom="))
+            seen["rom_arg"] = rom_arg
+            seen["existed"] = os.path.isfile(rom_arg)
+            seen["registered"] = set(backend._registered_rom_snapshots.get())
+            return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
+
+        monkeypatch.setattr(module, "run_cli", inspect)
+
+        with backend.prebuilt_backend_only():
+            invoke(module, str(rom_path), tmp_path)
+
+        assert seen.get("rom_arg") is not None, f"{func_name} never called run_cli"
+        assert seen["rom_arg"] != str(rom_path), (
+            f"{func_name} passed the caller's original path to the backend")
+        assert seen["existed"] is True
+        assert os.path.abspath(seen["rom_arg"]) in seen["registered"]
+        assert len(seen["registered"]) == 1, (
+            f"{func_name} registered {len(seen['registered'])} snapshots at "
+            "once (expected exactly one — no double-snapshotting)")
+        assert not os.path.isfile(seen["rom_arg"])
+        assert backend._registered_rom_snapshots.get() == frozenset()
+
+    @pytest.mark.parametrize(
+        ("module_name", "func_name", "is_mutating", "invoke"),
+        _ROM_SNAPSHOT_WRAPPERS, ids=_ROM_SNAPSHOT_WRAPPER_IDS,
+    )
+    @pytest.mark.parametrize("kind", ["oversized", "non_rom"])
+    def test_invalid_rom_rejected_before_backend(
+            self, module_name, func_name, is_mutating, invoke, kind,
+            monkeypatch, tmp_path):
+        import importlib
+        from cli_anything.febuildergba.core import project
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        module = importlib.import_module(module_name)
+        rom_path = tmp_path / f"{kind}.gba"
+        if kind == "oversized":
+            _write_valid_test_rom(rom_path, b"BE8E")
+            with rom_path.open("r+b") as stream:
+                stream.seek(project._MAX_ROM_SIZE)
+                stream.write(b"\x00")
+        else:
+            rom_path.write_bytes(b"\x00" * project._MIN_ROM_SIZE)
+
+        backend_calls = []
+        monkeypatch.setattr(
+            module, "run_cli",
+            lambda args, **kw: backend_calls.append(args))
+
+        with backend.prebuilt_backend_only(), pytest.raises(ValueError):
+            invoke(module, str(rom_path), tmp_path)
+
+        assert backend_calls == []
+
+    @pytest.mark.parametrize(
+        ("module_name", "func_name", "is_mutating", "invoke"),
+        _READ_ONLY_ROM_WRAPPERS, ids=_READ_ONLY_ROM_WRAPPER_IDS,
+    )
+    def test_read_only_snapshot_pins_bytes_despite_path_replacement(
+            self, module_name, func_name, is_mutating, invoke,
+            monkeypatch, tmp_path):
+        import importlib
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        module = importlib.import_module(module_name)
+        rom_path = tmp_path / "rom.gba"
+        replacement = tmp_path / "replacement.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
+        _write_valid_test_rom(replacement, b"AE7E")
+        original_bytes = rom_path.read_bytes()
+        replacement_bytes = replacement.read_bytes()
+
+        def inspect(args, **kwargs):
+            rom_arg = next(
+                a[len("--rom="):] for a in args if a.startswith("--rom="))
+            assert Path(rom_arg).read_bytes() == original_bytes
+            # Simulate a compromised backend replacing the caller's path
+            # mid-call.
+            os.replace(str(replacement), str(rom_path))
+            assert Path(rom_arg).read_bytes() == original_bytes  # untouched
+            return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
+
+        monkeypatch.setattr(module, "run_cli", inspect)
+
+        with backend.prebuilt_backend_only():
+            invoke(module, str(rom_path), tmp_path)
+
+        # The replacement content the "backend" wrote must survive untouched.
+        assert rom_path.read_bytes() == replacement_bytes
+
+
+class TestLegacyClickPassthroughOutsideMcp:
+    """The 8 non-lint wrappers must retain their pre-#1942/#1971 historical
+    Click behavior outside MCP's ``prebuilt_backend_only`` dynamic scope: no
+    snapshot, no local size/header validation, and the backend receives the
+    caller's own path completely unchanged. This is the direct counterpart
+    to ``TestRomSnapshotAcrossAllWrappers`` (which covers the same 8
+    wrappers, plus lint, *inside* MCP scope) and to
+    ``TestRomSnapshotGate`` (which covers the separate ``run_cli`` seam
+    guard, also MCP-only). ``lint_rom`` is intentionally excluded: its
+    pre-existing historical behavior already always snapshotted, in Click
+    and MCP alike (see ``TestProject``'s lint-specific tests).
+    """
+
+    @pytest.mark.parametrize(
+        ("module_name", "func_name", "is_mutating", "invoke"),
+        _LEGACY_PASSTHROUGH_WRAPPERS, ids=_LEGACY_PASSTHROUGH_WRAPPER_IDS,
+    )
+    def test_backend_receives_the_original_path_unchanged(
+            self, module_name, func_name, is_mutating, invoke,
+            monkeypatch, tmp_path):
+        import importlib
+        from cli_anything.febuildergba.core import project
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        module = importlib.import_module(module_name)
+        rom_path = tmp_path / "rom.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
+        seen = {}
+
+        def inspect(args, **kwargs):
+            rom_arg = next(
+                a[len("--rom="):] for a in args if a.startswith("--rom="))
+            seen["rom_arg"] = rom_arg
+            return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
+
+        monkeypatch.setattr(module, "run_cli", inspect)
+
+        def _forbid_mkstemp(*args, **kwargs):
+            raise AssertionError(
+                f"{func_name} must not create any snapshot outside MCP scope")
+
+        monkeypatch.setattr(project.tempfile, "mkstemp", _forbid_mkstemp)
+
+        assert backend.is_prebuilt_backend_only() is False, (
+            "test must run outside MCP's prebuilt_backend_only() scope")
+        result = invoke(module, str(rom_path), tmp_path)
+
+        assert seen.get("rom_arg") is not None, f"{func_name} never called run_cli"
+        assert seen["rom_arg"] == str(rom_path), (
+            f"{func_name} must pass the caller's original path unchanged "
+            "outside MCP scope (legacy Click behavior)")
+        assert result["exit_code"] == 0
+        # The wrapper must not have removed/replaced the original file.
+        assert rom_path.is_file()
+
+    @pytest.mark.parametrize(
+        ("module_name", "func_name", "is_mutating", "invoke"),
+        _LEGACY_PASSTHROUGH_WRAPPERS, ids=_LEGACY_PASSTHROUGH_WRAPPER_IDS,
+    )
+    @pytest.mark.parametrize("kind", ["oversized", "non_rom"])
+    def test_oversized_and_non_rom_input_reach_the_backend_unvalidated(
+            self, module_name, func_name, is_mutating, invoke, kind,
+            monkeypatch, tmp_path):
+        """Mirror image of ``TestRomSnapshotAcrossAllWrappers.
+        test_invalid_rom_rejected_before_backend``: the same inputs that
+        MCP scope must reject before the backend/resolver must, outside MCP
+        scope, reach the backend exactly as historical Click always let
+        them — no local validation is layered on top of legacy behavior."""
+        import importlib
+        from cli_anything.febuildergba.core import project
+
+        module = importlib.import_module(module_name)
+        rom_path = tmp_path / f"{kind}.gba"
+        if kind == "oversized":
+            _write_valid_test_rom(rom_path, b"BE8E")
+            with rom_path.open("r+b") as stream:
+                stream.seek(project._MAX_ROM_SIZE)
+                stream.write(b"\x00")
+        else:
+            rom_path.write_bytes(b"\x00" * 16)
+
+        seen = {}
+
+        def inspect(args, **kwargs):
+            rom_arg = next(
+                a[len("--rom="):] for a in args if a.startswith("--rom="))
+            seen["rom_arg"] = rom_arg
+            return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
+
+        monkeypatch.setattr(module, "run_cli", inspect)
+
+        result = invoke(module, str(rom_path), tmp_path)
+
+        assert seen.get("rom_arg") == str(rom_path)
+        assert result["exit_code"] == 0
+
+    @pytest.mark.parametrize(
+        ("module_name", "func_name", "is_mutating", "invoke"),
+        # ``_MUTATING_ROM_WRAPPERS`` is already lint-free (lint is
+        # read-only), so it is exactly the mutating subset of
+        # ``_LEGACY_PASSTHROUGH_WRAPPERS``.
+        _MUTATING_ROM_WRAPPERS, ids=_MUTATING_ROM_WRAPPER_IDS,
+    )
+    def test_mutating_commit_is_a_pure_no_op(
+            self, module_name, func_name, is_mutating, invoke,
+            monkeypatch, tmp_path):
+        """Outside MCP scope, ``data.import_table`` / ``verbs.import_palette``
+        must not re-validate or re-copy anything on "commit": the backend
+        already wrote the caller's real file directly, exactly like every
+        historical Click mutating command, so there is nothing left to do."""
+        import importlib
+
+        module = importlib.import_module(module_name)
+        rom_path = tmp_path / "rom.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
+
+        def inspect(args, **kwargs):
+            rom_arg = next(
+                a[len("--rom="):] for a in args if a.startswith("--rom="))
+            with open(rom_arg, "r+b") as f:
+                f.seek(0x1000)
+                f.write(b"MUTATED!")
+            return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
+
+        monkeypatch.setattr(module, "run_cli", inspect)
+
+        result = invoke(module, str(rom_path), tmp_path)
+
+        assert result["exit_code"] == 0
+        # The backend wrote straight through the real path — no snapshot,
+        # no revalidation gate to pass, no write-back indirection.
+        assert rom_path.read_bytes()[0x1000:0x1000 + 8] == b"MUTATED!"
+
+
+class TestWrapperSanitizesLeakedSnapshotPath:
+    """Representative end-to-end proof that wrappers actually apply
+    ``sanitize_snapshot_path`` to backend output before returning it (issue
+    #1942 / PR #1971) — pure-function coverage lives in
+    ``TestSanitizeSnapshotPath``; this proves it is really wired in for a
+    read-only wrapper (``lint_rom``'s ``raw_output``), a second read-only
+    wrapper with independent stdout/stderr fields (``export_table``), and a
+    mutating wrapper on its success/commit path (``import_palette``).
+    """
+
+    def test_lint_sanitizes_raw_output(self, tmp_path, monkeypatch):
+        from cli_anything.febuildergba.core import lint
+
+        rom_path = tmp_path / "rom.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
+        leaked = {}
+
+        def inspect(args):
+            rom_arg = next(a[6:] for a in args if a.startswith("--rom="))
+            leaked["path"] = rom_arg
+            return subprocess.CompletedProcess(
+                args, 0, stdout=f"Lint: clean ({rom_arg})", stderr="")
+
+        monkeypatch.setattr(lint, "run_cli", inspect)
+        result = lint.lint_rom(str(rom_path))
+
+        assert leaked["path"] not in result["raw_output"]
+        assert str(rom_path) in result["raw_output"]
+
+    def test_export_table_sanitizes_stdout_and_stderr(self, tmp_path, monkeypatch):
+        from cli_anything.febuildergba.core import data
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        rom_path = tmp_path / "rom.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
+        leaked = {}
+
+        def inspect(args):
+            rom_arg = next(a[6:] for a in args if a.startswith("--rom="))
+            leaked["path"] = rom_arg
+            return subprocess.CompletedProcess(
+                args, 0,
+                stdout=f"Exported via {rom_arg}",
+                stderr=f"note: {rom_arg} temp")
+
+        monkeypatch.setattr(data, "run_cli", inspect)
+        # Sanitization is only meaningful where a private snapshot exists
+        # (MCP scope); outside it snapshot_path == rom_path and there is
+        # nothing to sanitize (see TestLegacyClickPassthroughOutsideMcp).
+        with backend.prebuilt_backend_only():
+            result = data.export_table(str(rom_path), "units", str(tmp_path / "out.tsv"))
+
+        assert leaked["path"] not in result["stdout"]
+        assert leaked["path"] not in result["stderr"]
+        assert str(rom_path) in result["stdout"]
+        assert str(rom_path) in result["stderr"]
+
+    def test_mutating_wrapper_sanitizes_stdout_and_stderr_on_success(
+            self, tmp_path, monkeypatch):
+        """The mutation-success path (issue #1942 / PR #1971 acceptance:
+        "internal path sanitized") must sanitize output exactly like the
+        read-only wrappers above — proven here through a real ``commit()``,
+        not just the pure helper."""
+        from cli_anything.febuildergba.core import verbs
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        rom_path = tmp_path / "rom.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
+        infile = _touch(tmp_path / "p.pal")
+        leaked = {}
+
+        def inspect(args):
+            rom_arg = next(a[6:] for a in args if a.startswith("--rom="))
+            leaked["path"] = rom_arg
+            # Leave the snapshot's bytes untouched (still a valid, unchanged
+            # copy) so commit() succeeds without conflating this with the
+            # separate mutated-content checks covered elsewhere.
+            return subprocess.CompletedProcess(
+                args, 0,
+                stdout=f"Imported via {rom_arg}",
+                stderr=f"note: {rom_arg} temp")
+
+        monkeypatch.setattr(verbs, "run_cli", inspect)
+        # Same rationale as test_export_table_sanitizes_stdout_and_stderr:
+        # sanitization only has anything to sanitize inside MCP scope.
+        with backend.prebuilt_backend_only():
+            result = verbs.import_palette(str(rom_path), "0x5524", infile)
+
+        assert result["exit_code"] == 0
+        assert leaked["path"] not in result["stdout"]
+        assert leaked["path"] not in result["stderr"]
+        assert str(rom_path) in result["stdout"]
+        assert str(rom_path) in result["stderr"]
+        assert not os.path.isfile(leaked["path"])
+
+
+class TestMutatingWrappersCommitProtocol:
+    """data.import_table / verbs.import_palette (issue #1942 / PR #1971):
+    the two mutating wrappers only commit a backend-mutated snapshot back
+    through the original descriptor after the backend exits 0 — never on
+    failure or on a replaced original path. Same-length source drift and
+    invalid/oversized mutated-result rejection are the shared
+    ``MutatingRomSnapshot.commit()`` protocol, covered directly and more
+    robustly by ``TestMutatingRomSnapshot``.
+    """
+
+    @pytest.mark.parametrize(
+        ("module_name", "func_name", "is_mutating", "invoke"),
+        _MUTATING_ROM_WRAPPERS, ids=_MUTATING_ROM_WRAPPER_IDS,
+    )
+    def test_success_commits_mutation_and_removes_snapshot(
+            self, module_name, func_name, is_mutating, invoke,
+            monkeypatch, tmp_path):
+        import importlib
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        module = importlib.import_module(module_name)
+        rom_path = tmp_path / "rom.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
+        seen = {}
+
+        def inspect(args, **kwargs):
+            rom_arg = next(
+                a[len("--rom="):] for a in args if a.startswith("--rom="))
+            seen["rom_arg"] = rom_arg
+            with open(rom_arg, "r+b") as f:
+                f.seek(0x1000)
+                f.write(b"MUTATED!")
+            return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
+
+        monkeypatch.setattr(module, "run_cli", inspect)
+        with backend.prebuilt_backend_only():
+            result = invoke(module, str(rom_path), tmp_path)
+
+        assert result["exit_code"] == 0
+        assert rom_path.read_bytes()[0x1000:0x1000 + 8] == b"MUTATED!"
+        assert not os.path.isfile(seen["rom_arg"])
+
+    @pytest.mark.parametrize(
+        ("module_name", "func_name", "is_mutating", "invoke"),
+        _MUTATING_ROM_WRAPPERS, ids=_MUTATING_ROM_WRAPPER_IDS,
+    )
+    def test_backend_failure_leaves_original_untouched_and_cleans_up(
+            self, module_name, func_name, is_mutating, invoke,
+            monkeypatch, tmp_path):
+        import importlib
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        module = importlib.import_module(module_name)
+        rom_path = tmp_path / "rom.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
+        original_bytes = rom_path.read_bytes()
+        seen = {}
+
+        def inspect(args, **kwargs):
+            rom_arg = next(
+                a[len("--rom="):] for a in args if a.startswith("--rom="))
+            seen["rom_arg"] = rom_arg
+            with open(rom_arg, "r+b") as f:
+                f.seek(0x1000)
+                f.write(b"MUTATED!")
+            return subprocess.CompletedProcess(
+                args, 1, stdout="", stderr="backend failed")
+
+        monkeypatch.setattr(module, "run_cli", inspect)
+        with backend.prebuilt_backend_only():
+            result = invoke(module, str(rom_path), tmp_path)
+
+        assert result["exit_code"] == 1
+        assert rom_path.read_bytes() == original_bytes
+        assert not os.path.isfile(seen["rom_arg"])
+
+    @pytest.mark.parametrize(
+        ("module_name", "func_name", "is_mutating", "invoke"),
+        _MUTATING_ROM_WRAPPERS, ids=_MUTATING_ROM_WRAPPER_IDS,
+    )
+    def test_oversized_mutated_result_aborts_with_no_commit(
+            self, module_name, func_name, is_mutating, invoke,
+            monkeypatch, tmp_path):
+        import importlib
+        from cli_anything.febuildergba.core import project
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        module = importlib.import_module(module_name)
+        rom_path = tmp_path / "rom.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
+        original_bytes = rom_path.read_bytes()
+        seen = {}
+
+        def inspect(args, **kwargs):
+            rom_arg = next(
+                a[len("--rom="):] for a in args if a.startswith("--rom="))
+            seen["rom_arg"] = rom_arg
+            with open(rom_arg, "r+b") as f:
+                f.seek(project._MAX_ROM_SIZE)
+                f.write(b"\x00")
+            return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
+
+        monkeypatch.setattr(module, "run_cli", inspect)
+
+        with backend.prebuilt_backend_only(), pytest.raises(Exception):
+            invoke(module, str(rom_path), tmp_path)
+
+        assert rom_path.read_bytes() == original_bytes
+        assert not os.path.isfile(seen["rom_arg"])
+
+    @pytest.mark.parametrize(
+        ("module_name", "func_name", "is_mutating", "invoke"),
+        _MUTATING_ROM_WRAPPERS, ids=_MUTATING_ROM_WRAPPER_IDS,
+    )
+    def test_invalid_header_mutated_result_aborts_with_no_commit(
+            self, module_name, func_name, is_mutating, invoke,
+            monkeypatch, tmp_path):
+        import importlib
+        from cli_anything.febuildergba.core import project
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        module = importlib.import_module(module_name)
+        rom_path = tmp_path / "rom.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
+        original_bytes = rom_path.read_bytes()
+        seen = {}
+
+        def inspect(args, **kwargs):
+            rom_arg = next(
+                a[len("--rom="):] for a in args if a.startswith("--rom="))
+            seen["rom_arg"] = rom_arg
+            with open(rom_arg, "r+b") as f:
+                f.seek(project._GBA_FIXED_VALUE_OFFSET)
+                f.write(b"\x00")
+            return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
+
+        monkeypatch.setattr(module, "run_cli", inspect)
+
+        with backend.prebuilt_backend_only(), pytest.raises(Exception):
+            invoke(module, str(rom_path), tmp_path)
+
+        assert rom_path.read_bytes() == original_bytes
+        assert not os.path.isfile(seen["rom_arg"])
+
+    @pytest.mark.parametrize(
+        ("module_name", "func_name", "is_mutating", "invoke"),
+        _MUTATING_ROM_WRAPPERS, ids=_MUTATING_ROM_WRAPPER_IDS,
+    )
+    def test_path_replacement_during_mutation_fails_closed_or_is_os_blocked(
+            self, module_name, func_name, is_mutating, invoke,
+            monkeypatch, tmp_path):
+        import importlib
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        module = importlib.import_module(module_name)
+        rom_path = tmp_path / "rom.gba"
+        replacement = tmp_path / "replacement.bin"
+        _write_valid_test_rom(rom_path, b"BE8E")
+        replacement.write_bytes(b"NOT-A-ROM" * 20000)
+        replacement_bytes = replacement.read_bytes()
+        replace_error = {}
+        seen = {}
+
+        def inspect(args, **kwargs):
+            rom_arg = next(
+                a[len("--rom="):] for a in args if a.startswith("--rom="))
+            seen["rom_arg"] = rom_arg
+            with open(rom_arg, "r+b") as f:
+                f.seek(0x1000)
+                f.write(b"MUTATED!")
+            try:
+                os.replace(str(replacement), str(rom_path))
+            except OSError as exc:
+                replace_error["exc"] = exc
+            return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
+
+        monkeypatch.setattr(module, "run_cli", inspect)
+
+        raised = None
+        result = None
+        with backend.prebuilt_backend_only():
+            try:
+                result = invoke(module, str(rom_path), tmp_path)
+            except Exception as exc:  # capturing to branch on OS-dependent semantics
+                raised = exc
+
+        if "exc" in replace_error:
+            # Windows blocked replacing a file with an open descriptor: the
+            # legitimate mutation proceeds normally against the (never
+            # actually replaced) original.
+            assert raised is None, f"unexpected failure: {raised!r}"
+            assert result["exit_code"] == 0
+            assert rom_path.read_bytes()[0x1000:0x1000 + 8] == b"MUTATED!"
+            assert replacement.read_bytes() == replacement_bytes
+        else:
+            # The OS allowed the replace: our identity check must fail
+            # closed, and the attacker's replacement file must be left
+            # exactly as written — never overwritten by our write-back.
+            assert raised is not None, (
+                "path replacement during mutation must fail closed")
+            assert rom_path.read_bytes() == replacement_bytes
+
+        assert "rom_arg" in seen and not os.path.isfile(seen["rom_arg"])
+
+
 # ── Data tests ────────────────────────────────────────────────────────
 
 class TestData:
@@ -1740,6 +2794,8 @@ class TestData:
         from cli_anything.febuildergba.core import data
         output = tmp_path / "units.tsv"
         output.write_text("stale")
+        rom_path = tmp_path / "rom.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
         monkeypatch.setattr(
             data,
             "run_cli",
@@ -1748,7 +2804,7 @@ class TestData:
             ),
         )
 
-        result = data.export_table("fake.gba", "units", str(output))
+        result = data.export_table(str(rom_path), "units", str(output))
 
         assert result["exit_code"] == 1
         assert result["output_files"] == []
@@ -1761,6 +2817,8 @@ class TestData:
         stale = tmp_path / "tables.stale.tsv"
         expected.write_text("new")
         stale.write_text("old")
+        rom_path = tmp_path / "rom.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
         monkeypatch.setattr(data, "list_tables", lambda: ["units", "items"])
         monkeypatch.setattr(
             data,
@@ -1770,7 +2828,7 @@ class TestData:
             ),
         )
 
-        result = data.export_table("fake.gba", "all", str(output))
+        result = data.export_table(str(rom_path), "all", str(output))
 
         assert result["output_files"] == [str(expected.resolve())]
         assert str(stale.resolve()) not in result["output_files"]

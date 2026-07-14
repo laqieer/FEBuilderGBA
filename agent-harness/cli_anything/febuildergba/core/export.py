@@ -3,8 +3,10 @@
 import os
 from cli_anything.febuildergba.utils.febuildergba_backend import (
     run_cli,
+    sanitize_snapshot_path,
     successful_output_size,
 )
+from cli_anything.febuildergba.core.project import backend_rom_snapshot
 
 
 def create_ups(rom_path: str, output_path: str,
@@ -263,16 +265,19 @@ def resolve_names(rom_path: str, kind: str, ids: list[int],
         Dict with resolved names.
     """
     ids_str = ",".join(str(i) for i in ids)
-    args = ["--resolve-names", f"--rom={rom_path}",
-            f"--kind={kind}", f"--ids={ids_str}"]
-    if force_version:
-        args.append(f"--force-version={force_version}")
+    with backend_rom_snapshot(rom_path) as snapshot_path:
+        args = ["--resolve-names", f"--rom={snapshot_path}",
+                f"--kind={kind}", f"--ids={ids_str}"]
+        if force_version:
+            args.append(f"--force-version={force_version}")
 
-    result = run_cli(args)
+        result = run_cli(args)
+        stdout = sanitize_snapshot_path(result.stdout, snapshot_path, rom_path)
+        stderr = sanitize_snapshot_path(result.stderr, snapshot_path, rom_path)
 
     names = {}
-    if result.stdout:
-        for line in result.stdout.strip().splitlines():
+    if stdout:
+        for line in stdout.strip().splitlines():
             parts = line.split("\t", 1)
             if len(parts) == 2:
                 names[parts[0]] = parts[1]
@@ -282,8 +287,8 @@ def resolve_names(rom_path: str, kind: str, ids: list[int],
         "names": names,
         "count": len(names),
         "exit_code": result.returncode,
-        "stdout": result.stdout.strip(),
-        "stderr": result.stderr.strip() if result.stderr else "",
+        "stdout": stdout.strip() if stdout else "",
+        "stderr": stderr.strip() if stderr else "",
     }
 
 

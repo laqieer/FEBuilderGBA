@@ -7,8 +7,10 @@ from typing import Optional
 
 from cli_anything.febuildergba.utils.febuildergba_backend import (
     run_cli,
+    sanitize_snapshot_path,
     successful_output_size,
 )
+from cli_anything.febuildergba.core.project import backend_rom_snapshot
 
 
 def export_text(rom_path: str, output_path: str,
@@ -81,19 +83,22 @@ def roundtrip_text(rom_path: str, output_prefix: str = "",
     Returns:
         Dict with roundtrip results (lossless=True means exit 0).
     """
-    args = ["--translate-roundtrip", f"--rom={rom_path}"]
-    if output_prefix:
-        args.append(f"--out={output_prefix}")
-    if force_version:
-        args.append(f"--force-version={force_version}")
+    with backend_rom_snapshot(rom_path) as snapshot_path:
+        args = ["--translate-roundtrip", f"--rom={snapshot_path}"]
+        if output_prefix:
+            args.append(f"--out={output_prefix}")
+        if force_version:
+            args.append(f"--force-version={force_version}")
 
-    result = run_cli(args)
+        result = run_cli(args)
+        stdout = sanitize_snapshot_path(result.stdout, snapshot_path, rom_path)
+        stderr = sanitize_snapshot_path(result.stderr, snapshot_path, rom_path)
 
     return {
         "lossless": result.returncode == 0,
         "exit_code": result.returncode,
-        "stdout": result.stdout.strip(),
-        "stderr": result.stderr.strip() if result.returncode != 0 else "",
+        "stdout": stdout.strip() if stdout else "",
+        "stderr": stderr.strip() if result.returncode != 0 else "",
     }
 
 
@@ -111,26 +116,26 @@ def search_text(rom_path: str, query: str, force_version: str = "") -> dict:
     Returns:
         Dict with matches (list of {id, text} dicts) and match count.
     """
-    if not os.path.isfile(rom_path):
-        raise FileNotFoundError(f"ROM file not found: {rom_path}")
-
     # Export text to a temp file
     with tempfile.NamedTemporaryFile(suffix=".tsv", delete=False) as tmp:
         tmp_path = tmp.name
 
     try:
-        args = ["--translate", f"--rom={rom_path}", f"--out={tmp_path}"]
-        if force_version:
-            args.append(f"--force-version={force_version}")
+        with backend_rom_snapshot(rom_path) as snapshot_path:
+            args = ["--translate", f"--rom={snapshot_path}", f"--out={tmp_path}"]
+            if force_version:
+                args.append(f"--force-version={force_version}")
 
-        result = run_cli(args)
+            result = run_cli(args)
+            stderr = sanitize_snapshot_path(result.stderr, snapshot_path, rom_path)
+
         if result.returncode != 0:
             return {
                 "query": query,
                 "matches": [],
                 "match_count": 0,
                 "exit_code": result.returncode,
-                "stderr": result.stderr.strip() if result.stderr else "",
+                "stderr": stderr.strip() if stderr else "",
             }
 
         # Read the exported TSV and search
