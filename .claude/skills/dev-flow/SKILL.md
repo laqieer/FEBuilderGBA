@@ -33,7 +33,11 @@ Read `DEVELOPMENT-WORKFLOW.md` NOW for full details on each step.
    ```
 7. **Implement** per the accepted plan. No scope creep.
 8. **Tests** — add unit tests, run all test suites, ensure passing.
-9. **Commit and push** — one logical change per commit, reference issue number.
+9. **Commit and push** — before the first Copilot/Claude-authored commit, attempt
+   `pre-commit install --hook-type commit-msg --install-hooks` in the worktree
+   (commit-msg only; never install the unauthenticated ggshield stage). Surface
+   any provisioning failure explicitly; CI remains authoritative. Then make one
+   logical commit, reference the issue number, and push immediately.
 ### Step 9.5 — Capture screenshots (feat/fix PRs ONLY — BEFORE opening PR)
 
 ```bash

@@ -1,0 +1,61 @@
+name: Validate commitlint hook
+
+on:
+  pull_request:
+    paths:
+      - .pre-commit-config.yaml
+      - commitlint.config.mjs
+      - scripts/validate-commitlint-hook.py
+      - .github/workflows/validate-commitlint-hook.yml
+  push:
+    branches: [ master ]
+    paths:
+      - .pre-commit-config.yaml
+      - commitlint.config.mjs
+      - scripts/validate-commitlint-hook.py
+      - .github/workflows/validate-commitlint-hook.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-commitlint-hook-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate local commit-msg hook
+    # Never execute a fork PR's modified hook configuration. Forks retain the
+    # authoritative always-on commit lint checks in pr-title-lint.yml.
+    if: >-
+      github.event_name == 'push' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pre-commit environments
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ runner.os }}-py312-v4.6.0-${{ hashFiles('.pre-commit-config.yaml', 'commitlint.config.mjs') }}
+
+      - name: Install pre-commit
+        run: >-
+          python -m pip install
+          --disable-pip-version-check
+          --no-input
+          pre-commit==4.6.0
+
+      - name: Validate pre-commit config
+        run: pre-commit validate-config .pre-commit-config.yaml
+
+      - name: Verify commitlint filename forwarding
+        run: python scripts/validate-commitlint-hook.py
