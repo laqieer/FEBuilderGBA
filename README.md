@@ -679,10 +679,11 @@ session management) as 21 MCP tools plus 3 resources. Unlike the computer-use se
 only a Python 3.10+ standard library — no Windows dependency, no extra packages, no MCP SDK.
 Its closed schemas reject empty file paths, and multi-table exports report only the declared
 per-table output names rather than unrelated files sharing the same prefix. The stdio transport
-forces UTF-8, rejects non-standard JSON constants, and validates entity IDs as unsigned 32-bit
-values before backend dispatch. JSON-RPC request IDs are bounded to 4,096-character strings or
-256-bit integers, and excessive integer tokens or JSON nesting beyond 64 levels produce parse
-errors without terminating the server before the next request. JSON-RPC array params remain
+forces UTF-8, rejects non-standard JSON constants and numeric literals that overflow to non-finite
+floats, and validates entity IDs as unsigned 32-bit values before backend dispatch. JSON-RPC
+request IDs are bounded to 4,096-character strings or 256-bit integers, and excessive integer
+tokens or JSON nesting beyond 64 levels produce parse errors without terminating the server
+before the next request. JSON-RPC array params remain
 structurally valid, but MCP request handlers require objects while notifications never receive
 validation responses. The stdio loop removes only CR/LF framing; non-JSON whitespace is left for
 the strict decoder to reject. A missing session JSON stays in memory without creating its parent
@@ -713,8 +714,8 @@ filesystem-identity ownership rule as MCP, so explicit operations on another ROM
 active session while hard-link aliases still count as the same ROM. In-place MCP imports repeat
 that identity check while holding the session lock immediately before commit, so replacing the
 session path during a hard-link-alias operation cannot mark the replacement modified. Commands
-that write a separate output ROM record history without marking the active input ROM modified; they set
-`modified` only when the reported destination identifies the active ROM. The `data_import` and
+that write a separate output ROM record history without marking the active input ROM modified;
+they set `modified` only when the reported destination identifies the active ROM. The `data_import` and
 `palette_import` MCP tools have no output-path argument: they overwrite the resolved explicit
 `rom_path`, or the active session ROM when `rom_path` is omitted. Successful backend
 version probes are limited to 4,096 characters, and `names_resolve` limits each requested name to

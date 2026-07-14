@@ -686,7 +686,7 @@ def find_febuildergba_cli() -> list[str]:
     """Find the FEBuilderGBA.CLI executable.
 
     Search order:
-    1. FEBUILDERGBA_CLI env var (explicit path)
+    1. FEBUILDERGBA_CLI_EXE, then FEBUILDERGBA_CLI env var (explicit path)
     2. Published/build apphost or DLL in repo FEBuilderGBA.CLI/bin/
     3. Outside prebuilt-only mode, 'dotnet run' via the project file
 

@@ -396,6 +396,38 @@ class TestProtocolErrors:
         assert resp["error"]["code"] == srv.PARSE_ERROR
         assert resp["id"] is None
 
+    @pytest.mark.parametrize(
+        "line",
+        [
+            (
+                '{"jsonrpc":"2.0","id":1,"method":"ping",'
+                '"params":{"_meta":1e1000000}}'
+            ),
+            (
+                '{"jsonrpc":"2.0","method":"notifications/initialized",'
+                '"params":{"_meta":-1e1000000}}'
+            ),
+            (
+                '[{"jsonrpc":"2.0","id":1,"method":"ping"},'
+                '{"jsonrpc":"2.0","id":2,"method":"ping",'
+                '"params":{"_meta":1e1000000}}]'
+            ),
+        ],
+    )
+    def test_json_float_overflow_is_parse_error(
+            self, initialized_state, line):
+        resp = srv.handle_line(initialized_state, line)
+        assert resp["error"]["code"] == srv.PARSE_ERROR
+        assert resp["id"] is None
+
+    def test_finite_json_float_remains_valid(self, initialized_state):
+        line = (
+            '{"jsonrpc":"2.0","id":1,"method":"ping",'
+            '"params":{"_meta":1e308}}'
+        )
+        resp = srv.handle_line(initialized_state, line)
+        assert resp["result"] == {}
+
     def test_invalid_request_bad_version(self, initialized_state):
         resp = srv.handle_line(initialized_state, json.dumps({"jsonrpc": "1.0", "id": 1, "method": "ping"}))
         assert resp["error"]["code"] == srv.INVALID_REQUEST

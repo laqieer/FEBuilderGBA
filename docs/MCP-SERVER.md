@@ -83,9 +83,10 @@ same console-script name on Windows, macOS, and Linux without assuming that the 
   the following line is still processed. All logs/diagnostics go to stderr; nothing else is ever
   written to stdout. Input lines are capped at 1,048,576 characters and batches at 64 entries; an
   oversized line is drained before the next message is processed. Non-standard `NaN`/`Infinity`
-  JSON tokens, integer tokens over 78 digits, JSON nesting beyond 64 levels, and any defensive
-  decoder `RecursionError` are rejected as parse errors. Request IDs are limited to strings of at
-  most 4,096 characters or integers with at most 256 bits of magnitude. Even an unexpected
+  JSON tokens, numeric literals that overflow to non-finite floats, integer tokens over 78 digits,
+  JSON nesting beyond 64 levels, and any defensive decoder `RecursionError` are rejected as parse
+  errors. Request IDs are limited to strings of at most 4,096 characters or integers with at most
+  256 bits of magnitude. Even an unexpected
   failure escaping the server's dispatch loop emits a single flushed, generic `-32603` response
   (`id: null`) rather than silently dying or dropping the line — the loop always keeps processing
   subsequent lines.
@@ -120,7 +121,7 @@ same console-script name on Windows, macOS, and Linux without assuming that the 
 
 | Code | Meaning | When |
 |---|---|---|
-| `-32700` | Parse error | The line isn't valid UTF-8/JSON, including non-standard `NaN`/`Infinity` tokens. |
+| `-32700` | Parse error | The line isn't valid UTF-8/JSON, including non-standard `NaN`/`Infinity` tokens or numeric literals that overflow to non-finite floats. |
 | `-32600` | Invalid Request | Wrong `jsonrpc` version, malformed request/notification shape, missing/empty/non-string `method`, scalar or null `params` (non-object, non-array; arrays are structurally accepted and then reach method validation as `-32602`), invalid `id` (null/bool/object), an empty or over-64-entry batch, an over-1,048,576-character line, `initialize` sent inside a batch, duplicate `initialize` after a successful one, or an operation attempted before `initialize` (except `ping`). |
 | `-32601` | Method not found | `method` is a well-formed, non-empty string but doesn't match any registered method. |
 | `-32602` | Invalid params | Malformed method-specific params shape (see above), unexpected/extra params fields, malformed `initialize` fields, an **unknown tool name**, or **schema-invalid tool arguments** (missing required field, wrong type, out-of-bounds, unexpected/extra property, over-length string — schemas are closed with `additionalProperties: false`). |

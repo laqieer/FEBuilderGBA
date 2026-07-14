@@ -1303,6 +1303,13 @@ def _parse_json_int(value):
     return int(value)
 
 
+def _parse_json_float(value):
+    parsed = float(value)
+    if not math.isfinite(parsed):
+        raise ValueError("JSON float must be finite")
+    return parsed
+
+
 def _json_nesting_exceeds_limit(value):
     depth = 0
     in_string = False
@@ -1339,6 +1346,7 @@ def handle_line(state, line):
         payload = json.loads(
             line,
             parse_constant=_reject_json_constant,
+            parse_float=_parse_json_float,
             parse_int=_parse_json_int,
         )
     except (json.JSONDecodeError, RecursionError, ValueError):
