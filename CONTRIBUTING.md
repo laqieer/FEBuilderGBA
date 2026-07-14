@@ -132,6 +132,10 @@ Requires **pre-commit ≥ 3.2.0**; pre-commit provisions its own Node.js toolcha
 on first install (via nodeenv; needs network) — no system Node/npm required.
 Already set up the ggshield hook? Re-run the command above to add commit-msg
 linting (a bare `pre-commit install` only registers the `pre-commit` stage).
+The hook intentionally forwards pre-commit's commit message filename; without
+that override the upstream hook can lint a stale `COMMIT_EDITMSG`, especially in
+a linked worktree. Configuration changes must pass
+`python scripts/validate-commitlint-hook.py`.
 Escape hatch: `git commit --no-verify` (portable), or skip just this hook —
 bash/zsh `SKIP=commitlint git commit …`, PowerShell `$env:SKIP='commitlint'; git commit …; Remove-Item Env:SKIP`.
 You are never blocked offline: the hook is opt-in and bypassable, and CI remains authoritative.
