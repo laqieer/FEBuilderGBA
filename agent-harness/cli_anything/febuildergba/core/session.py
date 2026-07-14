@@ -19,6 +19,12 @@ from typing import Optional
 
 
 MAX_HISTORY_ENTRIES = 100
+MAX_HISTORY_COLLECTION_ITEMS = 100
+MAX_HISTORY_DETAIL_FIELDS = MAX_HISTORY_COLLECTION_ITEMS - 2
+MAX_HISTORY_KEY_LEN = 4096
+MAX_HISTORY_OP_LEN = 128
+MAX_HISTORY_STRING_LEN = 4096
+MAX_HISTORY_VALUE_DEPTH = 16
 MAX_SESSION_FILE_BYTES = 8 * 1024 * 1024
 MAX_SESSION_INTEGER_DIGITS = 20
 MAX_SESSION_ID_LEN = 64
@@ -82,6 +88,105 @@ def _nonnegative_number(value, max_value: float, default: float = 0.0):
     return value
 
 
+def _normalize_history_value(value, root_item_limit=MAX_HISTORY_COLLECTION_ITEMS):
+    """Copy one JSON-compatible value while enforcing session-history bounds."""
+    root = [None]
+    active_containers = set()
+    stack = [("visit", value, root, 0, 0, root_item_limit)]
+
+    while stack:
+        action, current, parent, slot, depth, item_limit = stack.pop()
+        if action == "leave":
+            active_containers.remove(current)
+            continue
+
+        if depth > MAX_HISTORY_VALUE_DEPTH:
+            raise ValueError("Session history value exceeds nesting limit")
+
+        if current is None or isinstance(current, bool):
+            parent[slot] = current
+            continue
+        if isinstance(current, int):
+            if abs(current) >= 10 ** MAX_SESSION_INTEGER_DIGITS:
+                raise ValueError("Session history integer exceeds digit limit")
+            parent[slot] = current
+            continue
+        if isinstance(current, float):
+            if not math.isfinite(current):
+                raise ValueError("Session history float must be finite")
+            parent[slot] = current
+            continue
+        if isinstance(current, str):
+            if len(current) > MAX_HISTORY_STRING_LEN:
+                raise ValueError("Session history string exceeds length limit")
+            parent[slot] = current
+            continue
+
+        if isinstance(current, dict):
+            if len(current) > item_limit:
+                raise ValueError("Session history object exceeds field limit")
+            items = list(current.items())
+            for key, _ in items:
+                if not _valid_string(key, MAX_HISTORY_KEY_LEN):
+                    raise ValueError(
+                        "Session history object keys must be bounded strings")
+            container_id = id(current)
+            if container_id in active_containers:
+                raise ValueError("Session history value contains a cycle")
+            active_containers.add(container_id)
+            normalized = {}
+            parent[slot] = normalized
+            stack.append(("leave", container_id, None, None, 0, 0))
+            for key, child in reversed(items):
+                stack.append((
+                    "visit",
+                    child,
+                    normalized,
+                    key,
+                    depth + 1,
+                    MAX_HISTORY_COLLECTION_ITEMS,
+                ))
+            continue
+
+        if isinstance(current, (list, tuple)):
+            if len(current) > item_limit:
+                raise ValueError("Session history array exceeds item limit")
+            container_id = id(current)
+            if container_id in active_containers:
+                raise ValueError("Session history value contains a cycle")
+            active_containers.add(container_id)
+            normalized = [None] * len(current)
+            parent[slot] = normalized
+            stack.append(("leave", container_id, None, None, 0, 0))
+            for index in range(len(current) - 1, -1, -1):
+                stack.append((
+                    "visit",
+                    current[index],
+                    normalized,
+                    index,
+                    depth + 1,
+                    MAX_HISTORY_COLLECTION_ITEMS,
+                ))
+            continue
+
+        raise ValueError("Session history values must be JSON-compatible")
+
+    return root[0]
+
+
+def _normalize_persisted_history_entry(entry):
+    if not isinstance(entry, dict):
+        return None
+    try:
+        normalized = _normalize_history_value(entry)
+    except ValueError:
+        return None
+    if not _valid_string(
+            normalized.get("op"), MAX_HISTORY_OP_LEN, allow_empty=False):
+        return None
+    return normalized
+
+
 @dataclass
 class SessionState:
     """Persistent session state."""
@@ -105,10 +210,14 @@ class SessionState:
         history = data.get("history", [])
         if not isinstance(history, list):
             history = []
-        history = [
-            entry for entry in history
-            if isinstance(entry, dict)
-        ][-MAX_HISTORY_ENTRIES:]
+        normalized_history = []
+        for entry in reversed(history):
+            normalized = _normalize_persisted_history_entry(entry)
+            if normalized is not None:
+                normalized_history.append(normalized)
+                if len(normalized_history) == MAX_HISTORY_ENTRIES:
+                    break
+        history = list(reversed(normalized_history))
 
         rom_path = data.get("rom_path", "")
         if not _valid_string(rom_path, MAX_SESSION_PATH_LEN):
@@ -349,7 +458,8 @@ class Session:
         with self._transaction():
             if token is None or token != self._generation_token():
                 return False
-            self._add_history(op, details or {})
+            entry = self._prepare_history_entry(op, details)
+            self._append_history(entry)
             if modified:
                 self.state.modified = True
             self._write_unlocked()
@@ -369,11 +479,12 @@ class Session:
             if token is None or token != self._generation_token():
                 return False
 
+            entry = self._prepare_history_entry(op, details)
             applied = False
             try:
                 apply_effect()
                 applied = True
-                self._add_history(op, details or {})
+                self._append_history(entry)
                 if modified:
                     self.state.modified = True
                 self._write_unlocked()
@@ -433,15 +544,29 @@ class Session:
             except (OSError, TypeError, ValueError):
                 return False
 
-    def _add_history(self, op: str, details: dict):
-        entry = {
-            "op": op,
-            "time": time.time(),
-            **details,
-        }
+    @staticmethod
+    def _prepare_history_entry(op: str, details: Optional[dict]):
+        if not _valid_string(op, MAX_HISTORY_OP_LEN, allow_empty=False):
+            raise ValueError("Session history operation must be a bounded string")
+        if details is None:
+            details = {}
+        if not isinstance(details, dict):
+            raise ValueError("Session history details must be an object")
+        if "op" in details or "time" in details:
+            raise ValueError("Session history details contain a reserved field")
+        normalized = _normalize_history_value(
+            details,
+            root_item_limit=MAX_HISTORY_DETAIL_FIELDS,
+        )
+        return {"op": op, "time": time.time(), **normalized}
+
+    def _append_history(self, entry: dict):
         self.state.history.append(entry)
         if len(self.state.history) > MAX_HISTORY_ENTRIES:
             self.state.history = self.state.history[-MAX_HISTORY_ENTRIES:]
+
+    def _add_history(self, op: str, details: dict):
+        self._append_history(self._prepare_history_entry(op, details))
 
     def info(self) -> dict:
         return {

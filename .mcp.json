@@ -7,8 +7,8 @@
     },
     "febuildergba-cli": {
       "type": "stdio",
-      "command": "python",
-      "args": ["./agent-harness/febuildergba_mcp.py"]
+      "command": "cli-anything-febuildergba-mcp",
+      "args": []
     }
   }
 }

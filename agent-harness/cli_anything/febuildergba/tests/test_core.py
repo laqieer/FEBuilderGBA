@@ -1021,6 +1021,43 @@ class TestBoundedTextSearch:
             text.search_text("rom.gba", "a", limit=1)
 
 
+class TestBoundedTextSearchRealBackend:
+    """Public synthetic integration for the bounded Python-to-.NET seam."""
+
+    def test_zero_match_search(self, tmp_path):
+        from cli_anything.febuildergba.core import text
+        from cli_anything.febuildergba.utils.febuildergba_backend import (
+            check_backend,
+            prebuilt_backend_only,
+        )
+
+        rom_path = tmp_path / "synthetic-fe8u.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
+        with open(rom_path, "r+b") as stream:
+            stream.truncate(16 * 1024 * 1024)
+
+        query = "__MCP_REAL_BACKEND_NO_MATCH_7F9A__"
+        with prebuilt_backend_only():
+            if not check_backend().get("available"):
+                pytest.skip(
+                    "Prebuilt FEBuilderGBA.CLI backend not available "
+                    "(build it first)"
+                )
+            result = text.search_text(
+                str(rom_path),
+                query,
+                force_version="FE8U",
+                limit=1,
+            )
+
+        assert result == {
+            "query": query,
+            "matches": [],
+            "match_count": 0,
+            "exit_code": 0,
+        }
+
+
 class TestLint:
     def test_clean_summary_is_not_an_error(self, monkeypatch, tmp_path):
         from cli_anything.febuildergba.core import lint
@@ -1332,6 +1369,89 @@ class TestSession:
         assert len(sess.state.history) == 2  # open + data_export
         assert sess.state.history[-1]["op"] == "data_export"
 
+    @pytest.mark.parametrize(
+        "details_factory",
+        [
+            lambda: {"value": "x" * 4097},
+            lambda: {"value": list(range(101))},
+            lambda: {"value": object()},
+            lambda: [],
+        ],
+    )
+    def test_record_operation_rejects_unbounded_history_without_mutation(
+            self, tmp_path, details_factory):
+        from cli_anything.febuildergba.core.session import Session
+        path = tmp_path / "test_session.json"
+        sess = Session(str(path))
+        sess.open_rom("/fake/rom.gba", "FE8U")
+        before_state = sess.state.to_dict()
+        before_disk = path.read_bytes()
+
+        with pytest.raises(ValueError, match="Session history"):
+            sess.record_operation("invalid", details_factory())
+
+        assert sess.state.to_dict() == before_state
+        assert path.read_bytes() == before_disk
+
+    def test_record_operation_rejects_deep_or_cyclic_history(self, tmp_path):
+        from cli_anything.febuildergba.core.session import (
+            MAX_HISTORY_VALUE_DEPTH,
+            Session,
+        )
+        path = tmp_path / "test_session.json"
+        sess = Session(str(path))
+        sess.open_rom("/fake/rom.gba", "FE8U")
+        before_state = sess.state.to_dict()
+        before_disk = path.read_bytes()
+
+        nested = "leaf"
+        for _ in range(MAX_HISTORY_VALUE_DEPTH + 1):
+            nested = [nested]
+        cycle = {}
+        cycle["self"] = cycle
+
+        for details in ({"nested": nested}, {"cycle": cycle}):
+            with pytest.raises(ValueError, match="Session history"):
+                sess.record_operation("invalid", details)
+            assert sess.state.to_dict() == before_state
+            assert path.read_bytes() == before_disk
+
+    def test_record_operation_rejects_unbounded_operation_name(self, tmp_path):
+        from cli_anything.febuildergba.core.session import (
+            MAX_HISTORY_OP_LEN,
+            Session,
+        )
+        path = tmp_path / "test_session.json"
+        sess = Session(str(path))
+        sess.open_rom("/fake/rom.gba", "FE8U")
+        before = path.read_bytes()
+
+        with pytest.raises(ValueError, match="operation"):
+            sess.record_operation("x" * (MAX_HISTORY_OP_LEN + 1), {})
+
+        assert path.read_bytes() == before
+        assert len(sess.state.history) == 1
+
+    def test_invalid_history_does_not_apply_external_effect(self, tmp_path):
+        from cli_anything.febuildergba.core.session import Session
+        path = tmp_path / "test_session.json"
+        sess = Session(str(path))
+        sess.open_rom("/fake/rom.gba", "FE8U")
+        effects = []
+        cycle = {}
+        cycle["self"] = cycle
+
+        with pytest.raises(ValueError, match="Session history"):
+            sess.record_operation_with_effect(
+                "import",
+                {"cycle": cycle},
+                lambda: effects.append("apply"),
+                lambda: effects.append("rollback"),
+            )
+
+        assert effects == []
+        assert len(sess.state.history) == 1
+
     def test_mark_modified(self, tmp_path):
         from cli_anything.febuildergba.core.session import Session
         sess = Session(str(tmp_path / "test_session.json"))
@@ -1551,6 +1671,27 @@ class TestSession:
         sess = Session(str(path))
 
         assert sess.state.history == []
+
+    def test_loaded_deep_history_entry_is_dropped_without_losing_valid_state(
+            self, tmp_path):
+        from cli_anything.febuildergba.core.session import Session
+        path = tmp_path / "test_session.json"
+        depth = 500
+        nested = '{"next":' * depth + '"leaf"' + "}" * depth
+        path.write_text(
+            '{"rom_path":"/fake/rom.gba","history":['
+            '{"op":"valid","value":"kept"},'
+            '{"op":"deep","value":'
+            + nested
+            + "}]}",
+            encoding="utf-8",
+        )
+
+        sess = Session(str(path))
+        sess.refresh()
+
+        assert sess.is_open()
+        assert sess.state.history == [{"op": "valid", "value": "kept"}]
 
     def test_legacy_session_file_loads_without_session_id(self, tmp_path):
         from cli_anything.febuildergba.core.session import Session

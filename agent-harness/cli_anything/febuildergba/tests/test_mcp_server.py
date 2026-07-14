@@ -12,6 +12,7 @@ import json
 import io
 import os
 import queue
+import shutil
 import subprocess
 import sys
 import threading
@@ -2188,7 +2189,11 @@ class TestBounds:
         rom = str(tmp_path / "r.gba")
         initialized_state.session.open_rom(rom, "FE8U", 1)
         overlong = "z" * (srv.MAX_ITEM_STRING_LEN + 250)
-        initialized_state.session.record_operation("data_export", {"out": overlong})
+        # Bypass the bounded writer to retain output-layer defense-in-depth.
+        initialized_state.session.state.history.append({
+            "op": "data_export",
+            "out": overlong,
+        })
 
         resp = srv.handle_line(initialized_state, json.dumps(
             _req("resources/read", {"uri": "febuildergba://session/history"})))
@@ -2200,7 +2205,11 @@ class TestBounds:
     def test_session_history_tool_bounds_overlong_values(self, initialized_state, tmp_path):
         initialized_state.session.open_rom(str(tmp_path / "r.gba"), "FE8U", 1)
         overlong = "z" * (srv.MAX_ITEM_STRING_LEN + 250)
-        initialized_state.session.record_operation("data_export", {"out": overlong})
+        # Bypass the bounded writer to retain output-layer defense-in-depth.
+        initialized_state.session.state.history.append({
+            "op": "data_export",
+            "out": overlong,
+        })
 
         resp = _call_tool(initialized_state, "session_history", {"count": 1})
         payload = json.loads(resp["result"]["content"][0]["text"])
@@ -2330,6 +2339,45 @@ class TestServeRegression:
         # injected failure and processed the next line normally.
         assert second["jsonrpc"] == "2.0"
         assert second["result"] == {}
+
+    def test_deep_persisted_history_is_dropped_and_loop_processes_requests(
+            self, tmp_path):
+        session_path = tmp_path / "session.json"
+        depth = 500
+        nested = '{"next":' * depth + '"leaf"' + "}" * depth
+        session_path.write_text(
+            '{"rom_path":"/fake/rom.gba","history":['
+            '{"op":"valid"},'
+            '{"op":"deep","value":'
+            + nested
+            + "}]}",
+            encoding="utf-8",
+        )
+        requests = [
+            json.dumps(_req("initialize", _init_params())),
+            json.dumps(_req(
+                "tools/call",
+                {"name": "session_status", "arguments": {}},
+                id_=2,
+            )),
+        ]
+        in_stream = io.StringIO("\n".join(requests) + "\n")
+        out_stream = io.StringIO()
+
+        srv.serve(
+            session_file=str(session_path),
+            in_stream=in_stream,
+            out_stream=out_stream,
+        )
+
+        responses = [
+            json.loads(line) for line in out_stream.getvalue().splitlines()
+        ]
+        assert len(responses) == 2
+        assert responses[0]["result"]["protocolVersion"] == "2025-03-26"
+        status = json.loads(responses[1]["result"]["content"][0]["text"])
+        assert status["open"] is True
+        assert status["history_count"] == 1
 
     def test_oversized_line_is_drained_and_next_request_is_processed(self, tmp_path):
         oversized = "x" * (srv.MAX_REQUEST_LINE_CHARS + 100)
@@ -2778,7 +2826,45 @@ class TestMcpJsonRegistration:
         assert "febuildergba-cli" in servers
         entry = servers["febuildergba-cli"]
         assert entry["type"] == "stdio"
-        assert entry["command"] == "python"
-        assert any("febuildergba_mcp.py" in a for a in entry["args"])
+        assert entry["command"] == "cli-anything-febuildergba-mcp"
+        assert entry["args"] == []
         # the pre-existing computer-use entry point must be preserved
         assert "febuildergba-computer-use" in servers
+
+    def test_registered_console_script_initialize_roundtrip(self, tmp_path):
+        root = _repo_root()
+        data = json.loads(
+            (root / ".mcp.json").read_text(encoding="utf-8")
+        )
+        entry = data["mcpServers"]["febuildergba-cli"]
+        command = shutil.which(entry["command"])
+        assert command is not None, (
+            "Install agent-harness with `pip install -e .[test]` before "
+            "running the MCP registration tests"
+        )
+        initialize = json.dumps({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": _init_params(),
+        })
+
+        proc = subprocess.run(
+            [
+                command,
+                *entry["args"],
+                "--session-file",
+                str(tmp_path / "console-session.json"),
+            ],
+            input=initialize + "\n",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+
+        assert proc.returncode == 0, proc.stderr
+        response = json.loads(proc.stdout)
+        assert response["id"] == 1
+        assert response["result"]["protocolVersion"] == "2025-03-26"

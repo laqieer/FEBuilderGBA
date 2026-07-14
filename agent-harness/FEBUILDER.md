@@ -41,15 +41,16 @@ Two equivalent ways to start the stdio MCP server:
 # 1. Installed console script (after `pip install -e agent-harness`)
 cli-anything-febuildergba-mcp [--session-file PATH]
 
-# 2. Cross-platform launcher, no install required (bootstraps sys.path itself)
-python agent-harness/febuildergba_mcp.py [--session-file PATH]
+# 2. Manual no-install launcher (use python, python3, or py -3 for your platform)
+python3 agent-harness/febuildergba_mcp.py [--session-file PATH]
 ```
 
-The repo's [`.mcp.json`](../.mcp.json) registers option 2 as `febuildergba-cli`
-(`command: "python"`, `args: ["./agent-harness/febuildergba_mcp.py"]`), alongside the
-pre-existing Windows `febuildergba-computer-use` entry. The server speaks newline-delimited
-JSON-RPC 2.0 on stdin/stdout only (protocol versions `2025-03-26` and `2024-11-05`); it never
-shells out to Click and never imports an MCP SDK — see
+After the editable install, the repo's [`.mcp.json`](../.mcp.json) registers option 1 as
+`febuildergba-cli` (`command: "cli-anything-febuildergba-mcp"`, `args: []`), alongside the
+pre-existing Windows `febuildergba-computer-use` entry. The installation's scripts directory
+must be on the MCP host's `PATH`; option 2 remains the no-install fallback. The server speaks
+newline-delimited JSON-RPC 2.0 on stdin/stdout only (protocol versions `2025-03-26` and
+`2024-11-05`); it never shells out to Click and never imports an MCP SDK — see
 [`docs/MCP-SERVER.md`](../docs/MCP-SERVER.md) for the full tool/resource reference.
 
 ## Command Layout

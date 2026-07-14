@@ -702,7 +702,10 @@ UTF-8, and shared
 Click/MCP session history keeps stable operation identifiers. Failed session writes/deletes
 restore the reloaded pre-mutation state, so later requests cannot observe phantom
 open/history/close results. Stale close requests are skipped instead of deleting a session that
-another process reopened concurrently. Every Click history-producing ROM command uses the same
+another process reopened concurrently. Persisted and live history entries are cycle-safe and
+bounded to 16 nested levels, 100 collection members, 4,096-character strings/keys, finite JSON
+scalars, and 128-character operation names; malformed persisted entries are dropped individually.
+Every Click history-producing ROM command uses the same
 filesystem-identity ownership rule as MCP, so explicit operations on another ROM cannot alter the
 active session while hard-link aliases still count as the same ROM. Commands that write a
 separate output ROM record history without marking the active input ROM modified; they set
@@ -754,8 +757,13 @@ of these commands exactly as before. MCP only accepts an explicit backend, prebu
 prebuilt DLL (`dotnet <dll>`); it never invokes `dotnet run`, build, restore, or NuGet. Click alone
 retains the development `dotnet run --project ... --` fallback.
 
-The `.mcp.json` at the repo root auto-configures Claude Code to use it as `febuildergba-cli`
-(`python ./agent-harness/febuildergba_mcp.py`). See
+After `pip install -e .` in `agent-harness/`, the `.mcp.json` at the repo root auto-configures
+Claude Code to use the platform-neutral `cli-anything-febuildergba-mcp` console script as
+`febuildergba-cli`; the installation's scripts directory must be on the host `PATH`.
+`agent-harness/febuildergba_mcp.py` remains the manual no-install launcher for `python`,
+`python3`, or `py -3`. CI preserves the three-OS missing-backend contract and separately runs
+public synthetic LZ77 and bounded text-search integrations against a required built .NET apphost.
+See
 [docs/MCP-SERVER.md](docs/MCP-SERVER.md) for the full tool/resource reference, protocol details,
 and setup instructions.
 

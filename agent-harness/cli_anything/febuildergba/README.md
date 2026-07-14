@@ -120,9 +120,11 @@ Unwrapped standalone backend commands: `--export-buildfile`, `--build-buildfile`
 ## MCP server (issue #1942)
 
 In addition to the Click CLI, this package ships a **dependency-free stdio MCP (Model Context
-Protocol) server** at `agent-harness/cli_anything/febuildergba/mcp_server.py`, launched via
-`agent-harness/febuildergba_mcp.py` (registered in the repo's [`.mcp.json`](../../../.mcp.json) as
-`febuildergba-cli`, alongside the existing Windows `febuildergba-computer-use` entry). It exposes
+Protocol) server** at `agent-harness/cli_anything/febuildergba/mcp_server.py`. An editable install
+places `cli-anything-febuildergba-mcp` on `PATH`; the repo's [`.mcp.json`](../../../.mcp.json)
+registers that platform-neutral console script as `febuildergba-cli`, alongside the existing
+Windows `febuildergba-computer-use` entry. `agent-harness/febuildergba_mcp.py` remains a manual
+no-install launcher for whichever Python 3 alias the platform provides. It exposes
 21 explicit tools (a closed, non-mutating-beyond-declared-scope subset — no generic command
 runner, no patch/rebuild/repair/event/music tools) and 3 read-only resources over newline-delimited
 JSON-RPC 2.0. See **[`docs/MCP-SERVER.md`](../../../docs/MCP-SERVER.md)** for the full reference
@@ -290,6 +292,10 @@ pip install -e .[test]   # bounded pytest>=8,<9
 python -m pytest cli_anything/febuildergba/tests/ -v -s
 ```
 
+The editable install is required for the `.mcp.json` console entry and its initialize-roundtrip
+test. The separate real-backend CI job selects only the synthetic LZ77 roundtrip and bounded
+16 MiB FE8U zero-match text-search integration, after a fail-fast apphost availability check.
+
 If you run `pytest` from the **repo root** instead, set `PYTHONPATH` so the package resolves:
 
 ```bash
@@ -298,8 +304,9 @@ PYTHONPATH=agent-harness python -m pytest agent-harness/cli_anything/febuildergb
 
 `tests/test_mcp_server.py` covers the MCP JSON-RPC adapter (protocol negotiation, lifecycle,
 batching, all protocol error codes, the 21-tool/3-resource surface, schema validation, session
-semantics, and bounds) and is just as synthetic/private-ROM-free as the rest of the suite; the one
-real-backend LZ77 roundtrip test in `test_verbs.py` is skip-gated on backend availability only.
+semantics, and bounds) and is just as synthetic/private-ROM-free as the rest of the suite. The
+real-backend LZ77 roundtrip in `test_verbs.py` and bounded text-search integration in
+`test_core.py` are public synthetic tests, skip-gated on prebuilt backend availability.
 
 Unit tests use synthetic data (no ROM/backend). The real-backend E2E tests are skip-gated on
 `roms/*.gba` + a built `FEBuilderGBA.CLI` (set `FEBUILDERGBA_CLI_EXE` to override discovery); the

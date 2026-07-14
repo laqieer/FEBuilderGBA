@@ -20,15 +20,17 @@ No extra runtime dependencies are required beyond the CLI harness itself (Python
 called — protocol-only calls like `initialize`/`ping`/`tools/list` need nothing but the stdlib).
 
 ```bash
-# Optional: install the harness so the console script is on PATH
+# Required for the repo's automatic .mcp.json registration
 cd agent-harness
 pip install -e .
 
 # Run directly (installed console script)
 cli-anything-febuildergba-mcp [--session-file PATH]
 
-# Or run without installing anything (bootstraps sys.path itself)
-python agent-harness/febuildergba_mcp.py [--session-file PATH]
+# Or run manually without installing (use the Python 3 alias for your platform)
+python agent-harness/febuildergba_mcp.py [--session-file PATH]   # Windows/common
+python3 agent-harness/febuildergba_mcp.py [--session-file PATH]  # Linux/macOS
+py -3 agent-harness/febuildergba_mcp.py [--session-file PATH]    # Windows launcher
 ```
 
 `--session-file PATH` pins the server to a specific session JSON file (same format/location
@@ -53,16 +55,17 @@ pre-existing Windows-only `febuildergba-computer-use` entry (both are preserved 
     },
     "febuildergba-cli": {
       "type": "stdio",
-      "command": "python",
-      "args": ["./agent-harness/febuildergba_mcp.py"]
+      "command": "cli-anything-febuildergba-mcp",
+      "args": []
     }
   }
 }
 ```
 
-`command: "python"` (rather than a Windows-only `.exe` path) keeps this entry cross-platform;
-the launcher itself bootstraps `sys.path` so `cli_anything.febuildergba` resolves whether or not
-the package has been `pip install`-ed.
+Run `pip install -e .` from `agent-harness/` before relying on automatic registration, and ensure
+the installation's scripts directory is on the MCP host's `PATH`. Python packaging creates the
+same console-script name on Windows, macOS, and Linux without assuming that the host exposes
+`python`, `python3`, or `py`. The manual launcher above remains the no-install fallback.
 
 ## Protocol versions, framing, errors, batching
 
@@ -214,6 +217,10 @@ or tampered non-ROM session paths fail closed with `rom_header: null`.
   a failed GBA check never reaches the backend and never creates session state.
   `session_close`/`session_status`/`session_history` operate on the same `Session`; persisted
   path/version/size/timestamp/modified/history fields are type-checked and bounded on load.
+  Each history entry is independently limited to 16 nested levels, 100 object/array members,
+  4,096-character strings/keys, finite JSON scalars, and a 128-character non-empty operation
+  name. Malformed persisted entries are dropped without losing valid session metadata or sibling
+  entries; live history details are validated before state mutation or an external effect.
 - Parser-malformed persisted content (including invalid UTF-8, excessive integer digits,
   excessive nesting, non-standard numeric constants, or non-finite numeric overflow) and session
   files over 8 MiB load closed. Out-of-memory and programming faults remain unmasked; direct and
@@ -489,11 +496,12 @@ agent-controlled free-form string, the exact safety-annotation matrix, schema va
 roundtrip/text roundtrip exit 2 vs. exit 1), session precedence/history/`modified`-flag semantics
 (success, failure, and other-ROM-override cases for both `data_import` and `palette_import`),
 `force_version` precedence/fallback, "no raw bytes" resource content, output bounds (including
-per-item text-search/lint-array truncation metadata and recursive resource-string truncation), a
-`serve()` regression proving an unexpected internal failure emits a generic `-32603` response and
-does not stop later lines from being handled, checksum-path rejection before backend invocation,
-unknown methods/tools/resources, a real subprocess launcher framing/flushing round-trip with a
-bounded read timeout, and `.mcp.json` registration. All of it is private-ROM-free.
+per-item text-search/lint-array truncation metadata and recursive resource-string truncation),
+`serve()` regressions proving an unexpected internal failure emits a generic `-32603` response
+and deeply nested persisted history is discarded without stopping later lines, checksum-path
+rejection before backend invocation, unknown methods/tools/resources, real subprocess
+framing/flushing round-trips through both the no-install launcher and the registered console
+entry point, and `.mcp.json` registration. All of it is private-ROM-free.
 
 `agent-harness/cli_anything/febuildergba/tests/test_core.py` — shared backend, project, session,
 and Click-adapter behavior. Its lint parser regressions prove that the clean summary is not an
@@ -521,8 +529,12 @@ failure, an oversized/invalid-header mutated result, and a replaced-path attempt
 either failing closed or being blocked outright by the platform's own file-sharing semantics),
 all exercised inside MCP scope.
 
-`agent-harness/cli_anything/febuildergba/tests/test_verbs.py` carries the one synthetic (no-ROM),
-skip-gated-on-backend-availability real-backend LZ77 compress/decompress roundtrip test, plus
+`agent-harness/cli_anything/febuildergba/tests/test_verbs.py` carries the synthetic (no-ROM),
+skip-gated-on-backend-availability real-backend LZ77 compress/decompress roundtrip test, while
+`test_core.py` adds a synthetic 16 MiB FE8U zero-match bounded text-search integration. The
+separate Ubuntu real-backend CI job first requires the harness to resolve the built apphost, then
+runs only those two exact node IDs; backend unavailability fails the job instead of skipping it.
+`test_verbs.py` also has
 fake-backend/real-ROM-fixture regressions proving Click's `rom palette export`/`import` commands
 keep their pre-#1942 direct-path behavior outside MCP scope (issue #1942 / PR #1971) — no local
 validation, no snapshot, the backend receives the caller's own path unchanged — while a failing
