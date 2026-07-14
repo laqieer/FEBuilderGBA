@@ -66,9 +66,19 @@ cli-anything-febuildergba --rom roms/FE8U.gba palette import --addr 0x5524 -i pa
 cli-anything-febuildergba --rom roms/FE8U.gba import-midi 1A -i song.mid
 cli-anything-febuildergba --rom roms/FE8U.gba compile-event -i script.event
 
+# LZ77 compress/decompress an arbitrary file (no ROM required)
+cli-anything-febuildergba lz77 -i data.bin -o data.lz77 --compress
+cli-anything-febuildergba lz77 -i data.lz77 -o data.bin --decompress
+
 # JSON output (for agents)
 cli-anything-febuildergba --json rom info roms/FE8U.gba
 ```
+
+`rom info`, `rom header`, and `session open` reject existing files that fail the local GBA ROM
+check (at least 1 MiB, a complete header, the fixed `0x96` byte, and the header complement
+checksum) before invoking the backend or decoding header fields. Automatic version detection used
+by `patch list` applies the same check and returns `unknown` for invalid files without decoding
+their game-code bytes.
 
 ### Session Mode
 
@@ -103,9 +113,102 @@ cli-anything-febuildergba session status
 
 Standalone commands: `lint`, `disasm`, `songexchange`, `names`, `portrait`, `export-midi`,
 **`import-midi`**, `disasm-event`, **`compile-event`**, `lint-oam`, `rebuild`, `pointercalc`,
-**`export-map-settings-raw`**, `check`.
+**`export-map-settings-raw`**, **`lz77`**, `check`.
 
 Unwrapped standalone backend commands: `--export-buildfile`, `--build-buildfile`, `--buildfile-roundtrip`.
+
+## MCP server (issue #1942)
+
+In addition to the Click CLI, this package ships a **dependency-free stdio MCP (Model Context
+Protocol) server** at `agent-harness/cli_anything/febuildergba/mcp_server.py`. An editable install
+places `cli-anything-febuildergba-mcp` on `PATH`; the repo's [`.mcp.json`](../../../.mcp.json)
+registers that platform-neutral console script as `febuildergba-cli`, alongside the existing
+Windows `febuildergba-computer-use` entry. `agent-harness/febuildergba_mcp.py` remains a manual
+no-install launcher for whichever Python 3 alias the platform provides. It exposes
+21 explicit tools (a closed, non-mutating-beyond-declared-scope subset — no generic command
+runner, no patch/rebuild/repair/event/music tools) and 3 read-only resources over newline-delimited
+JSON-RPC 2.0. See **[`docs/MCP-SERVER.md`](../../../docs/MCP-SERVER.md)** for the full reference
+(protocol versions, tool/resource list, schemas, safety annotations, session semantics, bounds).
+
+### ROM backend trust boundary (issue #1942 / PR #1971)
+
+The backend executable (`FEBuilderGBA.CLI`) is treated as **untrusted** for any `--rom` argument
+it receives, but only inside MCP's dynamic scope (`prebuilt_backend_only()`, entered for the
+duration of every MCP `tools/call`). Nine wrappers touch a ROM — `data export`/`import`/`roundtrip`,
+`names`, `text search`/`roundtrip`, `palette export`/`import`, and `lint` (the nine backend-ROM
+surfaces; `image`/`lz77`/`check` never take a `--rom`). Inside MCP scope, all nine open the
+caller's path themselves **exactly once**, validate it as a regular 1..32 MiB file with a complete
+GBA header (and checksum, except for `rom checksum` itself), and hand the backend a private
+temporary **snapshot** instead of the caller's path. `lint` is the one surface that also does this
+outside MCP: its always-on snapshot predates this fix. The other eight wrappers retain their
+original, pre-#1942 direct-path Click behavior outside MCP scope — the caller's own path is
+handed straight to the backend, with no local validation, no snapshot, and no temporary file,
+exactly as before this fix.
+
+- **Read-only wrappers** (`export_table`, `roundtrip_table`, `resolve_names`, `search_text`,
+  `roundtrip_text`, `export_palette`, `lint_rom`), inside MCP scope, copy the validated bytes into
+  the snapshot and never reopen the caller's path — so even if the backend (or a concurrent
+  process) replaces, removes, or grows/shrinks the original file mid-call, the backend still only
+  ever sees the bytes that were validated up front. Outside MCP scope, only `lint_rom` does this;
+  the other six pass the caller's path directly and apply no local validation, matching their
+  pre-#1942 Click behavior. MCP `search_text` also forwards its 1..500 result limit to the
+  backend's bounded search command and parses that bounded stdout instead of producing a complete
+  temporary TSV.
+- **Mutating wrappers** (`import_table`, `import_palette`), inside MCP scope, keep the *original*
+  file descriptor open read-write for the whole call and hand the backend a snapshot copy to
+  mutate. Only after the backend reports success (exit code 0) is the mutated snapshot committed
+  back — and only once the private snapshot has been removed successfully and every one of the
+  following holds: the mutated snapshot is itself a valid
+  1..32 MiB GBA ROM; the original pathname still identifies the exact same file this descriptor
+  was opened from (`os.stat` vs. `os.fstat` via `os.path.samestat` **only** — never a
+  string/normcase fallback); and the bytes originally read through that descriptor are still
+  byte-for-byte unchanged at the point-in-time digest immediately before write-back. There is no
+  cross-process content lock across the following write, so a same-inode writer in that interval
+  remains outside the protocol and may be overwritten. Only then is the descriptor rewound,
+  written, truncated, flushed, and `fsync`'d, with a final size/identity re-check immediately
+  after. **This write-back is descriptor-bound but not crash-atomic**: interruption during
+  write/truncate/flush/`fsync` can
+  leave partially updated or mixed old/new bytes, retain an old trailing suffix when the
+  replacement is shorter, or leave completed writes not durably persisted. Any pre-write check
+  failing — including the backend itself failing or timing out — aborts with no write and no
+  session history/modified flag. For a session-owned ROM, the session lock is acquired before
+  write-back.
+  A lock timeout therefore commits nothing; if writing the matching session history later fails,
+  the committed bytes are verified unchanged and the exact pre-commit bytes are restored through
+  the same descriptor before the tool returns an error. Rollback refuses any path, size, or
+  content change detected before restoration; concurrent body writes during restoration remain
+  outside the non-transactional filesystem contract. Outside MCP scope, both mutating wrappers
+  hand the backend the caller's own path directly and their "commit" step is a no-op, because the
+  backend already wrote the result straight to the real file — matching their pre-#1942 Click
+  behavior.
+- Snapshot cleanup is attempted whenever a wrapper returns. Mutating success requires cleanup
+  before write-back; a persistent filesystem cleanup failure is surfaced and may leave the
+  private path for operator cleanup, but the error text does not disclose that internal path.
+  Outside MCP scope, the eight non-`lint` wrappers never create a snapshot in the first place.
+- Because MCP tool handlers are the only callers running with an untrusted, externally-configured
+  backend command, `run_cli` additionally enforces an **MCP-only seam guard**: while a tool
+  handler is executing, every `--rom` argument (either `--rom=<path>` or `--rom <path>`) must
+  name a path already registered as a private snapshot by the wrapper, or the call is rejected
+  *before* the backend is even resolved or
+  spawned — closed by default for any raw, unregistered, or future/unknown `--rom` invocation.
+  This guard is completely inert outside MCP's dynamic scope, so Click's historic direct-path
+  behavior is unchanged.
+- Internal snapshot paths are stripped from backend stdout/stderr before they reach a caller
+  (Click output or an MCP tool result) — the caller only ever sees their own path. Outside MCP
+  scope, the eight non-`lint` wrappers never have a snapshot path to strip in the first place.
+  Cleanup and backend-mutated-snapshot validation errors are path-free as well; backend
+  spawn/timeout/OS errors replace every active registered snapshot spelling with a path-free
+  placeholder.
+- MCP output limits are per field and cardinality, not one 65,536-character aggregate JSON
+  envelope. Fixed schemas plus the documented item limits keep responses finite; JSON escaping
+  may make the serialized representation longer than the retained character counts.
+- Bounded MCP backends run in a new POSIX process group or a Windows kill-on-close Job Object
+  assigned before the suspended process begins execution. Timeout/error cleanup terminates the
+  complete lifetime before joining pipe readers; successful calls close it to reap any stray
+  descendants. Click retains its legacy subprocess path. A POSIX descendant that deliberately
+  starts a new session is outside this process-group contract.
+- `rom checksum`'s advisory exit-2 "invalid header" behavior is local, byte-level, and unrelated
+  to the backend/snapshot mechanism — it is unaffected by any of the above.
 
 ## CLI verb coverage (harness ↔ CLI)
 
@@ -114,7 +217,7 @@ The harness wraps a growing subset of `FEBuilderGBA.CLI`'s ~70 verbs (see
 maps every backend verb to its harness command and coverage status; closing the remaining gap is
 tracked in [#1933](https://github.com/laqieer/FEBuilderGBA/issues/1933).
 
-**Status:** ✅ wrapped · 🆕 wrapped in #1933 · ⬜ not yet wrapped · ➖ n/a (dev/modifier/help). **~33 of ~70 wrapped.**
+**Status:** ✅ wrapped · 🆕 wrapped in #1933 · 🆕🔧 wrapped in #1942 (MCP server) · ⬜ not yet wrapped · ➖ n/a (dev/modifier/help). **~34 of ~70 wrapped.**
 
 | CLI verb | Harness command | Status |
 |---|---|---|
@@ -163,7 +266,8 @@ tracked in [#1933](https://github.com/laqieer/FEBuilderGBA/issues/1933).
 | `--buildfile-roundtrip` | — | ⬜ |
 | `--export-map-settings` | `export-map-settings-raw` | 🆕 |
 | `--freespace` / `--hex-dump` | — | ⬜ |
-| `--expand-table` / `--merge3` / `--lz77` | — | ⬜ |
+| `--expand-table` / `--merge3` | — | ⬜ |
+| `--lz77` | `lz77` | 🆕🔧 |
 | Decomp-project verbs (`--project`, `--export-asset`, `--build-project`, …) | — | ⬜ |
 | `--help` / `--force-detail` / `--test` / `--lastrom` | — | ➖ |
 
@@ -184,14 +288,25 @@ and 28 more. Run `cli-anything-febuildergba rom tables` for the full list.
 
 ```bash
 cd agent-harness
+pip install -e .[test]   # bounded pytest>=8,<9
 python -m pytest cli_anything/febuildergba/tests/ -v -s
 ```
+
+The editable install is required for the `.mcp.json` console entry and its initialize-roundtrip
+test. The separate real-backend CI job selects only the synthetic LZ77 roundtrip and bounded
+16 MiB FE8U zero-match text-search integration, after a fail-fast apphost availability check.
 
 If you run `pytest` from the **repo root** instead, set `PYTHONPATH` so the package resolves:
 
 ```bash
 PYTHONPATH=agent-harness python -m pytest agent-harness/cli_anything/febuildergba/tests/ -q
 ```
+
+`tests/test_mcp_server.py` covers the MCP JSON-RPC adapter (protocol negotiation, lifecycle,
+batching, all protocol error codes, the 21-tool/3-resource surface, schema validation, session
+semantics, and bounds) and is just as synthetic/private-ROM-free as the rest of the suite. The
+real-backend LZ77 roundtrip in `test_verbs.py` and bounded text-search integration in
+`test_core.py` are public synthetic tests, skip-gated on prebuilt backend availability.
 
 Unit tests use synthetic data (no ROM/backend). The real-backend E2E tests are skip-gated on
 `roms/*.gba` + a built `FEBuilderGBA.CLI` (set `FEBUILDERGBA_CLI_EXE` to override discovery); the

@@ -28,9 +28,15 @@ setup(
         "click>=8.0.0",
         "prompt-toolkit>=3.0.0",
     ],
+    extras_require={
+        # The MCP server itself is dependency-free stdlib JSON-RPC; this
+        # extra only bounds the test runner used by CI/local development.
+        "test": ["pytest>=8,<9"],
+    },
     entry_points={
         "console_scripts": [
             "cli-anything-febuildergba=cli_anything.febuildergba.febuildergba_cli:main",
+            "cli-anything-febuildergba-mcp=cli_anything.febuildergba.mcp_server:main",
         ],
     },
     python_requires=">=3.10",

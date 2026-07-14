@@ -14,7 +14,12 @@ import sys
 import click
 
 from cli_anything.febuildergba import __version__
-from cli_anything.febuildergba.core.session import Session
+from cli_anything.febuildergba.core.session import (
+    HISTORY_OP_DATA_EXPORT,
+    HISTORY_OP_DATA_IMPORT,
+    HISTORY_OP_IMPORT_PALETTE,
+    Session,
+)
 
 
 # ── Global state ──────────────────────────────────────────────────────
@@ -59,6 +64,10 @@ def _get_force_version() -> str:
     if _session and _session.is_open():
         return _session.state.force_version
     return ""
+
+
+def _session_owns_rom(rom_path: str) -> bool:
+    return bool(_session and _session.owns_rom(rom_path))
 
 
 # ── Main CLI group ────────────────────────────────────────────────────
@@ -191,9 +200,8 @@ def rom_repair_header_cmd(ctx, rom_file, force_version):
     fv = force_version or ("" if rom_file else _get_force_version())
     result = repair_header(path, fv)
     _check_exit_code(result, "Repair header")
-    if _session and result["repaired"]:
-        _session.record_operation("repair_header", {"rom": path})
-        _session.mark_modified()
+    if result["repaired"] and _session_owns_rom(path):
+        _session.record_operation("repair_header", {"rom": path}, modified=True)
     _output(result, result.get("stdout", "") or f"Header checksum OK: {path}")
 
 
@@ -236,8 +244,8 @@ def data_export_cmd(ctx, table, out, force_version):
     fv = force_version or _get_force_version()
     result = export_table(rom, table, out, fv)
     _check_exit_code(result, f"Data export ({table})")
-    if _session:
-        _session.record_operation("data_export", {"table": table, "out": out})
+    if _session_owns_rom(rom):
+        _session.record_operation(HISTORY_OP_DATA_EXPORT, {"table": table, "out": out})
     _output(result, f"Exported {table} to {out}")
 
 
@@ -253,9 +261,10 @@ def data_import_cmd(ctx, table, in_file, force_version):
     fv = force_version or _get_force_version()
     result = import_table(rom, table, in_file, fv)
     _check_exit_code(result, f"Data import ({table})")
-    if _session:
-        _session.record_operation("data_import", {"table": table, "in": in_file})
-        _session.mark_modified()
+    if _session_owns_rom(rom):
+        _session.record_operation(
+            HISTORY_OP_DATA_IMPORT, {"table": table, "in": in_file}, modified=True,
+        )
     _output(result, f"Imported {table} from {in_file}")
 
 
@@ -367,9 +376,8 @@ def text_import_cmd(ctx, in_file, force_version):
     fv = force_version or _get_force_version()
     result = import_text(rom, in_file, fv)
     _check_exit_code(result, "Text import")
-    if _session:
-        _session.record_operation("text_import", {"in": in_file})
-        _session.mark_modified()
+    if _session_owns_rom(rom):
+        _session.record_operation("text_import", {"in": in_file}, modified=True)
     _output(result, f"Imported text from {in_file}")
 
 
@@ -494,9 +502,13 @@ def patch_apply_cmd(ctx, patch_file, out):
     rom = _get_rom_path(ctx.obj.get("rom_path", ""))
     result = apply_ups(rom, patch_file, out)
     _check_exit_code(result, "Patch apply")
-    if _session:
-        _session.record_operation("patch_apply", {"patch": patch_file})
-        _session.mark_modified()
+    if _session_owns_rom(rom):
+        output_path = result.get("output_path", out)
+        _session.record_operation(
+            "patch_apply",
+            {"patch": patch_file, "out": output_path},
+            modified=_session_owns_rom(output_path),
+        )
     _output(result, f"Applied patch: {patch_file} -> {result.get('output_path', '')}")
 
 
@@ -527,12 +539,23 @@ def image():
 @image.command("quantize")
 @click.option("-i", "--input-file", "in_file", required=True, help="Input image")
 @click.option("-o", "--out", required=True, help="Output image")
-@click.option("--palette-no", default=0, type=int, help="Palette number")
+@click.option(
+    "--palette-no",
+    default=16,
+    show_default=True,
+    type=click.IntRange(1, 256),
+    help="Maximum color count (minimum 2, or 1 with --no-reserve-1st)",
+)
 @click.option("--no-scale", is_flag=True, help="Don't scale to GBA 5-bit")
 @click.option("--no-reserve-1st", is_flag=True, help="Don't reserve slot 0")
 @click.option("--ignore-tsa", is_flag=True, help="Ignore TSA constraints")
 def image_quantize_cmd(in_file, out, palette_no, no_scale, no_reserve_1st, ignore_tsa):
-    """Quantize image palette to 16 colors for GBA."""
+    """Quantize an image palette to a bounded color count for GBA."""
+    if palette_no < 2 and not no_reserve_1st:
+        raise click.BadParameter(
+            "must be at least 2 unless --no-reserve-1st is set",
+            param_hint="'--palette-no'",
+        )
     from cli_anything.febuildergba.core.export import decrease_color
     result = decrease_color(in_file, out, palette_no, no_scale, no_reserve_1st, ignore_tsa)
     _check_exit_code(result, "Image quantize")
@@ -638,9 +661,8 @@ def import_midi_cmd(ctx, song_id, in_path, force_version):
     fv = force_version or _get_force_version()
     result = import_midi(rom, song_id, in_path, fv)
     _check_exit_code(result, "MIDI import")
-    if _session:
-        _session.record_operation("import_midi", {"song_id": song_id})
-        _session.mark_modified()
+    if _session_owns_rom(rom):
+        _session.record_operation("import_midi", {"song_id": song_id}, modified=True)
     _output(result, f"MIDI imported into song {song_id}: {in_path}")
 
 
@@ -681,9 +703,13 @@ def compile_event_cmd(ctx, in_path, out, force_version):
     fv = force_version or _get_force_version()
     result = compile_event(rom, in_path, out, fv)
     _check_exit_code(result, "Event compile")  # exit 1 = tool missing or compile failure
-    if _session:
-        _session.record_operation("compile_event", {"in": in_path})
-        _session.mark_modified()
+    if _session_owns_rom(rom):
+        output_path = result.get("output_path", out or rom)
+        _session.record_operation(
+            "compile_event",
+            {"in": in_path, "out": output_path},
+            modified=_session_owns_rom(output_path),
+        )
     _output(result, result.get("stdout", "") or f"Compiled {in_path}")
 
 
@@ -768,9 +794,8 @@ def palette_import_cmd(ctx, addr, in_path, force_version):
     fv = force_version or _get_force_version()
     result = import_palette(rom, addr, in_path, fv)
     _check_exit_code(result, "Palette import")
-    if _session:
-        _session.record_operation("import_palette", {"addr": addr})
-        _session.mark_modified()
+    if _session_owns_rom(rom):
+        _session.record_operation(HISTORY_OP_IMPORT_PALETTE, {"addr": addr}, modified=True)
     _output(result, f"Palette imported at {addr}: {in_path}")
 
 
@@ -787,9 +812,10 @@ def patch_apply_bin_cmd(ctx, patch_file, force_version):
     fv = force_version or _get_force_version()
     result = apply_patch(rom, patch_file, fv)
     _check_exit_code(result, "Patch apply")
-    if _session:
-        _session.record_operation("patch_apply_bin", {"patch": patch_file})
-        _session.mark_modified()
+    if _session_owns_rom(rom):
+        _session.record_operation(
+            "patch_apply_bin", {"patch": patch_file}, modified=True,
+        )
     _output(result, result.get("stdout", ""))
 
 
@@ -806,7 +832,7 @@ def rebuild_cmd(ctx, from_rom, force_version):
     fv = force_version or _get_force_version()
     result = rebuild(rom, from_rom, fv)
     _check_exit_code(result, "Rebuild")
-    if _session:
+    if _session_owns_rom(rom):
         _session.record_operation("rebuild", {"from_rom": from_rom})
     _output(result, f"Rebuilt ROM successfully")
 
@@ -826,6 +852,26 @@ def pointercalc_cmd(ctx, target, address, force_version):
     result = pointer_calc(rom, target, address, fv)
     _check_exit_code(result, "Pointer calc")
     _output(result, result.get("stdout", ""))
+
+
+# ── LZ77 command ──────────────────────────────────────────────────────
+
+@cli.command("lz77")
+@click.option("-i", "--input-file", "in_file", required=True, help="Input file")
+@click.option("-o", "--out", required=True, help="Output file")
+@click.option("--compress", "compress_flag", is_flag=True, help="Compress the input")
+@click.option("--decompress", "decompress_flag", is_flag=True, help="Decompress the input")
+def lz77_cmd(in_file, out, compress_flag, decompress_flag):
+    """LZ77 compress or decompress a file. No ROM required."""
+    if compress_flag and decompress_flag:
+        raise click.UsageError("Use exactly one of --compress or --decompress")
+    if not compress_flag and not decompress_flag:
+        raise click.UsageError("Specify --compress or --decompress")
+    from cli_anything.febuildergba.core.verbs import lz77_file
+    mode = "compress" if compress_flag else "decompress"
+    result = lz77_file(mode, in_file, out)
+    _check_exit_code(result, "LZ77")
+    _output(result, f"LZ77 {mode}ed: {out} ({result['file_size']} bytes)")
 
 
 # ── Session commands ──────────────────────────────────────────────────
@@ -857,7 +903,12 @@ def session_close_cmd():
     if not _session.is_open():
         _output({"status": "no_session"}, "No active session")
         return
-    _session.close()
+    if not _session.close():
+        _output(
+            {"status": "stale_session"},
+            "Session changed concurrently; close skipped",
+        )
+        return
     _output({"status": "closed"}, "Session closed")
 
 
@@ -952,6 +1003,7 @@ def repl(project_path):
         "lint-oam <addr>": "Validate OAM sprite data",
         "patch apply-bin <file>": "Apply BIN patch",
         "disasm -o <file>": "Disassemble ROM",
+        "lz77 -i <file> -o <file> --compress|--decompress": "LZ77 compress/decompress a file",
         "check": "Check backend availability",
         "help": "Show this help",
         "quit/exit": "Exit REPL",

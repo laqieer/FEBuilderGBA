@@ -87,6 +87,19 @@ namespace FEBuilderGBA.E2ETests.Tests
             Assert.Contains("Usage:", stdout);
         }
 
+        [Fact]
+        public void SearchText_InvalidLimit_IsRejectedBeforeRomLoad()
+        {
+            var missingRom = TempFile(".gba");
+            File.Delete(missingRom);
+            var (code, _, stderr) = AppRunner.Run(
+                CliExe,
+                $"--search-text --rom=\"{missingRom}\" --query=a --limit=0",
+                timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            Assert.Contains("--limit must be an integer from 1 through 500", stderr);
+        }
+
         // ================================================================ --version
 
         [Fact]

@@ -66,6 +66,92 @@ jobs:
           **/avalonia-tests.trx
         if-no-files-found: ignore
 
+  mcp-adapter-tests:
+    name: MCP adapter tests (${{ matrix.os }})
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install harness test dependencies
+      working-directory: agent-harness
+      run: python -m pip install --disable-pip-version-check --no-input -e ".[test]"
+
+    - name: Run ROM-free MCP contract tests
+      working-directory: agent-harness
+      env:
+        # Keep this contract job independent of runner-installed .NET SDKs.
+        # Successful .NET seams run in the separate job below.
+        FEBUILDERGBA_CLI_EXE: ${{ runner.temp }}/mcp-contract-no-backend
+      run: >-
+        python -m pytest
+        cli_anything/febuildergba/tests/test_core.py
+        cli_anything/febuildergba/tests/test_verbs.py
+        cli_anything/febuildergba/tests/test_mcp_server.py
+        -q
+
+  mcp-real-backend-tests:
+    name: MCP real-backend integration (ubuntu)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      FEBUILDERGBA_CLI_EXE: ${{ github.workspace }}/FEBuilderGBA.CLI/bin/Release/net9.0/FEBuilderGBA.CLI
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Init CLI runtime submodule
+      run: git submodule update --init config/patch2
+
+    - name: Setup .NET 9.0
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '9.0.x'
+
+    - name: Build CLI
+      run: dotnet build FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj -c Release
+
+    - name: Setup Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install harness test dependencies
+      working-directory: agent-harness
+      run: python -m pip install --disable-pip-version-check --no-input -e ".[test]"
+
+    - name: Require the prebuilt backend
+      working-directory: agent-harness
+      run: >-
+        python -c "from cli_anything.febuildergba.utils.febuildergba_backend import
+        check_backend, prebuilt_backend_only;
+        scope = prebuilt_backend_only(); scope.__enter__();
+        status = check_backend(); scope.__exit__(None, None, None);
+        assert status.get('available'), status.get('error');
+        print(status['version'])"
+
+    - name: Run public synthetic real-backend tests
+      working-directory: agent-harness
+      run: >-
+        python -m pytest
+        cli_anything/febuildergba/tests/test_verbs.py::TestLZ77RealBackendRoundtrip::test_compress_decompress_roundtrip
+        cli_anything/febuildergba/tests/test_core.py::TestBoundedTextSearchRealBackend::test_zero_match_search
+        -q
+
   publish:
     needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'

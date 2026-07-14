@@ -4,6 +4,11 @@
       "type": "stdio",
       "command": "./tools/mcp-computer-use/.venv/Scripts/python.exe",
       "args": ["./tools/mcp-computer-use/server.py"]
+    },
+    "febuildergba-cli": {
+      "type": "stdio",
+      "command": "cli-anything-febuildergba-mcp",
+      "args": []
     }
   }
 }

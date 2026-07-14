@@ -671,6 +671,110 @@ python -m venv .venv
 
 The `.mcp.json` at the repo root auto-configures Claude Code to use the server as `febuildergba-computer-use`. After setup, its tools (screenshot, click, type_text, key_press, mouse_move, scroll, drag, get_screen_size, wait, find_window, focus_window) appear in Claude Code sessions opened from this repo.
 
+## MCP CLI Server (cross-platform)
+
+A second, dependency-free MCP server exposes the `agent-harness` FEBuilderGBA CLI (ROM info/validate,
+data export/import/roundtrip, text search/roundtrip, name resolution, linting, image/palette conversion, LZ77, and
+session management) as 21 MCP tools plus 3 resources. Unlike the computer-use server above, it needs
+only a Python 3.10+ standard library — no Windows dependency, no extra packages, no MCP SDK.
+Its closed schemas reject empty file paths, and multi-table exports report only the declared
+per-table output names rather than unrelated files sharing the same prefix. The stdio transport
+forces UTF-8, rejects non-standard JSON constants and numeric literals that overflow to non-finite
+floats, and validates entity IDs as unsigned 32-bit values before backend dispatch. JSON-RPC
+request IDs are bounded to 4,096-character strings or 256-bit integers, and excessive integer
+tokens or JSON nesting beyond 64 levels produce parse errors without terminating the server
+before the next request. JSON-RPC array params remain
+structurally valid, but MCP request handlers require objects while notifications never receive
+validation responses. The stdio loop removes only CR/LF framing; non-JSON whitespace is left for
+the strict decoder to reject. A missing session JSON stays in memory without creating its parent
+directory or lock sidecar, so stateless Click commands do not require a writable session
+location. ROM headers are read only after the opened descriptor itself
+is confirmed to be a regular 1..32 MiB file. MCP checksum is computed locally from that same
+validated header buffer, so it never reopens a swappable path in the backend. Session ownership
+recognizes symlink/hardlink aliases. Lint findings are classified only from the CLI's explicit
+`[ERROR]` and `[WARNING]` severity markers, so the clean `Lint: No errors found.` summary remains
+informational. Image
+quantization exposes the backend's 2..256 maximum-color contract (or 1 when palette slot zero is
+not reserved), and malformed launcher arguments fail before the server can fall back to the
+default session. The checksum tool also rejects non-ROM paths before backend invocation while
+still reporting a genuine header-checksum mismatch as advisory data; because checksum is local
+and header-only, it ignores an explicit or persisted `force_version`. Mutating snapshot commit
+also re-reads the validated size and probes for trailing bytes, rejecting shrink or growth before
+the original descriptor is touched. MCP bounded
+launch/version-probe failures are reported as ordinary unavailable status, including invalid
+UTF-8, and shared
+Click/MCP session history keeps stable operation identifiers. Failed session writes/deletes
+restore the reloaded pre-mutation state, so later requests cannot observe phantom
+open/history/close results. Stale close requests are skipped instead of deleting a session that
+another process reopened concurrently. Persisted and live history entries are cycle-safe and
+bounded to 16 nested levels, 100 collection members, 4,096-character strings/keys, finite JSON
+scalars, and 128-character operation names; malformed persisted entries are dropped individually.
+Every Click history-producing ROM command uses the same
+filesystem-identity ownership rule as MCP, so explicit operations on another ROM cannot alter the
+active session while hard-link aliases still count as the same ROM. In-place MCP imports repeat
+that identity check while holding the session lock immediately before commit, so replacing the
+session path during a hard-link-alias operation cannot mark the replacement modified. Commands
+that write a separate output ROM record history without marking the active input ROM modified;
+they set `modified` only when the reported destination identifies the active ROM. The `data_import` and
+`palette_import` MCP tools have no output-path argument: they overwrite the resolved explicit
+`rom_path`, or the active session ROM when `rom_path` is omitted. Successful backend
+version probes are limited to 4,096 characters, and `names_resolve` limits each requested name to
+4,096 characters with truthful per-name truncation metadata. For MCP tool calls, backend stdout
+and stderr are bounded to a 65,536-character decoded prefix while both pipes are concurrently
+drained; discarded remainder is still counted for truthful truncation metadata. This pipe-level
+bound prevents unbounded backend buffering without changing Click callers' full-capture behavior.
+MCP response limits are per field and cardinality rather than one 65,536-character aggregate
+envelope: fixed schemas and documented item limits bound the total response, while JSON escaping
+may make its serialized representation longer than the retained character counts.
+Each bounded backend is also isolated in a POSIX process group or a Windows kill-on-close Job
+Object (assigned while the process is suspended). Timeout/error cleanup terminates that whole
+lifetime before joining pipe readers, and successful calls close it to reap stray descendants;
+Click's legacy subprocess path is unchanged. A POSIX descendant that deliberately creates a new
+session is outside this process-group contract.
+MCP backend stdin is detached to `DEVNULL`, so a backend tool cannot consume pending JSON-RPC
+protocol frames from the long-lived server; bounded MCP capture rejects `capture=False` before
+resolver or subprocess execution. `rom_info` and `session_open` now derive metadata only from
+their locally validated descriptor and permanently return `lint_output: ""` and
+`lint_exit_code: -1` to mean lint was not attempted—call `rom_lint` for explicit linting.
+`rom_lint` validates and copies the opened ROM descriptor to a temporary `.gba` snapshot before
+the backend sees it. The same private-snapshot protection covers `data_export`, `data_roundtrip`,
+`names_resolve`, `text_search`, `text_roundtrip`, and `palette_export` while an MCP request is in
+flight, so none of them expose the caller's own path to the backend either. MCP `text_search`
+passes its 1..500 result limit into the backend's bounded search command and parses only that
+bounded stdout; it does not create a complete temporary TSV export. `data_import` and
+`palette_import` mutate that private snapshot instead, and only copy a freshly revalidated result
+back through the originally opened descriptor — confirmed by descriptor identity, never by
+reopening the path — once the backend exits `0` and the private snapshot has been removed
+successfully. The source digest is a point-in-time check immediately before write-back, not a
+cross-process content lock: a same-inode writer in the digest-to-write interval remains outside
+the protocol and may be overwritten. The write-back is descriptor-bound but not crash-atomic.
+For a session-owned ROM, the session lock is acquired before write-back; a lock
+timeout therefore leaves the original untouched, while a later session-file failure verifies that
+the committed bytes are still unchanged and restores the exact pre-commit bytes through the same
+descriptor before returning an error. Rollback refuses any path, size, or content change detected
+before restoration; concurrent body writes during restoration remain outside the non-transactional
+filesystem contract. A failed pre-write check leaves the original ROM and session history
+untouched. Any snapshot path that leaks into backend stdout/stderr is rewritten back to the
+caller's real path before an MCP response is returned; replacement expansion is re-capped and the
+final response bound is re-enforced before serialization. Snapshot-cleanup errors are path-free
+for the same reason, as are validation errors for backend-mutated private snapshots and backend
+spawn/timeout/OS errors that contain a registered snapshot spelling. An MCP backend call
+for any `--rom` path that was not itself registered this way is refused before the resolver or
+subprocess ever runs, while Click continues to pass its own `--rom` path straight through for all
+of these commands exactly as before. MCP only accepts an explicit backend, prebuilt apphost, or
+prebuilt DLL (`dotnet <dll>`); it never invokes `dotnet run`, build, restore, or NuGet. Click alone
+retains the development `dotnet run --project ... --` fallback.
+
+After `pip install -e .` in `agent-harness/`, the `.mcp.json` at the repo root auto-configures
+Claude Code to use the platform-neutral `cli-anything-febuildergba-mcp` console script as
+`febuildergba-cli`; the installation's scripts directory must be on the host `PATH`.
+`agent-harness/febuildergba_mcp.py` remains the manual no-install launcher for `python`,
+`python3`, or `py -3`. CI preserves the three-OS missing-backend contract and separately runs
+public synthetic LZ77 and bounded text-search integrations against a required built .NET apphost.
+See
+[docs/MCP-SERVER.md](docs/MCP-SERVER.md) for the full tool/resource reference, protocol details,
+and setup instructions.
+
 README for Korean character table
 ===
 
