@@ -4,10 +4,11 @@ Tracks the currently loaded ROM, version, and operation history
 across multiple CLI invocations via a JSON session file.
 """
 
+import copy
+import errno
 import json
 import math
 import os
-import errno
 import tempfile
 import time
 import uuid
@@ -231,7 +232,12 @@ class Session:
             lock_file = self._acquire_lock()
             if reload_state:
                 self._load_unlocked()
-            yield
+            snapshot = copy.deepcopy(self.state)
+            try:
+                yield
+            except BaseException:
+                self.state = snapshot
+                raise
         finally:
             try:
                 if lock_file is not None:

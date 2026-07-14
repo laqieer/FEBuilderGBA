@@ -696,9 +696,12 @@ informational. Image
 quantization exposes the backend's 2..256 maximum-color contract (or 1 when palette slot zero is
 not reserved), and malformed launcher arguments fail before the server can fall back to the
 default session. The checksum tool also rejects non-ROM paths before backend invocation while
-still reporting a genuine header-checksum mismatch as advisory data. Backend launch failures are
-reported as ordinary unavailable status, and shared Click/MCP session history keeps stable
-operation identifiers. Stale close requests are skipped instead of deleting a session that
+still reporting a genuine header-checksum mismatch as advisory data. MCP bounded
+launch/version-probe failures are reported as ordinary unavailable status, including invalid
+UTF-8, and shared
+Click/MCP session history keeps stable operation identifiers. Failed session writes/deletes
+restore the reloaded pre-mutation state, so later requests cannot observe phantom
+open/history/close results. Stale close requests are skipped instead of deleting a session that
 another process reopened concurrently. Every Click history-producing ROM command uses the same
 filesystem-identity ownership rule as MCP, so explicit operations on another ROM cannot alter the
 active session while hard-link aliases still count as the same ROM. Commands that write a
@@ -710,7 +713,14 @@ and stderr are bounded to a 65,536-character decoded prefix while both pipes are
 drained; discarded remainder is still counted for truthful truncation metadata. This pipe-level
 bound prevents unbounded backend buffering without changing Click callers' full-capture behavior.
 MCP backend stdin is detached to `DEVNULL`, so a backend tool cannot consume pending JSON-RPC
-protocol frames from the long-lived server.
+protocol frames from the long-lived server; bounded MCP capture rejects `capture=False` before
+resolver or subprocess execution. `rom_info` and `session_open` now derive metadata only from
+their locally validated descriptor and permanently return `lint_output: ""` and
+`lint_exit_code: -1` to mean lint was not attempted—call `rom_lint` for explicit linting.
+`rom_lint` validates and copies the opened ROM descriptor to a temporary `.gba` snapshot before
+the backend sees it. MCP only accepts an explicit backend, prebuilt apphost, or prebuilt DLL
+(`dotnet <dll>`); it never invokes `dotnet run`, build, restore, or NuGet. Click alone retains
+the development `dotnet run --project ... --` fallback.
 
 The `.mcp.json` at the repo root auto-configures Claude Code to use it as `febuildergba-cli`
 (`python ./agent-harness/febuildergba_mcp.py`). See

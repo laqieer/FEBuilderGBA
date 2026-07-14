@@ -2,6 +2,7 @@
 
 import re
 
+from cli_anything.febuildergba.core.project import validated_rom_snapshot
 from cli_anything.febuildergba.utils.febuildergba_backend import run_cli
 
 
@@ -19,11 +20,13 @@ def lint_rom(rom_path: str, force_version: str = "") -> dict:
     Returns:
         Dict with lint results (errors, warnings).
     """
-    args = ["--lint", f"--rom={rom_path}"]
-    if force_version:
-        args.append(f"--force-version={force_version}")
-
-    result = run_cli(args)
+    # The backend must never reopen the caller's mutable path after local
+    # validation; it receives a header-pinned, length-checked snapshot instead.
+    with validated_rom_snapshot(rom_path) as snapshot_path:
+        args = ["--lint", f"--rom={snapshot_path}"]
+        if force_version:
+            args.append(f"--force-version={force_version}")
+        result = run_cli(args)
 
     # The CLI emits explicit severity markers for findings. Do not classify
     # summary text such as "Lint: No errors found." by incidental words.

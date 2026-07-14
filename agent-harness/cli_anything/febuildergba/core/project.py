@@ -3,9 +3,8 @@
 import os
 import shutil
 import stat
-from typing import Optional
-
-from cli_anything.febuildergba.utils.febuildergba_backend import run_cli
+import tempfile
+from contextlib import contextmanager
 
 
 _MIN_ROM_SIZE = 0x100000
@@ -16,6 +15,7 @@ _GBA_FIXED_VALUE = 0x96
 _GBA_CHECKSUM_START = 0xA0
 _GBA_CHECKSUM_OFFSET = 0xBD
 _GBA_CHECKSUM_BIAS = 0x19
+_SNAPSHOT_CHUNK_BYTES = 64 * 1024
 
 
 def _rom_open_flags() -> int:
@@ -25,30 +25,21 @@ def _rom_open_flags() -> int:
     return flags
 
 
-def _read_validated_header(
-        rom_path: str, require_checksum: bool = True) -> tuple[bytes, int]:
-    """Read and validate a GBA header from the same open file handle."""
-    if not os.path.isfile(rom_path):
-        raise FileNotFoundError(f"ROM file not found: {rom_path}")
+def _validate_opened_rom_size(rom_path: str, opened_stat) -> int:
+    """Validate the regular-file and size invariants of an open descriptor."""
+    if not stat.S_ISREG(opened_stat.st_mode):
+        raise ValueError(f"Invalid GBA ROM (not a regular file): {rom_path}")
+    rom_size = opened_stat.st_size
+    if rom_size < _MIN_ROM_SIZE:
+        raise ValueError(f"Invalid GBA ROM (smaller than 1 MiB): {rom_path}")
+    if rom_size > _MAX_ROM_SIZE:
+        raise ValueError(f"Invalid GBA ROM (larger than 32 MiB): {rom_path}")
+    return rom_size
 
-    fd = os.open(rom_path, _rom_open_flags())
-    try:
-        opened_stat = os.fstat(fd)
-        if not stat.S_ISREG(opened_stat.st_mode):
-            raise ValueError(f"Invalid GBA ROM (not a regular file): {rom_path}")
-        rom_size = opened_stat.st_size
-        if rom_size < _MIN_ROM_SIZE:
-            raise ValueError(f"Invalid GBA ROM (smaller than 1 MiB): {rom_path}")
-        if rom_size > _MAX_ROM_SIZE:
-            raise ValueError(f"Invalid GBA ROM (larger than 32 MiB): {rom_path}")
-        f = os.fdopen(fd, "rb", closefd=True)
-        fd = None
-        with f:
-            header = f.read(_GBA_HEADER_SIZE)
-    finally:
-        if fd is not None:
-            os.close(fd)
 
+def _validate_opened_rom_header(
+        rom_path: str, header: bytes, require_checksum: bool) -> None:
+    """Validate header invariants read from an already-open descriptor."""
     if len(header) < _GBA_HEADER_SIZE:
         raise ValueError(f"Invalid GBA ROM (incomplete header): {rom_path}")
     if header[_GBA_FIXED_VALUE_OFFSET] != _GBA_FIXED_VALUE:
@@ -62,7 +53,80 @@ def _read_validated_header(
             raise ValueError(
                 f"Invalid GBA ROM (header checksum mismatch): {rom_path}",
             )
-    return header, rom_size
+
+
+@contextmanager
+def _open_validated_rom(rom_path: str, require_checksum: bool = True):
+    """Yield one validated, rewound ROM descriptor with its trusted header."""
+    fd = os.open(rom_path, _rom_open_flags())
+    try:
+        opened_stat = os.fstat(fd)
+        rom_size = _validate_opened_rom_size(rom_path, opened_stat)
+        with os.fdopen(fd, "rb", closefd=True) as stream:
+            fd = None
+            header = stream.read(_GBA_HEADER_SIZE)
+            _validate_opened_rom_header(rom_path, header, require_checksum)
+            stream.seek(0)
+            yield stream, header, rom_size
+    finally:
+        if fd is not None:
+            os.close(fd)
+
+
+def _read_validated_header(
+        rom_path: str, require_checksum: bool = True) -> tuple[bytes, int]:
+    """Read and validate a GBA header from the same open file handle."""
+    with _open_validated_rom(rom_path, require_checksum) as (_stream, header, size):
+        return header, size
+
+
+@contextmanager
+def validated_rom_snapshot(rom_path: str, require_checksum: bool = True):
+    """Yield a secure snapshot copied from one validated ROM descriptor.
+
+    The source pathname is opened exactly once.  The backend can safely open
+    the returned snapshot after the original path has been replaced, removed,
+    or otherwise changed by another process.
+    """
+    snapshot_path = None
+    snapshot_fd = None
+    try:
+        with _open_validated_rom(rom_path, require_checksum) as (
+                source, header, rom_size):
+            snapshot_fd, snapshot_path = tempfile.mkstemp(suffix=".gba")
+            with os.fdopen(snapshot_fd, "wb", closefd=True) as snapshot:
+                snapshot_fd = None
+                written = snapshot.write(header)
+                if written != len(header):
+                    raise OSError("Failed to write complete ROM snapshot")
+                copied = written
+                source.seek(len(header))
+                while copied < rom_size:
+                    chunk = source.read(min(_SNAPSHOT_CHUNK_BYTES, rom_size - copied))
+                    if not chunk:
+                        raise ValueError(
+                            f"Invalid GBA ROM (changed while snapshotting): {rom_path}",
+                        )
+                    written = snapshot.write(chunk)
+                    if written != len(chunk):
+                        raise OSError("Failed to write complete ROM snapshot")
+                    copied += written
+                if source.read(1) or os.fstat(source.fileno()).st_size != rom_size:
+                    raise ValueError(
+                        f"Invalid GBA ROM (changed while snapshotting): {rom_path}",
+                    )
+                snapshot.flush()
+                if os.fstat(snapshot.fileno()).st_size != rom_size:
+                    raise OSError("ROM snapshot length verification failed")
+        yield snapshot_path
+    finally:
+        if snapshot_fd is not None:
+            os.close(snapshot_fd)
+        if snapshot_path is not None:
+            try:
+                os.unlink(snapshot_path)
+            except FileNotFoundError:
+                pass
 
 
 def validate_checksum_target(rom_path: str) -> None:
@@ -117,10 +181,10 @@ def _detect_version_from_header(header: bytes, force_version: str = "") -> str:
 
 
 def rom_info(rom_path: str, force_version: str = "") -> dict:
-    """Get ROM information by running --lint to validate and load the ROM.
+    """Get ROM metadata from one locally validated ROM descriptor.
 
-    Validates the local GBA header before invoking the backend, then uses
-    --lint for full ROM validation when the backend is available.
+    This deliberately does not invoke the backend.  Call ``lint_rom`` for an
+    explicit full lint run against a validated temporary snapshot.
 
     Args:
         rom_path: Path to the .gba ROM file.
@@ -130,21 +194,6 @@ def rom_info(rom_path: str, force_version: str = "") -> dict:
         Dict with ROM metadata.
     """
     header, rom_size = _read_validated_header(rom_path)
-
-    # Try --lint for full ROM validation (loads ROM, checks integrity)
-    lint_output = ""
-    lint_exit = -1
-    try:
-        args = ["--rom", rom_path]
-        if force_version:
-            args += [f"--force-version={force_version}"]
-        args.append("--lint")
-        result = run_cli(args)
-        lint_output = result.stdout.strip()
-        lint_exit = result.returncode
-    except RuntimeError:
-        # Backend not available — fall back to local header detection
-        pass
 
     # Detect version from the already validated header (no second path read).
     detected_version = _detect_version_from_header(header, force_version)
@@ -156,8 +205,9 @@ def rom_info(rom_path: str, force_version: str = "") -> dict:
         "rom_size_mb": round(rom_size / (1024 * 1024), 2),
         "detected_version": detected_version,
         "force_version": force_version,
-        "lint_output": lint_output,
-        "lint_exit_code": lint_exit,
+        # Permanent sentinels: metadata discovery never attempts lint.
+        "lint_output": "",
+        "lint_exit_code": -1,
     }
 
 

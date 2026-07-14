@@ -812,7 +812,9 @@ class TestSessionPrecedence:
         def unavailable_backend(args):
             raise RuntimeError("backend unavailable")
 
-        monkeypatch.setattr(project, "run_cli", unavailable_backend)
+        monkeypatch.setattr(
+            project, "run_cli", unavailable_backend, raising=False,
+        )
         resp = _call_tool(
             initialized_state, "session_open", {"rom_path": str(rom_path)},
         )
@@ -821,6 +823,43 @@ class TestSessionPrecedence:
         assert initialized_state.session.is_open() is True
         assert initialized_state.session.state.rom_version == "FE8U"
         assert initialized_state.session.state.history[-1]["op"] == "open"
+
+    def test_session_open_write_failure_leaves_no_phantom_session(
+            self, initialized_state, tmp_path, monkeypatch):
+        from cli_anything.febuildergba.core import project
+
+        def fake_rom_info(rom_path, force_version=""):
+            return {
+                "rom_path": rom_path,
+                "rom_size": 1,
+                "rom_size_hex": "0x1",
+                "rom_size_mb": 0.0,
+                "detected_version": "FE8U",
+                "force_version": force_version,
+                "lint_output": "",
+                "lint_exit_code": -1,
+            }
+
+        def fail_write():
+            raise PermissionError("persistence denied")
+
+        monkeypatch.setattr(project, "rom_info", fake_rom_info)
+        monkeypatch.setattr(initialized_state.session, "_write_unlocked", fail_write)
+
+        # Issue the second request directly against the same server state:
+        # no serve-loop refresh may mask an in-memory phantom session.
+        failed_open = _call_tool(
+            initialized_state,
+            "session_open",
+            {"rom_path": str(tmp_path / "rom.gba")},
+        )
+        status = _call_tool(initialized_state, "session_status", {})
+        status_payload = json.loads(status["result"]["content"][0]["text"])
+
+        assert failed_open["result"]["isError"] is True
+        assert status["result"]["isError"] is False
+        assert status_payload["open"] is False
+        assert initialized_state.session.path.exists() is False
 
     def test_stale_session_close_does_not_delete_reopened_session(
             self, initialized_state):
@@ -1212,7 +1251,7 @@ class TestForceVersionPrecedence:
 
 class TestAdvisoryVsHardErrors:
     @pytest.mark.parametrize("tool_name", ["rom_info", "session_open"])
-    def test_metadata_lint_exit_is_advisory(
+    def test_metadata_lint_is_permanently_not_attempted(
             self, initialized_state, monkeypatch, tmp_path, tool_name):
         rom = str(tmp_path / "r.gba")
 
@@ -1224,8 +1263,8 @@ class TestAdvisoryVsHardErrors:
                 "rom_size_mb": 1.0,
                 "detected_version": "FE8U",
                 "force_version": force_version,
-                "lint_output": "Lint: 1 issue(s) found",
-                "lint_exit_code": 1,
+                "lint_output": "",
+                "lint_exit_code": -1,
             }
 
         monkeypatch.setattr(
@@ -1239,10 +1278,17 @@ class TestAdvisoryVsHardErrors:
         payload = json.loads(resp["result"]["content"][0]["text"])
 
         assert resp["result"]["isError"] is False
-        assert payload["lint_exit_code"] == 1
+        assert payload["lint_output"] == ""
+        assert payload["lint_exit_code"] == -1
         if tool_name == "session_open":
             assert payload["status"] == "opened"
             assert initialized_state.session.is_open()
+
+    def test_rom_info_schema_does_not_promise_lint(self):
+        tool = next(item for item in srv.TOOL_DEFS if item["name"] == "rom_info")
+
+        assert "lint is not attempted" in tool["description"]
+        assert "lint summary" not in tool["description"]
 
     def test_checksum_advisory_exit2_is_not_error(self, initialized_state, monkeypatch, tmp_path):
         rom_path = tmp_path / "r.gba"
@@ -1393,6 +1439,7 @@ class TestAdvisoryVsHardErrors:
             project,
             "run_cli",
             lambda args: backend_calls.append(args),
+            raising=False,
         )
 
         resp = _call_tool(
@@ -1447,6 +1494,36 @@ class TestAdvisoryVsHardErrors:
         assert resp["result"]["isError"] is False
         payload = json.loads(resp["result"]["content"][0]["text"])
         assert payload["available"] is False
+
+    def test_mcp_backend_check_rejects_dotnet_run_fallback(
+            self, initialized_state, monkeypatch, tmp_path):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        fake_module = tmp_path / "pkg" / "utils" / "febuildergba_backend.py"
+        fake_module.parent.mkdir(parents=True)
+        fake_module.write_text("# discovery test placeholder\n")
+        csproj = tmp_path / "FEBuilderGBA.CLI" / "FEBuilderGBA.CLI.csproj"
+        csproj.parent.mkdir()
+        csproj.write_text("<Project />\n")
+        launches = []
+
+        def must_not_launch(*args, **kwargs):
+            launches.append((args, kwargs))
+            raise AssertionError("MCP must not launch dotnet run")
+
+        monkeypatch.setattr(backend, "__file__", str(fake_module))
+        monkeypatch.delenv("FEBUILDERGBA_CLI_EXE", raising=False)
+        monkeypatch.delenv("FEBUILDERGBA_CLI", raising=False)
+        monkeypatch.setattr(backend.shutil, "which", lambda name: "dotnet-host")
+        monkeypatch.setattr(backend.subprocess, "Popen", must_not_launch)
+
+        resp = _call_tool(initialized_state, "backend_check")
+        payload = json.loads(resp["result"]["content"][0]["text"])
+
+        assert resp["result"]["isError"] is False
+        assert payload["available"] is False
+        assert "prebuilt" in payload["error"]
+        assert launches == []
 
     def test_backend_os_probe_failure_is_not_a_tool_error(
             self, initialized_state, monkeypatch):
@@ -1673,6 +1750,27 @@ class TestBounds:
             "FEBuilderGBA.CLI version check output exceeded 4096 characters"
         )
         assert "version" not in payload
+
+    def test_backend_check_normalizes_invalid_utf8_from_bounded_subprocess(
+            self, initialized_state, monkeypatch):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        # The real child writes an invalid byte to the real bounded stdout
+        # pipe; no decoder exception is fabricated or mock-raised here.
+        script = "import os\nos.write(1, b'\\xff')\n"
+        monkeypatch.setattr(
+            backend,
+            "find_febuildergba_cli",
+            lambda: [sys.executable, "-c", script],
+        )
+
+        response = _call_tool(initialized_state, "backend_check", {})
+        payload = json.loads(response["result"]["content"][0]["text"])
+
+        assert response["result"]["isError"] is False
+        assert payload["available"] is False
+        assert "utf-8" in payload["error"].lower()
+        assert "decode" in payload["error"].lower()
 
     @pytest.mark.parametrize("tool_name", ["rom_info", "session_open"])
     def test_rom_metadata_lint_output_is_bounded(

@@ -280,7 +280,7 @@ TOOL_DEFS = [
     ),
     _tool(
         "rom_info",
-        "Show ROM information and metadata (size, detected version, lint summary).",
+        "Show locally validated ROM metadata (size and detected version; lint is not attempted).",
         {"rom_path": _ROM_PATH_PROP, "force_version": _FORCE_VERSION_PROP},
         [], _ANNOT_RO,
     ),
@@ -1047,8 +1047,11 @@ def _h_tools_call(state, params):
         # Scope bounded capture to all MCP tool handlers.  The shared core
         # wrappers keep their Click behavior because their run_cli calls only
         # observe this ContextVar during this dynamic handler scope.
-        from cli_anything.febuildergba.utils.febuildergba_backend import bounded_capture
-        with bounded_capture(MAX_STRING_LEN):
+        from cli_anything.febuildergba.utils.febuildergba_backend import (
+            bounded_capture,
+            prebuilt_backend_only,
+        )
+        with bounded_capture(MAX_STRING_LEN), prebuilt_backend_only():
             payload, is_error = handler(state.session, arguments)
     except Exception as e:  # tool business/backend failure -> isError result, never a protocol error
         payload, is_error = {"error": str(e)}, True

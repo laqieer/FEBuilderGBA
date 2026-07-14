@@ -27,6 +27,10 @@ _bounded_capture_limit: ContextVar[Optional[int]] = ContextVar(
     "febuildergba_bounded_capture_limit",
     default=None,
 )
+_prebuilt_backend_only: ContextVar[bool] = ContextVar(
+    "febuildergba_prebuilt_backend_only",
+    default=False,
+)
 
 
 class _BoundedOutput(str):
@@ -88,6 +92,16 @@ def bounded_capture(max_chars: int):
         yield
     finally:
         _bounded_capture_limit.reset(token)
+
+
+@contextmanager
+def prebuilt_backend_only():
+    """Require a prebuilt backend instead of the development ``dotnet run`` path."""
+    token = _prebuilt_backend_only.set(True)
+    try:
+        yield
+    finally:
+        _prebuilt_backend_only.reset(token)
 
 
 def _drain_bounded_stream(stream, captured: _BoundedStreamCapture) -> None:
@@ -220,8 +234,8 @@ def find_febuildergba_cli() -> list[str]:
 
     Search order:
     1. FEBUILDERGBA_CLI env var (explicit path)
-    2. Published exe in repo agent-harness/../FEBuilderGBA.CLI/bin/
-    3. 'dotnet run' via project file in the repo
+    2. Published/build apphost or DLL in repo FEBuilderGBA.CLI/bin/
+    3. Outside prebuilt-only mode, 'dotnet run' via the project file
 
     Returns:
         Command list to invoke the CLI (e.g., ["dotnet", "run", ...] or ["/path/to/exe"]).
@@ -252,7 +266,7 @@ def find_febuildergba_cli() -> list[str]:
             if (pkg_dir / "FEBuilderGBA.CLI").is_dir():
                 break
 
-    # Check for published exe
+    # Check for published apphost or DLL.
     for config in ["Release", "Debug"]:
         for rid in ["win-x64", "linux-x64", "osx-arm64"]:
             exe_path = pkg_dir / "FEBuilderGBA.CLI" / "bin" / config / "net9.0" / rid / "publish"
@@ -260,8 +274,13 @@ def find_febuildergba_cli() -> list[str]:
                 candidate = exe_path / name
                 if candidate.is_file():
                     return [str(candidate)]
+            dll = exe_path / "FEBuilderGBA.CLI.dll"
+            if dll.is_file():
+                dotnet = shutil.which("dotnet")
+                if dotnet:
+                    return [dotnet, str(dll)]
 
-    # Check for build output (not published)
+    # Check for build apphost or DLL (not published).
     for config in ["Release", "Debug"]:
         for arch in ["net9.0", "net9.0-windows"]:
             exe_dir = pkg_dir / "FEBuilderGBA.CLI" / "bin" / config / arch
@@ -269,6 +288,17 @@ def find_febuildergba_cli() -> list[str]:
                 candidate = exe_dir / name
                 if candidate.is_file():
                     return [str(candidate)]
+            dll = exe_dir / "FEBuilderGBA.CLI.dll"
+            if dll.is_file():
+                dotnet = shutil.which("dotnet")
+                if dotnet:
+                    return [dotnet, str(dll)]
+
+    if _prebuilt_backend_only.get():
+        raise RuntimeError(
+            "MCP requires a prebuilt FEBuilderGBA.CLI executable, apphost, "
+            "or DLL; dotnet run fallback is disabled."
+        )
 
     # 3. Use 'dotnet run' with the project file
     csproj = pkg_dir / "FEBuilderGBA.CLI" / "FEBuilderGBA.CLI.csproj"
@@ -299,9 +329,14 @@ def run_cli(args: list[str], capture: bool = True,
     Raises:
         RuntimeError: If CLI not found or execution fails.
     """
+    max_chars = _bounded_capture_limit.get()
+    if max_chars is not None and not capture:
+        raise RuntimeError(
+            "Bounded MCP capture requires capture=True; capture=False is not allowed."
+        )
+
     cmd = find_febuildergba_cli() + args
     try:
-        max_chars = _bounded_capture_limit.get()
         if max_chars is not None and capture:
             return _run_cli_bounded(cmd, timeout, max_chars)
         result = subprocess.run(
@@ -370,7 +405,7 @@ def check_backend() -> dict:
             "command": cmd,
             "version": version,
         }
-    except (RuntimeError, OSError) as e:
+    except (RuntimeError, OSError, UnicodeError) as e:
         return {
             "available": False,
             "error": str(e),

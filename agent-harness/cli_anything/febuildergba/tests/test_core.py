@@ -22,6 +22,17 @@ def _write_valid_test_rom(path, game_code):
     path.write_bytes(rom)
 
 
+def _configure_temporary_backend_root(tmp_path, monkeypatch, backend):
+    """Point backend discovery at an isolated tree rooted at ``tmp_path``."""
+    fake_module = tmp_path / "pkg" / "utils" / "febuildergba_backend.py"
+    fake_module.parent.mkdir(parents=True)
+    fake_module.write_text("# discovery test placeholder\n")
+    monkeypatch.setattr(backend, "__file__", str(fake_module))
+    monkeypatch.delenv("FEBUILDERGBA_CLI_EXE", raising=False)
+    monkeypatch.delenv("FEBUILDERGBA_CLI", raising=False)
+    return tmp_path
+
+
 # ── Backend availability tests ────────────────────────────────────────
 
 class TestBackend:
@@ -127,6 +138,84 @@ class TestBackend:
                 {"capture_output": False, "text": True, "timeout": 19},
             ),
         ]
+
+    def test_bounded_capture_rejects_capture_false_before_resolution(
+            self, monkeypatch):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        resolver_calls = []
+
+        def resolver():
+            resolver_calls.append(True)
+            raise AssertionError("resolver must not be called")
+
+        def subprocess_must_not_run(*args, **kwargs):
+            raise AssertionError("subprocess must not be called")
+
+        monkeypatch.setattr(backend, "find_febuildergba_cli", resolver)
+        monkeypatch.setattr(backend.subprocess, "run", subprocess_must_not_run)
+        monkeypatch.setattr(backend.subprocess, "Popen", subprocess_must_not_run)
+
+        with backend.bounded_capture(16):
+            with pytest.raises(RuntimeError, match="capture=False is not allowed"):
+                backend.run_cli(["--version"], capture=False)
+
+        assert resolver_calls == []
+
+    def test_legacy_resolver_keeps_dotnet_run_fallback(
+            self, tmp_path, monkeypatch):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        root = _configure_temporary_backend_root(tmp_path, monkeypatch, backend)
+        csproj = root / "FEBuilderGBA.CLI" / "FEBuilderGBA.CLI.csproj"
+        csproj.parent.mkdir()
+        csproj.write_text("<Project />\n")
+        monkeypatch.setattr(backend.shutil, "which", lambda name: "dotnet-host")
+
+        assert backend.find_febuildergba_cli() == [
+            "dotnet-host", "run", "--project", str(csproj), "--",
+        ]
+
+    def test_prebuilt_only_rejects_dotnet_run_fallback(
+            self, tmp_path, monkeypatch):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        root = _configure_temporary_backend_root(tmp_path, monkeypatch, backend)
+        csproj = root / "FEBuilderGBA.CLI" / "FEBuilderGBA.CLI.csproj"
+        csproj.parent.mkdir()
+        csproj.write_text("<Project />\n")
+        monkeypatch.setattr(backend.shutil, "which", lambda name: "dotnet-host")
+
+        with backend.prebuilt_backend_only():
+            with pytest.raises(RuntimeError, match="prebuilt.*dotnet run fallback is disabled"):
+                backend.find_febuildergba_cli()
+
+    def test_resolver_accepts_prebuilt_dll(
+            self, tmp_path, monkeypatch):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        root = _configure_temporary_backend_root(tmp_path, monkeypatch, backend)
+        dll = (
+            root / "FEBuilderGBA.CLI" / "bin" / "Release" / "net9.0"
+            / "FEBuilderGBA.CLI.dll"
+        )
+        dll.parent.mkdir(parents=True)
+        dll.write_bytes(b"prebuilt dll placeholder")
+        monkeypatch.setattr(backend.shutil, "which", lambda name: "dotnet-host")
+
+        with backend.prebuilt_backend_only():
+            assert backend.find_febuildergba_cli() == ["dotnet-host", str(dll)]
+
+    def test_prebuilt_backend_only_context_is_nested_and_resets(self):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        assert backend._prebuilt_backend_only.get() is False
+        with backend.prebuilt_backend_only():
+            assert backend._prebuilt_backend_only.get() is True
+            with backend.prebuilt_backend_only():
+                assert backend._prebuilt_backend_only.get() is True
+            assert backend._prebuilt_backend_only.get() is True
+        assert backend._prebuilt_backend_only.get() is False
 
     def test_bounded_capture_concurrently_drains_both_pipes(
             self, monkeypatch):
@@ -253,16 +342,26 @@ class TestBackend:
         )
         outer_script = (
             "import json\n"
+            "import os\n"
             "import sys\n"
             "from cli_anything.febuildergba.utils import febuildergba_backend as backend\n"
             f"backend.find_febuildergba_cli = lambda: [sys.executable, '-c', {backend_script!r}]\n"
-            "current_frame = sys.stdin.readline()\n"
+            "def read_frame():\n"
+            "    chunks = []\n"
+            "    while True:\n"
+            "        byte = os.read(0, 1)\n"
+            "        if not byte:\n"
+            "            return b''.join(chunks).decode('utf-8')\n"
+            "        chunks.append(byte)\n"
+            "        if byte == b'\\n':\n"
+            "            return b''.join(chunks).decode('utf-8')\n"
+            "current_frame = read_frame()\n"
             "with backend.bounded_capture(64):\n"
             "    result = backend.run_cli([])\n"
             "print(json.dumps({\n"
             "    'backend_output': str(result.stdout),\n"
             "    'current_frame': current_frame,\n"
-            "    'next_frame': sys.stdin.readline(),\n"
+            "    'next_frame': read_frame(),\n"
             "}))\n"
         )
         current_frame = '{"jsonrpc":"2.0","id":2,"method":"tools/call"}\n'
@@ -282,12 +381,12 @@ class TestBackend:
         assert outer.returncode == 0, outer.stderr
         observed = json.loads(outer.stdout)
 
-        # Before stdin=DEVNULL, the fake backend read the pending ping and the
-        # outer parent observed EOF.  This proves the real pipe boundary, not
-        # merely a mocked Popen keyword.
+        # os.read(0, 1) leaves the next frame in the kernel pipe. Before
+        # stdin=DEVNULL, the fake backend consumed it and the outer parent
+        # observed EOF. This proves the real pipe boundary, not a mock.
         assert observed["backend_output"] == "child-read="
-        assert observed["current_frame"] == current_frame
-        assert observed["next_frame"] == next_frame
+        assert json.loads(observed["current_frame"]) == json.loads(current_frame)
+        assert json.loads(observed["next_frame"]) == json.loads(next_frame)
 
     def test_check_backend_normalizes_os_probe_failure(self, monkeypatch):
         from cli_anything.febuildergba.utils import febuildergba_backend as backend
@@ -303,14 +402,16 @@ class TestBackend:
 
 
 class TestLint:
-    def test_clean_summary_is_not_an_error(self, monkeypatch):
+    def test_clean_summary_is_not_an_error(self, monkeypatch, tmp_path):
         from cli_anything.febuildergba.core import lint
+        rom_path = tmp_path / "rom.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
         result = subprocess.CompletedProcess(
             ["cli", "--lint"], 0, stdout="Lint: No errors found.\n", stderr="",
         )
         monkeypatch.setattr(lint, "run_cli", lambda args: result)
 
-        parsed = lint.lint_rom("r.gba")
+        parsed = lint.lint_rom(str(rom_path))
 
         assert parsed["clean"] is True
         assert parsed["error_count"] == 0
@@ -319,8 +420,10 @@ class TestLint:
         assert parsed["warnings"] == []
         assert parsed["info"] == ["Lint: No errors found."]
 
-    def test_only_severity_markers_create_findings(self, monkeypatch):
+    def test_only_severity_markers_create_findings(self, monkeypatch, tmp_path):
         from cli_anything.febuildergba.core import lint
+        rom_path = tmp_path / "rom.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
         stdout = "\n".join([
             "Lint: 2 issue(s) found:",
             "  [ERROR] 0x08000000: broken pointer",
@@ -332,7 +435,7 @@ class TestLint:
         )
         monkeypatch.setattr(lint, "run_cli", lambda args: result)
 
-        parsed = lint.lint_rom("r.gba")
+        parsed = lint.lint_rom(str(rom_path))
 
         assert parsed["clean"] is False
         assert parsed["error_count"] == 1
@@ -614,6 +717,101 @@ class TestSession:
         assert not sess.state.modified
         sess.mark_modified()
         assert sess.state.modified
+
+    def test_open_rom_replace_failure_rolls_back_memory_and_disk(
+            self, tmp_path, monkeypatch):
+        from cli_anything.febuildergba.core import session as session_module
+        from cli_anything.febuildergba.core.session import Session
+
+        path = tmp_path / "test_session.json"
+        sess = Session(str(path))
+        sess.open_rom("/fake/old.gba", "FE8U", 1)
+        before_state = sess.state.to_dict()
+        before_disk = path.read_bytes()
+
+        def fail_replace(source, destination):
+            raise PermissionError("replace denied")
+
+        monkeypatch.setattr(session_module.os, "replace", fail_replace)
+
+        with pytest.raises(PermissionError, match="replace denied"):
+            sess.open_rom("/fake/new.gba", "FE7U", 2)
+
+        assert sess.state.to_dict() == before_state
+        assert path.read_bytes() == before_disk
+        assert list(tmp_path.glob(".test_session.json.*.tmp")) == []
+
+    def test_record_operation_write_failure_rolls_back_memory_and_disk(
+            self, tmp_path, monkeypatch):
+        from cli_anything.febuildergba.core import session as session_module
+        from cli_anything.febuildergba.core.session import Session
+
+        path = tmp_path / "test_session.json"
+        sess = Session(str(path))
+        sess.open_rom("/fake/rom.gba", "FE8U", 1)
+        before_state = sess.state.to_dict()
+        before_disk = path.read_bytes()
+
+        def fail_replace(source, destination):
+            raise PermissionError("replace denied")
+
+        monkeypatch.setattr(session_module.os, "replace", fail_replace)
+
+        with pytest.raises(PermissionError, match="replace denied"):
+            sess.record_operation("import", {"source": "units.tsv"}, modified=True)
+
+        assert sess.state.to_dict() == before_state
+        assert path.read_bytes() == before_disk
+        assert list(tmp_path.glob(".test_session.json.*.tmp")) == []
+
+    def test_mark_modified_write_failure_rolls_back_memory_and_disk(
+            self, tmp_path, monkeypatch):
+        from cli_anything.febuildergba.core import session as session_module
+        from cli_anything.febuildergba.core.session import Session
+
+        path = tmp_path / "test_session.json"
+        sess = Session(str(path))
+        sess.open_rom("/fake/rom.gba", "FE8U", 1)
+        before_state = sess.state.to_dict()
+        before_disk = path.read_bytes()
+
+        def fail_replace(source, destination):
+            raise PermissionError("replace denied")
+
+        monkeypatch.setattr(session_module.os, "replace", fail_replace)
+
+        with pytest.raises(PermissionError, match="replace denied"):
+            sess.mark_modified()
+
+        assert sess.state.to_dict() == before_state
+        assert path.read_bytes() == before_disk
+        assert list(tmp_path.glob(".test_session.json.*.tmp")) == []
+
+    def test_close_unlink_failure_rolls_back_memory_and_keeps_disk(
+            self, tmp_path, monkeypatch):
+        from cli_anything.febuildergba.core import session as session_module
+        from cli_anything.febuildergba.core.session import Session
+
+        path = tmp_path / "test_session.json"
+        sess = Session(str(path))
+        sess.open_rom("/fake/rom.gba", "FE8U", 1)
+        before_state = sess.state.to_dict()
+        before_disk = path.read_bytes()
+        real_unlink = session_module.Path.unlink
+
+        def fail_session_unlink(self, *args, **kwargs):
+            if self == path:
+                raise PermissionError("unlink denied")
+            return real_unlink(self, *args, **kwargs)
+
+        monkeypatch.setattr(session_module.Path, "unlink", fail_session_unlink)
+
+        with pytest.raises(PermissionError, match="unlink denied"):
+            sess.close()
+
+        assert sess.state.to_dict() == before_state
+        assert sess.is_open()
+        assert path.read_bytes() == before_disk
 
     def test_session_persistence(self, tmp_path):
         from cli_anything.febuildergba.core.session import Session
@@ -1209,6 +1407,7 @@ class TestProject:
             project,
             "run_cli",
             lambda args: backend_calls.append(args),
+            raising=False,
         )
         monkeypatch.setattr(
             project.os,
@@ -1280,6 +1479,7 @@ class TestProject:
         backend_calls = []
         monkeypatch.setattr(
             project, "run_cli", lambda args: backend_calls.append(args),
+            raising=False,
         )
 
         with pytest.raises(ValueError, match="header checksum mismatch"):
@@ -1303,12 +1503,160 @@ class TestProject:
         def unavailable_backend(args):
             raise RuntimeError("backend unavailable")
 
-        monkeypatch.setattr(project, "run_cli", unavailable_backend)
+        monkeypatch.setattr(
+            project, "run_cli", unavailable_backend, raising=False,
+        )
         result = project.rom_info(str(path))
 
         assert result["detected_version"] == "FE8U"
         assert result["rom_size"] == len(rom)
+        assert result["lint_output"] == ""
         assert result["lint_exit_code"] == -1
+
+    def test_rom_info_keeps_validated_descriptor_metadata_after_path_swap(
+            self, tmp_path, monkeypatch):
+        from cli_anything.febuildergba.core import project
+
+        rom_path = tmp_path / "original.gba"
+        replacement = tmp_path / "replacement.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
+        _write_valid_test_rom(replacement, b"AE7E")
+        real_read = project._read_validated_header
+
+        def read_then_swap(path, require_checksum=True):
+            result = real_read(path, require_checksum)
+            os.replace(replacement, path)
+            return result
+
+        def reopened_replacement(args):
+            backend_rom = next(arg[6:] for arg in args if arg.startswith("--rom="))
+            assert Path(backend_rom).read_bytes()[0xAC:0xB0] == b"AE7E"
+            raise AssertionError("rom_info must not reopen the replaced path")
+
+        monkeypatch.setattr(project, "_read_validated_header", read_then_swap)
+        monkeypatch.setattr(
+            project, "run_cli", reopened_replacement, raising=False,
+        )
+
+        result = project.rom_info(str(rom_path))
+
+        assert result["detected_version"] == "FE8U"
+        assert result["lint_output"] == ""
+        assert result["lint_exit_code"] == -1
+
+    def test_lint_uses_validated_snapshot_and_removes_it(
+            self, tmp_path, monkeypatch):
+        from cli_anything.febuildergba.core import lint
+
+        rom_path = tmp_path / "original.gba"
+        replacement = tmp_path / "replacement.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
+        _write_valid_test_rom(replacement, b"AE7E")
+        original_bytes = rom_path.read_bytes()
+        replacement_bytes = replacement.read_bytes()
+        snapshots = []
+
+        def inspect_snapshot(args):
+            snapshot = Path(next(arg[6:] for arg in args if arg.startswith("--rom=")))
+            snapshots.append(snapshot)
+            assert snapshot != rom_path
+            assert snapshot.suffix == ".gba"
+            os.replace(replacement, rom_path)
+            assert snapshot.read_bytes() == original_bytes
+            assert snapshot.stat().st_size == len(original_bytes)
+            assert rom_path.read_bytes() == replacement_bytes
+            return subprocess.CompletedProcess(
+                args, 0, stdout="Lint: No errors found.\n", stderr="",
+            )
+
+        monkeypatch.setattr(lint, "run_cli", inspect_snapshot)
+        result = lint.lint_rom(str(rom_path))
+
+        assert result["rom_path"] == str(rom_path)
+        assert result["clean"] is True
+        assert snapshots and all(not path.exists() for path in snapshots)
+
+    def test_lint_snapshot_pins_the_validated_header(
+            self, tmp_path, monkeypatch):
+        from contextlib import contextmanager
+        from cli_anything.febuildergba.core import lint, project
+
+        rom_path = tmp_path / "mutable.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
+        validated_header = rom_path.read_bytes()[:project._GBA_HEADER_SIZE]
+        real_open_validated_rom = project._open_validated_rom
+
+        @contextmanager
+        def mutate_after_validation(path, require_checksum=True):
+            with real_open_validated_rom(path, require_checksum) as opened:
+                with Path(path).open("r+b") as mutable:
+                    mutable.seek(project._GBA_FIXED_VALUE_OFFSET)
+                    mutable.write(b"\x00")
+                    mutable.flush()
+                yield opened
+
+        def inspect_snapshot(args):
+            snapshot = Path(next(arg[6:] for arg in args if arg.startswith("--rom=")))
+            assert snapshot.read_bytes()[:project._GBA_HEADER_SIZE] == validated_header
+            return subprocess.CompletedProcess(
+                args, 0, stdout="Lint: No errors found.\n", stderr="",
+            )
+
+        monkeypatch.setattr(project, "_open_validated_rom", mutate_after_validation)
+        monkeypatch.setattr(lint, "run_cli", inspect_snapshot)
+
+        result = lint.lint_rom(str(rom_path))
+
+        assert result["clean"] is True
+        assert rom_path.read_bytes()[project._GBA_FIXED_VALUE_OFFSET] == 0
+
+    @pytest.mark.parametrize(
+        "failure",
+        [
+            RuntimeError("backend failed"),
+            subprocess.TimeoutExpired(["cli"], 1),
+            OSError("backend exception"),
+        ],
+    )
+    def test_lint_snapshot_is_removed_when_backend_raises(
+            self, tmp_path, monkeypatch, failure):
+        from cli_anything.febuildergba.core import lint
+
+        rom_path = tmp_path / "rom.gba"
+        _write_valid_test_rom(rom_path, b"BE8E")
+        snapshots = []
+
+        def fail_after_snapshot(args):
+            snapshots.append(Path(next(arg[6:] for arg in args if arg.startswith("--rom="))))
+            raise failure
+
+        monkeypatch.setattr(lint, "run_cli", fail_after_snapshot)
+        with pytest.raises(type(failure)):
+            lint.lint_rom(str(rom_path))
+
+        assert snapshots and all(not path.exists() for path in snapshots)
+
+    @pytest.mark.parametrize("kind", ["oversized", "non_rom"])
+    def test_lint_rejects_invalid_inputs_before_backend(
+            self, tmp_path, monkeypatch, kind):
+        from cli_anything.febuildergba.core import lint, project
+
+        rom_path = tmp_path / f"{kind}.gba"
+        if kind == "oversized":
+            _write_valid_test_rom(rom_path, b"BE8E")
+            with rom_path.open("r+b") as stream:
+                stream.truncate(project._MAX_ROM_SIZE + 1)
+        else:
+            rom_path.write_bytes(b"\x00" * project._MIN_ROM_SIZE)
+        backend_calls = []
+        monkeypatch.setattr(
+            lint, "run_cli", lambda args: backend_calls.append(args),
+        )
+
+        with pytest.raises(ValueError):
+            lint.lint_rom(str(rom_path))
+
+        assert backend_calls == []
 
     def test_detect_version_fe8u(self, tmp_path):
         from cli_anything.febuildergba.core.project import _detect_version

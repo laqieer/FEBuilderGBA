@@ -8,9 +8,10 @@ A **dependency-free** Model Context Protocol (MCP) stdio adapter for the CLI har
 implemented in one stdlib-only module:
 [`agent-harness/cli_anything/febuildergba/mcp_server.py`](../agent-harness/cli_anything/febuildergba/mcp_server.py).
 
-It reuses the **same** `Session`, backend resolver, and `core/*` wrappers as the Click CLI directly
-— it never shells out to Click, and it never imports an MCP SDK. It speaks newline-delimited
-JSON-RPC 2.0 on stdin/stdout only.
+It reuses the shared `Session` and `core/*` wrappers, but applies MCP-specific backend isolation:
+it never shells out to Click or imports an MCP SDK, and it accepts only an explicit or prebuilt
+backend (apphost or DLL), never Click's development `dotnet run` fallback. It speaks
+newline-delimited JSON-RPC 2.0 on stdin/stdout only.
 
 ## Setup
 
@@ -117,7 +118,7 @@ the package has been `pip install`-ed.
 | Code | Meaning | When |
 |---|---|---|
 | `-32700` | Parse error | The line isn't valid UTF-8/JSON, including non-standard `NaN`/`Infinity` tokens. |
-| `-32600` | Invalid Request | Wrong `jsonrpc` version, malformed request/notification shape, missing/empty/non-string `method`, non-object `params`, invalid `id` (null/bool/object), an empty or over-64-entry batch, an over-1,048,576-character line, `initialize` sent inside a batch, duplicate `initialize` after a successful one, or an operation attempted before `initialize` (except `ping`). |
+| `-32600` | Invalid Request | Wrong `jsonrpc` version, malformed request/notification shape, missing/empty/non-string `method`, scalar or null `params` (non-object, non-array; arrays are structurally accepted and then reach method validation as `-32602`), invalid `id` (null/bool/object), an empty or over-64-entry batch, an over-1,048,576-character line, `initialize` sent inside a batch, duplicate `initialize` after a successful one, or an operation attempted before `initialize` (except `ping`). |
 | `-32601` | Method not found | `method` is a well-formed, non-empty string but doesn't match any registered method. |
 | `-32602` | Invalid params | Malformed method-specific params shape (see above), unexpected/extra params fields, malformed `initialize` fields, an **unknown tool name**, or **schema-invalid tool arguments** (missing required field, wrong type, out-of-bounds, unexpected/extra property, over-length string — schemas are closed with `additionalProperties: false`). |
 | `-32603` | Internal error | An unexpected bug in the server's own dispatch code (never used for a tool's own backend/business failure). The client only ever sees the generic message `"Internal error"` — the real exception is logged to stderr, never echoed back. |
@@ -145,11 +146,11 @@ an over-length value is rejected as `-32602`, never silently defaulted or trunca
 | # | Tool | Click equivalent | Notes |
 |---|------|-------------------|-------|
 | 1 | `backend_check` | `check` | Never errors; missing, non-executable, timed-out, and other OS-level launch failures are normalized to `available: false`. |
-| 2 | `session_open` | `session open` | Requires `rom_path`; rejects files outside 1..32 MiB or that fail local GBA header validation before opening session state. |
+| 2 | `session_open` | `session open` | Requires `rom_path`; metadata comes only from local descriptor validation. `lint_output: ""` and `lint_exit_code: -1` permanently mean lint was not attempted; call `rom_lint`. |
 | 3 | `session_close` | `session close` | Never errors when no session is open; returns `stale_session` without closing if another process reopened the session first. |
 | 4 | `session_status` | `session status` | |
 | 5 | `session_history` | `session history` | `count` bounded 1..100 (default 10). |
-| 6 | `rom_info` | `rom info` | Rejects files outside 1..32 MiB or that fail local GBA header validation before backend invocation or version decoding. |
+| 6 | `rom_info` | `rom info` | Rejects files outside 1..32 MiB or that fail local GBA header validation; it never invokes the backend. `lint_output: ""` and `lint_exit_code: -1` permanently mean lint was not attempted; call `rom_lint`. |
 | 7 | `rom_validate` | `rom validate` | 1..32 MiB header heuristic; never calls the backend. |
 | 8 | `rom_list_tables` | `rom tables` | |
 | 9 | `rom_checksum` | `rom checksum` | Computes from one locally opened, regular 1..32 MiB descriptor; the backend never reopens the path. A checksum mismatch is exit 2 and remains a structured, non-error result. |
@@ -159,7 +160,7 @@ an over-length value is rejected as `-32602`, never silently defaulted or trunca
 | 13 | `names_resolve` | `names` | `ids` bounded to 1..256 entries. |
 | 14 | `text_search` | `text search` | `limit` bounded 1..500 (default 50); bounded/paginated result. |
 | 15 | `text_roundtrip` | `text roundtrip` | Exit 2 (mismatches found) is a structured, non-error result. **No `out_prefix` param** — kept read-only; use the Click CLI for diagnostic diff files. |
-| 16 | `rom_lint` | `lint` | `limit` bounded 1..1000 (default 200) per array. Only leading `[ERROR]` and `[WARNING]` CLI severity markers create findings; `Lint: No errors found.` remains informational. |
+| 16 | `rom_lint` | `lint` | Validates then snapshots the opened ROM descriptor to a temporary `.gba` before backend lint. `limit` bounded 1..1000 (default 200) per array. Only leading `[ERROR]` and `[WARNING]` CLI severity markers create findings; `Lint: No errors found.` remains informational. |
 | 17 | `image_quantize` | `image quantize` | No ROM required. `palette_no` is a maximum color count (default 16, range 2..256; 1 is allowed only with `no_reserve_1st: true`). **Overwrites** `out_path`. |
 | 18 | `image_convert_map` | `image convert-map` | No ROM required. **Overwrites** `out_img`/`out_tsa`. |
 | 19 | `palette_export` | `palette export` | **Overwrites** `out_path`. |
@@ -169,6 +170,8 @@ an over-length value is rejected as `-32602`, never silently defaulted or trunca
 ### Safety annotations
 
 Every tool declares `openWorldHint: false` (it never reaches outside the local filesystem/backend).
+These annotations remain truthful because MCP requires a prebuilt backend and never triggers
+`dotnet run`, build, restore, or NuGet/network activity.
 Exactly 9 tools are `readOnlyHint: false, destructiveHint: true` (they write to the filesystem
 and/or mutate ROM data or session state in place); the other 12 are
 `readOnlyHint: true, destructiveHint: false`:
@@ -228,6 +231,9 @@ or tampered non-ROM session paths fail closed with `rom_header: null`.
   without creating the parent directory or lock sidecar; explicit refreshes and all mutations
   still use the transaction lock. This keeps stateless Click commands usable when the default
   session location is read-only or unavailable.
+  If a transaction body fails, an independent pre-mutation state snapshot is restored before the
+  error is re-raised, so failed writes/deletes cannot leave a phantom open, history entry,
+  modified flag, or close visible to a later request in the same process.
   A refresh filesystem failure emits at most one generic warning per minute and serves the last
   known read snapshot; mutations still reload transactionally, return `isError` on failure, and
   never stale-write.
@@ -258,15 +264,19 @@ or tampered non-ROM session paths fail closed with `rom_header: null`.
   as a **structured, non-error advisory** result (e.g. "header is invalid", "round-trip found
   mismatches") — `isError` stays `false`; the structured payload (e.g. `valid: false`,
   `lossless: false`) carries the signal.
-- `rom_info` and `session_open` are metadata exceptions: their embedded `--lint` probe is advisory.
-  A nonzero `lint_exit_code` is returned in the payload without setting `isError` or preventing a
-  locally header-valid ROM from opening. Use `rom_lint` when lint findings must determine tool
-  success.
+- `rom_info` and `session_open` never run lint. Their permanent
+  `lint_output: ""` / `lint_exit_code: -1` sentinels mean lint was not attempted; use
+  `rom_lint` when lint findings are needed. `rom_lint` validates and snapshots the opened
+  descriptor before invoking the backend. The snapshot pins the already-validated header and
+  rejects length drift while copying from that descriptor, so replacing the original pathname
+  cannot redirect lint. It does not claim transaction-level atomicity for concurrent, same-length
+  writes elsewhere in the ROM body.
 - Outside those advisory cases, any other non-zero/unexpected exit code becomes a **tool
   execution error** (`isError: true`), with the backend's `stdout`/`stderr` preserved (bounded,
   see below).
 - `backend_check` reporting `available: false` is itself a normal, non-error result (the backend
-  simply isn't installed/built yet, or its version probe failed/returned no version text).
+  simply isn't installed/built yet, or its version probe failed, emitted invalid UTF-8, or
+  returned no version text).
 - The 300-second backend subprocess timeout (`core/verbs.py` / `febuildergba_backend.run_cli`) is
   unchanged.
 
@@ -299,7 +309,9 @@ drained**, not only when the response is serialized. The server retains at most 
 decoded prefix of each stream, continues discarding/draining the remainder to avoid a pipe deadlock,
 and reports the exact decoded source length when truncation occurred. Click callers retain their
 existing full-capture behavior. MCP backend stdin is detached to `DEVNULL`, preventing a backend
-tool from consuming pending JSON-RPC frames from the server's protocol input.
+tool from consuming pending JSON-RPC frames from the server's protocol input. A bounded MCP call
+with `capture=False` fails closed before backend resolution or subprocess launch, preventing
+protocol stdout/stdin inheritance.
 
 All input-side bounds above are enforced by the closed JSON Schema itself (rejected as
 `-32602 Invalid params`, never silently coerced/truncated). Backend stdout/stderr are bounded
@@ -349,18 +361,19 @@ FEBuilderGBA headlessly as a map/TSA converter. A FEHRR-style MCP client session
 
 ## Backend environment variables
 
-Tool handlers that shell out to `FEBuilderGBA.CLI` resolve the backend executable exactly like the
-Click CLI does (`utils/febuildergba_backend.find_febuildergba_cli`):
+MCP tool handlers resolve only an explicit backend executable, a prebuilt apphost, or a prebuilt
+`FEBuilderGBA.CLI.dll` launched as `dotnet <dll>` (`utils/febuildergba_backend.find_febuildergba_cli`):
 
 | Variable | Description |
 |----------|-------------|
 | `FEBUILDERGBA_CLI_EXE` | Explicit path to the `FEBuilderGBA.CLI` executable (preferred). |
 | `FEBUILDERGBA_CLI` | Fallback explicit path to the `FEBuilderGBA.CLI` executable. |
 
-If neither is set, the resolver falls back to a published/build-output exe under
-`FEBuilderGBA.CLI/bin/...`, then to `dotnet run --project FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj`.
-`backend_check` reports which command was resolved (or the error, if none was found) without ever
-treating "backend unavailable" as a protocol-level failure.
+If neither is set, MCP searches published/build output under `FEBuilderGBA.CLI/bin/...` for an
+apphost or DLL. It fails closed rather than using `dotnet run`, so it never builds, restores, or
+contacts NuGet. `backend_check` reports unavailable rather than treating that condition as a
+protocol-level failure. Click callers alone retain the legacy
+`dotnet run --project FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj --` fallback.
 
 ## Explicit exclusions
 
