@@ -158,7 +158,7 @@ an over-length value is rejected as `-32602`, never silently defaulted or trunca
 | 8 | `rom_list_tables` | `rom tables` | |
 | 9 | `rom_checksum` | `rom checksum` | Computes from one locally opened, regular 1..32 MiB descriptor; the backend never reopens the path. A checksum mismatch is exit 2 and remains a structured, non-error result. |
 | 10 | `data_export` | `data export` | **Overwrites** `out_path` (or its expansion for `table: "all"`). |
-| 11 | `data_import` | `data import` | **Overwrites ROM data in place.** |
+| 11 | `data_import` | `data import` | **Overwrites the resolved `rom_path` (or active session ROM) in place.** |
 | 12 | `data_roundtrip` | `data roundtrip` | Exit 2 (mismatches found) is a structured, non-error result. |
 | 13 | `names_resolve` | `names` | `ids` bounded to 1..256 entries. |
 | 14 | `text_search` | `text search` | `limit` bounded 1..500 (default 50); bounded/paginated result. |
@@ -167,7 +167,7 @@ an over-length value is rejected as `-32602`, never silently defaulted or trunca
 | 17 | `image_quantize` | `image quantize` | No ROM required. `palette_no` is a maximum color count (default 16, range 2..256; 1 is allowed only with `no_reserve_1st: true`). **Overwrites** `out_path`. |
 | 18 | `image_convert_map` | `image convert-map` | No ROM required. **Overwrites** `out_img`/`out_tsa`. |
 | 19 | `palette_export` | `palette export` | **Overwrites** `out_path`. |
-| 20 | `palette_import` | `palette import` | **Overwrites ROM data in place.** |
+| 20 | `palette_import` | `palette import` | **Overwrites the resolved `rom_path` (or active session ROM) in place.** |
 | 21 | `lz77` | `lz77` (#1942) | No ROM required. **Overwrites** `out_path`. |
 
 ### Safety annotations

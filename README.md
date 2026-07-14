@@ -709,7 +709,9 @@ Every Click history-producing ROM command uses the same
 filesystem-identity ownership rule as MCP, so explicit operations on another ROM cannot alter the
 active session while hard-link aliases still count as the same ROM. Commands that write a
 separate output ROM record history without marking the active input ROM modified; they set
-`modified` only when the reported destination identifies the active ROM. Successful backend
+`modified` only when the reported destination identifies the active ROM. The `data_import` and
+`palette_import` MCP tools have no output-path argument: they overwrite the resolved explicit
+`rom_path`, or the active session ROM when `rom_path` is omitted. Successful backend
 version probes are limited to 4,096 characters, and `names_resolve` limits each requested name to
 4,096 characters with truthful per-name truncation metadata. For MCP tool calls, backend stdout
 and stderr are bounded to a 65,536-character decoded prefix while both pipes are concurrently

@@ -225,6 +225,10 @@ _OVERWRITE_WARNING = (
     " WARNING: this tool writes to the filesystem and will overwrite the "
     "declared output path(s) (or prefix-expanded outputs) if they already exist."
 )
+_ROM_OVERWRITE_WARNING = (
+    " WARNING: this tool overwrites the resolved ROM path in place "
+    "(the explicit rom_path, or the active session ROM when omitted)."
+)
 
 
 def _tool(name, description, properties, required, annotations):
@@ -315,7 +319,7 @@ TOOL_DEFS = [
     ),
     _tool(
         "data_import",
-        "Import struct data from a TSV file into the ROM, in place." + _OVERWRITE_WARNING,
+        "Import struct data from a TSV file." + _ROM_OVERWRITE_WARNING,
         {
             "table": {"type": "string", "maxLength": MAX_TABLE_NAME_LEN,
                       "description": "Table name (see rom_list_tables)."},
@@ -445,7 +449,7 @@ TOOL_DEFS = [
     ),
     _tool(
         "palette_import",
-        "Import a palette file into the ROM in place (format auto-detected)." + _OVERWRITE_WARNING,
+        "Import a palette file (format auto-detected)." + _ROM_OVERWRITE_WARNING,
         {
             "addr": {"type": "string", "maxLength": MAX_ADDR_LEN,
                      "description": "Palette address in hex (e.g. 0x5524)."},

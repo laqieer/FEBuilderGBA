@@ -642,6 +642,13 @@ class TestDiscovery:
         assert len(destructive) == 9
         assert {t["name"] for t in destructive} == DESTRUCTIVE_TOOLS
 
+    def test_import_descriptions_warn_about_resolved_rom_overwrite(self):
+        tools = {tool["name"]: tool for tool in srv.TOOL_DEFS}
+        for name in ("data_import", "palette_import"):
+            description = tools[name]["description"]
+            assert "overwrites the resolved ROM path in place" in description
+            assert "declared output path" not in description
+
     def test_text_roundtrip_has_no_out_prefix_param(self):
         schema = srv.TOOL_SCHEMAS["text_roundtrip"]
         assert "out_prefix" not in schema["properties"]
