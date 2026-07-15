@@ -68,7 +68,7 @@
 ### Local Test Run (After Latest Pull)
 ```
 Test Project: FEBuilderGBA.Tests
-Target Framework: net9.0-windows
+Target Framework: net10.0-windows
 Test Runner: xUnit + VSTest
 
 Results:

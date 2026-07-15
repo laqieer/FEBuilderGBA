@@ -23,7 +23,7 @@
     Framework (system file picker -> content URI -> stream) rather than
     READ/WRITE_EXTERNAL_STORAGE, which is restricted under scoped storage.
   -->
-  <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="35" />
+  <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="36" />
   <uses-permission android:name="android.permission.INTERNET" />
   <application android:label="FEBuilderGBA"></application>
 </manifest>

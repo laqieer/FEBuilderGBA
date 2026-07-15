@@ -321,7 +321,7 @@ Then capture any window: `dotnet run --project tools/WinCapture -c Release -- "W
    cd FEBuilderGBA.Avalonia && dotnet run -- --rom "../$ROM"
 
    # WinForms (Windows, x86):
-   msbuild /p:Configuration=Debug /p:Platform=x86 FEBuilderGBA.sln
+   dotnet msbuild /p:Configuration=Debug /p:Platform=x86 /t:build /restore FEBuilderGBA.sln
    ./FEBuilderGBA/bin/Debug/FEBuilderGBA.exe --rom "$ROM"
    ```
    > **Shell note:** The examples above run in the foreground. To background a process in Git Bash append `&`; in PowerShell use `Start-Process`.

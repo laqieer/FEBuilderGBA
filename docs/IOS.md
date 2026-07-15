@@ -14,9 +14,9 @@ close mirror of the Android head, because the runtime seams that made Android po
 
 | Layer | iOS-capable | Notes |
 |---|---|---|
-| `FEBuilderGBA.Core` | ✅ | Pure `net9.0`, no platform deps. |
+| `FEBuilderGBA.Core` | ✅ | Pure `net10.0`, no platform deps. |
 | `FEBuilderGBA.SkiaSharp` | ✅ | Managed SkiaSharp 2.88.9; the iOS head adds the matching `SkiaSharp.NativeAssets.iOS` 2.88.9 native. |
-| `FEBuilderGBA.Avalonia` | ✅ | Multi-targets `net9.0;net9.0-ios` when `EnableIosTarget=true` (opt-in, default OFF). Reuses the exact compile surface the android TFM already builds. |
+| `FEBuilderGBA.Avalonia` | ✅ | Multi-targets `net10.0;net10.0-ios` when `EnableIosTarget=true` (opt-in, default OFF). Reuses the exact compile surface the android TFM already builds. |
 | `FEBuilderGBA` (WinForms) | ❌ | Never referenced — not iOS-capable. |
 
 ## 2. Lifetime & windowing — reused from the Android port
@@ -85,7 +85,7 @@ dotnet build FEBuilderGBA.iOS/FEBuilderGBA.iOS.csproj -c Release -p:EnableIosTar
 ```
 
 `-p:EnableIosTarget=true` is REQUIRED as a **global** property — NuGet restore's static graph
-ignores the per-reference `AdditionalProperties`, so without it restore writes a net9.0-only
+ignores the per-reference `AdditionalProperties`, so without it restore writes a net10.0-only
 assets file for `FEBuilderGBA.Avalonia` and the build fails with `NETSDK1005` (the same
 mechanism as android's `EnableAndroidTarget`).
 

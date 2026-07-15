@@ -8,10 +8,10 @@
     so the SAME golden assertions that pass on Linux/macOS/Windows are
     run on-device under the pinned libSkiaSharp 2.88.x Android native.
 
-    WHY NO XHarness: .NET 9 Android embeds managed assemblies as ELF-wrapped
+    WHY NO XHarness: .NET 10 Android embeds managed assemblies as ELF-wrapped
     native libs (lib/<abi>/lib_<Name>.dll.so), not as plain PE .dll zip
     entries. xUnit's Guard.FileExists() requires a real on-disk PE file;
-    assembly.Location is empty on .NET 9 Android. Instrumentation.cs uses
+    assembly.Location is empty on .NET 10 Android. Instrumentation.cs uses
     a direct reflection runner instead, invoking [Fact]/[SkippableFact]
     methods in-memory and writing its own TestResults.xml.
 
@@ -25,18 +25,18 @@
 
     The -p:EnableAndroidTarget=true flag is NOT needed here because this
     project does NOT reference FEBuilderGBA.Avalonia - it references only
-    FEBuilderGBA.Core and FEBuilderGBA.SkiaSharp, both plain net9.0,
+    FEBuilderGBA.Core and FEBuilderGBA.SkiaSharp, both plain net10.0,
     which need no conditional multi-targeting.
 
     Font bootstrap: Tuffy-Regular.ttf ships as both a CopyToOutputDirectory
-    item (for the net9.0-android assembly extraction dir) and an
+    item (for the net10.0-android assembly extraction dir) and an
     AndroidAsset (for the APK assets/ tree). Instrumentation.OnCreate
     copies the asset into AppContext.BaseDirectory/Fonts/ before any test
     runs, so the hard-coded LoadTuffy() path in SkiaRenderByteParityTests
     resolves without modification to the shared test source.
   -->
   <PropertyGroup>
-    <TargetFramework>net9.0-android</TargetFramework>
+    <TargetFramework>net10.0-android</TargetFramework>
     <OutputType>Exe</OutputType>
     <SupportedOSPlatformVersion>21</SupportedOSPlatformVersion>
     <Nullable>enable</Nullable>
@@ -69,9 +69,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Core library (pure net9.0 - no EnableAndroidTarget needed) -->
+    <!-- Core library (pure net10.0 - no EnableAndroidTarget needed) -->
     <ProjectReference Include="..\FEBuilderGBA.Core\FEBuilderGBA.Core.csproj" />
-    <!-- SkiaSharp backend (net9.0 - provides SkiaImageService + SkiaFontRasterizer) -->
+    <!-- SkiaSharp backend (net10.0 - provides SkiaImageService + SkiaFontRasterizer) -->
     <ProjectReference Include="..\FEBuilderGBA.SkiaSharp\FEBuilderGBA.SkiaSharp.csproj" />
   </ItemGroup>
 

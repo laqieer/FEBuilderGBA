@@ -6,7 +6,7 @@
     .github/workflows/pages.yml.
 
     NOT part of FEBuilderGBA.sln: the required desktop `build` check builds the whole solution on
-    a windows-latest runner with NO wasm-tools workload, so including this net9.0-browser head in
+    a windows-latest runner with NO wasm-tools workload, so including this net10.0-browser head in
     the .sln would break unrelated PRs. Build it standalone:
 
         dotnet workload install wasm-tools
@@ -14,14 +14,14 @@
 
     -p:EnableBrowserTarget=true is REQUIRED as a GLOBAL property (mirrors android/iOS): NuGet
     restore's static graph ignores the per-reference AdditionalProperties below, so without it
-    restore writes a net9.0-only assets file for FEBuilderGBA.Avalonia and the build fails with
-    NETSDK1005 ("doesn't have a target for 'net9.0-browser'").
+    restore writes a net10.0-only assets file for FEBuilderGBA.Avalonia and the build fails with
+    NETSDK1005 ("doesn't have a target for 'net10.0-browser'").
 
     PREVIEW: build-validated + deploys + loads/renders the shell; full in-browser ROM-editing
     parity (threading-dependent caches, every file-flow) is a follow-up. See docs/WEBASSEMBLY.md.
   -->
   <PropertyGroup>
-    <TargetFramework>net9.0-browser</TargetFramework>
+    <TargetFramework>net10.0-browser</TargetFramework>
     <OutputType>Exe</OutputType>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -68,7 +68,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- The shared Avalonia UI. AdditionalProperties activates its net9.0-browser TFM for the
+    <!-- The shared Avalonia UI. AdditionalProperties activates its net10.0-browser TFM for the
          BUILD phase; restore ALSO needs the global -p:EnableBrowserTarget=true (see header). -->
     <ProjectReference Include="..\FEBuilderGBA.Avalonia\FEBuilderGBA.Avalonia.csproj" AdditionalProperties="EnableBrowserTarget=true" />
   </ItemGroup>

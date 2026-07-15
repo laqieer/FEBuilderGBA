@@ -30,13 +30,13 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
-        public void CsprojTargetsNet9()
+        public void CsprojTargetsNet10()
         {
             var csproj = Path.Combine(AvaloniaProjectDir, "FEBuilderGBA.Avalonia.csproj");
             var doc = XDocument.Load(csproj);
             var ns = doc.Root?.Name.Namespace ?? XNamespace.None;
             var tfm = doc.Descendants(ns + "TargetFramework").FirstOrDefault()?.Value;
-            Assert.Equal("net9.0", tfm);
+            Assert.Equal("net10.0", tfm);
         }
 
         [Fact]

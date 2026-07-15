@@ -106,10 +106,10 @@ jobs:
         # project restore). tool submodules are referenced transitively.
         run: git submodule update --init config/patch2 tools/Event-Assembler tools/ColorzCore resources/fe-info
 
-      - name: Setup .NET 9.0
+      - name: Setup .NET 10.0
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Cache NuGet packages
         uses: actions/cache@v4
@@ -134,7 +134,7 @@ jobs:
 
       - name: Build test APK
         # No -p:EnableAndroidTarget needed — the test project only references
-        # FEBuilderGBA.Core and FEBuilderGBA.SkiaSharp, both plain net9.0.
+        # FEBuilderGBA.Core and FEBuilderGBA.SkiaSharp, both plain net10.0.
         run: dotnet build FEBuilderGBA.Android.Tests/FEBuilderGBA.Android.Tests.csproj -c Release
 
       - name: Cache AVD snapshot
@@ -219,10 +219,10 @@ jobs:
         # Avalonia -> Core chain.
         run: git submodule update --init config/patch2 tools/Event-Assembler tools/ColorzCore resources/fe-info
 
-      - name: Setup .NET 9.0
+      - name: Setup .NET 10.0
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Cache NuGet packages
         uses: actions/cache@v4
@@ -248,7 +248,7 @@ jobs:
         # -p:EnableAndroidTarget=true is REQUIRED as a GLOBAL property (#1121):
         # a bare build fails restore with NETSDK1005 because NuGet restore's
         # static graph ignores the per-reference AdditionalProperties that
-        # activates the net9.0-android TFM on the shared FEBuilderGBA.Avalonia
+        # activates the net10.0-android TFM on the shared FEBuilderGBA.Avalonia
         # project. See docs/ANDROID.md §7.
         run: dotnet build FEBuilderGBA.Android/FEBuilderGBA.Android.csproj -c Release -p:EnableAndroidTarget=true
 

@@ -32,8 +32,8 @@ namespace FEBuilderGBA.Tests.Unit
     /// BIN, the GREP-located $FREEAREA, and the UNUSEDBIN/CLEAR entries. Info/name is cosmetic
     /// and not compared.</para>
     ///
-    /// <para>This test lives in <c>FEBuilderGBA.Tests</c> (net9.0-windows) because it calls
-    /// the WinForms <c>PatchForm</c>, which does not exist in the net9.0 Core assembly. It
+    /// <para>This test lives in <c>FEBuilderGBA.Tests</c> (net10.0-windows) because it calls
+    /// the WinForms <c>PatchForm</c>, which does not exist in the net10.0 Core assembly. It
     /// SKIPS (early-return = Pass) if the WF reflective hooks are unavailable, so it never
     /// breaks CI on a layout change. It mutates global <c>Program.ROM</c>/<c>CoreState.ROM</c>,
     /// so it is in the <c>SharedState</c> collection.</para>

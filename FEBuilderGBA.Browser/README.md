@@ -14,7 +14,7 @@ install. The live site is deployed to GitHub Pages by
 ## Why it is NOT in `FEBuilderGBA.sln`
 
 The required desktop `build` check builds the whole solution on a `windows-latest` runner with **no
-`wasm-tools` workload**. Adding this `net9.0-browser` head to `FEBuilderGBA.sln` would break the
+`wasm-tools` workload**. Adding this `net10.0-browser` head to `FEBuilderGBA.sln` would break the
 required check for every unrelated PR. It is therefore excluded and built standalone.
 
 ## Build & run locally
@@ -24,7 +24,7 @@ dotnet workload install wasm-tools          # one-time
 dotnet publish FEBuilderGBA.Browser/FEBuilderGBA.Browser.csproj -c Release \
   -p:EnableBrowserTarget=true -p:WasmEnableThreads=false -p:PublishTrimmed=false -p:CompressionEnabled=false
 # serve the AppBundle:
-dotnet serve -d FEBuilderGBA.Browser/bin/Release/net9.0-browser/publish/wwwroot   # or any static server
+dotnet serve -d FEBuilderGBA.Browser/bin/Release/net10.0-browser/publish/wwwroot   # or any static server
 ```
 
 `-p:EnableBrowserTarget=true` is **required** as a **global** property (NuGet restore's static graph

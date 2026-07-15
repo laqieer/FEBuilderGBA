@@ -3,10 +3,10 @@
 // Direct reflection-based on-device test runner for FEBuilderGBA.Android.Tests (#1125).
 //
 // WHY NO xUnit FILE-DISCOVERY:
-//   .NET 9 Android embeds managed assemblies as ELF-wrapped native libraries
+//   .NET 10 Android embeds managed assemblies as ELF-wrapped native libraries
 //   (lib/<abi>/lib_<Name>.dll.so) rather than as plain PE .dll zip entries.
 //   xUnit's XunitFrontController calls Guard.FileExists() which requires a real
-//   on-disk PE file; assembly.Location is empty on .NET 9 Android, so xUnit
+//   on-disk PE file; assembly.Location is empty on .NET 10 Android, so xUnit
 //   throws "File not found" before executing any test.
 //
 //   This runner sidesteps xUnit file-discovery entirely: it references the two

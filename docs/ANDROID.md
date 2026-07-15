@@ -35,10 +35,10 @@ FEBuilderGBA is split into layers with very different platform coupling:
 
 | Project | TFM | Android-capable? | Evidence |
 |---------|-----|------------------|----------|
-| `FEBuilderGBA.Core` | `net9.0` | **Yes** | `FEBuilderGBA.Core/FEBuilderGBA.Core.csproj:3` targets plain `net9.0`; no WinForms / `System.Drawing`. ROM engine, undo, LZ77, Huffman/text codec, etc. are portable. Image/font coupling is behind the `IImageService` / `IFontRasterizer` abstraction seams. |
-| `FEBuilderGBA.SkiaSharp` | `net9.0` | **Yes (with a native-version pin — see §3)** | `FEBuilderGBA.SkiaSharp/FEBuilderGBA.SkiaSharp.csproj:13` |
-| `FEBuilderGBA.Avalonia` | `net9.0`, opt-in `net9.0-android` (#1121) | **Yes — conditionally multi-targeted** | `FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj`: opts into `net9.0;net9.0-android` when `EnableAndroidTarget=true` (default OFF, so the desktop `.sln`/CI see `net9.0` only). On the android TFM `OutputType=Library`, `app.manifest` / `Avalonia.Desktop` / `Microsoft.CodeAnalysis.CSharp` / `Program.cs` / the `GapSweep` dev-tooling are all excluded. The Android head's `ProjectReference` activates the android TFM via `AdditionalProperties="EnableAndroidTarget=true"`. This resolves the prerequisite #1121. |
-| `FEBuilderGBA` (WinForms) | `net9.0-windows` | **No — must be excluded** | WinForms + P/Invoke + `System.Drawing`. Never reference it from an Android head. |
+| `FEBuilderGBA.Core` | `net10.0` | **Yes** | `FEBuilderGBA.Core/FEBuilderGBA.Core.csproj:3` targets plain `net10.0`; no WinForms / `System.Drawing`. ROM engine, undo, LZ77, Huffman/text codec, etc. are portable. Image/font coupling is behind the `IImageService` / `IFontRasterizer` abstraction seams. |
+| `FEBuilderGBA.SkiaSharp` | `net10.0` | **Yes (with a native-version pin — see §3)** | `FEBuilderGBA.SkiaSharp/FEBuilderGBA.SkiaSharp.csproj:13` |
+| `FEBuilderGBA.Avalonia` | `net10.0`, opt-in `net10.0-android` (#1121) | **Yes — conditionally multi-targeted** | `FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj`: opts into `net10.0;net10.0-android` when `EnableAndroidTarget=true` (default OFF, so the desktop `.sln`/CI see `net10.0` only). On the android TFM `OutputType=Library`, `app.manifest` / `Avalonia.Desktop` / `Microsoft.CodeAnalysis.CSharp` / `Program.cs` / the `GapSweep` dev-tooling are all excluded. The Android head's `ProjectReference` activates the android TFM via `AdditionalProperties="EnableAndroidTarget=true"`. This resolves the prerequisite #1121. |
+| `FEBuilderGBA` (WinForms) | `net10.0-windows` | **No — must be excluded** | WinForms + P/Invoke + `System.Drawing`. Never reference it from an Android head. |
 
 **The Android head must reference only `FEBuilderGBA.Avalonia`** (which transitively
 pulls in `Core` + `SkiaSharp`). The WinForms project is explicitly out of scope.
@@ -148,7 +148,7 @@ Avalonia process with a `TypeInitializationException` on non-Windows
 
 **Risk (mitigated — #1125):** the parity smoke test now EXISTS and is authored
 **cross-platform** so the SAME assertions run everywhere SkiaSharp does. It lives
-in the net9.0 cross-platform suite:
+in the net10.0 cross-platform suite:
 
 - `FEBuilderGBA.Core.Tests/SkiaSharpVersionGuardTests.cs` — three-layer pin guard:
   **(b1) declared** (every `SkiaSharp*` `<PackageReference>` across the repo's
@@ -169,12 +169,12 @@ advisory emulator CI workflow (`.github/workflows/android-emulator-parity.yml`)
 is **GREEN** (run 27528853303: `executed=5 passed=5 failed=0 skipped=2` on a
 booted API-34 x86_64 Android emulator):
 
-- **Test head:** `FEBuilderGBA.Android.Tests.csproj` (net9.0-android, NOT in the
+- **Test head:** `FEBuilderGBA.Android.Tests.csproj` (net10.0-android, NOT in the
   .sln) links (never copies) `SkiaRenderByteParityTests.cs`,
   `SkiaSharpVersionGuardTests.cs`, and `SkiaFontGoldens.cs` via `<Compile Link>`
   — single source of truth with the desktop suite. `TestInstrumentation` is an
   `[Instrumentation]`-attributed **direct reflection-based Android.App.Instrumentation
-  runner (NOT XHarness — xUnit discovery needs an on-disk `.dll`; .NET 9 Android
+  runner (NOT XHarness — xUnit discovery needs an on-disk `.dll`; .NET 10 Android
   embeds assemblies as `lib/<abi>/lib_*.dll.so` native libs with empty
   `Assembly.Location`; see csproj + Instrumentation.cs for rationale)**:
   it discovers and invokes `[Fact]`/`[SkippableFact]` methods via reflection,
@@ -408,7 +408,7 @@ This section is deliberately precise about **what built vs what is authored-only
 
 ### Prerequisites (general)
 
-- The **`net9.0-android` TFM** + the **`android` .NET workload**
+- The **`net10.0-android` TFM** + the **`android` .NET workload**
   (`dotnet workload install android`).
 - The **Android SDK** (platform + build-tools) with **accepted licenses**, and a
   suitable **JDK**. Microsoft's current .NET-for-Android guidance recommends
@@ -417,14 +417,16 @@ This section is deliberately precise about **what built vs what is authored-only
 
 ### What this environment had
 
-- `dotnet workload list` → **`android 35.0.78/9.0.100` is INSTALLED.**
-- Android SDK present at `C:\Program Files (x86)\Android\android-sdk`
-  (platforms `android-34` + `android-35`, build-tools `35.0.0`).
+- `dotnet workload list` → **`android 36.1.69/10.0.100` is INSTALLED.**
+- The machine-wide Android SDK at `C:\Program Files (x86)\Android\android-sdk`
+  contains the older `android-34` / `android-35` platforms. Local .NET 10
+  validation installed the required `android-36` platform and build-tools
+  `36.0.0` into the writable `%LOCALAPPDATA%\Android\Sdk` root.
 - JDK present: Microsoft OpenJDK 11.
 
 ### What actually built here
 
-- ✅ **A minimal standalone `net9.0-android` project builds end-to-end** —
+- ✅ **A minimal standalone `net10.0-android` project builds end-to-end** —
   `dotnet build` produced a managed `.dll` **and** packaged + signed `.apk`
   files (`*-Signed.apk`). This proves the workload + SDK + JDK toolchain is
   fully functional in this environment.
@@ -437,7 +439,7 @@ This section is deliberately precise about **what built vs what is authored-only
   the per-reference `AdditionalProperties`; the next bullet explains this.)
 - ✅ **The full FEBuilderGBA Android APK NOW builds (#1121).** The structural
   blocker below is resolved: `FEBuilderGBA.Avalonia` conditionally multi-targets
-  `net9.0;net9.0-android` (opt-in via `EnableAndroidTarget`), and the Android
+  `net10.0;net10.0-android` (opt-in via `EnableAndroidTarget`), and the Android
   head's `ProjectReference` carries `AdditionalProperties="EnableAndroidTarget=true"`.
   Build it with the property as a **global** flag:
   ```bash
@@ -445,14 +447,14 @@ This section is deliberately precise about **what built vs what is authored-only
   ```
   This produced both `com.laqieer.febuildergba.apk` and the signed
   `com.laqieer.febuildergba-Signed.apk` (~33 MB each) under
-  `bin/Release/net9.0-android/`, with `FEBuilderGBA.Avalonia.dll` compiled under
+  `bin/Release/net10.0-android/`, with `FEBuilderGBA.Avalonia.dll` compiled under
   the android TFM. **Why the global `-p:` is required:** the `AdditionalProperties`
   on the ProjectReference correctly drives the *build* phase, but NuGet *restore*
   uses a separate static graph that does **not** apply per-reference
   `AdditionalProperties` when resolving a referenced project's target frameworks
   — verified via an MSBuild probe (`-getProperty:TargetFrameworks` returns
-  `net9.0;net9.0-android` only when `EnableAndroidTarget=true` is set). Without
-  the global property, restore writes a net9.0-only `project.assets.json` for the
+  `net10.0;net10.0-android` only when `EnableAndroidTarget=true` is set). Without
+  the global property, restore writes a net10.0-only `project.assets.json` for the
   shared project and the build fails with `NETSDK1005`. On the android TFM the
   shared project excludes `Program.cs`, `Avalonia.Desktop`, `app.manifest`, the
   `GapSweep` Roslyn dev-tooling (`GapSweep/**` + `App.GapSweep.cs`) and the
@@ -467,8 +469,10 @@ Before #1121, once the build moved to per-RID packaging
 (`android-x64` / `android-arm64`) it failed with `NETSDK1047` (and, with an
 explicit RID, `NETSDK1112`) because the referenced **`FEBuilderGBA.Avalonia`
 project targeted plain `net9.0`** and therefore had no `net9.0-android` /
-android-bionic runtime-pack target for the RID resolver to consume. The
-conditional multi-target gives the resolver a real `net9.0-android` target.
+android-bionic runtime-pack target for the RID resolver to consume. At the
+time, #1121 introduced the corresponding `net9.0-android` target. Current
+builds use `net10.0` / `net10.0-android`; the conditional multi-target gives
+the resolver a real Android target.
 
 ### Honest conclusion
 
@@ -570,7 +574,7 @@ this workflow only produces the signed build.
 + `SkiaSharpVersionGuardTests` on an API-34 Android emulator for `x86_64`
 (the only CI-bootable ABI at API 34 — `x86` was dropped at API 31+) on every push/PR to master. The
 instrumented test head `FEBuilderGBA.Android.Tests/` uses a **direct reflection runner**
-(NOT XHarness — .NET 9 Android embeds assemblies as `.so` files; xUnit requires an on-disk DLL)
+(NOT XHarness — .NET 10 Android embeds assemblies as `.so` files; xUnit requires an on-disk DLL)
 and links the same test sources as `FEBuilderGBA.Core.Tests` — no duplication. Build
 it standalone:
 
@@ -627,7 +631,7 @@ linked under #1070 as its checklist:
 
 1. ~~**Android: multi-target `FEBuilderGBA.Avalonia` (or split a shared UI library)
    so the Android head can be packaged into an APK.**~~ **DONE (#1121)** — the
-   shared project conditionally multi-targets `net9.0;net9.0-android`; the head
+   shared project conditionally multi-targets `net10.0;net10.0-android`; the head
    builds a real APK (now emulator-boot-validated via #1640; the interactive ROM-editing flow remains preview). *(prerequisite —
    unblocked everything below; see §7.)*
 2. ~~**Android: single-activity navigation model for the multi-window editors**
@@ -660,7 +664,7 @@ linked under #1070 as its checklist:
    GREEN on `x86_64` (the runner-bootable ABI at API 34; `x86` dropped at API
    31+). The reflection-runner instrumented head (`FEBuilderGBA.Android.Tests/`)
    links the same `SkiaRenderByteParityTests` + `SkiaSharpVersionGuardTests`
-   as the desktop suite (direct reflection runner, NOT XHarness — .NET 9
+   as the desktop suite (direct reflection runner, NOT XHarness — .NET 10
    Android embeds assemblies as `.so` files; xUnit's `Guard.FileExists` needs
    an on-disk DLL). `arm64-v8a`, `armeabi-v7a`, and `x86` ship in the same
    `SkiaSharp.NativeAssets.Android 2.88.9` package (same package version /

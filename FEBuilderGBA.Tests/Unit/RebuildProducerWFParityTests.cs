@@ -14,8 +14,8 @@ namespace FEBuilderGBA.Tests.Unit
     /// Proves the Core producer (<see cref="RebuildProducerCore.MakeAllStructPointers"/> +
     /// <see cref="RebuildProducerCore.AppendAllAsmStructPointers"/>) is byte-faithful to the WinForms
     /// producer (<c>U.MakeAllStructPointersList</c> + <c>U.AppendAllASMStructPointersList</c>) for every
-    /// form Core has ported. This test MUST live in <c>FEBuilderGBA.Tests</c> (net9.0-windows) because it
-    /// calls the WinForms <c>U</c> producer, which does not exist in the net9.0 Core assembly.
+    /// form Core has ported. This test MUST live in <c>FEBuilderGBA.Tests</c> (net10.0-windows) because it
+    /// calls the WinForms <c>U</c> producer, which does not exist in the net10.0 Core assembly.
     /// </para>
     /// <para>
     /// <b>Comparison model.</b> WinForms runs every form (including the deferred ones — PatchForm and the

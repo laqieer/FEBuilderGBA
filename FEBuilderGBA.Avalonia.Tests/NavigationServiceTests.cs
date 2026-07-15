@@ -87,7 +87,7 @@ public class NavigationServiceReflectionTests
     [Fact]
     public void Default_service_on_desktop_is_DesktopNavigationService()
     {
-        // The tests run on a desktop TFM (net9.0, non-Android), so the service
+        // The tests run on a desktop TFM (net10.0, non-Android), so the service
         // WindowManager's factory chooses must be the behavior-identical
         // window-based desktop impl.
         Assert.False(OperatingSystem.IsAndroid());

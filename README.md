@@ -24,16 +24,16 @@ README
 
 | Project | Target | Description |
 |---------|--------|-------------|
-| `FEBuilderGBA.Core` | net9.0 | Cross-platform core library: ROM manipulation, undo, LZ77, Huffman/text encoding, patch detection, translation, caching, git/archive, event ASM/disassembler, struct export, and ~100 other per-class seams. See [docs/CORE-SEAMS.md](docs/CORE-SEAMS.md) for the full catalog. |
-| `FEBuilderGBA` | net9.0-windows | WinForms GUI application — **stable; bug fixes only** (see [GUI strategy](docs/GUI-STRATEGY.md)) |
-| `FEBuilderGBA.CLI` | net9.0 | Cross-platform command-line tool (70 commands<sup>[†](#cli-command-count)</sup> — UPS/patch, lint, rebuild, buildfile export/build/round-trip, disasm, translate, struct/data export-import, portrait/MIDI/battle-anime/palette, decomp project mode, and more). Full reference: [docs/cli-reference.md](docs/cli-reference.md) · arg table: [docs/cli-args.md](docs/cli-args.md). |
-| `FEBuilderGBA.SkiaSharp` | net9.0 | SkiaSharp `IImageService` (GBA 4bpp/8bpp tiles, palette conversion) + `SkiaFontRasterizer` (cross-platform GDI-parity glyph rendering for translation-font auto-generation). |
-| `FEBuilderGBA.Avalonia` | net9.0 | Cross-platform Avalonia GUI: 324 editors (unit/item/class/map/event/AI/text/audio/graphics/portrait/world-map/support/arena/monster/summon/menu/credits) with read/write + undo, image PNG import, hex editor, pointer/free-space tools, cross-editor jump/pick navigation, decomp-project mode, and Help → Check for Updates to open the latest release when a newer build exists. Full editor inventory: [docs/avalonia-forms.md](docs/avalonia-forms.md) · gap analysis: [docs/avalonia-gap-analysis.md](docs/avalonia-gap-analysis.md). |
-| `FEBuilderGBA.Tests` | net9.0-windows | WinForms unit and integration tests |
-| `FEBuilderGBA.Core.Tests` | net9.0 | Cross-platform Core unit tests (Linux/macOS/Windows), including the SkiaSharp native-version guard and render byte-parity smoke tests. |
-| `FEBuilderGBA.Avalonia.Tests` | net9.0 | Avalonia GUI / ViewModel unit tests (data verification, navigation, field completeness). |
-| `FEBuilderGBA.Android.Tests` | net9.0-android | On-device instrumentation head: reflection-runs the SkiaSharp byte-parity / version-guard suites on an Android emulator (not run by `dotnet test`). |
-| `FEBuilderGBA.E2ETests` | net9.0-windows | End-to-end GUI/CLI tests |
+| `FEBuilderGBA.Core` | net10.0 | Cross-platform core library: ROM manipulation, undo, LZ77, Huffman/text encoding, patch detection, translation, caching, git/archive, event ASM/disassembler, struct export, and ~100 other per-class seams. See [docs/CORE-SEAMS.md](docs/CORE-SEAMS.md) for the full catalog. |
+| `FEBuilderGBA` | net10.0-windows | WinForms GUI application — **stable; bug fixes only** (see [GUI strategy](docs/GUI-STRATEGY.md)) |
+| `FEBuilderGBA.CLI` | net10.0 | Cross-platform command-line tool (70 commands<sup>[†](#cli-command-count)</sup> — UPS/patch, lint, rebuild, buildfile export/build/round-trip, disasm, translate, struct/data export-import, portrait/MIDI/battle-anime/palette, decomp project mode, and more). Full reference: [docs/cli-reference.md](docs/cli-reference.md) · arg table: [docs/cli-args.md](docs/cli-args.md). |
+| `FEBuilderGBA.SkiaSharp` | net10.0 | SkiaSharp `IImageService` (GBA 4bpp/8bpp tiles, palette conversion) + `SkiaFontRasterizer` (cross-platform GDI-parity glyph rendering for translation-font auto-generation). |
+| `FEBuilderGBA.Avalonia` | net10.0 | Cross-platform Avalonia GUI: 324 editors (unit/item/class/map/event/AI/text/audio/graphics/portrait/world-map/support/arena/monster/summon/menu/credits) with read/write + undo, image PNG import, hex editor, pointer/free-space tools, cross-editor jump/pick navigation, decomp-project mode, and Help → Check for Updates to open the latest release when a newer build exists. Full editor inventory: [docs/avalonia-forms.md](docs/avalonia-forms.md) · gap analysis: [docs/avalonia-gap-analysis.md](docs/avalonia-gap-analysis.md). |
+| `FEBuilderGBA.Tests` | net10.0-windows | WinForms unit and integration tests |
+| `FEBuilderGBA.Core.Tests` | net10.0 | Cross-platform Core unit tests (Linux/macOS/Windows), including the SkiaSharp native-version guard and render byte-parity smoke tests. |
+| `FEBuilderGBA.Avalonia.Tests` | net10.0 | Avalonia GUI / ViewModel unit tests (data verification, navigation, field completeness). |
+| `FEBuilderGBA.Android.Tests` | net10.0-android | On-device instrumentation head: reflection-runs the SkiaSharp byte-parity / version-guard suites on an Android emulator (not run by `dotnet test`). |
+| `FEBuilderGBA.E2ETests` | net10.0-windows | End-to-end GUI/CLI tests |
 
 <a id="cli-command-count">†</a> **CLI command count = 70**: distinct top-level command branches in the `FEBuilderGBA.CLI/Program.cs` dispatch table, collapsing the two documented aliases (`--help`/`-h`, `--test`/`--testonly`); `--project` and `--resolve-addr` are counted as separate user-facing commands. The canonical full list is [docs/cli-reference.md](docs/cli-reference.md).
 
@@ -91,7 +91,7 @@ On first run, or whenever `config/patch2`, `resources/FE-Repo`, or `resources/FE
 
 ### Cross-Platform Build (Linux / macOS / Windows)
 
-The Core library, CLI, SkiaSharp backend, and Avalonia GUI scaffold all target `net9.0` and build on any platform:
+The Core library, CLI, SkiaSharp backend, and Avalonia GUI scaffold all target `net10.0` and build on any platform:
 
 ```bash
 # Build Core library
@@ -409,13 +409,13 @@ FEBuilderGBA runs in a **browser** with no install, via **WebAssembly** — trac
 
 > 🌐 **Try it: <https://laqieer.github.io/FEBuilderGBA/>** (deployed by [`.github/workflows/pages.yml`](.github/workflows/pages.yml) to GitHub Pages).
 
-The `FEBuilderGBA.Browser` head builds the shared Avalonia GUI into a `net9.0-browser` wasm AppBundle, reusing the *same* single-view shell + `App.BaseDirectoryOverride` config seam as the mobile heads. It links `SkiaSharp.NativeAssets.WebAssembly` 2.88.9 + `HarfBuzzSharp.NativeAssets.WebAssembly` 7.3.0.3 (both wasm natives) + `Avalonia.Fonts.Inter` (wasm has no system fonts). `config/**` (excl. `patch2`) is zipped into `wwwroot/config.zip`, fetched over HTTP and extracted into the browser's in-memory filesystem on first run via the pure `FEBuilderGBA.Core/ZipAssetSource`. Runs **single-threaded** (GitHub Pages sends no COOP/COEP headers → no `SharedArrayBuffer`) and **untrimmed** (reflection-heavy Core). The single-view launcher exposes the **full editor catalog** — the shared `FEBuilderGBA.Avalonia/Services/EditorCatalog` mirrors the desktop's ~223 editors across 28 categories (version-gated to the loaded ROM), rendered as filterable category expanders ([#1891](https://github.com/laqieer/FEBuilderGBA/issues/1891)). The milestone is **builds + deploys + loads/renders the shell**; full in-browser ROM-editing parity (threading-dependent caches, every file-flow) is a follow-up. See [docs/WEBASSEMBLY.md](docs/WEBASSEMBLY.md) and the head at [`FEBuilderGBA.Browser/`](FEBuilderGBA.Browser/README.md).
+The `FEBuilderGBA.Browser` head builds the shared Avalonia GUI into a `net10.0-browser` wasm AppBundle, reusing the *same* single-view shell + `App.BaseDirectoryOverride` config seam as the mobile heads. It links `SkiaSharp.NativeAssets.WebAssembly` 2.88.9 + `HarfBuzzSharp.NativeAssets.WebAssembly` 7.3.0.3 (both wasm natives) + `Avalonia.Fonts.Inter` (wasm has no system fonts). `config/**` (excl. `patch2`) is zipped into `wwwroot/config.zip`, fetched over HTTP and extracted into the browser's in-memory filesystem on first run via the pure `FEBuilderGBA.Core/ZipAssetSource`. Runs **single-threaded** (GitHub Pages sends no COOP/COEP headers → no `SharedArrayBuffer`) and **untrimmed** (reflection-heavy Core). The single-view launcher exposes the **full editor catalog** — the shared `FEBuilderGBA.Avalonia/Services/EditorCatalog` mirrors the desktop's ~223 editors across 28 categories (version-gated to the loaded ROM), rendered as filterable category expanders ([#1891](https://github.com/laqieer/FEBuilderGBA/issues/1891)). The milestone is **builds + deploys + loads/renders the shell**; full in-browser ROM-editing parity (threading-dependent caches, every file-flow) is a follow-up. See [docs/WEBASSEMBLY.md](docs/WEBASSEMBLY.md) and the head at [`FEBuilderGBA.Browser/`](FEBuilderGBA.Browser/README.md).
 
 ### Architecture Diagram
 
 ```
 FEBuilderGBA.sln
-├── FEBuilderGBA.Core/           net9.0    (cross-platform core)
+├── FEBuilderGBA.Core/           net10.0    (cross-platform core)
 │   ├── IAppServices.cs                     Platform abstraction
 │   ├── IImageService.cs                    Image service abstraction
 │   ├── Rom.cs / ROMFE*.cs                  ROM manipulation
@@ -429,15 +429,15 @@ FEBuilderGBA.sln
 │   ├── NameResolver.cs                    Entity name resolution with caching
 │   ├── SongNameResolverCore.cs            Song name resolution (Sound Room name + SE-list fallback)
 │   └── WriteValidator.cs                  ROM write validation utilities
-├── FEBuilderGBA.CLI/            net9.0    (cross-platform CLI — 70 commands)
-├── FEBuilderGBA.SkiaSharp/      net9.0    (image backend)
-├── FEBuilderGBA.Avalonia/       net9.0    (cross-platform GUI — 324 editors, with ambient undo, dirty tracking, data export/import, full Options dialog with 20+ external tool paths)
-├── FEBuilderGBA/                net9.0-windows (WinForms GUI)
-├── FEBuilderGBA.Tests/          net9.0-windows (WinForms unit tests)
-├── FEBuilderGBA.Core.Tests/     net9.0    (cross-platform Core tests)
-├── FEBuilderGBA.Avalonia.Tests/ net9.0    (Avalonia GUI / ViewModel tests)
-├── FEBuilderGBA.Android.Tests/  net9.0-android (on-device reflection-runner parity/version-guard head)
-└── FEBuilderGBA.E2ETests/       net9.0-windows (E2E tests)
+├── FEBuilderGBA.CLI/            net10.0    (cross-platform CLI — 70 commands)
+├── FEBuilderGBA.SkiaSharp/      net10.0    (image backend)
+├── FEBuilderGBA.Avalonia/       net10.0    (cross-platform GUI — 324 editors, with ambient undo, dirty tracking, data export/import, full Options dialog with 20+ external tool paths)
+├── FEBuilderGBA/                net10.0-windows (WinForms GUI)
+├── FEBuilderGBA.Tests/          net10.0-windows (WinForms unit tests)
+├── FEBuilderGBA.Core.Tests/     net10.0    (cross-platform Core tests)
+├── FEBuilderGBA.Avalonia.Tests/ net10.0    (Avalonia GUI / ViewModel tests)
+├── FEBuilderGBA.Android.Tests/  net10.0-android (on-device reflection-runner parity/version-guard head)
+└── FEBuilderGBA.E2ETests/       net10.0-windows (E2E tests)
 ```
 
 ## Testing & Coverage
@@ -531,7 +531,7 @@ All 361 Avalonia `.axaml` files (360 views + 1 dialog) have `AutomationPropertie
 
 ```bash
 # Build the main application (Release, x86)
-msbuild FEBuilderGBA.sln /p:Configuration=Release /p:Platform=x86 /t:build /restore
+dotnet msbuild FEBuilderGBA.sln /p:Configuration=Release /p:Platform=x86 /t:build /restore
 
 # Run without ROMs — 13 passed, 32 skipped (fast, ~20 s)
 ROMS_DIR="" dotnet test FEBuilderGBA.E2ETests/FEBuilderGBA.E2ETests.csproj -c Release --no-build

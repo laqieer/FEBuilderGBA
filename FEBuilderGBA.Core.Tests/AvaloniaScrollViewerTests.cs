@@ -14,7 +14,7 @@ namespace FEBuilderGBA.Core.Tests
     {
         private static string GetViewsDirectory()
         {
-            // Walk up from bin/Debug/net9.0 to find the repo root
+            // Walk up from bin/Debug/net10.0 to find the repo root
             var dir = AppContext.BaseDirectory;
             for (int i = 0; i < 10; i++)
             {

@@ -722,7 +722,7 @@ def find_febuildergba_cli() -> list[str]:
     # Check for published apphost or DLL.
     for config in ["Release", "Debug"]:
         for rid in ["win-x64", "linux-x64", "osx-arm64"]:
-            exe_path = pkg_dir / "FEBuilderGBA.CLI" / "bin" / config / "net9.0" / rid / "publish"
+            exe_path = pkg_dir / "FEBuilderGBA.CLI" / "bin" / config / "net10.0" / rid / "publish"
             for name in ["FEBuilderGBA.CLI.exe", "FEBuilderGBA.CLI"]:
                 candidate = exe_path / name
                 if candidate.is_file():
@@ -735,7 +735,7 @@ def find_febuildergba_cli() -> list[str]:
 
     # Check for build apphost or DLL (not published).
     for config in ["Release", "Debug"]:
-        for arch in ["net9.0", "net9.0-windows"]:
+        for arch in ["net10.0", "net10.0-windows"]:
             exe_dir = pkg_dir / "FEBuilderGBA.CLI" / "bin" / config / arch
             for name in ["FEBuilderGBA.CLI.exe", "FEBuilderGBA.CLI"]:
                 candidate = exe_dir / name
@@ -805,7 +805,7 @@ def run_cli(args: list[str], capture: bool = True,
             " ".join(cmd), cmd)
         raise RuntimeError(
             f"Failed to run: {command}\n"
-            "Is .NET 9.0 SDK installed? https://dotnet.microsoft.com/download"
+            "Is .NET 10.0 SDK installed? https://dotnet.microsoft.com/download"
         )
     except subprocess.TimeoutExpired:
         command = _redact_registered_snapshot_paths(

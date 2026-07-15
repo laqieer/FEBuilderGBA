@@ -25,7 +25,7 @@ internal sealed partial class Program
         // #1867: boot the shared Avalonia app under the browser single-view lifetime. The site
         // originally hung on the loading splash because Avalonia's runtime 404'd on avalonia.js — which
         // turned out to be a symptom of an INCOMPLETE wasm build, not an Avalonia bug. Without
-        // WasmBuildNative=true (+ the wasm-tools-net9 workload) the SkiaSharp/HarfBuzz natives were
+        // WasmBuildNative=true (+ the WebAssembly workload) the SkiaSharp/HarfBuzz natives were
         // never linked into dotnet.native.wasm (so the first Skia call crashed) AND Avalonia's JS
         // modules were misplaced at the wwwroot root instead of _framework/. A proper native build
         // (see FEBuilderGBA.Browser.csproj + pages.yml) puts avalonia.js / storage.js in _framework/

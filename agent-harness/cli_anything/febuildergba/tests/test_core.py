@@ -286,13 +286,14 @@ class TestBackend:
             with pytest.raises(RuntimeError, match="prebuilt.*dotnet run fallback is disabled"):
                 backend.find_febuildergba_cli()
 
+    @pytest.mark.parametrize("configuration", ["Release", "Debug"])
     def test_resolver_accepts_prebuilt_dll(
-            self, tmp_path, monkeypatch):
+            self, tmp_path, monkeypatch, configuration):
         from cli_anything.febuildergba.utils import febuildergba_backend as backend
 
         root = _configure_temporary_backend_root(tmp_path, monkeypatch, backend)
         dll = (
-            root / "FEBuilderGBA.CLI" / "bin" / "Release" / "net9.0"
+            root / "FEBuilderGBA.CLI" / "bin" / configuration / "net10.0"
             / "FEBuilderGBA.CLI.dll"
         )
         dll.parent.mkdir(parents=True)
@@ -301,6 +302,49 @@ class TestBackend:
 
         with backend.prebuilt_backend_only():
             assert backend.find_febuildergba_cli() == ["dotnet-host", str(dll)]
+
+    @pytest.mark.parametrize(
+        ("configuration", "rid", "apphost"),
+        [
+            ("Release", "win-x64", "FEBuilderGBA.CLI.exe"),
+            ("Debug", "linux-x64", "FEBuilderGBA.CLI"),
+        ],
+    )
+    def test_resolver_accepts_published_apphost(
+            self, tmp_path, monkeypatch, configuration, rid, apphost):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        root = _configure_temporary_backend_root(tmp_path, monkeypatch, backend)
+        executable = (
+            root / "FEBuilderGBA.CLI" / "bin" / configuration / "net10.0"
+            / rid / "publish" / apphost
+        )
+        executable.parent.mkdir(parents=True)
+        executable.write_bytes(b"published apphost placeholder")
+
+        with backend.prebuilt_backend_only():
+            assert backend.find_febuildergba_cli() == [str(executable)]
+
+    def test_resolver_ignores_previous_tfm_backend(
+            self, tmp_path, monkeypatch):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        root = _configure_temporary_backend_root(tmp_path, monkeypatch, backend)
+        stale = (
+            root / "FEBuilderGBA.CLI" / "bin" / "Release" / ("net" + "9.0")
+            / "FEBuilderGBA.CLI.exe"
+        )
+        current = (
+            root / "FEBuilderGBA.CLI" / "bin" / "Debug" / "net10.0"
+            / "FEBuilderGBA.CLI.exe"
+        )
+        stale.parent.mkdir(parents=True)
+        stale.write_bytes(b"stale apphost placeholder")
+        current.parent.mkdir(parents=True)
+        current.write_bytes(b"current apphost placeholder")
+
+        with backend.prebuilt_backend_only():
+            assert backend.find_febuildergba_cli() == [str(current)]
 
     def test_prebuilt_backend_only_context_is_nested_and_resets(self):
         from cli_anything.febuildergba.utils import febuildergba_backend as backend

@@ -12,9 +12,9 @@
 #   pwsh ./scripts/make-screenshots.ps1 -Rom roms/FE8U.gba -RomTag FE8U
 #
 # Non-Windows note: The WinForms `--screenshot-all` runner targets
-# `net9.0-windows`. On non-Windows hosts the WinForms step is skipped with a
+# `net10.0-windows`. On non-Windows hosts the WinForms step is skipped with a
 # warning and the gallery is generated against the Avalonia captures only. The
-# Avalonia runner is cross-platform (net9.0) so the AV-only path still works.
+# Avalonia runner is cross-platform (net10.0) so the AV-only path still works.
 
 [CmdletBinding()]
 param(
@@ -83,12 +83,12 @@ New-Item -ItemType Directory -Path $wfDir -Force | Out-Null
 New-Item -ItemType Directory -Path $avDir -Force | Out-Null
 
 # ---------------------------------------------------------------------------
-# Step 1: WinForms --screenshot-all (Windows only; the project targets net9.0-windows)
+# Step 1: WinForms --screenshot-all (Windows only; the project targets net10.0-windows)
 # ---------------------------------------------------------------------------
 $IsWindowsHost = $IsWindows -or ($env:OS -eq "Windows_NT")
 $wfSkipped = $false
 if (-not $IsWindowsHost) {
-    Write-Warning "Non-Windows host detected — skipping WinForms --screenshot-all (net9.0-windows target). The gallery will surface AV-only captures."
+    Write-Warning "Non-Windows host detected — skipping WinForms --screenshot-all (net10.0-windows target). The gallery will surface AV-only captures."
     $wfSkipped = $true
 }
 else {
@@ -100,10 +100,8 @@ else {
         | Join-Path -ChildPath $Configuration | Join-Path -ChildPath "FEBuilderGBA.exe"
     if (-not (Test-Path $wfExe)) {
         Write-Warning "WinForms binary not found at $wfExe — building first..."
-        # We avoid `dotnet build` for the WinForms project here because the
-        # project targets net9.0-windows and may need msbuild on Windows for
-        # the WinForms designer. `dotnet build` works fine in practice; if it
-        # fails the user gets a clear message.
+        # The .NET 10 SDK provides the required WindowsDesktop build targets;
+        # if the build fails the user gets a clear message.
         & dotnet build (Join-Path $repoRoot "FEBuilderGBA" | Join-Path -ChildPath "FEBuilderGBA.csproj") `
             -c $Configuration | Out-Host
         if ($LASTEXITCODE -ne 0) {

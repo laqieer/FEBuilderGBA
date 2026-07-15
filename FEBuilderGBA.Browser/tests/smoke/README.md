@@ -39,17 +39,15 @@ the FE8U metadata and for the embeddable Move Cost Editor to render.
 ## Run it locally
 
 ```bash
-# 1) Publish the wasm AppBundle. Needs the wasm-tools workload. NOTE: on a .NET 9 SDK, `wasm-tools`
-#    already IS the net9 native toolchain; on a NEWER (10.x) SDK band you must ALSO install
-#    `wasm-tools-net9`, or the WasmBuildNative native relink fails with NETSDK1147 (CI installs both).
-dotnet workload install wasm-tools   # + wasm-tools-net9 if your default SDK is a 10.x band
+# 1) Publish the wasm AppBundle. Needs the .NET 10 wasm-tools workload.
+dotnet workload install wasm-tools
 dotnet publish FEBuilderGBA.Browser/FEBuilderGBA.Browser.csproj -c Release -p:EnableBrowserTarget=true
 
 # 2) Run the smoke test against the publish output
 cd FEBuilderGBA.Browser/tests/smoke
 npm ci
 npx playwright install --with-deps chromium
-SMOKE_WWWROOT="$(git rev-parse --show-toplevel)/FEBuilderGBA.Browser/bin/Release/net9.0-browser/publish/wwwroot" \
+SMOKE_WWWROOT="$(git rev-parse --show-toplevel)/FEBuilderGBA.Browser/bin/Release/net10.0-browser/publish/wwwroot" \
 SMOKE_BASE_PATH="/FEBuilderGBA/" \
 node smoke.mjs
 ```
@@ -61,7 +59,7 @@ dotnet publish FEBuilderGBA.Browser/FEBuilderGBA.Browser.csproj -c Release \
   -p:EnableBrowserTarget=true -p:E2E_HOOKS=true
 
 cd FEBuilderGBA.Browser/tests/smoke
-SMOKE_WWWROOT="$(git rev-parse --show-toplevel)/FEBuilderGBA.Browser/bin/Release/net9.0-browser/publish/wwwroot" \
+SMOKE_WWWROOT="$(git rev-parse --show-toplevel)/FEBuilderGBA.Browser/bin/Release/net10.0-browser/publish/wwwroot" \
 SMOKE_BASE_PATH="/FEBuilderGBA/" \
 SMOKE_ROM=synthetic \
 SMOKE_SCREENSHOT="web-editor-nav-smoke.png" \

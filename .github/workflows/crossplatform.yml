@@ -24,10 +24,10 @@ jobs:
     - name: Init build-required submodules
       run: git submodule update --init config/patch2 tools/Event-Assembler tools/ColorzCore resources/fe-info
 
-    - name: Setup .NET 9.0
+    - name: Setup .NET 10.0
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '9.0.x'
+        dotnet-version: '10.0.x'
 
     - name: Build ColorzCore (bundled EA tool)
       run: dotnet build tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release
@@ -108,7 +108,7 @@ jobs:
     permissions:
       contents: read
     env:
-      FEBUILDERGBA_CLI_EXE: ${{ github.workspace }}/FEBuilderGBA.CLI/bin/Release/net9.0/FEBuilderGBA.CLI
+      FEBUILDERGBA_CLI_EXE: ${{ github.workspace }}/FEBuilderGBA.CLI/bin/Release/net10.0/FEBuilderGBA.CLI
 
     steps:
     - name: Checkout
@@ -117,10 +117,10 @@ jobs:
     - name: Init CLI runtime submodule
       run: git submodule update --init config/patch2
 
-    - name: Setup .NET 9.0
+    - name: Setup .NET 10.0
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '9.0.x'
+        dotnet-version: '10.0.x'
 
     - name: Build CLI
       run: dotnet build FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj -c Release
@@ -174,10 +174,10 @@ jobs:
     - name: Init build-required submodules
       run: git submodule update --init config/patch2 tools/Event-Assembler tools/ColorzCore resources/fe-info
 
-    - name: Setup .NET 9.0
+    - name: Setup .NET 10.0
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '9.0.x'
+        dotnet-version: '10.0.x'
 
     - name: Publish ColorzCore (self-contained per-RID)
       run: dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release -r ${{ matrix.rid }} --self-contained true -o publish/tools-${{ matrix.rid }}

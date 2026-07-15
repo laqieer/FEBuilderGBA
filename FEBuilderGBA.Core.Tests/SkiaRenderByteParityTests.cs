@@ -3,7 +3,7 @@
 // SkiaSharp render byte-parity smoke test (#1125).
 //
 // These assertions are authored CROSS-PLATFORM (they live in
-// FEBuilderGBA.Core.Tests, the net9.0 suite that runs on Linux/macOS/Windows
+// FEBuilderGBA.Core.Tests, the net10.0 suite that runs on Linux/macOS/Windows
 // and conceptually on Android) so that #1126's Android emulator / instrumented
 // CI can run the SAME assertions on EACH of the 4 Android ABIs — arm64-v8a,
 // armeabi-v7a, x86, x86_64 — to prove the pinned 2.88.x native libSkiaSharp

@@ -53,24 +53,29 @@ env:
 jobs:
   ios-build:
     name: iOS app (advisory)
-    # macos-26 ships Xcode 26.5 as the default — required by the current .NET for iOS
-    # workload (26.5.9002). `macos-latest` can still resolve to macos-15 / Xcode 16.4,
-    # which that workload rejects ("requires Xcode 26.5"). Pin explicitly. (#1859)
+    # macos-26 defaults to Xcode 26.5, while the current .NET for iOS workload
+    # (26.5.10301) requires the preinstalled Xcode 26.6. Pin the runner and select
+    # that toolchain explicitly before installing the workload. (#1859)
     runs-on: macos-26
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Select Xcode 26.6
+        run: |
+          sudo xcode-select --switch /Applications/Xcode_26.6.app/Contents/Developer
+          xcodebuild -version
+
       # No submodule init needed: config/** (data/translate/etc.) are regular tracked files
       # already in the checkout, and the BundleResource glob EXCLUDES config/patch2 (a large
       # git-delivered submodule that is NOT bundled — see docs/IOS.md). Core/Avalonia/SkiaSharp
       # have no build-time submodule dependency.
 
-      - name: Setup .NET 9.0
+      - name: Setup .NET 10.0
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Cache NuGet packages
         uses: actions/cache@v4
@@ -81,7 +86,7 @@ jobs:
             nuget-ios-${{ runner.os }}-
 
       - name: Install ios workload
-        # Installs the net9.0-ios TFM toolchain. macos-latest ships Xcode, which the workload
+        # Installs the net10.0-ios TFM toolchain. macos-26 ships Xcode, which the workload
         # build consumes for the native link/package step.
         run: dotnet workload install ios
 
@@ -182,7 +187,7 @@ jobs:
         id: locate
         run: |
           set -euo pipefail
-          SEARCH_ROOT="FEBuilderGBA.iOS/bin/${{ env.BUILD_CONFIGURATION }}/net9.0-ios/ios-arm64"
+          SEARCH_ROOT="FEBuilderGBA.iOS/bin/${{ env.BUILD_CONFIGURATION }}/net10.0-ios/ios-arm64"
           app=$(find "$SEARCH_ROOT" -name '*.app' -type d | head -n 1)
           if [ -z "$app" ]; then
             echo "::error::No .app bundle found under $SEARCH_ROOT"
@@ -198,13 +203,13 @@ jobs:
           # real config content (not an empty dir) was bundled.
           test -f "$app/config/data/6c_name_FE8.txt" || { echo "::error::tracked config content (config/data/6c_name_FE8.txt) missing from bundle — LogicalName flattened or config not bundled"; exit 1; }
           echo "Bundled config/ tree OK. Sample:"
-          find "$app/config" -type f | head -n 20
+          find "$app/config" -type f | sed -n '1,20p'
           echo "Bundled LICENSE present:"; test -f "$app/LICENSE" && echo yes || echo "no (warn)"
 
       - name: Package unsigned .ipa (if SDK did not emit one)
         run: |
           set -euo pipefail
-          SEARCH_ROOT="FEBuilderGBA.iOS/bin/${{ env.BUILD_CONFIGURATION }}/net9.0-ios/ios-arm64"
+          SEARCH_ROOT="FEBuilderGBA.iOS/bin/${{ env.BUILD_CONFIGURATION }}/net10.0-ios/ios-arm64"
           ipa=$(find "$SEARCH_ROOT" -name '*.ipa' | head -n 1 || true)
           if [ -z "$ipa" ]; then
             app="${{ steps.locate.outputs.app }}"

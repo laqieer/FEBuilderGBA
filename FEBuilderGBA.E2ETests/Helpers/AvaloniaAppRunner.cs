@@ -34,10 +34,10 @@ namespace FEBuilderGBA.E2ETests.Helpers
                 {
                     string[] candidates =
                     {
-                        Path.Combine(dir, "FEBuilderGBA.Avalonia", "bin", "Release", "net9.0", "FEBuilderGBA.Avalonia.exe"),
-                        Path.Combine(dir, "FEBuilderGBA.Avalonia", "bin", "Debug",   "net9.0", "FEBuilderGBA.Avalonia.exe"),
-                        Path.Combine(dir, "FEBuilderGBA.Avalonia", "bin", "Release", "net9.0", "win-x64", "FEBuilderGBA.Avalonia.exe"),
-                        Path.Combine(dir, "FEBuilderGBA.Avalonia", "bin", "Debug",   "net9.0", "win-x64", "FEBuilderGBA.Avalonia.exe"),
+                        Path.Combine(dir, "FEBuilderGBA.Avalonia", "bin", "Release", "net10.0", "FEBuilderGBA.Avalonia.exe"),
+                        Path.Combine(dir, "FEBuilderGBA.Avalonia", "bin", "Debug",   "net10.0", "FEBuilderGBA.Avalonia.exe"),
+                        Path.Combine(dir, "FEBuilderGBA.Avalonia", "bin", "Release", "net10.0", "win-x64", "FEBuilderGBA.Avalonia.exe"),
+                        Path.Combine(dir, "FEBuilderGBA.Avalonia", "bin", "Debug",   "net10.0", "win-x64", "FEBuilderGBA.Avalonia.exe"),
                     };
 
                     string? newest = null;

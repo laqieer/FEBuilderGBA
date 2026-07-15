@@ -5,7 +5,7 @@ CLI harness for **FEBuilderGBA** — Fire Emblem GBA ROM hacking suite.
 ## Prerequisites
 
 - **Python 3.10+**
-- **.NET 9.0 SDK** — [Download](https://dotnet.microsoft.com/download/dotnet/9.0)
+- **.NET 10.0 SDK** — [Download](https://dotnet.microsoft.com/download/dotnet/10.0)
 - **FEBuilderGBA source** — The CLI is built from the repo's `FEBuilderGBA.CLI` project
 
 ## Installation

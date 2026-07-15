@@ -134,8 +134,8 @@ namespace FEBuilderGBA.E2ETests.Helpers
                 {
                     string[] candidates =
                     {
-                        Path.Combine(dir, "FEBuilderGBA.CLI", "bin", "Release", "net9.0", "FEBuilderGBA.CLI.exe"),
-                        Path.Combine(dir, "FEBuilderGBA.CLI", "bin", "Debug",   "net9.0", "FEBuilderGBA.CLI.exe"),
+                        Path.Combine(dir, "FEBuilderGBA.CLI", "bin", "Release", "net10.0", "FEBuilderGBA.CLI.exe"),
+                        Path.Combine(dir, "FEBuilderGBA.CLI", "bin", "Debug",   "net10.0", "FEBuilderGBA.CLI.exe"),
                     };
                     string? newest = null;
                     DateTime newestTime = DateTime.MinValue;

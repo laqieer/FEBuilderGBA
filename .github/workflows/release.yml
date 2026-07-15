@@ -46,25 +46,50 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup .NET 10.0
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
       - name: Init build-required submodules
         run: git submodule update --init config/patch2 tools/Event-Assembler tools/ColorzCore resources/fe-info
 
-      - name: Add MSBuild to PATH
-        uses: microsoft/setup-msbuild@v2
-
-      - name: Install x86 .NET 9 runtimes (windows-latest image dropped x86 9.0)
-        # Same as msbuild.yml: the hosted image ships x86 8.0/10.0 but not 9.0.
+      - name: Ensure x86 .NET 10 runtimes
+        # The x86 testhost needs both the base and WindowsDesktop runtimes. Hosted
+        # images normally include them, but install only whichever family is absent.
         shell: pwsh
         run: |
-          Invoke-WebRequest 'https://dot.net/v1/dotnet-install.ps1' -OutFile "$env:RUNNER_TEMP/dotnet-install.ps1"
-          & "$env:RUNNER_TEMP/dotnet-install.ps1" -Architecture x86 -Runtime dotnet         -Channel 9.0 -InstallDir "C:\Program Files (x86)\dotnet"
-          & "$env:RUNNER_TEMP/dotnet-install.ps1" -Architecture x86 -Runtime windowsdesktop -Channel 9.0 -InstallDir "C:\Program Files (x86)\dotnet"
+          $root = "C:\Program Files (x86)\dotnet"
+          $dotnet = Join-Path $root "dotnet.exe"
+          $runtimes = if (Test-Path $dotnet) { @(& $dotnet --list-runtimes) } else { @() }
+          $needBase = -not ($runtimes -match '^Microsoft\.NETCore\.App 10\.')
+          $needDesktop = -not ($runtimes -match '^Microsoft\.WindowsDesktop\.App 10\.')
+          if ($needBase -or $needDesktop) {
+            $installer = "$env:RUNNER_TEMP/dotnet-install.ps1"
+            Invoke-WebRequest 'https://dot.net/v1/dotnet-install.ps1' -OutFile $installer
+            if ($needBase) {
+              & $installer -Architecture x86 -Runtime dotnet -Channel 10.0 -InstallDir $root
+            }
+            if ($needDesktop) {
+              & $installer -Architecture x86 -Runtime windowsdesktop -Channel 10.0 -InstallDir $root
+            }
+          }
+          $runtimes = @(& $dotnet --list-runtimes)
+          if (-not ($runtimes -match '^Microsoft\.NETCore\.App 10\.') -or
+              -not ($runtimes -match '^Microsoft\.WindowsDesktop\.App 10\.')) {
+            throw "Required x86 .NET 10 runtime families are unavailable."
+          }
+          $runtimes
+          # setup-dotnet exposes the x64 root as DOTNET_ROOT. Persist the verified
+          # x86 root so native x86 apphosts do not try to load the x64 hostfxr.
+          "DOTNET_ROOT(x86)=$root" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "DOTNET_ROOT_X86=$root" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Publish ColorzCore (self-contained Windows x86)
         run: dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c ${{ env.BUILD_CONFIGURATION }} -r win-x86 --self-contained true -o tools/publish
 
       - name: Build
-        run: msbuild /m /p:Configuration=${{ env.BUILD_CONFIGURATION }} /p:Platform=x86 /t:build /restore /p:InformationalVersion=${{ github.ref_name }} .
+        run: dotnet msbuild /m /p:Configuration=${{ env.BUILD_CONFIGURATION }} /p:Platform=x86 /t:build /restore /p:InformationalVersion=${{ github.ref_name }} FEBuilderGBA.sln
 
       - name: Post Build (assemble desktop package)
         # Based on msbuild.yml's "Post Build" step: collect exe/dll/json + config
@@ -149,10 +174,10 @@ jobs:
       - name: Init build-required submodules
         run: git submodule update --init config/patch2 tools/Event-Assembler tools/ColorzCore resources/fe-info
 
-      - name: Setup .NET 9.0
+      - name: Setup .NET 10.0
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Publish ColorzCore (self-contained per-RID)
         run: dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c ${{ env.BUILD_CONFIGURATION }} -r ${{ matrix.rid }} --self-contained true -o publish/tools-${{ matrix.rid }}
@@ -221,10 +246,10 @@ jobs:
       - name: Init build-required submodules
         run: git submodule update --init config/patch2 tools/Event-Assembler tools/ColorzCore resources/fe-info
 
-      - name: Setup .NET 9.0
+      - name: Setup .NET 10.0
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Install android workload
         run: dotnet workload install android
@@ -235,7 +260,7 @@ jobs:
       - name: Zip Android APK
         shell: bash
         run: |
-          apk=$(ls FEBuilderGBA.Android/bin/Release/net9.0-android/*-Signed.apk | head -n 1)
+          apk=$(ls FEBuilderGBA.Android/bin/Release/net10.0-android/*-Signed.apk | head -n 1)
           zip -j "$GITHUB_WORKSPACE/FEBuilderGBA-android-apk.zip" "$apk"
 
       - name: Upload Android artifact
@@ -247,7 +272,7 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # iOS unsigned .ipa (mirrors ios.yml). SOFT / advisory for the release (#1859):
-  # iOS is a PREVIEW and its macos-latest unsigned build is not yet proven stable,
+  # iOS is a PREVIEW and its macos-26 unsigned build is not yet proven stable,
   # so — unlike the REQUIRED android job — this job is continue-on-error and is NOT
   # in the release job's mandatory verify-assets list. The .ipa is attached when the
   # build succeeds; a failure degrades to "release without iOS" instead of blocking
@@ -258,20 +283,25 @@ jobs:
   # ---------------------------------------------------------------------------
   ios:
     name: iOS IPA (advisory)
-    # macos-26 ships Xcode 26.5 (default) — required by the current .NET for iOS workload;
-    # macos-latest can still resolve to macos-15 / Xcode 16.4 which the workload rejects. (#1859)
+    # macos-26 defaults to Xcode 26.5, while the current .NET for iOS workload
+    # requires the preinstalled Xcode 26.6. Select it explicitly below. (#1859)
     runs-on: macos-26
     continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Select Xcode 26.6
+        run: |
+          sudo xcode-select --switch /Applications/Xcode_26.6.app/Contents/Developer
+          xcodebuild -version
+
       # No submodule init needed (config/** are regular files; patch2 excluded from the
       # bundle) — see ios.yml.
-      - name: Setup .NET 9.0
+      - name: Setup .NET 10.0
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Install ios workload
         run: dotnet workload install ios
@@ -292,7 +322,7 @@ jobs:
       - name: Package unsigned .ipa
         run: |
           set -euo pipefail
-          SEARCH_ROOT="FEBuilderGBA.iOS/bin/${{ env.BUILD_CONFIGURATION }}/net9.0-ios/ios-arm64"
+          SEARCH_ROOT="FEBuilderGBA.iOS/bin/${{ env.BUILD_CONFIGURATION }}/net10.0-ios/ios-arm64"
           ipa=$(find "$SEARCH_ROOT" -name '*.ipa' | head -n 1 || true)
           if [ -z "$ipa" ]; then
             app=$(find "$SEARCH_ROOT" -name '*.app' -type d | head -n 1)

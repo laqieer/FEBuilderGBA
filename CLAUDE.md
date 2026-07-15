@@ -4,21 +4,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-FEBuilderGBA is a comprehensive ROM hacking suite for Fire Emblem GBA trilogy games, written in C# WinForms targeting .NET 9.0. It supports editing five ROM variants: FE6 (Japan), FE7J/FE7U (Japan/US), and FE8J/FE8U (Japan/US).
+FEBuilderGBA is a comprehensive ROM hacking suite for Fire Emblem GBA trilogy games, written in C# WinForms targeting .NET 10.0. It supports editing five ROM variants: FE6 (Japan), FE7J/FE7U (Japan/US), and FE8J/FE8U (Japan/US).
 
 ### Solution Structure
 ```
 FEBuilderGBA.sln
-├── FEBuilderGBA.Core/        # net9.0 — Cross-platform core library (ROM, Undo, utilities)
-├── FEBuilderGBA/             # net9.0-windows — WinForms GUI application
-├── FEBuilderGBA.CLI/         # net9.0 — Cross-platform CLI (--version, --help, --makeups)
-├── FEBuilderGBA.SkiaSharp/   # net9.0 — SkiaSharp IImageService implementation
-├── FEBuilderGBA.Avalonia/        # net9.0 — Cross-platform Avalonia UI preview
-├── FEBuilderGBA.Tests/           # net9.0-windows — WinForms unit tests (~1.3k)
-├── FEBuilderGBA.Core.Tests/      # net9.0 — Cross-platform Core tests (~5.5k)
-├── FEBuilderGBA.Avalonia.Tests/  # net9.0 — Avalonia GUI / ViewModel tests (~4.6k)
-├── FEBuilderGBA.Android.Tests/   # net9.0-android — on-device reflection-runner parity/version-guard head
-└── FEBuilderGBA.E2ETests/        # net9.0-windows — End-to-end tests
+├── FEBuilderGBA.Core/        # net10.0 — Cross-platform core library (ROM, Undo, utilities)
+├── FEBuilderGBA/             # net10.0-windows — WinForms GUI application
+├── FEBuilderGBA.CLI/         # net10.0 — Cross-platform CLI (--version, --help, --makeups)
+├── FEBuilderGBA.SkiaSharp/   # net10.0 — SkiaSharp IImageService implementation
+├── FEBuilderGBA.Avalonia/        # net10.0 — Cross-platform Avalonia UI preview
+├── FEBuilderGBA.Tests/           # net10.0-windows — WinForms unit tests (~1.3k)
+├── FEBuilderGBA.Core.Tests/      # net10.0 — Cross-platform Core tests (~5.5k)
+├── FEBuilderGBA.Avalonia.Tests/  # net10.0 — Avalonia GUI / ViewModel tests (~4.6k)
+├── FEBuilderGBA.Android.Tests/   # net10.0-android — on-device reflection-runner parity/version-guard head
+└── FEBuilderGBA.E2ETests/        # net10.0-windows — End-to-end tests
 ```
 
 > Test counts above are rounded approximations of declared `[Fact]`/`[Theory]` methods; `[Theory]`
@@ -35,13 +35,13 @@ FEBuilderGBA.sln
 
 ```bash
 # Build Release version (x86)
-msbuild /m /p:Configuration=Release /p:Platform=x86 /t:build /restore FEBuilderGBA.sln
+dotnet msbuild /m /p:Configuration=Release /p:Platform=x86 /t:build /restore FEBuilderGBA.sln
 
 # Build Debug version
-msbuild /m /p:Configuration=Debug /p:Platform=x86 /t:build /restore FEBuilderGBA.sln
+dotnet msbuild /m /p:Configuration=Debug /p:Platform=x86 /t:build /restore FEBuilderGBA.sln
 
 # Build for x64
-msbuild /m /p:Configuration=Release /p:Platform=x64 /t:build /restore FEBuilderGBA.sln
+dotnet msbuild /m /p:Configuration=Release /p:Platform=x64 /t:build /restore FEBuilderGBA.sln
 
 # Build Core library only (cross-platform, no WinForms dependency)
 dotnet build FEBuilderGBA.Core/FEBuilderGBA.Core.csproj

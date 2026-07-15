@@ -9,7 +9,7 @@ CLI harness for **FEBuilderGBA**, the Fire Emblem GBA ROM hacking suite. Wraps t
 
 ## Prerequisites
 
-- .NET 9.0 SDK
+- .NET 10.0 SDK
 - FEBuilderGBA.CLI built: `dotnet build FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj`
 
 ## Installation

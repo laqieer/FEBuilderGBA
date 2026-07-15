@@ -1,7 +1,7 @@
 """E2E tests for cli-anything-febuildergba.
 
 These tests invoke the real FEBuilderGBA.CLI backend and require:
-- .NET 9.0 SDK installed
+- .NET 10.0 SDK installed
 - FEBuilderGBA.CLI project built
 - ROM files in roms/ directory (relative to repo root)
 """
