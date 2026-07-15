@@ -1,0 +1,147 @@
+name: Headless mGBA Playtest
+
+on:
+  push:
+    paths:
+      - '.github/workflows/gba-playtest.yml'
+      - 'scripts/install-mgba-playtest.*'
+      - 'tools/gba-playtest/**'
+  pull_request:
+    branches: [ master ]
+    paths:
+      - '.github/workflows/gba-playtest.yml'
+      - 'scripts/install-mgba-playtest.*'
+      - 'tools/gba-playtest/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    name: Playtest contract (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install test runner
+      run: python -m pip install --disable-pip-version-check --no-input pytest==8.3.5
+
+    - name: Run dependency-free playtest tests
+      working-directory: tools/gba-playtest
+      run: python -m pytest -q
+
+  real-mgba-ubuntu:
+    name: Real mGBA replay (ubuntu)
+    needs: contract
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install native build prerequisites
+      run: >-
+        sudo apt-get update &&
+        sudo apt-get install -y
+        build-essential cmake ninja-build pkg-config
+        libepoxy-dev libffi-dev libpng-dev zlib1g-dev
+
+    - name: Build and verify the pinned binding
+      run: bash scripts/install-mgba-playtest.sh --python=python3 --force
+
+    - name: Run repeated synthetic replay proof
+      run: >-
+        tools/gba-playtest/.mgba-build/venv/bin/python
+        tools/gba-playtest/tests/run_real_mgba_proof.py
+        --output-dir playtest-proof-ubuntu
+
+    - name: Upload proof
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: playtest-proof-ubuntu
+        path: playtest-proof-ubuntu/
+        if-no-files-found: warn
+
+  real-mgba-windows:
+    name: Real mGBA replay (windows-ucrt64)
+    needs: contract
+    runs-on: windows-latest
+
+    steps:
+    - name: Preserve LF line endings
+      run: git config --global core.autocrlf input
+
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup MSYS2 UCRT64
+      id: msys2
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: UCRT64
+        update: true
+        install: >-
+          git
+          curl
+          tar
+        pacboy: >-
+          python:p
+          python-pip:p
+          gcc:p
+          cmake:p
+          ninja:p
+          pkgconf:p
+          libepoxy:p
+          libffi:p
+          libpng:p
+          zlib:p
+
+    - name: Build and verify the pinned binding
+      shell: powershell
+      run: >-
+        .\scripts\install-mgba-playtest.ps1
+        -Msys2Root "${{ steps.msys2.outputs.msys2-location }}"
+        -Force
+
+    - name: Run repeated synthetic replay proof
+      shell: powershell
+      run: |
+        $candidates = @(
+          "tools\gba-playtest\.mgba-build\venv\bin\python.exe",
+          "tools\gba-playtest\.mgba-build\venv\Scripts\python.exe"
+        )
+        $python = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+        if (-not $python) {
+          throw "The bootstrap venv interpreter was not found."
+        }
+        & $python tools\gba-playtest\tests\run_real_mgba_proof.py `
+          --output-dir playtest-proof-windows
+        if ($LASTEXITCODE -ne 0) {
+          exit $LASTEXITCODE
+        }
+
+    - name: Upload proof
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: playtest-proof-windows
+        path: playtest-proof-windows/
+        if-no-files-found: warn

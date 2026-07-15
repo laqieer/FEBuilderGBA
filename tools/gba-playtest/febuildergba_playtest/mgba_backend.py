@@ -65,6 +65,7 @@ passed through :func:`redact_message` first.
 from __future__ import annotations
 
 import io
+import ntpath
 import os
 import sys
 from typing import Any, Callable, Dict, List, Optional
@@ -144,12 +145,13 @@ def _read_manifest_dirs(manifest_path: str) -> List[str]:
     and at most :data:`_DLL_MAX_DIRS` entries are returned.
     """
     try:
-        with open(manifest_path, "r", encoding="utf-8") as handle:
-            blob = handle.read(_DLL_MANIFEST_MAX_BYTES + 1)
-    except OSError:
-        return []
-    if len(blob) > _DLL_MANIFEST_MAX_BYTES:
-        _diag("DLL manifest exceeds the size bound; ignoring it")
+        with open(manifest_path, "rb") as handle:
+            raw = handle.read(_DLL_MANIFEST_MAX_BYTES + 1)
+        if len(raw) > _DLL_MANIFEST_MAX_BYTES:
+            _diag("DLL manifest exceeds the size bound; ignoring it")
+            return []
+        blob = raw.decode("utf-8")
+    except (OSError, UnicodeError):
         return []
     dirs: List[str] = []
     for line in blob.splitlines():
@@ -165,6 +167,17 @@ def _read_manifest_dirs(manifest_path: str) -> List[str]:
     return dirs
 
 
+def _dll_dir_key(directory: str) -> str:
+    """Return a host-independent Windows key for directory deduplication."""
+
+    return ntpath.normcase(ntpath.abspath(directory))
+
+
+def _is_absolute_windows_path(directory: str) -> bool:
+    drive, tail = ntpath.splitdrive(directory)
+    return bool(drive and tail.startswith(("\\", "/")))
+
+
 def _collect_dll_dirs(environ: Any, manifest_path: str) -> List[str]:
     """Ordered, de-duplicated DLL search dirs: env override first, then manifest.
 
@@ -177,7 +190,7 @@ def _collect_dll_dirs(environ: Any, manifest_path: str) -> List[str]:
         raw = environ.get(_DLL_SEARCH_ENV, "") or ""
     except AttributeError:  # pragma: no cover - defensive
         raw = ""
-    if len(raw) > _DLL_ENV_MAX_LEN:
+    if not isinstance(raw, str) or len(raw) > _DLL_ENV_MAX_LEN:
         _diag("DLL search override exceeds the length bound; ignoring it")
         raw = ""
     if raw:
@@ -190,8 +203,9 @@ def _collect_dll_dirs(environ: Any, manifest_path: str) -> List[str]:
     ordered: List[str] = []
     seen = set()
     for entry in candidates:
-        if entry not in seen:
-            seen.add(entry)
+        key = _dll_dir_key(entry)
+        if key not in seen:
+            seen.add(key)
             ordered.append(entry)
         if len(ordered) >= _DLL_MAX_DIRS:
             break
@@ -227,20 +241,25 @@ def prepare_native_library_search(
         isdir = os.path.isdir
     env = environ if environ is not None else os.environ
     manifest = manifest_path or _dll_manifest_path()
-    state = seen_dirs if seen_dirs is not None else _REGISTERED_DIRS
+    use_global_state = seen_dirs is None
+    state = _REGISTERED_DIRS if use_global_state else seen_dirs
     registered: List[str] = []
     for directory in _collect_dll_dirs(env, manifest):
-        if directory in state:
+        key = _dll_dir_key(directory)
+        if key in state:
             continue
-        if not isdir(directory):
+        if len(state) >= _DLL_MAX_DIRS:
+            break
+        if not _is_absolute_windows_path(directory) or not isdir(directory):
             continue
         try:
             handle = register(directory)
-        except OSError as exc:
+        except (OSError, TypeError, ValueError) as exc:
             _diag(f"could not add DLL directory: {type(exc).__name__}")
             continue
-        _DLL_HANDLES.append(handle)
-        state.add(directory)
+        if use_global_state and handle is not None:
+            _DLL_HANDLES.append(handle)
+        state.add(key)
         registered.append(directory)
     return registered
 
@@ -315,7 +334,7 @@ def _commit_ok(commit: Optional[str]) -> bool:
     to force a match — and ``(unknown)``/``None`` or any other commit is
     likewise rejected.
     """
-    if not commit:
+    if not isinstance(commit, str) or not commit:
         return False
     stamp = commit.strip()
     if not stamp or stamp.lower() in ("(unknown)", "unknown"):

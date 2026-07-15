@@ -36,6 +36,8 @@ SH = os.path.join(SCRIPTS_DIR, "install-mgba-playtest.sh")
 README = os.path.join(TOOL_DIR, "README.md")
 REQUIREMENTS = os.path.join(TOOL_DIR, "requirements-mgba-build.txt")
 REQUIREMENTS_BOOTSTRAP = os.path.join(TOOL_DIR, "requirements-mgba-bootstrap.txt")
+REAL_PROOF = os.path.join(os.path.dirname(__file__), "run_real_mgba_proof.py")
+REAL_WORKFLOW = os.path.join(REPO_ROOT, ".github", "workflows", "gba-playtest.yml")
 
 # ``install-mgba-playtest.sh`` owns all build logic; ``.ps1`` delegates to it.
 BUILD_SCRIPT = SH
@@ -53,6 +55,8 @@ def _read(path):
 def test_bootstrap_scripts_exist():
     assert os.path.isfile(PS1)
     assert os.path.isfile(SH)
+    assert os.path.isfile(REAL_PROOF)
+    assert os.path.isfile(REAL_WORKFLOW)
 
 
 # --------------------------------------------------------------------------- #
@@ -226,6 +230,38 @@ def test_build_script_guards_every_recursive_delete():
     assert len(bare) == 1, "only the guarded helper may call 'rm -rf' directly"
 
 
+def test_build_script_contains_all_mutable_roots_before_writing():
+    text = _read(BUILD_SCRIPT)
+    assert "pwd -P" in text, "repository and tool roots must be resolved physically"
+    assert re.search(r'\[\s+-L\s+"\$\{TOOL_DIR\}"\s+\]', text)
+    assert re.search(r'\[\s+-L\s+"\$\{BUILD_ROOT\}"\s+\]', text)
+    assert re.search(r'\[\s+-L\s+"\$\{VENV_DIR\}"\s+\]', text)
+    assert re.search(r'\[\s+-L\s+"\$\{SRC_ARCHIVE\}"\s+\]', text)
+    assert "EXPECTED_TOOL_DIR" in text
+    assert "BUILD_ROOT_ACTUAL" in text
+    assert "VENV_DIR_ACTUAL" in text
+
+
+def test_build_script_publishes_download_and_manifest_via_temp_files():
+    text = _read(BUILD_SCRIPT)
+    assert re.search(r'ARCHIVE_TMP=.*mktemp', text)
+    assert re.search(
+        r'mv\s+-f\s+--\s+"\$\{ARCHIVE_TMP\}"\s+"\$\{SRC_ARCHIVE\}"',
+        text,
+    )
+    assert re.search(r'DLL_MANIFEST_TMP=.*mktemp', text)
+    assert re.search(
+        r'mv\s+-f\s+--\s+"\$\{DLL_MANIFEST_TMP\}"\s+"\$\{DLL_MANIFEST\}"',
+        text,
+    )
+
+
+def test_build_script_requires_python_310_or_newer():
+    text = _read(BUILD_SCRIPT)
+    assert "sys.version_info >= (3, 10)" in text
+    assert "Python 3.10 or newer is required" in text
+
+
 def test_build_script_locks_build_phase_offline():
     text = _read(BUILD_SCRIPT)
     # After the hash-pinned pip stages, the CMake/setup.py install must not be
@@ -275,11 +311,10 @@ def test_powershell_validates_ucrt64_toolchain_via_probe():
 
 def test_powershell_probes_configure_time_prerequisites():
     text = _read(PS1)
-    # libepoxy + pkgconf are mandatory configure-time deps of the mGBA build.
+    # Native build deps are mandatory; PNG/zlib back screenshot evidence.
     assert "pkg-config" in text, "wrapper must probe for pkg-config/pkgconf"
-    assert re.search(r"pkg-config\s+--exists\s+epoxy", text), (
-        "wrapper must verify libepoxy via pkg-config"
-    )
+    for dependency in ("epoxy", "libffi", "libpng", "zlib"):
+        assert dependency in text, f"wrapper must verify {dependency}"
     # The building interpreter must be the UCRT64 python, not python.org/MSVC.
     assert re.search(r"/ucrt64/bin/python", text), (
         "wrapper must require python under /ucrt64/bin"
@@ -290,6 +325,9 @@ def test_powershell_guidance_lists_ucrt64_prerequisite_packages():
     text = _read(PS1)
     for pkg in (
         "mingw-w64-ucrt-x86_64-libepoxy",
+        "mingw-w64-ucrt-x86_64-libffi",
+        "mingw-w64-ucrt-x86_64-libpng",
+        "mingw-w64-ucrt-x86_64-zlib",
         "mingw-w64-ucrt-x86_64-pkgconf",
     ):
         assert pkg in text, f"guidance must list {pkg}"
@@ -341,6 +379,60 @@ def test_powershell_reports_interpreter_and_delegates_check():
     # Both venv layouts are resolved for reporting.
     assert "Scripts\\python.exe" in text
     assert re.search(r"bin\\python", text)
+
+
+def test_real_workflow_proves_ubuntu_and_windows_ucrt64():
+    text = _read(REAL_WORKFLOW)
+    lower = text.lower()
+    assert "real-mgba-ubuntu:" in text
+    assert "real-mgba-windows:" in text
+    assert "msys2/setup-msys2@v2" in text
+    assert "msystem: UCRT64" in text
+    assert "install-mgba-playtest.sh" in text
+    assert "install-mgba-playtest.ps1" in text
+    assert text.count("run_real_mgba_proof.py") == 2
+    assert "continue-on-error" not in lower
+
+
+def test_real_workflow_installs_windows_ucrt64_prerequisites():
+    text = _read(REAL_WORKFLOW)
+    for package in (
+        "python:p",
+        "gcc:p",
+        "cmake:p",
+        "ninja:p",
+        "pkgconf:p",
+        "libepoxy:p",
+        "libffi:p",
+        "libpng:p",
+        "zlib:p",
+    ):
+        assert package in text
+
+
+def test_real_workflow_installs_ubuntu_native_prerequisites():
+    text = _read(REAL_WORKFLOW)
+    for package in ("libepoxy-dev", "libffi-dev", "libpng-dev", "zlib1g-dev"):
+        assert package in text
+
+
+def test_posix_bootstrap_requires_screenshot_and_cffi_native_dependencies():
+    text = _read(BUILD_SCRIPT)
+    assert re.search(r'require_cmd\s+"pkg-config"', text)
+    for dependency in ("epoxy", "libffi", "libpng", "zlib"):
+        assert dependency in text
+    assert "-DUSE_PNG=ON" in text
+    assert "-DUSE_ZLIB=ON" in text
+
+
+def test_real_proof_checks_replay_transitions_screenshots_and_save_isolation():
+    text = _read(REAL_PROOF)
+    assert "REPLAY_COUNT = 3" in text
+    assert '"pressObserved": True' in text
+    assert '"releaseObserved": True' in text
+    assert "screenshotSha256" in text
+    assert "SAVE_SUFFIXES" in text
+    assert "process.returncode != result.get(\"exitCode\")" in text
 
 
 def test_readme_does_not_claim_msvc_support():
@@ -423,6 +515,13 @@ def test_all_required_build_packages_are_pinned_with_hashes():
         assert re.search(rf"(?mi)^\s*{re.escape(pkg)}==", boot), f"{pkg} must be pinned in bootstrap reqs"
     for pkg in REQUIRED_BUILD_PACKAGES:
         assert re.search(rf"(?mi)^\s*{re.escape(pkg)}==", build), f"{pkg} must be pinned in build reqs"
+
+
+def test_pinned_build_stack_supports_current_msys2_python_314():
+    bootstrap = _read(REQUIREMENTS_BOOTSTRAP)
+    build = _read(REQUIREMENTS)
+    assert re.search(r"(?mi)^\s*setuptools==83\.0\.0\b", bootstrap)
+    assert re.search(r"(?mi)^\s*cffi==2\.0\.0\b", build)
 
 
 def test_runtime_never_installs_or_downloads():

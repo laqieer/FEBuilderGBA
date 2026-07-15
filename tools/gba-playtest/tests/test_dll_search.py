@@ -32,17 +32,21 @@ def test_read_manifest_missing_file_is_empty(tmp_path):
 
 
 def test_collect_dll_dirs_env_first_then_manifest_ordered_dedup(tmp_path):
-    manifest = _write_manifest(tmp_path, ["m1", "shared", "m2"])
-    env = {mb._DLL_SEARCH_ENV: os.pathsep.join(["e1", "shared", "e2"])}
+    manifest = _write_manifest(tmp_path, ["C:\\m1", "C:\\shared", "C:\\m2"])
+    env = {
+        mb._DLL_SEARCH_ENV: os.pathsep.join(
+            ["C:\\e1", "c:\\SHARED", "C:\\e2"]
+        )
+    }
     got = mb._collect_dll_dirs(env, manifest)
     # Env override entries come first; duplicates collapse; order preserved.
-    assert got == ["e1", "shared", "e2", "m1", "m2"]
+    assert got == ["C:\\e1", "c:\\SHARED", "C:\\e2", "C:\\m1", "C:\\m2"]
 
 
 def test_collect_dll_dirs_ignores_empty_env_segments(tmp_path):
     manifest = _write_manifest(tmp_path, [])
-    env = {mb._DLL_SEARCH_ENV: os.pathsep + "only" + os.pathsep}
-    assert mb._collect_dll_dirs(env, manifest) == ["only"]
+    env = {mb._DLL_SEARCH_ENV: os.pathsep + "C:\\only" + os.pathsep}
+    assert mb._collect_dll_dirs(env, manifest) == ["C:\\only"]
 
 
 def test_prepare_native_library_search_noop_on_posix(tmp_path):
@@ -61,8 +65,10 @@ def test_prepare_native_library_search_noop_on_posix(tmp_path):
 
 
 def test_prepare_native_library_search_registers_existing_dirs_only(tmp_path):
-    manifest = _write_manifest(tmp_path, ["exists1", "missing", "exists2"])
-    existing = {"exists1", "exists2"}
+    manifest = _write_manifest(
+        tmp_path, ["C:\\exists1", "C:\\missing", "C:\\exists2"]
+    )
+    existing = {"C:\\exists1", "C:\\exists2"}
     calls = []
     got = mb.prepare_native_library_search(
         register=lambda d: (calls.append(d), object())[1],
@@ -72,29 +78,29 @@ def test_prepare_native_library_search_registers_existing_dirs_only(tmp_path):
         manifest_path=manifest,
         seen_dirs=set(),
     )
-    assert got == ["exists1", "exists2"]
-    assert calls == ["exists1", "exists2"]
+    assert got == ["C:\\exists1", "C:\\exists2"]
+    assert calls == ["C:\\exists1", "C:\\exists2"]
 
 
 def test_prepare_native_library_search_uses_env_override(tmp_path):
-    manifest = _write_manifest(tmp_path, ["from_manifest"])
+    manifest = _write_manifest(tmp_path, ["C:\\from_manifest"])
     calls = []
     got = mb.prepare_native_library_search(
         register=lambda d: calls.append(d),
         isdir=lambda d: True,
         is_windows=True,
-        environ={mb._DLL_SEARCH_ENV: "from_env"},
+        environ={mb._DLL_SEARCH_ENV: "C:\\from_env"},
         manifest_path=manifest,
         seen_dirs=set(),
     )
-    assert got == ["from_env", "from_manifest"]
+    assert got == ["C:\\from_env", "C:\\from_manifest"]
 
 
 def test_prepare_native_library_search_survives_register_oserror(tmp_path):
-    manifest = _write_manifest(tmp_path, ["a", "b"])
+    manifest = _write_manifest(tmp_path, ["C:\\a", "C:\\b"])
 
     def register(directory):
-        if directory == "a":
+        if directory == "C:\\a":
             raise OSError("cannot add")
         return object()
 
@@ -106,11 +112,11 @@ def test_prepare_native_library_search_survives_register_oserror(tmp_path):
         manifest_path=manifest,
         seen_dirs=set(),
     )
-    assert got == ["b"]
+    assert got == ["C:\\b"]
 
 
 def test_prepare_native_library_search_no_register_available(tmp_path):
-    manifest = _write_manifest(tmp_path, ["a"])
+    manifest = _write_manifest(tmp_path, ["C:\\a"])
     got = mb.prepare_native_library_search(
         register=None,
         isdir=lambda d: False,  # nothing is registerable regardless of API
@@ -153,6 +159,12 @@ def test_read_manifest_skips_overlong_entry(tmp_path):
     assert mb._read_manifest_dirs(str(manifest)) == ["C:\\ok", "C:\\ok2"]
 
 
+def test_read_manifest_invalid_utf8_is_empty(tmp_path):
+    manifest = tmp_path / "mgba-dll-dirs.txt"
+    manifest.write_bytes(b"C:\\ok\n\xff\n")
+    assert mb._read_manifest_dirs(str(manifest)) == []
+
+
 def test_collect_dll_dirs_ignores_oversize_env(tmp_path):
     manifest = _write_manifest(tmp_path, ["from_manifest"])
     huge = os.pathsep.join(["d"] * (mb._DLL_ENV_MAX_LEN))
@@ -172,12 +184,16 @@ def test_collect_dll_dirs_caps_env_entry_count(tmp_path):
 def test_collect_dll_dirs_skips_overlong_env_entry(tmp_path):
     manifest = _write_manifest(tmp_path, [])
     long_entry = "y" * (mb._DLL_DIR_MAX_LEN + 5)
-    env = {mb._DLL_SEARCH_ENV: os.pathsep.join(["ok", long_entry, "ok2"])}
-    assert mb._collect_dll_dirs(env, manifest) == ["ok", "ok2"]
+    env = {
+        mb._DLL_SEARCH_ENV: os.pathsep.join(
+            ["C:\\ok", long_entry, "C:\\ok2"]
+        )
+    }
+    assert mb._collect_dll_dirs(env, manifest) == ["C:\\ok", "C:\\ok2"]
 
 
 def test_prepare_native_library_search_is_idempotent_across_calls(tmp_path):
-    manifest = _write_manifest(tmp_path, ["exists1", "exists2"])
+    manifest = _write_manifest(tmp_path, ["C:\\exists1", "C:\\exists2"])
     shared = set()
     calls = []
 
@@ -195,6 +211,44 @@ def test_prepare_native_library_search_is_idempotent_across_calls(tmp_path):
     )
     # First call registers both; the second registers nothing (dedup) so the
     # underlying handle set cannot grow without bound across repeated calls.
-    assert first == ["exists1", "exists2"]
+    assert first == ["C:\\exists1", "C:\\exists2"]
     assert second == []
-    assert calls == ["exists1", "exists2"]
+    assert calls == ["C:\\exists1", "C:\\exists2"]
+
+
+def test_prepare_native_library_search_rejects_relative_dirs(tmp_path):
+    manifest = _write_manifest(tmp_path, ["relative", "C:\\absolute"])
+    calls = []
+    got = mb.prepare_native_library_search(
+        register=lambda directory: calls.append(directory),
+        isdir=lambda directory: True,
+        is_windows=True,
+        environ={},
+        manifest_path=manifest,
+        seen_dirs=set(),
+    )
+    assert got == ["C:\\absolute"]
+    assert calls == ["C:\\absolute"]
+
+
+def test_prepare_native_library_search_caps_state_across_changing_calls(tmp_path):
+    shared = set()
+    calls = []
+    for batch in range(3):
+        manifest = _write_manifest(
+            tmp_path,
+            [
+                f"C:\\batch{batch}\\d{index}"
+                for index in range(mb._DLL_MAX_DIRS)
+            ],
+        )
+        mb.prepare_native_library_search(
+            register=lambda directory: (calls.append(directory), object())[1],
+            isdir=lambda directory: True,
+            is_windows=True,
+            environ={},
+            manifest_path=manifest,
+            seen_dirs=shared,
+        )
+    assert len(shared) == mb._DLL_MAX_DIRS
+    assert len(calls) == mb._DLL_MAX_DIRS

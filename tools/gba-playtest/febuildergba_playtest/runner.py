@@ -42,9 +42,16 @@ _PRE_REPLACE_HOOK = None
 # a Windows path carries a colon only in its drive prefix, matched separately.
 _WIN_TAIL = r'(?:[^\s\\/<>:"|?*][^\\/<>:"|?*]*[\\/])*[^\s\\/<>:"|?*]*'
 
+# Python's filesystem exceptions quote pathnames. Redact those first so a final
+# filename component containing spaces cannot leak after the narrower unquoted
+# patterns stop at their first whitespace.
+_QUOTED_PATH_PATTERNS = (
+    re.compile(r'"(?:\\\\\?\\[A-Za-z]:\\|[A-Za-z]:\\|\\\\|/)[^"\r\n]*"'),
+    re.compile(r"'(?:\\\\\?\\[A-Za-z]:\\|[A-Za-z]:\\|\\\\|/)[^'\r\n]*'"),
+)
+
 # Environment-dependent path shapes that must never leak into a result note.
-# Applied in order; each match is replaced before the next pattern runs. Handles
-# quoted or unquoted paths, and paths containing spaces.
+# Applied in order; each match is replaced before the next pattern runs.
 _REDACT_PATTERNS = (
     re.compile(r'\\\\\?\\(?:[A-Za-z]:[\\/])?' + _WIN_TAIL),                 # \\?\ extended-length
     re.compile(r'\\\\[^\s\\/<>:"|?*][^\\/<>:"|?*]*[\\/]' + _WIN_TAIL),      # \\host\share UNC
@@ -69,9 +76,14 @@ def redact_message(text: Any) -> str:
     POSIX absolute paths are redacted even when they contain spaces, while
     ordinary text with slashes ("read/write", "and/or") is preserved.
     """
-    cleaned = str(text)
+    try:
+        cleaned = str(text)
+    except BaseException as exc:
+        cleaned = f"{type(exc).__name__}: <unprintable>"
     if len(cleaned) > _REDACT_INPUT_CAP:
         cleaned = cleaned[:_REDACT_INPUT_CAP]
+    for pattern in _QUOTED_PATH_PATTERNS:
+        cleaned = pattern.sub(_PLACEHOLDER, cleaned)
     for pattern in _REDACT_PATTERNS:
         cleaned = pattern.sub(_PLACEHOLDER, cleaned)
     cleaned = " ".join(cleaned.split())

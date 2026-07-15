@@ -66,6 +66,10 @@ a user-installed [MSYS2](https://www.msys2.org) root (from `-Msys2Root`, the
 toolchain (Python, GCC, CMake, Ninja/Make, Git, curl, tar) is already installed,
 and runs the same POSIX bootstrap under the UCRT64 login shell. It never
 downloads or installs the toolchain and never mutates global PATH/environment.
+The native prerequisites are `pkg-config`, libffi, libepoxy, libpng, and zlib;
+on MSYS2 install the corresponding `mingw-w64-ucrt-x86_64-*` packages. The
+bootstrap verifies each dependency before configuring mGBA so PNG screenshot
+support cannot be silently omitted.
 
 Both scripts fetch only the official `mgba-emu/mgba` commit
 `26b7884bc25a5933960f3cdcd98bac1ae14d42e2` as a commit archive, verify its

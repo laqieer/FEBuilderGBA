@@ -62,6 +62,13 @@ def test_redacts_quoted_windows_path_with_spaces():
     assert note.endswith("failed")
 
 
+def test_redacts_quoted_windows_path_with_spaces_in_final_component():
+    note = redact_message('open "C:\\temp\\private rom.gba" failed')
+    assert "private" not in note
+    assert "rom.gba" not in note
+    assert note == "open <path> failed"
+
+
 def test_redacts_unc_path_with_spaces():
     note = redact_message(r"module at \\host\team share\pkg dir\mod.py raised")
     assert "team share" not in note
@@ -75,6 +82,13 @@ def test_redacts_unix_absolute_path_with_spaces():
     assert "My Venv" not in note
     assert "<path>" in note
     assert note.endswith("done")
+
+
+def test_redacts_quoted_unix_path_with_spaces_in_final_component():
+    note = redact_message("open '/tmp/private rom.gba' failed")
+    assert "private" not in note
+    assert "rom.gba" not in note
+    assert note == "open <path> failed"
 
 
 def test_redacts_extended_length_path_with_spaces():
@@ -94,6 +108,14 @@ def test_collapses_whitespace_and_caps_length():
 
 def test_redact_message_accepts_non_str():
     assert redact_message(ValueError("boom")) == "boom"
+
+
+def test_redact_message_survives_baseexception_from_str():
+    class Unprintable:
+        def __str__(self):
+            raise KeyboardInterrupt()
+
+    assert redact_message(Unprintable()) == "KeyboardInterrupt: <unprintable>"
 
 
 def test_is_reparse_point_regular_file(tmp_path):

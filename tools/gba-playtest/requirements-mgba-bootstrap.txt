@@ -6,7 +6,7 @@
 # These pure-Python (py3-none-any) wheels are installed FIRST so that the
 # stage-2 source builds can run with --no-build-isolation against a known,
 # hash-verified build backend. mGBA's official setup.py declares
-# setup_requires=['cffi', 'pytest-runner']; a fresh Python 3.12 venv may also
+# setup_requires=['cffi', 'pytest-runner']; a fresh Python 3.14 venv may also
 # lack setuptools/wheel, so all three are pinned here.
 #
 # Installed with:
@@ -17,8 +17,8 @@
 # build, so no un-hashed transitive build backend such as setuptools_scm is
 # fetched). Hashes are the official PyPI wheel SHA-256 digests.
 
-setuptools==75.6.0 \
-    --hash=sha256:ce74b49e8f7110f9bf04883b730f4765b774ef3ef28f722cce7c273d253aaf7d
+setuptools==83.0.0 \
+    --hash=sha256:29b23c360f22f414dc7336bb39178cc7bcbf6021ed2733cde173f09dba19abb3
 
 wheel==0.45.1 \
     --hash=sha256:708e7481cc80179af0e556bbf0cc00b8444c7321e2700b8d8580231d13017248

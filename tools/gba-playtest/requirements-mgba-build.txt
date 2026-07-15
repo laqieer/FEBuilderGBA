@@ -20,8 +20,11 @@
 pycparser==2.22 \
     --hash=sha256:491c8be9c040f5390f5bf44a5b07752bd07f56edf992381b05c701439eec10f6
 
-cffi==1.17.1 \
-    --hash=sha256:1c39c6016c32bc48dd54561950ebd6836e1670f2ae46128f67cf49e789c52824
+# cffi 2.0 is the first release with Python 3.14 support. MSYS2 UCRT64 is a
+# rolling distribution and currently ships Python 3.14, so an older pin would
+# make the supported Windows bootstrap fail before reaching mGBA itself.
+cffi==2.0.0 \
+    --hash=sha256:44d1b5909021139fe36001ae048dbdde8214afa20200eda0f64c068cac5d5529
 
 cached-property==2.0.1 \
     --hash=sha256:484d617105e3ee0e4f1f58725e72a8ef9e93deee462222dbd51cd91230897641

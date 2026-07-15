@@ -69,6 +69,9 @@ its UCRT64 shell, install these packages before re-running:
   mingw-w64-ucrt-x86_64-cmake
   mingw-w64-ucrt-x86_64-ninja
   mingw-w64-ucrt-x86_64-libepoxy
+  mingw-w64-ucrt-x86_64-libffi
+  mingw-w64-ucrt-x86_64-libpng
+  mingw-w64-ucrt-x86_64-zlib
   mingw-w64-ucrt-x86_64-pkgconf
   git  curl  tar
 Then re-run this script, optionally with -Msys2Root <path> or by setting the
@@ -122,10 +125,12 @@ done
 if ! command -v ninja >/dev/null 2>&1 && ! command -v make >/dev/null 2>&1; then
   missing="$missing ninja-or-make"
 fi
-# libepoxy is a mandatory configure-time dependency of the mGBA build; probe it
-# through pkg-config rather than guessing a header path.
+# Native configure/build dependencies are probed through pkg-config rather than
+# guessed header paths. PNG + zlib are mandatory for screenshot evidence.
 if command -v pkg-config >/dev/null 2>&1; then
-  pkg-config --exists epoxy || missing="$missing libepoxy"
+  for p in epoxy libffi libpng zlib; do
+    pkg-config --exists "$p" || missing="$missing $p"
+  done
 fi
 # The interpreter that builds and later imports the binding MUST be the UCRT64
 # Python (a python.org/MSVC interpreter cannot load the GCC-built binding).

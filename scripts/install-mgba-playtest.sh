@@ -30,10 +30,21 @@ ARCHIVE_URL="https://codeload.github.com/mgba-emu/mgba/tar.gz/${MGBA_COMMIT}"
 
 PYTHON_BIN="${PYTHON:-python3}"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd -P)"
 TOOL_DIR="${REPO_ROOT}/tools/gba-playtest"
-BUILD_ROOT="${TOOL_DIR}/.mgba-build"
+if [ -L "${TOOL_DIR}" ]; then
+    echo "Refusing symlinked playtest tool directory: ${TOOL_DIR}" >&2
+    exit 1
+fi
+TOOL_DIR_CANON="$(cd "${TOOL_DIR}" && pwd -P)"
+EXPECTED_TOOL_DIR="${REPO_ROOT}/tools/gba-playtest"
+if [ "${TOOL_DIR_CANON}" != "${EXPECTED_TOOL_DIR}" ]; then
+    echo "Refusing playtest tool directory outside the repository: ${TOOL_DIR_CANON}" >&2
+    exit 1
+fi
+
+BUILD_ROOT="${TOOL_DIR_CANON}/.mgba-build"
 VENV_DIR="${BUILD_ROOT}/venv"
 SRC_ARCHIVE="${BUILD_ROOT}/mgba-${MGBA_COMMIT}.tar.gz"
 SRC_DIR="${BUILD_ROOT}/mgba-${MGBA_COMMIT}"
@@ -42,12 +53,11 @@ SRC_DIR="${BUILD_ROOT}/mgba-${MGBA_COMMIT}"
 # artifacts that would otherwise make a rerun without --force fail its inner-git
 # cleanliness check) and so a stray build dir never pollutes provenance.
 CMAKE_BUILD="${BUILD_ROOT}/build-playtest"
-REQUIREMENTS_BOOTSTRAP="${TOOL_DIR}/requirements-mgba-bootstrap.txt"
-REQUIREMENTS_BUILD="${TOOL_DIR}/requirements-mgba-build.txt"
+REQUIREMENTS_BOOTSTRAP="${TOOL_DIR_CANON}/requirements-mgba-bootstrap.txt"
+REQUIREMENTS_BUILD="${TOOL_DIR_CANON}/requirements-mgba-build.txt"
 
 # Canonical, repository-owned paths that guarded deletion is allowed to touch.
 # ``pwd -P`` resolves symlinks physically; ``TOOL_DIR`` always exists.
-TOOL_DIR_CANON="$(cd "${TOOL_DIR}" && pwd -P)"
 BUILD_ROOT_CANON="${TOOL_DIR_CANON}/.mgba-build"
 SRC_DIR_CANON="${BUILD_ROOT_CANON}/mgba-${MGBA_COMMIT}"
 CMAKE_BUILD_CANON="${BUILD_ROOT_CANON}/build-playtest"
@@ -113,20 +123,47 @@ fi
 require_cmd "curl" "Install curl to fetch the pinned source archive."
 require_cmd "tar" "Install tar to extract the source archive."
 require_cmd "git" "Install git so exact source provenance can be stamped."
+require_cmd "mktemp" "Install coreutils so temporary files can be created safely."
+require_cmd "pkg-config" "Install pkg-config so native build dependencies can be verified."
+
+for dependency in epoxy libffi libpng zlib; do
+    if ! pkg-config --exists "${dependency}"; then
+        fail "Required native dependency '${dependency}' was not found via pkg-config."
+    fi
+    echo "  found ${dependency} -> $(pkg-config --modversion "${dependency}")"
+done
 
 PY_VERSION="$("${PYTHON_BIN}" -c 'import sys; print("%d.%d" % sys.version_info[:2])')"
 echo "  python version ${PY_VERSION}"
+if ! "${PYTHON_BIN}" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)'; then
+    fail "Python 3.10 or newer is required (found ${PY_VERSION})."
+fi
 
 if [ "${FORCE}" -eq 1 ] && [ -d "${BUILD_ROOT}" ]; then
     echo "Removing existing build root (--force)..."
     safe_rm_rf "${BUILD_ROOT}"
 fi
+if [ -L "${BUILD_ROOT}" ]; then
+    fail "Refusing symlinked build root: ${BUILD_ROOT}"
+fi
 mkdir -p "${BUILD_ROOT}"
+BUILD_ROOT_ACTUAL="$(cd "${BUILD_ROOT}" && pwd -P)"
+if [ "${BUILD_ROOT_ACTUAL}" != "${BUILD_ROOT_CANON}" ]; then
+    fail "Refusing build root outside the playtest tool directory: ${BUILD_ROOT_ACTUAL}"
+fi
 
 # --- Fetch pinned source archive and verify SHA-256 before extraction ------
+if [ -L "${SRC_ARCHIVE}" ]; then
+    fail "Refusing symlinked source archive: ${SRC_ARCHIVE}"
+fi
 if [ ! -f "${SRC_ARCHIVE}" ]; then
     echo "Downloading pinned mGBA commit archive..."
-    curl -fsSL "${ARCHIVE_URL}" -o "${SRC_ARCHIVE}"
+    ARCHIVE_TMP="$(mktemp "${BUILD_ROOT}/mgba-source.tar.gz.tmp.XXXXXX")"
+    if ! curl -fsSL "${ARCHIVE_URL}" -o "${ARCHIVE_TMP}"; then
+        rm -f -- "${ARCHIVE_TMP}"
+        fail "Could not download the pinned source archive."
+    fi
+    mv -f -- "${ARCHIVE_TMP}" "${SRC_ARCHIVE}"
 fi
 
 echo "Verifying archive SHA-256 before extraction..."
@@ -192,9 +229,16 @@ detect_venv_python() {
     return 1
 }
 
+if [ -L "${VENV_DIR}" ]; then
+    fail "Refusing symlinked virtual environment: ${VENV_DIR}"
+fi
 if ! detect_venv_python >/dev/null 2>&1; then
     echo "Creating isolated virtual environment..."
     "${PYTHON_BIN}" -m venv "${VENV_DIR}"
+fi
+VENV_DIR_ACTUAL="$(cd "${VENV_DIR}" && pwd -P)"
+if [ "${VENV_DIR_ACTUAL}" != "${VENV_DIR}" ]; then
+    fail "Refusing virtual environment outside the build root: ${VENV_DIR_ACTUAL}"
 fi
 VENV_PY="$(detect_venv_python)" \
     || fail "Could not find the venv interpreter under bin/ or Scripts/ in ${VENV_DIR}."
@@ -238,6 +282,7 @@ cmake -S "${SRC_DIR}" -B "${CMAKE_BUILD}" \
     -DBUILD_PYTHON=ON \
     -DBUILD_QT=OFF -DBUILD_SDL=OFF -DBUILD_GL=OFF -DBUILD_GLES2=OFF \
     -DUSE_FFMPEG=OFF -DUSE_DISCORD_RPC=OFF \
+    -DUSE_PNG=ON -DUSE_ZLIB=ON \
     -DCOLOR_16_BIT=ON -DCOLOR_5_6_5=ON \
     -DPYTHON_EXECUTABLE="${VENV_PY}"
 echo "Building libmgba..."
@@ -255,6 +300,7 @@ cmake --build "${CMAKE_BUILD}" --target mgba-py-install --config Release
 # with ``os.add_dll_directory`` before importing mgba. Harmless on POSIX (the
 # adapter no-ops there). This is the single strategy shared with the adapter.
 DLL_MANIFEST="${BUILD_ROOT}/mgba-dll-dirs.txt"
+DLL_MANIFEST_TMP="$(mktemp "${BUILD_ROOT}/mgba-dll-dirs.txt.tmp.XXXXXX")"
 to_native_path() {
     if command -v cygpath >/dev/null 2>&1; then
         cygpath -w "$1"
@@ -267,7 +313,8 @@ to_native_path() {
     if [ -n "${MSYSTEM:-}" ] && [ -d "/ucrt64/bin" ]; then
         to_native_path "/ucrt64/bin"
     fi
-} > "${DLL_MANIFEST}"
+} > "${DLL_MANIFEST_TMP}"
+mv -f -- "${DLL_MANIFEST_TMP}" "${DLL_MANIFEST}"
 echo "  recorded DLL search dirs -> ${DLL_MANIFEST}"
 
 # --- Direct native import + provenance probe (diagnoses loader failures) ----
