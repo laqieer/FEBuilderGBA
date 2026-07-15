@@ -3,12 +3,13 @@
     Avalonia.Android head for FEBuilderGBA (exploration epic #1070).
 
     STATUS: builds a full APK against the shared FEBuilderGBA.Avalonia UI (#1121).
-    The structural blocker — FEBuilderGBA.Avalonia was single-target net10.0 — is
-    resolved by conditional multi-targeting: that project now opts into
-    net10.0;net10.0-android when EnableAndroidTarget=true, and the ProjectReference
-    below activates the android TFM via AdditionalProperties (an MSBuild-verified
-    requirement — setting the property on this head alone does NOT propagate to
-    the referenced project).
+    The historical #1121 structural blocker was a single-target net9.0
+    FEBuilderGBA.Avalonia; #1121 introduced its corresponding net9.0-android
+    target. The current project conditionally targets net10.0;net10.0-android
+    when EnableAndroidTarget=true, and the ProjectReference below activates the
+    android TFM via AdditionalProperties (an MSBuild-verified requirement —
+    setting the property on this head alone does NOT propagate to the referenced
+    project).
 
     This project is INTENTIONALLY NOT part of FEBuilderGBA.sln. The `check.yml`
     CI builds the whole solution on a windows-latest runner that does NOT have the
@@ -29,8 +30,9 @@
     EnableAndroidTarget as a global property flows it to the referenced project's
     restore AND build, so the shared UI cross-targets correctly.
 
-    NOT YET device/emulator-validated: the runtime port (single-view MainView,
-    config asset extraction, SAF file I/O) lands in #1122/#1123/#1124. See
+    #1640 boots the real APK on an emulator and exercises fail-fast config
+    extraction. #1122/#1123/#1124 have landed; the interactive SAF picker,
+    editor, touch, and dialog UX remains on-device-unvalidated/preview. See
     docs/ANDROID.md for the full feasibility assessment and phased plan.
   -->
   <PropertyGroup>

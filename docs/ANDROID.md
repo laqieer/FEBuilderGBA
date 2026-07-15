@@ -468,9 +468,11 @@ This section is deliberately precise about **what built vs what is authored-only
 Before #1121, once the build moved to per-RID packaging
 (`android-x64` / `android-arm64`) it failed with `NETSDK1047` (and, with an
 explicit RID, `NETSDK1112`) because the referenced **`FEBuilderGBA.Avalonia`
-project targeted plain `net10.0`** and therefore had no `net10.0-android` /
-android-bionic runtime-pack target for the RID resolver to consume. The
-conditional multi-target gives the resolver a real `net10.0-android` target.
+project targeted plain `net9.0`** and therefore had no `net9.0-android` /
+android-bionic runtime-pack target for the RID resolver to consume. At the
+time, #1121 introduced the corresponding `net9.0-android` target. Current
+builds use `net10.0` / `net10.0-android`; the conditional multi-target gives
+the resolver a real Android target.
 
 ### Honest conclusion
 

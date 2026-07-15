@@ -43,31 +43,32 @@ is not writable off-Chromium. The shared post-load init (`RomFileService.Initial
 SAME method the desktop `MainWindow.FinishLoadedRom` calls, so desktop and web wire CoreState
 identically and never drift.
 
-**Embeddable editors are the #1873 path.** Single-view heads cannot construct `Window`-derived
+**Embeddable editors were the #1873 path during the rollout.** Single-view heads cannot construct `Window`-derived
 editors (`new Window()` still throws before content exists), so converted editors inherit
 `TranslatedUserControl` and implement `IEmbeddableEditor` with an `EditorDescriptor` (title, preferred
 size, min size, modal capability) plus `CloseRequested`. Desktop keeps true multi-window behavior by
 wrapping those controls in the generic `EditorHostWindow`; browser/Android/iOS push the same
-`UserControl` directly as a page with no `Window` construction. Legacy `Window` editors still use the
-old desktop path while rollout continues. `MoveCostEditorView` was the first converted proof editor;
-the first rollout batch also converts the simple AI editors (`AIASMCALLTALKView`,
+`UserControl` directly as a page with no `Window` construction. Legacy `Window` editors used the
+old desktop path while the rollout continued. `MoveCostEditorView` was the first converted proof editor;
+the first rollout batch also converted the simple AI editors (`AIASMCALLTALKView`,
 `AIASMCoordinateView`, `AIASMRangeView`, `AIMapSettingView`, `AIPerformItemView`,
 `AIPerformStaffView`, `AIStealItemView`, `AITargetView`, `AITilesView`, and `AIUnitsView`). Slice 3
-adds the first reusable script-driven rollout batch across simple Item/Map/Event/Menu/Sound/WorldMap
+added the first reusable script-driven rollout batch across simple Item/Map/Event/Menu/Sound/WorldMap
 editors (for example `ItemStatBonusesViewerView`, `MapPointerView`, `EventFunctionPointerView`,
-`MenuDefinitionView`, `SoundFootStepsViewerView`, and `WorldMapPointView`). Slice 4 extends the same
+`MenuDefinitionView`, `SoundFootStepsViewerView`, and `WorldMapPointView`). Slice 4 extended the same
 script-driven path across additional simple Text/Tool/Status/Unit-support/WorldMap editors (for
 example `TextMainView`, `HexEditorView`, `ToolFELintView`, `StatusParamView`,
-`SupportUnitEditorView`, and `WorldMapPathView`). Slice 5 converts the script-safe launcher/resource/menu/support/class-demo/ending surfaces
+`SupportUnitEditorView`, and `WorldMapPathView`). Slice 5 converted the script-safe launcher/resource/menu/support/class-demo/ending surfaces
 (including `MainSimpleMenuView`, `ResourceView`, `ArenaClassViewerView`, `ItemShopViewerView`,
 `MonsterItemViewerView`, `OPClassDemoViewerView`, `EDView`, and `SoundBossBGMViewerView`). Slice 6
-exhausts the remaining script-safe pool with `SupportTalkView`, `SupportTalkFE6View`,
-`SupportTalkFE7View`, `UnitFE6View`, `UnitFE7View`, and `UnitMainView`. The converter reroutes
+exhausted the remaining script-safe pool with `SupportTalkView`, `SupportTalkFE6View`,
+`SupportTalkFE7View`, `UnitFE6View`, `UnitFE7View`, and `UnitMainView`. The converter rerouted
 optional desktop `Window` owner arguments from `WindowManager.PickFromEditor(..., this)` to
-`TopLevel.GetTopLevel(this) as Window` when the caller becomes a `UserControl`; picker targets remain
-deferred. Slice 7 starts the complex phase by converting the first self-close-only dialog/tool batch,
+`TopLevel.GetTopLevel(this) as Window` when the caller becomes a `UserControl`; picker targets were
+deferred during that phase. Slice 7 started the complex phase by converting the first self-close-only dialog/tool batch,
 where converted `Close()` calls become `RequestClose()` and close through the hosting
-`EditorHostWindow`. Converted editors are exposed in the single-view launcher once a ROM is loaded.
+`EditorHostWindow`. Subsequent slices completed #1873; #1891 now exposes the full shared catalog in
+the single-view launcher once a ROM is loaded.
 
 **Full editor catalog in the single-view launcher (#1891).** With #1873 complete (every editor is now
 an embeddable `IEmbeddableEditor` `UserControl` — 0 `Window`-derived editors except the 6 legacy
@@ -185,7 +186,8 @@ required by the SDK at the time. That single gap caused **two** failures at once
    `JSHost.ImportAsync` **relative to `_framework/`** where `dotnet.js` lives) then 404'd them.
 
 **Fix:** do a proper native build — `WasmBuildNative=true` in the head csproj plus the matching
-WebAssembly workload (`wasm-tools` for the current .NET 10 SDK) in `pages.yml`. That links the
+WebAssembly workload. The original .NET 9 fix used the matching `wasm-tools-net9`;
+the current .NET 10 workflow uses `wasm-tools` in `pages.yml`. That links the
 natives (Skia works) **and** produces the canonical layout with
 `avalonia.js` / `storage.js` in `_framework/`, so Avalonia's **default** resolver works with **no
 override**. The headless boot smoke test then verifies the canvas actually renders — the class of
@@ -193,12 +195,11 @@ failure a "returns HTTP 200" check can't catch, which is exactly how #1867 shipp
 
 ## 7. Known preview limitations / follow-ups
 
-- **Editor rollout is partial (#1873)** — embeddable editors now work without constructing a `Window`.
-  `MoveCostEditorView`, the simple-AI rollout batch, the script-driven simple pool through Slice 6,
-  and the first self-close dialog/tool batch from Slice 7 are converted; the remaining legacy
-  `Window` editors are the complex dialog/file/picker/closed-event long-tail and still need follow-up
-  conversions before the browser can host the full catalog.
-  ROM **open/save** works (#1870), and the launcher remains ROM-gated.
+- **Full single-view editor catalog (#1873/#1891 — complete).** The shared
+  `EditorCatalog` is available in the launcher, and every editor is embeddable
+  except the six `EventTemplate` editors, which remain desktop-only by design.
+  ROM **open/save** works (#1870); remaining preview gaps concern runtime/browser
+  parity rather than editor conversion.
 - **On-device parity maturing** — threading-dependent caches + some file-flows aren't browser-ported
   (single-threaded on Pages). Milestone = builds + deploys + loads/renders the shell (config-loaded).
 - **`config/patch2` / FE-Repo not bundled** — same as the mobile heads.

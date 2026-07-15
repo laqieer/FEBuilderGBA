@@ -1,6 +1,7 @@
 # FEBuilderGBA.Android (Avalonia.Android head)
 
-> **Builds an APK; not yet runnable / device-validated.** Part of epic
+> **Builds an APK and boots on an emulator (#1640); interactive ROM-editing UX
+> remains preview/on-device-unvalidated.** Part of epic
 > [#1070](https://github.com/laqieer/FEBuilderGBA/issues/1070). The structural
 > prerequisite landed in
 > [#1121](https://github.com/laqieer/FEBuilderGBA/issues/1121) — this head now
@@ -52,27 +53,34 @@ project's restore + build. A successful build emits
   `bin/Release/net10.0-android/`. On the android TFM the shared project excludes
   `Program.cs`, `Avalonia.Desktop`, `app.manifest`, the `GapSweep` Roslyn
   dev-tooling, and `Microsoft.CodeAnalysis.CSharp`.
-- ✅ **config asset bundling + first-run extraction (#1123, build-only).**
+- ✅ **The single-view editor-launcher shell (#1122) landed and boots on the
+  emulator (#1640).** The boot smoke launches the real APK and reaches the
+  Avalonia single-view shell.
+- ✅ **config asset bundling + first-run extraction (#1123) is exercised by the
+  boot smoke.**
   `config/**` (excluding `patch2`) ships as `<AndroidAsset>`; `MainActivity.OnCreate`
   extracts it once (version-stamped, idempotent, via the pure
   `FEBuilderGBA.Core/AndroidConfigExtractorCore`) into `Context.FilesDir` and
   points the android-only `App.BaseDirectoryOverride` at it before the app boots,
   so Core's `PathUtil.ConfigPath` resolves on Android. The extraction logic is
   desktop-unit-tested; the APK is verified to contain `assets/config/...`
-  (excluding `patch2`). Not yet device-validated (no device available).
-- ⚠️ **Not yet device/emulator-validated** — it builds, but the remaining runtime
-  port (single-view `MainView`, SAF ROM I/O) is still pending. See
+  (excluding `patch2`), and #1640's fail-fast boot smoke catches extraction
+  failures.
+- ✅ **The SAF stream seam (#1124) is done.** ROM load/save uses stream APIs
+  suitable for Android storage.
+- ⚠️ **Interactive ROM editing remains on-device-unvalidated/preview.** The boot
+  smoke does not drive the system picker, ROM open/save interaction, editors,
+  touch UX, or dialogs. See
   [docs/ANDROID.md §7](../docs/ANDROID.md#7-build-status-in-this-environment).
 
 ## Known skeleton limitations
 
-- The shared `App.OnFrameworkInitializationCompleted` only builds UI under the
-  **classic desktop** lifetime, so under Android's single-view lifetime the app
-  boots the Avalonia runtime but shows no editor. Wiring
-  `ISingleViewApplicationLifetime.MainView` + porting `WindowManager`'s
-  multi-window model to page navigation is the largest follow-up.
-- `config/` asset bundling + first-run extraction landed in #1123 (build-only —
-  see above). SAF-stream ROM I/O is a separate follow-up (#1124).
+- The #1122 single-view shell is landed and booted by #1640, but interactive
+  editor navigation, touch UX, and attached-window dialog flows remain
+  on-device-unvalidated.
+- `config/` asset bundling + first-run extraction (#1123) is exercised by the
+  #1640 boot smoke. The #1124 SAF stream seam is done, but the boot smoke does
+  not drive the system picker or ROM open/save/editor interaction.
 - `config/patch2` is **not bundled** for Android (deferred): it is a
   runtime-installed git submodule (hundreds of MB); on-device patch delivery is
   tracked under #1070. See [docs/ANDROID.md §5](../docs/ANDROID.md#5-config-packaging-for-an-apk).

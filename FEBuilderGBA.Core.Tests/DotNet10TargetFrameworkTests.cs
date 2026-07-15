@@ -37,13 +37,12 @@ namespace FEBuilderGBA.Core.Tests
                 string fullPath = Path.Combine(
                     root,
                     relativePath.Replace('/', Path.DirectorySeparatorChar));
-                string projectXml = File.ReadAllText(fullPath);
+                XDocument project = XDocument.Load(fullPath);
                 Assert.DoesNotContain(
                     "net" + "9.0",
-                    projectXml,
+                    GetActiveXmlText(project),
                     StringComparison.OrdinalIgnoreCase);
 
-                XDocument project = XDocument.Load(fullPath);
                 string[] targetFrameworkExpressions = project.Descendants()
                     .Where(element =>
                         element.Name.LocalName == "TargetFramework"
@@ -60,16 +59,45 @@ namespace FEBuilderGBA.Core.Tests
                         StringComparison.OrdinalIgnoreCase));
                 Assert.All(
                     targetFrameworkExpressions
-                        .SelectMany(value => Regex.Matches(
-                            value,
-                            @"net\d+\.\d+",
-                            RegexOptions.IgnoreCase)
-                            .Select(match => match.Value)),
+                        .SelectMany(ExtractTargetFrameworkTokens),
                     targetFramework => Assert.Equal(
                         "net10.0",
                         targetFramework,
                         ignoreCase: true));
             }
+        }
+
+        [Fact]
+        public void TargetFrameworkTokenExtractionIncludesAlternateFamiliesAndCompactForms()
+        {
+            string[] targetFrameworks = ExtractTargetFrameworkTokens(
+                "net10.0;net10.0-windows;netstandard2.0;netcoreapp3.1;net48");
+
+            Assert.Equal(
+                new[]
+                {
+                    "net10.0",
+                    "net10.0",
+                    "netstandard2.0",
+                    "netcoreapp3.1",
+                    "net48",
+                },
+                targetFrameworks);
+        }
+
+        [Fact]
+        public void ActiveXmlTextIgnoresHistoricalComments()
+        {
+            XDocument project = XDocument.Parse(
+                "<Project><!-- Historical target: net9.0 --><PropertyGroup>" +
+                "<TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
+            string activeXmlText = GetActiveXmlText(project);
+
+            Assert.DoesNotContain(
+                "net" + "9.0",
+                activeXmlText,
+                StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("net10.0", activeXmlText);
         }
 
         [Fact]
@@ -166,6 +194,24 @@ namespace FEBuilderGBA.Core.Tests
 
             return path.StartsWith("FEBuilderGBA", StringComparison.Ordinal)
                 || path.StartsWith("tools/", StringComparison.Ordinal);
+        }
+
+        static string[] ExtractTargetFrameworkTokens(string expression)
+        {
+            return Regex.Matches(
+                    expression,
+                    @"\bnet(?:standard|coreapp)?\d+(?:\.\d+)?\b",
+                    RegexOptions.IgnoreCase)
+                .Select(match => match.Value)
+                .ToArray();
+        }
+
+        static string GetActiveXmlText(XDocument project)
+        {
+            return string.Concat(
+                project.DescendantNodes()
+                    .OfType<XText>()
+                    .Select(text => text.Value));
         }
 
         static string[] GetTrackedPaths(
