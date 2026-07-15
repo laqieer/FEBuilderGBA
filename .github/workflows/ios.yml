@@ -53,14 +53,19 @@ env:
 jobs:
   ios-build:
     name: iOS app (advisory)
-    # macos-26 ships Xcode 26.5 as the default — required by the current .NET for iOS
-    # workload (26.5.9002). `macos-latest` can still resolve to macos-15 / Xcode 16.4,
-    # which that workload rejects ("requires Xcode 26.5"). Pin explicitly. (#1859)
+    # macos-26 defaults to Xcode 26.5, while the current .NET for iOS workload
+    # (26.5.10301) requires the preinstalled Xcode 26.6. Pin the runner and select
+    # that toolchain explicitly before installing the workload. (#1859)
     runs-on: macos-26
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Select Xcode 26.6
+        run: |
+          sudo xcode-select --switch /Applications/Xcode_26.6.app/Contents/Developer
+          xcodebuild -version
 
       # No submodule init needed: config/** (data/translate/etc.) are regular tracked files
       # already in the checkout, and the BundleResource glob EXCLUDES config/patch2 (a large

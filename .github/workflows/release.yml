@@ -272,7 +272,7 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # iOS unsigned .ipa (mirrors ios.yml). SOFT / advisory for the release (#1859):
-  # iOS is a PREVIEW and its macos-latest unsigned build is not yet proven stable,
+  # iOS is a PREVIEW and its macos-26 unsigned build is not yet proven stable,
   # so — unlike the REQUIRED android job — this job is continue-on-error and is NOT
   # in the release job's mandatory verify-assets list. The .ipa is attached when the
   # build succeeds; a failure degrades to "release without iOS" instead of blocking
@@ -283,13 +283,18 @@ jobs:
   # ---------------------------------------------------------------------------
   ios:
     name: iOS IPA (advisory)
-    # macos-26 ships Xcode 26.5 (default) — required by the current .NET for iOS workload;
-    # macos-latest can still resolve to macos-15 / Xcode 16.4 which the workload rejects. (#1859)
+    # macos-26 defaults to Xcode 26.5, while the current .NET for iOS workload
+    # requires the preinstalled Xcode 26.6. Select it explicitly below. (#1859)
     runs-on: macos-26
     continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Select Xcode 26.6
+        run: |
+          sudo xcode-select --switch /Applications/Xcode_26.6.app/Contents/Developer
+          xcodebuild -version
 
       # No submodule init needed (config/** are regular files; patch2 excluded from the
       # bundle) — see ios.yml.
