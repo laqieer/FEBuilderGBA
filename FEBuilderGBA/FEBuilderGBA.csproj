@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net9.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <Platform Condition=" '$(Platform)' == '' ">x86</Platform>
     <OutputType>WinExe</OutputType>
     <IsWebBootstrapper>false</IsWebBootstrapper>
@@ -173,8 +173,8 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.VisualBasic" Version="10.3.0" />
     <PackageReference Include="SharpCompress" Version="0.48.0" />
-    <PackageReference Include="System.DirectoryServices" Version="9.0.4" />
-    <PackageReference Include="System.Speech" Version="9.0.4" />
+    <PackageReference Include="System.DirectoryServices" Version="10.0.10" />
+    <PackageReference Include="System.Speech" Version="10.0.10" />
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="BigCGForm.cs" />

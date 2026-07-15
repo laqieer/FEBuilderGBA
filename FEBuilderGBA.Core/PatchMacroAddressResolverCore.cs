@@ -9,7 +9,7 @@
 //   $EndWeaponDebuffTable3/4/5 — weapon-debuff-only PatchUtil/Form-bound macros,
 //                                never a TEXT/SONG id table
 //
-// Platform: net9.0, no WinForms, no System.Drawing dependency. Never throws.
+// Platform: net10.0, no WinForms, no System.Drawing dependency. Never throws.
 
 using System;
 using System.Collections.Generic;

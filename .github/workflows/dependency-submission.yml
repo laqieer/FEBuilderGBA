@@ -3,7 +3,7 @@
 # Replaces GitHub's repo-managed "Automatic dependency submission" (disabled in
 # repo settings), whose auto-generated `dotnet restore *.csproj` step failed on
 # the workload-gated Avalonia heads — FEBuilderGBA.iOS / .Android / .Android.Tests
-# / .Browser (NETSDK1147: wasm-tools-net9). Those heads are intentionally excluded
+# / .Browser (NETSDK1147: workload-specific SDKs). Those heads are intentionally excluded
 # from FEBuilderGBA.sln, so restoring the SOLUTION needs no mobile/wasm workloads.
 # Committing this workflow keeps the NuGet dependency graph (→ Dependabot alerts)
 # populated for the shipped solution. See issue #1899.
@@ -39,10 +39,10 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '10.0.x'
 
       # Restore ONLY the solution (excludes the workload-gated heads).
-      # EnableWindowsTargeting lets the net9.0-windows projects (WinForms + Tests +
+      # EnableWindowsTargeting lets the net10.0-windows projects (WinForms + Tests +
       # E2ETests) restore on Linux — this is restore, not build, so no Windows host
       # is needed. On pull_request this step alone is the pre-merge Linux proof.
       - name: Restore solution

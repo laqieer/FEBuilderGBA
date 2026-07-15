@@ -8,8 +8,8 @@ held to **different standards** on purpose.
 
 | GUI | Project | Status | What it accepts |
 |-----|---------|--------|-----------------|
-| **WinForms GUI** | `FEBuilderGBA` (`net9.0-windows`) | **Stable** — used widely for years | **Bug fixes only. No new features.** |
-| **Avalonia GUI** | `FEBuilderGBA.Avalonia` (`net9.0`, cross-platform) | **Preview** — not yet widely relied upon | **All new GUI features ship here.** Bug fixes too. |
+| **WinForms GUI** | `FEBuilderGBA` (`net10.0-windows`) | **Stable** — used widely for years | **Bug fixes only. No new features.** |
+| **Avalonia GUI** | `FEBuilderGBA.Avalonia` (`net10.0`, cross-platform) | **Preview** — not yet widely relied upon | **All new GUI features ship here.** Bug fixes too. |
 
 ## Why
 

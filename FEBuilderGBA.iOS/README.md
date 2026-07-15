@@ -14,7 +14,7 @@ project is **never** referenced — it is not iOS-capable.
 
 `.github/workflows/check.yml` builds the **entire solution** on a `windows-latest` runner
 that does **not** have the `ios` .NET workload — and iOS builds require **macOS + Xcode**
-regardless. Adding this `net9.0-ios` project to `FEBuilderGBA.sln` would break the required
+regardless. Adding this `net10.0-ios` project to `FEBuilderGBA.sln` would break the required
 `build` check for every unrelated PR. It is therefore intentionally excluded and built
 standalone (on macOS) by the advisory `.github/workflows/ios.yml` workflow.
 
@@ -29,7 +29,7 @@ The `-p:EnableIosTarget=true` flag is **required** as a **global** property (mir
 android head's `EnableAndroidTarget` / `NETSDK1005` fix). `AdditionalProperties` on the
 `ProjectReference` activates the ios TFM for the *build* phase, but NuGet *restore* uses a
 separate static graph that ignores per-reference `AdditionalProperties`, so without the
-global property restore writes a net9.0-only assets file for `FEBuilderGBA.Avalonia` and
+global property restore writes a net10.0-only assets file for `FEBuilderGBA.Avalonia` and
 the build fails with `NETSDK1005`.
 
 An **unsigned `.ipa`** (for downstream re-signing / sideloading via AltStore / Sideloadly —

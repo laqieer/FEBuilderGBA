@@ -7,7 +7,7 @@
 //   * the font's internal family name matches the "#Noto Sans CJK SC" suffix used in Program.cs
 //     (a mismatched suffix makes the avares fallback silently do nothing — the #1 failure mode);
 //   * Program.cs registers the fallback and the csproj embeds the font as an AvaloniaResource.
-// The net9.0 test project cannot reference the net9.0-browser head, so the font is loaded from disk
+// The net10.0 test project cannot reference the net10.0-browser head, so the font is loaded from disk
 // and the wiring is asserted by scanning the head's source.
 using System;
 using System.IO;

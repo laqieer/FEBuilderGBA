@@ -2,11 +2,11 @@
 
 ## Software Overview
 
-FEBuilderGBA is a comprehensive ROM hacking suite for the Fire Emblem GBA trilogy (FE6, FE7J/U, FE8J/U). Written in C# targeting .NET 9.0, it supports editing units, classes, items, maps, graphics, events, music, and more across five ROM variants.
+FEBuilderGBA is a comprehensive ROM hacking suite for the Fire Emblem GBA trilogy (FE6, FE7J/U, FE8J/U). Written in C# targeting .NET 10.0, it supports editing units, classes, items, maps, graphics, events, music, and more across five ROM variants.
 
 ## Backend
 
-The real software is `FEBuilderGBA.CLI` — a cross-platform .NET 9.0 CLI that exposes **~70 commands** (lint, rebuild, buildfile export/build/round-trip, text export/import, struct data export/import, disassembly, palette quantization, UPS patching, event compile/disassemble, portrait / battle-animation / MIDI / palette I/O, decomp-asset export, and more). The authoritative, always-current command list is [`docs/cli-reference.md`](../docs/cli-reference.md) (per-argument detail in [`docs/cli-args.md`](../docs/cli-args.md)); the exact count drifts as verbs are added, so treat that reference — not this number — as canonical.
+The real software is `FEBuilderGBA.CLI` — a cross-platform .NET 10.0 CLI that exposes **~70 commands** (lint, rebuild, buildfile export/build/round-trip, text export/import, struct data export/import, disassembly, palette quantization, UPS patching, event compile/disassemble, portrait / battle-animation / MIDI / palette I/O, decomp-asset export, and more). The authoritative, always-current command list is [`docs/cli-reference.md`](../docs/cli-reference.md) (per-argument detail in [`docs/cli-args.md`](../docs/cli-args.md)); the exact count drifts as verbs are added, so treat that reference — not this number — as canonical.
 
 The Python CLI harness wraps `FEBuilderGBA.CLI` via subprocess, adding:
 - Stateful session management (track open ROM, undo history)
@@ -29,7 +29,7 @@ Python CLI Harness (cli-anything-febuildergba)
     │
     └── Backend: FEBuilderGBA.CLI (dotnet run / published exe)
          │
-         └── FEBuilderGBA.Core (.NET 9.0 library)
+         └── FEBuilderGBA.Core (.NET 10.0 library)
               └── ROM manipulation, Huffman text, event scripts, etc.
 ```
 

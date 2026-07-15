@@ -122,7 +122,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             // The Android APK must stay patch2-free (#1123): config/ ships as <AndroidAsset>.
             // The config Content ItemGroup is guarded by a Condition that turns it off on the
-            // head TFMs (net9.0-android / net9.0-ios / net9.0-browser, via the computed
+            // head TFMs (net10.0-android / net10.0-ios / net10.0-browser, via the computed
             // IsHeadTfm — #1864), so the whole config tree (incl. patch2) is never a loose
             // Content item in the APK / .app / web bundle.
             XDocument doc = LoadCsproj("FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj");

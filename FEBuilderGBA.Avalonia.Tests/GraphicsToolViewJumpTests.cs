@@ -218,7 +218,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             var asm = typeof(GraphicsToolView).Assembly;
             var asmDir = System.IO.Path.GetDirectoryName(asm.Location) ?? string.Empty;
 
-            // Walk up from the assembly output dir (obj/Debug/net9.0) to the
+            // Walk up from the assembly output dir (obj/Debug/net10.0) to the
             // solution root, then down to the Views file.
             var dir = new System.IO.DirectoryInfo(asmDir);
             while (dir != null && !System.IO.File.Exists(System.IO.Path.Combine(dir.FullName, "FEBuilderGBA.sln")))

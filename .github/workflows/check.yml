@@ -34,19 +34,37 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Install x86 .NET 9 runtimes (windows-latest image dropped x86 9.0)
-      # The GitHub-hosted windows-latest image now ships x86 Microsoft.NETCore.App
-      # 8.0.x + 10.0.x but NOT 9.0.x, so the x86 testhost (testhost.x86.exe) for the
-      # net9.0-windows WinForms test DLLs (FEBuilderGBA.Tests, FEBuilderGBA.E2ETests)
-      # fails to launch with "You must install or update .NET". Install both the base
-      # runtime (Microsoft.NETCore.App) and the WindowsDesktop runtime
-      # (Microsoft.WindowsDesktop.App) for x86 into the canonical x86 dotnet root the
-      # host already probes, so all versions coexist. See issue #1119.
+    - name: Setup .NET 10.0
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Ensure x86 .NET 10 runtimes
+      # The x86 testhost needs both the base and WindowsDesktop runtimes. Hosted
+      # images normally include them, but install only whichever family is absent.
       shell: pwsh
       run: |
-        Invoke-WebRequest 'https://dot.net/v1/dotnet-install.ps1' -OutFile "$env:RUNNER_TEMP/dotnet-install.ps1"
-        & "$env:RUNNER_TEMP/dotnet-install.ps1" -Architecture x86 -Runtime dotnet         -Channel 9.0 -InstallDir "C:\Program Files (x86)\dotnet"
-        & "$env:RUNNER_TEMP/dotnet-install.ps1" -Architecture x86 -Runtime windowsdesktop -Channel 9.0 -InstallDir "C:\Program Files (x86)\dotnet"
+        $root = "C:\Program Files (x86)\dotnet"
+        $dotnet = Join-Path $root "dotnet.exe"
+        $runtimes = if (Test-Path $dotnet) { @(& $dotnet --list-runtimes) } else { @() }
+        $needBase = -not ($runtimes -match '^Microsoft\.NETCore\.App 10\.')
+        $needDesktop = -not ($runtimes -match '^Microsoft\.WindowsDesktop\.App 10\.')
+        if ($needBase -or $needDesktop) {
+          $installer = "$env:RUNNER_TEMP/dotnet-install.ps1"
+          Invoke-WebRequest 'https://dot.net/v1/dotnet-install.ps1' -OutFile $installer
+          if ($needBase) {
+            & $installer -Architecture x86 -Runtime dotnet -Channel 10.0 -InstallDir $root
+          }
+          if ($needDesktop) {
+            & $installer -Architecture x86 -Runtime windowsdesktop -Channel 10.0 -InstallDir $root
+          }
+        }
+        $runtimes = @(& $dotnet --list-runtimes)
+        if (-not ($runtimes -match '^Microsoft\.NETCore\.App 10\.') -or
+            -not ($runtimes -match '^Microsoft\.WindowsDesktop\.App 10\.')) {
+          throw "Required x86 .NET 10 runtime families are unavailable."
+        }
+        $runtimes
 
     - name: Extract PR body
       if: github.event_name == 'pull_request'
@@ -86,17 +104,14 @@ jobs:
     - name: Init build-required submodules
       run: git submodule update --init config/patch2 tools/Event-Assembler tools/ColorzCore resources/fe-info
 
-    - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v2
-
     - name: Build ColorzCore (bundled EA tool)
       run: dotnet build tools/ColorzCore/ColorzCore/ColorzCore.csproj -c ${{env.BUILD_CONFIGURATION}}
 
     - name: Build
       working-directory: ${{env.GITHUB_WORKSPACE}}
-      # Add additional options to the MSBuild command line here (like platform or verbosity level).
+      # Use the .NET 10 SDK's MSBuild engine rather than Visual Studio's older SDK resolver.
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
-      run: msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:Platform=${{env.BUILD_PLATFORM}} /t:build /restore ${{env.SOLUTION_FILE_PATH}}
+      run: dotnet msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:Platform=${{env.BUILD_PLATFORM}} /t:build /restore ${{env.SOLUTION_FILE_PATH}}
 
     - name: Run Tests
       run: dotnet test --configuration ${{env.BUILD_CONFIGURATION}} --no-build --verbosity normal --logger "trx" --collect:"XPlat Code Coverage" --settings coverlet.runsettings
@@ -132,7 +147,7 @@ jobs:
   # blocking via a follow-up PR (per docs/avalonia-gaps/README.md).
   #
   # Independent of the Windows `build` job above — runs on ubuntu-latest
-  # against the cross-platform FEBuilderGBA.Avalonia project (net9.0). No
+  # against the cross-platform FEBuilderGBA.Avalonia project (net10.0). No
   # ROM, no Windows-only dependency, no MSBuild — just `dotnet run` and
   # static analysis. ~1-2 minutes total based on local timings.
   gap-sweep-advisory:
@@ -144,7 +159,7 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Restore + build FEBuilderGBA.Avalonia
         run: dotnet build FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release

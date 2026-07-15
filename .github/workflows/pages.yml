@@ -1,6 +1,6 @@
 # Build the Avalonia WebAssembly head and deploy it to GitHub Pages (#1864).
 #
-# The FEBuilderGBA.Browser head (net9.0-browser) is INTENTIONALLY excluded from FEBuilderGBA.sln
+# The FEBuilderGBA.Browser head (net10.0-browser) is INTENTIONALLY excluded from FEBuilderGBA.sln
 # because the required desktop `build` check builds the whole solution on windows-latest with NO
 # wasm-tools workload. This dedicated workflow builds the wasm AppBundle on a workload-capable
 # ubuntu-latest runner and deploys it to GitHub Pages.
@@ -49,10 +49,10 @@ jobs:
         # config/** are regular tracked files (present); patch2 is excluded from the bundle and
         # gated off the browser TFM, so NO submodule init is needed.
 
-      - name: Setup .NET 9.0
+      - name: Setup .NET 10.0
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Cache NuGet packages
         uses: actions/cache@v4
@@ -63,14 +63,10 @@ jobs:
             nuget-wasm-${{ runner.os }}-
 
       - name: Install wasm-tools workload
-        # Provides the net9 wasm toolchain + Emscripten used to emcc-relink the SkiaSharp + HarfBuzz
-        # native archives into dotnet.native.wasm (WasmBuildNative=true). BOTH ids are installed on
-        # purpose: the hosted runner's default SDK is a 10.x band, so `wasm-tools` alone pulls the
-        # 10.x ("current") toolchain and the net9 native build fails with NETSDK1147
-        # ("wasm-tools-net9 must be installed"). `wasm-tools-net9` supplies net9's Emscripten 3.1.34,
-        # which also matches SkiaSharp 2.88.9's prebuilt libSkiaSharp.a/3.1.34 (a newer emcc would
-        # mismatch the archive). Clean NuGet-pack install on Linux (no MSI / elevation). (#1867)
-        run: dotnet workload install wasm-tools wasm-tools-net9
+        # Provides the .NET 10 WebAssembly toolchain used to relink the pinned SkiaSharp +
+        # HarfBuzz native archives into dotnet.native.wasm (WasmBuildNative=true). The legacy
+        # legacy version-specific workload is intentionally absent after the repository-wide cutover.
+        run: dotnet workload install wasm-tools
 
       - name: Publish Browser head
         # EnableBrowserTarget=true as a GLOBAL property (restore static-graph / NETSDK1005 fix,
@@ -87,11 +83,11 @@ jobs:
       - name: Prepare Pages artifact (base href + .nojekyll + verify)
         run: |
           set -euo pipefail
-          OUT="FEBuilderGBA.Browser/bin/${{ env.BUILD_CONFIGURATION }}/net9.0-browser/publish/wwwroot"
+          OUT="FEBuilderGBA.Browser/bin/${{ env.BUILD_CONFIGURATION }}/net10.0-browser/publish/wwwroot"
           if [ ! -d "$OUT" ]; then
             echo "::error::publish wwwroot not found at $OUT"
-            echo "--- tree of bin/Release/net9.0-browser ---"
-            find "FEBuilderGBA.Browser/bin/${{ env.BUILD_CONFIGURATION }}/net9.0-browser" -maxdepth 3 -type d | head -50
+            echo "--- tree of bin/Release/net10.0-browser ---"
+            find "FEBuilderGBA.Browser/bin/${{ env.BUILD_CONFIGURATION }}/net10.0-browser" -maxdepth 3 -type d | head -50
             exit 1
           fi
           # Rewrite the <base href> to the GitHub Pages project path.
@@ -136,7 +132,7 @@ jobs:
         # pull_request), so a boot regression fails the PR; on push it gates deploy (deploy needs build).
         run: |
           set -euo pipefail
-          OUT="$GITHUB_WORKSPACE/FEBuilderGBA.Browser/bin/${{ env.BUILD_CONFIGURATION }}/net9.0-browser/publish/wwwroot"
+          OUT="$GITHUB_WORKSPACE/FEBuilderGBA.Browser/bin/${{ env.BUILD_CONFIGURATION }}/net10.0-browser/publish/wwwroot"
           cd FEBuilderGBA.Browser/tests/smoke
           npm ci
           npx playwright install --with-deps chromium
@@ -213,7 +209,7 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
         with:
-          path: FEBuilderGBA.Browser/bin/${{ env.BUILD_CONFIGURATION }}/net9.0-browser/publish/wwwroot
+          path: FEBuilderGBA.Browser/bin/${{ env.BUILD_CONFIGURATION }}/net10.0-browser/publish/wwwroot
 
   deploy:
     name: Deploy to GitHub Pages

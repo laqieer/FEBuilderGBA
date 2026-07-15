@@ -1,11 +1,11 @@
 // Desktop-only GapSweep (Roslyn static-analysis dev-tooling) partial.
-// Excluded from the net9.0-android TFM (#1121); GapSweep is not shippable
+// Excluded from the net10.0-android TFM (#1121); GapSweep is not shippable
 // Android UI. All methods here reference FEBuilderGBA.Avalonia.GapSweep.*
 // types (Roslyn-backed scanners / report writers), which in turn pull in the
 // Microsoft.CodeAnalysis.CSharp package — both are desktop-only. The android
 // head removes this file plus Program.cs (the desktop entry point that calls
 // RunGapSweepStandalone) and the Avalonia.Desktop / app.manifest references,
-// so the shared UI compiles cleanly for net9.0-android.
+// so the shared UI compiles cleanly for net10.0-android.
 using System;
 using System.Collections.Generic;
 using System.IO;

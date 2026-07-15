@@ -53,7 +53,7 @@
   4. Save the file
   5. Build the project:
 
-     msbuild /m /p:Configuration=Release FEBuilderGBA.sln
+     dotnet msbuild /m /p:Configuration=Release FEBuilderGBA.sln
 
   6. Verify output:
 
@@ -66,5 +66,5 @@
   - If submodule is empty: git submodule update --init --recursive
   - If copy fails: Check that config/patch2 exists and is initialized
   - If no files copied: Check SubmodulePath is correct
-  - To see detailed copy logs: msbuild /v:detailed
+  - To see detailed copy logs: dotnet msbuild /v:detailed
 -->

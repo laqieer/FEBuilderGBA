@@ -16,8 +16,8 @@ git submodule update --init --recursive
 ### Full solution and Windows builds
 
 ```powershell
-msbuild /m /p:Configuration=Release /p:Platform=x86 /t:build /restore FEBuilderGBA.sln
-msbuild /m /p:Configuration=Debug /p:Platform=x86 /t:build /restore FEBuilderGBA.sln
+dotnet msbuild /m /p:Configuration=Release /p:Platform=x86 /t:build /restore FEBuilderGBA.sln
+dotnet msbuild /m /p:Configuration=Debug /p:Platform=x86 /t:build /restore FEBuilderGBA.sln
 ```
 
 ### Cross-platform builds

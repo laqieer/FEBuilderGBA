@@ -99,7 +99,7 @@ git push
 
 ```bash
 # Regular build - submodule copied automatically by post-build event
-msbuild /m /p:Configuration=Release /p:Platform=x86 FEBuilderGBA.sln
+dotnet msbuild /m /p:Configuration=Release /p:Platform=x86 FEBuilderGBA.sln
 
 # Verify patches copied
 ls FEBuilderGBA/bin/Release/config/patch2/FE8U/

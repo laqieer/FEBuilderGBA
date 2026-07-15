@@ -273,14 +273,9 @@ namespace FEBuilderGBA
             SafeFileHandle handle,
             out UnixFileStatus status);
 
-        [DllImport("libSystem.Native", EntryPoint = "SystemNative_GetReadDirRBufferSize")]
-        static extern int GetUnixDirectoryBufferSize();
-
-        [DllImport("libSystem.Native", EntryPoint = "SystemNative_ReadDirR")]
+        [DllImport("libSystem.Native", EntryPoint = "SystemNative_ReadDir")]
         static extern int ReadDirectoryUnix(
             IntPtr directory,
-            IntPtr buffer,
-            int bufferSize,
             out UnixDirectoryEntry entry);
 
         [DllImport("libSystem.Native", EntryPoint = "SystemNative_CloseDir",
@@ -634,18 +629,12 @@ namespace FEBuilderGBA
                     + error + ").");
             }
 
-            int bufferSize = GetUnixDirectoryBufferSize();
-            IntPtr buffer = bufferSize > 0
-                ? Marshal.AllocHGlobal(bufferSize)
-                : IntPtr.Zero;
             try
             {
                 while (true)
                 {
                     int result = ReadDirectoryUnix(
                         directoryStream,
-                        buffer,
-                        Math.Max(bufferSize, 0),
                         out UnixDirectoryEntry entry);
                     if (result == -1)
                         break;
@@ -670,8 +659,6 @@ namespace FEBuilderGBA
             }
             finally
             {
-                if (buffer != IntPtr.Zero)
-                    Marshal.FreeHGlobal(buffer);
                 CloseDirectoryUnix(directoryStream);
             }
         }

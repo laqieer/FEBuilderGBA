@@ -4,7 +4,7 @@
     Avalonia.Android head (FEBuilderGBA.Android, epic #1070).
 
     STATUS: builds an iOS .app / unsigned .ipa against the shared FEBuilderGBA.Avalonia
-    UI. The shared project multi-targets net9.0;net9.0-ios when EnableIosTarget=true, and
+    UI. The shared project multi-targets net10.0;net10.0-ios when EnableIosTarget=true, and
     the ProjectReference below activates that TFM via AdditionalProperties (an MSBuild
     requirement — setting the property on this head alone does NOT propagate to the
     referenced project's restore graph).
@@ -20,8 +20,8 @@
     The `-p:EnableIosTarget=true` flag is REQUIRED as a GLOBAL property (mirrors the
     android head's EnableAndroidTarget / NETSDK1005 fix): NuGet restore uses a separate
     static graph that ignores the per-reference AdditionalProperties, so without the
-    global property restore writes a net9.0-only assets file for FEBuilderGBA.Avalonia and
-    the build fails with NETSDK1005 ("doesn't have a target for 'net9.0-ios'").
+    global property restore writes a net10.0-only assets file for FEBuilderGBA.Avalonia and
+    the build fails with NETSDK1005 ("doesn't have a target for 'net10.0-ios'").
 
     PREVIEW / not device-validated: iOS Release is full AOT + trimmed, and the Core/ROM
     pipeline is reflection-heavy, so the runtime UX (touch, file pickers, editors) is
@@ -29,7 +29,7 @@
     maximize the chance the shipped .ipa actually runs.
   -->
   <PropertyGroup>
-    <TargetFramework>net9.0-ios</TargetFramework>
+    <TargetFramework>net10.0-ios</TargetFramework>
     <SupportedOSPlatformVersion>13.0</SupportedOSPlatformVersion>
     <OutputType>Exe</OutputType>
     <Nullable>enable</Nullable>
@@ -73,8 +73,8 @@
     <!-- The shared Avalonia UI (which references FEBuilderGBA.Core + FEBuilderGBA.SkiaSharp).
          AdditionalProperties="EnableIosTarget=true" is REQUIRED (#1859): EnableIosTarget set
          on THIS head does not flow to the referenced project, so the shared UI would
-         otherwise resolve to its default net9.0 TFM and fail the ios build. The WinForms
-         project (net9.0-windows) is NOT referenced and MUST never be — it is not iOS-capable. -->
+         otherwise resolve to its default net10.0 TFM and fail the ios build. The WinForms
+         project (net10.0-windows) is NOT referenced and MUST never be — it is not iOS-capable. -->
     <ProjectReference Include="..\FEBuilderGBA.Avalonia\FEBuilderGBA.Avalonia.csproj" AdditionalProperties="EnableIosTarget=true" />
   </ItemGroup>
 

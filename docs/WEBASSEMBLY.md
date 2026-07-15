@@ -6,7 +6,7 @@
 > [#1864](https://github.com/laqieer/FEBuilderGBA/issues/1864).
 
 FEBuilderGBA runs in a browser via **WebAssembly**: `FEBuilderGBA.Browser/` builds the shared
-`FEBuilderGBA.Avalonia` GUI (→ `FEBuilderGBA.Core` + `FEBuilderGBA.SkiaSharp`) into a `net9.0-browser`
+`FEBuilderGBA.Avalonia` GUI (→ `FEBuilderGBA.Core` + `FEBuilderGBA.SkiaSharp`) into a `net10.0-browser`
 AppBundle, deployed to **https://laqieer.github.io/FEBuilderGBA/**. It reuses the *same*
 platform-agnostic seams the mobile heads introduced.
 
@@ -14,9 +14,9 @@ platform-agnostic seams the mobile heads introduced.
 
 | Layer | Browser-capable | Notes |
 |---|---|---|
-| `FEBuilderGBA.Core` | ✅ | Pure `net9.0`. |
+| `FEBuilderGBA.Core` | ✅ | Pure `net10.0`. |
 | `FEBuilderGBA.SkiaSharp` | ✅ | Managed SkiaSharp 2.88.9; the head adds the matching `SkiaSharp.NativeAssets.WebAssembly` 2.88.9 native. |
-| `FEBuilderGBA.Avalonia` | ✅ | Multi-targets `net9.0;net9.0-browser` when `EnableBrowserTarget=true` (opt-in, default OFF). Reuses the exact compile surface the mobile heads build. |
+| `FEBuilderGBA.Avalonia` | ✅ | Multi-targets `net10.0;net10.0-browser` when `EnableBrowserTarget=true` (opt-in, default OFF). Reuses the exact compile surface the mobile heads build. |
 | `FEBuilderGBA` (WinForms) | ❌ | Never referenced — not browser-capable. |
 
 ## 2. Lifetime & windowing — reused from the mobile ports
@@ -150,15 +150,15 @@ windows-latest without `wasm-tools`). Build standalone:
 dotnet workload install wasm-tools
 dotnet publish FEBuilderGBA.Browser/FEBuilderGBA.Browser.csproj -c Release \
   -p:EnableBrowserTarget=true -p:WasmEnableThreads=false -p:PublishTrimmed=false -p:CompressionEnabled=false
-# AppBundle: FEBuilderGBA.Browser/bin/Release/net9.0-browser/publish/wwwroot
+# AppBundle: FEBuilderGBA.Browser/bin/Release/net10.0-browser/publish/wwwroot
 ```
 
 `-p:EnableBrowserTarget=true` is REQUIRED as a **global** property — NuGet restore's static graph
 ignores the per-reference `AdditionalProperties`, else `NETSDK1005` (same mechanism as android/iOS).
 
 - **`.github/workflows/pages.yml`** — installs `wasm-tools`, publishes the head, rewrites the
-  published `index.html` `<base href>` to `/FEBuilderGBA/` (the Pages project path; `WasmRelativePathBase`
-  doesn't exist in the .NET 9 SDK), adds `.nojekyll` (so `_framework/` isn't Jekyll-stripped), verifies
+  published `index.html` `<base href>` to `/FEBuilderGBA/` (the Pages project path), adds
+  `.nojekyll` (so `_framework/` isn't Jekyll-stripped), verifies
   the `config.zip`/`_framework` are present, then `upload-pages-artifact` + `deploy-pages`. The **build**
   job runs on PRs (validates the wasm build); the **deploy** job runs only on `master`/dispatch.
 - GitHub Pages source is set to **GitHub Actions** (`build_type: workflow`).
@@ -172,8 +172,8 @@ ignores the per-reference `AdditionalProperties`, else `NETSDK1005` (same mechan
 
 The initial deploy hung on the loading splash and 404'd on `avalonia.js`. It looked like a module-path
 bug, but the true root cause was an **incomplete wasm build**: the head published *without* a native
-build — no `WasmBuildNative`, and CI installed only the generic `wasm-tools` workload, not
-`wasm-tools-net9`. That single gap caused **two** failures at once:
+build — no `WasmBuildNative`, and CI lacked the target-framework-specific WebAssembly toolchain
+required by the SDK at the time. That single gap caused **two** failures at once:
 
 1. **SkiaSharp/HarfBuzz natives were never linked.** `@(NativeFileReference)` (`libSkiaSharp.a` +
    `libHarfBuzzSharp.a`) is only emcc-relinked into `dotnet.native.wasm` when `WasmBuildNative=true`
@@ -184,8 +184,9 @@ build — no `WasmBuildNative`, and CI installed only the generic `wasm-tools` w
    wwwroot **root** instead of `_framework/`. Avalonia's default resolver (`./avalonia.js`, resolved by
    `JSHost.ImportAsync` **relative to `_framework/`** where `dotnet.js` lives) then 404'd them.
 
-**Fix:** do a proper native build — `WasmBuildNative=true` in the head csproj + `wasm-tools-net9` in
-`pages.yml`. That links the natives (Skia works) **and** produces the canonical layout with
+**Fix:** do a proper native build — `WasmBuildNative=true` in the head csproj plus the matching
+WebAssembly workload (`wasm-tools` for the current .NET 10 SDK) in `pages.yml`. That links the
+natives (Skia works) **and** produces the canonical layout with
 `avalonia.js` / `storage.js` in `_framework/`, so Avalonia's **default** resolver works with **no
 override**. The headless boot smoke test then verifies the canvas actually renders — the class of
 failure a "returns HTTP 200" check can't catch, which is exactly how #1867 shipped.
@@ -203,8 +204,8 @@ failure a "returns HTTP 200" check can't catch, which is exactly how #1867 shipp
 - **`config/patch2` / FE-Repo not bundled** — same as the mobile heads.
 - **Large first-load** — no trimming + the ~6.8 MB config tree (downloaded + unzipped before boot);
   a loading splash is shown. Optimized/trimmed AOT is a follow-up.
-- **SDK/emscripten float** — no `global.json`; the native relink uses the CI runner's `9.0.x` SDK
-  emscripten (stable within .NET 9). Pin via `global.json` if reproducibility becomes an issue.
+- **SDK/emscripten float** — no `global.json`; the native relink uses the CI runner's `10.0.x` SDK
+  Emscripten toolchain. Pin via `global.json` if reproducibility becomes an issue.
 
 ## See also
 

@@ -20,10 +20,10 @@ echo "=== Android Emulator Parity: arch=${ARCH} ==="
 # ---------------------------------------------------------------
 # 1. Locate the signed APK
 # ---------------------------------------------------------------
-APK_PATH=$(find FEBuilderGBA.Android.Tests/bin/Release/net9.0-android -name "*-Signed.apk" | head -1)
+APK_PATH=$(find FEBuilderGBA.Android.Tests/bin/Release/net10.0-android -name "*-Signed.apk" | head -1)
 if [ -z "$APK_PATH" ]; then
-  echo "ERROR: No *-Signed.apk found under FEBuilderGBA.Android.Tests/bin/Release/net9.0-android/"
-  ls -la FEBuilderGBA.Android.Tests/bin/Release/net9.0-android/ || true
+  echo "ERROR: No *-Signed.apk found under FEBuilderGBA.Android.Tests/bin/Release/net10.0-android/"
+  ls -la FEBuilderGBA.Android.Tests/bin/Release/net10.0-android/ || true
   exit 1
 fi
 echo "APK: $APK_PATH"

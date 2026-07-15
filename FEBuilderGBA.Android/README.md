@@ -17,7 +17,7 @@ not Android-capable.
 
 `.github/workflows/check.yml` builds the **entire solution** on a `windows-latest`
 runner that does **not** have the `android` .NET workload. Adding this
-`net9.0-android` project to `FEBuilderGBA.sln` would break the required `build`
+`net10.0-android` project to `FEBuilderGBA.sln` would break the required `build`
 check for every unrelated PR. It is therefore intentionally excluded and built
 standalone.
 
@@ -32,24 +32,24 @@ The `-p:EnableAndroidTarget=true` flag is **required**. `AdditionalProperties` o
 the `ProjectReference` correctly activates the android TFM for the *build* phase,
 but NuGet *restore* uses a separate static graph that ignores per-reference
 `AdditionalProperties`, so without the global property restore writes a
-net9.0-only assets file for `FEBuilderGBA.Avalonia` and the build fails with
+net10.0-only assets file for `FEBuilderGBA.Avalonia` and the build fails with
 `NETSDK1005`. Passing it as a global property flows it to the referenced
 project's restore + build. A successful build emits
 `com.laqieer.febuildergba-Signed.apk` under
-`bin/Release/net9.0-android/`.
+`bin/Release/net10.0-android/`.
 
 ## Current build status (honest)
 
-- ✅ A minimal `net9.0-android` project builds + packages a signed APK with the
+- ✅ A minimal `net10.0-android` project builds + packages a signed APK with the
   workload installed (toolchain verified).
 - ✅ This head's own code (`MainActivity`) **compiles** against the shared
   `FEBuilderGBA.Avalonia` reference.
 - ✅ **The full APK builds (#1121).** `FEBuilderGBA.Avalonia` conditionally
-  multi-targets `net9.0;net9.0-android` (opt-in via `EnableAndroidTarget`,
+  multi-targets `net10.0;net10.0-android` (opt-in via `EnableAndroidTarget`,
   default OFF); the `ProjectReference` below activates the android TFM with
   `AdditionalProperties="EnableAndroidTarget=true"` (an MSBuild-verified
   requirement). `dotnet build … -c Release` produces an APK under
-  `bin/Release/net9.0-android/`. On the android TFM the shared project excludes
+  `bin/Release/net10.0-android/`. On the android TFM the shared project excludes
   `Program.cs`, `Avalonia.Desktop`, `app.manifest`, the `GapSweep` Roslyn
   dev-tooling, and `Microsoft.CodeAnalysis.CSharp`.
 - ✅ **config asset bundling + first-run extraction (#1123, build-only).**

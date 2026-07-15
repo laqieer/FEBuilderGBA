@@ -5,7 +5,7 @@
 // behaviourally unchanged: the GapSweep static properties still live on App,
 // ParseArgs still populates them, and RunGapSweepStandalone (now in the
 // partial, reached via InternalsVisibleTo) still returns null for non-gap-sweep
-// args. The Tests project targets net9.0, the same TFM the desktop build uses,
+// args. The Tests project targets net10.0, the same TFM the desktop build uses,
 // so this exercises exactly the code path the desktop ships.
 using System;
 using System.Reflection;
@@ -119,7 +119,7 @@ public class AndroidMultiTargetDesktopParityTests : IDisposable
     [Fact]
     public void Desktop_TFM_selects_DesktopNavigationService()
     {
-        // Regression guard: on the desktop TFM (these tests run net9.0,
+        // Regression guard: on the desktop TFM (these tests run net10.0,
         // non-Android), the navigation service selection must yield the
         // behavior-identical window-based desktop impl — never the Android one.
         // Asserted via the same OperatingSystem.IsAndroid() branch WindowManager's

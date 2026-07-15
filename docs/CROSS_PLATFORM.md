@@ -9,7 +9,7 @@ This document describes the cross-platform strategy for FEBuilderGBA.
 FEBuilderGBA's WinForms GUI has 330 forms and 130k+ lines of GUI code. A full rewrite is not practical. Instead, we chose **Avalonia UI** for the cross-platform GUI because:
 
 - **XAML-based** — familiar to .NET developers, supports data binding
-- **.NET 9.0 native** — no bridge layers or compatibility shims
+- **.NET 10.0 native** — no bridge layers or compatibility shims
 - **Linux/macOS/Windows** — single codebase for all desktop platforms
 - **Active community** — well-maintained, regular releases
 - **Mature controls** — DataGrid, TreeView, TabControl cover FEBuilderGBA's needs
@@ -38,45 +38,45 @@ The `IImageService` abstraction in Core lets platform backends swap implementati
 ## Project Dependencies
 
 ```
-FEBuilderGBA.Core (net9.0)
+FEBuilderGBA.Core (net10.0)
 ├── No platform dependencies
 ├── Defines: IAppServices, IImageService, IImage
 └── Contains: ROM, Undo, LZ77, text encoding, config, etc.
 
-FEBuilderGBA.CLI (net9.0)
+FEBuilderGBA.CLI (net10.0)
 ├── References: FEBuilderGBA.Core
 └── Cross-platform CLI: 70 commands (--version, --help, --makeups,
     --lint, --rebuild, --disasm, --export-data, --export-asset, …;
     full list via `FEBuilderGBA.CLI --help`)
 
-FEBuilderGBA.SkiaSharp (net9.0)
+FEBuilderGBA.SkiaSharp (net10.0)
 ├── References: FEBuilderGBA.Core
 ├── NuGet: SkiaSharp 2.88.9 (pinned to match Avalonia 11.2.3's bundled
 │         native libSkiaSharp; managed 3.x crashes on Linux/macOS)
 └── Implements: IImageService, IImage
 
-FEBuilderGBA.Avalonia (net9.0)
+FEBuilderGBA.Avalonia (net10.0)
 ├── References: FEBuilderGBA.Core
 ├── NuGet: Avalonia 11.2.3
 └── Cross-platform GUI (367 .axaml, 361 ViewModels, 176 write-enabled editors)
 
-FEBuilderGBA (net9.0-windows)
+FEBuilderGBA (net10.0-windows)
 ├── References: FEBuilderGBA.Core
 └── WinForms GUI (existing, Windows-only)
 
-FEBuilderGBA.Core.Tests (net9.0)
+FEBuilderGBA.Core.Tests (net10.0)
 ├── References: FEBuilderGBA.Core
 └── Cross-platform unit tests (5,549 test methods)
 
-FEBuilderGBA.Avalonia.Tests (net9.0)
+FEBuilderGBA.Avalonia.Tests (net10.0)
 ├── References: FEBuilderGBA.Avalonia, .Core
 └── Cross-platform Avalonia GUI/ViewModel tests (4,572 test methods)
 
-FEBuilderGBA.Tests (net9.0-windows)
+FEBuilderGBA.Tests (net10.0-windows)
 ├── References: FEBuilderGBA.Core, .CLI, .SkiaSharp
 └── Unit/integration tests (1,314 test methods)
 
-FEBuilderGBA.E2ETests (net9.0-windows)
+FEBuilderGBA.E2ETests (net10.0-windows)
 ├── Launches FEBuilderGBA.exe
 └── End-to-end GUI/CLI tests (161 test methods)
 ```
@@ -192,7 +192,7 @@ dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 dotnet test FEBuilderGBA.Avalonia.Tests/FEBuilderGBA.Avalonia.Tests.csproj
 
 # Full solution (Windows only — includes WinForms)
-msbuild /m /p:Configuration=Release /p:Platform=x86 /t:build /restore FEBuilderGBA.sln
+dotnet msbuild /m /p:Configuration=Release /p:Platform=x86 /t:build /restore FEBuilderGBA.sln
 ```
 
 ## Local Test ROMs (GUI / E2E reproduction)
@@ -239,7 +239,7 @@ own legally-obtained ROMs in a **git-ignored `roms/`** folder at the repo root:
 
 Running the Windows binary under emulation gives you the *desktop* program on an Android device; it does **not** give you a touch-native app. An actual native Android build of the Avalonia GUI is a substantial, separate port tracked as the exploration epic [#1070](https://github.com/laqieer/FEBuilderGBA/issues/1070) — there is no commitment to ship it yet.
 
-The structural prerequisite **landed in [#1121](https://github.com/laqieer/FEBuilderGBA/issues/1121)**: `FEBuilderGBA.Avalonia` now **conditionally multi-targets** `net9.0;net9.0-android` — opt-in via the `EnableAndroidTarget` MSBuild property (default **OFF**, so the desktop `.sln` and all CI still see `net9.0` only). The Android head at [`FEBuilderGBA.Android/`](../FEBuilderGBA.Android/README.md) **builds a real APK** against the shared UI:
+The structural prerequisite **landed in [#1121](https://github.com/laqieer/FEBuilderGBA/issues/1121)**: `FEBuilderGBA.Avalonia` now **conditionally multi-targets** `net10.0;net10.0-android` — opt-in via the `EnableAndroidTarget` MSBuild property (default **OFF**, so the desktop `.sln` and all CI still see `net10.0` only). The Android head at [`FEBuilderGBA.Android/`](../FEBuilderGBA.Android/README.md) **builds a real APK** against the shared UI:
 
 ```bash
 dotnet workload install android
@@ -252,7 +252,7 @@ The full, evidence-backed feasibility assessment lives in **[docs/ANDROID.md](AN
 
 ## Running on iOS
 
-A native iOS/iPadOS build of the Avalonia GUI, added in [#1859](https://github.com/laqieer/FEBuilderGBA/issues/1859) — the iOS counterpart of the Android epic. It reuses the **same** platform-agnostic seams the Android port introduced (single-view lifetime, first-run `config/` extraction via `FEBuilderGBA.Core/AndroidConfigExtractorCore`, stream-based ROM I/O), so it is a close mirror. `FEBuilderGBA.Avalonia` conditionally multi-targets `net9.0;net9.0-ios` via the opt-in `EnableIosTarget` property (default **OFF**), and the head at [`FEBuilderGBA.iOS/`](../FEBuilderGBA.iOS/README.md) builds an iOS `.app` / **unsigned `.ipa`** on macOS:
+A native iOS/iPadOS build of the Avalonia GUI, added in [#1859](https://github.com/laqieer/FEBuilderGBA/issues/1859) — the iOS counterpart of the Android epic. It reuses the **same** platform-agnostic seams the Android port introduced (single-view lifetime, first-run `config/` extraction via `FEBuilderGBA.Core/AndroidConfigExtractorCore`, stream-based ROM I/O), so it is a close mirror. `FEBuilderGBA.Avalonia` conditionally multi-targets `net10.0;net10.0-ios` via the opt-in `EnableIosTarget` property (default **OFF**), and the head at [`FEBuilderGBA.iOS/`](../FEBuilderGBA.iOS/README.md) builds an iOS `.app` / **unsigned `.ipa`** on macOS:
 
 ```bash
 dotnet workload install ios
@@ -263,7 +263,7 @@ dotnet build FEBuilderGBA.iOS/FEBuilderGBA.iOS.csproj -c Release -p:EnableIosTar
 
 ## Running in the browser (WebAssembly)
 
-FEBuilderGBA runs in a **browser** via WebAssembly, added in [#1864](https://github.com/laqieer/FEBuilderGBA/issues/1864) — the 4th Avalonia head. It reuses the *same* platform-agnostic seams the mobile ports introduced (single-view lifetime, `App.BaseDirectoryOverride`, `AndroidConfigExtractorCore`). `FEBuilderGBA.Avalonia` conditionally multi-targets `net9.0;net9.0-browser` via the opt-in `EnableBrowserTarget` property (default **OFF**), and the head at [`FEBuilderGBA.Browser/`](../FEBuilderGBA.Browser/README.md) builds a `net9.0-browser` AppBundle:
+FEBuilderGBA runs in a **browser** via WebAssembly, added in [#1864](https://github.com/laqieer/FEBuilderGBA/issues/1864) — the 4th Avalonia head. It reuses the *same* platform-agnostic seams the mobile ports introduced (single-view lifetime, `App.BaseDirectoryOverride`, `AndroidConfigExtractorCore`). `FEBuilderGBA.Avalonia` conditionally multi-targets `net10.0;net10.0-browser` via the opt-in `EnableBrowserTarget` property (default **OFF**), and the head at [`FEBuilderGBA.Browser/`](../FEBuilderGBA.Browser/README.md) builds a `net10.0-browser` AppBundle:
 
 ```bash
 dotnet workload install wasm-tools

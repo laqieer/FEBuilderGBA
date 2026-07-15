@@ -10,7 +10,7 @@ namespace FEBuilderGBA.Tests.Unit
     ///
     /// These cross-project source-text + reflection assertions catch Avalonia/Core
     /// refactors that the cross-platform test projects can't see (per repo
-    /// convention — FEBuilderGBA.Tests is net9.0-windows and links the WinForms
+    /// convention — FEBuilderGBA.Tests is net10.0-windows and links the WinForms
     /// assembly + Core). They verify:
     ///   1. CoreState.UseTextIDCache is typed ITextIDCache (not object).
     ///   2. WinForms EtcCacheTextID implements ITextIDCache.

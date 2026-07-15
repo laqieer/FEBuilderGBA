@@ -38,7 +38,7 @@
 ## E2E Test Plan (`test_full_e2e.py`)
 
 ### Prerequisites
-- .NET 9.0 SDK installed
+- .NET 10.0 SDK installed
 - FEBuilderGBA.CLI built
 - ROM files in `roms/` directory
 
