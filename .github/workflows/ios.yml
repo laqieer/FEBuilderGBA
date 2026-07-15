@@ -203,7 +203,7 @@ jobs:
           # real config content (not an empty dir) was bundled.
           test -f "$app/config/data/6c_name_FE8.txt" || { echo "::error::tracked config content (config/data/6c_name_FE8.txt) missing from bundle — LogicalName flattened or config not bundled"; exit 1; }
           echo "Bundled config/ tree OK. Sample:"
-          find "$app/config" -type f | head -n 20
+          find "$app/config" -type f | sed -n '1,20p'
           echo "Bundled LICENSE present:"; test -f "$app/LICENSE" && echo yes || echo "no (warn)"
 
       - name: Package unsigned .ipa (if SDK did not emit one)
