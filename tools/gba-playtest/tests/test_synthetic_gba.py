@@ -86,3 +86,54 @@ def test_padding_beyond_code_is_zero_and_copyright_clean():
     assert set(rom[0x200:]) == {0}
     assert synthetic_gba.logo_is_zeroed(rom)
     assert synthetic_gba.has_no_copyrighted_block(rom)
+
+
+def test_loop_clears_marker_each_iteration():
+    # The per-iteration release default (mov r3,#0 = 0xE3A03000) must sit inside
+    # the loop, between the loop head (ldrh) and the marker store, so releasing
+    # A clears the byte instead of latching it.
+    rom = synthetic_gba.build_synthetic_rom()
+    ldrh = struct.pack("<I", 0xE1D020B0)      # 0xC8 loop head
+    clear = struct.pack("<I", 0xE3A03000)     # 0xCC mov r3,#0
+    strb = struct.pack("<I", 0xE5C13000)      # 0xD8 strb r3,[r1]
+    ldrh_pos = rom.index(ldrh)
+    clear_pos = rom.index(clear)
+    strb_pos = rom.index(strb)
+    assert ldrh_pos < clear_pos < strb_pos
+
+
+def test_marker_reflects_held_state_not_latch():
+    marker = 0xAB
+    # Press A, then release: the marker must appear while held and clear on
+    # release (proving both transitions, not a one-way latch).
+    result = synthetic_gba.simulate_marker_sequence([True, False], marker=marker)
+    assert result == [marker, 0]
+
+
+def test_marker_full_press_release_sequence():
+    marker = 0x5A
+    states = [False, True, True, False, True, False]
+    result = synthetic_gba.simulate_marker_sequence(states, marker=marker)
+    assert result == [synthetic_gba.expected_marker(s, marker) for s in states]
+    assert result == [0, marker, marker, 0, marker, 0]
+
+
+def test_expected_marker_contract():
+    assert synthetic_gba.expected_marker(True) == synthetic_gba.DEFAULT_MARKER
+    assert synthetic_gba.expected_marker(False) == 0
+    assert synthetic_gba.expected_marker(True, 0x42) == 0x42
+
+
+def test_key_transition_sequence_constant_covers_both_edges():
+    seq = synthetic_gba.KEY_TRANSITION_SEQUENCE
+    result = synthetic_gba.simulate_marker_sequence(seq)
+    assert result == [synthetic_gba.expected_marker(s) for s in seq]
+    # Both a rising (press) and falling (release) edge are represented.
+    assert synthetic_gba.DEFAULT_MARKER in result
+    assert 0 in result
+
+
+def test_public_marker_constants():
+    assert synthetic_gba.EWRAM_MARKER_ADDR == 0x02000000
+    assert synthetic_gba.KEYINPUT_ADDR == 0x04000130
+    assert synthetic_gba.A_KEYINPUT_BIT == 0x0001
