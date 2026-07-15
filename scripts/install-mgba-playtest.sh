@@ -193,6 +193,40 @@ echo "Installing the display-free Python binding (mgba-py-install)..."
 # install *component*). This MUST succeed; no fail-open fallback.
 cmake --build "${CMAKE_BUILD}" --target mgba-py-install --config Release
 
+# --- Record the native DLL search directories (Windows loader strategy) -----
+# A UCRT64 Python launched outside the MSYS2 shell (e.g. from PowerShell/.NET)
+# does not resolve the binding's dependent DLLs via ``runtime_library_dirs``.
+# Record the build output dir (libmgba) and, under MSYS2, the UCRT64 ``bin``
+# (libgcc/libwinpthread) as NATIVE paths; the runtime adapter registers them
+# with ``os.add_dll_directory`` before importing mgba. Harmless on POSIX (the
+# adapter no-ops there). This is the single strategy shared with the adapter.
+DLL_MANIFEST="${BUILD_ROOT}/mgba-dll-dirs.txt"
+to_native_path() {
+    if command -v cygpath >/dev/null 2>&1; then
+        cygpath -w "$1"
+    else
+        printf '%s\n' "$1"
+    fi
+}
+{
+    to_native_path "${CMAKE_BUILD}"
+    if [ -n "${MSYSTEM:-}" ] && [ -d "/ucrt64/bin" ]; then
+        to_native_path "/ucrt64/bin"
+    fi
+} > "${DLL_MANIFEST}"
+echo "  recorded DLL search dirs -> ${DLL_MANIFEST}"
+
+# --- Direct native import + provenance probe (diagnoses loader failures) ----
+# Runs BEFORE --check so a DLL/loader failure is surfaced directly (with the
+# real error) instead of folded into the sanitized runtime result. Asserts the
+# effective binding is exactly 0.10.5 at the pinned commit -- never
+# None/unknown/short SHA.
+echo "Probing the native binding import and exact provenance..."
+(
+    cd "${TOOL_DIR}"
+    "${VENV_PY}" -c 'import febuildergba_playtest.mgba_backend as b; b.prepare_native_library_search(); import mgba; v = mgba.__version__; c = getattr(getattr(mgba, "Git", None), "commit", None); print("mgba", v, c); assert v == "0.10.5", ("unexpected version", v); assert c == "26b7884bc25a5933960f3cdcd98bac1ae14d42e2", ("unexpected commit", c)'
+) || fail "Native import/provenance probe failed (see the loader error above)."
+
 # --- Verify ----------------------------------------------------------------
 echo "Verifying the pinned binding with --playtest --check..."
 if ( cd "${TOOL_DIR}" && "${VENV_PY}" -m febuildergba_playtest --check ); then

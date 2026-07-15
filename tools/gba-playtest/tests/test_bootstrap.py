@@ -149,6 +149,33 @@ def test_build_script_uses_gcc_compatible_generator_not_msvc():
     assert not re.search(r'-G\s+"?Visual Studio', text), "must not select an MSVC generator"
 
 
+def test_build_script_records_dll_manifest():
+    text = _read(BUILD_SCRIPT)
+    assert "mgba-dll-dirs.txt" in text, "must record the DLL search manifest"
+    # Build output dir (libmgba) is recorded, plus UCRT64 bin under MSYS2.
+    assert "${CMAKE_BUILD}" in text
+    assert "/ucrt64/bin" in text, "must record the UCRT64 bin under MSYS2"
+    # Native (Windows) paths so os.add_dll_directory can consume them.
+    assert re.search(r"cygpath\s+-w", text), "must convert to native paths with cygpath -w"
+
+
+def test_build_script_probes_native_import_and_exact_provenance():
+    text = _read(BUILD_SCRIPT)
+    # A direct import probe runs so loader failures are diagnosed directly...
+    assert "prepare_native_library_search" in text, "probe must register DLL dirs"
+    assert re.search(r"import\s+mgba\b", text), "probe must import the native binding"
+    # ...and it asserts the exact effective version + pinned commit.
+    assert re.search(r"__version__[^\n]*0\.10\.5", text) or '== "0.10.5"' in text, (
+        "probe must assert exact runtime version"
+    )
+    assert PINNED_COMMIT in text
+    assert "Git" in text and "commit" in text, "probe must read mgba.Git.commit"
+    # The direct probe precedes the actual --check invocation.
+    i_probe = text.find("prepare_native_library_search")
+    i_check = text.rfind("febuildergba_playtest --check")
+    assert -1 < i_probe < i_check, "the import probe must run before --check"
+
+
 # --------------------------------------------------------------------------- #
 # PowerShell wrapper contract (honest MSYS2 UCRT64 delegation)
 # --------------------------------------------------------------------------- #

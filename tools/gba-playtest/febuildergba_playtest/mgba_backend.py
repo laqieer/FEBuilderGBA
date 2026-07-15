@@ -47,6 +47,12 @@ Startup contract (verified as effective, not merely requested):
 * No autoload of save / patch / cheats.
 * A video buffer is attached only when a screenshot is requested.
 * A crash callback flips the core into a faulted state.
+* Windows native-library discovery: before importing ``mgba`` the adapter
+  registers the DLL directories recorded by the bootstrap manifest
+  (``.mgba-build/mgba-dll-dirs.txt``, plus an optional
+  ``FEBUILDERGBA_MGBA_DLL_DIRS`` override) via ``os.add_dll_directory`` — see
+  :func:`prepare_native_library_search`. This is one deterministic strategy
+  shared with the bootstrap and is a no-op on POSIX.
 
 All third-party diagnostics go to stderr; stdout is reserved for the single
 result document emitted by ``__main__``. Every note that could carry a path is
@@ -89,6 +95,103 @@ _REQUIRED_OPTS_INT = {"frameskip": 0}
 
 def _diag(message: str) -> None:
     sys.stderr.write(f"[mgba-backend] {redact_message(message)}\n")
+
+
+# --- Windows native-library discovery --------------------------------------
+# One deterministic, documented strategy shared with the bootstrap: the build
+# script records the DLL search directories (build output dir holding
+# ``libmgba``; under MSYS2 also the UCRT64 ``bin`` holding ``libgcc`` /
+# ``libwinpthread``) as native paths in ``.mgba-build/mgba-dll-dirs.txt``. Before
+# importing ``mgba`` this adapter registers each existing directory with
+# ``os.add_dll_directory``. A UCRT64 Python launched from PowerShell/.NET does
+# not otherwise resolve the binding's dependent DLLs (``_builder.py``'s
+# ``runtime_library_dirs`` does not cover this). No-op on POSIX and when nothing
+# is recorded. ``FEBUILDERGBA_MGBA_DLL_DIRS`` (os.pathsep-separated) is an
+# explicit override applied ahead of the manifest.
+_DLL_MANIFEST_NAME = "mgba-dll-dirs.txt"
+_DLL_SEARCH_ENV = "FEBUILDERGBA_MGBA_DLL_DIRS"
+
+# Handles from ``os.add_dll_directory`` are kept alive for the process lifetime:
+# closing a handle removes the directory from the search path again.
+_DLL_HANDLES: List[Any] = []
+
+
+def _dll_manifest_path() -> str:
+    tool_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(tool_dir, ".mgba-build", _DLL_MANIFEST_NAME)
+
+
+def _read_manifest_dirs(manifest_path: str) -> List[str]:
+    dirs: List[str] = []
+    try:
+        with open(manifest_path, "r", encoding="utf-8") as handle:
+            for line in handle:
+                entry = line.strip()
+                if entry and not entry.startswith("#"):
+                    dirs.append(entry)
+    except OSError:
+        pass
+    return dirs
+
+
+def _collect_dll_dirs(environ: Any, manifest_path: str) -> List[str]:
+    """Ordered, de-duplicated DLL search dirs: env override first, then manifest."""
+    candidates: List[str] = []
+    raw = ""
+    try:
+        raw = environ.get(_DLL_SEARCH_ENV, "") or ""
+    except AttributeError:  # pragma: no cover - defensive
+        raw = ""
+    if raw:
+        candidates.extend(part for part in raw.split(os.pathsep) if part)
+    candidates.extend(_read_manifest_dirs(manifest_path))
+    ordered: List[str] = []
+    seen = set()
+    for entry in candidates:
+        if entry not in seen:
+            seen.add(entry)
+            ordered.append(entry)
+    return ordered
+
+
+def prepare_native_library_search(
+    *,
+    register: Optional[Callable[[str], Any]] = None,
+    isdir: Optional[Callable[[str], bool]] = None,
+    is_windows: Optional[bool] = None,
+    environ: Optional[Any] = None,
+    manifest_path: Optional[str] = None,
+) -> List[str]:
+    """Register recorded DLL directories before importing ``mgba`` on Windows.
+
+    Deterministic no-op on POSIX and when nothing is recorded. Every argument is
+    injectable so the behaviour is testable without a real binding or Windows.
+    Returns the list of directories actually registered.
+    """
+    if is_windows is None:
+        is_windows = os.name == "nt"
+    if not is_windows:
+        return []
+    if register is None:
+        register = getattr(os, "add_dll_directory", None)
+    if register is None:
+        return []
+    if isdir is None:
+        isdir = os.path.isdir
+    env = environ if environ is not None else os.environ
+    manifest = manifest_path or _dll_manifest_path()
+    registered: List[str] = []
+    for directory in _collect_dll_dirs(env, manifest):
+        if not isdir(directory):
+            continue
+        try:
+            handle = register(directory)
+        except OSError as exc:
+            _diag(f"could not add DLL directory: {type(exc).__name__}")
+            continue
+        _DLL_HANDLES.append(handle)
+        registered.append(directory)
+    return registered
 
 
 class _NonClosingBytesIO(io.BytesIO):
@@ -176,6 +279,7 @@ def check_available() -> Dict[str, Any]:
 
     Every reason is sanitized so no interpreter/library path can leak.
     """
+    prepare_native_library_search()
     try:
         import mgba  # noqa: F401
         import mgba.core  # noqa: F401
@@ -223,6 +327,7 @@ class MgbaBackend(Backend):  # pragma: no cover - requires native emulator
         self._import_and_prepare()
 
     def _import_and_prepare(self) -> None:
+        prepare_native_library_search()
         try:
             import mgba.core  # noqa: F401
             import mgba.log

@@ -71,9 +71,23 @@ Both scripts fetch only the official `mgba-emu/mgba` commit
 `26b7884bc25a5933960f3cdcd98bac1ae14d42e2` as a commit archive, verify its
 SHA-256 before extraction (no fallback), stamp exact inner Git provenance,
 install hash-locked build dependencies, build the display-free binding into an
-isolated `.mgba-build/` venv, and finish by running `--check` (exact mGBA
-version **and** commit). A real Windows MSYS2 CI job is required before the
-Windows path is considered merge-ready.
+isolated `.mgba-build/` venv, record the native DLL search directories, run a
+direct import + provenance probe, and finish by running `--check` (exact mGBA
+version **and** commit).
+
+On Windows the binding's dependent DLLs (`libmgba`, `libgcc`, `libwinpthread`)
+are not resolved via `runtime_library_dirs` when a UCRT64 Python is launched
+from PowerShell/.NET. The bootstrap therefore records the build output directory
+and the UCRT64 `bin` as native paths in `.mgba-build/mgba-dll-dirs.txt`, and the
+runtime adapter registers them with `os.add_dll_directory()` before importing
+`mgba` (override with `FEBUILDERGBA_MGBA_DLL_DIRS`). The bootstrap runs a direct
+import probe before `--check` so a loader failure is diagnosed distinctly.
+
+**Windows support is not yet claimed.** This MSYS2 UCRT64 path is an *attempted*
+supported build gated by a mandatory real Windows MSYS2 CI job; upstream records
+the Windows Python binding as unresolved (mgba-emu/mgba#1637) and deprecated. If
+the binding cannot link, the bootstrap reports the blocker rather than weakening
+any check.
 
 ## Tests
 
