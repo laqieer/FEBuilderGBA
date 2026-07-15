@@ -8,7 +8,15 @@ pinned by contract tests that model the 0.10.5 binding without importing it.
 Every symbol used here is verified against the official pinned sources at commit
 ``26b7884bc25a5933960f3cdcd98bac1ae14d42e2``:
 
-* Load ROM: ``mgba.core.load_vf(vfile)`` (module function).
+* Load ROM: build a *native mapped* ``VFile`` via ``mgba.vfs.VFile.fromEmpty()``
+  (backed by ``VFileMemChunk``), ``write`` the image, ``seek(0, os.SEEK_SET)``,
+  then ``mgba.core.load_vf(vfile)``. A pure-Python ``vfs.open(BytesIO)`` VFile
+  cannot load a ROM: its ``_vfpMap`` callback is unimplemented while
+  ``GBALoadROM`` requires ``vf->map``. ``VFile`` has no ``fromFile``. On success
+  ``load_vf`` -> ``core.load_rom`` transfers the VFile to the core (which closes
+  it on deinit); the pinned ``load_rom`` wrapper does not set ``_claimed``
+  (unlike ``load_save``/``load_bios``), so the adapter claims it to prevent a
+  double ``close`` (``VFile.__del__`` closes only when not ``_claimed``).
 * Config: ``Config(defaults=...)`` is only the input carrier;
   ``core.load_config(config)`` maps it into the native ``core._core.opts``
   (``struct mCoreOptions``) via ``mCoreLoadForeignConfig`` -> ``mCoreConfigMap``.
@@ -28,7 +36,10 @@ Startup contract (verified as effective, not merely requested):
 * ``audioSync=false``, ``videoSync=false``, ``frameskip=0``, ``mute=true``,
   ``useBios=false`` (built-in HLE BIOS), ``skipBios=false`` (fixed HLE startup).
 * An in-memory temporary save (``VFile.fromEmpty()`` + ``load_temporary_save``)
-  so no ``.sav`` is written beside the ROM.
+  so no ``.sav`` is written beside the ROM. The pinned ``load_temporary_save``
+  wrapper leaves ``_claimed`` False and ``GBASavedataMask`` does not close the
+  masked VFile, so the Python wrapper keeps ownership: it is retained on the
+  backend for the core's lifetime and left unclaimed.
 * Built-in HLE BIOS; no external BIOS file.
 * No autoload of save / patch / cheats.
 * A video buffer is attached only when a screenshot is requested.
@@ -42,6 +53,7 @@ passed through :func:`redact_message` first.
 from __future__ import annotations
 
 import io
+import os
 import sys
 from typing import Any, Callable, Dict, List, Optional
 
@@ -205,18 +217,31 @@ class MgbaBackend(Backend):  # pragma: no cover - requires native emulator
         import mgba.core
         import mgba.vfs as vfs
 
+        # A native mapped VFile (``VFileMemChunk``) is mandatory: the pure-Python
+        # ``vfs.open(BytesIO)`` VFile leaves ``_vfpMap`` unimplemented while
+        # ``GBALoadROM`` demands ``vf->map``. ``VFile`` has no ``fromFile``.
         self._rom_vfile = vfs.VFile.fromEmpty()
         self._rom_vfile.write(rom_bytes, len(rom_bytes))
-        self._rom_vfile.seek(0, 0)
+        self._rom_vfile.seek(0, os.SEEK_SET)
 
         core = mgba.core.load_vf(self._rom_vfile)
         if core is None:
+            # Ownership never transferred; the wrapper still owns its handle.
             raise BackendError("mGBA could not load the ROM image")
+        # ``load_vf`` -> ``core.load_rom`` handed the VFile to the core, which
+        # closes it on deinit. The pinned ``load_rom`` wrapper does not set
+        # ``_claimed`` (only ``load_save``/``load_bios`` do), so claim it here so
+        # ``VFile.__del__`` cannot close the now core-owned handle a second time.
+        self._rom_vfile._claimed = True
         self._core = core
 
         self._apply_config(core)
 
-        # In-memory temporary save so nothing is written beside the ROM.
+        # In-memory temporary save so nothing is written beside the ROM. The
+        # pinned ``load_temporary_save`` wrapper leaves ``_claimed`` False and
+        # ``GBASavedataMask`` does not close the masked VFile, so the wrapper
+        # retains ownership: keep the reference alive (stored below) and do not
+        # claim it, otherwise nothing would ever free it.
         self._save_vfile = vfs.VFile.fromEmpty()
         if not core.load_temporary_save(self._save_vfile):
             raise BackendError("mGBA could not attach an in-memory temporary save")

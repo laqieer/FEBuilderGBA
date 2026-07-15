@@ -65,4 +65,24 @@ def test_marker_appears_in_code_not_logo():
 
 
 def test_rom_size():
-    assert len(synthetic_gba.build_synthetic_rom()) == 0x200
+    assert len(synthetic_gba.build_synthetic_rom()) == 0x80000
+
+
+def test_rom_exceeds_multiboot_limit():
+    rom = synthetic_gba.build_synthetic_rom()
+    # Strictly above the 256 KiB multiboot cutoff so a real emulator loads it as
+    # a cartridge ROM (GBAIsMB rejects only sizes > SIZE_WORKING_RAM).
+    assert len(rom) > 0x40000
+    assert synthetic_gba.exceeds_multiboot_limit(rom)
+    # Power-of-two size keeps the image on a natural GBA cart boundary.
+    size = len(rom)
+    assert size & (size - 1) == 0
+
+
+def test_padding_beyond_code_is_zero_and_copyright_clean():
+    rom = synthetic_gba.build_synthetic_rom()
+    # Everything past the hand-assembled code is deterministic zero padding, so
+    # enlarging the image to the cartridge size cannot smuggle in any data.
+    assert set(rom[0x200:]) == {0}
+    assert synthetic_gba.logo_is_zeroed(rom)
+    assert synthetic_gba.has_no_copyrighted_block(rom)

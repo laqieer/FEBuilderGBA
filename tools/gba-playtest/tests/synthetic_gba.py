@@ -26,7 +26,14 @@ _GAME_CODE_OFFSET = 0xAC
 _MAKER_OFFSET = 0xB0
 _FIXED_96_OFFSET = 0xB2
 _COMPLEMENT_OFFSET = 0xBD
-_ROM_SIZE = 0x200
+# Multiboot cutoff: ``GBAIsMB`` classifies any image <= SIZE_WORKING_RAM
+# (256 KiB) as a multiboot payload, which mGBA loads into EWRAM instead of the
+# cartridge path. Size the image strictly above that (a power-of-two 512 KiB)
+# so a real-emulator proof (WU4) exercises the actual cartridge ROM path rather
+# than accidentally testing multiboot. The header/code live below 0x200; the
+# remainder is deterministic zero padding.
+_MULTIBOOT_MAX_BYTES = 0x40000  # SIZE_WORKING_RAM (256 KiB)
+_ROM_SIZE = 0x80000             # 512 KiB, power of two, above the multiboot cutoff
 _EWRAM_MARKER_OFFSET = 0x02000000  # informational; code targets EWRAM base
 
 # EWRAM base and KEYINPUT register, kept in the ARM literal pool.
@@ -124,6 +131,17 @@ def nintendo_logo_region(rom: bytes) -> bytes:
 def logo_is_zeroed(rom: bytes) -> bool:
     """True when the logo header region contains no data (copyright-clean)."""
     return all(b == 0 for b in nintendo_logo_region(rom))
+
+
+def exceeds_multiboot_limit(rom: bytes) -> bool:
+    """True when the image is too large for mGBA's multiboot (EWRAM) path.
+
+    ``GBAIsMB`` accepts only images ``<= SIZE_WORKING_RAM`` (256 KiB); anything
+    larger is guaranteed to take the cartridge ROM path. Keeping the synthetic
+    image above the cutoff ensures WU4 proves cartridge behaviour, not
+    multiboot.
+    """
+    return len(rom) > _MULTIBOOT_MAX_BYTES
 
 
 def has_no_copyrighted_block(rom: bytes) -> bool:

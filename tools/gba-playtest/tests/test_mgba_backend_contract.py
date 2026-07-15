@@ -169,8 +169,21 @@ class FakeImage:
 
 
 class FakeVFile:
+    """Models the pinned ``mgba.vfs.VFile`` ownership contract.
+
+    ``fromEmpty`` is the only constructor (the pinned binding has no
+    ``fromFile``). ``close`` flips ``_claimed`` and is idempotent; ``__del__``
+    closes only when the handle has not been claimed by the core. Instances
+    record their ``write``/``seek`` calls so a test can assert the exact
+    fromEmpty -> write -> seek(0, SEEK_SET) -> load_vf sequence.
+    """
+
     def __init__(self):
         self.data = bytearray()
+        self._claimed = False
+        self.closed = 0
+        self.writes = []
+        self.seeks = []
 
     @staticmethod
     def fromEmpty():
@@ -178,10 +191,26 @@ class FakeVFile:
 
     def write(self, buffer, size):
         self.data += bytes(buffer[:size])
+        self.writes.append(size)
         return size
 
     def seek(self, offset, whence):
+        self.seeks.append((offset, whence))
         return offset
+
+    def close(self):
+        if self._claimed:
+            return False
+        self._claimed = True
+        self.closed += 1
+        return True
+
+    def __del__(self):
+        try:
+            if not self._claimed:
+                self.close()
+        except Exception:
+            pass
 
 
 class _FakeState:
@@ -262,6 +291,77 @@ def test_load_rom_uses_load_vf_not_load1():
         backend.load_rom(ROM)
         assert state.load_vf_calls == 1
         assert state.last_core is not None
+
+
+def test_rom_vfile_built_via_fromempty_write_seek_then_load_vf():
+    state = _FakeState()
+    with fake_mgba(state):
+        backend = MgbaBackend()
+        backend.load_rom(ROM)
+        rom_vf = backend._rom_vfile
+        # Native mapped VFile path: write the whole image, then rewind with
+        # os.SEEK_SET (== 0) before handing it to load_vf.
+        assert rom_vf.writes == [len(ROM)]
+        assert rom_vf.seeks == [(0, 0)]
+        assert bytes(rom_vf.data) == ROM
+        assert state.load_vf_calls == 1
+
+
+def test_rom_vfile_is_claimed_after_ownership_transfer():
+    state = _FakeState()
+    with fake_mgba(state):
+        backend = MgbaBackend()
+        backend.load_rom(ROM)
+        rom_vf = backend._rom_vfile
+        # load_vf -> core.load_rom transferred the handle to the core; the
+        # wrapper must be claimed and must never have closed it itself.
+        assert rom_vf._claimed is True
+        assert rom_vf.closed == 0
+
+
+def test_temporary_save_vfile_retained_not_claimed():
+    state = _FakeState()
+    with fake_mgba(state):
+        backend = MgbaBackend()
+        backend.load_rom(ROM)
+        save_vf = backend._save_vfile
+        # GBASavedataMask does not close the masked VFile, so the wrapper keeps
+        # ownership: retained on the backend and left unclaimed.
+        assert save_vf is not None
+        assert backend._save_vfile is save_vf
+        assert save_vf._claimed is False
+        assert save_vf.closed == 0
+
+
+def test_vfile_has_no_fromfile_constructor():
+    import ast
+    import inspect
+
+    import febuildergba_playtest.mgba_backend as mod
+
+    # The pinned VFile exposes only fromEmpty; a regression to a nonexistent
+    # fromFile (or the unusable pure-Python vfs.open(BytesIO) path) must be
+    # impossible. Structurally the fake lacks fromFile, and an AST scan of the
+    # real code (docstrings/comments excluded) confirms the adapter never
+    # references fromFile or calls vfs.open.
+    assert hasattr(FakeVFile, "fromEmpty")
+    assert not hasattr(FakeVFile, "fromFile")
+
+    tree = ast.parse(inspect.getsource(mod))
+    attrs = {node.attr for node in ast.walk(tree) if isinstance(node, ast.Attribute)}
+    assert "fromEmpty" in attrs
+    assert "load_vf" in attrs
+    assert "fromFile" not in attrs
+    vfs_open_calls = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "open"
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "vfs"
+    ]
+    assert vfs_open_calls == []
 
 
 def test_config_defaults_applied_and_verified_from_opts():
@@ -395,3 +495,8 @@ def test_fake_api_shape_matches_pinned_names():
     assert not hasattr(mem, "store16") and not hasattr(mem, "load32")
     assert hasattr(FakeImage(1, 1), "save_png")
     assert not hasattr(FakeImage(1, 1), "to_pil")
+    # VFile exposes only the pinned fromEmpty constructor and the _claimed
+    # ownership flag; there is no fromFile.
+    vf = FakeVFile.fromEmpty()
+    assert hasattr(vf, "_claimed") and vf._claimed is False
+    assert not hasattr(FakeVFile, "fromFile")
