@@ -82,6 +82,10 @@ jobs:
             throw "Required x86 .NET 10 runtime families are unavailable."
           }
           $runtimes
+          # setup-dotnet exposes the x64 root as DOTNET_ROOT. Persist the verified
+          # x86 root so native x86 apphosts do not try to load the x64 hostfxr.
+          "DOTNET_ROOT(x86)=$root" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "DOTNET_ROOT_X86=$root" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       # ---------------------------------------------------------------- Build main app + E2E tests
       - name: Restore & Build (Release x86)
