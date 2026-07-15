@@ -49,10 +49,11 @@ namespace FEBuilderGBA.Android
     // Android resource (drawable/style) files, so referencing @drawable/icon or
     // a custom @style/ would fail aapt. A real port adds an app icon + theme.
     //
-    // Exported = true is REQUIRED on Android 12+ (targetSdkVersion 36) for any
-    // activity with an intent-filter — the MainLauncher activity has an implicit
-    // LAUNCHER filter, so without an explicit android:exported aapt2 packaging
-    // fails. true is correct here because this is the user-facing launcher.
+    // Exported = true is REQUIRED when targeting Android 12 / API 31+ for any
+    // activity with an intent-filter. This project targets API 36, and the
+    // MainLauncher activity has an implicit LAUNCHER filter, so without an
+    // explicit android:exported aapt2 packaging fails. true is correct here
+    // because this is the user-facing launcher.
     [Activity(
         Label = "FEBuilderGBA",
         MainLauncher = true,
