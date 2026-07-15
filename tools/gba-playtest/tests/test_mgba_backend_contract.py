@@ -223,7 +223,7 @@ class _FakeState:
 
 @contextmanager
 def fake_mgba(state, save_png_ok=True, crash=False, break_config=False,
-              commit=PINNED_COMMIT, version=PINNED_VERSION):
+              commit=PINNED_COMMIT, version=PINNED_VERSION, vfile_cls=None):
     mgba = types.ModuleType("mgba")
     mgba.__version__ = version
 
@@ -249,7 +249,7 @@ def fake_mgba(state, save_png_ok=True, crash=False, break_config=False,
     log_mod.silence = lambda: None
 
     vfs_mod = types.ModuleType("mgba.vfs")
-    vfs_mod.VFile = FakeVFile
+    vfs_mod.VFile = vfile_cls or FakeVFile
 
     image_mod = types.ModuleType("mgba.image")
 
@@ -320,6 +320,50 @@ def test_rom_vfile_is_claimed_after_ownership_transfer():
         # wrapper must be claimed and must never have closed it itself.
         assert rom_vf._claimed is True
         assert rom_vf.closed == 0
+
+
+class ShortWriteVFile(FakeVFile):
+    """A VFile whose ``write`` reports fewer bytes than requested."""
+
+    @staticmethod
+    def fromEmpty():
+        return ShortWriteVFile()
+
+    def write(self, buffer, size):
+        self.data += bytes(buffer[: max(size - 1, 0)])
+        self.writes.append(size)
+        return max(size - 1, 0)
+
+
+class SeekFailVFile(FakeVFile):
+    """A VFile whose rewind lands at a nonzero position."""
+
+    @staticmethod
+    def fromEmpty():
+        return SeekFailVFile()
+
+    def seek(self, offset, whence):
+        self.seeks.append((offset, whence))
+        return offset + 1
+
+
+def test_load_rom_fails_closed_on_short_write():
+    state = _FakeState()
+    with fake_mgba(state, vfile_cls=ShortWriteVFile):
+        backend = MgbaBackend()
+        with pytest.raises(Exception):
+            backend.load_rom(ROM)
+        # Ownership was never transferred to a core on a short write.
+        assert state.load_vf_calls == 0
+
+
+def test_load_rom_fails_closed_on_seek_failure():
+    state = _FakeState()
+    with fake_mgba(state, vfile_cls=SeekFailVFile):
+        backend = MgbaBackend()
+        with pytest.raises(Exception):
+            backend.load_rom(ROM)
+        assert state.load_vf_calls == 0
 
 
 def test_temporary_save_vfile_retained_not_claimed():

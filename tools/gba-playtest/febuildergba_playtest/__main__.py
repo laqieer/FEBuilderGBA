@@ -14,7 +14,7 @@ install the binding.
 
 from __future__ import annotations
 
-import argparse
+import os
 import sys
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -25,8 +25,10 @@ from .runner import (
     STATUS_EXIT_CODES,
     BackendError,
     Runner,
+    atomic_write_bytes,
     canonical_json,
     redact_message,
+    sanitize_meta,
 )
 
 
@@ -54,7 +56,10 @@ def _run_check() -> Tuple[Dict[str, Any], int]:
         from .mgba_backend import REQUIRED_COMMIT, REQUIRED_VERSION, check_available
     except Exception as exc:  # pragma: no cover - defensive
         return _error_result("dependency_error", f"backend import failed: {type(exc).__name__}")
-    info = check_available()
+    try:
+        info = check_available()
+    except Exception as exc:  # noqa: BLE001 - never let the backend crash the CLI
+        return _error_result("dependency_error", f"backend check failed: {type(exc).__name__}")
     status = "check_ok" if info.get("available") else "check_failed"
     result: Dict[str, Any] = {
         "resultSchemaVersion": RESULT_SCHEMA_VERSION,
@@ -62,7 +67,12 @@ def _run_check() -> Tuple[Dict[str, Any], int]:
         "exitCode": STATUS_EXIT_CODES[status],
         "requiredVersion": REQUIRED_VERSION,
         "requiredCommit": REQUIRED_COMMIT,
-        "mgba": {"version": info.get("version"), "commit": info.get("commit")},
+        # A wrong local module could return unbounded / path-bearing metadata;
+        # bound and redact both fields before they enter the stable result.
+        "mgba": {
+            "version": sanitize_meta(info.get("version")),
+            "commit": sanitize_meta(info.get("commit")),
+        },
     }
     if info.get("reason"):
         result["note"] = redact_message(info["reason"])
@@ -84,6 +94,47 @@ def _read_capped(path: str, cap: int) -> bytes:
     if len(data) > cap:
         raise _TooLarge()
     return data
+
+
+def _paths_collide(a: Optional[str], b: Optional[str]) -> bool:
+    """True if ``a`` and ``b`` resolve to the same filesystem target.
+
+    Detects both physical aliases (existing files reached by different paths,
+    via :func:`os.path.samefile`) and lexical aliases (non-existing paths that
+    normalize identically, e.g. ``dir/../rom.gba`` vs ``rom.gba``).
+    """
+    if not a or not b:
+        return False
+    try:
+        if os.path.exists(a) and os.path.exists(b) and os.path.samefile(a, b):
+            return True
+    except OSError:
+        pass
+    return os.path.normcase(os.path.abspath(a)) == os.path.normcase(os.path.abspath(b))
+
+
+def _reject_output_collisions(rom_path: str, scenario_path: str, out_path: Optional[str],
+                              screenshot_dest: Optional[str]) -> Optional[Tuple[Dict[str, Any], int]]:
+    """Reject any output target that would overwrite an input or another output.
+
+    Neither input (ROM, scenario) may be mutated, so a result-output or a
+    screenshot destination that aliases either input — or the two outputs
+    aliasing each other — is refused before emulation starts.
+    """
+    pairs = (
+        (out_path, rom_path),
+        (out_path, scenario_path),
+        (screenshot_dest, rom_path),
+        (screenshot_dest, scenario_path),
+        (out_path, screenshot_dest),
+    )
+    for dest, other in pairs:
+        if _paths_collide(dest, other):
+            return _error_result(
+                "harness_error",
+                "output path collides with an input file or another output path",
+            )
+    return None
 
 
 def _run_scenario(rom_path: str, scenario_path: str, out_path: Optional[str],
@@ -116,6 +167,15 @@ def _run_scenario(rom_path: str, scenario_path: str, out_path: Optional[str],
     if not rom_bytes:
         return _error_result("harness_error", "ROM file is empty")
 
+    # Refuse destructive path collisions before touching the emulator so neither
+    # input can be overwritten by the result output or a screenshot.
+    screenshot_dest = None
+    if scenario.screenshot is not None and artifact_dir is not None:
+        screenshot_dest = os.path.join(artifact_dir, scenario.screenshot.basename)
+    collision = _reject_output_collisions(rom_path, scenario_path, out_path, screenshot_dest)
+    if collision is not None:
+        return collision
+
     try:
         from .mgba_backend import MgbaBackend
     except Exception as exc:
@@ -134,43 +194,92 @@ def _run_scenario(rom_path: str, scenario_path: str, out_path: Optional[str],
 
     if out_path is not None:
         try:
-            with open(out_path, "w", encoding="utf-8") as handle:
-                handle.write(canonical_json(result))
-                handle.write("\n")
-        except OSError as exc:
-            return _error_result("harness_error", f"cannot write --out: {exc.strerror}")
+            atomic_write_bytes(out_path, (canonical_json(result) + "\n").encode("utf-8"))
+        except BackendError as exc:
+            return _error_result("harness_error", str(exc))
     return result, exit_code
 
 
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="febuildergba_playtest",
-        description="Deterministic headless mGBA playtest runner.",
-    )
-    parser.add_argument("--check", action="store_true", help="Verify the pinned mGBA binding is available.")
-    parser.add_argument("--rom", help="Path to the GBA ROM to load.")
-    parser.add_argument("--scenario", help="Path to the JSON scenario document.")
-    parser.add_argument("--out", help="Optional path to also write the JSON result.")
-    parser.add_argument("--artifact-dir", dest="artifact_dir", help="Directory for optional screenshot output.")
-    return parser
+# --- Deterministic, no-output argument parsing -----------------------------
+# argparse writes usage/help to stdout/stderr and exits, which would violate the
+# "exactly one JSON document on stdout" contract and could leak the program name
+# or argument text. This hand parser never writes anything: every malformed,
+# unknown, duplicate, or help-shaped argv becomes a single sanitized JSON error.
+
+_FLAG_OPTS = frozenset({"--check"})
+_VALUE_OPTS = frozenset({"--rom", "--scenario", "--out", "--artifact-dir"})
+_ALL_OPTS = _FLAG_OPTS | _VALUE_OPTS
+
+
+class _UsageError(Exception):
+    """Raised for any malformed command line. Messages are static (no paths)."""
+
+
+def _parse_args(argv: List[str]) -> Tuple[Dict[str, bool], Dict[str, str]]:
+    flags: Dict[str, bool] = {}
+    values: Dict[str, str] = {}
+    seen: set = set()
+    index = 0
+    count = len(argv)
+    while index < count:
+        token = argv[index]
+        if token in ("-h", "--help"):
+            raise _UsageError("help output is unavailable; this tool emits a single JSON result")
+        if token.startswith("--") and "=" in token:
+            name, _, inline = token.partition("=")
+        elif token.startswith("-") and token != "-":
+            name, inline = token, None
+        else:
+            raise _UsageError("unexpected positional argument")
+        if name not in _ALL_OPTS:
+            raise _UsageError("unknown option")
+        if name in seen:
+            raise _UsageError("duplicate option")
+        seen.add(name)
+        if name in _FLAG_OPTS:
+            if inline is not None:
+                raise _UsageError("option takes no value")
+            flags[name] = True
+            index += 1
+            continue
+        if inline is None:
+            if index + 1 >= count:
+                raise _UsageError("missing value for option")
+            inline = argv[index + 1]
+            index += 2
+        else:
+            index += 1
+        if inline == "":
+            raise _UsageError("empty value for option")
+        values[name] = inline
+    return flags, values
 
 
 def _dispatch(argv: Optional[List[str]]) -> Tuple[Dict[str, Any], int]:
-    parser = build_parser()
+    args = list(sys.argv[1:] if argv is None else argv)
     try:
-        args = parser.parse_args(argv)
-    except SystemExit:
-        return _error_result("harness_error", "invalid command-line arguments")
+        flags, values = _parse_args(args)
+    except _UsageError as exc:
+        return _error_result("harness_error", f"invalid command-line arguments: {exc}")
 
-    if args.check:
-        if args.rom or args.scenario:
-            return _error_result("harness_error", "--check cannot be combined with --rom/--scenario")
+    check = flags.get("--check", False)
+    rom = values.get("--rom")
+    scenario = values.get("--scenario")
+    out = values.get("--out")
+    artifact_dir = values.get("--artifact-dir")
+
+    if check:
+        if rom or scenario or out or artifact_dir:
+            return _error_result(
+                "harness_error",
+                "--check cannot be combined with --rom/--scenario/--out/--artifact-dir",
+            )
         return _run_check()
 
-    if not args.rom or not args.scenario:
+    if not rom or not scenario:
         return _error_result("harness_error", "--rom and --scenario are required")
 
-    return _run_scenario(args.rom, args.scenario, args.out, args.artifact_dir)
+    return _run_scenario(rom, scenario, out, artifact_dir)
 
 
 def main(argv: Optional[List[str]] = None) -> int:

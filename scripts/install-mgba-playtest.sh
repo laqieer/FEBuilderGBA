@@ -37,8 +37,20 @@ BUILD_ROOT="${TOOL_DIR}/.mgba-build"
 VENV_DIR="${BUILD_ROOT}/venv"
 SRC_ARCHIVE="${BUILD_ROOT}/mgba-${MGBA_COMMIT}.tar.gz"
 SRC_DIR="${BUILD_ROOT}/mgba-${MGBA_COMMIT}"
+# The CMake build tree lives OUTSIDE the extracted source so the source can be
+# recreated deterministically on every run (setup.py leaves egg-info/build
+# artifacts that would otherwise make a rerun without --force fail its inner-git
+# cleanliness check) and so a stray build dir never pollutes provenance.
+CMAKE_BUILD="${BUILD_ROOT}/build-playtest"
 REQUIREMENTS_BOOTSTRAP="${TOOL_DIR}/requirements-mgba-bootstrap.txt"
 REQUIREMENTS_BUILD="${TOOL_DIR}/requirements-mgba-build.txt"
+
+# Canonical, repository-owned paths that guarded deletion is allowed to touch.
+# ``pwd -P`` resolves symlinks physically; ``TOOL_DIR`` always exists.
+TOOL_DIR_CANON="$(cd "${TOOL_DIR}" && pwd -P)"
+BUILD_ROOT_CANON="${TOOL_DIR_CANON}/.mgba-build"
+SRC_DIR_CANON="${BUILD_ROOT_CANON}/mgba-${MGBA_COMMIT}"
+CMAKE_BUILD_CANON="${BUILD_ROOT_CANON}/build-playtest"
 
 FORCE=0
 for arg in "$@"; do
@@ -64,6 +76,32 @@ sha256_of() {
     fi
 }
 
+# Guarded recursive delete. Refuses to remove anything that is not one of the
+# three canonical, repository-owned build paths (the build root, the pinned
+# source dir, or the out-of-source CMake build dir), rejects symlinked roots,
+# and refuses an empty target. A no-op when the target does not exist.
+safe_rm_rf() {
+    local target="$1"
+    [ -n "${target}" ] || fail "refusing to remove an empty path"
+    if [ -L "${target}" ]; then
+        fail "refusing to remove a symlinked path: ${target}"
+    fi
+    if [ -e "${BUILD_ROOT}" ] && [ -L "${BUILD_ROOT}" ]; then
+        fail "refusing to operate under a symlinked build root."
+    fi
+    local parent base canon
+    parent="$(dirname "${target}")"
+    base="$(basename "${target}")"
+    [ -d "${parent}" ] || return 0
+    canon="$(cd "${parent}" && pwd -P)/${base}" \
+        || fail "refusing to remove a path with an unresolved parent: ${target}"
+    case "${canon}" in
+        "${BUILD_ROOT_CANON}"|"${SRC_DIR_CANON}"|"${CMAKE_BUILD_CANON}") ;;
+        *) fail "refusing to remove an unexpected path: ${canon}" ;;
+    esac
+    rm -rf "${canon}"
+}
+
 echo "== FEBuilderGBA playtest bootstrap =="
 echo "Validating local toolchain (nothing is downloaded here)..."
 require_cmd "${PYTHON_BIN}" "Install Python 3.10+ or set PYTHON=<path>."
@@ -81,7 +119,7 @@ echo "  python version ${PY_VERSION}"
 
 if [ "${FORCE}" -eq 1 ] && [ -d "${BUILD_ROOT}" ]; then
     echo "Removing existing build root (--force)..."
-    rm -rf "${BUILD_ROOT}"
+    safe_rm_rf "${BUILD_ROOT}"
 fi
 mkdir -p "${BUILD_ROOT}"
 
@@ -99,10 +137,13 @@ if [ "${ACTUAL}" != "${ARCHIVE_SHA}" ]; then
 fi
 echo "  archive verified: ${ACTUAL}"
 
-if [ ! -d "${SRC_DIR}" ]; then
-    echo "Extracting source..."
-    tar -xzf "${SRC_ARCHIVE}" -C "${BUILD_ROOT}"
-fi
+# Recreate the extracted source deterministically on EVERY run so a rerun
+# without --force is retry-safe: a prior build leaves setup.py egg-info/build
+# artifacts inside the tree that would otherwise fail the inner-git cleanliness
+# check below. The verified archive is cached; only the extracted tree is reset.
+echo "Recreating pinned source tree from the verified archive..."
+safe_rm_rf "${SRC_DIR}"
+tar -xzf "${SRC_ARCHIVE}" -C "${BUILD_ROOT}"
 
 # --- Stamp exact local Git provenance for version.cmake --------------------
 # The codeload tarball has no ``.git``. mGBA's version.cmake runs
@@ -117,7 +158,10 @@ fi
 echo "Stamping exact Git provenance inside the extracted source..."
 (
     cd "${SRC_DIR}"
-    rm -rf .git
+    # The source is recreated from the verified archive on every run and the
+    # codeload tarball carries no ``.git``; a pre-existing one would be
+    # unexpected and is refused rather than blindly removed.
+    [ -e .git ] && fail "unexpected .git in the freshly extracted source tree"
     git init -q
     git remote add origin "https://github.com/mgba-emu/mgba.git"
     git fetch -q --depth 1 origin "${MGBA_COMMIT}" \
@@ -161,8 +205,21 @@ echo "Installing hash-locked build prerequisites (stage 1: pinned wheels)..."
 echo "Installing hash-locked Python build dependencies (stage 2: pinned sources)..."
 "${VENV_PY}" -m pip install --require-hashes --no-build-isolation --no-binary ":all:" -r "${REQUIREMENTS_BUILD}"
 
+# --- Lock the build/install phase offline ----------------------------------
+# Every Python build/setup dependency is now installed with verified hashes.
+# setup.py's setup_requires (cffi / pytest-runner) are therefore already
+# satisfied, so mgba-py-install must not perform ANY implicit network fetch.
+# Enforce it: an internal pip/setuptools fetch would fail closed under
+# --no-index rather than silently downloading an unpinned package. The only
+# permitted network phases remain the (already-completed) archive download and
+# the pinned-commit inner-git fetch above.
+export PIP_NO_INDEX=1
+export PIP_NO_BUILD_ISOLATION=1
+
 # --- Build libmgba + display-free Python binding ---------------------------
-CMAKE_BUILD="${SRC_DIR}/build-playtest"
+# Recreate the out-of-source build tree deterministically each run.
+echo "Preparing out-of-source CMake build tree..."
+safe_rm_rf "${CMAKE_BUILD}"
 mkdir -p "${CMAKE_BUILD}"
 
 echo "Configuring libmgba (headless, fixed color depth / sync options)..."
@@ -176,16 +233,13 @@ elif command -v make >/dev/null 2>&1 || command -v mingw32-make >/dev/null 2>&1;
 else
     fail "No GCC-compatible CMake generator found. Install Ninja or Make."
 fi
-(
-    cd "${CMAKE_BUILD}"
-    cmake .. \
-        "${GENERATOR[@]}" \
-        -DBUILD_PYTHON=ON \
-        -DBUILD_QT=OFF -DBUILD_SDL=OFF -DBUILD_GL=OFF -DBUILD_GLES2=OFF \
-        -DUSE_FFMPEG=OFF -DUSE_DISCORD_RPC=OFF \
-        -DCOLOR_16_BIT=ON -DCOLOR_5_6_5=ON \
-        -DPYTHON_EXECUTABLE="${VENV_PY}"
-)
+cmake -S "${SRC_DIR}" -B "${CMAKE_BUILD}" \
+    "${GENERATOR[@]}" \
+    -DBUILD_PYTHON=ON \
+    -DBUILD_QT=OFF -DBUILD_SDL=OFF -DBUILD_GL=OFF -DBUILD_GLES2=OFF \
+    -DUSE_FFMPEG=OFF -DUSE_DISCORD_RPC=OFF \
+    -DCOLOR_16_BIT=ON -DCOLOR_5_6_5=ON \
+    -DPYTHON_EXECUTABLE="${VENV_PY}"
 echo "Building libmgba..."
 cmake --build "${CMAKE_BUILD}" --config Release
 echo "Installing the display-free Python binding (mgba-py-install)..."

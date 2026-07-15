@@ -54,6 +54,7 @@ def test_prepare_native_library_search_noop_on_posix(tmp_path):
         is_windows=False,
         environ={},
         manifest_path=manifest,
+        seen_dirs=set(),
     )
     assert got == []
     assert calls == []
@@ -69,6 +70,7 @@ def test_prepare_native_library_search_registers_existing_dirs_only(tmp_path):
         is_windows=True,
         environ={},
         manifest_path=manifest,
+        seen_dirs=set(),
     )
     assert got == ["exists1", "exists2"]
     assert calls == ["exists1", "exists2"]
@@ -83,6 +85,7 @@ def test_prepare_native_library_search_uses_env_override(tmp_path):
         is_windows=True,
         environ={mb._DLL_SEARCH_ENV: "from_env"},
         manifest_path=manifest,
+        seen_dirs=set(),
     )
     assert got == ["from_env", "from_manifest"]
 
@@ -101,6 +104,7 @@ def test_prepare_native_library_search_survives_register_oserror(tmp_path):
         is_windows=True,
         environ={},
         manifest_path=manifest,
+        seen_dirs=set(),
     )
     assert got == ["b"]
 
@@ -113,6 +117,7 @@ def test_prepare_native_library_search_no_register_available(tmp_path):
         is_windows=True,
         environ={},
         manifest_path=manifest,
+        seen_dirs=set(),
     )
     assert got == []
 
@@ -124,3 +129,72 @@ def test_manifest_path_points_under_mgba_build():
     pkg_dir = os.path.dirname(os.path.abspath(mb.__file__))
     tool_dir = os.path.dirname(pkg_dir)
     assert path == os.path.join(tool_dir, ".mgba-build", "mgba-dll-dirs.txt")
+
+
+# --- Bounds and idempotency (defence against unbounded/hostile input) -------
+
+
+def test_read_manifest_ignores_oversize_file(tmp_path):
+    manifest = tmp_path / "mgba-dll-dirs.txt"
+    manifest.write_text("C:\\a\n" * (mb._DLL_MANIFEST_MAX_BYTES // 5 + 100), encoding="utf-8")
+    assert manifest.stat().st_size > mb._DLL_MANIFEST_MAX_BYTES
+    assert mb._read_manifest_dirs(str(manifest)) == []
+
+
+def test_read_manifest_caps_entry_count(tmp_path):
+    manifest = _write_manifest(tmp_path, [f"C:\\d{i}" for i in range(mb._DLL_MAX_DIRS + 20)])
+    got = mb._read_manifest_dirs(str(manifest))
+    assert len(got) == mb._DLL_MAX_DIRS
+
+
+def test_read_manifest_skips_overlong_entry(tmp_path):
+    long_entry = "C:\\" + ("x" * (mb._DLL_DIR_MAX_LEN + 10))
+    manifest = _write_manifest(tmp_path, ["C:\\ok", long_entry, "C:\\ok2"])
+    assert mb._read_manifest_dirs(str(manifest)) == ["C:\\ok", "C:\\ok2"]
+
+
+def test_collect_dll_dirs_ignores_oversize_env(tmp_path):
+    manifest = _write_manifest(tmp_path, ["from_manifest"])
+    huge = os.pathsep.join(["d"] * (mb._DLL_ENV_MAX_LEN))
+    env = {mb._DLL_SEARCH_ENV: huge}
+    assert len(env[mb._DLL_SEARCH_ENV]) > mb._DLL_ENV_MAX_LEN
+    # The oversized override is dropped; only the manifest remains.
+    assert mb._collect_dll_dirs(env, manifest) == ["from_manifest"]
+
+
+def test_collect_dll_dirs_caps_env_entry_count(tmp_path):
+    manifest = _write_manifest(tmp_path, [])
+    env = {mb._DLL_SEARCH_ENV: os.pathsep.join(f"e{i}" for i in range(mb._DLL_MAX_DIRS + 30))}
+    got = mb._collect_dll_dirs(env, manifest)
+    assert len(got) == mb._DLL_MAX_DIRS
+
+
+def test_collect_dll_dirs_skips_overlong_env_entry(tmp_path):
+    manifest = _write_manifest(tmp_path, [])
+    long_entry = "y" * (mb._DLL_DIR_MAX_LEN + 5)
+    env = {mb._DLL_SEARCH_ENV: os.pathsep.join(["ok", long_entry, "ok2"])}
+    assert mb._collect_dll_dirs(env, manifest) == ["ok", "ok2"]
+
+
+def test_prepare_native_library_search_is_idempotent_across_calls(tmp_path):
+    manifest = _write_manifest(tmp_path, ["exists1", "exists2"])
+    shared = set()
+    calls = []
+
+    def register(directory):
+        calls.append(directory)
+        return object()
+
+    first = mb.prepare_native_library_search(
+        register=register, isdir=lambda d: True, is_windows=True,
+        environ={}, manifest_path=manifest, seen_dirs=shared,
+    )
+    second = mb.prepare_native_library_search(
+        register=register, isdir=lambda d: True, is_windows=True,
+        environ={}, manifest_path=manifest, seen_dirs=shared,
+    )
+    # First call registers both; the second registers nothing (dedup) so the
+    # underlying handle set cannot grow without bound across repeated calls.
+    assert first == ["exists1", "exists2"]
+    assert second == []
+    assert calls == ["exists1", "exists2"]

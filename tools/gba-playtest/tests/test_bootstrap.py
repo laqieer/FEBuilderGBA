@@ -128,7 +128,7 @@ def test_build_script_git_provenance_runs_after_verification_before_cmake():
     text = _read(BUILD_SCRIPT)
     i_verify = text.find("archive verified")
     i_git = text.find("git init")
-    i_cmake = text.find("cmake ..")
+    i_cmake = text.find("cmake -S")
     assert -1 < i_verify < i_git < i_cmake, (
         "git provenance must sit between archive verification and cmake"
     )
@@ -176,6 +176,73 @@ def test_build_script_probes_native_import_and_exact_provenance():
     assert -1 < i_probe < i_check, "the import probe must run before --check"
 
 
+def test_build_script_builds_out_of_source():
+    text = _read(BUILD_SCRIPT)
+    # The CMake build tree must live OUTSIDE the extracted source so the source
+    # can be recreated each run and never pollutes version.cmake provenance.
+    assert re.search(r"CMAKE_BUILD=\"\$\{BUILD_ROOT\}/", text), (
+        "the CMake build dir must be under BUILD_ROOT, outside the source tree"
+    )
+    assert re.search(r"cmake\s+-S\s+\"\$\{SRC_DIR\}\"\s+-B\s+\"\$\{CMAKE_BUILD\}\"", text), (
+        "must configure out-of-source with cmake -S/-B"
+    )
+    assert "cmake .." not in text, "must not configure in-source with 'cmake ..'"
+
+
+def test_build_script_recreates_source_each_run_for_retry_safety():
+    text = _read(BUILD_SCRIPT)
+    # setup.py leaves egg-info/build artifacts inside the source, so a rerun
+    # without --force must deterministically recreate the extracted tree (and
+    # the out-of-source build dir) instead of reusing a now-dirty one.
+    assert re.search(r"safe_rm_rf\s+\"\$\{SRC_DIR\}\"", text), (
+        "must remove the stale source tree each run"
+    )
+    assert re.search(r"safe_rm_rf\s+\"\$\{CMAKE_BUILD\}\"", text), (
+        "must remove the stale build tree each run"
+    )
+    # A leftover ``if [ ! -d SRC_DIR ]`` extraction guard would defeat retry
+    # safety: extraction must be unconditional after the guarded removal.
+    assert not re.search(r"if\s+\[\s+!\s+-d\s+\"\$\{SRC_DIR\}\"\s+\]", text), (
+        "extraction must be unconditional (no stale-source reuse guard)"
+    )
+
+
+def test_build_script_guards_every_recursive_delete():
+    text = _read(BUILD_SCRIPT)
+    # A guarded deletion helper must exist and constrain removals to the three
+    # canonical repository-owned paths, and reject symlinked roots + empty args.
+    assert "safe_rm_rf()" in text, "must define a guarded deletion helper"
+    assert re.search(r"BUILD_ROOT_CANON|SRC_DIR_CANON|CMAKE_BUILD_CANON", text), (
+        "guard must canonicalize the allowed targets"
+    )
+    assert re.search(r'refusing to remove an empty path', text), "guard must reject empty targets"
+    assert re.search(r'refusing to remove a symlinked path', text), "guard must reject symlinks"
+    assert re.search(r'refusing to remove an unexpected path', text), (
+        "guard must reject non-canonical targets"
+    )
+    # Every destructive rm -rf must go through the guard: the only bare 'rm -rf'
+    # allowed is the one *inside* the helper itself.
+    bare = re.findall(r"^\s*rm\s+-rf\b(?!.*safe_rm_rf)", text, re.MULTILINE)
+    assert len(bare) == 1, "only the guarded helper may call 'rm -rf' directly"
+
+
+def test_build_script_locks_build_phase_offline():
+    text = _read(BUILD_SCRIPT)
+    # After the hash-pinned pip stages, the CMake/setup.py install must not be
+    # able to silently fetch an unpinned package: enforce an offline pip env.
+    assert "PIP_NO_INDEX" in text, "must disable the package index during the build"
+    assert "PIP_NO_BUILD_ISOLATION" in text, "must disable build isolation during the build"
+    i_stage2 = text.find("requirements-mgba-build.txt")
+    i_offline = text.find("PIP_NO_INDEX")
+    i_install = text.find("--target mgba-py-install")
+    assert -1 < i_stage2 < i_offline < i_install, (
+        "offline lockdown must sit after stage-2 pip and before mgba-py-install"
+    )
+    # No pip install may run after the lockdown is engaged.
+    after = text[i_offline:]
+    assert "pip install" not in after, "no pip install may run after the offline lockdown"
+
+
 # --------------------------------------------------------------------------- #
 # PowerShell wrapper contract (honest MSYS2 UCRT64 delegation)
 # --------------------------------------------------------------------------- #
@@ -204,6 +271,28 @@ def test_powershell_validates_ucrt64_toolchain_via_probe():
         assert re.search(rf"\b{tool}\b", text), f"wrapper must probe for {tool}"
     assert "ninja" in text and "make" in text, "wrapper must require ninja or make"
     assert "command -v" in text, "wrapper must probe with command -v inside the shell"
+
+
+def test_powershell_probes_configure_time_prerequisites():
+    text = _read(PS1)
+    # libepoxy + pkgconf are mandatory configure-time deps of the mGBA build.
+    assert "pkg-config" in text, "wrapper must probe for pkg-config/pkgconf"
+    assert re.search(r"pkg-config\s+--exists\s+epoxy", text), (
+        "wrapper must verify libepoxy via pkg-config"
+    )
+    # The building interpreter must be the UCRT64 python, not python.org/MSVC.
+    assert re.search(r"/ucrt64/bin/python", text), (
+        "wrapper must require python under /ucrt64/bin"
+    )
+
+
+def test_powershell_guidance_lists_ucrt64_prerequisite_packages():
+    text = _read(PS1)
+    for pkg in (
+        "mingw-w64-ucrt-x86_64-libepoxy",
+        "mingw-w64-ucrt-x86_64-pkgconf",
+    ):
+        assert pkg in text, f"guidance must list {pkg}"
 
 
 def test_powershell_does_not_use_or_claim_msvc():

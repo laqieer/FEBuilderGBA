@@ -46,6 +46,45 @@ def test_preserves_non_path_slashes():
     assert note == "performed a read/write check and/or reset"
 
 
+def test_redacts_windows_drive_path_with_spaces():
+    note = redact_message(r"failed to open C:\Users\Alice B\My Docs\rom.gba now")
+    assert "Alice B" not in note
+    assert "My Docs" not in note
+    assert "rom.gba" not in note
+    assert "<path>" in note
+    assert note.endswith("now")
+
+
+def test_redacts_quoted_windows_path_with_spaces():
+    note = redact_message('open "C:\\Program Files\\mgba\\_pylib.pyd" failed')
+    assert "Program Files" not in note
+    assert "<path>" in note
+    assert note.endswith("failed")
+
+
+def test_redacts_unc_path_with_spaces():
+    note = redact_message(r"module at \\host\team share\pkg dir\mod.py raised")
+    assert "team share" not in note
+    assert "pkg dir" not in note
+    assert "<path>" in note
+
+
+def test_redacts_unix_absolute_path_with_spaces():
+    note = redact_message("ImportError from /home/alice b/My Venv/lib/mgba done")
+    assert "alice b" not in note
+    assert "My Venv" not in note
+    assert "<path>" in note
+    assert note.endswith("done")
+
+
+def test_redacts_extended_length_path_with_spaces():
+    note = redact_message(r"open failed \\?\C:\temp dir\build out\x.pyd here")
+    assert "temp dir" not in note
+    assert "build out" not in note
+    assert "<path>" in note
+    assert note.endswith("here")
+
+
 def test_collapses_whitespace_and_caps_length():
     note = redact_message("a\n\n  b\t c" + " x" * 300)
     assert "\n" not in note

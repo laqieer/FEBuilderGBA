@@ -98,3 +98,130 @@ def test_empty_rom_rejected(tmp_path, capsys):
     assert result["status"] == "harness_error"
     assert "ROM file is empty" in result["note"]
     assert code == 1
+
+
+# --- No-output argument parser (exactly one JSON, no help/usage leak) -------
+
+
+@pytest.mark.parametrize("argv", [
+    ["-h"],
+    ["--help"],
+    ["--bogus"],
+    ["--rom", "a", "--rom", "b"],          # duplicate option
+    ["positional"],
+    ["--rom"],                              # missing value
+    ["--rom", ""],                          # empty value
+    ["--check=1"],                          # flag takes no value
+    ["--rom=a", "--scenario"],              # trailing missing value
+])
+def test_malformed_argv_emits_single_json_exit_1(argv, capsys):
+    code = cli.main(argv)
+    result = _one_json(capsys)
+    assert code == 1
+    assert result["status"] == "harness_error"
+    # No traceback / program name / path leakage in the note.
+    assert "Traceback" not in result["note"]
+    assert "\\" not in result["note"]
+
+
+def test_help_writes_no_usage_text_to_stdout(capsys):
+    cli.main(["--help"])
+    out = capsys.readouterr().out
+    lines = [line for line in out.splitlines() if line.strip()]
+    assert len(lines) == 1
+    json.loads(lines[0])  # the only stdout line is the JSON result
+
+
+def test_check_rejects_out(capsys):
+    code = cli.main(["--check", "--out", "x.json"])
+    result = _one_json(capsys)
+    assert code == 1
+    assert result["status"] == "harness_error"
+    assert "--check cannot be combined" in result["note"]
+
+
+def test_check_rejects_artifact_dir(capsys):
+    code = cli.main(["--check", "--artifact-dir", "shots"])
+    result = _one_json(capsys)
+    assert code == 1
+    assert result["status"] == "harness_error"
+    assert "--check cannot be combined" in result["note"]
+
+
+def test_missing_required_args_rejected(capsys):
+    code = cli.main(["--rom", "only.gba"])
+    result = _one_json(capsys)
+    assert code == 1
+    assert result["status"] == "harness_error"
+    assert "--rom and --scenario are required" in result["note"]
+
+
+# --- Destructive path-collision rejection (inputs must never be mutated) ----
+
+
+def _prepare_valid_inputs(tmp_path):
+    rom = tmp_path / "rom.gba"
+    rom.write_bytes(b"\x00" * 0x200)
+    scenario = tmp_path / "s.json"
+    scenario.write_text(_VALID_SCENARIO, encoding="utf-8")
+    return rom, scenario
+
+
+def test_out_colliding_with_rom_rejected(tmp_path, capsys):
+    rom, scenario = _prepare_valid_inputs(tmp_path)
+    code = cli.main(["--rom", str(rom), "--scenario", str(scenario), "--out", str(rom)])
+    result = _one_json(capsys)
+    assert code == 1
+    assert result["status"] == "harness_error"
+    assert "collides" in result["note"]
+    # The ROM was not overwritten.
+    assert rom.read_bytes() == b"\x00" * 0x200
+
+
+def test_out_colliding_with_scenario_rejected(tmp_path, capsys):
+    rom, scenario = _prepare_valid_inputs(tmp_path)
+    code = cli.main(["--rom", str(rom), "--scenario", str(scenario), "--out", str(scenario)])
+    result = _one_json(capsys)
+    assert code == 1
+    assert result["status"] == "harness_error"
+    assert "collides" in result["note"]
+    assert scenario.read_text(encoding="utf-8") == _VALID_SCENARIO
+
+
+def test_out_lexical_alias_of_rom_rejected(tmp_path, capsys):
+    rom, scenario = _prepare_valid_inputs(tmp_path)
+    # A non-existing lexical alias of the ROM (dir/../rom.gba).
+    alias = str(tmp_path / "sub" / ".." / "rom.gba")
+    code = cli.main(["--rom", str(rom), "--scenario", str(scenario), "--out", alias])
+    result = _one_json(capsys)
+    assert code == 1
+    assert result["status"] == "harness_error"
+    assert "collides" in result["note"]
+    assert rom.read_bytes() == b"\x00" * 0x200
+
+
+def test_out_atomic_write_refuses_directory_target(tmp_path, monkeypatch, capsys):
+    rom, scenario = _prepare_valid_inputs(tmp_path)
+    out_dir = tmp_path / "outdir"
+    out_dir.mkdir()
+
+    class _Backend:
+        def load_rom(self, rom_bytes):
+            pass
+
+    # Make the scenario run reach the --out write by faking a trivially passing
+    # backend, then confirm a directory --out target is refused (harness_error).
+    def _fake_run_scenario(rom_path, scenario_path, out_path, artifact_dir):
+        from febuildergba_playtest.runner import atomic_write_bytes, BackendError
+        try:
+            atomic_write_bytes(out_path, b"{}")
+        except BackendError as exc:
+            return cli._error_result("harness_error", str(exc))
+        return {"status": "pass"}, 0
+
+    monkeypatch.setattr(cli, "_run_scenario", _fake_run_scenario)
+    code = cli.main(["--rom", str(rom), "--scenario", str(scenario), "--out", str(out_dir)])
+    result = _one_json(capsys)
+    assert code == 1
+    assert result["status"] == "harness_error"
+    assert "not a regular file" in result["note"]

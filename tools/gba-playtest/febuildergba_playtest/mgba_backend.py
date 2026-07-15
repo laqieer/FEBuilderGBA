@@ -52,7 +52,10 @@ Startup contract (verified as effective, not merely requested):
   (``.mgba-build/mgba-dll-dirs.txt``, plus an optional
   ``FEBUILDERGBA_MGBA_DLL_DIRS`` override) via ``os.add_dll_directory`` — see
   :func:`prepare_native_library_search`. This is one deterministic strategy
-  shared with the bootstrap and is a no-op on POSIX.
+  shared with the bootstrap and is a no-op on POSIX. Manifest and override
+  inputs are bounded (size / line count / path length) and registration is
+  idempotent across repeated calls, so malformed input fails closed and handles
+  never grow without bound.
 
 All third-party diagnostics go to stderr; stdout is reserved for the single
 result document emitted by ``__main__``. Every note that could carry a path is
@@ -111,9 +114,21 @@ def _diag(message: str) -> None:
 _DLL_MANIFEST_NAME = "mgba-dll-dirs.txt"
 _DLL_SEARCH_ENV = "FEBUILDERGBA_MGBA_DLL_DIRS"
 
+# Hard bounds so a malformed/oversized manifest or environment override fails
+# closed (registers nothing) instead of consuming unbounded memory or driving
+# unbounded ``os.add_dll_directory`` calls.
+_DLL_MANIFEST_MAX_BYTES = 64 * 1024
+_DLL_MAX_DIRS = 64
+_DLL_DIR_MAX_LEN = 4096
+_DLL_ENV_MAX_LEN = 64 * 1024
+
 # Handles from ``os.add_dll_directory`` are kept alive for the process lifetime:
 # closing a handle removes the directory from the search path again.
 _DLL_HANDLES: List[Any] = []
+
+# Directories already registered, so repeated ``check``/backend construction in
+# one process does not grow the handle list without bound (idempotent).
+_REGISTERED_DIRS: set = set()
 
 
 def _dll_manifest_path() -> str:
@@ -122,28 +137,55 @@ def _dll_manifest_path() -> str:
 
 
 def _read_manifest_dirs(manifest_path: str) -> List[str]:
-    dirs: List[str] = []
+    """Return bounded, sanitized directory entries from the DLL manifest.
+
+    Reads at most :data:`_DLL_MANIFEST_MAX_BYTES` + 1; an oversized manifest is
+    ignored entirely. Blank/``#`` lines are skipped, overlong entries dropped,
+    and at most :data:`_DLL_MAX_DIRS` entries are returned.
+    """
     try:
         with open(manifest_path, "r", encoding="utf-8") as handle:
-            for line in handle:
-                entry = line.strip()
-                if entry and not entry.startswith("#"):
-                    dirs.append(entry)
+            blob = handle.read(_DLL_MANIFEST_MAX_BYTES + 1)
     except OSError:
-        pass
+        return []
+    if len(blob) > _DLL_MANIFEST_MAX_BYTES:
+        _diag("DLL manifest exceeds the size bound; ignoring it")
+        return []
+    dirs: List[str] = []
+    for line in blob.splitlines():
+        entry = line.strip()
+        if not entry or entry.startswith("#"):
+            continue
+        if len(entry) > _DLL_DIR_MAX_LEN:
+            _diag("DLL manifest entry exceeds the length bound; skipping it")
+            continue
+        dirs.append(entry)
+        if len(dirs) >= _DLL_MAX_DIRS:
+            break
     return dirs
 
 
 def _collect_dll_dirs(environ: Any, manifest_path: str) -> List[str]:
-    """Ordered, de-duplicated DLL search dirs: env override first, then manifest."""
+    """Ordered, de-duplicated DLL search dirs: env override first, then manifest.
+
+    The environment override is bounded in total length, per-entry length, and
+    entry count; an oversized override is ignored so it cannot exhaust memory.
+    """
     candidates: List[str] = []
     raw = ""
     try:
         raw = environ.get(_DLL_SEARCH_ENV, "") or ""
     except AttributeError:  # pragma: no cover - defensive
         raw = ""
+    if len(raw) > _DLL_ENV_MAX_LEN:
+        _diag("DLL search override exceeds the length bound; ignoring it")
+        raw = ""
     if raw:
-        candidates.extend(part for part in raw.split(os.pathsep) if part)
+        for part in raw.split(os.pathsep):
+            if part and len(part) <= _DLL_DIR_MAX_LEN:
+                candidates.append(part)
+            if len(candidates) >= _DLL_MAX_DIRS:
+                break
     candidates.extend(_read_manifest_dirs(manifest_path))
     ordered: List[str] = []
     seen = set()
@@ -151,6 +193,8 @@ def _collect_dll_dirs(environ: Any, manifest_path: str) -> List[str]:
         if entry not in seen:
             seen.add(entry)
             ordered.append(entry)
+        if len(ordered) >= _DLL_MAX_DIRS:
+            break
     return ordered
 
 
@@ -161,12 +205,15 @@ def prepare_native_library_search(
     is_windows: Optional[bool] = None,
     environ: Optional[Any] = None,
     manifest_path: Optional[str] = None,
+    seen_dirs: Optional[set] = None,
 ) -> List[str]:
     """Register recorded DLL directories before importing ``mgba`` on Windows.
 
     Deterministic no-op on POSIX and when nothing is recorded. Every argument is
     injectable so the behaviour is testable without a real binding or Windows.
-    Returns the list of directories actually registered.
+    Registration is idempotent across repeated calls (tracked in ``seen_dirs``,
+    defaulting to the process-wide set) so handles never grow without bound.
+    Returns the list of directories actually registered by this call.
     """
     if is_windows is None:
         is_windows = os.name == "nt"
@@ -180,8 +227,11 @@ def prepare_native_library_search(
         isdir = os.path.isdir
     env = environ if environ is not None else os.environ
     manifest = manifest_path or _dll_manifest_path()
+    state = seen_dirs if seen_dirs is not None else _REGISTERED_DIRS
     registered: List[str] = []
     for directory in _collect_dll_dirs(env, manifest):
+        if directory in state:
+            continue
         if not isdir(directory):
             continue
         try:
@@ -190,6 +240,7 @@ def prepare_native_library_search(
             _diag(f"could not add DLL directory: {type(exc).__name__}")
             continue
         _DLL_HANDLES.append(handle)
+        state.add(directory)
         registered.append(directory)
     return registered
 
@@ -360,8 +411,16 @@ class MgbaBackend(Backend):  # pragma: no cover - requires native emulator
         # ``vfs.open(BytesIO)`` VFile leaves ``_vfpMap`` unimplemented while
         # ``GBALoadROM`` demands ``vf->map``. ``VFile`` has no ``fromFile``.
         self._rom_vfile = vfs.VFile.fromEmpty()
-        self._rom_vfile.write(rom_bytes, len(rom_bytes))
-        self._rom_vfile.seek(0, os.SEEK_SET)
+        written = self._rom_vfile.write(rom_bytes, len(rom_bytes))
+        # ``VFile.write`` returns the number of bytes written; a short write must
+        # fail closed rather than hand a truncated image to the core.
+        if written != len(rom_bytes):
+            raise BackendError("short write while staging the ROM image into a native VFile")
+        # ``seek`` returns the resulting absolute position; rewinding to the
+        # start must land at offset 0 before ownership transfer.
+        position = self._rom_vfile.seek(0, os.SEEK_SET)
+        if position != 0:
+            raise BackendError("could not rewind the ROM image before load")
 
         core = mgba.core.load_vf(self._rom_vfile)
         if core is None:

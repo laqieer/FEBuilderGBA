@@ -68,6 +68,8 @@ its UCRT64 shell, install these packages before re-running:
   mingw-w64-ucrt-x86_64-gcc
   mingw-w64-ucrt-x86_64-cmake
   mingw-w64-ucrt-x86_64-ninja
+  mingw-w64-ucrt-x86_64-libepoxy
+  mingw-w64-ucrt-x86_64-pkgconf
   git  curl  tar
 Then re-run this script, optionally with -Msys2Root <path> or by setting the
 MSYS2_ROOT environment variable.
@@ -114,14 +116,26 @@ try {
     # --- Validate the UCRT64 toolchain is present (never auto-installed) -----
     $probe = @'
 missing=""
-for t in python gcc cmake git curl tar; do
+for t in python gcc cmake git curl tar pkg-config; do
   command -v "$t" >/dev/null 2>&1 || missing="$missing $t"
 done
 if ! command -v ninja >/dev/null 2>&1 && ! command -v make >/dev/null 2>&1; then
   missing="$missing ninja-or-make"
 fi
+# libepoxy is a mandatory configure-time dependency of the mGBA build; probe it
+# through pkg-config rather than guessing a header path.
+if command -v pkg-config >/dev/null 2>&1; then
+  pkg-config --exists epoxy || missing="$missing libepoxy"
+fi
+# The interpreter that builds and later imports the binding MUST be the UCRT64
+# Python (a python.org/MSVC interpreter cannot load the GCC-built binding).
+py="$(command -v python 2>/dev/null || true)"
+case "$py" in
+  /ucrt64/bin/python|/ucrt64/bin/python.exe) ;;
+  *) missing="$missing python-under-ucrt64" ;;
+esac
 if [ -n "$missing" ]; then echo "MISSING:$missing"; exit 3; fi
-echo "TOOLCHAIN-OK MSYSTEM=$MSYSTEM"
+echo "TOOLCHAIN-OK MSYSTEM=$MSYSTEM python=$py"
 '@
     Write-Host "Validating the UCRT64 toolchain (nothing is downloaded here)..."
     $probeOut = & $bash -lc $probe 2>&1

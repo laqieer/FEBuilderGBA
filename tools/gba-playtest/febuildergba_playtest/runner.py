@@ -33,15 +33,31 @@ _PRE_REPLACE_HOOK = None
 
 # --- Note redaction --------------------------------------------------------
 
+# A Windows path "tail": zero or more separator-terminated segments (each may
+# contain interior spaces) followed by a final space-free component. This lets
+# the redactor consume ``A B\file`` (a directory with a space) while stopping
+# before trailing prose (``...\rom.gba while loading``): interior spaces are
+# only absorbed inside a segment that still ends in a path separator, and the
+# final basename never absorbs a space. ``:`` is excluded from the tail because
+# a Windows path carries a colon only in its drive prefix, matched separately.
+_WIN_TAIL = r'(?:[^\s\\/<>:"|?*][^\\/<>:"|?*]*[\\/])*[^\s\\/<>:"|?*]*'
+
 # Environment-dependent path shapes that must never leak into a result note.
+# Applied in order; each match is replaced before the next pattern runs. Handles
+# quoted or unquoted paths, and paths containing spaces.
 _REDACT_PATTERNS = (
-    re.compile(r"\\\\\?\\[^\s]*"),              # \\?\ extended-length paths
-    re.compile(r"\\\\[^\s\\]+\\[^\s]*"),        # \\host\share UNC paths
-    re.compile(r"[A-Za-z]:[\\/][^\s]*"),        # C:\... or C:/... drive paths
-    re.compile(r"(?<!\w)/(?:[\w.\-]+/?)+"),     # /abs/unix/paths (not "and/or")
+    re.compile(r'\\\\\?\\(?:[A-Za-z]:[\\/])?' + _WIN_TAIL),                 # \\?\ extended-length
+    re.compile(r'\\\\[^\s\\/<>:"|?*][^\\/<>:"|?*]*[\\/]' + _WIN_TAIL),      # \\host\share UNC
+    re.compile(r'[A-Za-z]:[\\/]' + _WIN_TAIL),                             # C:\... or C:/... drive
+    re.compile(r'(?<!\w)/(?:[^\s/][^/]*/)*[^\s/]*'),                       # /abs/unix/paths (not "and/or")
 )
 
 _PLACEHOLDER = "<path>"
+
+# Bound the input scanned by the redactor so a hostile/unbounded value (e.g. a
+# version string from a wrong local module) cannot drive pathological regex work
+# or unbounded memory. The output is capped separately below.
+_REDACT_INPUT_CAP = 4096
 
 
 def redact_message(text: Any) -> str:
@@ -49,9 +65,13 @@ def redact_message(text: Any) -> str:
 
     This is the single shared sanitizer used for every result note so that no
     interpreter, temporary, or absolute path — nor any traceback text — can leak
-    into the stable JSON output.
+    into the stable JSON output. Windows drive / UNC / extended-length paths and
+    POSIX absolute paths are redacted even when they contain spaces, while
+    ordinary text with slashes ("read/write", "and/or") is preserved.
     """
     cleaned = str(text)
+    if len(cleaned) > _REDACT_INPUT_CAP:
+        cleaned = cleaned[:_REDACT_INPUT_CAP]
     for pattern in _REDACT_PATTERNS:
         cleaned = pattern.sub(_PLACEHOLDER, cleaned)
     cleaned = " ".join(cleaned.split())
@@ -192,21 +212,42 @@ def _quiet_remove(path: str) -> None:
         pass
 
 
-def _publish_artifact(artifact_dir: str, basename: str, data: bytes) -> None:
-    """Publish ``data`` to ``basename`` via a same-directory temp file + rename.
+def _reject_nonregular_target(path: str) -> None:
+    """Refuse an existing destination that is a directory or reparse target.
 
-    The final path is validated first (rejecting reparse targets), but a late
-    symlink/junction created between the check and the write cannot be followed:
-    the bytes land in a fresh temporary regular file and are moved into place
-    with an atomic :func:`os.replace`, which replaces the destination *name*
-    rather than writing through a link. The temporary name is never exposed.
+    A regular file may be atomically replaced; a directory, symlink, junction,
+    or other reparse point must never be written through or clobbered.
     """
-    path = _safe_artifact_path(artifact_dir, basename)
-    real_dir = os.path.dirname(path)
-    fd, tmp = tempfile.mkstemp(prefix=".gba-playtest-", suffix=".tmp", dir=real_dir)
+    if os.path.lexists(path):
+        if is_reparse_point(path) or os.path.isdir(path) or not os.path.isfile(path):
+            raise BackendError("output target exists and is not a regular file")
+
+
+def atomic_write_bytes(path: str, data: bytes) -> None:
+    """Publish ``data`` to ``path`` via a same-directory temp file + rename.
+
+    The destination is validated first (rejecting directories and reparse
+    targets), then the bytes are written to a fresh temporary regular file in the
+    same directory, flushed and ``fsync``-ed, and moved into place with an atomic
+    :func:`os.replace`. A late symlink/junction created at the destination after
+    the check cannot be followed: ``os.replace`` swaps the destination *name*
+    rather than writing through a link. Every create/write/replace failure is
+    normalized to a sanitized :class:`BackendError`, and the temporary file is
+    removed on every failure. The temporary name is never exposed.
+    """
+    _reject_nonregular_target(path)
+    directory = os.path.dirname(path) or "."
+    try:
+        fd, tmp = tempfile.mkstemp(prefix=".gba-playtest-", suffix=".tmp", dir=directory)
+    except OSError as exc:
+        raise BackendError(
+            "failed to create temporary output: " + redact_message(exc.strerror or type(exc).__name__)
+        ) from None
     try:
         with os.fdopen(fd, "wb") as handle:
             handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
         hook = _PRE_REPLACE_HOOK
         if hook is not None:
             hook(path)
@@ -214,11 +255,22 @@ def _publish_artifact(artifact_dir: str, basename: str, data: bytes) -> None:
     except OSError as exc:
         _quiet_remove(tmp)
         raise BackendError(
-            "failed to write screenshot: " + redact_message(exc.strerror or type(exc).__name__)
+            "failed to write output: " + redact_message(exc.strerror or type(exc).__name__)
         ) from None
     except BaseException:
         _quiet_remove(tmp)
         raise
+
+
+def _publish_artifact(artifact_dir: str, basename: str, data: bytes) -> None:
+    """Publish ``data`` to ``basename`` strictly inside ``artifact_dir``.
+
+    The basename is resolved and validated by :func:`_safe_artifact_path`
+    (rejecting traversal, separators, and reparse targets); the bytes are then
+    written atomically via :func:`atomic_write_bytes`.
+    """
+    path = _safe_artifact_path(artifact_dir, basename)
+    atomic_write_bytes(path, data)
 
 
 class _Assertion:
@@ -411,8 +463,8 @@ class Runner:
             "assertions": assertion_reports,
             "watchdogs": watch_reports,
             "mgba": {
-                "version": self._safe_meta(self.backend.version, None),
-                "commit": self._safe_meta(self.backend.commit, None),
+                "version": sanitize_meta(self._safe_meta(self.backend.version, None)),
+                "commit": sanitize_meta(self._safe_meta(self.backend.commit, None)),
             },
             "startupConfig": self._safe_meta(self.backend.effective_config, {}),
         }
@@ -449,6 +501,19 @@ def _sanitize_note(text: str) -> str:
     return redact_message(text)
 
 
+def sanitize_meta(value: Any) -> Optional[str]:
+    """Bound and sanitize a version/commit string for result JSON.
+
+    A wrong or hostile local module could return an unbounded or path-bearing
+    value from ``version()``/``commit()`` (or ``mgba.__version__``). Preserve
+    ``None`` but otherwise redact any embedded path and cap the length so the
+    stable result can never carry unbounded or environment-dependent metadata.
+    """
+    if value is None:
+        return None
+    return redact_message(value)[:100]
+
+
 __all__ = [
     "Backend",
     "BackendError",
@@ -458,5 +523,7 @@ __all__ = [
     "MAX_ROM_BYTES",
     "canonical_json",
     "redact_message",
+    "sanitize_meta",
+    "atomic_write_bytes",
     "is_reparse_point",
 ]
