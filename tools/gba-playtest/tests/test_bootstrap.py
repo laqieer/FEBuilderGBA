@@ -354,6 +354,35 @@ def test_readme_does_not_claim_msvc_support():
     assert "msys2" in text, "README must document the MSYS2 UCRT64 requirement"
 
 
+PYPROJECT = os.path.join(TOOL_DIR, "pyproject.toml")
+
+
+def test_pyproject_uses_repository_gpl_license():
+    text = _read(PYPROJECT)
+    # The repository-authored package inherits FEBuilderGBA's GPLv3 license; it
+    # must NOT be relabelled with mGBA's MPL-2.0.
+    assert re.search(r'license\s*=\s*\{\s*text\s*=\s*"GPL-3\.0-or-later"\s*\}', text), (
+        "pyproject must license the runner package as GPL-3.0-or-later"
+    )
+    assert "MPL" not in text, (
+        "pyproject must not relicense repository-authored code under mGBA's MPL"
+    )
+
+
+def test_readme_license_boundary_gpl_vs_mpl():
+    text = _read(README)
+    lower = text.lower()
+    # The package itself is GPLv3 (FEBuilderGBA's license)...
+    assert "gplv3" in lower or "gpl-3" in lower, (
+        "README must state the package is GPLv3"
+    )
+    # ...while mGBA is separately MPL-2.0 and only fetched/built as a dependency.
+    assert "mpl-2.0" in lower, "README must attribute mGBA's MPL-2.0 license"
+    assert "separate" in lower, (
+        "README must clarify mGBA is a separate dependency, not this package's license"
+    )
+
+
 # --------------------------------------------------------------------------- #
 # Cross-script + requirements invariants
 # --------------------------------------------------------------------------- #

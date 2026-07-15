@@ -97,5 +97,11 @@ python -m pytest tools/gba-playtest/tests -q
 
 ## License
 
-mGBA is MPL-2.0 and is built locally from source by the bootstrap scripts; no
-mGBA binaries, ROMs, BIOS files, or save states are bundled in this repository.
+This playtest package (the runner, bootstrap scripts, tests, and synthetic ROM
+helper) is authored in this repository and is licensed under **GPLv3**, the same
+license as the rest of FEBuilderGBA. See the repository `LICENSE`.
+
+The mGBA 0.10.5 emulator is a **separate** dependency under **MPL-2.0**; it is
+fetched and built locally from source by the bootstrap scripts only. No mGBA
+binaries, ROMs, BIOS files, or save states are bundled in this repository, and
+mGBA's MPL-2.0 license does not apply to the GPLv3 code authored here.
