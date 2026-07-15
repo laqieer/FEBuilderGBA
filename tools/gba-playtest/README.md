@@ -64,7 +64,7 @@ not-planned). The PowerShell wrapper therefore does **not** use MSVC: it locates
 a user-installed [MSYS2](https://www.msys2.org) root (from `-Msys2Root`, the
 `MSYS2_ROOT` environment variable, or `C:\msys64`), verifies the UCRT64
 toolchain (Python, GCC, CMake, Ninja/Make, Git, curl, tar) is already installed,
-and runs the same POSIX bootstrap under the UCRT64 login shell. It never
+and runs the same POSIX bootstrap under the UCRT64 shell. It never
 downloads or installs the toolchain and never mutates global PATH/environment.
 The native prerequisites are `pkg-config`, libffi, libepoxy, libpng, and zlib;
 on MSYS2 install the corresponding `mingw-w64-ucrt-x86_64-*` packages. The
@@ -77,7 +77,10 @@ SHA-256 before extraction (no fallback), stamp exact inner Git provenance,
 install hash-locked build dependencies, build the display-free binding into an
 isolated `.mgba-build/` venv, record the native DLL search directories, run a
 direct import + provenance probe, and finish by running `--check` (exact mGBA
-version **and** commit).
+version **and** commit). The bootstrap builds a local wheel from that pinned
+source and installs that exact wheel offline with dependency resolution
+disabled; it does not use the legacy, modern-setuptools-incompatible install
+target.
 
 On Windows the binding's dependent DLLs (`libmgba`, `libgcc`, `libwinpthread`)
 are not resolved via `runtime_library_dirs` when a UCRT64 Python is launched

@@ -252,7 +252,7 @@ echo "Installing hash-locked Python build dependencies (stage 2: pinned sources)
 # --- Lock the build/install phase offline ----------------------------------
 # Every Python build/setup dependency is now installed with verified hashes.
 # setup.py's setup_requires (cffi / pytest-runner) are therefore already
-# satisfied, so mgba-py-install must not perform ANY implicit network fetch.
+# satisfied, so the local wheel build must not perform ANY implicit network fetch.
 # Enforce it: an internal pip/setuptools fetch would fail closed under
 # --no-index rather than silently downloading an unpinned package. The only
 # permitted network phases remain the (already-completed) archive download and
@@ -287,10 +287,47 @@ cmake -S "${SRC_DIR}" -B "${CMAKE_BUILD}" \
     -DPYTHON_EXECUTABLE="${VENV_PY}"
 echo "Building libmgba..."
 cmake --build "${CMAKE_BUILD}" --config Release
-echo "Installing the display-free Python binding (mgba-py-install)..."
-# mGBA 0.10.5 defines a custom target 'mgba-py-install' (there is no Python
-# install *component*). This MUST succeed; no fail-open fallback.
-cmake --build "${CMAKE_BUILD}" --target mgba-py-install --config Release
+MGBA_PY_DIST="${SRC_DIR}/src/platform/python/dist"
+# The extracted source is recreated above on every run. A dist directory here
+# would therefore be stale/unexpected output, not a reusable artifact.
+if [ -e "${MGBA_PY_DIST}" ] || [ -L "${MGBA_PY_DIST}" ]; then
+    fail "Unexpected pre-existing Python wheel directory: ${MGBA_PY_DIST}"
+fi
+
+echo "Building the display-free Python wheel (mgba-py-bdist)..."
+# The legacy install target invokes ``setup.py install -b``. Modern setuptools
+# rejects that incompatible install invocation. The pinned source's
+# mgba-py-bdist target instead emits a local wheel; installing that exact file
+# below is safe because the locked build phase is offline and dependency
+# resolution is explicitly disabled.
+cmake --build "${CMAKE_BUILD}" --target mgba-py-bdist --config Release
+
+shopt -s nullglob
+MGBA_WHEELS=("${MGBA_PY_DIST}"/*.whl)
+shopt -u nullglob
+if [ "${#MGBA_WHEELS[@]}" -eq 0 ]; then
+    fail "mgba-py-bdist produced no wheel in ${MGBA_PY_DIST}"
+fi
+if [ "${#MGBA_WHEELS[@]}" -ne 1 ]; then
+    fail "mgba-py-bdist produced more than one wheel in ${MGBA_PY_DIST}"
+fi
+MGBA_WHEEL="${MGBA_WHEELS[0]}"
+if [ -L "${MGBA_WHEEL}" ] || [ ! -f "${MGBA_WHEEL}" ]; then
+    fail "Refusing non-regular or symlinked mGBA wheel: ${MGBA_WHEEL}"
+fi
+MGBA_WHEEL_BASENAME="$(basename -- "${MGBA_WHEEL}")"
+case "${MGBA_WHEEL_BASENAME}" in
+    "mgba-${MGBA_VERSION}-"*.whl | "mgba-${MGBA_VERSION}."*.whl) ;;
+    *) fail "Unexpected mGBA wheel filename: ${MGBA_WHEEL_BASENAME}" ;;
+esac
+MGBA_WHEEL_SHA_BEFORE="$(sha256_of "${MGBA_WHEEL}")"
+echo "  local wheel SHA-256 before install: ${MGBA_WHEEL_SHA_BEFORE}"
+"${VENV_PY}" -m pip install --no-index --no-deps --no-cache-dir --force-reinstall "${MGBA_WHEEL}"
+MGBA_WHEEL_SHA_AFTER="$(sha256_of "${MGBA_WHEEL}")"
+if [ "${MGBA_WHEEL_SHA_AFTER}" != "${MGBA_WHEEL_SHA_BEFORE}" ]; then
+    fail "mGBA wheel SHA-256 changed during installation; refusing mutated artifact."
+fi
+echo "  local wheel SHA-256 verified after install: ${MGBA_WHEEL_SHA_AFTER}"
 
 # --- Record the native DLL search directories (Windows loader strategy) -----
 # A UCRT64 Python launched outside the MSYS2 shell (e.g. from PowerShell/.NET)

@@ -93,11 +93,35 @@ def test_build_script_references_both_requirement_stages():
     assert "requirements-mgba-build.txt" in text, "must install stage-2 sources"
 
 
-def test_build_script_uses_fail_hard_py_install_target():
+def test_build_script_uses_fail_hard_bdist_and_local_wheel_contract():
     text = _read(BUILD_SCRIPT)
-    assert "mgba-py-install" in text, "must build the mgba-py-install target"
+    assert "mgba-py-bdist" in text, "must build the pinned source's wheel target"
+    assert "mgba-py-install" not in text, "must not use the incompatible install target"
     assert "--component python" not in text, "must not use a Python install component"
-    assert "|| true" not in text, "must not fail-open the install step"
+    assert re.search(r'MGBA_PY_DIST="\$\{SRC_DIR\}/src/platform/python/dist"', text)
+    assert re.search(
+        r'\[\s+-e\s+"\$\{MGBA_PY_DIST\}"\s+\]\s+\|\|\s+\[\s+-L\s+"\$\{MGBA_PY_DIST\}"\s+\]',
+        text,
+    ), "must reject a pre-existing source dist directory"
+    assert re.search(r'MGBA_WHEELS=\("\$\{MGBA_PY_DIST\}"/\*\.whl\)', text)
+    assert re.search(r'MGBA_WHEELS\[@\].*-\s*eq\s+0', text), "must reject zero wheels"
+    assert re.search(r'MGBA_WHEELS\[@\].*-\s*ne\s+1', text), "must require exactly one wheel"
+    assert 'MGBA_WHEEL="${MGBA_WHEELS[0]}"' in text, "must resolve exactly one wheel"
+    assert 'MGBA_WHEEL}" ] || [ ! -f "${MGBA_WHEEL}' in text, (
+        "must reject symlinked and non-regular wheels"
+    )
+    assert '"mgba-${MGBA_VERSION}-"*.whl | "mgba-${MGBA_VERSION}."*.whl' in text, (
+        "wheel name must use a version delimiter, not only a broad prefix"
+    )
+    assert '"mgba-${MGBA_VERSION}"*.whl' not in text, "must reject version-prefix collisions"
+    assert "MGBA_WHEEL_SHA_BEFORE" in text and "MGBA_WHEEL_SHA_AFTER" in text
+    assert '[ "${MGBA_WHEEL_SHA_AFTER}" != "${MGBA_WHEEL_SHA_BEFORE}" ]' in text, (
+        "wheel SHA-256 must be compared before and after installation"
+    )
+    assert re.search(r'pip install[^\n]*"\$\{MGBA_WHEEL\}"', text), (
+        "pip must install the exact resolved wheel variable"
+    )
+    assert "|| true" not in text, "must not fail-open the wheel build or install"
 
 
 def test_build_script_stamps_inner_git_provenance():
@@ -264,19 +288,38 @@ def test_build_script_requires_python_310_or_newer():
 
 def test_build_script_locks_build_phase_offline():
     text = _read(BUILD_SCRIPT)
-    # After the hash-pinned pip stages, the CMake/setup.py install must not be
-    # able to silently fetch an unpinned package: enforce an offline pip env.
-    assert "PIP_NO_INDEX" in text, "must disable the package index during the build"
-    assert "PIP_NO_BUILD_ISOLATION" in text, "must disable build isolation during the build"
-    i_stage2 = text.find("requirements-mgba-build.txt")
-    i_offline = text.find("PIP_NO_INDEX")
-    i_install = text.find("--target mgba-py-install")
-    assert -1 < i_stage2 < i_offline < i_install, (
-        "offline lockdown must sit after stage-2 pip and before mgba-py-install"
+    # After the hash-pinned pip stages, only one local-wheel install is allowed.
+    # The lockdown must precede bdist and remain in effect for that install.
+    lockdown = re.search(
+        r"^export PIP_NO_INDEX=1\nexport PIP_NO_BUILD_ISOLATION=1$",
+        text,
+        re.MULTILINE,
     )
-    # No pip install may run after the lockdown is engaged.
-    after = text[i_offline:]
-    assert "pip install" not in after, "no pip install may run after the offline lockdown"
+    assert lockdown, "both offline environment locks must be exported together"
+    i_stage2 = text.find("requirements-mgba-build.txt")
+    i_offline = lockdown.start()
+    i_bdist = text.find("--target mgba-py-bdist")
+    assert -1 < i_stage2 < i_offline < i_bdist, (
+        "offline lockdown must sit after stage-2 pip and before mgba-py-bdist"
+    )
+    after = text[lockdown.end():]
+    assert not re.search(
+        r"^\s*(?:(?:unset|export\s+-n)\s+PIP_NO_(?:INDEX|BUILD_ISOLATION)|"
+        r"(?:export\s+)?PIP_NO_(?:INDEX|BUILD_ISOLATION)=)",
+        after,
+        re.MULTILINE,
+    )
+    pip_installs = re.findall(r'^\s*"[^"\n]+"\s+-m\s+pip\s+install\s+.*$', after, re.MULTILINE)
+    assert len(pip_installs) == 1, "exactly one actual pip install may follow lockdown"
+    install = pip_installs[0]
+    for flag in ("--no-index", "--no-deps", "--no-cache-dir", "--force-reinstall", '"${MGBA_WHEEL}"'):
+        assert flag in install, f"offline wheel install must include {flag}"
+    assert not re.search(r"https?://|git\+|(?:^|\s)(?:git|hg|svn|bzr)(?:\s|$)", after), (
+        "no post-lockdown URL or VCS install path is allowed"
+    )
+    assert not re.search(r"(?:^|\s)(?:-r|--requirement)(?:\s|=)", install), (
+        "offline wheel install must not use a requirements path"
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -307,6 +350,34 @@ def test_powershell_validates_ucrt64_toolchain_via_probe():
         assert re.search(rf"\b{tool}\b", text), f"wrapper must probe for {tool}"
     assert "ninja" in text and "make" in text, "wrapper must require ninja or make"
     assert "command -v" in text, "wrapper must probe with command -v inside the shell"
+
+
+def test_powershell_passes_multiline_scripts_on_bash_stdin_fail_closed():
+    text = _read(PS1)
+    assert re.search(r"\$probe\s*\|\s*&\s*\$bash\s+-s\s+2>&1", text), (
+        "the probe must reach Bash through stdin"
+    )
+    assert re.search(r"\$delegate\s*\|\s*&\s*\$bash\s+-s\s+--\s+\$PosixScript\s+@forward", text), (
+        "the bootstrap delegate must reach Bash through stdin"
+    )
+    assert not re.search(r"-lc\s+\$probe\b", text)
+    assert not re.search(r"-lc\s+\$inner\b", text)
+    assert "$inner" not in text
+    delegate = re.search(r"\$delegate\s*=\s*@'\n(.*?)\n'@", text, re.DOTALL)
+    assert delegate, "delegate must be a stdin here-string"
+    assert 'sh_win="$1"\nshift\nsh_posix="$(cygpath -u "$sh_win")"' in delegate.group(1)
+    assert 'sh_win="$0"' not in delegate.group(1)
+    probe_try = text.find("$probePreference = $ErrorActionPreference")
+    probe_finally = text.find("$ErrorActionPreference = $probePreference", probe_try)
+    probe_call = text.find("$probe | & $bash -s 2>&1", probe_try)
+    assert -1 < probe_try < probe_call < probe_finally, (
+        "probe Continue preference must be scoped and restored with try/finally"
+    )
+    assert "$bootstrapExit = 1" in text, "bootstrap exit must be initialized fail-closed"
+    assert re.search(r"\$bootstrapExit\s*=\s*\$LASTEXITCODE", text)
+    assert re.search(r"if\s*\(\$bootstrapExit\s+-ne\s+0\)", text), (
+        "bootstrap exit must remain explicit and fail-closed"
+    )
 
 
 def test_powershell_probes_configure_time_prerequisites():

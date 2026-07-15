@@ -106,12 +106,13 @@ if (-not $bash) {
 }
 Write-Host "  using MSYS2 bash -> $bash"
 
-# --- Run everything under the UCRT64 login shell. Apply the environment to    -
+# --- Run everything under the UCRT64 shell. Apply the environment to          -
 # --- the CHILD process only: save and restore so nothing persists globally.   -
 $saved = @{}
 foreach ($name in @("MSYSTEM", "CHERE_INVOKING", "MSYS2_PATH_TYPE")) {
     $saved[$name] = [Environment]::GetEnvironmentVariable($name, "Process")
 }
+$bootstrapExit = 1
 try {
     $env:MSYSTEM = "UCRT64"
     $env:CHERE_INVOKING = "1"
@@ -134,7 +135,7 @@ if command -v pkg-config >/dev/null 2>&1; then
 fi
 # The interpreter that builds and later imports the binding MUST be the UCRT64
 # Python (a python.org/MSVC interpreter cannot load the GCC-built binding).
-py="$(command -v python 2>/dev/null || true)"
+py="$(command -v python 2>/dev/null)"
 case "$py" in
   /ucrt64/bin/python|/ucrt64/bin/python.exe) ;;
   *) missing="$missing python-under-ucrt64" ;;
@@ -143,8 +144,19 @@ if [ -n "$missing" ]; then echo "MISSING:$missing"; exit 3; fi
 echo "TOOLCHAIN-OK MSYSTEM=$MSYSTEM python=$py"
 '@
     Write-Host "Validating the UCRT64 toolchain (nothing is downloaded here)..."
-    $probeOut = & $bash -lc $probe 2>&1
-    $probeExit = $LASTEXITCODE
+    # Windows PowerShell 5.1 can mangle a complex/multiline command argument.
+    # Feed the probe to Bash on stdin instead, while limiting Continue to
+    # this captured native invocation so normal bootstrap failures still stop.
+    $probeExit = 1
+    $probePreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        $probeOut = $probe | & $bash -s 2>&1
+        $probeExit = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $probePreference
+    }
     $probeOut | ForEach-Object { Write-Host "  $_" }
     if ($probeExit -ne 0) {
         Fail "The MSYS2 UCRT64 toolchain is incomplete (missing tools reported above).`n$Msys2Guidance"
@@ -154,12 +166,18 @@ echo "TOOLCHAIN-OK MSYSTEM=$MSYSTEM python=$py"
     # --- a positional argument and convert it with cygpath INSIDE the shell so -
     # --- the Windows path is translated structurally (no fragile string        -
     # --- interpolation, spaces/backslashes handled by the shell).              -
-    $inner = 'set -e; sh_win="$1"; shift; sh_posix="$(cygpath -u "$sh_win")"; exec bash "$sh_posix" "$@"'
+    $delegate = @'
+set -e
+sh_win="$1"
+shift
+sh_posix="$(cygpath -u "$sh_win")"
+exec bash "$sh_posix" "$@"
+'@
     $forward = @("--python=python")
     if ($Force) { $forward += "--force" }
 
     Write-Host "Delegating to the POSIX bootstrap under the UCRT64 shell..."
-    & $bash -lc $inner "febuildergba-playtest-bootstrap" $PosixScript @forward
+    $delegate | & $bash -s -- $PosixScript @forward
     $bootstrapExit = $LASTEXITCODE
 }
 finally {
