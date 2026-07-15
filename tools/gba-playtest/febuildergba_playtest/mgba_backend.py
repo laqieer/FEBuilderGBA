@@ -110,10 +110,13 @@ def _diag(message: str) -> None:
 # ``os.add_dll_directory``. A UCRT64 Python launched from PowerShell/.NET does
 # not otherwise resolve the binding's dependent DLLs (``_builder.py``'s
 # ``runtime_library_dirs`` does not cover this). No-op on POSIX and when nothing
-# is recorded. ``FEBUILDERGBA_MGBA_DLL_DIRS`` (os.pathsep-separated) is an
-# explicit override applied ahead of the manifest.
+# is recorded. ``FEBUILDERGBA_MGBA_DLL_DIRS`` is a semicolon-separated Windows
+# path list applied ahead of the manifest. Its separator is deliberately fixed
+# instead of using the host ``os.pathsep`` so contract tests can model Windows
+# paths without splitting drive-letter colons on POSIX hosts.
 _DLL_MANIFEST_NAME = "mgba-dll-dirs.txt"
 _DLL_SEARCH_ENV = "FEBUILDERGBA_MGBA_DLL_DIRS"
+_DLL_ENV_SEPARATOR = ";"
 
 # Hard bounds so a malformed/oversized manifest or environment override fails
 # closed (registers nothing) instead of consuming unbounded memory or driving
@@ -194,7 +197,7 @@ def _collect_dll_dirs(environ: Any, manifest_path: str) -> List[str]:
         _diag("DLL search override exceeds the length bound; ignoring it")
         raw = ""
     if raw:
-        for part in raw.split(os.pathsep):
+        for part in raw.split(_DLL_ENV_SEPARATOR):
             if part and len(part) <= _DLL_DIR_MAX_LEN:
                 candidates.append(part)
             if len(candidates) >= _DLL_MAX_DIRS:

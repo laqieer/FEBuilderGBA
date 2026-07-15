@@ -84,8 +84,9 @@ are not resolved via `runtime_library_dirs` when a UCRT64 Python is launched
 from PowerShell/.NET. The bootstrap therefore records the build output directory
 and the UCRT64 `bin` as native paths in `.mgba-build/mgba-dll-dirs.txt`, and the
 runtime adapter registers them with `os.add_dll_directory()` before importing
-`mgba` (override with `FEBUILDERGBA_MGBA_DLL_DIRS`). The bootstrap runs a direct
-import probe before `--check` so a loader failure is diagnosed distinctly.
+`mgba` (override with a semicolon-separated Windows path list in
+`FEBUILDERGBA_MGBA_DLL_DIRS`). The bootstrap runs a direct import probe before
+`--check` so a loader failure is diagnosed distinctly.
 
 **Windows support is not yet claimed.** This MSYS2 UCRT64 path is an *attempted*
 supported build gated by a mandatory real Windows MSYS2 CI job; upstream records

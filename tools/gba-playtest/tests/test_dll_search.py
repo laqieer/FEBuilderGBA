@@ -34,7 +34,7 @@ def test_read_manifest_missing_file_is_empty(tmp_path):
 def test_collect_dll_dirs_env_first_then_manifest_ordered_dedup(tmp_path):
     manifest = _write_manifest(tmp_path, ["C:\\m1", "C:\\shared", "C:\\m2"])
     env = {
-        mb._DLL_SEARCH_ENV: os.pathsep.join(
+        mb._DLL_SEARCH_ENV: ";".join(
             ["C:\\e1", "c:\\SHARED", "C:\\e2"]
         )
     }
@@ -45,7 +45,7 @@ def test_collect_dll_dirs_env_first_then_manifest_ordered_dedup(tmp_path):
 
 def test_collect_dll_dirs_ignores_empty_env_segments(tmp_path):
     manifest = _write_manifest(tmp_path, [])
-    env = {mb._DLL_SEARCH_ENV: os.pathsep + "C:\\only" + os.pathsep}
+    env = {mb._DLL_SEARCH_ENV: ";C:\\only;"}
     assert mb._collect_dll_dirs(env, manifest) == ["C:\\only"]
 
 
@@ -167,7 +167,7 @@ def test_read_manifest_invalid_utf8_is_empty(tmp_path):
 
 def test_collect_dll_dirs_ignores_oversize_env(tmp_path):
     manifest = _write_manifest(tmp_path, ["from_manifest"])
-    huge = os.pathsep.join(["d"] * (mb._DLL_ENV_MAX_LEN))
+    huge = ";".join(["d"] * (mb._DLL_ENV_MAX_LEN))
     env = {mb._DLL_SEARCH_ENV: huge}
     assert len(env[mb._DLL_SEARCH_ENV]) > mb._DLL_ENV_MAX_LEN
     # The oversized override is dropped; only the manifest remains.
@@ -176,7 +176,7 @@ def test_collect_dll_dirs_ignores_oversize_env(tmp_path):
 
 def test_collect_dll_dirs_caps_env_entry_count(tmp_path):
     manifest = _write_manifest(tmp_path, [])
-    env = {mb._DLL_SEARCH_ENV: os.pathsep.join(f"e{i}" for i in range(mb._DLL_MAX_DIRS + 30))}
+    env = {mb._DLL_SEARCH_ENV: ";".join(f"e{i}" for i in range(mb._DLL_MAX_DIRS + 30))}
     got = mb._collect_dll_dirs(env, manifest)
     assert len(got) == mb._DLL_MAX_DIRS
 
@@ -185,7 +185,7 @@ def test_collect_dll_dirs_skips_overlong_env_entry(tmp_path):
     manifest = _write_manifest(tmp_path, [])
     long_entry = "y" * (mb._DLL_DIR_MAX_LEN + 5)
     env = {
-        mb._DLL_SEARCH_ENV: os.pathsep.join(
+        mb._DLL_SEARCH_ENV: ";".join(
             ["C:\\ok", long_entry, "C:\\ok2"]
         )
     }
