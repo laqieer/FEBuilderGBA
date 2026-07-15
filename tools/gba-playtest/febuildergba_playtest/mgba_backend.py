@@ -2,10 +2,24 @@
 
 The ``mgba`` binding is imported lazily so this module (and the rest of the
 package) stays importable on hosts without the native emulator. The adapter is
-never exercised by the WU1 dependency-free tests; it is validated by the
-separate real-emulator CI job.
+never exercised by the WU1 dependency-free tests; its exact API surface is
+pinned by contract tests that model the 0.10.5 binding without importing it.
 
-Startup contract (verified as effective, not just requested):
+Every symbol used here is verified against the official pinned sources at commit
+``26b7884bc25a5933960f3cdcd98bac1ae14d42e2``:
+
+* Load ROM: ``mgba.core.load_vf(vfile)`` (module function).
+* Config: ``Config(defaults=...)`` + ``core.load_config(config)``; effective
+  values are read back through ``core.config[key]`` (which returns ``bytes``)
+  and verified, failing closed on any mismatch.
+* Crash: append a handler to the core-owned ``core._callbacks.core_crashed``
+  list (no ``add_callbacks`` / ``callbacks.crashed``).
+* Keys: ``core.set_keys(raw=mask)`` (positional args are key *indexes*).
+* Memory: ``core.memory.<domain>.u8/u16/u32[address]`` views for read/write.
+* Screenshot: ``Image.save_png(fileobj)`` returning ``bool`` (no Pillow).
+* Version / commit: ``mgba.__version__`` and ``mgba.Git.commit``.
+
+Startup contract (verified as effective, not merely requested):
 
 * ``audioSync=false``, ``videoSync=false``, ``frameskip=0``, ``mute=true``.
 * An in-memory temporary save (``VFile.fromEmpty()`` + ``load_temporary_save``)
@@ -16,15 +30,17 @@ Startup contract (verified as effective, not just requested):
 * A crash callback flips the core into a faulted state.
 
 All third-party diagnostics go to stderr; stdout is reserved for the single
-result document emitted by ``__main__``.
+result document emitted by ``__main__``. Every note that could carry a path is
+passed through :func:`redact_message` first.
 """
 
 from __future__ import annotations
 
+import io
 import sys
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, List, Optional
 
-from .runner import Backend, BackendError
+from .runner import Backend, BackendError, redact_message
 
 REQUIRED_VERSION = "0.10.5"
 REQUIRED_COMMIT = "26b7884bc25a5933960f3cdcd98bac1ae14d42e2"
@@ -40,54 +56,100 @@ _DOMAIN_ATTR: Dict[str, str] = {
     "sram": "sram",
 }
 
+# Config keys whose effective values must be verified after load_config.
+_REQUIRED_BOOL_CONFIG = ("audioSync", "videoSync", "mute")
+_REQUIRED_INT_CONFIG = ("frameskip",)
+
 
 def _diag(message: str) -> None:
-    sys.stderr.write(f"[mgba-backend] {message}\n")
+    sys.stderr.write(f"[mgba-backend] {redact_message(message)}\n")
+
+
+class _NonClosingBytesIO(io.BytesIO):
+    """BytesIO whose ``close`` is a no-op.
+
+    mGBA's ``png.PNG`` wraps the file object in a ``VFile`` whose ``__del__``
+    calls ``fileobj.close()``. A normal ``BytesIO`` would then reject
+    ``getvalue()``. Suppressing ``close`` keeps the captured PNG readable.
+    """
+
+    def close(self) -> None:  # noqa: D401 - intentional no-op
+        pass
+
+
+def _parse_config_bool(raw: Any) -> Optional[bool]:
+    text = _decode_config(raw)
+    if text is None:
+        return None
+    text = text.strip().lower()
+    if text in ("1", "true", "yes", "on"):
+        return True
+    if text in ("0", "false", "no", "off"):
+        return False
+    return None
+
+
+def _parse_config_int(raw: Any) -> Optional[int]:
+    text = _decode_config(raw)
+    if text is None:
+        return None
+    try:
+        return int(text.strip())
+    except ValueError:
+        return None
+
+
+def _decode_config(raw: Any) -> Optional[str]:
+    if raw is None:
+        return None
+    if isinstance(raw, (bytes, bytearray)):
+        try:
+            return bytes(raw).decode("ascii", "replace")
+        except Exception:  # pragma: no cover - defensive
+            return None
+    return str(raw)
+
+
+def _read_version_commit():
+    """Return ``(version, commit)`` from the pinned binding's public API."""
+    version: Optional[str] = None
+    commit: Optional[str] = None
+    try:
+        import mgba
+        version = getattr(mgba, "__version__", None)
+        git = getattr(mgba, "Git", None)
+        if git is not None:
+            commit = getattr(git, "commit", None)
+    except Exception as exc:  # pragma: no cover - environment dependent
+        _diag(f"could not read version/commit: {type(exc).__name__}")
+    return version, commit
 
 
 def check_available() -> Dict[str, Any]:
-    """Return a diagnostic dict describing mGBA binding availability."""
+    """Return a diagnostic dict describing mGBA binding availability.
+
+    Every reason is sanitized so no interpreter/library path can leak.
+    """
     try:
         import mgba  # noqa: F401
         import mgba.core  # noqa: F401
     except Exception as exc:  # pragma: no cover - environment dependent
-        return {"available": False, "reason": f"import failed: {exc}", "version": None, "commit": None}
+        return {
+            "available": False,
+            "reason": redact_message(f"import failed: {type(exc).__name__}"),
+            "version": None,
+            "commit": None,
+        }
 
     version, commit = _read_version_commit()
     if version != REQUIRED_VERSION:
         return {
             "available": False,
-            "reason": f"version {version!r} != required {REQUIRED_VERSION!r}",
+            "reason": redact_message(f"version {version!r} != required {REQUIRED_VERSION!r}"),
             "version": version,
             "commit": commit,
         }
     return {"available": True, "reason": None, "version": version, "commit": commit}
-
-
-def _read_version_commit():  # pragma: no cover - environment dependent
-    version = None
-    commit = None
-    try:
-        import mgba
-        lib = getattr(mgba, "lib", None)
-        if lib is not None:
-            raw = getattr(lib, "projectVersion", None)
-            if raw is not None:
-                version = _ffi_string(raw)
-            raw_commit = getattr(lib, "gitCommit", None)
-            if raw_commit is not None:
-                commit = _ffi_string(raw_commit)
-    except Exception as exc:
-        _diag(f"could not read version/commit: {exc}")
-    return version, commit
-
-
-def _ffi_string(raw):  # pragma: no cover - environment dependent
-    try:
-        from mgba._pylib import ffi
-        return ffi.string(raw).decode("utf-8", "replace")
-    except Exception:
-        return None
 
 
 class MgbaBackend(Backend):  # pragma: no cover - requires native emulator
@@ -102,27 +164,30 @@ class MgbaBackend(Backend):  # pragma: no cover - requires native emulator
         self._effective: Dict[str, Any] = {}
         self._rom_vfile = None
         self._save_vfile = None
-        self._callbacks = None
+        self._config = None
+        self._crash_handler: Optional[Callable[[], None]] = None
         self._image = None
         self._import_and_prepare()
 
     def _import_and_prepare(self) -> None:
         try:
-            import mgba.core
+            import mgba.core  # noqa: F401
             import mgba.log
         except Exception as exc:
-            raise BackendError(f"mGBA Python binding is not available: {exc}") from exc
+            raise BackendError(
+                redact_message(f"mGBA Python binding is not available: {type(exc).__name__}")
+            ) from None
 
         # Route library logging to stderr, never stdout.
         try:
             mgba.log.silence()
         except Exception as exc:
-            _diag(f"could not silence mGBA log: {exc}")
+            _diag(f"could not silence mGBA log: {type(exc).__name__}")
 
         self._version, self._commit = _read_version_commit()
         if self._version != REQUIRED_VERSION:
             raise BackendError(
-                f"mGBA version {self._version!r} is not the required {REQUIRED_VERSION!r}"
+                redact_message(f"mGBA version {self._version!r} is not the required {REQUIRED_VERSION!r}")
             )
 
     def load_rom(self, rom_bytes: bytes) -> None:
@@ -133,7 +198,7 @@ class MgbaBackend(Backend):  # pragma: no cover - requires native emulator
         self._rom_vfile.write(rom_bytes, len(rom_bytes))
         self._rom_vfile.seek(0, 0)
 
-        core = mgba.core.load1(self._rom_vfile)
+        core = mgba.core.load_vf(self._rom_vfile)
         if core is None:
             raise BackendError("mGBA could not load the ROM image")
         self._core = core
@@ -142,7 +207,8 @@ class MgbaBackend(Backend):  # pragma: no cover - requires native emulator
 
         # In-memory temporary save so nothing is written beside the ROM.
         self._save_vfile = vfs.VFile.fromEmpty()
-        core.load_temporary_save(self._save_vfile)
+        if not core.load_temporary_save(self._save_vfile):
+            raise BackendError("mGBA could not attach an in-memory temporary save")
 
         self._register_crash_callback(core)
 
@@ -158,50 +224,57 @@ class MgbaBackend(Backend):  # pragma: no cover - requires native emulator
             "frameskip": 0,
             "mute": True,
         }
-        core.config.load_defaults(requested)
-        try:
-            core.load_config(Config(defaults=requested))
-        except Exception as exc:
-            _diag(f"load_config fell back to defaults: {exc}")
+        # Apply via a foreign config; retain it so the native storage lives on.
+        self._config = Config(defaults=requested)
+        core.load_config(self._config)
 
-        # Verify the config became effective rather than trusting the request.
-        self._effective = {
-            "audioSync": _config_bool(core, "audioSync"),
-            "videoSync": _config_bool(core, "videoSync"),
-            "frameskip": _config_int(core, "frameskip"),
-            "mute": _config_bool(core, "mute"),
-            "biosHle": True,
-            "autoloadSave": False,
-            "autoloadPatch": False,
-            "autoloadCheats": False,
-        }
-        for key, expected in requested.items():
-            if self._effective.get(key) != expected:
-                _diag(f"effective config {key}={self._effective.get(key)!r} != {expected!r}")
+        # Verify each required value became effective by reading it back.
+        effective: Dict[str, Any] = {}
+        for key in _REQUIRED_BOOL_CONFIG:
+            value = _parse_config_bool(core.config[key])
+            if value is None or value != requested[key]:
+                raise BackendError(f"could not verify effective config: {key}")
+            effective[key] = value
+        for key in _REQUIRED_INT_CONFIG:
+            value = _parse_config_int(core.config[key])
+            if value is None or value != requested[key]:
+                raise BackendError(f"could not verify effective config: {key}")
+            effective[key] = value
+
+        effective.update(
+            {
+                "biosHle": True,
+                "autoloadSave": False,
+                "autoloadPatch": False,
+                "autoloadCheats": False,
+            }
+        )
+        self._effective = effective
 
     def _register_crash_callback(self, core) -> None:
-        import mgba.core
+        callbacks = getattr(core, "_callbacks", None)
+        crashed = getattr(callbacks, "core_crashed", None)
+        if crashed is None or not isinstance(crashed, list):
+            raise BackendError("mGBA core does not expose a crash callback list")
 
-        def _on_crash():
+        def _on_crash() -> None:
             self._crash = "core signalled crash"
 
-        try:
-            callbacks = mgba.core.CoreCallbacks()
-            callbacks.crashed = _on_crash
-            core.add_callbacks(callbacks)
-            self._callbacks = callbacks
-        except Exception as exc:
-            _diag(f"could not register crash callback: {exc}")
+        crashed.append(_on_crash)
+        self._crash_handler = _on_crash
 
     def _attach_video_buffer(self, core) -> None:
         try:
             from mgba.image import Image
+
             width, height = core.desired_video_dimensions()
-            self._image = Image(width, height)
-            core.set_video_buffer(self._image)
+            image = Image(width, height)
+            core.set_video_buffer(image)
+            self._image = image
         except Exception as exc:
-            _diag(f"could not attach video buffer: {exc}")
-            self._image = None
+            raise BackendError(
+                redact_message(f"could not attach video buffer: {type(exc).__name__}")
+            ) from None
 
     def reset(self) -> None:
         if self._core is None:
@@ -209,39 +282,50 @@ class MgbaBackend(Backend):  # pragma: no cover - requires native emulator
         self._core.reset()
 
     def set_keys(self, mask: int) -> None:
-        self._core.set_keys(mask)
+        # ``raw`` sets the literal key mask; positional values are key indexes.
+        self._core.set_keys(raw=mask)
 
     def run_frame(self) -> None:
         try:
             self._core.run_frame()
         except Exception as exc:
-            self._crash = f"native exception: {exc}"
+            self._crash = redact_message(f"native exception: {type(exc).__name__}")
 
     def read(self, domain: str, address: int, width: int) -> int:
-        mem = self._domain(domain)
+        view = self._view(domain, width)
         if width == 8:
-            return int(mem[address]) & 0xFF
+            return int(view[address]) & 0xFF
         if width == 16:
-            return int(mem.load16(address)) & 0xFFFF
-        return int(mem.load32(address)) & 0xFFFFFFFF
+            return int(view[address]) & 0xFFFF
+        return int(view[address]) & 0xFFFFFFFF
 
     def write(self, domain: str, address: int, width: int, value: int) -> None:
-        mem = self._domain(domain)
+        view = self._view(domain, width)
         if width == 8:
-            mem[address] = value & 0xFF
+            view[address] = value & 0xFF
         elif width == 16:
-            mem.store16(address, value & 0xFFFF)
+            view[address] = value & 0xFFFF
         else:
-            mem.store32(address, value & 0xFFFFFFFF)
+            view[address] = value & 0xFFFFFFFF
 
-    def _domain(self, domain: str):
+    def _view(self, domain: str, width: int):
         attr = _DOMAIN_ATTR.get(domain)
         if attr is None:
             raise BackendError(f"unsupported memory domain: {domain}")
+        memory = getattr(self._core, "memory", None)
+        if memory is None:
+            raise BackendError("core memory is unavailable (core not reset?)")
         try:
-            return getattr(self._core.memory, attr)
+            region = getattr(memory, attr)
         except Exception as exc:
-            raise BackendError(f"could not access domain {domain}: {exc}") from exc
+            raise BackendError(
+                redact_message(f"could not access domain {domain}: {type(exc).__name__}")
+            ) from None
+        if width == 8:
+            return region.u8
+        if width == 16:
+            return region.u16
+        return region.u32
 
     def crash_message(self) -> Optional[str]:
         return self._crash
@@ -249,14 +333,16 @@ class MgbaBackend(Backend):  # pragma: no cover - requires native emulator
     def screenshot_png(self) -> bytes:
         if self._image is None:
             raise BackendError("no video buffer attached for screenshot")
-        import io
+        buffer = _NonClosingBytesIO()
         try:
-            pil = self._image.to_pil()
-            buffer = io.BytesIO()
-            pil.save(buffer, format="PNG")
-            return buffer.getvalue()
+            ok = self._image.save_png(buffer)
         except Exception as exc:
-            raise BackendError(f"screenshot encoding failed: {exc}") from exc
+            raise BackendError(
+                redact_message(f"screenshot encoding failed: {type(exc).__name__}")
+            ) from None
+        if not ok:
+            raise BackendError("mGBA reported PNG encoding failure")
+        return buffer.getvalue()
 
     def version(self) -> Optional[str]:
         return self._version
@@ -268,15 +354,9 @@ class MgbaBackend(Backend):  # pragma: no cover - requires native emulator
         return dict(self._effective)
 
 
-def _config_bool(core, key: str) -> Optional[bool]:  # pragma: no cover
-    try:
-        return bool(core.config.get_bool(key))
-    except Exception:
-        return None
-
-
-def _config_int(core, key: str) -> Optional[int]:  # pragma: no cover
-    try:
-        return int(core.config.get_int(key))
-    except Exception:
-        return None
+__all__ = [
+    "MgbaBackend",
+    "check_available",
+    "REQUIRED_VERSION",
+    "REQUIRED_COMMIT",
+]

@@ -19,7 +19,14 @@ import sys
 from typing import Any, Dict, List, Optional, Tuple
 
 from .model import ScenarioError, load_scenario
-from .runner import RESULT_SCHEMA_VERSION, STATUS_EXIT_CODES, BackendError, Runner, canonical_json
+from .runner import (
+    RESULT_SCHEMA_VERSION,
+    STATUS_EXIT_CODES,
+    BackendError,
+    Runner,
+    canonical_json,
+    redact_message,
+)
 
 
 def _emit(result: Dict[str, Any], exit_code: int) -> int:
@@ -34,7 +41,7 @@ def _error_result(status: str, note: str, extra: Optional[Dict[str, Any]] = None
         "resultSchemaVersion": RESULT_SCHEMA_VERSION,
         "status": status,
         "exitCode": STATUS_EXIT_CODES[status],
-        "note": " ".join(str(note).split())[:200],
+        "note": redact_message(note),
     }
     if extra:
         result.update(extra)
@@ -45,7 +52,7 @@ def _run_check() -> Tuple[Dict[str, Any], int]:
     try:
         from .mgba_backend import REQUIRED_COMMIT, REQUIRED_VERSION, check_available
     except Exception as exc:  # pragma: no cover - defensive
-        return _error_result("dependency_error", f"backend import failed: {exc}")
+        return _error_result("dependency_error", f"backend import failed: {type(exc).__name__}")
     info = check_available()
     status = "check_ok" if info.get("available") else "check_failed"
     result: Dict[str, Any] = {
@@ -57,7 +64,7 @@ def _run_check() -> Tuple[Dict[str, Any], int]:
         "mgba": {"version": info.get("version"), "commit": info.get("commit")},
     }
     if info.get("reason"):
-        result["note"] = " ".join(str(info["reason"]).split())[:200]
+        result["note"] = redact_message(info["reason"])
     return result, STATUS_EXIT_CODES[status]
 
 
@@ -85,7 +92,7 @@ def _run_scenario(rom_path: str, scenario_path: str, out_path: Optional[str],
     try:
         from .mgba_backend import MgbaBackend
     except Exception as exc:
-        return _error_result("dependency_error", f"mGBA backend unavailable: {exc}")
+        return _error_result("dependency_error", f"mGBA backend unavailable: {type(exc).__name__}")
 
     try:
         backend = MgbaBackend(want_screenshot=scenario.screenshot is not None)
@@ -121,26 +128,32 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def _dispatch(argv: Optional[List[str]]) -> Tuple[Dict[str, Any], int]:
     parser = build_parser()
     try:
         args = parser.parse_args(argv)
     except SystemExit:
-        result, code = _error_result("harness_error", "invalid command-line arguments")
-        return _emit(result, code)
+        return _error_result("harness_error", "invalid command-line arguments")
 
     if args.check:
         if args.rom or args.scenario:
-            result, code = _error_result("harness_error", "--check cannot be combined with --rom/--scenario")
-            return _emit(result, code)
-        result, code = _run_check()
-        return _emit(result, code)
+            return _error_result("harness_error", "--check cannot be combined with --rom/--scenario")
+        return _run_check()
 
     if not args.rom or not args.scenario:
-        result, code = _error_result("harness_error", "--rom and --scenario are required")
-        return _emit(result, code)
+        return _error_result("harness_error", "--rom and --scenario are required")
 
-    result, code = _run_scenario(args.rom, args.scenario, args.out, args.artifact_dir)
+    return _run_scenario(args.rom, args.scenario, args.out, args.artifact_dir)
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    try:
+        result, code = _dispatch(argv)
+    except BaseException as exc:  # noqa: BLE001 - guarantee exactly one JSON object
+        # Never leak a traceback or path to stdout; emit a single sanitized doc.
+        result, code = _error_result(
+            "harness_error", f"unexpected failure: {type(exc).__name__}"
+        )
     return _emit(result, code)
 
 

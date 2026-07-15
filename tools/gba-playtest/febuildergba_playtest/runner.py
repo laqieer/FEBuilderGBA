@@ -14,11 +14,64 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
+import stat
 from typing import Any, Dict, List, Optional, Protocol, Tuple
 
 from .model import DOMAIN_SIZES, READ_DOMAINS, Scenario
 
 RESULT_SCHEMA_VERSION = 1
+
+# --- Note redaction --------------------------------------------------------
+
+# Environment-dependent path shapes that must never leak into a result note.
+_REDACT_PATTERNS = (
+    re.compile(r"\\\\\?\\[^\s]*"),              # \\?\ extended-length paths
+    re.compile(r"\\\\[^\s\\]+\\[^\s]*"),        # \\host\share UNC paths
+    re.compile(r"[A-Za-z]:[\\/][^\s]*"),        # C:\... or C:/... drive paths
+    re.compile(r"(?<!\w)/(?:[\w.\-]+/?)+"),     # /abs/unix/paths (not "and/or")
+)
+
+_PLACEHOLDER = "<path>"
+
+
+def redact_message(text: Any) -> str:
+    """Collapse whitespace and strip absolute Windows/Unix paths from a note.
+
+    This is the single shared sanitizer used for every result note so that no
+    interpreter, temporary, or absolute path — nor any traceback text — can leak
+    into the stable JSON output.
+    """
+    cleaned = str(text)
+    for pattern in _REDACT_PATTERNS:
+        cleaned = pattern.sub(_PLACEHOLDER, cleaned)
+    cleaned = " ".join(cleaned.split())
+    if len(cleaned) > 200:
+        cleaned = cleaned[:200]
+    return cleaned
+
+
+def is_reparse_point(path: str) -> bool:
+    """True if ``path`` is a symlink, Windows junction, or any reparse point.
+
+    Used to refuse writing a screenshot through a link that could escape the
+    trusted, already-canonicalized artifact directory.
+    """
+    if os.path.islink(path):
+        return True
+    isjunction = getattr(os.path, "isjunction", None)
+    if isjunction is not None:
+        try:
+            if isjunction(path):
+                return True
+        except OSError:
+            return True
+    try:
+        attributes = os.lstat(path).st_file_attributes  # Windows only
+    except (AttributeError, OSError):
+        return False
+    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+    return bool(attributes & reparse_flag)
 
 # Result status -> process exit code.
 STATUS_EXIT_CODES: Dict[str, int] = {
@@ -118,7 +171,7 @@ def _safe_artifact_path(artifact_dir: str, basename: str) -> str:
         raise BackendError("artifact path escapes the artifact directory")
 
     if os.path.lexists(candidate):
-        if os.path.islink(candidate) or not os.path.isfile(candidate):
+        if is_reparse_point(candidate) or not os.path.isfile(candidate):
             raise BackendError("artifact target exists and is not a regular file")
     return candidate
 
@@ -339,10 +392,7 @@ def _watch_report(watch_state) -> List[Dict[str, Any]]:
 
 def _sanitize_note(text: str) -> str:
     """Strip anything path-like or environment-dependent from a note."""
-    cleaned = " ".join(str(text).split())
-    if len(cleaned) > 200:
-        cleaned = cleaned[:200]
-    return cleaned
+    return redact_message(text)
 
 
 __all__ = [
@@ -352,4 +402,6 @@ __all__ = [
     "RESULT_SCHEMA_VERSION",
     "STATUS_EXIT_CODES",
     "canonical_json",
+    "redact_message",
+    "is_reparse_point",
 ]

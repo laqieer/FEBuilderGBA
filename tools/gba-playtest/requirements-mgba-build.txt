@@ -3,12 +3,15 @@
 # These are consumed ONLY by the explicit bootstrap scripts under scripts/
 # (install-mgba-playtest.ps1 / .sh). The playtest runtime never installs them.
 #
-# Installed with:
+# This is STAGE 2 of a two-stage install. Stage 1
+# (requirements-mgba-bootstrap.txt) installs the hash-verified pure-Python
+# wheels for setuptools/wheel/pytest-runner FIRST. Then these source deps are
+# installed with:
 #   pip install --require-hashes --no-build-isolation --no-binary :all: \
 #       -r requirements-mgba-build.txt
 #
-# --no-build-isolation reuses the venv's own pip/setuptools/wheel (from
-# ensurepip) so no un-hashed build backend is fetched from the network.
+# --no-build-isolation reuses the stage-1 (and ensurepip) build backend so no
+# un-hashed build backend is fetched from the network.
 # --no-binary :all: forces source builds, so only these sdist hashes are needed;
 # the C extension is compiled with the validated local toolchain.
 #

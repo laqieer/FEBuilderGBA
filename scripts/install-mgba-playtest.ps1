@@ -45,7 +45,8 @@ $BuildRoot   = Join-Path $ToolDir ".mgba-build"
 $VenvDir     = Join-Path $BuildRoot "venv"
 $SrcArchive  = Join-Path $BuildRoot "mgba-$MgbaCommit.tar.gz"
 $SrcDir      = Join-Path $BuildRoot "mgba-$MgbaCommit"
-$Requirements = Join-Path $ToolDir "requirements-mgba-build.txt"
+$RequirementsBootstrap = Join-Path $ToolDir "requirements-mgba-bootstrap.txt"
+$RequirementsBuild     = Join-Path $ToolDir "requirements-mgba-build.txt"
 
 function Fail([string]$Message) {
     Write-Error $Message
@@ -62,6 +63,7 @@ Write-Host "== FEBuilderGBA playtest bootstrap =="
 Write-Host "Validating local toolchain (nothing is downloaded here)..."
 Require-Command $Python "Install Python 3.10+ and re-run with -Python <path> if needed."
 Require-Command "cmake" "Install CMake and ensure it is on PATH."
+Require-Command "tar" "Install tar (bsdtar ships with Windows 10+) or add it to PATH."
 
 # A C/C++ compiler is required to build libmgba and the cffi extension.
 $hasCompiler = (Get-Command "cl.exe" -ErrorAction SilentlyContinue) -or `
@@ -106,8 +108,12 @@ if (-not (Test-Path (Join-Path $VenvDir "Scripts\python.exe"))) {
 }
 $VenvPython = Join-Path $VenvDir "Scripts\python.exe"
 
-Write-Host "Installing hash-locked Python build dependencies..."
-& $VenvPython -m pip install --require-hashes --no-build-isolation --no-binary ":all:" -r $Requirements
+Write-Host "Installing hash-locked build prerequisites (stage 1: pinned wheels)..."
+& $VenvPython -m pip install --require-hashes --only-binary ":all:" -r $RequirementsBootstrap
+if ($LASTEXITCODE -ne 0) { Fail "Hash-locked bootstrap wheel install failed." }
+
+Write-Host "Installing hash-locked Python build dependencies (stage 2: pinned sources)..."
+& $VenvPython -m pip install --require-hashes --no-build-isolation --no-binary ":all:" -r $RequirementsBuild
 if ($LASTEXITCODE -ne 0) { Fail "Hash-locked dependency install failed." }
 
 # --- Build libmgba + display-free Python binding ---------------------------
@@ -132,15 +138,18 @@ finally {
     Pop-Location
 }
 
-# The mGBA CMake Python target installs the binding into the venv site-packages.
-Write-Host "Installing the built Python binding into the venv..."
+# mGBA 0.10.5 defines a custom target 'mgba-py-install' (there is no Python
+# install *component*). This MUST succeed; there is no fail-open fallback.
+Write-Host "Installing the display-free Python binding (mgba-py-install)..."
 Push-Location $CmakeBuild
 try {
-    cmake --install . --component python 2>$null
+    cmake --build . --target mgba-py-install --config Release
+    $installExit = $LASTEXITCODE
 }
 finally {
     Pop-Location
 }
+if ($installExit -ne 0) { Fail "mgba-py-install target failed (exit $installExit)." }
 
 # --- Verify --------------------------------------------------------------
 Write-Host "Verifying the pinned binding with --playtest --check..."

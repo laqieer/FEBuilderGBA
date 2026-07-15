@@ -37,7 +37,8 @@ BUILD_ROOT="${TOOL_DIR}/.mgba-build"
 VENV_DIR="${BUILD_ROOT}/venv"
 SRC_ARCHIVE="${BUILD_ROOT}/mgba-${MGBA_COMMIT}.tar.gz"
 SRC_DIR="${BUILD_ROOT}/mgba-${MGBA_COMMIT}"
-REQUIREMENTS="${TOOL_DIR}/requirements-mgba-build.txt"
+REQUIREMENTS_BOOTSTRAP="${TOOL_DIR}/requirements-mgba-bootstrap.txt"
+REQUIREMENTS_BUILD="${TOOL_DIR}/requirements-mgba-build.txt"
 
 FORCE=0
 for arg in "$@"; do
@@ -109,8 +110,11 @@ if [ ! -x "${VENV_DIR}/bin/python" ]; then
 fi
 VENV_PY="${VENV_DIR}/bin/python"
 
-echo "Installing hash-locked Python build dependencies..."
-"${VENV_PY}" -m pip install --require-hashes --no-build-isolation --no-binary ":all:" -r "${REQUIREMENTS}"
+echo "Installing hash-locked build prerequisites (stage 1: pinned wheels)..."
+"${VENV_PY}" -m pip install --require-hashes --only-binary ":all:" -r "${REQUIREMENTS_BOOTSTRAP}"
+
+echo "Installing hash-locked Python build dependencies (stage 2: pinned sources)..."
+"${VENV_PY}" -m pip install --require-hashes --no-build-isolation --no-binary ":all:" -r "${REQUIREMENTS_BUILD}"
 
 # --- Build libmgba + display-free Python binding ---------------------------
 CMAKE_BUILD="${SRC_DIR}/build-playtest"
@@ -125,9 +129,13 @@ echo "Configuring libmgba (headless, fixed color depth / sync options)..."
         -DUSE_FFMPEG=OFF -DUSE_DISCORD_RPC=OFF \
         -DCOLOR_16_BIT=ON -DCOLOR_5_6_5=ON \
         -DPYTHON_EXECUTABLE="${VENV_PY}"
-    cmake --build . --config Release
-    cmake --install . --component python 2>/dev/null || true
 )
+echo "Building libmgba..."
+cmake --build "${CMAKE_BUILD}" --config Release
+echo "Installing the display-free Python binding (mgba-py-install)..."
+# mGBA 0.10.5 defines a custom target 'mgba-py-install' (there is no Python
+# install *component*). This MUST succeed; no fail-open fallback.
+cmake --build "${CMAKE_BUILD}" --target mgba-py-install --config Release
 
 # --- Verify ----------------------------------------------------------------
 echo "Verifying the pinned binding with --playtest --check..."

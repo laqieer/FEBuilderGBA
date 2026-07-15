@@ -22,6 +22,11 @@ ARCHIVE_SHA = "9475c26e9fa2f4b30c07ab6636e4b0a5b62e4baee2109ede7b2fecc52edae366"
 PS1 = os.path.join(SCRIPTS_DIR, "install-mgba-playtest.ps1")
 SH = os.path.join(SCRIPTS_DIR, "install-mgba-playtest.sh")
 REQUIREMENTS = os.path.join(TOOL_DIR, "requirements-mgba-build.txt")
+REQUIREMENTS_BOOTSTRAP = os.path.join(TOOL_DIR, "requirements-mgba-bootstrap.txt")
+
+# Every package name that must appear, hash-pinned, across the two stages.
+REQUIRED_BOOTSTRAP_PACKAGES = ("setuptools", "wheel", "pytest-runner")
+REQUIRED_BUILD_PACKAGES = ("cffi", "pycparser", "cached-property")
 
 
 def _read(path):
@@ -82,6 +87,48 @@ def test_requirements_are_fully_hashed():
     assert len(hashes) >= len(pins)
     assert "placeholder" not in text.lower()
     assert "0000000000000000000000000000000000000000000000000000000000000000" not in text
+
+
+def test_bootstrap_requirements_are_fully_hashed():
+    assert os.path.isfile(REQUIREMENTS_BOOTSTRAP)
+    text = _read(REQUIREMENTS_BOOTSTRAP)
+    pins = re.findall(r"^\s*([A-Za-z0-9_.-]+)==", text, re.MULTILINE)
+    hashes = re.findall(r"--hash=sha256:([0-9a-f]{64})", text)
+    assert len(pins) >= 3
+    assert len(hashes) >= len(pins)
+    assert "placeholder" not in text.lower()
+    assert "0000000000000000000000000000000000000000000000000000000000000000" not in text
+
+
+def test_all_required_build_packages_are_pinned_with_hashes():
+    boot = _read(REQUIREMENTS_BOOTSTRAP)
+    build = _read(REQUIREMENTS)
+    for pkg in REQUIRED_BOOTSTRAP_PACKAGES:
+        assert re.search(rf"(?mi)^\s*{re.escape(pkg)}==", boot), f"{pkg} must be pinned in bootstrap reqs"
+    for pkg in REQUIRED_BUILD_PACKAGES:
+        assert re.search(rf"(?mi)^\s*{re.escape(pkg)}==", build), f"{pkg} must be pinned in build reqs"
+
+
+def test_scripts_reference_both_requirement_stages():
+    for path in (PS1, SH):
+        text = _read(path)
+        assert "requirements-mgba-bootstrap.txt" in text, f"{path} must install stage-1 wheels"
+        assert "requirements-mgba-build.txt" in text, f"{path} must install stage-2 sources"
+
+
+def test_scripts_use_fail_hard_py_install_target():
+    for path in (PS1, SH):
+        text = _read(path)
+        # The pinned custom target must be invoked...
+        assert "mgba-py-install" in text, f"{path} must build the mgba-py-install target"
+        # ...and the wrong/fail-open forms must be gone.
+        assert "--component python" not in text, f"{path} must not use a Python install component"
+        assert "|| true" not in text, f"{path} must not fail-open the install step"
+
+
+def test_powershell_validates_tar():
+    text = _read(PS1)
+    assert re.search(r'Require-Command\s+"tar"', text), "PowerShell script must validate tar before use"
 
 
 def test_runtime_never_installs_or_downloads():

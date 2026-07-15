@@ -1,0 +1,27 @@
+# Stage 1 (wheels): hash-locked pure-Python build prerequisites.
+#
+# Consumed ONLY by the explicit bootstrap scripts under scripts/
+# (install-mgba-playtest.ps1 / .sh). The playtest runtime never installs them.
+#
+# These pure-Python (py3-none-any) wheels are installed FIRST so that the
+# stage-2 source builds can run with --no-build-isolation against a known,
+# hash-verified build backend. mGBA's official setup.py declares
+# setup_requires=['cffi', 'pytest-runner']; a fresh Python 3.12 venv may also
+# lack setuptools/wheel, so all three are pinned here.
+#
+# Installed with:
+#   pip install --require-hashes --only-binary :all: \
+#       -r requirements-mgba-bootstrap.txt
+#
+# --only-binary :all: guarantees these come from the pinned wheels (no source
+# build, so no un-hashed transitive build backend such as setuptools_scm is
+# fetched). Hashes are the official PyPI wheel SHA-256 digests.
+
+setuptools==75.6.0 \
+    --hash=sha256:ce74b49e8f7110f9bf04883b730f4765b774ef3ef28f722cce7c273d253aaf7d
+
+wheel==0.45.1 \
+    --hash=sha256:708e7481cc80179af0e556bbf0cc00b8444c7321e2700b8d8580231d13017248
+
+pytest-runner==6.0.1 \
+    --hash=sha256:ea326ed6f6613992746062362efab70212089a4209c08d67177b3df1c52cd9f2
