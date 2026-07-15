@@ -50,18 +50,30 @@ python -m febuildergba_playtest --rom rom.gba --scenario scenario.json \
 ## Setup (explicit, one command)
 
 ```powershell
-scripts\install-mgba-playtest.ps1        # Windows
+scripts\install-mgba-playtest.ps1        # Windows (MSYS2 UCRT64 wrapper)
 ```
 
 ```bash
 scripts/install-mgba-playtest.sh         # POSIX
 ```
 
+On Windows the mGBA 0.10.5 Python binding is a GCC/MinGW-only build (its
+`_builder.py` hardcodes GCC-style preprocessing and CMake feeds `-I` flags into
+CFFI; the MSVC path is unsupported upstream — mgba-emu/mgba#1637, closed
+not-planned). The PowerShell wrapper therefore does **not** use MSVC: it locates
+a user-installed [MSYS2](https://www.msys2.org) root (from `-Msys2Root`, the
+`MSYS2_ROOT` environment variable, or `C:\msys64`), verifies the UCRT64
+toolchain (Python, GCC, CMake, Ninja/Make, Git, curl, tar) is already installed,
+and runs the same POSIX bootstrap under the UCRT64 login shell. It never
+downloads or installs the toolchain and never mutates global PATH/environment.
+
 Both scripts fetch only the official `mgba-emu/mgba` commit
 `26b7884bc25a5933960f3cdcd98bac1ae14d42e2` as a commit archive, verify its
-SHA-256 before extraction (no fallback), install hash-locked build dependencies,
-build the display-free binding into an isolated `.mgba-build/` venv, and finish
-by running `--check`.
+SHA-256 before extraction (no fallback), stamp exact inner Git provenance,
+install hash-locked build dependencies, build the display-free binding into an
+isolated `.mgba-build/` venv, and finish by running `--check` (exact mGBA
+version **and** commit). A real Windows MSYS2 CI job is required before the
+Windows path is considered merge-ready.
 
 ## Tests
 

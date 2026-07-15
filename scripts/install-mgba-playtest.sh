@@ -70,7 +70,7 @@ require_cmd "${PYTHON_BIN}" "Install Python 3.10+ or set PYTHON=<path>."
 require_cmd "cmake" "Install CMake and ensure it is on PATH."
 
 if ! command -v cc >/dev/null 2>&1 && ! command -v gcc >/dev/null 2>&1 && ! command -v clang >/dev/null 2>&1; then
-    fail "No C compiler found (cc / gcc / clang). Install build-essential or Xcode command-line tools."
+    fail "No C compiler found (cc / gcc / clang). Install build-essential, Xcode command-line tools, or the MSYS2 UCRT64 GCC toolchain."
 fi
 require_cmd "curl" "Install curl to fetch the pinned source archive."
 require_cmd "tar" "Install tar to extract the source archive."
@@ -134,11 +134,26 @@ echo "Stamping exact Git provenance inside the extracted source..."
 )
 
 # --- Isolated virtual environment ------------------------------------------
-if [ ! -x "${VENV_DIR}/bin/python" ]; then
+# The venv layout differs by platform: POSIX Pythons use ``bin/python`` while a
+# Windows/MSYS2 UCRT64 Python uses ``Scripts/python.exe``. Detect either.
+detect_venv_python() {
+    local p
+    for p in "${VENV_DIR}/bin/python" "${VENV_DIR}/bin/python3" \
+             "${VENV_DIR}/Scripts/python.exe" "${VENV_DIR}/Scripts/python"; do
+        if [ -x "$p" ]; then
+            printf '%s\n' "$p"
+            return 0
+        fi
+    done
+    return 1
+}
+
+if ! detect_venv_python >/dev/null 2>&1; then
     echo "Creating isolated virtual environment..."
     "${PYTHON_BIN}" -m venv "${VENV_DIR}"
 fi
-VENV_PY="${VENV_DIR}/bin/python"
+VENV_PY="$(detect_venv_python)" \
+    || fail "Could not find the venv interpreter under bin/ or Scripts/ in ${VENV_DIR}."
 
 echo "Installing hash-locked build prerequisites (stage 1: pinned wheels)..."
 "${VENV_PY}" -m pip install --require-hashes --only-binary ":all:" -r "${REQUIREMENTS_BOOTSTRAP}"
@@ -151,9 +166,20 @@ CMAKE_BUILD="${SRC_DIR}/build-playtest"
 mkdir -p "${CMAKE_BUILD}"
 
 echo "Configuring libmgba (headless, fixed color depth / sync options)..."
+# Select a GCC-compatible generator (Ninja preferred, else Unix Makefiles).
+# This deliberately avoids any Visual Studio / MSVC generator: mGBA 0.10.5's
+# Python binding is a GCC/MinGW-only build.
+if command -v ninja >/dev/null 2>&1; then
+    GENERATOR=(-G Ninja)
+elif command -v make >/dev/null 2>&1 || command -v mingw32-make >/dev/null 2>&1; then
+    GENERATOR=(-G "Unix Makefiles")
+else
+    fail "No GCC-compatible CMake generator found. Install Ninja or Make."
+fi
 (
     cd "${CMAKE_BUILD}"
     cmake .. \
+        "${GENERATOR[@]}" \
         -DBUILD_PYTHON=ON \
         -DBUILD_QT=OFF -DBUILD_SDL=OFF -DBUILD_GL=OFF -DBUILD_GLES2=OFF \
         -DUSE_FFMPEG=OFF -DUSE_DISCORD_RPC=OFF \
