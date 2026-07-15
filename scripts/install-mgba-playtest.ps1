@@ -63,6 +63,7 @@ Write-Host "== FEBuilderGBA playtest bootstrap =="
 Write-Host "Validating local toolchain (nothing is downloaded here)..."
 Require-Command $Python "Install Python 3.10+ and re-run with -Python <path> if needed."
 Require-Command "cmake" "Install CMake and ensure it is on PATH."
+Require-Command "git" "Install Git so exact source provenance can be stamped."
 Require-Command "tar" "Install tar (bsdtar ships with Windows 10+) or add it to PATH."
 
 # A C/C++ compiler is required to build libmgba and the cffi extension.
@@ -99,6 +100,40 @@ if (-not (Test-Path $SrcDir)) {
     Write-Host "Extracting source..."
     tar -xzf $SrcArchive -C $BuildRoot
     if ($LASTEXITCODE -ne 0) { Fail "tar extraction failed." }
+}
+
+# --- Stamp exact local Git provenance for version.cmake --------------------
+# The codeload tarball has no ``.git``. mGBA's version.cmake runs
+# ``git describe`` from the source directory; without an inner repository Git
+# walks UP into the parent FEBuilderGBA repository and stamps the binding with
+# the wrong commit/version (or, if that is blocked, an unknown/non-pinned
+# build). Initialize an inner repository pinned to the exact object so
+# version.cmake reads correct local provenance and never discovers the parent
+# repo. This is a SECOND independent pin on top of the already-verified archive
+# SHA-256 (the first source-integrity gate), not a fallback: only the exact
+# full commit SHA is fetched, with no branch/tag.
+Write-Host "Stamping exact Git provenance inside the extracted source..."
+Push-Location $SrcDir
+try {
+    if (Test-Path ".git") { Remove-Item -Recurse -Force ".git" }
+    git init -q
+    if ($LASTEXITCODE -ne 0) { Fail "git init failed in the extracted source." }
+    git remote add origin "https://github.com/mgba-emu/mgba.git"
+    if ($LASTEXITCODE -ne 0) { Fail "git remote add origin failed." }
+    git fetch -q --depth 1 origin $MgbaCommit
+    if ($LASTEXITCODE -ne 0) { Fail "git fetch of the pinned commit $MgbaCommit failed (no branch/tag fallback)." }
+    git reset -q --hard FETCH_HEAD
+    if ($LASTEXITCODE -ne 0) { Fail "git reset --hard to the pinned commit failed." }
+    $headSha = (& git rev-parse HEAD).Trim()
+    if ($headSha -ne $MgbaCommit) {
+        Fail "Inner Git HEAD $headSha does not match the pinned commit $MgbaCommit."
+    }
+    $porcelain = & git status --porcelain
+    if ($porcelain) { Fail "Inner Git tree is not clean after reset to the pinned commit." }
+    Write-Host "  inner provenance verified: $headSha"
+}
+finally {
+    Pop-Location
 }
 
 # --- Isolated virtual environment ------------------------------------------

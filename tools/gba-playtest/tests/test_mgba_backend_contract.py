@@ -222,12 +222,15 @@ class _FakeState:
 
 
 @contextmanager
-def fake_mgba(state, save_png_ok=True, crash=False, break_config=False):
+def fake_mgba(state, save_png_ok=True, crash=False, break_config=False,
+              commit=PINNED_COMMIT, version=PINNED_VERSION):
     mgba = types.ModuleType("mgba")
-    mgba.__version__ = PINNED_VERSION
+    mgba.__version__ = version
 
     class Git:
-        commit = PINNED_COMMIT
+        commit = None
+
+    Git.commit = commit
 
     mgba.Git = Git
 
@@ -476,6 +479,57 @@ def test_check_available_reports_pinned_version():
         assert info["version"] == PINNED_VERSION
         assert info["commit"] == PINNED_COMMIT
         assert info["reason"] is None
+
+
+def test_check_available_requires_exact_version():
+    from febuildergba_playtest.mgba_backend import check_available
+
+    state = _FakeState()
+    with fake_mgba(state, version="0.10.4"):
+        info = check_available()
+        assert info["available"] is False
+        assert "version" in info["reason"]
+
+
+def test_check_available_requires_exact_commit():
+    from febuildergba_playtest.mgba_backend import check_available
+
+    state = _FakeState()
+    with fake_mgba(state, commit="0" * 40):
+        info = check_available()
+        assert info["available"] is False
+        assert "commit" in info["reason"]
+        assert info["commit"] == "0" * 40
+
+
+def test_check_available_rejects_dirty_commit():
+    from febuildergba_playtest.mgba_backend import check_available
+
+    # A ``-dirty`` stamp is normalized only by rejecting it, never by stripping.
+    state = _FakeState()
+    with fake_mgba(state, commit=PINNED_COMMIT + "-dirty"):
+        info = check_available()
+        assert info["available"] is False
+        assert "commit" in info["reason"]
+
+
+def test_check_available_rejects_unknown_or_missing_commit():
+    from febuildergba_playtest.mgba_backend import check_available
+
+    state = _FakeState()
+    for bad in (None, "(unknown)", ""):
+        with fake_mgba(state, commit=bad):
+            info = check_available()
+            assert info["available"] is False
+
+
+def test_backend_construction_requires_exact_commit():
+    # The eager availability gate in the backend constructor must also fail hard
+    # on a wrong commit, not only the version.
+    state = _FakeState()
+    with fake_mgba(state, commit="0" * 40):
+        with pytest.raises(Exception):
+            MgbaBackend()
 
 
 def test_fake_api_shape_matches_pinned_names():

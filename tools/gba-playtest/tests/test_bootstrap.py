@@ -126,6 +126,59 @@ def test_scripts_use_fail_hard_py_install_target():
         assert "|| true" not in text, f"{path} must not fail-open the install step"
 
 
+def test_scripts_stamp_inner_git_provenance():
+    # The codeload tarball has no .git; version.cmake would run ``git describe``
+    # and walk up into the parent FEBuilderGBA repo, mis-stamping the binding.
+    # Both scripts must initialize an inner repo pinned to the exact object.
+    for path in (PS1, SH):
+        text = _read(path)
+        assert "git init" in text, f"{path} must initialize an inner git repo"
+        assert "https://github.com/mgba-emu/mgba.git" in text, f"{path} must add the official origin"
+        assert re.search(r"git\s+remote\s+add\s+origin", text), f"{path} must add origin"
+        assert re.search(r"git\s+fetch\b[^\n]*--depth\s+1", text), f"{path} must fetch depth 1"
+        assert "FETCH_HEAD" in text, f"{path} must reset to FETCH_HEAD"
+        assert re.search(r"git\s+reset\b[^\n]*--hard", text), f"{path} must hard reset to the pin"
+        assert "rev-parse HEAD" in text, f"{path} must verify HEAD equals the pin"
+        assert "status --porcelain" in text, f"{path} must verify a clean tree"
+        # Git must be validated as a local tool, never downloaded.
+        assert re.search(r'(Require-Command\s+"git"|require_cmd\s+"git")', text), (
+            f"{path} must validate git before use"
+        )
+
+
+def test_git_fetch_targets_exact_pinned_commit_no_fallback():
+    ps1 = _read(PS1)
+    sh = _read(SH)
+    # The exact full commit SHA (via the pinned variable) is fetched directly.
+    assert re.search(r"git\s+fetch[^\n]*origin[^\n]*\$MgbaCommit", ps1), (
+        "PowerShell must fetch the exact pinned commit"
+    )
+    assert re.search(r"git\s+fetch[^\n]*origin[^\n]*\$\{MGBA_COMMIT\}", sh), (
+        "shell must fetch the exact pinned commit"
+    )
+    # No branch/tag/HEAD fetch or checkout anywhere (no fallback).
+    for path, text in ((PS1, ps1), (SH, sh)):
+        assert not re.search(r"git\s+fetch[^\n]*origin\s+(main|master|HEAD)\b", text), (
+            f"{path} must not fetch a branch/HEAD"
+        )
+        assert not re.search(r"git\s+checkout\s+(main|master)", text), f"{path} must not checkout a branch"
+        assert "refs/heads" not in text, f"{path} must not reference branch refs"
+        assert "refs/tags" not in text, f"{path} must not reference tag refs"
+
+
+def test_git_provenance_runs_after_verification_before_cmake():
+    # Provenance must be stamped only after the archive SHA gate and before the
+    # first CMake configure that triggers version.cmake.
+    for path in (PS1, SH):
+        text = _read(path)
+        i_verify = text.find("archive verified")
+        i_git = text.find("git init")
+        i_cmake = text.find("cmake ..")
+        assert -1 < i_verify < i_git < i_cmake, (
+            f"{path}: git provenance must sit between archive verification and cmake"
+        )
+
+
 def test_powershell_validates_tar():
     text = _read(PS1)
     assert re.search(r'Require-Command\s+"tar"', text), "PowerShell script must validate tar before use"

@@ -29,7 +29,10 @@ Every symbol used here is verified against the official pinned sources at commit
 * Keys: ``core.set_keys(raw=mask)`` (positional args are key *indexes*).
 * Memory: ``core.memory.<domain>.u8/u16/u32[address]`` views for read/write.
 * Screenshot: ``Image.save_png(fileobj)`` returning ``bool`` (no Pillow).
-* Version / commit: ``mgba.__version__`` and ``mgba.Git.commit``.
+* Version / commit: ``mgba.__version__`` (hardcoded ``0.10.5``) and
+  ``mgba.Git.commit`` (``git describe --always --abbrev=40 --dirty`` — a full
+  40-hex SHA). Availability requires *both* the exact version and the exact
+  pinned commit; a ``-dirty`` stamp or ``(unknown)``/``None`` is rejected.
 
 Startup contract (verified as effective, not merely requested):
 
@@ -148,6 +151,26 @@ def _read_version_commit():
     return version, commit
 
 
+def _commit_ok(commit: Optional[str]) -> bool:
+    """True only for the exact pinned commit with a clean (non-dirty) stamp.
+
+    ``mgba.Git.commit`` is ``git describe --always --abbrev=40 --dirty`` (a full
+    40-hex SHA, suffixed ``-dirty`` when the build tree was modified, or
+    ``None``/``(unknown)`` when Git provenance was unavailable). A ``-dirty``
+    stamp is *normalized only by rejecting it* — never by stripping the suffix
+    to force a match — and ``(unknown)``/``None`` or any other commit is
+    likewise rejected.
+    """
+    if not commit:
+        return False
+    stamp = commit.strip()
+    if not stamp or stamp.lower() in ("(unknown)", "unknown"):
+        return False
+    if "dirty" in stamp.lower():
+        return False
+    return stamp == REQUIRED_COMMIT
+
+
 def check_available() -> Dict[str, Any]:
     """Return a diagnostic dict describing mGBA binding availability.
 
@@ -169,6 +192,13 @@ def check_available() -> Dict[str, Any]:
         return {
             "available": False,
             "reason": redact_message(f"version {version!r} != required {REQUIRED_VERSION!r}"),
+            "version": version,
+            "commit": commit,
+        }
+    if not _commit_ok(commit):
+        return {
+            "available": False,
+            "reason": redact_message(f"commit {commit!r} != required {REQUIRED_COMMIT!r}"),
             "version": version,
             "commit": commit,
         }
@@ -211,6 +241,10 @@ class MgbaBackend(Backend):  # pragma: no cover - requires native emulator
         if self._version != REQUIRED_VERSION:
             raise BackendError(
                 redact_message(f"mGBA version {self._version!r} is not the required {REQUIRED_VERSION!r}")
+            )
+        if not _commit_ok(self._commit):
+            raise BackendError(
+                redact_message(f"mGBA commit {self._commit!r} is not the required {REQUIRED_COMMIT!r}")
             )
 
     def load_rom(self, rom_bytes: bytes) -> None:

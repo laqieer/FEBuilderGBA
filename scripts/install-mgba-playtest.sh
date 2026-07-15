@@ -74,6 +74,7 @@ if ! command -v cc >/dev/null 2>&1 && ! command -v gcc >/dev/null 2>&1 && ! comm
 fi
 require_cmd "curl" "Install curl to fetch the pinned source archive."
 require_cmd "tar" "Install tar to extract the source archive."
+require_cmd "git" "Install git so exact source provenance can be stamped."
 
 PY_VERSION="$("${PYTHON_BIN}" -c 'import sys; print("%d.%d" % sys.version_info[:2])')"
 echo "  python version ${PY_VERSION}"
@@ -102,6 +103,35 @@ if [ ! -d "${SRC_DIR}" ]; then
     echo "Extracting source..."
     tar -xzf "${SRC_ARCHIVE}" -C "${BUILD_ROOT}"
 fi
+
+# --- Stamp exact local Git provenance for version.cmake --------------------
+# The codeload tarball has no ``.git``. mGBA's version.cmake runs
+# ``git describe`` from the source directory; without an inner repository Git
+# walks UP into the parent FEBuilderGBA repository and stamps the binding with
+# the wrong commit/version (or, if that is blocked, an unknown/non-pinned
+# build). Initialize an inner repository pinned to the exact object so
+# version.cmake reads correct local provenance and never discovers the parent
+# repo. This is a SECOND independent pin on top of the already-verified archive
+# SHA-256 (the first source-integrity gate), not a fallback: only the exact
+# full commit SHA is fetched, with no branch/tag.
+echo "Stamping exact Git provenance inside the extracted source..."
+(
+    cd "${SRC_DIR}"
+    rm -rf .git
+    git init -q
+    git remote add origin "https://github.com/mgba-emu/mgba.git"
+    git fetch -q --depth 1 origin "${MGBA_COMMIT}" \
+        || fail "git fetch of the pinned commit ${MGBA_COMMIT} failed (no branch/tag fallback)."
+    git reset -q --hard FETCH_HEAD
+    HEAD_SHA="$(git rev-parse HEAD)"
+    if [ "${HEAD_SHA}" != "${MGBA_COMMIT}" ]; then
+        fail "Inner Git HEAD ${HEAD_SHA} does not match the pinned commit ${MGBA_COMMIT}."
+    fi
+    if [ -n "$(git status --porcelain)" ]; then
+        fail "Inner Git tree is not clean after reset to the pinned commit."
+    fi
+    echo "  inner provenance verified: ${HEAD_SHA}"
+)
 
 # --- Isolated virtual environment ------------------------------------------
 if [ ! -x "${VENV_DIR}/bin/python" ]; then
