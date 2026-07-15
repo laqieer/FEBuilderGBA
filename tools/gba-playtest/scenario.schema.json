@@ -1,0 +1,142 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/laqieer/FEBuilderGBA/tools/gba-playtest/scenario.schema.json",
+  "title": "FEBuilderGBA headless playtest scenario",
+  "description": "Strict, data-only description of a deterministic mGBA playtest run. This schema documents the accepted shape; the authoritative validation lives in febuildergba_playtest.model and is stricter (duplicate-key rejection, per-domain address bounds, natural alignment, frame-collision rejection, and artifact basename safety).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "runFrames"],
+  "properties": {
+    "schemaVersion": {
+      "description": "Scenario schema version. Only 1 is currently accepted.",
+      "type": "integer",
+      "const": 1
+    },
+    "runFrames": {
+      "description": "Exact number of frames to execute (normal completion, not a timeout).",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 216000
+    },
+    "name": {
+      "description": "Optional human-readable scenario label echoed into the result.",
+      "type": "string"
+    },
+    "expectedRomSha256": {
+      "description": "Optional lowercase hex SHA-256 guard; a mismatch fails before emulation.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "expectedGameCode": {
+      "description": "Optional 1-4 character ASCII game code guard read from ROM header 0xAC.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4
+    },
+    "keys": {
+      "description": "Frame-indexed key states. Each frame sets the complete pressed-key set from that frame onward.",
+      "type": "array",
+      "maxItems": 4096,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["frame"],
+        "properties": {
+          "frame": { "type": "integer", "minimum": 0 },
+          "keys": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["A", "B", "SELECT", "START", "RIGHT", "LEFT", "UP", "DOWN", "R", "L"]
+            }
+          }
+        }
+      }
+    },
+    "writes": {
+      "description": "Frame-indexed RAM writes (WRAM/IWRAM only). Useful for fixing an RNG seed without hard-coding game addresses in the engine.",
+      "type": "array",
+      "maxItems": 4096,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["frame", "domain", "address", "width", "value"],
+        "properties": {
+          "frame": { "type": "integer", "minimum": 0 },
+          "domain": { "type": "string", "enum": ["wram", "iwram"] },
+          "address": { "$ref": "#/definitions/addr" },
+          "width": { "type": "integer", "enum": [8, 16, 32] },
+          "value": { "$ref": "#/definitions/uint" }
+        }
+      }
+    },
+    "assertions": {
+      "description": "Final-frame RAM assertions evaluated after the run completes.",
+      "type": "array",
+      "maxItems": 1024,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["domain", "address", "width", "op"],
+        "properties": {
+          "domain": { "$ref": "#/definitions/readDomain" },
+          "address": { "$ref": "#/definitions/addr" },
+          "width": { "type": "integer", "enum": [8, 16, 32] },
+          "op": { "type": "string", "enum": ["equals", "notEquals", "changed", "inclusiveRange"] },
+          "value": { "$ref": "#/definitions/uint" },
+          "min": { "$ref": "#/definitions/uint" },
+          "max": { "$ref": "#/definitions/uint" },
+          "label": { "type": "string" }
+        }
+      }
+    },
+    "watchdogs": {
+      "description": "Progress watchdogs. A watched value unchanged for maxStallFrames consecutive frames is classified as a softlock.",
+      "type": "array",
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["domain", "address", "width", "maxStallFrames"],
+        "properties": {
+          "domain": { "$ref": "#/definitions/readDomain" },
+          "address": { "$ref": "#/definitions/addr" },
+          "width": { "type": "integer", "enum": [8, 16, 32] },
+          "maxStallFrames": { "type": "integer", "minimum": 1, "maximum": 216000 },
+          "label": { "type": "string" }
+        }
+      }
+    },
+    "screenshot": {
+      "description": "Optional final-frame PNG capture. The basename is written under the caller-supplied artifact directory only.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["basename"],
+      "properties": {
+        "basename": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$" },
+        "expectedSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    }
+  },
+  "definitions": {
+    "addr": {
+      "description": "Unsigned address as a non-negative integer or 0x-prefixed hex string.",
+      "oneOf": [
+        { "type": "integer", "minimum": 0 },
+        { "type": "string", "pattern": "^0[xX][0-9a-fA-F]+$" }
+      ]
+    },
+    "uint": {
+      "description": "Unsigned value as a non-negative integer or 0x-prefixed hex string.",
+      "oneOf": [
+        { "type": "integer", "minimum": 0 },
+        { "type": "string", "pattern": "^0[xX][0-9a-fA-F]+$" }
+      ]
+    },
+    "readDomain": {
+      "description": "Non-ROM readable memory domain allowlist.",
+      "type": "string",
+      "enum": ["wram", "iwram", "io", "palette", "vram", "oam", "sram"]
+    }
+  }
+}

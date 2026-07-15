@@ -1,0 +1,24 @@
+# Pinned, hash-locked Python build inputs for the mGBA 0.10.5 binding.
+#
+# These are consumed ONLY by the explicit bootstrap scripts under scripts/
+# (install-mgba-playtest.ps1 / .sh). The playtest runtime never installs them.
+#
+# Installed with:
+#   pip install --require-hashes --no-build-isolation --no-binary :all: \
+#       -r requirements-mgba-build.txt
+#
+# --no-build-isolation reuses the venv's own pip/setuptools/wheel (from
+# ensurepip) so no un-hashed build backend is fetched from the network.
+# --no-binary :all: forces source builds, so only these sdist hashes are needed;
+# the C extension is compiled with the validated local toolchain.
+#
+# Hashes are the official PyPI sdist SHA-256 digests for the pinned versions.
+
+pycparser==2.22 \
+    --hash=sha256:491c8be9c040f5390f5bf44a5b07752bd07f56edf992381b05c701439eec10f6
+
+cffi==1.17.1 \
+    --hash=sha256:1c39c6016c32bc48dd54561950ebd6836e1670f2ae46128f67cf49e789c52824
+
+cached-property==2.0.1 \
+    --hash=sha256:484d617105e3ee0e4f1f58725e72a8ef9e93deee462222dbd51cd91230897641
