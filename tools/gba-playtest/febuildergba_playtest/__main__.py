@@ -18,8 +18,9 @@ import argparse
 import sys
 from typing import Any, Dict, List, Optional, Tuple
 
-from .model import ScenarioError, load_scenario
+from .model import MAX_SCENARIO_BYTES, ScenarioError, load_scenario
 from .runner import (
+    MAX_ROM_BYTES,
     RESULT_SCHEMA_VERSION,
     STATUS_EXIT_CODES,
     BackendError,
@@ -68,26 +69,52 @@ def _run_check() -> Tuple[Dict[str, Any], int]:
     return result, STATUS_EXIT_CODES[status]
 
 
-def _read_bytes(path: str) -> bytes:
+class _TooLarge(Exception):
+    """Raised when a bounded read would exceed its cap."""
+
+
+def _read_capped(path: str, cap: int) -> bytes:
+    """Read at most ``cap + 1`` bytes; raise :class:`_TooLarge` if oversize.
+
+    This bounds untrusted file sizes at the I/O boundary so an enormous ROM or
+    scenario cannot be slurped whole into memory before the size check.
+    """
     with open(path, "rb") as handle:
-        return handle.read()
+        data = handle.read(cap + 1)
+    if len(data) > cap:
+        raise _TooLarge()
+    return data
 
 
 def _run_scenario(rom_path: str, scenario_path: str, out_path: Optional[str],
                   artifact_dir: Optional[str]) -> Tuple[Dict[str, Any], int]:
     try:
-        scenario_text = open(scenario_path, "r", encoding="utf-8").read()
+        scenario_bytes = _read_capped(scenario_path, MAX_SCENARIO_BYTES)
+    except _TooLarge:
+        return _error_result(
+            "scenario_error", f"scenario exceeds the maximum size of {MAX_SCENARIO_BYTES} bytes"
+        )
     except OSError as exc:
         return _error_result("harness_error", f"cannot read scenario: {exc.strerror}")
+    try:
+        scenario_text = scenario_bytes.decode("utf-8")
+    except UnicodeDecodeError:
+        return _error_result("scenario_error", "scenario is not valid UTF-8 text")
     try:
         scenario = load_scenario(scenario_text)
     except ScenarioError as exc:
         return _error_result("scenario_error", str(exc))
 
     try:
-        rom_bytes = _read_bytes(rom_path)
+        rom_bytes = _read_capped(rom_path, MAX_ROM_BYTES)
+    except _TooLarge:
+        return _error_result(
+            "harness_error", f"ROM exceeds the maximum size of {MAX_ROM_BYTES} bytes"
+        )
     except OSError as exc:
         return _error_result("harness_error", f"cannot read ROM: {exc.strerror}")
+    if not rom_bytes:
+        return _error_result("harness_error", "ROM file is empty")
 
     try:
         from .mgba_backend import MgbaBackend

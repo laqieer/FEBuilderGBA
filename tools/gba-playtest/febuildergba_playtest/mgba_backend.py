@@ -9,9 +9,13 @@ Every symbol used here is verified against the official pinned sources at commit
 ``26b7884bc25a5933960f3cdcd98bac1ae14d42e2``:
 
 * Load ROM: ``mgba.core.load_vf(vfile)`` (module function).
-* Config: ``Config(defaults=...)`` + ``core.load_config(config)``; effective
-  values are read back through ``core.config[key]`` (which returns ``bytes``)
-  and verified, failing closed on any mismatch.
+* Config: ``Config(defaults=...)`` is only the input carrier;
+  ``core.load_config(config)`` maps it into the native ``core._core.opts``
+  (``struct mCoreOptions``) via ``mCoreLoadForeignConfig`` -> ``mCoreConfigMap``.
+  Effective values are therefore verified directly from ``core._core.opts``
+  (``audioSync``/``videoSync``/``frameskip``/``mute``/``useBios``/``skipBios``),
+  failing closed on any mismatch. ``mCoreLoadForeignConfig`` does *not* copy
+  these keys back into ``core.config``, so ``core.config[key]`` is not read.
 * Crash: append a handler to the core-owned ``core._callbacks.core_crashed``
   list (no ``add_callbacks`` / ``callbacks.crashed``).
 * Keys: ``core.set_keys(raw=mask)`` (positional args are key *indexes*).
@@ -21,7 +25,8 @@ Every symbol used here is verified against the official pinned sources at commit
 
 Startup contract (verified as effective, not merely requested):
 
-* ``audioSync=false``, ``videoSync=false``, ``frameskip=0``, ``mute=true``.
+* ``audioSync=false``, ``videoSync=false``, ``frameskip=0``, ``mute=true``,
+  ``useBios=false`` (built-in HLE BIOS), ``skipBios=false`` (fixed HLE startup).
 * An in-memory temporary save (``VFile.fromEmpty()`` + ``load_temporary_save``)
   so no ``.sav`` is written beside the ROM.
 * Built-in HLE BIOS; no external BIOS file.
@@ -56,9 +61,15 @@ _DOMAIN_ATTR: Dict[str, str] = {
     "sram": "sram",
 }
 
-# Config keys whose effective values must be verified after load_config.
-_REQUIRED_BOOL_CONFIG = ("audioSync", "videoSync", "mute")
-_REQUIRED_INT_CONFIG = ("frameskip",)
+# Effective ``struct mCoreOptions`` fields verified after ``load_config``.
+_REQUIRED_OPTS_BOOL = {
+    "audioSync": False,
+    "videoSync": False,
+    "mute": True,
+    "useBios": False,
+    "skipBios": False,
+}
+_REQUIRED_OPTS_INT = {"frameskip": 0}
 
 
 def _diag(message: str) -> None:
@@ -77,37 +88,37 @@ class _NonClosingBytesIO(io.BytesIO):
         pass
 
 
-def _parse_config_bool(raw: Any) -> Optional[bool]:
-    text = _decode_config(raw)
-    if text is None:
-        return None
-    text = text.strip().lower()
-    if text in ("1", "true", "yes", "on"):
-        return True
-    if text in ("0", "false", "no", "off"):
-        return False
-    return None
+def _opts_bool(opts: Any, key: str) -> Optional[bool]:
+    """Read a boolean option from the native ``struct mCoreOptions``.
 
-
-def _parse_config_int(raw: Any) -> Optional[int]:
-    text = _decode_config(raw)
-    if text is None:
-        return None
+    cffi surfaces a C ``bool`` field as an ``int``/``bool``; coerce defensively.
+    """
     try:
-        return int(text.strip())
-    except ValueError:
+        raw = getattr(opts, key)
+    except Exception:
         return None
-
-
-def _decode_config(raw: Any) -> Optional[str]:
     if raw is None:
         return None
-    if isinstance(raw, (bytes, bytearray)):
+    try:
+        return bool(int(raw))
+    except (TypeError, ValueError):
         try:
-            return bytes(raw).decode("ascii", "replace")
+            return bool(raw)
         except Exception:  # pragma: no cover - defensive
             return None
-    return str(raw)
+
+
+def _opts_int(opts: Any, key: str) -> Optional[int]:
+    try:
+        raw = getattr(opts, key)
+    except Exception:
+        return None
+    if raw is None:
+        return None
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return None
 
 
 def _read_version_commit():
@@ -223,27 +234,39 @@ class MgbaBackend(Backend):  # pragma: no cover - requires native emulator
             "videoSync": False,
             "frameskip": 0,
             "mute": True,
+            # Fixed built-in HLE startup: no external BIOS, no BIOS skip.
+            "useBios": False,
+            "skipBios": False,
         }
-        # Apply via a foreign config; retain it so the native storage lives on.
+        # ``Config`` is only the input carrier. ``load_config`` maps it into the
+        # native ``core._core.opts`` (mCoreLoadForeignConfig -> mCoreConfigMap);
+        # it does not copy these keys back into ``core.config``. Retain the
+        # config so its native storage outlives this call.
         self._config = Config(defaults=requested)
         core.load_config(self._config)
 
-        # Verify each required value became effective by reading it back.
+        native = getattr(core, "_core", None)
+        opts = getattr(native, "opts", None)
+        if opts is None:
+            raise BackendError("could not access effective core options")
+
+        # Verify each required value became effective, reading from core opts.
         effective: Dict[str, Any] = {}
-        for key in _REQUIRED_BOOL_CONFIG:
-            value = _parse_config_bool(core.config[key])
-            if value is None or value != requested[key]:
+        for key, want in _REQUIRED_OPTS_BOOL.items():
+            value = _opts_bool(opts, key)
+            if value is None or value != want:
                 raise BackendError(f"could not verify effective config: {key}")
             effective[key] = value
-        for key in _REQUIRED_INT_CONFIG:
-            value = _parse_config_int(core.config[key])
-            if value is None or value != requested[key]:
+        for key, want in _REQUIRED_OPTS_INT.items():
+            value = _opts_int(opts, key)
+            if value is None or value != want:
                 raise BackendError(f"could not verify effective config: {key}")
             effective[key] = value
 
+        # HLE BIOS is in effect exactly when the external BIOS is disabled.
+        effective["biosHle"] = not effective["useBios"]
         effective.update(
             {
-                "biosHle": True,
                 "autoloadSave": False,
                 "autoloadPatch": False,
                 "autoloadCheats": False,

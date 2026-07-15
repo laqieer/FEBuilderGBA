@@ -16,11 +16,20 @@ import json
 import os
 import re
 import stat
+import tempfile
 from typing import Any, Dict, List, Optional, Protocol, Tuple
 
 from .model import DOMAIN_SIZES, READ_DOMAINS, Scenario
 
 RESULT_SCHEMA_VERSION = 1
+
+# Repository GBA product limit (32 MiB) enforced at the Python I/O boundary.
+MAX_ROM_BYTES = 32 * 1024 * 1024
+
+# Deterministic test seam: invoked with the final artifact path immediately
+# before the atomic ``os.replace``. Production leaves this ``None``; tests use
+# it to simulate a late symlink/reparse substitution at the destination.
+_PRE_REPLACE_HOOK = None
 
 # --- Note redaction --------------------------------------------------------
 
@@ -176,6 +185,42 @@ def _safe_artifact_path(artifact_dir: str, basename: str) -> str:
     return candidate
 
 
+def _quiet_remove(path: str) -> None:
+    try:
+        os.remove(path)
+    except OSError:
+        pass
+
+
+def _publish_artifact(artifact_dir: str, basename: str, data: bytes) -> None:
+    """Publish ``data`` to ``basename`` via a same-directory temp file + rename.
+
+    The final path is validated first (rejecting reparse targets), but a late
+    symlink/junction created between the check and the write cannot be followed:
+    the bytes land in a fresh temporary regular file and are moved into place
+    with an atomic :func:`os.replace`, which replaces the destination *name*
+    rather than writing through a link. The temporary name is never exposed.
+    """
+    path = _safe_artifact_path(artifact_dir, basename)
+    real_dir = os.path.dirname(path)
+    fd, tmp = tempfile.mkstemp(prefix=".gba-playtest-", suffix=".tmp", dir=real_dir)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(data)
+        hook = _PRE_REPLACE_HOOK
+        if hook is not None:
+            hook(path)
+        os.replace(tmp, path)
+    except OSError as exc:
+        _quiet_remove(tmp)
+        raise BackendError(
+            "failed to write screenshot: " + redact_message(exc.strerror or type(exc).__name__)
+        ) from None
+    except BaseException:
+        _quiet_remove(tmp)
+        raise
+
+
 class _Assertion:
     __slots__ = ("spec", "initial")
 
@@ -221,6 +266,17 @@ class Runner:
         self.backend = backend
         self.artifact_dir = artifact_dir
 
+    def _seam(self, label: str, fn, *args, **kwargs):
+        """Call a backend seam, converting any unexpected error into a
+        :class:`BackendError` with a sanitized note so it can never escape as a
+        traceback or produce no JSON."""
+        try:
+            return fn(*args, **kwargs)
+        except BackendError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - deliberately broad seam guard
+            raise BackendError(redact_message(f"{label} failed: {type(exc).__name__}")) from None
+
     def run(self, rom_bytes: bytes) -> Tuple[Dict[str, Any], int]:
         scenario = self.scenario
         rom_sha = _sha256_hex(rom_bytes)
@@ -240,76 +296,72 @@ class Runner:
                 return self._finalize("rom_mismatch", rom_sha, 0, [], [], None, guard,
                                       note="game code does not match expectedGameCode")
 
-        try:
-            self.backend.load_rom(rom_bytes)
-            self.backend.reset()
-        except BackendError as exc:
-            return self._finalize("harness_error", rom_sha, 0, [], [], None, guard, note=str(exc))
-
-        # Frame-indexed schedules.
-        key_by_frame = {event.frame: event.mask() for event in scenario.events}
-        writes_by_frame: Dict[int, List] = {}
-        for w in scenario.writes:
-            writes_by_frame.setdefault(w.frame, []).append(w)
-
-        # Capture initial values for 'changed' assertions and watchdogs after reset.
-        assertions = [_Assertion(spec, self.backend.read(spec.domain, spec.address, spec.width))
-                      for spec in scenario.assertions]
-        watch_state = []
-        for wd in scenario.watchdogs:
-            value = self.backend.read(wd.domain, wd.address, wd.width)
-            watch_state.append({"spec": wd, "last_value": value, "stall": 0})
-
         frames_executed = 0
-        for frame in range(scenario.runFrames):
-            if frame in key_by_frame:
-                self.backend.set_keys(key_by_frame[frame])
-            for w in writes_by_frame.get(frame, ()):
-                self.backend.write(w.domain, w.address, w.width, w.value)
-
-            try:
-                self.backend.run_frame()
-            except BackendError as exc:
-                return self._finalize("harness_error", rom_sha, frames_executed, [], [], None, guard, note=str(exc))
-            frames_executed = frame + 1
-
-            crash = self.backend.crash_message()
-            if crash is not None:
-                return self._finalize("crash", rom_sha, frames_executed, [], _watch_report(watch_state),
-                                      None, guard, note="core crash: " + _sanitize_note(crash))
-
-            softlock = self._check_watchdogs(watch_state)
-            if softlock is not None:
-                return self._finalize("softlock", rom_sha, frames_executed, [], _watch_report(watch_state),
-                                      None, guard, note=softlock)
-
-        # Evaluate final assertions.
         assertion_reports: List[Dict[str, Any]] = []
-        all_passed = True
-        for entry in assertions:
-            final = self.backend.read(entry.spec.domain, entry.spec.address, entry.spec.width)
-            passed, evidence = _assertion_result(entry.spec, entry.initial, final)
-            all_passed = all_passed and passed
-            assertion_reports.append(evidence)
+        watch_state: List[Dict[str, Any]] = []
+        try:
+            self._seam("load", self.backend.load_rom, rom_bytes)
+            self._seam("reset", self.backend.reset)
 
-        artifact_report = None
-        if scenario.screenshot is not None:
-            try:
+            # Frame-indexed schedules.
+            key_by_frame = {event.frame: event.mask() for event in scenario.events}
+            writes_by_frame: Dict[int, List] = {}
+            for w in scenario.writes:
+                writes_by_frame.setdefault(w.frame, []).append(w)
+
+            # Capture initial values for 'changed' assertions and watchdogs after reset.
+            assertions = [
+                _Assertion(spec, self._seam("read", self.backend.read, spec.domain, spec.address, spec.width))
+                for spec in scenario.assertions
+            ]
+            for wd in scenario.watchdogs:
+                value = self._seam("read", self.backend.read, wd.domain, wd.address, wd.width)
+                watch_state.append({"spec": wd, "last_value": value, "stall": 0})
+
+            for frame in range(scenario.runFrames):
+                if frame in key_by_frame:
+                    self._seam("keys", self.backend.set_keys, key_by_frame[frame])
+                for w in writes_by_frame.get(frame, ()):
+                    self._seam("write", self.backend.write, w.domain, w.address, w.width, w.value)
+
+                self._seam("run_frame", self.backend.run_frame)
+                frames_executed = frame + 1
+
+                crash = self._seam("crash_query", self.backend.crash_message)
+                if crash is not None:
+                    return self._finalize("crash", rom_sha, frames_executed, [], _watch_report(watch_state),
+                                          None, guard, note="core crash: " + _sanitize_note(crash))
+
+                softlock = self._check_watchdogs(watch_state)
+                if softlock is not None:
+                    return self._finalize("softlock", rom_sha, frames_executed, [], _watch_report(watch_state),
+                                          None, guard, note=softlock)
+
+            # Evaluate final assertions.
+            all_passed = True
+            for entry in assertions:
+                final = self._seam("read", self.backend.read, entry.spec.domain, entry.spec.address, entry.spec.width)
+                passed, evidence = _assertion_result(entry.spec, entry.initial, final)
+                all_passed = all_passed and passed
+                assertion_reports.append(evidence)
+
+            artifact_report = None
+            if scenario.screenshot is not None:
                 artifact_report = self._capture_screenshot()
-            except BackendError as exc:
-                return self._finalize("harness_error", rom_sha, frames_executed, assertion_reports,
-                                      _watch_report(watch_state), None, guard, note=str(exc))
-            if artifact_report.get("shaMatched") is False:
-                all_passed = False
+                if artifact_report.get("shaMatched") is False:
+                    all_passed = False
 
-        status = "pass" if all_passed else "assertion_failed"
-        return self._finalize(status, rom_sha, frames_executed, assertion_reports,
-                              _watch_report(watch_state), artifact_report, guard)
+            status = "pass" if all_passed else "assertion_failed"
+            return self._finalize(status, rom_sha, frames_executed, assertion_reports,
+                                  _watch_report(watch_state), artifact_report, guard)
+        except BackendError as exc:
+            return self._finalize("harness_error", rom_sha, frames_executed, assertion_reports,
+                                  _watch_report(watch_state), None, guard, note=str(exc))
 
     def _check_watchdogs(self, watch_state) -> Optional[str]:
         for state in watch_state:
             spec = state["spec"]
-            current = self.backend.read(spec.domain, spec.address, spec.width)
+            current = self._seam("read", self.backend.read, spec.domain, spec.address, spec.width)
             if current != state["last_value"]:
                 state["last_value"] = current
                 state["stall"] = 0
@@ -322,18 +374,14 @@ class Runner:
 
     def _capture_screenshot(self) -> Dict[str, Any]:
         shot = self.scenario.screenshot
-        png = self.backend.screenshot_png()
+        png = self._seam("screenshot", self.backend.screenshot_png)
         if not isinstance(png, (bytes, bytearray)) or not png:
             raise BackendError("screenshot capture produced no data")
-        sha = _sha256_hex(bytes(png))
+        png = bytes(png)
+        sha = _sha256_hex(png)
         report: Dict[str, Any] = {"basename": shot.basename, "sha256": sha}
         if self.artifact_dir is not None:
-            path = _safe_artifact_path(self.artifact_dir, shot.basename)
-            try:
-                with open(path, "wb") as handle:
-                    handle.write(png)
-            except OSError as exc:
-                raise BackendError(f"failed to write screenshot: {exc.strerror}") from exc
+            _publish_artifact(self.artifact_dir, shot.basename, png)
             report["written"] = True
         else:
             report["written"] = False
@@ -341,6 +389,12 @@ class Runner:
             report["expectedSha256"] = shot.expectedSha256
             report["shaMatched"] = shot.expectedSha256 == sha
         return report
+
+    def _safe_meta(self, fn, default):
+        try:
+            return fn()
+        except Exception:  # noqa: BLE001 - metadata must never break result emission
+            return default
 
     def _finalize(self, status: str, rom_sha: str, frames_executed: int,
                   assertion_reports: List[Dict[str, Any]], watch_reports: List[Dict[str, Any]],
@@ -357,10 +411,10 @@ class Runner:
             "assertions": assertion_reports,
             "watchdogs": watch_reports,
             "mgba": {
-                "version": self.backend.version(),
-                "commit": self.backend.commit(),
+                "version": self._safe_meta(self.backend.version, None),
+                "commit": self._safe_meta(self.backend.commit, None),
             },
-            "startupConfig": self.backend.effective_config(),
+            "startupConfig": self._safe_meta(self.backend.effective_config, {}),
         }
         if self.scenario.name is not None:
             result["scenarioName"] = self.scenario.name
@@ -401,6 +455,7 @@ __all__ = [
     "Runner",
     "RESULT_SCHEMA_VERSION",
     "STATUS_EXIT_CODES",
+    "MAX_ROM_BYTES",
     "canonical_json",
     "redact_message",
     "is_reparse_point",

@@ -76,8 +76,8 @@ def _header_complement(rom: bytearray) -> int:
 
 def build_synthetic_rom(game_code: str = "FEBT", marker: int = 0xAB) -> bytes:
     """Assemble a deterministic, copyright-clean homebrew GBA ROM."""
-    if not (1 <= len(game_code) <= 4) or any(not (32 <= ord(c) < 127) for c in game_code):
-        raise ValueError("game_code must be 1-4 printable ASCII characters")
+    if len(game_code) != 4 or any(not (32 <= ord(c) < 127) for c in game_code):
+        raise ValueError("game_code must be exactly 4 printable ASCII characters")
     if not (0 <= marker <= 0xFF):
         raise ValueError("marker must be a byte value")
 
@@ -92,8 +92,8 @@ def build_synthetic_rom(game_code: str = "FEBT", marker: int = 0xAB) -> bytes:
     title = b"FEBUILDTEST\x00"[:12].ljust(12, b"\x00")
     rom[_TITLE_OFFSET:_TITLE_OFFSET + 12] = title
 
-    # 0xAC: game code, 0xB0: maker code.
-    rom[_GAME_CODE_OFFSET:_GAME_CODE_OFFSET + 4] = game_code.encode("ascii").ljust(4, b"\x00")
+    # 0xAC: game code (exactly 4 bytes), 0xB0: maker code.
+    rom[_GAME_CODE_OFFSET:_GAME_CODE_OFFSET + 4] = game_code.encode("ascii")
     rom[_MAKER_OFFSET:_MAKER_OFFSET + 2] = b"00"
 
     # 0xB2: fixed value 0x96 required by real GBA hardware.

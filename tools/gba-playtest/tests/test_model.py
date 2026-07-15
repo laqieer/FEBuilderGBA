@@ -241,7 +241,7 @@ def test_duplicate_write_rejected():
         {"frame": 1, "domain": "wram", "address": 0, "width": 32, "value": 1},
         {"frame": 1, "domain": "wram", "address": 0, "width": 32, "value": 2},
     ]
-    with pytest.raises(ScenarioError, match="duplicates a write"):
+    with pytest.raises(ScenarioError, match="overlaps another write"):
         load(doc)
 
 
@@ -296,7 +296,7 @@ def test_expected_rom_sha_validated():
 def test_expected_game_code_validated():
     doc = base_doc()
     doc["expectedGameCode"] = "TOOLONG"
-    with pytest.raises(ScenarioError, match="1-4 printable"):
+    with pytest.raises(ScenarioError, match="exactly 4 printable"):
         load(doc)
 
 
@@ -360,3 +360,170 @@ def test_empty_scenario_rejected():
 def test_top_level_not_object():
     with pytest.raises(ScenarioError, match="must be a JSON object"):
         load_scenario("[]")
+
+
+# --- Strict parser/schema contract (parser == schema) ----------------------
+
+
+def test_hex_string_rejects_surrounding_whitespace():
+    doc = base_doc()
+    doc["writes"] = [{"frame": 0, "domain": "wram", "address": " 0x10", "width": 8, "value": 0}]
+    with pytest.raises(ScenarioError, match="0x-prefixed hex"):
+        load(doc)
+
+
+def test_hex_string_rejects_trailing_whitespace():
+    doc = base_doc()
+    doc["writes"] = [{"frame": 0, "domain": "wram", "address": "0x10 ", "width": 8, "value": 0}]
+    with pytest.raises(ScenarioError, match="0x-prefixed hex"):
+        load(doc)
+
+
+def test_hex_string_uppercase_prefix_accepted():
+    doc = base_doc()
+    doc["writes"] = [{"frame": 0, "domain": "wram", "address": "0X1A", "width": 8, "value": "0XFf"}]
+    scenario = load(doc)
+    assert scenario.writes[0].address == 0x1A
+    assert scenario.writes[0].value == 0xFF
+
+
+def test_sha256_uppercase_rejected():
+    doc = base_doc()
+    doc["expectedRomSha256"] = "A" * 64
+    with pytest.raises(ScenarioError, match="lowercase 64-character hex"):
+        load(doc)
+
+
+def test_sha256_with_whitespace_rejected():
+    doc = base_doc()
+    doc["expectedRomSha256"] = (" " + "a" * 63)
+    with pytest.raises(ScenarioError, match="lowercase 64-character hex"):
+        load(doc)
+
+
+def test_sha256_exact_lowercase_accepted():
+    doc = base_doc()
+    doc["expectedRomSha256"] = "abcdef01" * 8
+    scenario = load(doc)
+    assert scenario.expectedRomSha256 == "abcdef01" * 8
+
+
+def test_game_code_too_short_rejected():
+    doc = base_doc()
+    doc["expectedGameCode"] = "FE8"
+    with pytest.raises(ScenarioError, match="exactly 4 printable"):
+        load(doc)
+
+
+def test_game_code_with_control_rejected():
+    doc = base_doc()
+    doc["expectedGameCode"] = "FE8\x00"
+    with pytest.raises(ScenarioError, match="exactly 4 printable"):
+        load(doc)
+
+
+# --- Same-frame write overlaps ---------------------------------------------
+
+
+def test_partial_width_overlap_rejected():
+    doc = base_doc()
+    doc["writes"] = [
+        {"frame": 1, "domain": "wram", "address": 0, "width": 32, "value": 1},
+        {"frame": 1, "domain": "wram", "address": 2, "width": 16, "value": 2},
+    ]
+    with pytest.raises(ScenarioError, match="overlaps another write"):
+        load(doc)
+
+
+def test_adjacent_writes_same_frame_allowed():
+    doc = base_doc()
+    doc["writes"] = [
+        {"frame": 1, "domain": "wram", "address": 0, "width": 32, "value": 1},
+        {"frame": 1, "domain": "wram", "address": 4, "width": 32, "value": 2},
+    ]
+    scenario = load(doc)
+    assert len(scenario.writes) == 2
+
+
+def test_overlap_allowed_across_frames():
+    doc = base_doc()
+    doc["writes"] = [
+        {"frame": 1, "domain": "wram", "address": 0, "width": 32, "value": 1},
+        {"frame": 2, "domain": "wram", "address": 0, "width": 32, "value": 2},
+    ]
+    scenario = load(doc)
+    assert len(scenario.writes) == 2
+
+
+def test_overlap_allowed_across_domains():
+    doc = base_doc()
+    doc["writes"] = [
+        {"frame": 1, "domain": "wram", "address": 0, "width": 32, "value": 1},
+        {"frame": 1, "domain": "iwram", "address": 0, "width": 32, "value": 2},
+    ]
+    scenario = load(doc)
+    assert len(scenario.writes) == 2
+
+
+# --- Bounded free-text fields ----------------------------------------------
+
+
+def test_name_too_long_rejected():
+    doc = base_doc()
+    doc["name"] = "x" * (model.MAX_NAME_LENGTH + 1)
+    with pytest.raises(ScenarioError, match="printable ASCII"):
+        load(doc)
+
+
+def test_name_with_control_character_rejected():
+    doc = base_doc()
+    doc["name"] = "demo\nline"
+    with pytest.raises(ScenarioError, match="control or non-ASCII"):
+        load(doc)
+
+
+def test_name_with_nul_rejected():
+    doc = base_doc()
+    doc["name"] = "demo\x00"
+    with pytest.raises(ScenarioError, match="control or non-ASCII"):
+        load(doc)
+
+
+def test_label_too_long_rejected():
+    doc = base_doc()
+    doc["assertions"] = [
+        {"domain": "wram", "address": 0, "width": 8, "op": "changed",
+         "label": "y" * (model.MAX_LABEL_LENGTH + 1)},
+    ]
+    with pytest.raises(ScenarioError, match="printable ASCII"):
+        load(doc)
+
+
+def test_label_with_control_rejected():
+    doc = base_doc()
+    doc["watchdogs"] = [
+        {"domain": "iwram", "address": 4, "width": 32, "maxStallFrames": 5, "label": "hp\x07"},
+    ]
+    with pytest.raises(ScenarioError, match="control or non-ASCII"):
+        load(doc)
+
+
+def test_label_max_length_accepted():
+    doc = base_doc()
+    doc["assertions"] = [
+        {"domain": "wram", "address": 0, "width": 8, "op": "changed",
+         "label": "z" * model.MAX_LABEL_LENGTH},
+    ]
+    scenario = load(doc)
+    assert scenario.assertions[0].label == "z" * model.MAX_LABEL_LENGTH
+
+
+# --- Basename ASCII allowlist ----------------------------------------------
+
+
+def test_basename_unicode_alnum_rejected():
+    # Accented letters are Unicode-alnum but not in the ASCII schema allowlist.
+    doc = base_doc()
+    doc["screenshot"] = {"basename": "caf\u00e9.png"}
+    with pytest.raises(ScenarioError, match="unsupported character"):
+        load(doc)

@@ -364,3 +364,103 @@ def test_backend_load_failure_is_harness_error():
     result, code = Runner(sc, BadBackend()).run(ROM)
     assert result["status"] == "harness_error"
     assert code == 1
+
+
+# --- Backend seam exception wrapping ---------------------------------------
+
+
+def test_unexpected_seam_exception_becomes_sanitized_harness_error():
+    class ExplodingBackend(FakeBackend):
+        def run_frame(self):
+            raise RuntimeError(r"boom at C:\secret\path\core.dll")
+
+    sc = scenario({
+        "schemaVersion": 1, "runFrames": 2,
+        "assertions": [{"domain": "wram", "address": 0, "width": 8, "op": "changed"}],
+    })
+    result, code = Runner(sc, ExplodingBackend()).run(ROM)
+    assert result["status"] == "harness_error"
+    assert code == 1
+    # The generic exception is caught and sanitized into a single JSON result.
+    assert "run_frame failed: RuntimeError" in result["note"]
+    assert "secret" not in result["note"]
+    assert "C:\\" not in result["note"]
+    # The result must still be serializable to exactly one JSON object.
+    json.loads(canonical_json(result))
+
+
+def test_unexpected_read_exception_becomes_harness_error():
+    class BadReadBackend(FakeBackend):
+        def read(self, domain, address, width):
+            raise ValueError("nope")
+
+    sc = scenario({
+        "schemaVersion": 1, "runFrames": 2,
+        "assertions": [{"domain": "wram", "address": 0, "width": 8, "op": "changed"}],
+    })
+    result, code = Runner(sc, BadReadBackend()).run(ROM)
+    assert result["status"] == "harness_error"
+    assert code == 1
+    assert "read failed: ValueError" in result["note"]
+
+
+def test_metadata_exception_never_breaks_result_emission():
+    class BadMetaBackend(FakeBackend):
+        def version(self):
+            raise RuntimeError("no version")
+
+        def commit(self):
+            raise RuntimeError("no commit")
+
+        def effective_config(self):
+            raise RuntimeError("no config")
+
+    sc = scenario({
+        "schemaVersion": 1, "runFrames": 2,
+        "assertions": [{"domain": "wram", "address": 0, "width": 8, "op": "equals", "value": 0}],
+    })
+    result, code = Runner(sc, BadMetaBackend()).run(ROM)
+    # A pass is still emitted; metadata degrades gracefully to null/empty.
+    assert result["status"] == "pass"
+    assert result["mgba"] == {"version": None, "commit": None}
+    assert result["startupConfig"] == {}
+
+
+# --- Atomic screenshot publish ---------------------------------------------
+
+
+def test_screenshot_publish_replaces_late_substituted_target(tmp_path):
+    import febuildergba_playtest.runner as runner_mod
+
+    calls = {"n": 0}
+
+    def hook(final_path):
+        # Simulate a late substitution: a competing regular file appears at the
+        # destination between the safety check and the atomic replace. The
+        # temporary file must already exist and must NOT be the final path.
+        calls["n"] += 1
+        assert os.path.basename(final_path) == "final.png"
+        assert not final_path.endswith(".tmp")
+        with open(final_path, "wb") as handle:
+            handle.write(b"ATTACKER-CONTENT")
+
+    sc = scenario({
+        "schemaVersion": 1, "runFrames": 2,
+        "screenshot": {"basename": "final.png"},
+        "assertions": [{"domain": "wram", "address": 0, "width": 8, "op": "changed"}],
+    })
+    original = runner_mod._PRE_REPLACE_HOOK
+    runner_mod._PRE_REPLACE_HOOK = hook
+    try:
+        result, _ = Runner(sc, FakeBackend(), artifact_dir=str(tmp_path)).run(ROM)
+    finally:
+        runner_mod._PRE_REPLACE_HOOK = original
+
+    assert calls["n"] == 1
+    written = tmp_path / "final.png"
+    # os.replace overwrote the substituted file with our bytes; it was not
+    # followed. No temporary artifact remains behind.
+    assert written.read_bytes() == FakeBackend()._screenshot
+    leftovers = [p.name for p in tmp_path.iterdir() if p.name != "final.png"]
+    assert leftovers == []
+    assert result["artifact"]["written"] is True

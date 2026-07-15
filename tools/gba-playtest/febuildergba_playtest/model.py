@@ -16,7 +16,8 @@ Security / determinism rules enforced here:
 * Writes are restricted to WRAM / IWRAM; reads use an explicit non-ROM domain
   allowlist.
 * Addresses are bounded to their memory domain and naturally aligned.
-* Duplicate / overlapping input events and duplicate writes are rejected.
+* Duplicate input events and same-frame overlapping writes are rejected.
+* Free-text ``name`` / ``label`` fields are bounded printable-ASCII.
 * Screenshot basenames must be safe single path components (no separators,
   traversal, absolute paths, or drive letters). Filesystem-level symlink /
   reparse-point checks are the runner's responsibility.
@@ -28,6 +29,7 @@ expressions, hooks, or host paths.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -42,7 +44,17 @@ MAX_WRITES = 4096
 MAX_ASSERTIONS = 1024
 MAX_WATCHDOGS = 256
 MAX_BASENAME_LENGTH = 128
+MAX_NAME_LENGTH = 128
+MAX_LABEL_LENGTH = 200
 MAX_UINT32 = 0xFFFFFFFF
+
+# Parser/schema single contract: hex strings are exactly ``0x`` + hex digits,
+# SHA-256 is exactly 64 lowercase hex, with no trimming or canonicalization.
+_HEX_STRING_RE = re.compile(r"^0[xX][0-9A-Fa-f]+$")
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+_BASENAME_CHARS = frozenset(
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-"
+)
 
 # --- GBA input -------------------------------------------------------------
 
@@ -215,13 +227,11 @@ def _coerce_uint(value: Any, where: str) -> int:
     if isinstance(value, int):
         result = value
     elif isinstance(value, str):
-        token = value.strip()
-        if not token.lower().startswith("0x"):
+        # Strict contract: exact ``0x`` + hex digits, no surrounding whitespace
+        # and no canonicalization. The JSON schema uses the same pattern.
+        if not _HEX_STRING_RE.match(value):
             raise ScenarioError(f"{where} string must be 0x-prefixed hex")
-        try:
-            result = int(token, 16)
-        except ValueError as exc:
-            raise ScenarioError(f"{where} is not valid hex: {value!r}") from exc
+        result = int(value, 16)
     else:
         raise ScenarioError(f"{where} must be an integer or hex string")
     if result < 0:
@@ -245,6 +255,30 @@ def _optional_str(obj: Dict[str, Any], key: str, where: str) -> Optional[str]:
     return value
 
 
+def _validate_text_field(value: str, where: str, max_len: int) -> str:
+    """Bound a scenario-controlled free-text field echoed into result JSON.
+
+    Only printable ASCII (0x20..0x7E) is accepted; control characters and NUL
+    are rejected so the value cannot smuggle terminal escapes or line breaks
+    into the emitted result.
+    """
+    if not isinstance(value, str):
+        raise ScenarioError(f"{where} must be a string")
+    if len(value) < 1 or len(value) > max_len:
+        raise ScenarioError(f"{where} must be 1..{max_len} printable ASCII characters")
+    for ch in value:
+        if not (0x20 <= ord(ch) <= 0x7E):
+            raise ScenarioError(f"{where} contains a control or non-ASCII character")
+    return value
+
+
+def _optional_text(obj: Dict[str, Any], key: str, where: str, max_len: int) -> Optional[str]:
+    value = _optional_str(obj, key, where)
+    if value is None:
+        return None
+    return _validate_text_field(value, f"{where}.{key}", max_len)
+
+
 def _value_fits(width: int, value: int, where: str) -> int:
     limit = (1 << width) - 1
     if value < 0 or value > limit:
@@ -266,15 +300,16 @@ def _validate_mem_ref(domain: str, address: int, width: int, domains: frozenset,
 
 
 def _validate_hex_sha256(value: str, where: str) -> str:
-    token = value.strip().lower()
-    if len(token) != 64 or any(c not in "0123456789abcdef" for c in token):
-        raise ScenarioError(f"{where} must be a 64-character hex SHA-256")
-    return token
+    # Exact lowercase 64-hex; no trimming or case-folding (schema-identical).
+    if not _SHA256_RE.match(value):
+        raise ScenarioError(f"{where} must be a lowercase 64-character hex SHA-256")
+    return value
 
 
 def _validate_game_code(value: str, where: str) -> str:
-    if not (1 <= len(value) <= 4) or any(not (32 <= ord(c) < 127) for c in value):
-        raise ScenarioError(f"{where} must be 1-4 printable ASCII characters")
+    # A GBA game code is exactly the four header bytes at 0xAC.
+    if len(value) != 4 or any(not (32 <= ord(c) < 127) for c in value):
+        raise ScenarioError(f"{where} must be exactly 4 printable ASCII characters")
     return value
 
 
@@ -288,7 +323,10 @@ def _validate_basename(value: str, where: str) -> str:
     if ":" in value:
         raise ScenarioError(f"{where} must not contain a drive or stream separator")
     for ch in value:
-        if not (ch.isalnum() or ch in "._-"):
+        # Restrict to the ASCII allowlist used by the checked-in JSON schema
+        # (``[A-Za-z0-9._-]``); Unicode ``isalnum`` would accept names the
+        # schema rejects.
+        if ch not in _BASENAME_CHARS:
             raise ScenarioError(f"{where} contains an unsupported character: {ch!r}")
     return value
 
@@ -337,7 +375,9 @@ def _parse_writes(raw: Any, run_frames: int) -> Tuple[MemoryWrite, ...]:
     if len(raw) > MAX_WRITES:
         raise ScenarioError("too many memory writes")
     writes: List[MemoryWrite] = []
-    seen: set = set()
+    # Per (frame, domain) list of occupied [start, end) byte intervals, so we
+    # reject order-dependent partial overwrites, not only identical tuples.
+    occupied: Dict[Tuple[int, str], List[Tuple[int, int]]] = {}
     for index, item in enumerate(raw):
         where = f"writes[{index}]"
         obj = _require_object(item, where)
@@ -353,10 +393,15 @@ def _parse_writes(raw: Any, run_frames: int) -> Tuple[MemoryWrite, ...]:
         address = _coerce_uint(obj["address"], f"{where}.address")
         _validate_mem_ref(domain, address, width, WRITE_DOMAINS, where)
         value = _value_fits(width, _coerce_uint(obj["value"], f"{where}.value"), where)
-        dedup = (frame, domain, address, width)
-        if dedup in seen:
-            raise ScenarioError(f"{where} duplicates a write at frame {frame}")
-        seen.add(dedup)
+        start = address
+        end = address + width // 8
+        intervals = occupied.setdefault((frame, domain), [])
+        for other_start, other_end in intervals:
+            if start < other_end and other_start < end:
+                raise ScenarioError(
+                    f"{where} overlaps another write at frame {frame} in domain {domain!r}"
+                )
+        intervals.append((start, end))
         writes.append(MemoryWrite(frame=frame, domain=domain, address=address, width=width, value=value))
     writes.sort(key=lambda w: (w.frame, w.domain, w.address))
     return tuple(writes)
@@ -407,7 +452,7 @@ def _parse_assertions(raw: Any) -> Tuple[Assertion, ...]:
         result.append(Assertion(
             domain=domain, address=address, width=width, op=op,
             value=value, minValue=min_value, maxValue=max_value,
-            label=_optional_str(obj, "label", where),
+            label=_optional_text(obj, "label", where, MAX_LABEL_LENGTH),
         ))
     return tuple(result)
 
@@ -435,7 +480,7 @@ def _parse_watchdogs(raw: Any, run_frames: int) -> Tuple[Watchdog, ...]:
         max_stall = _bounded_int(obj["maxStallFrames"], f"{where}.maxStallFrames", 1, run_frames)
         result.append(Watchdog(
             domain=domain, address=address, width=width,
-            maxStallFrames=max_stall, label=_optional_str(obj, "label", where),
+            maxStallFrames=max_stall, label=_optional_text(obj, "label", where, MAX_LABEL_LENGTH),
         ))
     return tuple(result)
 
@@ -478,7 +523,7 @@ def build_scenario(document: Any) -> Scenario:
         raise ScenarioError("scenario is missing 'runFrames'")
     run_frames = _bounded_int(obj["runFrames"], "runFrames", 1, MAX_RUN_FRAMES)
 
-    name = _optional_str(obj, "name", "scenario")
+    name = _optional_text(obj, "name", "scenario", MAX_NAME_LENGTH)
 
     expected_rom = None
     if "expectedRomSha256" in obj:

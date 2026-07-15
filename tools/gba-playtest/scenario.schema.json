@@ -19,8 +19,9 @@
       "maximum": 216000
     },
     "name": {
-      "description": "Optional human-readable scenario label echoed into the result.",
-      "type": "string"
+      "description": "Optional human-readable scenario label echoed into the result (printable ASCII, <= 128 chars).",
+      "type": "string",
+      "pattern": "^[ -~]{1,128}$"
     },
     "expectedRomSha256": {
       "description": "Optional lowercase hex SHA-256 guard; a mismatch fails before emulation.",
@@ -28,10 +29,9 @@
       "pattern": "^[0-9a-f]{64}$"
     },
     "expectedGameCode": {
-      "description": "Optional 1-4 character ASCII game code guard read from ROM header 0xAC.",
+      "description": "Optional 4-character ASCII game code guard read from ROM header 0xAC.",
       "type": "string",
-      "minLength": 1,
-      "maxLength": 4
+      "pattern": "^[ -~]{4}$"
     },
     "keys": {
       "description": "Frame-indexed key states. Each frame sets the complete pressed-key set from that frame onward.",
@@ -86,7 +86,7 @@
           "value": { "$ref": "#/definitions/uint" },
           "min": { "$ref": "#/definitions/uint" },
           "max": { "$ref": "#/definitions/uint" },
-          "label": { "type": "string" }
+          "label": { "type": "string", "pattern": "^[ -~]{1,200}$" }
         }
       }
     },
@@ -103,7 +103,7 @@
           "address": { "$ref": "#/definitions/addr" },
           "width": { "type": "integer", "enum": [8, 16, 32] },
           "maxStallFrames": { "type": "integer", "minimum": 1, "maximum": 216000 },
-          "label": { "type": "string" }
+          "label": { "type": "string", "pattern": "^[ -~]{1,200}$" }
         }
       }
     },

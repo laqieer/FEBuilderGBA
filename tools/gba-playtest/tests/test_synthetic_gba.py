@@ -23,6 +23,25 @@ def test_header_game_code_roundtrips():
     assert synthetic_gba.header_game_code(rom) == "FEBT"
 
 
+def test_game_code_must_be_exactly_four_chars():
+    import pytest
+
+    with pytest.raises(ValueError, match="exactly 4 printable"):
+        synthetic_gba.build_synthetic_rom(game_code="FEB")
+    with pytest.raises(ValueError, match="exactly 4 printable"):
+        synthetic_gba.build_synthetic_rom(game_code="FEBTX")
+    with pytest.raises(ValueError, match="exactly 4 printable"):
+        synthetic_gba.build_synthetic_rom(game_code="FE\x00B")
+
+
+def test_header_game_code_has_no_nul_padding():
+    rom = synthetic_gba.build_synthetic_rom(game_code="AZ90")
+    code = synthetic_gba.header_game_code(rom)
+    assert code == "AZ90"
+    assert "\x00" not in code
+    assert len(code) == 4
+
+
 def test_fixed_byte_and_entry_branch():
     rom = synthetic_gba.build_synthetic_rom()
     assert rom[0xB2] == 0x96

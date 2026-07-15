@@ -3,9 +3,10 @@
 These tests import :class:`MgbaBackend` but never import the real ``mgba``
 binding. Instead they inject a fake ``mgba`` module tree whose API shape mirrors
 the official pinned sources exactly (``core.load_vf``, ``Config(defaults=...)``
-with ``core.load_config`` + ``core.config[key]`` bytes, a core-owned
-``_callbacks.core_crashed`` list, ``set_keys(raw=...)``, ``memory.<domain>.u8``
-/``u16``/``u32`` views, and ``Image.save_png(fileobj)`` returning ``bool``).
+with ``core.load_config`` mapping into the native ``core._core.opts``
+(``struct mCoreOptions``), a core-owned ``_callbacks.core_crashed`` list,
+``set_keys(raw=...)``, ``memory.<domain>.u8``/``u16``/``u32`` views, and
+``Image.save_png(fileobj)`` returning ``bool``).
 
 If the adapter regresses to a name that does not exist in the pinned binding
 (``load1``, ``get_bool``, ``add_callbacks``, ``store16``, ``to_pil``, ...), the
@@ -62,7 +63,12 @@ class FakeCallbacks:
 
 
 class FakeConfig:
-    """Models ``mgba.core.Config`` — bytes on read, bool->int normalization."""
+    """Models ``mgba.core.Config`` — bytes on read, bool->int normalization.
+
+    Note: the real ``mCoreLoadForeignConfig`` maps a foreign ``Config`` into the
+    native ``core._core.opts`` and does *not* copy these keys back into
+    ``core.config``; the adapter therefore verifies from opts, not from here.
+    """
 
     def __init__(self, native=None, port=None, defaults=None):
         self._values = {}
@@ -81,10 +87,35 @@ class FakeConfig:
         self._values[key] = str(value)
 
 
-class FakeCore:
+# Fields the fake maps from a foreign Config into ``core._core.opts``, matching
+# ``struct mCoreOptions`` in pinned 0.10.5.
+_OPTS_BOOL_FIELDS = ("audioSync", "videoSync", "mute", "useBios", "skipBios")
+_OPTS_INT_FIELDS = ("frameskip",)
+
+
+class FakeOpts:
+    """Models ``struct mCoreOptions`` (zero-initialized) reachable via cffi."""
+
     def __init__(self):
+        for name in _OPTS_BOOL_FIELDS:
+            setattr(self, name, False)
+        for name in _OPTS_INT_FIELDS:
+            setattr(self, name, 0)
+
+
+class FakeNativeCore:
+    """Models the native ``struct mCore*`` exposed as ``Core._core``."""
+
+    def __init__(self):
+        self.opts = FakeOpts()
+
+
+class FakeCore:
+    def __init__(self, apply_config=True):
         self._callbacks = FakeCallbacks()
         self.config = FakeConfig()
+        self._core = FakeNativeCore()
+        self._apply_config = apply_config
         self.memory = None
         self.key_calls = []
         self.run_frames = 0
@@ -93,7 +124,18 @@ class FakeCore:
         self.temporary_save = None
 
     def load_config(self, config):
-        self.config._values.update(config._values)
+        # Mirror mCoreLoadForeignConfig -> mCoreConfigMap: values flow into the
+        # native opts, not back into core.config. When ``apply_config`` is
+        # False the mapping is skipped so opts keep their zero defaults, which
+        # lets a test exercise the fail-closed verification path.
+        if not self._apply_config:
+            return
+        for key in _OPTS_BOOL_FIELDS:
+            if key in config._values:
+                setattr(self._core.opts, key, config._values[key] not in ("0", "false", "False", ""))
+        for key in _OPTS_INT_FIELDS:
+            if key in config._values:
+                setattr(self._core.opts, key, int(config._values[key]))
 
     def load_temporary_save(self, vfile):
         self.temporary_save = vfile
@@ -151,7 +193,7 @@ class _FakeState:
 
 
 @contextmanager
-def fake_mgba(state, save_png_ok=True, crash=False):
+def fake_mgba(state, save_png_ok=True, crash=False, break_config=False):
     mgba = types.ModuleType("mgba")
     mgba.__version__ = PINNED_VERSION
 
@@ -164,7 +206,7 @@ def fake_mgba(state, save_png_ok=True, crash=False):
 
     def load_vf(vfile):
         state.load_vf_calls += 1
-        core = FakeCore()
+        core = FakeCore(apply_config=not break_config)
         state.last_core = core
         return core
 
@@ -222,7 +264,7 @@ def test_load_rom_uses_load_vf_not_load1():
         assert state.last_core is not None
 
 
-def test_config_defaults_applied_and_verified_from_bytes():
+def test_config_defaults_applied_and_verified_from_opts():
     state = _FakeState()
     with fake_mgba(state):
         backend = MgbaBackend()
@@ -232,27 +274,26 @@ def test_config_defaults_applied_and_verified_from_bytes():
         assert effective["videoSync"] is False
         assert effective["frameskip"] == 0
         assert effective["mute"] is True
-        assert effective["biosHle"] is True
+        assert effective["useBios"] is False
+        assert effective["skipBios"] is False
+        assert effective["biosHle"] is True  # not useBios
         assert effective["autoloadSave"] is False
-        # The core's config table must have received the requested values.
-        assert state.last_core.config["mute"] == b"1"
-        assert state.last_core.config["frameskip"] == b"0"
+        # Verification must read the native opts, not core.config.
+        opts = state.last_core._core.opts
+        assert opts.mute is True
+        assert opts.frameskip == 0
+        assert opts.useBios is False
+        assert opts.skipBios is False
 
 
 def test_config_failure_is_fail_closed():
     state = _FakeState()
-    with fake_mgba(state):
+    # With the foreign-config mapping suppressed, mute stays at its zero default
+    # (False) while the adapter requires True: verification must fail hard.
+    with fake_mgba(state, break_config=True):
         backend = MgbaBackend()
-
-        # Corrupt the effective read-back so verification must fail hard.
-        import febuildergba_playtest.mgba_backend as mod
-        original = mod._parse_config_bool
-        mod._parse_config_bool = lambda raw: None
-        try:
-            with pytest.raises(Exception):
-                backend.load_rom(ROM)
-        finally:
-            mod._parse_config_bool = original
+        with pytest.raises(Exception):
+            backend.load_rom(ROM)
 
 
 def test_crash_callback_registered_on_core_callbacks_list():
@@ -342,8 +383,13 @@ def test_fake_api_shape_matches_pinned_names():
     core = FakeCore()
     assert isinstance(core._callbacks.core_crashed, list)
     assert not hasattr(core, "add_callbacks")
+    assert not hasattr(core, "load1")
     assert not hasattr(core.config, "get_bool")
     assert not hasattr(core.config, "load_defaults")
+    # Effective options are verified from the native opts struct.
+    opts = core._core.opts
+    for name in ("audioSync", "videoSync", "frameskip", "mute", "useBios", "skipBios"):
+        assert hasattr(opts, name)
     mem = FakeMemory()
     assert hasattr(mem, "u8") and hasattr(mem, "u16") and hasattr(mem, "u32")
     assert not hasattr(mem, "store16") and not hasattr(mem, "load32")
