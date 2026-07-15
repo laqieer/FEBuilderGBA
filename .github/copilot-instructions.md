@@ -104,7 +104,7 @@ Runtime data is not embedded into the binaries. The WinForms project copies `con
 - WinForms editor behavior is heavily name-driven. `InputFormRef.MakeLinkEvent(...)` wires controls through naming patterns like `L_{id}_{linktype}_{args}` plus numeric field prefixes. Renaming designer controls can break editor behavior without causing compile errors.
 - Avalonia editor binding is also name-driven, but uses `EditorFormRef` field names: `B{offset}`, `S{offset}`, `W{offset}`, `D{offset}`, and `P{offset}`.
 - Headless paths matter. `FEBuilderGBA\Program.cs` checks `--version` and other CLI flags before WinForms initialization so CI can run the executable in headless mode. Preserve that startup ordering when changing command routing.
-- WinForms and E2E validation assume `x86` builds. If a change touches WinForms startup, command-line behavior in `FEBuilderGBA.exe`, or E2E helpers, prefer validating with the `msbuild` x86 solution build rather than only with project-level `dotnet build`.
+- WinForms and E2E validation assume `x86` builds. If a change touches WinForms startup, command-line behavior in `FEBuilderGBA.exe`, or E2E helpers, prefer validating with the `dotnet msbuild` x86 solution build rather than only with project-level `dotnet build`.
 - See the "Mandatory footer on ALL GitHub outputs" section below — every GitHub post must include the Copilot CLI version/model footer.
 ## Mandatory footer on ALL GitHub outputs
 
