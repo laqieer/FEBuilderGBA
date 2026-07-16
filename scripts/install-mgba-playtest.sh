@@ -321,8 +321,16 @@ elif command -v make >/dev/null 2>&1 || command -v mingw32-make >/dev/null 2>&1;
 else
     fail "No GCC-compatible CMake generator found. Install Ninja or Make."
 fi
+# CMake 4 removed compatibility with project policy declarations older than 3.5.
+# Pinned mGBA 0.10.5 still declares policy version 3.1, so a
+# modern MSYS2/Ubuntu CMake 4 aborts configuration and explicitly recommends
+# the external policy-version-minimum cache setting. Pass exactly the 3.5
+# policy floor as a configure flag (the upstream pinned source is NOT patched); every
+# other feature/provenance flag below is unchanged and still verified from the
+# generated flags.h.
 cmake -S "${SRC_DIR}" -B "${CMAKE_BUILD}" \
     "${GENERATOR[@]}" \
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
     -DBUILD_PYTHON=ON \
     -DBUILD_QT=OFF -DBUILD_SDL=OFF -DBUILD_GL=OFF -DBUILD_GLES2=OFF \
     -DUSE_FFMPEG=ON -DUSE_DISCORD_RPC=OFF \

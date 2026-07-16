@@ -6,7 +6,9 @@ the official pinned sources exactly (``core.load_vf``, ``Config(defaults=...)``
 with ``core.load_config`` mapping into the native ``core._core.opts``
 (``struct mCoreOptions``), a core-owned ``_callbacks.core_crashed`` list,
 ``set_keys(raw=...)``, ``memory.<domain>.u8``/``u16``/``u32`` views, and
-``Image.save_png(fileobj)`` returning ``bool``).
+``Image.save_png(fileobj)`` returning ``bool``). Deterministic teardown is
+modeled too: ``mgba.core.ffi.release`` releases the native core exactly once
+and the adapter's :meth:`MgbaBackend.close` removes the crash callback first.
 
 If the adapter regresses to a name that does not exist in the pinned binding
 (``load1``, ``get_bool``, ``add_callbacks``, ``store16``, ``to_pil``, ...), the
@@ -121,7 +123,6 @@ class FakeCore:
         self.run_frames = 0
         self.video_buffer = None
         self.reset_count = 0
-        self.temporary_save = None
 
     def load_config(self, config):
         # Mirror mCoreLoadForeignConfig -> mCoreConfigMap: values flow into the
@@ -137,9 +138,20 @@ class FakeCore:
             if key in config._values:
                 setattr(self._core.opts, key, int(config._values[key]))
 
-    def load_temporary_save(self, vfile):
-        self.temporary_save = vfile
-        return True
+    def load_temporary_save(self, vfile):  # pragma: no cover - must never run
+        # The pinned adapter must NOT attach a temporary save (anonymous
+        # in-memory savedata is used instead). This affordance exists only to
+        # make a regression that calls it loudly detectable.
+        raise AssertionError("load_temporary_save must never be called")
+
+    def autoload_save(self):  # pragma: no cover - must never run
+        raise AssertionError("autoload_save must never be called")
+
+    def autoload_patch(self):  # pragma: no cover - must never run
+        raise AssertionError("autoload_patch must never be called")
+
+    def autoload_cheats(self):  # pragma: no cover - must never run
+        raise AssertionError("autoload_cheats must never be called")
 
     def reset(self):
         self.reset_count += 1
@@ -219,6 +231,10 @@ class _FakeState:
     def __init__(self):
         self.last_core = None
         self.load_vf_calls = 0
+        self.ffi = None
+        # Optional hook fired synchronously inside ffi.release so a test can
+        # snapshot backend state exactly at native-release time.
+        self.on_release = None
 
 
 @contextmanager
@@ -244,6 +260,29 @@ def fake_mgba(state, save_png_ok=True, crash=False, break_config=False,
 
     core_mod.load_vf = load_vf
     core_mod.Config = FakeConfig
+
+    class FakeFfi:
+        """Models ``mgba.core.ffi`` — only ``release`` is used by the adapter.
+
+        Per the official CFFI docs, ``ffi.release()`` on an ``ffi.gc`` object
+        runs its destructor immediately and prevents a second call; this fake
+        records each release (so a test can prove it happens exactly once) and
+        fires ``state.on_release`` so a test can snapshot backend state at the
+        precise release moment (crash callback already removed; ROM/config/image
+        still alive).
+        """
+
+        def __init__(self):
+            self.released = []
+
+        def release(self, cdata):
+            if state.on_release is not None:
+                state.on_release()
+            self.released.append(cdata)
+
+    ffi = FakeFfi()
+    core_mod.ffi = ffi
+    state.ffi = ffi
 
     log_mod = types.ModuleType("mgba.log")
     log_mod.silence = lambda: None
@@ -366,18 +405,125 @@ def test_load_rom_fails_closed_on_seek_failure():
         assert state.load_vf_calls == 0
 
 
-def test_temporary_save_vfile_retained_not_claimed():
+def test_backend_has_no_temporary_save_path():
+    import ast
+    import inspect
+
+    import febuildergba_playtest.mgba_backend as mod
+
+    # The pinned adapter must NOT attach a temporary-save VFile: an AST scan of
+    # the real code (docstrings/comments excluded) confirms neither the
+    # ``load_temporary_save`` call nor a ``_save_vfile`` field survives.
+    tree = ast.parse(inspect.getsource(mod))
+    attrs = {node.attr for node in ast.walk(tree) if isinstance(node, ast.Attribute)}
+    assert "load_temporary_save" not in attrs, (
+        "the adapter must not attach a temporary-save VFile"
+    )
+    assert "_save_vfile" not in attrs, "the save VFile field must be removed"
+
+
+def test_no_save_vfile_attached_and_autoload_actions_never_called():
+    import ast
+    import inspect
+
+    import febuildergba_playtest.mgba_backend as mod
+
     state = _FakeState()
     with fake_mgba(state):
         backend = MgbaBackend()
         backend.load_rom(ROM)
-        save_vf = backend._save_vfile
-        # GBASavedataMask does not close the masked VFile, so the wrapper keeps
-        # ownership: retained on the backend and left unclaimed.
-        assert save_vf is not None
-        assert backend._save_vfile is save_vf
-        assert save_vf._claimed is False
-        assert save_vf.closed == 0
+        # No save VFile field exists on the backend at all.
+        assert not hasattr(backend, "_save_vfile")
+        # The fake methods above are tripwires: loading succeeded only because
+        # no explicit frontend autoload action was invoked.
+        effective = backend.effective_config()
+        assert effective["autoloadSave"] is False
+        assert effective["autoloadPatch"] is False
+        assert effective["autoloadCheats"] is False
+
+    # These are explicit frontend actions in the pinned binding, not fields in
+    # struct mCoreOptions. Preserve both facts in the executable contract.
+    opts = FakeOpts()
+    for name in ("autoloadSave", "autoloadPatch", "autoloadCheats"):
+        assert not hasattr(opts, name)
+
+    tree = ast.parse(inspect.getsource(mod))
+    called_attributes = {
+        node.func.attr
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+    }
+    assert called_attributes.isdisjoint(
+        {"autoload_save", "autoload_patch", "autoload_cheats"}
+    )
+
+
+def test_close_releases_core_once_refs_alive_and_callback_removed():
+    state = _FakeState()
+    with fake_mgba(state):
+        backend = MgbaBackend(want_screenshot=True)
+        backend.load_rom(ROM)
+        core = state.last_core
+        rom_vf = backend._rom_vfile
+        assert len(core._callbacks.core_crashed) == 1
+
+        snapshot = {}
+
+        def _record():
+            # Fires synchronously inside ffi.release: the crash handler must be
+            # gone already, while the ROM VFile / config / image are still alive.
+            snapshot["crashed_len"] = len(core._callbacks.core_crashed)
+            snapshot["rom_alive"] = backend._rom_vfile is not None
+            snapshot["config_alive"] = backend._config is not None
+            snapshot["image_alive"] = backend._image is not None
+
+        state.on_release = _record
+
+        backend.close()
+
+        # ffi.release was called exactly once, on the native core handle.
+        assert state.ffi.released == [core._core]
+        assert len(state.ffi.released) == 1
+        # Crash handler removed BEFORE release (empty list at release time).
+        assert snapshot["crashed_len"] == 0
+        # ROM VFile / config / image still alive AT release.
+        assert snapshot["rom_alive"] is True
+        assert snapshot["config_alive"] is True
+        assert snapshot["image_alive"] is True
+        # After a successful release the Python references are cleared.
+        assert backend._core is None
+        assert backend._rom_vfile is None
+        assert backend._config is None
+        assert backend._image is None
+        assert backend._crash_handler is None
+        # The claimed ROM wrapper is NEVER Python-closed: the native core owns it.
+        assert rom_vf._claimed is True
+        assert rom_vf.closed == 0
+
+
+def test_close_is_idempotent_double_close_releases_once():
+    state = _FakeState()
+    with fake_mgba(state):
+        backend = MgbaBackend()
+        backend.load_rom(ROM)
+        core = state.last_core
+
+        backend.close()
+        backend.close()
+        backend.close()
+
+        # A second/third close is a no-op: release happens exactly once.
+        assert state.ffi.released == [core._core]
+        assert len(state.ffi.released) == 1
+
+
+def test_close_before_load_is_safe_noop():
+    state = _FakeState()
+    with fake_mgba(state):
+        backend = MgbaBackend()
+        # No ROM loaded, no core: close must be a harmless no-op (no release).
+        backend.close()
+        assert state.ffi.released == []
 
 
 def test_vfile_has_no_fromfile_constructor():

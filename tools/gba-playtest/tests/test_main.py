@@ -6,6 +6,7 @@ import pytest
 
 import febuildergba_playtest.__main__ as cli
 from febuildergba_playtest.__main__ import _TooLarge, _read_capped
+from febuildergba_playtest.runner import BackendError
 
 
 _VALID_SCENARIO = json.dumps({
@@ -225,3 +226,158 @@ def test_out_atomic_write_refuses_directory_target(tmp_path, monkeypatch, capsys
     assert code == 1
     assert result["status"] == "harness_error"
     assert "not a regular file" in result["note"]
+
+
+# --- Deterministic native teardown (close before persist / report) ----------
+
+
+class _FakeBackendOk:
+    """A trivially-passing backend that records its close call order."""
+
+    def __init__(self, events, want_screenshot=False):
+        self._events = events
+
+    def load_rom(self, rom_bytes):
+        pass
+
+    def close(self):
+        self._events.append("close")
+
+
+def _install_fake_backend(monkeypatch, backend_cls):
+    # ``_run_scenario`` does ``from .mgba_backend import MgbaBackend`` locally,
+    # so patch the attribute on that module for the local import to pick up.
+    monkeypatch.setattr("febuildergba_playtest.mgba_backend.MgbaBackend", backend_cls)
+
+
+def test_backend_closed_after_run_before_persist(tmp_path, monkeypatch, capsys):
+    rom, scenario = _prepare_valid_inputs(tmp_path)
+    out = tmp_path / "result.json"
+    events = []
+
+    class _Backend(_FakeBackendOk):
+        def __init__(self, want_screenshot=False):
+            super().__init__(events, want_screenshot)
+
+    class _Runner:
+        def __init__(self, scenario, backend, artifact_dir=None):
+            self._events = events
+
+        def run(self, rom_bytes):
+            self._events.append("run")
+            return {"status": "pass", "exitCode": 0}, 0
+
+    def _fake_write(path, data):
+        events.append("persist")
+
+    _install_fake_backend(monkeypatch, _Backend)
+    monkeypatch.setattr(cli, "Runner", _Runner)
+    monkeypatch.setattr(cli, "atomic_write_bytes", _fake_write)
+
+    code = cli.main(["--rom", str(rom), "--scenario", str(scenario), "--out", str(out)])
+    result = _one_json(capsys)
+    assert code == 0
+    assert result["status"] == "pass"
+    # close() runs after the replay and strictly before result persistence.
+    assert events == ["run", "close", "persist"]
+
+
+def test_runner_backend_error_still_closes(tmp_path, monkeypatch, capsys):
+    rom, scenario = _prepare_valid_inputs(tmp_path)
+    events = []
+
+    class _Backend(_FakeBackendOk):
+        def __init__(self, want_screenshot=False):
+            super().__init__(events, want_screenshot)
+
+    class _Runner:
+        def __init__(self, scenario, backend, artifact_dir=None):
+            pass
+
+        def run(self, rom_bytes):
+            events.append("run")
+            raise BackendError("emulator exploded")
+
+    _install_fake_backend(monkeypatch, _Backend)
+    monkeypatch.setattr(cli, "Runner", _Runner)
+
+    code = cli.main(["--rom", str(rom), "--scenario", str(scenario)])
+    result = _one_json(capsys)
+    assert code == 1
+    assert result["status"] == "harness_error"
+    # A Runner BackendError preserves harness_error behavior AND still closes.
+    assert events == ["run", "close"]
+
+
+def test_cleanup_failure_overrides_pass_with_harness_error(tmp_path, monkeypatch, capsys):
+    rom, scenario = _prepare_valid_inputs(tmp_path)
+    out = tmp_path / "result.json"
+    persisted = {}
+
+    class _Backend:
+        def __init__(self, want_screenshot=False):
+            pass
+
+        def load_rom(self, rom_bytes):
+            pass
+
+        def close(self):
+            raise BackendError("native core release failed: RuntimeError")
+
+    class _Runner:
+        def __init__(self, scenario, backend, artifact_dir=None):
+            pass
+
+        def run(self, rom_bytes):
+            return {"status": "pass", "exitCode": 0}, 0
+
+    def _fake_write(path, data):
+        persisted["data"] = data
+
+    _install_fake_backend(monkeypatch, _Backend)
+    monkeypatch.setattr(cli, "Runner", _Runner)
+    monkeypatch.setattr(cli, "atomic_write_bytes", _fake_write)
+
+    code = cli.main(["--rom", str(rom), "--scenario", str(scenario), "--out", str(out)])
+    result = _one_json(capsys)
+    # A cleanup failure overrides the earlier pass; never report pass.
+    assert code == 1
+    assert result["status"] == "harness_error"
+    assert result["status"] != "pass"
+    # The persisted document is the harness_error, never a pass.
+    assert b'"status":"harness_error"' in persisted["data"]
+    assert b'"pass"' not in persisted["data"]
+
+
+def test_cleanup_unexpected_exception_is_sanitized_harness_error(tmp_path, monkeypatch, capsys):
+    rom, scenario = _prepare_valid_inputs(tmp_path)
+
+    class _Backend:
+        def __init__(self, want_screenshot=False):
+            pass
+
+        def load_rom(self, rom_bytes):
+            pass
+
+        def close(self):
+            raise RuntimeError(r"C:\secret\path exploded")
+
+    class _Runner:
+        def __init__(self, scenario, backend, artifact_dir=None):
+            pass
+
+        def run(self, rom_bytes):
+            return {"status": "pass", "exitCode": 0}, 0
+
+    _install_fake_backend(monkeypatch, _Backend)
+    monkeypatch.setattr(cli, "Runner", _Runner)
+
+    code = cli.main(["--rom", str(rom), "--scenario", str(scenario)])
+    result = _one_json(capsys)
+    assert code == 1
+    assert result["status"] == "harness_error"
+    # Bounded, type-only sanitized note: no path/message leakage.
+    assert "backend cleanup failed" in result["note"]
+    assert "RuntimeError" in result["note"]
+    assert "secret" not in result["note"]
+    assert "\\" not in result["note"]

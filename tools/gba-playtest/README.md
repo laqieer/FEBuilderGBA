@@ -64,16 +64,24 @@ not-planned). The PowerShell wrapper therefore does **not** use MSVC: it locates
 a user-installed [MSYS2](https://www.msys2.org) root (from `-Msys2Root`, the
 `MSYS2_ROOT` environment variable, or `C:\msys64`), verifies the UCRT64
 toolchain (Python, GCC, CMake, Ninja/Make, Git, curl, tar) is already installed,
-and runs the same POSIX bootstrap under the UCRT64 **login** shell (`bash -l -s`).
-A login shell is required because a non-login MSYS2 Bash never sources
-`/etc/profile.d`, so `/ucrt64/bin` would be missing from `PATH` and every probed
-tool (and the delegated build) could silently resolve to the wrong toolchain.
-The wrapper also forces a BOM-free `UTF8Encoding($false)` onto `$OutputEncoding`
-around both stdin pipelines (the toolchain probe and the delegated bootstrap)
-and restores the original `$OutputEncoding` afterward, because Windows
-PowerShell's default console encoding can otherwise prepend a UTF-8 BOM that
-Bash reads as literal bytes at the start of the piped script. It never
-downloads or installs the toolchain and never mutates global PATH/environment.
+and runs the same POSIX bootstrap under the UCRT64 **login** shell.
+A login shell (`bash -l`) is required because a non-login MSYS2 Bash never
+sources `/etc/profile.d`, so `/ucrt64/bin` would be missing from `PATH` and
+every probed tool (and the delegated build) could silently resolve to the wrong
+toolchain.
+
+The wrapper **never pipes a script to Bash on stdin**. Windows PowerShell 5.1
+prepends a UTF-8 BOM to stdin, which Bash reads as literal bytes at the start of
+the script (that corrupted `set -e` and the toolchain probe). Instead the
+toolchain probe is materialized to a single uniquely named temp file, written
+with an explicit BOM-free `UTF8Encoding($false)` and CRLF/CR normalized to LF,
+and executed directly as a login-shell script argument (`bash -l <probe-path>`).
+The checked-in POSIX bootstrap is likewise executed directly (`bash -l
+<script-path> …`) after its Windows path is translated with `cygpath -u`
+(required as a tool). No `$OutputEncoding` mutation is performed or relied upon;
+the probe temp file is removed by exact literal path in the same `finally` that
+restores the process environment. It never downloads or installs the toolchain
+and never mutates global PATH/environment.
 The native prerequisites are `pkg-config`, libffi, libepoxy, libpng, zlib, and
 the FFmpeg development modules (libavcodec, libavfilter, libavformat, libavutil,
 libswscale, plus one of libswresample/libavresample — install the MSYS2
@@ -118,6 +126,14 @@ FFmpeg module is missing) without an error, and a stale cache entry from a
 prior run would not reflect what was actually just configured. Only the
 generated header is authoritative here.
 
+CMake 4 dropped compatibility with `cmake_minimum_required(VERSION < 3.5)`.
+Pinned mGBA 0.10.5 still declares `VERSION 3.1`, so a modern MSYS2/Ubuntu
+CMake 4 aborts configuration and explicitly recommends
+`-DCMAKE_POLICY_VERSION_MINIMUM=3.5`. The bootstrap passes exactly that policy
+floor as an **external** configure flag — the upstream pinned source is never
+patched — so the exact-commit/SHA provenance is preserved while the build
+remains compatible with CMake 4.
+
 On Windows the binding's dependent DLLs (`libmgba`, `libgcc`, `libwinpthread`)
 are not resolved via `runtime_library_dirs` when a UCRT64 Python is launched
 from PowerShell/.NET. The bootstrap therefore records the build output directory
@@ -141,9 +157,28 @@ UCRT64 builds. cffi 2.1.0 (upstream PR #198) switches that store to GCC/Clang
 builtin atomics, fixing the regression while keeping Python 3.14 support, and
 is installed with its exact official PyPI sdist SHA-256 hash.
 
+The runtime adapter loads **no save VFile**: the pinned mGBA core safely uses
+anonymous in-memory savedata when no save is attached. In mGBA 0.10.5,
+save / patch / cheat autoload is not an `mCoreOptions` setting; it requires an
+explicit frontend call to `autoload_save()`, `autoload_patch()`, or
+`autoload_cheats()`. The adapter makes none of those calls, and the reported
+`autoload*` values describe that adapter-level execution policy, so nothing is
+ever written beside the ROM (and one native handle is kept out of teardown).
+After each replay the CLI runs a **deterministic native
+teardown** before persisting or returning any result: `MgbaBackend.close()` is
+idempotent, removes the crash callback from the core-owned list to break the
+reference cycle, then imports `mgba.core.ffi` and calls `ffi.release(core._core)`
+exactly once while the ROM VFile / config / image are still alive (per the CFFI
+docs, `ffi.release()` runs the `ffi.gc` destructor immediately and blocks a
+second call). The claimed ROM VFile is never closed from Python — the native
+core owns and closes it. If cleanup fails, the CLI reports `harness_error` and
+never persists or reports a `pass`.
+
 WU1 (this bootstrap/build/import/replay gate) remains **pending validation by
 real mGBA 0.10.5 CI** (Ubuntu + MSYS2 UCRT64); nothing here is claimed as a
-passing gate until that CI run confirms it.
+passing gate until that CI run confirms it. In particular, the **Windows
+transport** fix and the **real replay** acceptance both remain **pending the
+next native CI oracle run** — they are not yet claimed as fixed or green.
 
 ## Tests
 

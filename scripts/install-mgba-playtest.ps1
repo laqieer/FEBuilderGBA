@@ -107,28 +107,58 @@ if (-not $bash) {
 }
 Write-Host "  using MSYS2 bash -> $bash"
 
+function Convert-PosixPath([string]$WinPath) {
+    # Translate a Windows path to a POSIX path with cygpath under a LOGIN shell
+    # (-l), so /etc/profile.d puts /usr/bin (cygpath) and /ucrt64/bin on PATH.
+    # ``cygpath`` is REQUIRED: this probes for it and fails closed if it (or the
+    # conversion) is unavailable. This replaces the old stdin here-string
+    # transport, which Windows PowerShell 5.1 corrupted with a UTF-8 BOM. The
+    # path is a plain command argument here (never piped to Bash on stdin), so
+    # no byte-order mark can be prepended.
+    $converted = $null
+    $convExit = 1
+    $convPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        $converted = & $bash -l -c 'command -v cygpath >/dev/null 2>&1 || exit 127; cygpath -u "$1"' -- $WinPath
+        $convExit = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $convPreference
+    }
+    if ($convExit -ne 0) {
+        Fail "Could not convert a path with cygpath under the UCRT64 login shell (exit $convExit). cygpath must be available.`n$Msys2Guidance"
+    }
+    $posix = $converted | Where-Object { $_ -and ([string]$_).Trim() } | Select-Object -Last 1
+    if (-not $posix) {
+        Fail "cygpath returned no POSIX path for a required file.`n$Msys2Guidance"
+    }
+    return ([string]$posix).Trim()
+}
+
 # --- Run everything under the UCRT64 shell. Apply the environment to          -
 # --- the CHILD process only: save and restore so nothing persists globally.   -
 $saved = @{}
 foreach ($name in @("MSYSTEM", "CHERE_INVOKING", "MSYS2_PATH_TYPE")) {
     $saved[$name] = [Environment]::GetEnvironmentVariable($name, "Process")
 }
-# Windows PowerShell's default console encoding can prepend a UTF-8 BOM to
-# stdin, which Bash then reads as literal bytes at the start of the piped
-# script (breaking both the probe and the delegate here-strings below). Force
-# a BOM-free UTF8Encoding across BOTH stdin pipelines and restore the original
-# $OutputEncoding in the same finally block that restores the saved env vars.
-$savedOutputEncoding = $OutputEncoding
+# Windows PowerShell 5.1 prepends a UTF-8 BOM when a script is piped to Bash on
+# stdin, which Bash then reads as literal bytes at the start of the script
+# (breaking ``set -e`` and the probe). This wrapper therefore NEVER pipes a
+# script to Bash: the probe is materialized to one uniquely named, BOM-free,
+# LF-normalized temp file and executed directly (``bash -l <path>``), and the
+# checked-in POSIX script is likewise executed directly after a cygpath path
+# translation. No console-encoding (OutputEncoding) mutation is needed here.
 $bootstrapExit = 1
+$probeFile = $null
 try {
-    $OutputEncoding = New-Object System.Text.UTF8Encoding($false)
     $env:MSYSTEM = "UCRT64"
     $env:CHERE_INVOKING = "1"
 
     # --- Validate the UCRT64 toolchain is present (never auto-installed) -----
     $probe = @'
 missing=""
-for t in python gcc cmake git curl tar pkg-config; do
+for t in python gcc cmake git curl tar pkg-config cygpath; do
   command -v "$t" >/dev/null 2>&1 || missing="$missing $t"
 done
 if ! command -v ninja >/dev/null 2>&1 && ! command -v make >/dev/null 2>&1; then
@@ -158,18 +188,30 @@ if [ -n "$missing" ]; then echo "MISSING:$missing"; exit 3; fi
 echo "TOOLCHAIN-OK MSYSTEM=$MSYSTEM python=$py"
 '@
     Write-Host "Validating the UCRT64 toolchain (nothing is downloaded here)..."
-    # Windows PowerShell 5.1 can mangle a complex/multiline command argument.
-    # Feed the probe to Bash on stdin instead, while limiting Continue to
-    # this captured native invocation so normal bootstrap failures still stop.
-    # A LOGIN shell (-l) is required: a non-login MSYS2 Bash does not source
-    # /etc/profile.d, so /ucrt64/bin is never added to PATH and every probed
-    # tool (and the later delegated build) would silently resolve to nothing
-    # or the wrong (non-UCRT64) toolchain.
+    # Windows PowerShell 5.1 prepends a UTF-8 BOM when a script is piped to Bash
+    # on stdin, so the probe is instead materialized to one uniquely named,
+    # BOM-free, LF-normalized temp file and executed directly as a login-shell
+    # script argument (``bash -l <path>``). A LOGIN shell (-l) is required: a
+    # non-login MSYS2 Bash does not source /etc/profile.d, so /ucrt64/bin is
+    # never added to PATH and every probed tool (and the later delegated build)
+    # would silently resolve to nothing or the wrong (non-UCRT64) toolchain.
+    $probeFile = [System.IO.Path]::Combine(
+        [System.IO.Path]::GetTempPath(),
+        "febgba-mgba-probe-$([Guid]::NewGuid().ToString('N')).sh"
+    )
+    # Normalize CRLF/CR to LF, then write with a BOM-free UTF-8 encoding so Bash
+    # never sees a carriage return or a leading EF BB BF byte-order mark.
+    $probeLf = ($probe -replace "`r`n", "`n") -replace "`r", "`n"
+    [System.IO.File]::WriteAllText($probeFile, $probeLf, (New-Object System.Text.UTF8Encoding($false)))
+    $probePosix = Convert-PosixPath $probeFile
+
+    # Limit Continue to this captured native invocation so normal bootstrap
+    # failures still stop, and read the explicit exit code fail-closed.
     $probeExit = 1
     $probePreference = $ErrorActionPreference
     try {
         $ErrorActionPreference = "Continue"
-        $probeOut = $probe | & $bash -l -s 2>&1
+        $probeOut = & $bash -l $probePosix 2>&1
         $probeExit = $LASTEXITCODE
     }
     finally {
@@ -180,26 +222,25 @@ echo "TOOLCHAIN-OK MSYSTEM=$MSYSTEM python=$py"
         Fail "The MSYS2 UCRT64 toolchain is incomplete (missing tools reported above).`n$Msys2Guidance"
     }
 
-    # --- Delegate to the POSIX bootstrap under UCRT64. Pass the script path as -
-    # --- a positional argument and convert it with cygpath INSIDE the shell so -
-    # --- the Windows path is translated structurally (no fragile string        -
-    # --- interpolation, spaces/backslashes handled by the shell).              -
-    $delegate = @'
-set -e
-sh_win="$1"
-shift
-sh_posix="$(cygpath -u "$sh_win")"
-exec bash "$sh_posix" "$@"
-'@
+    # --- Delegate to the POSIX bootstrap under UCRT64. The checked-in script  -
+    # --- path is converted with cygpath (structurally, no fragile string      -
+    # --- interpolation; spaces/backslashes handled by cygpath) and then        -
+    # --- executed DIRECTLY as a login-shell script argument. There is no       -
+    # --- stdin here-string and no ``-s`` stdin mode anywhere.                  -
+    $scriptPosix = Convert-PosixPath $PosixScript
     $forward = @("--python=python")
     if ($Force) { $forward += "--force" }
 
     Write-Host "Delegating to the POSIX bootstrap under the UCRT64 shell..."
-    $delegate | & $bash -l -s -- $PosixScript @forward
+    & $bash -l $scriptPosix @forward
     $bootstrapExit = $LASTEXITCODE
 }
 finally {
-    $OutputEncoding = $savedOutputEncoding
+    # Remove ONLY the exact probe temp file (no recurse, wildcard, or directory
+    # removal), then restore the process env vars saved above.
+    if ($probeFile -and (Test-Path -LiteralPath $probeFile)) {
+        Remove-Item -LiteralPath $probeFile -Force
+    }
     foreach ($name in $saved.Keys) {
         if ($null -eq $saved[$name]) {
             Remove-Item "Env:$name" -ErrorAction SilentlyContinue

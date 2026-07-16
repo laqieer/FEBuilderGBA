@@ -25,7 +25,8 @@ Every symbol used here is verified against the official pinned sources at commit
   failing closed on any mismatch. ``mCoreLoadForeignConfig`` does *not* copy
   these keys back into ``core.config``, so ``core.config[key]`` is not read.
 * Crash: append a handler to the core-owned ``core._callbacks.core_crashed``
-  list (no ``add_callbacks`` / ``callbacks.crashed``).
+  list (no ``add_callbacks`` / ``callbacks.crashed``). :meth:`MgbaBackend.close`
+  removes that handler before native release to break the reference cycle.
 * Keys: ``core.set_keys(raw=mask)`` (positional args are key *indexes*).
 * Memory: ``core.memory.<domain>.u8/u16/u32[address]`` views for read/write.
 * Screenshot: ``Image.save_png(fileobj)`` returning ``bool`` (no Pillow).
@@ -38,11 +39,14 @@ Startup contract (verified as effective, not merely requested):
 
 * ``audioSync=false``, ``videoSync=false``, ``frameskip=0``, ``mute=true``,
   ``useBios=false`` (built-in HLE BIOS), ``skipBios=false`` (fixed HLE startup).
-* An in-memory temporary save (``VFile.fromEmpty()`` + ``load_temporary_save``)
-  so no ``.sav`` is written beside the ROM. The pinned ``load_temporary_save``
-  wrapper leaves ``_claimed`` False and ``GBASavedataMask`` does not close the
-  masked VFile, so the Python wrapper keeps ownership: it is retained on the
-  backend for the core's lifetime and left unclaimed.
+* No save VFile is loaded: the pinned mGBA core safely uses anonymous
+  in-memory savedata when no save is attached. Save / patch / cheat autoload
+  is not an ``mCoreOptions`` setting in mGBA 0.10.5; it requires explicit
+  frontend calls to ``core.autoload_save()``, ``core.autoload_patch()``, or
+  ``core.autoload_cheats()``, none of which this adapter makes. The reported
+  ``autoload*`` values describe that adapter-level execution policy. Avoiding
+  a temporary-save VFile also removes an unnecessary native handle from the
+  deterministic teardown in :meth:`MgbaBackend.close`.
 * Built-in HLE BIOS; no external BIOS file.
 * No autoload of save / patch / cheats.
 * A video buffer is attached only when a screenshot is requested.
@@ -56,6 +60,16 @@ Startup contract (verified as effective, not merely requested):
   inputs are bounded (size / line count / path length) and registration is
   idempotent across repeated calls, so malformed input fails closed and handles
   never grow without bound.
+
+Teardown contract (deterministic native release):
+
+* :meth:`MgbaBackend.close` is idempotent. It removes the crash handler from
+  ``core._callbacks.core_crashed`` (breaking the cycle) and then, while the ROM
+  VFile / config / image are still referenced, imports ``mgba.core.ffi`` and
+  calls ``ffi.release(core._core)`` exactly once. Per the official CFFI docs,
+  ``ffi.release()`` runs the ``ffi.gc`` destructor immediately and prevents a
+  later second call. The claimed ROM VFile is never closed from Python; the
+  native core owns and closes it during release.
 
 All third-party diagnostics go to stderr; stdout is reserved for the single
 result document emitted by ``__main__``. Every note that could carry a path is
@@ -393,10 +407,10 @@ class MgbaBackend(Backend):  # pragma: no cover - requires native emulator
         self._commit: Optional[str] = None
         self._effective: Dict[str, Any] = {}
         self._rom_vfile = None
-        self._save_vfile = None
         self._config = None
         self._crash_handler: Optional[Callable[[], None]] = None
         self._image = None
+        self._closed = False
         self._import_and_prepare()
 
     def _import_and_prepare(self) -> None:
@@ -457,14 +471,11 @@ class MgbaBackend(Backend):  # pragma: no cover - requires native emulator
 
         self._apply_config(core)
 
-        # In-memory temporary save so nothing is written beside the ROM. The
-        # pinned ``load_temporary_save`` wrapper leaves ``_claimed`` False and
-        # ``GBASavedataMask`` does not close the masked VFile, so the wrapper
-        # retains ownership: keep the reference alive (stored below) and do not
-        # claim it, otherwise nothing would ever free it.
-        self._save_vfile = vfs.VFile.fromEmpty()
-        if not core.load_temporary_save(self._save_vfile):
-            raise BackendError("mGBA could not attach an in-memory temporary save")
+        # No save VFile is attached: the pinned mGBA core safely uses anonymous
+        # in-memory savedata. Autoload is an explicit frontend action, not an
+        # mCoreOptions field, and this adapter invokes none of those actions.
+        # Attaching a temporary-save VFile here would only add a native handle
+        # to tear down with no behavioral benefit.
 
         self._register_crash_callback(core)
 
@@ -510,6 +521,10 @@ class MgbaBackend(Backend):  # pragma: no cover - requires native emulator
 
         # HLE BIOS is in effect exactly when the external BIOS is disabled.
         effective["biosHle"] = not effective["useBios"]
+        # These report adapter-level actions, not native mCoreOptions. In the
+        # pinned binding autoload can happen only through explicit frontend
+        # methods, which this adapter never invokes; contract tests enforce
+        # both the exact API shape and the absence of those calls.
         effective.update(
             {
                 "autoloadSave": False,
@@ -617,6 +632,83 @@ class MgbaBackend(Backend):  # pragma: no cover - requires native emulator
 
     def commit(self) -> Optional[str]:
         return self._commit
+
+    def close(self) -> None:
+        """Release the native core exactly once (idempotent, deterministic).
+
+        Teardown contract for the pinned 0.10.5 binding:
+
+        * Return immediately if already closed or if no core was constructed.
+        * Remove this backend's crash handler from the core-owned
+          ``core._callbacks.core_crashed`` list *before* release, breaking the
+          core -> callback -> backend reference cycle.
+        * Import the pinned ``mgba.core.ffi`` and call ``ffi.release(core._core)``
+          exactly once while the ROM VFile / config / image references are still
+          alive (the native core owns and closes the ROM VFile during release).
+          Per the official CFFI docs, ``ffi.release()`` invokes the ``ffi.gc``
+          destructor immediately and prevents a later second call.
+        * Only after a successful release are the Python references cleared. The
+          ROM VFile stays ``_claimed=True`` and is never closed from Python:
+          the native core owns and closes it.
+
+        Any structural release/callback failure is surfaced as a precise
+        :class:`BackendError`; there is no broad silent catch and no success
+        fallback.
+        """
+        if self._closed or self._core is None:
+            self._closed = True
+            return
+
+        core = self._core
+
+        # Break the cycle: drop our crash handler from the core-owned list
+        # before releasing the native core.
+        handler = self._crash_handler
+        if handler is not None:
+            callbacks = getattr(core, "_callbacks", None)
+            crashed = getattr(callbacks, "core_crashed", None)
+            if crashed is None or not isinstance(crashed, list):
+                raise BackendError("mGBA core does not expose a crash callback list at close")
+            try:
+                crashed.remove(handler)
+            except ValueError as exc:
+                raise BackendError(
+                    redact_message(f"crash callback missing at close: {type(exc).__name__}")
+                ) from None
+
+        native = getattr(core, "_core", None)
+        if native is None:
+            raise BackendError("mGBA core does not expose a native handle at close")
+
+        try:
+            from mgba.core import ffi
+        except Exception as exc:
+            raise BackendError(
+                redact_message(f"could not import mgba.core.ffi at close: {type(exc).__name__}")
+            ) from None
+
+        release = getattr(ffi, "release", None)
+        if release is None:
+            raise BackendError("mGBA cffi does not expose ffi.release")
+
+        # The ROM VFile / config / image are intentionally still referenced so
+        # the native release sees the live memory it owns; they are cleared only
+        # after a successful, single release.
+        try:
+            release(native)
+        except Exception as exc:
+            raise BackendError(
+                redact_message(f"native core release failed: {type(exc).__name__}")
+            ) from None
+
+        # Successful release: clear references. The ROM VFile stays claimed and
+        # is never Python-closed (the native core owns/closes it).
+        self._closed = True
+        self._core = None
+        self._crash_handler = None
+        self._rom_vfile = None
+        self._config = None
+        self._image = None
 
     def effective_config(self) -> Dict[str, Any]:
         return dict(self._effective)

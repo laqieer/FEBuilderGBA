@@ -191,6 +191,15 @@ def _run_scenario(rom_path: str, scenario_path: str, out_path: Optional[str],
         result, exit_code = runner.run(rom_bytes)
     except BackendError as exc:
         result, exit_code = _error_result("harness_error", str(exc))
+    finally:
+        # Deterministic native teardown ALWAYS runs after backend construction
+        # and before any result is persisted or returned.
+        cleanup = _close_backend(backend)
+
+    # A cleanup failure overrides any earlier result: a pass is never persisted
+    # or reported after teardown failed.
+    if cleanup is not None:
+        result, exit_code = cleanup
 
     if out_path is not None:
         try:
@@ -198,6 +207,24 @@ def _run_scenario(rom_path: str, scenario_path: str, out_path: Optional[str],
         except BackendError as exc:
             return _error_result("harness_error", str(exc))
     return result, exit_code
+
+
+def _close_backend(backend: Any) -> Optional[Tuple[Dict[str, Any], int]]:
+    """Close the backend, converting any teardown failure into a harness_error.
+
+    Returns ``None`` on a clean close, otherwise a sanitized ``harness_error``
+    result tuple that must override any earlier result so a ``pass`` is never
+    persisted or reported after cleanup failed. Only :class:`BackendError` and a
+    bounded ordinary :class:`Exception` (surfaced as a static, type-only note)
+    are handled here; ``BaseException``/signals are never caught.
+    """
+    try:
+        backend.close()
+    except BackendError as exc:
+        return _error_result("harness_error", str(exc))
+    except Exception as exc:  # noqa: BLE001 - bounded, type-only sanitized note
+        return _error_result("harness_error", f"backend cleanup failed: {type(exc).__name__}")
+    return None
 
 
 # --- Deterministic, no-output argument parsing -----------------------------

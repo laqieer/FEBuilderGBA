@@ -20,6 +20,10 @@ wrapper has its own contract (MSYS2 detection, no MSVC, no global env mutation).
 
 import os
 import re
+import subprocess
+import sys
+
+import pytest
 
 import febuildergba_playtest
 
@@ -455,64 +459,169 @@ def test_powershell_validates_ucrt64_toolchain_via_probe():
     assert "command -v" in text, "wrapper must probe with command -v inside the shell"
 
 
-def test_powershell_passes_multiline_scripts_on_bash_stdin_fail_closed():
+def test_powershell_uses_direct_bash_script_execution_no_stdin_transport():
     text = _read(PS1)
-    assert re.search(r"\$probe\s*\|\s*&\s*\$bash\s+-l\s+-s\s+2>&1", text), (
-        "the probe must reach Bash through stdin on a LOGIN shell (-l -s)"
+    # The probe and the delegated POSIX script must both be executed DIRECTLY as
+    # login-shell script arguments (`bash -l <path>`), never piped to Bash on
+    # stdin. Windows PowerShell 5.1 prepends a UTF-8 BOM to stdin, which broke
+    # `set -e` and the probe, so no stdin-script transport may remain.
+    assert re.search(r"&\s*\$bash\s+-l\s+\$probePosix\b", text), (
+        "the probe must be executed directly as `bash -l <converted-probe-path>`"
     )
-    assert re.search(
-        r"\$delegate\s*\|\s*&\s*\$bash\s+-l\s+-s\s+--\s+\$PosixScript\s+@forward", text
-    ), "the bootstrap delegate must reach Bash through stdin on a LOGIN shell (-l -s)"
-    # A non-login MSYS2 Bash never sources /etc/profile.d, so /ucrt64/bin would
-    # be missing from PATH; a bare "-s" invocation (no "-l") is exactly the bug
-    # this contract forbids, so no such invocation may remain anywhere.
+    assert re.search(r"&\s*\$bash\s+-l\s+\$scriptPosix\s+@forward", text), (
+        "the bootstrap must run directly as `bash -l <converted-script-path> @forward`"
+    )
+    # No stdin-script transport anywhere: neither `$probe | ...`, nor a
+    # `$delegate` here-string, nor any `-s` stdin mode may survive.
+    assert "| & $bash" not in text, "no script may be piped to Bash on stdin"
+    assert not re.search(r"\$probe\s*\|\s*&", text), "the probe must not be piped to Bash"
+    assert "$delegate" not in text, "the delegate here-string stdin transport must be removed"
+    assert not re.search(r"&\s*\$bash\b[^\n]*\s-s\b", text), (
+        "Bash must never be invoked in `-s` stdin-script mode"
+    )
     assert not re.search(r"&\s*\$bash\s+-s\b", text), (
         "Bash must never be invoked without the -l login-shell flag"
     )
-    assert not re.search(r"-lc\s+\$probe\b", text)
-    assert not re.search(r"-lc\s+\$inner\b", text)
-    assert "$inner" not in text
-    delegate = re.search(r"\$delegate\s*=\s*@'\n(.*?)\n'@", text, re.DOTALL)
-    assert delegate, "delegate must be a stdin here-string"
-    assert 'sh_win="$1"\nshift\nsh_posix="$(cygpath -u "$sh_win")"' in delegate.group(1)
-    assert 'sh_win="$0"' not in delegate.group(1)
+    # cygpath converts BOTH paths structurally under a LOGIN shell (-l), so
+    # /etc/profile.d puts /usr/bin (cygpath) and /ucrt64/bin on PATH.
+    assert re.search(r'''cygpath\s+-u\s+"\$1"'\s+--\s+\$WinPath''', text), (
+        "paths must be passed as a positional argument to cygpath, not interpolated into shell code"
+    )
+    assert re.search(r"&\s*\$bash\s+-l\s+-c\s+'command -v cygpath", text), (
+        "the wrapper must probe/require cygpath under the login shell"
+    )
+    assert "cygpath -u '$WinPath'" not in text, (
+        "a quote-bearing Windows path must not be interpolated into the Bash command"
+    )
+    assert "Convert-PosixPath $probeFile" in text, "the probe path must be cygpath-converted"
+    assert "Convert-PosixPath $PosixScript" in text, "the script path must be cygpath-converted"
+    # Scoped probe ErrorActionPreference (Continue only around the captured
+    # native invocation) with explicit, fail-closed exit-code handling remains.
     probe_try = text.find("$probePreference = $ErrorActionPreference")
-    probe_finally = text.find("$ErrorActionPreference = $probePreference", probe_try)
-    probe_call = text.find("$probe | & $bash -l -s 2>&1", probe_try)
+    probe_call = text.find("$probeOut = & $bash -l $probePosix 2>&1", probe_try)
+    probe_finally = text.find("$ErrorActionPreference = $probePreference", probe_call)
     assert -1 < probe_try < probe_call < probe_finally, (
         "probe Continue preference must be scoped and restored with try/finally"
+    )
+    assert "$probeExit = 1" in text, "probe exit must be initialized fail-closed"
+    assert re.search(r"\$probeExit\s*=\s*\$LASTEXITCODE", text)
+    assert re.search(r"if\s*\(\$probeExit\s+-ne\s+0\)", text), (
+        "the probe exit must be checked fail-closed"
     )
     assert "$bootstrapExit = 1" in text, "bootstrap exit must be initialized fail-closed"
     assert re.search(r"\$bootstrapExit\s*=\s*\$LASTEXITCODE", text)
     assert re.search(r"if\s*\(\$bootstrapExit\s+-ne\s+0\)", text), (
         "bootstrap exit must remain explicit and fail-closed"
     )
+    # cygpath conversion also fails closed on a nonzero exit / empty result.
+    assert re.search(r"if\s*\(\$convExit\s+-ne\s+0\)", text), (
+        "path conversion must fail closed on a nonzero cygpath exit"
+    )
 
 
-def test_powershell_scopes_bom_free_output_encoding_with_finally_restore():
+def test_powershell_materializes_probe_bom_free_lf_temp_file():
     text = _read(PS1)
-    assert re.search(r"\$savedOutputEncoding\s*=\s*\$OutputEncoding", text), (
-        "the original $OutputEncoding must be captured before it is mutated"
+    # No $OutputEncoding mutation or reliance may survive anywhere: the fix does
+    # not depend on console encoding at all.
+    assert "$OutputEncoding" not in text, (
+        "the wrapper must neither mutate nor rely on $OutputEncoding"
     )
+    # The probe is written to exactly one uniquely named temp file with an
+    # explicit BOM-free UTF-8 encoding via WriteAllText.
     assert re.search(
-        r"\$OutputEncoding\s*=\s*New-Object\s+System\.Text\.UTF8Encoding\(\$false\)", text
-    ), "a BOM-free UTF8Encoding($false) must be assigned to $OutputEncoding"
-    i_saved = text.find("$savedOutputEncoding = $OutputEncoding")
-    i_set = text.find("$OutputEncoding = New-Object System.Text.UTF8Encoding($false)")
-    i_probe_call = text.find("$probe | & $bash -l -s 2>&1")
-    i_delegate_call = text.find("$delegate | & $bash -l -s -- $PosixScript @forward")
-    i_restore = text.find("$OutputEncoding = $savedOutputEncoding")
-    assert -1 < i_saved < i_set < i_probe_call < i_delegate_call < i_restore, (
-        "the no-BOM encoding must be scoped across BOTH stdin pipelines and only "
-        "restored afterward"
+        r"\[System\.IO\.File\]::WriteAllText\(\s*\$probeFile\s*,\s*\$probeLf\s*,\s*"
+        r"\(New-Object\s+System\.Text\.UTF8Encoding\(\$false\)\)\s*\)",
+        text,
+    ), "the probe must be written with WriteAllText using UTF8Encoding($false) (no BOM)"
+    # CRLF and CR are normalized to LF before the file is written.
+    assert re.search(
+        r'\$probeLf\s*=\s*\(\$probe\s*-replace\s*"`r`n",\s*"`n"\)\s*-replace\s*"`r",\s*"`n"',
+        text,
+    ), "the probe text must have CRLF/CR normalized to LF before writing"
+    # A uniquely named temp file (GUID) under the OS temp path.
+    assert "[System.IO.Path]::GetTempPath()" in text, "probe temp file must live under the temp path"
+    assert "[Guid]::NewGuid()" in text, "the probe temp file name must be unique"
+    # Exact literal cleanup of only that temp file: no recurse, no wildcard.
+    assert re.search(r"Remove-Item\s+-LiteralPath\s+\$probeFile\s+-Force", text), (
+        "cleanup must remove exactly the probe temp file by literal path"
     )
-    # The restore must sit in the SAME finally block as the saved-env restore,
-    # not a separate/earlier one (e.g. the probe's own Continue-preference finally).
-    finally_start = text.rfind("finally", 0, i_restore)
+    assert "-Recurse" not in text, "cleanup must never recurse"
+    assert "$probeFile*" not in text and "$probeFile.*" not in text, (
+        "cleanup must not use a wildcard against the probe file"
+    )
+    assert not re.search(r"Remove-Item[^\n]*\*", text), "cleanup must not use any wildcard removal"
+    # The removal lives in the SAME outer finally that restores the saved env.
+    i_remove = text.find("Remove-Item -LiteralPath $probeFile -Force")
+    assert i_remove != -1
+    finally_start = text.rfind("finally", 0, i_remove)
     finally_block = text[finally_start:]
-    assert "$OutputEncoding = $savedOutputEncoding" in finally_block
-    assert ("Set-Item" in finally_block or "Remove-Item" in finally_block), (
-        "OutputEncoding restore must share the finally block with env-var restoration"
+    assert "Remove-Item -LiteralPath $probeFile -Force" in finally_block
+    assert ("Set-Item" in finally_block or "Env:" in finally_block), (
+        "probe cleanup must share the finally block that restores the saved env"
+    )
+    # $probeFile is initialized fail-closed so the finally never dereferences an
+    # unset variable when construction fails early.
+    assert "$probeFile = $null" in text, "the probe temp path must be initialized before the try"
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows PowerShell BOM behavior is Windows-only")
+def test_powershell_utf8encoding_false_writes_no_bom_on_windows(tmp_path):
+    # Real proof (not just a static match): the exact WriteAllText +
+    # UTF8Encoding($false) expression the wrapper uses must emit NO UTF-8 BOM
+    # (EF BB BF) and must normalize CRLF/CR to LF. Run it in Windows PowerShell
+    # against a throwaway temp file, then clean up.
+    import shutil
+
+    exe = shutil.which("powershell") or shutil.which("pwsh")
+    if not exe:
+        pytest.skip("no PowerShell interpreter available")
+    target = tmp_path / "bom-probe.sh"
+    helper = tmp_path / "write-probe.ps1"
+    helper.write_text(
+        '$ErrorActionPreference = "Stop"\n'
+        f"$p = '{target}'\n"
+        '$probe = "set -e`r`necho ok`r`n"\n'
+        '$lf = ($probe -replace "`r`n", "`n") -replace "`r", "`n"\n'
+        '[System.IO.File]::WriteAllText($p, $lf, (New-Object System.Text.UTF8Encoding($false)))\n',
+        encoding="utf-8",
+    )
+    try:
+        subprocess.run(
+            [exe, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(helper)],
+            check=True,
+            capture_output=True,
+        )
+        data = target.read_bytes()
+    finally:
+        if target.exists():
+            target.unlink()
+    assert not data.startswith(b"\xef\xbb\xbf"), "UTF8Encoding($false) must not write a BOM"
+    assert b"\r" not in data, "CRLF/CR must be normalized to LF before writing"
+    assert data.startswith(b"set -e"), "the script content must be written verbatim after the BOM-free header"
+
+
+def test_build_script_sets_cmake_policy_minimum_for_cmake4():
+    text = _read(BUILD_SCRIPT)
+    # CMake 4 rejects mGBA 0.10.5's cmake_minimum_required(VERSION 3.1) and
+    # explicitly recommends -DCMAKE_POLICY_VERSION_MINIMUM=3.5. That external
+    # policy floor is the source-preserving fix.
+    assert "-DCMAKE_POLICY_VERSION_MINIMUM=3.5" in text, (
+        "must pass the CMake 4 policy floor as an external configure flag"
+    )
+    # Exactly one occurrence, on the single configure command, before the build.
+    assert text.count("-DCMAKE_POLICY_VERSION_MINIMUM=3.5") == 1, (
+        "the policy floor must appear exactly once"
+    )
+    i_configure = text.find('cmake -S "${SRC_DIR}" -B "${CMAKE_BUILD}"')
+    i_flag = text.find("-DCMAKE_POLICY_VERSION_MINIMUM=3.5")
+    i_python_exec = text.find('-DPYTHON_EXECUTABLE="${VENV_PY}"')
+    i_build = text.find('cmake --build "${CMAKE_BUILD}" --config Release')
+    assert -1 < i_configure < i_flag < i_python_exec < i_build, (
+        "the policy floor must be part of the single configure command, before the build"
+    )
+    # The upstream source is NOT patched to raise its cmake_minimum_required.
+    assert "cmake_minimum_required" not in text, (
+        "must not patch upstream cmake_minimum_required; use the external policy flag"
     )
 
 
