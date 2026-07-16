@@ -318,8 +318,9 @@ VENV_PY="$(detect_venv_python)" \
 # FEBUILDERGBA_MGBA_SOURCE_ROOT below, so a hostile/misconfigured TMPDIR
 # cannot land the overlay copy inside the pinned source), normalizes only
 # preprocessed typedef aliases backed by compiler-only __builtin_va_list into
-# CFFI's ellipsis syntax, and fails closed on any drift, ambiguity, mismatch,
-# containment violation, excessive aliases, or cleanup failure.
+# CFFI's ellipsis syntax, excludes MinGW intrinsics only while limits.h
+# expands, and fails closed on any drift, ambiguity, mismatch, containment
+# violation, excessive aliases, or cleanup failure.
 # Every other input (notably lib.h) passes through completely unchanged.
 # This overlay never mutates the pinned source, CFLAGS, CPPFLAGS, or any
 # CMake-generated build flag; the environment variables below are scoped, via

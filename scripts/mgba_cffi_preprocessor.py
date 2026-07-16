@@ -50,11 +50,13 @@ line's absence, write a TEMPORARY copy outside the source tree with ONLY that
 one line rewritten to the exact upstream ``typedef ... va_list;`` text, and
 delete the temp copy in a ``finally`` block. On the explicitly selected
 MSYS2/MinGW path only, the temporary copy also disables ``__attribute__(...)``
-while ``<limits.h>`` and its system-header chain are expanded, then restores it
-before any mGBA header is included; the resulting stream normalizes only
-typedef aliases whose underlying compiler-only type is ``__builtin_va_list``
-into CFFI's ``typedef ... alias;`` syntax. POSIX preprocessing is otherwise
-unchanged.
+and predefines MinGW's ``__INTRIN_H_`` guard while ``<limits.h>`` and its
+system-header chain are expanded. This excludes irrelevant compiler intrinsic
+declarations (such as ``__debugbreak``) from the cdef stream; both macros are
+restored before any mGBA header is included. The resulting stream normalizes
+only typedef aliases whose underlying compiler-only type is
+``__builtin_va_list`` into CFFI's ``typedef ... alias;`` syntax. POSIX
+preprocessing is otherwise unchanged.
 Any drift from that exact expectation (the line missing, duplicated, already
 replaced, an unreadable/oversized/non-UTF-8 file, a missing
 ``FEBUILDERGBA_MGBA_BUILDER_H``, a missing
@@ -119,6 +121,8 @@ NEW_BUILDER_LINE = "typedef ... va_list;"
 LIMITS_INCLUDE_LINE = "#include <limits.h>"
 ATTRIBUTE_DISABLE_LINE = "#define __attribute__(X)"
 ATTRIBUTE_RESTORE_LINE = "#undef __attribute__"
+INTRIN_GUARD_DISABLE_LINE = "#define __INTRIN_H_"
+INTRIN_GUARD_RESTORE_LINE = "#undef __INTRIN_H_"
 
 # A pinned header file is a few hundred bytes; this bound is generous while
 # still refusing to buffer an unbounded/adversarial input in memory.
@@ -239,17 +243,24 @@ def _rewrite_builder_h_text(text: str, *, sanitize_mingw: bool = False) -> str:
                 "expected exactly one pinned limits.h include for MinGW "
                 f"sanitization, found {len(limits_matches)}"
             )
-        for forbidden in (ATTRIBUTE_DISABLE_LINE, ATTRIBUTE_RESTORE_LINE):
+        for forbidden in (
+            ATTRIBUTE_DISABLE_LINE,
+            ATTRIBUTE_RESTORE_LINE,
+            INTRIN_GUARD_DISABLE_LINE,
+            INTRIN_GUARD_RESTORE_LINE,
+        ):
             if any(_stripped(line) == forbidden for line in lines):
                 raise PreprocessorError(
-                    "MinGW attribute sanitizer line is already present"
+                    "MinGW system-header sanitizer line is already present"
                 )
         limits_index = limits_matches[0]
         limits_original = lines[limits_index]
         limits_ending = limits_original[len(_stripped(limits_original)):]
         lines[limits_index:limits_index + 1] = [
             ATTRIBUTE_DISABLE_LINE + limits_ending,
+            INTRIN_GUARD_DISABLE_LINE + limits_ending,
             limits_original,
+            INTRIN_GUARD_RESTORE_LINE + limits_ending,
             ATTRIBUTE_RESTORE_LINE + limits_ending,
         ]
     return "".join(lines)

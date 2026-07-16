@@ -160,8 +160,10 @@ wrapper recognizes ONLY the exact pinned `_builder.h` (by canonical path),
 requires its old workaround line exactly once and the upstream replacement's
 absence, rewrites *only* that one line in a temporary copy, preprocesses that
 copy, and deletes it in a `finally` block. On MSYS2 only, the temporary header
-also disables `__attribute__(...)` while `<limits.h>` expands (restoring it
-before mGBA headers), then normalizes only preprocessed
+also disables `__attribute__(...)` and predefines MinGW's `__INTRIN_H_` guard
+while `<limits.h>` expands. This excludes irrelevant compiler intrinsic
+declarations such as `__debugbreak`; both macros are restored before mGBA
+headers. The wrapper then normalizes only preprocessed
 `typedef __builtin_va_list <alias>;` lines to CFFI's
 `typedef ... <alias>;` syntax (bounded and identifier-validated). POSIX output
 is otherwise unchanged. The wrapper fails closed (nonzero exit, static

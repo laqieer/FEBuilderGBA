@@ -123,14 +123,22 @@ def test_mingw_rewrite_scopes_attribute_sanitizer_to_limits_header():
     rewritten = wrapper._rewrite_builder_h_text(text, sanitize_mingw=True)
     assert (
         "#define __attribute__(X)\n"
+        "#define __INTRIN_H_\n"
         "#include <limits.h>\n"
+        "#undef __INTRIN_H_\n"
         "#undef __attribute__\n"
     ) in rewritten
     assert rewritten.count(wrapper.ATTRIBUTE_DISABLE_LINE) == 1
     assert rewritten.count(wrapper.ATTRIBUTE_RESTORE_LINE) == 1
-    assert rewritten.index(wrapper.ATTRIBUTE_DISABLE_LINE) < rewritten.index(
-        wrapper.LIMITS_INCLUDE_LINE
-    ) < rewritten.index(wrapper.ATTRIBUTE_RESTORE_LINE)
+    assert rewritten.count(wrapper.INTRIN_GUARD_DISABLE_LINE) == 1
+    assert rewritten.count(wrapper.INTRIN_GUARD_RESTORE_LINE) == 1
+    assert (
+        rewritten.index(wrapper.ATTRIBUTE_DISABLE_LINE)
+        < rewritten.index(wrapper.INTRIN_GUARD_DISABLE_LINE)
+        < rewritten.index(wrapper.LIMITS_INCLUDE_LINE)
+        < rewritten.index(wrapper.INTRIN_GUARD_RESTORE_LINE)
+        < rewritten.index(wrapper.ATTRIBUTE_RESTORE_LINE)
+    )
     assert rewritten.index(wrapper.ATTRIBUTE_RESTORE_LINE) < rewritten.index(
         "#include <mgba/flags.h>"
     )
@@ -553,6 +561,8 @@ def test_mingw_main_preprocesses_a_scoped_attribute_sanitizer(
     assert wrapper.main(["-Iinclude", str(builder_h)]) == 0
     assert (
         wrapper.ATTRIBUTE_DISABLE_LINE + "\n"
+        + wrapper.INTRIN_GUARD_DISABLE_LINE + "\n"
         + wrapper.LIMITS_INCLUDE_LINE + "\n"
+        + wrapper.INTRIN_GUARD_RESTORE_LINE + "\n"
         + wrapper.ATTRIBUTE_RESTORE_LINE + "\n"
     ) in seen["text"]
