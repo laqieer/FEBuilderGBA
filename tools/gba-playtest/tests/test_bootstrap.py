@@ -1143,6 +1143,17 @@ def test_build_script_converts_all_cpp_paths_for_native_msys_python():
         assert text.index(conversion) < cpp_pos
 
 
+def test_build_script_enables_mingw_cdef_sanitization_only_under_msystem():
+    text = _read(BUILD_SCRIPT)
+    assert "MGBA_CFFI_MINGW_CDEF=0" in text
+    assert re.search(
+        r'if \[ -n "\$\{MSYSTEM:-\}" \]; then\s+'
+        r'MGBA_CFFI_MINGW_CDEF=1\s+fi',
+        text,
+    )
+    assert text.index("MGBA_CFFI_MINGW_CDEF=1") < text.index("MGBA_CFFI_CPP=")
+
+
 def test_build_script_scopes_cpp_wrapper_to_both_build_invocations_only():
     text = _read(BUILD_SCRIPT)
     # Every CPP=... assignment in the script must be a command-scoped prefix
@@ -1158,12 +1169,13 @@ def test_build_script_scopes_cpp_wrapper_to_both_build_invocations_only():
     assert "export CPP" not in text, "CPP must never be exported/persisted"
     assert "export FEBUILDERGBA_MGBA_BUILDER_H" not in text
     assert "export FEBUILDERGBA_MGBA_SOURCE_ROOT" not in text
+    assert "export FEBUILDERGBA_MGBA_MINGW_CDEF" not in text
 
     default_build = text.find('cmake --build "${CMAKE_BUILD}" --config Release')
     bdist_build = text.find('cmake --build "${CMAKE_BUILD}" --target mgba-py-bdist')
     for build_pos in (default_build, bdist_build):
         assert build_pos != -1
-        preceding = text[max(0, build_pos - 200):build_pos]
+        preceding = text[max(0, build_pos - 320):build_pos]
         assert 'CPP="${MGBA_CFFI_CPP}"' in preceding, (
             "each CMake build invocation that can run _builder.py must be "
             "immediately preceded by the scoped CPP assignment"
@@ -1176,6 +1188,8 @@ def test_build_script_scopes_cpp_wrapper_to_both_build_invocations_only():
         )
         assert '${MGBA_BUILDER_H_ARG}' in preceding
         assert '${MGBA_SOURCE_ROOT_ARG}' in preceding
+        assert "FEBUILDERGBA_MGBA_MINGW_CDEF=" in preceding
+        assert '${MGBA_CFFI_MINGW_CDEF}' in preceding
 
 
 def test_build_script_cffi_overlay_does_not_touch_cflags_or_source():

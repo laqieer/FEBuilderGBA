@@ -48,6 +48,7 @@ def _no_ambient_wrapper_env(monkeypatch):
     # leak into a test that expects them unset/specific.
     monkeypatch.delenv(wrapper.ENV_EXPECTED_BUILDER_H, raising=False)
     monkeypatch.delenv(wrapper.ENV_SOURCE_ROOT, raising=False)
+    monkeypatch.delenv(wrapper.ENV_MINGW_CDEF, raising=False)
 
 
 # --------------------------------------------------------------------------- #
@@ -66,6 +67,15 @@ def test_cc_override_with_only_whitespace_fails_closed(monkeypatch):
     monkeypatch.setenv(wrapper.ENV_CC_OVERRIDE, "   ")
     with pytest.raises(wrapper.PreprocessorError, match="empty command"):
         wrapper._resolve_compiler_tokens()
+
+
+def test_mingw_cdef_flag_accepts_only_zero_or_one(monkeypatch):
+    assert wrapper._mingw_cdef_enabled() is False
+    monkeypatch.setenv(wrapper.ENV_MINGW_CDEF, "1")
+    assert wrapper._mingw_cdef_enabled() is True
+    monkeypatch.setenv(wrapper.ENV_MINGW_CDEF, "yes")
+    with pytest.raises(wrapper.PreprocessorError, match="must be 0 or 1"):
+        wrapper._mingw_cdef_enabled()
 
 
 # --------------------------------------------------------------------------- #
@@ -101,6 +111,35 @@ def test_rewrite_rejects_when_upstream_replacement_already_present():
     text = "#define va_list void*\ntypedef ... va_list;\n"
     with pytest.raises(wrapper.PreprocessorError, match="already present"):
         wrapper._rewrite_builder_h_text(text)
+
+
+def test_mingw_rewrite_scopes_attribute_sanitizer_to_limits_header():
+    text = (
+        "#define PYCPARSE\n"
+        "#define va_list void*\n"
+        "#include <limits.h>\n"
+        "#include <mgba/flags.h>\n"
+    )
+    rewritten = wrapper._rewrite_builder_h_text(text, sanitize_mingw=True)
+    assert (
+        "#define __attribute__(X)\n"
+        "#include <limits.h>\n"
+        "#undef __attribute__\n"
+    ) in rewritten
+    assert rewritten.count(wrapper.ATTRIBUTE_DISABLE_LINE) == 1
+    assert rewritten.count(wrapper.ATTRIBUTE_RESTORE_LINE) == 1
+    assert rewritten.index(wrapper.ATTRIBUTE_DISABLE_LINE) < rewritten.index(
+        wrapper.LIMITS_INCLUDE_LINE
+    ) < rewritten.index(wrapper.ATTRIBUTE_RESTORE_LINE)
+    assert rewritten.index(wrapper.ATTRIBUTE_RESTORE_LINE) < rewritten.index(
+        "#include <mgba/flags.h>"
+    )
+
+
+def test_mingw_rewrite_fails_closed_if_limits_include_drifts():
+    text = "#define va_list void*\n"
+    with pytest.raises(wrapper.PreprocessorError, match="limits.h"):
+        wrapper._rewrite_builder_h_text(text, sanitize_mingw=True)
 
 
 # --------------------------------------------------------------------------- #
@@ -470,9 +509,13 @@ def test_builder_preprocessor_output_normalizes_builtin_va_list(
     monkeypatch, tmp_path, capsysbinary
 ):
     builder_h = tmp_path / "_builder.h"
-    builder_h.write_text(wrapper.OLD_BUILDER_LINE + "\n", encoding="utf-8")
+    builder_h.write_text(
+        wrapper.OLD_BUILDER_LINE + "\n" + wrapper.LIMITS_INCLUDE_LINE + "\n",
+        encoding="utf-8",
+    )
     monkeypatch.setenv(wrapper.ENV_EXPECTED_BUILDER_H, str(builder_h))
     monkeypatch.setenv(wrapper.ENV_SOURCE_ROOT, str(tmp_path))
+    monkeypatch.setenv(wrapper.ENV_MINGW_CDEF, "1")
     monkeypatch.setattr(
         wrapper.subprocess,
         "run",
@@ -484,3 +527,32 @@ def test_builder_preprocessor_output_normalizes_builtin_va_list(
 
     assert wrapper.main(["-Iinclude", str(builder_h)]) == 0
     assert capsysbinary.readouterr().out == b"typedef ... __gnuc_va_list;\n"
+
+
+def test_mingw_main_preprocesses_a_scoped_attribute_sanitizer(
+    monkeypatch, tmp_path
+):
+    builder_h = tmp_path / "_builder.h"
+    builder_h.write_text(
+        wrapper.OLD_BUILDER_LINE + "\n"
+        + wrapper.LIMITS_INCLUDE_LINE + "\n"
+        + "#include <mgba/flags.h>\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv(wrapper.ENV_EXPECTED_BUILDER_H, str(builder_h))
+    monkeypatch.setenv(wrapper.ENV_SOURCE_ROOT, str(tmp_path))
+    monkeypatch.setenv(wrapper.ENV_MINGW_CDEF, "1")
+    seen = {}
+
+    def fake_run(command, stdout, stderr):
+        with open(command[-1], "r", encoding="utf-8") as handle:
+            seen["text"] = handle.read()
+        return _FakeCompleted(returncode=0)
+
+    monkeypatch.setattr(wrapper.subprocess, "run", fake_run)
+    assert wrapper.main(["-Iinclude", str(builder_h)]) == 0
+    assert (
+        wrapper.ATTRIBUTE_DISABLE_LINE + "\n"
+        + wrapper.LIMITS_INCLUDE_LINE + "\n"
+        + wrapper.ATTRIBUTE_RESTORE_LINE + "\n"
+    ) in seen["text"]

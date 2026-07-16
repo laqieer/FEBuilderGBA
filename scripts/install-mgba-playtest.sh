@@ -342,6 +342,10 @@ MGBA_CFFI_PYTHON_ARG="$(to_native_path "${VENV_PY}")"
 MGBA_CFFI_WRAPPER_ARG="$(to_native_path "${MGBA_CFFI_WRAPPER}")"
 MGBA_BUILDER_H_ARG="$(to_native_path "${MGBA_BUILDER_H}")"
 MGBA_SOURCE_ROOT_ARG="$(to_native_path "${MGBA_SOURCE_ROOT}")"
+MGBA_CFFI_MINGW_CDEF=0
+if [ -n "${MSYSTEM:-}" ]; then
+    MGBA_CFFI_MINGW_CDEF=1
+fi
 # Build CPP as EXACTLY two argv tokens (the venv interpreter, then the wrapper
 # path) so _builder.py's `shlex.split(os.environ['CPP'])` reconstructs it
 # correctly even when repository/venv paths contain spaces. Each token is
@@ -451,6 +455,7 @@ echo "Building libmgba..."
 # default build target can itself invoke _builder.py's cdef generation.
 CPP="${MGBA_CFFI_CPP}" FEBUILDERGBA_MGBA_BUILDER_H="${MGBA_BUILDER_H_ARG}" \
     FEBUILDERGBA_MGBA_SOURCE_ROOT="${MGBA_SOURCE_ROOT_ARG}" \
+    FEBUILDERGBA_MGBA_MINGW_CDEF="${MGBA_CFFI_MINGW_CDEF}" \
     cmake --build "${CMAKE_BUILD}" --config Release
 MGBA_PY_DIST="${SRC_DIR}/src/platform/python/dist"
 # The extracted source is recreated above on every run. A dist directory here
@@ -470,6 +475,7 @@ echo "Building the display-free Python wheel (mgba-py-bdist)..."
 # target invokes setup.py, which drives _builder.py's cdef generation.
 CPP="${MGBA_CFFI_CPP}" FEBUILDERGBA_MGBA_BUILDER_H="${MGBA_BUILDER_H_ARG}" \
     FEBUILDERGBA_MGBA_SOURCE_ROOT="${MGBA_SOURCE_ROOT_ARG}" \
+    FEBUILDERGBA_MGBA_MINGW_CDEF="${MGBA_CFFI_MINGW_CDEF}" \
     cmake --build "${CMAKE_BUILD}" --target mgba-py-bdist --config Release
 
 shopt -s nullglob

@@ -47,19 +47,24 @@ Only when the final argument names the exact, canonical, bootstrap-supplied
 ``_builder.h`` does this script read that file (bounded, strict UTF-8),
 require the exact old line above exactly once and the upstream replacement
 line's absence, write a TEMPORARY copy outside the source tree with ONLY that
-one line rewritten to the exact upstream ``typedef ... va_list;`` text, run
-the real preprocessor against that temp copy, normalize only typedef aliases
-whose underlying compiler-only type is ``__builtin_va_list`` into CFFI's
-``typedef ... alias;`` syntax, and delete the temp copy in a ``finally`` block.
+one line rewritten to the exact upstream ``typedef ... va_list;`` text, and
+delete the temp copy in a ``finally`` block. On the explicitly selected
+MSYS2/MinGW path only, the temporary copy also disables ``__attribute__(...)``
+while ``<limits.h>`` and its system-header chain are expanded, then restores it
+before any mGBA header is included; the resulting stream normalizes only
+typedef aliases whose underlying compiler-only type is ``__builtin_va_list``
+into CFFI's ``typedef ... alias;`` syntax. POSIX preprocessing is otherwise
+unchanged.
 Any drift from that exact expectation (the line missing, duplicated, already
 replaced, an unreadable/oversized/non-UTF-8 file, a missing
 ``FEBUILDERGBA_MGBA_BUILDER_H``, a missing
-``FEBUILDERGBA_MGBA_SOURCE_ROOT``, a same-named but differently-located
-``_builder.h``, too many compiler-only aliases, or a temp copy that would land
-inside the pinned source tree) is a hard, nonzero-exit failure with a short,
-static, data-free diagnostic on stderr -- never a silent guess. A failure to
-delete the temp copy after a successful preprocessor run is ALSO a hard,
-nonzero-exit failure (never silently swallowed) -- see ``main()``.
+``FEBUILDERGBA_MGBA_SOURCE_ROOT``, an invalid MinGW selector, a same-named but
+differently-located ``_builder.h``, a drifted ``<limits.h>`` include, too many
+compiler-only aliases, or a temp copy that would land inside the pinned source
+tree) is a hard, nonzero-exit failure with a short, static, data-free
+diagnostic on stderr -- never a silent guess. A failure to delete the temp copy
+after a successful preprocessor run is ALSO a hard, nonzero-exit failure
+(never silently swallowed) -- see ``main()``.
 
 This script never mutates the pinned source tree, CFLAGS, CPPFLAGS, or any
 CMake-generated build flag; it only ever substitutes the final path argument
@@ -92,6 +97,12 @@ ENV_EXPECTED_BUILDER_H = "FEBUILDERGBA_MGBA_BUILDER_H"
 # -- even if TMPDIR/TEMP is hostile or misconfigured to point inside it.
 ENV_SOURCE_ROOT = "FEBUILDERGBA_MGBA_SOURCE_ROOT"
 
+# The bootstrap sets this to ``1`` only for the MSYS2/MinGW build. It enables
+# narrowly scoped parser sanitization for compiler-only declarations emitted
+# by current MinGW system headers. POSIX builds set ``0`` and retain their
+# otherwise-working preprocessor stream.
+ENV_MINGW_CDEF = "FEBUILDERGBA_MGBA_MINGW_CDEF"
+
 # Optional override for the real compiler binary (tokenized, never a raw
 # shell string). Unset defaults to plain ``cc``; this script always appends
 # ``-E`` itself, mirroring _builder.py's own ``cc -E`` default.
@@ -105,6 +116,9 @@ BUILDER_H_BASENAME = "_builder.h"
 # docstring and install-mgba-playtest.sh for the citation.
 OLD_BUILDER_LINE = "#define va_list void*"
 NEW_BUILDER_LINE = "typedef ... va_list;"
+LIMITS_INCLUDE_LINE = "#include <limits.h>"
+ATTRIBUTE_DISABLE_LINE = "#define __attribute__(X)"
+ATTRIBUTE_RESTORE_LINE = "#undef __attribute__"
 
 # A pinned header file is a few hundred bytes; this bound is generous while
 # still refusing to buffer an unbounded/adversarial input in memory.
@@ -156,6 +170,13 @@ def _expected_source_root() -> str:
     return root
 
 
+def _mingw_cdef_enabled() -> bool:
+    value = os.environ.get(ENV_MINGW_CDEF, "0")
+    if value not in ("0", "1"):
+        raise PreprocessorError(f"{ENV_MINGW_CDEF} must be 0 or 1")
+    return value == "1"
+
+
 def _path_is_within(path: str, root: str) -> bool:
     """Return True iff canonical ``path`` is ``root`` itself or nested under it.
 
@@ -185,7 +206,7 @@ def _read_bounded_utf8(path: str) -> str:
         raise PreprocessorError(f"input file is not valid UTF-8: {exc}") from exc
 
 
-def _rewrite_builder_h_text(text: str) -> str:
+def _rewrite_builder_h_text(text: str, *, sanitize_mingw: bool = False) -> str:
     """Rewrite exactly one line, failing closed on any ambiguity or drift."""
     lines = text.splitlines(keepends=True)
 
@@ -207,6 +228,30 @@ def _rewrite_builder_h_text(text: str) -> str:
     original = lines[index]
     ending = original[len(_stripped(original)):]
     lines[index] = NEW_BUILDER_LINE + ending
+
+    if sanitize_mingw:
+        limits_matches = [
+            i for i, line in enumerate(lines)
+            if _stripped(line) == LIMITS_INCLUDE_LINE
+        ]
+        if len(limits_matches) != 1:
+            raise PreprocessorError(
+                "expected exactly one pinned limits.h include for MinGW "
+                f"sanitization, found {len(limits_matches)}"
+            )
+        for forbidden in (ATTRIBUTE_DISABLE_LINE, ATTRIBUTE_RESTORE_LINE):
+            if any(_stripped(line) == forbidden for line in lines):
+                raise PreprocessorError(
+                    "MinGW attribute sanitizer line is already present"
+                )
+        limits_index = limits_matches[0]
+        limits_original = lines[limits_index]
+        limits_ending = limits_original[len(_stripped(limits_original)):]
+        lines[limits_index:limits_index + 1] = [
+            ATTRIBUTE_DISABLE_LINE + limits_ending,
+            limits_original,
+            ATTRIBUTE_RESTORE_LINE + limits_ending,
+        ]
     return "".join(lines)
 
 
@@ -300,8 +345,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 "an input named _builder.h does not match the expected "
                 "canonical pinned path"
             )
+        sanitize_mingw = _mingw_cdef_enabled()
         text = _read_bounded_utf8(final_path)
-        rewritten = _rewrite_builder_h_text(text)
+        rewritten = _rewrite_builder_h_text(
+            text, sanitize_mingw=sanitize_mingw
+        )
         # Only required once every other check has already passed -- this
         # keeps every earlier fail-closed diagnostic specific to its own
         # cause, and defers the source-root requirement to the one place it
@@ -321,7 +369,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             )
         rewritten_argv = list(args[:-1]) + [temp_path]
         result = _run_real_preprocessor(
-            rewritten_argv, normalize_builder_output=True
+            rewritten_argv, normalize_builder_output=sanitize_mingw
         )
     except PreprocessorError as exc:
         sys.stderr.write(f"mgba_cffi_preprocessor: {exc}\n")

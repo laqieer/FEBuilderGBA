@@ -159,9 +159,12 @@ Python an unlaunchable `/c/...` executable path. The
 wrapper recognizes ONLY the exact pinned `_builder.h` (by canonical path),
 requires its old workaround line exactly once and the upstream replacement's
 absence, rewrites *only* that one line in a temporary copy, preprocesses that
-copy, normalizes only preprocessed `typedef __builtin_va_list <alias>;` lines
-to CFFI's `typedef ... <alias>;` syntax (bounded and identifier-validated), and
-deletes it in a `finally` block — failing closed (nonzero exit, static
+copy, and deletes it in a `finally` block. On MSYS2 only, the temporary header
+also disables `__attribute__(...)` while `<limits.h>` expands (restoring it
+before mGBA headers), then normalizes only preprocessed
+`typedef __builtin_va_list <alias>;` lines to CFFI's
+`typedef ... <alias>;` syntax (bounded and identifier-validated). POSIX output
+is otherwise unchanged. The wrapper fails closed (nonzero exit, static
 diagnostic) on any drift, ambiguity, mismatch, excessive aliases, or cleanup failure
 (a failed deletion is never silently swallowed; if the real preprocessor also
 already failed, that original nonzero exit code is preserved rather than
