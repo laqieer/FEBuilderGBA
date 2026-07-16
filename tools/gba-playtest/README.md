@@ -165,9 +165,12 @@ while `<limits.h>` expands. This excludes irrelevant compiler intrinsic
 declarations such as `__debugbreak`; both macros are restored before mGBA
 headers. The wrapper then normalizes only preprocessed
 `typedef __builtin_va_list <alias>;` lines to CFFI's
-`typedef ... <alias>;` syntax (bounded and identifier-validated). POSIX output
-is otherwise unchanged. The wrapper fails closed (nonzero exit, static
-diagnostic) on any drift, ambiguity, mismatch, excessive aliases, or cleanup failure
+`typedef ... <alias>;` syntax (bounded and identifier-validated), removes
+bounded top-level MinGW `extern/static __inline__` intrinsic definitions with
+brace-aware scanning, and retains declaration-only forms after dropping just
+the extension token. POSIX output is otherwise unchanged. The wrapper fails
+closed (nonzero exit, static diagnostic) on any drift, ambiguity, mismatch,
+excessive aliases/inline blocks, or cleanup failure
 (a failed deletion is never silently swallowed; if the real preprocessor also
 already failed, that original nonzero exit code is preserved rather than
 masked). The temporary copy's location is itself proven to be outside the

@@ -191,6 +191,47 @@ def test_builtin_va_list_alias_count_is_bounded():
         wrapper._normalize_builder_output(data)
 
 
+def test_mingw_inline_declaration_drops_only_the_extension_token():
+    data = b"extern __inline__ void declaration_only(void);\n"
+    assert wrapper._normalize_builder_output(data) == (
+        b"extern  void declaration_only(void);\n"
+    )
+
+
+def test_mingw_inline_definition_is_removed_with_asm_string_braces():
+    data = (
+        b"void __debugbreak(void);\n"
+        b"extern __inline__ void __debugbreak(void)\n"
+        b"{\n"
+        b'  __asm__ __volatile__("int {$}3":);\n'
+        b"}\n"
+        b"int retained;\n"
+    )
+    assert wrapper._normalize_builder_output(data) == (
+        b"void __debugbreak(void);\nint retained;\n"
+    )
+
+
+def test_mingw_inline_definition_handles_nested_code_braces():
+    data = (
+        b"static __inline int helper(int value)\n"
+        b"{\n"
+        b"  if (value) {\n"
+        b"    return 1;\n"
+        b"  }\n"
+        b"  return 0;\n"
+        b"}\n"
+        b"int retained;\n"
+    )
+    assert wrapper._normalize_builder_output(data) == b"int retained;\n"
+
+
+def test_unterminated_mingw_inline_definition_fails_closed():
+    data = b"extern __inline__ void broken(void)\n{\n"
+    with pytest.raises(wrapper.PreprocessorError, match="unterminated"):
+        wrapper._normalize_builder_output(data)
+
+
 # --------------------------------------------------------------------------- #
 # main(): pass-through for non-_builder.h inputs (notably lib.h)
 # --------------------------------------------------------------------------- #

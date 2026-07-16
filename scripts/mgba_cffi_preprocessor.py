@@ -55,8 +55,10 @@ system-header chain are expanded. This excludes irrelevant compiler intrinsic
 declarations (such as ``__debugbreak``) from the cdef stream; both macros are
 restored before any mGBA header is included. The resulting stream normalizes
 only typedef aliases whose underlying compiler-only type is
-``__builtin_va_list`` into CFFI's ``typedef ... alias;`` syntax. POSIX
-preprocessing is otherwise unchanged.
+``__builtin_va_list`` into CFFI's ``typedef ... alias;`` syntax, removes
+top-level MinGW ``extern/static __inline__`` intrinsic definitions with bounded
+brace-aware scanning, and keeps declaration-only forms after dropping just the
+extension token. POSIX preprocessing is otherwise unchanged.
 Any drift from that exact expectation (the line missing, duplicated, already
 replaced, an unreadable/oversized/non-UTF-8 file, a missing
 ``FEBUILDERGBA_MGBA_BUILDER_H``, a missing
@@ -128,6 +130,8 @@ INTRIN_GUARD_RESTORE_LINE = "#undef __INTRIN_H_"
 # still refusing to buffer an unbounded/adversarial input in memory.
 MAX_BUILDER_H_BYTES = 1_048_576
 MAX_BUILTIN_VA_LIST_TYPEDEFS = 16
+MAX_MINGW_INLINE_BLOCKS = 256
+MAX_MINGW_INLINE_BLOCK_LINES = 4096
 
 
 class PreprocessorError(RuntimeError):
@@ -282,8 +286,95 @@ def _remove_temp(path: str) -> None:
     os.remove(path)
 
 
+def _brace_delta(line: bytes) -> int:
+    """Count braces outside quoted C string/character literals."""
+    delta = 0
+    quote: Optional[int] = None
+    escaped = False
+    for value in line:
+        if quote is not None:
+            if escaped:
+                escaped = False
+            elif value == 0x5C:  # backslash
+                escaped = True
+            elif value == quote:
+                quote = None
+            continue
+        if value in (0x22, 0x27):  # double/single quote
+            quote = value
+        elif value == 0x7B:  # {
+            delta += 1
+        elif value == 0x7D:  # }
+            delta -= 1
+    return delta
+
+
+def _mingw_inline_token(line: bytes) -> Optional[bytes]:
+    stripped = line.lstrip()
+    for storage in (b"extern ", b"static "):
+        if not stripped.startswith(storage):
+            continue
+        remainder = stripped[len(storage):]
+        for token in (b"__inline__", b"__inline"):
+            if remainder.startswith(token + b" "):
+                return token
+    return None
+
+
+def _strip_mingw_inline_blocks(lines: List[bytes]) -> List[bytes]:
+    """Drop MinGW compiler-intrinsic inline definitions from CFFI input."""
+    output: List[bytes] = []
+    index = 0
+    stripped_blocks = 0
+    while index < len(lines):
+        token = _mingw_inline_token(lines[index])
+        if token is None:
+            output.append(lines[index])
+            index += 1
+            continue
+
+        signature: List[bytes] = []
+        delimiter: Optional[int] = None
+        while index < len(lines) and len(signature) < 32:
+            line = lines[index]
+            signature.append(line)
+            body = line.rstrip(b"\r\n")
+            semicolon = body.find(b";")
+            brace = body.find(b"{")
+            if semicolon >= 0 and (brace < 0 or semicolon < brace):
+                delimiter = 0x3B  # ;
+                break
+            if brace >= 0:
+                delimiter = 0x7B  # {
+                break
+            index += 1
+        if delimiter is None:
+            raise PreprocessorError("unterminated MinGW inline declaration")
+
+        if delimiter == 0x3B:
+            output.extend(line.replace(token, b"", 1) for line in signature)
+            index += 1
+            continue
+
+        stripped_blocks += 1
+        if stripped_blocks > MAX_MINGW_INLINE_BLOCKS:
+            raise PreprocessorError("too many MinGW inline definition blocks")
+        depth = sum(_brace_delta(line) for line in signature)
+        index += 1
+        consumed = len(signature)
+        while depth > 0 and index < len(lines):
+            depth += _brace_delta(lines[index])
+            index += 1
+            consumed += 1
+            if consumed > MAX_MINGW_INLINE_BLOCK_LINES:
+                raise PreprocessorError("MinGW inline definition exceeds line bound")
+        if depth != 0:
+            raise PreprocessorError("unterminated MinGW inline definition")
+    return output
+
+
 def _normalize_builder_output(data: bytes) -> bytes:
-    """Replace compiler-only ``__builtin_va_list`` aliases for CFFI parsing."""
+    """Normalize compiler-only MinGW constructs for CFFI parsing."""
     lines = data.splitlines(keepends=True)
     normalized = 0
     for index, line in enumerate(lines):
@@ -306,7 +397,7 @@ def _normalize_builder_output(data: bytes) -> bytes:
         if normalized > MAX_BUILTIN_VA_LIST_TYPEDEFS:
             raise PreprocessorError("too many builtin va_list typedef aliases")
         lines[index] = b"typedef ... " + alias + b";" + ending
-    return b"".join(lines)
+    return b"".join(_strip_mingw_inline_blocks(lines))
 
 
 def _run_real_preprocessor(
