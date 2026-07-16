@@ -191,6 +191,45 @@ def test_builtin_va_list_alias_count_is_bounded():
         wrapper._normalize_builder_output(data)
 
 
+def test_mingw_compiler_qualifier_tokens_are_normalized():
+    data = (
+        b"__extension__ typedef long long ssize_t;\n"
+        b"const char *__restrict value;\n"
+        b"__volatile__ __signed__ int flag;\n"
+    )
+    assert wrapper._normalize_builder_output(data) == (
+        b" typedef long long ssize_t;\n"
+        b"const char * value;\n"
+        b"volatile signed int flag;\n"
+    )
+
+
+def test_mingw_token_replacement_does_not_touch_quoted_literals():
+    data = (
+        b'const char *a = "__extension__ __restrict";\n'
+        b"const int b = '__const__';\n"
+    )
+    assert wrapper._normalize_builder_output(data) == data
+
+
+def test_extension_prefix_before_inline_definition_is_removed_with_body():
+    data = (
+        b"__extension__ extern __inline__ void helper(void)\n"
+        b"{\n"
+        b"}\n"
+        b"int retained;\n"
+    )
+    assert wrapper._normalize_builder_output(data) == b"int retained;\n"
+
+
+def test_mingw_compiler_token_replacement_count_is_bounded(monkeypatch):
+    monkeypatch.setattr(wrapper, "MAX_MINGW_TOKEN_REPLACEMENTS", 1)
+    with pytest.raises(wrapper.PreprocessorError, match="too many"):
+        wrapper._normalize_builder_output(
+            b"__extension__ int first;\n__extension__ int second;\n"
+        )
+
+
 def test_mingw_inline_declaration_drops_only_the_extension_token():
     data = b"extern __inline__ void declaration_only(void);\n"
     assert wrapper._normalize_builder_output(data) == (

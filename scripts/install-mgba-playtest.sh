@@ -320,8 +320,9 @@ VENV_PY="$(detect_venv_python)" \
 # preprocessed typedef aliases backed by compiler-only __builtin_va_list into
 # CFFI's ellipsis syntax, excludes MinGW intrinsics while limits.h expands,
 # strips bounded compiler-only inline intrinsic definitions from the resulting
-# cdef stream, and fails closed on any drift, ambiguity, mismatch, containment
-# violation, excessive aliases/inline blocks, or cleanup failure.
+# cdef stream, token-normalizes safe parser-only GCC qualifiers, and fails
+# closed on any drift, ambiguity, mismatch, containment violation, excessive
+# aliases/inline blocks/token replacements, or cleanup failure.
 # Every other input (notably lib.h) passes through completely unchanged.
 # This overlay never mutates the pinned source, CFLAGS, CPPFLAGS, or any
 # CMake-generated build flag; the environment variables below are scoped, via

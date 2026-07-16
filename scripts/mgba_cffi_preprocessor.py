@@ -58,7 +58,9 @@ only typedef aliases whose underlying compiler-only type is
 ``__builtin_va_list`` into CFFI's ``typedef ... alias;`` syntax, removes
 top-level MinGW ``extern/static __inline__`` intrinsic definitions with bounded
 brace-aware scanning, and keeps declaration-only forms after dropping just the
-extension token. The complete successful preprocessor stream is capped at
+extension token. It also token-normalizes the safe parser-only GCC qualifier
+class (``__extension__``, restrict, volatile, const, and signed spellings)
+outside quoted literals. The complete successful preprocessor stream is capped at
 64 MiB and at 16,384 inline blocks, accommodating the generated MinGW header
 set while retaining deterministic resource bounds. POSIX preprocessing is
 otherwise unchanged.
@@ -136,6 +138,16 @@ MAX_PREPROCESSED_BYTES = 64 * 1024 * 1024
 MAX_BUILTIN_VA_LIST_TYPEDEFS = 16
 MAX_MINGW_INLINE_BLOCKS = 16_384
 MAX_MINGW_INLINE_BLOCK_LINES = 4096
+MAX_MINGW_TOKEN_REPLACEMENTS = 65_536
+
+MINGW_TOKEN_REPLACEMENTS = {
+    b"__extension__": b"",
+    b"__restrict": b"",
+    b"__restrict__": b"",
+    b"__volatile__": b"volatile",
+    b"__const__": b"const",
+    b"__signed__": b"signed",
+}
 
 
 class PreprocessorError(RuntimeError):
@@ -325,6 +337,63 @@ def _mingw_inline_token(line: bytes) -> Optional[bytes]:
     return None
 
 
+def _replace_mingw_tokens(lines: List[bytes]) -> List[bytes]:
+    """Normalize parser-only GCC qualifiers outside quoted literals."""
+    output: List[bytes] = []
+    replacements = 0
+    for line in lines:
+        rewritten = bytearray()
+        index = 0
+        quote: Optional[int] = None
+        escaped = False
+        while index < len(line):
+            value = line[index]
+            if quote is not None:
+                rewritten.append(value)
+                if escaped:
+                    escaped = False
+                elif value == 0x5C:
+                    escaped = True
+                elif value == quote:
+                    quote = None
+                index += 1
+                continue
+            if value in (0x22, 0x27):
+                quote = value
+                rewritten.append(value)
+                index += 1
+                continue
+            if value == 0x5F or 0x41 <= value <= 0x5A or 0x61 <= value <= 0x7A:
+                end = index + 1
+                while end < len(line):
+                    char = line[end]
+                    if not (
+                        char == 0x5F
+                        or 0x30 <= char <= 0x39
+                        or 0x41 <= char <= 0x5A
+                        or 0x61 <= char <= 0x7A
+                    ):
+                        break
+                    end += 1
+                token = line[index:end]
+                replacement = MINGW_TOKEN_REPLACEMENTS.get(token)
+                if replacement is not None:
+                    replacements += 1
+                    if replacements > MAX_MINGW_TOKEN_REPLACEMENTS:
+                        raise PreprocessorError(
+                            "too many MinGW compiler-token replacements"
+                        )
+                    rewritten.extend(replacement)
+                else:
+                    rewritten.extend(token)
+                index = end
+                continue
+            rewritten.append(value)
+            index += 1
+        output.append(bytes(rewritten))
+    return output
+
+
 def _strip_mingw_inline_blocks(lines: List[bytes]) -> List[bytes]:
     """Drop MinGW compiler-intrinsic inline definitions from CFFI input."""
     output: List[bytes] = []
@@ -401,6 +470,7 @@ def _normalize_builder_output(data: bytes) -> bytes:
         if normalized > MAX_BUILTIN_VA_LIST_TYPEDEFS:
             raise PreprocessorError("too many builtin va_list typedef aliases")
         lines[index] = b"typedef ... " + alias + b";" + ending
+    lines = _replace_mingw_tokens(lines)
     return b"".join(_strip_mingw_inline_blocks(lines))
 
 
