@@ -125,6 +125,7 @@ require_cmd "tar" "Install tar to extract the source archive."
 require_cmd "git" "Install git so exact source provenance can be stamped."
 require_cmd "mktemp" "Install coreutils so temporary files can be created safely."
 require_cmd "pkg-config" "Install pkg-config so native build dependencies can be verified."
+require_cmd "grep" "Install grep so the generated feature header can be verified."
 
 for dependency in epoxy libffi libpng zlib; do
     if ! pkg-config --exists "${dependency}"; then
@@ -132,6 +133,29 @@ for dependency in epoxy libffi libpng zlib; do
     fi
     echo "  found ${dependency} -> $(pkg-config --modversion "${dependency}")"
 done
+
+# FFmpeg's development modules are mandatory, not optional: the pinned mGBA
+# 0.10.5 Python binding's CFFI declaration exposes the e-Reader API
+# (EReaderScanLoadImageA and friends) unconditionally, but src/core/ereader.c
+# only *defines* those symbols when USE_FFMPEG is compiled in. Building with
+# USE_FFMPEG off therefore leaves the CFFI-visible symbols undefined and the
+# wheel fails to import ("undefined symbol: EReaderScanLoadImageA"). CMake
+# additionally requires all of libavcodec/libavfilter/libavformat/libavutil/
+# libswscale plus one of libswresample or libavresample before it will accept
+# USE_FFMPEG at all.
+for dependency in libavcodec libavfilter libavformat libavutil libswscale; do
+    if ! pkg-config --exists "${dependency}"; then
+        fail "Required FFmpeg development module '${dependency}' was not found via pkg-config (needed so USE_FFMPEG can be enabled; the e-Reader API is only compiled under USE_FFMPEG)."
+    fi
+    echo "  found ${dependency} -> $(pkg-config --modversion "${dependency}")"
+done
+if pkg-config --exists libswresample; then
+    echo "  found libswresample -> $(pkg-config --modversion libswresample)"
+elif pkg-config --exists libavresample; then
+    echo "  found libavresample -> $(pkg-config --modversion libavresample)"
+else
+    fail "Required FFmpeg resampler module was not found via pkg-config (need one of libswresample or libavresample)."
+fi
 
 PY_VERSION="$("${PYTHON_BIN}" -c 'import sys; print("%d.%d" % sys.version_info[:2])')"
 echo "  python version ${PY_VERSION}"
@@ -281,10 +305,33 @@ cmake -S "${SRC_DIR}" -B "${CMAKE_BUILD}" \
     "${GENERATOR[@]}" \
     -DBUILD_PYTHON=ON \
     -DBUILD_QT=OFF -DBUILD_SDL=OFF -DBUILD_GL=OFF -DBUILD_GLES2=OFF \
-    -DUSE_FFMPEG=OFF -DUSE_DISCORD_RPC=OFF \
+    -DUSE_FFMPEG=ON -DUSE_DISCORD_RPC=OFF \
     -DUSE_PNG=ON -DUSE_ZLIB=ON \
     -DCOLOR_16_BIT=ON -DCOLOR_5_6_5=ON \
     -DPYTHON_EXECUTABLE="${VENV_PY}"
+
+# --- Fail closed on the GENERATED feature header, never CMakeCache.txt -----
+# CMake's find_feature() can silently shadow a requested feature OFF (e.g. if
+# an FFmpeg module were missing) without that ever showing up as an error, and
+# CMakeCache.txt can retain a stale/cached USE_FFMPEG value from a prior run
+# that no longer reflects what was actually just configured. The single
+# authoritative source is the header CMake generates from this configure:
+# ${CMAKE_BUILD}/include/mgba/flags.h, which contains either
+# "#define USE_FFMPEG" or "/* #undef USE_FFMPEG */". Read that generated
+# header directly -- do NOT trust CMakeCache.txt -- and abort before building
+# if USE_FFMPEG, USE_PNG, or USE_ZLIB is not an uncommented #define.
+FLAGS_HEADER="${CMAKE_BUILD}/include/mgba/flags.h"
+echo "Verifying the generated feature header (not CMakeCache.txt): ${FLAGS_HEADER}"
+if [ ! -f "${FLAGS_HEADER}" ]; then
+    fail "Generated feature header not found: ${FLAGS_HEADER}. Cannot verify USE_FFMPEG/USE_PNG/USE_ZLIB were actually enabled by this configure."
+fi
+for feature in USE_FFMPEG USE_PNG USE_ZLIB; do
+    if ! grep -Eq "^[[:space:]]*#define[[:space:]]+${feature}([[:space:]]|$)" "${FLAGS_HEADER}"; then
+        fail "Generated flags.h does not enable ${feature} (checked ${FLAGS_HEADER} directly, not CMakeCache.txt). A required native dependency was likely shadowed OFF by find_feature()."
+    fi
+    echo "  confirmed ${feature} is #define'd in the generated flags.h"
+done
+
 echo "Building libmgba..."
 cmake --build "${CMAKE_BUILD}" --config Release
 MGBA_PY_DIST="${SRC_DIR}/src/platform/python/dist"

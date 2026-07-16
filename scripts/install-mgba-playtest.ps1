@@ -73,6 +73,7 @@ its UCRT64 shell, install these packages before re-running:
   mingw-w64-ucrt-x86_64-libpng
   mingw-w64-ucrt-x86_64-zlib
   mingw-w64-ucrt-x86_64-pkgconf
+  mingw-w64-ucrt-x86_64-ffmpeg
   git  curl  tar
 Then re-run this script, optionally with -Msys2Root <path> or by setting the
 MSYS2_ROOT environment variable.
@@ -112,8 +113,15 @@ $saved = @{}
 foreach ($name in @("MSYSTEM", "CHERE_INVOKING", "MSYS2_PATH_TYPE")) {
     $saved[$name] = [Environment]::GetEnvironmentVariable($name, "Process")
 }
+# Windows PowerShell's default console encoding can prepend a UTF-8 BOM to
+# stdin, which Bash then reads as literal bytes at the start of the piped
+# script (breaking both the probe and the delegate here-strings below). Force
+# a BOM-free UTF8Encoding across BOTH stdin pipelines and restore the original
+# $OutputEncoding in the same finally block that restores the saved env vars.
+$savedOutputEncoding = $OutputEncoding
 $bootstrapExit = 1
 try {
+    $OutputEncoding = New-Object System.Text.UTF8Encoding($false)
     $env:MSYSTEM = "UCRT64"
     $env:CHERE_INVOKING = "1"
 
@@ -128,10 +136,16 @@ if ! command -v ninja >/dev/null 2>&1 && ! command -v make >/dev/null 2>&1; then
 fi
 # Native configure/build dependencies are probed through pkg-config rather than
 # guessed header paths. PNG + zlib are mandatory for screenshot evidence.
+# FFmpeg's dev modules are mandatory too: mGBA's e-Reader API (EReaderScanLoadImageA
+# et al.) is only compiled when USE_FFMPEG is on, and this CFFI binding declares
+# those symbols unconditionally, so an FFmpeg-less build fails at import time.
 if command -v pkg-config >/dev/null 2>&1; then
-  for p in epoxy libffi libpng zlib; do
+  for p in epoxy libffi libpng zlib libavcodec libavfilter libavformat libavutil libswscale; do
     pkg-config --exists "$p" || missing="$missing $p"
   done
+  if ! pkg-config --exists libswresample && ! pkg-config --exists libavresample; then
+    missing="$missing libswresample-or-libavresample"
+  fi
 fi
 # The interpreter that builds and later imports the binding MUST be the UCRT64
 # Python (a python.org/MSVC interpreter cannot load the GCC-built binding).
@@ -147,11 +161,15 @@ echo "TOOLCHAIN-OK MSYSTEM=$MSYSTEM python=$py"
     # Windows PowerShell 5.1 can mangle a complex/multiline command argument.
     # Feed the probe to Bash on stdin instead, while limiting Continue to
     # this captured native invocation so normal bootstrap failures still stop.
+    # A LOGIN shell (-l) is required: a non-login MSYS2 Bash does not source
+    # /etc/profile.d, so /ucrt64/bin is never added to PATH and every probed
+    # tool (and the later delegated build) would silently resolve to nothing
+    # or the wrong (non-UCRT64) toolchain.
     $probeExit = 1
     $probePreference = $ErrorActionPreference
     try {
         $ErrorActionPreference = "Continue"
-        $probeOut = $probe | & $bash -s 2>&1
+        $probeOut = $probe | & $bash -l -s 2>&1
         $probeExit = $LASTEXITCODE
     }
     finally {
@@ -177,10 +195,11 @@ exec bash "$sh_posix" "$@"
     if ($Force) { $forward += "--force" }
 
     Write-Host "Delegating to the POSIX bootstrap under the UCRT64 shell..."
-    $delegate | & $bash -s -- $PosixScript @forward
+    $delegate | & $bash -l -s -- $PosixScript @forward
     $bootstrapExit = $LASTEXITCODE
 }
 finally {
+    $OutputEncoding = $savedOutputEncoding
     foreach ($name in $saved.Keys) {
         if ($null -eq $saved[$name]) {
             Remove-Item "Env:$name" -ErrorAction SilentlyContinue

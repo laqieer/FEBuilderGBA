@@ -64,12 +64,26 @@ not-planned). The PowerShell wrapper therefore does **not** use MSVC: it locates
 a user-installed [MSYS2](https://www.msys2.org) root (from `-Msys2Root`, the
 `MSYS2_ROOT` environment variable, or `C:\msys64`), verifies the UCRT64
 toolchain (Python, GCC, CMake, Ninja/Make, Git, curl, tar) is already installed,
-and runs the same POSIX bootstrap under the UCRT64 shell. It never
+and runs the same POSIX bootstrap under the UCRT64 **login** shell (`bash -l -s`).
+A login shell is required because a non-login MSYS2 Bash never sources
+`/etc/profile.d`, so `/ucrt64/bin` would be missing from `PATH` and every probed
+tool (and the delegated build) could silently resolve to the wrong toolchain.
+The wrapper also forces a BOM-free `UTF8Encoding($false)` onto `$OutputEncoding`
+around both stdin pipelines (the toolchain probe and the delegated bootstrap)
+and restores the original `$OutputEncoding` afterward, because Windows
+PowerShell's default console encoding can otherwise prepend a UTF-8 BOM that
+Bash reads as literal bytes at the start of the piped script. It never
 downloads or installs the toolchain and never mutates global PATH/environment.
-The native prerequisites are `pkg-config`, libffi, libepoxy, libpng, and zlib;
-on MSYS2 install the corresponding `mingw-w64-ucrt-x86_64-*` packages. The
+The native prerequisites are `pkg-config`, libffi, libepoxy, libpng, zlib, and
+the FFmpeg development modules (libavcodec, libavfilter, libavformat, libavutil,
+libswscale, plus one of libswresample/libavresample — install the MSYS2
+`mingw-w64-ucrt-x86_64-ffmpeg` package). FFmpeg's modules are **mandatory, not
+optional**, for this pinned Python binding: its CFFI declaration exposes the
+e-Reader API (`EReaderScanLoadImageA` and friends) unconditionally, but mGBA
+only *compiles* those symbols when `USE_FFMPEG` is on, so an FFmpeg-less build
+produces a wheel that fails to import with an undefined-symbol error. The
 bootstrap verifies each dependency before configuring mGBA so PNG screenshot
-support cannot be silently omitted.
+support and the e-Reader API cannot be silently omitted.
 
 Both scripts fetch only the official `mgba-emu/mgba` commit
 `26b7884bc25a5933960f3cdcd98bac1ae14d42e2` as a commit archive, verify its
@@ -81,6 +95,22 @@ version **and** commit). The bootstrap builds a local wheel from that pinned
 source and installs that exact wheel offline with dependency resolution
 disabled; it does not use the legacy, modern-setuptools-incompatible install
 target.
+
+On Ubuntu the same native prerequisites are installed as system packages:
+`build-essential cmake ninja-build pkg-config libepoxy-dev libffi-dev
+libpng-dev zlib1g-dev libavcodec-dev libavfilter-dev libavformat-dev
+libavutil-dev libswscale-dev libswresample-dev` (the real-mGBA CI job installs
+exactly this set before invoking `install-mgba-playtest.sh`).
+
+Immediately after configuring CMake (`-DUSE_FFMPEG=ON -DUSE_PNG=ON
+-DUSE_ZLIB=ON`) and before building, the POSIX bootstrap fails closed unless the
+CMake-**generated** feature header (`<build>/include/mgba/flags.h`) contains an
+uncommented `#define` for `USE_FFMPEG`, `USE_PNG`, and `USE_ZLIB`. This
+deliberately reads that generated header instead of `CMakeCache.txt`: CMake's
+`find_feature()` can silently shadow a requested feature back OFF (e.g. if an
+FFmpeg module is missing) without an error, and a stale cache entry from a
+prior run would not reflect what was actually just configured. Only the
+generated header is authoritative here.
 
 On Windows the binding's dependent DLLs (`libmgba`, `libgcc`, `libwinpthread`)
 are not resolved via `runtime_library_dirs` when a UCRT64 Python is launched

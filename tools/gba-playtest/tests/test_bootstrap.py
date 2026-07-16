@@ -52,6 +52,43 @@ def _read(path):
         return handle.read()
 
 
+# Matches grep/cat/awk/sed only when actually invoked as a shell command --
+# i.e. immediately preceded by a real statement/command boundary: start of
+# line, `;`, `&`, `|`, `(` (subshell or `$(...)`/`` `...` `` command
+# substitution), or a shell keyword (`if`/`elif`/`then`/`while`/`until`),
+# optionally with a `!` pipeline negation in between (e.g. `if ! grep ...`).
+# Word boundaries around the command name mean prose suffixes such as
+# "clo{sed}", "ba{sed}", "u{sed}" are never treated as the command.
+_SHELL_COMMAND_START = re.compile(
+    r"(?:^|[;&|(]|\bif\b|\belif\b|\bthen\b|\bwhile\b|\buntil\b)"
+    r"\s*(?:!\s*)?"
+    r"\b(grep|cat|awk|sed)\b"
+)
+
+
+def _shell_command_reads_cmakecache(text):
+    """True if grep/cat/awk/sed is actually INVOKED (on a non-comment line) to
+    read CMakeCache.txt -- as opposed to the string merely appearing in prose
+    or comments discussing why CMakeCache.txt is not trusted.
+
+    Every command match on a line is checked independently, and for each match
+    ``CMakeCache.txt`` is searched for only AFTER that match ends. This means
+    an earlier decoy occurrence of the literal string (e.g. in an unrelated
+    ``echo`` before a real ``grep`` later on the same line) can never mask a
+    real invocation that follows it.
+    """
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if "CMakeCache.txt" not in line:
+            continue
+        for match in _SHELL_COMMAND_START.finditer(line):
+            if line.find("CMakeCache.txt", match.end()) != -1:
+                return True
+    return False
+
+
 def test_bootstrap_scripts_exist():
     assert os.path.isfile(PS1)
     assert os.path.isfile(SH)
@@ -354,11 +391,17 @@ def test_powershell_validates_ucrt64_toolchain_via_probe():
 
 def test_powershell_passes_multiline_scripts_on_bash_stdin_fail_closed():
     text = _read(PS1)
-    assert re.search(r"\$probe\s*\|\s*&\s*\$bash\s+-s\s+2>&1", text), (
-        "the probe must reach Bash through stdin"
+    assert re.search(r"\$probe\s*\|\s*&\s*\$bash\s+-l\s+-s\s+2>&1", text), (
+        "the probe must reach Bash through stdin on a LOGIN shell (-l -s)"
     )
-    assert re.search(r"\$delegate\s*\|\s*&\s*\$bash\s+-s\s+--\s+\$PosixScript\s+@forward", text), (
-        "the bootstrap delegate must reach Bash through stdin"
+    assert re.search(
+        r"\$delegate\s*\|\s*&\s*\$bash\s+-l\s+-s\s+--\s+\$PosixScript\s+@forward", text
+    ), "the bootstrap delegate must reach Bash through stdin on a LOGIN shell (-l -s)"
+    # A non-login MSYS2 Bash never sources /etc/profile.d, so /ucrt64/bin would
+    # be missing from PATH; a bare "-s" invocation (no "-l") is exactly the bug
+    # this contract forbids, so no such invocation may remain anywhere.
+    assert not re.search(r"&\s*\$bash\s+-s\b", text), (
+        "Bash must never be invoked without the -l login-shell flag"
     )
     assert not re.search(r"-lc\s+\$probe\b", text)
     assert not re.search(r"-lc\s+\$inner\b", text)
@@ -369,7 +412,7 @@ def test_powershell_passes_multiline_scripts_on_bash_stdin_fail_closed():
     assert 'sh_win="$0"' not in delegate.group(1)
     probe_try = text.find("$probePreference = $ErrorActionPreference")
     probe_finally = text.find("$ErrorActionPreference = $probePreference", probe_try)
-    probe_call = text.find("$probe | & $bash -s 2>&1", probe_try)
+    probe_call = text.find("$probe | & $bash -l -s 2>&1", probe_try)
     assert -1 < probe_try < probe_call < probe_finally, (
         "probe Continue preference must be scoped and restored with try/finally"
     )
@@ -377,6 +420,33 @@ def test_powershell_passes_multiline_scripts_on_bash_stdin_fail_closed():
     assert re.search(r"\$bootstrapExit\s*=\s*\$LASTEXITCODE", text)
     assert re.search(r"if\s*\(\$bootstrapExit\s+-ne\s+0\)", text), (
         "bootstrap exit must remain explicit and fail-closed"
+    )
+
+
+def test_powershell_scopes_bom_free_output_encoding_with_finally_restore():
+    text = _read(PS1)
+    assert re.search(r"\$savedOutputEncoding\s*=\s*\$OutputEncoding", text), (
+        "the original $OutputEncoding must be captured before it is mutated"
+    )
+    assert re.search(
+        r"\$OutputEncoding\s*=\s*New-Object\s+System\.Text\.UTF8Encoding\(\$false\)", text
+    ), "a BOM-free UTF8Encoding($false) must be assigned to $OutputEncoding"
+    i_saved = text.find("$savedOutputEncoding = $OutputEncoding")
+    i_set = text.find("$OutputEncoding = New-Object System.Text.UTF8Encoding($false)")
+    i_probe_call = text.find("$probe | & $bash -l -s 2>&1")
+    i_delegate_call = text.find("$delegate | & $bash -l -s -- $PosixScript @forward")
+    i_restore = text.find("$OutputEncoding = $savedOutputEncoding")
+    assert -1 < i_saved < i_set < i_probe_call < i_delegate_call < i_restore, (
+        "the no-BOM encoding must be scoped across BOTH stdin pipelines and only "
+        "restored afterward"
+    )
+    # The restore must sit in the SAME finally block as the saved-env restore,
+    # not a separate/earlier one (e.g. the probe's own Continue-preference finally).
+    finally_start = text.rfind("finally", 0, i_restore)
+    finally_block = text[finally_start:]
+    assert "$OutputEncoding = $savedOutputEncoding" in finally_block
+    assert ("Set-Item" in finally_block or "Remove-Item" in finally_block), (
+        "OutputEncoding restore must share the finally block with env-var restoration"
     )
 
 
@@ -402,6 +472,27 @@ def test_powershell_guidance_lists_ucrt64_prerequisite_packages():
         "mingw-w64-ucrt-x86_64-pkgconf",
     ):
         assert pkg in text, f"guidance must list {pkg}"
+
+
+def test_powershell_guidance_lists_ffmpeg_package():
+    text = _read(PS1)
+    assert "mingw-w64-ucrt-x86_64-ffmpeg" in text, "guidance must list the new ffmpeg package"
+    # pkgconf was already required and must not be dropped by this change.
+    assert "mingw-w64-ucrt-x86_64-pkgconf" in text
+
+
+def test_powershell_probes_ffmpeg_prerequisites_for_use_ffmpeg():
+    text = _read(PS1)
+    assert (
+        "for p in epoxy libffi libpng zlib libavcodec libavfilter libavformat "
+        "libavutil libswscale" in text
+    ), "wrapper must probe for all six mandatory FFmpeg configure-time modules"
+    assert (
+        "pkg-config --exists libswresample && ! pkg-config --exists libavresample" in text
+    ), "wrapper must require one of libswresample/libavresample, not both"
+    assert "EReaderScanLoadImageA" in text, (
+        "wrapper must document the e-Reader API symbol that requires USE_FFMPEG"
+    )
 
 
 def test_powershell_does_not_use_or_claim_msvc():
@@ -481,10 +572,57 @@ def test_real_workflow_installs_windows_ucrt64_prerequisites():
         assert package in text
 
 
+def test_real_workflow_windows_ucrt64_adds_ffmpeg_and_keeps_pkgconf():
+    text = _read(REAL_WORKFLOW)
+    assert "ffmpeg:p" in text, "UCRT64 job must add the new ffmpeg pacboy token"
+    assert "pkgconf:p" in text, "UCRT64 job must retain the existing pkgconf pacboy token"
+
+
+def test_real_workflow_windows_ucrt64_pacboy_packages_are_exact():
+    text = _read(REAL_WORKFLOW)
+    start = text.index("pacboy: >-")
+    end = text.index("\n\n", start)
+    block = text[start:end]
+    tokens = block.replace("pacboy: >-", "").split()
+    expected = {
+        "python:p", "python-pip:p", "gcc:p", "cmake:p", "ninja:p", "pkgconf:p",
+        "libepoxy:p", "libffi:p", "libpng:p", "zlib:p", "ffmpeg:p",
+    }
+    assert set(tokens) == expected, f"unexpected UCRT64 pacboy package set: {set(tokens)}"
+
+
 def test_real_workflow_installs_ubuntu_native_prerequisites():
     text = _read(REAL_WORKFLOW)
     for package in ("libepoxy-dev", "libffi-dev", "libpng-dev", "zlib1g-dev"):
         assert package in text
+
+
+def test_real_workflow_installs_ubuntu_ffmpeg_prerequisites():
+    text = _read(REAL_WORKFLOW)
+    for package in (
+        "libavcodec-dev",
+        "libavfilter-dev",
+        "libavformat-dev",
+        "libavutil-dev",
+        "libswscale-dev",
+        "libswresample-dev",
+    ):
+        assert package in text, f"Ubuntu job must install {package}"
+
+
+def test_real_workflow_ubuntu_apt_packages_are_exact():
+    text = _read(REAL_WORKFLOW)
+    start = text.index("sudo apt-get install -y")
+    end = text.index("\n\n", start)
+    block = text[start:end]
+    tokens = block.replace("sudo apt-get install -y", "").split()
+    expected = {
+        "build-essential", "cmake", "ninja-build", "pkg-config",
+        "libepoxy-dev", "libffi-dev", "libpng-dev", "zlib1g-dev",
+        "libavcodec-dev", "libavfilter-dev", "libavformat-dev", "libavutil-dev",
+        "libswscale-dev", "libswresample-dev",
+    }
+    assert set(tokens) == expected, f"unexpected Ubuntu apt package set: {set(tokens)}"
 
 
 def test_posix_bootstrap_requires_screenshot_and_cffi_native_dependencies():
@@ -494,6 +632,115 @@ def test_posix_bootstrap_requires_screenshot_and_cffi_native_dependencies():
         assert dependency in text
     assert "-DUSE_PNG=ON" in text
     assert "-DUSE_ZLIB=ON" in text
+
+
+def test_build_script_probes_ffmpeg_prerequisites_for_use_ffmpeg():
+    text = _read(BUILD_SCRIPT)
+    assert (
+        "for dependency in libavcodec libavfilter libavformat libavutil libswscale"
+        in text
+    ), "build script must probe all five mandatory FFmpeg pkg-config modules"
+    assert "pkg-config --exists libswresample" in text
+    assert "pkg-config --exists libavresample" in text
+    assert "EReaderScanLoadImageA" in text, (
+        "build script must document the e-Reader API symbol requiring USE_FFMPEG"
+    )
+    # Evidence: each FFmpeg module's version must be echoed, like the existing
+    # epoxy/libffi/libpng/zlib probes.
+    assert re.search(
+        r'echo\s+"\s*found\s+\$\{dependency\}\s*->\s*\$\(pkg-config\s+--modversion',
+        text,
+    )
+    assert re.search(r'echo\s+"\s*found\s+libswresample\s*->', text)
+    assert re.search(r'echo\s+"\s*found\s+libavresample\s*->', text)
+
+
+def test_build_script_enables_use_ffmpeg():
+    text = _read(BUILD_SCRIPT)
+    assert "-DUSE_FFMPEG=ON" in text, (
+        "the e-Reader API symbols are only compiled when USE_FFMPEG is enabled"
+    )
+    assert "-DUSE_FFMPEG=OFF" not in text, "must not silently leave FFmpeg disabled"
+
+
+def test_build_script_fails_closed_on_generated_flags_header():
+    text = _read(BUILD_SCRIPT)
+    assert 'FLAGS_HEADER="${CMAKE_BUILD}/include/mgba/flags.h"' in text, (
+        "must reference the CMake-generated feature header, not a guessed path"
+    )
+    i_configure = text.find('-DPYTHON_EXECUTABLE="${VENV_PY}"')
+    i_flags_check = text.find("FLAGS_HEADER=")
+    i_build = text.find('cmake --build "${CMAKE_BUILD}" --config Release')
+    assert -1 < i_configure < i_flags_check < i_build, (
+        "the flags.h fail-closed check must run after cmake configure and before the build"
+    )
+    assert re.search(r'if\s+\[\s+!\s+-f\s+"\$\{FLAGS_HEADER\}"\s+\]', text), (
+        "must fail closed if the generated header is missing"
+    )
+    assert "for feature in USE_FFMPEG USE_PNG USE_ZLIB" in text, (
+        "must verify exactly USE_FFMPEG, USE_PNG, and USE_ZLIB"
+    )
+    assert '#define[[:space:]]+${feature}' in text, (
+        "must require an uncommented #define for each feature, not a commented /* #undef */"
+    )
+    assert "|| true" not in text[i_flags_check:i_build], (
+        "the generated-header gate must not fail-open"
+    )
+
+
+def test_build_script_flags_header_check_does_not_trust_cmakecache():
+    text = _read(BUILD_SCRIPT)
+    low = text.lower()
+    assert "cmakecache" in low, (
+        "the script must explicitly document that CMakeCache.txt is not authoritative"
+    )
+    assert re.search(r"not\s+(?:trust\s+)?cmakecache", low), (
+        "the script must explicitly disclaim reliance on CMakeCache.txt"
+    )
+    # No command may parse CMakeCache.txt to gate the feature check itself; the
+    # generated flags.h is the only thing read for USE_FFMPEG/USE_PNG/USE_ZLIB.
+    # (A raw substring/regex scan for "sed" would false-positive on ordinary
+    # prose like "closed"/"based"/"used"; only real command invocations on
+    # non-comment lines count.)
+    assert not _shell_command_reads_cmakecache(text), (
+        "feature verification must read the generated flags.h, not parse CMakeCache.txt"
+    )
+
+
+def test_shell_command_reads_cmakecache_helper_semantics():
+    """Dedicated unit coverage for the ``_shell_command_reads_cmakecache``
+    helper itself, independent of the current script's exact wording. This
+    pins the fail-closed detection semantics so a future edit cannot silently
+    weaken (or re-break) the helper without a test failing here directly.
+    """
+    # A full comment line must never be flagged, even though "sed" is a bare
+    # substring of ordinary prose words like "closed"/"based"/"used".
+    assert not _shell_command_reads_cmakecache(
+        "# --- Fail closed on the GENERATED feature header, never CMakeCache.txt -----"
+    )
+    # A benign diagnostic string mentioning the filename is not a real read.
+    assert not _shell_command_reads_cmakecache(
+        'echo "Verifying the generated header (never trust CMakeCache.txt)"'
+    )
+    # Direct invocation at the start of a line.
+    assert _shell_command_reads_cmakecache('grep USE_FFMPEG CMakeCache.txt')
+    # Negated conditional invocation ("if ! grep ...").
+    assert _shell_command_reads_cmakecache(
+        'if ! grep -q "USE_FFMPEG" CMakeCache.txt; then'
+    )
+    # Command substitution into a variable assignment.
+    assert _shell_command_reads_cmakecache(
+        'cache="$(grep -q "USE_FFMPEG" CMakeCache.txt)"'
+    )
+    # Pipeline invocation of sed.
+    assert _shell_command_reads_cmakecache(
+        'cmake --build . 2>&1 | sed -n "/CMakeCache.txt/p"'
+    )
+    # An earlier decoy occurrence of the literal filename (in an unrelated
+    # echo) must not mask a real grep invocation later on the same line.
+    assert _shell_command_reads_cmakecache(
+        'echo CMakeCache.txt; grep USE_FFMPEG "$CMAKE_BUILD/CMakeCache.txt"'
+    )
 
 
 def test_real_proof_checks_replay_transitions_screenshots_and_save_isolation():
