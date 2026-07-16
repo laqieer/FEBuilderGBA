@@ -18,6 +18,7 @@ invariants are therefore asserted against the POSIX script; the PowerShell
 wrapper has its own contract (MSYS2 detection, no MSVC, no global env mutation).
 """
 
+import ast
 import os
 import re
 import subprocess
@@ -37,6 +38,7 @@ ARCHIVE_SHA = "9475c26e9fa2f4b30c07ab6636e4b0a5b62e4baee2109ede7b2fecc52edae366"
 
 PS1 = os.path.join(SCRIPTS_DIR, "install-mgba-playtest.ps1")
 SH = os.path.join(SCRIPTS_DIR, "install-mgba-playtest.sh")
+CFFI_WRAPPER = os.path.join(SCRIPTS_DIR, "mgba_cffi_preprocessor.py")
 README = os.path.join(TOOL_DIR, "README.md")
 REQUIREMENTS = os.path.join(TOOL_DIR, "requirements-mgba-build.txt")
 REQUIREMENTS_BOOTSTRAP = os.path.join(TOOL_DIR, "requirements-mgba-bootstrap.txt")
@@ -796,7 +798,7 @@ def test_real_workflow_ubuntu_apt_packages_are_exact():
         "build-essential", "cmake", "ninja-build", "pkg-config",
         "libepoxy-dev", "libffi-dev", "libpng-dev", "zlib1g-dev",
         "libavcodec-dev", "libavfilter-dev", "libavformat-dev", "libavutil-dev",
-        "libswscale-dev", "libswresample-dev",
+        "libswscale-dev", "libswresample-dev", "gdb",
     }
     assert set(tokens) == expected, f"unexpected Ubuntu apt package set: {set(tokens)}"
 
@@ -1047,3 +1049,168 @@ def test_runtime_never_installs_or_downloads():
         text = _read(os.path.join(PKG_DIR, name)).lower()
         for token in banned_tokens:
             assert token not in text, f"runtime module {name} must not use {token!r}"
+
+
+# --------------------------------------------------------------------------- #
+# mGBA CFFI cdef preprocessor overlay (fail-closed, source-preserving)
+# --------------------------------------------------------------------------- #
+def test_cffi_wrapper_script_exists_next_to_bootstrap():
+    assert os.path.isfile(CFFI_WRAPPER)
+
+
+def test_build_script_requires_and_locates_the_cffi_wrapper():
+    text = _read(BUILD_SCRIPT)
+    assert 'MGBA_CFFI_WRAPPER="${SCRIPT_DIR}/mgba_cffi_preprocessor.py"' in text
+    assert re.search(r'if\s+\[\s+!\s+-f\s+"\$\{MGBA_CFFI_WRAPPER\}"\s+\]', text), (
+        "must fail closed if the wrapper is missing"
+    )
+
+
+def test_build_script_rejects_a_symlinked_cffi_wrapper():
+    text = _read(BUILD_SCRIPT)
+    wrapper_def = text.index('MGBA_CFFI_WRAPPER="${SCRIPT_DIR}/mgba_cffi_preprocessor.py"')
+    missing_check = text.index('! -f "${MGBA_CFFI_WRAPPER}"')
+    between = text[wrapper_def:missing_check]
+    assert re.search(r'if\s+\[\s+-L\s+"\$\{MGBA_CFFI_WRAPPER\}"\s+\]', between), (
+        "must fail closed on a symlinked wrapper, checked before the -f check"
+    )
+
+
+def test_build_script_builds_cpp_as_two_shlex_safe_tokens():
+    text = _read(BUILD_SCRIPT)
+    assert "mgba_cffi_shlex_quote" in text
+    assert re.search(
+        r'MGBA_CFFI_CPP="\$\(mgba_cffi_shlex_quote "\$\{MGBA_CFFI_PYTHON_ARG\}"\)\s+'
+        r'\$\(mgba_cffi_shlex_quote "\$\{MGBA_CFFI_WRAPPER_ARG\}"\)"',
+        text,
+    ), "CPP must be built from exactly two shlex-safe quoted tokens"
+    # printf %q is deliberately avoided (bash %q can emit $'...' ANSI-C
+    # quoting that Python's shlex does not parse the same way).
+    commands = "\n".join(
+        line for line in text.splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    )
+    assert not re.search(r"\bprintf(?:\s+-v\s+\w+)?\s+[\"']?%q\b", commands)
+
+
+def test_build_script_sets_expected_builder_h_path_env():
+    text = _read(BUILD_SCRIPT)
+    assert 'MGBA_BUILDER_H="${SRC_DIR}/src/platform/python/_builder.h"' in text
+    assert 'MGBA_BUILDER_H_ARG="$(to_native_path "${MGBA_BUILDER_H}")"' in text
+    assert "FEBUILDERGBA_MGBA_BUILDER_H" in text
+
+
+def test_build_script_sets_expected_source_root_path_env():
+    text = _read(BUILD_SCRIPT)
+    assert 'MGBA_SOURCE_ROOT="${SRC_DIR}"' in text
+    assert 'MGBA_SOURCE_ROOT_ARG="$(to_native_path "${MGBA_SOURCE_ROOT}")"' in text
+    assert "FEBUILDERGBA_MGBA_SOURCE_ROOT" in text
+
+
+def test_build_script_converts_all_cpp_paths_for_native_msys_python():
+    text = _read(BUILD_SCRIPT)
+    assert re.search(
+        r'to_native_path\(\)\s*\{.*?if \[ -n "\$\{MSYSTEM:-\}" \]; then'
+        r'.*?cygpath -w "\$1".*?else.*?printf',
+        text,
+        re.DOTALL,
+    ), "MSYS paths must use cygpath -w while POSIX paths pass through"
+    conversions = (
+        'MGBA_CFFI_PYTHON_ARG="$(to_native_path "${VENV_PY}")"',
+        'MGBA_CFFI_WRAPPER_ARG="$(to_native_path "${MGBA_CFFI_WRAPPER}")"',
+        'MGBA_BUILDER_H_ARG="$(to_native_path "${MGBA_BUILDER_H}")"',
+        'MGBA_SOURCE_ROOT_ARG="$(to_native_path "${MGBA_SOURCE_ROOT}")"',
+    )
+    cpp_pos = text.index("MGBA_CFFI_CPP=")
+    for conversion in conversions:
+        assert conversion in text
+        assert text.index(conversion) < cpp_pos
+
+
+def test_build_script_scopes_cpp_wrapper_to_both_build_invocations_only():
+    text = _read(BUILD_SCRIPT)
+    # Every CPP=... assignment in the script must be a command-scoped prefix
+    # immediately in front of a `cmake --build` invocation -- never exported,
+    # never present anywhere else.
+    cpp_lines = [
+        line for line in text.splitlines()
+        if re.match(r'^\s*CPP="\$\{MGBA_CFFI_CPP\}"', line)
+    ]
+    assert len(cpp_lines) == 2, "CPP must be scoped to exactly two commands"
+    for line in cpp_lines:
+        assert "FEBUILDERGBA_MGBA_BUILDER_H=" in line
+    assert "export CPP" not in text, "CPP must never be exported/persisted"
+    assert "export FEBUILDERGBA_MGBA_BUILDER_H" not in text
+    assert "export FEBUILDERGBA_MGBA_SOURCE_ROOT" not in text
+
+    default_build = text.find('cmake --build "${CMAKE_BUILD}" --config Release')
+    bdist_build = text.find('cmake --build "${CMAKE_BUILD}" --target mgba-py-bdist')
+    for build_pos in (default_build, bdist_build):
+        assert build_pos != -1
+        preceding = text[max(0, build_pos - 200):build_pos]
+        assert 'CPP="${MGBA_CFFI_CPP}"' in preceding, (
+            "each CMake build invocation that can run _builder.py must be "
+            "immediately preceded by the scoped CPP assignment"
+        )
+        assert "FEBUILDERGBA_MGBA_BUILDER_H=" in preceding
+        assert "FEBUILDERGBA_MGBA_SOURCE_ROOT=" in preceding, (
+            "each CMake build invocation that can run _builder.py must also "
+            "carry the scoped source-root env var used to prove the temp "
+            "overlay copy lands outside the pinned source tree"
+        )
+        assert '${MGBA_BUILDER_H_ARG}' in preceding
+        assert '${MGBA_SOURCE_ROOT_ARG}' in preceding
+
+
+def test_build_script_cffi_overlay_does_not_touch_cflags_or_source():
+    text = _read(BUILD_SCRIPT)
+    # The overlay must never be implemented via CFLAGS/CPPFLAGS/CXXFLAGS, and
+    # must never patch the pinned source tree (no sed/patch against SRC_DIR).
+    for token in ("CFLAGS=", "CPPFLAGS=", "CXXFLAGS="):
+        assert token not in text
+    assert not re.search(r"patch\s+-p", text)
+    assert not re.search(r"sed\s+-i", text), (
+        "must not edit files in place (the overlay only ever writes a "
+        "temporary copy, never the pinned source)"
+    )
+
+
+def test_build_script_cites_upstream_fix_commit():
+    text = _read(BUILD_SCRIPT)
+    assert "36f321f84889bc69b48541e0519401c091eeaeca" in text
+    assert "va_list" in text
+    assert "typedef ... va_list;" in text
+
+
+def test_cffi_wrapper_is_dependency_free_and_never_uses_a_shell():
+    text = _read(CFFI_WRAPPER)
+    tree = ast.parse(text)
+    imports = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imports.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imports.add(node.module.split(".")[0])
+    allowed = {"__future__", "os", "shlex", "subprocess", "sys", "tempfile", "typing"}
+    assert imports <= allowed, f"unexpected imports: {imports - allowed}"
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+            continue
+        owner = node.func.value
+        if not isinstance(owner, ast.Name):
+            continue
+        if owner.id == "subprocess" and node.func.attr == "run":
+            assert all(keyword.arg != "shell" for keyword in node.keywords), (
+                "subprocess.run must use structural argv without a shell"
+            )
+        assert not (owner.id == "os" and node.func.attr == "system"), (
+            "the wrapper must never invoke os.system"
+        )
+
+
+def test_cffi_wrapper_is_never_imported_by_the_runtime_package():
+    for name in os.listdir(PKG_DIR):
+        if not name.endswith(".py"):
+            continue
+        text = _read(os.path.join(PKG_DIR, name))
+        assert "mgba_cffi_preprocessor" not in text

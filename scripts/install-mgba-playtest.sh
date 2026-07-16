@@ -86,6 +86,16 @@ sha256_of() {
     fi
 }
 
+to_native_path() {
+    if [ -n "${MSYSTEM:-}" ]; then
+        command -v cygpath >/dev/null 2>&1 \
+            || fail "MSYSTEM=${MSYSTEM} requires cygpath for native Windows path conversion."
+        cygpath -w "$1"
+    else
+        printf '%s\n' "$1"
+    fi
+}
+
 # Guarded recursive delete. Refuses to remove anything that is not one of the
 # three canonical, repository-owned build paths (the build root, the pinned
 # source dir, or the out-of-source CMake build dir), rejects symlinked roots,
@@ -126,6 +136,7 @@ require_cmd "git" "Install git so exact source provenance can be stamped."
 require_cmd "mktemp" "Install coreutils so temporary files can be created safely."
 require_cmd "pkg-config" "Install pkg-config so native build dependencies can be verified."
 require_cmd "grep" "Install grep so the generated feature header can be verified."
+require_cmd "sed" "Install sed so the CPP wrapper command can be constructed safely."
 
 for dependency in epoxy libffi libpng zlib; do
     if ! pkg-config --exists "${dependency}"; then
@@ -287,6 +298,60 @@ fi
 VENV_PY="$(detect_venv_python)" \
     || fail "Could not find the venv interpreter under bin/ or Scripts/ in ${VENV_DIR}."
 
+# --- mGBA CFFI cdef preprocessor overlay (fail-closed, source-preserving) --
+# Newer GCC (observed: UCRT64 GCC 16.1) / glibc header chains expand to a
+# separate "typedef __builtin_va_list __gnuc_va_list;" line that CFFI's cdef
+# parser cannot parse ("cffi.CDefError: cannot parse ..."). The pinned mGBA
+# 0.10.5 _builder.h's "#define va_list void*" workaround does not touch that
+# unrelated line, so cdef generation fails on such toolchains. Official mGBA
+# fixed this with a LATER commit (36f321f84889bc69b48541e0519401c091eeaeca,
+# "Python: Actually fix build") that replaces that exact line with the real
+# "typedef ... va_list;" declaration (verified against that commit's diff).
+# This build stays pinned to the archived 0.10.5 commit above and does NOT
+# cherry-pick or patch that upstream source.
+#
+# Instead, _builder.py's own CPP preprocessor hook is redirected to a
+# repository-owned, dependency-free wrapper (mgba_cffi_preprocessor.py) that
+# recognizes ONLY the exact pinned _builder.h (by canonical path, via
+# FEBUILDERGBA_MGBA_BUILDER_H below), rewrites ONLY that one line in a
+# TEMPORARY copy created outside the source tree (proven via
+# FEBUILDERGBA_MGBA_SOURCE_ROOT below, so a hostile/misconfigured TMPDIR
+# cannot land the overlay copy inside the pinned source), and fails closed on
+# any drift, ambiguity, mismatch, containment violation, or cleanup failure.
+# Every other input (notably lib.h) passes through completely unchanged.
+# This overlay never mutates the pinned source, CFLAGS, CPPFLAGS, or any
+# CMake-generated build flag; the environment variables below are scoped, via
+# a command-only prefix, to ONLY the two CMake build invocations that can run
+# mGBA's _builder.py (the default build and the mgba-py-bdist target).
+MGBA_CFFI_WRAPPER="${SCRIPT_DIR}/mgba_cffi_preprocessor.py"
+if [ -L "${MGBA_CFFI_WRAPPER}" ]; then
+    fail "Refusing symlinked mGBA CFFI preprocessor wrapper: ${MGBA_CFFI_WRAPPER}"
+fi
+if [ ! -f "${MGBA_CFFI_WRAPPER}" ]; then
+    fail "Missing required mGBA CFFI preprocessor wrapper: ${MGBA_CFFI_WRAPPER}"
+fi
+MGBA_BUILDER_H="${SRC_DIR}/src/platform/python/_builder.h"
+MGBA_SOURCE_ROOT="${SRC_DIR}"
+# mGBA's _builder.py executes CPP with native Python subprocess APIs. Under
+# MSYS2, those APIs cannot launch or canonicalize /c/... POSIX paths, so every
+# wrapper-facing path must be converted before it enters CPP or the wrapper's
+# expected-path environment. POSIX hosts retain their original paths.
+MGBA_CFFI_PYTHON_ARG="$(to_native_path "${VENV_PY}")"
+MGBA_CFFI_WRAPPER_ARG="$(to_native_path "${MGBA_CFFI_WRAPPER}")"
+MGBA_BUILDER_H_ARG="$(to_native_path "${MGBA_BUILDER_H}")"
+MGBA_SOURCE_ROOT_ARG="$(to_native_path "${MGBA_SOURCE_ROOT}")"
+# Build CPP as EXACTLY two argv tokens (the venv interpreter, then the wrapper
+# path) so _builder.py's `shlex.split(os.environ['CPP'])` reconstructs it
+# correctly even when repository/venv paths contain spaces. Each token is
+# single-quoted (POSIX/shlex-compatible); embedded single quotes are escaped
+# with the standard '"'"' trick. `printf %q` is deliberately NOT used here:
+# bash's %q can emit $'...' ANSI-C quoting that Python's shlex does not parse
+# the same way.
+mgba_cffi_shlex_quote() {
+    printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\"'\"'/g")"
+}
+MGBA_CFFI_CPP="$(mgba_cffi_shlex_quote "${MGBA_CFFI_PYTHON_ARG}") $(mgba_cffi_shlex_quote "${MGBA_CFFI_WRAPPER_ARG}")"
+
 echo "Installing hash-locked build prerequisites (stage 1: pinned wheels)..."
 "${VENV_PY}" -m pip install --require-hashes --only-binary ":all:" -r "${REQUIREMENTS_BOOTSTRAP}"
 
@@ -367,7 +432,12 @@ for feature in USE_FFMPEG USE_PNG USE_ZLIB; do
 done
 
 echo "Building libmgba..."
-cmake --build "${CMAKE_BUILD}" --config Release
+# CPP/FEBUILDERGBA_MGBA_BUILDER_H/FEBUILDERGBA_MGBA_SOURCE_ROOT are scoped to
+# ONLY this command (a command-only environment prefix, never exported): the
+# default build target can itself invoke _builder.py's cdef generation.
+CPP="${MGBA_CFFI_CPP}" FEBUILDERGBA_MGBA_BUILDER_H="${MGBA_BUILDER_H_ARG}" \
+    FEBUILDERGBA_MGBA_SOURCE_ROOT="${MGBA_SOURCE_ROOT_ARG}" \
+    cmake --build "${CMAKE_BUILD}" --config Release
 MGBA_PY_DIST="${SRC_DIR}/src/platform/python/dist"
 # The extracted source is recreated above on every run. A dist directory here
 # would therefore be stale/unexpected output, not a reusable artifact.
@@ -381,7 +451,12 @@ echo "Building the display-free Python wheel (mgba-py-bdist)..."
 # mgba-py-bdist target instead emits a local wheel; installing that exact file
 # below is safe because the locked build phase is offline and dependency
 # resolution is explicitly disabled.
-cmake --build "${CMAKE_BUILD}" --target mgba-py-bdist --config Release
+# CPP/FEBUILDERGBA_MGBA_BUILDER_H/FEBUILDERGBA_MGBA_SOURCE_ROOT are scoped to
+# ONLY this command (a command-only environment prefix, never exported): this
+# target invokes setup.py, which drives _builder.py's cdef generation.
+CPP="${MGBA_CFFI_CPP}" FEBUILDERGBA_MGBA_BUILDER_H="${MGBA_BUILDER_H_ARG}" \
+    FEBUILDERGBA_MGBA_SOURCE_ROOT="${MGBA_SOURCE_ROOT_ARG}" \
+    cmake --build "${CMAKE_BUILD}" --target mgba-py-bdist --config Release
 
 shopt -s nullglob
 MGBA_WHEELS=("${MGBA_PY_DIST}"/*.whl)
@@ -419,13 +494,6 @@ echo "  local wheel SHA-256 verified after install: ${MGBA_WHEEL_SHA_AFTER}"
 # adapter no-ops there). This is the single strategy shared with the adapter.
 DLL_MANIFEST="${BUILD_ROOT}/mgba-dll-dirs.txt"
 DLL_MANIFEST_TMP="$(mktemp "${BUILD_ROOT}/mgba-dll-dirs.txt.tmp.XXXXXX")"
-to_native_path() {
-    if command -v cygpath >/dev/null 2>&1; then
-        cygpath -w "$1"
-    else
-        printf '%s\n' "$1"
-    fi
-}
 {
     to_native_path "${CMAKE_BUILD}"
     if [ -n "${MSYSTEM:-}" ] && [ -d "/ucrt64/bin" ]; then

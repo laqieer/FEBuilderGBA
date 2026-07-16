@@ -117,14 +117,58 @@ modern-setuptools-incompatible install target.
 On Ubuntu the same native prerequisites are installed as system packages:
 `build-essential cmake ninja-build pkg-config libepoxy-dev libffi-dev
 libpng-dev zlib1g-dev libavcodec-dev libavfilter-dev libavformat-dev
-libavutil-dev libswscale-dev libswresample-dev` (the real-mGBA CI job installs
-exactly this set before invoking `install-mgba-playtest.sh`).
+libavutil-dev libswscale-dev libswresample-dev gdb` (the real-mGBA CI job
+installs exactly this set before invoking `install-mgba-playtest.sh`; `gdb` is
+used only by the diagnostic step described below, never by the bootstrap or
+the runtime).
 
-Ubuntu CI runs a dependency-free, no-artifact native phase smoke after the
-pinned binding build and before the unchanged six-replay synthetic proof. It
-covers construction, load, reset, memory read, held-A input, frames, crash
-queries, PNG encoding, and deterministic close without writing a ROM, scenario,
-result, screenshot, or proof file.
+Both real-mGBA CI jobs (Ubuntu and Windows/MSYS2 UCRT64) run the same
+dependency-free, no-artifact native phase smoke once, after the pinned binding
+build and before the unchanged six-replay synthetic proof. It covers
+construction, load, reset, memory read, held-A input, frames, crash queries,
+PNG encoding, and deterministic close without writing a ROM, scenario, result,
+screenshot, or proof file. On Ubuntu, if that phase smoke step fails, a
+following diagnostic-only step re-runs just its `--child` process directly
+under `gdb --batch -ex run -ex "thread apply all bt full"` and prints the
+native backtrace to the job log; it never runs otherwise (`if: failure() &&
+steps.native_smoke.outcome == 'failure'`), is capped at five minutes, never
+uses `continue-on-error`, and never writes or uploads any artifact.
+
+Newer GCC toolchains (observed: MSYS2 UCRT64 GCC 16.1) changed how the system
+header chain declares `__gnuc_va_list`, which breaks CFFI's cdef parser
+(`cffi.CDefError: cannot parse "typedef __builtin_va_list __gnuc_va_list;"`)
+even though the pinned mGBA 0.10.5 `_builder.h` already carries a `#define
+va_list void*` workaround for the unrelated `va_list` identifier. Upstream
+mGBA fixed this with a LATER commit
+(`36f321f84889bc69b48541e0519401c091eeaeca`, "Python: Actually fix build")
+that replaces that exact line with the real `typedef ... va_list;`
+declaration (this is the literal text of that commit's own fix, verified
+against its diff). This bootstrap stays pinned to the archived 0.10.5 commit
+above and does **not** cherry-pick or patch that upstream source tree, its
+CFLAGS, its CPPFLAGS, or any CMake-generated flag. Instead it redirects
+`_builder.py`'s own `CPP` preprocessor hook, for exactly the two CMake build
+invocations that can run `_builder.py` (the default build and the
+`mgba-py-bdist` target), at a repository-owned, dependency-free wrapper
+(`scripts/mgba_cffi_preprocessor.py`) — and the bootstrap refuses to use that
+wrapper at all if it is a symlink or otherwise not a plain regular file. That
+wrapper is launched by mGBA's native Python subprocess API; under MSYS2 the
+venv interpreter, wrapper, expected header, and source-root paths are therefore
+converted with `cygpath -w` before entering `CPP` or the wrapper environment
+(POSIX hosts retain their original paths). This avoids handing native Windows
+Python an unlaunchable `/c/...` executable path. The
+wrapper recognizes ONLY the exact pinned `_builder.h` (by canonical path),
+requires its old workaround line exactly once and the upstream replacement's
+absence, rewrites *only* that one line in a temporary copy, preprocesses that
+copy, and deletes it in a `finally` block — failing closed (nonzero exit,
+static diagnostic) on any drift, ambiguity, mismatch, or cleanup failure
+(a failed deletion is never silently swallowed; if the real preprocessor also
+already failed, that original nonzero exit code is preserved rather than
+masked). The temporary copy's location is itself proven to be outside the
+pinned source tree — via a dedicated, bootstrap-supplied source-root path —
+so even a hostile or misconfigured `TMPDIR`/`TEMP` cannot land the overlay
+inside the pinned source; if it would, the wrapper refuses to preprocess it
+(and still deletes it). Every other preprocessor input (notably
+`lib.h`) passes through completely unchanged.
 
 Immediately after configuring CMake (`-DUSE_FFMPEG=ON -DUSE_PNG=ON
 -DUSE_ZLIB=ON`) and before building, the POSIX bootstrap fails closed unless the
@@ -187,9 +231,10 @@ never persists or reports a `pass`.
 WU1 (this bootstrap/build/import/replay gate) remains **pending validation by
 real mGBA 0.10.5 CI** (Ubuntu + MSYS2 UCRT64); nothing here is claimed as a
 passing gate until that CI run confirms it. In particular, the **Windows
-transport** fix, native phase smoke, and **real replay** acceptance remain
-pending the next native CI oracle run — no green or support claim is made
-before that run.
+transport** fix (including the CFFI cdef preprocessor overlay above), the
+native phase smoke on both platforms, the Ubuntu gdb-on-failure diagnostic,
+and **real replay** acceptance remain pending the next native CI oracle
+run — no green or support claim is made before that run.
 
 ## Tests
 

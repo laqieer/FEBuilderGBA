@@ -64,14 +64,27 @@ jobs:
         libepoxy-dev libffi-dev libpng-dev zlib1g-dev
         libavcodec-dev libavfilter-dev libavformat-dev libavutil-dev
         libswscale-dev libswresample-dev
+        gdb
 
     - name: Build and verify the pinned binding
       run: bash scripts/install-mgba-playtest.sh --python=python3 --force
 
     - name: Run native phase smoke (no artifacts)
+      id: native_smoke
       run: >-
         tools/gba-playtest/.mgba-build/venv/bin/python
         tools/gba-playtest/tests/run_real_mgba_phase_smoke.py
+
+    - name: Diagnose native phase smoke crash (gdb, no artifacts)
+      if: failure() && steps.native_smoke.outcome == 'failure'
+      timeout-minutes: 5
+      run: >-
+        gdb --batch
+        -ex run
+        -ex "thread apply all bt full"
+        --args
+        tools/gba-playtest/.mgba-build/venv/bin/python
+        tools/gba-playtest/tests/run_real_mgba_phase_smoke.py --child
 
     - name: Run repeated synthetic replay proof
       run: >-
@@ -128,6 +141,23 @@ jobs:
         .\scripts\install-mgba-playtest.ps1
         -Msys2Root "${{ steps.msys2.outputs.msys2-location }}"
         -Force
+
+    - name: Run native phase smoke (no artifacts)
+      id: native_smoke
+      shell: powershell
+      run: |
+        $candidates = @(
+          "tools\gba-playtest\.mgba-build\venv\bin\python.exe",
+          "tools\gba-playtest\.mgba-build\venv\Scripts\python.exe"
+        )
+        $python = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+        if (-not $python) {
+          throw "The bootstrap venv interpreter was not found."
+        }
+        & $python tools\gba-playtest\tests\run_real_mgba_phase_smoke.py
+        if ($LASTEXITCODE -ne 0) {
+          exit $LASTEXITCODE
+        }
 
     - name: Run repeated synthetic replay proof
       shell: powershell
