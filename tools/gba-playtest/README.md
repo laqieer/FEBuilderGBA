@@ -88,13 +88,19 @@ support and the e-Reader API cannot be silently omitted.
 Both scripts fetch only the official `mgba-emu/mgba` commit
 `26b7884bc25a5933960f3cdcd98bac1ae14d42e2` as a commit archive, verify its
 SHA-256 before extraction (no fallback), stamp exact inner Git provenance,
-install hash-locked build dependencies, build the display-free binding into an
-isolated `.mgba-build/` venv, record the native DLL search directories, run a
-direct import + provenance probe, and finish by running `--check` (exact mGBA
-version **and** commit). The bootstrap builds a local wheel from that pinned
-source and installs that exact wheel offline with dependency resolution
-disabled; it does not use the legacy, modern-setuptools-incompatible install
-target.
+additionally fetch the single official lightweight release tag `0.10.5` (as an
+exact `refs/tags/0.10.5` ref, never a branch/HEAD) and fail closed unless it
+resolves (`tag^{commit}`) to that SAME pinned commit, install hash-locked build
+dependencies, build the display-free binding into an isolated `.mgba-build/`
+venv, record the native DLL search directories, run a direct import +
+provenance probe, and finish by running `--check` (exact mGBA version **and**
+commit). The tag check is verified release metadata layered on top of the
+commit pin, not a source selector or fallback: the exact commit fetched and
+reset above remains the sole source of truth, and this only confirms that the
+official `0.10.5` tag genuinely points at that same commit. The bootstrap
+builds a local wheel from that pinned source and installs that exact wheel
+offline with dependency resolution disabled; it does not use the legacy,
+modern-setuptools-incompatible install target.
 
 On Ubuntu the same native prerequisites are installed as system packages:
 `build-essential cmake ninja-build pkg-config libepoxy-dev libffi-dev
@@ -126,6 +132,18 @@ supported build gated by a mandatory real Windows MSYS2 CI job; upstream records
 the Windows Python binding as unresolved (mgba-emu/mgba#1637) and deprecated. If
 the binding cannot link, the bootstrap reports the blocker rather than weakening
 any check.
+
+The hash-locked stage-2 build dependency `cffi` is pinned to **2.1.0**, not
+2.0.0: cffi 2.0.0 was the first release with Python 3.14 support (needed
+because MSYS2 UCRT64 is a rolling distribution currently shipping Python
+3.14), but it carries a MinGW-specific atomic-store regression that breaks
+UCRT64 builds. cffi 2.1.0 (upstream PR #198) switches that store to GCC/Clang
+builtin atomics, fixing the regression while keeping Python 3.14 support, and
+is installed with its exact official PyPI sdist SHA-256 hash.
+
+WU1 (this bootstrap/build/import/replay gate) remains **pending validation by
+real mGBA 0.10.5 CI** (Ubuntu + MSYS2 UCRT64); nothing here is claimed as a
+passing gate until that CI run confirms it.
 
 ## Tests
 

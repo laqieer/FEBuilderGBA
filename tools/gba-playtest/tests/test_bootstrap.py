@@ -116,8 +116,25 @@ def test_build_script_verifies_before_extraction_with_no_fallback():
     text = _read(BUILD_SCRIPT).lower()
     assert "sha-256 mismatch" in text or "sha256 mismatch" in text
     assert "no fallback" in text
-    for ref in ("/archive/refs/heads", "refs/tags", "git checkout main", "git checkout master"):
+    for ref in (
+        "/archive/refs/heads",
+        "/archive/refs/tags",
+        "tar.gz/refs/tags",
+        "zip/refs/tags",
+        "git checkout main",
+        "git checkout master",
+    ):
         assert ref not in text
+    # The downloaded source archive itself must stay keyed by the exact
+    # commit, never by the version/tag (the tag is only cross-checked as
+    # verified metadata against the already-pinned commit elsewhere).
+    assert re.search(
+        r'archive_url="https://codeload\.github\.com/mgba-emu/mgba/tar\.gz/\$\{mgba_commit\}"',
+        text,
+    ), "the source archive URL must be the official codeload commit archive keyed by MGBA_COMMIT"
+    assert "codeload.github.com/mgba-emu/mgba/tar.gz/${mgba_version}" not in text, (
+        "the source archive URL must never be keyed by MGBA_VERSION/tag"
+    )
 
 
 def test_build_script_requires_hashes():
@@ -186,7 +203,42 @@ def test_build_script_git_fetch_targets_exact_pinned_commit_no_fallback():
     )
     assert not re.search(r"git\s+checkout\s+(main|master)", text), "must not checkout a branch"
     assert "refs/heads" not in text, "must not reference branch refs"
-    assert "refs/tags" not in text, "must not reference tag refs"
+    assert re.search(
+        r'git\s+fetch\s+-q\s+origin\s+'
+        r'"refs/tags/\$\{MGBA_VERSION\}:refs/tags/\$\{MGBA_VERSION\}"',
+        text,
+    ), "must fetch ONLY the exact official lightweight tag ref, as a plain ref (no branch/HEAD fallback)"
+
+
+def test_build_script_tag_provenance_cross_checks_pinned_commit():
+    # The tag is verified RELEASE METADATA for the already-pinned commit, not
+    # a source selector or fallback: the commit fetch/reset/HEAD check above
+    # remains the sole source of truth, and this only cross-checks that the
+    # official "0.10.5" tag resolves to that SAME commit.
+    text = _read(BUILD_SCRIPT)
+    assert re.search(
+        r'TAG_COMMIT="\$\(git rev-parse "refs/tags/\$\{MGBA_VERSION\}\^\{commit\}"\)"',
+        text,
+    ), "must resolve the tag to its target commit via tag^{commit}, not just the ref"
+    assert re.search(
+        r'if\s+\[\s+"\$\{TAG_COMMIT\}"\s+!=\s+"\$\{MGBA_COMMIT\}"\s+\]', text
+    ), "must explicitly compare the resolved tag commit against the pinned commit"
+    assert re.search(
+        r'fail\s+"Official tag refs/tags/\$\{MGBA_VERSION\} resolves to \$\{TAG_COMMIT\},'
+        r' not the pinned commit \$\{MGBA_COMMIT\}',
+        text,
+    ), "must fail closed with a clear mismatch message naming both commits"
+    assert re.search(
+        r'git fetch -q origin[\s\S]{0,300}?failed \(no branch/HEAD fallback\)', text
+    ), "tag fetch failure must also fail closed with no fallback"
+    # Mutation-bindable: the fetch destination refspec must be present, not
+    # just the source side, so a mutant dropping the local ref cannot pass.
+    assert text.count("refs/tags/${MGBA_VERSION}") >= 4, (
+        "tag ref must appear in fetch (src+dst), rev-parse target, and fail message"
+    )
+    assert "NOT a source selector or fallback" in text, (
+        "must document the tag as verified metadata, never a selector/fallback"
+    )
 
 
 def test_build_script_git_provenance_runs_after_verification_before_cmake():
@@ -196,6 +248,20 @@ def test_build_script_git_provenance_runs_after_verification_before_cmake():
     i_cmake = text.find("cmake -S")
     assert -1 < i_verify < i_git < i_cmake, (
         "git provenance must sit between archive verification and cmake"
+    )
+
+
+def test_build_script_tag_check_runs_after_commit_verification_before_cmake():
+    # Mutation-bindable: deleting the tag fetch/compare step, or reordering it
+    # before the exact-commit HEAD check or after cmake, collapses this chain
+    # (a missing marker returns -1, which cannot satisfy the ordering).
+    text = _read(BUILD_SCRIPT)
+    i_head_verify = text.find('does not match the pinned commit')
+    i_tag_fetch = text.find('refs/tags/${MGBA_VERSION}:refs/tags/${MGBA_VERSION}')
+    i_tag_compare = text.find('"${TAG_COMMIT}" != "${MGBA_COMMIT}"')
+    i_cmake = text.find("cmake -S")
+    assert -1 < i_head_verify < i_tag_fetch < i_tag_compare < i_cmake, (
+        "tag provenance must be verified after the exact-commit check and before cmake"
     )
 
 
@@ -839,7 +905,27 @@ def test_pinned_build_stack_supports_current_msys2_python_314():
     bootstrap = _read(REQUIREMENTS_BOOTSTRAP)
     build = _read(REQUIREMENTS)
     assert re.search(r"(?mi)^\s*setuptools==83\.0\.0\b", bootstrap)
-    assert re.search(r"(?mi)^\s*cffi==2\.0\.0\b", build)
+    assert re.search(r"(?mi)^\s*cffi==2\.1\.0\b", build)
+
+
+def test_cffi_pin_is_the_mingw_atomic_fix_release_with_exact_hash():
+    # cffi 2.0.0 supports Python 3.14 but carries a MinGW atomic-store
+    # regression that breaks UCRT64 builds; 2.1.0 (upstream PR #198) fixes it
+    # via GCC/Clang builtin atomics while keeping 3.14 support. The old pin
+    # and its hash must be gone entirely, not merely superseded/left as a
+    # stale second pin.
+    build = _read(REQUIREMENTS)
+    assert re.search(
+        r"(?mi)^\s*cffi==2\.1\.0\s*\\\s*--hash=sha256:"
+        r"efc1cdd798b1aaf39b4610bba7aad28c9bea9b910f25c784ccf9ec1fa719d1f9\b",
+        build,
+    ), "cffi must be pinned to 2.1.0 with its exact official sdist hash"
+    assert not re.search(r"(?mi)^\s*cffi==2\.0\.0\b", build), (
+        "the MinGW-atomic-regressed cffi 2.0.0 pin must be removed, not just superseded"
+    )
+    assert "44d1b5909021139fe36001ae048dbdde8214afa20200eda0f64c068cac5d5529" not in build, (
+        "the old cffi 2.0.0 hash must not remain in the requirements file"
+    )
 
 
 def test_runtime_never_installs_or_downloads():

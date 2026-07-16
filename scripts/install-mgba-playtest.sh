@@ -215,7 +215,7 @@ tar -xzf "${SRC_ARCHIVE}" -C "${BUILD_ROOT}"
 # version.cmake reads correct local provenance and never discovers the parent
 # repo. This is a SECOND independent pin on top of the already-verified archive
 # SHA-256 (the first source-integrity gate), not a fallback: only the exact
-# full commit SHA is fetched, with no branch/tag.
+# full commit SHA is fetched, with no branch/tag used as a source selector.
 echo "Stamping exact Git provenance inside the extracted source..."
 (
     cd "${SRC_DIR}"
@@ -236,6 +236,26 @@ echo "Stamping exact Git provenance inside the extracted source..."
         fail "Inner Git tree is not clean after reset to the pinned commit."
     fi
     echo "  inner provenance verified: ${HEAD_SHA}"
+
+    # --- Cross-check the official release tag against the already-pinned
+    # commit (verified release metadata, NOT a source selector or fallback) --
+    # The commit above is already the sole source of truth: it was fetched by
+    # its exact full SHA and independently verified (archive SHA-256 first,
+    # then this exact-commit fetch/reset/HEAD check). This step only fetches
+    # the single official lightweight tag "${MGBA_VERSION}" -- as an exact ref,
+    # never a branch/HEAD -- and confirms it points at that SAME already-pinned
+    # commit, so the "0.10.5" release metadata is genuinely attached to the
+    # exact commit this build uses. It never selects, substitutes, or falls
+    # back to the tag's commit; if the tag disagreed with MGBA_COMMIT, the
+    # build fails closed rather than silently trusting either one.
+    git fetch -q origin "refs/tags/${MGBA_VERSION}:refs/tags/${MGBA_VERSION}" \
+        || fail "git fetch of the official release tag refs/tags/${MGBA_VERSION} failed (no branch/HEAD fallback)."
+    TAG_COMMIT="$(git rev-parse "refs/tags/${MGBA_VERSION}^{commit}")" \
+        || fail "Could not resolve refs/tags/${MGBA_VERSION} to a commit."
+    if [ "${TAG_COMMIT}" != "${MGBA_COMMIT}" ]; then
+        fail "Official tag refs/tags/${MGBA_VERSION} resolves to ${TAG_COMMIT}, not the pinned commit ${MGBA_COMMIT}. Refusing (no fallback)."
+    fi
+    echo "  tag provenance verified: refs/tags/${MGBA_VERSION} -> ${TAG_COMMIT}"
 )
 
 # --- Isolated virtual environment ------------------------------------------
