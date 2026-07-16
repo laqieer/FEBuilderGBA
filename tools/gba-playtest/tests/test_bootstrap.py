@@ -866,6 +866,22 @@ def test_build_script_fails_closed_on_generated_flags_header():
     )
 
 
+def test_build_script_pins_matching_32_bit_python_and_native_color_abi():
+    text = _read(BUILD_SCRIPT)
+    assert "-DCOLOR_16_BIT=OFF" in text
+    assert "-DCOLOR_5_6_5=OFF" in text
+    assert "-DCOLOR_16_BIT=ON" not in text
+    assert "-DCOLOR_5_6_5=ON" not in text
+    assert "for feature in COLOR_16_BIT COLOR_5_6_5" in text
+    assert "Python/native color ABI would diverge" in text
+    assert "GBAVideoSoftwareRendererInit" in text
+
+    configure = text.index("-DCOLOR_16_BIT=OFF")
+    color_gate = text.index("for feature in COLOR_16_BIT COLOR_5_6_5")
+    build = text.index('cmake --build "${CMAKE_BUILD}" --config Release')
+    assert configure < color_gate < build
+
+
 def test_build_script_flags_header_check_does_not_trust_cmakecache():
     text = _read(BUILD_SCRIPT)
     low = text.lower()

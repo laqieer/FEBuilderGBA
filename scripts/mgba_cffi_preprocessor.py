@@ -48,16 +48,18 @@ Only when the final argument names the exact, canonical, bootstrap-supplied
 require the exact old line above exactly once and the upstream replacement
 line's absence, write a TEMPORARY copy outside the source tree with ONLY that
 one line rewritten to the exact upstream ``typedef ... va_list;`` text, run
-the real preprocessor against that temp copy, and delete the temp copy in a
-``finally`` block. Any drift from that exact expectation (the line missing,
-duplicated, already replaced, an unreadable/oversized/non-UTF-8 file, a
-missing ``FEBUILDERGBA_MGBA_BUILDER_H``, a missing
+the real preprocessor against that temp copy, normalize only typedef aliases
+whose underlying compiler-only type is ``__builtin_va_list`` into CFFI's
+``typedef ... alias;`` syntax, and delete the temp copy in a ``finally`` block.
+Any drift from that exact expectation (the line missing, duplicated, already
+replaced, an unreadable/oversized/non-UTF-8 file, a missing
+``FEBUILDERGBA_MGBA_BUILDER_H``, a missing
 ``FEBUILDERGBA_MGBA_SOURCE_ROOT``, a same-named but differently-located
-``_builder.h``, or a temp copy that would land inside the pinned source
-tree) is a hard, nonzero-exit failure with a short, static, data-free
-diagnostic on stderr -- never a silent guess. A failure to delete the temp
-copy after a successful preprocessor run is ALSO a hard, nonzero-exit
-failure (never silently swallowed) -- see ``main()``.
+``_builder.h``, too many compiler-only aliases, or a temp copy that would land
+inside the pinned source tree) is a hard, nonzero-exit failure with a short,
+static, data-free diagnostic on stderr -- never a silent guess. A failure to
+delete the temp copy after a successful preprocessor run is ALSO a hard,
+nonzero-exit failure (never silently swallowed) -- see ``main()``.
 
 This script never mutates the pinned source tree, CFLAGS, CPPFLAGS, or any
 CMake-generated build flag; it only ever substitutes the final path argument
@@ -107,6 +109,7 @@ NEW_BUILDER_LINE = "typedef ... va_list;"
 # A pinned header file is a few hundred bytes; this bound is generous while
 # still refusing to buffer an unbounded/adversarial input in memory.
 MAX_BUILDER_H_BYTES = 1_048_576
+MAX_BUILTIN_VA_LIST_TYPEDEFS = 16
 
 
 class PreprocessorError(RuntimeError):
@@ -223,13 +226,46 @@ def _remove_temp(path: str) -> None:
     os.remove(path)
 
 
-def _run_real_preprocessor(argv: List[str]) -> int:
+def _normalize_builder_output(data: bytes) -> bytes:
+    """Replace compiler-only ``__builtin_va_list`` aliases for CFFI parsing."""
+    lines = data.splitlines(keepends=True)
+    normalized = 0
+    for index, line in enumerate(lines):
+        body = line.rstrip(b"\r\n")
+        ending = line[len(body):]
+        stripped = body.strip()
+        if not stripped.endswith(b";"):
+            continue
+        parts = stripped[:-1].split()
+        if len(parts) != 3 or parts[:2] != [b"typedef", b"__builtin_va_list"]:
+            continue
+        alias = parts[2]
+        try:
+            alias_text = alias.decode("ascii")
+        except UnicodeDecodeError as exc:
+            raise PreprocessorError("invalid builtin va_list typedef alias") from exc
+        if not alias_text.isidentifier():
+            raise PreprocessorError("invalid builtin va_list typedef alias")
+        normalized += 1
+        if normalized > MAX_BUILTIN_VA_LIST_TYPEDEFS:
+            raise PreprocessorError("too many builtin va_list typedef aliases")
+        lines[index] = b"typedef ... " + alias + b";" + ending
+    return b"".join(lines)
+
+
+def _run_real_preprocessor(
+    argv: List[str], *, normalize_builder_output: bool = False
+) -> int:
     """Invoke the real preprocessor structurally (never via a shell)."""
     command = _resolve_compiler_tokens() + ["-E"] + argv
     completed = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output = completed.stdout
+    if completed.returncode == 0 and normalize_builder_output:
+        output = _normalize_builder_output(output)
     # Preserve compiler stdout EXACTLY -- _builder.py treats it as the
-    # preprocessed cdef text. Diagnostics only ever go to stderr.
-    sys.stdout.buffer.write(completed.stdout)
+    # preprocessed cdef text, except for the documented compiler-only typedef
+    # aliases normalized above. Diagnostics only ever go to stderr.
+    sys.stdout.buffer.write(output)
     sys.stdout.buffer.flush()
     if completed.stderr:
         sys.stderr.buffer.write(completed.stderr)
@@ -284,7 +320,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 "TMPDIR?)"
             )
         rewritten_argv = list(args[:-1]) + [temp_path]
-        result = _run_real_preprocessor(rewritten_argv)
+        result = _run_real_preprocessor(
+            rewritten_argv, normalize_builder_output=True
+        )
     except PreprocessorError as exc:
         sys.stderr.write(f"mgba_cffi_preprocessor: {exc}\n")
         result = 1

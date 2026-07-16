@@ -104,6 +104,47 @@ def test_rewrite_rejects_when_upstream_replacement_already_present():
 
 
 # --------------------------------------------------------------------------- #
+# Preprocessed MinGW builtin typedef normalization
+# --------------------------------------------------------------------------- #
+def test_builtin_va_list_alias_is_normalized_for_cffi():
+    data = b"typedef __builtin_va_list __gnuc_va_list;\nint value;\n"
+    assert wrapper._normalize_builder_output(data) == (
+        b"typedef ... __gnuc_va_list;\nint value;\n"
+    )
+
+
+def test_multiple_builtin_va_list_aliases_are_normalized_with_line_endings():
+    data = (
+        b"typedef __builtin_va_list __gnuc_va_list;\r\n"
+        b"  typedef   __builtin_va_list   compiler_va_list ;\n"
+    )
+    assert wrapper._normalize_builder_output(data) == (
+        b"typedef ... __gnuc_va_list;\r\n"
+        b"typedef ... compiler_va_list;\n"
+    )
+
+
+def test_unrelated_preprocessor_output_is_byte_identical():
+    data = b"typedef unsigned long size_t;\n#define VALUE 1\n"
+    assert wrapper._normalize_builder_output(data) == data
+
+
+def test_invalid_builtin_va_list_alias_fails_closed():
+    data = b"typedef __builtin_va_list invalid-alias;\n"
+    with pytest.raises(wrapper.PreprocessorError, match="invalid"):
+        wrapper._normalize_builder_output(data)
+
+
+def test_builtin_va_list_alias_count_is_bounded():
+    data = b"".join(
+        f"typedef __builtin_va_list alias_{index};\n".encode("ascii")
+        for index in range(wrapper.MAX_BUILTIN_VA_LIST_TYPEDEFS + 1)
+    )
+    with pytest.raises(wrapper.PreprocessorError, match="too many"):
+        wrapper._normalize_builder_output(data)
+
+
+# --------------------------------------------------------------------------- #
 # main(): pass-through for non-_builder.h inputs (notably lib.h)
 # --------------------------------------------------------------------------- #
 def test_lib_h_passes_through_completely_unchanged(monkeypatch, capsysbinary):
@@ -423,3 +464,23 @@ def test_nonzero_compiler_exit_is_propagated(monkeypatch):
     )
     monkeypatch.delenv(wrapper.ENV_EXPECTED_BUILDER_H, raising=False)
     assert wrapper.main(["-Iinclude", "lib.h"]) == 7
+
+
+def test_builder_preprocessor_output_normalizes_builtin_va_list(
+    monkeypatch, tmp_path, capsysbinary
+):
+    builder_h = tmp_path / "_builder.h"
+    builder_h.write_text(wrapper.OLD_BUILDER_LINE + "\n", encoding="utf-8")
+    monkeypatch.setenv(wrapper.ENV_EXPECTED_BUILDER_H, str(builder_h))
+    monkeypatch.setenv(wrapper.ENV_SOURCE_ROOT, str(tmp_path))
+    monkeypatch.setattr(
+        wrapper.subprocess,
+        "run",
+        lambda command, stdout, stderr: _FakeCompleted(
+            returncode=0,
+            stdout=b"typedef __builtin_va_list __gnuc_va_list;\n",
+        ),
+    )
+
+    assert wrapper.main(["-Iinclude", str(builder_h)]) == 0
+    assert capsysbinary.readouterr().out == b"typedef ... __gnuc_va_list;\n"

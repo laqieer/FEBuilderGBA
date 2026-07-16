@@ -159,8 +159,10 @@ Python an unlaunchable `/c/...` executable path. The
 wrapper recognizes ONLY the exact pinned `_builder.h` (by canonical path),
 requires its old workaround line exactly once and the upstream replacement's
 absence, rewrites *only* that one line in a temporary copy, preprocesses that
-copy, and deletes it in a `finally` block — failing closed (nonzero exit,
-static diagnostic) on any drift, ambiguity, mismatch, or cleanup failure
+copy, normalizes only preprocessed `typedef __builtin_va_list <alias>;` lines
+to CFFI's `typedef ... <alias>;` syntax (bounded and identifier-validated), and
+deletes it in a `finally` block — failing closed (nonzero exit, static
+diagnostic) on any drift, ambiguity, mismatch, excessive aliases, or cleanup failure
 (a failed deletion is never silently swallowed; if the real preprocessor also
 already failed, that original nonzero exit code is preserved rather than
 masked). The temporary copy's location is itself proven to be outside the
@@ -179,6 +181,14 @@ deliberately reads that generated header instead of `CMakeCache.txt`: CMake's
 FFmpeg module is missing) without an error, and a stale cache entry from a
 prior run would not reflect what was actually just configured. Only the
 generated header is authoritative here.
+
+The Python binding and native renderer are pinned to the same ordinary
+**32-bit `color_t` ABI** (`COLOR_16_BIT=OFF`, `COLOR_5_6_5=OFF`). These names
+are generated-header variables, not ordinary libmgba target compile
+definitions: setting them `ON` made CFFI allocate a 16-bit `Image` while the
+native software renderer still wrote 32-bit pixels, overflowing the framebuffer
+during `GBAVideoSoftwareRendererInit`. The bootstrap verifies both macros stay
+undefined in generated `flags.h` before building.
 
 CMake 4 dropped compatibility with `cmake_minimum_required(VERSION < 3.5)`.
 Pinned mGBA 0.10.5 still declares `VERSION 3.1`, so a modern MSYS2/Ubuntu

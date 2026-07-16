@@ -316,8 +316,10 @@ VENV_PY="$(detect_venv_python)" \
 # FEBUILDERGBA_MGBA_BUILDER_H below), rewrites ONLY that one line in a
 # TEMPORARY copy created outside the source tree (proven via
 # FEBUILDERGBA_MGBA_SOURCE_ROOT below, so a hostile/misconfigured TMPDIR
-# cannot land the overlay copy inside the pinned source), and fails closed on
-# any drift, ambiguity, mismatch, containment violation, or cleanup failure.
+# cannot land the overlay copy inside the pinned source), normalizes only
+# preprocessed typedef aliases backed by compiler-only __builtin_va_list into
+# CFFI's ellipsis syntax, and fails closed on any drift, ambiguity, mismatch,
+# containment violation, excessive aliases, or cleanup failure.
 # Every other input (notably lib.h) passes through completely unchanged.
 # This overlay never mutates the pinned source, CFLAGS, CPPFLAGS, or any
 # CMake-generated build flag; the environment variables below are scoped, via
@@ -375,7 +377,7 @@ echo "Preparing out-of-source CMake build tree..."
 safe_rm_rf "${CMAKE_BUILD}"
 mkdir -p "${CMAKE_BUILD}"
 
-echo "Configuring libmgba (headless, fixed color depth / sync options)..."
+echo "Configuring libmgba (headless, fixed 32-bit color ABI / sync options)..."
 # MSYS2 must use its MSYS make command with the matching CMake generator.
 # This deliberately avoids any Visual Studio / MSVC generator: mGBA 0.10.5's
 # Python binding is a GCC/MinGW-only build.
@@ -406,7 +408,7 @@ cmake -S "${SRC_DIR}" -B "${CMAKE_BUILD}" \
     -DBUILD_QT=OFF -DBUILD_SDL=OFF -DBUILD_GL=OFF -DBUILD_GLES2=OFF \
     -DUSE_FFMPEG=ON -DUSE_DISCORD_RPC=OFF \
     -DUSE_PNG=ON -DUSE_ZLIB=ON \
-    -DCOLOR_16_BIT=ON -DCOLOR_5_6_5=ON \
+    -DCOLOR_16_BIT=OFF -DCOLOR_5_6_5=OFF \
     -DPYTHON_EXECUTABLE="${VENV_PY}"
 
 # --- Fail closed on the GENERATED feature header, never CMakeCache.txt -----
@@ -429,6 +431,18 @@ for feature in USE_FFMPEG USE_PNG USE_ZLIB; do
         fail "Generated flags.h does not enable ${feature} (checked ${FLAGS_HEADER} directly, not CMakeCache.txt). A required native dependency was likely shadowed OFF by find_feature()."
     fi
     echo "  confirmed ${feature} is #define'd in the generated flags.h"
+done
+# COLOR_16_BIT/COLOR_5_6_5 are generated-header variables, but ordinary
+# libmgba targets do not receive matching compile definitions from those cache
+# values. Enabling them here makes CFFI allocate a 16-bit Image while native
+# libmgba still renders 32-bit pixels, overflowing the Python-owned framebuffer
+# in GBAVideoSoftwareRendererInit. Pin the shared ABI to the ordinary 32-bit
+# default and fail closed unless the generated Python header agrees.
+for feature in COLOR_16_BIT COLOR_5_6_5; do
+    if grep -Eq "^[[:space:]]*#define[[:space:]]+${feature}([[:space:]]|$)" "${FLAGS_HEADER}"; then
+        fail "Generated flags.h unexpectedly enables ${feature}; the Python/native color ABI would diverge."
+    fi
+    echo "  confirmed ${feature} is disabled for the shared 32-bit color ABI"
 done
 
 echo "Building libmgba..."
