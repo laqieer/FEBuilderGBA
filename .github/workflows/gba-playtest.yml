@@ -68,6 +68,11 @@ jobs:
     - name: Build and verify the pinned binding
       run: bash scripts/install-mgba-playtest.sh --python=python3 --force
 
+    - name: Run native phase smoke (no artifacts)
+      run: >-
+        tools/gba-playtest/.mgba-build/venv/bin/python
+        tools/gba-playtest/tests/run_real_mgba_phase_smoke.py
+
     - name: Run repeated synthetic replay proof
       run: >-
         tools/gba-playtest/.mgba-build/venv/bin/python
@@ -104,12 +109,12 @@ jobs:
           git
           curl
           tar
+          make
         pacboy: >-
           python:p
           python-pip:p
           gcc:p
           cmake:p
-          ninja:p
           pkgconf:p
           libepoxy:p
           libffi:p

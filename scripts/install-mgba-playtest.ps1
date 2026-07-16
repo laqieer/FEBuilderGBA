@@ -14,7 +14,7 @@
     wrapper deliberately does NOT use or claim MSVC support.
 
     Instead it locates a user-installed MSYS2 root, validates that the UCRT64
-    toolchain (Python, GCC, CMake, Ninja/Make, Git, curl, tar) is already
+    toolchain (Python, GCC, CMake, MSYS /usr/bin/make, Git, curl, tar) is already
     present, and then invokes the exact same fail-hard POSIX bootstrap
     (``install-mgba-playtest.sh``) under the UCRT64 login shell. All provenance,
     hash-locking, exact-commit, and build logic lives in that single POSIX
@@ -67,7 +67,7 @@ its UCRT64 shell, install these packages before re-running:
   mingw-w64-ucrt-x86_64-python
   mingw-w64-ucrt-x86_64-gcc
   mingw-w64-ucrt-x86_64-cmake
-  mingw-w64-ucrt-x86_64-ninja
+  make
   mingw-w64-ucrt-x86_64-libepoxy
   mingw-w64-ucrt-x86_64-libffi
   mingw-w64-ucrt-x86_64-libpng
@@ -161,8 +161,8 @@ missing=""
 for t in python gcc cmake git curl tar pkg-config cygpath; do
   command -v "$t" >/dev/null 2>&1 || missing="$missing $t"
 done
-if ! command -v ninja >/dev/null 2>&1 && ! command -v make >/dev/null 2>&1; then
-  missing="$missing ninja-or-make"
+if [ ! -f /usr/bin/make ] || [ ! -x /usr/bin/make ]; then
+  missing="$missing /usr/bin/make"
 fi
 # Native configure/build dependencies are probed through pkg-config rather than
 # guessed header paths. PNG + zlib are mandatory for screenshot evidence.

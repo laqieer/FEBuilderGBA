@@ -455,7 +455,8 @@ def test_powershell_validates_ucrt64_toolchain_via_probe():
     text = _read(PS1)
     for tool in ("python", "gcc", "cmake", "git", "curl", "tar"):
         assert re.search(rf"\b{tool}\b", text), f"wrapper must probe for {tool}"
-    assert "ninja" in text and "make" in text, "wrapper must require ninja or make"
+    assert "/usr/bin/make" in text, "wrapper must require MSYS /usr/bin/make"
+    assert "ninja-or-make" not in text, "wrapper must not use an ambiguous generator prerequisite"
     assert "command -v" in text, "wrapper must probe with command -v inside the shell"
 
 
@@ -737,7 +738,6 @@ def test_real_workflow_installs_windows_ucrt64_prerequisites():
         "python:p",
         "gcc:p",
         "cmake:p",
-        "ninja:p",
         "pkgconf:p",
         "libepoxy:p",
         "libffi:p",
@@ -745,6 +745,7 @@ def test_real_workflow_installs_windows_ucrt64_prerequisites():
         "zlib:p",
     ):
         assert package in text
+    assert re.search(r"\bmake\b", text), "UCRT64 job must install plain MSYS make"
 
 
 def test_real_workflow_windows_ucrt64_adds_ffmpeg_and_keeps_pkgconf():
@@ -760,7 +761,7 @@ def test_real_workflow_windows_ucrt64_pacboy_packages_are_exact():
     block = text[start:end]
     tokens = block.replace("pacboy: >-", "").split()
     expected = {
-        "python:p", "python-pip:p", "gcc:p", "cmake:p", "ninja:p", "pkgconf:p",
+        "python:p", "python-pip:p", "gcc:p", "cmake:p", "pkgconf:p",
         "libepoxy:p", "libffi:p", "libpng:p", "zlib:p", "ffmpeg:p",
     }
     assert set(tokens) == expected, f"unexpected UCRT64 pacboy package set: {set(tokens)}"

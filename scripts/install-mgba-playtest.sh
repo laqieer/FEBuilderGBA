@@ -311,10 +311,16 @@ safe_rm_rf "${CMAKE_BUILD}"
 mkdir -p "${CMAKE_BUILD}"
 
 echo "Configuring libmgba (headless, fixed color depth / sync options)..."
-# Select a GCC-compatible generator (Ninja preferred, else Unix Makefiles).
+# MSYS2 must use its MSYS make command with the matching CMake generator.
 # This deliberately avoids any Visual Studio / MSVC generator: mGBA 0.10.5's
 # Python binding is a GCC/MinGW-only build.
-if command -v ninja >/dev/null 2>&1; then
+if [ -n "${MSYSTEM:-}" ]; then
+    if [ ! -f /usr/bin/make ] || [ ! -x /usr/bin/make ]; then
+        fail "MSYSTEM=${MSYSTEM} requires executable regular command /usr/bin/make. Install the MSYS2 make package."
+    fi
+    GENERATOR=(-G "MSYS Makefiles")
+elif command -v ninja >/dev/null 2>&1; then
+    # Non-MSYS hosts prefer Ninja, then fall back to Unix Makefiles.
     GENERATOR=(-G Ninja)
 elif command -v make >/dev/null 2>&1 || command -v mingw32-make >/dev/null 2>&1; then
     GENERATOR=(-G "Unix Makefiles")

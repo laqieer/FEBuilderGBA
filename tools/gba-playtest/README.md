@@ -63,12 +63,16 @@ CFFI; the MSVC path is unsupported upstream — mgba-emu/mgba#1637, closed
 not-planned). The PowerShell wrapper therefore does **not** use MSVC: it locates
 a user-installed [MSYS2](https://www.msys2.org) root (from `-Msys2Root`, the
 `MSYS2_ROOT` environment variable, or `C:\msys64`), verifies the UCRT64
-toolchain (Python, GCC, CMake, Ninja/Make, Git, curl, tar) is already installed,
+toolchain (Python, GCC, CMake, MSYS /usr/bin/make, Git, curl, tar) is already installed,
 and runs the same POSIX bootstrap under the UCRT64 **login** shell.
 A login shell (`bash -l`) is required because a non-login MSYS2 Bash never
 sources `/etc/profile.d`, so `/ucrt64/bin` would be missing from `PATH` and
 every probed tool (and the delegated build) could silently resolve to the wrong
 toolchain.
+
+Windows configures mGBA with the CMake **MSYS Makefiles** generator and requires
+the MSYS `/usr/bin/make` command; it does not use Ninja. Non-MSYS hosts prefer
+Ninja and fall back to Unix Makefiles.
 
 The wrapper **never pipes a script to Bash on stdin**. Windows PowerShell 5.1
 prepends a UTF-8 BOM to stdin, which Bash reads as literal bytes at the start of
@@ -115,6 +119,12 @@ On Ubuntu the same native prerequisites are installed as system packages:
 libpng-dev zlib1g-dev libavcodec-dev libavfilter-dev libavformat-dev
 libavutil-dev libswscale-dev libswresample-dev` (the real-mGBA CI job installs
 exactly this set before invoking `install-mgba-playtest.sh`).
+
+Ubuntu CI runs a dependency-free, no-artifact native phase smoke after the
+pinned binding build and before the unchanged six-replay synthetic proof. It
+covers construction, load, reset, memory read, held-A input, frames, crash
+queries, PNG encoding, and deterministic close without writing a ROM, scenario,
+result, screenshot, or proof file.
 
 Immediately after configuring CMake (`-DUSE_FFMPEG=ON -DUSE_PNG=ON
 -DUSE_ZLIB=ON`) and before building, the POSIX bootstrap fails closed unless the
@@ -177,8 +187,9 @@ never persists or reports a `pass`.
 WU1 (this bootstrap/build/import/replay gate) remains **pending validation by
 real mGBA 0.10.5 CI** (Ubuntu + MSYS2 UCRT64); nothing here is claimed as a
 passing gate until that CI run confirms it. In particular, the **Windows
-transport** fix and the **real replay** acceptance both remain **pending the
-next native CI oracle run** — they are not yet claimed as fixed or green.
+transport** fix, native phase smoke, and **real replay** acceptance remain
+pending the next native CI oracle run — no green or support claim is made
+before that run.
 
 ## Tests
 
