@@ -232,6 +232,30 @@ def test_unterminated_mingw_inline_definition_fails_closed():
         wrapper._normalize_builder_output(data)
 
 
+def test_mingw_inline_definition_count_is_bounded(monkeypatch):
+    monkeypatch.setattr(wrapper, "MAX_MINGW_INLINE_BLOCKS", 1)
+    data = (
+        b"extern __inline__ void first(void) {}\n"
+        b"extern __inline__ void second(void) {}\n"
+    )
+    with pytest.raises(wrapper.PreprocessorError, match="too many"):
+        wrapper._normalize_builder_output(data)
+
+
+def test_successful_preprocessor_output_size_is_bounded(monkeypatch, capsysbinary):
+    monkeypatch.setattr(wrapper, "MAX_PREPROCESSED_BYTES", 3)
+    monkeypatch.setattr(
+        wrapper.subprocess,
+        "run",
+        lambda command, stdout, stderr: _FakeCompleted(
+            returncode=0, stdout=b"four"
+        ),
+    )
+    with pytest.raises(wrapper.PreprocessorError, match="size bound"):
+        wrapper._run_real_preprocessor(["lib.h"])
+    assert capsysbinary.readouterr().out == b""
+
+
 # --------------------------------------------------------------------------- #
 # main(): pass-through for non-_builder.h inputs (notably lib.h)
 # --------------------------------------------------------------------------- #

@@ -58,7 +58,10 @@ only typedef aliases whose underlying compiler-only type is
 ``__builtin_va_list`` into CFFI's ``typedef ... alias;`` syntax, removes
 top-level MinGW ``extern/static __inline__`` intrinsic definitions with bounded
 brace-aware scanning, and keeps declaration-only forms after dropping just the
-extension token. POSIX preprocessing is otherwise unchanged.
+extension token. The complete successful preprocessor stream is capped at
+64 MiB and at 16,384 inline blocks, accommodating the generated MinGW header
+set while retaining deterministic resource bounds. POSIX preprocessing is
+otherwise unchanged.
 Any drift from that exact expectation (the line missing, duplicated, already
 replaced, an unreadable/oversized/non-UTF-8 file, a missing
 ``FEBUILDERGBA_MGBA_BUILDER_H``, a missing
@@ -129,8 +132,9 @@ INTRIN_GUARD_RESTORE_LINE = "#undef __INTRIN_H_"
 # A pinned header file is a few hundred bytes; this bound is generous while
 # still refusing to buffer an unbounded/adversarial input in memory.
 MAX_BUILDER_H_BYTES = 1_048_576
+MAX_PREPROCESSED_BYTES = 64 * 1024 * 1024
 MAX_BUILTIN_VA_LIST_TYPEDEFS = 16
-MAX_MINGW_INLINE_BLOCKS = 256
+MAX_MINGW_INLINE_BLOCKS = 16_384
 MAX_MINGW_INLINE_BLOCK_LINES = 4096
 
 
@@ -407,6 +411,8 @@ def _run_real_preprocessor(
     command = _resolve_compiler_tokens() + ["-E"] + argv
     completed = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output = completed.stdout
+    if completed.returncode == 0 and len(output) > MAX_PREPROCESSED_BYTES:
+        raise PreprocessorError("preprocessed output exceeds the size bound")
     if completed.returncode == 0 and normalize_builder_output:
         output = _normalize_builder_output(output)
     # Preserve compiler stdout EXACTLY -- _builder.py treats it as the
