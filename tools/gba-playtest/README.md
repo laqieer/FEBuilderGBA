@@ -181,8 +181,9 @@ removing the redundant annotation preserves the UCRT64 x64 layout. Exact
 aligned WinNT/WDK processor-state structs unused by pinned mGBA (such as
 `_M128A` and `_XSAVE_FORMAT`) are converted to CFFI partial structs (`...;`),
 so the real compiler provides their aligned layout; alignment remains rejected
-outside that finite context. Compiler-defined MinGW SIMD aliases in the
-`__m<width><suffix>` class are also unused by pinned mGBA; typedefs carrying
+outside that finite context. Compiler-defined MinGW/GCC vector aliases in the
+digit-led `__m<width><suffix>` and `__v<count><element>` classes are also
+unused by pinned mGBA; typedefs carrying
 only `vector_size`/`may_alias` plus optional alignment attributes become opaque
 CFFI typedefs, while non-SIMD vector/alignment attributes still fail closed.
 Successful preprocessor output is

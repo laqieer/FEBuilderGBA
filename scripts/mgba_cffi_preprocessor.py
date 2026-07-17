@@ -80,8 +80,9 @@ pinned mGBA. Their cdef bodies are converted to CFFI partial structs
 dropping alignment or teaching pycparser vendor syntax. Alignment remains
 rejected everywhere else.
 
-Compiler-defined MinGW SIMD aliases matching the ``__m<width><suffix>`` class
-are likewise unreferenced by pinned mGBA. Typedefs carrying only
+Compiler-defined MinGW/GCC vector aliases matching the digit-led
+``__m<width><suffix>`` or ``__v<count><element>`` classes are likewise
+unreferenced by pinned mGBA. Typedefs carrying only
 ``vector_size``/``may_alias`` and optional alignment attributes become opaque
 CFFI typedefs, preserving the compiler's real vector size/alignment while
 non-SIMD vector/alignment attributes remain fail-closed.
@@ -690,7 +691,7 @@ def _strip_mingw_attributes(lines: List[bytes]) -> List[bytes]:
                     for identifier in line_identifiers
                 )
             ):
-                # GCC SIMD aliases such as __m64/__m128 are compiler-defined
+                # GCC vector aliases such as __m64/__m128/__v2si are compiler-defined
                 # vector types and are not referenced by pinned mGBA's cdef.
                 # The full typedef line becomes an opaque CFFI typedef after
                 # this attribute group is removed.
@@ -720,18 +721,20 @@ def _strip_mingw_attributes(lines: List[bytes]) -> List[bytes]:
 
 
 def _is_mingw_simd_type(identifier: str) -> bool:
-    if not identifier.startswith("__m"):
-        return False
-    suffix = identifier[3:]
-    return bool(
-        suffix
-        and suffix[0].isdigit()
-        and all(char.isalnum() or char == "_" for char in suffix)
-    )
+    for prefix in ("__m", "__v"):
+        if not identifier.startswith(prefix):
+            continue
+        suffix = identifier[len(prefix):]
+        return bool(
+            suffix
+            and suffix[0].isdigit()
+            and all(char.isalnum() or char == "_" for char in suffix)
+        )
+    return False
 
 
 def _partialize_mingw_simd_typedefs(lines: List[bytes]) -> List[bytes]:
-    """Replace compiler-defined MinGW SIMD aliases with opaque CFFI typedefs."""
+    """Replace compiler-defined MinGW/GCC vector aliases with opaque typedefs."""
     output: List[bytes] = []
     converted = 0
     for line in lines:
