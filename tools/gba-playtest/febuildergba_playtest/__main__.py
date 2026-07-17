@@ -137,35 +137,74 @@ def _reject_output_collisions(rom_path: str, scenario_path: str, out_path: Optio
     return None
 
 
+def _persist_result(
+    result: Dict[str, Any],
+    exit_code: int,
+    out_path: Optional[str],
+) -> Tuple[Dict[str, Any], int]:
+    if out_path is None:
+        return result, exit_code
+    try:
+        atomic_write_bytes(
+            out_path,
+            (canonical_json(result) + "\n").encode("utf-8"),
+        )
+    except BackendError as exc:
+        return _error_result("harness_error", str(exc))
+    return result, exit_code
+
+
 def _run_scenario(rom_path: str, scenario_path: str, out_path: Optional[str],
                   artifact_dir: Optional[str]) -> Tuple[Dict[str, Any], int]:
+    collision = _reject_output_collisions(
+        rom_path,
+        scenario_path,
+        out_path,
+        None,
+    )
+    if collision is not None:
+        return collision
+
+    def finish(outcome: Tuple[Dict[str, Any], int]):
+        result, exit_code = outcome
+        return _persist_result(result, exit_code, out_path)
+
     try:
         scenario_bytes = _read_capped(scenario_path, MAX_SCENARIO_BYTES)
     except _TooLarge:
-        return _error_result(
+        return finish(_error_result(
             "scenario_error", f"scenario exceeds the maximum size of {MAX_SCENARIO_BYTES} bytes"
-        )
+        ))
     except OSError as exc:
-        return _error_result("harness_error", f"cannot read scenario: {exc.strerror}")
+        return finish(_error_result(
+            "harness_error",
+            f"cannot read scenario: {exc.strerror}",
+        ))
     try:
         scenario_text = scenario_bytes.decode("utf-8")
     except UnicodeDecodeError:
-        return _error_result("scenario_error", "scenario is not valid UTF-8 text")
+        return finish(_error_result(
+            "scenario_error",
+            "scenario is not valid UTF-8 text",
+        ))
     try:
         scenario = load_scenario(scenario_text)
     except ScenarioError as exc:
-        return _error_result("scenario_error", str(exc))
+        return finish(_error_result("scenario_error", str(exc)))
 
     try:
         rom_bytes = _read_capped(rom_path, MAX_ROM_BYTES)
     except _TooLarge:
-        return _error_result(
+        return finish(_error_result(
             "harness_error", f"ROM exceeds the maximum size of {MAX_ROM_BYTES} bytes"
-        )
+        ))
     except OSError as exc:
-        return _error_result("harness_error", f"cannot read ROM: {exc.strerror}")
+        return finish(_error_result(
+            "harness_error",
+            f"cannot read ROM: {exc.strerror}",
+        ))
     if not rom_bytes:
-        return _error_result("harness_error", "ROM file is empty")
+        return finish(_error_result("harness_error", "ROM file is empty"))
 
     # Refuse destructive path collisions before touching the emulator so neither
     # input can be overwritten by the result output or a screenshot.
@@ -179,12 +218,15 @@ def _run_scenario(rom_path: str, scenario_path: str, out_path: Optional[str],
     try:
         from .mgba_backend import MgbaBackend
     except Exception as exc:
-        return _error_result("dependency_error", f"mGBA backend unavailable: {type(exc).__name__}")
+        return finish(_error_result(
+            "dependency_error",
+            f"mGBA backend unavailable: {type(exc).__name__}",
+        ))
 
     try:
         backend = MgbaBackend(want_screenshot=scenario.screenshot is not None)
     except BackendError as exc:
-        return _error_result("dependency_error", str(exc))
+        return finish(_error_result("dependency_error", str(exc)))
 
     runner = Runner(scenario, backend, artifact_dir=artifact_dir)
     try:
@@ -201,12 +243,7 @@ def _run_scenario(rom_path: str, scenario_path: str, out_path: Optional[str],
     if cleanup is not None:
         result, exit_code = cleanup
 
-    if out_path is not None:
-        try:
-            atomic_write_bytes(out_path, (canonical_json(result) + "\n").encode("utf-8"))
-        except BackendError as exc:
-            return _error_result("harness_error", str(exc))
-    return result, exit_code
+    return finish((result, exit_code))
 
 
 def _close_backend(backend: Any) -> Optional[Tuple[Dict[str, Any], int]]:

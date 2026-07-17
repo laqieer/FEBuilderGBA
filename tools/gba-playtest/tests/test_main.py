@@ -87,6 +87,26 @@ def test_non_string_assertion_op_is_scenario_error(tmp_path, capsys):
     assert "op must be a string" in result["note"]
 
 
+def test_invalid_scenario_persists_same_result_to_out(tmp_path, capsys):
+    rom, scenario = _prepare_valid_inputs(tmp_path)
+    scenario_data = json.loads(_VALID_SCENARIO)
+    scenario_data["assertions"][0]["op"] = []
+    scenario.write_text(json.dumps(scenario_data), encoding="utf-8")
+    out = tmp_path / "result.json"
+
+    code = cli.main([
+        "--rom", str(rom),
+        "--scenario", str(scenario),
+        "--out", str(out),
+    ])
+    captured = capsys.readouterr().out
+    result = json.loads(captured)
+
+    assert code == 1
+    assert result["status"] == "scenario_error"
+    assert out.read_text(encoding="utf-8") == captured
+
+
 # --- ROM read bounds -------------------------------------------------------
 
 
