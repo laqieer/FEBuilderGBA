@@ -94,7 +94,7 @@ namespace FEBuilderGBA
             }
         }
 
-        private static async Task<Exception> DrainStreamAsync(
+        private static Exception DrainStream(
             TextReader reader,
             BoundedTextCapture capture,
             Action outputLimitReached)
@@ -104,15 +104,20 @@ namespace FEBuilderGBA
                 var buffer = new char[4096];
                 while (true)
                 {
-                    int count = await reader.ReadAsync(
-                        buffer,
-                        0,
-                        buffer.Length).ConfigureAwait(false);
+                    int count = reader.Read(buffer, 0, buffer.Length);
                     if (count == 0)
                         return null;
                     if (capture.Append(buffer, count))
                         outputLimitReached();
                 }
+            }
+            catch (IOException)
+            {
+                return null;
+            }
+            catch (ObjectDisposedException)
+            {
+                return null;
             }
             catch (Exception ex)
             {
@@ -292,14 +297,22 @@ namespace FEBuilderGBA
                     int outputLimitSignal = 0;
                     Action outputLimitReached = () =>
                         Interlocked.Exchange(ref outputLimitSignal, 1);
-                    Task<Exception> stdoutTask = DrainStreamAsync(
-                        proc.StandardOutput,
-                        stdout,
-                        outputLimitReached);
-                    Task<Exception> stderrTask = DrainStreamAsync(
-                        proc.StandardError,
-                        stderr,
-                        outputLimitReached);
+                    Task<Exception> stdoutTask = Task.Factory.StartNew(
+                        () => DrainStream(
+                            proc.StandardOutput,
+                            stdout,
+                            outputLimitReached),
+                        CancellationToken.None,
+                        TaskCreationOptions.LongRunning,
+                        TaskScheduler.Default);
+                    Task<Exception> stderrTask = Task.Factory.StartNew(
+                        () => DrainStream(
+                            proc.StandardError,
+                            stderr,
+                            outputLimitReached),
+                        CancellationToken.None,
+                        TaskCreationOptions.LongRunning,
+                        TaskScheduler.Default);
 
                     bool timedOut = false;
                     bool outputLimitExceeded = false;

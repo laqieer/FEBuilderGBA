@@ -24,7 +24,9 @@ namespace FEBuilderGBA.Core.Tests
 
             Assert.True(result.Started, $"Process did not start. ErrorMessage: {result.ErrorMessage}");
             Assert.False(result.TimedOut);
-            Assert.Equal(0, result.ExitCode);
+            Assert.True(
+                result.ExitCode == 0,
+                $"Expected exit 0, got {result.ExitCode}. ErrorMessage: {result.ErrorMessage}");
             Assert.Contains("hello", result.Stdout);
         }
 
