@@ -94,6 +94,7 @@ namespace FEBuilderGBA.CLI
             string romPath = null;
             string scenarioPath = null;
             string artifactDirectory = null;
+            string declaredScreenshotPath = null;
             int timeoutMs = PlaytestDefaultTimeoutMs;
 
             if (check)
@@ -163,13 +164,13 @@ namespace FEBuilderGBA.CLI
                             scenarioPath,
                             out string screenshotBasename))
                     {
-                        string screenshotPath =
+                        declaredScreenshotPath =
                             operations.ResolvePhysicalPath(
                                 Path.Combine(
                                     artifactDirectory,
                                     screenshotBasename));
-                        if (screenshotPath != null
-                            && PathsEqual(outPath, screenshotPath))
+                        if (declaredScreenshotPath != null
+                            && PathsEqual(outPath, declaredScreenshotPath))
                         {
                             return EmitPlaytestError(
                                 "--out cannot overwrite the screenshot artifact",
@@ -243,9 +244,8 @@ namespace FEBuilderGBA.CLI
                 }
                 bool preserveArtifact = artifactDirectory != null
                     && outPath != null
-                    && PathIsWithinDirectory(
-                        outPath,
-                        artifactDirectory)
+                    && declaredScreenshotPath != null
+                    && PathsEqual(outPath, declaredScreenshotPath)
                     && (childMayStillWriteArtifact || File.Exists(outPath));
                 return EmitPlaytestError(
                     note,
@@ -718,20 +718,6 @@ namespace FEBuilderGBA.CLI
                 Path.TrimEndingDirectorySeparator(left),
                 Path.TrimEndingDirectorySeparator(right),
                 comparison);
-        }
-
-        private static bool PathIsWithinDirectory(
-            string path,
-            string directory)
-        {
-            if (path == null || directory == null)
-                return false;
-            StringComparison comparison = OperatingSystem.IsWindows()
-                ? StringComparison.OrdinalIgnoreCase
-                : StringComparison.Ordinal;
-            string prefix = Path.TrimEndingDirectorySeparator(directory)
-                + Path.DirectorySeparatorChar;
-            return path.StartsWith(prefix, comparison);
         }
 
         internal static string ResolvePhysicalPath(string path)

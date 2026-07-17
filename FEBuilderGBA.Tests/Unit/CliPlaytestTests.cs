@@ -675,33 +675,6 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
-        public void LateFailure_DoesNotOverwriteExistingArtifact()
-        {
-            string artifactDirectory = Path.Combine(
-                _root,
-                "late-failure-artifacts");
-            Directory.CreateDirectory(artifactDirectory);
-            string outPath = Path.Combine(artifactDirectory, "result.json");
-            var operations = Operations(
-                (cmd, args, cwd, timeoutMs) =>
-                {
-                    File.WriteAllBytes(outPath, new byte[] { 4, 5, 6 });
-                    return Result(1, "not-json");
-                },
-                resolvePhysicalPath: CliProgram.ResolvePhysicalPath);
-
-            var result = Run(
-                RunArgs(
-                    "--out=" + outPath,
-                    "--artifact-dir=" + artifactDirectory),
-                operations);
-
-            Assert.Equal(1, result.Code);
-            Assert.Contains("invalid result document", result.Stdout);
-            Assert.Equal(new byte[] { 4, 5, 6 }, File.ReadAllBytes(outPath));
-        }
-
-        [Fact]
         public void LateFailure_UpdatesUnrelatedExistingOutput()
         {
             string artifactDirectory = Path.Combine(
