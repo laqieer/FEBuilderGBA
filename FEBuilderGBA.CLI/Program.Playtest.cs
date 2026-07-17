@@ -236,6 +236,14 @@ namespace FEBuilderGBA.CLI
                     stdout,
                     stderr);
             }
+            if (run.TerminationFailed)
+            {
+                return EmitPlaytestError(
+                    "the playtest runner process could not be terminated cleanly",
+                    outPath,
+                    stdout,
+                    stderr);
+            }
             if (run.TimedOut)
             {
                 return EmitPlaytestError(

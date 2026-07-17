@@ -78,6 +78,7 @@ namespace FEBuilderGBA.Tests.Unit
                 Started = true,
                 TimedOut = false,
                 OutputLimitExceeded = false,
+                TerminationFailed = false,
                 ExitCode = exitCode,
                 Stdout = stdout,
                 Stderr = stderr,
@@ -419,6 +420,28 @@ namespace FEBuilderGBA.Tests.Unit
 
             Assert.Equal(1, result.Code);
             Assert.Contains("exceeded the process output limit", result.Stdout);
+        }
+
+        [Fact]
+        public void TerminationFailure_SynthesizesHarnessError()
+        {
+            var operations = Operations(
+                (cmd, args, cwd, timeoutMs) => new ProcessRunResult
+                {
+                    Started = true,
+                    TimedOut = true,
+                    OutputLimitExceeded = false,
+                    TerminationFailed = true,
+                    ExitCode = -1,
+                    Stdout = "",
+                    Stderr = "",
+                    ErrorMessage = "termination failed",
+                });
+
+            var result = Run(RunArgs("--python=python"), operations);
+
+            Assert.Equal(1, result.Code);
+            Assert.Contains("could not be terminated cleanly", result.Stdout);
         }
 
         [Fact]

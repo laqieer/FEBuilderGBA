@@ -89,6 +89,7 @@ namespace FEBuilderGBA.Core.Tests
 
             Assert.True(result.Started, $"Process did not start. ErrorMessage: {result.ErrorMessage}");
             Assert.True(result.TimedOut, "Expected TimedOut=true");
+            Assert.False(result.TerminationFailed);
         }
 
         [Fact]
@@ -155,6 +156,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.True(result.Started);
             Assert.False(result.TimedOut);
             Assert.True(result.OutputLimitExceeded);
+            Assert.False(result.TerminationFailed);
             Assert.Equal(-1, result.ExitCode);
             Assert.True(result.Stdout.Length <= 1024);
             Assert.True(result.Stderr.Length <= 1024);

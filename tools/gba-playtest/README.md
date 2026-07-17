@@ -319,11 +319,12 @@ exceeding Windows path limits during `bdist_wheel`. The shim is command-scoped,
 regular-file/symlink/containment checked, does not edit mGBA or installed
 packages, and is a no-op on POSIX.
 
-**Windows support is not yet claimed.** This MSYS2 UCRT64 path is an *attempted*
-supported build gated by a mandatory real Windows MSYS2 CI job; upstream records
-the Windows Python binding as unresolved (mgba-emu/mgba#1637) and deprecated. If
-the binding cannot link, the bootstrap reports the blocker rather than weakening
-any check.
+**Windows support is validated for this pinned toolchain.** The dedicated
+MSYS2 UCRT64 CI job bootstraps the binding, runs native phase smoke, executes
+six deterministic direct replays, and proves the published .NET CLI path plus
+its expected exit-2 result. Upstream still records the Python binding as
+deprecated and does not support MSVC (mgba-emu/mgba#1637), so this claim is
+deliberately limited to the pinned GCC/UCRT64 build verified here.
 
 The hash-locked stage-2 build dependency `cffi` is pinned to **2.1.0**, not
 2.0.0: cffi 2.0.0 was the first release with Python 3.14 support (needed
@@ -350,13 +351,11 @@ second call). The claimed ROM VFile is never closed from Python — the native
 core owns and closes it. If cleanup fails, the CLI reports `harness_error` and
 never persists or reports a `pass`.
 
-WU1 (this bootstrap/build/import/replay gate) remains **pending validation by
-real mGBA 0.10.5 CI** (Ubuntu + MSYS2 UCRT64); nothing here is claimed as a
-passing gate until that CI run confirms it. In particular, the **Windows
-transport** fix (including the CFFI cdef preprocessor overlay above), the
-native phase smoke on both platforms, the Ubuntu gdb-on-failure diagnostic,
-and **real replay** acceptance remain pending the next native CI oracle
-run — no green or support claim is made before that run.
+The native gate is complete and runs on every relevant change. Ubuntu and
+MSYS2 UCRT64 both build/import the exact pinned binding, pass native phase
+smoke, execute the protected six-replay oracle, and prove the published CLI
+surface (including the expected machine-readable exit `2`). Failure artifacts
+remain available for diagnosis, including Ubuntu gdb-on-failure output.
 
 ## Tests
 
