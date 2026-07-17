@@ -4,7 +4,7 @@ This is a build-time-only helper (see its module docstring for the full
 rationale: it works around a CFFI cdef parse failure in mGBA 0.10.5's pinned
 ``_builder.h`` on newer GCC toolchains, without ever patching the pinned
 upstream source). These tests exercise it directly, in-process, with a faked
-``subprocess.run`` so no real compiler or mGBA source is required.
+bounded-subprocess helper so no real compiler or mGBA source is required.
 
 ``capsysbinary`` is used (not a hand-rolled stream fake) so both this
 script's plain-text diagnostics (``sys.stderr.write``) and its binary
@@ -266,8 +266,8 @@ def test_source_filter_line_marker_count_is_bounded(monkeypatch, tmp_path):
 
 def test_mingw_preprocessor_rejects_conflicting_winver(monkeypatch):
     monkeypatch.setattr(
-        wrapper.subprocess,
-        "run",
+        wrapper,
+        "_run_bounded_subprocess",
         lambda *args, **kwargs: pytest.fail("compiler must not run"),
     )
     with pytest.raises(wrapper.PreprocessorError, match="conflicting MinGW"):
@@ -1183,12 +1183,124 @@ def test_mingw_inline_definition_count_is_bounded(monkeypatch):
         wrapper._normalize_builder_output(data)
 
 
+@pytest.mark.parametrize(
+    ("stream", "message"),
+    [
+        ("stdout", "preprocessed output exceeds"),
+        ("stderr", "preprocessor stderr exceeds"),
+    ],
+)
+def test_bounded_subprocess_terminates_on_pipe_overflow(
+    monkeypatch, stream, message
+):
+    monkeypatch.setattr(wrapper, "MAX_PREPROCESSED_BYTES", 1024)
+    monkeypatch.setattr(wrapper, "MAX_PREPROCESSOR_STDERR_BYTES", 1024)
+    target = "stdout" if stream == "stdout" else "stderr"
+    script = (
+        "import sys,time;"
+        f"stream=sys.{target}.buffer;"
+        "stream.write(b'x'*1048576);stream.flush();time.sleep(30)"
+    )
+    with pytest.raises(wrapper.PreprocessorError, match=message):
+        wrapper._run_bounded_subprocess([sys.executable, "-c", script])
+
+
+def test_bounded_subprocess_preserves_both_streams():
+    script = (
+        "import sys;"
+        "sys.stdout.buffer.write(b'out');"
+        "sys.stderr.buffer.write(b'err')"
+    )
+    completed = wrapper._run_bounded_subprocess(
+        [sys.executable, "-c", script]
+    )
+    assert completed.returncode == 0
+    assert completed.stdout == b"out"
+    assert completed.stderr == b"err"
+
+
+def test_bounded_subprocess_retains_resistant_child(monkeypatch):
+    monkeypatch.setattr(wrapper, "MAX_PREPROCESSED_BYTES", 1024)
+    retained = []
+
+    def fake_retain(process, threads):
+        retained.append(process)
+        process.kill()
+        process.wait()
+        for thread in threads:
+            thread.join(timeout=5)
+
+    monkeypatch.setattr(
+        wrapper,
+        "_terminate_preprocessor",
+        lambda process: False,
+    )
+    monkeypatch.setattr(
+        wrapper,
+        "_retain_preprocessor_for_reaping",
+        fake_retain,
+    )
+    script = (
+        "import sys,time;"
+        "sys.stdout.buffer.write(b'x'*1048576);"
+        "sys.stdout.buffer.flush();time.sleep(30)"
+    )
+    with pytest.raises(wrapper.PreprocessorError, match="reaper retained"):
+        wrapper._run_bounded_subprocess([sys.executable, "-c", script])
+    assert len(retained) == 1
+
+
+def test_preprocessor_reaper_does_not_wait_forever_for_stuck_drain(
+    monkeypatch
+):
+    monkeypatch.setattr(
+        wrapper,
+        "PREPROCESSOR_REAPER_JOIN_ATTEMPTS",
+        2,
+    )
+    monkeypatch.setattr(
+        wrapper,
+        "PREPROCESSOR_REAPER_JOIN_TIMEOUT_SECONDS",
+        0.01,
+    )
+    monkeypatch.setattr(
+        wrapper,
+        "PREPROCESSOR_REAPER_BACKOFF_SECONDS",
+        0.01,
+    )
+
+    class ExitedProcess:
+        def poll(self):
+            return 0
+
+    release = wrapper.threading.Event()
+    stuck = wrapper.threading.Thread(
+        target=release.wait,
+        daemon=True,
+    )
+    stuck.start()
+    process = ExitedProcess()
+    wrapper._retain_preprocessor_for_reaping(process, (stuck,))
+
+    deadline = wrapper.threading.Event()
+    for _ in range(100):
+        with wrapper._RETAINED_PREPROCESSORS_LOCK:
+            retained = process in wrapper._RETAINED_PREPROCESSORS
+        if not retained:
+            break
+        deadline.wait(0.01)
+    release.set()
+    stuck.join(timeout=1)
+
+    assert retained is False
+
+
 def test_successful_preprocessor_output_size_is_bounded(monkeypatch, capsysbinary):
     monkeypatch.setattr(wrapper, "MAX_PREPROCESSED_BYTES", 3)
     monkeypatch.setattr(
-        wrapper.subprocess,
-        "run",
-        lambda command, stdout, stderr: _FakeCompleted(
+        wrapper,
+        "_run_bounded_subprocess",
+        lambda command: _FakeCompleted(
             returncode=0, stdout=b"four"
         ),
     )
@@ -1203,11 +1315,11 @@ def test_successful_preprocessor_output_size_is_bounded(monkeypatch, capsysbinar
 def test_lib_h_passes_through_completely_unchanged(monkeypatch, capsysbinary):
     recorded = {}
 
-    def fake_run(command, stdout, stderr):
+    def fake_run(command):
         recorded["command"] = command
         return _FakeCompleted(returncode=0, stdout=b"PREPROCESSED", stderr=b"")
 
-    monkeypatch.setattr(wrapper.subprocess, "run", fake_run)
+    monkeypatch.setattr(wrapper, "_run_bounded_subprocess", fake_run)
     monkeypatch.delenv(wrapper.ENV_EXPECTED_BUILDER_H, raising=False)
 
     argv = ["-P", "-fno-inline", "-Iinclude", "lib.h"]
@@ -1223,9 +1335,9 @@ def test_pass_through_never_reads_the_expected_env_var(monkeypatch):
     # final argument is actually named _builder.h.
     monkeypatch.delenv(wrapper.ENV_EXPECTED_BUILDER_H, raising=False)
     monkeypatch.setattr(
-        wrapper.subprocess,
-        "run",
-        lambda command, stdout, stderr: _FakeCompleted(returncode=0),
+        wrapper,
+        "_run_bounded_subprocess",
+        lambda command: _FakeCompleted(returncode=0),
     )
     assert wrapper.main(["-Iinclude", "lib.h"]) == 0
 
@@ -1246,8 +1358,8 @@ def test_wrong_located_builder_h_is_rejected(monkeypatch, tmp_path, capsysbinary
 
     called = []
     monkeypatch.setattr(
-        wrapper.subprocess,
-        "run",
+        wrapper,
+        "_run_bounded_subprocess",
         lambda *a, **k: called.append(1) or _FakeCompleted(),
     )
 
@@ -1264,7 +1376,7 @@ def test_missing_expected_env_var_fails_closed_for_builder_h(
     builder_h.write_text(wrapper.OLD_BUILDER_LINE + "\n", encoding="utf-8")
     monkeypatch.delenv(wrapper.ENV_EXPECTED_BUILDER_H, raising=False)
     monkeypatch.setattr(
-        wrapper.subprocess, "run", lambda *a, **k: pytest.fail("must not run")
+        wrapper, "_run_bounded_subprocess", lambda *a, **k: pytest.fail("must not run")
     )
 
     assert wrapper.main(["-Iinclude", str(builder_h)]) == 1
@@ -1283,7 +1395,7 @@ def test_source_drift_on_the_real_builder_h_fails_closed(monkeypatch, tmp_path):
     builder_h.write_text("int a;\n", encoding="utf-8")  # old line missing
     monkeypatch.setenv(wrapper.ENV_EXPECTED_BUILDER_H, str(builder_h))
     monkeypatch.setattr(
-        wrapper.subprocess, "run", lambda *a, **k: pytest.fail("must not run")
+        wrapper, "_run_bounded_subprocess", lambda *a, **k: pytest.fail("must not run")
     )
 
     assert wrapper.main(["-Iinclude", str(builder_h)]) == 1
@@ -1301,7 +1413,7 @@ def test_exact_rewrite_end_to_end_uses_a_temp_copy_outside_the_source_tree_and_c
 
     seen = {}
 
-    def fake_run(command, stdout, stderr):
+    def fake_run(command):
         temp_path = command[-1]
         seen["temp_path"] = temp_path
         seen["command"] = command
@@ -1309,7 +1421,7 @@ def test_exact_rewrite_end_to_end_uses_a_temp_copy_outside_the_source_tree_and_c
             seen["temp_contents"] = handle.read()
         return _FakeCompleted(returncode=0, stdout=b"OK", stderr=b"")
 
-    monkeypatch.setattr(wrapper.subprocess, "run", fake_run)
+    monkeypatch.setattr(wrapper, "_run_bounded_subprocess", fake_run)
 
     rc = wrapper.main(["-P", "-fno-inline", "-Iinclude", str(builder_h)])
     assert rc == 0
@@ -1340,11 +1452,11 @@ def test_temp_file_is_cleaned_up_even_when_the_real_preprocessor_fails(
 
     seen = {}
 
-    def fake_run(command, stdout, stderr):
+    def fake_run(command):
         seen["temp_path"] = command[-1]
         return _FakeCompleted(returncode=1, stdout=b"", stderr=b"boom")
 
-    monkeypatch.setattr(wrapper.subprocess, "run", fake_run)
+    monkeypatch.setattr(wrapper, "_run_bounded_subprocess", fake_run)
 
     rc = wrapper.main(["-Iinclude", str(builder_h)])
     assert rc == 1
@@ -1356,7 +1468,7 @@ def test_bounded_read_rejects_oversized_input(monkeypatch, tmp_path, capsysbinar
     builder_h.write_bytes(b"x" * (wrapper.MAX_BUILDER_H_BYTES + 1))
     monkeypatch.setenv(wrapper.ENV_EXPECTED_BUILDER_H, str(builder_h))
     monkeypatch.setattr(
-        wrapper.subprocess, "run", lambda *a, **k: pytest.fail("must not run")
+        wrapper, "_run_bounded_subprocess", lambda *a, **k: pytest.fail("must not run")
     )
 
     assert wrapper.main(["-Iinclude", str(builder_h)]) == 1
@@ -1369,7 +1481,7 @@ def test_non_utf8_input_is_rejected(monkeypatch, tmp_path):
     builder_h.write_bytes(b"\xff\xfe\x00#define va_list void*")
     monkeypatch.setenv(wrapper.ENV_EXPECTED_BUILDER_H, str(builder_h))
     monkeypatch.setattr(
-        wrapper.subprocess, "run", lambda *a, **k: pytest.fail("must not run")
+        wrapper, "_run_bounded_subprocess", lambda *a, **k: pytest.fail("must not run")
     )
 
     assert wrapper.main(["-Iinclude", str(builder_h)]) == 1
@@ -1384,7 +1496,7 @@ def test_missing_source_root_env_fails_closed(monkeypatch, tmp_path, capsysbinar
     monkeypatch.setenv(wrapper.ENV_EXPECTED_BUILDER_H, str(builder_h))
     # ENV_SOURCE_ROOT is deliberately left unset by the autouse fixture.
     monkeypatch.setattr(
-        wrapper.subprocess, "run", lambda *a, **k: pytest.fail("must not run")
+        wrapper, "_run_bounded_subprocess", lambda *a, **k: pytest.fail("must not run")
     )
 
     assert wrapper.main(["-Iinclude", str(builder_h)]) == 1
@@ -1414,7 +1526,7 @@ def test_hostile_tmpdir_placement_inside_source_root_is_rejected_and_cleaned_up(
 
     monkeypatch.setattr(wrapper, "_write_temp_copy", fake_write_temp_copy)
     monkeypatch.setattr(
-        wrapper.subprocess, "run", lambda *a, **k: pytest.fail("must not run")
+        wrapper, "_run_bounded_subprocess", lambda *a, **k: pytest.fail("must not run")
     )
 
     rc = wrapper.main(["-Iinclude", str(builder_h)])
@@ -1446,9 +1558,9 @@ def test_cleanup_failure_after_successful_preprocessing_fails_closed(
     monkeypatch.setenv(wrapper.ENV_SOURCE_ROOT, str(tmp_path))
 
     monkeypatch.setattr(
-        wrapper.subprocess,
-        "run",
-        lambda command, stdout, stderr: _FakeCompleted(returncode=0, stdout=b"OK"),
+        wrapper,
+        "_run_bounded_subprocess",
+        lambda command: _FakeCompleted(returncode=0, stdout=b"OK"),
     )
     monkeypatch.setattr(
         wrapper,
@@ -1473,9 +1585,9 @@ def test_cleanup_failure_preserves_the_original_nonzero_compiler_exit(
     monkeypatch.setenv(wrapper.ENV_SOURCE_ROOT, str(tmp_path))
 
     monkeypatch.setattr(
-        wrapper.subprocess,
-        "run",
-        lambda command, stdout, stderr: _FakeCompleted(
+        wrapper,
+        "_run_bounded_subprocess",
+        lambda command: _FakeCompleted(
             returncode=7, stdout=b"", stderr=b"compiler boom"
         ),
     )
@@ -1500,20 +1612,20 @@ def test_subprocess_is_never_invoked_via_a_shell(monkeypatch, tmp_path):
     monkeypatch.setenv(wrapper.ENV_EXPECTED_BUILDER_H, str(builder_h))
     monkeypatch.setenv(wrapper.ENV_SOURCE_ROOT, str(tmp_path))
 
-    def fake_run(command, stdout, stderr):
+    def fake_run(command):
         assert isinstance(command, list)
         assert all(isinstance(part, str) for part in command)
         return _FakeCompleted(returncode=0)
 
-    monkeypatch.setattr(wrapper.subprocess, "run", fake_run)
+    monkeypatch.setattr(wrapper, "_run_bounded_subprocess", fake_run)
     assert wrapper.main(["-Iinclude", str(builder_h)]) == 0
 
 
 def test_nonzero_compiler_exit_is_propagated(monkeypatch):
     monkeypatch.setattr(
-        wrapper.subprocess,
-        "run",
-        lambda command, stdout, stderr: _FakeCompleted(returncode=7),
+        wrapper,
+        "_run_bounded_subprocess",
+        lambda command: _FakeCompleted(returncode=7),
     )
     monkeypatch.delenv(wrapper.ENV_EXPECTED_BUILDER_H, raising=False)
     assert wrapper.main(["-Iinclude", "lib.h"]) == 7
@@ -1530,7 +1642,7 @@ def test_builder_preprocessor_output_normalizes_builtin_va_list(
     monkeypatch.setenv(wrapper.ENV_EXPECTED_BUILDER_H, str(builder_h))
     monkeypatch.setenv(wrapper.ENV_SOURCE_ROOT, str(tmp_path))
     monkeypatch.setenv(wrapper.ENV_MINGW_CDEF, "1")
-    def fake_run(command, stdout, stderr):
+    def fake_run(command):
         overlay = command[-1]
         marker = overlay.replace("\\", "/")
         return _FakeCompleted(
@@ -1545,7 +1657,7 @@ def test_builder_preprocessor_output_normalizes_builtin_va_list(
             ),
         )
 
-    monkeypatch.setattr(wrapper.subprocess, "run", fake_run)
+    monkeypatch.setattr(wrapper, "_run_bounded_subprocess", fake_run)
 
     assert wrapper.main(["-Iinclude", str(builder_h)]) == 0
     assert capsysbinary.readouterr().out == b"typedef ... __gnuc_va_list;\n"
@@ -1566,7 +1678,7 @@ def test_mingw_main_preprocesses_a_scoped_attribute_sanitizer(
     monkeypatch.setenv(wrapper.ENV_MINGW_CDEF, "1")
     seen = {}
 
-    def fake_run(command, stdout, stderr):
+    def fake_run(command):
         with open(command[-1], "r", encoding="utf-8") as handle:
             seen["text"] = handle.read()
         seen["command"] = command
@@ -1582,7 +1694,7 @@ def test_mingw_main_preprocesses_a_scoped_attribute_sanitizer(
             ),
         )
 
-    monkeypatch.setattr(wrapper.subprocess, "run", fake_run)
+    monkeypatch.setattr(wrapper, "_run_bounded_subprocess", fake_run)
     assert wrapper.main(["-Iinclude", str(builder_h)]) == 0
     assert wrapper.MINGW_WINVER_DEFINE in seen["command"]
     assert "-P" not in seen["command"]

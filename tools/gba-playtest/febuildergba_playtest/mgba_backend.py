@@ -670,7 +670,9 @@ class MgbaBackend(Backend):  # pragma: no cover - requires native emulator
 
         Teardown contract for the pinned 0.10.5 binding:
 
-        * Return immediately if already closed or if no core was constructed.
+        * Return immediately if already closed. If ROM staging failed before a
+          core was constructed, explicitly close the still-unclaimed staging
+          VFile instead of relying on Python GC.
         * Remove this backend's crash handler from the core-owned
           ``core._callbacks.core_crashed`` list *before* release, breaking the
           core -> callback -> backend reference cycle.
@@ -687,7 +689,23 @@ class MgbaBackend(Backend):  # pragma: no cover - requires native emulator
         :class:`BackendError`; there is no broad silent catch and no success
         fallback.
         """
-        if self._closed or self._core is None:
+        if self._closed:
+            return
+        if self._core is None:
+            rom_vfile = self._rom_vfile
+            if rom_vfile is not None:
+                try:
+                    closed = rom_vfile.close()
+                except Exception as exc:
+                    raise BackendError(
+                        redact_message(
+                            "ROM staging VFile close failed: "
+                            f"{type(exc).__name__}"
+                        )
+                    ) from None
+                if not closed:
+                    raise BackendError("ROM staging VFile native close failed")
+                self._rom_vfile = None
             self._closed = True
             return
 

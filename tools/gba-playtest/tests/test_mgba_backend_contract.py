@@ -386,6 +386,16 @@ class SeekFailVFile(FakeVFile):
         return offset + 1
 
 
+class CloseFailVFile(ShortWriteVFile):
+    @staticmethod
+    def fromEmpty():
+        return CloseFailVFile()
+
+    def close(self):
+        self._claimed = True
+        return False
+
+
 def test_load_rom_fails_closed_on_short_write():
     state = _FakeState()
     with fake_mgba(state, vfile_cls=ShortWriteVFile):
@@ -394,6 +404,11 @@ def test_load_rom_fails_closed_on_short_write():
             backend.load_rom(ROM)
         # Ownership was never transferred to a core on a short write.
         assert state.load_vf_calls == 0
+        rom_vf = backend._rom_vfile
+        backend.close()
+        backend.close()
+        assert rom_vf.closed == 1
+        assert backend._rom_vfile is None
 
 
 def test_load_rom_fails_closed_on_seek_failure():
@@ -403,6 +418,23 @@ def test_load_rom_fails_closed_on_seek_failure():
         with pytest.raises(Exception):
             backend.load_rom(ROM)
         assert state.load_vf_calls == 0
+        rom_vf = backend._rom_vfile
+        backend.close()
+        backend.close()
+        assert rom_vf.closed == 1
+        assert backend._rom_vfile is None
+
+
+def test_failed_staging_native_close_failure_is_reported():
+    state = _FakeState()
+    with fake_mgba(state, vfile_cls=CloseFailVFile):
+        backend = MgbaBackend()
+        with pytest.raises(Exception):
+            backend.load_rom(ROM)
+        with pytest.raises(Exception, match="native close failed"):
+            backend.close()
+        assert backend._closed is False
+        assert backend._rom_vfile is not None
 
 
 def test_backend_has_no_temporary_save_path():

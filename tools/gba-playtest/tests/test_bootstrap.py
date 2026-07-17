@@ -1315,7 +1315,16 @@ def test_cffi_wrapper_is_dependency_free_and_never_uses_a_shell():
             imports.update(alias.name.split(".")[0] for alias in node.names)
         elif isinstance(node, ast.ImportFrom) and node.module:
             imports.add(node.module.split(".")[0])
-    allowed = {"__future__", "os", "shlex", "subprocess", "sys", "tempfile", "typing"}
+    allowed = {
+        "__future__",
+        "os",
+        "shlex",
+        "subprocess",
+        "sys",
+        "tempfile",
+        "threading",
+        "typing",
+    }
     assert imports <= allowed, f"unexpected imports: {imports - allowed}"
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
@@ -1323,13 +1332,15 @@ def test_cffi_wrapper_is_dependency_free_and_never_uses_a_shell():
         owner = node.func.value
         if not isinstance(owner, ast.Name):
             continue
-        if owner.id == "subprocess" and node.func.attr == "run":
+        if owner.id == "subprocess" and node.func.attr in ("run", "Popen"):
             assert all(keyword.arg != "shell" for keyword in node.keywords), (
-                "subprocess.run must use structural argv without a shell"
+                "subprocess execution must use structural argv without a shell"
             )
         assert not (owner.id == "os" and node.func.attr == "system"), (
             "the wrapper must never invoke os.system"
         )
+    assert "_run_bounded_subprocess" in text
+    assert "MAX_PREPROCESSOR_STDERR_BYTES" in text
 
 
 def test_cffi_wrapper_is_never_imported_by_the_runtime_package():
