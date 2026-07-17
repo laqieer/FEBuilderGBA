@@ -35,6 +35,7 @@ namespace FEBuilderGBA.CLI
         internal const int PlaytestMaximumTimeoutMs = 3_600_000;
         internal const int PlaytestMaximumResultChars = 1_048_576;
         internal const int PlaytestMaximumProcessOutputChars = 1_048_576;
+        internal const int PlaytestMaximumScenarioInspectionBytes = 1_048_576;
 
         private static readonly IReadOnlyDictionary<string, int> PlaytestStatusExitCodes =
             new Dictionary<string, int>(StringComparer.Ordinal)
@@ -147,6 +148,8 @@ namespace FEBuilderGBA.CLI
                 if (argsDic.TryGetValue("--artifact-dir", out string artifactValue))
                 {
                     if (!TryGetFullPath(artifactValue, out artifactDirectory)
+                        || (artifactDirectory = operations.ResolvePhysicalPath(
+                            artifactDirectory)) == null
                         || !Directory.Exists(artifactDirectory))
                     {
                         return EmitPlaytestError(
@@ -154,6 +157,26 @@ namespace FEBuilderGBA.CLI
                             outPath,
                             stdout,
                             stderr);
+                    }
+                    if (outPath != null
+                        && TryGetScenarioScreenshotBasename(
+                            scenarioPath,
+                            out string screenshotBasename))
+                    {
+                        string screenshotPath =
+                            operations.ResolvePhysicalPath(
+                                Path.Combine(
+                                    artifactDirectory,
+                                    screenshotBasename));
+                        if (screenshotPath != null
+                            && PathsEqual(outPath, screenshotPath))
+                        {
+                            return EmitPlaytestError(
+                                "--out cannot overwrite the screenshot artifact",
+                                null,
+                                stdout,
+                                stderr);
+                        }
                     }
                 }
 
@@ -203,7 +226,10 @@ namespace FEBuilderGBA.CLI
                 return EmitPlaytestError(stagingError, outPath, stdout, stderr);
             }
 
-            int FailAfterStaging(string note)
+            int FailAfterStaging(
+                string note,
+                bool publishError = true,
+                bool childMayStillWriteArtifact = false)
             {
                 if (stagedOutputDirectory != null)
                 {
@@ -215,7 +241,17 @@ namespace FEBuilderGBA.CLI
                     }
                     stagedOutputDirectory = null;
                 }
-                return EmitPlaytestError(note, outPath, stdout, stderr);
+                bool preserveArtifact = artifactDirectory != null
+                    && outPath != null
+                    && PathIsWithinDirectory(
+                        outPath,
+                        artifactDirectory)
+                    && (childMayStillWriteArtifact || File.Exists(outPath));
+                return EmitPlaytestError(
+                    note,
+                    publishError && !preserveArtifact ? outPath : null,
+                    stdout,
+                    stderr);
             }
 
             var runnerArgs = new List<string>
@@ -262,7 +298,8 @@ namespace FEBuilderGBA.CLI
             if (run.TerminationFailed)
             {
                 return FailAfterStaging(
-                    "the playtest runner process could not be terminated cleanly");
+                    "the playtest runner process could not be terminated cleanly",
+                    childMayStillWriteArtifact: true);
             }
             if (run.TimedOut)
             {
@@ -286,6 +323,23 @@ namespace FEBuilderGBA.CLI
                     out string stagedOutputError))
             {
                 return FailAfterStaging(stagedOutputError);
+            }
+            if (outPath != null
+                && artifactDirectory != null
+                && TryGetResultArtifactBasename(
+                    resultJson,
+                    out string artifactBasename))
+            {
+                string artifactPath = operations.ResolvePhysicalPath(
+                    Path.Combine(
+                        artifactDirectory,
+                        artifactBasename));
+                if (artifactPath != null && PathsEqual(outPath, artifactPath))
+                {
+                    return FailAfterStaging(
+                        "--out cannot overwrite the screenshot artifact",
+                        publishError: false);
+                }
             }
             if (stagedOutputDirectory != null)
             {
@@ -345,6 +399,111 @@ namespace FEBuilderGBA.CLI
             catch (SecurityException)
             {
                 error = "cannot create the private playtest result staging directory";
+                return false;
+            }
+        }
+
+        private static bool TryGetScenarioScreenshotBasename(
+            string scenarioPath,
+            out string basename)
+        {
+            basename = null;
+            try
+            {
+                var data = new byte[
+                    PlaytestMaximumScenarioInspectionBytes + 1];
+                int total = 0;
+                using (var stream = new FileStream(
+                    scenarioPath,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.Read))
+                {
+                    while (total < data.Length)
+                    {
+                        int read = stream.Read(
+                            data,
+                            total,
+                            data.Length - total);
+                        if (read == 0)
+                            break;
+                        total += read;
+                    }
+                }
+                if (total > PlaytestMaximumScenarioInspectionBytes)
+                    return false;
+
+                using JsonDocument document = JsonDocument.Parse(
+                    new ReadOnlyMemory<byte>(data, 0, total),
+                    new JsonDocumentOptions
+                    {
+                        AllowTrailingCommas = false,
+                        CommentHandling = JsonCommentHandling.Disallow,
+                        MaxDepth = 64,
+                    });
+                JsonElement root = document.RootElement;
+                if (root.ValueKind != JsonValueKind.Object
+                    || !root.TryGetProperty(
+                        "screenshot",
+                        out JsonElement screenshot)
+                    || screenshot.ValueKind != JsonValueKind.Object
+                    || !screenshot.TryGetProperty(
+                        "basename",
+                        out JsonElement basenameElement)
+                    || basenameElement.ValueKind != JsonValueKind.String)
+                {
+                    return false;
+                }
+                basename = basenameElement.GetString();
+                return !string.IsNullOrEmpty(basename);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return false;
+            }
+            catch (IOException)
+            {
+                return false;
+            }
+            catch (JsonException)
+            {
+                return false;
+            }
+            catch (NotSupportedException)
+            {
+                return false;
+            }
+            catch (SecurityException)
+            {
+                return false;
+            }
+        }
+
+        private static bool TryGetResultArtifactBasename(
+            string resultJson,
+            out string basename)
+        {
+            basename = null;
+            try
+            {
+                using JsonDocument document = JsonDocument.Parse(resultJson);
+                JsonElement root = document.RootElement;
+                if (!root.TryGetProperty(
+                        "artifact",
+                        out JsonElement artifact)
+                    || artifact.ValueKind != JsonValueKind.Object
+                    || !artifact.TryGetProperty(
+                        "basename",
+                        out JsonElement basenameElement)
+                    || basenameElement.ValueKind != JsonValueKind.String)
+                {
+                    return false;
+                }
+                basename = basenameElement.GetString();
+                return !string.IsNullOrEmpty(basename);
+            }
+            catch (JsonException)
+            {
                 return false;
             }
         }
@@ -559,6 +718,20 @@ namespace FEBuilderGBA.CLI
                 Path.TrimEndingDirectorySeparator(left),
                 Path.TrimEndingDirectorySeparator(right),
                 comparison);
+        }
+
+        private static bool PathIsWithinDirectory(
+            string path,
+            string directory)
+        {
+            if (path == null || directory == null)
+                return false;
+            StringComparison comparison = OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+            string prefix = Path.TrimEndingDirectorySeparator(directory)
+                + Path.DirectorySeparatorChar;
+            return path.StartsWith(prefix, comparison);
         }
 
         internal static string ResolvePhysicalPath(string path)

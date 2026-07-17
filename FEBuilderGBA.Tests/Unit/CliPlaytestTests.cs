@@ -599,6 +599,143 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
+        public void ScreenshotAndFinalOutputPhysicalAlias_IsRejected()
+        {
+            string artifactTarget = Path.Combine(_root, "artifact-target");
+            string artifactLink = Path.Combine(_root, "artifact-link");
+            Directory.CreateDirectory(artifactTarget);
+            Directory.CreateSymbolicLink(artifactLink, artifactTarget);
+            string outPath = Path.Combine(artifactTarget, "result.json");
+            File.WriteAllText(
+                _scenario,
+                "{\"schemaVersion\":1,\"runFrames\":1,\"assertions\":[],"
+                    + "\"screenshot\":{\"basename\":\"result.json\"}}");
+            bool launched = false;
+            try
+            {
+                var operations = Operations(
+                    (cmd, args, cwd, timeoutMs) =>
+                    {
+                        launched = true;
+                        return Result(0, PassJson);
+                    },
+                    resolvePhysicalPath: CliProgram.ResolvePhysicalPath);
+
+                var result = Run(
+                    RunArgs(
+                        "--out=" + outPath,
+                        "--artifact-dir=" + artifactLink),
+                    operations);
+
+                Assert.Equal(1, result.Code);
+                Assert.False(launched);
+                Assert.Contains("screenshot artifact", result.Stdout);
+                Assert.False(File.Exists(outPath));
+            }
+            finally
+            {
+                Directory.Delete(artifactLink);
+            }
+        }
+
+        [Fact]
+        public void ResultArtifactCollision_DoesNotOverwritePublishedArtifact()
+        {
+            const string artifactResult =
+                "{\"artifact\":{\"basename\":\"result.json\",\"written\":true},"
+                + "\"exitCode\":0,\"resultSchemaVersion\":1,\"status\":\"pass\"}";
+            string artifactDirectory = Path.Combine(
+                _root,
+                "post-result-artifacts");
+            Directory.CreateDirectory(artifactDirectory);
+            string outPath = Path.Combine(artifactDirectory, "result.json");
+            var operations = Operations(
+                (cmd, args, cwd, timeoutMs) =>
+                {
+                    int outIndex = args.ToList().IndexOf("--out");
+                    Assert.True(outIndex >= 0);
+                    File.WriteAllText(
+                        args[outIndex + 1],
+                        artifactResult + "\n",
+                        new System.Text.UTF8Encoding(false));
+                    File.WriteAllBytes(outPath, new byte[] { 1, 2, 3 });
+                    return Result(0, artifactResult);
+                },
+                resolvePhysicalPath: CliProgram.ResolvePhysicalPath);
+
+            var result = Run(
+                RunArgs(
+                    "--out=" + outPath,
+                    "--artifact-dir=" + artifactDirectory),
+                operations);
+
+            Assert.Equal(1, result.Code);
+            Assert.Contains("screenshot artifact", result.Stdout);
+            Assert.Equal(new byte[] { 1, 2, 3 }, File.ReadAllBytes(outPath));
+        }
+
+        [Fact]
+        public void LateFailure_DoesNotOverwriteExistingArtifact()
+        {
+            string artifactDirectory = Path.Combine(
+                _root,
+                "late-failure-artifacts");
+            Directory.CreateDirectory(artifactDirectory);
+            string outPath = Path.Combine(artifactDirectory, "result.json");
+            var operations = Operations(
+                (cmd, args, cwd, timeoutMs) =>
+                {
+                    File.WriteAllBytes(outPath, new byte[] { 4, 5, 6 });
+                    return Result(1, "not-json");
+                },
+                resolvePhysicalPath: CliProgram.ResolvePhysicalPath);
+
+            var result = Run(
+                RunArgs(
+                    "--out=" + outPath,
+                    "--artifact-dir=" + artifactDirectory),
+                operations);
+
+            Assert.Equal(1, result.Code);
+            Assert.Contains("invalid result document", result.Stdout);
+            Assert.Equal(new byte[] { 4, 5, 6 }, File.ReadAllBytes(outPath));
+        }
+
+        [Fact]
+        public void LateFailure_UpdatesUnrelatedExistingOutput()
+        {
+            string artifactDirectory = Path.Combine(
+                _root,
+                "unrelated-artifacts");
+            Directory.CreateDirectory(artifactDirectory);
+            string outPath = Path.Combine(_root, "existing-result.json");
+            File.WriteAllText(outPath, PassJson + "\n");
+            var operations = Operations(
+                (cmd, args, cwd, timeoutMs) => new ProcessRunResult
+                {
+                    Started = true,
+                    TimedOut = true,
+                    OutputLimitExceeded = false,
+                    TerminationFailed = false,
+                    ExitCode = -1,
+                    Stdout = "",
+                    Stderr = "",
+                    ErrorMessage = "timed out",
+                },
+                resolvePhysicalPath: CliProgram.ResolvePhysicalPath);
+
+            var result = Run(
+                RunArgs(
+                    "--out=" + outPath,
+                    "--artifact-dir=" + artifactDirectory),
+                operations);
+
+            Assert.Equal(1, result.Code);
+            Assert.Contains("process timeout", result.Stdout);
+            Assert.Equal(result.Stdout, File.ReadAllText(outPath));
+        }
+
+        [Fact]
         public void ResolvePhysicalPath_ResolvesLinkedParentDirectory()
         {
             string target = Path.Combine(_root, "real-directory");
