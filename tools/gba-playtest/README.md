@@ -165,12 +165,13 @@ while `<limits.h>` expands. This excludes irrelevant compiler intrinsic
 declarations such as `__debugbreak`; both macros are restored before mGBA
 headers. The wrapper then normalizes only preprocessed
 `typedef __builtin_va_list <alias>;` lines to CFFI's
-`typedef ... <alias>;` syntax (bounded and identifier-validated), removes
-bounded top-level MinGW `extern/static __inline__` intrinsic definitions with
-brace-aware scanning, and retains declaration-only forms after dropping just
-the extension token. It also token-normalizes safe parser-only GCC qualifiers
-(`__extension__`, restrict, volatile, const, and signed spellings) outside
-quoted literals. Balanced `__attribute__((...))` expressions are removed only
+`typedef ... <alias>;` syntax (bounded and identifier-validated). It first
+token-normalizes safe parser-only GCC qualifiers (`__extension__`, restrict,
+volatile, const, and signed spellings), then removes bounded top-level MinGW
+`extern/static __inline__` intrinsic definitions with brace-aware scanning.
+That ordering discards body-local vector typedefs/attributes before attribute
+parsing; declaration-only forms remain and lose only the inline token.
+Balanced `__attribute__((...))` expressions are then removed only
 when every contained attribute is on an ABI-neutral allowlist derived from the
 current MinGW diagnostic/optimizer/linkage attributes. Both bare (`dllimport`)
 and decorated (`__dllimport__`) spellings are generated from the same base-name

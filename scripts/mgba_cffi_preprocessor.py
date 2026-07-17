@@ -55,12 +55,14 @@ system-header chain are expanded. This excludes irrelevant compiler intrinsic
 declarations (such as ``__debugbreak``) from the cdef stream; both macros are
 restored before any mGBA header is included. The resulting stream normalizes
 only typedef aliases whose underlying compiler-only type is
-``__builtin_va_list`` into CFFI's ``typedef ... alias;`` syntax, removes
-top-level MinGW ``extern/static __inline__`` intrinsic definitions with bounded
-brace-aware scanning, and keeps declaration-only forms after dropping just the
-extension token. It also token-normalizes the safe parser-only GCC qualifier
-class (``__extension__``, restrict, volatile, const, and signed spellings)
-outside quoted literals. Balanced ``__attribute__((...))`` expressions are
+``__builtin_va_list`` into CFFI's ``typedef ... alias;`` syntax. It first
+token-normalizes the safe parser-only GCC qualifier class
+(``__extension__``, restrict, volatile, const, and signed spellings), then
+removes top-level MinGW ``extern/static __inline__`` intrinsic definitions
+with bounded brace-aware scanning. This ordering drops vendor attributes and
+vector typedefs inside intrinsic bodies before attribute parsing; declaration-
+only forms remain and lose only the inline token. Balanced
+``__attribute__((...))`` expressions are then
 removed only when every contained attribute is from an ABI-neutral allowlist;
 the allowlist covers the diagnostic/optimizer/linkage attributes observed in
 current MinGW headers and derives both bare and ``__name__`` spellings from a
@@ -1032,10 +1034,11 @@ def _normalize_builder_output(data: bytes) -> bytes:
         if normalized > MAX_BUILTIN_VA_LIST_TYPEDEFS:
             raise PreprocessorError("too many builtin va_list typedef aliases")
         lines[index] = b"typedef ... " + alias + b";" + ending
-    lines = _strip_mingw_attributes(lines)
     lines = _replace_mingw_tokens(lines)
+    lines = _strip_mingw_inline_blocks(lines)
+    lines = _strip_mingw_attributes(lines)
     lines = _partialize_opaque_aligned_system_structs(lines)
-    return b"".join(_strip_mingw_inline_blocks(lines))
+    return b"".join(lines)
 
 
 def _run_real_preprocessor(

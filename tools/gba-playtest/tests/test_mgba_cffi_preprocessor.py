@@ -535,6 +535,28 @@ def test_mingw_inline_definition_handles_nested_code_braces():
     assert wrapper._normalize_builder_output(data) == b"int retained;\n"
 
 
+def test_inline_body_attributes_are_removed_with_the_definition():
+    data = (
+        b"extern __inline__ __m128 shuffle(__m128 __A, __m128 __B)\n"
+        b"{\n"
+        b"  typedef float __v4sf __attribute__((__vector_size__(16)));\n"
+        b"  return (__m128) __builtin_shuffle((__v4sf) __A, (__v4sf) __B);\n"
+        b"}\n"
+        b"int retained;\n"
+    )
+    assert wrapper._normalize_builder_output(data) == b"int retained;\n"
+
+
+def test_inline_declaration_attributes_are_sanitized_after_token_removal():
+    data = (
+        b"extern __inline__ void declaration(void) "
+        b"__attribute__((__nothrow__));\n"
+    )
+    assert wrapper._normalize_builder_output(data) == (
+        b"extern  void declaration(void) ;\n"
+    )
+
+
 def test_unterminated_mingw_inline_definition_fails_closed():
     data = b"extern __inline__ void broken(void)\n{\n"
     with pytest.raises(wrapper.PreprocessorError, match="unterminated"):
