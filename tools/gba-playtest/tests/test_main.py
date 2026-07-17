@@ -107,6 +107,84 @@ def test_invalid_scenario_persists_same_result_to_out(tmp_path, capsys):
     assert out.read_text(encoding="utf-8") == captured
 
 
+def test_invalid_scenario_screenshot_collision_preserves_artifact(
+    tmp_path, capsys
+):
+    rom, scenario = _prepare_valid_inputs(tmp_path)
+    artifact_dir = tmp_path / "artifacts"
+    artifact_dir.mkdir()
+    artifact = artifact_dir / "shot.png"
+    artifact.write_bytes(b"png-proof")
+    scenario_data = json.loads(_VALID_SCENARIO)
+    scenario_data["assertions"][0]["op"] = []
+    scenario_data["screenshot"] = {"basename": "shot.png"}
+    scenario.write_text(json.dumps(scenario_data), encoding="utf-8")
+
+    code = cli.main([
+        "--rom", str(rom),
+        "--scenario", str(scenario),
+        "--out", str(artifact),
+        "--artifact-dir", str(artifact_dir),
+    ])
+    result = _one_json(capsys)
+
+    assert code == 1
+    assert result["status"] == "harness_error"
+    assert "collides" in result["note"]
+    assert artifact.read_bytes() == b"png-proof"
+
+
+def test_malformed_scenario_screenshot_collision_preserves_artifact(
+    tmp_path, capsys
+):
+    rom, scenario = _prepare_valid_inputs(tmp_path)
+    artifact_dir = tmp_path / "malformed-artifacts"
+    artifact_dir.mkdir()
+    artifact = artifact_dir / "shot.png"
+    artifact.write_bytes(b"png-proof")
+    scenario.write_text(
+        '{"screenshot":{"basename":"shot.png"},"assertions":[',
+        encoding="utf-8",
+    )
+
+    code = cli.main([
+        "--rom", str(rom),
+        "--scenario", str(scenario),
+        "--out", str(artifact),
+        "--artifact-dir", str(artifact_dir),
+    ])
+    result = _one_json(capsys)
+
+    assert code == 1
+    assert result["status"] == "harness_error"
+    assert "collides" in result["note"]
+    assert artifact.read_bytes() == b"png-proof"
+
+
+def test_malformed_scenario_unrelated_output_is_persisted(tmp_path, capsys):
+    rom, scenario = _prepare_valid_inputs(tmp_path)
+    artifact_dir = tmp_path / "unrelated-malformed-artifacts"
+    artifact_dir.mkdir()
+    scenario.write_text(
+        '{"screenshot":{"basename":"shot.png"},"assertions":[',
+        encoding="utf-8",
+    )
+    out = tmp_path / "result.json"
+
+    code = cli.main([
+        "--rom", str(rom),
+        "--scenario", str(scenario),
+        "--out", str(out),
+        "--artifact-dir", str(artifact_dir),
+    ])
+    captured = capsys.readouterr().out
+    result = json.loads(captured)
+
+    assert code == 1
+    assert result["status"] == "scenario_error"
+    assert out.read_text(encoding="utf-8") == captured
+
+
 # --- ROM read bounds -------------------------------------------------------
 
 

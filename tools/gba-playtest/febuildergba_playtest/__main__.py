@@ -14,11 +14,18 @@ install the binding.
 
 from __future__ import annotations
 
+import json
 import os
+import re
 import sys
 from typing import Any, Dict, List, Optional, Tuple
 
-from .model import MAX_SCENARIO_BYTES, ScenarioError, load_scenario
+from .model import (
+    MAX_SCENARIO_BYTES,
+    ScenarioError,
+    load_scenario,
+    parse_json,
+)
 from .runner import (
     MAX_ROM_BYTES,
     RESULT_SCHEMA_VERSION,
@@ -187,6 +194,40 @@ def _run_scenario(rom_path: str, scenario_path: str, out_path: Optional[str],
             "scenario_error",
             "scenario is not valid UTF-8 text",
         ))
+
+    def reject_screenshot_collision(
+        basename: Optional[str],
+    ) -> Optional[Tuple[Dict[str, Any], int]]:
+        if basename is None or artifact_dir is None:
+            return None
+        return _reject_output_collisions(
+            rom_path,
+            scenario_path,
+            out_path,
+            os.path.join(artifact_dir, basename),
+        )
+
+    try:
+        raw_scenario = parse_json(scenario_text)
+    except ScenarioError as exc:
+        collision = reject_screenshot_collision(
+            _recover_screenshot_basename(scenario_text)
+        )
+        if collision is not None:
+            return collision
+        return finish(_error_result("scenario_error", str(exc)))
+
+    raw_basename = None
+    if isinstance(raw_scenario, dict) and artifact_dir is not None:
+        raw_screenshot = raw_scenario.get("screenshot")
+        if isinstance(raw_screenshot, dict):
+            candidate = raw_screenshot.get("basename")
+            if isinstance(candidate, str):
+                raw_basename = candidate
+    collision = reject_screenshot_collision(raw_basename)
+    if collision is not None:
+        return collision
+
     try:
         scenario = load_scenario(scenario_text)
     except ScenarioError as exc:
@@ -273,10 +314,25 @@ def _close_backend(backend: Any) -> Optional[Tuple[Dict[str, Any], int]]:
 _FLAG_OPTS = frozenset({"--check"})
 _VALUE_OPTS = frozenset({"--rom", "--scenario", "--out", "--artifact-dir"})
 _ALL_OPTS = _FLAG_OPTS | _VALUE_OPTS
+_RAW_SCREENSHOT_BASENAME = re.compile(
+    r'"screenshot"\s*:\s*\{[^{}]{0,4096}?'
+    r'"basename"\s*:\s*"((?:\\.|[^"\\]){1,255})"',
+)
 
 
 class _UsageError(Exception):
     """Raised for any malformed command line. Messages are static (no paths)."""
+
+
+def _recover_screenshot_basename(text: str) -> Optional[str]:
+    match = _RAW_SCREENSHOT_BASENAME.search(text)
+    if match is None:
+        return None
+    try:
+        value = json.loads('"' + match.group(1) + '"')
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return None
+    return value if isinstance(value, str) and value else None
 
 
 def _parse_args(argv: List[str]) -> Tuple[Dict[str, bool], Dict[str, str]]:
