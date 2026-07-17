@@ -946,6 +946,107 @@ def session_history_cmd(count):
 
 # ── Backend check ─────────────────────────────────────────────────────
 
+@cli.command("playtest")
+@click.option("--check", is_flag=True, help="Check the pinned mGBA binding")
+@click.option(
+    "--rom",
+    "rom_file",
+    type=click.Path(exists=True, dir_okay=False, path_type=str),
+    default=None,
+    help="ROM file (falls back to the global/session ROM)",
+)
+@click.option(
+    "--scenario",
+    type=click.Path(exists=True, dir_okay=False, path_type=str),
+    default=None,
+    help="Scenario JSON",
+)
+@click.option(
+    "--out",
+    type=click.Path(dir_okay=False, path_type=str),
+    default=None,
+    help="Optional result JSON",
+)
+@click.option(
+    "--artifact-dir",
+    type=click.Path(exists=True, file_okay=False, path_type=str),
+    default=None,
+    help="Existing screenshot artifact directory",
+)
+@click.option("--python", "python_executable", default="", help="Python executable")
+@click.option(
+    "--timeout",
+    "timeout_ms",
+    type=click.IntRange(1000, 3_600_000),
+    default=None,
+    help="Native runner timeout in milliseconds (run default: 600000)",
+)
+@click.pass_context
+def playtest_cmd(
+    ctx,
+    check,
+    rom_file,
+    scenario,
+    out,
+    artifact_dir,
+    python_executable,
+    timeout_ms,
+):
+    """Run a deterministic headless mGBA verification scenario."""
+    from cli_anything.febuildergba.core.playtest import (
+        PlaytestResultError,
+        playtest,
+    )
+
+    global_rom = ctx.obj.get("rom_path", "")
+    if check:
+        if (
+            rom_file
+            or global_rom
+            or scenario
+            or out
+            or artifact_dir
+            or timeout_ms is not None
+        ):
+            raise click.UsageError(
+                "--check cannot be combined with ROM/scenario/out/artifact/timeout options"
+            )
+        path = ""
+    else:
+        path = rom_file or _get_rom_path(global_rom)
+
+    try:
+        result = playtest(
+            rom_path=path,
+            scenario_path=scenario or "",
+            out_path=out or "",
+            artifact_dir=artifact_dir or "",
+            python_executable=python_executable,
+            timeout_ms=timeout_ms,
+            check=check,
+        )
+    except (PlaytestResultError, RuntimeError, ValueError) as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    if _json_mode:
+        _output(result)
+    else:
+        status = result["status"]
+        note = result.get("note", "")
+        if status == "check_ok":
+            click.echo("mGBA playtest dependency check: OK")
+        elif status == "pass":
+            frames = result.get("framesExecuted")
+            suffix = f" ({frames} frames)" if frames is not None else ""
+            click.echo(f"Playtest PASS{suffix}")
+        else:
+            detail = f": {note}" if note else ""
+            click.echo(f"Playtest {status}{detail}", err=True)
+
+    if result["exitCode"] != 0:
+        ctx.exit(result["exitCode"])
+
+
 @cli.command("check")
 def check_cmd():
     """Check if the FEBuilderGBA.CLI backend is available."""
@@ -1004,6 +1105,7 @@ def repl(project_path):
         "patch apply-bin <file>": "Apply BIN patch",
         "disasm -o <file>": "Disassemble ROM",
         "lz77 -i <file> -o <file> --compress|--decompress": "LZ77 compress/decompress a file",
+        "playtest --scenario <file>": "Run deterministic headless verification",
         "check": "Check backend availability",
         "help": "Show this help",
         "quit/exit": "Exit REPL",

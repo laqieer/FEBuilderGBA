@@ -9,6 +9,7 @@ Two layers:
 """
 
 import os
+import json
 import shutil
 import tempfile
 from pathlib import Path
@@ -40,6 +41,7 @@ class _Recorder:
         self.stdout = stdout
         self.stderr = stderr
         self.args = None
+        self.kwargs = None
         # The value of the first ``--rom=`` argument observed, and whether it
         # pointed at an existing regular file at the instant of the call —
         # used to assert wrappers hand the backend a live, private snapshot
@@ -49,6 +51,7 @@ class _Recorder:
 
     def __call__(self, args, **kwargs):
         self.args = args
+        self.kwargs = kwargs
         for arg in args:
             if isinstance(arg, str) and arg.startswith("--rom="):
                 self.rom_arg = arg[len("--rom="):]
@@ -64,6 +67,276 @@ def rec(monkeypatch):
     r = _Recorder()
     monkeypatch.setattr("cli_anything.febuildergba.core.verbs.run_cli", r)
     return r
+
+
+@pytest.fixture
+def playtest_rec(monkeypatch):
+    r = _Recorder()
+    monkeypatch.setattr(
+        "cli_anything.febuildergba.core.playtest.run_cli",
+        r,
+    )
+    return r
+
+
+class TestPlaytestUnit:
+    @staticmethod
+    def _json(status, exit_code, **extra):
+        result = {
+            "resultSchemaVersion": 1,
+            "status": status,
+            "exitCode": exit_code,
+        }
+        result.update(extra)
+        return json.dumps(result, sort_keys=True, separators=(",", ":"))
+
+    def test_check_delegates_without_rom(self, playtest_rec):
+        from cli_anything.febuildergba.core.playtest import playtest
+
+        playtest_rec.stdout = self._json("check_ok", 0)
+        result = playtest(check=True, python_executable="python")
+
+        assert playtest_rec.args == [
+            "--playtest",
+            "--check",
+            "--python=python",
+        ]
+        assert playtest_rec.kwargs == {"timeout": 630}
+        assert result["status"] == "check_ok"
+
+    def test_run_delegates_all_structural_options(self, playtest_rec):
+        from cli_anything.febuildergba.core.playtest import playtest
+
+        playtest_rec.stdout = self._json("pass", 0, framesExecuted=12)
+        result = playtest(
+            rom_path="r.gba",
+            scenario_path="s.json",
+            out_path="result.json",
+            artifact_dir="artifacts",
+            python_executable="python3",
+            timeout_ms=12_000,
+        )
+
+        assert playtest_rec.args == [
+            "--playtest",
+            "--rom=r.gba",
+            "--scenario=s.json",
+            "--timeout=12000",
+            "--out=result.json",
+            "--artifact-dir=artifacts",
+            "--python=python3",
+        ]
+        assert playtest_rec.kwargs == {"timeout": 42}
+        assert result["framesExecuted"] == 12
+
+    @pytest.mark.parametrize(
+        ("status", "exit_code"),
+        [
+            ("dependency_error", 1),
+            ("harness_error", 1),
+            ("assertion_failed", 2),
+            ("crash", 2),
+            ("softlock", 2),
+        ],
+    )
+    def test_preserves_nonzero_result_distinctions(
+        self, playtest_rec, status, exit_code
+    ):
+        from cli_anything.febuildergba.core.playtest import playtest
+
+        playtest_rec.returncode = exit_code
+        playtest_rec.stdout = self._json(status, exit_code)
+
+        result = playtest("r.gba", "s.json")
+
+        assert result["status"] == status
+        assert result["exitCode"] == exit_code
+
+    @pytest.mark.parametrize(
+        "stdout",
+        [
+            "",
+            "not json",
+            "[]",
+            '{"resultSchemaVersion":1,"status":"pass"}',
+            '{"exitCode":0,"resultSchemaVersion":1,"status":"unknown"}',
+            '{"exitCode":0,"exitCode":0,"resultSchemaVersion":1,"status":"pass"}',
+            '{"exitCode":0,"resultSchemaVersion":1,"status":"pass"}\n{}',
+        ],
+    )
+    def test_malformed_backend_json_is_an_error(self, playtest_rec, stdout):
+        from cli_anything.febuildergba.core.playtest import (
+            PlaytestResultError,
+            playtest,
+        )
+
+        playtest_rec.stdout = stdout
+        with pytest.raises(PlaytestResultError):
+            playtest("r.gba", "s.json")
+
+    def test_process_exit_must_match_document(self, playtest_rec):
+        from cli_anything.febuildergba.core.playtest import (
+            PlaytestResultError,
+            playtest,
+        )
+
+        playtest_rec.returncode = 1
+        playtest_rec.stdout = self._json("pass", 0)
+        with pytest.raises(PlaytestResultError):
+            playtest("r.gba", "s.json")
+
+    def test_check_rejects_run_arguments(self, playtest_rec):
+        from cli_anything.febuildergba.core.playtest import playtest
+
+        with pytest.raises(ValueError, match="cannot be combined"):
+            playtest(rom_path="r.gba", check=True)
+        with pytest.raises(ValueError, match="timeout"):
+            playtest(check=True, timeout_ms=1_000)
+        assert playtest_rec.args is None
+
+
+class TestPlaytestClick:
+    def test_json_check_output(self, monkeypatch):
+        captured = {}
+
+        def fake_playtest(**kwargs):
+            captured.update(kwargs)
+            return {
+                "resultSchemaVersion": 1,
+                "status": "check_ok",
+                "exitCode": 0,
+            }
+
+        monkeypatch.setattr(
+            "cli_anything.febuildergba.core.playtest.playtest",
+            fake_playtest,
+        )
+        result = CliRunner().invoke(
+            febuildergba_cli.cli,
+            ["--json", "playtest", "--check", "--python=python"],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["status"] == "check_ok"
+        assert captured["check"] is True
+        assert captured["rom_path"] == ""
+
+    def test_behavior_failure_preserves_exit_two(self, monkeypatch, tmp_path):
+        scenario = tmp_path / "s.json"
+        scenario.write_text("{}", encoding="utf-8")
+        rom = tmp_path / "r.gba"
+        _write_valid_test_rom(rom)
+
+        monkeypatch.setattr(
+            "cli_anything.febuildergba.core.playtest.playtest",
+            lambda **kwargs: {
+                "resultSchemaVersion": 1,
+                "status": "assertion_failed",
+                "exitCode": 2,
+                "note": "assertion mismatch",
+            },
+        )
+        result = CliRunner().invoke(
+            febuildergba_cli.cli,
+            [
+                "--json",
+                "playtest",
+                "--rom",
+                str(rom),
+                "--scenario",
+                str(scenario),
+            ],
+        )
+
+        assert result.exit_code == 2
+        assert json.loads(result.output)["status"] == "assertion_failed"
+
+    def test_explicit_rom_does_not_inherit_global_rom(
+        self, monkeypatch, tmp_path
+    ):
+        scenario = tmp_path / "s.json"
+        scenario.write_text("{}", encoding="utf-8")
+        explicit_rom = tmp_path / "explicit.gba"
+        _write_valid_test_rom(explicit_rom)
+        captured = {}
+
+        def fake_playtest(**kwargs):
+            captured.update(kwargs)
+            return {
+                "resultSchemaVersion": 1,
+                "status": "pass",
+                "exitCode": 0,
+            }
+
+        monkeypatch.setattr(
+            "cli_anything.febuildergba.core.playtest.playtest",
+            fake_playtest,
+        )
+        result = CliRunner().invoke(
+            febuildergba_cli.cli,
+            [
+                "--rom",
+                "unrelated-session.gba",
+                "playtest",
+                "--rom",
+                str(explicit_rom),
+                "--scenario",
+                str(scenario),
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert captured["rom_path"] == str(explicit_rom)
+
+    def test_missing_explicit_rom_uses_session_rom(self, monkeypatch, tmp_path):
+        scenario = tmp_path / "s.json"
+        scenario.write_text("{}", encoding="utf-8")
+        session_rom = tmp_path / "session.gba"
+        _write_valid_test_rom(session_rom)
+        captured = {}
+        fake_session = SimpleNamespace(
+            is_open=lambda: True,
+            state=SimpleNamespace(rom_path=str(session_rom)),
+        )
+
+        monkeypatch.setattr(
+            febuildergba_cli,
+            "Session",
+            lambda _path=None: fake_session,
+        )
+        monkeypatch.setattr(
+            "cli_anything.febuildergba.core.playtest.playtest",
+            lambda **kwargs: (
+                captured.update(kwargs)
+                or {
+                    "resultSchemaVersion": 1,
+                    "status": "pass",
+                    "exitCode": 0,
+                }
+            ),
+        )
+        result = CliRunner().invoke(
+            febuildergba_cli.cli,
+            ["playtest", "--scenario", str(scenario)],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert captured["rom_path"] == str(session_rom)
+
+    def test_playtest_is_not_exposed_as_mcp_tool(self):
+        from cli_anything.febuildergba import mcp_server
+
+        assert "playtest" not in {
+            tool["name"] for tool in mcp_server.TOOL_DEFS
+        }
+
+    def test_check_rejects_explicit_timeout(self):
+        result = CliRunner().invoke(
+            febuildergba_cli.cli,
+            ["playtest", "--check", "--timeout=1000"],
+        )
+        assert result.exit_code == 2
+        assert "--check cannot be combined" in result.output
 
 
 # ── Unit tests: one per verb ──────────────────────────────────────────
