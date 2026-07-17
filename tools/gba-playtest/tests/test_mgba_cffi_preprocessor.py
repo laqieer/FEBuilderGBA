@@ -322,6 +322,52 @@ def test_aligned_winnt_nested_state_struct_becomes_partial():
     )
 
 
+def test_aligned_winnt_split_arm64_context_header_becomes_partial():
+    data = (
+        b"typedef struct __attribute__((__aligned__(16)))\n"
+        b"_ARM64_NT_CONTEXT\n"
+        b"{\n"
+        b"  unsigned long ContextFlags;\n"
+        b"  unsigned long long Registers[31];\n"
+        b"} ARM64_NT_CONTEXT,*PARM64_NT_CONTEXT;\n"
+        b"int retained;\n"
+    )
+    assert wrapper._normalize_builder_output(data) == (
+        b"typedef struct \n"
+        b"_ARM64_NT_CONTEXT\n"
+        b"{\n"
+        b"    ...;\n"
+        b"} ARM64_NT_CONTEXT,*PARM64_NT_CONTEXT;\n"
+        b"int retained;\n"
+    )
+
+
+def test_aligned_winnt_slist_union_becomes_partial():
+    data = (
+        b"typedef union __attribute__((__aligned__(16))) _SLIST_HEADER {\n"
+        b"  unsigned long long Alignment;\n"
+        b"  unsigned long long Region;\n"
+        b"} SLIST_HEADER,*PSLIST_HEADER;\n"
+    )
+    assert wrapper._normalize_builder_output(data) == (
+        b"typedef union  _SLIST_HEADER {\n"
+        b"    ...;\n"
+        b"} SLIST_HEADER,*PSLIST_HEADER;\n"
+    )
+
+
+def test_unknown_split_aligned_struct_still_fails_closed():
+    data = (
+        b"typedef struct __attribute__((__aligned__(16)))\n"
+        b"_APPLICATION_CONTEXT\n"
+        b"{\n"
+        b"  int value;\n"
+        b"} APPLICATION_CONTEXT;\n"
+    )
+    with pytest.raises(wrapper.PreprocessorError, match="__aligned__"):
+        wrapper._normalize_builder_output(data)
+
+
 def test_opaque_aligned_system_struct_count_is_bounded(monkeypatch):
     monkeypatch.setattr(wrapper, "MAX_OPAQUE_ALIGNED_STRUCTS", 1)
     data = (

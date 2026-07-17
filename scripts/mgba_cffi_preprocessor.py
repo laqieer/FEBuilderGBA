@@ -75,12 +75,13 @@ preprocessor stream is capped at 64 MiB and at 16,384 inline blocks,
 accommodating the generated MinGW header set while retaining deterministic
 resource bounds. POSIX preprocessing is otherwise unchanged.
 
-The exact aligned WinNT/WDK processor-state structs emitted by the pinned
-headers (for example ``_M128A`` and ``_XSAVE_FORMAT``) are unreferenced by
-pinned mGBA. Their cdef bodies are converted to CFFI partial structs
-(``...;``), so the real compiler supplies their aligned layout instead of
-dropping alignment or teaching pycparser vendor syntax. Alignment remains
-rejected everywhere else.
+The exact aligned WinNT/WDK processor-state structs and unions emitted by the
+pinned headers (for example ``_M128A``, ``_ARM64_NT_CONTEXT``, and
+``_SLIST_HEADER``) are unreferenced by pinned mGBA. Their cdef bodies are
+converted to CFFI partial declarations (``...;``), so the real compiler
+supplies their aligned layout instead of dropping alignment or teaching
+pycparser vendor syntax. Bounded headers split across preprocessor-selected
+tag lines are supported; alignment remains rejected everywhere else.
 
 Compiler-defined MinGW/GCC vector aliases are likewise unreferenced by pinned
 mGBA. Any one-line compiler-internal typedef (``__...`` alias) carrying
@@ -230,12 +231,14 @@ REDUNDANT_MAX_ALIGN_IDENTIFIERS = frozenset(
 OPAQUE_ALIGNED_SYSTEM_STRUCT_TAGS = frozenset(
     {
         "_ARM64EC_NT_CONTEXT",
+        "_ARM64_NT_CONTEXT",
         "_CONTEXT",
         "_M128A",
         "_MEMORY_BASIC_INFORMATION64",
         "_MEMORY_PARTITION_DEDICATED_MEMORY_ATTRIBUTE",
         "_MEMORY_PARTITION_DEDICATED_MEMORY_INFORMATION",
         "_SLIST_ENTRY",
+        "_SLIST_HEADER",
         "_XSAVE_AREA",
         "_XSAVE_AREA_HEADER",
         "_XSAVE_FORMAT",
@@ -246,6 +249,7 @@ ALIGNED_ATTRIBUTE_IDENTIFIERS = frozenset(
     {"aligned", "__aligned__", "alignof", "__alignof__"}
 )
 MAX_OPAQUE_ALIGNED_STRUCTS = 64
+MAX_OPAQUE_ALIGNED_STRUCT_HEADER_LINES = 8
 MAX_OPAQUE_ALIGNED_STRUCT_LINES = 8192
 SIMD_ATTRIBUTE_IDENTIFIERS = frozenset(
     {
@@ -672,7 +676,6 @@ def _strip_mingw_attributes(lines: List[bytes]) -> List[bytes]:
                     if identifier not in SAFE_MINGW_ATTRIBUTES
                 }
             )
-            line_identifiers = set(_attribute_identifiers(line))
             if (
                 unsupported
                 and set(unsupported) <= REDUNDANT_MAX_ALIGN_IDENTIFIERS
@@ -687,7 +690,7 @@ def _strip_mingw_attributes(lines: List[bytes]) -> List[bytes]:
             elif (
                 unsupported
                 and set(unsupported) <= ALIGNED_ATTRIBUTE_IDENTIFIERS
-                and line_identifiers & OPAQUE_ALIGNED_SYSTEM_STRUCT_TAGS
+                and _opaque_aligned_system_struct_header(lines, line_index) is not None
             ):
                 # These exact WinNT/WDK state structs are not referenced by
                 # pinned mGBA. Their bodies are converted to CFFI partial
@@ -906,38 +909,67 @@ def _brace_depth_and_close(line: bytes, depth: int) -> tuple:
     return depth, None
 
 
+def _opaque_aligned_system_struct_header(
+    lines: List[bytes], start: int
+) -> Optional[tuple]:
+    """Return ``(tag, opening-line)`` for an exact bounded WinNT typedef."""
+    first_identifiers = set(_attribute_identifiers(lines[start]))
+    if (
+        "typedef" not in first_identifiers
+        or not ({"struct", "union"} & first_identifiers)
+    ):
+        return None
+
+    tags = set()
+    end = min(len(lines), start + MAX_OPAQUE_ALIGNED_STRUCT_HEADER_LINES)
+    for index in range(start, end):
+        line = lines[index]
+        tags.update(
+            set(_attribute_identifiers(line))
+            & OPAQUE_ALIGNED_SYSTEM_STRUCT_TAGS
+        )
+        depth, closing = _brace_depth_and_close(line, 0)
+        if depth > 0:
+            if closing is not None or len(tags) != 1:
+                return None
+            return next(iter(tags)), index
+        if closing is not None or b";" in line:
+            return None
+    return None
+
+
 def _partialize_opaque_aligned_system_structs(lines: List[bytes]) -> List[bytes]:
     """Replace exact unreferenced aligned WinNT struct bodies with ``...;``."""
     output: List[bytes] = []
     index = 0
     converted = 0
     while index < len(lines):
-        line = lines[index]
-        identifiers = set(_attribute_identifiers(line))
-        tags = identifiers & OPAQUE_ALIGNED_SYSTEM_STRUCT_TAGS
-        if (
-            not tags
-            or b"typedef" not in line
-            or b"struct" not in line
-            or b"{" not in line
-        ):
-            output.append(line)
+        header = _opaque_aligned_system_struct_header(lines, index)
+        if header is None:
+            output.append(lines[index])
             index += 1
             continue
+        _, opening_index = header
         converted += 1
         if converted > MAX_OPAQUE_ALIGNED_STRUCTS:
             raise PreprocessorError("too many opaque aligned system structs")
 
-        depth, closing = _brace_depth_and_close(line, 0)
+        while index <= opening_index:
+            output.append(lines[index])
+            index += 1
+
+        opening_line = lines[opening_index]
+        depth, closing = _brace_depth_and_close(opening_line, 0)
         if depth <= 0 or closing is not None:
             raise PreprocessorError("malformed opaque aligned system struct")
-        output.append(line)
-        body = line.rstrip(b"\r\n")
-        ending = line[len(body):]
-        indent = line[: len(line) - len(line.lstrip())] + b"    "
+        body = opening_line.rstrip(b"\r\n")
+        ending = opening_line[len(body):]
+        indent = (
+            opening_line[: len(opening_line) - len(opening_line.lstrip())]
+            + b"    "
+        )
         output.append(indent + b"...;" + ending)
 
-        index += 1
         consumed = 1
         while index < len(lines):
             depth, closing = _brace_depth_and_close(lines[index], depth)

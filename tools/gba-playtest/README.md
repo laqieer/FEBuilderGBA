@@ -179,10 +179,12 @@ set; unknown or layout-affecting attributes (`aligned`, `packed`, `mode`, etc.)
 fail closed. The only alignment exception is MinGW `max_align_t`'s long-long
 and long-double fields aligned to their own natural `__alignof__` values, where
 removing the redundant annotation preserves the UCRT64 x64 layout. Exact
-aligned WinNT/WDK processor-state structs unused by pinned mGBA (such as
-`_M128A` and `_XSAVE_FORMAT`) are converted to CFFI partial structs (`...;`),
-so the real compiler provides their aligned layout; alignment remains rejected
-outside that finite context. Compiler-defined MinGW/GCC vector aliases are also
+aligned WinNT/WDK processor-state structs and unions unused by pinned mGBA
+(such as `_M128A`, `_ARM64_NT_CONTEXT`, and `_SLIST_HEADER`) are converted to
+CFFI partial declarations (`...;`), so the real compiler provides their
+aligned layout. Bounded headers split across up to eight preprocessor-selected
+tag lines are supported; alignment remains rejected outside that finite
+context. Compiler-defined MinGW/GCC vector aliases are also
 unused by pinned mGBA; any one-line compiler-internal typedef (`__...` alias)
 carrying `vector_size` or `may_alias` plus optional alignment attributes becomes
 an opaque CFFI typedef. This preserves the compiler's real vector layout without
