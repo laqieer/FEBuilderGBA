@@ -1,6 +1,7 @@
 """Dependency-free contracts for the native phase smoke."""
 
 import ast
+import io
 import os
 import re
 
@@ -38,6 +39,17 @@ def test_phase_marker_sequence_is_exact_and_ordered():
     assert tuple(names) == EXPECTED_PHASES
     assert smoke.PHASE_MARKERS[-1] == "phase:done"
     assert smoke.EXPECTED_STDERR.endswith(b"phase:done\n")
+
+
+def test_emit_writes_canonical_lf_bytes(monkeypatch):
+    class CapturedStderr:
+        def __init__(self):
+            self.buffer = io.BytesIO()
+
+    captured = CapturedStderr()
+    monkeypatch.setattr(smoke.sys, "stderr", captured)
+    smoke._emit("phase:test")
+    assert captured.buffer.getvalue() == b"phase:test\n"
 
 
 def test_parent_accepts_only_the_exact_marker_stream(capsys):

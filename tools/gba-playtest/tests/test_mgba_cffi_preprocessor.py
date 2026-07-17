@@ -132,12 +132,16 @@ def test_mingw_rewrite_scopes_attribute_sanitizer_to_limits_header():
     assert rewritten.count(wrapper.ATTRIBUTE_RESTORE_LINE) == 1
     assert rewritten.count(wrapper.INTRIN_GUARD_DISABLE_LINE) == 1
     assert rewritten.count(wrapper.INTRIN_GUARD_RESTORE_LINE) == 1
+    assert rewritten.count(wrapper.LIMITS_BLOCK_BEGIN_LINE) == 1
+    assert rewritten.count(wrapper.LIMITS_BLOCK_END_LINE) == 1
     assert (
-        rewritten.index(wrapper.ATTRIBUTE_DISABLE_LINE)
+        rewritten.index(wrapper.LIMITS_BLOCK_BEGIN_LINE)
+        < rewritten.index(wrapper.ATTRIBUTE_DISABLE_LINE)
         < rewritten.index(wrapper.INTRIN_GUARD_DISABLE_LINE)
         < rewritten.index(wrapper.LIMITS_INCLUDE_LINE)
         < rewritten.index(wrapper.INTRIN_GUARD_RESTORE_LINE)
         < rewritten.index(wrapper.ATTRIBUTE_RESTORE_LINE)
+        < rewritten.index(wrapper.LIMITS_BLOCK_END_LINE)
     )
     assert rewritten.index(wrapper.ATTRIBUTE_RESTORE_LINE) < rewritten.index(
         "#include <mgba/flags.h>"
@@ -153,6 +157,126 @@ def test_mingw_rewrite_fails_closed_if_limits_include_drifts():
 # --------------------------------------------------------------------------- #
 # Preprocessed MinGW builtin typedef normalization
 # --------------------------------------------------------------------------- #
+def test_preprocessed_limits_block_is_removed_before_normalization():
+    data = (
+        b"typedef ... va_list;\n"
+        + wrapper.LIMITS_BLOCK_BEGIN_LINE.encode("ascii")
+        + b"\n"
+        + b"void irrelevant_windows_api(void);\n"
+        + b"typedef struct _IRRELEVANT { int value; } IRRELEVANT;\n"
+        + wrapper.LIMITS_BLOCK_END_LINE.encode("ascii")
+        + b"\n"
+        + b"int retained_mgba_api(void);\n"
+    )
+    assert wrapper._normalize_builder_output(
+        data,
+        require_limits_markers=True,
+    ) == (
+        b"typedef ... va_list;\n"
+        b"int retained_mgba_api(void);\n"
+    )
+
+
+def test_required_limits_markers_fail_closed_when_missing():
+    with pytest.raises(wrapper.PreprocessorError, match="limits block markers"):
+        wrapper._normalize_builder_output(
+            b"int retained;\n",
+            require_limits_markers=True,
+        )
+
+
+def test_limits_block_line_count_is_bounded(monkeypatch):
+    monkeypatch.setattr(wrapper, "MAX_MINGW_LIMITS_BLOCK_LINES", 2)
+    data = (
+        wrapper.LIMITS_BLOCK_BEGIN_LINE.encode("ascii")
+        + b"\nint system;\n"
+        + wrapper.LIMITS_BLOCK_END_LINE.encode("ascii")
+        + b"\n"
+    )
+    with pytest.raises(wrapper.PreprocessorError, match="line bound"):
+        wrapper._normalize_builder_output(
+            data,
+            require_limits_markers=True,
+        )
+
+
+def test_source_filter_keeps_only_overlay_and_pinned_source(
+    monkeypatch, tmp_path
+):
+    source_root = tmp_path / "mgba"
+    source_root.mkdir()
+    source_header = source_root / "include" / "api.h"
+    source_header.parent.mkdir()
+    source_header.write_text("", encoding="utf-8")
+    sibling = tmp_path / "mgba-evil" / "api.h"
+    sibling.parent.mkdir()
+    sibling.write_text("", encoding="utf-8")
+    overlay = tmp_path / "overlay.h"
+    overlay.write_text("", encoding="utf-8")
+    system = tmp_path / "system.h"
+    system.write_text("", encoding="utf-8")
+    monkeypatch.setenv(wrapper.ENV_SOURCE_ROOT, str(source_root))
+    marker = lambda path: str(path).replace("\\", "/")
+
+    output = (
+        f'# 1 "{marker(overlay)}"\n'.encode()
+        + b"int overlay_decl;\n"
+        + f'# 1 "{marker(system)}" 1\n'.encode()
+        + b"int system_decl;\n"
+        + f'# 2 "{marker(source_header)}" 1\n'.encode()
+        + b"int mgba_decl;\n"
+        + f'# 3 "{marker(sibling)}" 1\n'.encode()
+        + b"int sibling_decl;\n"
+    )
+    assert wrapper._filter_mingw_preprocessed_sources(
+        output,
+        str(overlay),
+    ) == (
+        b"int overlay_decl;\n"
+        b"int mgba_decl;\n"
+    )
+
+
+def test_source_filter_requires_line_markers(monkeypatch, tmp_path):
+    monkeypatch.setenv(wrapper.ENV_SOURCE_ROOT, str(tmp_path))
+    with pytest.raises(wrapper.PreprocessorError, match="no line markers"):
+        wrapper._filter_mingw_preprocessed_sources(
+            b"int declaration;\n",
+            str(tmp_path / "overlay.h"),
+        )
+
+
+def test_source_filter_line_marker_count_is_bounded(monkeypatch, tmp_path):
+    monkeypatch.setenv(wrapper.ENV_SOURCE_ROOT, str(tmp_path))
+    monkeypatch.setattr(wrapper, "MAX_PREPROCESSOR_LINE_MARKERS", 1)
+    overlay = tmp_path / "overlay.h"
+    system = tmp_path / "system.h"
+    overlay_marker = str(overlay).replace("\\", "/")
+    system_marker = str(system).replace("\\", "/")
+    output = (
+        f'# 1 "{overlay_marker}"\n'.encode()
+        + f'# 1 "{system_marker}"\n'.encode()
+    )
+    with pytest.raises(wrapper.PreprocessorError, match="too many preprocessor"):
+        wrapper._filter_mingw_preprocessed_sources(
+            output,
+            str(overlay),
+        )
+
+
+def test_mingw_preprocessor_rejects_conflicting_winver(monkeypatch):
+    monkeypatch.setattr(
+        wrapper.subprocess,
+        "run",
+        lambda *args, **kwargs: pytest.fail("compiler must not run"),
+    )
+    with pytest.raises(wrapper.PreprocessorError, match="conflicting MinGW"):
+        wrapper._run_real_preprocessor(
+            ["-D_WIN32_WINNT=0x0A00", "builder.h"],
+            normalize_builder_output=True,
+        )
+
+
 def test_builtin_va_list_alias_is_normalized_for_cffi():
     data = b"typedef __builtin_va_list __gnuc_va_list;\nint value;\n"
     assert wrapper._normalize_builder_output(data) == (
@@ -207,6 +331,337 @@ def test_overlay_va_list_rejects_conflicting_builtin_kind():
         b"typedef __builtin_ms_va_list va_list;\n"
     )
     with pytest.raises(wrapper.PreprocessorError, match="conflicting"):
+        wrapper._normalize_builder_output(data)
+
+
+def test_overlay_va_list_wins_over_gcc_gnuc_alias_chain():
+    data = (
+        b"typedef ... va_list;\n"
+        b"typedef __builtin_va_list __gnuc_va_list;\n"
+        b"typedef __gnuc_va_list va_list;\n"
+        b"int retained;\n"
+    )
+    assert wrapper._normalize_builder_output(data) == (
+        b"typedef ... va_list;\n"
+        b"typedef ... __gnuc_va_list;\n"
+        b"\n"
+        b"int retained;\n"
+    )
+
+
+def test_overlay_va_list_rejects_nondefault_gnuc_alias_chain():
+    data = (
+        b"typedef ... va_list;\n"
+        b"typedef __builtin_ms_va_list __gnuc_ms_va_list;\n"
+        b"typedef __gnuc_ms_va_list va_list;\n"
+    )
+    with pytest.raises(wrapper.PreprocessorError, match="conflicting"):
+        wrapper._normalize_builder_output(data)
+
+
+def test_gnuc_alias_chain_without_overlay_remains_valid():
+    data = (
+        b"typedef __builtin_va_list __gnuc_va_list;\n"
+        b"typedef __gnuc_va_list va_list;\n"
+    )
+    assert wrapper._normalize_builder_output(data) == (
+        b"typedef ... __gnuc_va_list;\n"
+        b"typedef __gnuc_va_list va_list;\n"
+    )
+
+
+def test_self_referential_compiler_scalar_alias_fails_closed():
+    data = b"typedef __builtin_va_list __builtin_va_list;\n"
+    with pytest.raises(wrapper.PreprocessorError, match="cyclic"):
+        wrapper._normalize_builder_output(data)
+
+
+def test_authoritative_time_and_off_t_overrides_blank_system_typedefs():
+    data = (
+        b"typedef int... time_t;\r\n"
+        b"typedef int... off_t;\n"
+        b"typedef __time64_t time_t;\r\n"
+        b"typedef off64_t off_t;\n"
+        b"int retained;\n"
+    )
+    assert wrapper._normalize_builder_output(data) == (
+        b"typedef int... time_t;\r\n"
+        b"typedef int... off_t;\n"
+        b"\r\n"
+        b"\n"
+        b"int retained;\n"
+    )
+
+
+def test_time_and_off_t_without_authoritative_overrides_are_unchanged():
+    data = (
+        b"typedef __time64_t time_t;\n"
+        b"typedef off64_t off_t;\n"
+    )
+    assert wrapper._normalize_builder_output(data) == data
+
+
+def test_authoritative_time_t_rejects_incompatible_host_source():
+    data = (
+        b"typedef int... time_t;\n"
+        b"typedef char time_t;\n"
+    )
+    with pytest.raises(wrapper.PreprocessorError, match="conflicting authoritative"):
+        wrapper._normalize_builder_output(data)
+
+
+def test_duplicate_authoritative_cffi_alias_fails_closed():
+    data = (
+        b"typedef int... time_t;\n"
+        b"typedef int... time_t;\n"
+    )
+    with pytest.raises(wrapper.PreprocessorError, match="duplicate authoritative"):
+        wrapper._normalize_builder_output(data)
+
+
+def test_identical_mingw_function_declarations_are_deduplicated():
+    data = (
+        b"void * memccpy(void *dst,const void *src,int value,size_t size);\n"
+        b"  void *  memccpy(void *dst,const void *src,int value,size_t size) ;  \r\n"
+        b"int retained;\n"
+    )
+    assert wrapper._normalize_builder_output(data) == (
+        b"void * memccpy(void *dst,const void *src,int value,size_t size);\n"
+        b"\r\n"
+        b"int retained;\n"
+    )
+
+
+def test_distinct_function_declarations_are_not_deduplicated():
+    data = (
+        b"void * memccpy(void *dst,const void *src,int value,size_t size);\n"
+        b"void * memccpy(void *dst,const void *src,long value,size_t size);\n"
+    )
+    assert wrapper._normalize_builder_output(data) == data
+
+
+def test_function_declaration_tokenization_preserves_identifier_boundaries():
+    data = (
+        b"unsigned long function(void);\n"
+        b"unsignedlong function(void);\n"
+    )
+    assert wrapper._normalize_builder_output(data) == data
+
+
+def test_function_declarations_ignore_parameter_names_when_deduplicating():
+    data = (
+        b"int chmod(const char *, int);\n"
+        b"int chmod(const char *filename, int mode);\r\n"
+    )
+    assert wrapper._normalize_builder_output(data) == (
+        b"int chmod(const char *, int);\n"
+        b"\r\n"
+    )
+
+
+def test_parameter_type_changes_are_not_deduplicated():
+    data = (
+        b"int function(size_t value);\n"
+        b"int function(off_t value);\n"
+    )
+    assert wrapper._normalize_builder_output(data) == data
+
+
+def test_tagged_parameter_names_are_ignored_but_tags_are_preserved():
+    data = (
+        b"int function(struct Context *);\n"
+        b"int function(struct Context *context);\n"
+    )
+    assert wrapper._normalize_builder_output(data) == (
+        b"int function(struct Context *);\n"
+        b"\n"
+    )
+
+
+def test_function_declarations_resolve_equivalent_typedef_aliases():
+    data = (
+        b"typedef unsigned long ULONG;\n"
+        b"typedef unsigned long DWORD;\n"
+        b"typedef unsigned char UCHAR;\n"
+        b"typedef unsigned char BYTE;\n"
+        b"unsigned long long VerSetConditionMask("
+        b"unsigned long long mask, DWORD type, BYTE condition);\n"
+        b"unsigned long long VerSetConditionMask("
+        b"unsigned long long mask, ULONG type, UCHAR condition);\r\n"
+    )
+    assert wrapper._normalize_builder_output(data) == (
+        b"typedef unsigned long ULONG;\n"
+        b"typedef unsigned long DWORD;\n"
+        b"typedef unsigned char UCHAR;\n"
+        b"typedef unsigned char BYTE;\n"
+        b"unsigned long long VerSetConditionMask("
+        b"unsigned long long mask, DWORD type, BYTE condition);\n"
+        b"\r\n"
+    )
+
+
+def test_function_declarations_keep_inequivalent_typedef_aliases():
+    data = (
+        b"typedef unsigned long DWORD;\n"
+        b"typedef unsigned short WORD;\n"
+        b"int function(DWORD value);\n"
+        b"int function(WORD value);\n"
+    )
+    assert wrapper._normalize_builder_output(data) == data
+
+
+def test_equivalent_redeclared_typedef_alias_remains_resolvable():
+    data = (
+        b"typedef unsigned long DWORD;\n"
+        b"typedef unsigned long ULONG;\n"
+        b"typedef DWORD ULONG;\n"
+        b"int function(DWORD value);\n"
+        b"int function(ULONG value);\n"
+    )
+    assert wrapper._normalize_builder_output(data) == (
+        b"typedef unsigned long DWORD;\n"
+        b"typedef unsigned long ULONG;\n"
+        b"typedef DWORD ULONG;\n"
+        b"int function(DWORD value);\n"
+        b"\n"
+    )
+
+
+def test_simple_typedef_alias_count_is_bounded(monkeypatch):
+    monkeypatch.setattr(wrapper, "MAX_SIMPLE_TYPEDEF_ALIASES", 1)
+    data = (
+        b"typedef unsigned long FIRST;\n"
+        b"typedef unsigned long SECOND;\n"
+    )
+    with pytest.raises(wrapper.PreprocessorError, match="too many simple"):
+        wrapper._normalize_builder_output(data)
+
+
+def test_complex_parameter_identifier_is_not_resolved_as_typedef():
+    data = (
+        b"typedef unsigned long DWORD;\n"
+        b"int function(void (*DWORD)(void));\n"
+        b"int function(void (*callback)(void));\n"
+    )
+    assert wrapper._normalize_builder_output(data) == data
+
+
+def test_identical_function_pointer_fields_in_distinct_structs_are_preserved():
+    data = (
+        b"struct First {\n"
+        b"  void (*callback)(void);\n"
+        b"};\n"
+        b"struct Second {\n"
+        b"  void (*callback)(void);\n"
+        b"};\n"
+    )
+    assert wrapper._normalize_builder_output(data) == data
+
+
+def test_duplicate_function_declaration_count_is_bounded(monkeypatch):
+    monkeypatch.setattr(wrapper, "MAX_DUPLICATE_FUNCTION_DECLARATIONS", 1)
+    data = (
+        b"void function(void);\n"
+        b"void function(void);\n"
+        b"void function(void);\n"
+    )
+    with pytest.raises(wrapper.PreprocessorError, match="too many duplicate"):
+        wrapper._normalize_builder_output(data)
+
+
+def test_identical_function_typedefs_and_pointer_aliases_are_deduplicated():
+    data = (
+        b"typedef void BAD_MEMORY_CALLBACK_ROUTINE(void);\n"
+        b"typedef BAD_MEMORY_CALLBACK_ROUTINE *PBAD_MEMORY_CALLBACK_ROUTINE;\n"
+        b"  typedef  void BAD_MEMORY_CALLBACK_ROUTINE (void);  \r\n"
+        b"typedef BAD_MEMORY_CALLBACK_ROUTINE * PBAD_MEMORY_CALLBACK_ROUTINE;\r\n"
+    )
+    assert wrapper._normalize_builder_output(data) == (
+        b"typedef void BAD_MEMORY_CALLBACK_ROUTINE(void);\n"
+        b"typedef BAD_MEMORY_CALLBACK_ROUTINE *PBAD_MEMORY_CALLBACK_ROUTINE;\n"
+        b"\r\n"
+        b"\r\n"
+    )
+
+
+def test_distinct_function_typedefs_are_not_deduplicated():
+    data = (
+        b"typedef void CALLBACK_ROUTINE(void);\n"
+        b"typedef int CALLBACK_ROUTINE(void);\n"
+    )
+    assert wrapper._normalize_builder_output(data) == data
+
+
+def test_duplicate_typedef_declaration_count_is_bounded(monkeypatch):
+    monkeypatch.setattr(wrapper, "MAX_DUPLICATE_TYPEDEF_DECLARATIONS", 1)
+    data = (
+        b"typedef void CALLBACK_ROUTINE(void);\n"
+        b"typedef void CALLBACK_ROUTINE(void);\n"
+        b"typedef void CALLBACK_ROUTINE(void);\n"
+    )
+    with pytest.raises(wrapper.PreprocessorError, match="too many duplicate MinGW typedef"):
+        wrapper._normalize_builder_output(data)
+
+
+def test_mingw_c_assert_declaration_is_removed():
+    data = (
+        b"extern void __C_ASSERT__(int [(VALUE == (A + B)) ? 1 : -1]);\r\n"
+        b"int retained;\n"
+    )
+    assert wrapper._normalize_builder_output(data) == (
+        b"\r\n"
+        b"int retained;\n"
+    )
+
+
+def test_mingw_c_assert_count_is_bounded(monkeypatch):
+    monkeypatch.setattr(wrapper, "MAX_MINGW_C_ASSERT_DECLARATIONS", 1)
+    data = (
+        b"extern void __C_ASSERT__(int [(A) ? 1 : -1]);\n"
+        b"extern void __C_ASSERT__(int [(B) ? 1 : -1]);\n"
+    )
+    with pytest.raises(wrapper.PreprocessorError, match="too many MinGW C_ASSERT"):
+        wrapper._normalize_builder_output(data)
+
+
+def test_mingw_enum_int_casts_preserve_signed_32bit_values():
+    data = (
+        b"typedef enum {\n"
+        b"  NEGATIVE = (int) -1,\n"
+        b"  HIGH_BIT = (int) 0x80000000,\n"
+        b"  FORCE_UINT = (int)0xFFFFFFFF,\n"
+        b"  ORDINARY = (int) 18\n"
+        b"} VALUES;\n"
+    )
+    assert wrapper._normalize_builder_output(data) == (
+        b"typedef enum {\n"
+        b"  NEGATIVE = -1,\n"
+        b"  HIGH_BIT = -2147483648,\n"
+        b"  FORCE_UINT = -1,\n"
+        b"  ORDINARY = 18\n"
+        b"} VALUES;\n"
+    )
+
+
+def test_nonliteral_enum_int_cast_remains_fail_closed():
+    data = (
+        b"typedef enum {\n"
+        b"  VALUE = (int) (A + B),\n"
+        b"  SUFFIXED = (int) 1ULL\n"
+        b"} VALUES;\n"
+    )
+    assert wrapper._normalize_builder_output(data) == data
+
+
+def test_mingw_enum_int_cast_count_is_bounded(monkeypatch):
+    monkeypatch.setattr(wrapper, "MAX_MINGW_ENUM_INT_CASTS", 1)
+    data = (
+        b"typedef enum {\n"
+        b"  FIRST = (int) 1,\n"
+        b"  SECOND = (int) 2\n"
+        b"} VALUES;\n"
+    )
+    with pytest.raises(wrapper.PreprocessorError, match="too many MinGW enum"):
         wrapper._normalize_builder_output(data)
 
 
@@ -404,6 +859,20 @@ def test_aligned_winnt_slist_union_becomes_partial():
     )
 
 
+def test_nonaligned_winnt_sizeof_union_becomes_partial():
+    data = (
+        b"typedef union _DISPATCHER_CONTEXT_NONVOLREG_ARM64 {\n"
+        b"  unsigned char Buffer[(11 * sizeof(long long)) + 64];\n"
+        b"  struct { long long values[11]; } state;\n"
+        b"} DISPATCHER_CONTEXT_NONVOLREG_ARM64;\n"
+    )
+    assert wrapper._normalize_builder_output(data) == (
+        b"typedef union _DISPATCHER_CONTEXT_NONVOLREG_ARM64 {\n"
+        b"    ...;\n"
+        b"} DISPATCHER_CONTEXT_NONVOLREG_ARM64;\n"
+    )
+
+
 def test_unknown_split_aligned_struct_still_fails_closed():
     data = (
         b"typedef struct __attribute__((__aligned__(16)))\n"
@@ -450,6 +919,30 @@ def test_mingw_simd_vector_typedef_becomes_opaque():
         b"typedef ... __v2si;\n"
         b"typedef ... __x86_float_u;\n"
     )
+
+
+def test_duplicate_mingw_vector_typedef_is_blank_once():
+    data = (
+        b"typedef long long __v8di "
+        b"__attribute__((__vector_size__(64)));\n"
+        b"  typedef  long long  __v8di "
+        b"__attribute__((__vector_size__(64)));  \r\n"
+    )
+    assert wrapper._normalize_builder_output(data) == (
+        b"typedef ... __v8di;\n"
+        b"\r\n"
+    )
+
+
+def test_conflicting_mingw_vector_typedef_fails_closed():
+    data = (
+        b"typedef long long __v8di "
+        b"__attribute__((__vector_size__(64)));\n"
+        b"typedef long long __v8di "
+        b"__attribute__((__vector_size__(32)));\n"
+    )
+    with pytest.raises(wrapper.PreprocessorError, match="conflicting opaque"):
+        wrapper._normalize_builder_output(data)
 
 
 def test_vector_size_attribute_on_non_simd_type_still_fails_closed():
@@ -1037,14 +1530,22 @@ def test_builder_preprocessor_output_normalizes_builtin_va_list(
     monkeypatch.setenv(wrapper.ENV_EXPECTED_BUILDER_H, str(builder_h))
     monkeypatch.setenv(wrapper.ENV_SOURCE_ROOT, str(tmp_path))
     monkeypatch.setenv(wrapper.ENV_MINGW_CDEF, "1")
-    monkeypatch.setattr(
-        wrapper.subprocess,
-        "run",
-        lambda command, stdout, stderr: _FakeCompleted(
+    def fake_run(command, stdout, stderr):
+        overlay = command[-1]
+        marker = overlay.replace("\\", "/")
+        return _FakeCompleted(
             returncode=0,
-            stdout=b"typedef __builtin_va_list __gnuc_va_list;\n",
-        ),
-    )
+            stdout=(
+                f'# 1 "{marker}"\n'.encode()
+                + wrapper.LIMITS_BLOCK_BEGIN_LINE.encode("ascii")
+                + b"\n"
+                + wrapper.LIMITS_BLOCK_END_LINE.encode("ascii")
+                + b"\n"
+                + b"typedef __builtin_va_list __gnuc_va_list;\n"
+            ),
+        )
+
+    monkeypatch.setattr(wrapper.subprocess, "run", fake_run)
 
     assert wrapper.main(["-Iinclude", str(builder_h)]) == 0
     assert capsysbinary.readouterr().out == b"typedef ... __gnuc_va_list;\n"
@@ -1068,10 +1569,23 @@ def test_mingw_main_preprocesses_a_scoped_attribute_sanitizer(
     def fake_run(command, stdout, stderr):
         with open(command[-1], "r", encoding="utf-8") as handle:
             seen["text"] = handle.read()
-        return _FakeCompleted(returncode=0)
+        seen["command"] = command
+        marker = command[-1].replace("\\", "/")
+        return _FakeCompleted(
+            returncode=0,
+            stdout=(
+                f'# 1 "{marker}"\n'.encode()
+                + wrapper.LIMITS_BLOCK_BEGIN_LINE.encode("ascii")
+                + b"\n"
+                + wrapper.LIMITS_BLOCK_END_LINE.encode("ascii")
+                + b"\n"
+            ),
+        )
 
     monkeypatch.setattr(wrapper.subprocess, "run", fake_run)
     assert wrapper.main(["-Iinclude", str(builder_h)]) == 0
+    assert wrapper.MINGW_WINVER_DEFINE in seen["command"]
+    assert "-P" not in seen["command"]
     assert (
         wrapper.ATTRIBUTE_DISABLE_LINE + "\n"
         + wrapper.INTRIN_GUARD_DISABLE_LINE + "\n"

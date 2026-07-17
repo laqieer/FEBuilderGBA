@@ -39,6 +39,9 @@ ARCHIVE_SHA = "9475c26e9fa2f4b30c07ab6636e4b0a5b62e4baee2109ede7b2fecc52edae366"
 PS1 = os.path.join(SCRIPTS_DIR, "install-mgba-playtest.ps1")
 SH = os.path.join(SCRIPTS_DIR, "install-mgba-playtest.sh")
 CFFI_WRAPPER = os.path.join(SCRIPTS_DIR, "mgba_cffi_preprocessor.py")
+SETUPTOOLS_SHIM = os.path.join(
+    TOOL_DIR, "setuptools-shim", "sitecustomize.py"
+)
 README = os.path.join(TOOL_DIR, "README.md")
 REQUIREMENTS = os.path.join(TOOL_DIR, "requirements-mgba-build.txt")
 REQUIREMENTS_BOOTSTRAP = os.path.join(TOOL_DIR, "requirements-mgba-bootstrap.txt")
@@ -1092,6 +1095,40 @@ def test_build_script_rejects_a_symlinked_cffi_wrapper():
     )
 
 
+def test_setuptools_shim_exists_and_is_scoped_by_bootstrap():
+    assert os.path.isfile(SETUPTOOLS_SHIM)
+    text = _read(BUILD_SCRIPT)
+    assert 'MGBA_SETUPTOOLS_SHIM_DIR="${TOOL_DIR_CANON}/setuptools-shim"' in text
+    assert 'MGBA_SETUPTOOLS_SHIM="${MGBA_SETUPTOOLS_SHIM_DIR}/sitecustomize.py"' in text
+    assert 'MGBA_SETUPTOOLS_SHIM_ARG="$(to_native_path "${MGBA_SETUPTOOLS_SHIM_DIR}")"' in text
+    assert 'MGBA_SETUPTOOLS_TEMP="${CMAKE_BUILD}/setuptools-temp"' in text
+    assert 'MGBA_SETUPTOOLS_TEMP_ARG="$(to_native_path "${MGBA_SETUPTOOLS_TEMP}")"' in text
+    assert text.count('PYTHONPATH="${MGBA_SETUPTOOLS_SHIM_ARG}"') == 2
+    assert text.count(
+        'FEBUILDERGBA_MGBA_SETUPTOOLS_TEMP="${MGBA_SETUPTOOLS_TEMP_ARG}"'
+    ) == 2
+    assert "export PYTHONPATH" not in text
+
+
+def test_setuptools_shim_is_narrow_and_source_preserving():
+    text = _read(SETUPTOOLS_SHIM)
+    tree = ast.parse(text)
+    imports = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imports.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imports.add(node.module.split(".")[0])
+    assert imports <= {"os", "sys", "setuptools", "distutils"}
+    assert "MinGW32Compiler.runtime_library_dir_option" in text
+    assert "DistutilsMinGW32Compiler.runtime_library_dir_option" in text
+    assert "get_libraries" in text
+    assert "python{sys.version_info.major}.{sys.version_info.minor}" in text
+    assert "FEBUILDERGBA_MGBA_SETUPTOOLS_TEMP" in text
+    assert "self.build_temp = _build_temp" in text
+    assert "subprocess" not in imports
+
+
 def test_build_script_builds_cpp_as_two_shlex_safe_tokens():
     text = _read(BUILD_SCRIPT)
     assert "mgba_cffi_shlex_quote" in text
@@ -1136,6 +1173,8 @@ def test_build_script_converts_all_cpp_paths_for_native_msys_python():
         'MGBA_CFFI_WRAPPER_ARG="$(to_native_path "${MGBA_CFFI_WRAPPER}")"',
         'MGBA_BUILDER_H_ARG="$(to_native_path "${MGBA_BUILDER_H}")"',
         'MGBA_SOURCE_ROOT_ARG="$(to_native_path "${MGBA_SOURCE_ROOT}")"',
+        'MGBA_SETUPTOOLS_SHIM_ARG="$(to_native_path "${MGBA_SETUPTOOLS_SHIM_DIR}")"',
+        'MGBA_SETUPTOOLS_TEMP_ARG="$(to_native_path "${MGBA_SETUPTOOLS_TEMP}")"',
     )
     cpp_pos = text.index("MGBA_CFFI_CPP=")
     for conversion in conversions:
@@ -1175,7 +1214,7 @@ def test_build_script_scopes_cpp_wrapper_to_both_build_invocations_only():
     bdist_build = text.find('cmake --build "${CMAKE_BUILD}" --target mgba-py-bdist')
     for build_pos in (default_build, bdist_build):
         assert build_pos != -1
-        preceding = text[max(0, build_pos - 320):build_pos]
+        preceding = text[max(0, build_pos - 520):build_pos]
         assert 'CPP="${MGBA_CFFI_CPP}"' in preceding, (
             "each CMake build invocation that can run _builder.py must be "
             "immediately preceded by the scoped CPP assignment"
@@ -1190,6 +1229,11 @@ def test_build_script_scopes_cpp_wrapper_to_both_build_invocations_only():
         assert '${MGBA_SOURCE_ROOT_ARG}' in preceding
         assert "FEBUILDERGBA_MGBA_MINGW_CDEF=" in preceding
         assert '${MGBA_CFFI_MINGW_CDEF}' in preceding
+        assert 'PYTHONPATH="${MGBA_SETUPTOOLS_SHIM_ARG}"' in preceding
+        assert (
+            'FEBUILDERGBA_MGBA_SETUPTOOLS_TEMP="${MGBA_SETUPTOOLS_TEMP_ARG}"'
+            in preceding
+        )
 
 
 def test_build_script_cffi_overlay_does_not_touch_cflags_or_source():

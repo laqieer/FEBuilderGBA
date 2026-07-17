@@ -68,6 +68,12 @@ class SmokeFailure(RuntimeError):
 
 
 def _emit(marker: str) -> None:
+    data = (marker + "\n").encode("ascii")
+    stream = getattr(sys.stderr, "buffer", None)
+    if stream is not None:
+        stream.write(data)
+        stream.flush()
+        return
     sys.stderr.write(marker + "\n")
     sys.stderr.flush()
 

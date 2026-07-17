@@ -53,7 +53,15 @@ MSYS2/MinGW path only, the temporary copy also disables ``__attribute__(...)``
 and predefines MinGW's ``__INTRIN_H_`` guard while ``<limits.h>`` and its
 system-header chain are expanded. This excludes irrelevant compiler intrinsic
 declarations (such as ``__debugbreak``) from the cdef stream; both macros are
-restored before any mGBA header is included. The resulting stream normalizes
+restored before any mGBA header is included. For this MinGW invocation the
+wrapper removes GCC's ``-P`` flag, retains line markers internally, and keeps
+declarations only from the exact temporary overlay or the canonical pinned
+mGBA source root; declarations from host/GCC/Python headers are discarded after
+their macros have already expanded into retained mGBA lines. The wrapper also
+adds the same ``_WIN32_WINNT=0x0600`` definition used by the native CMake target,
+preventing cdef/native compile-environment drift. Exact markers around the
+``limits.h`` expansion are required and removed with that host-only block.
+The resulting stream normalizes
 the complete GCC 16.1 MinGW census of one-line compiler-only scalar aliases
 (``__builtin_*_va_list`` and exact ``__bf16``/``__bfloat16``) into CFFI's
 ``typedef ... alias;`` syntax. It first
@@ -160,6 +168,9 @@ ATTRIBUTE_DISABLE_LINE = "#define __attribute__(X)"
 ATTRIBUTE_RESTORE_LINE = "#undef __attribute__"
 INTRIN_GUARD_DISABLE_LINE = "#define __INTRIN_H_"
 INTRIN_GUARD_RESTORE_LINE = "#undef __INTRIN_H_"
+LIMITS_BLOCK_BEGIN_LINE = "typedef int __febuildergba_limits_block_begin;"
+LIMITS_BLOCK_END_LINE = "typedef int __febuildergba_limits_block_end;"
+MINGW_WINVER_DEFINE = "-D_WIN32_WINNT=0x0600"
 
 # A pinned header file is a few hundred bytes; this bound is generous while
 # still refusing to buffer an unbounded/adversarial input in memory.
@@ -172,6 +183,13 @@ MAX_MINGW_TOKEN_REPLACEMENTS = 65_536
 MAX_MINGW_ATTRIBUTE_REPLACEMENTS = 65_536
 MAX_MINGW_MULTILINE_TYPEDEF_LINES = 32
 MAX_MINGW_MULTILINE_TYPEDEFS = 512
+MAX_DUPLICATE_FUNCTION_DECLARATIONS = 4096
+MAX_DUPLICATE_TYPEDEF_DECLARATIONS = 4096
+MAX_MINGW_C_ASSERT_DECLARATIONS = 1024
+MAX_SIMPLE_TYPEDEF_ALIASES = 16_384
+MAX_MINGW_ENUM_INT_CASTS = 4096
+MAX_MINGW_LIMITS_BLOCK_LINES = 100_000
+MAX_PREPROCESSOR_LINE_MARKERS = 1_000_000
 
 MINGW_TOKEN_REPLACEMENTS = {
     b"__extension__": b"",
@@ -192,6 +210,20 @@ OPAQUE_COMPILER_SCALAR_TYPE_ALIASES = {
     b"__builtin_ms_va_list": None,
     b"__builtin_sysv_va_list": None,
     b"__bf16": frozenset({b"__bfloat16"}),
+}
+
+# Exact CFFI override declarations carried by pinned ``_builder.h`` after the
+# temporary overlay rewrite. These aliases intentionally replace host ABI
+# typedefs with compiler-verified partial declarations for CFFI; later simple
+# system typedefs for the same alias must therefore be blanked, not redeclared.
+AUTHORITATIVE_CFFI_TYPEDEF_LINES = {
+    b"typedef ... va_list;": b"va_list",
+    b"typedef int... time_t;": b"time_t",
+    b"typedef int... off_t;": b"off_t",
+}
+AUTHORITATIVE_HOST_TYPEDEF_SOURCES = {
+    b"time_t": frozenset({b"__time32_t", b"__time64_t"}),
+    b"off_t": frozenset({b"_off_t", b"off32_t", b"off64_t"}),
 }
 
 SAFE_MINGW_ATTRIBUTE_BASE_NAMES = frozenset(
@@ -257,6 +289,18 @@ OPAQUE_ALIGNED_SYSTEM_STRUCT_TAGS = frozenset(
         "_XSAVE_FORMAT",
         "MEM_EXTENDED_PARAMETER",
     }
+)
+OPAQUE_NONALIGNED_SYSTEM_STRUCT_TAGS = frozenset(
+    {
+        "_DISPATCHER_CONTEXT_NONVOLREG_ARM64",
+        "_IMAGE_AUX_SYMBOL_EX",
+        "_SE_SID",
+        "_SE_TOKEN_USER",
+    }
+)
+OPAQUE_SYSTEM_STRUCT_TAGS = (
+    OPAQUE_ALIGNED_SYSTEM_STRUCT_TAGS
+    | OPAQUE_NONALIGNED_SYSTEM_STRUCT_TAGS
 )
 ALIGNED_ATTRIBUTE_IDENTIFIERS = frozenset(
     {"aligned", "__aligned__", "alignof", "__alignof__"}
@@ -422,6 +466,8 @@ def _rewrite_builder_h_text(text: str, *, sanitize_mingw: bool = False) -> str:
             ATTRIBUTE_RESTORE_LINE,
             INTRIN_GUARD_DISABLE_LINE,
             INTRIN_GUARD_RESTORE_LINE,
+            LIMITS_BLOCK_BEGIN_LINE,
+            LIMITS_BLOCK_END_LINE,
         ):
             if any(_stripped(line) == forbidden for line in lines):
                 raise PreprocessorError(
@@ -431,11 +477,13 @@ def _rewrite_builder_h_text(text: str, *, sanitize_mingw: bool = False) -> str:
         limits_original = lines[limits_index]
         limits_ending = limits_original[len(_stripped(limits_original)):]
         lines[limits_index:limits_index + 1] = [
+            LIMITS_BLOCK_BEGIN_LINE + limits_ending,
             ATTRIBUTE_DISABLE_LINE + limits_ending,
             INTRIN_GUARD_DISABLE_LINE + limits_ending,
             limits_original,
             INTRIN_GUARD_RESTORE_LINE + limits_ending,
             ATTRIBUTE_RESTORE_LINE + limits_ending,
+            LIMITS_BLOCK_END_LINE + limits_ending,
         ]
     return "".join(lines)
 
@@ -608,6 +656,7 @@ def _strip_mingw_attributes(lines: List[bytes]) -> List[bytes]:
     output: List[bytes] = []
     replacements = 0
     opaque_vector_typedefs = 0
+    opaque_vector_declarations = {}
     marker = b"__attribute__"
     for line_index, line in enumerate(lines):
         rewritten = bytearray()
@@ -716,7 +765,11 @@ def _strip_mingw_attributes(lines: List[bytes]) -> List[bytes]:
             elif (
                 unsupported
                 and set(unsupported) <= ALIGNED_ATTRIBUTE_IDENTIFIERS
-                and _opaque_aligned_system_struct_header(lines, line_index) is not None
+                and _opaque_aligned_system_struct_header(
+                    lines,
+                    line_index,
+                    OPAQUE_ALIGNED_SYSTEM_STRUCT_TAGS,
+                ) is not None
             ):
                 # These exact WinNT/WDK state structs are not referenced by
                 # pinned mGBA. Their bodies are converted to CFFI partial
@@ -774,6 +827,16 @@ def _strip_mingw_attributes(lines: List[bytes]) -> List[bytes]:
                 raise PreprocessorError("too many opaque MinGW vector typedefs")
             body = line.rstrip(b"\r\n")
             ending = line[len(body):]
+            declaration = _c_declaration_tokens(body.strip())
+            prior = opaque_vector_declarations.get(opaque_vector_alias)
+            if prior is not None:
+                if prior != declaration:
+                    raise PreprocessorError(
+                        "conflicting opaque MinGW vector typedef"
+                    )
+                output.append(ending)
+                continue
+            opaque_vector_declarations[opaque_vector_alias] = declaration
             indent = line[: len(line) - len(line.lstrip())]
             output.append(
                 indent
@@ -936,7 +999,9 @@ def _brace_depth_and_close(line: bytes, depth: int) -> tuple:
 
 
 def _opaque_aligned_system_struct_header(
-    lines: List[bytes], start: int
+    lines: List[bytes],
+    start: int,
+    allowed_tags=OPAQUE_SYSTEM_STRUCT_TAGS,
 ) -> Optional[tuple]:
     """Return ``(tag, opening-line)`` for an exact bounded WinNT typedef."""
     first_identifiers = set(_attribute_identifiers(lines[start]))
@@ -952,7 +1017,7 @@ def _opaque_aligned_system_struct_header(
         line = lines[index]
         tags.update(
             set(_attribute_identifiers(line))
-            & OPAQUE_ALIGNED_SYSTEM_STRUCT_TAGS
+            & allowed_tags
         )
         depth, closing = _brace_depth_and_close(line, 0)
         if depth > 0:
@@ -1014,6 +1079,453 @@ def _partialize_opaque_aligned_system_structs(lines: List[bytes]) -> List[bytes]
     return output
 
 
+def _c_declaration_tokens(data: bytes) -> tuple:
+    """Tokenize a quote-free C declaration while ignoring whitespace."""
+    tokens = []
+    index = 0
+    while index < len(data):
+        value = data[index]
+        if value in b" \t\r\n\v\f":
+            index += 1
+            continue
+        if value == 0x5F or 0x41 <= value <= 0x5A or 0x61 <= value <= 0x7A:
+            end = index + 1
+            while end < len(data):
+                char = data[end]
+                if not (
+                    char == 0x5F
+                    or 0x30 <= char <= 0x39
+                    or 0x41 <= char <= 0x5A
+                    or 0x61 <= char <= 0x7A
+                ):
+                    break
+                end += 1
+            tokens.append(data[index:end])
+            index = end
+            continue
+        if 0x30 <= value <= 0x39:
+            end = index + 1
+            while end < len(data):
+                char = data[end]
+                if not (
+                    char == 0x5F
+                    or 0x30 <= char <= 0x39
+                    or 0x41 <= char <= 0x5A
+                    or 0x61 <= char <= 0x7A
+                ):
+                    break
+                end += 1
+            tokens.append(data[index:end])
+            index = end
+            continue
+        tokens.append(bytes((value,)))
+        index += 1
+    return tuple(tokens)
+
+
+def _strip_mingw_c_assert_declarations(lines: List[bytes]) -> List[bytes]:
+    """Remove bounded WinNT compile-time assertion pseudo-functions."""
+    output: List[bytes] = []
+    removed = 0
+    for line in lines:
+        body = line.rstrip(b"\r\n")
+        ending = line[len(body):]
+        tokens = _c_declaration_tokens(body.strip())
+        if (
+            len(tokens) >= 9
+            and tokens[:6]
+            == (b"extern", b"void", b"__C_ASSERT__", b"(", b"int", b"[")
+            and tokens[-3:] == (b"]", b")", b";")
+        ):
+            removed += 1
+            if removed > MAX_MINGW_C_ASSERT_DECLARATIONS:
+                raise PreprocessorError(
+                    "too many MinGW C_ASSERT declarations"
+                )
+            output.append(ending)
+            continue
+        output.append(line)
+    return output
+
+
+def _normalize_mingw_enum_int_casts(lines: List[bytes]) -> List[bytes]:
+    """Fold simple 32-bit ``(int)`` enum constants to signed decimals."""
+    output: List[bytes] = []
+    enum_depth = 0
+    replacements = 0
+
+    def rewrite(line: bytes) -> bytes:
+        nonlocal replacements
+        rewritten = bytearray()
+        index = 0
+        whitespace = b" \t\r\n\v\f"
+        while index < len(line):
+            start = line.find(b"(", index)
+            if start < 0:
+                rewritten.extend(line[index:])
+                break
+            rewritten.extend(line[index:start])
+            cursor = start + 1
+            while cursor < len(line) and line[cursor:cursor + 1] in whitespace:
+                cursor += 1
+            if line[cursor:cursor + 3] != b"int":
+                rewritten.append(line[start])
+                index = start + 1
+                continue
+            cursor += 3
+            if (
+                cursor < len(line)
+                and (
+                    line[cursor] == 0x5F
+                    or 0x30 <= line[cursor] <= 0x39
+                    or 0x41 <= line[cursor] <= 0x5A
+                    or 0x61 <= line[cursor] <= 0x7A
+                )
+            ):
+                rewritten.append(line[start])
+                index = start + 1
+                continue
+            while cursor < len(line) and line[cursor:cursor + 1] in whitespace:
+                cursor += 1
+            if cursor >= len(line) or line[cursor] != 0x29:
+                rewritten.append(line[start])
+                index = start + 1
+                continue
+            cursor += 1
+            while cursor < len(line) and line[cursor:cursor + 1] in whitespace:
+                cursor += 1
+
+            sign = 1
+            if cursor < len(line) and line[cursor] in (0x2B, 0x2D):
+                if line[cursor] == 0x2D:
+                    sign = -1
+                cursor += 1
+            if line[cursor:cursor + 2].lower() == b"0x":
+                cursor += 2
+                digit_start = cursor
+                while cursor < len(line) and (
+                    0x30 <= line[cursor] <= 0x39
+                    or 0x41 <= line[cursor] <= 0x46
+                    or 0x61 <= line[cursor] <= 0x66
+                ):
+                    cursor += 1
+                if cursor == digit_start:
+                    rewritten.append(line[start])
+                    index = start + 1
+                    continue
+                value = int(line[digit_start:cursor], 16) * sign
+            else:
+                digit_start = cursor
+                while cursor < len(line) and 0x30 <= line[cursor] <= 0x39:
+                    cursor += 1
+                if cursor == digit_start:
+                    rewritten.append(line[start])
+                    index = start + 1
+                    continue
+                value = int(line[digit_start:cursor], 10) * sign
+            if (
+                cursor < len(line)
+                and (
+                    line[cursor] == 0x5F
+                    or 0x30 <= line[cursor] <= 0x39
+                    or 0x41 <= line[cursor] <= 0x5A
+                    or 0x61 <= line[cursor] <= 0x7A
+                )
+            ):
+                rewritten.append(line[start])
+                index = start + 1
+                continue
+
+            replacements += 1
+            if replacements > MAX_MINGW_ENUM_INT_CASTS:
+                raise PreprocessorError("too many MinGW enum integer casts")
+            value &= 0xFFFFFFFF
+            if value >= 0x80000000:
+                value -= 0x100000000
+            rewritten.extend(str(value).encode("ascii"))
+            index = cursor
+        return bytes(rewritten)
+
+    for line in lines:
+        line_delta = _brace_delta(line)
+        if enum_depth == 0:
+            identifiers = set(_attribute_identifiers(line))
+            if "enum" in identifiers and b"{" in line:
+                enum_depth = max(line_delta, 0)
+                output.append(rewrite(line))
+                continue
+            output.append(line)
+            continue
+        output.append(rewrite(line))
+        enum_depth += line_delta
+        if enum_depth < 0:
+            raise PreprocessorError("malformed MinGW enum brace depth")
+    return output
+
+
+_C_TYPE_KEYWORDS = frozenset(
+    {
+        b"_Bool",
+        b"bool",
+        b"char",
+        b"double",
+        b"float",
+        b"int",
+        b"long",
+        b"short",
+        b"signed",
+        b"unsigned",
+        b"void",
+        b"wchar_t",
+    }
+)
+_C_TYPE_QUALIFIERS = frozenset(
+    {b"const", b"restrict", b"volatile", b"_Atomic"}
+)
+_C_TAG_KEYWORDS = frozenset({b"struct", b"union", b"enum"})
+
+
+def _is_c_identifier_token(token: bytes) -> bool:
+    if not token:
+        return False
+    first = token[0]
+    if not (
+        first == 0x5F
+        or 0x41 <= first <= 0x5A
+        or 0x61 <= first <= 0x7A
+    ):
+        return False
+    return all(
+        value == 0x5F
+        or 0x30 <= value <= 0x39
+        or 0x41 <= value <= 0x5A
+        or 0x61 <= value <= 0x7A
+        for value in token[1:]
+    )
+
+
+def _canonical_parameter_tokens(tokens: tuple) -> tuple:
+    """Remove an ordinary parameter identifier while retaining its type."""
+    if not tokens or any(token in (b"(", b")", b"[", b"]") for token in tokens):
+        return tokens
+    identifier_indexes = [
+        index
+        for index, token in enumerate(tokens)
+        if _is_c_identifier_token(token)
+    ]
+    if not identifier_indexes:
+        return tokens
+    candidate_index = identifier_indexes[-1]
+    candidate = tokens[candidate_index]
+    if candidate in _C_TYPE_KEYWORDS or candidate in _C_TYPE_QUALIFIERS:
+        return tokens
+
+    nonqual = [
+        tokens[index]
+        for index in identifier_indexes
+        if tokens[index] not in _C_TYPE_QUALIFIERS
+    ]
+    if not nonqual:
+        return tokens
+    if nonqual[0] in _C_TAG_KEYWORDS:
+        has_name = len(nonqual) >= 3
+    else:
+        has_name = len(nonqual) >= 2
+    if not has_name:
+        return tokens
+    return tokens[:candidate_index] + tokens[candidate_index + 1:]
+
+
+def _resolve_alias_sequence(
+    tokens: tuple,
+    aliases: dict,
+    stack=frozenset(),
+) -> tuple:
+    resolved = []
+    previous = None
+    for token in tokens:
+        if (
+            _is_c_identifier_token(token)
+            and previous not in _C_TAG_KEYWORDS
+            and token in aliases
+            and token not in stack
+        ):
+            resolved.extend(
+                _resolve_alias_sequence(
+                    aliases[token],
+                    aliases,
+                    stack | {token},
+                )
+            )
+        else:
+            resolved.append(token)
+        previous = token
+    return tuple(resolved)
+
+
+def _collect_simple_typedef_aliases(lines: List[bytes]) -> dict:
+    """Collect unambiguous top-level one-line typedef aliases."""
+    aliases = {}
+    ambiguous = set()
+    brace_depth = 0
+    observed = 0
+    for line in lines:
+        line_depth = _brace_delta(line)
+        stripped = line.rstrip(b"\r\n").strip()
+        tokens = _c_declaration_tokens(stripped)
+        if (
+            brace_depth == 0
+            and line_depth == 0
+            and len(tokens) >= 4
+            and tokens[0] == b"typedef"
+            and tokens[-1] == b";"
+            and _is_c_identifier_token(tokens[-2])
+            and not any(
+                token in tokens[1:-2]
+                for token in (
+                    b".",
+                    b",",
+                    b"{",
+                    b"}",
+                    b"(",
+                    b")",
+                    b"[",
+                    b"]",
+                    b"\"",
+                    b"'",
+                )
+            )
+        ):
+            alias = tokens[-2]
+            underlying = tuple(tokens[1:-2])
+            if alias not in underlying and alias not in ambiguous:
+                observed += 1
+                if observed > MAX_SIMPLE_TYPEDEF_ALIASES:
+                    raise PreprocessorError(
+                        "too many simple MinGW typedef aliases"
+                    )
+                resolved = _resolve_alias_sequence(underlying, aliases)
+                prior = aliases.get(alias)
+                if prior is None:
+                    aliases[alias] = resolved
+                elif prior != resolved:
+                    aliases.pop(alias, None)
+                    ambiguous.add(alias)
+        brace_depth += line_depth
+    return aliases
+
+
+def _canonical_function_declaration(
+    data: bytes,
+    aliases: Optional[dict] = None,
+) -> tuple:
+    """Canonicalize one simple prototype, ignoring parameter identifiers."""
+    tokens = _c_declaration_tokens(data)
+    if len(tokens) < 4 or tokens[-1] != b";":
+        return tokens
+    try:
+        opening = tokens.index(b"(")
+    except ValueError:
+        return tokens
+    if opening < 1 or not _is_c_identifier_token(tokens[opening - 1]):
+        return tokens
+
+    depth = 0
+    closing = None
+    for index in range(opening, len(tokens)):
+        token = tokens[index]
+        if token == b"(":
+            depth += 1
+        elif token == b")":
+            depth -= 1
+            if depth == 0:
+                closing = index
+                break
+    if closing is None or closing != len(tokens) - 2:
+        return tokens
+
+    parameters = []
+    current = []
+    nested = 0
+    for token in tokens[opening + 1:closing]:
+        if token in (b"(", b"["):
+            nested += 1
+        elif token in (b")", b"]"):
+            nested -= 1
+        if token == b"," and nested == 0:
+            parameters.append(_canonical_parameter_tokens(tuple(current)))
+            current = []
+        else:
+            current.append(token)
+    parameters.append(_canonical_parameter_tokens(tuple(current)))
+    has_complex_parameter = any(
+        any(token in (b"(", b")", b"[", b"]") for token in parameter)
+        for parameter in parameters
+    )
+
+    canonical = list(tokens[:opening + 1])
+    for index, parameter in enumerate(parameters):
+        if index:
+            canonical.append(b",")
+        canonical.extend(parameter)
+    canonical.extend(tokens[closing:])
+    result = tuple(canonical)
+    if not aliases or has_complex_parameter:
+        return result
+
+    opening = result.index(b"(")
+    function_name = result[opening - 1]
+    return (
+        _resolve_alias_sequence(result[:opening - 1], aliases)
+        + (function_name, b"(")
+        + _resolve_alias_sequence(result[opening + 1:-2], aliases)
+        + (b")", b";")
+    )
+
+
+def _dedupe_identical_function_declarations(lines: List[bytes]) -> List[bytes]:
+    """Blank repeated one-line function declarations after sanitization."""
+    output: List[bytes] = []
+    aliases = _collect_simple_typedef_aliases(lines)
+    seen = set()
+    removed = 0
+    brace_depth = 0
+    for line in lines:
+        body = line.rstrip(b"\r\n")
+        ending = line[len(body):]
+        stripped = body.strip()
+        line_depth = _brace_delta(line)
+        if (
+            brace_depth != 0
+            or line_depth != 0
+            or not stripped.endswith(b";")
+            or b"(" not in stripped
+            or b")" not in stripped
+            or b"{" in stripped
+            or b"}" in stripped
+            or b"\"" in stripped
+            or b"'" in stripped
+            or stripped.startswith(b"typedef ")
+        ):
+            output.append(line)
+            brace_depth += line_depth
+            continue
+        canonical = _canonical_function_declaration(stripped, aliases)
+        if canonical not in seen:
+            seen.add(canonical)
+            output.append(line)
+            brace_depth += line_depth
+            continue
+        removed += 1
+        if removed > MAX_DUPLICATE_FUNCTION_DECLARATIONS:
+            raise PreprocessorError(
+                "too many duplicate MinGW function declarations"
+            )
+        output.append(ending)
+        brace_depth += line_depth
+    return output
+
+
 def _strip_mingw_inline_blocks(lines: List[bytes]) -> List[bytes]:
     """Drop MinGW compiler-intrinsic inline definitions from CFFI input."""
     output: List[bytes] = []
@@ -1066,14 +1578,97 @@ def _strip_mingw_inline_blocks(lines: List[bytes]) -> List[bytes]:
     return output
 
 
-def _normalize_builder_output(data: bytes) -> bytes:
+def _dedupe_identical_typedef_declarations(lines: List[bytes]) -> List[bytes]:
+    """Blank repeated top-level one-line typedef declarations."""
+    output: List[bytes] = []
+    aliases = _collect_simple_typedef_aliases(lines)
+    seen = set()
+    removed = 0
+    brace_depth = 0
+    for line in lines:
+        body = line.rstrip(b"\r\n")
+        ending = line[len(body):]
+        stripped = body.strip()
+        line_depth = _brace_delta(line)
+        if (
+            brace_depth != 0
+            or line_depth != 0
+            or not stripped.startswith(b"typedef ")
+            or not stripped.endswith(b";")
+            or b"{" in stripped
+            or b"}" in stripped
+            or b"\"" in stripped
+            or b"'" in stripped
+        ):
+            output.append(line)
+            brace_depth += line_depth
+            continue
+        if b"(" in stripped and b")" in stripped:
+            canonical = _canonical_function_declaration(stripped, aliases)
+        else:
+            canonical = _c_declaration_tokens(stripped)
+        if canonical not in seen:
+            seen.add(canonical)
+            output.append(line)
+            brace_depth += line_depth
+            continue
+        removed += 1
+        if removed > MAX_DUPLICATE_TYPEDEF_DECLARATIONS:
+            raise PreprocessorError(
+                "too many duplicate MinGW typedef declarations"
+            )
+        output.append(ending)
+        brace_depth += line_depth
+    return output
+
+
+def _remove_mingw_limits_block(
+    lines: List[bytes],
+    *,
+    required: bool = False,
+) -> List[bytes]:
+    """Remove declarations emitted only while expanding pinned ``limits.h``."""
+    begin = [
+        index
+        for index, line in enumerate(lines)
+        if line.strip() == LIMITS_BLOCK_BEGIN_LINE.encode("ascii")
+    ]
+    end = [
+        index
+        for index, line in enumerate(lines)
+        if line.strip() == LIMITS_BLOCK_END_LINE.encode("ascii")
+    ]
+    if not begin and not end and not required:
+        return lines
+    if len(begin) != 1 or len(end) != 1 or end[0] <= begin[0]:
+        raise PreprocessorError("invalid MinGW limits block markers")
+    if end[0] - begin[0] + 1 > MAX_MINGW_LIMITS_BLOCK_LINES:
+        raise PreprocessorError("MinGW limits block exceeds line bound")
+    return lines[:begin[0]] + lines[end[0] + 1:]
+
+
+def _normalize_builder_output(
+    data: bytes,
+    *,
+    require_limits_markers: bool = False,
+) -> bytes:
     """Normalize compiler-only MinGW constructs for CFFI parsing."""
-    lines = _join_mingw_multiline_attribute_typedefs(
-        data.splitlines(keepends=True)
+    lines = _remove_mingw_limits_block(
+        data.splitlines(keepends=True),
+        required=require_limits_markers,
     )
+    lines = _join_mingw_multiline_attribute_typedefs(lines)
+    authoritative_aliases = set()
     opaque_aliases = set()
     for line in lines:
         stripped = line.rstrip(b"\r\n").strip()
+        authoritative_alias = AUTHORITATIVE_CFFI_TYPEDEF_LINES.get(stripped)
+        if authoritative_alias is not None:
+            if authoritative_alias in authoritative_aliases:
+                raise PreprocessorError(
+                    "duplicate authoritative CFFI typedef alias"
+                )
+            authoritative_aliases.add(authoritative_alias)
         if not stripped.endswith(b";"):
             continue
         parts = stripped[:-1].split()
@@ -1093,6 +1688,7 @@ def _normalize_builder_output(data: bytes) -> bytes:
         opaque_aliases.add(alias)
 
     normalized = 0
+    compiler_alias_sources = {}
     for index, line in enumerate(lines):
         body = line.rstrip(b"\r\n")
         ending = line[len(body):]
@@ -1117,6 +1713,8 @@ def _normalize_builder_output(data: bytes) -> bytes:
             raise PreprocessorError("invalid compiler scalar typedef alias")
         if allowed_aliases is not None and alias not in allowed_aliases:
             raise PreprocessorError("unsupported compiler scalar typedef alias")
+        if alias == source:
+            raise PreprocessorError("cyclic compiler scalar typedef alias")
         normalized += 1
         if normalized > MAX_OPAQUE_COMPILER_SCALAR_TYPEDEFS:
             raise PreprocessorError("too many compiler scalar typedef aliases")
@@ -1131,24 +1729,164 @@ def _normalize_builder_output(data: bytes) -> bytes:
             raise PreprocessorError("conflicting compiler scalar typedef alias")
         lines[index] = b"typedef ... " + alias + b";" + ending
         opaque_aliases.add(alias)
+        compiler_alias_sources[alias] = source
+
+    if b"va_list" in authoritative_aliases:
+        for index, line in enumerate(lines):
+            body = line.rstrip(b"\r\n")
+            ending = line[len(body):]
+            stripped = body.strip()
+            if not stripped.endswith(b";"):
+                continue
+            parts = stripped[:-1].split()
+            if len(parts) != 3 or parts[0] != b"typedef":
+                continue
+            source, alias = parts[1], parts[2]
+            if alias != b"va_list" or source not in compiler_alias_sources:
+                continue
+            root = source
+            seen = set()
+            while root in compiler_alias_sources:
+                if root in seen:
+                    raise PreprocessorError(
+                        "cyclic compiler scalar typedef alias"
+                    )
+                seen.add(root)
+                root = compiler_alias_sources[root]
+            if root != b"__builtin_va_list":
+                raise PreprocessorError(
+                    "conflicting compiler scalar va_list alias"
+                )
+            normalized += 1
+            if normalized > MAX_OPAQUE_COMPILER_SCALAR_TYPEDEFS:
+                raise PreprocessorError(
+                    "too many compiler scalar typedef aliases"
+                )
+            lines[index] = ending
+
+    for index, line in enumerate(lines):
+        body = line.rstrip(b"\r\n")
+        ending = line[len(body):]
+        stripped = body.strip()
+        if (
+            b"..." in stripped
+            or not stripped.endswith(b";")
+            or any(token in stripped for token in (b"{", b"}", b"(", b")", b"[", b"]", b","))
+        ):
+            continue
+        identifiers = _attribute_identifiers(stripped)
+        if len(identifiers) < 3 or identifiers[0] != "typedef":
+            continue
+        alias_text = identifiers[-1]
+        alias = alias_text.encode("ascii")
+        if (
+            alias not in authoritative_aliases
+            or alias == b"va_list"
+            or not stripped[:-1].rstrip().endswith(alias)
+        ):
+            continue
+        allowed_sources = AUTHORITATIVE_HOST_TYPEDEF_SOURCES.get(alias)
+        source = identifiers[1].encode("ascii")
+        if (
+            allowed_sources is None
+            or len(identifiers) != 3
+            or source not in allowed_sources
+        ):
+            raise PreprocessorError(
+                "conflicting authoritative host typedef alias"
+            )
+        normalized += 1
+        if normalized > MAX_OPAQUE_COMPILER_SCALAR_TYPEDEFS:
+            raise PreprocessorError("too many compiler scalar typedef aliases")
+        lines[index] = ending
     lines = _replace_mingw_tokens(lines)
     lines = _strip_mingw_inline_blocks(lines)
     lines = _strip_mingw_attributes(lines)
     lines = _partialize_opaque_aligned_system_structs(lines)
+    lines = _strip_mingw_c_assert_declarations(lines)
+    lines = _normalize_mingw_enum_int_casts(lines)
+    lines = _dedupe_identical_typedef_declarations(lines)
+    lines = _dedupe_identical_function_declarations(lines)
     return b"".join(lines)
+
+
+def _filter_mingw_preprocessed_sources(
+    output: bytes,
+    overlay_path: str,
+) -> bytes:
+    """Keep only the temporary overlay and pinned mGBA source declarations."""
+    source_root = os.path.realpath(_expected_source_root())
+    overlay = os.path.realpath(overlay_path)
+    kept: List[bytes] = []
+    allowed = False
+    markers = 0
+    for line in output.splitlines(keepends=True):
+        if line.startswith(b"#"):
+            markers += 1
+            if markers > MAX_PREPROCESSOR_LINE_MARKERS:
+                raise PreprocessorError("too many preprocessor line markers")
+            try:
+                parts = shlex.split(
+                    line.decode("utf-8", errors="surrogateescape")
+                )
+            except ValueError as exc:
+                raise PreprocessorError(
+                    "malformed preprocessor line marker"
+                ) from exc
+            if len(parts) >= 3 and parts[0] == "#" and parts[1].isdigit():
+                origin = os.path.realpath(parts[2])
+                allowed = (
+                    os.path.normcase(origin) == os.path.normcase(overlay)
+                    or _path_is_within(origin, source_root)
+                )
+            continue
+        if allowed:
+            kept.append(line)
+    if markers == 0:
+        raise PreprocessorError("preprocessor emitted no line markers")
+    return b"".join(kept)
 
 
 def _run_real_preprocessor(
     argv: List[str], *, normalize_builder_output: bool = False
 ) -> int:
     """Invoke the real preprocessor structurally (never via a shell)."""
-    command = _resolve_compiler_tokens() + ["-E"] + argv
+    real_argv = [
+        arg
+        for arg in argv
+        if not (normalize_builder_output and arg == "-P")
+    ]
+    compiler_flags = []
+    if normalize_builder_output:
+        winver_args = [
+            arg
+            for arg in real_argv
+            if arg.startswith("-D_WIN32_WINNT=")
+        ]
+        if len(winver_args) > 1 or (
+            winver_args and winver_args[0] != MINGW_WINVER_DEFINE
+        ):
+            raise PreprocessorError(
+                "conflicting MinGW _WIN32_WINNT preprocessor definition"
+            )
+        if not winver_args:
+            compiler_flags.append(MINGW_WINVER_DEFINE)
+    command = (
+        _resolve_compiler_tokens()
+        + compiler_flags
+        + ["-E"]
+        + real_argv
+    )
     completed = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output = completed.stdout
     if completed.returncode == 0 and len(output) > MAX_PREPROCESSED_BYTES:
         raise PreprocessorError("preprocessed output exceeds the size bound")
     if completed.returncode == 0 and normalize_builder_output:
-        output = _normalize_builder_output(output)
+        output = _filter_mingw_preprocessed_sources(output, argv[-1])
+        output = _normalize_builder_output(
+            output,
+            require_limits_markers=True,
+        )
     # Preserve compiler stdout EXACTLY -- _builder.py treats it as the
     # preprocessed cdef text, except for the documented compiler-only typedef
     # aliases normalized above. Diagnostics only ever go to stderr.

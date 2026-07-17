@@ -337,6 +337,27 @@ fi
 if [ ! -f "${MGBA_CFFI_WRAPPER}" ]; then
     fail "Missing required mGBA CFFI preprocessor wrapper: ${MGBA_CFFI_WRAPPER}"
 fi
+MGBA_SETUPTOOLS_SHIM_DIR="${TOOL_DIR_CANON}/setuptools-shim"
+MGBA_SETUPTOOLS_SHIM="${MGBA_SETUPTOOLS_SHIM_DIR}/sitecustomize.py"
+if [ -L "${MGBA_SETUPTOOLS_SHIM_DIR}" ] || [ -L "${MGBA_SETUPTOOLS_SHIM}" ]; then
+    fail "Refusing symlinked mGBA setuptools shim."
+fi
+if [ ! -f "${MGBA_SETUPTOOLS_SHIM}" ]; then
+    fail "Missing required mGBA setuptools shim: ${MGBA_SETUPTOOLS_SHIM}"
+fi
+MGBA_SETUPTOOLS_SHIM_DIR_ACTUAL="$(cd "${MGBA_SETUPTOOLS_SHIM_DIR}" && pwd -P)"
+if [ "${MGBA_SETUPTOOLS_SHIM_DIR_ACTUAL}" != "${MGBA_SETUPTOOLS_SHIM_DIR}" ]; then
+    fail "Refusing mGBA setuptools shim directory path alias."
+fi
+MGBA_SETUPTOOLS_TEMP="${CMAKE_BUILD}/setuptools-temp"
+if [ -L "${MGBA_SETUPTOOLS_TEMP}" ]; then
+    fail "Refusing symlinked mGBA setuptools temp directory."
+fi
+mkdir -p "${MGBA_SETUPTOOLS_TEMP}"
+MGBA_SETUPTOOLS_TEMP_ACTUAL="$(cd "${MGBA_SETUPTOOLS_TEMP}" && pwd -P)"
+if [ "${MGBA_SETUPTOOLS_TEMP_ACTUAL}" != "${MGBA_SETUPTOOLS_TEMP}" ]; then
+    fail "Refusing mGBA setuptools temp directory path alias."
+fi
 MGBA_BUILDER_H="${SRC_DIR}/src/platform/python/_builder.h"
 MGBA_SOURCE_ROOT="${SRC_DIR}"
 # mGBA's _builder.py executes CPP with native Python subprocess APIs. Under
@@ -347,6 +368,8 @@ MGBA_CFFI_PYTHON_ARG="$(to_native_path "${VENV_PY}")"
 MGBA_CFFI_WRAPPER_ARG="$(to_native_path "${MGBA_CFFI_WRAPPER}")"
 MGBA_BUILDER_H_ARG="$(to_native_path "${MGBA_BUILDER_H}")"
 MGBA_SOURCE_ROOT_ARG="$(to_native_path "${MGBA_SOURCE_ROOT}")"
+MGBA_SETUPTOOLS_SHIM_ARG="$(to_native_path "${MGBA_SETUPTOOLS_SHIM_DIR}")"
+MGBA_SETUPTOOLS_TEMP_ARG="$(to_native_path "${MGBA_SETUPTOOLS_TEMP}")"
 MGBA_CFFI_MINGW_CDEF=0
 if [ -n "${MSYSTEM:-}" ]; then
     MGBA_CFFI_MINGW_CDEF=1
@@ -458,7 +481,9 @@ echo "Building libmgba..."
 # CPP/FEBUILDERGBA_MGBA_BUILDER_H/FEBUILDERGBA_MGBA_SOURCE_ROOT are scoped to
 # ONLY this command (a command-only environment prefix, never exported): the
 # default build target can itself invoke _builder.py's cdef generation.
-CPP="${MGBA_CFFI_CPP}" FEBUILDERGBA_MGBA_BUILDER_H="${MGBA_BUILDER_H_ARG}" \
+PYTHONPATH="${MGBA_SETUPTOOLS_SHIM_ARG}" \
+    FEBUILDERGBA_MGBA_SETUPTOOLS_TEMP="${MGBA_SETUPTOOLS_TEMP_ARG}" \
+    CPP="${MGBA_CFFI_CPP}" FEBUILDERGBA_MGBA_BUILDER_H="${MGBA_BUILDER_H_ARG}" \
     FEBUILDERGBA_MGBA_SOURCE_ROOT="${MGBA_SOURCE_ROOT_ARG}" \
     FEBUILDERGBA_MGBA_MINGW_CDEF="${MGBA_CFFI_MINGW_CDEF}" \
     cmake --build "${CMAKE_BUILD}" --config Release
@@ -478,7 +503,9 @@ echo "Building the display-free Python wheel (mgba-py-bdist)..."
 # CPP/FEBUILDERGBA_MGBA_BUILDER_H/FEBUILDERGBA_MGBA_SOURCE_ROOT are scoped to
 # ONLY this command (a command-only environment prefix, never exported): this
 # target invokes setup.py, which drives _builder.py's cdef generation.
-CPP="${MGBA_CFFI_CPP}" FEBUILDERGBA_MGBA_BUILDER_H="${MGBA_BUILDER_H_ARG}" \
+PYTHONPATH="${MGBA_SETUPTOOLS_SHIM_ARG}" \
+    FEBUILDERGBA_MGBA_SETUPTOOLS_TEMP="${MGBA_SETUPTOOLS_TEMP_ARG}" \
+    CPP="${MGBA_CFFI_CPP}" FEBUILDERGBA_MGBA_BUILDER_H="${MGBA_BUILDER_H_ARG}" \
     FEBUILDERGBA_MGBA_SOURCE_ROOT="${MGBA_SOURCE_ROOT_ARG}" \
     FEBUILDERGBA_MGBA_MINGW_CDEF="${MGBA_CFFI_MINGW_CDEF}" \
     cmake --build "${CMAKE_BUILD}" --target mgba-py-bdist --config Release
