@@ -187,6 +187,9 @@ carrying `vector_size` or `may_alias` plus optional alignment attributes becomes
 an opaque CFFI typedef. This preserves the compiler's real vector layout without
 maintaining an open-ended alias-name list, while application typedefs and
 non-vector alignment attributes still fail closed.
+Bounded multiline compiler-internal attribute typedefs are joined into one
+logical declaration before the same validation; ordinary multiline typedefs
+remain byte-identical.
 Successful preprocessor output is
 capped at 64 MiB and 16,384 inline blocks (current MinGW headers contain
 hundreds, not merely a handful), so the full generated header set fits without

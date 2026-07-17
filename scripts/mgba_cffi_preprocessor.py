@@ -86,6 +86,9 @@ mGBA. Any one-line compiler-internal typedef (``__...`` alias) carrying
 opaque CFFI typedef, preserving the compiler's real vector size/alignment
 without relying on an open-ended alias-name inventory. Ordinary application
 typedefs and non-vector alignment attributes remain fail-closed.
+The same rule handles bounded multiline declarations by joining only
+compiler-internal attribute typedefs into one logical line before validation;
+ordinary multiline typedefs remain byte-identical.
 Any drift from that exact expectation (the line missing, duplicated, already
 replaced, an unreadable/oversized/non-UTF-8 file, a missing
 ``FEBUILDERGBA_MGBA_BUILDER_H``, a missing
@@ -162,6 +165,8 @@ MAX_MINGW_INLINE_BLOCKS = 16_384
 MAX_MINGW_INLINE_BLOCK_LINES = 4096
 MAX_MINGW_TOKEN_REPLACEMENTS = 65_536
 MAX_MINGW_ATTRIBUTE_REPLACEMENTS = 65_536
+MAX_MINGW_MULTILINE_TYPEDEF_LINES = 32
+MAX_MINGW_MULTILINE_TYPEDEFS = 512
 
 MINGW_TOKEN_REPLACEMENTS = {
     b"__extension__": b"",
@@ -745,6 +750,68 @@ def _strip_mingw_attributes(lines: List[bytes]) -> List[bytes]:
     return output
 
 
+def _join_mingw_multiline_attribute_typedefs(lines: List[bytes]) -> List[bytes]:
+    """Join bounded compiler-internal attribute typedefs into logical lines."""
+    output: List[bytes] = []
+    index = 0
+    joined = 0
+    while index < len(lines):
+        first = lines[index]
+        first_identifiers = _attribute_identifiers(first)
+        if (
+            "typedef" not in first_identifiers
+            or b";" in first
+            or b"{" in first
+        ):
+            output.append(first)
+            index += 1
+            continue
+
+        block = [first]
+        cursor = index + 1
+        saw_brace = False
+        while cursor < len(lines) and len(block) < MAX_MINGW_MULTILINE_TYPEDEF_LINES:
+            block.append(lines[cursor])
+            if b"{" in lines[cursor]:
+                saw_brace = True
+                break
+            if b";" in lines[cursor]:
+                break
+            cursor += 1
+        if (
+            saw_brace
+            or b";" not in block[-1]
+            or not any(b"__attribute__" in line for line in block)
+        ):
+            output.append(first)
+            index += 1
+            continue
+
+        combined_body = b" ".join(line.strip() for line in block)
+        first_attribute = combined_body.find(b"__attribute__")
+        if first_attribute < 0:
+            output.append(first)
+            index += 1
+            continue
+        prefix_identifiers = _attribute_identifiers(
+            combined_body[:first_attribute]
+        )
+        if not prefix_identifiers or not prefix_identifiers[-1].startswith("__"):
+            output.append(first)
+            index += 1
+            continue
+
+        joined += 1
+        if joined > MAX_MINGW_MULTILINE_TYPEDEFS:
+            raise PreprocessorError("too many multiline MinGW typedefs")
+        body = first.rstrip(b"\r\n")
+        ending = first[len(body):] or b"\n"
+        indent = first[: len(first) - len(first.lstrip())]
+        output.append(indent + combined_body + ending)
+        index = cursor + 1
+    return output
+
+
 def _opaque_vector_typedef_alias(line: bytes, attribute_index: int) -> Optional[str]:
     """Return a compiler-internal one-line vector typedef alias, else ``None``."""
     first_attribute = line.find(b"__attribute__")
@@ -896,7 +963,9 @@ def _strip_mingw_inline_blocks(lines: List[bytes]) -> List[bytes]:
 
 def _normalize_builder_output(data: bytes) -> bytes:
     """Normalize compiler-only MinGW constructs for CFFI parsing."""
-    lines = data.splitlines(keepends=True)
+    lines = _join_mingw_multiline_attribute_typedefs(
+        data.splitlines(keepends=True)
+    )
     normalized = 0
     for index, line in enumerate(lines):
         body = line.rstrip(b"\r\n")

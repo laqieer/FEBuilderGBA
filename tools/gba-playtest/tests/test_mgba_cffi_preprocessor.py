@@ -374,6 +374,44 @@ def test_internal_vector_typedef_with_multiple_attribute_groups_becomes_opaque()
     )
 
 
+def test_multiline_internal_vector_typedef_becomes_opaque():
+    data = (
+        b"typedef int __v2si\n"
+        b"  __attribute__((__vector_size__(8)));\n"
+        b"int retained;\n"
+    )
+    assert wrapper._normalize_builder_output(data) == (
+        b"typedef ... __v2si;\n"
+        b"int retained;\n"
+    )
+
+
+def test_multiline_application_vector_typedef_still_fails_closed():
+    data = (
+        b"typedef int application_vector\n"
+        b"  __attribute__((vector_size(8)));\n"
+    )
+    with pytest.raises(wrapper.PreprocessorError, match="vector_size"):
+        wrapper._normalize_builder_output(data)
+
+
+def test_multiline_nonattribute_typedef_is_byte_identical():
+    data = b"typedef unsigned long\n  application_word;\n"
+    assert wrapper._normalize_builder_output(data) == data
+
+
+def test_multiline_internal_typedef_count_is_bounded(monkeypatch):
+    monkeypatch.setattr(wrapper, "MAX_MINGW_MULTILINE_TYPEDEFS", 1)
+    data = (
+        b"typedef int __first\n"
+        b"  __attribute__((vector_size(8)));\n"
+        b"typedef int __second\n"
+        b"  __attribute__((vector_size(8)));\n"
+    )
+    with pytest.raises(wrapper.PreprocessorError, match="too many"):
+        wrapper._normalize_builder_output(data)
+
+
 def test_opaque_mingw_simd_typedef_count_is_bounded(monkeypatch):
     monkeypatch.setattr(wrapper, "MAX_OPAQUE_SIMD_TYPEDEFS", 1)
     data = (
