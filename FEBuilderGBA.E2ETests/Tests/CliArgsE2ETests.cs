@@ -77,6 +77,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             Assert.Contains("--lz77", stdout);
             Assert.Contains("--checksum", stdout);
             Assert.Contains("--repair-header", stdout);
+            Assert.Contains("--playtest", stdout);
         }
 
         [Fact]

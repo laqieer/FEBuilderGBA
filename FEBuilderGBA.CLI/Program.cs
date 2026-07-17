@@ -41,6 +41,11 @@ namespace FEBuilderGBA.CLI
                 return 0;
             }
 
+            if (argsDic.ContainsKey("--playtest"))
+            {
+                return RunPlaytest(argsDic);
+            }
+
             if (argsDic.TryGetValue("--force-version", out string forceVersion)
                 && string.IsNullOrWhiteSpace(forceVersion))
             {
@@ -478,6 +483,13 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  --version                Show version information");
             Console.WriteLine("  --help, -h               Show this help message");
             Console.WriteLine("  --rom=<path>             Specify ROM file to load");
+            Console.WriteLine("  --playtest               Run a deterministic headless mGBA scenario");
+            Console.WriteLine("    --check                Check the pinned mGBA Python binding");
+            Console.WriteLine("    --scenario=<path>      Scenario JSON (required unless --check)");
+            Console.WriteLine("    --artifact-dir=<dir>   Existing directory for optional screenshots");
+            Console.WriteLine("    --python=<executable>  Python interpreter (overrides FEBUILDERGBA_PLAYTEST_PYTHON)");
+            Console.WriteLine("    --timeout=<ms>         Native runner timeout (1000-3600000, default 600000)");
+            Console.WriteLine("    --out=<path>           Optional machine-readable result JSON");
             Console.WriteLine("  --force-version=<VER>    Force ROM version detection (FE6, FE7J, FE7U, FE8J, FE8U)");
             Console.WriteLine("  --makeups=<path>         Create UPS patch (requires --rom and --fromrom)");
             Console.WriteLine("  --applyups=<path>        Apply UPS patch (requires --rom and --patch)");
