@@ -163,12 +163,29 @@ def test_builtin_va_list_alias_is_normalized_for_cffi():
 def test_multiple_builtin_va_list_aliases_are_normalized_with_line_endings():
     data = (
         b"typedef __builtin_va_list __gnuc_va_list;\r\n"
+        b"typedef __builtin_ms_va_list __gnuc_ms_va_list;\n"
+        b"typedef __builtin_sysv_va_list __gnuc_sysv_va_list;\n"
         b"  typedef   __builtin_va_list   compiler_va_list ;\n"
     )
     assert wrapper._normalize_builder_output(data) == (
         b"typedef ... __gnuc_va_list;\r\n"
+        b"typedef ... __gnuc_ms_va_list;\n"
+        b"typedef ... __gnuc_sysv_va_list;\n"
         b"typedef ... compiler_va_list;\n"
     )
+
+
+def test_gcc_bfloat16_scalar_alias_is_normalized_for_cffi():
+    data = b"typedef __bf16 __bfloat16;\nint retained;\n"
+    assert wrapper._normalize_builder_output(data) == (
+        b"typedef ... __bfloat16;\nint retained;\n"
+    )
+
+
+def test_gcc_bfloat16_application_alias_fails_closed():
+    data = b"typedef __bf16 application_bfloat;\n"
+    with pytest.raises(wrapper.PreprocessorError, match="unsupported"):
+        wrapper._normalize_builder_output(data)
 
 
 def test_unrelated_preprocessor_output_is_byte_identical():
@@ -182,10 +199,10 @@ def test_invalid_builtin_va_list_alias_fails_closed():
         wrapper._normalize_builder_output(data)
 
 
-def test_builtin_va_list_alias_count_is_bounded():
+def test_compiler_scalar_alias_count_is_bounded():
     data = b"".join(
         f"typedef __builtin_va_list alias_{index};\n".encode("ascii")
-        for index in range(wrapper.MAX_BUILTIN_VA_LIST_TYPEDEFS + 1)
+        for index in range(wrapper.MAX_OPAQUE_COMPILER_SCALAR_TYPEDEFS + 1)
     )
     with pytest.raises(wrapper.PreprocessorError, match="too many"):
         wrapper._normalize_builder_output(data)

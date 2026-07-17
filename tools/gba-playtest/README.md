@@ -164,8 +164,10 @@ also disables `__attribute__(...)` and predefines MinGW's `__INTRIN_H_` guard
 while `<limits.h>` expands. This excludes irrelevant compiler intrinsic
 declarations such as `__debugbreak`; both macros are restored before mGBA
 headers. The wrapper then normalizes only preprocessed
-`typedef __builtin_va_list <alias>;` lines to CFFI's
-`typedef ... <alias>;` syntax (bounded and identifier-validated). It first
+compiler-only scalar typedefs from the complete GCC 16.1.0 MinGW header census
+(`__builtin_*_va_list` plus the exact `__bf16` to `__bfloat16` API alias) to
+CFFI's `typedef ... <alias>;` syntax (bounded and identifier-validated).
+Unrecognized BF16 aliases fail closed. It first
 token-normalizes safe parser-only GCC qualifiers (`__extension__`, restrict,
 volatile, const, and signed spellings), then removes bounded top-level MinGW
 `extern/static __inline__` intrinsic definitions with brace-aware scanning.

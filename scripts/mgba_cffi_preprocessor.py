@@ -54,8 +54,9 @@ and predefines MinGW's ``__INTRIN_H_`` guard while ``<limits.h>`` and its
 system-header chain are expanded. This excludes irrelevant compiler intrinsic
 declarations (such as ``__debugbreak``) from the cdef stream; both macros are
 restored before any mGBA header is included. The resulting stream normalizes
-only typedef aliases whose underlying compiler-only type is
-``__builtin_va_list`` into CFFI's ``typedef ... alias;`` syntax. It first
+the complete GCC 16.1 MinGW census of one-line compiler-only scalar aliases
+(``__builtin_*_va_list`` and exact ``__bf16``/``__bfloat16``) into CFFI's
+``typedef ... alias;`` syntax. It first
 token-normalizes the safe parser-only GCC qualifier class
 (``__extension__``, restrict, volatile, const, and signed spellings), then
 removes top-level MinGW ``extern/static __inline__`` intrinsic definitions
@@ -164,7 +165,7 @@ INTRIN_GUARD_RESTORE_LINE = "#undef __INTRIN_H_"
 # still refusing to buffer an unbounded/adversarial input in memory.
 MAX_BUILDER_H_BYTES = 1_048_576
 MAX_PREPROCESSED_BYTES = 64 * 1024 * 1024
-MAX_BUILTIN_VA_LIST_TYPEDEFS = 16
+MAX_OPAQUE_COMPILER_SCALAR_TYPEDEFS = 64
 MAX_MINGW_INLINE_BLOCKS = 16_384
 MAX_MINGW_INLINE_BLOCK_LINES = 4096
 MAX_MINGW_TOKEN_REPLACEMENTS = 65_536
@@ -179,6 +180,18 @@ MINGW_TOKEN_REPLACEMENTS = {
     b"__volatile__": b"volatile",
     b"__const__": b"const",
     b"__signed__": b"signed",
+}
+
+# Complete census of one-line compiler-only scalar typedef sources emitted by
+# GCC 16.1.0's x86_64 MinGW include directory. The va_list builtins may use
+# ordinary aliases; GCC's native BF16 scalar is exposed only through this exact
+# Intel API alias. CFFI's ``typedef ... alias;`` delegates their real ABI to the
+# compiler instead of teaching pycparser vendor scalar syntax.
+OPAQUE_COMPILER_SCALAR_TYPE_ALIASES = {
+    b"__builtin_va_list": None,
+    b"__builtin_ms_va_list": None,
+    b"__builtin_sysv_va_list": None,
+    b"__bf16": frozenset({b"__bfloat16"}),
 }
 
 SAFE_MINGW_ATTRIBUTE_BASE_NAMES = frozenset(
@@ -1053,18 +1066,26 @@ def _normalize_builder_output(data: bytes) -> bytes:
         if not stripped.endswith(b";"):
             continue
         parts = stripped[:-1].split()
-        if len(parts) != 3 or parts[:2] != [b"typedef", b"__builtin_va_list"]:
+        if len(parts) != 3 or parts[0] != b"typedef":
+            continue
+        source = parts[1]
+        allowed_aliases = OPAQUE_COMPILER_SCALAR_TYPE_ALIASES.get(source)
+        if source not in OPAQUE_COMPILER_SCALAR_TYPE_ALIASES:
             continue
         alias = parts[2]
         try:
             alias_text = alias.decode("ascii")
         except UnicodeDecodeError as exc:
-            raise PreprocessorError("invalid builtin va_list typedef alias") from exc
+            raise PreprocessorError(
+                "invalid compiler scalar typedef alias"
+            ) from exc
         if not alias_text.isidentifier():
-            raise PreprocessorError("invalid builtin va_list typedef alias")
+            raise PreprocessorError("invalid compiler scalar typedef alias")
+        if allowed_aliases is not None and alias not in allowed_aliases:
+            raise PreprocessorError("unsupported compiler scalar typedef alias")
         normalized += 1
-        if normalized > MAX_BUILTIN_VA_LIST_TYPEDEFS:
-            raise PreprocessorError("too many builtin va_list typedef aliases")
+        if normalized > MAX_OPAQUE_COMPILER_SCALAR_TYPEDEFS:
+            raise PreprocessorError("too many compiler scalar typedef aliases")
         lines[index] = b"typedef ... " + alias + b";" + ending
     lines = _replace_mingw_tokens(lines)
     lines = _strip_mingw_inline_blocks(lines)
