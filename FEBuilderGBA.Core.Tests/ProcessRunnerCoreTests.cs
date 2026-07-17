@@ -164,5 +164,29 @@ namespace FEBuilderGBA.Core.Tests
             Assert.True(result.Stderr.Length <= 1024);
             Assert.Contains("output exceeded", result.ErrorMessage);
         }
+
+        [Fact]
+        public void RetryTermination_IsBoundedAndReturnsEarly()
+        {
+            int failedAttempts = 0;
+            bool failed = ProcessRunnerCore.RetryTermination(
+                () =>
+                {
+                    failedAttempts++;
+                    return false;
+                },
+                maximumAttempts: 3,
+                backoffMs: 0);
+            Assert.False(failed);
+            Assert.Equal(3, failedAttempts);
+
+            int successAttempts = 0;
+            bool succeeded = ProcessRunnerCore.RetryTermination(
+                () => ++successAttempts == 2,
+                maximumAttempts: 3,
+                backoffMs: 0);
+            Assert.True(succeeded);
+            Assert.Equal(2, successAttempts);
+        }
     }
 }

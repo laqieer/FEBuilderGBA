@@ -382,6 +382,33 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
+        public void SuccessfulOutput_IsPublishedFromPrivateStaging()
+        {
+            string outPath = Path.Combine(_root, "published-result.json");
+            string childOutPath = null;
+            var operations = Operations(
+                (cmd, args, cwd, timeoutMs) =>
+                {
+                    int outIndex = args.ToList().IndexOf("--out");
+                    Assert.True(outIndex >= 0);
+                    childOutPath = args[outIndex + 1];
+                    Assert.NotEqual(outPath, childOutPath);
+                    File.WriteAllText(
+                        childOutPath,
+                        PassJson + "\n",
+                        new System.Text.UTF8Encoding(false));
+                    return Result(0, PassJson);
+                });
+
+            var result = Run(RunArgs("--out=" + outPath), operations);
+
+            Assert.Equal(0, result.Code);
+            Assert.Equal(result.Stdout, File.ReadAllText(outPath));
+            Assert.NotNull(childOutPath);
+            Assert.False(Directory.Exists(Path.GetDirectoryName(childOutPath)));
+        }
+
+        [Fact]
         public void Timeout_SynthesizesHarnessError()
         {
             var operations = Operations(
@@ -608,6 +635,12 @@ namespace FEBuilderGBA.Tests.Unit
                     (cmd, args, cwd, timeoutMs) =>
                     {
                         launched = true;
+                        int outIndex = args.ToList().IndexOf("--out");
+                        Assert.True(outIndex >= 0);
+                        File.WriteAllText(
+                            args[outIndex + 1],
+                            PassJson + "\n",
+                            new System.Text.UTF8Encoding(false));
                         return Result(0, PassJson);
                     },
                     resolvePhysicalPath: CliProgram.ResolvePhysicalPath);
@@ -621,7 +654,9 @@ namespace FEBuilderGBA.Tests.Unit
 
                 var result = Run(rawArgs, operations);
 
-                Assert.Equal(0, result.Code);
+                Assert.True(
+                    result.Code == 0,
+                    $"Expected success, got {result.Code}: {result.Stdout}");
                 Assert.True(launched);
             }
             finally

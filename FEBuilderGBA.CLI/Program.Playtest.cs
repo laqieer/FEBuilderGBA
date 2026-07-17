@@ -16,7 +16,7 @@ namespace FEBuilderGBA.CLI
         internal Func<string, string> GetEnvironmentVariable { get; init; }
             = Environment.GetEnvironmentVariable;
         internal Func<string, IReadOnlyList<string>, string, int, ProcessRunResult> RunProcess
-            { get; init; }
+        { get; init; }
             = (command, args, workingDirectory, timeoutMs) =>
                 ProcessRunnerCore.Run(
                     command,
@@ -192,6 +192,32 @@ namespace FEBuilderGBA.CLI
                 return EmitPlaytestError(interpreterError, outPath, stdout, stderr);
             }
 
+            string stagedOutputDirectory = null;
+            string stagedOutputPath = null;
+            if (!check && outPath != null
+                && !TryCreatePlaytestOutputStaging(
+                    out stagedOutputDirectory,
+                    out stagedOutputPath,
+                    out string stagingError))
+            {
+                return EmitPlaytestError(stagingError, outPath, stdout, stderr);
+            }
+
+            int FailAfterStaging(string note)
+            {
+                if (stagedOutputDirectory != null)
+                {
+                    if (!TryDeletePlaytestOutputStaging(
+                            stagedOutputDirectory,
+                            out string cleanupError))
+                    {
+                        note = cleanupError;
+                    }
+                    stagedOutputDirectory = null;
+                }
+                return EmitPlaytestError(note, outPath, stdout, stderr);
+            }
+
             var runnerArgs = new List<string>
             {
                 "-m",
@@ -207,10 +233,10 @@ namespace FEBuilderGBA.CLI
                 runnerArgs.Add(romPath);
                 runnerArgs.Add("--scenario");
                 runnerArgs.Add(scenarioPath);
-                if (outPath != null)
+                if (stagedOutputPath != null)
                 {
                     runnerArgs.Add("--out");
-                    runnerArgs.Add(outPath);
+                    runnerArgs.Add(stagedOutputPath);
                 }
                 if (artifactDirectory != null)
                 {
@@ -230,41 +256,57 @@ namespace FEBuilderGBA.CLI
             RelayPlaytestDiagnostics(run.Stderr, stderr);
             if (!run.Started)
             {
-                return EmitPlaytestError(
-                    "the Python interpreter could not be started",
-                    outPath,
-                    stdout,
-                    stderr);
+                return FailAfterStaging(
+                    "the Python interpreter could not be started");
             }
             if (run.TerminationFailed)
             {
-                return EmitPlaytestError(
-                    "the playtest runner process could not be terminated cleanly",
-                    outPath,
-                    stdout,
-                    stderr);
+                return FailAfterStaging(
+                    "the playtest runner process could not be terminated cleanly");
             }
             if (run.TimedOut)
             {
-                return EmitPlaytestError(
-                    "the playtest runner exceeded the process timeout",
-                    outPath,
-                    stdout,
-                    stderr);
+                return FailAfterStaging(
+                    "the playtest runner exceeded the process timeout");
             }
             if (run.OutputLimitExceeded)
             {
-                return EmitPlaytestError(
-                    "the playtest runner exceeded the process output limit",
-                    outPath,
-                    stdout,
-                    stderr);
+                return FailAfterStaging(
+                    "the playtest runner exceeded the process output limit");
             }
             if (!TryValidatePlaytestResult(run.Stdout, run.ExitCode, out string resultJson))
             {
-                return EmitPlaytestError(
-                    "the playtest runner returned an invalid result document",
+                return FailAfterStaging(
+                    "the playtest runner returned an invalid result document");
+            }
+            if (stagedOutputPath != null
+                && !TryValidateStagedPlaytestOutput(
+                    stagedOutputPath,
+                    resultJson,
+                    out string stagedOutputError))
+            {
+                return FailAfterStaging(stagedOutputError);
+            }
+            if (stagedOutputDirectory != null)
+            {
+                if (!TryDeletePlaytestOutputStaging(
+                        stagedOutputDirectory,
+                        out string cleanupError))
+                {
+                    return FailAfterStaging(cleanupError);
+                }
+                stagedOutputDirectory = null;
+            }
+            if (outPath != null
+                && !TryWritePlaytestResult(
                     outPath,
+                    resultJson,
+                    out string writeError))
+            {
+                stderr.WriteLine(writeError);
+                return EmitPlaytestError(
+                    "cannot write the playtest result output",
+                    null,
                     stdout,
                     stderr);
             }
@@ -272,6 +314,128 @@ namespace FEBuilderGBA.CLI
             stdout.Write(resultJson);
             stdout.Write('\n');
             return run.ExitCode;
+        }
+
+        private static bool TryCreatePlaytestOutputStaging(
+            out string directory,
+            out string path,
+            out string error)
+        {
+            directory = null;
+            path = null;
+            error = "";
+            try
+            {
+                DirectoryInfo staging = Directory.CreateTempSubdirectory(
+                    "FEBuilderGBA-playtest-");
+                directory = staging.FullName;
+                path = Path.Combine(directory, "result.json");
+                return true;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                error = "cannot create the private playtest result staging directory";
+                return false;
+            }
+            catch (IOException)
+            {
+                error = "cannot create the private playtest result staging directory";
+                return false;
+            }
+            catch (SecurityException)
+            {
+                error = "cannot create the private playtest result staging directory";
+                return false;
+            }
+        }
+
+        private static bool TryValidateStagedPlaytestOutput(
+            string path,
+            string resultJson,
+            out string error)
+        {
+            error = "";
+            try
+            {
+                if (!File.Exists(path)
+                    || Directory.Exists(path)
+                    || (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
+                {
+                    error = "the playtest runner did not persist a regular staged result";
+                    return false;
+                }
+                var info = new FileInfo(path);
+                if (info.Length > PlaytestMaximumResultChars + 1)
+                {
+                    error = "the staged playtest result exceeds the size limit";
+                    return false;
+                }
+                string persisted = File.ReadAllText(
+                    path,
+                    new UTF8Encoding(false, true));
+                if (!string.Equals(
+                        persisted,
+                        resultJson + "\n",
+                        StringComparison.Ordinal))
+                {
+                    error = "the staged playtest result does not match stdout";
+                    return false;
+                }
+                return true;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                error = "cannot read the staged playtest result";
+                return false;
+            }
+            catch (IOException)
+            {
+                error = "cannot read the staged playtest result";
+                return false;
+            }
+            catch (ArgumentException)
+            {
+                error = "cannot read the staged playtest result";
+                return false;
+            }
+            catch (NotSupportedException)
+            {
+                error = "cannot read the staged playtest result";
+                return false;
+            }
+            catch (SecurityException)
+            {
+                error = "cannot read the staged playtest result";
+                return false;
+            }
+        }
+
+        private static bool TryDeletePlaytestOutputStaging(
+            string directory,
+            out string error)
+        {
+            error = "";
+            try
+            {
+                if (Directory.Exists(directory))
+                    Directory.Delete(directory, true);
+                return true;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                error = "cannot remove the private playtest result staging directory";
+                return false;
+            }
+            catch (IOException)
+            {
+                error = "cannot remove the private playtest result staging directory";
+                return false;
+            }
+            catch (SecurityException)
+            {
+                error = "cannot remove the private playtest result staging directory";
+                return false;
+            }
         }
 
         private static bool TryValidatePlaytestArgs(

@@ -21,7 +21,7 @@ namespace FEBuilderGBA
         /// <summary>True when stdout or stderr exceeded the configured capture limit.</summary>
         public bool OutputLimitExceeded { get; init; }
 
-        /// <summary>True when the process could not be synchronously terminated.</summary>
+        /// <summary>True when synchronous termination failed and a lifetime reaper took ownership.</summary>
         public bool TerminationFailed { get; init; }
 
         /// <summary>Process exit code (0 on success). Meaningful only when Started is true.</summary>
@@ -59,6 +59,8 @@ namespace FEBuilderGBA
     {
         /// <summary>Default timeout when timeoutMs is zero or negative (10 minutes).</summary>
         public const int DefaultTimeoutMs = 600_000;
+        internal const int TerminationReaperAttempts = 3;
+        internal const int TerminationReaperBackoffMs = 1000;
 
         private static readonly object RetainedProcessLock = new object();
         private static readonly HashSet<Process> RetainedProcesses =
@@ -185,12 +187,15 @@ namespace FEBuilderGBA
                 if (!RetainedProcesses.Add(process))
                     return;
             }
-            _ = Task.Run(async () =>
+
+            var reaper = new Thread(() =>
             {
                 try
                 {
-                    while (!TryTerminateProcess(process))
-                        await Task.Delay(1000).ConfigureAwait(false);
+                    RetryTermination(
+                        () => TryTerminateProcess(process),
+                        TerminationReaperAttempts,
+                        TerminationReaperBackoffMs);
                 }
                 finally
                 {
@@ -200,7 +205,29 @@ namespace FEBuilderGBA
                     }
                     process.Dispose();
                 }
-            });
+            })
+            {
+                IsBackground = false,
+                Name = "FEBuilderGBA process reaper",
+            };
+            reaper.Start();
+        }
+
+        internal static bool RetryTermination(
+            Func<bool> tryTerminate,
+            int maximumAttempts,
+            int backoffMs)
+        {
+            if (tryTerminate == null || maximumAttempts <= 0)
+                return false;
+            for (int attempt = 0; attempt < maximumAttempts; attempt++)
+            {
+                if (tryTerminate())
+                    return true;
+                if (attempt + 1 < maximumAttempts && backoffMs > 0)
+                    Thread.Sleep(backoffMs);
+            }
+            return false;
         }
 
         /// <summary>
@@ -387,9 +414,9 @@ namespace FEBuilderGBA
                     if (terminationFailed)
                     {
                         errorMessage +=
-                            " Process termination did not complete; a background reaper retained control.";
+                            " Process termination did not complete; "
+                            + "a bounded foreground lifetime reaper took control.";
                     }
-
                     return new ProcessRunResult
                     {
                         Started = true,
