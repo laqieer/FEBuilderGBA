@@ -232,12 +232,21 @@ def test_mingw_compiler_token_replacement_count_is_bounded(monkeypatch):
 
 def test_safe_mingw_function_attributes_are_removed():
     data = (
-        b"__attribute__ ((__dllimport__)) void *"
-        b"__attribute__((__cdecl__)) _memccpy(void *dst);\n"
+        b"__attribute__ ((dllimport)) void *"
+        b"__attribute__((cdecl)) _memccpy(void *dst);\n"
     )
     assert wrapper._normalize_builder_output(data) == (
         b" void * _memccpy(void *dst);\n"
     )
+
+
+def test_safe_attribute_base_names_generate_bare_and_decorated_spellings():
+    for name in wrapper.SAFE_MINGW_ATTRIBUTE_BASE_NAMES:
+        assert name in wrapper.SAFE_MINGW_ATTRIBUTES
+        assert "__" + name + "__" in wrapper.SAFE_MINGW_ATTRIBUTES
+    for unsafe in ("aligned", "packed", "mode", "vector_size"):
+        assert unsafe not in wrapper.SAFE_MINGW_ATTRIBUTES
+        assert "__" + unsafe + "__" not in wrapper.SAFE_MINGW_ATTRIBUTES
 
 
 def test_nested_safe_mingw_format_attribute_is_removed():

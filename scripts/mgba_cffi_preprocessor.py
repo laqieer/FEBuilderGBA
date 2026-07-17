@@ -63,7 +63,8 @@ class (``__extension__``, restrict, volatile, const, and signed spellings)
 outside quoted literals. Balanced ``__attribute__((...))`` expressions are
 removed only when every contained attribute is from an ABI-neutral allowlist;
 the allowlist covers the diagnostic/optimizer/linkage attributes observed in
-current MinGW headers, while layout-affecting attributes such as aligned,
+current MinGW headers and derives both bare and ``__name__`` spellings from a
+single base-name set, while layout-affecting attributes such as aligned,
 packed, or mode remain rejected. Unknown attributes also fail closed. The complete successful
 preprocessor stream is capped at 64 MiB and at 16,384 inline blocks,
 accommodating the generated MinGW header set while retaining deterministic
@@ -154,59 +155,48 @@ MINGW_TOKEN_REPLACEMENTS = {
     b"__signed__": b"signed",
 }
 
-SAFE_MINGW_ATTRIBUTES = frozenset(
+SAFE_MINGW_ATTRIBUTE_BASE_NAMES = frozenset(
     {
-        "__always_inline__",
-        "__alloc_size__",
-        "__artificial__",
-        "__cdecl__",
-        "__cold__",
-        "__const__",
-        "__deprecated__",
-        "__dllimport__",
-        "__dllexport__",
-        "__format__",
-        "__format_arg__",
-        "__gnu_printf__",
-        "__gnu_scanf__",
-        "__gnu_inline__",
-        "__hot__",
-        "__leaf__",
-        "__malloc__",
-        "__ms_printf__",
-        "__ms_scanf__",
-        "__noinline__",
-        "__nonnull__",
-        "__noreturn__",
-        "__nothrow__",
-        "__printf__",
-        "__pure__",
-        "__returns_nonnull__",
-        "__returns_twice__",
-        "__scanf__",
-        "__selectany__",
-        "__stdcall__",
-        "__unused__",
-        "__used__",
-        "__visibility__",
-        "__warning__",
-        "__warn_unused_result__",
+        "always_inline",
+        "alloc_size",
+        "artificial",
+        "cdecl",
+        "cold",
         "const",
         "deprecated",
+        "dllimport",
+        "dllexport",
         "format",
         "format_arg",
+        "gnu_inline",
+        "gnu_printf",
+        "gnu_scanf",
+        "hot",
+        "leaf",
         "malloc",
+        "ms_printf",
+        "ms_scanf",
+        "noinline",
         "nonnull",
         "noreturn",
+        "nothrow",
+        "printf",
         "pure",
         "returns_nonnull",
         "returns_twice",
+        "scanf",
+        "selectany",
+        "stdcall",
         "unused",
         "used",
         "visibility",
         "warning",
         "warn_unused_result",
     }
+)
+SAFE_MINGW_ATTRIBUTES = frozenset(
+    SAFE_MINGW_ATTRIBUTE_BASE_NAMES
+    | {"__" + name + "__" for name in SAFE_MINGW_ATTRIBUTE_BASE_NAMES}
 )
 
 
