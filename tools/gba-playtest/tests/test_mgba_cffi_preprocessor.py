@@ -266,7 +266,16 @@ def test_observed_mingw_diagnostic_and_linkage_attributes_are_removed():
 
 def test_layout_affecting_mingw_attribute_fails_closed():
     data = b"typedef int packed_int __attribute__((__packed__));\n"
-    with pytest.raises(wrapper.PreprocessorError, match="unsupported"):
+    with pytest.raises(wrapper.PreprocessorError, match="__packed__"):
+        wrapper._normalize_builder_output(data)
+
+
+def test_unsupported_attribute_diagnostic_lists_bounded_sorted_identifiers():
+    data = b"int value __attribute__((zeta, alpha));\n"
+    with pytest.raises(
+        wrapper.PreprocessorError,
+        match=r"unsupported MinGW attribute in cdef output: alpha,zeta",
+    ):
         wrapper._normalize_builder_output(data)
 
 

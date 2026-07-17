@@ -586,11 +586,18 @@ def _strip_mingw_attributes(lines: List[bytes]) -> List[bytes]:
                 raise PreprocessorError("unterminated MinGW attribute expression")
             content = line[cursor + 2:closing - 1]
             identifiers = _attribute_identifiers(content)
-            if not identifiers or any(
-                identifier not in SAFE_MINGW_ATTRIBUTES
-                for identifier in identifiers
-            ):
-                raise PreprocessorError("unsupported MinGW attribute in cdef output")
+            unsupported = sorted(
+                {
+                    identifier
+                    for identifier in identifiers
+                    if identifier not in SAFE_MINGW_ATTRIBUTES
+                }
+            )
+            if not identifiers or unsupported:
+                detail = ",".join(unsupported[:8]) if unsupported else "<empty>"
+                raise PreprocessorError(
+                    "unsupported MinGW attribute in cdef output: " + detail
+                )
             replacements += 1
             if replacements > MAX_MINGW_ATTRIBUTE_REPLACEMENTS:
                 raise PreprocessorError("too many MinGW attribute replacements")
