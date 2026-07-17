@@ -4,12 +4,24 @@ on:
   push:
     paths:
       - '.github/workflows/gba-playtest.yml'
+      - 'FEBuilderGBA.CLI/**'
+      - 'FEBuilderGBA.Tests/Unit/CliPlaytestTests.cs'
+      - 'FEBuilderGBA.E2ETests/Tests/CliPlaytestE2ETests.cs'
+      - 'agent-harness/cli_anything/febuildergba/core/playtest.py'
+      - 'agent-harness/cli_anything/febuildergba/febuildergba_cli.py'
+      - 'agent-harness/cli_anything/febuildergba/tests/test_verbs.py'
       - 'scripts/install-mgba-playtest.*'
       - 'tools/gba-playtest/**'
   pull_request:
     branches: [ master ]
     paths:
       - '.github/workflows/gba-playtest.yml'
+      - 'FEBuilderGBA.CLI/**'
+      - 'FEBuilderGBA.Tests/Unit/CliPlaytestTests.cs'
+      - 'FEBuilderGBA.E2ETests/Tests/CliPlaytestE2ETests.cs'
+      - 'agent-harness/cli_anything/febuildergba/core/playtest.py'
+      - 'agent-harness/cli_anything/febuildergba/febuildergba_cli.py'
+      - 'agent-harness/cli_anything/febuildergba/tests/test_verbs.py'
       - 'scripts/install-mgba-playtest.*'
       - 'tools/gba-playtest/**'
   workflow_dispatch:
@@ -56,6 +68,11 @@ jobs:
       with:
         python-version: '3.12'
 
+    - name: Setup .NET 10.0
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+
     - name: Install native build prerequisites
       run: >-
         sudo apt-get update &&
@@ -68,6 +85,9 @@ jobs:
 
     - name: Build and verify the pinned binding
       run: bash scripts/install-mgba-playtest.sh --python=python3 --force
+
+    - name: Publish canonical CLI surface
+      run: dotnet publish FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj -c Release -o playtest-cli
 
     - name: Run native phase smoke (no artifacts)
       id: native_smoke
@@ -92,12 +112,22 @@ jobs:
         tools/gba-playtest/tests/run_real_mgba_proof.py
         --output-dir playtest-proof-ubuntu
 
+    - name: Run published CLI replay and exit-code proof
+      run: >-
+        tools/gba-playtest/.mgba-build/venv/bin/python
+        tools/gba-playtest/tests/run_real_cli_proof.py
+        --cli playtest-cli/FEBuilderGBA.CLI
+        --python tools/gba-playtest/.mgba-build/venv/bin/python
+        --output-dir playtest-cli-proof-ubuntu
+
     - name: Upload proof
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: playtest-proof-ubuntu
-        path: playtest-proof-ubuntu/
+        path: |
+          playtest-proof-ubuntu/
+          playtest-cli-proof-ubuntu/
         if-no-files-found: warn
 
   real-mgba-windows:
@@ -135,12 +165,24 @@ jobs:
           zlib:p
           ffmpeg:p
 
+    - name: Setup .NET 10.0
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+
     - name: Build and verify the pinned binding
       shell: powershell
       run: >-
         .\scripts\install-mgba-playtest.ps1
         -Msys2Root "${{ steps.msys2.outputs.msys2-location }}"
         -Force
+
+    - name: Publish canonical CLI surface
+      shell: powershell
+      run: >-
+        dotnet publish FEBuilderGBA.CLI\FEBuilderGBA.CLI.csproj
+        -c Release
+        -o playtest-cli
 
     - name: Run native phase smoke (no artifacts)
       id: native_smoke
@@ -176,10 +218,31 @@ jobs:
           exit $LASTEXITCODE
         }
 
+    - name: Run published CLI replay and exit-code proof
+      shell: powershell
+      run: |
+        $candidates = @(
+          "tools\gba-playtest\.mgba-build\venv\bin\python.exe",
+          "tools\gba-playtest\.mgba-build\venv\Scripts\python.exe"
+        )
+        $python = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+        if (-not $python) {
+          throw "The bootstrap venv interpreter was not found."
+        }
+        & $python tools\gba-playtest\tests\run_real_cli_proof.py `
+          --cli playtest-cli\FEBuilderGBA.CLI.exe `
+          --python $python `
+          --output-dir playtest-cli-proof-windows
+        if ($LASTEXITCODE -ne 0) {
+          exit $LASTEXITCODE
+        }
+
     - name: Upload proof
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: playtest-proof-windows
-        path: playtest-proof-windows/
+        path: |
+          playtest-proof-windows/
+          playtest-cli-proof-windows/
         if-no-files-found: warn

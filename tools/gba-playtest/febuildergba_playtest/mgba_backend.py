@@ -149,9 +149,41 @@ _DLL_HANDLES: List[Any] = []
 _REGISTERED_DIRS: set = set()
 
 
-def _dll_manifest_path() -> str:
+def _dll_manifest_path(
+    *,
+    executable: Optional[str] = None,
+    isfile: Optional[Callable[[str], bool]] = None,
+) -> str:
+    """Locate the DLL manifest beside the package or bootstrap venv.
+
+    Released/published CLIs copy this Python package away from the repository
+    build root. In that layout, derive the same ``.mgba-build`` directory from
+    the explicitly selected bootstrap interpreter:
+    ``.mgba-build/venv/{bin|Scripts}/python[.exe]``.
+    """
     tool_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(tool_dir, ".mgba-build", _DLL_MANIFEST_NAME)
+    package_manifest = os.path.join(
+        tool_dir,
+        ".mgba-build",
+        _DLL_MANIFEST_NAME,
+    )
+    exists = isfile or os.path.isfile
+    if exists(package_manifest):
+        return package_manifest
+
+    interpreter = os.path.abspath(executable or sys.executable)
+    interpreter_dir = os.path.dirname(interpreter)
+    venv_dir = os.path.dirname(interpreter_dir)
+    build_root = os.path.dirname(venv_dir)
+    if (
+        os.path.basename(interpreter_dir).lower() in ("bin", "scripts")
+        and os.path.basename(venv_dir).lower() == "venv"
+        and os.path.basename(build_root).lower() == ".mgba-build"
+    ):
+        venv_manifest = os.path.join(build_root, _DLL_MANIFEST_NAME)
+        if exists(venv_manifest):
+            return venv_manifest
+    return package_manifest
 
 
 def _read_manifest_dirs(manifest_path: str) -> List[str]:

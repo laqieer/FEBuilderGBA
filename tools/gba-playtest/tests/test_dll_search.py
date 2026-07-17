@@ -137,6 +137,47 @@ def test_manifest_path_points_under_mgba_build():
     assert path == os.path.join(tool_dir, ".mgba-build", "mgba-dll-dirs.txt")
 
 
+def test_manifest_path_falls_back_to_bootstrap_venv(tmp_path):
+    package_manifest = mb._dll_manifest_path(isfile=lambda _path: False)
+    build_root = tmp_path / ".mgba-build"
+    interpreter = build_root / "venv" / "Scripts" / "python.exe"
+    interpreter.parent.mkdir(parents=True)
+    interpreter.write_bytes(b"")
+    manifest = build_root / "mgba-dll-dirs.txt"
+    manifest.write_text("C:\\runtime\n", encoding="utf-8")
+
+    resolved = mb._dll_manifest_path(
+        executable=str(interpreter),
+        isfile=os.path.isfile,
+    )
+
+    assert resolved == str(manifest)
+    assert resolved != package_manifest
+
+
+def test_package_manifest_precedes_bootstrap_venv(monkeypatch, tmp_path):
+    package_dir = tmp_path / "published" / "gba-playtest"
+    module_path = package_dir / "febuildergba_playtest" / "mgba_backend.py"
+    module_path.parent.mkdir(parents=True)
+    package_manifest = package_dir / ".mgba-build" / "mgba-dll-dirs.txt"
+    package_manifest.parent.mkdir()
+    package_manifest.write_text("C:\\package\n", encoding="utf-8")
+
+    build_root = tmp_path / "source" / ".mgba-build"
+    interpreter = build_root / "venv" / "bin" / "python.exe"
+    interpreter.parent.mkdir(parents=True)
+    interpreter.write_bytes(b"")
+    (build_root / "mgba-dll-dirs.txt").write_text(
+        "C:\\venv\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(mb, "__file__", str(module_path))
+
+    assert mb._dll_manifest_path(executable=str(interpreter)) == str(
+        package_manifest
+    )
+
+
 # --- Bounds and idempotency (defence against unbounded/hostile input) -------
 
 

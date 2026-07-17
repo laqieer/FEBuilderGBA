@@ -2,11 +2,13 @@
 
 import hashlib
 import json
+from pathlib import Path
 
 import pytest
 
 from febuildergba_playtest.model import load_scenario
 import run_real_mgba_proof as proof
+import run_real_cli_proof as cli_proof
 from synthetic_gba import DEFAULT_MARKER, build_synthetic_rom
 
 
@@ -61,3 +63,27 @@ def test_verify_run_checks_persisted_json_and_png(tmp_path):
     )
     assert len(result_sha) == 64
     assert screenshot_sha == hashlib.sha256(screenshot).hexdigest()
+
+
+def test_cli_proof_command_uses_canonical_dotnet_surface():
+    command = cli_proof._build_command(
+        Path("FEBuilderGBA.CLI"),
+        Path("python"),
+        ["--check"],
+        check=True,
+    )
+    assert command == [
+        "FEBuilderGBA.CLI",
+        "--playtest",
+        "--check",
+        "--python=python",
+    ]
+
+
+def test_cli_proof_failure_scenario_expects_machine_failure():
+    rom = build_synthetic_rom()
+    scenario = cli_proof._failing_scenario(rom)
+    parsed = load_scenario(json.dumps(scenario))
+
+    assert parsed.assertions[0].value == 1
+    assert parsed.screenshot is None
