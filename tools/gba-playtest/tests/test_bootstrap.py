@@ -23,6 +23,7 @@ import os
 import re
 import subprocess
 import sys
+from urllib.parse import urlsplit
 
 import pytest
 
@@ -59,6 +60,13 @@ REQUIRED_BUILD_PACKAGES = ("cffi", "pycparser", "cached-property")
 def _read(path):
     with open(path, "r", encoding="utf-8") as handle:
         return handle.read()
+
+
+def _https_urls(text):
+    return [
+        urlsplit(match.group(0).rstrip(".,)"))
+        for match in re.finditer(r"https://[^\s'\"`]+", text)
+    ]
 
 
 # Matches grep/cat/awk/sed only when actually invoked as a shell command --
@@ -192,7 +200,15 @@ def test_build_script_stamps_inner_git_provenance():
     # and walk up into the parent FEBuilderGBA repo, mis-stamping the binding.
     text = _read(BUILD_SCRIPT)
     assert "git init" in text, "must initialize an inner git repo"
-    assert "https://github.com/mgba-emu/mgba.git" in text, "must add the official origin"
+    assert any(
+        url.scheme == "https"
+        and url.hostname == "github.com"
+        and url.port is None
+        and url.path == "/mgba-emu/mgba.git"
+        and not url.query
+        and not url.fragment
+        for url in _https_urls(text)
+    ), "must add the exact official mGBA origin"
     assert re.search(r"git\s+remote\s+add\s+origin", text), "must add origin"
     assert re.search(r"git\s+fetch\b[^\n]*--depth\s+1", text), "must fetch depth 1"
     assert "FETCH_HEAD" in text, "must reset to FETCH_HEAD"
@@ -700,7 +716,15 @@ def test_powershell_does_not_install_or_download_toolchain():
                 "pacman may only appear as guidance, never executed"
             )
     # Must fail closed with MSYS2 guidance instead of installing.
-    assert "www.msys2.org" in low, "wrapper must point users to install MSYS2 themselves"
+    assert any(
+        url.scheme == "https"
+        and url.hostname == "www.msys2.org"
+        and url.port is None
+        and url.path in ("", "/")
+        and not url.query
+        and not url.fragment
+        for url in _https_urls(text)
+    ), "wrapper must point users to the exact official MSYS2 origin"
 
 
 def test_powershell_does_not_mutate_global_environment():
@@ -1083,6 +1107,11 @@ def test_build_script_requires_and_locates_the_cffi_wrapper():
     assert re.search(r'if\s+\[\s+!\s+-f\s+"\$\{MGBA_CFFI_WRAPPER\}"\s+\]', text), (
         "must fail closed if the wrapper is missing"
     )
+
+
+def test_workflow_triggers_on_cffi_wrapper_changes():
+    text = _read(REAL_WORKFLOW)
+    assert text.count("- 'scripts/mgba_cffi_preprocessor.py'") == 2
 
 
 def test_build_script_rejects_a_symlinked_cffi_wrapper():

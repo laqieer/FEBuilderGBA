@@ -100,8 +100,8 @@ def _paths_collide(a: Optional[str], b: Optional[str]) -> bool:
     """True if ``a`` and ``b`` resolve to the same filesystem target.
 
     Detects both physical aliases (existing files reached by different paths,
-    via :func:`os.path.samefile`) and lexical aliases (non-existing paths that
-    normalize identically, e.g. ``dir/../rom.gba`` vs ``rom.gba``).
+    via :func:`os.path.samefile`) and future targets reached through lexical or
+    symlinked-directory aliases.
     """
     if not a or not b:
         return False
@@ -110,7 +110,7 @@ def _paths_collide(a: Optional[str], b: Optional[str]) -> bool:
             return True
     except OSError:
         pass
-    return os.path.normcase(os.path.abspath(a)) == os.path.normcase(os.path.abspath(b))
+    return os.path.normcase(os.path.realpath(a)) == os.path.normcase(os.path.realpath(b))
 
 
 def _reject_output_collisions(rom_path: str, scenario_path: str, out_path: Optional[str],

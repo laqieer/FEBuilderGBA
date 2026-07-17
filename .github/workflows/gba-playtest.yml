@@ -11,6 +11,7 @@ on:
       - 'agent-harness/cli_anything/febuildergba/febuildergba_cli.py'
       - 'agent-harness/cli_anything/febuildergba/tests/test_verbs.py'
       - 'scripts/install-mgba-playtest.*'
+      - 'scripts/mgba_cffi_preprocessor.py'
       - 'tools/gba-playtest/**'
   pull_request:
     branches: [ master ]
@@ -23,6 +24,7 @@ on:
       - 'agent-harness/cli_anything/febuildergba/febuildergba_cli.py'
       - 'agent-harness/cli_anything/febuildergba/tests/test_verbs.py'
       - 'scripts/install-mgba-playtest.*'
+      - 'scripts/mgba_cffi_preprocessor.py'
       - 'tools/gba-playtest/**'
   workflow_dispatch:
 

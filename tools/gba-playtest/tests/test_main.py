@@ -201,6 +201,37 @@ def test_out_lexical_alias_of_rom_rejected(tmp_path, capsys):
     assert rom.read_bytes() == b"\x00" * 0x200
 
 
+def test_out_aliasing_screenshot_through_symlinked_dir_rejected(
+    tmp_path, capsys
+):
+    rom, scenario = _prepare_valid_inputs(tmp_path)
+    scenario_data = json.loads(_VALID_SCENARIO)
+    scenario_data["screenshot"] = {"basename": "final.png"}
+    scenario.write_text(json.dumps(scenario_data), encoding="utf-8")
+
+    real_artifacts = tmp_path / "real-artifacts"
+    real_artifacts.mkdir()
+    artifact_alias = tmp_path / "artifact-alias"
+    try:
+        artifact_alias.symlink_to(real_artifacts, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"directory symlinks unavailable: {exc}")
+
+    out = real_artifacts / "final.png"
+    code = cli.main([
+        "--rom", str(rom),
+        "--scenario", str(scenario),
+        "--out", str(out),
+        "--artifact-dir", str(artifact_alias),
+    ])
+    result = _one_json(capsys)
+
+    assert code == 1
+    assert result["status"] == "harness_error"
+    assert "collides" in result["note"]
+    assert not out.exists()
+
+
 def test_out_atomic_write_refuses_directory_target(tmp_path, monkeypatch, capsys):
     rom, scenario = _prepare_valid_inputs(tmp_path)
     out_dir = tmp_path / "outdir"
