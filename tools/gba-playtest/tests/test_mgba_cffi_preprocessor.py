@@ -273,6 +273,23 @@ def test_observed_mingw_diagnostic_and_linkage_attributes_are_removed():
     )
 
 
+def test_redundant_crt_max_align_field_attributes_are_removed():
+    data = (
+        b"long long __max_align_ll __attribute__((__aligned__(8)));\n"
+        b"long double __max_align_ld __attribute__((__aligned__(16)));\n"
+    )
+    assert wrapper._normalize_builder_output(data) == (
+        b"long long __max_align_ll ;\n"
+        b"long double __max_align_ld ;\n"
+    )
+
+
+def test_aligned_attribute_outside_crt_max_align_fields_still_fails_closed():
+    data = b"long long application_field __attribute__((__aligned__(8)));\n"
+    with pytest.raises(wrapper.PreprocessorError, match="__aligned__"):
+        wrapper._normalize_builder_output(data)
+
+
 def test_layout_affecting_mingw_attribute_fails_closed():
     data = b"typedef int packed_int __attribute__((__packed__));\n"
     with pytest.raises(wrapper.PreprocessorError, match="__packed__"):

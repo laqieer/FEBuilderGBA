@@ -65,7 +65,10 @@ removed only when every contained attribute is from an ABI-neutral allowlist;
 the allowlist covers the diagnostic/optimizer/linkage attributes observed in
 current MinGW headers and derives both bare and ``__name__`` spellings from a
 single base-name set, while layout-affecting attributes such as aligned,
-packed, or mode remain rejected. Unknown attributes also fail closed. The complete successful
+packed, or mode remain rejected. The sole alignment exception is MinGW
+``max_align_t``'s two fields explicitly aligned to their own natural
+``__alignof__`` values; removing those redundant annotations preserves the
+x64 layout. Unknown attributes also fail closed. The complete successful
 preprocessor stream is capped at 64 MiB and at 16,384 inline blocks,
 accommodating the generated MinGW header set while retaining deterministic
 resource bounds. POSIX preprocessing is otherwise unchanged.
@@ -197,6 +200,10 @@ SAFE_MINGW_ATTRIBUTE_BASE_NAMES = frozenset(
 SAFE_MINGW_ATTRIBUTES = frozenset(
     SAFE_MINGW_ATTRIBUTE_BASE_NAMES
     | {"__" + name + "__" for name in SAFE_MINGW_ATTRIBUTE_BASE_NAMES}
+)
+REDUNDANT_MAX_ALIGN_FIELDS = (b"__max_align_ll", b"__max_align_ld")
+REDUNDANT_MAX_ALIGN_IDENTIFIERS = frozenset(
+    {"aligned", "__aligned__", "alignof", "__alignof__", "long", "double"}
 )
 
 
@@ -583,6 +590,17 @@ def _strip_mingw_attributes(lines: List[bytes]) -> List[bytes]:
                     if identifier not in SAFE_MINGW_ATTRIBUTES
                 }
             )
+            if (
+                unsupported
+                and set(unsupported) <= REDUNDANT_MAX_ALIGN_IDENTIFIERS
+                and any(field in line for field in REDUNDANT_MAX_ALIGN_FIELDS)
+            ):
+                # MinGW crt/stddef.h defines max_align_t with long-long and
+                # long-double fields explicitly aligned to their own natural
+                # __alignof__ values. Dropping only those redundant self-
+                # alignment annotations preserves the natural x64 layout;
+                # every other aligned/packed/mode attribute remains rejected.
+                unsupported = []
             if not identifiers or unsupported:
                 detail = ",".join(unsupported[:8]) if unsupported else "<empty>"
                 raise PreprocessorError(

@@ -174,7 +174,10 @@ quoted literals. Balanced `__attribute__((...))` expressions are removed only
 when every contained attribute is on an ABI-neutral allowlist derived from the
 current MinGW diagnostic/optimizer/linkage attributes. Both bare (`dllimport`)
 and decorated (`__dllimport__`) spellings are generated from the same base-name
-set; unknown or layout-affecting attributes (`aligned`, `packed`, `mode`, etc.) fail closed. Successful preprocessor output is
+set; unknown or layout-affecting attributes (`aligned`, `packed`, `mode`, etc.)
+fail closed. The only alignment exception is MinGW `max_align_t`'s long-long
+and long-double fields aligned to their own natural `__alignof__` values, where
+removing the redundant annotation preserves the UCRT64 x64 layout. Successful preprocessor output is
 capped at 64 MiB and 16,384 inline blocks (current MinGW headers contain
 hundreds, not merely a handful), so the full generated header set fits without
 removing resource bounds. POSIX output is otherwise unchanged. The wrapper fails
