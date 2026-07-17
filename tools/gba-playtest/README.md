@@ -1,12 +1,12 @@
 # febuildergba-playtest
 
-Deterministic, headless GBA playtest engine for FEBuilderGBA (issue #1932, WU1).
+Deterministic, headless GBA playtest engine for FEBuilderGBA (issue #1932).
 
 This is a **standard-library-only** Python package that drives the pinned
 **mGBA 0.10.5** Python binding through a strict, data-only JSON scenario and
-emits a single machine-readable JSON verdict. It is the runner half of the
-`FEBuilderGBA.CLI --playtest` feature; the .NET CLI integration lands in a later
-work unit.
+emits a single machine-readable JSON verdict. It is the runner used by the
+canonical `FEBuilderGBA.CLI --playtest` command and the agent-harness
+`playtest` wrapper.
 
 ## Runtime policy
 
@@ -42,10 +42,15 @@ work unit.
 ## Usage
 
 ```
-python -m febuildergba_playtest --check
-python -m febuildergba_playtest --rom rom.gba --scenario scenario.json \
+FEBuilderGBA.CLI --playtest --check --python /path/to/playtest-python
+FEBuilderGBA.CLI --playtest --rom rom.gba --scenario scenario.json \
+    --python /path/to/playtest-python \
     [--out result.json] [--artifact-dir out/]
 ```
+
+The direct `python -m febuildergba_playtest` entrypoint remains available for
+bootstrap diagnostics. The user/agent contract is the .NET CLI surface above;
+see [`docs/HEADLESS-PLAYTEST.md`](../../docs/HEADLESS-PLAYTEST.md).
 
 ## Setup (explicit, one command)
 
@@ -163,14 +168,35 @@ copy, and deletes it in a `finally` block. On MSYS2 only, the temporary header
 also disables `__attribute__(...)` and predefines MinGW's `__INTRIN_H_` guard
 while `<limits.h>` expands. This excludes irrelevant compiler intrinsic
 declarations such as `__debugbreak`; both macros are restored before mGBA
-headers. The wrapper then normalizes only preprocessed
+headers. The wrapper removes `-P` for this internal preprocessing pass, uses
+GCC line markers to retain declarations only from the exact temporary overlay
+or canonical pinned mGBA source root, then drops the markers before returning
+the cdef stream. Host/GCC/Python declarations are excluded only after their
+macros have expanded into retained mGBA lines. It also injects the native
+target's exact `_WIN32_WINNT=0x0600` define, eliminating cdef/native compile
+drift. Exact begin/end declarations around the `limits.h` expansion are
+required, bounded, and removed. The wrapper then normalizes only preprocessed
 compiler-only scalar typedefs from the complete GCC 16.1.0 MinGW header census
 (`__builtin_*_va_list` plus the exact `__bf16` to `__bfloat16` API alias) to
 CFFI's `typedef ... <alias>;` syntax (bounded and identifier-validated).
+If GCC also emits `typedef __builtin_va_list va_list;`, the wrapper retains the
+single authoritative `typedef ... va_list;` from the exact temporary header
+overlay and blanks only that equivalent duplicate. The same finite provenance
+check handles GCC's actual two-step
+`__builtin_va_list -> __gnuc_va_list -> va_list` chain; MS/SysV roots, cycles,
+other alias conflicts, and duplicate opaque declarations fail closed.
+Pinned `_builder.h` also owns the exact CFFI partial overrides
+`typedef int... time_t;` and `typedef int... off_t;`; later simple host typedefs
+for those two aliases are blanked only when their source is from the finite
+UCRT set (`__time32_t`/`__time64_t` and `_off_t`/`off32_t`/`off64_t`), with
+line endings preserved. Incompatible sources fail closed, while the same host
+typedefs remain untouched when the authoritative override is absent.
 Unrecognized BF16 aliases fail closed. It first
 token-normalizes safe parser-only GCC qualifiers (`__extension__`, restrict,
 volatile, const, and signed spellings), then removes bounded top-level MinGW
 `extern/static __inline__` intrinsic definitions with brace-aware scanning.
+The inline token may end its preprocessed line (as emitted by
+`__INTRINSICS_USEINLINE`) or be followed by the return type on that line.
 That ordering discards body-local vector typedefs/attributes before attribute
 parsing; declaration-only forms remain and lose only the inline token.
 Balanced `__attribute__((...))` expressions are then removed only
@@ -186,15 +212,45 @@ aligned WinNT/WDK processor-state structs and unions unused by pinned mGBA
 CFFI partial declarations (`...;`), so the real compiler provides their
 aligned layout. Bounded headers split across up to eight preprocessor-selected
 tag lines are supported; alignment remains rejected outside that finite
-context. Compiler-defined MinGW/GCC vector aliases are also
+context. A second finite tag set partializes unused non-aligned WinNT unions
+whose array sizes contain `sizeof` expressions that CFFI cannot evaluate
+(`_DISPATCHER_CONTEXT_NONVOLREG_ARM64`, `_SE_SID`, `_SE_TOKEN_USER`, and
+`_IMAGE_AUX_SYMBOL_EX`). WinNT's single compile-time `__C_ASSERT__` pseudo-
+function declaration is removed separately with its own bound. Compiler-defined
+MinGW/GCC vector aliases are also
 unused by pinned mGBA; any one-line compiler-internal typedef (`__...` alias)
 carrying `vector_size` or `may_alias` plus optional alignment attributes becomes
 an opaque CFFI typedef. This preserves the compiler's real vector layout without
 maintaining an open-ended alias-name list, while application typedefs and
-non-vector alignment attributes still fail closed.
+non-vector alignment attributes still fail closed. Repeated vector aliases are
+blanked only when their complete declaration token stream is identical (as in
+GCC's repeated AVX-512 `__v8di` definition); a different type/size declaration
+for the same alias fails closed.
 Bounded multiline compiler-internal attribute typedefs are joined into one
 logical declaration before the same validation, supporting aliases before or
 after the attribute group; ordinary multiline typedefs remain byte-identical.
+After all token/attribute/layout transforms, byte-equivalent one-line function
+declarations are deduplicated with a lightweight C-token comparison that
+ignores whitespace and ordinary parameter identifiers while retaining type
+keywords, tag names, punctuation, and identifier boundaries. A bounded map of
+unambiguous, top-level, one-line typedef aliases is recursively resolved for
+signature comparison, so ABI-equivalent WinNT spellings (`DWORD`/`ULONG`,
+`BYTE`/`UCHAR`) compare equal while different underlying types remain distinct.
+This
+covers MinGW headers that expose the same C23 and legacy old-name prototype
+(for example `memccpy`, named-vs-unnamed `chmod` parameters, or
+`VerSetConditionMask` with equivalent WinNT typedef spellings) under overlapping
+feature guards; distinct signatures, struct-scoped fields, quoted declarations,
+complex declarators, and multiline declarations remain untouched. Both typedef
+collection and declaration removal counts are bounded.
+An adjacent bounded pass applies the same top-level/token rules to repeated
+one-line typedef declarations, covering duplicate function typedefs and their
+pointer aliases (for example `BAD_MEMORY_CALLBACK_ROUTINE`) while retaining
+different typedef signatures and all multiline/structured declarations.
+Simple `(int)` casts on literal WinNT enum values are folded to their exact
+signed 32-bit decimal value (including `0x80000000` and `0xFFFFFFFF`), because
+CFFI cannot evaluate enum casts; nonliteral cast expressions remain unchanged
+and fail closed, and the replacement count is bounded.
 Successful preprocessor output is
 capped at 64 MiB and 16,384 inline blocks (current MinGW headers contain
 hundreds, not merely a handful), so the full generated header set fits without
@@ -241,9 +297,27 @@ are not resolved via `runtime_library_dirs` when a UCRT64 Python is launched
 from PowerShell/.NET. The bootstrap therefore records the build output directory
 and the UCRT64 `bin` as native paths in `.mgba-build/mgba-dll-dirs.txt`, and the
 runtime adapter registers them with `os.add_dll_directory()` before importing
-`mgba` (override with a semicolon-separated Windows path list in
-`FEBUILDERGBA_MGBA_DLL_DIRS`). The bootstrap runs a direct import probe before
-`--check` so a loader failure is diagnosed distinctly.
+`mgba`. A published CLI's copied runner derives that manifest from the selected
+bootstrap interpreter at `.mgba-build/venv/{bin|Scripts}/python.exe`, so the
+one-command setup remains sufficient after publish; override with a
+semicolon-separated Windows path list in `FEBUILDERGBA_MGBA_DLL_DIRS`. The
+bootstrap runs a direct import probe before `--check` so a loader failure is
+diagnosed distinctly.
+
+Pinned mGBA still passes `runtime_library_dirs` to setuptools, which modern
+MinGW setuptools rejects because Windows has no rpath. During the two native
+build commands only, the bootstrap sets `PYTHONPATH` to the repository-owned
+`setuptools-shim/sitecustomize.py`. On Windows that shim makes MinGW's
+runtime-directory option a no-op (the recorded DLL manifest above is the actual
+runtime strategy) and adds the exact `python<major>.<minor>` import library in
+addition to setuptools' stable-ABI `python3` library, so non-limited CFFI symbols
+such as `Py_CompileStringExFlags` link correctly. Both setuptools/distutils
+module identities are patched because MSYS2 can load either. The shim is
+also given a canonical, non-symlinked build-temp directory under the out-of-
+source CMake tree, avoiding MinGW's repeated absolute-source object path from
+exceeding Windows path limits during `bdist_wheel`. The shim is command-scoped,
+regular-file/symlink/containment checked, does not edit mGBA or installed
+packages, and is a no-op on POSIX.
 
 **Windows support is not yet claimed.** This MSYS2 UCRT64 path is an *attempted*
 supported build gated by a mandatory real Windows MSYS2 CI job; upstream records

@@ -72,6 +72,11 @@ cli-anything-febuildergba lz77 -i data.lz77 -o data.bin --decompress
 
 # JSON output (for agents)
 cli-anything-febuildergba --json rom info roms/FE8U.gba
+
+# Deterministic headless playtest (optional pinned mGBA binding)
+cli-anything-febuildergba --json playtest --check --python /path/to/python
+cli-anything-febuildergba --json playtest --rom roms/FE8U.gba \
+  --scenario scenario.json --python /path/to/python
 ```
 
 `rom info`, `rom header`, and `session open` reject existing files that fail the local GBA ROM
@@ -109,11 +114,12 @@ cli-anything-febuildergba session status
 | `disasm` | ROM disassembly |
 | `rebuild` | ROM defragmentation |
 | `session` | Session management |
+| `playtest` | Deterministic headless mGBA verification (explicit CLI only; not MCP) |
 | `check` | Backend availability check |
 
 Standalone commands: `lint`, `disasm`, `songexchange`, `names`, `portrait`, `export-midi`,
 **`import-midi`**, `disasm-event`, **`compile-event`**, `lint-oam`, `rebuild`, `pointercalc`,
-**`export-map-settings-raw`**, **`lz77`**, `check`.
+**`export-map-settings-raw`**, **`lz77`**, **`playtest`**, `check`.
 
 Unwrapped standalone backend commands: `--export-buildfile`, `--build-buildfile`, `--buildfile-roundtrip`.
 
@@ -212,16 +218,17 @@ exactly as before this fix.
 
 ## CLI verb coverage (harness ↔ CLI)
 
-The harness wraps a growing subset of `FEBuilderGBA.CLI`'s ~70 verbs (see
+The harness wraps a growing subset of `FEBuilderGBA.CLI`'s 71 verbs (see
 [`docs/cli-reference.md`](../../../docs/cli-reference.md) for the authoritative list). This table
 maps every backend verb to its harness command and coverage status; closing the remaining gap is
 tracked in [#1933](https://github.com/laqieer/FEBuilderGBA/issues/1933).
 
-**Status:** ✅ wrapped · 🆕 wrapped in #1933 · 🆕🔧 wrapped in #1942 (MCP server) · ⬜ not yet wrapped · ➖ n/a (dev/modifier/help). **~34 of ~70 wrapped.**
+**Status:** ✅ wrapped · 🆕 wrapped in #1933 · 🆕🔧 wrapped in #1942 (MCP server) · ⬜ not yet wrapped · ➖ n/a (dev/modifier/help). **~35 of 71 wrapped.**
 
 | CLI verb | Harness command | Status |
 |---|---|---|
 | `--version` | `check` (shows version) | ✅ |
+| `--playtest` | `playtest` | ✅ (Click only; deliberately not MCP) |
 | `--rom-info` | `rom info` | ✅ |
 | `--checksum` | `rom checksum` | 🆕 |
 | `--repair-header` | `rom repair-header` | 🆕 |
@@ -283,6 +290,7 @@ and 28 more. Run `cli-anything-febuildergba rom tables` for the full list.
 |----------|-------------|
 | `FEBUILDERGBA_CLI_EXE` | Explicit path to FEBuilderGBA.CLI executable (preferred) |
 | `FEBUILDERGBA_CLI` | Fallback path to FEBuilderGBA.CLI executable |
+| `FEBUILDERGBA_PLAYTEST_PYTHON` | Python interpreter containing the pinned mGBA binding |
 
 ## Running Tests
 

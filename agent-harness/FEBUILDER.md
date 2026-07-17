@@ -6,7 +6,7 @@ FEBuilderGBA is a comprehensive ROM hacking suite for the Fire Emblem GBA trilog
 
 ## Backend
 
-The real software is `FEBuilderGBA.CLI` — a cross-platform .NET 10.0 CLI that exposes **~70 commands** (lint, rebuild, buildfile export/build/round-trip, text export/import, struct data export/import, disassembly, palette quantization, UPS patching, event compile/disassemble, portrait / battle-animation / MIDI / palette I/O, decomp-asset export, and more). The authoritative, always-current command list is [`docs/cli-reference.md`](../docs/cli-reference.md) (per-argument detail in [`docs/cli-args.md`](../docs/cli-args.md)); the exact count drifts as verbs are added, so treat that reference — not this number — as canonical.
+The real software is `FEBuilderGBA.CLI` — a cross-platform .NET 10.0 CLI that exposes **71 commands** (lint, rebuild, deterministic headless playtest, buildfile export/build/round-trip, text export/import, struct data export/import, disassembly, palette quantization, UPS patching, event compile/disassemble, portrait / battle-animation / MIDI / palette I/O, decomp-asset export, and more). The authoritative, always-current command list is [`docs/cli-reference.md`](../docs/cli-reference.md) (per-argument detail in [`docs/cli-args.md`](../docs/cli-args.md)).
 
 The Python CLI harness wraps `FEBuilderGBA.CLI` via subprocess, adding:
 - Stateful session management (track open ROM, undo history)
@@ -57,7 +57,7 @@ newline-delimited JSON-RPC 2.0 on stdin/stdout only (protocol versions `2025-03-
 
 The Python harness (`cli_anything/febuildergba/febuildergba_cli.py`) exposes its surface as six
 **Click command groups** (each with subcommands) plus a set of **standalone top-level commands**.
-These harness commands are a *subset* of the backend's ~70 `FEBuilderGBA.CLI` verbs — see the
+These harness commands are a *subset* of the backend's 71 `FEBuilderGBA.CLI` verbs — see the
 Coverage note below.
 
 ### Command groups
@@ -86,12 +86,14 @@ Coverage note below.
 | `rebuild` | ROM defragmentation/rebuild |
 | `pointercalc` | Search for pointer references in ROM |
 | `lz77` | LZ77 compress/decompress an arbitrary file (no ROM required, #1942) |
+| `playtest` | Deterministic headless mGBA verification (Click only; not MCP) |
 | `check` | Verify the `FEBuilderGBA.CLI` backend is available |
 
 > A hidden interactive `repl` command also exists (not part of the normal command surface).
 >
-> **Coverage:** the harness currently wraps roughly **34 of ~70** (was ~33 before `lz77` was added
-> in #1942) of the backend's `FEBuilderGBA.CLI` verbs — the harness Click commands above are a
+> **Coverage:** the harness currently wraps roughly **35 of 71** (`playtest` is Click-only and
+> deliberately excluded from MCP; `lz77` was added in #1942) of the backend's
+> `FEBuilderGBA.CLI` verbs — the harness Click commands above are a
 > subset of the full CLI ([`docs/cli-reference.md`](../docs/cli-reference.md)). Closing that
 > harness↔CLI coverage gap is tracked in
 > [#1933](https://github.com/laqieer/FEBuilderGBA/issues/1933); the MCP stdio adapter surface

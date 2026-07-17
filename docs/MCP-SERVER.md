@@ -136,7 +136,7 @@ below).
 
 ## Tools (21)
 
-No generic command runner, and no patch/rebuild/repair-header/compile-event/import-midi/
+No generic command runner, and no playtest/patch/rebuild/repair-header/compile-event/import-midi/
 export-midi/songexchange tools are exposed — this is a deliberately curated, closed subset of the
 Click CLI's surface, not a 1:1 mirror. Every tool's `inputSchema` is closed
 (`additionalProperties: false`) with explicit types/bounds/enums — no silent coercion (a JSON
@@ -473,6 +473,9 @@ protocol-level failure. Click callers alone retain the legacy
 
 - **No generic command runner.** Every capability is an explicit, schema-validated tool — an agent
   cannot pass arbitrary `FEBuilderGBA.CLI` flags through this server.
+- **No `playtest` tool.** Headless playtesting launches an optional native emulator and can be
+  long-running. It remains available through the explicit .NET/Click CLI, while MCP keeps its
+  fixed bounded allowlist and no generic command runner.
 - **No patch/rebuild/repair-header/event/music mutation tools** (`patch apply`/`apply-bin`,
   `rebuild`, `repair-header`, `compile-event`, `import-midi`/`export-midi`, `songexchange`,
   `disasm-event`, `lint-oam`, `pointercalc`, `disasm`, `portrait`) — these remain Click-CLI-only

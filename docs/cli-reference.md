@@ -8,7 +8,8 @@ remaining commands are listed in compact form under
 [Decomp project mode](#decomp-project-mode). The complete option list with inline help is
 always available via `FEBuilderGBA.CLI --help`.
 
-**Source:** `FEBuilderGBA.CLI/Program.cs`, `FEBuilderGBA.CLI/RomLoader.cs`
+**Source:** `FEBuilderGBA.CLI/Program.cs`,
+`FEBuilderGBA.CLI/Program.Playtest.cs`, `FEBuilderGBA.CLI/RomLoader.cs`
 
 ## Usage
 
@@ -67,6 +68,41 @@ License: GPLv3
 ```
 
 **Exit code:** always 0.
+
+---
+
+### `--playtest`
+
+Run a deterministic, data-only scenario through the optional, source-pinned
+mGBA 0.10.5 Python binding.
+
+```bash
+FEBuilderGBA.CLI --playtest --check --python=/path/to/python
+FEBuilderGBA.CLI --playtest --rom=rom.gba --scenario=scenario.json \
+  --out=result.json --artifact-dir=artifacts --python=/path/to/python
+```
+
+| Option | Required | Description |
+|---|---|---|
+| `--check` | Alternative | Verify the pinned mGBA version/commit; cannot be combined with run options. |
+| `--rom=<path>` | Run | Input ROM, read-only, at most 32 MiB. |
+| `--scenario=<path>` | Run | Strict UTF-8 schema-v1 scenario. |
+| `--out=<path>` | No | Persist the same JSON verdict emitted on stdout. |
+| `--artifact-dir=<dir>` | Conditional | Existing directory for a requested final-frame PNG. |
+| `--python=<executable>` | No | Interpreter override; then `FEBUILDERGBA_PLAYTEST_PYTHON`, then platform candidates. |
+| `--timeout=<ms>` | No | Native process timeout, 1,000-3,600,000; default 600,000. |
+
+Stdout is exactly one JSON object. `runFrames` is exact normal completion; a
+watchdog is the scenario-level softlock signal, while `--timeout` is a separate
+stuck-process failure. The fixed startup contract disables sync/frameskip,
+mutes audio, uses HLE BIOS, attaches an in-memory temporary save, and disables
+save/patch/cheat autoload.
+
+**Exit codes:** `0` pass/check OK; `1` usage, setup, dependency, I/O, or harness
+failure; `2` ROM guard, assertion, crash, or softlock verification failure.
+
+See [Headless Playtest](HEADLESS-PLAYTEST.md) for setup, schema, memory domains,
+result fields, determinism boundaries, and CI proof.
 
 ---
 
@@ -1422,6 +1458,7 @@ Each finding prints as `ERROR [CODE] msg` (stderr) or `WARN [CODE] msg` (stdout)
 |---|---|---|---|---|---|---|
 | `--help` / `-h` | — | — | — | — | — | No |
 | `--version` | — | — | — | — | — | No |
+| `--playtest` | Required for run | — | — | Optional | `--scenario` for run, or `--check` | No |
 | `--makeups=<path>` | Required | Required | — | — | — | No |
 | `--applyups=<path>` | Required | — | — | — | `--patch` | No |
 | `--lint` | Required | — | — | — | — | Full |
@@ -1467,7 +1504,7 @@ Each finding prints as `ERROR [CODE] msg` (stderr) or `WARN [CODE] msg` (stdout)
 |---|---|
 | `0` | Success (or no errors for `--lint`). |
 | `1` | Error: missing arguments, file not found, operation failed, or lint found ERROR-severity issues. |
-| `2` | Advisory / validation / no-write outcome — no fatal error, but the operation did not fully succeed. Examples: a `--translate-roundtrip` / `--data-roundtrip` / `--roundtrip-asset` mismatch, `--buildfile-roundtrip` byte or declared-target drift, a `--checksum` INVALID header, `--export-portrait-all` rendering some portraits, a `--write-shop` not-owned / ROM-only / refused list, a `--verify-asset` byte mismatch, a `--merge3` merged **with conflicts** (output still written), or a `--build-project` with no enabled build section. |
+| `2` | Advisory / validation / behavioral-verification outcome — no harness failure, but the requested condition was not satisfied. Examples: a `--playtest` ROM-guard/assertion/crash/softlock failure, a `--translate-roundtrip` / `--data-roundtrip` / `--roundtrip-asset` mismatch, `--buildfile-roundtrip` byte or declared-target drift, a `--checksum` INVALID header, `--export-portrait-all` rendering some portraits, a `--write-shop` not-owned / ROM-only / refused list, a `--verify-asset` byte mismatch, a `--merge3` merged **with conflicts** (output still written), or a `--build-project` with no enabled build section. |
 | `3` | Internal read-only-invariant violation — a READ-ONLY exporter (`--export-voicegroup`, `--export-battle-anim-decomp`) detected that the in-memory ROM was mutated and aborted without writing. |
 
 ---
@@ -1481,6 +1518,10 @@ Arguments are parsed into a `Dictionary<string, string>`:
 - `-h` → mapped to `--help`
 - Positional arguments (no `--` prefix) are ignored.
 - Duplicate keys: last value wins.
+
+`--playtest` adds a stricter command-local pass over the original ordered argv:
+unknown options, positionals, duplicates, empty values, missing values, and
+values attached to flag-only options are rejected before Python is launched.
 
 ---
 
