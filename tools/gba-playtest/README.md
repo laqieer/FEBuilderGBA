@@ -177,7 +177,11 @@ and decorated (`__dllimport__`) spellings are generated from the same base-name
 set; unknown or layout-affecting attributes (`aligned`, `packed`, `mode`, etc.)
 fail closed. The only alignment exception is MinGW `max_align_t`'s long-long
 and long-double fields aligned to their own natural `__alignof__` values, where
-removing the redundant annotation preserves the UCRT64 x64 layout. Successful preprocessor output is
+removing the redundant annotation preserves the UCRT64 x64 layout. Exact
+aligned WinNT/WDK processor-state structs unused by pinned mGBA (such as
+`_M128A` and `_XSAVE_FORMAT`) are converted to CFFI partial structs (`...;`),
+so the real compiler provides their aligned layout; alignment remains rejected
+outside that finite context. Successful preprocessor output is
 capped at 64 MiB and 16,384 inline blocks (current MinGW headers contain
 hundreds, not merely a handful), so the full generated header set fits without
 removing resource bounds. POSIX output is otherwise unchanged. The wrapper fails

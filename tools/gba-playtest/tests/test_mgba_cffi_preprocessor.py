@@ -290,6 +290,52 @@ def test_aligned_attribute_outside_crt_max_align_fields_still_fails_closed():
         wrapper._normalize_builder_output(data)
 
 
+def test_aligned_winnt_m128a_becomes_a_cffi_partial_struct():
+    data = (
+        b"typedef struct __attribute__((__aligned__(16))) _M128A {\n"
+        b"  unsigned long long Low;\n"
+        b"  long long High;\n"
+        b"} M128A,*PM128A;\n"
+        b"int retained;\n"
+    )
+    assert wrapper._normalize_builder_output(data) == (
+        b"typedef struct  _M128A {\n"
+        b"    ...;\n"
+        b"} M128A,*PM128A;\n"
+        b"int retained;\n"
+    )
+
+
+def test_aligned_winnt_nested_state_struct_becomes_partial():
+    data = (
+        b"typedef struct __attribute__((aligned(16))) _XSAVE_FORMAT {\n"
+        b"  union {\n"
+        b"    int first;\n"
+        b"    int second;\n"
+        b"  } values;\n"
+        b"} XSAVE_FORMAT;\n"
+    )
+    assert wrapper._normalize_builder_output(data) == (
+        b"typedef struct  _XSAVE_FORMAT {\n"
+        b"    ...;\n"
+        b"} XSAVE_FORMAT;\n"
+    )
+
+
+def test_opaque_aligned_system_struct_count_is_bounded(monkeypatch):
+    monkeypatch.setattr(wrapper, "MAX_OPAQUE_ALIGNED_STRUCTS", 1)
+    data = (
+        b"typedef struct __attribute__((aligned(16))) _M128A {\n"
+        b"  int value;\n"
+        b"} M128A;\n"
+        b"typedef struct __attribute__((aligned(16))) _XSAVE_FORMAT {\n"
+        b"  int value;\n"
+        b"} XSAVE_FORMAT;\n"
+    )
+    with pytest.raises(wrapper.PreprocessorError, match="too many"):
+        wrapper._normalize_builder_output(data)
+
+
 def test_layout_affecting_mingw_attribute_fails_closed():
     data = b"typedef int packed_int __attribute__((__packed__));\n"
     with pytest.raises(

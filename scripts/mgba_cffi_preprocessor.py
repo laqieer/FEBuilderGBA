@@ -72,6 +72,13 @@ x64 layout. Unknown attributes also fail closed. The complete successful
 preprocessor stream is capped at 64 MiB and at 16,384 inline blocks,
 accommodating the generated MinGW header set while retaining deterministic
 resource bounds. POSIX preprocessing is otherwise unchanged.
+
+The exact aligned WinNT/WDK processor-state structs emitted by the pinned
+headers (for example ``_M128A`` and ``_XSAVE_FORMAT``) are unreferenced by
+pinned mGBA. Their cdef bodies are converted to CFFI partial structs
+(``...;``), so the real compiler supplies their aligned layout instead of
+dropping alignment or teaching pycparser vendor syntax. Alignment remains
+rejected everywhere else.
 Any drift from that exact expectation (the line missing, duplicated, already
 replaced, an unreadable/oversized/non-UTF-8 file, a missing
 ``FEBUILDERGBA_MGBA_BUILDER_H``, a missing
@@ -205,6 +212,26 @@ REDUNDANT_MAX_ALIGN_FIELDS = (b"__max_align_ll", b"__max_align_ld")
 REDUNDANT_MAX_ALIGN_IDENTIFIERS = frozenset(
     {"aligned", "__aligned__", "alignof", "__alignof__", "long", "double"}
 )
+OPAQUE_ALIGNED_SYSTEM_STRUCT_TAGS = frozenset(
+    {
+        "_ARM64EC_NT_CONTEXT",
+        "_CONTEXT",
+        "_M128A",
+        "_MEMORY_BASIC_INFORMATION64",
+        "_MEMORY_PARTITION_DEDICATED_MEMORY_ATTRIBUTE",
+        "_MEMORY_PARTITION_DEDICATED_MEMORY_INFORMATION",
+        "_SLIST_ENTRY",
+        "_XSAVE_AREA",
+        "_XSAVE_AREA_HEADER",
+        "_XSAVE_FORMAT",
+        "MEM_EXTENDED_PARAMETER",
+    }
+)
+ALIGNED_ATTRIBUTE_IDENTIFIERS = frozenset(
+    {"aligned", "__aligned__", "alignof", "__alignof__"}
+)
+MAX_OPAQUE_ALIGNED_STRUCTS = 64
+MAX_OPAQUE_ALIGNED_STRUCT_LINES = 8192
 ATTRIBUTE_CONTEXT_IGNORED_IDENTIFIERS = frozenset(
     {
         "__attribute__",
@@ -612,6 +639,7 @@ def _strip_mingw_attributes(lines: List[bytes]) -> List[bytes]:
                     if identifier not in SAFE_MINGW_ATTRIBUTES
                 }
             )
+            line_identifiers = set(_attribute_identifiers(line))
             if (
                 unsupported
                 and set(unsupported) <= REDUNDANT_MAX_ALIGN_IDENTIFIERS
@@ -622,6 +650,17 @@ def _strip_mingw_attributes(lines: List[bytes]) -> List[bytes]:
                 # __alignof__ values. Dropping only those redundant self-
                 # alignment annotations preserves the natural x64 layout;
                 # every other aligned/packed/mode attribute remains rejected.
+                unsupported = []
+            elif (
+                unsupported
+                and set(unsupported) <= ALIGNED_ATTRIBUTE_IDENTIFIERS
+                and line_identifiers & OPAQUE_ALIGNED_SYSTEM_STRUCT_TAGS
+            ):
+                # These exact WinNT/WDK state structs are not referenced by
+                # pinned mGBA. Their bodies are converted to CFFI partial
+                # structs after attribute removal, so the compiler supplies
+                # the real aligned layout without teaching pycparser GCC
+                # alignment syntax.
                 unsupported = []
             if not identifiers or unsupported:
                 detail = ",".join(unsupported[:8]) if unsupported else "<empty>"
@@ -644,6 +683,82 @@ def _strip_mingw_attributes(lines: List[bytes]) -> List[bytes]:
                 raise PreprocessorError("too many MinGW attribute replacements")
             index = closing + 1
         output.append(bytes(rewritten))
+    return output
+
+
+def _brace_depth_and_close(line: bytes, depth: int) -> tuple:
+    """Advance brace depth outside literals; return first outer close index."""
+    quote: Optional[int] = None
+    escaped = False
+    for index, value in enumerate(line):
+        if quote is not None:
+            if escaped:
+                escaped = False
+            elif value == 0x5C:
+                escaped = True
+            elif value == quote:
+                quote = None
+            continue
+        if value in (0x22, 0x27):
+            quote = value
+        elif value == 0x7B:
+            depth += 1
+        elif value == 0x7D:
+            depth -= 1
+            if depth == 0:
+                return depth, index
+            if depth < 0:
+                raise PreprocessorError("unexpected closing brace in cdef output")
+    return depth, None
+
+
+def _partialize_opaque_aligned_system_structs(lines: List[bytes]) -> List[bytes]:
+    """Replace exact unreferenced aligned WinNT struct bodies with ``...;``."""
+    output: List[bytes] = []
+    index = 0
+    converted = 0
+    while index < len(lines):
+        line = lines[index]
+        identifiers = set(_attribute_identifiers(line))
+        tags = identifiers & OPAQUE_ALIGNED_SYSTEM_STRUCT_TAGS
+        if (
+            not tags
+            or b"typedef" not in line
+            or b"struct" not in line
+            or b"{" not in line
+        ):
+            output.append(line)
+            index += 1
+            continue
+        converted += 1
+        if converted > MAX_OPAQUE_ALIGNED_STRUCTS:
+            raise PreprocessorError("too many opaque aligned system structs")
+
+        depth, closing = _brace_depth_and_close(line, 0)
+        if depth <= 0 or closing is not None:
+            raise PreprocessorError("malformed opaque aligned system struct")
+        output.append(line)
+        body = line.rstrip(b"\r\n")
+        ending = line[len(body):]
+        indent = line[: len(line) - len(line.lstrip())] + b"    "
+        output.append(indent + b"...;" + ending)
+
+        index += 1
+        consumed = 1
+        while index < len(lines):
+            depth, closing = _brace_depth_and_close(lines[index], depth)
+            consumed += 1
+            if consumed > MAX_OPAQUE_ALIGNED_STRUCT_LINES:
+                raise PreprocessorError(
+                    "opaque aligned system struct exceeds line bound"
+                )
+            if closing is not None:
+                output.append(lines[index][closing:])
+                index += 1
+                break
+            index += 1
+        else:
+            raise PreprocessorError("unterminated opaque aligned system struct")
     return output
 
 
@@ -725,6 +840,7 @@ def _normalize_builder_output(data: bytes) -> bytes:
         lines[index] = b"typedef ... " + alias + b";" + ending
     lines = _strip_mingw_attributes(lines)
     lines = _replace_mingw_tokens(lines)
+    lines = _partialize_opaque_aligned_system_structs(lines)
     return b"".join(_strip_mingw_inline_blocks(lines))
 
 
