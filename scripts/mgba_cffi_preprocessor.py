@@ -577,7 +577,7 @@ def _strip_mingw_attributes(lines: List[bytes]) -> List[bytes]:
     replacements = 0
     opaque_vector_typedefs = 0
     marker = b"__attribute__"
-    for line in lines:
+    for line_index, line in enumerate(lines):
         rewritten = bytearray()
         opaque_vector_alias: Optional[str] = None
         index = 0
@@ -717,7 +717,10 @@ def _strip_mingw_attributes(lines: List[bytes]) -> List[bytes]:
                 context = sorted(
                     {
                         identifier
-                        for identifier in _attribute_identifiers(line)
+                        for context_line in lines[
+                            max(0, line_index - 2):line_index + 3
+                        ]
+                        for identifier in _attribute_identifiers(context_line)
                         if identifier not in ATTRIBUTE_CONTEXT_IGNORED_IDENTIFIERS
                     }
                 )

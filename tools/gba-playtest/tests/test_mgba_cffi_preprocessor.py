@@ -463,6 +463,22 @@ def test_unsupported_attribute_diagnostic_lists_bounded_sorted_identifiers():
         wrapper._normalize_builder_output(data)
 
 
+def test_unsupported_attribute_diagnostic_includes_neighbor_identifiers():
+    lines = [
+        b"typedef int __vector_prefix\n",
+        b"__attribute__((vector_size(8)))\n",
+        b"__vector_suffix;\n",
+    ]
+    with pytest.raises(
+        wrapper.PreprocessorError,
+        match=(
+            r"vector_size; context: __vector_prefix,__vector_suffix,"
+            r"vector_size"
+        ),
+    ):
+        wrapper._strip_mingw_attributes(lines)
+
+
 def test_mingw_attribute_marker_inside_string_is_unchanged():
     data = b'const char *text = "__attribute__((__cdecl__))";\n'
     assert wrapper._normalize_builder_output(data) == data
