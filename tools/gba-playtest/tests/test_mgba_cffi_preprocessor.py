@@ -598,6 +598,29 @@ def test_mingw_inline_definition_handles_nested_code_braces():
     assert wrapper._normalize_builder_output(data) == b"int retained;\n"
 
 
+def test_mingw_inline_definition_accepts_token_at_end_of_line():
+    data = (
+        b"extern __inline__\n"
+        b"void intrinsic(void)\n"
+        b"{\n"
+        b"  return;\n"
+        b"}\n"
+        b"int retained;\n"
+    )
+    assert wrapper._normalize_builder_output(data) == b"int retained;\n"
+
+
+def test_mingw_inline_declaration_accepts_crlf_after_token():
+    data = (
+        b"static\t__inline__\r\n"
+        b"void declaration(void);\r\n"
+    )
+    assert wrapper._normalize_builder_output(data) == (
+        b"static\t\r\n"
+        b"void declaration(void);\r\n"
+    )
+
+
 def test_inline_body_attributes_are_removed_with_the_definition():
     data = (
         b"extern __inline__ __m128 shuffle(__m128 __A, __m128 __B)\n"

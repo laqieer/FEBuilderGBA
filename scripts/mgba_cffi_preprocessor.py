@@ -481,12 +481,25 @@ def _brace_delta(line: bytes) -> int:
 
 def _mingw_inline_token(line: bytes) -> Optional[bytes]:
     stripped = line.lstrip()
-    for storage in (b"extern ", b"static "):
+    whitespace = b" \t\r\n"
+    for storage in (b"extern", b"static"):
         if not stripped.startswith(storage):
             continue
-        remainder = stripped[len(storage):]
+        storage_end = len(storage)
+        if (
+            storage_end >= len(stripped)
+            or stripped[storage_end:storage_end + 1] not in whitespace
+        ):
+            continue
+        remainder = stripped[storage_end:].lstrip(b" \t")
         for token in (b"__inline__", b"__inline"):
-            if remainder.startswith(token + b" "):
+            if not remainder.startswith(token):
+                continue
+            token_end = len(token)
+            if (
+                token_end == len(remainder)
+                or remainder[token_end:token_end + 1] in whitespace
+            ):
                 return token
     return None
 
