@@ -2,7 +2,9 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace FEBuilderGBA
@@ -15,6 +17,9 @@ namespace FEBuilderGBA
 
         /// <summary>True when the process was killed due to timeout.</summary>
         public bool TimedOut { get; init; }
+
+        /// <summary>True when stdout or stderr exceeded the configured capture limit.</summary>
+        public bool OutputLimitExceeded { get; init; }
 
         /// <summary>Process exit code (0 on success). Meaningful only when Started is true.</summary>
         public int ExitCode { get; init; }
@@ -33,6 +38,7 @@ namespace FEBuilderGBA
         {
             Started = false,
             TimedOut = false,
+            OutputLimitExceeded = false,
             ExitCode = -1,
             Stdout = "",
             Stderr = "",
@@ -50,8 +56,55 @@ namespace FEBuilderGBA
         /// <summary>Default timeout when timeoutMs is zero or negative (10 minutes).</summary>
         public const int DefaultTimeoutMs = 600_000;
 
+        private sealed class BoundedTextCapture
+        {
+            private readonly int _maximumChars;
+            private readonly StringBuilder _builder = new StringBuilder();
+
+            internal BoundedTextCapture(int maximumChars)
+            {
+                _maximumChars = maximumChars;
+            }
+
+            internal bool Append(char[] buffer, int count)
+            {
+                if (_maximumChars <= 0)
+                {
+                    _builder.Append(buffer, 0, count);
+                    return false;
+                }
+
+                int remaining = Math.Max(0, _maximumChars - _builder.Length);
+                if (remaining > 0)
+                    _builder.Append(buffer, 0, Math.Min(remaining, count));
+                return count > remaining;
+            }
+
+            public override string ToString()
+            {
+                return _builder.ToString();
+            }
+        }
+
+        private static void DrainStream(
+            TextReader reader,
+            BoundedTextCapture capture,
+            Action outputLimitReached)
+        {
+            var buffer = new char[4096];
+            while (true)
+            {
+                int count = reader.Read(buffer, 0, buffer.Length);
+                if (count == 0)
+                    return;
+                if (capture.Append(buffer, count))
+                    outputLimitReached();
+            }
+        }
+
         /// <summary>
-        /// Run an external process, capturing stdout + stderr. Never throws.
+        /// Run an external process, capturing stdout + stderr without a size limit.
+        /// Never throws.
         /// </summary>
         /// <param name="command">Executable name or path. Empty/whitespace → NotStarted, no launch.</param>
         /// <param name="args">Arguments passed structurally (no shell quoting/injection).</param>
@@ -62,6 +115,25 @@ namespace FEBuilderGBA
             IEnumerable<string> args,
             string workingDir,
             int timeoutMs)
+        {
+            return Run(command, args, workingDir, timeoutMs, 0);
+        }
+
+        /// <summary>
+        /// Run an external process with a hard per-stream capture limit. The
+        /// process tree is terminated as soon as stdout or stderr exceeds the
+        /// limit. Never throws.
+        /// </summary>
+        /// <param name="maximumOutputChars">
+        /// Maximum characters captured independently from stdout and stderr;
+        /// ≤ 0 means unlimited.
+        /// </param>
+        public static ProcessRunResult Run(
+            string command,
+            IEnumerable<string> args,
+            string workingDir,
+            int timeoutMs,
+            int maximumOutputChars)
         {
             try
             {
@@ -102,33 +174,7 @@ namespace FEBuilderGBA
                         psi.ArgumentList.Add(arg ?? "");
                 }
 
-                var stdoutSb = new StringBuilder();
-                var stderrSb = new StringBuilder();
-                var stdoutLock = new object();
-                var stderrLock = new object();
-
                 using var proc = new Process { StartInfo = psi };
-
-                proc.OutputDataReceived += (_, e) =>
-                {
-                    if (e.Data != null)
-                    {
-                        lock (stdoutLock)
-                        {
-                            stdoutSb.AppendLine(e.Data);
-                        }
-                    }
-                };
-                proc.ErrorDataReceived += (_, e) =>
-                {
-                    if (e.Data != null)
-                    {
-                        lock (stderrLock)
-                        {
-                            stderrSb.AppendLine(e.Data);
-                        }
-                    }
-                };
 
                 bool started;
                 try
@@ -143,33 +189,111 @@ namespace FEBuilderGBA
                 if (!started)
                     return ProcessRunResult.NotStarted($"Process.Start returned false for '{command}'.");
 
-                proc.BeginOutputReadLine();
-                proc.BeginErrorReadLine();
+                var stdout = new BoundedTextCapture(maximumOutputChars);
+                var stderr = new BoundedTextCapture(maximumOutputChars);
+                int outputLimitSignal = 0;
+                Exception stdoutError = null;
+                Exception stderrError = null;
+                Action outputLimitReached = () =>
+                    Interlocked.Exchange(ref outputLimitSignal, 1);
 
-                bool exited = proc.WaitForExit(timeout);
-                bool timedOut = false;
-
-                if (!exited)
+                Task stdoutTask = Task.Run(() =>
                 {
-                    timedOut = true;
-                    try { proc.Kill(entireProcessTree: true); } catch { }
-                    // Wait for drain after kill
+                    try
+                    {
+                        DrainStream(proc.StandardOutput, stdout, outputLimitReached);
+                    }
+                    catch (Exception ex)
+                    {
+                        stdoutError = ex;
+                    }
+                });
+                Task stderrTask = Task.Run(() =>
+                {
+                    try
+                    {
+                        DrainStream(proc.StandardError, stderr, outputLimitReached);
+                    }
+                    catch (Exception ex)
+                    {
+                        stderrError = ex;
+                    }
+                });
+
+                bool timedOut = false;
+                bool outputLimitExceeded = false;
+                var stopwatch = Stopwatch.StartNew();
+                while (true)
+                {
+                    if (Volatile.Read(ref outputLimitSignal) != 0)
+                    {
+                        outputLimitExceeded = true;
+                        try { proc.Kill(entireProcessTree: true); } catch { }
+                        break;
+                    }
+
+                    int remaining = timeout - (int)Math.Min(
+                        int.MaxValue,
+                        stopwatch.ElapsedMilliseconds);
+                    if (remaining <= 0)
+                    {
+                        timedOut = true;
+                        try { proc.Kill(entireProcessTree: true); } catch { }
+                        break;
+                    }
+
+                    if (proc.WaitForExit(Math.Min(50, remaining)))
+                        break;
+                }
+
+                if (!proc.HasExited)
+                {
                     try { proc.WaitForExit(5000); } catch { }
                 }
                 else
                 {
-                    // Ensure async reads are fully drained
                     proc.WaitForExit();
+                }
+
+                bool streamsDrained = Task.WaitAll(
+                    new[] { stdoutTask, stderrTask },
+                    5000);
+                outputLimitExceeded |= Volatile.Read(ref outputLimitSignal) != 0;
+                bool captureFailed = !streamsDrained
+                    || stdoutError != null
+                    || stderrError != null;
+                string capturedStdout = streamsDrained ? stdout.ToString() : "";
+                string capturedStderr = streamsDrained ? stderr.ToString() : "";
+
+                string errorMessage = "";
+                if (outputLimitExceeded)
+                {
+                    errorMessage =
+                        $"Process output exceeded the {maximumOutputChars} character limit.";
+                }
+                else if (timedOut)
+                {
+                    errorMessage = $"Process timed out after {timeout} ms.";
+                }
+                else if (captureFailed)
+                {
+                    Exception captureError = stdoutError ?? stderrError;
+                    errorMessage = captureError == null
+                        ? "Process output capture did not finish."
+                        : $"Process output capture failed: {captureError.GetType().Name}.";
                 }
 
                 return new ProcessRunResult
                 {
                     Started = true,
                     TimedOut = timedOut,
-                    ExitCode = timedOut ? -1 : proc.ExitCode,
-                    Stdout = stdoutSb.ToString(),
-                    Stderr = stderrSb.ToString(),
-                    ErrorMessage = timedOut ? $"Process timed out after {timeout} ms." : "",
+                    OutputLimitExceeded = outputLimitExceeded,
+                    ExitCode = timedOut || outputLimitExceeded || captureFailed
+                        ? -1
+                        : proc.ExitCode,
+                    Stdout = capturedStdout,
+                    Stderr = capturedStderr,
+                    ErrorMessage = errorMessage,
                 };
             }
             catch (Exception ex)

@@ -29,6 +29,11 @@ namespace FEBuilderGBA.CLI
             CoreState.Services = new CliAppServices();
             CoreState.ImageService = new SkiaImageService();
 
+            if (argsDic.ContainsKey("--playtest"))
+            {
+                return RunPlaytest(argsDic);
+            }
+
             if (argsDic.ContainsKey("--help") || argsDic.ContainsKey("-h") || args.Length == 0)
             {
                 PrintHelp();
@@ -39,11 +44,6 @@ namespace FEBuilderGBA.CLI
             {
                 PrintVersion();
                 return 0;
-            }
-
-            if (argsDic.ContainsKey("--playtest"))
-            {
-                return RunPlaytest(argsDic);
             }
 
             if (argsDic.TryGetValue("--force-version", out string forceVersion)

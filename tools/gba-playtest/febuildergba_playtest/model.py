@@ -428,6 +428,8 @@ def _parse_assertions(raw: Any) -> Tuple[Assertion, ...]:
         address = _coerce_uint(obj["address"], f"{where}.address")
         _validate_mem_ref(domain, address, width, READ_DOMAINS, where)
         op = obj["op"]
+        if not isinstance(op, str):
+            raise ScenarioError(f"{where}.op must be a string")
         if op not in ASSERT_OPS:
             raise ScenarioError(f"{where}.op must be one of {sorted(ASSERT_OPS)}")
         value = min_value = max_value = None

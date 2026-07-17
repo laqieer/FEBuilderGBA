@@ -131,5 +131,34 @@ namespace FEBuilderGBA.Core.Tests
             Assert.True(result.Stdout.Length > 64 * 1024,
                 $"Expected >64KB output, got {result.Stdout.Length} bytes");
         }
+
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void Run_BoundedOutput_KillsAndCapsEitherStream(bool useStderr)
+        {
+            var (shell, argPrefix) = GetShell();
+            string redirect = useStderr ? " 1>&2" : "";
+            string script = OperatingSystem.IsWindows()
+                ? "for /L %i in (1,1,2000) do @echo XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+                    + redirect
+                : "for i in $(seq 1 2000); do echo XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+                    + redirect + "; done";
+
+            var result = ProcessRunnerCore.Run(
+                shell,
+                new[] { argPrefix, script },
+                null,
+                30_000,
+                1024);
+
+            Assert.True(result.Started);
+            Assert.False(result.TimedOut);
+            Assert.True(result.OutputLimitExceeded);
+            Assert.Equal(-1, result.ExitCode);
+            Assert.True(result.Stdout.Length <= 1024);
+            Assert.True(result.Stderr.Length <= 1024);
+            Assert.Contains("output exceeded", result.ErrorMessage);
+        }
     }
 }

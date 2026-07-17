@@ -73,6 +73,20 @@ def test_non_utf8_scenario_rejected(tmp_path, capsys):
     assert code == 1
 
 
+def test_non_string_assertion_op_is_scenario_error(tmp_path, capsys):
+    rom, scenario = _prepare_valid_inputs(tmp_path)
+    scenario_data = json.loads(_VALID_SCENARIO)
+    scenario_data["assertions"][0]["op"] = []
+    scenario.write_text(json.dumps(scenario_data), encoding="utf-8")
+
+    code = cli.main(["--rom", str(rom), "--scenario", str(scenario)])
+    result = _one_json(capsys)
+
+    assert code == 1
+    assert result["status"] == "scenario_error"
+    assert "op must be a string" in result["note"]
+
+
 # --- ROM read bounds -------------------------------------------------------
 
 
@@ -218,18 +232,21 @@ def test_out_aliasing_screenshot_through_symlinked_dir_rejected(
         pytest.skip(f"directory symlinks unavailable: {exc}")
 
     out = real_artifacts / "final.png"
-    code = cli.main([
-        "--rom", str(rom),
-        "--scenario", str(scenario),
-        "--out", str(out),
-        "--artifact-dir", str(artifact_alias),
-    ])
-    result = _one_json(capsys)
+    try:
+        code = cli.main([
+            "--rom", str(rom),
+            "--scenario", str(scenario),
+            "--out", str(out),
+            "--artifact-dir", str(artifact_alias),
+        ])
+        result = _one_json(capsys)
 
-    assert code == 1
-    assert result["status"] == "harness_error"
-    assert "collides" in result["note"]
-    assert not out.exists()
+        assert code == 1
+        assert result["status"] == "harness_error"
+        assert "collides" in result["note"]
+        assert not out.exists()
+    finally:
+        artifact_alias.unlink(missing_ok=True)
 
 
 def test_out_atomic_write_refuses_directory_target(tmp_path, monkeypatch, capsys):

@@ -111,12 +111,14 @@ FEBuilderGBA.CLI --playtest \
 | `--rom=<file>` | Yes | Input GBA ROM. The runner reads at most 32 MiB and never modifies it. |
 | `--scenario=<file>` | Yes | UTF-8 schema-v1 scenario, at most 1 MiB. |
 | `--out=<file>` | No | Persist the same JSON verdict emitted on stdout. |
-| `--artifact-dir=<dir>` | Conditional | Existing directory required when the scenario requests a screenshot. |
+| `--artifact-dir=<dir>` | No | Existing directory used to persist a requested screenshot; without it the PNG is still captured and hashed with `written: false`. |
 | `--python=<executable>` | No | Python with the pinned mGBA binding. |
 | `--timeout=<ms>` | No | Outer native-process timeout, 1,000-3,600,000; default 600,000. |
 
 The timeout is a harness failure for a stuck native process. It is not the
 scenario frame budget and is not a softlock detector.
+The .NET boundary also caps stdout and stderr at 1,048,576 characters each and
+terminates the runner process tree if either stream exceeds that limit.
 
 ## Scenario schema v1
 
@@ -223,7 +225,7 @@ Before reset, the adapter:
 - disables audio and video synchronization;
 - sets frameskip to zero and mutes audio;
 - uses the built-in HLE BIOS, not an external BIOS;
-- attaches an empty in-memory temporary save;
+- leaves savedata on mGBA's anonymous in-memory backing and attaches no save file or save VFile;
 - never calls save, patch, or cheat autoload APIs;
 - configures a video buffer only when a screenshot is requested.
 

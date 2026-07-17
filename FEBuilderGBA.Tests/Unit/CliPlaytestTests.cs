@@ -54,7 +54,8 @@ namespace FEBuilderGBA.Tests.Unit
             Func<string, IReadOnlyList<string>, string, int, ProcessRunResult> run,
             string configuredPython = null,
             bool isWindows = true,
-            string baseDirectory = null)
+            string baseDirectory = null,
+            Func<string, string> resolvePhysicalPath = null)
         {
             return new PlaytestOperations
             {
@@ -63,6 +64,7 @@ namespace FEBuilderGBA.Tests.Unit
                 GetEnvironmentVariable = name =>
                     name == "FEBUILDERGBA_PLAYTEST_PYTHON" ? configuredPython : null,
                 RunProcess = run,
+                ResolvePhysicalPath = resolvePhysicalPath ?? (path => path),
             };
         }
 
@@ -75,6 +77,7 @@ namespace FEBuilderGBA.Tests.Unit
             {
                 Started = true,
                 TimedOut = false,
+                OutputLimitExceeded = false,
                 ExitCode = exitCode,
                 Stdout = stdout,
                 Stderr = stderr,
@@ -398,6 +401,27 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
+        public void OutputLimit_SynthesizesHarnessError()
+        {
+            var operations = Operations(
+                (cmd, args, cwd, timeoutMs) => new ProcessRunResult
+                {
+                    Started = true,
+                    TimedOut = false,
+                    OutputLimitExceeded = true,
+                    ExitCode = -1,
+                    Stdout = new string('x', CliProgram.PlaytestMaximumResultChars),
+                    Stderr = "",
+                    ErrorMessage = "output limit",
+                });
+
+            var result = Run(RunArgs("--python=python"), operations);
+
+            Assert.Equal(1, result.Code);
+            Assert.Contains("exceeded the process output limit", result.Stdout);
+        }
+
+        [Fact]
         public void NativeCrashExit_SynthesizesHarnessError()
         {
             var operations = Operations(
@@ -500,6 +524,87 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Equal(1, result.Code);
             Assert.Contains("cannot overwrite", result.Stdout);
             Assert.Equal(original, File.ReadAllText(_scenario));
+        }
+
+        [Fact]
+        public void PhysicalAlias_RejectsBeforeWritingErrorOutput()
+        {
+            string outPath = Path.Combine(_root, "must-not-exist.json");
+            bool launched = false;
+            var operations = Operations(
+                (cmd, args, cwd, timeoutMs) =>
+                {
+                    launched = true;
+                    return Result(0, PassJson);
+                },
+                resolvePhysicalPath: path =>
+                    path == outPath ? _rom : path);
+
+            var result = Run(RunArgs("--out=" + outPath), operations);
+
+            Assert.Equal(1, result.Code);
+            Assert.False(launched);
+            Assert.Contains("cannot overwrite the ROM", result.Stdout);
+            Assert.False(File.Exists(outPath));
+        }
+
+        [Fact]
+        public void ResolvePhysicalPath_ResolvesLinkedParentDirectory()
+        {
+            string target = Path.Combine(_root, "real-directory");
+            string link = Path.Combine(_root, "linked-directory");
+            Directory.CreateDirectory(target);
+            Directory.CreateSymbolicLink(link, target);
+            try
+            {
+                Assert.Equal(
+                    Path.Combine(target, "future-result.json"),
+                    CliProgram.ResolvePhysicalPath(
+                        Path.Combine(link, "future-result.json")));
+            }
+            finally
+            {
+                Directory.Delete(link);
+            }
+        }
+
+        [Fact]
+        public void DistinctLinkedInputAndOutput_AreAllowed()
+        {
+            string target = Path.Combine(_root, "linked-input-target");
+            string link = Path.Combine(_root, "linked-input");
+            string linkedRom = Path.Combine(target, "linked-rom.gba");
+            string outPath = Path.Combine(_root, "distinct-result.json");
+            Directory.CreateDirectory(target);
+            File.WriteAllBytes(linkedRom, new byte[0x200]);
+            Directory.CreateSymbolicLink(link, target);
+            bool launched = false;
+            try
+            {
+                var operations = Operations(
+                    (cmd, args, cwd, timeoutMs) =>
+                    {
+                        launched = true;
+                        return Result(0, PassJson);
+                    },
+                    resolvePhysicalPath: CliProgram.ResolvePhysicalPath);
+                var rawArgs = new[]
+                {
+                    "--playtest",
+                    "--rom=" + Path.Combine(link, "linked-rom.gba"),
+                    "--scenario=" + _scenario,
+                    "--out=" + outPath,
+                };
+
+                var result = Run(rawArgs, operations);
+
+                Assert.Equal(0, result.Code);
+                Assert.True(launched);
+            }
+            finally
+            {
+                Directory.Delete(link);
+            }
         }
 
         [Fact]

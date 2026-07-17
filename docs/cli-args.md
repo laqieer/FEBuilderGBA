@@ -71,7 +71,7 @@ WinForms CLI counterpart to align against.
 | `--in=<path>` | Input file | `--decreasecolor`, `--convertmap1picture`, `--translate`, `--lz77`, `--import-palette`, `--import-battle-anime` |
 | `--out=<path>` | Output file | `--playtest` (result JSON), `--decreasecolor`, `--translate`, `--translate-roundtrip`, `--translate_batch`, `--export-map-settings`, `--lz77`, `--export-palette`, `--export-battle-anime`, `--diff`, `--export-buildfile` (new project directory, must not exist), `--build-buildfile` (new destination ROM, must not exist) |
 | `--scenario=<path>` | Strict schema-v1 playtest scenario JSON | `--playtest` |
-| `--artifact-dir=<dir>` | Existing directory for an optional final-frame PNG | `--playtest` |
+| `--artifact-dir=<dir>` | Existing directory that persists an optional final-frame PNG; capture/hash evidence does not require it | `--playtest` |
 | `--python=<executable>` | Python interpreter containing the pinned mGBA binding | `--playtest` |
 | `--timeout=<ms>` | Native runner timeout, 1,000-3,600,000 (default 600,000) | `--playtest` |
 | `--check` | Check the pinned mGBA dependency without a ROM/scenario | `--playtest` |

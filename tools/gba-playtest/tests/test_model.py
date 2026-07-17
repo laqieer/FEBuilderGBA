@@ -197,6 +197,15 @@ def test_assertion_rom_domain_rejected():
         load(doc)
 
 
+def test_assertion_op_must_be_string():
+    doc = base_doc()
+    doc["assertions"] = [
+        {"domain": "wram", "address": 0, "width": 8, "op": []}
+    ]
+    with pytest.raises(ScenarioError, match=r"assertions\[0\]\.op must be a string"):
+        load(doc)
+
+
 def test_bad_width_rejected():
     doc = base_doc()
     doc["assertions"] = [{"domain": "wram", "address": 0, "width": 24, "op": "changed"}]

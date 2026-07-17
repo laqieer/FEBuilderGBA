@@ -753,7 +753,10 @@ def test_real_workflow_proves_ubuntu_and_windows_ucrt64():
     lower = text.lower()
     assert "real-mgba-ubuntu:" in text
     assert "real-mgba-windows:" in text
-    assert "msys2/setup-msys2@v2" in text
+    assert (
+        "msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884"
+        in text
+    )
     assert "msystem: UCRT64" in text
     assert "install-mgba-playtest.sh" in text
     assert "install-mgba-playtest.ps1" in text
@@ -1112,6 +1115,15 @@ def test_build_script_requires_and_locates_the_cffi_wrapper():
 def test_workflow_triggers_on_cffi_wrapper_changes():
     text = _read(REAL_WORKFLOW)
     assert text.count("- 'scripts/mgba_cffi_preprocessor.py'") == 2
+
+
+def test_workflow_pins_setup_msys2_to_reviewed_commit():
+    text = _read(REAL_WORKFLOW)
+    assert (
+        "msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884"
+        in text
+    )
+    assert "msys2/setup-msys2@v2" not in text
 
 
 def test_build_script_rejects_a_symlinked_cffi_wrapper():

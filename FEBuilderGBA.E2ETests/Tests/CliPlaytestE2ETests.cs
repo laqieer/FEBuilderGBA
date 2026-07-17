@@ -67,6 +67,25 @@ namespace FEBuilderGBA.E2ETests.Tests
             Assert.Contains("--scenario=<path>", stdout);
         }
 
+        [Theory]
+        [InlineData("--help")]
+        [InlineData("--version")]
+        public void GlobalShortcutMixedWithPlaytest_UsesMachineReadableContract(
+            string shortcut)
+        {
+            var (code, stdout, _) = AppRunner.Run(
+                CliExe,
+                "--playtest " + shortcut,
+                timeoutMs: 15_000);
+            JsonElement result = ParseSingleResult(stdout);
+
+            Assert.Equal(1, code);
+            Assert.Equal("harness_error", result.GetProperty("status").GetString());
+            Assert.Contains(
+                "unsupported option",
+                result.GetProperty("note").GetString());
+        }
+
         [Fact]
         public void MissingRom_EmitsOneMachineReadableHarnessError()
         {

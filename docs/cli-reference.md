@@ -88,15 +88,17 @@ FEBuilderGBA.CLI --playtest --rom=rom.gba --scenario=scenario.json \
 | `--rom=<path>` | Run | Input ROM, read-only, at most 32 MiB. |
 | `--scenario=<path>` | Run | Strict UTF-8 schema-v1 scenario. |
 | `--out=<path>` | No | Persist the same JSON verdict emitted on stdout. |
-| `--artifact-dir=<dir>` | Conditional | Existing directory for a requested final-frame PNG. |
+| `--artifact-dir=<dir>` | No | Existing directory used to persist a requested final-frame PNG; capture and SHA-256 evidence still occur without it. |
 | `--python=<executable>` | No | Interpreter override; then `FEBUILDERGBA_PLAYTEST_PYTHON`, then platform candidates. |
 | `--timeout=<ms>` | No | Native process timeout, 1,000-3,600,000; default 600,000. |
 
 Stdout is exactly one JSON object. `runFrames` is exact normal completion; a
 watchdog is the scenario-level softlock signal, while `--timeout` is a separate
 stuck-process failure. The fixed startup contract disables sync/frameskip,
-mutes audio, uses HLE BIOS, attaches an in-memory temporary save, and disables
-save/patch/cheat autoload.
+mutes audio, uses HLE BIOS, keeps savedata on anonymous in-memory backing
+without attaching a save VFile, and disables save/patch/cheat autoload.
+The .NET process boundary caps stdout and stderr at 1,048,576 characters per
+stream and terminates the runner tree on overflow.
 
 **Exit codes:** `0` pass/check OK; `1` usage, setup, dependency, I/O, or harness
 failure; `2` ROM guard, assertion, crash, or softlock verification failure.

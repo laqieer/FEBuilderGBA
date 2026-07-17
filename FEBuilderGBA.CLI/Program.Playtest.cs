@@ -18,7 +18,14 @@ namespace FEBuilderGBA.CLI
         internal Func<string, IReadOnlyList<string>, string, int, ProcessRunResult> RunProcess
             { get; init; }
             = (command, args, workingDirectory, timeoutMs) =>
-                ProcessRunnerCore.Run(command, args, workingDirectory, timeoutMs);
+                ProcessRunnerCore.Run(
+                    command,
+                    args,
+                    workingDirectory,
+                    timeoutMs,
+                    Program.PlaytestMaximumProcessOutputChars);
+        internal Func<string, string> ResolvePhysicalPath { get; init; }
+            = Program.ResolvePhysicalPath;
     }
 
     static partial class Program
@@ -27,6 +34,7 @@ namespace FEBuilderGBA.CLI
         internal const int PlaytestMinimumTimeoutMs = 1_000;
         internal const int PlaytestMaximumTimeoutMs = 3_600_000;
         internal const int PlaytestMaximumResultChars = 1_048_576;
+        internal const int PlaytestMaximumProcessOutputChars = 1_048_576;
 
         private static readonly IReadOnlyDictionary<string, int> PlaytestStatusExitCodes =
             new Dictionary<string, int>(StringComparer.Ordinal)
@@ -71,6 +79,15 @@ namespace FEBuilderGBA.CLI
             {
                 if (!TryGetFullPath(outValue, out outPath))
                     return EmitPlaytestError("invalid --out path", null, stdout, stderr);
+                outPath = operations.ResolvePhysicalPath(outPath);
+                if (outPath == null)
+                {
+                    return EmitPlaytestError(
+                        "--out path could not be resolved safely",
+                        null,
+                        stdout,
+                        stderr);
+                }
             }
 
             string romPath = null;
@@ -97,14 +114,26 @@ namespace FEBuilderGBA.CLI
             {
                 if (!TryRequiredPath(argsDic, "--rom", out romPath))
                     return EmitPlaytestError("--playtest requires --rom=<file>", outPath, stdout, stderr);
-                if (!TryRequiredPath(argsDic, "--scenario", out scenarioPath))
-                    return EmitPlaytestError("--playtest requires --scenario=<file>", outPath, stdout, stderr);
-
-                if (outPath != null
-                    && (PathsEqual(outPath, romPath) || PathsEqual(outPath, scenarioPath)))
+                romPath = operations.ResolvePhysicalPath(romPath);
+                if (romPath == null)
+                    return EmitPlaytestError("--rom path could not be resolved safely", null, stdout, stderr);
+                if (outPath != null && PathsEqual(outPath, romPath))
                 {
                     return EmitPlaytestError(
-                        "--out cannot overwrite the ROM or scenario",
+                        "--out cannot overwrite the ROM",
+                        null,
+                        stdout,
+                        stderr);
+                }
+                if (!TryRequiredPath(argsDic, "--scenario", out scenarioPath))
+                    return EmitPlaytestError("--playtest requires --scenario=<file>", outPath, stdout, stderr);
+                scenarioPath = operations.ResolvePhysicalPath(scenarioPath);
+                if (scenarioPath == null)
+                    return EmitPlaytestError("--scenario path could not be resolved safely", null, stdout, stderr);
+                if (outPath != null && PathsEqual(outPath, scenarioPath))
+                {
+                    return EmitPlaytestError(
+                        "--out cannot overwrite the scenario",
                         null,
                         stdout,
                         stderr);
@@ -211,6 +240,14 @@ namespace FEBuilderGBA.CLI
             {
                 return EmitPlaytestError(
                     "the playtest runner exceeded the process timeout",
+                    outPath,
+                    stdout,
+                    stderr);
+            }
+            if (run.OutputLimitExceeded)
+            {
+                return EmitPlaytestError(
+                    "the playtest runner exceeded the process output limit",
                     outPath,
                     stdout,
                     stderr);
@@ -350,6 +387,83 @@ namespace FEBuilderGBA.CLI
                 Path.TrimEndingDirectorySeparator(left),
                 Path.TrimEndingDirectorySeparator(right),
                 comparison);
+        }
+
+        internal static string ResolvePhysicalPath(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return null;
+            try
+            {
+                string fullPath = Path.GetFullPath(path);
+                string root = Path.GetPathRoot(fullPath);
+                if (string.IsNullOrEmpty(root))
+                    return null;
+
+                char[] separators = Path.DirectorySeparatorChar
+                    == Path.AltDirectorySeparatorChar
+                    ? new[] { Path.DirectorySeparatorChar }
+                    : new[]
+                    {
+                        Path.DirectorySeparatorChar,
+                        Path.AltDirectorySeparatorChar,
+                    };
+                string[] components = fullPath
+                    .Substring(root.Length)
+                    .Split(separators, StringSplitOptions.RemoveEmptyEntries);
+                string current = root;
+                for (int i = 0; i < components.Length; i++)
+                {
+                    string candidate = Path.Combine(current, components[i]);
+                    FileSystemInfo info = null;
+                    if (File.Exists(candidate))
+                        info = new FileInfo(candidate);
+                    else if (Directory.Exists(candidate))
+                        info = new DirectoryInfo(candidate);
+
+                    if (info == null)
+                    {
+                        for (int j = i; j < components.Length; j++)
+                            current = Path.Combine(current, components[j]);
+                        return Path.GetFullPath(current);
+                    }
+
+                    if ((info.Attributes & FileAttributes.ReparsePoint) != 0
+                        || info.LinkTarget != null)
+                    {
+                        FileSystemInfo target = info.ResolveLinkTarget(
+                            returnFinalTarget: true);
+                        if (target == null)
+                            return null;
+                        current = Path.GetFullPath(target.FullName);
+                    }
+                    else
+                    {
+                        current = candidate;
+                    }
+                }
+                return Path.GetFullPath(current);
+            }
+            catch (ArgumentException)
+            {
+                return null;
+            }
+            catch (IOException)
+            {
+                return null;
+            }
+            catch (NotSupportedException)
+            {
+                return null;
+            }
+            catch (SecurityException)
+            {
+                return null;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return null;
+            }
         }
 
         private static bool TryGetInterpreterCandidates(
