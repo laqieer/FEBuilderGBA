@@ -82,9 +82,9 @@ rejected everywhere else.
 
 Compiler-defined MinGW SIMD aliases matching the ``__m<width><suffix>`` class
 are likewise unreferenced by pinned mGBA. Typedefs carrying only
-``vector_size``/``may_alias`` attributes become opaque CFFI typedefs, preserving
-the compiler's real vector type while non-SIMD vector attributes remain
-fail-closed.
+``vector_size``/``may_alias`` and optional alignment attributes become opaque
+CFFI typedefs, preserving the compiler's real vector size/alignment while
+non-SIMD vector/alignment attributes remain fail-closed.
 Any drift from that exact expectation (the line missing, duplicated, already
 replaced, an unreadable/oversized/non-UTF-8 file, a missing
 ``FEBUILDERGBA_MGBA_BUILDER_H``, a missing
@@ -239,7 +239,16 @@ ALIGNED_ATTRIBUTE_IDENTIFIERS = frozenset(
 MAX_OPAQUE_ALIGNED_STRUCTS = 64
 MAX_OPAQUE_ALIGNED_STRUCT_LINES = 8192
 SIMD_ATTRIBUTE_IDENTIFIERS = frozenset(
-    {"may_alias", "__may_alias__", "vector_size", "__vector_size__"}
+    {
+        "aligned",
+        "__aligned__",
+        "alignof",
+        "__alignof__",
+        "may_alias",
+        "__may_alias__",
+        "vector_size",
+        "__vector_size__",
+    }
 )
 MAX_OPAQUE_SIMD_TYPEDEFS = 256
 ATTRIBUTE_CONTEXT_IGNORED_IDENTIFIERS = frozenset(

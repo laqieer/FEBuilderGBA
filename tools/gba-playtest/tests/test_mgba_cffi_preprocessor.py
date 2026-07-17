@@ -342,10 +342,13 @@ def test_mingw_simd_vector_typedef_becomes_opaque():
         b"__attribute__((__vector_size__(8), __may_alias__));\n"
         b"typedef long long __m128i "
         b"__attribute__((vector_size(16), may_alias));\n"
+        b"typedef long long __m64_u "
+        b"__attribute__((__vector_size__(8), __may_alias__, __aligned__(1)));\n"
     )
     assert wrapper._normalize_builder_output(data) == (
         b"typedef ... __m64;\n"
         b"typedef ... __m128i;\n"
+        b"typedef ... __m64_u;\n"
     )
 
 

@@ -183,8 +183,9 @@ aligned WinNT/WDK processor-state structs unused by pinned mGBA (such as
 so the real compiler provides their aligned layout; alignment remains rejected
 outside that finite context. Compiler-defined MinGW SIMD aliases in the
 `__m<width><suffix>` class are also unused by pinned mGBA; typedefs carrying
-only `vector_size`/`may_alias` attributes become opaque CFFI typedefs, while
-non-SIMD vector attributes still fail closed. Successful preprocessor output is
+only `vector_size`/`may_alias` plus optional alignment attributes become opaque
+CFFI typedefs, while non-SIMD vector/alignment attributes still fail closed.
+Successful preprocessor output is
 capped at 64 MiB and 16,384 inline blocks (current MinGW headers contain
 hundreds, not merely a handful), so the full generated header set fits without
 removing resource bounds. POSIX output is otherwise unchanged. The wrapper fails
