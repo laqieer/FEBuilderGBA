@@ -35,6 +35,12 @@ def _canonical_json(value) -> str:
     )
 
 
+def _absolute_interpreter_path(value: str) -> Path:
+    # POSIX virtualenv interpreters are commonly symlinks. Resolving one would
+    # launch the base interpreter and lose the virtualenv's installed binding.
+    return Path(os.path.abspath(value))
+
+
 def _build_command(
     cli_path: Path,
     python_path: Path,
@@ -233,7 +239,7 @@ def main(argv=None) -> int:
         )
 
     cli_path = Path(args[1]).resolve()
-    python_path = Path(args[3]).resolve()
+    python_path = _absolute_interpreter_path(args[3])
     output_dir = Path(args[5]).resolve()
     if not cli_path.is_file():
         raise AssertionError("published CLI executable was not found")

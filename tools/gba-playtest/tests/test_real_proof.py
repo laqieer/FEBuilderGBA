@@ -80,6 +80,19 @@ def test_cli_proof_command_uses_canonical_dotnet_surface():
     ]
 
 
+def test_cli_proof_preserves_virtualenv_interpreter_path(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+
+    def reject_resolve(_self):
+        raise AssertionError("virtualenv interpreter paths must not be resolved")
+
+    monkeypatch.setattr(Path, "resolve", reject_resolve)
+    expected = tmp_path / "venv" / "bin" / "python"
+    actual = cli_proof._absolute_interpreter_path("venv/bin/python")
+
+    assert actual == expected
+
+
 def test_cli_proof_failure_scenario_expects_machine_failure():
     rom = build_synthetic_rom()
     scenario = cli_proof._failing_scenario(rom)
