@@ -292,7 +292,10 @@ def test_aligned_attribute_outside_crt_max_align_fields_still_fails_closed():
 
 def test_layout_affecting_mingw_attribute_fails_closed():
     data = b"typedef int packed_int __attribute__((__packed__));\n"
-    with pytest.raises(wrapper.PreprocessorError, match="__packed__"):
+    with pytest.raises(
+        wrapper.PreprocessorError,
+        match=r"__packed__; context: __packed__,packed_int",
+    ):
         wrapper._normalize_builder_output(data)
 
 
@@ -300,7 +303,10 @@ def test_unsupported_attribute_diagnostic_lists_bounded_sorted_identifiers():
     data = b"int value __attribute__((zeta, alpha));\n"
     with pytest.raises(
         wrapper.PreprocessorError,
-        match=r"unsupported MinGW attribute in cdef output: alpha,zeta",
+        match=(
+            r"unsupported MinGW attribute in cdef output: alpha,zeta; "
+            r"context: alpha,value,zeta"
+        ),
     ):
         wrapper._normalize_builder_output(data)
 

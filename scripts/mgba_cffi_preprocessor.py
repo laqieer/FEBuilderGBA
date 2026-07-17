@@ -205,6 +205,28 @@ REDUNDANT_MAX_ALIGN_FIELDS = (b"__max_align_ll", b"__max_align_ld")
 REDUNDANT_MAX_ALIGN_IDENTIFIERS = frozenset(
     {"aligned", "__aligned__", "alignof", "__alignof__", "long", "double"}
 )
+ATTRIBUTE_CONTEXT_IGNORED_IDENTIFIERS = frozenset(
+    {
+        "__attribute__",
+        "char",
+        "const",
+        "double",
+        "enum",
+        "extern",
+        "float",
+        "int",
+        "long",
+        "short",
+        "signed",
+        "static",
+        "struct",
+        "typedef",
+        "union",
+        "unsigned",
+        "void",
+        "volatile",
+    }
+)
 
 
 class PreprocessorError(RuntimeError):
@@ -603,8 +625,19 @@ def _strip_mingw_attributes(lines: List[bytes]) -> List[bytes]:
                 unsupported = []
             if not identifiers or unsupported:
                 detail = ",".join(unsupported[:8]) if unsupported else "<empty>"
+                context = sorted(
+                    {
+                        identifier
+                        for identifier in _attribute_identifiers(line)
+                        if identifier not in ATTRIBUTE_CONTEXT_IGNORED_IDENTIFIERS
+                    }
+                )
+                context_detail = ",".join(context[:12]) if context else "<empty>"
                 raise PreprocessorError(
-                    "unsupported MinGW attribute in cdef output: " + detail
+                    "unsupported MinGW attribute in cdef output: "
+                    + detail
+                    + "; context: "
+                    + context_detail
                 )
             replacements += 1
             if replacements > MAX_MINGW_ATTRIBUTE_REPLACEMENTS:
