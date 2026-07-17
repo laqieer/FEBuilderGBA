@@ -386,6 +386,26 @@ def test_multiline_internal_vector_typedef_becomes_opaque():
     )
 
 
+def test_multiline_vector_typedef_with_alias_after_attribute_becomes_opaque():
+    data = (
+        b"typedef int\n"
+        b"  __attribute__((__vector_size__(8)))\n"
+        b"  __v2si;\n"
+    )
+    assert wrapper._normalize_builder_output(data) == (
+        b"typedef ... __v2si;\n"
+    )
+
+
+def test_one_line_vector_typedef_with_alias_after_attribute_becomes_opaque():
+    data = (
+        b"typedef int __attribute__((vector_size(8))) __v2si;\n"
+    )
+    assert wrapper._normalize_builder_output(data) == (
+        b"typedef ... __v2si;\n"
+    )
+
+
 def test_multiline_application_vector_typedef_still_fails_closed():
     data = (
         b"typedef int application_vector\n"

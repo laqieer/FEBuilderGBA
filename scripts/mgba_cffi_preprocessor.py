@@ -88,7 +88,8 @@ without relying on an open-ended alias-name inventory. Ordinary application
 typedefs and non-vector alignment attributes remain fail-closed.
 The same rule handles bounded multiline declarations by joining only
 compiler-internal attribute typedefs into one logical line before validation;
-ordinary multiline typedefs remain byte-identical.
+the internal alias may appear either before or after the attribute group.
+Ordinary multiline typedefs remain byte-identical.
 Any drift from that exact expectation (the line missing, duplicated, already
 replaced, an unreadable/oversized/non-UTF-8 file, a missing
 ``FEBUILDERGBA_MGBA_BUILDER_H``, a missing
@@ -793,10 +794,7 @@ def _join_mingw_multiline_attribute_typedefs(lines: List[bytes]) -> List[bytes]:
             output.append(first)
             index += 1
             continue
-        prefix_identifiers = _attribute_identifiers(
-            combined_body[:first_attribute]
-        )
-        if not prefix_identifiers or not prefix_identifiers[-1].startswith("__"):
+        if _opaque_vector_typedef_alias(combined_body, first_attribute) is None:
             output.append(first)
             index += 1
             continue
@@ -827,10 +825,54 @@ def _opaque_vector_typedef_alias(line: bytes, attribute_index: int) -> Optional[
         or not identifiers
     ):
         return None
-    alias = identifiers[-1]
-    if not alias.startswith("__"):
+    candidates = []
+    prefix_alias = identifiers[-1]
+    if prefix_alias.startswith("__"):
+        candidates.append(prefix_alias)
+
+    last_attribute = line.rfind(b"__attribute__")
+    if last_attribute >= 0:
+        cursor = last_attribute + len(b"__attribute__")
+        while cursor < len(line) and line[cursor] in (0x20, 0x09):
+            cursor += 1
+        if line[cursor:cursor + 2] != b"((":
+            return None
+        depth = 0
+        quote: Optional[int] = None
+        escaped = False
+        closing: Optional[int] = None
+        scan = cursor
+        while scan < len(line):
+            value = line[scan]
+            if quote is not None:
+                if escaped:
+                    escaped = False
+                elif value == 0x5C:
+                    escaped = True
+                elif value == quote:
+                    quote = None
+                scan += 1
+                continue
+            if value in (0x22, 0x27):
+                quote = value
+            elif value == 0x28:
+                depth += 1
+            elif value == 0x29:
+                depth -= 1
+                if depth == 0:
+                    closing = scan
+                    break
+            scan += 1
+        if closing is None:
+            return None
+        suffix_identifiers = _attribute_identifiers(line[closing + 1:])
+        if suffix_identifiers and suffix_identifiers[-1].startswith("__"):
+            candidates.append(suffix_identifiers[-1])
+
+    unique = sorted(set(candidates))
+    if len(unique) != 1:
         return None
-    return alias
+    return unique[0]
 
 
 def _brace_depth_and_close(line: bytes, depth: int) -> tuple:
