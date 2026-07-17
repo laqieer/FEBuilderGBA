@@ -80,12 +80,12 @@ pinned mGBA. Their cdef bodies are converted to CFFI partial structs
 dropping alignment or teaching pycparser vendor syntax. Alignment remains
 rejected everywhere else.
 
-Compiler-defined MinGW/GCC vector aliases matching the digit-led
-``__m<width><suffix>`` or ``__v<count><element>`` classes are likewise
-unreferenced by pinned mGBA. Typedefs carrying only
-``vector_size``/``may_alias`` and optional alignment attributes become opaque
-CFFI typedefs, preserving the compiler's real vector size/alignment while
-non-SIMD vector/alignment attributes remain fail-closed.
+Compiler-defined MinGW/GCC vector aliases are likewise unreferenced by pinned
+mGBA. Any one-line compiler-internal typedef (``__...`` alias) carrying
+``vector_size`` or ``may_alias`` plus optional alignment attributes becomes an
+opaque CFFI typedef, preserving the compiler's real vector size/alignment
+without relying on an open-ended alias-name inventory. Ordinary application
+typedefs and non-vector alignment attributes remain fail-closed.
 Any drift from that exact expectation (the line missing, duplicated, already
 replaced, an unreadable/oversized/non-UTF-8 file, a missing
 ``FEBUILDERGBA_MGBA_BUILDER_H``, a missing
@@ -250,6 +250,9 @@ SIMD_ATTRIBUTE_IDENTIFIERS = frozenset(
         "vector_size",
         "__vector_size__",
     }
+)
+VECTOR_DEFINING_ATTRIBUTE_IDENTIFIERS = frozenset(
+    {"may_alias", "__may_alias__", "vector_size", "__vector_size__"}
 )
 MAX_OPAQUE_SIMD_TYPEDEFS = 256
 ATTRIBUTE_CONTEXT_IGNORED_IDENTIFIERS = frozenset(
@@ -566,9 +569,11 @@ def _strip_mingw_attributes(lines: List[bytes]) -> List[bytes]:
     """Remove only whitelisted ABI-neutral ``__attribute__((...))`` groups."""
     output: List[bytes] = []
     replacements = 0
+    opaque_vector_typedefs = 0
     marker = b"__attribute__"
     for line in lines:
         rewritten = bytearray()
+        opaque_vector_alias: Optional[str] = None
         index = 0
         quote: Optional[int] = None
         escaped = False
@@ -685,17 +690,22 @@ def _strip_mingw_attributes(lines: List[bytes]) -> List[bytes]:
             elif (
                 unsupported
                 and set(unsupported) <= SIMD_ATTRIBUTE_IDENTIFIERS
-                and "typedef" in line_identifiers
-                and any(
-                    _is_mingw_simd_type(identifier)
-                    for identifier in line_identifiers
+                and (
+                    opaque_vector_alias is not None
+                    or set(unsupported) & VECTOR_DEFINING_ATTRIBUTE_IDENTIFIERS
                 )
             ):
-                # GCC vector aliases such as __m64/__m128/__v2si are compiler-defined
-                # vector types and are not referenced by pinned mGBA's cdef.
-                # The full typedef line becomes an opaque CFFI typedef after
-                # this attribute group is removed.
-                unsupported = []
+                alias = _opaque_vector_typedef_alias(line, index)
+                if alias is not None:
+                    # Compiler-internal vector typedefs are not referenced by
+                    # pinned mGBA. Replace the complete declaration with an
+                    # opaque CFFI typedef after validating all attribute groups.
+                    if opaque_vector_alias not in (None, alias):
+                        raise PreprocessorError(
+                            "conflicting opaque MinGW vector typedef aliases"
+                        )
+                    opaque_vector_alias = alias
+                    unsupported = []
             if not identifiers or unsupported:
                 detail = ",".join(unsupported[:8]) if unsupported else "<empty>"
                 context = sorted(
@@ -716,58 +726,44 @@ def _strip_mingw_attributes(lines: List[bytes]) -> List[bytes]:
             if replacements > MAX_MINGW_ATTRIBUTE_REPLACEMENTS:
                 raise PreprocessorError("too many MinGW attribute replacements")
             index = closing + 1
-        output.append(bytes(rewritten))
+        if opaque_vector_alias is None:
+            output.append(bytes(rewritten))
+        else:
+            opaque_vector_typedefs += 1
+            if opaque_vector_typedefs > MAX_OPAQUE_SIMD_TYPEDEFS:
+                raise PreprocessorError("too many opaque MinGW vector typedefs")
+            body = line.rstrip(b"\r\n")
+            ending = line[len(body):]
+            indent = line[: len(line) - len(line.lstrip())]
+            output.append(
+                indent
+                + b"typedef ... "
+                + opaque_vector_alias.encode("ascii")
+                + b";"
+                + ending
+            )
     return output
 
 
-def _is_mingw_simd_type(identifier: str) -> bool:
-    for prefix in ("__m", "__v"):
-        if not identifier.startswith(prefix):
-            continue
-        suffix = identifier[len(prefix):]
-        return bool(
-            suffix
-            and suffix[0].isdigit()
-            and all(char.isalnum() or char == "_" for char in suffix)
-        )
-    return False
-
-
-def _partialize_mingw_simd_typedefs(lines: List[bytes]) -> List[bytes]:
-    """Replace compiler-defined MinGW/GCC vector aliases with opaque typedefs."""
-    output: List[bytes] = []
-    converted = 0
-    for line in lines:
-        identifiers = _attribute_identifiers(line)
-        simd_types = sorted(
-            {
-                identifier
-                for identifier in identifiers
-                if _is_mingw_simd_type(identifier)
-            }
-        )
-        if not simd_types:
-            output.append(line)
-            continue
-        if "typedef" not in identifiers:
-            output.append(line)
-            continue
-        if len(simd_types) != 1 or b";" not in line or b"{" in line:
-            raise PreprocessorError("malformed MinGW SIMD typedef")
-        converted += 1
-        if converted > MAX_OPAQUE_SIMD_TYPEDEFS:
-            raise PreprocessorError("too many opaque MinGW SIMD typedefs")
-        body = line.rstrip(b"\r\n")
-        ending = line[len(body):]
-        indent = line[: len(line) - len(line.lstrip())]
-        output.append(
-            indent
-            + b"typedef ... "
-            + simd_types[0].encode("ascii")
-            + b";"
-            + ending
-        )
-    return output
+def _opaque_vector_typedef_alias(line: bytes, attribute_index: int) -> Optional[str]:
+    """Return a compiler-internal one-line vector typedef alias, else ``None``."""
+    first_attribute = line.find(b"__attribute__")
+    if first_attribute < 0 or first_attribute > attribute_index:
+        return None
+    prefix = line[:first_attribute]
+    identifiers = _attribute_identifiers(prefix)
+    if (
+        "typedef" not in identifiers
+        or b"{" in line
+        or b"," in prefix
+        or not line.rstrip().endswith(b";")
+        or not identifiers
+    ):
+        return None
+    alias = identifiers[-1]
+    if not alias.startswith("__"):
+        return None
+    return alias
 
 
 def _brace_depth_and_close(line: bytes, depth: int) -> tuple:
@@ -924,7 +920,6 @@ def _normalize_builder_output(data: bytes) -> bytes:
         lines[index] = b"typedef ... " + alias + b";" + ending
     lines = _strip_mingw_attributes(lines)
     lines = _replace_mingw_tokens(lines)
-    lines = _partialize_mingw_simd_typedefs(lines)
     lines = _partialize_opaque_aligned_system_structs(lines)
     return b"".join(_strip_mingw_inline_blocks(lines))
 

@@ -346,12 +346,15 @@ def test_mingw_simd_vector_typedef_becomes_opaque():
         b"__attribute__((__vector_size__(8), __may_alias__, __aligned__(1)));\n"
         b"typedef int __v2si "
         b"__attribute__((__vector_size__(8)));\n"
+        b"typedef float __x86_float_u "
+        b"__attribute__((__may_alias__, __aligned__(1)));\n"
     )
     assert wrapper._normalize_builder_output(data) == (
         b"typedef ... __m64;\n"
         b"typedef ... __m128i;\n"
         b"typedef ... __m64_u;\n"
         b"typedef ... __v2si;\n"
+        b"typedef ... __x86_float_u;\n"
     )
 
 
@@ -359,6 +362,16 @@ def test_vector_size_attribute_on_non_simd_type_still_fails_closed():
     data = b"typedef int application_vector __attribute__((vector_size(16)));\n"
     with pytest.raises(wrapper.PreprocessorError, match="vector_size"):
         wrapper._normalize_builder_output(data)
+
+
+def test_internal_vector_typedef_with_multiple_attribute_groups_becomes_opaque():
+    data = (
+        b"typedef float __compiler_vec "
+        b"__attribute__((may_alias)) __attribute__((aligned(1)));\n"
+    )
+    assert wrapper._normalize_builder_output(data) == (
+        b"typedef ... __compiler_vec;\n"
+    )
 
 
 def test_opaque_mingw_simd_typedef_count_is_bounded(monkeypatch):
