@@ -336,6 +336,35 @@ def test_opaque_aligned_system_struct_count_is_bounded(monkeypatch):
         wrapper._normalize_builder_output(data)
 
 
+def test_mingw_simd_vector_typedef_becomes_opaque():
+    data = (
+        b"typedef long long __m64 "
+        b"__attribute__((__vector_size__(8), __may_alias__));\n"
+        b"typedef long long __m128i "
+        b"__attribute__((vector_size(16), may_alias));\n"
+    )
+    assert wrapper._normalize_builder_output(data) == (
+        b"typedef ... __m64;\n"
+        b"typedef ... __m128i;\n"
+    )
+
+
+def test_vector_size_attribute_on_non_simd_type_still_fails_closed():
+    data = b"typedef int application_vector __attribute__((vector_size(16)));\n"
+    with pytest.raises(wrapper.PreprocessorError, match="vector_size"):
+        wrapper._normalize_builder_output(data)
+
+
+def test_opaque_mingw_simd_typedef_count_is_bounded(monkeypatch):
+    monkeypatch.setattr(wrapper, "MAX_OPAQUE_SIMD_TYPEDEFS", 1)
+    data = (
+        b"typedef long long __m64 __attribute__((vector_size(8)));\n"
+        b"typedef long long __m128 __attribute__((vector_size(16)));\n"
+    )
+    with pytest.raises(wrapper.PreprocessorError, match="too many"):
+        wrapper._normalize_builder_output(data)
+
+
 def test_layout_affecting_mingw_attribute_fails_closed():
     data = b"typedef int packed_int __attribute__((__packed__));\n"
     with pytest.raises(

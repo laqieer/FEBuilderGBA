@@ -79,6 +79,12 @@ pinned mGBA. Their cdef bodies are converted to CFFI partial structs
 (``...;``), so the real compiler supplies their aligned layout instead of
 dropping alignment or teaching pycparser vendor syntax. Alignment remains
 rejected everywhere else.
+
+Compiler-defined MinGW SIMD aliases matching the ``__m<width><suffix>`` class
+are likewise unreferenced by pinned mGBA. Typedefs carrying only
+``vector_size``/``may_alias`` attributes become opaque CFFI typedefs, preserving
+the compiler's real vector type while non-SIMD vector attributes remain
+fail-closed.
 Any drift from that exact expectation (the line missing, duplicated, already
 replaced, an unreadable/oversized/non-UTF-8 file, a missing
 ``FEBUILDERGBA_MGBA_BUILDER_H``, a missing
@@ -232,6 +238,10 @@ ALIGNED_ATTRIBUTE_IDENTIFIERS = frozenset(
 )
 MAX_OPAQUE_ALIGNED_STRUCTS = 64
 MAX_OPAQUE_ALIGNED_STRUCT_LINES = 8192
+SIMD_ATTRIBUTE_IDENTIFIERS = frozenset(
+    {"may_alias", "__may_alias__", "vector_size", "__vector_size__"}
+)
+MAX_OPAQUE_SIMD_TYPEDEFS = 256
 ATTRIBUTE_CONTEXT_IGNORED_IDENTIFIERS = frozenset(
     {
         "__attribute__",
@@ -662,6 +672,20 @@ def _strip_mingw_attributes(lines: List[bytes]) -> List[bytes]:
                 # the real aligned layout without teaching pycparser GCC
                 # alignment syntax.
                 unsupported = []
+            elif (
+                unsupported
+                and set(unsupported) <= SIMD_ATTRIBUTE_IDENTIFIERS
+                and "typedef" in line_identifiers
+                and any(
+                    _is_mingw_simd_type(identifier)
+                    for identifier in line_identifiers
+                )
+            ):
+                # GCC SIMD aliases such as __m64/__m128 are compiler-defined
+                # vector types and are not referenced by pinned mGBA's cdef.
+                # The full typedef line becomes an opaque CFFI typedef after
+                # this attribute group is removed.
+                unsupported = []
             if not identifiers or unsupported:
                 detail = ",".join(unsupported[:8]) if unsupported else "<empty>"
                 context = sorted(
@@ -683,6 +707,54 @@ def _strip_mingw_attributes(lines: List[bytes]) -> List[bytes]:
                 raise PreprocessorError("too many MinGW attribute replacements")
             index = closing + 1
         output.append(bytes(rewritten))
+    return output
+
+
+def _is_mingw_simd_type(identifier: str) -> bool:
+    if not identifier.startswith("__m"):
+        return False
+    suffix = identifier[3:]
+    return bool(
+        suffix
+        and suffix[0].isdigit()
+        and all(char.isalnum() or char == "_" for char in suffix)
+    )
+
+
+def _partialize_mingw_simd_typedefs(lines: List[bytes]) -> List[bytes]:
+    """Replace compiler-defined MinGW SIMD aliases with opaque CFFI typedefs."""
+    output: List[bytes] = []
+    converted = 0
+    for line in lines:
+        identifiers = _attribute_identifiers(line)
+        simd_types = sorted(
+            {
+                identifier
+                for identifier in identifiers
+                if _is_mingw_simd_type(identifier)
+            }
+        )
+        if not simd_types:
+            output.append(line)
+            continue
+        if "typedef" not in identifiers:
+            output.append(line)
+            continue
+        if len(simd_types) != 1 or b";" not in line or b"{" in line:
+            raise PreprocessorError("malformed MinGW SIMD typedef")
+        converted += 1
+        if converted > MAX_OPAQUE_SIMD_TYPEDEFS:
+            raise PreprocessorError("too many opaque MinGW SIMD typedefs")
+        body = line.rstrip(b"\r\n")
+        ending = line[len(body):]
+        indent = line[: len(line) - len(line.lstrip())]
+        output.append(
+            indent
+            + b"typedef ... "
+            + simd_types[0].encode("ascii")
+            + b";"
+            + ending
+        )
     return output
 
 
@@ -840,6 +912,7 @@ def _normalize_builder_output(data: bytes) -> bytes:
         lines[index] = b"typedef ... " + alias + b";" + ending
     lines = _strip_mingw_attributes(lines)
     lines = _replace_mingw_tokens(lines)
+    lines = _partialize_mingw_simd_typedefs(lines)
     lines = _partialize_opaque_aligned_system_structs(lines)
     return b"".join(_strip_mingw_inline_blocks(lines))
 

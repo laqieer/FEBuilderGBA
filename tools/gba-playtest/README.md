@@ -181,7 +181,10 @@ removing the redundant annotation preserves the UCRT64 x64 layout. Exact
 aligned WinNT/WDK processor-state structs unused by pinned mGBA (such as
 `_M128A` and `_XSAVE_FORMAT`) are converted to CFFI partial structs (`...;`),
 so the real compiler provides their aligned layout; alignment remains rejected
-outside that finite context. Successful preprocessor output is
+outside that finite context. Compiler-defined MinGW SIMD aliases in the
+`__m<width><suffix>` class are also unused by pinned mGBA; typedefs carrying
+only `vector_size`/`may_alias` attributes become opaque CFFI typedefs, while
+non-SIMD vector attributes still fail closed. Successful preprocessor output is
 capped at 64 MiB and 16,384 inline blocks (current MinGW headers contain
 hundreds, not merely a handful), so the full generated header set fits without
 removing resource bounds. POSIX output is otherwise unchanged. The wrapper fails
