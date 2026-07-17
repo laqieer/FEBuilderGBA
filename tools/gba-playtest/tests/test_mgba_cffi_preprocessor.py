@@ -188,6 +188,37 @@ def test_gcc_bfloat16_application_alias_fails_closed():
         wrapper._normalize_builder_output(data)
 
 
+def test_overlay_va_list_wins_over_equivalent_gcc_builtin_typedef():
+    data = (
+        b"typedef ... va_list;\r\n"
+        b"typedef __builtin_va_list va_list;\r\n"
+        b"int retained;\n"
+    )
+    assert wrapper._normalize_builder_output(data) == (
+        b"typedef ... va_list;\r\n"
+        b"\r\n"
+        b"int retained;\n"
+    )
+
+
+def test_overlay_va_list_rejects_conflicting_builtin_kind():
+    data = (
+        b"typedef ... va_list;\n"
+        b"typedef __builtin_ms_va_list va_list;\n"
+    )
+    with pytest.raises(wrapper.PreprocessorError, match="conflicting"):
+        wrapper._normalize_builder_output(data)
+
+
+def test_duplicate_opaque_compiler_alias_fails_closed():
+    data = (
+        b"typedef ... va_list;\n"
+        b"typedef ... va_list;\n"
+    )
+    with pytest.raises(wrapper.PreprocessorError, match="duplicate"):
+        wrapper._normalize_builder_output(data)
+
+
 def test_unrelated_preprocessor_output_is_byte_identical():
     data = b"typedef unsigned long size_t;\n#define VALUE 1\n"
     assert wrapper._normalize_builder_output(data) == data

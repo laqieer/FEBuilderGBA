@@ -1071,6 +1071,27 @@ def _normalize_builder_output(data: bytes) -> bytes:
     lines = _join_mingw_multiline_attribute_typedefs(
         data.splitlines(keepends=True)
     )
+    opaque_aliases = set()
+    for line in lines:
+        stripped = line.rstrip(b"\r\n").strip()
+        if not stripped.endswith(b";"):
+            continue
+        parts = stripped[:-1].split()
+        if len(parts) != 3 or parts[:2] != [b"typedef", b"..."]:
+            continue
+        alias = parts[2]
+        try:
+            alias_text = alias.decode("ascii")
+        except UnicodeDecodeError as exc:
+            raise PreprocessorError(
+                "invalid opaque compiler typedef alias"
+            ) from exc
+        if not alias_text.isidentifier():
+            raise PreprocessorError("invalid opaque compiler typedef alias")
+        if alias in opaque_aliases:
+            raise PreprocessorError("duplicate opaque compiler typedef alias")
+        opaque_aliases.add(alias)
+
     normalized = 0
     for index, line in enumerate(lines):
         body = line.rstrip(b"\r\n")
@@ -1099,7 +1120,17 @@ def _normalize_builder_output(data: bytes) -> bytes:
         normalized += 1
         if normalized > MAX_OPAQUE_COMPILER_SCALAR_TYPEDEFS:
             raise PreprocessorError("too many compiler scalar typedef aliases")
+        if alias in opaque_aliases:
+            if source == b"__builtin_va_list" and alias == b"va_list":
+                # The temporary pinned-header overlay already declares CFFI's
+                # exact ``typedef ... va_list;``. Current GCC headers may emit
+                # the equivalent compiler builtin declaration later; retain
+                # the authoritative overlay and blank only that exact duplicate.
+                lines[index] = ending
+                continue
+            raise PreprocessorError("conflicting compiler scalar typedef alias")
         lines[index] = b"typedef ... " + alias + b";" + ending
+        opaque_aliases.add(alias)
     lines = _replace_mingw_tokens(lines)
     lines = _strip_mingw_inline_blocks(lines)
     lines = _strip_mingw_attributes(lines)
