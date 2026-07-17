@@ -62,7 +62,9 @@ extension token. It also token-normalizes the safe parser-only GCC qualifier
 class (``__extension__``, restrict, volatile, const, and signed spellings)
 outside quoted literals. Balanced ``__attribute__((...))`` expressions are
 removed only when every contained attribute is from an ABI-neutral allowlist;
-layout-affecting or unknown attributes fail closed. The complete successful
+the allowlist covers the diagnostic/optimizer/linkage attributes observed in
+current MinGW headers, while layout-affecting attributes such as aligned,
+packed, or mode remain rejected. Unknown attributes also fail closed. The complete successful
 preprocessor stream is capped at 64 MiB and at 16,384 inline blocks,
 accommodating the generated MinGW header set while retaining deterministic
 resource bounds. POSIX preprocessing is otherwise unchanged.
@@ -165,23 +167,45 @@ SAFE_MINGW_ATTRIBUTES = frozenset(
         "__dllexport__",
         "__format__",
         "__format_arg__",
+        "__gnu_printf__",
+        "__gnu_scanf__",
         "__gnu_inline__",
         "__hot__",
         "__leaf__",
         "__malloc__",
+        "__ms_printf__",
+        "__ms_scanf__",
         "__noinline__",
         "__nonnull__",
+        "__noreturn__",
         "__nothrow__",
         "__printf__",
         "__pure__",
         "__returns_nonnull__",
+        "__returns_twice__",
         "__scanf__",
+        "__selectany__",
         "__stdcall__",
         "__unused__",
         "__used__",
         "__visibility__",
+        "__warning__",
         "__warn_unused_result__",
+        "const",
+        "deprecated",
+        "format",
+        "format_arg",
+        "malloc",
+        "nonnull",
+        "noreturn",
+        "pure",
+        "returns_nonnull",
+        "returns_twice",
+        "unused",
+        "used",
         "visibility",
+        "warning",
+        "warn_unused_result",
     }
 )
 

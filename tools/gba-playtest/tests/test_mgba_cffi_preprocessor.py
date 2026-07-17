@@ -250,6 +250,20 @@ def test_nested_safe_mingw_format_attribute_is_removed():
     )
 
 
+def test_observed_mingw_diagnostic_and_linkage_attributes_are_removed():
+    data = (
+        b"void fatal(const char *format) "
+        b"__attribute__((__format__(__gnu_printf__, 1, 2), __noreturn__));\n"
+        b"int selected __attribute__((__selectany__));\n"
+        b"void warned(void) __attribute__((__warning__(\"diagnostic\")));\n"
+    )
+    assert wrapper._normalize_builder_output(data) == (
+        b"void fatal(const char *format) ;\n"
+        b"int selected ;\n"
+        b"void warned(void) ;\n"
+    )
+
+
 def test_layout_affecting_mingw_attribute_fails_closed():
     data = b"typedef int packed_int __attribute__((__packed__));\n"
     with pytest.raises(wrapper.PreprocessorError, match="unsupported"):
