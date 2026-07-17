@@ -60,10 +60,12 @@ top-level MinGW ``extern/static __inline__`` intrinsic definitions with bounded
 brace-aware scanning, and keeps declaration-only forms after dropping just the
 extension token. It also token-normalizes the safe parser-only GCC qualifier
 class (``__extension__``, restrict, volatile, const, and signed spellings)
-outside quoted literals. The complete successful preprocessor stream is capped at
-64 MiB and at 16,384 inline blocks, accommodating the generated MinGW header
-set while retaining deterministic resource bounds. POSIX preprocessing is
-otherwise unchanged.
+outside quoted literals. Balanced ``__attribute__((...))`` expressions are
+removed only when every contained attribute is from an ABI-neutral allowlist;
+layout-affecting or unknown attributes fail closed. The complete successful
+preprocessor stream is capped at 64 MiB and at 16,384 inline blocks,
+accommodating the generated MinGW header set while retaining deterministic
+resource bounds. POSIX preprocessing is otherwise unchanged.
 Any drift from that exact expectation (the line missing, duplicated, already
 replaced, an unreadable/oversized/non-UTF-8 file, a missing
 ``FEBUILDERGBA_MGBA_BUILDER_H``, a missing
@@ -139,6 +141,7 @@ MAX_BUILTIN_VA_LIST_TYPEDEFS = 16
 MAX_MINGW_INLINE_BLOCKS = 16_384
 MAX_MINGW_INLINE_BLOCK_LINES = 4096
 MAX_MINGW_TOKEN_REPLACEMENTS = 65_536
+MAX_MINGW_ATTRIBUTE_REPLACEMENTS = 65_536
 
 MINGW_TOKEN_REPLACEMENTS = {
     b"__extension__": b"",
@@ -148,6 +151,39 @@ MINGW_TOKEN_REPLACEMENTS = {
     b"__const__": b"const",
     b"__signed__": b"signed",
 }
+
+SAFE_MINGW_ATTRIBUTES = frozenset(
+    {
+        "__always_inline__",
+        "__alloc_size__",
+        "__artificial__",
+        "__cdecl__",
+        "__cold__",
+        "__const__",
+        "__deprecated__",
+        "__dllimport__",
+        "__dllexport__",
+        "__format__",
+        "__format_arg__",
+        "__gnu_inline__",
+        "__hot__",
+        "__leaf__",
+        "__malloc__",
+        "__noinline__",
+        "__nonnull__",
+        "__nothrow__",
+        "__printf__",
+        "__pure__",
+        "__returns_nonnull__",
+        "__scanf__",
+        "__stdcall__",
+        "__unused__",
+        "__used__",
+        "__visibility__",
+        "__warn_unused_result__",
+        "visibility",
+    }
+)
 
 
 class PreprocessorError(RuntimeError):
@@ -394,6 +430,151 @@ def _replace_mingw_tokens(lines: List[bytes]) -> List[bytes]:
     return output
 
 
+def _attribute_identifiers(data: bytes) -> List[str]:
+    identifiers: List[str] = []
+    index = 0
+    quote: Optional[int] = None
+    escaped = False
+    while index < len(data):
+        value = data[index]
+        if quote is not None:
+            if escaped:
+                escaped = False
+            elif value == 0x5C:
+                escaped = True
+            elif value == quote:
+                quote = None
+            index += 1
+            continue
+        if value in (0x22, 0x27):
+            quote = value
+            index += 1
+            continue
+        if value == 0x5F or 0x41 <= value <= 0x5A or 0x61 <= value <= 0x7A:
+            end = index + 1
+            while end < len(data):
+                char = data[end]
+                if not (
+                    char == 0x5F
+                    or 0x30 <= char <= 0x39
+                    or 0x41 <= char <= 0x5A
+                    or 0x61 <= char <= 0x7A
+                ):
+                    break
+                end += 1
+            try:
+                identifiers.append(data[index:end].decode("ascii"))
+            except UnicodeDecodeError as exc:
+                raise PreprocessorError("invalid MinGW attribute identifier") from exc
+            index = end
+            continue
+        index += 1
+    return identifiers
+
+
+def _strip_mingw_attributes(lines: List[bytes]) -> List[bytes]:
+    """Remove only whitelisted ABI-neutral ``__attribute__((...))`` groups."""
+    output: List[bytes] = []
+    replacements = 0
+    marker = b"__attribute__"
+    for line in lines:
+        rewritten = bytearray()
+        index = 0
+        quote: Optional[int] = None
+        escaped = False
+        while index < len(line):
+            value = line[index]
+            if quote is not None:
+                rewritten.append(value)
+                if escaped:
+                    escaped = False
+                elif value == 0x5C:
+                    escaped = True
+                elif value == quote:
+                    quote = None
+                index += 1
+                continue
+            if value in (0x22, 0x27):
+                quote = value
+                rewritten.append(value)
+                index += 1
+                continue
+            if not line.startswith(marker, index):
+                rewritten.append(value)
+                index += 1
+                continue
+            before = line[index - 1] if index else None
+            after_index = index + len(marker)
+            after = line[after_index] if after_index < len(line) else None
+            if (
+                before is not None
+                and (
+                    before == 0x5F
+                    or 0x30 <= before <= 0x39
+                    or 0x41 <= before <= 0x5A
+                    or 0x61 <= before <= 0x7A
+                )
+            ) or (
+                after is not None
+                and (
+                    after == 0x5F
+                    or 0x30 <= after <= 0x39
+                    or 0x41 <= after <= 0x5A
+                    or 0x61 <= after <= 0x7A
+                )
+            ):
+                rewritten.append(value)
+                index += 1
+                continue
+
+            cursor = after_index
+            while cursor < len(line) and line[cursor] in (0x20, 0x09):
+                cursor += 1
+            if line[cursor:cursor + 2] != b"((":
+                raise PreprocessorError("malformed MinGW attribute expression")
+            depth = 0
+            attr_quote: Optional[int] = None
+            attr_escaped = False
+            closing: Optional[int] = None
+            scan = cursor
+            while scan < len(line):
+                char = line[scan]
+                if attr_quote is not None:
+                    if attr_escaped:
+                        attr_escaped = False
+                    elif char == 0x5C:
+                        attr_escaped = True
+                    elif char == attr_quote:
+                        attr_quote = None
+                    scan += 1
+                    continue
+                if char in (0x22, 0x27):
+                    attr_quote = char
+                elif char == 0x28:
+                    depth += 1
+                elif char == 0x29:
+                    depth -= 1
+                    if depth == 0:
+                        closing = scan
+                        break
+                scan += 1
+            if closing is None or depth != 0:
+                raise PreprocessorError("unterminated MinGW attribute expression")
+            content = line[cursor + 2:closing - 1]
+            identifiers = _attribute_identifiers(content)
+            if not identifiers or any(
+                identifier not in SAFE_MINGW_ATTRIBUTES
+                for identifier in identifiers
+            ):
+                raise PreprocessorError("unsupported MinGW attribute in cdef output")
+            replacements += 1
+            if replacements > MAX_MINGW_ATTRIBUTE_REPLACEMENTS:
+                raise PreprocessorError("too many MinGW attribute replacements")
+            index = closing + 1
+        output.append(bytes(rewritten))
+    return output
+
+
 def _strip_mingw_inline_blocks(lines: List[bytes]) -> List[bytes]:
     """Drop MinGW compiler-intrinsic inline definitions from CFFI input."""
     output: List[bytes] = []
@@ -470,6 +651,7 @@ def _normalize_builder_output(data: bytes) -> bytes:
         if normalized > MAX_BUILTIN_VA_LIST_TYPEDEFS:
             raise PreprocessorError("too many builtin va_list typedef aliases")
         lines[index] = b"typedef ... " + alias + b";" + ending
+    lines = _strip_mingw_attributes(lines)
     lines = _replace_mingw_tokens(lines)
     return b"".join(_strip_mingw_inline_blocks(lines))
 

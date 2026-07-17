@@ -170,10 +170,12 @@ bounded top-level MinGW `extern/static __inline__` intrinsic definitions with
 brace-aware scanning, and retains declaration-only forms after dropping just
 the extension token. It also token-normalizes safe parser-only GCC qualifiers
 (`__extension__`, restrict, volatile, const, and signed spellings) outside
-quoted literals. Successful preprocessor output is capped at 64 MiB and
-16,384 inline blocks (current MinGW headers contain hundreds, not merely a
-handful), so the full generated header set fits without removing resource
-bounds. POSIX output is otherwise unchanged. The wrapper fails
+quoted literals. Balanced `__attribute__((...))` expressions are removed only
+when every contained attribute is on an ABI-neutral allowlist; unknown or
+layout-affecting attributes fail closed. Successful preprocessor output is
+capped at 64 MiB and 16,384 inline blocks (current MinGW headers contain
+hundreds, not merely a handful), so the full generated header set fits without
+removing resource bounds. POSIX output is otherwise unchanged. The wrapper fails
 closed (nonzero exit, static diagnostic) on any drift, ambiguity, mismatch,
 excessive aliases/inline blocks, or cleanup failure
 (a failed deletion is never silently swallowed; if the real preprocessor also

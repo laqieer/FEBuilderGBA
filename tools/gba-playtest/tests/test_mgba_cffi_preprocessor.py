@@ -230,6 +230,53 @@ def test_mingw_compiler_token_replacement_count_is_bounded(monkeypatch):
         )
 
 
+def test_safe_mingw_function_attributes_are_removed():
+    data = (
+        b"__attribute__ ((__dllimport__)) void *"
+        b"__attribute__((__cdecl__)) _memccpy(void *dst);\n"
+    )
+    assert wrapper._normalize_builder_output(data) == (
+        b" void * _memccpy(void *dst);\n"
+    )
+
+
+def test_nested_safe_mingw_format_attribute_is_removed():
+    data = (
+        b"int log_value(const char *format) "
+        b"__attribute__((__format__(__printf__, 1, 2)));\n"
+    )
+    assert wrapper._normalize_builder_output(data) == (
+        b"int log_value(const char *format) ;\n"
+    )
+
+
+def test_layout_affecting_mingw_attribute_fails_closed():
+    data = b"typedef int packed_int __attribute__((__packed__));\n"
+    with pytest.raises(wrapper.PreprocessorError, match="unsupported"):
+        wrapper._normalize_builder_output(data)
+
+
+def test_mingw_attribute_marker_inside_string_is_unchanged():
+    data = b'const char *text = "__attribute__((__cdecl__))";\n'
+    assert wrapper._normalize_builder_output(data) == data
+
+
+def test_unterminated_mingw_attribute_fails_closed():
+    data = b"void value(void) __attribute__((__cdecl__);\n"
+    with pytest.raises(wrapper.PreprocessorError, match="unterminated"):
+        wrapper._normalize_builder_output(data)
+
+
+def test_mingw_attribute_replacement_count_is_bounded(monkeypatch):
+    monkeypatch.setattr(wrapper, "MAX_MINGW_ATTRIBUTE_REPLACEMENTS", 1)
+    data = (
+        b"void first(void) __attribute__((__cdecl__));\n"
+        b"void second(void) __attribute__((__cdecl__));\n"
+    )
+    with pytest.raises(wrapper.PreprocessorError, match="too many"):
+        wrapper._normalize_builder_output(data)
+
+
 def test_mingw_inline_declaration_drops_only_the_extension_token():
     data = b"extern __inline__ void declaration_only(void);\n"
     assert wrapper._normalize_builder_output(data) == (
