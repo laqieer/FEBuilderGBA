@@ -94,7 +94,7 @@ namespace FEBuilderGBA.CLI
             string romPath = null;
             string scenarioPath = null;
             string artifactDirectory = null;
-            string declaredScreenshotPath = null;
+            var declaredScreenshotPaths = new List<string>();
             int timeoutMs = PlaytestDefaultTimeoutMs;
 
             if (check)
@@ -160,23 +160,28 @@ namespace FEBuilderGBA.CLI
                             stderr);
                     }
                     if (outPath != null
-                        && TryGetScenarioScreenshotBasename(
+                        && TryGetScenarioScreenshotBasenames(
                             scenarioPath,
-                            out string screenshotBasename))
+                            out List<string> screenshotBasenames))
                     {
-                        declaredScreenshotPath =
-                            operations.ResolvePhysicalPath(
-                                Path.Combine(
-                                    artifactDirectory,
-                                    screenshotBasename));
-                        if (declaredScreenshotPath != null
-                            && PathsEqual(outPath, declaredScreenshotPath))
+                        foreach (string screenshotBasename in screenshotBasenames)
                         {
-                            return EmitPlaytestError(
-                                "--out cannot overwrite the screenshot artifact",
-                                null,
-                                stdout,
-                                stderr);
+                            string screenshotPath =
+                                operations.ResolvePhysicalPath(
+                                    Path.Combine(
+                                        artifactDirectory,
+                                        screenshotBasename));
+                            if (screenshotPath == null)
+                                continue;
+                            declaredScreenshotPaths.Add(screenshotPath);
+                            if (PathsEqual(outPath, screenshotPath))
+                            {
+                                return EmitPlaytestError(
+                                    "--out cannot overwrite the screenshot artifact",
+                                    null,
+                                    stdout,
+                                    stderr);
+                            }
                         }
                     }
                 }
@@ -244,8 +249,8 @@ namespace FEBuilderGBA.CLI
                 }
                 bool preserveArtifact = artifactDirectory != null
                     && outPath != null
-                    && declaredScreenshotPath != null
-                    && PathsEqual(outPath, declaredScreenshotPath)
+                    && declaredScreenshotPaths.Exists(
+                        path => PathsEqual(outPath, path))
                     && (childMayStillWriteArtifact || File.Exists(outPath));
                 return EmitPlaytestError(
                     note,
@@ -403,11 +408,11 @@ namespace FEBuilderGBA.CLI
             }
         }
 
-        private static bool TryGetScenarioScreenshotBasename(
+        private static bool TryGetScenarioScreenshotBasenames(
             string scenarioPath,
-            out string basename)
+            out List<string> basenames)
         {
-            basename = null;
+            basenames = new List<string>();
             try
             {
                 var data = new byte[
@@ -442,20 +447,32 @@ namespace FEBuilderGBA.CLI
                         MaxDepth = 64,
                     });
                 JsonElement root = document.RootElement;
-                if (root.ValueKind != JsonValueKind.Object
-                    || !root.TryGetProperty(
-                        "screenshot",
-                        out JsonElement screenshot)
-                    || screenshot.ValueKind != JsonValueKind.Object
-                    || !screenshot.TryGetProperty(
-                        "basename",
-                        out JsonElement basenameElement)
-                    || basenameElement.ValueKind != JsonValueKind.String)
+                if (root.ValueKind != JsonValueKind.Object)
                 {
                     return false;
                 }
-                basename = basenameElement.GetString();
-                return !string.IsNullOrEmpty(basename);
+                foreach (JsonProperty property in root.EnumerateObject())
+                {
+                    if (!property.NameEquals("screenshot")
+                        || property.Value.ValueKind != JsonValueKind.Object)
+                    {
+                        continue;
+                    }
+                    foreach (JsonProperty screenshotProperty
+                        in property.Value.EnumerateObject())
+                    {
+                        if (!screenshotProperty.NameEquals("basename")
+                            || screenshotProperty.Value.ValueKind
+                                != JsonValueKind.String)
+                        {
+                            continue;
+                        }
+                        string basename = screenshotProperty.Value.GetString();
+                        if (!string.IsNullOrEmpty(basename))
+                            basenames.Add(basename);
+                    }
+                }
+                return basenames.Count > 0;
             }
             catch (UnauthorizedAccessException)
             {
@@ -694,6 +711,10 @@ namespace FEBuilderGBA.CLI
                 return true;
             }
             catch (ArgumentException)
+            {
+                return false;
+            }
+            catch (IOException)
             {
                 return false;
             }
