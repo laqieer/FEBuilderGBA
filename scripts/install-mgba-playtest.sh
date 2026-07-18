@@ -454,7 +454,7 @@ cmake -S "${SRC_DIR}" -B "${CMAKE_BUILD}" \
     -DUSE_FFMPEG=ON -DUSE_DISCORD_RPC=OFF \
     -DUSE_PNG=ON -DUSE_ZLIB=ON \
     -DCOLOR_16_BIT=OFF -DCOLOR_5_6_5=OFF \
-    "${MGBA_MINGW_CMAKE_LINKER_ARGS[@]}" \
+    ${MGBA_MINGW_CMAKE_LINKER_ARGS[@]+"${MGBA_MINGW_CMAKE_LINKER_ARGS[@]}"} \
     -DPYTHON_EXECUTABLE="${VENV_PY}"
 
 # --- Fail closed on the GENERATED feature header, never CMakeCache.txt -----

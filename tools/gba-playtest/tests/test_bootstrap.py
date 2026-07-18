@@ -1203,6 +1203,11 @@ def test_build_script_bounds_mingw_pe_placement_without_disabling_aslr():
             f'"-DCMAKE_{linker_kind}_LINKER_FLAGS=${{MGBA_MINGW_LDFLAGS}}"'
             in text
         )
+    assert (
+        '${MGBA_MINGW_CMAKE_LINKER_ARGS[@]+'
+        '"${MGBA_MINGW_CMAKE_LINKER_ARGS[@]}"}'
+        in text
+    )
     assert "verify_low_entropy_dynamic_base" in text
     assert "HIGH_ENTROPY_VA|High Entropy Virtual Addresses" in text
     assert "DYNAMIC_BASE|Dynamic base" in text

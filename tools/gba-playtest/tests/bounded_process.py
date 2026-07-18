@@ -6,9 +6,11 @@ import ctypes
 import os
 import signal
 import subprocess
+import sys
 import threading
 import time
 from ctypes import wintypes
+from pathlib import Path
 
 
 PIPE_CHUNK_BYTES = 64 * 1024
@@ -240,17 +242,29 @@ def run_bounded(
 
     try:
         popen_options = {}
+        launch_command = list(command)
+        stdin = subprocess.DEVNULL
         if os.name == "nt":
             popen_options["creationflags"] = (
                 subprocess.CREATE_NEW_PROCESS_GROUP
             )
+            launch_command = [
+                sys.executable,
+                str(
+                    Path(__file__).with_name(
+                        "bounded_process_worker.py"
+                    )
+                ),
+                *launch_command,
+            ]
+            stdin = subprocess.PIPE
         else:
             popen_options["start_new_session"] = True
         process = subprocess.Popen(
-            list(command),
+            launch_command,
             cwd=cwd,
             env=env,
-            stdin=subprocess.DEVNULL,
+            stdin=stdin,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             **popen_options,
@@ -275,6 +289,21 @@ def run_bounded(
         raise BoundedProcessError(
             f"process containment failed: {type(exc).__name__}"
         ) from exc
+    if os.name == "nt":
+        try:
+            process.stdin.write(b"\x01")
+            process.stdin.flush()
+            process.stdin.close()
+        except (OSError, ValueError) as exc:
+            containment.terminate()
+            try:
+                process.wait(timeout=TERMINATION_TIMEOUT_SECONDS)
+            except subprocess.TimeoutExpired:
+                pass
+            containment.close()
+            raise BoundedProcessError(
+                f"process release failed: {type(exc).__name__}"
+            ) from exc
 
     stdout = _Capture(stdout_limit)
     stderr = _Capture(stderr_limit)

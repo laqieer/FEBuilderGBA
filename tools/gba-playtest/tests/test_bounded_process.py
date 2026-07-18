@@ -34,6 +34,27 @@ def test_bounded_process_preserves_both_streams():
     assert completed.stderr == b"err"
 
 
+def test_windows_worker_waits_for_release_gate():
+    worker = Path(bounded_process.__file__).with_name(
+        "bounded_process_worker.py"
+    )
+    process = bounded_process.subprocess.Popen(
+        [sys.executable, str(worker), sys.executable, "-c", "print('ran')"],
+        stdin=bounded_process.subprocess.PIPE,
+        stdout=bounded_process.subprocess.PIPE,
+        stderr=bounded_process.subprocess.PIPE,
+    )
+    time.sleep(0.1)
+    assert process.poll() is None
+    process.stdin.write(b"\x01")
+    process.stdin.close()
+    process.stdin = None
+    stdout, stderr = process.communicate(timeout=5)
+    assert process.returncode == 0
+    assert stdout.replace(b"\r\n", b"\n") == b"ran\n"
+    assert stderr == b""
+
+
 @pytest.mark.parametrize("stream", ("stdout", "stderr"))
 def test_bounded_process_terminates_on_stream_overflow(stream):
     script = (
