@@ -7,7 +7,7 @@
 # stage-2 source builds can run with --no-build-isolation against a known,
 # hash-verified build backend. mGBA's official setup.py declares
 # setup_requires=['cffi', 'pytest-runner']; a fresh Python 3.14 venv may also
-# lack setuptools/wheel, so all three are pinned here.
+# lack setuptools/wheel/packaging, so all four are pinned here.
 #
 # Installed with:
 #   pip install --require-hashes --only-binary :all: \
@@ -20,8 +20,11 @@
 setuptools==83.0.0 \
     --hash=sha256:29b23c360f22f414dc7336bb39178cc7bcbf6021ed2733cde173f09dba19abb3
 
-wheel==0.45.1 \
-    --hash=sha256:708e7481cc80179af0e556bbf0cc00b8444c7321e2700b8d8580231d13017248
+packaging==26.2 \
+    --hash=sha256:5fc45236b9446107ff2415ce77c807cee2862cb6fac22b8a73826d0693b0980e
+
+wheel==0.46.2 \
+    --hash=sha256:33ae60725d69eaa249bc1982e739943c23b34b58d51f1cb6253453773aca6e65
 
 pytest-runner==6.0.1 \
     --hash=sha256:ea326ed6f6613992746062362efab70212089a4209c08d67177b3df1c52cd9f2
