@@ -73,6 +73,65 @@ def test_non_utf8_scenario_rejected(tmp_path, capsys):
     assert code == 1
 
 
+def test_oversize_scenario_screenshot_collision_preserves_artifact(
+    tmp_path, monkeypatch, capsys
+):
+    monkeypatch.setattr(cli, "MAX_SCENARIO_BYTES", 128)
+    rom = tmp_path / "rom.gba"
+    rom.write_bytes(b"\x00" * 0x200)
+    artifact_dir = tmp_path / "oversize-artifacts"
+    artifact_dir.mkdir()
+    artifact = artifact_dir / "shot.png"
+    artifact.write_bytes(b"png-proof")
+    scenario = tmp_path / "oversize.json"
+    scenario.write_bytes(
+        b'{"screenshot":{"basename":"shot.png"}}'
+        + b" " * 256
+    )
+
+    code = cli.main([
+        "--rom", str(rom),
+        "--scenario", str(scenario),
+        "--out", str(artifact),
+        "--artifact-dir", str(artifact_dir),
+    ])
+    result = _one_json(capsys)
+
+    assert code == 1
+    assert result["status"] == "harness_error"
+    assert "collides" in result["note"]
+    assert artifact.read_bytes() == b"png-proof"
+
+
+def test_non_utf8_scenario_screenshot_collision_preserves_artifact(
+    tmp_path, capsys
+):
+    rom = tmp_path / "rom.gba"
+    rom.write_bytes(b"\x00" * 0x200)
+    artifact_dir = tmp_path / "non-utf8-artifacts"
+    artifact_dir.mkdir()
+    artifact = artifact_dir / "shot.png"
+    artifact.write_bytes(b"png-proof")
+    scenario = tmp_path / "non-utf8.json"
+    scenario.write_bytes(
+        b'{"screenshot":{"basename":"shot.png"},"text":"'
+        + b"\xff"
+    )
+
+    code = cli.main([
+        "--rom", str(rom),
+        "--scenario", str(scenario),
+        "--out", str(artifact),
+        "--artifact-dir", str(artifact_dir),
+    ])
+    result = _one_json(capsys)
+
+    assert code == 1
+    assert result["status"] == "harness_error"
+    assert "collides" in result["note"]
+    assert artifact.read_bytes() == b"png-proof"
+
+
 def test_non_string_assertion_op_is_scenario_error(tmp_path, capsys):
     rom, scenario = _prepare_valid_inputs(tmp_path)
     scenario_data = json.loads(_VALID_SCENARIO)
@@ -185,6 +244,35 @@ def test_malformed_scenario_unrelated_output_is_persisted(tmp_path, capsys):
     assert out.read_text(encoding="utf-8") == captured
 
 
+def test_duplicate_screenshot_keys_check_every_recovered_basename(
+    tmp_path, capsys
+):
+    rom, scenario = _prepare_valid_inputs(tmp_path)
+    artifact_dir = tmp_path / "duplicate-artifacts"
+    artifact_dir.mkdir()
+    artifact = artifact_dir / "shot.png"
+    artifact.write_bytes(b"png-proof")
+    scenario.write_text(
+        '{"schemaVersion":1,"runFrames":1,"assertions":[],'
+        '"screenshot":{"basename":"safe.png"},'
+        '"screenshot":{"basename":"shot.png"}}',
+        encoding="utf-8",
+    )
+
+    code = cli.main([
+        "--rom", str(rom),
+        "--scenario", str(scenario),
+        "--out", str(artifact),
+        "--artifact-dir", str(artifact_dir),
+    ])
+    result = _one_json(capsys)
+
+    assert code == 1
+    assert result["status"] == "harness_error"
+    assert "collides" in result["note"]
+    assert artifact.read_bytes() == b"png-proof"
+
+
 # --- ROM read bounds -------------------------------------------------------
 
 
@@ -289,6 +377,16 @@ def test_out_colliding_with_rom_rejected(tmp_path, capsys):
     assert "collides" in result["note"]
     # The ROM was not overwritten.
     assert rom.read_bytes() == b"\x00" * 0x200
+
+
+def test_paths_collide_casefolds_future_targets_on_darwin(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(cli.sys, "platform", "darwin")
+    assert cli._paths_collide(
+        str(tmp_path / "Result.json"),
+        str(tmp_path / "result.json"),
+    )
 
 
 def test_out_colliding_with_scenario_rejected(tmp_path, capsys):

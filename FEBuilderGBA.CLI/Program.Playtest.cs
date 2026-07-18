@@ -712,6 +712,7 @@ namespace FEBuilderGBA.CLI
             if (left == null || right == null)
                 return false;
             StringComparison comparison = OperatingSystem.IsWindows()
+                || OperatingSystem.IsMacOS()
                 ? StringComparison.OrdinalIgnoreCase
                 : StringComparison.Ordinal;
             return string.Equals(

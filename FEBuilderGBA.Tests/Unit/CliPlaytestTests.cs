@@ -639,6 +639,38 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
+        public void ScreenshotAndFinalOutputCaseAlias_IsRejected()
+        {
+            string artifactDirectory = Path.Combine(
+                _root,
+                "case-artifacts");
+            Directory.CreateDirectory(artifactDirectory);
+            string outPath = Path.Combine(artifactDirectory, "Result.json");
+            File.WriteAllText(
+                _scenario,
+                "{\"schemaVersion\":1,\"runFrames\":1,\"assertions\":[],"
+                    + "\"screenshot\":{\"basename\":\"result.json\"}}");
+            bool launched = false;
+            var operations = Operations(
+                (cmd, args, cwd, timeoutMs) =>
+                {
+                    launched = true;
+                    return Result(0, PassJson);
+                },
+                resolvePhysicalPath: CliProgram.ResolvePhysicalPath);
+
+            var result = Run(
+                RunArgs(
+                    "--out=" + outPath,
+                    "--artifact-dir=" + artifactDirectory),
+                operations);
+
+            Assert.Equal(1, result.Code);
+            Assert.False(launched);
+            Assert.Contains("screenshot artifact", result.Stdout);
+        }
+
+        [Fact]
         public void ResultArtifactCollision_DoesNotOverwritePublishedArtifact()
         {
             const string artifactResult =

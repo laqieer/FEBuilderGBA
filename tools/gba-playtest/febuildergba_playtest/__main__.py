@@ -89,6 +89,10 @@ def _run_check() -> Tuple[Dict[str, Any], int]:
 class _TooLarge(Exception):
     """Raised when a bounded read would exceed its cap."""
 
+    def __init__(self, prefix: bytes = b""):
+        super().__init__("bounded read exceeded its cap")
+        self.prefix = prefix
+
 
 def _read_capped(path: str, cap: int) -> bytes:
     """Read at most ``cap + 1`` bytes; raise :class:`_TooLarge` if oversize.
@@ -99,7 +103,7 @@ def _read_capped(path: str, cap: int) -> bytes:
     with open(path, "rb") as handle:
         data = handle.read(cap + 1)
     if len(data) > cap:
-        raise _TooLarge()
+        raise _TooLarge(data[:cap])
     return data
 
 
@@ -117,7 +121,12 @@ def _paths_collide(a: Optional[str], b: Optional[str]) -> bool:
             return True
     except OSError:
         pass
-    return os.path.normcase(os.path.realpath(a)) == os.path.normcase(os.path.realpath(b))
+    left = os.path.normcase(os.path.realpath(a))
+    right = os.path.normcase(os.path.realpath(b))
+    if sys.platform == "darwin":
+        left = left.casefold()
+        right = right.casefold()
+    return left == right
 
 
 def _reject_output_collisions(rom_path: str, scenario_path: str, out_path: Optional[str],
@@ -176,25 +185,6 @@ def _run_scenario(rom_path: str, scenario_path: str, out_path: Optional[str],
         result, exit_code = outcome
         return _persist_result(result, exit_code, out_path)
 
-    try:
-        scenario_bytes = _read_capped(scenario_path, MAX_SCENARIO_BYTES)
-    except _TooLarge:
-        return finish(_error_result(
-            "scenario_error", f"scenario exceeds the maximum size of {MAX_SCENARIO_BYTES} bytes"
-        ))
-    except OSError as exc:
-        return finish(_error_result(
-            "harness_error",
-            f"cannot read scenario: {exc.strerror}",
-        ))
-    try:
-        scenario_text = scenario_bytes.decode("utf-8")
-    except UnicodeDecodeError:
-        return finish(_error_result(
-            "scenario_error",
-            "scenario is not valid UTF-8 text",
-        ))
-
     def reject_screenshot_collision(
         basename: Optional[str],
     ) -> Optional[Tuple[Dict[str, Any], int]]:
@@ -207,12 +197,50 @@ def _run_scenario(rom_path: str, scenario_path: str, out_path: Optional[str],
             os.path.join(artifact_dir, basename),
         )
 
+    def reject_recovered_screenshot_collisions(
+        text: str,
+    ) -> Optional[Tuple[Dict[str, Any], int]]:
+        for recovered_basename in _recover_screenshot_basenames(text):
+            recovered_collision = reject_screenshot_collision(
+                recovered_basename
+            )
+            if recovered_collision is not None:
+                return recovered_collision
+        return None
+
+    try:
+        scenario_bytes = _read_capped(scenario_path, MAX_SCENARIO_BYTES)
+    except _TooLarge as exc:
+        collision = reject_recovered_screenshot_collisions(
+            exc.prefix.decode("utf-8", errors="replace")
+        )
+        if collision is not None:
+            return collision
+        return finish(_error_result(
+            "scenario_error", f"scenario exceeds the maximum size of {MAX_SCENARIO_BYTES} bytes"
+        ))
+    except OSError as exc:
+        return finish(_error_result(
+            "harness_error",
+            f"cannot read scenario: {exc.strerror}",
+        ))
+    try:
+        scenario_text = scenario_bytes.decode("utf-8")
+    except UnicodeDecodeError:
+        collision = reject_recovered_screenshot_collisions(
+            scenario_bytes.decode("utf-8", errors="replace")
+        )
+        if collision is not None:
+            return collision
+        return finish(_error_result(
+            "scenario_error",
+            "scenario is not valid UTF-8 text",
+        ))
+
     try:
         raw_scenario = parse_json(scenario_text)
     except ScenarioError as exc:
-        collision = reject_screenshot_collision(
-            _recover_screenshot_basename(scenario_text)
-        )
+        collision = reject_recovered_screenshot_collisions(scenario_text)
         if collision is not None:
             return collision
         return finish(_error_result("scenario_error", str(exc)))
@@ -324,15 +352,16 @@ class _UsageError(Exception):
     """Raised for any malformed command line. Messages are static (no paths)."""
 
 
-def _recover_screenshot_basename(text: str) -> Optional[str]:
-    match = _RAW_SCREENSHOT_BASENAME.search(text)
-    if match is None:
-        return None
-    try:
-        value = json.loads('"' + match.group(1) + '"')
-    except (json.JSONDecodeError, UnicodeDecodeError):
-        return None
-    return value if isinstance(value, str) and value else None
+def _recover_screenshot_basenames(text: str) -> Tuple[str, ...]:
+    recovered = []
+    for match in _RAW_SCREENSHOT_BASENAME.finditer(text):
+        try:
+            value = json.loads('"' + match.group(1) + '"')
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            continue
+        if isinstance(value, str) and value:
+            recovered.append(value)
+    return tuple(recovered)
 
 
 def _parse_args(argv: List[str]) -> Tuple[Dict[str, bool], Dict[str, str]]:
