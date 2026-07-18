@@ -44,6 +44,7 @@ MAX_WRITES = 4096
 MAX_ASSERTIONS = 1024
 MAX_WATCHDOGS = 256
 MAX_BASENAME_LENGTH = 128
+MAX_HEX_DIGITS = 8
 MAX_NAME_LENGTH = 128
 MAX_JSON_INTEGER_DIGITS = 10
 MAX_LABEL_LENGTH = 200
@@ -51,11 +52,16 @@ MAX_UINT32 = 0xFFFFFFFF
 
 # Parser/schema single contract: hex strings are exactly ``0x`` + hex digits,
 # SHA-256 is exactly 64 lowercase hex, with no trimming or canonicalization.
-_HEX_STRING_RE = re.compile(r"^0[xX][0-9A-Fa-f]+$")
+_HEX_STRING_RE = re.compile(r"^0[xX][0-9A-Fa-f]{1,8}$")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _BASENAME_CHARS = frozenset(
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-"
 )
+_WINDOWS_RESERVED_BASENAMES = frozenset({
+    "CON", "PRN", "AUX", "NUL",
+    *(f"COM{i}" for i in range(1, 10)),
+    *(f"LPT{i}" for i in range(1, 10)),
+})
 
 # --- GBA input -------------------------------------------------------------
 
@@ -240,6 +246,8 @@ def _coerce_uint(value: Any, where: str) -> int:
     elif isinstance(value, str):
         # Strict contract: exact ``0x`` + hex digits, no surrounding whitespace
         # and no canonicalization. The JSON schema uses the same pattern.
+        if len(value) > 2 + MAX_HEX_DIGITS:
+            raise ScenarioError(f"{where} hex string has too many digits")
         if not _HEX_STRING_RE.match(value):
             raise ScenarioError(f"{where} string must be 0x-prefixed hex")
         result = int(value, 16)
@@ -329,6 +337,8 @@ def _validate_basename(value: str, where: str) -> str:
         raise ScenarioError(f"{where} must be a non-empty basename <= {MAX_BASENAME_LENGTH} chars")
     if value in (".", ".."):
         raise ScenarioError(f"{where} must not be '.' or '..'")
+    if value.endswith("."):
+        raise ScenarioError(f"{where} must not end with '.'")
     if "/" in value or "\\" in value or "\x00" in value:
         raise ScenarioError(f"{where} must not contain path separators or NUL")
     if ":" in value:
@@ -339,6 +349,8 @@ def _validate_basename(value: str, where: str) -> str:
         # schema rejects.
         if ch not in _BASENAME_CHARS:
             raise ScenarioError(f"{where} contains an unsupported character: {ch!r}")
+    if value.split(".", 1)[0].upper() in _WINDOWS_RESERVED_BASENAMES:
+        raise ScenarioError(f"{where} uses a reserved Windows device name")
     return value
 
 

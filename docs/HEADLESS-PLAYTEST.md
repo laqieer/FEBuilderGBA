@@ -175,6 +175,12 @@ are rejected.
 The SHA-256 above is intentionally a placeholder. Replace it with the exact
 hash of a ROM you are authorized to test.
 
+Addresses and unsigned values may be decimal integers or `0x`-prefixed
+strings with one to eight hex digits. Screenshot basenames are portable
+single components of 1-128 ASCII characters from `[A-Za-z0-9._-]`; they
+cannot end in `.`, use `.`/`..`, or use Windows device stems such as `NUL`,
+`CON`, `COM1`, or `LPT1`.
+
 ### Frame and input semantics
 
 - Frames are zero-based.

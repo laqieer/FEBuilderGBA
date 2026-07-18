@@ -113,7 +113,7 @@
       "additionalProperties": false,
       "required": ["basename"],
       "properties": {
-        "basename": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$" },
+        "basename": { "type": "string", "pattern": "^(?!(?:[Cc][Oo][Nn]|[Pp][Rr][Nn]|[Aa][Uu][Xx]|[Nn][Uu][Ll]|[Cc][Oo][Mm][1-9]|[Ll][Pp][Tt][1-9])(?:\\.|$))(?!.*\\.$)[A-Za-z0-9._-]{1,128}$" },
         "expectedSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
       }
     }
@@ -123,14 +123,14 @@
       "description": "Unsigned address as a non-negative integer or 0x-prefixed hex string.",
       "oneOf": [
         { "type": "integer", "minimum": 0 },
-        { "type": "string", "pattern": "^0[xX][0-9a-fA-F]+$" }
+        { "type": "string", "pattern": "^0[xX][0-9a-fA-F]{1,8}$" }
       ]
     },
     "uint": {
       "description": "Unsigned value as a non-negative integer or 0x-prefixed hex string.",
       "oneOf": [
         { "type": "integer", "minimum": 0 },
-        { "type": "string", "pattern": "^0[xX][0-9a-fA-F]+$" }
+        { "type": "string", "pattern": "^0[xX][0-9a-fA-F]{1,8}$" }
       ]
     },
     "readDomain": {

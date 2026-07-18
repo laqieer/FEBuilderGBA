@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import ctypes
+import os
+import signal
 import subprocess
 import threading
 import time
+from ctypes import wintypes
 
 
 PIPE_CHUNK_BYTES = 64 * 1024
@@ -26,6 +30,125 @@ class ProcessTimeoutError(BoundedProcessError):
 
 class ProcessTerminationError(BoundedProcessError):
     """A child or its redirected pipes resisted bounded cleanup."""
+
+
+class _JobBasicLimitInformation(ctypes.Structure):
+    _fields_ = [
+        ("PerProcessUserTimeLimit", ctypes.c_longlong),
+        ("PerJobUserTimeLimit", ctypes.c_longlong),
+        ("LimitFlags", wintypes.DWORD),
+        ("MinimumWorkingSetSize", ctypes.c_size_t),
+        ("MaximumWorkingSetSize", ctypes.c_size_t),
+        ("ActiveProcessLimit", wintypes.DWORD),
+        ("Affinity", ctypes.c_size_t),
+        ("PriorityClass", wintypes.DWORD),
+        ("SchedulingClass", wintypes.DWORD),
+    ]
+
+
+class _JobIoCounters(ctypes.Structure):
+    _fields_ = [
+        ("ReadOperationCount", ctypes.c_ulonglong),
+        ("WriteOperationCount", ctypes.c_ulonglong),
+        ("OtherOperationCount", ctypes.c_ulonglong),
+        ("ReadTransferCount", ctypes.c_ulonglong),
+        ("WriteTransferCount", ctypes.c_ulonglong),
+        ("OtherTransferCount", ctypes.c_ulonglong),
+    ]
+
+
+class _JobExtendedLimitInformation(ctypes.Structure):
+    _fields_ = [
+        ("BasicLimitInformation", _JobBasicLimitInformation),
+        ("IoInfo", _JobIoCounters),
+        ("ProcessMemoryLimit", ctypes.c_size_t),
+        ("JobMemoryLimit", ctypes.c_size_t),
+        ("PeakProcessMemoryUsed", ctypes.c_size_t),
+        ("PeakJobMemoryUsed", ctypes.c_size_t),
+    ]
+
+
+class _WindowsJob:
+    JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x00002000
+    JOB_OBJECT_EXTENDED_LIMIT_INFORMATION_CLASS = 9
+
+    def __init__(self, process: subprocess.Popen):
+        kernel32 = ctypes.WinDLL(
+            "kernel32",
+            use_last_error=True,
+        )
+        kernel32.CreateJobObjectW.argtypes = [
+            ctypes.c_void_p,
+            wintypes.LPCWSTR,
+        ]
+        kernel32.CreateJobObjectW.restype = wintypes.HANDLE
+        kernel32.SetInformationJobObject.argtypes = [
+            wintypes.HANDLE,
+            ctypes.c_int,
+            ctypes.c_void_p,
+            wintypes.DWORD,
+        ]
+        kernel32.SetInformationJobObject.restype = wintypes.BOOL
+        kernel32.AssignProcessToJobObject.argtypes = [
+            wintypes.HANDLE,
+            wintypes.HANDLE,
+        ]
+        kernel32.AssignProcessToJobObject.restype = wintypes.BOOL
+        kernel32.TerminateJobObject.argtypes = [
+            wintypes.HANDLE,
+            wintypes.UINT,
+        ]
+        kernel32.TerminateJobObject.restype = wintypes.BOOL
+        kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+        kernel32.CloseHandle.restype = wintypes.BOOL
+
+        self._kernel32 = kernel32
+        self._handle = kernel32.CreateJobObjectW(None, None)
+        if not self._handle:
+            raise ctypes.WinError(ctypes.get_last_error())
+        try:
+            limits = _JobExtendedLimitInformation()
+            limits.BasicLimitInformation.LimitFlags = (
+                self.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+            )
+            if not kernel32.SetInformationJobObject(
+                self._handle,
+                self.JOB_OBJECT_EXTENDED_LIMIT_INFORMATION_CLASS,
+                ctypes.byref(limits),
+                ctypes.sizeof(limits),
+            ):
+                raise ctypes.WinError(ctypes.get_last_error())
+            if not kernel32.AssignProcessToJobObject(
+                self._handle,
+                wintypes.HANDLE(process._handle),
+            ):
+                raise ctypes.WinError(ctypes.get_last_error())
+        except BaseException:
+            self.close()
+            raise
+
+    def terminate(self) -> None:
+        if self._handle:
+            self._kernel32.TerminateJobObject(self._handle, 1)
+
+    def close(self) -> None:
+        if self._handle:
+            self._kernel32.CloseHandle(self._handle)
+            self._handle = None
+
+
+class _ProcessGroup:
+    def __init__(self, process: subprocess.Popen):
+        self._process = process
+
+    def terminate(self) -> None:
+        try:
+            os.killpg(self._process.pid, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            pass
+
+    def close(self) -> None:
+        pass
 
 
 class _Capture:
@@ -61,7 +184,13 @@ def _drain(pipe, capture: _Capture, stop, errors) -> None:
             pass
 
 
-def _terminate(process: subprocess.Popen) -> bool:
+def _terminate(process: subprocess.Popen, containment) -> bool:
+    containment.terminate()
+    try:
+        process.wait(timeout=TERMINATION_TIMEOUT_SECONDS)
+        return True
+    except subprocess.TimeoutExpired:
+        pass
     for action in (process.kill, process.terminate):
         if process.poll() is not None:
             return True
@@ -110,6 +239,13 @@ def run_bounded(
         raise ValueError("output limits must be positive")
 
     try:
+        popen_options = {}
+        if os.name == "nt":
+            popen_options["creationflags"] = (
+                subprocess.CREATE_NEW_PROCESS_GROUP
+            )
+        else:
+            popen_options["start_new_session"] = True
         process = subprocess.Popen(
             list(command),
             cwd=cwd,
@@ -117,10 +253,27 @@ def run_bounded(
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            **popen_options,
         )
     except OSError as exc:
         raise BoundedProcessError(
             f"process launch failed: {type(exc).__name__}"
+        ) from exc
+
+    try:
+        containment = (
+            _WindowsJob(process)
+            if os.name == "nt"
+            else _ProcessGroup(process)
+        )
+    except OSError as exc:
+        try:
+            process.kill()
+            process.wait(timeout=TERMINATION_TIMEOUT_SECONDS)
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+        raise BoundedProcessError(
+            f"process containment failed: {type(exc).__name__}"
         ) from exc
 
     stdout = _Capture(stdout_limit)
@@ -153,40 +306,46 @@ def run_bounded(
             interrupted = True
             break
 
-    if timed_out or interrupted:
-        if not _terminate(process):
-            _close_pipes(process)
-            _join_drains(drains)
-            raise ProcessTerminationError(
-                "process did not terminate after bounded cleanup"
-            )
+    try:
+        if timed_out or interrupted:
+            if not _terminate(process, containment):
+                _close_pipes(process)
+                _join_drains(drains)
+                raise ProcessTerminationError(
+                    "process tree did not terminate after bounded cleanup"
+                )
 
-    returncode = process.wait()
-    if not _join_drains(drains):
-        _close_pipes(process)
+        returncode = process.wait()
         if not _join_drains(drains):
-            raise ProcessTerminationError(
-                "process output pipes did not close after bounded cleanup"
-            )
+            containment.terminate()
+            _close_pipes(process)
+            if not _join_drains(drains):
+                raise ProcessTerminationError(
+                    "process output pipes did not close after bounded cleanup"
+                )
 
-    if stdout.exceeded or stderr.exceeded:
-        streams = []
-        if stdout.exceeded:
-            streams.append("stdout")
-        if stderr.exceeded:
-            streams.append("stderr")
-        raise ProcessOutputLimitError(
-            f"process {'/'.join(streams)} exceeded the capture limit"
+        if stdout.exceeded or stderr.exceeded:
+            streams = []
+            if stdout.exceeded:
+                streams.append("stdout")
+            if stderr.exceeded:
+                streams.append("stderr")
+            raise ProcessOutputLimitError(
+                f"process {'/'.join(streams)} exceeded the capture limit"
+            )
+        if timed_out:
+            raise ProcessTimeoutError(
+                "process exceeded its wall-clock timeout"
+            )
+        if errors:
+            raise BoundedProcessError(
+                f"process output capture failed: {type(errors[0]).__name__}"
+            )
+        return subprocess.CompletedProcess(
+            list(command),
+            returncode,
+            bytes(stdout.data),
+            bytes(stderr.data),
         )
-    if timed_out:
-        raise ProcessTimeoutError("process exceeded its wall-clock timeout")
-    if errors:
-        raise BoundedProcessError(
-            f"process output capture failed: {type(errors[0]).__name__}"
-        )
-    return subprocess.CompletedProcess(
-        list(command),
-        returncode,
-        bytes(stdout.data),
-        bytes(stderr.data),
-    )
+    finally:
+        containment.close()

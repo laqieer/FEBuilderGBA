@@ -2,6 +2,7 @@
 
 import copy
 import json
+from pathlib import Path
 
 import pytest
 
@@ -214,6 +215,30 @@ def test_json_integer_token_length_is_bounded():
     assert parsed["value"] == 4294967295
 
 
+def test_hex_string_token_length_is_bounded():
+    with pytest.raises(ScenarioError, match="hex string has too many digits"):
+        model._coerce_uint("0x" + "f" * 9, "value")
+    assert model._coerce_uint("0xFFFFFFFF", "value") == 0xFFFFFFFF
+
+
+def test_schema_mirrors_hex_and_portable_basename_bounds():
+    schema = json.loads(
+        (Path(__file__).resolve().parents[1] / "scenario.schema.json")
+        .read_text(encoding="utf-8")
+    )
+    assert schema["definitions"]["addr"]["oneOf"][1]["pattern"] == (
+        "^0[xX][0-9a-fA-F]{1,8}$"
+    )
+    assert schema["definitions"]["uint"]["oneOf"][1]["pattern"] == (
+        "^0[xX][0-9a-fA-F]{1,8}$"
+    )
+    basename_pattern = schema["properties"]["screenshot"]["properties"][
+        "basename"
+    ]["pattern"]
+    assert "(?!.*\\.$)" in basename_pattern
+    assert "[Nn][Uu][Ll]" in basename_pattern
+
+
 def test_deeply_nested_json_is_a_scenario_error():
     nested = "[" * 2000 + "0" + "]" * 2000
     with pytest.raises(ScenarioError, match="nesting is too deep"):
@@ -360,6 +385,17 @@ def test_screenshot_dotdot_rejected():
     doc = base_doc()
     doc["screenshot"] = {"basename": ".."}
     with pytest.raises(ScenarioError, match=r"must not be"):
+        load(doc)
+
+
+@pytest.mark.parametrize("basename", ("result.json.", "NUL.png", "com1"))
+def test_screenshot_windows_aliases_rejected(basename):
+    doc = base_doc()
+    doc["screenshot"] = {"basename": basename}
+    with pytest.raises(
+        ScenarioError,
+        match="end with|reserved Windows device",
+    ):
         load(doc)
 
 

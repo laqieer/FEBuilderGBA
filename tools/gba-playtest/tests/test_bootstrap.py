@@ -1209,6 +1209,8 @@ def test_build_script_bounds_mingw_pe_placement_without_disabling_aslr():
     assert "require_cmd \"objdump\"" in text
     assert "from importlib.metadata import distribution" in text
     assert 'distribution("mgba")' in text
+    assert "os.path.abspath(os.fspath(d.locate_file(matches[0])))" in text
+    assert "d.locate_file(matches[0]).resolve()" not in text
     assert 'MGBA_PYLIB="$(cygpath -u "${MGBA_PYLIB_NATIVE}")"' in text
 
 

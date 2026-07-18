@@ -52,6 +52,15 @@ namespace FEBuilderGBA.CLI
                 ["crash"] = 2,
                 ["softlock"] = 2,
             };
+        private static readonly HashSet<string> PlaytestWindowsReservedBasenames =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "CON", "PRN", "AUX", "NUL",
+                "COM1", "COM2", "COM3", "COM4", "COM5",
+                "COM6", "COM7", "COM8", "COM9",
+                "LPT1", "LPT2", "LPT3", "LPT4", "LPT5",
+                "LPT6", "LPT7", "LPT8", "LPT9",
+            };
 
         static int RunPlaytest(Dictionary<string, string> argsDic)
         {
@@ -800,7 +809,8 @@ namespace FEBuilderGBA.CLI
             if (string.IsNullOrEmpty(basename)
                 || basename.Length > PlaytestMaximumArtifactBasenameLength
                 || basename == "."
-                || basename == "..")
+                || basename == ".."
+                || basename.EndsWith(".", StringComparison.Ordinal))
             {
                 return false;
             }
@@ -815,6 +825,10 @@ namespace FEBuilderGBA.CLI
                 if (!valid)
                     return false;
             }
+            int dot = basename.IndexOf('.');
+            string stem = dot < 0 ? basename : basename.Substring(0, dot);
+            if (PlaytestWindowsReservedBasenames.Contains(stem))
+                return false;
             return true;
         }
 

@@ -768,8 +768,12 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("invalid screenshot path", result.Stdout);
         }
 
-        [Fact]
-        public void PathShapedScenarioArtifactBasename_FailsClosedBeforeLaunch()
+        [Theory]
+        [InlineData("../outside.png")]
+        [InlineData("result.json.")]
+        [InlineData("NUL.png")]
+        public void UnsafeScenarioArtifactBasename_FailsClosedBeforeLaunch(
+            string basename)
         {
             string artifactDirectory = Path.Combine(
                 _root,
@@ -779,7 +783,7 @@ namespace FEBuilderGBA.Tests.Unit
             File.WriteAllText(
                 _scenario,
                 "{\"schemaVersion\":1,\"runFrames\":1,\"assertions\":[],"
-                    + "\"screenshot\":{\"basename\":\"../outside.png\"}}");
+                    + "\"screenshot\":{\"basename\":\"" + basename + "\"}}");
             bool launched = false;
             var operations = Operations(
                 (cmd, args, cwd, timeoutMs) =>
@@ -870,11 +874,15 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("invalid artifact path", result.Stdout);
         }
 
-        [Fact]
-        public void PathShapedRunnerArtifactBasename_EmitsHarnessError()
+        [Theory]
+        [InlineData("../outside.png")]
+        [InlineData("result.json.")]
+        [InlineData("NUL.png")]
+        public void UnsafeRunnerArtifactBasename_EmitsHarnessError(
+            string basename)
         {
-            const string invalidArtifactResult =
-                "{\"artifact\":{\"basename\":\"../outside.png\",\"written\":true},"
+            string invalidArtifactResult =
+                "{\"artifact\":{\"basename\":\"" + basename + "\",\"written\":true},"
                 + "\"exitCode\":0,\"resultSchemaVersion\":1,\"status\":\"pass\"}";
             string artifactDirectory = Path.Combine(
                 _root,
