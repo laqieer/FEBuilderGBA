@@ -1199,6 +1199,16 @@ def test_setuptools_shim_is_narrow_and_source_preserving():
 @pytest.mark.skipif(os.name != "nt", reason="MinGW shim is Windows-only")
 def test_setuptools_shim_applies_exact_mingw_dllimport_overlay(tmp_path):
     marker = tmp_path / "dllimport.marker"
+    stub_dir = tmp_path / "stub"
+    stub_dir.mkdir()
+    (stub_dir / "cffi.py").write_text(
+        "class FFI:\n"
+        "    def __init__(self):\n"
+        "        self._assigned_source = None\n"
+        "    def set_source(self, module_name, source, *args, **kwargs):\n"
+        "        self._assigned_source = (module_name, source, '.c', kwargs)\n",
+        encoding="utf-8",
+    )
     source = (
         "\n#define static\n"
         "#define inline\n"
@@ -1207,6 +1217,7 @@ def test_setuptools_shim_applies_exact_mingw_dllimport_overlay(tmp_path):
     )
     code = (
         "import cffi, os\n"
+        f"assert os.path.samefile(cffi.__file__, {str(stub_dir / 'cffi.py')!r})\n"
         f"source = {source!r}\n"
         "ffi = cffi.FFI()\n"
         "ffi.set_source('mgba._pylib', source)\n"
@@ -1218,7 +1229,9 @@ def test_setuptools_shim_applies_exact_mingw_dllimport_overlay(tmp_path):
         "encoding='ascii').read(), end='')\n"
     )
     env = dict(os.environ)
-    env["PYTHONPATH"] = os.path.dirname(SETUPTOOLS_SHIM)
+    env["PYTHONPATH"] = os.pathsep.join(
+        (os.path.dirname(SETUPTOOLS_SHIM), str(stub_dir))
+    )
     build_temp = tmp_path / "setuptools-temp"
     build_temp.mkdir()
     env["FEBUILDERGBA_MGBA_SETUPTOOLS_TEMP"] = str(build_temp)
