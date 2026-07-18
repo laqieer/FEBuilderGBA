@@ -1019,7 +1019,7 @@ def playtest_cmd(
     global_rom = ctx.obj.get("rom_path", "")
     timeout_ms = None
     if timeout_value is not None:
-        if not timeout_value.isdigit():
+        if not timeout_value.isascii() or not timeout_value.isdigit():
             raise PlaytestUsageError(
                 "--timeout must be an integer from 1000 through 3600000"
             )

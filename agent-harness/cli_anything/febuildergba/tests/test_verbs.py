@@ -343,6 +343,7 @@ class TestPlaytestClick:
         [
             ["playtest", "--timeout=999"],
             ["playtest", "--timeout=not-a-number"],
+            ["playtest", "--timeout=²"],
             ["playtest", "--rom", "missing.gba", "--scenario", "missing.json"],
             ["playtest", "--unknown"],
             ["playtest", "--scenario"],
