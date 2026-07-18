@@ -510,9 +510,9 @@ namespace FEBuilderGBA.CLI
                 return false;
             }
 
-            int inspected = Math.Min(
-                total,
-                PlaytestMaximumScenarioInspectionBytes);
+            if (total > PlaytestMaximumScenarioInspectionBytes)
+                return false;
+            int inspected = total;
             try
             {
                 using JsonDocument document = JsonDocument.Parse(
@@ -565,7 +565,7 @@ namespace FEBuilderGBA.CLI
             }
             catch (DecoderFallbackException)
             {
-                return true;
+                return false;
             }
             return TryRecoverScenarioScreenshotBasenames(
                 text,

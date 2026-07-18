@@ -779,6 +779,93 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
+        public void OversizedScenarioWithArtifactOutput_FailsClosedBeforeLaunch()
+        {
+            string artifactDirectory = Path.Combine(
+                _root,
+                "oversized-csharp-artifacts");
+            Directory.CreateDirectory(artifactDirectory);
+            string outPath = Path.Combine(artifactDirectory, "shot.png");
+            File.WriteAllBytes(outPath, new byte[] { 7, 8, 9 });
+            byte[] prefix = System.Text.Encoding.UTF8.GetBytes(
+                "{\"padding\":\"");
+            byte[] suffix = System.Text.Encoding.UTF8.GetBytes(
+                "\",\"screenshot\":{\"basename\":\"shot.png\"}}");
+            byte[] data = new byte[
+                CliProgram.PlaytestMaximumScenarioInspectionBytes
+                + suffix.Length
+                + 1];
+            Buffer.BlockCopy(prefix, 0, data, 0, prefix.Length);
+            Array.Fill(
+                data,
+                (byte)'x',
+                prefix.Length,
+                data.Length - prefix.Length - suffix.Length);
+            Buffer.BlockCopy(
+                suffix,
+                0,
+                data,
+                data.Length - suffix.Length,
+                suffix.Length);
+            File.WriteAllBytes(_scenario, data);
+            bool launched = false;
+            var operations = Operations(
+                (cmd, args, cwd, timeoutMs) =>
+                {
+                    launched = true;
+                    return Result(0, PassJson);
+                },
+                resolvePhysicalPath: CliProgram.ResolvePhysicalPath);
+
+            var result = Run(
+                RunArgs(
+                    "--out=" + outPath,
+                    "--artifact-dir=" + artifactDirectory),
+                operations);
+
+            Assert.Equal(1, result.Code);
+            Assert.False(launched);
+            Assert.Contains("cannot be safely inspected", result.Stdout);
+            Assert.Equal(new byte[] { 7, 8, 9 }, File.ReadAllBytes(outPath));
+        }
+
+        [Fact]
+        public void InvalidUtf8ScenarioWithArtifactOutput_FailsClosedBeforeLaunch()
+        {
+            string artifactDirectory = Path.Combine(
+                _root,
+                "invalid-utf8-csharp-artifacts");
+            Directory.CreateDirectory(artifactDirectory);
+            string outPath = Path.Combine(artifactDirectory, "shot.png");
+            File.WriteAllBytes(outPath, new byte[] { 7, 8, 9 });
+            byte[] prefix = System.Text.Encoding.UTF8.GetBytes(
+                "{\"screenshot\":{\"basename\":\"shot.png\"}},");
+            byte[] data = new byte[prefix.Length + 1];
+            Buffer.BlockCopy(prefix, 0, data, 0, prefix.Length);
+            data[data.Length - 1] = 0xFF;
+            File.WriteAllBytes(_scenario, data);
+            bool launched = false;
+            var operations = Operations(
+                (cmd, args, cwd, timeoutMs) =>
+                {
+                    launched = true;
+                    return Result(0, PassJson);
+                },
+                resolvePhysicalPath: CliProgram.ResolvePhysicalPath);
+
+            var result = Run(
+                RunArgs(
+                    "--out=" + outPath,
+                    "--artifact-dir=" + artifactDirectory),
+                operations);
+
+            Assert.Equal(1, result.Code);
+            Assert.False(launched);
+            Assert.Contains("cannot be safely inspected", result.Stdout);
+            Assert.Equal(new byte[] { 7, 8, 9 }, File.ReadAllBytes(outPath));
+        }
+
+        [Fact]
         public void PosixLaunchUsesProcessGroupWorker()
         {
             string capturedCommand = null;
