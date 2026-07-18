@@ -30,6 +30,7 @@ namespace FEBuilderGBA.Tests.Unit
                 "febuildergba_playtest");
             Directory.CreateDirectory(package);
             File.WriteAllText(Path.Combine(package, "__main__.py"), "");
+            File.WriteAllText(Path.Combine(package, "process_worker.py"), "");
             File.WriteAllText(
                 Path.Combine(_root, "gba-playtest", "scenario.schema.json"),
                 "{}");
@@ -775,6 +776,35 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.True(launched);
             Assert.Contains("\"status\":\"scenario_error\"", result.Stdout);
             Assert.Equal(result.Stdout, File.ReadAllText(outPath));
+        }
+
+        [Fact]
+        public void PosixLaunchUsesProcessGroupWorker()
+        {
+            string capturedCommand = null;
+            IReadOnlyList<string> capturedArgs = null;
+            var operations = Operations(
+                (cmd, args, cwd, timeoutMs) =>
+                {
+                    capturedCommand = cmd;
+                    capturedArgs = args;
+                    return Result(0, PassJson);
+                },
+                configuredPython: "/usr/bin/python3",
+                isWindows: false);
+
+            var result = Run(RunArgs(), operations);
+
+            Assert.Equal(0, result.Code);
+            Assert.NotNull(capturedArgs);
+            Assert.EndsWith(
+                Path.Combine(
+                    "febuildergba_playtest",
+                    "process_worker.py"),
+                capturedArgs[0]);
+            Assert.Equal(capturedCommand, capturedArgs[1]);
+            Assert.Equal("-m", capturedArgs[2]);
+            Assert.Equal("febuildergba_playtest", capturedArgs[3]);
         }
 
         [Fact]

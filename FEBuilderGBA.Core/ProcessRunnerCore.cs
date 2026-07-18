@@ -223,23 +223,24 @@ namespace FEBuilderGBA
             private bool _active;
 
             [DllImport("libc", SetLastError = true)]
-            private static extern int setpgid(int pid, int pgid);
+            private static extern int kill(int pid, int signal);
 
             [DllImport("libc", SetLastError = true)]
-            private static extern int kill(int pid, int signal);
+            private static extern int getpgid(int pid);
 
             internal PosixProcessGroupContainment(Process process)
             {
                 _processGroup = process.Id;
-                if (setpgid(_processGroup, _processGroup) == 0)
+                for (int attempt = 0; attempt < 100; attempt++)
                 {
-                    _active = true;
-                    return;
-                }
-                if (!TryWaitForExit(process, 0))
-                {
-                    throw new System.ComponentModel.Win32Exception(
-                        Marshal.GetLastWin32Error());
+                    if (TryWaitForExit(process, 0))
+                        return;
+                    if (getpgid(_processGroup) == _processGroup)
+                    {
+                        _active = true;
+                        return;
+                    }
+                    Thread.Sleep(1);
                 }
             }
 

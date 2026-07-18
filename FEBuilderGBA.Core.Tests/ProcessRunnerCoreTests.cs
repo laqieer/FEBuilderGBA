@@ -224,15 +224,23 @@ namespace FEBuilderGBA.Core.Tests
             }
             else
             {
-                scriptPath = Path.Combine(root, "spawn-child.sh");
-                string quotedPid = pidPath.Replace("'", "'\"'\"'");
-                File.WriteAllText(
-                    scriptPath,
-                    "sleep 30 &\n"
-                    + "child=$!\n"
-                    + $"printf '%s' \"$child\" > '{quotedPid}'\n");
-                command = "/bin/sh";
-                args = new[] { scriptPath };
+                command = "/usr/bin/python3";
+                if (!File.Exists(command))
+                {
+                    Directory.Delete(root, recursive: true);
+                    return;
+                }
+                string pythonPidPath = "'"
+                    + pidPath.Replace("\\", "\\\\").Replace("'", "\\'")
+                    + "'";
+                string code =
+                    "import os,pathlib,subprocess,sys;"
+                    + "os.setsid();"
+                    + "p=subprocess.Popen([sys.executable,'-c',"
+                    + "'import time;time.sleep(30)']);"
+                    + $"pathlib.Path({pythonPidPath}).write_text(str(p.pid))";
+                scriptPath = "";
+                args = new[] { "-c", code };
             }
 
             var stopwatch = Stopwatch.StartNew();

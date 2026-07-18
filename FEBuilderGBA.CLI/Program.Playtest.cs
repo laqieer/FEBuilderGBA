@@ -321,7 +321,25 @@ namespace FEBuilderGBA.CLI
             ProcessRunResult run = ProcessRunResult.NotStarted("No interpreter candidate started.");
             foreach (string interpreter in interpreters)
             {
-                run = operations.RunProcess(interpreter, runnerArgs, runnerRoot, timeoutMs);
+                IReadOnlyList<string> processArgs = runnerArgs;
+                if (!operations.IsWindows)
+                {
+                    var wrappedArgs = new List<string>
+                    {
+                        Path.Combine(
+                            runnerRoot,
+                            "febuildergba_playtest",
+                            "process_worker.py"),
+                        interpreter,
+                    };
+                    wrappedArgs.AddRange(runnerArgs);
+                    processArgs = wrappedArgs;
+                }
+                run = operations.RunProcess(
+                    interpreter,
+                    processArgs,
+                    runnerRoot,
+                    timeoutMs);
                 if (run.Started || !allowFallback)
                     break;
             }
