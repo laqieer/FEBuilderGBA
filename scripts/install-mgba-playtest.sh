@@ -380,7 +380,7 @@ fi
 MGBA_MINGW_LDFLAGS=""
 MGBA_MINGW_CMAKE_LINKER_ARGS=()
 if [ -n "${MSYSTEM:-}" ]; then
-    MGBA_MINGW_LDFLAGS="-Wl,--disable-high-entropy-va"
+    MGBA_MINGW_LDFLAGS="-Wl,--dynamicbase,--disable-high-entropy-va"
     MGBA_MINGW_CMAKE_LINKER_ARGS=(
         "-DCMAKE_SHARED_LINKER_FLAGS=${MGBA_MINGW_LDFLAGS}"
         "-DCMAKE_MODULE_LINKER_FLAGS=${MGBA_MINGW_LDFLAGS}"

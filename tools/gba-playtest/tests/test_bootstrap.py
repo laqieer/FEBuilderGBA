@@ -1197,7 +1197,11 @@ def test_build_script_verifies_repeated_fresh_mingw_imports():
 
 def test_build_script_bounds_mingw_pe_placement_without_disabling_aslr():
     text = _read(BUILD_SCRIPT)
-    assert 'MGBA_MINGW_LDFLAGS="-Wl,--disable-high-entropy-va"' in text
+    assert (
+        'MGBA_MINGW_LDFLAGS="'
+        '-Wl,--dynamicbase,--disable-high-entropy-va"'
+        in text
+    )
     for linker_kind in ("SHARED", "MODULE", "EXE"):
         assert (
             f'"-DCMAKE_{linker_kind}_LINKER_FLAGS=${{MGBA_MINGW_LDFLAGS}}"'
