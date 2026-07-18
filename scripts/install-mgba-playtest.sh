@@ -573,8 +573,8 @@ if [ -n "${MSYSTEM:-}" ]; then
     if [ "${#MGBA_DLLS[@]}" -ne 1 ]; then
         fail "Expected exactly one built libmgba DLL, found ${#MGBA_DLLS[@]}."
     fi
-    MGBA_PYLIB_NATIVE="$("${VENV_PY}" -c 'from importlib.metadata import distribution; import os, sys; d = distribution("mgba"); matches = [f for f in (d.files or ()) if f.name.startswith("_pylib") and f.suffix == ".pyd"]; len(matches) == 1 or sys.exit(2); print(os.path.abspath(os.fspath(d.locate_file(matches[0]))))')" \
-        || fail "Could not resolve exactly one installed mGBA Python extension from wheel metadata."
+    MGBA_PYLIB_NATIVE="$("${VENV_PY}" -c 'from importlib.machinery import PathFinder; from pathlib import Path; import os, sys; spec = PathFinder.find_spec("mgba"); roots = list(spec.submodule_search_locations or ()) if spec else []; len(roots) == 1 or sys.exit(2); matches = list(Path(roots[0]).glob("_pylib*.pyd")); len(matches) == 1 or sys.exit(3); print(os.path.abspath(os.fspath(matches[0])))')" \
+        || fail "Could not resolve exactly one active installed mGBA Python extension."
     MGBA_PYLIB="$(cygpath -u "${MGBA_PYLIB_NATIVE}")" \
         || fail "Could not convert the installed mGBA Python extension path."
     if [ -L "${MGBA_PYLIB}" ] || [ ! -f "${MGBA_PYLIB}" ]; then

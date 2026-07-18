@@ -1212,10 +1212,14 @@ def test_build_script_bounds_mingw_pe_placement_without_disabling_aslr():
     assert "HIGH_ENTROPY_VA|High Entropy Virtual Addresses" in text
     assert "DYNAMIC_BASE|Dynamic base" in text
     assert "require_cmd \"objdump\"" in text
-    assert "from importlib.metadata import distribution" in text
-    assert 'distribution("mgba")' in text
-    assert "os.path.abspath(os.fspath(d.locate_file(matches[0])))" in text
-    assert "d.locate_file(matches[0]).resolve()" not in text
+    assert "from importlib.machinery import PathFinder" in text
+    assert 'PathFinder.find_spec("mgba")' in text
+    assert 'Path(roots[0]).glob("_pylib*.pyd")' in text
+    assert "os.path.abspath(os.fspath(matches[0]))" in text
+    assert ".resolve()" not in text[
+        text.index("MGBA_PYLIB_NATIVE="):
+        text.index("MGBA_PYLIB=", text.index("MGBA_PYLIB_NATIVE="))
+    ]
     assert 'MGBA_PYLIB="$(cygpath -u "${MGBA_PYLIB_NATIVE}")"' in text
 
 
