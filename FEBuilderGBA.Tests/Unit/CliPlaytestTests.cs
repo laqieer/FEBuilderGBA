@@ -732,8 +732,49 @@ namespace FEBuilderGBA.Tests.Unit
 
             Assert.Equal(1, result.Code);
             Assert.False(launched);
-            Assert.Contains("cannot be safely inspected", result.Stdout);
+            Assert.Contains("screenshot artifact", result.Stdout);
             Assert.Equal(new byte[] { 7, 8, 9 }, File.ReadAllBytes(outPath));
+        }
+
+        [Fact]
+        public void MalformedScenarioWithUnrelatedOutput_PersistsScenarioError()
+        {
+            const string scenarioError =
+                "{\"exitCode\":1,\"note\":\"invalid JSON\","
+                + "\"resultSchemaVersion\":1,\"status\":\"scenario_error\"}";
+            string artifactDirectory = Path.Combine(
+                _root,
+                "malformed-unrelated-artifacts");
+            Directory.CreateDirectory(artifactDirectory);
+            string outPath = Path.Combine(_root, "malformed-result.json");
+            File.WriteAllText(
+                _scenario,
+                "{\"screenshot\":{\"basename\":\"shot.png\"},");
+            bool launched = false;
+            var operations = Operations(
+                (cmd, args, cwd, timeoutMs) =>
+                {
+                    launched = true;
+                    int outIndex = args.ToList().IndexOf("--out");
+                    Assert.True(outIndex >= 0);
+                    File.WriteAllText(
+                        args[outIndex + 1],
+                        scenarioError + "\n",
+                        new System.Text.UTF8Encoding(false));
+                    return Result(1, scenarioError);
+                },
+                resolvePhysicalPath: CliProgram.ResolvePhysicalPath);
+
+            var result = Run(
+                RunArgs(
+                    "--out=" + outPath,
+                    "--artifact-dir=" + artifactDirectory),
+                operations);
+
+            Assert.Equal(1, result.Code);
+            Assert.True(launched);
+            Assert.Contains("\"status\":\"scenario_error\"", result.Stdout);
+            Assert.Equal(result.Stdout, File.ReadAllText(outPath));
         }
 
         [Fact]

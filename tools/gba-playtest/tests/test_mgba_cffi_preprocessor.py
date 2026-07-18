@@ -1199,7 +1199,7 @@ def test_bounded_subprocess_terminates_on_pipe_overflow(
     script = (
         "import sys,time;"
         f"stream=sys.{target}.buffer;"
-        "stream.write(b'x'*1048576);stream.flush();time.sleep(30)"
+        "stream.write(b'x'*1025);stream.flush();time.sleep(30)"
     )
     with pytest.raises(wrapper.PreprocessorError, match=message):
         wrapper._run_bounded_subprocess([sys.executable, "-c", script])
@@ -1219,139 +1219,24 @@ def test_bounded_subprocess_preserves_both_streams():
     assert completed.stderr == b"err"
 
 
-def test_bounded_subprocess_retains_resistant_child(monkeypatch):
-    monkeypatch.setattr(wrapper, "MAX_PREPROCESSED_BYTES", 1024)
-    retained = []
-
-    def fake_retain(process, threads):
-        retained.append(process)
-        process.kill()
-        process.wait()
-        for thread in threads:
-            thread.join(timeout=5)
-
-    monkeypatch.setattr(
-        wrapper,
-        "_terminate_preprocessor",
-        lambda process: False,
-    )
-    monkeypatch.setattr(
-        wrapper,
-        "_retain_preprocessor_for_reaping",
-        fake_retain,
-    )
-    script = (
-        "import sys,time;"
-        "sys.stdout.buffer.write(b'x'*1048576);"
-        "sys.stdout.buffer.flush();time.sleep(30)"
-    )
-    with pytest.raises(wrapper.PreprocessorError, match="reaper retained"):
-        wrapper._run_bounded_subprocess([sys.executable, "-c", script])
-    assert len(retained) == 1
+def test_bounded_subprocess_timeout_is_static(monkeypatch):
+    monkeypatch.setattr(wrapper, "MAX_PREPROCESSOR_SECONDS", 0.1)
+    with pytest.raises(wrapper.PreprocessorError, match="time bound"):
+        wrapper._run_bounded_subprocess(
+            [sys.executable, "-c", "import time;time.sleep(30)"]
+        )
 
 
-def test_preprocessor_reaper_does_not_wait_forever_for_stuck_drain(
-    monkeypatch
-):
-    monkeypatch.setattr(
-        wrapper,
-        "PREPROCESSOR_REAPER_JOIN_ATTEMPTS",
-        2,
-    )
-    monkeypatch.setattr(
-        wrapper,
-        "PREPROCESSOR_REAPER_JOIN_TIMEOUT_SECONDS",
-        0.01,
-    )
-    monkeypatch.setattr(
-        wrapper,
-        "PREPROCESSOR_REAPER_BACKOFF_SECONDS",
-        0.01,
-    )
+def test_bounded_subprocess_maps_tree_termination_failure(monkeypatch):
+    def fail(*args, **kwargs):
+        raise wrapper.ProcessTerminationError("tree resisted cleanup")
 
-    class ExitedProcess:
-        def poll(self):
-            return 0
-
-    release = wrapper.threading.Event()
-    stuck = wrapper.threading.Thread(
-        target=release.wait,
-        daemon=True,
-    )
-    stuck.start()
-    process = ExitedProcess()
-    wrapper._retain_preprocessor_for_reaping(process, (stuck,))
-
-    deadline = wrapper.threading.Event()
-    for _ in range(100):
-        with wrapper._RETAINED_PREPROCESSORS_LOCK:
-            retained = process in wrapper._RETAINED_PREPROCESSORS
-        if not retained:
-            break
-        deadline.wait(0.01)
-    release.set()
-    stuck.join(timeout=1)
-
-    assert retained is False
-
-
-def test_preprocessor_reaper_bounds_resistant_process(monkeypatch):
-    monkeypatch.setattr(
-        wrapper,
-        "PREPROCESSOR_REAPER_TERMINATION_ATTEMPTS",
-        2,
-    )
-    monkeypatch.setattr(
-        wrapper,
-        "PREPROCESSOR_REAPER_TERMINATION_TIMEOUT_SECONDS",
-        0.01,
-    )
-    monkeypatch.setattr(
-        wrapper,
-        "PREPROCESSOR_REAPER_BACKOFF_SECONDS",
-        0.01,
-    )
-
-    class Pipe:
-        def __init__(self):
-            self.closed = False
-
-        def close(self):
-            self.closed = True
-
-    class ResistantProcess:
-        def __init__(self):
-            self.stdout = Pipe()
-            self.stderr = Pipe()
-            self.kill_calls = 0
-
-        def poll(self):
-            return None
-
-        def kill(self):
-            self.kill_calls += 1
-
-        def terminate(self):
-            raise AssertionError("kill succeeds, so terminate is not used")
-
-        def wait(self, timeout=None):
-            raise wrapper.subprocess.TimeoutExpired("fake", timeout)
-
-    process = ResistantProcess()
-    wrapper._retain_preprocessor_for_reaping(process, ())
-
-    deadline = wrapper.threading.Event()
-    for _ in range(100):
-        with wrapper._RETAINED_PREPROCESSORS_LOCK:
-            retained = process in wrapper._RETAINED_PREPROCESSORS
-        if not retained:
-            break
-        deadline.wait(0.01)
-
-    assert retained is False
-    assert process.kill_calls == 2
-    assert process.stdout.closed is True
-    assert process.stderr.closed is True
+    monkeypatch.setattr(wrapper, "run_bounded", fail)
+    with pytest.raises(
+        wrapper.PreprocessorError,
+        match="process tree did not terminate cleanly",
+    ):
+        wrapper._run_bounded_subprocess(["cc", "-E", "input.h"])
 
 
 def test_successful_preprocessor_output_size_is_bounded(monkeypatch, capsysbinary):

@@ -1,5 +1,7 @@
 using System;
+using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using Xunit;
 
 namespace FEBuilderGBA.Core.Tests
@@ -187,6 +189,89 @@ namespace FEBuilderGBA.Core.Tests
                 backoffMs: 0);
             Assert.True(succeeded);
             Assert.Equal(2, successAttempts);
+        }
+
+        [Fact]
+        public void Run_ParentExitStillTerminatesDescendantHoldingPipes()
+        {
+            string root = Path.Combine(
+                Path.GetTempPath(),
+                $"febuildergba_process_tree_{Guid.NewGuid():N}");
+            Directory.CreateDirectory(root);
+            string pidPath = Path.Combine(root, "child.pid");
+            string scriptPath;
+            string command;
+            string[] args;
+            if (OperatingSystem.IsWindows())
+            {
+                scriptPath = Path.Combine(root, "spawn-child.ps1");
+                string quotedPid = pidPath.Replace("'", "''");
+                File.WriteAllText(
+                    scriptPath,
+                    "$child = Start-Process -FilePath powershell.exe "
+                    + "-ArgumentList '-NoProfile','-Command',"
+                    + "'Start-Sleep -Seconds 30' -NoNewWindow -PassThru\n"
+                    + $"[IO.File]::WriteAllText('{quotedPid}', [string]$child.Id)\n");
+                command = "powershell.exe";
+                args = new[]
+                {
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    scriptPath,
+                };
+            }
+            else
+            {
+                scriptPath = Path.Combine(root, "spawn-child.sh");
+                string quotedPid = pidPath.Replace("'", "'\"'\"'");
+                File.WriteAllText(
+                    scriptPath,
+                    "sleep 30 &\n"
+                    + "child=$!\n"
+                    + $"printf '%s' \"$child\" > '{quotedPid}'\n");
+                command = "/bin/sh";
+                args = new[] { scriptPath };
+            }
+
+            var stopwatch = Stopwatch.StartNew();
+            ProcessRunResult result = ProcessRunnerCore.Run(
+                command,
+                args,
+                root,
+                30_000,
+                1024);
+            stopwatch.Stop();
+
+            Assert.True(result.Started, result.ErrorMessage);
+            Assert.False(result.TimedOut, result.ErrorMessage);
+            Assert.False(result.TerminationFailed, result.ErrorMessage);
+            Assert.Equal(0, result.ExitCode);
+            Assert.True(File.Exists(pidPath), "Parent did not record child PID.");
+            int childPid = int.Parse(File.ReadAllText(pidPath));
+            bool alive = true;
+            for (int attempt = 0; attempt < 100; attempt++)
+            {
+                try
+                {
+                    using Process child = Process.GetProcessById(childPid);
+                    alive = !child.HasExited;
+                }
+                catch (ArgumentException)
+                {
+                    alive = false;
+                }
+                if (!alive)
+                    break;
+                Thread.Sleep(10);
+            }
+            Assert.False(alive, "Descendant outlived ProcessRunnerCore.");
+            Assert.True(
+                stopwatch.Elapsed < TimeSpan.FromSeconds(10),
+                $"Process tree cleanup took {stopwatch.Elapsed}.");
+
+            Directory.Delete(root, recursive: true);
         }
     }
 }

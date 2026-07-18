@@ -1,4 +1,4 @@
-"""Incremental, bounded subprocess capture for native proof drivers."""
+"""Incremental, bounded subprocess capture for native build/proof drivers."""
 
 from __future__ import annotations
 
@@ -24,6 +24,20 @@ class BoundedProcessError(RuntimeError):
 
 class ProcessOutputLimitError(BoundedProcessError):
     """A child exceeded its stdout or stderr capture bound."""
+
+    def __init__(self, streams):
+        if isinstance(streams, str):
+            self.streams = tuple(
+                stream
+                for stream in ("stdout", "stderr")
+                if stream in streams
+            )
+            super().__init__(streams)
+            return
+        self.streams = tuple(streams)
+        super().__init__(
+            f"process {'/'.join(self.streams)} exceeded the capture limit"
+        )
 
 
 class ProcessTimeoutError(BoundedProcessError):
@@ -169,8 +183,9 @@ class _Capture:
 
 def _drain(pipe, capture: _Capture, stop, errors) -> None:
     try:
+        read_chunk = getattr(pipe, "read1", pipe.read)
         while True:
-            chunk = pipe.read(PIPE_CHUNK_BYTES)
+            chunk = read_chunk(PIPE_CHUNK_BYTES)
             if not chunk:
                 return
             capture.append(chunk)
@@ -359,9 +374,7 @@ def run_bounded(
                 streams.append("stdout")
             if stderr.exceeded:
                 streams.append("stderr")
-            raise ProcessOutputLimitError(
-                f"process {'/'.join(streams)} exceeded the capture limit"
-            )
+            raise ProcessOutputLimitError(streams)
         if timed_out:
             raise ProcessTimeoutError(
                 "process exceeded its wall-clock timeout"

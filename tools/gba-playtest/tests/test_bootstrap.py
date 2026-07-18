@@ -1369,6 +1369,7 @@ def test_cffi_wrapper_is_dependency_free_and_never_uses_a_shell():
             imports.add(node.module.split(".")[0])
     allowed = {
         "__future__",
+        "bounded_process",
         "os",
         "shlex",
         "subprocess",

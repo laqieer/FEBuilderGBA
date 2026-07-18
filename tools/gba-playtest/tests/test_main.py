@@ -73,6 +73,18 @@ def test_non_utf8_scenario_rejected(tmp_path, capsys):
     assert code == 1
 
 
+def test_invalid_collision_path_defers_to_scenario_validation():
+    assert cli._paths_collide("result.json", "\x00") is False
+
+
+def test_option_token_cannot_be_consumed_as_an_option_value(capsys):
+    code = cli.main(["--rom", "--check", "--scenario=x"])
+    result = _one_json(capsys)
+    assert code == 1
+    assert result["status"] == "harness_error"
+    assert "missing value" in result["note"]
+
+
 def test_deeply_nested_scenario_is_scenario_error(tmp_path, capsys):
     rom = tmp_path / "rom.gba"
     rom.write_bytes(b"\x00" * 0x200)

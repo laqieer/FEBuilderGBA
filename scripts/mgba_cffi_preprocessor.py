@@ -128,8 +128,21 @@ import shlex
 import subprocess
 import sys
 import tempfile
-import threading
 from typing import List, Optional, Sequence
+
+TOOL_DIR = os.path.realpath(
+    os.path.join(os.path.dirname(__file__), "..", "tools", "gba-playtest")
+)
+if TOOL_DIR not in sys.path:
+    sys.path.insert(0, TOOL_DIR)
+
+from bounded_process import (  # noqa: E402
+    BoundedProcessError,
+    ProcessOutputLimitError,
+    ProcessTerminationError,
+    ProcessTimeoutError,
+    run_bounded,
+)
 
 # --- Fixed, documented contract -------------------------------------------
 
@@ -178,14 +191,7 @@ MINGW_WINVER_DEFINE = "-D_WIN32_WINNT=0x0600"
 MAX_BUILDER_H_BYTES = 1_048_576
 MAX_PREPROCESSED_BYTES = 64 * 1024 * 1024
 MAX_PREPROCESSOR_STDERR_BYTES = 8 * 1024 * 1024
-PREPROCESSOR_PIPE_CHUNK_BYTES = 64 * 1024
-PREPROCESSOR_REAPER_JOIN_ATTEMPTS = 3
-PREPROCESSOR_REAPER_JOIN_TIMEOUT_SECONDS = 1.0
-PREPROCESSOR_REAPER_BACKOFF_SECONDS = 1.0
-PREPROCESSOR_REAPER_TERMINATION_ATTEMPTS = 3
-PREPROCESSOR_REAPER_TERMINATION_TIMEOUT_SECONDS = 1.0
-_RETAINED_PREPROCESSORS = set()
-_RETAINED_PREPROCESSORS_LOCK = threading.Lock()
+MAX_PREPROCESSOR_SECONDS = 300
 MAX_OPAQUE_COMPILER_SCALAR_TYPEDEFS = 64
 MAX_MINGW_INLINE_BLOCKS = 16_384
 MAX_MINGW_INLINE_BLOCK_LINES = 4096
@@ -1857,208 +1863,36 @@ def _filter_mingw_preprocessed_sources(
     return b"".join(kept)
 
 
-class _BoundedPipeCapture:
-    def __init__(self, limit: int):
-        self._limit = limit
-        self._data = bytearray()
-        self.exceeded = False
-
-    def append(self, chunk: bytes) -> None:
-        remaining = max(0, self._limit - len(self._data))
-        if remaining:
-            self._data.extend(chunk[:remaining])
-        if len(chunk) > remaining:
-            self.exceeded = True
-
-    def value(self) -> bytes:
-        return bytes(self._data)
-
-
-def _drain_preprocessor_pipe(
-    pipe,
-    capture: _BoundedPipeCapture,
-    stop: threading.Event,
-    errors: List[BaseException],
-) -> None:
-    try:
-        while True:
-            chunk = pipe.read(PREPROCESSOR_PIPE_CHUNK_BYTES)
-            if not chunk:
-                return
-            capture.append(chunk)
-            if capture.exceeded:
-                stop.set()
-    except (OSError, ValueError) as exc:
-        errors.append(exc)
-        stop.set()
-    finally:
-        try:
-            pipe.close()
-        except OSError:
-            pass
-
-
-def _signal_preprocessor_termination(process: subprocess.Popen) -> None:
-    try:
-        process.kill()
-        return
-    except OSError:
-        pass
-    try:
-        process.terminate()
-    except OSError:
-        pass
-
-
-def _terminate_preprocessor(process: subprocess.Popen) -> bool:
-    if process.poll() is not None:
-        return True
-    _signal_preprocessor_termination(process)
-    try:
-        process.wait(timeout=5)
-        return True
-    except subprocess.TimeoutExpired:
-        return False
-
-
-def _retain_preprocessor_for_reaping(
-    process: subprocess.Popen,
-    drain_threads,
-) -> None:
-    with _RETAINED_PREPROCESSORS_LOCK:
-        if process in _RETAINED_PREPROCESSORS:
-            return
-        _RETAINED_PREPROCESSORS.add(process)
-
-    def reap() -> None:
-        try:
-            for attempt in range(
-                PREPROCESSOR_REAPER_TERMINATION_ATTEMPTS
-            ):
-                if process.poll() is not None:
-                    break
-                _signal_preprocessor_termination(process)
-                try:
-                    process.wait(
-                        timeout=(
-                            PREPROCESSOR_REAPER_TERMINATION_TIMEOUT_SECONDS
-                        )
-                    )
-                except subprocess.TimeoutExpired:
-                    if (
-                        attempt + 1
-                        < PREPROCESSOR_REAPER_TERMINATION_ATTEMPTS
-                    ):
-                        threading.Event().wait(
-                            PREPROCESSOR_REAPER_BACKOFF_SECONDS
-                        )
-            if process.poll() is None:
-                for pipe in (
-                    getattr(process, "stdout", None),
-                    getattr(process, "stderr", None),
-                ):
-                    if pipe is None:
-                        continue
-                    try:
-                        pipe.close()
-                    except (OSError, ValueError):
-                        pass
-            for attempt in range(PREPROCESSOR_REAPER_JOIN_ATTEMPTS):
-                alive = [thread for thread in drain_threads if thread.is_alive()]
-                if not alive:
-                    break
-                for thread in alive:
-                    thread.join(
-                        timeout=PREPROCESSOR_REAPER_JOIN_TIMEOUT_SECONDS
-                    )
-                if (
-                    attempt + 1 < PREPROCESSOR_REAPER_JOIN_ATTEMPTS
-                    and any(thread.is_alive() for thread in drain_threads)
-                ):
-                    threading.Event().wait(
-                        PREPROCESSOR_REAPER_BACKOFF_SECONDS
-                    )
-        finally:
-            with _RETAINED_PREPROCESSORS_LOCK:
-                _RETAINED_PREPROCESSORS.discard(process)
-
-    threading.Thread(
-        target=reap,
-        name="febuildergba-preprocessor-reaper",
-        daemon=True,
-    ).start()
-
-
 def _run_bounded_subprocess(command: List[str]) -> subprocess.CompletedProcess:
     try:
-        process = subprocess.Popen(
+        return run_bounded(
             command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            cwd=None,
+            env=None,
+            timeout_seconds=MAX_PREPROCESSOR_SECONDS,
+            stdout_limit=MAX_PREPROCESSED_BYTES,
+            stderr_limit=MAX_PREPROCESSOR_STDERR_BYTES,
         )
-    except OSError as exc:
+    except ProcessOutputLimitError as exc:
+        if "stdout" in exc.streams:
+            raise PreprocessorError(
+                "preprocessed output exceeds the size bound"
+            ) from None
         raise PreprocessorError(
-            f"could not start preprocessor: {type(exc).__name__}"
-        ) from exc
-    stdout = _BoundedPipeCapture(MAX_PREPROCESSED_BYTES)
-    stderr = _BoundedPipeCapture(MAX_PREPROCESSOR_STDERR_BYTES)
-    stop = threading.Event()
-    errors: List[BaseException] = []
-    stdout_thread = threading.Thread(
-        target=_drain_preprocessor_pipe,
-        args=(process.stdout, stdout, stop, errors),
-        daemon=True,
-    )
-    stderr_thread = threading.Thread(
-        target=_drain_preprocessor_pipe,
-        args=(process.stderr, stderr, stop, errors),
-        daemon=True,
-    )
-    stdout_thread.start()
-    stderr_thread.start()
-
-    termination_retained = False
-    while process.poll() is None:
-        if stop.wait(0.01):
-            if not _terminate_preprocessor(process):
-                _retain_preprocessor_for_reaping(
-                    process,
-                    (stdout_thread, stderr_thread),
-                )
-                termination_retained = True
-            break
-
-    if termination_retained:
+            "preprocessor stderr exceeds the size bound"
+        ) from None
+    except ProcessTimeoutError:
         raise PreprocessorError(
-            "preprocessor termination did not complete; "
-            "a background reaper retained control"
-        )
-    returncode = process.wait()
-    stdout_thread.join(timeout=5)
-    stderr_thread.join(timeout=5)
-    if stdout_thread.is_alive() or stderr_thread.is_alive():
-        _retain_preprocessor_for_reaping(
-            process,
-            (stdout_thread, stderr_thread),
-        )
+            "preprocessor exceeded the time bound"
+        ) from None
+    except ProcessTerminationError:
         raise PreprocessorError(
-            "preprocessor output pipes did not close; "
-            "a background reaper retained control"
-        )
-    if errors:
+            "preprocessor process tree did not terminate cleanly"
+        ) from None
+    except BoundedProcessError as exc:
         raise PreprocessorError(
-            f"preprocessor output capture failed: {type(errors[0]).__name__}"
-        )
-    if stdout.exceeded:
-        raise PreprocessorError("preprocessed output exceeds the size bound")
-    if stderr.exceeded:
-        raise PreprocessorError("preprocessor stderr exceeds the size bound")
-    return subprocess.CompletedProcess(
-        command,
-        returncode,
-        stdout.value(),
-        stderr.value(),
-    )
+            f"preprocessor execution failed: {type(exc).__name__}"
+        ) from None
 
 
 def _run_real_preprocessor(

@@ -60,7 +60,7 @@ def test_bounded_process_terminates_on_stream_overflow(stream):
     script = (
         "import sys,time;"
         f"target=sys.{stream}.buffer;"
-        "target.write(b'x'*1048576);target.flush();time.sleep(30)"
+        "target.write(b'x'*1025);target.flush();time.sleep(30)"
     )
     started = time.monotonic()
     with pytest.raises(

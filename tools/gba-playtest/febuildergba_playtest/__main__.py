@@ -121,8 +121,11 @@ def _paths_collide(a: Optional[str], b: Optional[str]) -> bool:
             return True
     except OSError:
         pass
-    left = os.path.normcase(os.path.realpath(a))
-    right = os.path.normcase(os.path.realpath(b))
+    try:
+        left = os.path.normcase(os.path.realpath(a))
+        right = os.path.normcase(os.path.realpath(b))
+    except (OSError, ValueError):
+        return False
     if sys.platform == "darwin":
         left = left.casefold()
         right = right.casefold()
@@ -480,6 +483,8 @@ def _parse_args(argv: List[str]) -> Tuple[Dict[str, bool], Dict[str, str]]:
             if index + 1 >= count:
                 raise _UsageError("missing value for option")
             inline = argv[index + 1]
+            if inline.startswith("-"):
+                raise _UsageError("missing value for option")
             index += 2
         else:
             index += 1

@@ -15,7 +15,12 @@ from pathlib import Path
 import sys
 import tempfile
 
-from bounded_process import BoundedProcessError, run_bounded
+TEST_DIR = Path(__file__).resolve().parent
+TOOL_DIR = TEST_DIR.parent
+if str(TOOL_DIR) not in sys.path:
+    sys.path.insert(0, str(TOOL_DIR))
+
+from bounded_process import BoundedProcessError, run_bounded  # noqa: E402
 import run_real_mgba_proof as direct_proof
 from synthetic_gba import build_synthetic_rom, header_game_code, sha256_hex
 

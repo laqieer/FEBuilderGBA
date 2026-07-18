@@ -164,7 +164,7 @@ are rejected.
       "domain": "wram",
       "address": 0,
       "width": 8,
-      "maxStallFrames": 120,
+      "maxStallFrames": 3,
       "label": "event progress"
     }
   ],

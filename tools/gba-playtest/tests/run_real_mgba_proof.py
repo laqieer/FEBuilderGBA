@@ -15,7 +15,12 @@ from pathlib import Path
 import sys
 import tempfile
 
-from bounded_process import BoundedProcessError, run_bounded
+TEST_DIR = Path(__file__).resolve().parent
+TOOL_DIR = TEST_DIR.parent
+if str(TOOL_DIR) not in sys.path:
+    sys.path.insert(0, str(TOOL_DIR))
+
+from bounded_process import BoundedProcessError, run_bounded  # noqa: E402
 from synthetic_gba import (
     DEFAULT_MARKER,
     build_synthetic_rom,
@@ -24,7 +29,6 @@ from synthetic_gba import (
 )
 
 
-TOOL_DIR = Path(__file__).resolve().parents[1]
 REQUIRED_VERSION = "0.10.5"
 REQUIRED_COMMIT = "26b7884bc25a5933960f3cdcd98bac1ae14d42e2"
 MAX_PROCESS_OUTPUT = 1 << 20

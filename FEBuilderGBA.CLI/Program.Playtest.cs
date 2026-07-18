@@ -5,6 +5,7 @@ using System.IO;
 using System.Security;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using FEBuilderGBA;
 
 namespace FEBuilderGBA.CLI
@@ -37,6 +38,9 @@ namespace FEBuilderGBA.CLI
         internal const int PlaytestMaximumProcessOutputChars = 1_048_576;
         internal const int PlaytestMaximumScenarioInspectionBytes = 1_048_576;
         internal const int PlaytestMaximumArtifactBasenameLength = 128;
+        private const int PlaytestMaximumRawJsonKeyCandidates = 4096;
+        private const int PlaytestMaximumRawScreenshotObjects = 64;
+        private const int PlaytestMaximumRawScreenshotObjectChars = 4096;
 
         private static readonly IReadOnlyDictionary<string, int> PlaytestStatusExitCodes =
             new Dictionary<string, int>(StringComparer.Ordinal)
@@ -61,6 +65,12 @@ namespace FEBuilderGBA.CLI
                 "LPT1", "LPT2", "LPT3", "LPT4", "LPT5",
                 "LPT6", "LPT7", "LPT8", "LPT9",
             };
+        private static readonly Regex PlaytestRawJsonKeyRegex = new Regex(
+            "\"((?:\\\\.|[^\"\\\\]){1,255})\"\\s*:",
+            RegexOptions.CultureInvariant);
+        private static readonly Regex PlaytestRawJsonStringRegex = new Regex(
+            "\\s*\"((?:\\\\.|[^\"\\\\]){1,255})\"",
+            RegexOptions.CultureInvariant);
 
         static int RunPlaytest(Dictionary<string, string> argsDic)
         {
@@ -440,11 +450,13 @@ namespace FEBuilderGBA.CLI
             out List<string> basenames)
         {
             basenames = new List<string>();
+            byte[] data;
+            int total;
             try
             {
-                var data = new byte[
+                data = new byte[
                     PlaytestMaximumScenarioInspectionBytes + 1];
-                int total = 0;
+                total = 0;
                 using (var stream = new FileStream(
                     scenarioPath,
                     FileMode.Open,
@@ -462,11 +474,31 @@ namespace FEBuilderGBA.CLI
                         total += read;
                     }
                 }
-                if (total > PlaytestMaximumScenarioInspectionBytes)
-                    return false;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return false;
+            }
+            catch (IOException)
+            {
+                return false;
+            }
+            catch (NotSupportedException)
+            {
+                return false;
+            }
+            catch (SecurityException)
+            {
+                return false;
+            }
 
+            int inspected = Math.Min(
+                total,
+                PlaytestMaximumScenarioInspectionBytes);
+            try
+            {
                 using JsonDocument document = JsonDocument.Parse(
-                    new ReadOnlyMemory<byte>(data, 0, total),
+                    new ReadOnlyMemory<byte>(data, 0, inspected),
                     new JsonDocumentOptions
                     {
                         AllowTrailingCommas = false,
@@ -499,26 +531,144 @@ namespace FEBuilderGBA.CLI
                 }
                 return true;
             }
-            catch (UnauthorizedAccessException)
+            catch (JsonException)
             {
-                return false;
             }
-            catch (IOException)
+
+            string text;
+            try
             {
-                return false;
+                text = new UTF8Encoding(
+                    encoderShouldEmitUTF8Identifier: false,
+                    throwOnInvalidBytes: true).GetString(
+                        data,
+                        0,
+                        inspected);
+            }
+            catch (DecoderFallbackException)
+            {
+                return true;
+            }
+            return TryRecoverScenarioScreenshotBasenames(
+                text,
+                basenames);
+        }
+
+        private static bool TryRecoverScenarioScreenshotBasenames(
+            string text,
+            List<string> basenames)
+        {
+            int keyCandidates = 0;
+            int screenshotObjects = 0;
+            foreach (Match keyMatch in PlaytestRawJsonKeyRegex.Matches(text))
+            {
+                keyCandidates++;
+                if (keyCandidates > PlaytestMaximumRawJsonKeyCandidates)
+                    return false;
+                if (DecodeJsonStringFragment(keyMatch.Groups[1].Value)
+                    != "screenshot")
+                {
+                    continue;
+                }
+                screenshotObjects++;
+                if (screenshotObjects > PlaytestMaximumRawScreenshotObjects)
+                    return false;
+                if (!TryGetBoundedJsonObjectBody(
+                        text,
+                        keyMatch.Index + keyMatch.Length,
+                        out string body))
+                {
+                    return false;
+                }
+                if (body == null)
+                    continue;
+                foreach (Match bodyKey
+                    in PlaytestRawJsonKeyRegex.Matches(body))
+                {
+                    if (DecodeJsonStringFragment(
+                            bodyKey.Groups[1].Value) != "basename")
+                    {
+                        continue;
+                    }
+                    Match valueMatch = PlaytestRawJsonStringRegex.Match(
+                        body,
+                        bodyKey.Index + bodyKey.Length);
+                    if (!valueMatch.Success)
+                        continue;
+                    string basename = DecodeJsonStringFragment(
+                        valueMatch.Groups[1].Value);
+                    if (!string.IsNullOrEmpty(basename))
+                        basenames.Add(basename);
+                }
+            }
+            return true;
+        }
+
+        private static string DecodeJsonStringFragment(string fragment)
+        {
+            try
+            {
+                return JsonSerializer.Deserialize<string>(
+                    "\"" + fragment + "\"");
             }
             catch (JsonException)
             {
-                return false;
+                return null;
             }
-            catch (NotSupportedException)
+        }
+
+        private static bool TryGetBoundedJsonObjectBody(
+            string text,
+            int start,
+            out string body)
+        {
+            body = null;
+            int index = start;
+            while (index < text.Length && char.IsWhiteSpace(text[index]))
+                index++;
+            if (index >= text.Length || text[index] != '{')
+                return true;
+
+            int bodyStart = index + 1;
+            int limit = Math.Min(
+                text.Length,
+                bodyStart + PlaytestMaximumRawScreenshotObjectChars);
+            int depth = 1;
+            bool inString = false;
+            bool escaped = false;
+            for (index = bodyStart; index < limit; index++)
             {
-                return false;
+                char current = text[index];
+                if (inString)
+                {
+                    if (escaped)
+                        escaped = false;
+                    else if (current == '\\')
+                        escaped = true;
+                    else if (current == '"')
+                        inString = false;
+                    continue;
+                }
+                if (current == '"')
+                    inString = true;
+                else if (current == '{')
+                    depth++;
+                else if (current == '}')
+                {
+                    depth--;
+                    if (depth == 0)
+                    {
+                        body = text.Substring(
+                            bodyStart,
+                            index - bodyStart);
+                        return true;
+                    }
+                }
             }
-            catch (SecurityException)
-            {
+            if (limit < text.Length)
                 return false;
-            }
+            body = text.Substring(bodyStart, limit - bodyStart);
+            return true;
         }
 
         private static bool TryGetResultArtifactBasename(

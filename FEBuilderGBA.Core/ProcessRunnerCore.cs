@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -65,6 +66,208 @@ namespace FEBuilderGBA
         private static readonly object RetainedProcessLock = new object();
         private static readonly HashSet<Process> RetainedProcesses =
             new HashSet<Process>();
+
+        private interface IProcessContainment : IDisposable
+        {
+            bool Terminate();
+        }
+
+        private sealed class NoopProcessContainment : IProcessContainment
+        {
+            internal static readonly NoopProcessContainment Instance =
+                new NoopProcessContainment();
+
+            public bool Terminate() => true;
+            public void Dispose()
+            {
+            }
+        }
+
+        private sealed class WindowsJobContainment : IProcessContainment
+        {
+            private const uint JobObjectLimitKillOnJobClose = 0x00002000;
+            private const int JobObjectExtendedLimitInformation = 9;
+            private IntPtr _job;
+
+            [StructLayout(LayoutKind.Sequential)]
+            private struct JobObjectBasicLimitInformation
+            {
+                public long PerProcessUserTimeLimit;
+                public long PerJobUserTimeLimit;
+                public uint LimitFlags;
+                public UIntPtr MinimumWorkingSetSize;
+                public UIntPtr MaximumWorkingSetSize;
+                public uint ActiveProcessLimit;
+                public UIntPtr Affinity;
+                public uint PriorityClass;
+                public uint SchedulingClass;
+            }
+
+            [StructLayout(LayoutKind.Sequential)]
+            private struct IoCounters
+            {
+                public ulong ReadOperationCount;
+                public ulong WriteOperationCount;
+                public ulong OtherOperationCount;
+                public ulong ReadTransferCount;
+                public ulong WriteTransferCount;
+                public ulong OtherTransferCount;
+            }
+
+            [StructLayout(LayoutKind.Sequential)]
+            private struct JobObjectExtendedLimitInfo
+            {
+                public JobObjectBasicLimitInformation BasicLimitInformation;
+                public IoCounters IoInfo;
+                public UIntPtr ProcessMemoryLimit;
+                public UIntPtr JobMemoryLimit;
+                public UIntPtr PeakProcessMemoryUsed;
+                public UIntPtr PeakJobMemoryUsed;
+            }
+
+            [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+            private static extern IntPtr CreateJobObject(
+                IntPtr jobAttributes,
+                string name);
+
+            [DllImport("kernel32.dll", SetLastError = true)]
+            private static extern bool SetInformationJobObject(
+                IntPtr job,
+                int infoType,
+                IntPtr info,
+                uint infoLength);
+
+            [DllImport("kernel32.dll", SetLastError = true)]
+            private static extern bool AssignProcessToJobObject(
+                IntPtr job,
+                IntPtr process);
+
+            [DllImport("kernel32.dll", SetLastError = true)]
+            private static extern bool TerminateJobObject(
+                IntPtr job,
+                uint exitCode);
+
+            [DllImport("kernel32.dll")]
+            private static extern bool CloseHandle(IntPtr handle);
+
+            internal WindowsJobContainment(Process process)
+            {
+                _job = CreateJobObject(IntPtr.Zero, null);
+                if (_job == IntPtr.Zero)
+                    throw new System.ComponentModel.Win32Exception(
+                        Marshal.GetLastWin32Error());
+                try
+                {
+                    var info = new JobObjectExtendedLimitInfo();
+                    info.BasicLimitInformation.LimitFlags =
+                        JobObjectLimitKillOnJobClose;
+                    int size = Marshal.SizeOf<JobObjectExtendedLimitInfo>();
+                    IntPtr buffer = Marshal.AllocHGlobal(size);
+                    try
+                    {
+                        Marshal.StructureToPtr(info, buffer, false);
+                        if (!SetInformationJobObject(
+                                _job,
+                                JobObjectExtendedLimitInformation,
+                                buffer,
+                                (uint)size))
+                        {
+                            throw new System.ComponentModel.Win32Exception(
+                                Marshal.GetLastWin32Error());
+                        }
+                    }
+                    finally
+                    {
+                        Marshal.FreeHGlobal(buffer);
+                    }
+
+                    if (!AssignProcessToJobObject(
+                            _job,
+                            process.SafeHandle.DangerousGetHandle()))
+                    {
+                        if (TryWaitForExit(process, 0))
+                        {
+                            Dispose();
+                            return;
+                        }
+                        throw new System.ComponentModel.Win32Exception(
+                            Marshal.GetLastWin32Error());
+                    }
+                }
+                catch
+                {
+                    Dispose();
+                    throw;
+                }
+            }
+
+            public bool Terminate()
+            {
+                return _job == IntPtr.Zero
+                    || TerminateJobObject(_job, 1);
+            }
+
+            public void Dispose()
+            {
+                if (_job == IntPtr.Zero)
+                    return;
+                CloseHandle(_job);
+                _job = IntPtr.Zero;
+            }
+        }
+
+        private sealed class PosixProcessGroupContainment : IProcessContainment
+        {
+            private const int SigKill = 9;
+            private readonly int _processGroup;
+            private bool _active;
+
+            [DllImport("libc", SetLastError = true)]
+            private static extern int setpgid(int pid, int pgid);
+
+            [DllImport("libc", SetLastError = true)]
+            private static extern int kill(int pid, int signal);
+
+            internal PosixProcessGroupContainment(Process process)
+            {
+                _processGroup = process.Id;
+                if (setpgid(_processGroup, _processGroup) == 0)
+                {
+                    _active = true;
+                    return;
+                }
+                if (!TryWaitForExit(process, 0))
+                {
+                    throw new System.ComponentModel.Win32Exception(
+                        Marshal.GetLastWin32Error());
+                }
+            }
+
+            public bool Terminate()
+            {
+                if (!_active)
+                    return true;
+                if (kill(-_processGroup, SigKill) == 0)
+                    return true;
+                int error = Marshal.GetLastWin32Error();
+                return error == 3;
+            }
+
+            public void Dispose()
+            {
+                Terminate();
+                _active = false;
+            }
+        }
+
+        private static IProcessContainment CreateContainment(Process process)
+        {
+            if (OperatingSystem.IsWindows())
+                return new WindowsJobContainment(process);
+            if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
+                return new PosixProcessGroupContainment(process);
+            return NoopProcessContainment.Instance;
+        }
 
         private sealed class BoundedTextCapture
         {
@@ -143,10 +346,13 @@ namespace FEBuilderGBA
             }
         }
 
-        private static bool TryTerminateProcess(Process process)
+        private static bool TryTerminateProcess(
+            Process process,
+            IProcessContainment containment)
         {
+            bool treeTerminated = containment?.Terminate() ?? true;
             if (TryWaitForExit(process, 0))
-                return true;
+                return treeTerminated;
 
             try
             {
@@ -162,7 +368,7 @@ namespace FEBuilderGBA
             {
             }
             if (TryWaitForExit(process, 5000))
-                return true;
+                return treeTerminated;
 
             try
             {
@@ -177,10 +383,12 @@ namespace FEBuilderGBA
             catch (System.ComponentModel.Win32Exception)
             {
             }
-            return TryWaitForExit(process, 5000);
+            return TryWaitForExit(process, 5000) && treeTerminated;
         }
 
-        private static void RetainProcessForTermination(Process process)
+        private static void RetainProcessForTermination(
+            Process process,
+            IProcessContainment containment)
         {
             lock (RetainedProcessLock)
             {
@@ -193,7 +401,7 @@ namespace FEBuilderGBA
                 try
                 {
                     RetryTermination(
-                        () => TryTerminateProcess(process),
+                        () => TryTerminateProcess(process, containment),
                         TerminationReaperAttempts,
                         TerminationReaperBackoffMs);
                 }
@@ -203,6 +411,7 @@ namespace FEBuilderGBA
                     {
                         RetainedProcesses.Remove(process);
                     }
+                    containment?.Dispose();
                     process.Dispose();
                 }
             })
@@ -303,6 +512,7 @@ namespace FEBuilderGBA
                 }
 
                 var proc = new Process { StartInfo = psi };
+                IProcessContainment containment = null;
                 bool processRetained = false;
                 bool started = false;
                 try
@@ -318,6 +528,30 @@ namespace FEBuilderGBA
 
                     if (!started)
                         return ProcessRunResult.NotStarted($"Process.Start returned false for '{command}'.");
+
+                    try
+                    {
+                        containment = CreateContainment(proc);
+                    }
+                    catch (Exception ex)
+                    {
+                        TryTerminateProcess(
+                            proc,
+                            NoopProcessContainment.Instance);
+                        return new ProcessRunResult
+                        {
+                            Started = true,
+                            TimedOut = false,
+                            OutputLimitExceeded = false,
+                            TerminationFailed = false,
+                            ExitCode = -1,
+                            Stdout = "",
+                            Stderr = "",
+                            ErrorMessage =
+                                "Failed to establish process-tree containment: "
+                                + ex.GetType().Name + ".",
+                        };
+                    }
 
                     var stdout = new BoundedTextCapture(maximumOutputChars);
                     var stderr = new BoundedTextCapture(maximumOutputChars);
@@ -350,7 +584,9 @@ namespace FEBuilderGBA
                         if (Volatile.Read(ref outputLimitSignal) != 0)
                         {
                             outputLimitExceeded = true;
-                            terminationFailed = !TryTerminateProcess(proc);
+                            terminationFailed = !TryTerminateProcess(
+                                proc,
+                                containment);
                             break;
                         }
 
@@ -360,7 +596,9 @@ namespace FEBuilderGBA
                         if (remaining <= 0)
                         {
                             timedOut = true;
-                            terminationFailed = !TryTerminateProcess(proc);
+                            terminationFailed = !TryTerminateProcess(
+                                proc,
+                                containment);
                             break;
                         }
 
@@ -370,17 +608,26 @@ namespace FEBuilderGBA
 
                     if (terminationFailed)
                     {
-                        RetainProcessForTermination(proc);
+                        RetainProcessForTermination(proc, containment);
+                        containment = null;
                         processRetained = true;
                     }
                     else
                     {
                         proc.WaitForExit();
+                        containment?.Terminate();
                     }
 
                     bool streamsDrained = Task.WaitAll(
                         new[] { stdoutTask, stderrTask },
                         5000);
+                    if (!streamsDrained && !processRetained)
+                    {
+                        TryTerminateProcess(proc, containment);
+                        streamsDrained = Task.WaitAll(
+                            new[] { stdoutTask, stderrTask },
+                            5000);
+                    }
                     Exception stdoutError = streamsDrained
                         ? stdoutTask.Result
                         : null;
@@ -440,14 +687,17 @@ namespace FEBuilderGBA
                 {
                     if (!processRetained
                         && started
-                        && !TryWaitForExit(proc, 0)
-                        && !TryTerminateProcess(proc))
+                        && !TryTerminateProcess(proc, containment))
                     {
-                        RetainProcessForTermination(proc);
+                        RetainProcessForTermination(proc, containment);
+                        containment = null;
                         processRetained = true;
                     }
                     if (!processRetained)
+                    {
+                        containment?.Dispose();
                         proc.Dispose();
+                    }
                 }
             }
             catch (Exception ex)
