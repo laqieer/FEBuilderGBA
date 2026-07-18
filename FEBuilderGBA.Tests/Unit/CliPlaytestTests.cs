@@ -737,6 +737,70 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
+        public void InvalidScenarioArtifactPath_EmitsJsonWithoutLaunch()
+        {
+            string artifactDirectory = Path.Combine(
+                _root,
+                "invalid-scenario-artifact");
+            Directory.CreateDirectory(artifactDirectory);
+            string outPath = Path.Combine(_root, "invalid-scenario.json");
+            File.WriteAllText(
+                _scenario,
+                "{\"schemaVersion\":1,\"runFrames\":1,\"assertions\":[],"
+                    + "\"screenshot\":{\"basename\":\"\\u0000\"}}");
+            bool launched = false;
+            var operations = Operations(
+                (cmd, args, cwd, timeoutMs) =>
+                {
+                    launched = true;
+                    return Result(0, PassJson);
+                },
+                resolvePhysicalPath: CliProgram.ResolvePhysicalPath);
+
+            var result = Run(
+                RunArgs(
+                    "--out=" + outPath,
+                    "--artifact-dir=" + artifactDirectory),
+                operations);
+
+            Assert.Equal(1, result.Code);
+            Assert.False(launched);
+            Assert.Contains("invalid screenshot path", result.Stdout);
+        }
+
+        [Fact]
+        public void PathShapedScenarioArtifactBasename_FailsClosedBeforeLaunch()
+        {
+            string artifactDirectory = Path.Combine(
+                _root,
+                "path-shaped-scenario-artifact");
+            Directory.CreateDirectory(artifactDirectory);
+            string outPath = Path.Combine(_root, "path-shaped-scenario.json");
+            File.WriteAllText(
+                _scenario,
+                "{\"schemaVersion\":1,\"runFrames\":1,\"assertions\":[],"
+                    + "\"screenshot\":{\"basename\":\"../outside.png\"}}");
+            bool launched = false;
+            var operations = Operations(
+                (cmd, args, cwd, timeoutMs) =>
+                {
+                    launched = true;
+                    return Result(0, PassJson);
+                },
+                resolvePhysicalPath: CliProgram.ResolvePhysicalPath);
+
+            var result = Run(
+                RunArgs(
+                    "--out=" + outPath,
+                    "--artifact-dir=" + artifactDirectory),
+                operations);
+
+            Assert.Equal(1, result.Code);
+            Assert.False(launched);
+            Assert.Contains("invalid screenshot path", result.Stdout);
+        }
+
+        [Fact]
         public void ResultArtifactCollision_DoesNotOverwritePublishedArtifact()
         {
             const string artifactResult =
@@ -770,6 +834,74 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Equal(1, result.Code);
             Assert.Contains("screenshot artifact", result.Stdout);
             Assert.Equal(new byte[] { 1, 2, 3 }, File.ReadAllBytes(outPath));
+        }
+
+        [Fact]
+        public void InvalidRunnerArtifactPath_EmitsHarnessError()
+        {
+            const string invalidArtifactResult =
+                "{\"artifact\":{\"basename\":\"\\u0000\",\"written\":true},"
+                + "\"exitCode\":0,\"resultSchemaVersion\":1,\"status\":\"pass\"}";
+            string artifactDirectory = Path.Combine(
+                _root,
+                "invalid-runner-artifact");
+            Directory.CreateDirectory(artifactDirectory);
+            string outPath = Path.Combine(_root, "invalid-runner.json");
+            var operations = Operations(
+                (cmd, args, cwd, timeoutMs) =>
+                {
+                    int outIndex = args.ToList().IndexOf("--out");
+                    Assert.True(outIndex >= 0);
+                    File.WriteAllText(
+                        args[outIndex + 1],
+                        invalidArtifactResult + "\n",
+                        new System.Text.UTF8Encoding(false));
+                    return Result(0, invalidArtifactResult);
+                },
+                resolvePhysicalPath: CliProgram.ResolvePhysicalPath);
+
+            var result = Run(
+                RunArgs(
+                    "--out=" + outPath,
+                    "--artifact-dir=" + artifactDirectory),
+                operations);
+
+            Assert.Equal(1, result.Code);
+            Assert.Contains("invalid artifact path", result.Stdout);
+        }
+
+        [Fact]
+        public void PathShapedRunnerArtifactBasename_EmitsHarnessError()
+        {
+            const string invalidArtifactResult =
+                "{\"artifact\":{\"basename\":\"../outside.png\",\"written\":true},"
+                + "\"exitCode\":0,\"resultSchemaVersion\":1,\"status\":\"pass\"}";
+            string artifactDirectory = Path.Combine(
+                _root,
+                "path-shaped-runner-artifact");
+            Directory.CreateDirectory(artifactDirectory);
+            string outPath = Path.Combine(_root, "path-shaped-runner.json");
+            var operations = Operations(
+                (cmd, args, cwd, timeoutMs) =>
+                {
+                    int outIndex = args.ToList().IndexOf("--out");
+                    Assert.True(outIndex >= 0);
+                    File.WriteAllText(
+                        args[outIndex + 1],
+                        invalidArtifactResult + "\n",
+                        new System.Text.UTF8Encoding(false));
+                    return Result(0, invalidArtifactResult);
+                },
+                resolvePhysicalPath: CliProgram.ResolvePhysicalPath);
+
+            var result = Run(
+                RunArgs(
+                    "--out=" + outPath,
+                    "--artifact-dir=" + artifactDirectory),
+                operations);
+
+            Assert.Equal(1, result.Code);
+            Assert.Contains("invalid artifact path", result.Stdout);
         }
 
         [Fact]

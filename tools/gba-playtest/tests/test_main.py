@@ -322,6 +322,33 @@ def test_screenshot_recovery_candidate_count_is_bounded(tmp_path, capsys):
     assert not out.exists()
 
 
+def test_oversized_screenshot_object_fails_closed(tmp_path, capsys):
+    rom, scenario = _prepare_valid_inputs(tmp_path)
+    artifact_dir = tmp_path / "oversized-object-artifacts"
+    artifact_dir.mkdir()
+    artifact = artifact_dir / "shot.png"
+    artifact.write_bytes(b"png-proof")
+    scenario.write_text(
+        '{"screenshot":{"padding":"'
+        + "x" * (cli._RAW_SCREENSHOT_OBJECT_CHARS + 1)
+        + '","basename":"shot.png"},"assertions":[',
+        encoding="utf-8",
+    )
+
+    code = cli.main([
+        "--rom", str(rom),
+        "--scenario", str(scenario),
+        "--out", str(artifact),
+        "--artifact-dir", str(artifact_dir),
+    ])
+    result = _one_json(capsys)
+
+    assert code == 1
+    assert result["status"] == "harness_error"
+    assert "work limit" in result["note"]
+    assert artifact.read_bytes() == b"png-proof"
+
+
 # --- ROM read bounds -------------------------------------------------------
 
 

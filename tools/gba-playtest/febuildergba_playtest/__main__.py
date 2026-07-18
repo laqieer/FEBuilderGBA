@@ -409,6 +409,8 @@ def _bounded_object_body(text: str, start: int) -> Optional[str]:
             depth -= 1
             if depth == 0:
                 return text[body_start:index]
+    if limit < len(text):
+        raise _ScreenshotRecoveryLimit()
     return text[body_start:limit]
 
 

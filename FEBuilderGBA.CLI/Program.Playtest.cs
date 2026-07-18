@@ -36,6 +36,7 @@ namespace FEBuilderGBA.CLI
         internal const int PlaytestMaximumResultChars = 1_048_576;
         internal const int PlaytestMaximumProcessOutputChars = 1_048_576;
         internal const int PlaytestMaximumScenarioInspectionBytes = 1_048_576;
+        internal const int PlaytestMaximumArtifactBasenameLength = 128;
 
         private static readonly IReadOnlyDictionary<string, int> PlaytestStatusExitCodes =
             new Dictionary<string, int>(StringComparer.Ordinal)
@@ -173,13 +174,18 @@ namespace FEBuilderGBA.CLI
                         }
                         foreach (string screenshotBasename in screenshotBasenames)
                         {
-                            string screenshotPath =
-                                operations.ResolvePhysicalPath(
-                                    Path.Combine(
-                                        artifactDirectory,
-                                        screenshotBasename));
-                            if (screenshotPath == null)
-                                continue;
+                            if (!TryResolveArtifactPath(
+                                    operations,
+                                    artifactDirectory,
+                                    screenshotBasename,
+                                    out string screenshotPath))
+                            {
+                                return EmitPlaytestError(
+                                    "scenario contains an invalid screenshot path",
+                                    null,
+                                    stdout,
+                                    stderr);
+                            }
                             declaredScreenshotPaths.Add(screenshotPath);
                             if (PathsEqual(outPath, screenshotPath))
                             {
@@ -342,11 +348,16 @@ namespace FEBuilderGBA.CLI
                     resultJson,
                     out string artifactBasename))
             {
-                string artifactPath = operations.ResolvePhysicalPath(
-                    Path.Combine(
+                if (!TryResolveArtifactPath(
+                        operations,
                         artifactDirectory,
-                        artifactBasename));
-                if (artifactPath != null && PathsEqual(outPath, artifactPath))
+                        artifactBasename,
+                        out string artifactPath))
+                {
+                    return FailAfterStaging(
+                        "the playtest runner returned an invalid artifact path");
+                }
+                if (PathsEqual(outPath, artifactPath))
                 {
                     return FailAfterStaging(
                         "--out cannot overwrite the screenshot artifact",
@@ -745,6 +756,66 @@ namespace FEBuilderGBA.CLI
                 Path.TrimEndingDirectorySeparator(left),
                 Path.TrimEndingDirectorySeparator(right),
                 comparison);
+        }
+
+        private static bool TryResolveArtifactPath(
+            PlaytestOperations operations,
+            string artifactDirectory,
+            string basename,
+            out string path)
+        {
+            path = null;
+            if (operations == null
+                || artifactDirectory == null
+                || !IsValidArtifactBasename(basename))
+            {
+                return false;
+            }
+            try
+            {
+                path = operations.ResolvePhysicalPath(
+                    Path.Combine(artifactDirectory, basename));
+                return path != null;
+            }
+            catch (ArgumentException)
+            {
+                return false;
+            }
+            catch (IOException)
+            {
+                return false;
+            }
+            catch (NotSupportedException)
+            {
+                return false;
+            }
+            catch (SecurityException)
+            {
+                return false;
+            }
+        }
+
+        private static bool IsValidArtifactBasename(string basename)
+        {
+            if (string.IsNullOrEmpty(basename)
+                || basename.Length > PlaytestMaximumArtifactBasenameLength
+                || basename == "."
+                || basename == "..")
+            {
+                return false;
+            }
+            foreach (char c in basename)
+            {
+                bool valid = (c >= 'A' && c <= 'Z')
+                    || (c >= 'a' && c <= 'z')
+                    || (c >= '0' && c <= '9')
+                    || c == '.'
+                    || c == '_'
+                    || c == '-';
+                if (!valid)
+                    return false;
+            }
+            return true;
         }
 
         internal static string ResolvePhysicalPath(string path)
