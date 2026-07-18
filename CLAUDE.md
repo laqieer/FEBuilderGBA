@@ -73,7 +73,7 @@ dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 
 ### Command-Line Tools
 
-> The examples below are a **representative subset**. The canonical full CLI reference (all 70
+> The examples below are a **representative subset**. The canonical full CLI reference (all 71
 > commands — distinct top-level dispatch-table branches in `FEBuilderGBA.CLI/Program.cs`, collapsing
 > the `--help`/`-h` and `--test`/`--testonly` aliases) lives in
 > **[docs/cli-reference.md](docs/cli-reference.md)**; the argument table is in
@@ -97,6 +97,10 @@ dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 
 # Show version
 ./FEBuilderGBA.exe --version
+
+# Deterministic headless mGBA verification (optional source-pinned dependency)
+./FEBuilderGBA.CLI --playtest --check --python=/path/to/playtest-python
+./FEBuilderGBA.CLI --playtest --rom=rom.gba --scenario=scenario.json --python=/path/to/playtest-python
 
 # Validate text export/import round-trip (exit 0=lossless, 2=mismatches)
 ./FEBuilderGBA.CLI --translate-roundtrip --rom=rom.gba

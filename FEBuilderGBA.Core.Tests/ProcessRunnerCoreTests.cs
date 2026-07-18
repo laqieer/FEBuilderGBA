@@ -1,5 +1,7 @@
 using System;
+using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using Xunit;
 
 namespace FEBuilderGBA.Core.Tests
@@ -24,7 +26,9 @@ namespace FEBuilderGBA.Core.Tests
 
             Assert.True(result.Started, $"Process did not start. ErrorMessage: {result.ErrorMessage}");
             Assert.False(result.TimedOut);
-            Assert.Equal(0, result.ExitCode);
+            Assert.True(
+                result.ExitCode == 0,
+                $"Expected exit 0, got {result.ExitCode}. ErrorMessage: {result.ErrorMessage}");
             Assert.Contains("hello", result.Stdout);
         }
 
@@ -89,6 +93,7 @@ namespace FEBuilderGBA.Core.Tests
 
             Assert.True(result.Started, $"Process did not start. ErrorMessage: {result.ErrorMessage}");
             Assert.True(result.TimedOut, "Expected TimedOut=true");
+            Assert.False(result.TerminationFailed);
         }
 
         [Fact]
@@ -130,6 +135,152 @@ namespace FEBuilderGBA.Core.Tests
             Assert.True(result.Started);
             Assert.True(result.Stdout.Length > 64 * 1024,
                 $"Expected >64KB output, got {result.Stdout.Length} bytes");
+        }
+
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void Run_BoundedOutput_KillsAndCapsEitherStream(bool useStderr)
+        {
+            var (shell, argPrefix) = GetShell();
+            string redirect = useStderr ? " 1>&2" : "";
+            string script = OperatingSystem.IsWindows()
+                ? "for /L %i in (1,1,2000) do @echo XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+                    + redirect
+                : "for i in $(seq 1 2000); do echo XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+                    + redirect + "; done";
+
+            var result = ProcessRunnerCore.Run(
+                shell,
+                new[] { argPrefix, script },
+                null,
+                30_000,
+                1024);
+
+            Assert.True(result.Started);
+            Assert.False(result.TimedOut);
+            Assert.True(result.OutputLimitExceeded);
+            Assert.False(result.TerminationFailed);
+            Assert.Equal(-1, result.ExitCode);
+            Assert.True(result.Stdout.Length <= 1024);
+            Assert.True(result.Stderr.Length <= 1024);
+            Assert.Contains("output exceeded", result.ErrorMessage);
+        }
+
+        [Fact]
+        public void RetryTermination_IsBoundedAndReturnsEarly()
+        {
+            int failedAttempts = 0;
+            bool failed = ProcessRunnerCore.RetryTermination(
+                () =>
+                {
+                    failedAttempts++;
+                    return false;
+                },
+                maximumAttempts: 3,
+                backoffMs: 0);
+            Assert.False(failed);
+            Assert.Equal(3, failedAttempts);
+
+            int successAttempts = 0;
+            bool succeeded = ProcessRunnerCore.RetryTermination(
+                () => ++successAttempts == 2,
+                maximumAttempts: 3,
+                backoffMs: 0);
+            Assert.True(succeeded);
+            Assert.Equal(2, successAttempts);
+        }
+
+        [Fact]
+        public void Run_ParentExitStillTerminatesDescendantHoldingPipes()
+        {
+            string root = Path.Combine(
+                Path.GetTempPath(),
+                $"febuildergba_process_tree_{Guid.NewGuid():N}");
+            Directory.CreateDirectory(root);
+            string pidPath = Path.Combine(root, "child.pid");
+            string scriptPath;
+            string command;
+            string[] args;
+            if (OperatingSystem.IsWindows())
+            {
+                scriptPath = Path.Combine(root, "spawn-child.ps1");
+                string quotedPid = pidPath.Replace("'", "''");
+                File.WriteAllText(
+                    scriptPath,
+                    "$child = Start-Process -FilePath powershell.exe "
+                    + "-ArgumentList '-NoProfile','-Command',"
+                    + "'Start-Sleep -Seconds 30' -NoNewWindow -PassThru\n"
+                    + $"[IO.File]::WriteAllText('{quotedPid}', [string]$child.Id)\n");
+                command = "powershell.exe";
+                args = new[]
+                {
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    scriptPath,
+                };
+            }
+            else
+            {
+                command = "/usr/bin/python3";
+                if (!File.Exists(command))
+                {
+                    Directory.Delete(root, recursive: true);
+                    return;
+                }
+                string pythonPidPath = "'"
+                    + pidPath.Replace("\\", "\\\\").Replace("'", "\\'")
+                    + "'";
+                scriptPath = Path.Combine(root, "process_worker.py");
+                File.WriteAllText(
+                    scriptPath,
+                    "import os,pathlib,subprocess,sys\n"
+                    + "os.setsid()\n"
+                    + "p=subprocess.Popen([sys.executable,'-c',"
+                    + "'import time;time.sleep(30)'])\n"
+                    + $"pathlib.Path({pythonPidPath}).write_text(str(p.pid))\n");
+                args = new[] { scriptPath };
+            }
+
+            var stopwatch = Stopwatch.StartNew();
+            ProcessRunResult result = ProcessRunnerCore.Run(
+                command,
+                args,
+                root,
+                30_000,
+                1024);
+            stopwatch.Stop();
+
+            Assert.True(result.Started, result.ErrorMessage);
+            Assert.False(result.TimedOut, result.ErrorMessage);
+            Assert.False(result.TerminationFailed, result.ErrorMessage);
+            Assert.Equal(0, result.ExitCode);
+            Assert.True(File.Exists(pidPath), "Parent did not record child PID.");
+            int childPid = int.Parse(File.ReadAllText(pidPath));
+            bool alive = true;
+            for (int attempt = 0; attempt < 100; attempt++)
+            {
+                try
+                {
+                    using Process child = Process.GetProcessById(childPid);
+                    alive = !child.HasExited;
+                }
+                catch (ArgumentException)
+                {
+                    alive = false;
+                }
+                if (!alive)
+                    break;
+                Thread.Sleep(10);
+            }
+            Assert.False(alive, "Descendant outlived ProcessRunnerCore.");
+            Assert.True(
+                stopwatch.Elapsed < TimeSpan.FromSeconds(10),
+                $"Process tree cleanup took {stopwatch.Elapsed}.");
+
+            Directory.Delete(root, recursive: true);
         }
     }
 }

@@ -26,7 +26,7 @@ README
 |---------|--------|-------------|
 | `FEBuilderGBA.Core` | net10.0 | Cross-platform core library: ROM manipulation, undo, LZ77, Huffman/text encoding, patch detection, translation, caching, git/archive, event ASM/disassembler, struct export, and ~100 other per-class seams. See [docs/CORE-SEAMS.md](docs/CORE-SEAMS.md) for the full catalog. |
 | `FEBuilderGBA` | net10.0-windows | WinForms GUI application — **stable; bug fixes only** (see [GUI strategy](docs/GUI-STRATEGY.md)) |
-| `FEBuilderGBA.CLI` | net10.0 | Cross-platform command-line tool (70 commands<sup>[†](#cli-command-count)</sup> — UPS/patch, lint, rebuild, buildfile export/build/round-trip, disasm, translate, struct/data export-import, portrait/MIDI/battle-anime/palette, decomp project mode, and more). Full reference: [docs/cli-reference.md](docs/cli-reference.md) · arg table: [docs/cli-args.md](docs/cli-args.md). |
+| `FEBuilderGBA.CLI` | net10.0 | Cross-platform command-line tool (71 commands<sup>[†](#cli-command-count)</sup> — UPS/patch, lint, rebuild, deterministic headless playtest, buildfile export/build/round-trip, disasm, translate, struct/data export-import, portrait/MIDI/battle-anime/palette, decomp project mode, and more). Full reference: [docs/cli-reference.md](docs/cli-reference.md) · arg table: [docs/cli-args.md](docs/cli-args.md). |
 | `FEBuilderGBA.SkiaSharp` | net10.0 | SkiaSharp `IImageService` (GBA 4bpp/8bpp tiles, palette conversion) + `SkiaFontRasterizer` (cross-platform GDI-parity glyph rendering for translation-font auto-generation). |
 | `FEBuilderGBA.Avalonia` | net10.0 | Cross-platform Avalonia GUI: 324 editors (unit/item/class/map/event/AI/text/audio/graphics/portrait/world-map/support/arena/monster/summon/menu/credits) with read/write + undo, image PNG import, hex editor, pointer/free-space tools, cross-editor jump/pick navigation, decomp-project mode, and Help → Check for Updates to open the latest release when a newer build exists. Full editor inventory: [docs/avalonia-forms.md](docs/avalonia-forms.md) · gap analysis: [docs/avalonia-gap-analysis.md](docs/avalonia-gap-analysis.md). |
 | `FEBuilderGBA.Tests` | net10.0-windows | WinForms unit and integration tests |
@@ -35,7 +35,24 @@ README
 | `FEBuilderGBA.Android.Tests` | net10.0-android | On-device instrumentation head: reflection-runs the SkiaSharp byte-parity / version-guard suites on an Android emulator (not run by `dotnet test`). |
 | `FEBuilderGBA.E2ETests` | net10.0-windows | End-to-end GUI/CLI tests |
 
-<a id="cli-command-count">†</a> **CLI command count = 70**: distinct top-level command branches in the `FEBuilderGBA.CLI/Program.cs` dispatch table, collapsing the two documented aliases (`--help`/`-h`, `--test`/`--testonly`); `--project` and `--resolve-addr` are counted as separate user-facing commands. The canonical full list is [docs/cli-reference.md](docs/cli-reference.md).
+<a id="cli-command-count">†</a> **CLI command count = 71**: distinct top-level command branches in the `FEBuilderGBA.CLI/Program.cs` dispatch table, collapsing the two documented aliases (`--help`/`-h`, `--test`/`--testonly`); `--project` and `--resolve-addr` are counted as separate user-facing commands. The canonical full list is [docs/cli-reference.md](docs/cli-reference.md).
+
+### Deterministic headless playtest
+
+The opt-in `--playtest` command drives a source-pinned mGBA 0.10.5 binding with
+strict JSON input, exact frame/key/RAM actions, assertions, watchdogs, and an
+optional final PNG. It emits one JSON verdict and preserves exit `0` (pass),
+`1` (setup/harness error), and `2` (behavioral verification failure).
+
+```bash
+FEBuilderGBA.CLI --playtest --check --python=/path/to/playtest-python
+FEBuilderGBA.CLI --playtest --rom=mod.gba --scenario=scenario.json \
+  --python=/path/to/playtest-python --out=result.json --artifact-dir=artifacts
+```
+
+mGBA is never bundled or installed automatically. See
+[Headless Playtest](docs/HEADLESS-PLAYTEST.md) for the pinned-source bootstrap,
+scenario schema, deterministic startup contract, safety boundary, and CI proof.
 
 > **🧭 GUI strategy — two front-ends, two standards.** The **WinForms GUI**
 > (`FEBuilderGBA`) is the mature, widely-used desktop app; its goal is
@@ -429,7 +446,7 @@ FEBuilderGBA.sln
 │   ├── NameResolver.cs                    Entity name resolution with caching
 │   ├── SongNameResolverCore.cs            Song name resolution (Sound Room name + SE-list fallback)
 │   └── WriteValidator.cs                  ROM write validation utilities
-├── FEBuilderGBA.CLI/            net10.0    (cross-platform CLI — 70 commands)
+├── FEBuilderGBA.CLI/            net10.0    (cross-platform CLI — 71 commands)
 ├── FEBuilderGBA.SkiaSharp/      net10.0    (image backend)
 ├── FEBuilderGBA.Avalonia/       net10.0    (cross-platform GUI — 324 editors, with ambient undo, dirty tracking, data export/import, full Options dialog with 20+ external tool paths)
 ├── FEBuilderGBA/                net10.0-windows (WinForms GUI)
@@ -472,6 +489,7 @@ The project includes a dedicated end-to-end test suite (`FEBuilderGBA.E2ETests`)
 |-----------|--------------|--------------|
 | `Tests/CliTests.cs` | No | CLI flag `--version`: exit code 0, output contains "FEBuilderGBA" and version info |
 | `Tests/CliArgsE2ETests.cs` | No | CLI primary commands via `FEBuilderGBA.CLI`: `--help/-h`, `--version`, `--makeups`, `--applyups`, `--lint`, `--disasm`, `--decreasecolor`, `--pointercalc`, `--rebuild`, `--songexchange`, `--convertmap1picture`, `--translate`, `--translate-roundtrip`, `--lastrom`, `--force-detail`, `--translate_batch`, `--test/--testonly`, `--import-battle-anime`, `--export-battle-anime`, `--diff`, `--import-portrait-all`, `--export-map-settings`, `--lz77`, `--checksum`, `--repair-header`, `--rom-info`, `--list-tables`, `--export-palette`, `--import-palette` (plus the unknown-command path) — 69 tests ([docs/cli-args.md](docs/cli-args.md)) |
+| `Tests/CliPlaytestE2ETests.cs` | No | `--playtest` help, strict preflight, shipped-runner discovery, paths with spaces, timeout bounds, and synthesized JSON/output-file behavior without requiring Python, mGBA, or a proprietary ROM |
 | `Tests/GuiStartupTests.cs` | No | GUI startup: window appears within 30 s, has non-empty title, has child controls, responds to WM_CLOSE |
 | `Tests/DiagnosticTests.cs` | No | Diagnostic: logs all window handles, titles (hex-encoded), and class names — always passes |
 | `Tests/RomCliTests.cs` | Yes (×5/×2) | `--lint`, `--makeups` × 5 ROMs; `--rebuild` × 2 representative ROMs (FE8U, FE6) — 12 tests, skipped without ROMs |

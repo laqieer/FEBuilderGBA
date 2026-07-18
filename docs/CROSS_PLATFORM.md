@@ -45,7 +45,7 @@ FEBuilderGBA.Core (net10.0)
 
 FEBuilderGBA.CLI (net10.0)
 ├── References: FEBuilderGBA.Core
-└── Cross-platform CLI: 70 commands (--version, --help, --makeups,
+└── Cross-platform CLI: 71 commands (--version, --help, --playtest, --makeups,
     --lint, --rebuild, --disasm, --export-data, --export-asset, …;
     full list via `FEBuilderGBA.CLI --help`)
 
@@ -89,7 +89,7 @@ FEBuilderGBA.E2ETests (net10.0-windows)
 | Feature | Windows | Linux | macOS | Android | iOS | Web (wasm) |
 |---------|---------|-------|-------|---------|-----|-----|
 | Core library | Yes | Yes | Yes | Yes | Yes | Yes |
-| CLI (70 commands) | Yes | Yes | Yes | — | — | — |
+| CLI (71 commands) | Yes | Yes | Yes | — | — | — |
 | SkiaSharp image backend | Yes | Yes | Yes | Yes | Yes | Yes |
 | Avalonia GUI (full editor) | Yes | Yes | Yes | Preview | Preview | Preview |
 | WinForms GUI (full editor) | Yes | No | No | No | No | No |
@@ -123,7 +123,7 @@ FEBuilderGBA.E2ETests (net10.0-windows)
 - [x] Add `--disasm` command to CLI
 - [x] ROM loading without WinForms dependencies
 
-The CLI now exposes **70 commands** (full list via `FEBuilderGBA.CLI --help`).
+The CLI now exposes **71 commands** (full list via `FEBuilderGBA.CLI --help`).
 
 ### Phase 2: Image Migration (Complete)
 
@@ -163,7 +163,7 @@ The Avalonia GUI now ships **367 `.axaml` views** and **176 write-enabled editor
 
 ### CLI
 
-- **Coverage** — The CLI exposes **70 commands** (`--version`, `--makeups`, `--lint`, `--rebuild`, `--build-buildfile`, `--buildfile-roundtrip`, `--disasm`, `--export-data`, `--export-asset`, and more — full list via `FEBuilderGBA.CLI --help`). Commands no longer require WinForms Form classes; the needed logic lives in `FEBuilderGBA.Core`.
+- **Coverage** — The CLI exposes **71 commands** (`--version`, `--playtest`, `--makeups`, `--lint`, `--rebuild`, `--build-buildfile`, `--buildfile-roundtrip`, `--disasm`, `--export-data`, `--export-asset`, and more — full list via `FEBuilderGBA.CLI --help`). Commands no longer require WinForms Form classes; the needed logic lives in `FEBuilderGBA.Core`.
 - **No config/ auto-discovery** — The CLI expects `config/` in the executable directory. Cross-platform config path resolution is handled by `PathUtil.ConfigPath()`.
 
 ### Core Library

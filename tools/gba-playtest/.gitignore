@@ -1,0 +1,10 @@
+# Isolated, explicitly-bootstrapped mGBA build root (never committed).
+.mgba-build/
+
+# Python caches / build artifacts.
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+build/
+dist/

@@ -28,6 +28,24 @@ _session: Session | None = None
 _json_mode: bool = False
 
 
+class PlaytestUsageError(click.UsageError):
+    exit_code = 1
+
+
+class PlaytestCommand(click.Command):
+    def make_context(self, info_name, args, parent=None, **extra):
+        try:
+            return super().make_context(
+                info_name,
+                args,
+                parent=parent,
+                **extra,
+            )
+        except click.UsageError as exc:
+            exc.exit_code = 1
+            raise
+
+
 def _output(data: dict, human_message: str = ""):
     """Output data in JSON or human-readable format."""
     if _json_mode:
@@ -946,6 +964,136 @@ def session_history_cmd(count):
 
 # ── Backend check ─────────────────────────────────────────────────────
 
+@cli.command("playtest", cls=PlaytestCommand)
+@click.option("--check", is_flag=True, help="Check the pinned mGBA binding")
+@click.option(
+    "--rom",
+    "rom_file",
+    type=str,
+    default=None,
+    help="ROM file (falls back to the global/session ROM)",
+)
+@click.option(
+    "--scenario",
+    type=str,
+    default=None,
+    help="Scenario JSON",
+)
+@click.option(
+    "--out",
+    type=str,
+    default=None,
+    help="Optional result JSON",
+)
+@click.option(
+    "--artifact-dir",
+    type=str,
+    default=None,
+    help="Existing screenshot artifact directory",
+)
+@click.option("--python", "python_executable", default="", help="Python executable")
+@click.option(
+    "--timeout",
+    "timeout_value",
+    type=str,
+    default=None,
+    help="Native runner timeout in milliseconds (run default: 600000)",
+)
+@click.pass_context
+def playtest_cmd(
+    ctx,
+    check,
+    rom_file,
+    scenario,
+    out,
+    artifact_dir,
+    python_executable,
+    timeout_value,
+):
+    """Run a deterministic headless mGBA verification scenario."""
+    from cli_anything.febuildergba.core.playtest import (
+        PlaytestResultError,
+        playtest,
+    )
+
+    global_rom = ctx.obj.get("rom_path", "")
+    timeout_ms = None
+    if timeout_value is not None:
+        if not timeout_value.isascii() or not timeout_value.isdigit():
+            raise PlaytestUsageError(
+                "--timeout must be an integer from 1000 through 3600000"
+            )
+        timeout_ms = int(timeout_value, 10)
+        if timeout_ms < 1000 or timeout_ms > 3_600_000:
+            raise PlaytestUsageError(
+                "--timeout must be an integer from 1000 through 3600000"
+            )
+    for option_name, value in (
+        ("--rom", rom_file),
+        ("--scenario", scenario),
+    ):
+        if value and not os.path.isfile(value):
+            raise PlaytestUsageError(
+                f"{option_name} must name an existing file"
+            )
+    if artifact_dir and not os.path.isdir(artifact_dir):
+        raise PlaytestUsageError(
+            "--artifact-dir must name an existing directory"
+        )
+    if out and os.path.isdir(out):
+        raise PlaytestUsageError("--out must not name a directory")
+
+    if check:
+        if (
+            rom_file
+            or global_rom
+            or scenario
+            or out
+            or artifact_dir
+            or timeout_ms is not None
+        ):
+            raise PlaytestUsageError(
+                "--check cannot be combined with ROM/scenario/out/artifact/timeout options"
+            )
+        path = ""
+    else:
+        try:
+            path = rom_file or _get_rom_path(global_rom)
+        except click.UsageError as exc:
+            raise PlaytestUsageError(exc.message) from exc
+
+    try:
+        result = playtest(
+            rom_path=path,
+            scenario_path=scenario or "",
+            out_path=out or "",
+            artifact_dir=artifact_dir or "",
+            python_executable=python_executable,
+            timeout_ms=timeout_ms,
+            check=check,
+        )
+    except (PlaytestResultError, RuntimeError, ValueError) as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    if _json_mode:
+        _output(result)
+    else:
+        status = result["status"]
+        note = result.get("note", "")
+        if status == "check_ok":
+            click.echo("mGBA playtest dependency check: OK")
+        elif status == "pass":
+            frames = result.get("framesExecuted")
+            suffix = f" ({frames} frames)" if frames is not None else ""
+            click.echo(f"Playtest PASS{suffix}")
+        else:
+            detail = f": {note}" if note else ""
+            click.echo(f"Playtest {status}{detail}", err=True)
+
+    if result["exitCode"] != 0:
+        ctx.exit(result["exitCode"])
+
+
 @cli.command("check")
 def check_cmd():
     """Check if the FEBuilderGBA.CLI backend is available."""
@@ -1004,6 +1152,7 @@ def repl(project_path):
         "patch apply-bin <file>": "Apply BIN patch",
         "disasm -o <file>": "Disassemble ROM",
         "lz77 -i <file> -o <file> --compress|--decompress": "LZ77 compress/decompress a file",
+        "playtest --scenario <file>": "Run deterministic headless verification",
         "check": "Check backend availability",
         "help": "Show this help",
         "quit/exit": "Exit REPL",

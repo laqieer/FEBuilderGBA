@@ -1,0 +1,254 @@
+name: Headless mGBA Playtest
+
+on:
+  push:
+    paths:
+      - '.github/workflows/gba-playtest.yml'
+      - 'FEBuilderGBA.CLI/**'
+      - 'FEBuilderGBA.Core/ProcessRunnerCore.cs'
+      - 'FEBuilderGBA.Core.Tests/ProcessRunnerCoreTests.cs'
+      - 'FEBuilderGBA.Tests/Unit/CliPlaytestTests.cs'
+      - 'FEBuilderGBA.E2ETests/Tests/CliPlaytestE2ETests.cs'
+      - 'agent-harness/cli_anything/febuildergba/core/playtest.py'
+      - 'agent-harness/cli_anything/febuildergba/febuildergba_cli.py'
+      - 'agent-harness/cli_anything/febuildergba/tests/test_verbs.py'
+      - 'scripts/install-mgba-playtest.*'
+      - 'scripts/mgba_cffi_preprocessor.py'
+      - 'tools/gba-playtest/**'
+  pull_request:
+    branches: [ master ]
+    paths:
+      - '.github/workflows/gba-playtest.yml'
+      - 'FEBuilderGBA.CLI/**'
+      - 'FEBuilderGBA.Core/ProcessRunnerCore.cs'
+      - 'FEBuilderGBA.Core.Tests/ProcessRunnerCoreTests.cs'
+      - 'FEBuilderGBA.Tests/Unit/CliPlaytestTests.cs'
+      - 'FEBuilderGBA.E2ETests/Tests/CliPlaytestE2ETests.cs'
+      - 'agent-harness/cli_anything/febuildergba/core/playtest.py'
+      - 'agent-harness/cli_anything/febuildergba/febuildergba_cli.py'
+      - 'agent-harness/cli_anything/febuildergba/tests/test_verbs.py'
+      - 'scripts/install-mgba-playtest.*'
+      - 'scripts/mgba_cffi_preprocessor.py'
+      - 'tools/gba-playtest/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    name: Playtest contract (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install test runner
+      run: python -m pip install --disable-pip-version-check --no-input pytest==8.3.5
+
+    - name: Run dependency-free playtest tests
+      working-directory: tools/gba-playtest
+      run: python -m pytest -q
+
+  real-mgba-ubuntu:
+    name: Real mGBA replay (ubuntu)
+    needs: contract
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Setup .NET 10.0
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Install native build prerequisites
+      run: >-
+        sudo apt-get update &&
+        sudo apt-get install -y
+        build-essential cmake ninja-build pkg-config
+        libepoxy-dev libffi-dev libpng-dev zlib1g-dev
+        libavcodec-dev libavfilter-dev libavformat-dev libavutil-dev
+        libswscale-dev libswresample-dev
+        gdb
+
+    - name: Build and verify the pinned binding
+      run: bash scripts/install-mgba-playtest.sh --python=python3 --force
+
+    - name: Publish canonical CLI surface
+      run: dotnet publish FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj -c Release -o playtest-cli
+
+    - name: Run native phase smoke (no artifacts)
+      id: native_smoke
+      run: >-
+        tools/gba-playtest/.mgba-build/venv/bin/python
+        tools/gba-playtest/tests/run_real_mgba_phase_smoke.py
+
+    - name: Diagnose native phase smoke crash (gdb, no artifacts)
+      if: failure() && steps.native_smoke.outcome == 'failure'
+      timeout-minutes: 5
+      run: >-
+        gdb --batch
+        -ex run
+        -ex "thread apply all bt full"
+        --args
+        tools/gba-playtest/.mgba-build/venv/bin/python
+        tools/gba-playtest/tests/run_real_mgba_phase_smoke.py --child
+
+    - name: Run repeated synthetic replay proof
+      run: >-
+        tools/gba-playtest/.mgba-build/venv/bin/python
+        tools/gba-playtest/tests/run_real_mgba_proof.py
+        --output-dir playtest-proof-ubuntu
+
+    - name: Run published CLI replay and exit-code proof
+      run: >-
+        tools/gba-playtest/.mgba-build/venv/bin/python
+        tools/gba-playtest/tests/run_real_cli_proof.py
+        --cli playtest-cli/FEBuilderGBA.CLI
+        --python tools/gba-playtest/.mgba-build/venv/bin/python
+        --output-dir playtest-cli-proof-ubuntu
+
+    - name: Upload proof
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: playtest-proof-ubuntu
+        path: |
+          playtest-proof-ubuntu/
+          playtest-cli-proof-ubuntu/
+        if-no-files-found: warn
+
+  real-mgba-windows:
+    name: Real mGBA replay (windows-ucrt64)
+    needs: contract
+    runs-on: windows-latest
+
+    steps:
+    - name: Preserve LF line endings
+      run: git config --global core.autocrlf input
+
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup MSYS2 UCRT64
+      id: msys2
+      uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884 # v2
+      with:
+        msystem: UCRT64
+        update: true
+        install: >-
+          git
+          curl
+          tar
+          make
+        pacboy: >-
+          python:p
+          python-pip:p
+          gcc:p
+          cmake:p
+          pkgconf:p
+          libepoxy:p
+          libffi:p
+          libpng:p
+          zlib:p
+          ffmpeg:p
+
+    - name: Setup .NET 10.0
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Build and verify the pinned binding
+      shell: powershell
+      run: >-
+        .\scripts\install-mgba-playtest.ps1
+        -Msys2Root "${{ steps.msys2.outputs.msys2-location }}"
+        -Force
+
+    - name: Publish canonical CLI surface
+      shell: powershell
+      run: >-
+        dotnet publish FEBuilderGBA.CLI\FEBuilderGBA.CLI.csproj
+        -c Release
+        -o playtest-cli
+
+    - name: Run native phase smoke (no artifacts)
+      id: native_smoke
+      shell: powershell
+      run: |
+        $candidates = @(
+          "tools\gba-playtest\.mgba-build\venv\bin\python.exe",
+          "tools\gba-playtest\.mgba-build\venv\Scripts\python.exe"
+        )
+        $python = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+        if (-not $python) {
+          throw "The bootstrap venv interpreter was not found."
+        }
+        & $python tools\gba-playtest\tests\run_real_mgba_phase_smoke.py
+        if ($LASTEXITCODE -ne 0) {
+          exit $LASTEXITCODE
+        }
+
+    - name: Run repeated synthetic replay proof
+      shell: powershell
+      run: |
+        $candidates = @(
+          "tools\gba-playtest\.mgba-build\venv\bin\python.exe",
+          "tools\gba-playtest\.mgba-build\venv\Scripts\python.exe"
+        )
+        $python = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+        if (-not $python) {
+          throw "The bootstrap venv interpreter was not found."
+        }
+        & $python tools\gba-playtest\tests\run_real_mgba_proof.py `
+          --output-dir playtest-proof-windows
+        if ($LASTEXITCODE -ne 0) {
+          exit $LASTEXITCODE
+        }
+
+    - name: Run published CLI replay and exit-code proof
+      shell: powershell
+      run: |
+        $candidates = @(
+          "tools\gba-playtest\.mgba-build\venv\bin\python.exe",
+          "tools\gba-playtest\.mgba-build\venv\Scripts\python.exe"
+        )
+        $python = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+        if (-not $python) {
+          throw "The bootstrap venv interpreter was not found."
+        }
+        & $python tools\gba-playtest\tests\run_real_cli_proof.py `
+          --cli playtest-cli\FEBuilderGBA.CLI.exe `
+          --python $python `
+          --output-dir playtest-cli-proof-windows
+        if ($LASTEXITCODE -ne 0) {
+          exit $LASTEXITCODE
+        }
+
+    - name: Upload proof
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: playtest-proof-windows
+        path: |
+          playtest-proof-windows/
+          playtest-cli-proof-windows/
+        if-no-files-found: warn

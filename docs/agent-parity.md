@@ -1,7 +1,7 @@
 # Agent Parity Matrix — GUI ↔ CLI ↔ Core
 
 **Purpose.** FEBuilderGBA's GUI (WinForms + the Avalonia preview) is the **human** editing
-surface; [`FEBuilderGBA.CLI`](cli-reference.md) (~70 commands) is the **agent** surface. For the
+surface; [`FEBuilderGBA.CLI`](cli-reference.md) (71 commands) is the **agent** surface. For the
 app to be genuinely *agent-native*, an agent needs a headless path (a CLI verb **or** a
 `FEBuilderGBA.Core` seam) for roughly whatever a human can edit in the GUI. This document audits
 that coverage per **editable surface** and classifies each **Full / Partial / None / N/A**, then
@@ -42,7 +42,7 @@ Tracks issue [#1931](https://github.com/laqieer/FEBuilderGBA/issues/1931).
 3. **"CLI *or* Core-level headless equivalent"** (the issue's rule): a domain with a Core seam but no
    CLI verb is **Core-only** (a cheap win), not None.
 
-Counts cited: **70** user-facing CLI commands (`cli-args.md` — "the `Main` dispatcher … routes 70
+Counts cited: **71** user-facing CLI commands (`cli-args.md` — "the `Main` dispatcher … routes 71
 distinct user-facing commands"); **40** struct tables (`--list-tables`); **~60** Core seams
 (`CORE-SEAMS.md`).
 

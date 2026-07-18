@@ -6,7 +6,7 @@ command set — it lists commands exercised by `FEBuilderGBA.E2ETests/Tests/CliA
 and command-specific E2E suites such as `CliExportBuildfileE2ETests.cs` and
 `CliBuildBuildfileE2ETests.cs`.
 
-For the **full command set** (the `Main` dispatcher in `FEBuilderGBA.CLI/Program.cs` routes 70
+For the **full command set** (the `Main` dispatcher in `FEBuilderGBA.CLI/Program.cs` routes 71
 distinct user-facing commands), see [`docs/cli-reference.md`](cli-reference.md) or run:
 
 ```bash
@@ -27,6 +27,7 @@ WinForms CLI counterpart to align against.
 |---|---|---|---|---|
 | `--help`, `-h` | Show help message | — | E2E COVERED | ALIGNED |
 | `--version` | Show version information | — | E2E COVERED | ALIGNED |
+| `--playtest` | Run/check a deterministic source-pinned headless mGBA scenario; exit 0 pass, 1 harness/setup failure, 2 behavioral failure | `--check` or `--rom`, `--scenario` (opt: `--python`, `--out`, `--artifact-dir`, `--timeout`) | E2E COVERED + native CI proof | CLI-ONLY (N/A) |
 | `--makeups=<path>` | Create UPS patch | `--rom` (opt: `--fromrom`) | E2E COVERED | ALIGNED |
 | `--applyups=<path>` | Apply UPS patch | `--rom`, `--patch` | E2E COVERED | ALIGNED |
 | `--lint` | Run lint checks on ROM | `--rom` | E2E COVERED | ALIGNED |
@@ -68,7 +69,12 @@ WinForms CLI counterpart to align against.
 | `--patch=<path>` | Specify UPS patch file | `--applyups` |
 | `--rom2=<path>` | Second ROM file to compare against | `--diff` |
 | `--in=<path>` | Input file | `--decreasecolor`, `--convertmap1picture`, `--translate`, `--lz77`, `--import-palette`, `--import-battle-anime` |
-| `--out=<path>` | Output file | `--decreasecolor`, `--translate`, `--translate-roundtrip`, `--translate_batch`, `--export-map-settings`, `--lz77`, `--export-palette`, `--export-battle-anime`, `--diff`, `--export-buildfile` (new project directory, must not exist), `--build-buildfile` (new destination ROM, must not exist) |
+| `--out=<path>` | Output file | `--playtest` (result JSON), `--decreasecolor`, `--translate`, `--translate-roundtrip`, `--translate_batch`, `--export-map-settings`, `--lz77`, `--export-palette`, `--export-battle-anime`, `--diff`, `--export-buildfile` (new project directory, must not exist), `--build-buildfile` (new destination ROM, must not exist) |
+| `--scenario=<path>` | Strict schema-v1 playtest scenario JSON | `--playtest` |
+| `--artifact-dir=<dir>` | Existing directory that persists an optional final-frame PNG; capture/hash evidence does not require it | `--playtest` |
+| `--python=<executable>` | Python interpreter containing the pinned mGBA binding | `--playtest` |
+| `--timeout=<ms>` | Native runner timeout, 1,000-3,600,000 (default 600,000) | `--playtest` |
+| `--check` | Check the pinned mGBA dependency without a ROM/scenario | `--playtest` |
 | `--clean=<path>` | Clean/baseline ROM of the same version; its SHA-256 is the reproducibility identity | `--export-buildfile`, `--build-buildfile`, `--buildfile-roundtrip` |
 | `--project=<dir>` | Schema-v1 buildfile recipe directory (contains `buildfile.json` + `data/`; the sole build authority) | `--build-buildfile` |
 | `--with-source` | Also emit an advisory, non-authoritative `source/` projection (opt-in) | `--export-buildfile` |
