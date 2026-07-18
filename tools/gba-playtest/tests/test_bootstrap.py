@@ -53,7 +53,7 @@ REAL_WORKFLOW = os.path.join(REPO_ROOT, ".github", "workflows", "gba-playtest.ym
 BUILD_SCRIPT = SH
 
 # Every package name that must appear, hash-pinned, across the two stages.
-REQUIRED_BOOTSTRAP_PACKAGES = ("setuptools", "wheel", "pytest-runner")
+REQUIRED_BOOTSTRAP_PACKAGES = ("setuptools", "packaging", "wheel", "pytest-runner")
 REQUIRED_BUILD_PACKAGES = ("cffi", "pycparser", "cached-property")
 
 
@@ -1044,7 +1044,7 @@ def test_bootstrap_requirements_are_fully_hashed():
     text = _read(REQUIREMENTS_BOOTSTRAP)
     pins = re.findall(r"^\s*([A-Za-z0-9_.-]+)==", text, re.MULTILINE)
     hashes = re.findall(r"--hash=sha256:([0-9a-f]{64})", text)
-    assert len(pins) >= 3
+    assert len(pins) >= 4
     assert len(hashes) >= len(pins)
     assert "placeholder" not in text.lower()
     assert "0000000000000000000000000000000000000000000000000000000000000000" not in text
@@ -1064,6 +1064,30 @@ def test_pinned_build_stack_supports_current_msys2_python_314():
     build = _read(REQUIREMENTS)
     assert re.search(r"(?mi)^\s*setuptools==83\.0\.0\b", bootstrap)
     assert re.search(r"(?mi)^\s*cffi==2\.1\.0\b", build)
+
+
+def test_wheel_pin_is_the_security_fix_release_with_exact_hash():
+    bootstrap = _read(REQUIREMENTS_BOOTSTRAP)
+    wheel_pins = re.findall(r"(?mi)^\s*wheel==([^\s\\]+)", bootstrap)
+    packaging_pins = re.findall(r"(?mi)^\s*packaging==([^\s\\]+)", bootstrap)
+    assert wheel_pins == ["0.46.2"], "bootstrap must contain exactly one patched wheel pin"
+    assert packaging_pins == ["26.2"], "bootstrap must contain exactly one packaging dependency pin"
+    assert re.search(
+        r"(?mi)^\s*wheel==0\.46\.2\s*\\\s*--hash=sha256:"
+        r"33ae60725d69eaa249bc1982e739943c23b34b58d51f1cb6253453773aca6e65\b",
+        bootstrap,
+    ), "wheel must be pinned to 0.46.2 with its exact official wheel hash"
+    assert re.search(
+        r"(?mi)^\s*packaging==26\.2\s*\\\s*--hash=sha256:"
+        r"5fc45236b9446107ff2415ce77c807cee2862cb6fac22b8a73826d0693b0980e\b",
+        bootstrap,
+    ), "wheel's packaging dependency must be pinned with its exact official wheel hash"
+    assert not re.search(r"(?mi)^\s*wheel==0\.45\.1\b", bootstrap), (
+        "the vulnerable wheel 0.45.1 pin must be removed, not just superseded"
+    )
+    assert "708e7481cc80179af0e556bbf0cc00b8444c7321e2700b8d8580231d13017248" not in bootstrap, (
+        "the vulnerable wheel 0.45.1 hash must not remain in the requirements file"
+    )
 
 
 def test_cffi_pin_is_the_mingw_atomic_fix_release_with_exact_hash():

@@ -28,7 +28,8 @@ canonical `FEBuilderGBA.CLI --playtest` command and the agent-harness
 | `febuildergba_playtest/mgba_backend.py` | Pinned mGBA 0.10.5 adapter (delayed import). |
 | `febuildergba_playtest/__main__.py` | CLI entrypoint: one JSON object on stdout. |
 | `scenario.schema.json` | JSON Schema documenting the accepted scenario shape. |
-| `requirements-mgba-build.txt` | Hash-locked Python build inputs for the bootstrap. |
+| `requirements-mgba-bootstrap.txt` | Hash-locked, security-patched pure-Python bootstrap wheels. |
+| `requirements-mgba-build.txt` | Hash-locked Python source-build inputs for the bootstrap. |
 | `tests/` | Dependency-free unit tests (no mGBA, no proprietary ROM). |
 
 ## Exit codes

@@ -51,8 +51,9 @@ FEBuilderGBA.CLI --playtest --rom=mod.gba --scenario=scenario.json \
 ```
 
 mGBA is never bundled or installed automatically. See
-[Headless Playtest](docs/HEADLESS-PLAYTEST.md) for the pinned-source bootstrap,
-scenario schema, deterministic startup contract, safety boundary, and CI proof.
+[Headless Playtest](docs/HEADLESS-PLAYTEST.md) for the hash-locked,
+security-patched build prerequisites, pinned-source bootstrap, scenario schema,
+deterministic startup contract, safety boundary, and CI proof.
 
 > **🧭 GUI strategy — two front-ends, two standards.** The **WinForms GUI**
 > (`FEBuilderGBA`) is the mature, widely-used desktop app; its goal is

@@ -15,6 +15,9 @@ never downloads or installs dependencies at command runtime.
 - Source is pinned to version `0.10.5`, commit
   `26b7884bc25a5933960f3cdcd98bac1ae14d42e2`, and archive SHA-256
   `9475c26e9fa2f4b30c07ab6636e4b0a5b62e4baee2109ede7b2fecc52edae366`.
+- Python build prerequisites are installed only by the explicit bootstrap,
+  from security-patched pure-Python wheels pinned by exact version and
+  SHA-256. They are never installed by the playtest runtime.
 - mGBA is MPL-2.0. It is built locally into the ignored
   `tools/gba-playtest/.mgba-build/` directory and is not distributed in this
   repository or the FEBuilderGBA CLI archive.
