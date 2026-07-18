@@ -101,10 +101,9 @@ def test_smoke_is_data_free_and_child_isolated():
     assert "open" not in called
     assert "open" not in builtin_calls
     assert "faulthandler" in text
-    assert "subprocess.Popen" in text
-    assert "stdin=subprocess.DEVNULL" in text
-    assert "stdout=subprocess.PIPE" in text
-    assert "stderr=subprocess.PIPE" in text
+    assert "run_bounded" in text
+    assert "stdout_limit=MAX_CHILD_OUTPUT" in text
+    assert "stderr_limit=MAX_CHILD_OUTPUT" in text
     assert "build_synthetic_rom()" in text
     assert "want_screenshot=True" in text
     assert 'env["PYTHONNOUSERSITE"] = "1"' in text

@@ -12,10 +12,10 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import subprocess
 import sys
 import tempfile
 
+from bounded_process import BoundedProcessError, run_bounded
 import run_real_mgba_proof as direct_proof
 from synthetic_gba import build_synthetic_rom, header_game_code, sha256_hex
 
@@ -80,23 +80,22 @@ def _run_cli(
     env = os.environ.copy()
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     env["PYTHONNOUSERSITE"] = "1"
-    process = subprocess.run(
-        _build_command(
-            cli_path,
-            python_path,
-            arguments,
-            check=check,
-        ),
-        cwd=cli_path.parent,
-        env=env,
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        timeout=PROCESS_TIMEOUT_SECONDS,
-        check=False,
-    )
-    if len(process.stderr) > MAX_PROCESS_OUTPUT:
-        raise AssertionError(f"{label} stderr exceeded {MAX_PROCESS_OUTPUT} bytes")
+    try:
+        process = run_bounded(
+            _build_command(
+                cli_path,
+                python_path,
+                arguments,
+                check=check,
+            ),
+            cwd=cli_path.parent,
+            env=env,
+            timeout_seconds=PROCESS_TIMEOUT_SECONDS,
+            stdout_limit=MAX_PROCESS_OUTPUT,
+            stderr_limit=MAX_PROCESS_OUTPUT,
+        )
+    except BoundedProcessError as exc:
+        raise AssertionError(f"{label} {exc}") from None
     result = _parse_single_json(process.stdout, label)
     if process.returncode != result.get("exitCode"):
         raise AssertionError(

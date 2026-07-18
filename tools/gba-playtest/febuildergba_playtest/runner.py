@@ -423,6 +423,7 @@ class Runner:
                                   _watch_report(watch_state), None, guard, note=str(exc))
 
     def _check_watchdogs(self, watch_state) -> Optional[str]:
+        first_softlock = None
         for state in watch_state:
             spec = state["spec"]
             current = self._seam("read", self.backend.read, spec.domain, spec.address, spec.width)
@@ -431,10 +432,16 @@ class Runner:
                 state["stall"] = 0
             else:
                 state["stall"] += 1
-                if state["stall"] >= spec.maxStallFrames:
+                if (
+                    state["stall"] >= spec.maxStallFrames
+                    and first_softlock is None
+                ):
                     label = spec.label or f"{spec.domain}:0x{spec.address:X}"
-                    return f"watchdog '{label}' stalled for {state['stall']} frames"
-        return None
+                    first_softlock = (
+                        f"watchdog '{label}' stalled for "
+                        f"{state['stall']} frames"
+                    )
+        return first_softlock
 
     def _capture_screenshot(self) -> Dict[str, Any]:
         shot = self.scenario.screenshot

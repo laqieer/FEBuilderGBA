@@ -10,10 +10,7 @@ from __future__ import annotations
 import faulthandler
 import os
 from pathlib import Path
-import subprocess
 import sys
-import threading
-import time
 from typing import Optional, Tuple
 
 sys.dont_write_bytecode = True
@@ -23,6 +20,12 @@ TOOL_DIR = TEST_DIR.parent
 if str(TOOL_DIR) not in sys.path:
     sys.path.insert(0, str(TOOL_DIR))
 
+from bounded_process import (
+    BoundedProcessError,
+    ProcessOutputLimitError,
+    ProcessTimeoutError,
+    run_bounded,
+)
 from febuildergba_playtest.mgba_backend import MgbaBackend  # noqa: E402
 from synthetic_gba import DEFAULT_MARKER, build_synthetic_rom  # noqa: E402
 
@@ -123,66 +126,27 @@ def _child() -> int:
         return 1
 
 
-def _drain(pipe, limit: int, overflow: threading.Event) -> bytes:
-    chunks = []
-    size = 0
-    while True:
-        chunk = pipe.read(65536)
-        if not chunk:
-            break
-        size += len(chunk)
-        if size <= limit:
-            chunks.append(chunk)
-        else:
-            overflow.set()
-    return b"".join(chunks)
-
-
 def _run_child() -> Tuple[int, bytes, bytes, bool, bool]:
     env = os.environ.copy()
     env["PYTHONFAULTHANDLER"] = "1"
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     env["PYTHONNOUSERSITE"] = "1"
-    process = subprocess.Popen(
-        [sys.executable, str(Path(__file__).resolve()), "--child"],
-        cwd=str(TOOL_DIR),
-        env=env,
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    overflow = threading.Event()
-    stdout_chunks = []
-    stderr_chunks = []
-
-    def drain(pipe, target):
-        target.append(_drain(pipe, MAX_CHILD_OUTPUT, overflow))
-
-    stdout_thread = threading.Thread(
-        target=drain, args=(process.stdout, stdout_chunks), daemon=True
-    )
-    stderr_thread = threading.Thread(
-        target=drain, args=(process.stderr, stderr_chunks), daemon=True
-    )
-    stdout_thread.start()
-    stderr_thread.start()
-    timed_out = False
-    deadline = time.monotonic() + CHILD_TIMEOUT_SECONDS
-    while process.poll() is None:
-        if overflow.is_set():
-            process.kill()
-            break
-        if time.monotonic() >= deadline:
-            timed_out = True
-            process.kill()
-            break
-        time.sleep(0.05)
-    returncode = process.wait()
-    stdout_thread.join()
-    stderr_thread.join()
-    stdout = stdout_chunks[0] if stdout_chunks else b""
-    stderr = stderr_chunks[0] if stderr_chunks else b""
-    return returncode, stdout, stderr, timed_out, overflow.is_set()
+    try:
+        process = run_bounded(
+            [sys.executable, str(Path(__file__).resolve()), "--child"],
+            cwd=str(TOOL_DIR),
+            env=env,
+            timeout_seconds=CHILD_TIMEOUT_SECONDS,
+            stdout_limit=MAX_CHILD_OUTPUT,
+            stderr_limit=MAX_CHILD_OUTPUT,
+        )
+    except ProcessOutputLimitError:
+        return 0, b"", b"", False, True
+    except ProcessTimeoutError:
+        return 0, b"", b"", True, False
+    except BoundedProcessError as exc:
+        raise SmokeFailure("child process cleanup failed") from exc
+    return process.returncode, process.stdout, process.stderr, False, False
 
 
 def _forward_stderr(data: bytes) -> None:
@@ -235,7 +199,7 @@ def main(argv=None) -> int:
     try:
         result = _run_child()
         _validate_child(*result)
-    except OSError:
+    except (OSError, BoundedProcessError):
         sys.stderr.write("phase smoke failed: child launch failure\n")
         sys.stderr.flush()
         return 1

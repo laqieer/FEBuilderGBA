@@ -9,6 +9,7 @@ import pytest
 from febuildergba_playtest.model import load_scenario
 import run_real_mgba_proof as proof
 import run_real_cli_proof as cli_proof
+import bounded_process
 from synthetic_gba import DEFAULT_MARKER, build_synthetic_rom
 
 
@@ -100,3 +101,24 @@ def test_cli_proof_failure_scenario_expects_machine_failure():
 
     assert parsed.assertions[0].value == 1
     assert parsed.screenshot is None
+
+
+def test_proof_drivers_convert_bounded_process_failures(monkeypatch):
+    def overflow(*args, **kwargs):
+        raise bounded_process.ProcessOutputLimitError(
+            "process stdout exceeded the capture limit"
+        )
+
+    monkeypatch.setattr(proof, "run_bounded", overflow)
+    with pytest.raises(AssertionError, match="direct proof.*stdout"):
+        proof._run_cli(["--check"], "direct proof")
+
+    monkeypatch.setattr(cli_proof, "run_bounded", overflow)
+    with pytest.raises(AssertionError, match="CLI proof.*stdout"):
+        cli_proof._run_cli(
+            Path("FEBuilderGBA.CLI"),
+            Path("python"),
+            ["--check"],
+            "CLI proof",
+            check=True,
+        )

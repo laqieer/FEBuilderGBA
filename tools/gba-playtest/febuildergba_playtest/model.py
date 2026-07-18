@@ -205,6 +205,8 @@ def parse_json(text: str) -> Any:
         )
     except ScenarioError:
         raise
+    except RecursionError as exc:
+        raise ScenarioError("invalid JSON: nesting is too deep") from exc
     except json.JSONDecodeError as exc:
         raise ScenarioError(f"invalid JSON: {exc}") from exc
 

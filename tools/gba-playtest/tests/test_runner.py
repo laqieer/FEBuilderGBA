@@ -215,6 +215,35 @@ def test_watchdog_softlock():
     assert "hp" in result["note"]
 
 
+def test_watchdog_softlock_samples_all_evidence_on_terminal_frame():
+    sc = scenario({
+        "schemaVersion": 1,
+        "runFrames": 100,
+        "watchdogs": [
+            {
+                "domain": "wram",
+                "address": 0,
+                "width": 8,
+                "maxStallFrames": 2,
+                "label": "first",
+            },
+            {
+                "domain": "wram",
+                "address": 1,
+                "width": 8,
+                "maxStallFrames": 10,
+                "label": "later",
+            },
+        ],
+    })
+    result, code = Runner(sc, FakeBackend()).run(ROM)
+    assert result["status"] == "softlock"
+    assert code == 2
+    assert result["framesExecuted"] == 2
+    assert "first" in result["note"]
+    assert [entry["stalledFrames"] for entry in result["watchdogs"]] == [2, 2]
+
+
 def test_watchdog_resets_on_change():
     def program(be, frame):
         be.write("wram", 0, 8, frame & 0xFF)  # always changing

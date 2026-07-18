@@ -214,6 +214,12 @@ def test_json_integer_token_length_is_bounded():
     assert parsed["value"] == 4294967295
 
 
+def test_deeply_nested_json_is_a_scenario_error():
+    nested = "[" * 2000 + "0" + "]" * 2000
+    with pytest.raises(ScenarioError, match="nesting is too deep"):
+        model.parse_json(nested)
+
+
 def test_bad_width_rejected():
     doc = base_doc()
     doc["assertions"] = [{"domain": "wram", "address": 0, "width": 24, "op": "changed"}]

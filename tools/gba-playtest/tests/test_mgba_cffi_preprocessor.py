@@ -1295,6 +1295,65 @@ def test_preprocessor_reaper_does_not_wait_forever_for_stuck_drain(
     assert retained is False
 
 
+def test_preprocessor_reaper_bounds_resistant_process(monkeypatch):
+    monkeypatch.setattr(
+        wrapper,
+        "PREPROCESSOR_REAPER_TERMINATION_ATTEMPTS",
+        2,
+    )
+    monkeypatch.setattr(
+        wrapper,
+        "PREPROCESSOR_REAPER_TERMINATION_TIMEOUT_SECONDS",
+        0.01,
+    )
+    monkeypatch.setattr(
+        wrapper,
+        "PREPROCESSOR_REAPER_BACKOFF_SECONDS",
+        0.01,
+    )
+
+    class Pipe:
+        def __init__(self):
+            self.closed = False
+
+        def close(self):
+            self.closed = True
+
+    class ResistantProcess:
+        def __init__(self):
+            self.stdout = Pipe()
+            self.stderr = Pipe()
+            self.kill_calls = 0
+
+        def poll(self):
+            return None
+
+        def kill(self):
+            self.kill_calls += 1
+
+        def terminate(self):
+            raise AssertionError("kill succeeds, so terminate is not used")
+
+        def wait(self, timeout=None):
+            raise wrapper.subprocess.TimeoutExpired("fake", timeout)
+
+    process = ResistantProcess()
+    wrapper._retain_preprocessor_for_reaping(process, ())
+
+    deadline = wrapper.threading.Event()
+    for _ in range(100):
+        with wrapper._RETAINED_PREPROCESSORS_LOCK:
+            retained = process in wrapper._RETAINED_PREPROCESSORS
+        if not retained:
+            break
+        deadline.wait(0.01)
+
+    assert retained is False
+    assert process.kill_calls == 2
+    assert process.stdout.closed is True
+    assert process.stderr.closed is True
+
+
 def test_successful_preprocessor_output_size_is_bounded(monkeypatch, capsysbinary):
     monkeypatch.setattr(wrapper, "MAX_PREPROCESSED_BYTES", 3)
     monkeypatch.setattr(

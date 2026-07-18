@@ -73,6 +73,21 @@ def test_non_utf8_scenario_rejected(tmp_path, capsys):
     assert code == 1
 
 
+def test_deeply_nested_scenario_is_scenario_error(tmp_path, capsys):
+    rom = tmp_path / "rom.gba"
+    rom.write_bytes(b"\x00" * 0x200)
+    scenario = tmp_path / "deep.json"
+    scenario.write_text(
+        "[" * 2000 + "0" + "]" * 2000,
+        encoding="utf-8",
+    )
+    code = cli.main(["--rom", str(rom), "--scenario", str(scenario)])
+    result = _one_json(capsys)
+    assert code == 1
+    assert result["status"] == "scenario_error"
+    assert "nesting is too deep" in result["note"]
+
+
 def test_oversize_scenario_screenshot_collision_preserves_artifact(
     tmp_path, monkeypatch, capsys
 ):

@@ -182,6 +182,8 @@ PREPROCESSOR_PIPE_CHUNK_BYTES = 64 * 1024
 PREPROCESSOR_REAPER_JOIN_ATTEMPTS = 3
 PREPROCESSOR_REAPER_JOIN_TIMEOUT_SECONDS = 1.0
 PREPROCESSOR_REAPER_BACKOFF_SECONDS = 1.0
+PREPROCESSOR_REAPER_TERMINATION_ATTEMPTS = 3
+PREPROCESSOR_REAPER_TERMINATION_TIMEOUT_SECONDS = 1.0
 _RETAINED_PREPROCESSORS = set()
 _RETAINED_PREPROCESSORS_LOCK = threading.Lock()
 MAX_OPAQUE_COMPILER_SCALAR_TYPEDEFS = 64
@@ -1930,12 +1932,37 @@ def _retain_preprocessor_for_reaping(
 
     def reap() -> None:
         try:
-            while process.poll() is None:
+            for attempt in range(
+                PREPROCESSOR_REAPER_TERMINATION_ATTEMPTS
+            ):
+                if process.poll() is not None:
+                    break
                 _signal_preprocessor_termination(process)
                 try:
-                    process.wait(timeout=5)
+                    process.wait(
+                        timeout=(
+                            PREPROCESSOR_REAPER_TERMINATION_TIMEOUT_SECONDS
+                        )
+                    )
                 except subprocess.TimeoutExpired:
-                    threading.Event().wait(1)
+                    if (
+                        attempt + 1
+                        < PREPROCESSOR_REAPER_TERMINATION_ATTEMPTS
+                    ):
+                        threading.Event().wait(
+                            PREPROCESSOR_REAPER_BACKOFF_SECONDS
+                        )
+            if process.poll() is None:
+                for pipe in (
+                    getattr(process, "stdout", None),
+                    getattr(process, "stderr", None),
+                ):
+                    if pipe is None:
+                        continue
+                    try:
+                        pipe.close()
+                    except (OSError, ValueError):
+                        pass
             for attempt in range(PREPROCESSOR_REAPER_JOIN_ATTEMPTS):
                 alive = [thread for thread in drain_threads if thread.is_alive()]
                 if not alive:
@@ -1958,7 +1985,7 @@ def _retain_preprocessor_for_reaping(
     threading.Thread(
         target=reap,
         name="febuildergba-preprocessor-reaper",
-        daemon=False,
+        daemon=True,
     ).start()
 
 
