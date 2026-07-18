@@ -273,6 +273,55 @@ def test_duplicate_screenshot_keys_check_every_recovered_basename(
     assert artifact.read_bytes() == b"png-proof"
 
 
+def test_escaped_screenshot_keys_are_recovered_before_persistence(
+    tmp_path, capsys
+):
+    rom, scenario = _prepare_valid_inputs(tmp_path)
+    artifact_dir = tmp_path / "escaped-key-artifacts"
+    artifact_dir.mkdir()
+    artifact = artifact_dir / "shot.png"
+    artifact.write_bytes(b"png-proof")
+    scenario.write_text(
+        '{"\\u0073creenshot":{"\\u0062asename":"shot.png"},'
+        '"assertions":[',
+        encoding="utf-8",
+    )
+
+    code = cli.main([
+        "--rom", str(rom),
+        "--scenario", str(scenario),
+        "--out", str(artifact),
+        "--artifact-dir", str(artifact_dir),
+    ])
+    result = _one_json(capsys)
+
+    assert code == 1
+    assert result["status"] == "harness_error"
+    assert "collides" in result["note"]
+    assert artifact.read_bytes() == b"png-proof"
+
+
+def test_screenshot_recovery_candidate_count_is_bounded(tmp_path, capsys):
+    rom, scenario = _prepare_valid_inputs(tmp_path)
+    out = tmp_path / "result.json"
+    scenario.write_text(
+        '"screenshot":{' * (cli._MAX_RAW_SCREENSHOT_OBJECTS + 1),
+        encoding="utf-8",
+    )
+
+    code = cli.main([
+        "--rom", str(rom),
+        "--scenario", str(scenario),
+        "--out", str(out),
+    ])
+    result = _one_json(capsys)
+
+    assert code == 1
+    assert result["status"] == "harness_error"
+    assert "work limit" in result["note"]
+    assert not out.exists()
+
+
 # --- ROM read bounds -------------------------------------------------------
 
 

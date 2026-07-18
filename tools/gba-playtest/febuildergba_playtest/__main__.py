@@ -200,7 +200,14 @@ def _run_scenario(rom_path: str, scenario_path: str, out_path: Optional[str],
     def reject_recovered_screenshot_collisions(
         text: str,
     ) -> Optional[Tuple[Dict[str, Any], int]]:
-        for recovered_basename in _recover_screenshot_basenames(text):
+        try:
+            recovered_basenames = _recover_screenshot_basenames(text)
+        except _ScreenshotRecoveryLimit:
+            return _error_result(
+                "harness_error",
+                "scenario screenshot recovery exceeds the work limit",
+            )
+        for recovered_basename in recovered_basenames:
             recovered_collision = reject_screenshot_collision(
                 recovered_basename
             )
@@ -342,25 +349,101 @@ def _close_backend(backend: Any) -> Optional[Tuple[Dict[str, Any], int]]:
 _FLAG_OPTS = frozenset({"--check"})
 _VALUE_OPTS = frozenset({"--rom", "--scenario", "--out", "--artifact-dir"})
 _ALL_OPTS = _FLAG_OPTS | _VALUE_OPTS
-_RAW_SCREENSHOT_BASENAME = re.compile(
-    r'"screenshot"\s*:\s*\{[^{}]{0,4096}?'
-    r'"basename"\s*:\s*"((?:\\.|[^"\\]){1,255})"',
+_RAW_JSON_KEY = re.compile(
+    r'"((?:\\.|[^"\\]){1,255})"\s*:',
 )
+_RAW_JSON_STRING_VALUE = re.compile(
+    r'\s*"((?:\\.|[^"\\]){1,255})"',
+)
+_RAW_SCREENSHOT_OBJECT_CHARS = 4096
+_MAX_RAW_JSON_KEY_CANDIDATES = 4096
+_MAX_RAW_SCREENSHOT_OBJECTS = 64
 
 
 class _UsageError(Exception):
     """Raised for any malformed command line. Messages are static (no paths)."""
 
 
+class _ScreenshotRecoveryLimit(Exception):
+    """Raised when malformed screenshot recovery exceeds its work budget."""
+
+
+def _decode_json_string_fragment(fragment: str) -> Optional[str]:
+    try:
+        value = json.loads('"' + fragment + '"')
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return None
+    return value if isinstance(value, str) else None
+
+
+def _bounded_object_body(text: str, start: int) -> Optional[str]:
+    index = start
+    while index < len(text) and text[index].isspace():
+        index += 1
+    if index >= len(text) or text[index] != "{":
+        return None
+
+    body_start = index + 1
+    limit = min(
+        len(text),
+        body_start + _RAW_SCREENSHOT_OBJECT_CHARS,
+    )
+    depth = 1
+    in_string = False
+    escaped = False
+    for index in range(body_start, limit):
+        char = text[index]
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+        elif char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return text[body_start:index]
+    return text[body_start:limit]
+
+
 def _recover_screenshot_basenames(text: str) -> Tuple[str, ...]:
     recovered = []
-    for match in _RAW_SCREENSHOT_BASENAME.finditer(text):
-        try:
-            value = json.loads('"' + match.group(1) + '"')
-        except (json.JSONDecodeError, UnicodeDecodeError):
+    key_candidates = 0
+    screenshot_objects = 0
+    for match in _RAW_JSON_KEY.finditer(text):
+        key_candidates += 1
+        if key_candidates > _MAX_RAW_JSON_KEY_CANDIDATES:
+            raise _ScreenshotRecoveryLimit()
+        key = _decode_json_string_fragment(match.group(1))
+        if key != "screenshot":
             continue
-        if isinstance(value, str) and value:
-            recovered.append(value)
+        screenshot_objects += 1
+        if screenshot_objects > _MAX_RAW_SCREENSHOT_OBJECTS:
+            raise _ScreenshotRecoveryLimit()
+        body = _bounded_object_body(text, match.end())
+        if body is None:
+            continue
+        for inner_match in _RAW_JSON_KEY.finditer(body):
+            inner_key = _decode_json_string_fragment(
+                inner_match.group(1)
+            )
+            if inner_key != "basename":
+                continue
+            value_match = _RAW_JSON_STRING_VALUE.match(
+                body,
+                inner_match.end(),
+            )
+            if value_match is None:
+                continue
+            value = _decode_json_string_fragment(value_match.group(1))
+            if value:
+                recovered.append(value)
     return tuple(recovered)
 
 
