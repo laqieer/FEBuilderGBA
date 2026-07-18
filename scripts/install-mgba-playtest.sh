@@ -555,15 +555,29 @@ echo "  local wheel SHA-256 verified after install: ${MGBA_WHEEL_SHA_AFTER}"
 
 verify_low_entropy_dynamic_base() {
     local file="$1"
-    local pe_headers
+    local pe_headers dll_characteristics dll_value
     pe_headers="$(objdump -x "${file}")" \
         || fail "Could not inspect PE flags for ${file}."
-    if printf '%s\n' "${pe_headers}" | grep -Eqi "HIGH_ENTROPY_VA|High Entropy Virtual Addresses"; then
+    dll_characteristics="$(
+        printf '%s\n' "${pe_headers}" |
+            awk 'tolower($1) == "dllcharacteristics" { print $2; exit }'
+    )"
+    dll_characteristics="${dll_characteristics#0x}"
+    dll_characteristics="${dll_characteristics#0X}"
+    case "${dll_characteristics}" in
+        ""|*[!0-9A-Fa-f]*)
+            fail "Could not parse PE DllCharacteristics for ${file}."
+            ;;
+    esac
+    dll_value=$((16#${dll_characteristics}))
+    if (( (dll_value & 0x0020) != 0 )); then
         fail "High-entropy VA remains enabled for ${file}."
     fi
-    if ! printf '%s\n' "${pe_headers}" | grep -Eqi "DYNAMIC_BASE|Dynamic base"; then
+    if (( (dll_value & 0x0040) == 0 )); then
         fail "Dynamic-base ASLR is not enabled for ${file}."
     fi
+    printf '  PE DllCharacteristics 0x%04X verified for %s\n' \
+        "${dll_value}" "${file}"
 }
 
 if [ -n "${MSYSTEM:-}" ]; then
