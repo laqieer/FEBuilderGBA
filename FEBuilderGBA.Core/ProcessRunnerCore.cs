@@ -219,6 +219,7 @@ namespace FEBuilderGBA
         private sealed class PosixProcessGroupContainment : IProcessContainment
         {
             private const int SigKill = 9;
+            private readonly Process _process;
             private readonly int _processGroup;
             private bool _active;
 
@@ -230,24 +231,33 @@ namespace FEBuilderGBA
 
             internal PosixProcessGroupContainment(Process process)
             {
+                _process = process;
                 _processGroup = process.Id;
-                for (int attempt = 0; attempt < 100; attempt++)
+                TryActivate(maximumAttempts: 1000);
+            }
+
+            private bool TryActivate(int maximumAttempts)
+            {
+                if (_active)
+                    return true;
+                for (int attempt = 0; attempt < maximumAttempts; attempt++)
                 {
-                    if (TryWaitForExit(process, 0))
-                        return;
                     if (getpgid(_processGroup) == _processGroup)
                     {
                         _active = true;
-                        return;
+                        return true;
                     }
+                    if (TryWaitForExit(_process, 0))
+                        return false;
                     Thread.Sleep(1);
                 }
+                return false;
             }
 
             public bool Terminate()
             {
-                if (!_active)
-                    return true;
+                if (!TryActivate(maximumAttempts: 1000))
+                    return TryWaitForExit(_process, 0);
                 if (kill(-_processGroup, SigKill) == 0)
                     return true;
                 int error = Marshal.GetLastWin32Error();
@@ -261,12 +271,17 @@ namespace FEBuilderGBA
             }
         }
 
-        private static IProcessContainment CreateContainment(Process process)
+        private static IProcessContainment CreateContainment(
+            Process process,
+            bool requirePosixProcessGroup)
         {
             if (OperatingSystem.IsWindows())
                 return new WindowsJobContainment(process);
-            if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
+            if (requirePosixProcessGroup
+                && (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()))
+            {
                 return new PosixProcessGroupContainment(process);
+            }
             return NoopProcessContainment.Instance;
         }
 
@@ -532,7 +547,16 @@ namespace FEBuilderGBA
 
                     try
                     {
-                        containment = CreateContainment(proc);
+                        bool requirePosixProcessGroup =
+                            !OperatingSystem.IsWindows()
+                            && psi.ArgumentList.Count > 0
+                            && string.Equals(
+                                Path.GetFileName(psi.ArgumentList[0]),
+                                "process_worker.py",
+                                StringComparison.Ordinal);
+                        containment = CreateContainment(
+                            proc,
+                            requirePosixProcessGroup);
                     }
                     catch (Exception ex)
                     {

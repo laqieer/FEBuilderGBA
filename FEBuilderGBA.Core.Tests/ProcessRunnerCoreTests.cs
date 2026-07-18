@@ -233,14 +233,15 @@ namespace FEBuilderGBA.Core.Tests
                 string pythonPidPath = "'"
                     + pidPath.Replace("\\", "\\\\").Replace("'", "\\'")
                     + "'";
-                string code =
-                    "import os,pathlib,subprocess,sys;"
-                    + "os.setsid();"
+                scriptPath = Path.Combine(root, "process_worker.py");
+                File.WriteAllText(
+                    scriptPath,
+                    "import os,pathlib,subprocess,sys\n"
+                    + "os.setsid()\n"
                     + "p=subprocess.Popen([sys.executable,'-c',"
-                    + "'import time;time.sleep(30)']);"
-                    + $"pathlib.Path({pythonPidPath}).write_text(str(p.pid))";
-                scriptPath = "";
-                args = new[] { "-c", code };
+                    + "'import time;time.sleep(30)'])\n"
+                    + $"pathlib.Path({pythonPidPath}).write_text(str(p.pid))\n");
+                args = new[] { scriptPath };
             }
 
             var stopwatch = Stopwatch.StartNew();
