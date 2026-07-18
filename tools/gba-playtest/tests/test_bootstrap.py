@@ -1207,6 +1207,9 @@ def test_build_script_bounds_mingw_pe_placement_without_disabling_aslr():
     assert "HIGH_ENTROPY_VA|High Entropy Virtual Addresses" in text
     assert "DYNAMIC_BASE|Dynamic base" in text
     assert "require_cmd \"objdump\"" in text
+    assert "from importlib.metadata import distribution" in text
+    assert 'distribution("mgba")' in text
+    assert 'MGBA_PYLIB="$(cygpath -u "${MGBA_PYLIB_NATIVE}")"' in text
 
 
 def test_build_script_builds_cpp_as_two_shlex_safe_tokens():

@@ -567,18 +567,21 @@ verify_low_entropy_dynamic_base() {
 }
 
 if [ -n "${MSYSTEM:-}" ]; then
-    shopt -s nullglob globstar
+    shopt -s nullglob
     MGBA_DLLS=("${CMAKE_BUILD}"/libmgba*.dll "${CMAKE_BUILD}"/mgba*.dll)
-    MGBA_PYLIBS=("${VENV_DIR}"/**/_pylib*.pyd)
-    shopt -u globstar nullglob
+    shopt -u nullglob
     if [ "${#MGBA_DLLS[@]}" -ne 1 ]; then
         fail "Expected exactly one built libmgba DLL, found ${#MGBA_DLLS[@]}."
     fi
-    if [ "${#MGBA_PYLIBS[@]}" -ne 1 ]; then
-        fail "Expected exactly one installed mGBA Python extension, found ${#MGBA_PYLIBS[@]}."
+    MGBA_PYLIB_NATIVE="$("${VENV_PY}" -c 'from importlib.metadata import distribution; import sys; d = distribution("mgba"); matches = [f for f in (d.files or ()) if f.name.startswith("_pylib") and f.suffix == ".pyd"]; len(matches) == 1 or sys.exit(2); print(d.locate_file(matches[0]).resolve())')" \
+        || fail "Could not resolve exactly one installed mGBA Python extension from wheel metadata."
+    MGBA_PYLIB="$(cygpath -u "${MGBA_PYLIB_NATIVE}")" \
+        || fail "Could not convert the installed mGBA Python extension path."
+    if [ -L "${MGBA_PYLIB}" ] || [ ! -f "${MGBA_PYLIB}" ]; then
+        fail "Resolved mGBA Python extension is not a regular file."
     fi
     verify_low_entropy_dynamic_base "${MGBA_DLLS[0]}"
-    verify_low_entropy_dynamic_base "${MGBA_PYLIBS[0]}"
+    verify_low_entropy_dynamic_base "${MGBA_PYLIB}"
     echo "  confirmed MinGW artifacts retain dynamic-base ASLR without high-entropy VA"
 fi
 
