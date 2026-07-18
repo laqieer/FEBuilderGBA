@@ -137,6 +137,9 @@ require_cmd "mktemp" "Install coreutils so temporary files can be created safely
 require_cmd "pkg-config" "Install pkg-config so native build dependencies can be verified."
 require_cmd "grep" "Install grep so the generated feature header can be verified."
 require_cmd "sed" "Install sed so the CPP wrapper command can be constructed safely."
+if [ -n "${MSYSTEM:-}" ]; then
+    require_cmd "objdump" "Install binutils so Windows PE ASLR flags can be verified."
+fi
 
 for dependency in epoxy libffi libpng zlib; do
     if ! pkg-config --exists "${dependency}"; then
@@ -358,10 +361,6 @@ MGBA_SETUPTOOLS_TEMP_ACTUAL="$(cd "${MGBA_SETUPTOOLS_TEMP}" && pwd -P)"
 if [ "${MGBA_SETUPTOOLS_TEMP_ACTUAL}" != "${MGBA_SETUPTOOLS_TEMP}" ]; then
     fail "Refusing mGBA setuptools temp directory path alias."
 fi
-MGBA_DLLIMPORT_MARKER="${CMAKE_BUILD}/mgba-dllimport-overlay.marker"
-if [ -L "${MGBA_DLLIMPORT_MARKER}" ]; then
-    fail "Refusing symlinked mGBA dllimport overlay marker."
-fi
 MGBA_BUILDER_H="${SRC_DIR}/src/platform/python/_builder.h"
 MGBA_SOURCE_ROOT="${SRC_DIR}"
 # mGBA's _builder.py executes CPP with native Python subprocess APIs. Under
@@ -374,10 +373,19 @@ MGBA_BUILDER_H_ARG="$(to_native_path "${MGBA_BUILDER_H}")"
 MGBA_SOURCE_ROOT_ARG="$(to_native_path "${MGBA_SOURCE_ROOT}")"
 MGBA_SETUPTOOLS_SHIM_ARG="$(to_native_path "${MGBA_SETUPTOOLS_SHIM_DIR}")"
 MGBA_SETUPTOOLS_TEMP_ARG="$(to_native_path "${MGBA_SETUPTOOLS_TEMP}")"
-MGBA_DLLIMPORT_MARKER_ARG="$(to_native_path "${MGBA_DLLIMPORT_MARKER}")"
 MGBA_CFFI_MINGW_CDEF=0
 if [ -n "${MSYSTEM:-}" ]; then
     MGBA_CFFI_MINGW_CDEF=1
+fi
+MGBA_MINGW_LDFLAGS=""
+MGBA_MINGW_CMAKE_LINKER_ARGS=()
+if [ -n "${MSYSTEM:-}" ]; then
+    MGBA_MINGW_LDFLAGS="-Wl,--disable-high-entropy-va"
+    MGBA_MINGW_CMAKE_LINKER_ARGS=(
+        "-DCMAKE_SHARED_LINKER_FLAGS=${MGBA_MINGW_LDFLAGS}"
+        "-DCMAKE_MODULE_LINKER_FLAGS=${MGBA_MINGW_LDFLAGS}"
+        "-DCMAKE_EXE_LINKER_FLAGS=${MGBA_MINGW_LDFLAGS}"
+    )
 fi
 # Build CPP as EXACTLY two argv tokens (the venv interpreter, then the wrapper
 # path) so _builder.py's `shlex.split(os.environ['CPP'])` reconstructs it
@@ -446,6 +454,7 @@ cmake -S "${SRC_DIR}" -B "${CMAKE_BUILD}" \
     -DUSE_FFMPEG=ON -DUSE_DISCORD_RPC=OFF \
     -DUSE_PNG=ON -DUSE_ZLIB=ON \
     -DCOLOR_16_BIT=OFF -DCOLOR_5_6_5=OFF \
+    "${MGBA_MINGW_CMAKE_LINKER_ARGS[@]}" \
     -DPYTHON_EXECUTABLE="${VENV_PY}"
 
 # --- Fail closed on the GENERATED feature header, never CMakeCache.txt -----
@@ -488,8 +497,7 @@ echo "Building libmgba..."
 # default build target can itself invoke _builder.py's cdef generation.
 PYTHONPATH="${MGBA_SETUPTOOLS_SHIM_ARG}" \
     FEBUILDERGBA_MGBA_SETUPTOOLS_TEMP="${MGBA_SETUPTOOLS_TEMP_ARG}" \
-    FEBUILDERGBA_MGBA_MINGW_DLLIMPORT="${MGBA_CFFI_MINGW_CDEF}" \
-    FEBUILDERGBA_MGBA_DLLIMPORT_MARKER="${MGBA_DLLIMPORT_MARKER_ARG}" \
+    LDFLAGS="${MGBA_MINGW_LDFLAGS}" \
     CPP="${MGBA_CFFI_CPP}" FEBUILDERGBA_MGBA_BUILDER_H="${MGBA_BUILDER_H_ARG}" \
     FEBUILDERGBA_MGBA_SOURCE_ROOT="${MGBA_SOURCE_ROOT_ARG}" \
     FEBUILDERGBA_MGBA_MINGW_CDEF="${MGBA_CFFI_MINGW_CDEF}" \
@@ -512,25 +520,11 @@ echo "Building the display-free Python wheel (mgba-py-bdist)..."
 # target invokes setup.py, which drives _builder.py's cdef generation.
 PYTHONPATH="${MGBA_SETUPTOOLS_SHIM_ARG}" \
     FEBUILDERGBA_MGBA_SETUPTOOLS_TEMP="${MGBA_SETUPTOOLS_TEMP_ARG}" \
-    FEBUILDERGBA_MGBA_MINGW_DLLIMPORT="${MGBA_CFFI_MINGW_CDEF}" \
-    FEBUILDERGBA_MGBA_DLLIMPORT_MARKER="${MGBA_DLLIMPORT_MARKER_ARG}" \
+    LDFLAGS="${MGBA_MINGW_LDFLAGS}" \
     CPP="${MGBA_CFFI_CPP}" FEBUILDERGBA_MGBA_BUILDER_H="${MGBA_BUILDER_H_ARG}" \
     FEBUILDERGBA_MGBA_SOURCE_ROOT="${MGBA_SOURCE_ROOT_ARG}" \
     FEBUILDERGBA_MGBA_MINGW_CDEF="${MGBA_CFFI_MINGW_CDEF}" \
     cmake --build "${CMAKE_BUILD}" --target mgba-py-bdist --config Release
-
-if [ "${MGBA_CFFI_MINGW_CDEF}" -eq 1 ]; then
-    if [ -L "${MGBA_DLLIMPORT_MARKER}" ] || [ ! -f "${MGBA_DLLIMPORT_MARKER}" ]; then
-        fail "MinGW CFFI dllimport overlay marker was not produced safely."
-    fi
-    MGBA_DLLIMPORT_MARKER_VALUE="$(<"${MGBA_DLLIMPORT_MARKER}")"
-    if [ "${MGBA_DLLIMPORT_MARKER_VALUE}" != "mgba._pylib MGBA_EXPORT=__declspec(dllimport)" ]; then
-        fail "MinGW CFFI dllimport overlay marker content is invalid."
-    fi
-    echo "  confirmed MinGW CFFI data imports use __declspec(dllimport)"
-elif [ -e "${MGBA_DLLIMPORT_MARKER}" ]; then
-    fail "Unexpected MinGW dllimport overlay marker on a non-MinGW build."
-fi
 
 shopt -s nullglob
 MGBA_WHEELS=("${MGBA_PY_DIST}"/*.whl)
@@ -558,6 +552,35 @@ if [ "${MGBA_WHEEL_SHA_AFTER}" != "${MGBA_WHEEL_SHA_BEFORE}" ]; then
     fail "mGBA wheel SHA-256 changed during installation; refusing mutated artifact."
 fi
 echo "  local wheel SHA-256 verified after install: ${MGBA_WHEEL_SHA_AFTER}"
+
+verify_low_entropy_dynamic_base() {
+    local file="$1"
+    local pe_headers
+    pe_headers="$(objdump -x "${file}")" \
+        || fail "Could not inspect PE flags for ${file}."
+    if printf '%s\n' "${pe_headers}" | grep -Eqi "HIGH_ENTROPY_VA|High Entropy Virtual Addresses"; then
+        fail "High-entropy VA remains enabled for ${file}."
+    fi
+    if ! printf '%s\n' "${pe_headers}" | grep -Eqi "DYNAMIC_BASE|Dynamic base"; then
+        fail "Dynamic-base ASLR is not enabled for ${file}."
+    fi
+}
+
+if [ -n "${MSYSTEM:-}" ]; then
+    shopt -s nullglob globstar
+    MGBA_DLLS=("${CMAKE_BUILD}"/libmgba*.dll "${CMAKE_BUILD}"/mgba*.dll)
+    MGBA_PYLIBS=("${VENV_DIR}"/**/_pylib*.pyd)
+    shopt -u globstar nullglob
+    if [ "${#MGBA_DLLS[@]}" -ne 1 ]; then
+        fail "Expected exactly one built libmgba DLL, found ${#MGBA_DLLS[@]}."
+    fi
+    if [ "${#MGBA_PYLIBS[@]}" -ne 1 ]; then
+        fail "Expected exactly one installed mGBA Python extension, found ${#MGBA_PYLIBS[@]}."
+    fi
+    verify_low_entropy_dynamic_base "${MGBA_DLLS[0]}"
+    verify_low_entropy_dynamic_base "${MGBA_PYLIBS[0]}"
+    echo "  confirmed MinGW artifacts retain dynamic-base ASLR without high-entropy VA"
+fi
 
 # --- Record the native DLL search directories (Windows loader strategy) -----
 # A UCRT64 Python launched outside the MSYS2 shell (e.g. from PowerShell/.NET)
