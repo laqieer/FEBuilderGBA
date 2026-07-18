@@ -119,6 +119,19 @@ builds a local wheel from that pinned source and installs that exact wheel
 offline with dependency resolution disabled; it does not use the legacy,
 modern-setuptools-incompatible install target.
 
+On MinGW/UCRT64, the build-only setuptools shim also replaces the pinned
+CFFI source's exact empty `MGBA_EXPORT` preamble with a verified
+`__declspec(dllimport)` declaration while leaving the archived source tree
+unchanged. This prevents MinGW auto-import from emitting 32-bit runtime
+pseudo-relocations for libmgba's exported data symbols, which can fail when
+high-entropy ASLR places the extension and `libmgba.dll` outside the
+relocation's 32-bit range. The extension link also disables creation of
+runtime pseudo-relocations, so any remaining unannotated data import fails
+closed at link time instead of reviving the loader hazard. A marker proves the
+exact overlay ran, and the bootstrap launches ten fresh import/provenance
+probes so randomized module placement is exercised before the binding is
+accepted.
+
 On Ubuntu the same native prerequisites are installed as system packages:
 `build-essential cmake ninja-build pkg-config libepoxy-dev libffi-dev
 libpng-dev zlib1g-dev libavcodec-dev libavfilter-dev libavformat-dev

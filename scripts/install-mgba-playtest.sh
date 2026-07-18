@@ -358,6 +358,10 @@ MGBA_SETUPTOOLS_TEMP_ACTUAL="$(cd "${MGBA_SETUPTOOLS_TEMP}" && pwd -P)"
 if [ "${MGBA_SETUPTOOLS_TEMP_ACTUAL}" != "${MGBA_SETUPTOOLS_TEMP}" ]; then
     fail "Refusing mGBA setuptools temp directory path alias."
 fi
+MGBA_DLLIMPORT_MARKER="${CMAKE_BUILD}/mgba-dllimport-overlay.marker"
+if [ -L "${MGBA_DLLIMPORT_MARKER}" ]; then
+    fail "Refusing symlinked mGBA dllimport overlay marker."
+fi
 MGBA_BUILDER_H="${SRC_DIR}/src/platform/python/_builder.h"
 MGBA_SOURCE_ROOT="${SRC_DIR}"
 # mGBA's _builder.py executes CPP with native Python subprocess APIs. Under
@@ -370,6 +374,7 @@ MGBA_BUILDER_H_ARG="$(to_native_path "${MGBA_BUILDER_H}")"
 MGBA_SOURCE_ROOT_ARG="$(to_native_path "${MGBA_SOURCE_ROOT}")"
 MGBA_SETUPTOOLS_SHIM_ARG="$(to_native_path "${MGBA_SETUPTOOLS_SHIM_DIR}")"
 MGBA_SETUPTOOLS_TEMP_ARG="$(to_native_path "${MGBA_SETUPTOOLS_TEMP}")"
+MGBA_DLLIMPORT_MARKER_ARG="$(to_native_path "${MGBA_DLLIMPORT_MARKER}")"
 MGBA_CFFI_MINGW_CDEF=0
 if [ -n "${MSYSTEM:-}" ]; then
     MGBA_CFFI_MINGW_CDEF=1
@@ -483,6 +488,8 @@ echo "Building libmgba..."
 # default build target can itself invoke _builder.py's cdef generation.
 PYTHONPATH="${MGBA_SETUPTOOLS_SHIM_ARG}" \
     FEBUILDERGBA_MGBA_SETUPTOOLS_TEMP="${MGBA_SETUPTOOLS_TEMP_ARG}" \
+    FEBUILDERGBA_MGBA_MINGW_DLLIMPORT="${MGBA_CFFI_MINGW_CDEF}" \
+    FEBUILDERGBA_MGBA_DLLIMPORT_MARKER="${MGBA_DLLIMPORT_MARKER_ARG}" \
     CPP="${MGBA_CFFI_CPP}" FEBUILDERGBA_MGBA_BUILDER_H="${MGBA_BUILDER_H_ARG}" \
     FEBUILDERGBA_MGBA_SOURCE_ROOT="${MGBA_SOURCE_ROOT_ARG}" \
     FEBUILDERGBA_MGBA_MINGW_CDEF="${MGBA_CFFI_MINGW_CDEF}" \
@@ -505,10 +512,25 @@ echo "Building the display-free Python wheel (mgba-py-bdist)..."
 # target invokes setup.py, which drives _builder.py's cdef generation.
 PYTHONPATH="${MGBA_SETUPTOOLS_SHIM_ARG}" \
     FEBUILDERGBA_MGBA_SETUPTOOLS_TEMP="${MGBA_SETUPTOOLS_TEMP_ARG}" \
+    FEBUILDERGBA_MGBA_MINGW_DLLIMPORT="${MGBA_CFFI_MINGW_CDEF}" \
+    FEBUILDERGBA_MGBA_DLLIMPORT_MARKER="${MGBA_DLLIMPORT_MARKER_ARG}" \
     CPP="${MGBA_CFFI_CPP}" FEBUILDERGBA_MGBA_BUILDER_H="${MGBA_BUILDER_H_ARG}" \
     FEBUILDERGBA_MGBA_SOURCE_ROOT="${MGBA_SOURCE_ROOT_ARG}" \
     FEBUILDERGBA_MGBA_MINGW_CDEF="${MGBA_CFFI_MINGW_CDEF}" \
     cmake --build "${CMAKE_BUILD}" --target mgba-py-bdist --config Release
+
+if [ "${MGBA_CFFI_MINGW_CDEF}" -eq 1 ]; then
+    if [ -L "${MGBA_DLLIMPORT_MARKER}" ] || [ ! -f "${MGBA_DLLIMPORT_MARKER}" ]; then
+        fail "MinGW CFFI dllimport overlay marker was not produced safely."
+    fi
+    MGBA_DLLIMPORT_MARKER_VALUE="$(<"${MGBA_DLLIMPORT_MARKER}")"
+    if [ "${MGBA_DLLIMPORT_MARKER_VALUE}" != "mgba._pylib MGBA_EXPORT=__declspec(dllimport)" ]; then
+        fail "MinGW CFFI dllimport overlay marker content is invalid."
+    fi
+    echo "  confirmed MinGW CFFI data imports use __declspec(dllimport)"
+elif [ -e "${MGBA_DLLIMPORT_MARKER}" ]; then
+    fail "Unexpected MinGW dllimport overlay marker on a non-MinGW build."
+fi
 
 shopt -s nullglob
 MGBA_WHEELS=("${MGBA_PY_DIST}"/*.whl)
@@ -560,11 +582,19 @@ echo "  recorded DLL search dirs -> ${DLL_MANIFEST}"
 # real error) instead of folded into the sanitized runtime result. Asserts the
 # effective binding is exactly 0.10.5 at the pinned commit -- never
 # None/unknown/short SHA.
-echo "Probing the native binding import and exact provenance..."
-(
-    cd "${TOOL_DIR}"
-    "${VENV_PY}" -c 'import febuildergba_playtest.mgba_backend as b; b.prepare_native_library_search(); import mgba; v = mgba.__version__; c = getattr(getattr(mgba, "Git", None), "commit", None); print("mgba", v, c); assert v == "0.10.5", ("unexpected version", v); assert c == "26b7884bc25a5933960f3cdcd98bac1ae14d42e2", ("unexpected commit", c)'
-) || fail "Native import/provenance probe failed (see the loader error above)."
+MGBA_IMPORT_PROBE_COUNT=1
+if [ -n "${MSYSTEM:-}" ]; then
+    MGBA_IMPORT_PROBE_COUNT=10
+fi
+echo "Probing the native binding import and exact provenance (${MGBA_IMPORT_PROBE_COUNT} fresh process(es))..."
+MGBA_IMPORT_PROBE_ATTEMPT=1
+while [ "${MGBA_IMPORT_PROBE_ATTEMPT}" -le "${MGBA_IMPORT_PROBE_COUNT}" ]; do
+    (
+        cd "${TOOL_DIR}"
+        "${VENV_PY}" -c 'import febuildergba_playtest.mgba_backend as b; b.prepare_native_library_search(); import mgba; v = mgba.__version__; c = getattr(getattr(mgba, "Git", None), "commit", None); print("mgba", v, c); assert v == "0.10.5", ("unexpected version", v); assert c == "26b7884bc25a5933960f3cdcd98bac1ae14d42e2", ("unexpected commit", c)'
+    ) || fail "Native import/provenance probe ${MGBA_IMPORT_PROBE_ATTEMPT}/${MGBA_IMPORT_PROBE_COUNT} failed (see the loader error above)."
+    MGBA_IMPORT_PROBE_ATTEMPT=$((MGBA_IMPORT_PROBE_ATTEMPT + 1))
+done
 
 # --- Verify ----------------------------------------------------------------
 echo "Verifying the pinned binding with --playtest --check..."

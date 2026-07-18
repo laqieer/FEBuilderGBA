@@ -1157,6 +1157,14 @@ def test_setuptools_shim_exists_and_is_scoped_by_bootstrap():
     assert text.count(
         'FEBUILDERGBA_MGBA_SETUPTOOLS_TEMP="${MGBA_SETUPTOOLS_TEMP_ARG}"'
     ) == 2
+    assert text.count(
+        'FEBUILDERGBA_MGBA_MINGW_DLLIMPORT="${MGBA_CFFI_MINGW_CDEF}"'
+    ) == 2
+    assert text.count(
+        'FEBUILDERGBA_MGBA_DLLIMPORT_MARKER="${MGBA_DLLIMPORT_MARKER_ARG}"'
+    ) == 2
+    assert 'MGBA_DLLIMPORT_MARKER="${CMAKE_BUILD}/mgba-dllimport-overlay.marker"' in text
+    assert 'MGBA_DLLIMPORT_MARKER_ARG="$(to_native_path "${MGBA_DLLIMPORT_MARKER}")"' in text
     assert "export PYTHONPATH" not in text
 
 
@@ -1169,14 +1177,80 @@ def test_setuptools_shim_is_narrow_and_source_preserving():
             imports.update(alias.name.split(".")[0] for alias in node.names)
         elif isinstance(node, ast.ImportFrom) and node.module:
             imports.add(node.module.split(".")[0])
-    assert imports <= {"os", "sys", "setuptools", "distutils"}
+    assert imports <= {"cffi", "os", "sys", "setuptools", "distutils"}
     assert "MinGW32Compiler.runtime_library_dir_option" in text
     assert "DistutilsMinGW32Compiler.runtime_library_dir_option" in text
     assert "get_libraries" in text
     assert "python{sys.version_info.major}.{sys.version_info.minor}" in text
     assert "FEBUILDERGBA_MGBA_SETUPTOOLS_TEMP" in text
     assert "self.build_temp = _build_temp" in text
+    assert "FEBUILDERGBA_MGBA_MINGW_DLLIMPORT" in text
+    assert "FEBUILDERGBA_MGBA_DLLIMPORT_MARKER" in text
+    assert "#define MGBA_EXPORT_H" in text
+    assert "#define MGBA_EXPORT __declspec(dllimport)" in text
+    assert "source.count(_empty_export) != 1" in text
+    assert "-Wl,--disable-runtime-pseudo-reloc" in text
+    assert 'extension.name == "mgba._pylib"' in text
+    assert "dllimport overlay marker must share the build root" in text
+    assert "refusing symlinked dllimport overlay marker" in text
     assert "subprocess" not in imports
+
+
+@pytest.mark.skipif(os.name != "nt", reason="MinGW shim is Windows-only")
+def test_setuptools_shim_applies_exact_mingw_dllimport_overlay(tmp_path):
+    marker = tmp_path / "dllimport.marker"
+    source = (
+        "\n#define static\n"
+        "#define inline\n"
+        "#define MGBA_EXPORT\n"
+        "#include <mgba/flags.h>\n"
+    )
+    code = (
+        "import cffi, os\n"
+        f"source = {source!r}\n"
+        "ffi = cffi.FFI()\n"
+        "ffi.set_source('mgba._pylib', source)\n"
+        "patched = ffi._assigned_source[1]\n"
+        "assert '#define MGBA_EXPORT_H' in patched\n"
+        "assert '#define MGBA_EXPORT __declspec(dllimport)' in patched\n"
+        "assert '#define MGBA_EXPORT\\n' not in patched\n"
+        "print(open(os.environ['FEBUILDERGBA_MGBA_DLLIMPORT_MARKER'], "
+        "encoding='ascii').read(), end='')\n"
+    )
+    env = dict(os.environ)
+    env["PYTHONPATH"] = os.path.dirname(SETUPTOOLS_SHIM)
+    build_temp = tmp_path / "setuptools-temp"
+    build_temp.mkdir()
+    env["FEBUILDERGBA_MGBA_SETUPTOOLS_TEMP"] = str(build_temp)
+    env["FEBUILDERGBA_MGBA_MINGW_DLLIMPORT"] = "1"
+    env["FEBUILDERGBA_MGBA_DLLIMPORT_MARKER"] = str(marker)
+    completed = subprocess.run(
+        [sys.executable, "-c", code],
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout == (
+        "mgba._pylib MGBA_EXPORT=__declspec(dllimport)\n"
+    )
+
+
+def test_build_script_verifies_repeated_fresh_mingw_imports():
+    text = _read(BUILD_SCRIPT)
+    assert "MGBA_IMPORT_PROBE_COUNT=10" in text
+    assert re.search(
+        r'while \[ "\$\{MGBA_IMPORT_PROBE_ATTEMPT\}" -le '
+        r'"\$\{MGBA_IMPORT_PROBE_COUNT\}" \]',
+        text,
+    )
+    assert (
+        "Native import/provenance probe "
+        "${MGBA_IMPORT_PROBE_ATTEMPT}/${MGBA_IMPORT_PROBE_COUNT} failed"
+        in text
+    )
 
 
 def test_build_script_builds_cpp_as_two_shlex_safe_tokens():
