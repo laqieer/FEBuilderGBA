@@ -45,6 +45,7 @@ MAX_ASSERTIONS = 1024
 MAX_WATCHDOGS = 256
 MAX_BASENAME_LENGTH = 128
 MAX_HEX_DIGITS = 8
+MAX_JSON_NESTING = 256
 MAX_NAME_LENGTH = 128
 MAX_JSON_INTEGER_DIGITS = 10
 MAX_LABEL_LENGTH = 200
@@ -199,9 +200,33 @@ def _parse_bounded_json_int(token: str) -> int:
     return int(token, 10)
 
 
+def _validate_json_nesting(text: str) -> None:
+    depth = 0
+    in_string = False
+    escaped = False
+    for char in text:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+        elif char in "[{":
+            depth += 1
+            if depth > MAX_JSON_NESTING:
+                raise ScenarioError("invalid JSON: nesting is too deep")
+        elif char in "]}":
+            depth = max(0, depth - 1)
+
+
 def parse_json(text: str) -> Any:
     if len(text.encode("utf-8")) > MAX_SCENARIO_BYTES:
         raise ScenarioError("scenario document exceeds maximum size")
+    _validate_json_nesting(text)
     try:
         return json.loads(
             text,

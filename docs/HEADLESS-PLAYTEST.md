@@ -179,7 +179,8 @@ Addresses and unsigned values may be decimal integers or `0x`-prefixed
 strings with one to eight hex digits. Screenshot basenames are portable
 single components of 1-128 ASCII characters from `[A-Za-z0-9._-]`; they
 cannot end in `.`, use `.`/`..`, or use Windows device stems such as `NUL`,
-`CON`, `COM1`, or `LPT1`.
+`CON`, `COM1`, or `LPT1`. JSON container nesting is capped at 256 levels
+before decoding so the classification is stable across Python versions.
 
 ### Frame and input semantics
 
