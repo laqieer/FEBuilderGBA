@@ -113,13 +113,13 @@ namespace FEBuilderGBA
                         outputLimitReached();
                 }
             }
-            catch (IOException)
+            catch (IOException ex)
             {
-                return null;
+                return ex;
             }
-            catch (ObjectDisposedException)
+            catch (ObjectDisposedException ex)
             {
-                return null;
+                return ex;
             }
             catch (Exception ex)
             {
@@ -388,9 +388,13 @@ namespace FEBuilderGBA
                         ? stderrTask.Result
                         : null;
                     outputLimitExceeded |= Volatile.Read(ref outputLimitSignal) != 0;
-                    bool captureFailed = !streamsDrained
-                        || stdoutError != null
+                    bool streamReadFailed = stdoutError != null
                         || stderrError != null;
+                    bool captureFailed = !streamsDrained
+                        || (!timedOut
+                            && !outputLimitExceeded
+                            && !terminationFailed
+                            && streamReadFailed);
                     string capturedStdout = streamsDrained ? stdout.ToString() : "";
                     string capturedStderr = streamsDrained ? stderr.ToString() : "";
 

@@ -45,6 +45,7 @@ MAX_ASSERTIONS = 1024
 MAX_WATCHDOGS = 256
 MAX_BASENAME_LENGTH = 128
 MAX_NAME_LENGTH = 128
+MAX_JSON_INTEGER_DIGITS = 10
 MAX_LABEL_LENGTH = 200
 MAX_UINT32 = 0xFFFFFFFF
 
@@ -185,6 +186,13 @@ def _reject_constant(token: str) -> float:
     raise ScenarioError(f"non-finite JSON number is not allowed: {token}")
 
 
+def _parse_bounded_json_int(token: str) -> int:
+    digits = token[1:] if token.startswith("-") else token
+    if len(digits) > MAX_JSON_INTEGER_DIGITS:
+        raise ScenarioError("JSON integer has too many digits")
+    return int(token, 10)
+
+
 def parse_json(text: str) -> Any:
     if len(text.encode("utf-8")) > MAX_SCENARIO_BYTES:
         raise ScenarioError("scenario document exceeds maximum size")
@@ -193,6 +201,7 @@ def parse_json(text: str) -> Any:
             text,
             object_pairs_hook=_no_duplicate_keys,
             parse_constant=_reject_constant,
+            parse_int=_parse_bounded_json_int,
         )
     except ScenarioError:
         raise

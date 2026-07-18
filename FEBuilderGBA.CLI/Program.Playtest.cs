@@ -159,11 +159,18 @@ namespace FEBuilderGBA.CLI
                             stdout,
                             stderr);
                     }
-                    if (outPath != null
-                        && TryGetScenarioScreenshotBasenames(
-                            scenarioPath,
-                            out List<string> screenshotBasenames))
+                    if (outPath != null)
                     {
+                        if (!TryGetScenarioScreenshotBasenames(
+                                scenarioPath,
+                                out List<string> screenshotBasenames))
+                        {
+                            return EmitPlaytestError(
+                                "scenario cannot be safely inspected for screenshot collisions",
+                                null,
+                                stdout,
+                                stderr);
+                        }
                         foreach (string screenshotBasename in screenshotBasenames)
                         {
                             string screenshotPath =
@@ -448,9 +455,7 @@ namespace FEBuilderGBA.CLI
                     });
                 JsonElement root = document.RootElement;
                 if (root.ValueKind != JsonValueKind.Object)
-                {
-                    return false;
-                }
+                    return true;
                 foreach (JsonProperty property in root.EnumerateObject())
                 {
                     if (!property.NameEquals("screenshot")
@@ -472,7 +477,7 @@ namespace FEBuilderGBA.CLI
                             basenames.Add(basename);
                     }
                 }
-                return basenames.Count > 0;
+                return true;
             }
             catch (UnauthorizedAccessException)
             {

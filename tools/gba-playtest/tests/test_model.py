@@ -206,6 +206,14 @@ def test_assertion_op_must_be_string():
         load(doc)
 
 
+def test_json_integer_token_length_is_bounded():
+    huge = "9" * (model.MAX_JSON_INTEGER_DIGITS + 1)
+    with pytest.raises(ScenarioError, match="too many digits"):
+        model.parse_json('{"schemaVersion":' + huge + "}")
+    parsed = model.parse_json('{"value":4294967295}')
+    assert parsed["value"] == 4294967295
+
+
 def test_bad_width_rejected():
     doc = base_doc()
     doc["assertions"] = [{"domain": "wram", "address": 0, "width": 24, "op": "changed"}]

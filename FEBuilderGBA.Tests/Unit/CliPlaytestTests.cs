@@ -704,6 +704,39 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
+        public void MalformedScenarioWithArtifactOutput_FailsClosedBeforeLaunch()
+        {
+            string artifactDirectory = Path.Combine(
+                _root,
+                "malformed-csharp-artifacts");
+            Directory.CreateDirectory(artifactDirectory);
+            string outPath = Path.Combine(artifactDirectory, "shot.png");
+            File.WriteAllBytes(outPath, new byte[] { 7, 8, 9 });
+            File.WriteAllText(
+                _scenario,
+                "{\"screenshot\":{\"basename\":\"shot.png\"},");
+            bool launched = false;
+            var operations = Operations(
+                (cmd, args, cwd, timeoutMs) =>
+                {
+                    launched = true;
+                    return Result(0, PassJson);
+                },
+                resolvePhysicalPath: CliProgram.ResolvePhysicalPath);
+
+            var result = Run(
+                RunArgs(
+                    "--out=" + outPath,
+                    "--artifact-dir=" + artifactDirectory),
+                operations);
+
+            Assert.Equal(1, result.Code);
+            Assert.False(launched);
+            Assert.Contains("cannot be safely inspected", result.Stdout);
+            Assert.Equal(new byte[] { 7, 8, 9 }, File.ReadAllBytes(outPath));
+        }
+
+        [Fact]
         public void ResultArtifactCollision_DoesNotOverwritePublishedArtifact()
         {
             const string artifactResult =
