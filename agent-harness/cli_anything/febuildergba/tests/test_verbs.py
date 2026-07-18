@@ -335,8 +335,22 @@ class TestPlaytestClick:
             febuildergba_cli.cli,
             ["playtest", "--check", "--timeout=1000"],
         )
-        assert result.exit_code == 2
+        assert result.exit_code == 1
         assert "--check cannot be combined" in result.output
+
+    @pytest.mark.parametrize(
+        "arguments",
+        [
+            ["playtest", "--timeout=999"],
+            ["playtest", "--timeout=not-a-number"],
+            ["playtest", "--rom", "missing.gba", "--scenario", "missing.json"],
+            ["playtest", "--unknown"],
+            ["playtest", "--scenario"],
+        ],
+    )
+    def test_usage_and_parameter_errors_exit_one(self, arguments):
+        result = CliRunner().invoke(febuildergba_cli.cli, arguments)
+        assert result.exit_code == 1, result.output
 
 
 # ── Unit tests: one per verb ──────────────────────────────────────────

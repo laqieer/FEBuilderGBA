@@ -28,6 +28,24 @@ _session: Session | None = None
 _json_mode: bool = False
 
 
+class PlaytestUsageError(click.UsageError):
+    exit_code = 1
+
+
+class PlaytestCommand(click.Command):
+    def make_context(self, info_name, args, parent=None, **extra):
+        try:
+            return super().make_context(
+                info_name,
+                args,
+                parent=parent,
+                **extra,
+            )
+        except click.UsageError as exc:
+            exc.exit_code = 1
+            raise
+
+
 def _output(data: dict, human_message: str = ""):
     """Output data in JSON or human-readable format."""
     if _json_mode:
@@ -946,38 +964,38 @@ def session_history_cmd(count):
 
 # ── Backend check ─────────────────────────────────────────────────────
 
-@cli.command("playtest")
+@cli.command("playtest", cls=PlaytestCommand)
 @click.option("--check", is_flag=True, help="Check the pinned mGBA binding")
 @click.option(
     "--rom",
     "rom_file",
-    type=click.Path(exists=True, dir_okay=False, path_type=str),
+    type=str,
     default=None,
     help="ROM file (falls back to the global/session ROM)",
 )
 @click.option(
     "--scenario",
-    type=click.Path(exists=True, dir_okay=False, path_type=str),
+    type=str,
     default=None,
     help="Scenario JSON",
 )
 @click.option(
     "--out",
-    type=click.Path(dir_okay=False, path_type=str),
+    type=str,
     default=None,
     help="Optional result JSON",
 )
 @click.option(
     "--artifact-dir",
-    type=click.Path(exists=True, file_okay=False, path_type=str),
+    type=str,
     default=None,
     help="Existing screenshot artifact directory",
 )
 @click.option("--python", "python_executable", default="", help="Python executable")
 @click.option(
     "--timeout",
-    "timeout_ms",
-    type=click.IntRange(1000, 3_600_000),
+    "timeout_value",
+    type=str,
     default=None,
     help="Native runner timeout in milliseconds (run default: 600000)",
 )
@@ -990,7 +1008,7 @@ def playtest_cmd(
     out,
     artifact_dir,
     python_executable,
-    timeout_ms,
+    timeout_value,
 ):
     """Run a deterministic headless mGBA verification scenario."""
     from cli_anything.febuildergba.core.playtest import (
@@ -999,6 +1017,32 @@ def playtest_cmd(
     )
 
     global_rom = ctx.obj.get("rom_path", "")
+    timeout_ms = None
+    if timeout_value is not None:
+        if not timeout_value.isdigit():
+            raise PlaytestUsageError(
+                "--timeout must be an integer from 1000 through 3600000"
+            )
+        timeout_ms = int(timeout_value, 10)
+        if timeout_ms < 1000 or timeout_ms > 3_600_000:
+            raise PlaytestUsageError(
+                "--timeout must be an integer from 1000 through 3600000"
+            )
+    for option_name, value in (
+        ("--rom", rom_file),
+        ("--scenario", scenario),
+    ):
+        if value and not os.path.isfile(value):
+            raise PlaytestUsageError(
+                f"{option_name} must name an existing file"
+            )
+    if artifact_dir and not os.path.isdir(artifact_dir):
+        raise PlaytestUsageError(
+            "--artifact-dir must name an existing directory"
+        )
+    if out and os.path.isdir(out):
+        raise PlaytestUsageError("--out must not name a directory")
+
     if check:
         if (
             rom_file
@@ -1008,12 +1052,15 @@ def playtest_cmd(
             or artifact_dir
             or timeout_ms is not None
         ):
-            raise click.UsageError(
+            raise PlaytestUsageError(
                 "--check cannot be combined with ROM/scenario/out/artifact/timeout options"
             )
         path = ""
     else:
-        path = rom_file or _get_rom_path(global_rom)
+        try:
+            path = rom_file or _get_rom_path(global_rom)
+        except click.UsageError as exc:
+            raise PlaytestUsageError(exc.message) from exc
 
     try:
         result = playtest(
