@@ -559,8 +559,8 @@ verify_low_entropy_dynamic_base() {
     pe_headers="$(objdump -x "${file}")" \
         || fail "Could not inspect PE flags for ${file}."
     dll_characteristics="$(
-        printf '%s\n' "${pe_headers}" |
-            awk 'tolower($1) == "dllcharacteristics" { print $2; exit }'
+        awk 'tolower($1) == "dllcharacteristics" { print $2; exit }' \
+            <<< "${pe_headers}"
     )"
     dll_characteristics="${dll_characteristics#0x}"
     dll_characteristics="${dll_characteristics#0X}"

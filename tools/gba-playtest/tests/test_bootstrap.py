@@ -1214,6 +1214,8 @@ def test_build_script_bounds_mingw_pe_placement_without_disabling_aslr():
     )
     assert "verify_low_entropy_dynamic_base" in text
     assert 'tolower($1) == "dllcharacteristics"' in text
+    assert '<<< "${pe_headers}"' in text
+    assert "printf '%s\\n' \"${pe_headers}\" |" not in text
     assert "(dll_value & 0x0020)" in text
     assert "(dll_value & 0x0040)" in text
     assert "PE DllCharacteristics 0x%04X verified" in text
