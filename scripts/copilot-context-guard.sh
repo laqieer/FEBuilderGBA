@@ -6,10 +6,13 @@
 # stdout JSON merged in), and any *other* non-zero exit also denies the tool
 # call outright ("Denied by preToolUse hook (hook errored)") even if stdout
 # reports allow. This wrapper exists purely to make sure that infrastructure
-# failures (missing/broken Python, spawn failure, an uncaught guard crash)
-# can never accidentally deny a `view` call: only a real exit-2 decision from
-# the guard is allowed to propagate as a deny. Everything else becomes a
-# fail-open "{}" with wrapper exit 0.
+# failures (missing/broken Python, spawn failure, an uncaught guard crash --
+# INCLUDING CPython's own exit code 2 for a missing/unreadable script file)
+# can never accidentally deny a `view` call: only a *validated* exit-2
+# decision from the guard -- stdout is a JSON object with
+# permissionDecision == "deny" and a non-empty permissionDecisionReason -- is
+# allowed to propagate as a deny. Everything else becomes a fail-open "{}"
+# with wrapper exit 0.
 set -u
 
 hook_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
@@ -32,12 +35,35 @@ output="$("$python_bin" "$guard" 2>/dev/null)"
 status=$?
 
 if [ "$status" -eq 2 ]; then
-  if [ -z "$output" ]; then
-    printf '{}'
-  else
+  # CPython itself exits 2 for infrastructure failures unrelated to a real
+  # deny decision (e.g. "python3: can't open file '<guard>': [Errno 2] No
+  # such file or directory" for a missing/unreadable guard script). Only
+  # propagate exit 2 when stdout is genuinely a JSON object with
+  # permissionDecision == "deny" and a non-empty permissionDecisionReason;
+  # otherwise this is an infrastructure failure, not a deny, and must fail
+  # open like every other non-exit-2 failure mode.
+  if printf '%s' "$output" | "$python_bin" -c '
+import json, sys
+
+try:
+    decision = json.loads(sys.stdin.read())
+except Exception:
+    sys.exit(1)
+
+if not isinstance(decision, dict):
+    sys.exit(1)
+if decision.get("permissionDecision") != "deny":
+    sys.exit(1)
+reason = decision.get("permissionDecisionReason")
+if not isinstance(reason, str) or not reason:
+    sys.exit(1)
+sys.exit(0)
+' 2>/dev/null; then
     printf '%s' "$output"
+    exit 2
   fi
-  exit 2
+  printf '{}'
+  exit 0
 fi
 
 # Any other non-zero exit (missing interpreter path resolved but broken,

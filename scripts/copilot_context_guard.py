@@ -12,7 +12,7 @@ as a repository ``preToolUse`` command hook (see
 best-effort cumulative byte budget on *image* files read through the ``view``
 tool, denying reads that would push the session over budget.
 
-Contract (see docs/COPILOT-CONTEXT-GUARD.md and the plan accepted on
+Contract (see README.md's "Context safety" section and the plan accepted on
 issue #1995 for the full rationale):
 
 * Falls through (prints ``{}`` and exits 0) for every tool other than
@@ -57,6 +57,7 @@ STATE_DIR_OVERRIDE_ENV_VAR = "COPILOT_CONTEXT_GUARD_STATE_DIR"
 
 SUPPORTED_IMAGE_EXTENSIONS = {
     ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".tif", ".tiff", ".ico",
+    ".heic", ".heif",
 }
 
 STATE_FILE_NAME = "context-budget.json"
@@ -96,14 +97,67 @@ def _copilot_home():
     return os.path.join(base, ".copilot")
 
 
+def _current_user_token():
+    """Best-effort per-user token used to partition the OS-temp fallback dir.
+
+    Prevents unrelated local users sharing a multi-user temp directory
+    (e.g. POSIX ``/tmp``) from colliding on -- or reading -- the same
+    fallback state path. Never raises; falls back to a fixed token if no
+    usable identity is found.
+    """
+    try:
+        if hasattr(os, "getuid"):
+            return "uid-{0}".format(os.getuid())
+    except Exception:
+        pass
+    for var in ("USERNAME", "USER", "LOGNAME"):
+        val = os.environ.get(var)
+        if val:
+            return "user-{0}".format(_sanitize_session_id(val))
+    return "user-unknown"
+
+
+def _makedirs_private(path, stop_at):
+    """Create ``path`` (and parents) then best-effort chmod ``0700`` every
+    directory component from ``path`` up to and including ``stop_at``.
+
+    POSIX-only tightening (a no-op on Windows, where the same owner-only
+    semantics don't apply); bounded to ``stop_at`` so we never touch
+    directories we don't own the creation of (e.g. the OS temp root
+    itself). Returns True if ``path`` exists (created or already present)
+    after this call, False if directory creation failed outright.
+    """
+    try:
+        os.makedirs(path, exist_ok=True)
+    except OSError:
+        return False
+    if not sys.platform.startswith("win"):
+        stop_norm = os.path.normpath(stop_at)
+        current = os.path.normpath(path)
+        while True:
+            try:
+                os.chmod(current, 0o700)
+            except OSError:
+                pass
+            if current == stop_norm:
+                break
+            parent = os.path.dirname(current)
+            if not parent or parent == current:
+                break
+            current = parent
+    return True
+
+
 def _resolve_state_dir(session_id):
     """Resolve the directory that will hold this session's guard state.
 
     Prefers the real Copilot session-state directory (sibling to the
     session's git worktree ``files/`` dir, so state never lands inside the
-    tracked Git tree). Falls back to an OS temp/cache directory, scoped per
-    sanitized sessionId, when the session directory cannot be resolved.
-    Returns (state_dir, is_fallback).
+    tracked Git tree). Falls back to an OS temp/cache directory, partitioned
+    per sanitized sessionId **and** per current user/UID (so unrelated local
+    users sharing a multi-user temp directory never collide on the same
+    path), when the session directory cannot be resolved. Returns
+    (state_dir, is_fallback).
     """
     override = os.environ.get(STATE_DIR_OVERRIDE_ENV_VAR)
     if override:
@@ -118,7 +172,9 @@ def _resolve_state_dir(session_id):
     except OSError:
         pass
 
-    fallback_root = os.path.join(tempfile.gettempdir(), FALLBACK_SUBDIR_NAME)
+    fallback_root = os.path.join(
+        tempfile.gettempdir(), FALLBACK_SUBDIR_NAME, _current_user_token()
+    )
     return os.path.join(fallback_root, safe_id), True
 
 
@@ -230,8 +286,21 @@ def _save_state_atomically(state_dir, state_path, state):
 
 
 def _normalized_fingerprint(abs_path, size, mtime_ns):
+    """Build a dedupe fingerprint, case-folding only where safely proven.
+
+    Windows filesystems (NTFS/ReFS in their default configuration) are
+    case-insensitive, so folding case there prevents undercounting the same
+    file read via two different-case paths. macOS (APFS/HFS+) volumes are
+    *usually* case-insensitive by default but can be formatted
+    case-sensitive, and POSIX/Linux filesystems are case-sensitive by
+    default -- folding case there risks treating two genuinely distinct
+    files as the same one and undercounting real bytes read. Conservative
+    double-counting (treating same-content-different-case paths as
+    distinct on non-Windows) is preferable to that undercounting, so case
+    is folded on Windows only.
+    """
     normalized = os.path.normpath(abs_path)
-    if sys.platform.startswith("win") or sys.platform == "darwin":
+    if sys.platform.startswith("win"):
         normalized = normalized.lower()
     return "{0}|{1}|{2}".format(normalized, size, mtime_ns)
 
@@ -304,11 +373,14 @@ def run(stdin_text):
 
     if is_fallback:
         _cleanup_stale_temp_state(os.path.dirname(state_dir))
-
-    try:
-        os.makedirs(state_dir, exist_ok=True)
-    except OSError:
-        return FALL_THROUGH, 0
+        fallback_anchor = os.path.join(tempfile.gettempdir(), FALLBACK_SUBDIR_NAME)
+        if not _makedirs_private(state_dir, fallback_anchor):
+            return FALL_THROUGH, 0
+    else:
+        try:
+            os.makedirs(state_dir, exist_ok=True)
+        except OSError:
+            return FALL_THROUGH, 0
 
     try:
         with _DirectoryLock(state_path):

@@ -328,12 +328,101 @@ class TestSanitizationAndFingerprint(unittest.TestCase):
         safe = guard._sanitize_session_id(long_id)
         self.assertLessEqual(len(safe), 128)
 
-    def test_fingerprint_is_case_normalized_on_case_insensitive_platforms(self):
-        if not (sys.platform.startswith("win") or sys.platform == "darwin"):
-            self.skipTest("case-insensitive fingerprinting only applies on Windows/macOS")
+    def test_fingerprint_is_case_normalized_on_windows(self):
+        if not sys.platform.startswith("win"):
+            self.skipTest("case-insensitive fingerprinting only applies on Windows")
         fp_lower = guard._normalized_fingerprint("/tmp/Foo.PNG", 10, 123)
         fp_mixed = guard._normalized_fingerprint("/TMP/foo.png", 10, 123)
         self.assertEqual(fp_lower, fp_mixed)
+
+    def test_fingerprint_is_case_sensitive_on_non_windows(self):
+        if sys.platform.startswith("win"):
+            self.skipTest("this platform folds case; see the Windows-only counterpart above")
+        # Conservative double-counting (treating differently-cased paths as
+        # distinct) is preferable to undercounting on case-sensitive
+        # filesystems (default on Linux; possible on macOS/APFS), so no
+        # case-folding should happen on Darwin or Linux.
+        fp_lower = guard._normalized_fingerprint("/tmp/Foo.PNG", 10, 123)
+        fp_mixed = guard._normalized_fingerprint("/tmp/foo.png", 10, 123)
+        self.assertNotEqual(fp_lower, fp_mixed)
+
+
+class TestImageExtensions(GuardTestCase):
+    def test_heic_and_heif_are_supported_image_extensions(self):
+        self.assertIn(".heic", guard.SUPPORTED_IMAGE_EXTENSIONS)
+        self.assertIn(".heif", guard.SUPPORTED_IMAGE_EXTENSIONS)
+
+    def test_heic_file_is_tracked_toward_the_budget(self):
+        os.environ[guard.BUDGET_ENV_VAR] = "100"
+        try:
+            heic = self.make_image("photo.HEIC", 5000)
+            output, code = guard.run(_payload(tool_args={"path": heic}))
+            self.assertEqual(code, 2)
+            decision = json.loads(output)
+            self.assertEqual(decision["permissionDecision"], "deny")
+        finally:
+            os.environ.pop(guard.BUDGET_ENV_VAR, None)
+
+
+class TestUserPartitionedFallback(unittest.TestCase):
+    def test_current_user_token_is_stable_and_nonempty(self):
+        token = guard._current_user_token()
+        self.assertIsInstance(token, str)
+        self.assertTrue(token)
+        self.assertEqual(token, guard._current_user_token())
+
+    def test_fallback_state_dir_is_partitioned_by_user_token(self):
+        fake_home = tempfile.mkdtemp(prefix="ctxguard-home-")
+        try:
+            old_home = os.environ.get("COPILOT_HOME")
+            old_override = os.environ.pop(guard.STATE_DIR_OVERRIDE_ENV_VAR, None)
+            os.environ["COPILOT_HOME"] = fake_home
+            try:
+                state_dir, is_fallback = guard._resolve_state_dir("never-created-session")
+                self.assertTrue(is_fallback)
+                token = guard._current_user_token()
+                self.assertIn(token, state_dir.split(os.sep))
+            finally:
+                if old_home is None:
+                    os.environ.pop("COPILOT_HOME", None)
+                else:
+                    os.environ["COPILOT_HOME"] = old_home
+                if old_override is not None:
+                    os.environ[guard.STATE_DIR_OVERRIDE_ENV_VAR] = old_override
+        finally:
+            shutil.rmtree(fake_home, ignore_errors=True)
+
+    @unittest.skipIf(sys.platform.startswith("win"), "POSIX-only permission tightening")
+    def test_makedirs_private_tightens_permissions_to_0700(self):
+        import stat
+
+        root = tempfile.mkdtemp(prefix="ctxguard-private-")
+        try:
+            target = os.path.join(root, "a", "b", "c")
+            self.assertTrue(guard._makedirs_private(target, root))
+            for component in (target, os.path.join(root, "a", "b"), os.path.join(root, "a")):
+                mode = stat.S_IMODE(os.stat(component).st_mode)
+                self.assertEqual(mode, 0o700, "expected 0700 on {0}".format(component))
+            # Must never touch stop_at (root) itself's permissions upward,
+            # i.e. it stops walking exactly at stop_at (root is included,
+            # nothing above it is touched -- there's nothing above root in
+            # this test, so just assert root itself still exists untouched
+            # in a way that would surface an exception if walk-up broke).
+            self.assertTrue(os.path.isdir(root))
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+    def test_makedirs_private_returns_false_on_creation_failure(self):
+        if sys.platform.startswith("win"):
+            self.skipTest("permission-based makedirs failure is unreliable to force on Windows")
+        root = tempfile.mkdtemp(prefix="ctxguard-private-fail-")
+        try:
+            os.chmod(root, 0o500)  # read+execute only, no write: cannot create children
+            target = os.path.join(root, "nope", "deeper")
+            self.assertFalse(guard._makedirs_private(target, root))
+        finally:
+            os.chmod(root, 0o700)
+            shutil.rmtree(root, ignore_errors=True)
 
 
 class TestAtomicSave(unittest.TestCase):
@@ -474,14 +563,20 @@ class TestHookConfigLoadability(unittest.TestCase):
         # so behavior does not depend on runtime matcher support.
         self.assertNotIn("matcher", entry)
 
-    def test_settings_json_absent_or_context_tier_only(self):
+    def test_settings_json_ships_and_sets_context_tier_default(self):
+        # Installed-runtime evidence shows repo scope overrides user scope
+        # in the settings merge order (user -> repo -> local), and official
+        # docs confirm repo-level contextTier takes precedence in trusted
+        # working directories. This file must exist and set exactly this.
         settings_path = os.path.join(REPO_ROOT, ".github", "copilot", "settings.json")
-        if not os.path.exists(settings_path):
-            self.skipTest("settings.json intentionally omitted: repo contextTier "
-                          "precedence could not be runtime-verified (see README)")
+        self.assertTrue(
+            os.path.exists(settings_path),
+            "expected .github/copilot/settings.json to be shipped so this "
+            "repo's trusted checkouts get contextTier=default by default",
+        )
         with open(settings_path, encoding="utf-8") as fh:
             data = json.load(fh)
-        self.assertEqual(data.get("contextTier"), "default")
+        self.assertEqual(data, {"contextTier": "default"})
 
 
 def _find_real_bash():
@@ -599,6 +694,82 @@ class TestBashWrapper(unittest.TestCase):
         decision = json.loads(result.stdout)
         self.assertEqual(decision["permissionDecision"], "deny")
 
+    def _run_with_stand_in_guard(self, guard_path):
+        wrapper_copy = os.path.join(self._tmp, "wrapper.sh")
+        with open(BASH_WRAPPER_PATH, encoding="utf-8") as fh:
+            content = fh.read()
+        content = content.replace(
+            'guard="$hook_dir/copilot_context_guard.py"',
+            'guard="{0}"'.format(guard_path.replace("\\", "/")),
+        )
+        with open(wrapper_copy, "w", encoding="utf-8") as fh:
+            fh.write(content)
+        run_env = dict(os.environ)
+        run_env[guard.STATE_DIR_OVERRIDE_ENV_VAR] = self._tmp
+        result = subprocess.run(
+            [BASH_EXECUTABLE, wrapper_copy], input="{}", capture_output=True, text=True,
+            env=run_env, timeout=30,
+        )
+        return result.stdout, result.returncode
+
+    def test_missing_guard_script_maps_to_exit_0(self):
+        # CPython itself exits 2 (not the guard's own decision logic) when
+        # asked to run a nonexistent script -- must not be mistaken for a
+        # real deny.
+        missing = os.path.join(self._tmp, "does-not-exist.py")
+        out, code = self._run_with_stand_in_guard(missing)
+        self.assertEqual((out.strip(), code), ("{}", 0))
+
+    @unittest.skipIf(sys.platform.startswith("win"), "POSIX file-mode permissions only")
+    def test_unreadable_guard_script_maps_to_exit_0(self):
+        unreadable = os.path.join(self._tmp, "unreadable_guard.py")
+        with open(unreadable, "w", encoding="utf-8") as fh:
+            fh.write("import sys\nsys.exit(0)\n")
+        os.chmod(unreadable, 0o000)
+        try:
+            out, code = self._run_with_stand_in_guard(unreadable)
+            self.assertEqual((out.strip(), code), ("{}", 0))
+        finally:
+            os.chmod(unreadable, 0o700)
+
+    def test_guard_exit_2_with_invalid_json_maps_to_exit_0(self):
+        bad_guard = os.path.join(self._tmp, "bad_guard.py")
+        with open(bad_guard, "w", encoding="utf-8") as fh:
+            fh.write("import sys\nsys.stdout.write('not json at all')\nsys.exit(2)\n")
+        out, code = self._run_with_stand_in_guard(bad_guard)
+        self.assertEqual((out.strip(), code), ("{}", 0))
+
+    def test_guard_exit_2_with_wrong_decision_maps_to_exit_0(self):
+        bad_guard = os.path.join(self._tmp, "bad_guard.py")
+        with open(bad_guard, "w", encoding="utf-8") as fh:
+            fh.write(
+                "import sys\n"
+                "sys.stdout.write('{\"permissionDecision\": \"allow\", "
+                "\"permissionDecisionReason\": \"test\"}')\n"
+                "sys.exit(2)\n"
+            )
+        out, code = self._run_with_stand_in_guard(bad_guard)
+        self.assertEqual((out.strip(), code), ("{}", 0))
+
+    def test_guard_exit_2_with_empty_reason_maps_to_exit_0(self):
+        bad_guard = os.path.join(self._tmp, "bad_guard.py")
+        with open(bad_guard, "w", encoding="utf-8") as fh:
+            fh.write(
+                "import sys\n"
+                "sys.stdout.write('{\"permissionDecision\": \"deny\", "
+                "\"permissionDecisionReason\": \"\"}')\n"
+                "sys.exit(2)\n"
+            )
+        out, code = self._run_with_stand_in_guard(bad_guard)
+        self.assertEqual((out.strip(), code), ("{}", 0))
+
+    def test_guard_exit_2_with_empty_stdout_maps_to_exit_0(self):
+        bad_guard = os.path.join(self._tmp, "bad_guard.py")
+        with open(bad_guard, "w", encoding="utf-8") as fh:
+            fh.write("import sys\nsys.exit(2)\n")
+        out, code = self._run_with_stand_in_guard(bad_guard)
+        self.assertEqual((out.strip(), code), ("{}", 0))
+
 
 def _pwsh_executable():
     for candidate in ("pwsh", "powershell"):
@@ -692,6 +863,64 @@ class TestPowerShellWrapper(unittest.TestCase):
         self.assertEqual(code, 2)
         decision = json.loads(out)
         self.assertEqual(decision["permissionDecision"], "deny")
+
+    def _run_with_stand_in_guard(self, guard_path):
+        wrapper_copy = os.path.join(self._tmp, "wrapper.ps1")
+        with open(PS1_WRAPPER_PATH, encoding="utf-8") as fh:
+            content = fh.read()
+        content = content.replace(
+            "$guard = Join-Path $hookDir 'copilot_context_guard.py'",
+            "$guard = '{0}'".format(guard_path.replace("\\", "\\\\")),
+        )
+        with open(wrapper_copy, "w", encoding="utf-8") as fh:
+            fh.write(content)
+        return self._run("{}", script_path=wrapper_copy)
+
+    def test_missing_guard_script_maps_to_exit_0(self):
+        # CPython itself exits 2 (not the guard's own decision logic) when
+        # asked to run a nonexistent script -- must not be mistaken for a
+        # real deny.
+        missing = os.path.join(self._tmp, "does-not-exist.py")
+        out, code = self._run_with_stand_in_guard(missing)
+        self.assertEqual((out.strip(), code), ("{}", 0))
+
+    def test_guard_exit_2_with_invalid_json_maps_to_exit_0(self):
+        bad_guard = os.path.join(self._tmp, "bad_guard.py")
+        with open(bad_guard, "w", encoding="utf-8") as fh:
+            fh.write("import sys\nsys.stdout.write('not json at all')\nsys.exit(2)\n")
+        out, code = self._run_with_stand_in_guard(bad_guard)
+        self.assertEqual((out.strip(), code), ("{}", 0))
+
+    def test_guard_exit_2_with_wrong_decision_maps_to_exit_0(self):
+        bad_guard = os.path.join(self._tmp, "bad_guard.py")
+        with open(bad_guard, "w", encoding="utf-8") as fh:
+            fh.write(
+                "import sys\n"
+                "sys.stdout.write('{\"permissionDecision\": \"allow\", "
+                "\"permissionDecisionReason\": \"test\"}')\n"
+                "sys.exit(2)\n"
+            )
+        out, code = self._run_with_stand_in_guard(bad_guard)
+        self.assertEqual((out.strip(), code), ("{}", 0))
+
+    def test_guard_exit_2_with_empty_reason_maps_to_exit_0(self):
+        bad_guard = os.path.join(self._tmp, "bad_guard.py")
+        with open(bad_guard, "w", encoding="utf-8") as fh:
+            fh.write(
+                "import sys\n"
+                "sys.stdout.write('{\"permissionDecision\": \"deny\", "
+                "\"permissionDecisionReason\": \"\"}')\n"
+                "sys.exit(2)\n"
+            )
+        out, code = self._run_with_stand_in_guard(bad_guard)
+        self.assertEqual((out.strip(), code), ("{}", 0))
+
+    def test_guard_exit_2_with_empty_stdout_maps_to_exit_0(self):
+        bad_guard = os.path.join(self._tmp, "bad_guard.py")
+        with open(bad_guard, "w", encoding="utf-8") as fh:
+            fh.write("import sys\nsys.exit(2)\n")
+        out, code = self._run_with_stand_in_guard(bad_guard)
+        self.assertEqual((out.strip(), code), ("{}", 0))
 
 
 class TestMainEntrypoint(unittest.TestCase):

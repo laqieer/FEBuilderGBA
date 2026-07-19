@@ -830,12 +830,15 @@ and [github/copilot-cli#1688](https://github.com/github/copilot-cli/issues/1688)
   (JSON `permissionDecision: "deny"` + a reason, exit 2). Repository hooks only execute when the
   session has repo-hook execution enabled; verify with `/env` that
   `GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS=true` is set (the literal string `"true"`, not `1`).
-  We could not runtime-verify from this environment whether a repository-level
-  `.github/copilot/settings.json` `contextTier: "default"` actually overrides a user-level
-  `long_context` setting (no non-interactive way to introspect effective settings was found), so that
-  file is intentionally **not** shipped here. If your session still needs `default` context tier for
-  this repo, set it explicitly for your own session/user — e.g. the `--context default` CLI flag, or
-  `/settings set contextTier default --repo` in an interactive session.
+- `.github/copilot/settings.json` ships `{"contextTier": "default"}`. Per official Copilot CLI docs,
+  a repository-level `contextTier` setting takes precedence over a user-level setting **only when
+  the working directory is trusted** (untrusted directories fall back to the user-level setting).
+  Repo scope generally outranks user scope in the settings merge order (`user` → `repo` → `local`),
+  so shipping this file makes `default` context tier apply automatically for any trusted checkout of
+  this repo, without requiring each contributor to set it manually. If you deliberately want
+  `long_context` for your own session despite this file, override it at session/user scope (e.g. the
+  `--context long_context` CLI flag, or `/settings set contextTier long_context` in an interactive
+  session) — session/local overrides still win over the repo default.
 
 **Recovery commands (Copilot CLI):**
 - `/context` — inspect current context usage before it becomes a problem.
