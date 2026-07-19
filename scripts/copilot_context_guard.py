@@ -397,7 +397,15 @@ def _save_state_atomically(state_dir, state_path, state):
 
 
 def _normalized_fingerprint(abs_path, size, mtime_ns):
-    """Build a dedupe fingerprint, case-folding only where safely proven.
+    """Build a per-file identity fingerprint, case-folding only where safely
+    proven.
+
+    This fingerprint identifies *which* file/version was read for metadata
+    purposes only (``read_count``, ``last_seen``, latest observed size). It
+    is NOT a charging dedupe key: every authorized read -- including a
+    repeat read of a file with an unchanged fingerprint -- adds its ``size``
+    to the session's cumulative ``total_bytes``, because a repeated ``view``
+    of the same image re-adds its bytes to the conversation history again.
 
     Windows filesystems (NTFS/ReFS in their default configuration) are
     case-insensitive, so folding case there prevents undercounting the same
@@ -505,11 +513,16 @@ def run(stdin_text):
                 return FALL_THROUGH, 0
 
             entries = state["entries"]
-            if fingerprint in entries:
-                entries[fingerprint]["last_seen"] = time.time()
-                _save_state_atomically(state_dir, state_path, state)
-                return FALL_THROUGH, 0
 
+            # Every authorized read charges its bytes against the
+            # cumulative budget, including a repeat read of a file whose
+            # fingerprint (path+size+mtime) is unchanged: a repeated
+            # view() re-adds the same image content/reference to the
+            # conversation history again, so deduping the *charge* here
+            # would let unlimited repeated reads bypass the budget
+            # entirely. The fingerprint is kept only for metadata
+            # (read_count / last_seen / latest observed size), never to
+            # skip charging.
             budget = _budget_bytes()
             new_total = state["total_bytes"] + size
             if new_total > budget:
@@ -519,12 +532,24 @@ def run(stdin_text):
                     "(issue #1995). Denying this view() read to avoid a CAPI "
                     "5 MB request overflow.".format(new_total, budget)
                 )
+                # A denied read must not mutate state: neither total_bytes
+                # nor the fingerprint's metadata is touched.
                 return json.dumps({
                     "permissionDecision": "deny",
                     "permissionDecisionReason": reason,
                 }), 2
 
-            entries[fingerprint] = {"size": size, "last_seen": time.time()}
+            existing = entries.get(fingerprint)
+            if existing is not None:
+                existing["size"] = size
+                existing["last_seen"] = time.time()
+                existing["read_count"] = existing.get("read_count", 1) + 1
+            else:
+                entries[fingerprint] = {
+                    "size": size,
+                    "last_seen": time.time(),
+                    "read_count": 1,
+                }
             state["total_bytes"] = new_total
             _save_state_atomically(state_dir, state_path, state)
             return FALL_THROUGH, 0

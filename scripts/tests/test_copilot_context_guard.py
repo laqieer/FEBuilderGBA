@@ -238,31 +238,84 @@ class TestBudgetEnforcement(GuardTestCase):
         self.assertEqual(state["total_bytes"], 900_000)
         self.assertEqual(len(state["entries"]), 1)
 
-    def test_dedupe_does_not_double_count_identical_read(self):
+    def test_repeated_identical_read_charges_again_and_denies_over_budget(self):
+        # Regression: a repeat view() of an unchanged file must charge its
+        # size again (it re-adds the same image bytes/reference to the
+        # conversation history again), not be silently deduped away. A
+        # second 900 KB read pushes cumulative bytes to 1,800,000, which
+        # exceeds the default 1,250,000-byte budget and must deny.
         image = self.make_image("same.png", 900_000)
-        guard.run(_payload(tool_args={"path": image}))
+        out1, code1 = guard.run(_payload(tool_args={"path": image}))
+        self.assertEqual((out1, code1), ("{}", 0))
+
         out2, code2 = guard.run(_payload(tool_args={"path": image}))
-        self.assertEqual((out2, code2), ("{}", 0))
+        self.assertEqual(code2, 2)
+        decision = json.loads(out2)
+        self.assertEqual(decision["permissionDecision"], "deny")
+        self.assertTrue(decision["permissionDecisionReason"])
+
+        # The denied repeat must not mutate state: total_bytes/read_count
+        # stay exactly as they were after the first authorized read.
         state_path = os.path.join(self._state_dir, guard.STATE_FILE_NAME)
         with open(state_path) as fh:
             state = json.load(fh)
         self.assertEqual(state["total_bytes"], 900_000)
         self.assertEqual(len(state["entries"]), 1)
+        entry = next(iter(state["entries"].values()))
+        self.assertEqual(entry["read_count"], 1)
 
-    def test_dedupe_updates_last_seen_metadata(self):
+    def test_smaller_repeated_reads_increment_total_until_threshold(self):
+        # Three 400 KB reads of the SAME unchanged file must each charge
+        # 400,000 bytes (1.2M total after three), incrementing read_count
+        # each time, until a fourth read would exceed the 1,250,000-byte
+        # default budget and is denied.
+        image = self.make_image("repeat.png", 400_000)
+        state_path = os.path.join(self._state_dir, guard.STATE_FILE_NAME)
+
+        for expected_total, expected_count in ((400_000, 1), (800_000, 2), (1_200_000, 3)):
+            output, code = guard.run(_payload(tool_args={"path": image}))
+            self.assertEqual((output, code), ("{}", 0))
+            with open(state_path) as fh:
+                state = json.load(fh)
+            self.assertEqual(state["total_bytes"], expected_total)
+            self.assertEqual(len(state["entries"]), 1)
+            entry = next(iter(state["entries"].values()))
+            self.assertEqual(entry["read_count"], expected_count)
+            self.assertEqual(entry["size"], 400_000)
+
+        # A fourth identical read would reach 1,600,000 > 1,250,000: deny,
+        # and the denied read must not further mutate state.
+        out4, code4 = guard.run(_payload(tool_args={"path": image}))
+        self.assertEqual(code4, 2)
+        decision = json.loads(out4)
+        self.assertEqual(decision["permissionDecision"], "deny")
+        self.assertTrue(decision["permissionDecisionReason"])
+        with open(state_path) as fh:
+            state = json.load(fh)
+        self.assertEqual(state["total_bytes"], 1_200_000)
+        entry = next(iter(state["entries"].values()))
+        self.assertEqual(entry["read_count"], 3)
+
+    def test_dedupe_updates_last_seen_and_read_count_metadata(self):
         image = self.make_image("touch.png", 1000)
         guard.run(_payload(tool_args={"path": image}))
         state_path = os.path.join(self._state_dir, guard.STATE_FILE_NAME)
         with open(state_path) as fh:
             first_state = json.load(fh)
-        first_seen = next(iter(first_state["entries"].values()))["last_seen"]
+        first_entry = next(iter(first_state["entries"].values()))
+        first_seen = first_entry["last_seen"]
+        self.assertEqual(first_entry["read_count"], 1)
 
         time.sleep(0.01)
         guard.run(_payload(tool_args={"path": image}))
         with open(state_path) as fh:
             second_state = json.load(fh)
-        second_seen = next(iter(second_state["entries"].values()))["last_seen"]
-        self.assertGreaterEqual(second_seen, first_seen)
+        second_entry = next(iter(second_state["entries"].values()))
+        self.assertGreaterEqual(second_entry["last_seen"], first_seen)
+        self.assertEqual(second_entry["read_count"], 2)
+        # Metadata tracking does not skip charging: the second read's
+        # bytes are also reflected in total_bytes.
+        self.assertEqual(second_state["total_bytes"], 2000)
 
     def test_modified_file_is_treated_as_new_fingerprint(self):
         image = self.make_image("changes.png", 1000)
