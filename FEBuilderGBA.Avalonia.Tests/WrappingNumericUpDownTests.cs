@@ -47,6 +47,28 @@ namespace FEBuilderGBA.Avalonia.Tests
             return (window, control);
         }
 
+        private static (Window window, WrappingNumericUpDown control, Button focusTarget)
+            CreateShownControlWithExternalFocusTarget(
+                decimal minimum = 0, decimal maximum = 10, decimal value = 0,
+                decimal increment = 1)
+        {
+            var control = new WrappingNumericUpDown
+            {
+                Minimum = minimum,
+                Maximum = maximum,
+                Value = value,
+                Increment = increment,
+                FormatString = "0",
+            };
+            var focusTarget = new Button { Content = "External focus target" };
+            var panel = new StackPanel();
+            panel.Children.Add(control);
+            panel.Children.Add(focusTarget);
+            var window = new Window { Width = 240, Height = 140, Content = panel };
+            window.Show();
+            return (window, control, focusTarget);
+        }
+
         private static Spinner GetSpinner(WrappingNumericUpDown control) =>
             control.GetVisualDescendants().OfType<Spinner>().First();
 
@@ -497,9 +519,11 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [AvaloniaFact]
-        public void TypingInvalidTextThenLosingFocus_LeavesBothDirectionsDisabled_AndClickIsNoOp()
+        public void TypingInvalidTextThenRealFocusLoss_NormalizesText_AndReenablesSpinning()
         {
-            var (window, control) = CreateShownControl(minimum: 0, maximum: 10, value: 5, increment: 1);
+            var (window, control, focusTarget) =
+                CreateShownControlWithExternalFocusTarget(
+                    minimum: 0, maximum: 10, value: 5, increment: 1);
             try
             {
                 var textBox = GetTextBox(control);
@@ -507,17 +531,19 @@ namespace FEBuilderGBA.Avalonia.Tests
                 textBox.SelectAll();
                 window.KeyTextInput("x");
 
-                GetIncreaseButton(control).Focus();
+                Assert.True(focusTarget.Focus());
 
-                Assert.Equal("x", control.Text);
+                Assert.Equal("5", control.Text);
                 Assert.Equal(5m, control.Value);
                 var spinner = GetSpinner(control);
-                Assert.Equal(ValidSpinDirections.None, spinner.ValidSpinDirection);
-                Assert.False(GetIncreaseButton(control).IsEnabled);
-                Assert.False(GetDecreaseButton(control).IsEnabled);
+                Assert.Equal(
+                    ValidSpinDirections.Increase | ValidSpinDirections.Decrease,
+                    spinner.ValidSpinDirection);
+                Assert.True(GetIncreaseButton(control).IsEnabled);
+                Assert.True(GetDecreaseButton(control).IsEnabled);
 
-                Click(GetDecreaseButton(control));
-                Assert.Equal(5m, control.Value);
+                Click(GetIncreaseButton(control));
+                Assert.Equal(6m, control.Value);
             }
             finally
             {

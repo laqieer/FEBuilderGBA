@@ -171,11 +171,9 @@ namespace FEBuilderGBA.Avalonia.Controls
         // direction narrowed.
         protected override void OnLostFocus(RoutedEventArgs e)
         {
-            bool preserveInvalidText = HasInvalidTextSpinBlock();
             base.OnLostFocus(e);
             _hasInvalidText = IsCurrentTextInvalid();
-            ApplyValidSpinDirectionAfterTextSync(
-                preserveInvalidText || _hasInvalidText);
+            ApplyValidSpinDirectionAfterTextSync(_hasInvalidText);
         }
 
         // Pressing Enter commits pending text via the same private
@@ -188,25 +186,12 @@ namespace FEBuilderGBA.Avalonia.Controls
         // change to correct.
         protected override void OnKeyDown(KeyEventArgs e)
         {
-            bool preserveInvalidText =
-                e.Key == Key.Enter && HasInvalidTextSpinBlock();
             base.OnKeyDown(e);
             if (e.Key == Key.Enter)
             {
                 _hasInvalidText = IsCurrentTextInvalid();
-                ApplyValidSpinDirectionAfterTextSync(
-                    preserveInvalidText || _hasInvalidText);
+                ApplyValidSpinDirectionAfterTextSync(_hasInvalidText);
             }
-        }
-
-        private bool HasInvalidTextSpinBlock()
-        {
-            return _hasInvalidText
-                || (_spinner != null
-                && AllowSpin
-                && !IsReadOnly
-                && Increment != 0
-                && _spinner.ValidSpinDirection == ValidSpinDirections.None);
         }
 
         private bool IsCurrentTextInvalid()
