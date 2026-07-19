@@ -66,6 +66,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         [InlineData("ExportTmxButton")]
         [InlineData("ImportTmxButton")]
         [InlineData("ResizeMapButton")]
+        [InlineData("GenerateRandomMapButton")]
         [InlineData("WriteTileBtn")]
         [InlineData("RefreshMapBtn")]
         public void MapEditorButtons_KeepThemeBackgroundsAndDoNotHardCodeBrushes(string name)
@@ -88,18 +89,20 @@ namespace FEBuilderGBA.Avalonia.Tests
             var navToolbar = Required<StackPanel>(view, "MapNavigationToolbar");
             var csvToolbar = Required<StackPanel>(view, "MapCsvCommandToolbar");
             var tmxToolbar = Required<StackPanel>(view, "MapTmxCommandToolbar");
+            var randomToolbar = Required<StackPanel>(view, "MapRandomCommandToolbar");
             var mapCanvas = Required<Border>(view, "MapCanvasPanel");
 
             double navWidth = MeasureNaturalWidth(navToolbar);
             double csvWidth = MeasureNaturalWidth(csvToolbar);
             double tmxWidth = MeasureNaturalWidth(tmxToolbar);
+            double randomWidth = MeasureNaturalWidth(randomToolbar);
 
             double availableBodyWidth = ArrangeAndGetToolbarWidth(view, EditorWidth, EditorHeight);
             double availableMinBodyWidth = ArrangeAndGetToolbarWidth(
                 view,
                 view.Descriptor.MinWidth,
                 view.Descriptor.MinHeight);
-            double widestSplitToolbarRow = Math.Max(navWidth, Math.Max(csvWidth, tmxWidth));
+            double widestSplitToolbarRow = new[] { navWidth, csvWidth, tmxWidth, randomWidth }.Max();
 
             Assert.True(csvWidth <= availableBodyWidth,
                 $"CSV command toolbar desired width ({csvWidth:F1}) exceeds " +
@@ -130,6 +133,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         [InlineData("MapEditor_ExportTmx_Button", "Export Map (Tiled)")]
         [InlineData("MapEditor_ImportTmx_Button", "Import Map (Tiled)")]
         [InlineData("MapEditor_ResizeMap_Button", "Resize Map…")]
+        [InlineData("MapEditor_GenerateRandomMap_Button", "Generate Random Map…")]
         [InlineData("MapEditor_WriteTileBtn_Button", "Write Tile")]
         [InlineData("MapEditor_RefreshMapBtn_Button", "Refresh Map")]
         public void AffectedButtons_RemainDiscoverableByAutomationId(string automationId, string content)
