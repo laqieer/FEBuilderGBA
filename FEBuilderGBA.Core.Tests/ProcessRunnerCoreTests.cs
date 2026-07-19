@@ -192,11 +192,268 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void Run_ParentExitStillTerminatesDescendantHoldingPipes()
+        public void PosixUnobservedTermination_Success_IsIdempotentAndUsesOnlySigKill()
+        {
+            var state =
+                ProcessRunnerCore.PosixUnobservedTerminationState.NotAttempted;
+            int calls = 0;
+            int observedPid = 0;
+            int observedSignal = 0;
+
+            bool first = ProcessRunnerCore.TryTerminateUnobservedPosixGroup(
+                123,
+                (pid, signal) =>
+                {
+                    calls++;
+                    observedPid = pid;
+                    observedSignal = signal;
+                    return 0;
+                },
+                () => 0,
+                ref state);
+            bool second = ProcessRunnerCore.TryTerminateUnobservedPosixGroup(
+                123,
+                (pid, signal) =>
+                {
+                    calls++;
+                    return 0;
+                },
+                () => 0,
+                ref state);
+
+            Assert.True(first);
+            Assert.True(second);
+            Assert.Equal(
+                ProcessRunnerCore.PosixUnobservedTerminationState.Succeeded,
+                state);
+            Assert.Equal(1, calls);
+            Assert.Equal(-123, observedPid);
+            Assert.Equal(ProcessRunnerCore.PosixSigKill, observedSignal);
+        }
+
+        [Fact]
+        public void PosixUnobservedTermination_Esrch_IsAlreadyTerminated()
+        {
+            var state =
+                ProcessRunnerCore.PosixUnobservedTerminationState.NotAttempted;
+            int calls = 0;
+
+            bool terminated =
+                ProcessRunnerCore.TryTerminateUnobservedPosixGroup(
+                    123,
+                    (pid, signal) =>
+                    {
+                        calls++;
+                        return -1;
+                    },
+                    () => ProcessRunnerCore.PosixEsrch,
+                    ref state);
+
+            Assert.True(terminated);
+            Assert.Equal(1, calls);
+            Assert.Equal(
+                ProcessRunnerCore.PosixUnobservedTerminationState.Succeeded,
+                state);
+        }
+
+        [Fact]
+        public void PosixUnobservedTermination_EintrRetriesWithinBound()
+        {
+            var state =
+                ProcessRunnerCore.PosixUnobservedTerminationState.NotAttempted;
+            int calls = 0;
+
+            bool terminated =
+                ProcessRunnerCore.TryTerminateUnobservedPosixGroup(
+                    123,
+                    (pid, signal) =>
+                    {
+                        calls++;
+                        return calls == 3 ? 0 : -1;
+                    },
+                    () => ProcessRunnerCore.PosixEintr,
+                    ref state);
+
+            Assert.True(terminated);
+            Assert.Equal(3, calls);
+            Assert.Equal(
+                ProcessRunnerCore.PosixUnobservedTerminationState.Succeeded,
+                state);
+        }
+
+        [Theory]
+        [InlineData(ProcessRunnerCore.PosixEperm)]
+        [InlineData(5)]
+        public void PosixUnobservedTermination_NonRetryableErrorFailsClosed(
+            int error)
+        {
+            var state =
+                ProcessRunnerCore.PosixUnobservedTerminationState.NotAttempted;
+            int calls = 0;
+
+            bool first = ProcessRunnerCore.TryTerminateUnobservedPosixGroup(
+                123,
+                (pid, signal) =>
+                {
+                    calls++;
+                    return -1;
+                },
+                () => error,
+                ref state);
+            bool second = ProcessRunnerCore.TryTerminateUnobservedPosixGroup(
+                123,
+                (pid, signal) =>
+                {
+                    calls++;
+                    return 0;
+                },
+                () => 0,
+                ref state);
+
+            Assert.False(first);
+            Assert.False(second);
+            Assert.Equal(
+                ProcessRunnerCore.PosixUnobservedTerminationState.Failed,
+                state);
+            Assert.Equal(1, calls);
+            Assert.True(
+                ProcessRunnerCore.MergeTerminationFailure(
+                    terminationFailed: false,
+                    containmentTerminated: first));
+        }
+
+        [Fact]
+        public void PosixUnobservedTermination_EintrExhaustionFailsClosed()
+        {
+            var state =
+                ProcessRunnerCore.PosixUnobservedTerminationState.NotAttempted;
+            int calls = 0;
+
+            bool terminated =
+                ProcessRunnerCore.TryTerminateUnobservedPosixGroup(
+                    123,
+                    (pid, signal) =>
+                    {
+                        calls++;
+                        return -1;
+                    },
+                    () => ProcessRunnerCore.PosixEintr,
+                    ref state,
+                    maximumAttempts: 3);
+
+            Assert.False(terminated);
+            Assert.Equal(3, calls);
+            Assert.Equal(
+                ProcessRunnerCore.PosixUnobservedTerminationState.Failed,
+                state);
+        }
+
+        [Fact]
+        public void PosixUnobservedTermination_NativeExceptionConsumesOneShot()
+        {
+            var state =
+                ProcessRunnerCore.PosixUnobservedTerminationState.NotAttempted;
+            int calls = 0;
+
+            Assert.Throws<InvalidOperationException>(() =>
+                ProcessRunnerCore.TryTerminateUnobservedPosixGroup(
+                    123,
+                    (pid, signal) =>
+                    {
+                        calls++;
+                        throw new InvalidOperationException("native failure");
+                    },
+                    () => 0,
+                    ref state));
+
+            bool second = ProcessRunnerCore.TryTerminateUnobservedPosixGroup(
+                123,
+                (pid, signal) =>
+                {
+                    calls++;
+                    return 0;
+                },
+                () => 0,
+                ref state);
+
+            Assert.False(second);
+            Assert.Equal(
+                ProcessRunnerCore.PosixUnobservedTerminationState.Failed,
+                state);
+            Assert.Equal(1, calls);
+        }
+
+        [Theory]
+        [InlineData(false, true, false)]
+        [InlineData(false, false, true)]
+        [InlineData(true, true, true)]
+        [InlineData(true, false, true)]
+        public void MergeTerminationFailure_PreservesAnyFailure(
+            bool existingFailure,
+            bool containmentTerminated,
+            bool expected)
+        {
+            Assert.Equal(
+                expected,
+                ProcessRunnerCore.MergeTerminationFailure(
+                    existingFailure,
+                    containmentTerminated));
+        }
+
+        [Fact]
+        public void PrepareUnobservedPosixFallback_LiveLeaderConsumesOneShot()
+        {
+            var state =
+                ProcessRunnerCore.PosixUnobservedTerminationState.NotAttempted;
+
+            bool prepared = ProcessRunnerCore.PrepareUnobservedPosixFallback(
+                leaderExited: false,
+                ref state);
+            int signalCalls = 0;
+            bool delayed = ProcessRunnerCore.TryTerminateUnobservedPosixGroup(
+                123,
+                (pid, signal) =>
+                {
+                    signalCalls++;
+                    return 0;
+                },
+                () => 0,
+                ref state);
+
+            Assert.False(prepared);
+            Assert.False(delayed);
+            Assert.Equal(
+                ProcessRunnerCore.PosixUnobservedTerminationState.Failed,
+                state);
+            Assert.Equal(0, signalCalls);
+        }
+
+        [Fact]
+        public void PrepareUnobservedPosixFallback_ExitedLeaderKeepsOneShotAvailable()
+        {
+            var state =
+                ProcessRunnerCore.PosixUnobservedTerminationState.NotAttempted;
+
+            bool prepared = ProcessRunnerCore.PrepareUnobservedPosixFallback(
+                leaderExited: true,
+                ref state);
+
+            Assert.True(prepared);
+            Assert.Equal(
+                ProcessRunnerCore.PosixUnobservedTerminationState.NotAttempted,
+                state);
+        }
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(1)]
+        [InlineData(2)]
+        public void Run_ParentExitStillTerminatesDescendantHoldingPipes(
+            int iteration)
         {
             string root = Path.Combine(
                 Path.GetTempPath(),
-                $"febuildergba_process_tree_{Guid.NewGuid():N}");
+                $"febuildergba_process_tree_{iteration}_{Guid.NewGuid():N}");
             Directory.CreateDirectory(root);
             string pidPath = Path.Combine(root, "child.pid");
             string scriptPath;
@@ -255,8 +512,13 @@ namespace FEBuilderGBA.Core.Tests
 
             Assert.True(result.Started, result.ErrorMessage);
             Assert.False(result.TimedOut, result.ErrorMessage);
+            Assert.False(result.OutputLimitExceeded, result.ErrorMessage);
             Assert.False(result.TerminationFailed, result.ErrorMessage);
-            Assert.Equal(0, result.ExitCode);
+            Assert.True(
+                result.ExitCode == 0,
+                $"Expected exit 0, got {result.ExitCode}. "
+                + $"ErrorMessage: {result.ErrorMessage}");
+            Assert.Equal("", result.ErrorMessage);
             Assert.True(File.Exists(pidPath), "Parent did not record child PID.");
             int childPid = int.Parse(File.ReadAllText(pidPath));
             bool alive = true;

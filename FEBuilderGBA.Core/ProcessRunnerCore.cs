@@ -67,6 +67,78 @@ namespace FEBuilderGBA
         private static readonly HashSet<Process> RetainedProcesses =
             new HashSet<Process>();
 
+        internal enum PosixUnobservedTerminationState
+        {
+            NotAttempted,
+            Succeeded,
+            Failed,
+        }
+
+        internal const int PosixSigKill = 9;
+        internal const int PosixEsrch = 3;
+        internal const int PosixEintr = 4;
+        internal const int PosixEperm = 1;
+        internal const int PosixSignalAttempts = 3;
+
+        internal static bool TryTerminateUnobservedPosixGroup(
+            int processGroup,
+            Func<int, int, int> sendSignal,
+            Func<int> getLastError,
+            ref PosixUnobservedTerminationState state,
+            int maximumAttempts = PosixSignalAttempts)
+        {
+            if (state == PosixUnobservedTerminationState.Succeeded)
+                return true;
+            if (state == PosixUnobservedTerminationState.Failed)
+                return false;
+
+            state = PosixUnobservedTerminationState.Failed;
+            if (processGroup <= 1
+                || sendSignal == null
+                || getLastError == null
+                || maximumAttempts <= 0)
+            {
+                return false;
+            }
+
+            for (int attempt = 0; attempt < maximumAttempts; attempt++)
+            {
+                if (sendSignal(-processGroup, PosixSigKill) == 0)
+                {
+                    state = PosixUnobservedTerminationState.Succeeded;
+                    return true;
+                }
+
+                int error = getLastError();
+                if (error == PosixEsrch)
+                {
+                    state = PosixUnobservedTerminationState.Succeeded;
+                    return true;
+                }
+                if (error != PosixEintr)
+                    return false;
+            }
+            return false;
+        }
+
+        internal static bool MergeTerminationFailure(
+            bool terminationFailed,
+            bool containmentTerminated)
+            => terminationFailed || !containmentTerminated;
+
+        internal static bool PrepareUnobservedPosixFallback(
+            bool leaderExited,
+            ref PosixUnobservedTerminationState state)
+        {
+            if (state != PosixUnobservedTerminationState.NotAttempted)
+                return false;
+            if (leaderExited)
+                return true;
+
+            state = PosixUnobservedTerminationState.Failed;
+            return false;
+        }
+
         private interface IProcessContainment : IDisposable
         {
             bool Terminate();
@@ -218,10 +290,10 @@ namespace FEBuilderGBA
 
         private sealed class PosixProcessGroupContainment : IProcessContainment
         {
-            private const int SigKill = 9;
             private readonly Process _process;
             private readonly int _processGroup;
             private bool _active;
+            private PosixUnobservedTerminationState _unobservedState;
 
             [DllImport("libc", SetLastError = true)]
             private static extern int kill(int pid, int signal);
@@ -256,12 +328,58 @@ namespace FEBuilderGBA
 
             public bool Terminate()
             {
-                if (!TryActivate(maximumAttempts: 1000))
-                    return TryWaitForExit(_process, 0);
-                if (kill(-_processGroup, SigKill) == 0)
+                if (_unobservedState
+                    == PosixUnobservedTerminationState.Succeeded)
+                {
                     return true;
-                int error = Marshal.GetLastWin32Error();
-                return error == 3;
+                }
+                if (_unobservedState
+                    == PosixUnobservedTerminationState.Failed)
+                {
+                    return false;
+                }
+
+                if (!TryActivate(maximumAttempts: 1000))
+                {
+                    bool leaderExited = TryWaitForExit(_process, 0);
+                    if (!PrepareUnobservedPosixFallback(
+                        leaderExited,
+                        ref _unobservedState))
+                    {
+                        return false;
+                    }
+
+                    return TryTerminateUnobservedPosixGroup(
+                        _processGroup,
+                        kill,
+                        Marshal.GetLastPInvokeError,
+                        ref _unobservedState);
+                }
+
+                for (int attempt = 0;
+                    attempt < PosixSignalAttempts;
+                    attempt++)
+                {
+                    if (kill(-_processGroup, PosixSigKill) == 0)
+                    {
+                        _active = false;
+                        _unobservedState =
+                            PosixUnobservedTerminationState.Succeeded;
+                        return true;
+                    }
+
+                    int error = Marshal.GetLastPInvokeError();
+                    if (error == PosixEsrch)
+                    {
+                        _active = false;
+                        _unobservedState =
+                            PosixUnobservedTerminationState.Succeeded;
+                        return true;
+                    }
+                    if (error != PosixEintr)
+                        return false;
+                }
+                return false;
             }
 
             public void Dispose()
@@ -631,16 +749,20 @@ namespace FEBuilderGBA
                             break;
                     }
 
+                    if (!terminationFailed)
+                    {
+                        proc.WaitForExit();
+                        bool containmentTerminated =
+                            containment?.Terminate() ?? true;
+                        terminationFailed = MergeTerminationFailure(
+                            terminationFailed,
+                            containmentTerminated);
+                    }
                     if (terminationFailed)
                     {
                         RetainProcessForTermination(proc, containment);
                         containment = null;
                         processRetained = true;
-                    }
-                    else
-                    {
-                        proc.WaitForExit();
-                        containment?.Terminate();
                     }
 
                     bool streamsDrained = Task.WaitAll(
