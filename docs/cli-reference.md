@@ -630,6 +630,36 @@ This command does **not** require a ROM.
 
 ---
 
+### `--generate-random-map`
+
+Generate FEBuilderGBA CSV map output through a trusted local FEMapCreator CLI.
+
+| Option | Required | Description |
+|---|---|---|
+| `--femapcreator=<path>` | Yes | Trusted absolute local FEMapCreator program path. The CLI never downloads or bundles FEMapCreator; it only launches the user-specified `.exe` or managed `.dll`. |
+| `--tileset=<name>` | Yes | FEMapCreator tileset name to pass to `generate`. |
+| `--width=<int>` | Yes | Output map width in tiles. Range: **1..64** so the generated CSV round-trips through FEBuilderGBA's map CSV parser. |
+| `--height=<int>` | Yes | Output map height in tiles. Range: **1..64** so the generated CSV round-trips through FEBuilderGBA's map CSV parser. |
+| `--out=<path>` | Yes | Output FEBuilderGBA CSV file. Written atomically only after generation, MAR parsing, and CSV serialization all succeed. |
+| `--assets-dir=<path>` | No | Optional absolute FEMapCreator assets-root override passed through to `--assets-dir`. |
+| `--seed=<int>` | No | Deterministic generation seed. If omitted, the CLI generates one locally and reports the effective value. |
+| `--algorithm=<name>` | No | FEMapCreator algorithm name. Default: **`cellular`**. |
+| `--json` | No | Emit one JSON object on stdout for success or failure. Errors still return a non-zero exit code. |
+
+```
+FEBuilderGBA.CLI --generate-random-map --femapcreator=C:\tools\FEMapCreator.exe --tileset=Grassland --width=15 --height=10 --out=map.csv
+FEBuilderGBA.CLI --generate-random-map --femapcreator=C:\tools\FEMapCreator.exe --tileset=Grassland --width=15 --height=10 --seed=42 --algorithm=cellular --out=map.csv --json
+```
+
+This command does **not** require a ROM and does **not** mutate ROM state. It shells out only to
+the exact FEMapCreator path you provided, converts the resulting headerless signed-LE `.mar`
+(`tileIndex * 32`) into FEBuilderGBA MAR values (`chipsetIndex * 4`), serializes the map through
+`MapExportCsv.Serialize`, and publishes the final CSV through `AtomicFileSetWriterCore`.
+
+**Exit code:** 0 on success, 1 on error.
+
+---
+
 ### `--translate`
 
 Dump ROM text to a TSV file, or import translated text from a TSV file back into the ROM.
@@ -1473,6 +1503,7 @@ Each finding prints as `ERROR [CODE] msg` (stderr) or `WARN [CODE] msg` (stdout)
 | `--buildfile-roundtrip` | Required | — | — | — | `--clean` | Full |
 | `--songexchange` | Required | Required | — | — | `--fromsong`, `--tosong` | Partial |
 | `--convertmap1picture` | — | — | Required | — | one or more of `--outImg`/`--outTSA`/`--outPal` | No |
+| `--generate-random-map` | — | — | — | Required | `--femapcreator`, `--tileset`, `--width`, `--height` | No |
 | `--translate` | Required | — | Optional | Optional | — | Full |
 | `--translate_batch` | Required | — | Optional | Optional | — | Full |
 | `--lastrom` | — | — | — | — | — | Full |
@@ -1564,6 +1595,9 @@ FEBuilderGBA.CLI --songexchange --rom=dest.gba --fromrom=source.gba --fromsong=0
 
 # Convert image to map tiles
 FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin --outPal=palette.bin
+
+# Generate a random map CSV through FEMapCreator
+FEBuilderGBA.CLI --generate-random-map --femapcreator=C:\tools\FEMapCreator.exe --tileset=Grassland --width=15 --height=10 --out=map.csv
 
 # Export text
 FEBuilderGBA.CLI --translate --rom=rom.gba --out=texts.tsv
