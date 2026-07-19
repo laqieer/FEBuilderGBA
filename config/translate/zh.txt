@@ -28207,6 +28207,9 @@ FEMapCreator 未报告任何兼容的图块集。
 :Random map generation failed: {0}
 随机地图生成失败: {0}
 
+:Random map dialog action failed: {0}
+随机地图对话框操作失败: {0}
+
 :Seed must be a valid 32-bit integer.
 种子必须是有效的 32 位整数。
 

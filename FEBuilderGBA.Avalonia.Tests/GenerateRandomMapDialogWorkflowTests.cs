@@ -100,6 +100,37 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Empty(fakeRunner.Calls);
         }
 
+        [Fact]
+        public async Task BrowseCommand_PickerFailure_IsLoggedAndSurfacedAsLocalizedError()
+        {
+            var vm = new GenerateRandomMapDialogViewModel();
+            vm.Initialize(15, 10);
+            vm.SetBrowseHandlers(
+                () => Task.FromException<string?>(
+                    new UnauthorizedAccessException("picker denied")),
+                () => Task.FromResult<string?>(null));
+
+            var errorSet = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            vm.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(GenerateRandomMapDialogViewModel.ErrorMessage)
+                    && vm.HasError)
+                {
+                    errorSet.TrySetResult(true);
+                }
+            };
+
+            vm.BrowseFEMapCreatorCommand.Execute(null);
+            await errorSet.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+            Assert.StartsWith(
+                "Random map dialog action failed:",
+                vm.ErrorMessage,
+                StringComparison.Ordinal);
+            Assert.Contains("picker denied", vm.ErrorMessage);
+        }
+
         [AvaloniaFact]
         public void Dialog_UsesSupportedAlgorithmSelector()
         {

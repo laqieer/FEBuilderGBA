@@ -66,10 +66,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             Tilesets = new ObservableCollection<GenerateRandomMapTilesetOption>();
 
-            _browseFEMapCreatorCommand = new AsyncRelayCommand(BrowseFEMapCreatorAsync, () => !IsBusy);
-            _browseAssetsDirCommand = new AsyncRelayCommand(BrowseAssetsDirAsync, () => !IsBusy);
-            _discoverTilesetsCommand = new AsyncRelayCommand(DiscoverTilesetsAsync, () => !IsBusy);
-            _generateCommand = new AsyncRelayCommand(GenerateAsync, CanGenerate);
+            _browseFEMapCreatorCommand = new AsyncRelayCommand(
+                BrowseFEMapCreatorAsync,
+                HandleCommandException,
+                () => !IsBusy);
+            _browseAssetsDirCommand = new AsyncRelayCommand(
+                BrowseAssetsDirAsync,
+                HandleCommandException,
+                () => !IsBusy);
+            _discoverTilesetsCommand = new AsyncRelayCommand(
+                DiscoverTilesetsAsync,
+                HandleCommandException,
+                () => !IsBusy);
+            _generateCommand = new AsyncRelayCommand(
+                GenerateAsync,
+                HandleCommandException,
+                CanGenerate);
             _cancelCommand = new RelayCommand(Cancel, () => !IsBusy);
         }
 
@@ -473,6 +485,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
+        void HandleCommandException(Exception ex)
+        {
+            Log.Error(
+                "GenerateRandomMapDialogViewModel command failed: "
+                + ex.ToString());
+            ErrorMessage = string.Format(
+                R._("Random map dialog action failed: {0}"),
+                ex.Message);
+        }
+
         sealed class RelayCommand : ICommand
         {
             readonly Action _execute;
@@ -497,11 +519,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         sealed class AsyncRelayCommand : ICommand
         {
             readonly Func<Task> _executeAsync;
+            readonly Action<Exception> _handleException;
             readonly Func<bool>? _canExecute;
 
-            internal AsyncRelayCommand(Func<Task> executeAsync, Func<bool>? canExecute = null)
+            internal AsyncRelayCommand(
+                Func<Task> executeAsync,
+                Action<Exception> handleException,
+                Func<bool>? canExecute = null)
             {
-                _executeAsync = executeAsync;
+                _executeAsync = executeAsync
+                    ?? throw new ArgumentNullException(nameof(executeAsync));
+                _handleException = handleException
+                    ?? throw new ArgumentNullException(nameof(handleException));
                 _canExecute = canExecute;
             }
 
@@ -509,7 +538,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             public bool CanExecute(object? parameter) => _canExecute?.Invoke() ?? true;
 
-            public async void Execute(object? parameter) => await _executeAsync();
+            public async void Execute(object? parameter)
+            {
+                try
+                {
+                    await _executeAsync();
+                }
+                catch (Exception ex)
+                {
+                    _handleException(ex);
+                }
+            }
 
             internal void RaiseCanExecuteChanged()
                 => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
