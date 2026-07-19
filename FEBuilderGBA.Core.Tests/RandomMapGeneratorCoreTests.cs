@@ -469,9 +469,10 @@ namespace FEBuilderGBA.Core.Tests
                         Started = true,
                         ExitCode = 9,
                         Stdout = "",
-                        Stderr = "",
+                        Stderr = "generation detail",
                     });
                 Assert.Equal(RandomMapGeneratorErrorCategory.NonZeroExit, nonZero.ErrorCategory);
+                Assert.Contains("generation detail", nonZero.ErrorMessage);
 
                 RandomMapGenerationResult missingOutput = RandomMapGeneratorCore.Generate(
                     CreateValidRequest(femapCreatorPath),

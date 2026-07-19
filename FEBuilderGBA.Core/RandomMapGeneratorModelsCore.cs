@@ -73,6 +73,35 @@ namespace FEBuilderGBA
         ParseFailed,
     }
 
+    internal static class FEMapCreatorProcessDiagnosticCore
+    {
+        const int MaximumDetailChars = 4096;
+
+        internal static string AppendNonZeroExitDetail(
+            string baseMessage,
+            ProcessRunResult processResult)
+        {
+            string detail = !string.IsNullOrWhiteSpace(processResult.Stderr)
+                ? processResult.Stderr
+                : processResult.Stdout;
+            if (string.IsNullOrWhiteSpace(detail))
+                return baseMessage ?? "";
+
+            detail = detail.Trim();
+            if (detail.Length > MaximumDetailChars)
+            {
+                detail = detail.Substring(
+                    detail.Length - MaximumDetailChars,
+                    MaximumDetailChars);
+            }
+
+            return (baseMessage ?? "")
+                + Environment.NewLine
+                + "FEMapCreator detail: "
+                + detail;
+        }
+    }
+
     /// <summary>
     /// Parameters for one FEMapCreator random-map generation request.
     /// </summary>

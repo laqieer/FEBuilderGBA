@@ -886,33 +886,17 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
 
-                string? applyError = null;
-                await Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    // The FEMapCreator shell-out and MAR parsing happen inside the dialog VM's
-                    // Task.Run work. Once the dialog returns a validated ushort[] grid, every
-                    // ROM / undo / cache mutation is forced back onto the Avalonia UI thread.
-                    bool applied = GenerateRandomMapWorkflow.TryApplyGeneratedMap(
+                // The FEMapCreator shell-out and MAR parsing happen inside the dialog VM's
+                // Task.Run work. The workflow marshals every ROM/undo/cache mutation and the
+                // success notification back onto the Avalonia UI thread.
+                string? applyError =
+                    await GenerateRandomMapWorkflow.ApplyGeneratedMapOnUiThreadAsync(
                         _vm,
                         _undo,
-                        result.Mars,
-                        result.Width,
-                        result.Height,
-                        postApplySuccess: () =>
-                        {
-                            RefreshMapFromCurrentSelection();
-                            UpdateTilePalette();
-                            CoreState.Services?.ShowInfo(string.Format(
-                                R._("Generated random map: {0}x{1}, seed={2}."),
-                                result.Width,
-                                result.Height,
-                                result.EffectiveSeed));
-                        },
-                        reloadFromRom: RefreshMapFromCurrentSelection,
-                        out string error);
-                    if (!applied)
-                        applyError = error;
-                });
+                        result,
+                        RefreshMapFromCurrentSelection,
+                        UpdateTilePalette,
+                        message => CoreState.Services?.ShowInfo(message));
 
                 if (!string.IsNullOrWhiteSpace(applyError))
                     ShowError(string.Format(R._("Generate random map failed: {0}"), applyError));

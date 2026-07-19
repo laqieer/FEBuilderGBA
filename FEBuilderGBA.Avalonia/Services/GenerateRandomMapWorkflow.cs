@@ -104,5 +104,47 @@ namespace FEBuilderGBA.Avalonia.Services
                 return false;
             }
         }
+
+        internal static async Task<string?> ApplyGeneratedMapOnUiThreadAsync(
+            MapEditorViewModel vm,
+            UndoService undo,
+            GenerateRandomMapDialogResult result,
+            Action refreshMapFromCurrentSelection,
+            Action updateTilePalette,
+            Action<string> showInfo)
+        {
+            ArgumentNullException.ThrowIfNull(vm);
+            ArgumentNullException.ThrowIfNull(undo);
+            ArgumentNullException.ThrowIfNull(result);
+            ArgumentNullException.ThrowIfNull(refreshMapFromCurrentSelection);
+            ArgumentNullException.ThrowIfNull(updateTilePalette);
+            ArgumentNullException.ThrowIfNull(showInfo);
+
+            string? applyError = null;
+            await global::Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                bool applied = TryApplyGeneratedMap(
+                    vm,
+                    undo,
+                    result.Mars,
+                    result.Width,
+                    result.Height,
+                    postApplySuccess: () =>
+                    {
+                        refreshMapFromCurrentSelection();
+                        updateTilePalette();
+                        showInfo(string.Format(
+                            R._("Generated random map: {0}x{1}, seed={2}."),
+                            result.Width,
+                            result.Height,
+                            result.EffectiveSeed));
+                    },
+                    reloadFromRom: refreshMapFromCurrentSelection,
+                    out string error);
+                if (!applied)
+                    applyError = error;
+            });
+            return applyError;
+        }
     }
 }

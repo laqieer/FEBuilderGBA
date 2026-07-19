@@ -655,7 +655,9 @@ This command does **not** require a ROM and does **not** mutate ROM state. It sh
 the exact FEMapCreator path you provided, reads the resulting headerless signed-LE `.mar` once
 into its exact bounded size, converts
 (`tileIndex * 32`) into FEBuilderGBA MAR values (`chipsetIndex * 4`), serializes the map through
-`MapExportCsv.Serialize`, and publishes the final CSV through `AtomicFileSetWriterCore`.
+`MapExportCsv.Serialize`, and publishes the final CSV through `AtomicFileSetWriterCore`. A
+non-zero FEMapCreator exit includes bounded stderr (or stdout when stderr is blank) in the
+reported error.
 
 **Exit code:** 0 on success, 1 on error.
 

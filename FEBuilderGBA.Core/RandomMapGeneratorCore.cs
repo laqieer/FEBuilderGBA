@@ -75,7 +75,10 @@ namespace FEBuilderGBA
                         processResult);
                 if (processResult.ExitCode != 0)
                     return FailFromProcessResult(RandomMapGeneratorErrorCategory.NonZeroExit,
-                        "FEMapCreator random-map generation exited with code " + processResult.ExitCode + ".",
+                        FEMapCreatorProcessDiagnosticCore.AppendNonZeroExitDetail(
+                            "FEMapCreator random-map generation exited with code "
+                                + processResult.ExitCode + ".",
+                            processResult),
                         processResult);
                 if (!File.Exists(outputMarPath))
                     return FailFromProcessResult(RandomMapGeneratorErrorCategory.OutputMissing,

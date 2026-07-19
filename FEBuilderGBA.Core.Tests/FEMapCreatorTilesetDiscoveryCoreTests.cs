@@ -143,6 +143,37 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void DiscoverTilesets_NonZeroExitIncludesStdoutWhenStderrIsBlank()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string femapCreatorExe = CreateEmptyFile(tempRoot, "FEMapCreator.exe");
+
+                FEMapCreatorTilesetDiscoveryResult result =
+                    FEMapCreatorTilesetDiscoveryCore.DiscoverTilesets(
+                        femapCreatorExe,
+                        runner: (command, args, workingDir, timeoutMs, maximumOutputChars) =>
+                            new ProcessRunResult
+                            {
+                                Started = true,
+                                ExitCode = 7,
+                                Stdout = "tileset configuration is invalid",
+                                Stderr = " ",
+                            });
+
+                Assert.False(result.Success);
+                Assert.Equal(RandomMapGeneratorErrorCategory.NonZeroExit, result.ErrorCategory);
+                Assert.Contains("exited with code 7", result.ErrorMessage);
+                Assert.Contains("tileset configuration is invalid", result.ErrorMessage);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
         public void DiscoverTilesets_ParsesCompleteIncompleteAndEscapedEntries()
         {
             string tempRoot = CreateTempDirectory();

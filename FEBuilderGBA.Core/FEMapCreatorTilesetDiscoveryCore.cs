@@ -81,7 +81,10 @@ namespace FEBuilderGBA
                         processResult);
                 if (processResult.ExitCode != 0)
                     return FailFromProcessResult(RandomMapGeneratorErrorCategory.NonZeroExit,
-                        "FEMapCreator tileset discovery exited with code " + processResult.ExitCode + ".",
+                        FEMapCreatorProcessDiagnosticCore.AppendNonZeroExitDetail(
+                            "FEMapCreator tileset discovery exited with code "
+                                + processResult.ExitCode + ".",
+                            processResult),
                         processResult);
 
                 TilesetListDto payload = ParseDiscoveryJson(processResult.Stdout, out string parseError);

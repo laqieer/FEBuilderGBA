@@ -270,6 +270,7 @@ namespace FEBuilderGBA.E2ETests.Tests
 
             Assert.NotEqual(0, code);
             Assert.Contains("exited with code 7", stderr, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("intentional external failure", stderr, StringComparison.OrdinalIgnoreCase);
             Assert.False(File.Exists(outPath));
             AssertRecordedTempDirectoryWasRemoved(recordPath);
         }

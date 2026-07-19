@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Headless.XUnit;
+using global::Avalonia.Threading;
 using FEBuilderGBA;
 using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
@@ -457,6 +458,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Assert.Equal(2, fakeRunner.Calls.Count);
                 Assert.True(vm.HasError);
                 Assert.Contains("exited with code 9", vm.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+                Assert.Contains("failed", vm.ErrorMessage, StringComparison.OrdinalIgnoreCase);
                 Assert.Null(vm.Result);
                 Assert.False(closeRequested);
             }
@@ -464,6 +466,78 @@ namespace FEBuilderGBA.Avalonia.Tests
             {
                 DeleteDirectoryIfPresent(tempRoot);
             }
+        }
+
+        [AvaloniaFact]
+        public async Task ApplyGeneratedMapOnUiThreadAsync_Success_CommitsOnceRefreshesAndShowsSeed()
+        {
+            CoreState.ROM = CreateRom();
+            CoreState.Undo = new Undo();
+
+            const uint pointerEntryAddr = 0x240;
+            const uint oldAddr = 0x1000;
+            byte[] originalCompressed = LiteralLz77(0x10, 128);
+            CoreState.ROM!.write_p32(pointerEntryAddr, oldAddr);
+            CoreState.ROM.write_range(oldAddr, originalCompressed);
+
+            var vm = new MapEditorViewModel { MapWidth = 2, MapHeight = 2 };
+            SetPrivateField(vm, "_cachedMapPointerEntryAddr", pointerEntryAddr);
+            SetPrivateField(vm, "_cachedMapData", BuildMap(2, 2, 0x0001));
+
+            var sequence = new List<string>();
+            var undo = new RecordingUndoService(sequence);
+            int refreshCalls = 0;
+            int paletteCalls = 0;
+            bool callbacksOnUiThread = true;
+            string infoMessage = "";
+            var result = new GenerateRandomMapDialogResult
+            {
+                Mars = new ushort[] { 0x0002, 0x0003, 0x0004, 0x0005 },
+                Width = 2,
+                Height = 2,
+                EffectiveSeed = 4242,
+            };
+
+            string? error = await Task.Run(() =>
+                GenerateRandomMapWorkflow.ApplyGeneratedMapOnUiThreadAsync(
+                    vm,
+                    undo,
+                    result,
+                    refreshMapFromCurrentSelection: () =>
+                    {
+                        callbacksOnUiThread &= Dispatcher.UIThread.CheckAccess();
+                        refreshCalls++;
+                        sequence.Add("Refresh");
+                    },
+                    updateTilePalette: () =>
+                    {
+                        callbacksOnUiThread &= Dispatcher.UIThread.CheckAccess();
+                        paletteCalls++;
+                        sequence.Add("Palette");
+                    },
+                    showInfo: message =>
+                    {
+                        callbacksOnUiThread &= Dispatcher.UIThread.CheckAccess();
+                        infoMessage = message;
+                        sequence.Add("Info");
+                    }));
+
+            Assert.Null(error);
+            Assert.True(callbacksOnUiThread);
+            Assert.True(undo.BeginOnUiThread);
+            Assert.True(undo.CommitOnUiThread);
+            Assert.Equal(1, undo.BeginCalls);
+            Assert.Equal(1, undo.CommitCalls);
+            Assert.Equal(0, undo.RollbackCalls);
+            Assert.Equal("MapEditor.GenerateRandomMap", undo.LastBeginName);
+            Assert.Equal(new[] { "Begin", "Refresh", "Palette", "Info", "Commit" }, sequence);
+            Assert.Equal(1, refreshCalls);
+            Assert.Equal(1, paletteCalls);
+            Assert.Contains("2x2", infoMessage);
+            Assert.Contains("seed=4242", infoMessage);
+            Assert.Equal(
+                new byte[] { 2, 2, 2, 0, 3, 0, 4, 0, 5, 0 },
+                vm.GetMapDataSnapshot());
         }
 
         [Fact]
@@ -517,6 +591,47 @@ namespace FEBuilderGBA.Avalonia.Tests
                     transitions.Add(vm.IsBusy);
             };
             return transitions;
+        }
+
+        sealed class RecordingUndoService : UndoService
+        {
+            readonly List<string> _sequence;
+
+            internal RecordingUndoService(List<string> sequence)
+            {
+                _sequence = sequence;
+            }
+
+            internal int BeginCalls { get; private set; }
+            internal int CommitCalls { get; private set; }
+            internal int RollbackCalls { get; private set; }
+            internal string LastBeginName { get; private set; } = "";
+            internal bool BeginOnUiThread { get; private set; }
+            internal bool CommitOnUiThread { get; private set; }
+
+            public override void Begin(string name)
+            {
+                BeginCalls++;
+                LastBeginName = name;
+                BeginOnUiThread = Dispatcher.UIThread.CheckAccess();
+                _sequence.Add("Begin");
+                base.Begin(name);
+            }
+
+            public override void Commit()
+            {
+                CommitCalls++;
+                CommitOnUiThread = Dispatcher.UIThread.CheckAccess();
+                _sequence.Add("Commit");
+                base.Commit();
+            }
+
+            public override void Rollback()
+            {
+                RollbackCalls++;
+                _sequence.Add("Rollback");
+                base.Rollback();
+            }
         }
 
         static ROM CreateRom(int size = 0x8000)
