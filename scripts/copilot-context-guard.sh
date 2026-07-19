@@ -17,7 +17,17 @@
 # since the guard's only legitimate exit-0 decision is abstention.
 set -u
 
-hook_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+script_path="${BASH_SOURCE[0]}"
+case "$script_path" in
+  */*) script_dir="${script_path%/*}" ;;
+  *) script_dir="." ;;
+esac
+# Resolve to an absolute path using only the `cd`/`pwd` shell builtins --
+# deliberately never the external `dirname` binary, so this wrapper keeps
+# working (and, just as importantly, keeps failing open deterministically
+# in tests) even when PATH is minimal/empty and no external coreutils are
+# resolvable.
+hook_dir="$(cd "$script_dir" >/dev/null 2>&1 && pwd)"
 guard="$hook_dir/copilot_context_guard.py"
 
 python_bin=""

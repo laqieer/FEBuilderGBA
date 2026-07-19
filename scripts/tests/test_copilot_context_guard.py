@@ -601,6 +601,16 @@ class TestPrivateFallbackDir(unittest.TestCase):
     def test_prepare_private_fallback_dir_creates_and_chmods_both_levels(self):
         fake_home = tempfile.mkdtemp(prefix="ctxguard-prepare-")
         try:
+            if not sys.platform.startswith("win"):
+                # tempfile.mkdtemp() already creates directories at mode
+                # 0700 on POSIX, so asserting "still not 0700 afterwards"
+                # would prove nothing either way. Explicitly set a
+                # DISTINCT mode first and assert it is preserved exactly,
+                # so this test actually fails if the guard ever chmod's
+                # $COPILOT_HOME itself.
+                os.chmod(fake_home, 0o755)
+                original_home_mode = stat.S_IMODE(os.stat(fake_home).st_mode)
+                self.assertEqual(original_home_mode, 0o755)
             root = os.path.join(fake_home, guard.CONTEXT_GUARD_CACHE_SUBDIR)
             state_dir = os.path.join(root, "some-session")
             self.assertTrue(guard._prepare_private_fallback_dir(state_dir))
@@ -609,13 +619,12 @@ class TestPrivateFallbackDir(unittest.TestCase):
             if not sys.platform.startswith("win"):
                 self.assertEqual(stat.S_IMODE(os.stat(root).st_mode), 0o700)
                 self.assertEqual(stat.S_IMODE(os.stat(state_dir).st_mode), 0o700)
-            # $COPILOT_HOME (fake_home) itself must never be chmod'ed --
-            # only the context-guard root and session subdir beneath it.
-            if not sys.platform.startswith("win"):
+                # $COPILOT_HOME (fake_home) itself must never be chmod'ed --
+                # only the context-guard root and session subdir beneath it.
                 home_mode = stat.S_IMODE(os.stat(fake_home).st_mode)
-                self.assertNotEqual(
-                    home_mode, 0o700,
-                    "$COPILOT_HOME itself must never be chmod'ed to 0700 by the guard",
+                self.assertEqual(
+                    home_mode, original_home_mode,
+                    "$COPILOT_HOME itself must never be chmod'ed by the guard",
                 )
         finally:
             shutil.rmtree(fake_home, ignore_errors=True)
@@ -1012,20 +1021,41 @@ class TestBashWrapper(unittest.TestCase):
         self.assertEqual((out.strip(), code), ("{}", 0))
 
     def test_missing_interpreter_maps_to_exit_0(self):
-        python_dirs = set()
-        for name in ("python3", "python"):
-            found = shutil.which(name)
-            if found:
-                python_dirs.add(os.path.dirname(found))
-        original_path = os.environ.get("PATH", "")
-        sep = os.pathsep
-        filtered = sep.join(
-            part for part in original_path.split(sep)
-            if os.path.normcase(os.path.normpath(part)) not in
-            {os.path.normcase(os.path.normpath(d)) for d in python_dirs}
-        )
-        out, code = self._run(_payload(tool_name="bash"), env={"PATH": filtered})
-        self.assertEqual((out.strip(), code), ("{}", 0))
+        # Deterministic regardless of how many pythons exist on this
+        # host's real PATH: point PATH at a single freshly created,
+        # guaranteed-empty directory rather than only removing the
+        # specific directories shutil.which() happened to return for
+        # "python3"/"python" -- a second venv, launcher shim, or other
+        # PATH entry could otherwise still resolve a real interpreter and
+        # silently make this test pass without actually exercising the
+        # missing-interpreter branch.
+        #
+        # A tool_name="bash" payload would trivially yield "{}"/0 even if
+        # the real guard *did* run (it's simply not a view() call), so
+        # that alone would not detect an interpreter being found by
+        # accident. Use a genuine view() payload for a real image file
+        # instead: if any interpreter is found and executes the real
+        # guard, it will create a state file recording that read. Assert
+        # that file is never created, as an observable marker proving no
+        # interpreter ran.
+        image_path = os.path.join(self._tmp, "missing-interpreter-marker.png")
+        _write_random_file(image_path, 1024)
+        empty_path_dir = tempfile.mkdtemp(prefix="ctxguard-no-python-path-")
+        try:
+            self.assertEqual(os.listdir(empty_path_dir), [])
+            out, code = self._run(
+                _payload(tool_args={"path": image_path}),
+                env={"PATH": empty_path_dir},
+            )
+            self.assertEqual((out.strip(), code), ("{}", 0))
+            state_path = os.path.join(self._tmp, guard.STATE_FILE_NAME)
+            self.assertFalse(
+                os.path.exists(state_path),
+                "guard must never have actually executed: no interpreter "
+                "should be resolvable on the emptied PATH",
+            )
+        finally:
+            shutil.rmtree(empty_path_dir, ignore_errors=True)
 
     def test_guard_crash_exit_1_maps_to_exit_0(self):
         crashing_guard = os.path.join(self._tmp, "crashing_guard.py")
@@ -1201,7 +1231,14 @@ def _pwsh_executable():
     for candidate in ("pwsh", "powershell"):
         found = shutil.which(candidate)
         if found:
-            return candidate
+            # Return the resolved absolute path, not the bare command name:
+            # tests deliberately run with a stripped/controlled PATH (see
+            # test_missing_interpreter_maps_to_exit_0), and subprocess's
+            # own executable-search behavior for a bare, non-absolute name
+            # is governed by the *child* env's PATH -- an absolute path
+            # sidesteps that entirely, so pwsh/powershell itself is always
+            # found regardless of what PATH the test hands to the child.
+            return found
     return None
 
 
@@ -1236,20 +1273,42 @@ class TestPowerShellWrapper(unittest.TestCase):
         self.assertEqual((out.strip(), code), ("{}", 0))
 
     def test_missing_interpreter_maps_to_exit_0(self):
-        python_dirs = set()
-        for name in ("python3", "python", "py"):
-            found = shutil.which(name)
-            if found:
-                python_dirs.add(os.path.dirname(found))
-        original_path = os.environ.get("PATH", "")
-        sep = os.pathsep
-        filtered = sep.join(
-            part for part in original_path.split(sep)
-            if os.path.normcase(os.path.normpath(part)) not in
-            {os.path.normcase(os.path.normpath(d)) for d in python_dirs}
-        )
-        out, code = self._run(_payload(tool_name="bash"), env={"PATH": filtered})
-        self.assertEqual((out.strip(), code), ("{}", 0))
+        # Same rationale as the Bash wrapper's test: point PATH at a
+        # single freshly created, guaranteed-empty directory instead of
+        # only removing the directories shutil.which() happened to
+        # report for "python3"/"python"/"py", which could still leave a
+        # different interpreter reachable via another PATH entry. This
+        # is safe because self._pwsh is now the *resolved absolute path*
+        # (see _pwsh_executable()), so launching pwsh/powershell itself
+        # does not depend on PATH search and is unaffected by emptying
+        # it.
+        #
+        # A tool_name="bash" payload would trivially yield "{}"/0 even if
+        # the real guard *did* run (it's simply not a view() call), so
+        # that alone would not detect an interpreter being found by
+        # accident. Use a genuine view() payload for a real image file
+        # instead: if any interpreter is found and executes the real
+        # guard, it will create a state file recording that read. Assert
+        # that file is never created, as an observable marker proving no
+        # interpreter ran.
+        image_path = os.path.join(self._tmp, "missing-interpreter-marker.png")
+        _write_random_file(image_path, 1024)
+        empty_path_dir = tempfile.mkdtemp(prefix="ctxguard-no-python-path-")
+        try:
+            self.assertEqual(os.listdir(empty_path_dir), [])
+            out, code = self._run(
+                _payload(tool_args={"path": image_path}),
+                env={"PATH": empty_path_dir},
+            )
+            self.assertEqual((out.strip(), code), ("{}", 0))
+            state_path = os.path.join(self._tmp, guard.STATE_FILE_NAME)
+            self.assertFalse(
+                os.path.exists(state_path),
+                "guard must never have actually executed: no interpreter "
+                "should be resolvable on the emptied PATH",
+            )
+        finally:
+            shutil.rmtree(empty_path_dir, ignore_errors=True)
 
     def test_guard_crash_exit_1_maps_to_exit_0(self):
         crashing_guard = os.path.join(self._tmp, "crashing_guard.py")
