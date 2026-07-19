@@ -81,9 +81,13 @@ namespace FEBuilderGBA
             string baseMessage,
             ProcessRunResult processResult)
         {
-            string detail = !string.IsNullOrWhiteSpace(processResult.Stderr)
-                ? processResult.Stderr
-                : processResult.Stdout;
+            string detail;
+            if (!string.IsNullOrWhiteSpace(processResult.Stderr))
+                detail = processResult.Stderr;
+            else if (!string.IsNullOrWhiteSpace(processResult.Stdout))
+                detail = processResult.Stdout;
+            else
+                detail = processResult.ErrorMessage;
             if (string.IsNullOrWhiteSpace(detail))
                 return baseMessage ?? "";
 

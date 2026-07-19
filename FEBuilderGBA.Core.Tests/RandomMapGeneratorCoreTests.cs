@@ -474,6 +474,23 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal(RandomMapGeneratorErrorCategory.NonZeroExit, nonZero.ErrorCategory);
                 Assert.Contains("generation detail", nonZero.ErrorMessage);
 
+                RandomMapGenerationResult captureFailure = RandomMapGeneratorCore.Generate(
+                    CreateValidRequest(femapCreatorPath),
+                    (command, args, workingDir, timeoutMs, maximumOutputChars) => new ProcessRunResult
+                    {
+                        Started = true,
+                        ExitCode = -1,
+                        Stdout = "",
+                        Stderr = "",
+                        ErrorMessage = "process output capture failed",
+                    });
+                Assert.Equal(
+                    RandomMapGeneratorErrorCategory.NonZeroExit,
+                    captureFailure.ErrorCategory);
+                Assert.Contains(
+                    "process output capture failed",
+                    captureFailure.ErrorMessage);
+
                 RandomMapGenerationResult missingOutput = RandomMapGeneratorCore.Generate(
                     CreateValidRequest(femapCreatorPath),
                     (command, args, workingDir, timeoutMs, maximumOutputChars) => new ProcessRunResult
