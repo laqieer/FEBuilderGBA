@@ -449,6 +449,14 @@ namespace FEBuilderGBA
                 return false;
             }
 
+            if (BuildfilePathSafety.ContainsParentTraversal(rawPath))
+            {
+                error =
+                    "Asset path must not contain parent-directory (..) segments: "
+                    + rawPath;
+                return false;
+            }
+
             try
             {
                 resolvedPath = Path.IsPathRooted(rawPath)

@@ -14,6 +14,7 @@ using FEBuilderGBA;
 using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
+using FEBuilderGBA.Avalonia.Views;
 
 namespace FEBuilderGBA.Avalonia.Tests
 {
@@ -543,13 +544,26 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             const uint pointerEntryAddr = 0x240;
             const uint oldAddr = 0x1000;
-            byte[] originalCompressed = LiteralLz77(0x10, 128);
+            byte[] originalMap = BuildMap(2, 2, 0x0001);
+            byte[] originalCompressed = LZ77.compress(originalMap);
             CoreState.ROM!.write_p32(pointerEntryAddr, oldAddr);
             CoreState.ROM.write_range(oldAddr, originalCompressed);
 
-            var vm = new MapEditorViewModel { MapWidth = 2, MapHeight = 2 };
+            var vm = new MapEditorViewModel
+            {
+                CurrentAddr = 0x300,
+                MapId = 1,
+                MapWidth = 2,
+                MapHeight = 2,
+            };
+            ConfigureMapPointerIdentity(vm, pointerEntryAddr, mapPlist: 1);
             SetPrivateField(vm, "_cachedMapPointerEntryAddr", pointerEntryAddr);
-            SetPrivateField(vm, "_cachedMapData", BuildMap(2, 2, 0x0001));
+            SetPrivateField(vm, "_cachedMapData", (byte[])originalMap.Clone());
+            Assert.True(
+                vm.TryCaptureMapWriteIdentity(
+                    out MapEditorViewModel.MapWriteIdentity writeIdentity,
+                    out string identityError),
+                identityError);
 
             var sequence = new List<string>();
             var undo = new RecordingUndoService(sequence);
@@ -570,6 +584,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                     vm,
                     undo,
                     result,
+                    writeIdentity,
                     refreshMapFromCurrentSelection: () =>
                     {
                         callbacksOnUiThread &= Dispatcher.UIThread.CheckAccess();
@@ -582,6 +597,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                         paletteCalls++;
                         sequence.Add("Palette");
                     },
+                    reloadFromRom: () => sequence.Add("Reload"),
                     showInfo: message =>
                     {
                         callbacksOnUiThread &= Dispatcher.UIThread.CheckAccess();
@@ -607,42 +623,188 @@ namespace FEBuilderGBA.Avalonia.Tests
                 vm.GetMapDataSnapshot());
         }
 
-        [Fact]
-        public void TryApplyGeneratedMap_PostWriteFailure_RollsBackRomAndReloadsCache()
+        [AvaloniaTheory]
+        [InlineData("rom")]
+        [InlineData("selection")]
+        [InlineData("plist")]
+        [InlineData("table")]
+        [InlineData("pointer")]
+        [InlineData("payload")]
+        public async Task ApplyGeneratedMapOnUiThreadAsync_ContextChanged_AbortsBeforeUndo(
+            string changeKind)
         {
             CoreState.ROM = CreateRom();
             CoreState.Undo = new Undo();
 
             const uint pointerEntryAddr = 0x240;
             const uint oldAddr = 0x1000;
-            byte[] originalCompressed = LiteralLz77(0x10, 128);
+            byte[] originalMap = BuildMap(2, 2, 0x0001);
+            CoreState.ROM!.write_p32(pointerEntryAddr, oldAddr);
+            CoreState.ROM.write_range(oldAddr, LZ77.compress(originalMap));
+
+            var vm = new MapEditorViewModel
+            {
+                CurrentAddr = 0x300,
+                MapId = 1,
+                MapWidth = 2,
+                MapHeight = 2,
+            };
+            ConfigureMapPointerIdentity(vm, pointerEntryAddr, mapPlist: 1);
+            SetPrivateField(vm, "_cachedMapPointerEntryAddr", pointerEntryAddr);
+            SetPrivateField(vm, "_cachedMapData", (byte[])originalMap.Clone());
+            Assert.True(
+                vm.TryCaptureMapWriteIdentity(
+                    out MapEditorViewModel.MapWriteIdentity writeIdentity,
+                    out string identityError),
+                identityError);
+
+            switch (changeKind)
+            {
+                case "rom":
+                    CoreState.ROM = CreateRom();
+                    break;
+                case "selection":
+                    vm.MapId = 2;
+                    break;
+                case "plist":
+                    CoreState.ROM!.write_u8(vm.CurrentAddr + 8, 2);
+                    break;
+                case "table":
+                    CoreState.ROM!.write_p32(0x220, 0x260);
+                    break;
+                case "pointer":
+                    const uint newMapAddr = 0x1200;
+                    CoreState.ROM!.write_range(
+                        newMapAddr,
+                        LZ77.compress(originalMap));
+                    CoreState.ROM.write_p32(pointerEntryAddr, newMapAddr);
+                    break;
+                case "payload":
+                    CoreState.ROM!.write_range(
+                        oldAddr,
+                        LZ77.compress(BuildMap(2, 2, 0x0009)));
+                    break;
+                default:
+                    throw new InvalidOperationException(
+                        "Unknown change kind: " + changeKind);
+            }
+
+            var undo = new RecordingUndoService(new List<string>());
+            int reloadCalls = 0;
+            string? error = await Task.Run(() =>
+                GenerateRandomMapWorkflow.ApplyGeneratedMapOnUiThreadAsync(
+                    vm,
+                    undo,
+                    new GenerateRandomMapDialogResult
+                    {
+                        Mars = new ushort[] { 2, 3, 4, 5 },
+                        Width = 2,
+                        Height = 2,
+                        EffectiveSeed = 7,
+                    },
+                    writeIdentity,
+                    refreshMapFromCurrentSelection: () =>
+                        throw new InvalidOperationException("must not refresh success"),
+                    updateTilePalette: () =>
+                        throw new InvalidOperationException("must not update palette"),
+                    reloadFromRom: () => reloadCalls++,
+                    showInfo: _ =>
+                        throw new InvalidOperationException("must not show success")));
+
+            Assert.NotNull(error);
+            Assert.Contains("changed", error, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(0, undo.BeginCalls);
+            Assert.Equal(0, undo.CommitCalls);
+            Assert.Equal(0, undo.RollbackCalls);
+            Assert.Equal(changeKind == "rom" ? 0 : 1, reloadCalls);
+        }
+
+        [AvaloniaFact]
+        public void MapEditorView_StrictRandomMapAdaptersThrowAndAreWired()
+        {
+            var view = new MapEditorView();
+
+            Assert.Throws<InvalidOperationException>(
+                view.RefreshMapImageFromCurrentSelectionStrict);
+            Assert.Throws<InvalidOperationException>(
+                view.UpdateTilePaletteStrict);
+
+            string source = File.ReadAllText(Path.Combine(
+                FindRepoRoot(),
+                "FEBuilderGBA.Avalonia",
+                "Views",
+                "MapEditorView.axaml.cs"));
+            int callStart = source.IndexOf(
+                "ApplyGeneratedMapOnUiThreadAsync(",
+                StringComparison.Ordinal);
+            Assert.True(callStart >= 0);
+            string call = source.Substring(
+                callStart,
+                Math.Min(1200, source.Length - callStart));
+
+            Assert.Contains(
+                "RefreshMapImageFromCurrentSelectionStrict",
+                call);
+            Assert.Contains("UpdateTilePaletteStrict", call);
+            Assert.Contains("RefreshMapFromCurrentSelectionStrict", call);
+        }
+
+        [AvaloniaFact]
+        public async Task ApplyGeneratedMapOnUiThreadAsync_PostWriteFailure_RollsBackAndReloadsCache()
+        {
+            CoreState.ROM = CreateRom();
+            CoreState.Undo = new Undo();
+
+            const uint pointerEntryAddr = 0x240;
+            const uint oldAddr = 0x1000;
+            byte[] originalMap = BuildMap(2, 2, 0x0001);
+            byte[] originalCompressed = LZ77.compress(originalMap);
             CoreState.ROM!.write_p32(pointerEntryAddr, oldAddr);
             CoreState.ROM.write_range(oldAddr, originalCompressed);
 
-            var vm = new MapEditorViewModel { MapWidth = 2, MapHeight = 2 };
-            byte[] originalMap = BuildMap(2, 2, 0x0001);
+            var vm = new MapEditorViewModel
+            {
+                CurrentAddr = 0x300,
+                MapId = 1,
+                MapWidth = 2,
+                MapHeight = 2,
+            };
+            ConfigureMapPointerIdentity(vm, pointerEntryAddr, mapPlist: 1);
             SetPrivateField(vm, "_cachedMapPointerEntryAddr", pointerEntryAddr);
             SetPrivateField(vm, "_cachedMapData", (byte[])originalMap.Clone());
+            Assert.True(
+                vm.TryCaptureMapWriteIdentity(
+                    out MapEditorViewModel.MapWriteIdentity writeIdentity,
+                    out string identityError),
+                identityError);
 
             ushort[] generatedMars = { 0x0002, 0x0003, 0x0004, 0x0005 };
             bool reloadCalled = false;
             var undo = new UndoService();
 
-            bool ok = GenerateRandomMapWorkflow.TryApplyGeneratedMap(
-                vm,
-                undo,
-                generatedMars,
-                2,
-                2,
-                postApplySuccess: () => throw new InvalidOperationException("post-write failure"),
-                reloadFromRom: () =>
-                {
-                    reloadCalled = true;
-                    SetPrivateField(vm, "_cachedMapData", (byte[])originalMap.Clone());
-                },
-                out string error);
+            string? error = await Task.Run(() =>
+                GenerateRandomMapWorkflow.ApplyGeneratedMapOnUiThreadAsync(
+                    vm,
+                    undo,
+                    new GenerateRandomMapDialogResult
+                    {
+                        Mars = generatedMars,
+                        Width = 2,
+                        Height = 2,
+                        EffectiveSeed = 9,
+                    },
+                    writeIdentity,
+                    refreshMapFromCurrentSelection: () => { },
+                    updateTilePalette: () =>
+                        throw new InvalidOperationException("post-write failure"),
+                    reloadFromRom: () =>
+                    {
+                        reloadCalled = true;
+                        SetPrivateField(vm, "_cachedMapData", (byte[])originalMap.Clone());
+                    },
+                    showInfo: _ => { }));
 
-            Assert.False(ok);
+            Assert.NotNull(error);
             Assert.True(reloadCalled);
             Assert.Contains("post-write failure", error, StringComparison.OrdinalIgnoreCase);
             Assert.Equal(originalCompressed, CoreState.ROM.Data.Skip((int)oldAddr).Take(originalCompressed.Length).ToArray());
@@ -726,27 +888,37 @@ namespace FEBuilderGBA.Avalonia.Tests
             return map;
         }
 
-        static byte[] LiteralLz77(byte seed, int uncompressedSize)
-        {
-            byte[] compressed = new byte[4 + ((uncompressedSize + 7) / 8) + uncompressedSize];
-            compressed[0] = 0x10;
-            compressed[1] = (byte)(uncompressedSize & 0xFF);
-            compressed[2] = (byte)((uncompressedSize >> 8) & 0xFF);
-            compressed[3] = (byte)((uncompressedSize >> 16) & 0xFF);
-            int dst = 4;
-            for (int written = 0; written < uncompressedSize;)
-            {
-                compressed[dst++] = 0x00;
-                int count = Math.Min(8, uncompressedSize - written);
-                for (int i = 0; i < count; i++)
-                    compressed[dst++] = (byte)(seed + written + i);
-                written += count;
-            }
-            return compressed;
-        }
-
         static void SeedMapData(MapEditorViewModel vm, byte[] mapData)
             => SetPrivateField(vm, "_cachedMapData", (byte[])mapData.Clone());
+
+        static void ConfigureMapPointerIdentity(
+            MapEditorViewModel vm,
+            uint pointerEntryAddr,
+            byte mapPlist)
+        {
+            ROM rom = CoreState.ROM!;
+            const uint tablePointerAddr = 0x220;
+            uint tableBase = pointerEntryAddr - mapPlist * 4u;
+            PropertyInfo? property = rom.RomInfo.GetType().BaseType?.GetProperty(
+                "map_map_pointer_pointer",
+                BindingFlags.Public | BindingFlags.Instance);
+            Assert.NotNull(property);
+            property!.SetValue(rom.RomInfo, tablePointerAddr);
+            rom.write_p32(tablePointerAddr, tableBase);
+            rom.write_u8(vm.CurrentAddr + 8, mapPlist);
+        }
+
+        static string FindRepoRoot()
+        {
+            string? directory = AppContext.BaseDirectory;
+            while (directory != null
+                && !File.Exists(Path.Combine(directory, "FEBuilderGBA.sln")))
+            {
+                directory = Path.GetDirectoryName(directory);
+            }
+            Assert.NotNull(directory);
+            return directory!;
+        }
 
         static void SetPrivateField(object target, string name, object value)
         {

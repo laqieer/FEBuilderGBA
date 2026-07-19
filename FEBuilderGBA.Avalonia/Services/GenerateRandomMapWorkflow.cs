@@ -109,20 +109,45 @@ namespace FEBuilderGBA.Avalonia.Services
             MapEditorViewModel vm,
             UndoService undo,
             GenerateRandomMapDialogResult result,
+            MapEditorViewModel.MapWriteIdentity expectedIdentity,
             Action refreshMapFromCurrentSelection,
             Action updateTilePalette,
+            Action reloadFromRom,
             Action<string> showInfo)
         {
             ArgumentNullException.ThrowIfNull(vm);
             ArgumentNullException.ThrowIfNull(undo);
             ArgumentNullException.ThrowIfNull(result);
+            ArgumentNullException.ThrowIfNull(expectedIdentity);
             ArgumentNullException.ThrowIfNull(refreshMapFromCurrentSelection);
             ArgumentNullException.ThrowIfNull(updateTilePalette);
+            ArgumentNullException.ThrowIfNull(reloadFromRom);
             ArgumentNullException.ThrowIfNull(showInfo);
 
             string? applyError = null;
             await global::Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
             {
+                if (!vm.IsMapWriteIdentityCurrent(
+                    expectedIdentity,
+                    out string identityError))
+                {
+                    if (ReferenceEquals(CoreState.ROM, expectedIdentity.Rom))
+                    {
+                        try
+                        {
+                            reloadFromRom();
+                        }
+                        catch (Exception reloadEx)
+                        {
+                            Log.Error(
+                                "GenerateRandomMapWorkflow identity reload failed: "
+                                + reloadEx.ToString());
+                        }
+                    }
+                    applyError = identityError;
+                    return;
+                }
+
                 bool applied = TryApplyGeneratedMap(
                     vm,
                     undo,
@@ -139,7 +164,7 @@ namespace FEBuilderGBA.Avalonia.Services
                             result.Height,
                             result.EffectiveSeed));
                     },
-                    reloadFromRom: refreshMapFromCurrentSelection,
+                    reloadFromRom,
                     out string error);
                 if (!applied)
                     applyError = error;

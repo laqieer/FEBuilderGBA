@@ -28210,6 +28210,12 @@ FEMapCreator 未报告任何兼容的图块集。
 :Random map dialog action failed: {0}
 随机地图对话框操作失败: {0}
 
+:Failed to render the generated map.
+无法渲染生成的随机地图。
+
+:Failed to render the generated map chipset palette.
+无法渲染生成的随机地图图块集调色板。
+
 :Seed must be a valid 32-bit integer.
 种子必须是有效的 32 位整数。
 

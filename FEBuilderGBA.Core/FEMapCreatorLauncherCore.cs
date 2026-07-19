@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices;
 
 namespace FEBuilderGBA
 {
@@ -11,6 +12,13 @@ namespace FEBuilderGBA
     /// </summary>
     public static class FEMapCreatorLauncherCore
     {
+        const int UnixExecuteAccessMode = 1;
+
+        [DllImport("libc", EntryPoint = "access", SetLastError = true)]
+        static extern int UnixAccess(
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string path,
+            int mode);
+
         internal sealed class FEMapCreatorLaunchSpec
         {
             public bool Success;
@@ -72,7 +80,8 @@ namespace FEBuilderGBA
                     string hostPath = Environment.GetEnvironmentVariable("DOTNET_HOST_PATH");
                     if (TryNormalizeAbsoluteLocalFile(hostPath, requireDirectoryComponent: false,
                         out string fullHostPath, out string _)
-                        && File.Exists(fullHostPath))
+                        && File.Exists(fullHostPath)
+                        && IsUsableManagedHost(fullHostPath))
                     {
                         spec.Command = fullHostPath;
                     }
@@ -88,7 +97,7 @@ namespace FEBuilderGBA
 
                 bool isNativeExecutable = OperatingSystem.IsWindows()
                     ? string.Equals(normalizedExtension, ".exe", StringComparison.Ordinal)
-                    : HasUnixExecutePermission(fullProgramPath);
+                    : HasUnixExecuteAccess(fullProgramPath);
                 if (isNativeExecutable)
                 {
                     spec.Success = true;
@@ -113,17 +122,34 @@ namespace FEBuilderGBA
             }
         }
 
-        static bool HasUnixExecutePermission(string path)
+        static bool HasUnixExecuteAccess(string path)
         {
             if (OperatingSystem.IsWindows())
                 return false;
+            return UnixAccess(path, UnixExecuteAccessMode) == 0;
+        }
 
-            UnixFileMode mode = File.GetUnixFileMode(path);
-            const UnixFileMode ExecuteBits =
-                UnixFileMode.UserExecute
-                | UnixFileMode.GroupExecute
-                | UnixFileMode.OtherExecute;
-            return (mode & ExecuteBits) != 0;
+        static bool IsUsableManagedHost(string path)
+        {
+            if (OperatingSystem.IsWindows())
+                return true;
+
+            try
+            {
+                return HasUnixExecuteAccess(path);
+            }
+            catch (DllNotFoundException)
+            {
+                return false;
+            }
+            catch (EntryPointNotFoundException)
+            {
+                return false;
+            }
+            catch (PlatformNotSupportedException)
+            {
+                return false;
+            }
         }
 
         /// <summary>

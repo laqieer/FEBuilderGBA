@@ -113,6 +113,62 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void DiscoverTilesets_DllFallsBackWhenUnixDotnetHostIsNotExecutable()
+        {
+            if (OperatingSystem.IsWindows())
+                return;
+
+            string tempRoot = CreateTempDirectory();
+            lock (EnvLock)
+            {
+                string? originalHostPath = Environment.GetEnvironmentVariable("DOTNET_HOST_PATH");
+                try
+                {
+                    string femapCreatorDll = CreateEmptyFile(tempRoot, "FEMapCreator.dll");
+                    string hostPath = CreateEmptyFile(tempRoot, "dotnet-host");
+                    File.SetUnixFileMode(
+                        hostPath,
+                        UnixFileMode.UserRead
+                        | UnixFileMode.UserWrite
+                        | UnixFileMode.OtherExecute);
+                    string assetsRoot = Path.Combine(tempRoot, "assets");
+                    Directory.CreateDirectory(assetsRoot);
+                    Environment.SetEnvironmentVariable("DOTNET_HOST_PATH", hostPath);
+
+                    string observedCommand = "";
+                    FEMapCreatorTilesetDiscoveryResult result =
+                        FEMapCreatorTilesetDiscoveryCore.DiscoverTilesets(
+                            femapCreatorDll,
+                            runner: (command, args, workingDir, timeoutMs, maximumOutputChars) =>
+                            {
+                                observedCommand = command;
+                                return new ProcessRunResult
+                                {
+                                    Started = true,
+                                    ExitCode = 0,
+                                    Stdout = JsonSerializer.Serialize(new
+                                    {
+                                        assetsRoot,
+                                        tilesets = Array.Empty<object>(),
+                                    }),
+                                    Stderr = "",
+                                };
+                            });
+
+                    Assert.True(result.Success, result.ErrorMessage);
+                    Assert.Equal("dotnet", observedCommand);
+                }
+                finally
+                {
+                    Environment.SetEnvironmentVariable(
+                        "DOTNET_HOST_PATH",
+                        originalHostPath);
+                    DeleteDirectoryIfPresent(tempRoot);
+                }
+            }
+        }
+
+        [Fact]
         public void DiscoverTilesets_ReturnsHostUnavailableWhenManagedHostCannotStart()
         {
             string tempRoot = CreateTempDirectory();
@@ -263,6 +319,24 @@ namespace FEBuilderGBA.Core.Tests
                             hasGenerationData = true,
                             diagnostic = "",
                         },
+                        new
+                        {
+                            name = "TraversalImagePath",
+                            imagePath = Path.Combine("linked", "..", "good.png"),
+                            generationDataPath = "good.json",
+                            hasImage = true,
+                            hasGenerationData = true,
+                            diagnostic = "",
+                        },
+                        new
+                        {
+                            name = "TraversalGenerationPath",
+                            imagePath = "good.png",
+                            generationDataPath = Path.Combine("linked", "..", "good.json"),
+                            hasImage = true,
+                            hasGenerationData = true,
+                            diagnostic = "",
+                        },
                     },
                 });
 
@@ -277,15 +351,17 @@ namespace FEBuilderGBA.Core.Tests
                     });
 
                 Assert.True(result.Success, result.ErrorMessage);
-                Assert.Equal(7, result.Tilesets.Count);
+                Assert.Equal(9, result.Tilesets.Count);
                 Assert.Single(result.UsableTilesets);
                 Assert.Equal("Complete", result.UsableTilesets[0].Name);
                 Assert.Contains("no generation-data asset", result.Tilesets.Single(x => x.Name == "Incomplete").Diagnostic, StringComparison.OrdinalIgnoreCase);
-                Assert.Contains("escapes the sanctioned asset root", result.Tilesets.Single(x => x.Name == "EscapeRelative").Diagnostic, StringComparison.OrdinalIgnoreCase);
+                Assert.Contains("parent-directory", result.Tilesets.Single(x => x.Name == "EscapeRelative").Diagnostic, StringComparison.OrdinalIgnoreCase);
                 Assert.Contains("escapes the sanctioned asset root", result.Tilesets.Single(x => x.Name == "EscapeAbsolute").Diagnostic, StringComparison.OrdinalIgnoreCase);
                 Assert.Contains("not a URL", result.Tilesets.Single(x => x.Name == "AssetUri").Diagnostic, StringComparison.OrdinalIgnoreCase);
                 Assert.Contains("path is missing", result.Tilesets.Single(x => x.Name == "MissingImagePath").Diagnostic, StringComparison.OrdinalIgnoreCase);
                 Assert.Contains("path is missing", result.Tilesets.Single(x => x.Name == "MissingGenerationPath").Diagnostic, StringComparison.OrdinalIgnoreCase);
+                Assert.Contains("parent-directory", result.Tilesets.Single(x => x.Name == "TraversalImagePath").Diagnostic, StringComparison.OrdinalIgnoreCase);
+                Assert.Contains("parent-directory", result.Tilesets.Single(x => x.Name == "TraversalGenerationPath").Diagnostic, StringComparison.OrdinalIgnoreCase);
             }
             finally
             {
