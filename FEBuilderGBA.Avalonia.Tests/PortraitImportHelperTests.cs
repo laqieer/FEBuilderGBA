@@ -441,6 +441,144 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         // ------------------------------------------------------------------
+        // #1980 — BuildPreparedPreviewLoadResult: the shared cache both the
+        // Step-2 source preview AND the per-frame live preview now read from.
+        // ------------------------------------------------------------------
+
+        [Fact]
+        public void BuildPreparedPreviewLoadResult_OpaqueRawBackground_MapsBackgroundToIndex0_AndDoesNotMutateSource()
+        {
+            using var _ = EnsureImageService();
+            var loadResult = MakeOpaqueBackgroundLoadResult(96, 80);
+
+            // Snapshot the source buffers BEFORE calling the method under
+            // test, so we can prove afterwards that nothing was mutated
+            // in place (the plan explicitly requires "do not mutate source
+            // buffers").
+            byte[] origIndexed = (byte[])loadResult.IndexedPixels.Clone();
+            byte[] origPalette = (byte[])loadResult.GBAPalette.Clone();
+            byte[] origRgba = (byte[])loadResult.RGBAPixels.Clone();
+
+            var prepared = PortraitImportHelper.BuildPreparedPreviewLoadResult(loadResult);
+
+            Assert.NotNull(prepared);
+            Assert.True(prepared!.Success);
+            Assert.Equal(loadResult.Width, prepared.Width);
+            Assert.Equal(loadResult.Height, prepared.Height);
+
+            // Source buffers must be byte-for-byte unchanged.
+            Assert.Equal(origIndexed, loadResult.IndexedPixels);
+            Assert.Equal(origPalette, loadResult.GBAPalette);
+            Assert.Equal(origRgba, loadResult.RGBAPixels);
+
+            // The prepared result must be freshly allocated, not aliasing the
+            // source arrays (belt-and-suspenders against accidental in-place
+            // quantization writing back into the caller's buffers).
+            Assert.NotSame(loadResult.IndexedPixels, prepared.IndexedPixels);
+            Assert.NotSame(loadResult.GBAPalette, prepared.GBAPalette);
+
+            // The color-keyed background (the corner pixel, which
+            // MakeOpaqueBackgroundLoadResult fills solid green) must have been
+            // remapped to palette index 0 (transparent) by quantization —
+            // this is exactly the correctness bug #1980 reports: the raw,
+            // un-keyed IndexedPixels/GBAPalette do NOT have this property.
+            Assert.Equal(0, prepared.IndexedPixels[0]);
+
+            byte[] rgba = PortraitImportHelper.ReconstructRgbaWithPaletteZeroTransparent(prepared);
+            Assert.NotNull(rgba);
+            Assert.Equal(0, GetAlpha(rgba, prepared.Width, 0, 0));
+            Assert.Equal(0, GetAlpha(rgba, prepared.Width, prepared.Width - 1, 0));
+            Assert.Equal(0, GetAlpha(rgba, prepared.Width, prepared.Width - 1, prepared.Height - 1));
+            // The foreground square (rows/cols 16..64) must still be opaque —
+            // it must not have been swallowed by the background color-key.
+            Assert.Equal(255, GetAlpha(rgba, prepared.Width, 32, 32));
+        }
+
+        [Fact]
+        public void BuildPreparedPreviewLoadResult_UnusableInput_ReturnsNull_ForCacheClear()
+        {
+            // #1980: RebuildPreparedPreview relies on this returning null (not
+            // throwing) so the view can safely clear its cache when the
+            // source is missing/unusable — e.g. a failed load.
+            Assert.Null(PortraitImportHelper.BuildPreparedPreviewLoadResult(null));
+
+            var failed = new ImageImportService.LoadResult { Success = false, Width = 96, Height = 80 };
+            Assert.Null(PortraitImportHelper.BuildPreparedPreviewLoadResult(failed));
+
+            var overflow = new ImageImportService.LoadResult
+            {
+                Success = true,
+                Width = int.MaxValue,
+                Height = 2,
+                RGBAPixels = Array.Empty<byte>(),
+                IndexedPixels = Array.Empty<byte>(),
+                GBAPalette = new byte[32],
+            };
+            Assert.Null(PortraitImportHelper.BuildPreparedPreviewLoadResult(overflow));
+            Assert.Null(PortraitImportHelper.ReconstructRgbaWithPaletteZeroTransparent(overflow));
+        }
+
+        // ------------------------------------------------------------------
+        // #1980 — behavioral end-to-end: prepared result -> RenderFramePreview
+        // must produce alpha=0 at the color-keyed background. A source-text
+        // assertion alone would not catch a regression where the prepared
+        // buffers are computed correctly but never actually reach the
+        // frame-preview renderer.
+        // ------------------------------------------------------------------
+
+        [Fact]
+        public void RenderFramePreview_FromPreparedResult_OpaqueRawBackground_ProducesTransparentBackground()
+        {
+            using var _ = EnsureImageService();
+            // A low-color portrait must still receive a complete 16-entry
+            // preview palette because RenderFramePreview consumes fixed 4bpp
+            // palette slots.
+            var loadResult = MakeOpaqueBackgroundLoadResult(96, 80);
+            var prepared = PortraitImportHelper.BuildPreparedPreviewLoadResult(loadResult);
+            Assert.NotNull(prepared);
+            Assert.Equal(32, prepared!.GBAPalette.Length);
+
+            IImage preview;
+            try
+            {
+                // Same block/crop shape as ImagePortraitImporterView's default
+                // NUD values / FEBuilderGBA.Core.Tests'
+                // PortraitImportPreviewCoreTests.Render helper: eyeBlock(0,0),
+                // mouthBlock(0,8) -> dest px (0,64); full-slot crops so the
+                // eye/mouth STAGE-A rebuild reads/writes are no-ops against a
+                // 96x80 source (the eye/mouth slot source coordinates, e.g.
+                // x=96, sit outside a 96-wide image and are safely clamped
+                // away by BlitIndexed's bounds clamping).
+                preview = PortraitImportPreviewCore.RenderFramePreview(
+                    prepared.IndexedPixels, prepared.Width, prepared.Height, prepared.GBAPalette,
+                    eyeBlockX: 0, eyeBlockY: 0, mouthBlockX: 0, mouthBlockY: 8,
+                    eyeCropX: 0, eyeCropY: 0, eyeCropW: 32, eyeCropH: 16,
+                    mouthCropX: 0, mouthCropY: 0, mouthCropW: 32, mouthCropH: 16,
+                    frameIndex: 0, isFe6: false);
+            }
+            catch (TypeInitializationException ex)
+                when (ex.InnerException is InvalidOperationException ioe
+                      && ioe.Message.Contains("libSkiaSharp", StringComparison.OrdinalIgnoreCase))
+            {
+                _output.WriteLine($"SKIP: native libSkiaSharp incompatible on this host: {ioe.Message}");
+                return;
+            }
+
+            Assert.NotNull(preview);
+            using (preview)
+            {
+                byte[] rgba = preview!.GetPixelData();
+                Assert.Equal(prepared.Width, preview.Width);
+                Assert.Equal(prepared.Height, preview.Height);
+
+                Assert.Equal(0, GetAlpha(rgba, preview.Width, 0, 0));
+                Assert.Equal(0, GetAlpha(rgba, preview.Width, preview.Width - 1, 0));
+                Assert.Equal(0, GetAlpha(rgba, preview.Width, preview.Width - 1, preview.Height - 1));
+                Assert.Equal(255, GetAlpha(rgba, preview.Width, 32, 32));
+            }
+        }
+
+        // ------------------------------------------------------------------
         // RecordSourceFile — must update the resource cache key.
         // ------------------------------------------------------------------
 
@@ -787,13 +925,31 @@ namespace FEBuilderGBA.Avalonia.Tests
             // PickFile_Click delegates to it (no longer inlines the load + preview).
             Assert.Matches(new Regex(@"PickFile_Click[\s\S]+?LoadImageFromPath\("), source);
 
-            // BuildPreviewImage must be inside LoadImageFromPath (not duplicated
-            // in PickFile_Click), so all entry points share the preview path.
+            // BuildPreviewImageFromPrepared must be inside SetQuantizedPreview
+            // (called from LoadImageFromPath, not duplicated in PickFile_Click),
+            // so all entry points share the single preview-render call site.
+            // (#1980: the View now shares one cached, color-keyed + quantized
+            // prepared result — see RebuildPreparedPreview — between the
+            // Step-2 source preview and the per-frame preview, instead of
+            // calling BuildPreviewImage directly and re-deriving it per call.)
             // Strip line comments first so the doc-header reference doesn't
             // count as an extra call site.
             string codeOnly = Regex.Replace(source, @"//.*", string.Empty);
-            var callMatches = Regex.Matches(codeOnly, @"PortraitImportHelper\.BuildPreviewImage\s*\(");
+            var callMatches = Regex.Matches(codeOnly, @"PortraitImportHelper\.BuildPreviewImageFromPrepared\s*\(");
             Assert.Single(callMatches);
+
+            // The shared prepared-preview cache must be rebuilt exactly once
+            // per image load — LoadImageFromPath (Pick/FE-Repo/drag-drop) and
+            // the SeedFramePreviewForScreenshot harness seed — never inside a
+            // per-frame/crop NUD handler (which would re-quantize on every tweak).
+            var rebuildMatches = Regex.Matches(codeOnly, @"RebuildPreparedPreview\s*\(\s*\)\s*;");
+            Assert.Equal(2, rebuildMatches.Count);
+
+            // BuildPreviewImage itself (the raw, un-cached convenience API) must
+            // NOT be called directly by the view anymore — only the prepared
+            // overload, so a new image load can't silently bypass the cache.
+            var rawCallMatches = Regex.Matches(codeOnly, @"PortraitImportHelper\.BuildPreviewImage\s*\(");
+            Assert.Empty(rawCallMatches);
         }
 
         [AvaloniaFact]

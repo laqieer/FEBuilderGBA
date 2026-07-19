@@ -127,5 +127,32 @@ namespace FEBuilderGBA.Avalonia.Tests
             string slice = source.Substring(idIdx, sliceLen);
             Assert.Contains("Value=\"0\"", slice);
         }
+
+        // ------------------------------------------------------------------
+        // #1985 — FrameInput must be the custom wrapping control (min
+        // increase wraps to min, max decrease wraps to max), not the stock
+        // Avalonia NumericUpDown which just clamps and stops at the bounds.
+        // ------------------------------------------------------------------
+
+        [Fact]
+        public void FrameInput_IsWrappingNumericUpDown_WithMinZeroMaxTen()
+        {
+            string source = ReadView();
+            int idIdx = source.IndexOf("ImagePortraitImporter_Frame_Input", StringComparison.Ordinal);
+            Assert.True(idIdx >= 0, "Frame_Input AutomationId not found");
+
+            // Find the opening tag that carries this AutomationId — search
+            // backwards for the last "<controls:" before the AutomationId.
+            int tagStart = source.LastIndexOf("<controls:", idIdx, StringComparison.Ordinal);
+            Assert.True(tagStart >= 0, "Could not find the opening tag for FrameInput");
+            string tagName = source.Substring(tagStart, Math.Min(40, source.Length - tagStart));
+            Assert.StartsWith("<controls:WrappingNumericUpDown", tagName);
+
+            int sliceLen = Math.Min(500, source.Length - idIdx);
+            string slice = source.Substring(idIdx, sliceLen);
+            Assert.Contains("Minimum=\"0\"", slice);
+            Assert.Contains("Maximum=\"10\"", slice);
+            Assert.Contains("Name=\"FrameInput\"", slice);
+        }
     }
 }

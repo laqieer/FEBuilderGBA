@@ -1143,8 +1143,9 @@ namespace FEBuilderGBA.Avalonia.Services
             if (svc == null) return null;
 
             int w = loadResult.Width, h = loadResult.Height;
-            byte[] rgba = new byte[w * h * 4];
-            for (int i = 0; i < loadResult.IndexedPixels.Length && i < w * h; i++)
+            if (!TryGetRgbaByteCount(w, h, out int bytes, out int pixels)) return null;
+            byte[] rgba = new byte[bytes];
+            for (int i = 0; i < loadResult.IndexedPixels.Length && i < pixels; i++)
             {
                 int palIdx = loadResult.IndexedPixels[i];
                 int palOff = palIdx * 2;
@@ -1172,8 +1173,12 @@ namespace FEBuilderGBA.Avalonia.Services
 
         static byte[] GetSourceRgba(ImageImportService.LoadResult loadResult)
         {
-            if (loadResult == null || loadResult.Width <= 0 || loadResult.Height <= 0) return null;
-            int bytes = loadResult.Width * loadResult.Height * 4;
+            if (loadResult == null
+                || !TryGetRgbaByteCount(
+                    loadResult.Width, loadResult.Height, out int bytes, out _))
+            {
+                return null;
+            }
             if (loadResult.RGBAPixels != null && loadResult.RGBAPixels.Length >= bytes)
             {
                 byte[] copy = new byte[bytes];
@@ -1192,8 +1197,9 @@ namespace FEBuilderGBA.Avalonia.Services
             if (svc == null) return null;
 
             int w = loadResult.Width, h = loadResult.Height;
-            byte[] rgba = new byte[w * h * 4];
-            for (int i = 0; i < loadResult.IndexedPixels.Length && i < w * h; i++)
+            if (!TryGetRgbaByteCount(w, h, out int bytes, out int pixels)) return null;
+            byte[] rgba = new byte[bytes];
+            for (int i = 0; i < loadResult.IndexedPixels.Length && i < pixels; i++)
             {
                 int palIdx = loadResult.IndexedPixels[i];
                 int palOff = palIdx * 2;
@@ -1209,6 +1215,21 @@ namespace FEBuilderGBA.Avalonia.Services
                 }
             }
             return rgba;
+        }
+
+        static bool TryGetRgbaByteCount(
+            int width, int height, out int bytes, out int pixels)
+        {
+            bytes = 0;
+            pixels = 0;
+            if (width <= 0 || height <= 0) return false;
+
+            long pixelCount = (long)width * height;
+            if (pixelCount > int.MaxValue / 4) return false;
+
+            pixels = (int)pixelCount;
+            bytes = pixels * 4;
+            return true;
         }
 
         public static bool ApplyPortraitBackgroundColorKey(byte[] rgba, int w, int h)
@@ -1520,15 +1541,32 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>
-        /// Convenience: build an <see cref="IImage"/> preview from a quantized
-        /// load-result, ready to drop into a <c>GbaImageControl</c>. Returns
-        /// null on failure.
+        /// Build the shared, color-keyed + auto-quantized preview
+        /// <see cref="ImageImportService.LoadResult"/> used by BOTH the
+        /// Step-2 source preview (<see cref="BuildPreviewImageFromPrepared"/>)
+        /// and the
+        /// wizard's per-frame live preview (<c>RefreshFramePreview</c> in
+        /// ImagePortraitImporterView, via <see cref="PortraitImportPreviewCore.RenderFramePreview"/>).
+        /// (#1980) The frame preview previously read the raw, un-keyed
+        /// <c>LoadedImage.IndexedPixels</c>/<c>GBAPalette</c> directly, so an
+        /// opaque non-zero background never got mapped to transparent index
+        /// 0 the way the Step-2 preview does — this method is the single
+        /// place both call sites now share so they render from identical
+        /// prepared buffers.
+        ///
+        /// Never mutates <paramref name="loadResult"/>'s buffers: <see
+        /// cref="BuildColorKeyedRgba"/> works on a private RGBA copy and
+        /// <see cref="DecreaseColorCore.Quantize"/> returns freshly allocated
+        /// index/palette arrays. Returns null on any unusable input (null
+        /// result, failed load, a quantize failure, or a missing <see
+        /// cref="CoreState.ImageService"/> when indexed-palette input must be
+        /// reconstructed because no RGBA source buffer is available) so
+        /// callers can safely clear their cache.
         /// </summary>
-        public static IImage BuildPreviewImage(ImageImportService.LoadResult loadResult)
+        public static ImageImportService.LoadResult BuildPreparedPreviewLoadResult(
+            ImageImportService.LoadResult loadResult)
         {
             if (loadResult == null || !loadResult.Success) return null;
-            IImageService svc = CoreState.ImageService;
-            if (svc == null) return null;
 
             byte[] keyed = BuildColorKeyedRgba(loadResult);
             if (keyed == null) return null;
@@ -1536,20 +1574,55 @@ namespace FEBuilderGBA.Avalonia.Services
             var qr = DecreaseColorCore.Quantize(keyed, loadResult.Width, loadResult.Height, 16);
             if (qr == null || qr.IndexData == null || qr.GBAPalette == null) return null;
 
-            var previewResult = new ImageImportService.LoadResult
+            byte[] previewPalette = qr.GBAPalette;
+            if (previewPalette.Length > 32) return null;
+            if (previewPalette.Length < 32)
+            {
+                byte[] padded = new byte[32];
+                Buffer.BlockCopy(previewPalette, 0, padded, 0, previewPalette.Length);
+                previewPalette = padded;
+            }
+
+            return new ImageImportService.LoadResult
             {
                 Success = true,
                 Width = loadResult.Width,
                 Height = loadResult.Height,
                 IndexedPixels = qr.IndexData,
-                GBAPalette = qr.GBAPalette,
+                GBAPalette = previewPalette,
             };
-            byte[] rgba = ReconstructRgbaWithPaletteZeroTransparent(previewResult);
+        }
+
+        /// <summary>
+        /// Convenience: build an <see cref="IImage"/> preview from an
+        /// already-prepared (color-keyed + quantized) load-result — see
+        /// <see cref="BuildPreparedPreviewLoadResult"/>. Ready to drop into a
+        /// <c>GbaImageControl</c>. Returns null on failure.
+        /// </summary>
+        public static IImage BuildPreviewImageFromPrepared(ImageImportService.LoadResult preparedLoadResult)
+        {
+            if (preparedLoadResult == null || !preparedLoadResult.Success) return null;
+            IImageService svc = CoreState.ImageService;
+            if (svc == null) return null;
+
+            byte[] rgba = ReconstructRgbaWithPaletteZeroTransparent(preparedLoadResult);
             if (rgba == null) return null;
 
-            IImage img = svc.CreateImage(loadResult.Width, loadResult.Height);
+            IImage img = svc.CreateImage(preparedLoadResult.Width, preparedLoadResult.Height);
             img.SetPixelData(rgba);
             return img;
         }
+
+        /// <summary>
+        /// Convenience: build an <see cref="IImage"/> preview from a raw
+        /// (un-prepared) load-result, ready to drop into a
+        /// <c>GbaImageControl</c>. Returns null on failure. Delegates to
+        /// <see cref="BuildPreparedPreviewLoadResult"/> +
+        /// <see cref="BuildPreviewImageFromPrepared"/> so this and the
+        /// wizard's cached per-load preview share one preparation pipeline
+        /// (#1980).
+        /// </summary>
+        public static IImage BuildPreviewImage(ImageImportService.LoadResult loadResult)
+            => BuildPreviewImageFromPrepared(BuildPreparedPreviewLoadResult(loadResult));
     }
 }
