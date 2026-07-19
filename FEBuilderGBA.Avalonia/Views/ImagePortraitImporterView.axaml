@@ -44,12 +44,18 @@
           </StackPanel>
         </Border>
 
-        <!-- Step 2: Preview -->
+        <!-- Step 2: Preview (#1981 — make explicit that this pane always
+             shows the SOURCE file, not whatever row is selected below). -->
         <Border BorderBrush="Gray" BorderThickness="0,0,0,1" Padding="0,4" Margin="0,0,0,4">
           <StackPanel Spacing="6">
             <TextBlock Text="2. Quantized preview" FontWeight="SemiBold" />
-            <controls:GbaImageControl AutomationProperties.AutomationId="ImagePortraitImporter_Preview_Image"
-                                      Name="PreviewImage" />
+            <TextBlock AutomationProperties.AutomationId="ImagePortraitImporter_Preview_SourceNote_Label"
+                       TextWrapping="Wrap" Foreground="{DynamicResource InfoBannerTextBrush}" FontSize="11" FontWeight="SemiBold"
+                       Text="SOURCE preview — this is always the picked PNG/BMP file, quantized. It stays fixed until you pick another file with Step 1; selecting a row in the list on the left only chooses the Import target (Step 3) and never changes this image." />
+            <Border BorderBrush="DarkCyan" BorderThickness="2" Padding="2" HorizontalAlignment="Left">
+              <controls:GbaImageControl AutomationProperties.AutomationId="ImagePortraitImporter_Preview_Image"
+                                        Name="PreviewImage" />
+            </Border>
           </StackPanel>
         </Border>
 
@@ -166,8 +172,8 @@
               </Grid>
 
               <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
-                <TextBlock Text="Frame (0-10):" VerticalAlignment="Center" />
-                <NumericUpDown AutomationProperties.AutomationId="ImagePortraitImporter_Frame_Input"
+                <TextBlock Text="Frame (0-10, wraps):" VerticalAlignment="Center" />
+                <controls:WrappingNumericUpDown AutomationProperties.AutomationId="ImagePortraitImporter_Frame_Input"
                                Name="FrameInput" Minimum="0" Maximum="10" FormatString="0" Value="0" Width="80" />
                 <TextBlock AutomationProperties.AutomationId="ImagePortraitImporter_FrameStatus_Label"
                            Name="FrameStatusLabel" VerticalAlignment="Center" FontStyle="Italic"
@@ -182,7 +188,7 @@
                    layout-aid pane. -->
               <TextBlock Text="Per-frame preview (96x80)" FontWeight="SemiBold" Margin="0,8,0,0" />
               <TextBlock AutomationProperties.AutomationId="ImagePortraitImporter_FramePreview_Note_Label"
-                         TextWrapping="Wrap" Foreground="Gray" FontSize="11"
+                         TextWrapping="Wrap" FontSize="11"
                          Text="Live composite of the selected frame's eye/mouth crop onto the face. Auto-quantized source only — Share/Custom palette and Fuchidori are not reflected here (they change only the final import)." />
               <controls:GbaImageControl AutomationProperties.AutomationId="ImagePortraitImporter_FramePreview_Image"
                                         Name="FramePreviewImage" />
@@ -194,6 +200,9 @@
         <Border BorderBrush="Gray" BorderThickness="0,0,0,1" Padding="0,4" Margin="0,0,0,4">
           <StackPanel Spacing="6">
             <TextBlock Text="3. Target portrait slot (select on the left list)" FontWeight="SemiBold" />
+            <TextBlock AutomationProperties.AutomationId="ImagePortraitImporter_TargetSlot_Note_Label"
+                       TextWrapping="Wrap" FontSize="11"
+                       Text="Selecting a row in the list on the left only chooses WHERE Import will write (the target slot) — it does not change the SOURCE preview above, and no ROM data changes until you click Import in Step 4." />
             <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="Selected Address:" VerticalAlignment="Center" />
               <TextBlock AutomationProperties.AutomationId="ImagePortraitImporter_Addr_Label"

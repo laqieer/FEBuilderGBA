@@ -10035,8 +10035,14 @@ FE-Repo...
 :2. Quantized preview
 2. 減色プレビュー
 
+:SOURCE preview — this is always the picked PNG/BMP file, quantized. It stays fixed until you pick another file with Step 1; selecting a row in the list on the left only chooses the Import target (Step 3) and never changes this image.
+ソースプレビュー — これは選択した PNG/BMP ファイルを減色表示したものです。手順 1 で別のファイルを選ぶまで変わりません。左のリストで行を選んでもインポート先（手順 3）が変わるだけで、この画像は変わりません。
+
 :3. Target portrait slot (select on the left list)
 3. 書き込み先スロット（左のリストから選択）
+
+:Selecting a row in the list on the left only chooses WHERE Import will write (the target slot) — it does not change the SOURCE preview above, and no ROM data changes until you click Import in Step 4.
+左のリストで行を選ぶ操作は、Import の書き込み先（対象スロット）を指定するだけです。上のソースプレビューは変わらず、手順 4 の Import をクリックするまで ROM データは変更されません。
 
 :4. Write to ROM
 4. ROM に書き込み
@@ -10115,6 +10121,9 @@ ROMファイルを開いて難易度設定を編集してください。
 
 :Frame (0-10):
 フレーム (0-10):
+
+:Frame (0-10, wraps):
+フレーム (0-10、循環):
 
 :First Address:
 先頭アドレス:
