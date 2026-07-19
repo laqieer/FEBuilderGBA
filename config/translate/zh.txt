@@ -23861,8 +23861,14 @@ FE-Repo...
 :2. Quantized preview
 2. 减色预览
 
+:SOURCE preview — this is always the picked PNG/BMP file, quantized. It stays fixed until you pick another file with Step 1; selecting a row in the list on the left only chooses the Import target (Step 3) and never changes this image.
+源图预览 —— 这里始终显示所选 PNG/BMP 文件的减色结果。在步骤 1 选择其他文件之前它不会改变；在左侧列表选择一行只会指定导入目标（步骤 3），不会改变此图像。
+
 :3. Target portrait slot (select on the left list)
 3. 目标肖像槽（在左侧列表中选择）
+
+:Selecting a row in the list on the left only chooses WHERE Import will write (the target slot) — it does not change the SOURCE preview above, and no ROM data changes until you click Import in Step 4.
+在左侧列表选择一行只会指定 Import 写入的位置（目标槽位）；不会改变上方的源图预览，且在步骤 4 点击 Import 之前不会修改任何 ROM 数据。
 
 :4. Write to ROM
 4. 写入 ROM
@@ -23941,6 +23947,9 @@ FE6 不支持按地图调整难度。FE6 的地图设定结构体没有本编辑
 
 :Frame (0-10):
 帧 (0-10):
+
+:Frame (0-10, wraps):
+帧 (0-10，循环):
 
 :First Address:
 起始地址:

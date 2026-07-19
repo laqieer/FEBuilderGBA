@@ -54,6 +54,35 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Contains("ImagePortraitImporter_Preview_Image", source);
         }
 
+        // ------------------------------------------------------------------
+        // #1981 — UX clarity: the AXAML must explicitly state (a) the
+        // displayed Step-2 image is the SOURCE file and stays fixed until
+        // another file is picked, and (b) selecting a list row only chooses
+        // the Import target and never mutates ROM data until Import (Step 4).
+        // ------------------------------------------------------------------
+
+        [Fact]
+        public void View_HasSourceVsTargetClarificationText()
+        {
+            string source = ReadView();
+
+            Assert.Contains("ImagePortraitImporter_Preview_SourceNote_Label", source);
+            Assert.Contains("ImagePortraitImporter_TargetSlot_Note_Label", source);
+
+            // Source-note copy: fixed source preview, unaffected by row pick.
+            int sourceNoteIdx = source.IndexOf("ImagePortraitImporter_Preview_SourceNote_Label", StringComparison.Ordinal);
+            string sourceSlice = source.Substring(sourceNoteIdx, Math.Min(600, source.Length - sourceNoteIdx));
+            Assert.Contains("SOURCE preview", sourceSlice);
+            Assert.Contains("stays fixed", sourceSlice);
+
+            // Target-note copy: row selection only picks the write target;
+            // no ROM mutation before Import.
+            int targetNoteIdx = source.IndexOf("ImagePortraitImporter_TargetSlot_Note_Label", StringComparison.Ordinal);
+            string targetSlice = source.Substring(targetNoteIdx, Math.Min(600, source.Length - targetNoteIdx));
+            Assert.Contains("target slot", targetSlice);
+            Assert.Contains("no ROM data changes until you click Import", targetSlice);
+        }
+
         [Fact]
         public void CodeBehind_CallsCoreRenderSeam()
         {
@@ -106,6 +135,70 @@ namespace FEBuilderGBA.Avalonia.Tests
             // derived from IsFe7Or8EntryLayout.
             Assert.Contains("IsFe7Or8EntryLayout", source);
             Assert.Contains("isFe6", source);
+        }
+
+        // ------------------------------------------------------------------
+        // #1980 — frame renderer must read the SHARED prepared-preview cache
+        // (color-keyed + quantized), not the raw _vm.LoadedImage buffers, and
+        // that cache must never reach ImportPortrait (the ROM-write path is
+        // unchanged and always uses the original LoadedImage).
+        // ------------------------------------------------------------------
+
+        [Fact]
+        public void CodeBehind_FrameRendererReadsPreparedPreviewCache_NotRawLoadedImage()
+        {
+            string source = ReadCodeBehind();
+
+            // RefreshFramePreview must feed the Core seam from the cached
+            // prepared result (color-keyed + quantized), matching the Step-2
+            // source preview's pipeline (#1980).
+            Assert.Contains("_preparedPreview", source);
+            Assert.Contains("RebuildPreparedPreview", source);
+            Assert.Contains("PortraitImportHelper.BuildPreparedPreviewLoadResult", source);
+
+            // The cache is rebuilt exactly once per image load — not
+            // recomputed on every frame/crop NUD tweak.
+            int rebuildCalls = CountOccurrences(source, "RebuildPreparedPreview();");
+            Assert.Equal(2, rebuildCalls);
+
+            // The render call itself must read from the local `prepared`
+            // variable (sourced from _preparedPreview), never straight off
+            // `_vm.LoadedImage`.
+            int renderIdx = source.IndexOf("PortraitImportPreviewCore.RenderFramePreview(", StringComparison.Ordinal);
+            Assert.True(renderIdx >= 0, "RenderFramePreview call not found");
+            int sliceLen = Math.Min(300, source.Length - renderIdx);
+            string slice = source.Substring(renderIdx, sliceLen);
+            Assert.Contains("prepared.IndexedPixels", slice);
+            Assert.Contains("prepared.GBAPalette", slice);
+            Assert.DoesNotContain("_vm.LoadedImage.IndexedPixels", slice);
+            Assert.DoesNotContain("_vm.LoadedImage.GBAPalette", slice);
+        }
+
+        [Fact]
+        public void CodeBehind_PreparedPreviewCacheNeverPassedToImportPortrait()
+        {
+            string source = ReadCodeBehind();
+
+            // ImportPortrait must keep writing the ORIGINAL loaded image so
+            // ROM-write behavior is unchanged — the prepared/color-keyed
+            // cache is a preview-only artifact (#1980 scope guard).
+            int importIdx = source.IndexOf("ImportPortrait(", StringComparison.Ordinal);
+            Assert.True(importIdx >= 0, "ImportPortrait call not found");
+            int sliceLen = Math.Min(400, source.Length - importIdx);
+            string slice = source.Substring(importIdx, sliceLen);
+            Assert.DoesNotContain("_preparedPreview", slice);
+            Assert.DoesNotContain("prepared", slice);
+        }
+
+        static int CountOccurrences(string source, string needle)
+        {
+            int count = 0, idx = 0;
+            while ((idx = source.IndexOf(needle, idx, StringComparison.Ordinal)) >= 0)
+            {
+                count++;
+                idx += needle.Length;
+            }
+            return count;
         }
     }
 }

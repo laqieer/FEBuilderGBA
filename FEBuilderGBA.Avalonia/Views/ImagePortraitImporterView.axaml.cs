@@ -59,6 +59,17 @@ namespace FEBuilderGBA.Avalonia.Views
         byte[] _customPaletteBytes;
         string _customPaletteFilename = string.Empty;
 
+        // #1980: cached prepared (color-keyed + auto-quantized) preview
+        // result, shared by the Step-2 source preview (SetQuantizedPreview)
+        // AND the per-frame live preview (RefreshFramePreview). Rebuilt once
+        // per image load via RebuildPreparedPreview() — never recomputed on
+        // every frame/crop NUD change — and cleared automatically
+        // (BuildPreparedPreviewLoadResult returns null) whenever the loaded
+        // source is unusable. NEVER passed to PortraitImportHelper.ImportPortrait;
+        // that call always reads the original _vm.LoadedImage so ROM-write
+        // behavior is unchanged.
+        ImageImportService.LoadResult _preparedPreview;
+
         // #1019 (Import jump): true once Opened -> LoadList() has populated
         // EntryList. SetItems() auto-selects row 0, so a NavigateTo arriving
         // BEFORE the list loads (the Portrait editor's JumpToImporter handler
@@ -335,13 +346,20 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
 
                 _vm.LoadedImage = loadResult;
+                // #1980: rebuild the shared prepared-preview cache for the
+                // freshly loaded image BEFORE either preview render call below
+                // reads it, so both are guaranteed in sync with the new source.
+                RebuildPreparedPreview();
                 SourceFileLabel.Text = filePath;
                 ImageSizeLabel.Text = $"Quantized to 16 colors — {loadResult.Width} x {loadResult.Height}";
                 UpdateSheetModeLabel(loadResult);
 
-                // Preview — see SetQuantizedPreview (single BuildPreviewImage
-                // call site so all entry points share the leak-safe preview path).
-                SetQuantizedPreview(loadResult);
+                // Preview — see SetQuantizedPreview (single
+                // BuildPreviewImageFromPrepared call site, reading the cache
+                // RebuildPreparedPreview just populated above, so all entry
+                // points share the same leak-safe, non-re-quantizing preview
+                // path — #1980).
+                SetQuantizedPreview();
 
                 // #975: refresh the per-frame composite for the freshly loaded
                 // image so the wizard's preview pane is populated immediately.
@@ -640,14 +658,15 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        // Set the quantized SOURCE preview (the existing Step-2 pane) from a
-        // load result. `BuildPreviewImage` returns an `IImage` (IDisposable);
+        // Set the quantized SOURCE preview (the existing Step-2 pane) from the
+        // cached _preparedPreview (see RebuildPreparedPreview / #1980).
+        // `BuildPreviewImageFromPrepared` returns an `IImage` (IDisposable);
         // `SetImage` extracts pixel data immediately via
         // `IconBitmapBuilder.FromImage`, so we dispose the source right after to
         // avoid leaking native bitmap resources when the user picks multiple
-        // files (Copilot bot PR #684 inline review). Single BuildPreviewImage
-        // call site shared by LoadImageFromPath + the #975 screenshot seed so
-        // all entry points use the same preview path.
+        // files (Copilot bot PR #684 inline review). Single
+        // BuildPreviewImageFromPrepared call site shared by LoadImageFromPath +
+        // the #975 screenshot seed so all entry points use the same preview path.
         void UpdateSheetModeLabel(ImageImportService.LoadResult loadResult)
         {
             if (SheetModeLabel == null || loadResult == null) return;
@@ -667,10 +686,24 @@ namespace FEBuilderGBA.Avalonia.Views
                     : "Unsupported portrait size — use 96 x 80 face or 128 x 112 sheet";
         }
 
-        void SetQuantizedPreview(ImageImportService.LoadResult loadResult)
+        void SetQuantizedPreview()
         {
-            using IImage preview = PortraitImportHelper.BuildPreviewImage(loadResult);
+            using IImage preview = PortraitImportHelper.BuildPreviewImageFromPrepared(_preparedPreview);
             PreviewImage.SetImage(preview);
+        }
+
+        // #1980: (re)build the shared prepared-preview cache from the current
+        // _vm.LoadedImage. Must be called exactly once right after every
+        // _vm.LoadedImage assignment (LoadImageFromPath + the
+        // SeedFramePreviewForScreenshot harness seed) so SetQuantizedPreview
+        // and RefreshFramePreview always render from a cache that matches the
+        // currently loaded source — never a stale prior image, and never
+        // recomputed per frame/crop NUD tweak. Safely clears the cache to null
+        // (via BuildPreparedPreviewLoadResult's own null-return contract) when
+        // the source is missing, failed, or otherwise unusable.
+        void RebuildPreparedPreview()
+        {
+            _preparedPreview = PortraitImportHelper.BuildPreparedPreviewLoadResult(_vm.LoadedImage);
         }
 
         // #975: render the per-frame live preview (port of WF
@@ -679,15 +712,21 @@ namespace FEBuilderGBA.Avalonia.Views
         // no image is loaded or the source is too small. The Core seam owns all
         // the indexed-pixel compositing; the View just gathers inputs and pushes
         // the result into the FramePreviewImage GbaImageControl.
+        //
+        // #1980: reads the cached _preparedPreview (color-keyed + quantized —
+        // see RebuildPreparedPreview) instead of the raw _vm.LoadedImage, so
+        // the composited frame treats the same palette index 0 as transparent
+        // background that the Step-2 source preview does, and so this never
+        // re-quantizes on every frame/crop change.
         void RefreshFramePreview()
         {
             try
             {
                 if (FramePreviewImage == null) return;
 
-                var loadResult = _vm.LoadedImage;
-                if (loadResult == null || !loadResult.Success
-                    || loadResult.IndexedPixels == null || loadResult.GBAPalette == null)
+                var prepared = _preparedPreview;
+                if (prepared == null || !prepared.Success
+                    || prepared.IndexedPixels == null || prepared.GBAPalette == null)
                 {
                     FramePreviewImage.SetImage(null);
                     return;
@@ -703,8 +742,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 int frame = (int)(FrameInput?.Value ?? 0);
 
                 using IImage img = PortraitImportPreviewCore.RenderFramePreview(
-                    loadResult.IndexedPixels, loadResult.Width, loadResult.Height,
-                    loadResult.GBAPalette,
+                    prepared.IndexedPixels, prepared.Width, prepared.Height,
+                    prepared.GBAPalette,
                     (int)(EyeBlockXInput?.Value ?? 0), (int)(EyeBlockYInput?.Value ?? 0),
                     (int)(MouthBlockXInput?.Value ?? 0), (int)(MouthBlockYInput?.Value ?? 0),
                     (int)(EyeCropXInput?.Value ?? 0), (int)(EyeCropYInput?.Value ?? 0),
@@ -770,10 +809,13 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 _vm.LoadedImage = BuildSyntheticSheetLoadResult();
+                // #1980: keep the prepared-preview cache in sync for the
+                // synthetic screenshot-seed image too.
+                RebuildPreparedPreview();
                 SourceFileLabel.Text = "(screenshot seed: synthetic 128x112 sheet)";
                 ImageSizeLabel.Text = "Quantized to 16 colors — 128 x 112";
 
-                SetQuantizedPreview(_vm.LoadedImage);
+                SetQuantizedPreview();
 
                 // Expand the Detail expander so the per-frame pane is visible in
                 // the capture, and select frame 2 (closed eyes) for a clear
