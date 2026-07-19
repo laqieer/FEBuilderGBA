@@ -84,6 +84,20 @@ namespace FEBuilderGBA.Avalonia.Tests
         private static void Click(RepeatButton button) =>
             button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
 
+        private static PointerWheelEventArgs MakeWheelArgs(
+            Visual source, Visual root, double deltaY)
+        {
+            var pointer = new Pointer(0, PointerType.Mouse, isPrimary: true);
+            var props = new PointerPointProperties(
+                RawInputModifiers.None, PointerUpdateKind.Other);
+            return new PointerWheelEventArgs(
+                source, pointer, root, new Point(20, 20), 0UL, props,
+                KeyModifiers.None, new Vector(0, deltaY))
+            {
+                RoutedEvent = InputElement.PointerWheelChangedEvent,
+            };
+        }
+
         [AvaloniaFact]
         public void Constructor_CreatesControl()
         {
@@ -113,6 +127,86 @@ namespace FEBuilderGBA.Avalonia.Tests
             try
             {
                 Click(GetDecreaseButton(control));
+                Assert.Equal(10m, control.Value);
+            }
+            finally
+            {
+                window.Close();
+            }
+        }
+
+        [AvaloniaFact]
+        public void KeyboardUpAtMaximum_WrapsToMinimum_WithTextBoxFocused()
+        {
+            var (window, control) = CreateShownControl(
+                minimum: 0, maximum: 10, value: 10, increment: 1);
+            try
+            {
+                Assert.True(GetTextBox(control).Focus());
+                window.KeyPress(Key.Up, RawInputModifiers.None);
+                window.KeyRelease(Key.Up, RawInputModifiers.None);
+
+                Assert.Equal(0m, control.Value);
+            }
+            finally
+            {
+                window.Close();
+            }
+        }
+
+        [AvaloniaFact]
+        public void KeyboardDownAtMinimum_WrapsToMaximum_WithTextBoxFocused()
+        {
+            var (window, control) = CreateShownControl(
+                minimum: 0, maximum: 10, value: 0, increment: 1);
+            try
+            {
+                Assert.True(GetTextBox(control).Focus());
+                window.KeyPress(Key.Down, RawInputModifiers.None);
+                window.KeyRelease(Key.Down, RawInputModifiers.None);
+
+                Assert.Equal(10m, control.Value);
+            }
+            finally
+            {
+                window.Close();
+            }
+        }
+
+        [AvaloniaFact]
+        public void MouseWheelUpAtMaximum_WrapsToMinimum_WithTextBoxFocused()
+        {
+            var (window, control) = CreateShownControl(
+                minimum: 0, maximum: 10, value: 10, increment: 1);
+            try
+            {
+                var textBox = GetTextBox(control);
+                Assert.True(textBox.Focus());
+                var wheel = MakeWheelArgs(textBox, window, deltaY: 1);
+                textBox.RaiseEvent(wheel);
+
+                Assert.True(wheel.Handled);
+                Assert.Equal(0m, control.Value);
+            }
+            finally
+            {
+                window.Close();
+            }
+        }
+
+        [AvaloniaFact]
+        public void MouseWheelDownAtMinimum_WrapsToMaximum_WithTextBoxFocused()
+        {
+            var (window, control) = CreateShownControl(
+                minimum: 0, maximum: 10, value: 0, increment: 1);
+            try
+            {
+                var textBox = GetTextBox(control);
+                Assert.True(textBox.Focus());
+                var wheel = MakeWheelArgs(textBox, window, deltaY: -1);
+                textBox.RaiseEvent(wheel);
+
+                Assert.True(wheel.Handled);
                 Assert.Equal(10m, control.Value);
             }
             finally
