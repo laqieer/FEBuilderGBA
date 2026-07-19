@@ -466,6 +466,65 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
         }
 
+        [AvaloniaFact]
+        public void TypingInvalidTextThenPressingEnter_LeavesBothDirectionsDisabled_AndClickIsNoOp()
+        {
+            var (window, control) = CreateShownControl(minimum: 0, maximum: 10, value: 5, increment: 1);
+            try
+            {
+                var textBox = GetTextBox(control);
+                textBox.Focus();
+                textBox.SelectAll();
+                window.KeyTextInput("x");
+
+                window.KeyPress(Key.Enter, RawInputModifiers.None);
+                window.KeyRelease(Key.Enter, RawInputModifiers.None);
+
+                Assert.Equal("x", control.Text);
+                Assert.Equal(5m, control.Value);
+                var spinner = GetSpinner(control);
+                Assert.Equal(ValidSpinDirections.None, spinner.ValidSpinDirection);
+                Assert.False(GetIncreaseButton(control).IsEnabled);
+                Assert.False(GetDecreaseButton(control).IsEnabled);
+
+                Click(GetIncreaseButton(control));
+                Assert.Equal(5m, control.Value);
+            }
+            finally
+            {
+                window.Close();
+            }
+        }
+
+        [AvaloniaFact]
+        public void TypingInvalidTextThenLosingFocus_LeavesBothDirectionsDisabled_AndClickIsNoOp()
+        {
+            var (window, control) = CreateShownControl(minimum: 0, maximum: 10, value: 5, increment: 1);
+            try
+            {
+                var textBox = GetTextBox(control);
+                textBox.Focus();
+                textBox.SelectAll();
+                window.KeyTextInput("x");
+
+                GetIncreaseButton(control).Focus();
+
+                Assert.Equal("x", control.Text);
+                Assert.Equal(5m, control.Value);
+                var spinner = GetSpinner(control);
+                Assert.Equal(ValidSpinDirections.None, spinner.ValidSpinDirection);
+                Assert.False(GetIncreaseButton(control).IsEnabled);
+                Assert.False(GetDecreaseButton(control).IsEnabled);
+
+                Click(GetDecreaseButton(control));
+                Assert.Equal(5m, control.Value);
+            }
+            finally
+            {
+                window.Close();
+            }
+        }
+
         // --------------------------------------------------------------
         // Genuine pointer press-and-hold (#1985 acceptance-test gap): real
         // window.MouseDown/MouseUp on the actual PART_IncreaseButton /

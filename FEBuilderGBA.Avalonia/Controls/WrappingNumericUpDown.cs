@@ -167,8 +167,9 @@ namespace FEBuilderGBA.Avalonia.Controls
         // direction narrowed.
         protected override void OnLostFocus(RoutedEventArgs e)
         {
+            bool preserveInvalidText = HasInvalidTextSpinBlock();
             base.OnLostFocus(e);
-            ApplyValidSpinDirectionAfterTextSync();
+            ApplyValidSpinDirectionAfterTextSync(preserveInvalidText);
         }
 
         // Pressing Enter commits pending text via the same private
@@ -181,11 +182,22 @@ namespace FEBuilderGBA.Avalonia.Controls
         // change to correct.
         protected override void OnKeyDown(KeyEventArgs e)
         {
+            bool preserveInvalidText =
+                e.Key == Key.Enter && HasInvalidTextSpinBlock();
             base.OnKeyDown(e);
             if (e.Key == Key.Enter)
             {
-                ApplyValidSpinDirectionAfterTextSync();
+                ApplyValidSpinDirectionAfterTextSync(preserveInvalidText);
             }
+        }
+
+        private bool HasInvalidTextSpinBlock()
+        {
+            return _spinner != null
+                && AllowSpin
+                && !IsReadOnly
+                && Increment != 0
+                && _spinner.ValidSpinDirection == ValidSpinDirections.None;
         }
 
         /// <summary>
@@ -232,7 +244,7 @@ namespace FEBuilderGBA.Avalonia.Controls
         /// synced Value and is widened exactly like
         /// <see cref="ApplyValidSpinDirection"/> would.
         /// </summary>
-        private void ApplyValidSpinDirectionAfterTextSync()
+        private void ApplyValidSpinDirectionAfterTextSync(bool preserveInvalidText = false)
         {
             if (_spinner == null)
             {
@@ -245,11 +257,20 @@ namespace FEBuilderGBA.Avalonia.Controls
                 return;
             }
 
+            if (preserveInvalidText)
+            {
+                // Enter's failed CommitInput recomputes directions from the
+                // stale Value before returning false. Restore the explicit
+                // invalid-text block captured before base.OnKeyDown ran.
+                _spinner.ValidSpinDirection = ValidSpinDirections.None;
+                return;
+            }
+
             if (_spinner.ValidSpinDirection == ValidSpinDirections.None)
             {
                 // Spinning is otherwise possible, yet base just left both
-                // directions disabled: invalid in-progress text. Leave it -
-                // do not widen a state that does not reflect a real Value.
+                // directions disabled. Leave it - do not widen a state that
+                // does not reflect a real Value.
                 return;
             }
 

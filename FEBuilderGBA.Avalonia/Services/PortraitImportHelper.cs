@@ -1550,13 +1550,22 @@ namespace FEBuilderGBA.Avalonia.Services
             var qr = DecreaseColorCore.Quantize(keyed, loadResult.Width, loadResult.Height, 16);
             if (qr == null || qr.IndexData == null || qr.GBAPalette == null) return null;
 
+            byte[] previewPalette = qr.GBAPalette;
+            if (previewPalette.Length > 32) return null;
+            if (previewPalette.Length < 32)
+            {
+                byte[] padded = new byte[32];
+                Buffer.BlockCopy(previewPalette, 0, padded, 0, previewPalette.Length);
+                previewPalette = padded;
+            }
+
             return new ImageImportService.LoadResult
             {
                 Success = true,
                 Width = loadResult.Width,
                 Height = loadResult.Height,
                 IndexedPixels = qr.IndexData,
-                GBAPalette = qr.GBAPalette,
+                GBAPalette = previewPalette,
             };
         }
 

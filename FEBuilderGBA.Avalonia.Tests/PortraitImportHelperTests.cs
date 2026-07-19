@@ -518,14 +518,13 @@ namespace FEBuilderGBA.Avalonia.Tests
         public void RenderFramePreview_FromPreparedResult_OpaqueRawBackground_ProducesTransparentBackground()
         {
             using var _ = EnsureImageService();
-            // Needs 16 distinct colors (not just background+foreground) so the
-            // quantizer fills all 16 palette slots — RenderFramePreview
-            // requires palette.Length >= 32 (16 colors) and rejects the
-            // smaller palette a 2-color fixture would quantize to.
-            var loadResult = MakeOpaqueBackgroundManyColorsLoadResult(96, 80);
+            // A low-color portrait must still receive a complete 16-entry
+            // preview palette because RenderFramePreview consumes fixed 4bpp
+            // palette slots.
+            var loadResult = MakeOpaqueBackgroundLoadResult(96, 80);
             var prepared = PortraitImportHelper.BuildPreparedPreviewLoadResult(loadResult);
             Assert.NotNull(prepared);
-            Assert.True(prepared!.GBAPalette.Length >= 32);
+            Assert.Equal(32, prepared!.GBAPalette.Length);
 
             IImage preview;
             try
