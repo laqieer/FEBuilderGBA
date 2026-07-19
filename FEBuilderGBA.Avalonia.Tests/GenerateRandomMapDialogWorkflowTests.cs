@@ -5,8 +5,10 @@ using System.Linq;
 using System.Reflection;
 using System.Text.Json;
 using System.Threading.Tasks;
+using global::Avalonia.Controls;
 using global::Avalonia.Headless.XUnit;
 using FEBuilderGBA;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -93,6 +95,47 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Equal(@"C:\trusted\FEMapCreator.exe", vm.FEMapCreatorPath);
             Assert.Equal(@"C:\trusted\assets", vm.AssetsDir);
             Assert.Empty(fakeRunner.Calls);
+        }
+
+        [AvaloniaFact]
+        public void Dialog_UsesSupportedAlgorithmSelector()
+        {
+            var content = new GenerateRandomMapDialogContent();
+            var combo = content.FindControl<ComboBox>("AlgorithmComboBox");
+
+            Assert.NotNull(combo);
+            Assert.Equal(RandomMapGeneratorAlgorithms.All, combo!.ItemsSource);
+            Assert.Equal(
+                RandomMapGeneratorAlgorithms.Default,
+                combo.SelectedItem);
+        }
+
+        [Fact]
+        public async Task ViewModel_UsesSupportedAlgorithmsAndRejectsUnknownValueBeforeGeneration()
+        {
+            int generationCalls = 0;
+            var vm = new GenerateRandomMapDialogViewModel(
+                generateRandomMap: (request, runner) =>
+                {
+                    generationCalls++;
+                    return new RandomMapGenerationResult { Success = true };
+                });
+            vm.Initialize(15, 10);
+
+            Assert.Equal(RandomMapGeneratorAlgorithms.Default, vm.Algorithm);
+            Assert.Equal(RandomMapGeneratorAlgorithms.All, vm.Algorithms);
+
+            vm.FEMapCreatorPath = @"C:\trusted\FEMapCreator.exe";
+            var tileset = new GenerateRandomMapTilesetOption { Name = "Grassland" };
+            vm.Tilesets.Add(tileset);
+            vm.SelectedTileset = tileset;
+            vm.Algorithm = "cellular";
+
+            await vm.GenerateAsync();
+
+            Assert.Equal(0, generationCalls);
+            Assert.True(vm.HasError);
+            Assert.Contains("experimental", vm.ErrorMessage);
         }
 
         [AvaloniaFact]
@@ -274,7 +317,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                     "--width", "2",
                     "--height", "2",
                     "--tileset", "Grassland",
-                    "--algorithm", "cellular",
+                    "--algorithm", RandomMapGeneratorAlgorithms.Default,
                     "--seed", "12345",
                     "--output", FindArgumentValue(generateCall.Arguments, "--output"),
                     "--format", "mar",

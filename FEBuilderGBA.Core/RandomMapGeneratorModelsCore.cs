@@ -15,6 +15,37 @@ namespace FEBuilderGBA
         int timeoutMs,
         int maximumOutputChars);
 
+    /// <summary>FEMapCreator generation algorithms supported by its public CLI.</summary>
+    public static class RandomMapGeneratorAlgorithms
+    {
+        public const string Experimental = "experimental";
+        public const string Legacy = "legacy";
+        public const string Hybrid = "hybrid";
+        public const string Default = Experimental;
+
+        static readonly string[] Values = { Experimental, Legacy, Hybrid };
+
+        public static IReadOnlyList<string> All { get; } = Array.AsReadOnly(Values);
+
+        public static bool TryNormalize(string value, out string normalized)
+        {
+            normalized = "";
+            if (string.IsNullOrWhiteSpace(value))
+                return false;
+
+            string candidate = value.Trim();
+            foreach (string supported in Values)
+            {
+                if (string.Equals(candidate, supported, StringComparison.OrdinalIgnoreCase))
+                {
+                    normalized = supported;
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
     /// <summary>
     /// Failure categories surfaced by the FEMapCreator random-map adapter.
     /// </summary>
@@ -57,7 +88,7 @@ namespace FEBuilderGBA
         public string TilesetName { get; set; } = "";
 
         /// <summary>Algorithm name passed to FEMapCreator.</summary>
-        public string Algorithm { get; set; } = "";
+        public string Algorithm { get; set; } = RandomMapGeneratorAlgorithms.Default;
 
         /// <summary>Deterministic generation seed passed to FEMapCreator.</summary>
         public int Seed { get; set; }
@@ -74,11 +105,6 @@ namespace FEBuilderGBA
         /// </summary>
         public string AssetsDir { get; set; } = "";
 
-        /// <summary>
-        /// Adapter-owned private output path for the temporary <c>.mar</c> file. Callers should
-        /// not populate this field; <see cref="RandomMapGeneratorCore.Generate"/> overwrites it.
-        /// </summary>
-        public string OutputMarPath { get; set; } = "";
     }
 
     /// <summary>
@@ -136,6 +162,12 @@ namespace FEBuilderGBA
 
         /// <summary>Confined absolute generation-data path under the effective asset root, when valid.</summary>
         public string ResolvedGenerationDataPath { get; set; } = "";
+
+        /// <summary>Tileset PNG width read from IHDR, or 0 when unavailable.</summary>
+        public int ImageWidth { get; set; }
+
+        /// <summary>Tileset PNG height read from IHDR, or 0 when unavailable.</summary>
+        public int ImageHeight { get; set; }
 
         /// <summary>
         /// True when the tileset image parsed successfully and is exactly 512 pixels wide

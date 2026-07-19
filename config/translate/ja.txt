@@ -14362,8 +14362,8 @@ FEMapCreator アセット ディレクトリへの絶対パス
 :Discover and choose a compatible tileset first.
 まず互換性のあるタイルセットを検出して選択してください。
 
-:Algorithm is required.
-アルゴリズムは必須です。
+:Algorithm must be one of: {0}.
+アルゴリズムは次のいずれかでなければなりません: {0}。
 
 :Tileset discovery returned no result.
 タイルセット検出が結果を返しませんでした。

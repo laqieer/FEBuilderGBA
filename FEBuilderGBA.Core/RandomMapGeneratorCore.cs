@@ -12,6 +12,9 @@ namespace FEBuilderGBA
     /// </summary>
     public static class RandomMapGeneratorCore
     {
+        public const int MinimumDimension = 1;
+        public const int MaximumDimension = 64;
+
         // 120 seconds is long enough for larger random-map generations while still giving the
         // caller a deterministic failure instead of an unbounded hang.
         const int ProcessTimeoutMs = 120_000;
@@ -30,19 +33,27 @@ namespace FEBuilderGBA
         {
             runner ??= ProcessRunnerCore.Run;
 
-            if (!TryValidateRequest(request, out string normalizedAssetsDir, out string error))
+            if (!TryValidateRequest(
+                request,
+                out string normalizedAssetsDir,
+                out string normalizedAlgorithm,
+                out string error))
                 return Fail(RandomMapGeneratorErrorCategory.InvalidPath, error);
 
             string tempDir = "";
             try
             {
                 tempDir = CreateTempWorkingDirectory();
-                request.OutputMarPath = Path.Combine(tempDir, OutputFileName);
+                string outputMarPath = Path.Combine(tempDir, OutputFileName);
 
                 FEMapCreatorLauncherCore.FEMapCreatorLaunchSpec spec =
                     FEMapCreatorLauncherCore.CreateLaunchSpec(
                         request.FEMapCreatorPath,
-                        BuildGenerateArguments(request, normalizedAssetsDir));
+                        BuildGenerateArguments(
+                            request,
+                            normalizedAssetsDir,
+                            normalizedAlgorithm,
+                            outputMarPath));
                 if (!spec.Success)
                     return Fail(spec.ErrorCategory, spec.ErrorMessage);
 
@@ -66,12 +77,22 @@ namespace FEBuilderGBA
                     return FailFromProcessResult(RandomMapGeneratorErrorCategory.NonZeroExit,
                         "FEMapCreator random-map generation exited with code " + processResult.ExitCode + ".",
                         processResult);
-                if (!File.Exists(request.OutputMarPath))
+                if (!File.Exists(outputMarPath))
                     return FailFromProcessResult(RandomMapGeneratorErrorCategory.OutputMissing,
-                        "FEMapCreator reported success but did not produce the expected MAR file: " + request.OutputMarPath,
+                        "FEMapCreator reported success but did not produce the expected MAR file: " + outputMarPath,
                         processResult);
 
-                byte[] marBytes = File.ReadAllBytes(request.OutputMarPath);
+                long expectedLength = (long)request.Width * request.Height * 2;
+                long actualLength = new FileInfo(outputMarPath).Length;
+                if (actualLength != expectedLength)
+                {
+                    return FailFromProcessResult(
+                        RandomMapGeneratorErrorCategory.ParseFailed,
+                        $"Generated MAR length mismatch: expected {expectedLength} bytes but got {actualLength}.",
+                        processResult);
+                }
+
+                byte[] marBytes = File.ReadAllBytes(outputMarPath);
                 if (!RandomMapGeneratorMarParserCore.TryParse(
                     marBytes,
                     request.Width,
@@ -107,9 +128,11 @@ namespace FEBuilderGBA
         static bool TryValidateRequest(
             RandomMapGenerationRequest request,
             out string normalizedAssetsDir,
+            out string normalizedAlgorithm,
             out string error)
         {
             normalizedAssetsDir = "";
+            normalizedAlgorithm = "";
             error = "";
 
             if (request == null)
@@ -117,9 +140,10 @@ namespace FEBuilderGBA
                 error = "Random map generation request is null.";
                 return false;
             }
-            if (request.Width <= 0 || request.Height <= 0)
+            if (request.Width < MinimumDimension || request.Width > MaximumDimension
+                || request.Height < MinimumDimension || request.Height > MaximumDimension)
             {
-                error = $"Random map generation dimensions must be positive; got {request.Width}x{request.Height}.";
+                error = $"Random map generation dimensions must be in the range {MinimumDimension}..{MaximumDimension}; got {request.Width}x{request.Height}.";
                 return false;
             }
             if (string.IsNullOrWhiteSpace(request.TilesetName))
@@ -127,9 +151,11 @@ namespace FEBuilderGBA
                 error = "Random map generation tileset name is required.";
                 return false;
             }
-            if (string.IsNullOrWhiteSpace(request.Algorithm))
+            if (!RandomMapGeneratorAlgorithms.TryNormalize(
+                request.Algorithm, out normalizedAlgorithm))
             {
-                error = "Random map generation algorithm is required.";
+                error = "Random map generation algorithm must be one of: "
+                    + string.Join(", ", RandomMapGeneratorAlgorithms.All) + ".";
                 return false;
             }
 
@@ -146,7 +172,9 @@ namespace FEBuilderGBA
 
         static IEnumerable<string> BuildGenerateArguments(
             RandomMapGenerationRequest request,
-            string normalizedAssetsDir)
+            string normalizedAssetsDir,
+            string normalizedAlgorithm,
+            string outputMarPath)
         {
             var args = new List<string>
             {
@@ -158,11 +186,11 @@ namespace FEBuilderGBA
                 "--tileset",
                 request.TilesetName,
                 "--algorithm",
-                request.Algorithm,
+                normalizedAlgorithm,
                 "--seed",
                 request.Seed.ToString(),
                 "--output",
-                request.OutputMarPath,
+                outputMarPath,
                 "--format",
                 "mar",
                 "--require-complete",

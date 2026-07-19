@@ -28,7 +28,7 @@ namespace FEBuilderGBA.Core.Tests
                     Width = 15,
                     Height = 10,
                     TilesetName = "Grassland",
-                    Algorithm = "cellular",
+                    Algorithm = RandomMapGeneratorAlgorithms.Default,
                     Seed = 42,
                     FEMapCreatorPath = femapCreatorPath,
                 };
@@ -64,9 +64,9 @@ namespace FEBuilderGBA.Core.Tests
                     "--width", "15",
                     "--height", "10",
                     "--tileset", "Grassland",
-                    "--algorithm", "cellular",
+                    "--algorithm", RandomMapGeneratorAlgorithms.Default,
                     "--seed", "42",
-                    "--output", request.OutputMarPath,
+                    "--output", FindArgumentValue(call.Arguments, "--output"),
                     "--format", "mar",
                     "--require-complete",
                     "--force",
@@ -93,7 +93,7 @@ namespace FEBuilderGBA.Core.Tests
                     Width = 2,
                     Height = 2,
                     TilesetName = "Grassland",
-                    Algorithm = "cellular",
+                    Algorithm = RandomMapGeneratorAlgorithms.Default,
                     Seed = 42,
                     FEMapCreatorPath = femapCreatorPath,
                     AssetsDir = assetsDir,
@@ -125,9 +125,9 @@ namespace FEBuilderGBA.Core.Tests
                     "--width", "2",
                     "--height", "2",
                     "--tileset", "Grassland",
-                    "--algorithm", "cellular",
+                    "--algorithm", RandomMapGeneratorAlgorithms.Default,
                     "--seed", "42",
-                    "--output", request.OutputMarPath,
+                    "--output", FindArgumentValue(call.Arguments, "--output"),
                     "--format", "mar",
                     "--require-complete",
                     "--force",
@@ -149,19 +149,32 @@ namespace FEBuilderGBA.Core.Tests
                 Width = 1,
                 Height = 1,
                 TilesetName = "Grassland",
-                Algorithm = "cellular",
+                Algorithm = RandomMapGeneratorAlgorithms.Default,
                 Seed = 1,
                 FEMapCreatorPath = "https://example.com/femapcreator.exe",
             });
             Assert.False(urlResult.Success);
             Assert.Equal(RandomMapGeneratorErrorCategory.InvalidPath, urlResult.ErrorCategory);
 
+            RandomMapGenerationResult fileUriResult = RandomMapGeneratorCore.Generate(
+                new RandomMapGenerationRequest
+                {
+                    Width = 1,
+                    Height = 1,
+                    TilesetName = "Grassland",
+                    Algorithm = RandomMapGeneratorAlgorithms.Default,
+                    Seed = 1,
+                    FEMapCreatorPath = "file:///tmp/femapcreator.exe",
+                });
+            Assert.False(fileUriResult.Success);
+            Assert.Equal(RandomMapGeneratorErrorCategory.InvalidPath, fileUriResult.ErrorCategory);
+
             RandomMapGenerationResult relativeResult = RandomMapGeneratorCore.Generate(new RandomMapGenerationRequest
             {
                 Width = 1,
                 Height = 1,
                 TilesetName = "Grassland",
-                Algorithm = "cellular",
+                Algorithm = RandomMapGeneratorAlgorithms.Default,
                 Seed = 1,
                 FEMapCreatorPath = "tools\\femapcreator.exe",
             });
@@ -173,7 +186,7 @@ namespace FEBuilderGBA.Core.Tests
                 Width = 1,
                 Height = 1,
                 TilesetName = "Grassland",
-                Algorithm = "cellular",
+                Algorithm = RandomMapGeneratorAlgorithms.Default,
                 Seed = 1,
                 FEMapCreatorPath = "femapcreator.exe",
             });
@@ -189,7 +202,7 @@ namespace FEBuilderGBA.Core.Tests
                     Width = 1,
                     Height = 1,
                     TilesetName = "Grassland",
-                    Algorithm = "cellular",
+                    Algorithm = RandomMapGeneratorAlgorithms.Default,
                     Seed = 1,
                     FEMapCreatorPath = missingPath,
                 });
@@ -202,12 +215,62 @@ namespace FEBuilderGBA.Core.Tests
                     Width = 1,
                     Height = 1,
                     TilesetName = "Grassland",
-                    Algorithm = "cellular",
+                    Algorithm = RandomMapGeneratorAlgorithms.Default,
                     Seed = 1,
                     FEMapCreatorPath = unsupportedPath,
                 });
                 Assert.False(unsupportedResult.Success);
                 Assert.Equal(RandomMapGeneratorErrorCategory.InvalidPath, unsupportedResult.ErrorCategory);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
+        public void Generate_RejectsUnsupportedAlgorithmAndOversizedDimensionsBeforeSpawn()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string femapCreatorPath = CreateEmptyFile(tempRoot, "FEMapCreator.exe");
+                int calls = 0;
+                ProcessRunnerDelegate runner = (command, args, workingDir, timeoutMs, maximumOutputChars) =>
+                {
+                    calls++;
+                    return ProcessRunResult.NotStarted("must not run");
+                };
+
+                RandomMapGenerationResult badAlgorithm = RandomMapGeneratorCore.Generate(
+                    new RandomMapGenerationRequest
+                    {
+                        Width = 1,
+                        Height = 1,
+                        TilesetName = "Grassland",
+                        Algorithm = "cellular",
+                        Seed = 1,
+                        FEMapCreatorPath = femapCreatorPath,
+                    },
+                    runner);
+                Assert.False(badAlgorithm.Success);
+                Assert.Equal(RandomMapGeneratorErrorCategory.InvalidPath, badAlgorithm.ErrorCategory);
+                Assert.Contains("experimental", badAlgorithm.ErrorMessage);
+
+                RandomMapGenerationResult oversized = RandomMapGeneratorCore.Generate(
+                    new RandomMapGenerationRequest
+                    {
+                        Width = RandomMapGeneratorCore.MaximumDimension + 1,
+                        Height = 1,
+                        TilesetName = "Grassland",
+                        Algorithm = RandomMapGeneratorAlgorithms.Default,
+                        Seed = 1,
+                        FEMapCreatorPath = femapCreatorPath,
+                    },
+                    runner);
+                Assert.False(oversized.Success);
+                Assert.Equal(RandomMapGeneratorErrorCategory.InvalidPath, oversized.ErrorCategory);
+                Assert.Equal(0, calls);
             }
             finally
             {
@@ -444,7 +507,7 @@ namespace FEBuilderGBA.Core.Tests
                 Width = 2,
                 Height = 2,
                 TilesetName = "Grassland",
-                Algorithm = "cellular",
+                Algorithm = RandomMapGeneratorAlgorithms.Default,
                 Seed = 42,
                 FEMapCreatorPath = femapCreatorPath,
             };

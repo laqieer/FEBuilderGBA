@@ -80,14 +80,16 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Equal("generate-random-map", root.GetProperty("command").GetString());
             Assert.Equal(femapCreatorPath, root.GetProperty("femapcreator").GetString());
             Assert.Equal("Grassland", root.GetProperty("tileset").GetString());
-            Assert.Equal("cellular", root.GetProperty("algorithm").GetString());
+            Assert.Equal(RandomMapGeneratorAlgorithms.Default, root.GetProperty("algorithm").GetString());
             Assert.Equal(2, root.GetProperty("width").GetInt32());
             Assert.Equal(2, root.GetProperty("height").GetInt32());
             Assert.Equal(31415926, root.GetProperty("seed").GetInt32());
             Assert.Equal(JsonValueKind.Null, root.GetProperty("assetsDir").ValueKind);
             Assert.Equal(outPath, root.GetProperty("out").GetString());
 
-            Assert.Equal("cellular", FindArgumentValue(capturedArguments, "--algorithm"));
+            Assert.Equal(
+                RandomMapGeneratorAlgorithms.Default,
+                FindArgumentValue(capturedArguments, "--algorithm"));
             Assert.Equal("31415926", FindArgumentValue(capturedArguments, "--seed"));
 
             byte[] expectedMapData = { 2, 2, 0, 0, 4, 0, 8, 0, 12, 0 };
@@ -127,6 +129,44 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Equal(1, result.Code);
             Assert.Contains("--width", result.Stderr, StringComparison.OrdinalIgnoreCase);
             Assert.Equal("", result.Stdout);
+            Assert.Equal(0, generateCalls);
+            Assert.Equal(0, writeCalls);
+            Assert.False(File.Exists(outPath));
+        }
+
+        [Fact]
+        public void UnsupportedAlgorithm_DoesNotGenerateOrWrite()
+        {
+            int generateCalls = 0;
+            int writeCalls = 0;
+            string femapCreatorPath = CreateEmptyFile("FEMapCreator.exe");
+            string outPath = Path.Combine(_root, "bad-algorithm.csv");
+
+            var operations = new RandomMapGeneratorCliOperations
+            {
+                Generate = (request, runner) =>
+                {
+                    generateCalls++;
+                    return FailResult("should not run");
+                },
+                WriteOutputs = outputs => writeCalls++,
+            };
+
+            var result = Run(
+                CliProgram.ParseArgs(new[]
+                {
+                    "--generate-random-map",
+                    "--femapcreator=" + femapCreatorPath,
+                    "--tileset=Grassland",
+                    "--width=2",
+                    "--height=2",
+                    "--algorithm=cellular",
+                    "--out=" + outPath,
+                }),
+                operations);
+
+            Assert.Equal(1, result.Code);
+            Assert.Contains("experimental", result.Stderr);
             Assert.Equal(0, generateCalls);
             Assert.Equal(0, writeCalls);
             Assert.False(File.Exists(outPath));
@@ -206,6 +246,42 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.False(root.GetProperty("ok").GetBoolean());
             Assert.Equal("generate-random-map", root.GetProperty("command").GetString());
             Assert.Contains("disk full", root.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
+            Assert.False(File.Exists(outPath));
+        }
+
+        [Fact]
+        public void TextWriteFailure_ReturnsErrorWithoutThrowing()
+        {
+            string femapCreatorPath = CreateEmptyFile("FEMapCreator.exe");
+            string outPath = Path.Combine(_root, "write-error-text.csv");
+
+            var operations = new RandomMapGeneratorCliOperations
+            {
+                Generate = (request, runner) => new RandomMapGenerationResult
+                {
+                    Success = true,
+                    ErrorCategory = RandomMapGeneratorErrorCategory.None,
+                    ErrorMessage = "ok",
+                    Mars = new ushort[] { 0, 4, 8, 12 },
+                },
+                WriteOutputs = outputs => throw new IOException("disk full"),
+            };
+
+            var result = Run(
+                CliProgram.ParseArgs(new[]
+                {
+                    "--generate-random-map",
+                    "--femapcreator=" + femapCreatorPath,
+                    "--tileset=Grassland",
+                    "--width=2",
+                    "--height=2",
+                    "--out=" + outPath,
+                }),
+                operations);
+
+            Assert.Equal(1, result.Code);
+            Assert.Contains("disk full", result.Stderr, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal("", result.Stdout);
             Assert.False(File.Exists(outPath));
         }
 

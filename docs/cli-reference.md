@@ -643,12 +643,12 @@ Generate FEBuilderGBA CSV map output through a trusted local FEMapCreator CLI.
 | `--out=<path>` | Yes | Output FEBuilderGBA CSV file. Written atomically only after generation, MAR parsing, and CSV serialization all succeed. |
 | `--assets-dir=<path>` | No | Optional absolute FEMapCreator assets-root override passed through to `--assets-dir`. |
 | `--seed=<int>` | No | Deterministic generation seed. If omitted, the CLI generates one locally and reports the effective value. |
-| `--algorithm=<name>` | No | FEMapCreator algorithm name. Default: **`cellular`**. |
+| `--algorithm=<name>` | No | FEMapCreator algorithm: `experimental`, `legacy`, or `hybrid`. Default: **`experimental`**. |
 | `--json` | No | Emit one JSON object on stdout for success or failure. Errors still return a non-zero exit code. |
 
 ```
 FEBuilderGBA.CLI --generate-random-map --femapcreator=C:\tools\FEMapCreator.exe --tileset=Grassland --width=15 --height=10 --out=map.csv
-FEBuilderGBA.CLI --generate-random-map --femapcreator=C:\tools\FEMapCreator.exe --tileset=Grassland --width=15 --height=10 --seed=42 --algorithm=cellular --out=map.csv --json
+FEBuilderGBA.CLI --generate-random-map --femapcreator=C:\tools\FEMapCreator.exe --tileset=Grassland --width=15 --height=10 --seed=42 --algorithm=hybrid --out=map.csv --json
 ```
 
 This command does **not** require a ROM and does **not** mutate ROM state. It shells out only to

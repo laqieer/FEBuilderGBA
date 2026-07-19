@@ -96,7 +96,7 @@ WinForms CLI counterpart to align against.
 | `--width=<int>` | Output map width in tiles for CSV random-map generation | `--generate-random-map` |
 | `--height=<int>` | Output map height in tiles for CSV random-map generation | `--generate-random-map` |
 | `--seed=<int>` | Deterministic FEMapCreator generation seed | `--generate-random-map` |
-| `--algorithm=<name>` | FEMapCreator generation algorithm name (default: `cellular`) | `--generate-random-map` |
+| `--algorithm=<name>` | FEMapCreator generation algorithm: `experimental`, `legacy`, or `hybrid` (default: `experimental`) | `--generate-random-map` |
 | `--outPal=<path>` | Output the matching GBA palette data | `--convertmap1picture` |
 | `--json` | Emit one machine-readable result object on stdout; errors remain non-zero | `--decreasecolor`, `--convertmap1picture`, `--generate-random-map` |
 | `--target=<path>` | Target ROM file | `--pointercalc` |

@@ -525,7 +525,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --width=<int>          Output map width in tiles (1-64)");
             Console.WriteLine("    --height=<int>         Output map height in tiles (1-64)");
             Console.WriteLine("    --seed=<int>           Deterministic generation seed (default: auto-generated)");
-            Console.WriteLine("    --algorithm=<name>     FEMapCreator algorithm name (default: cellular)");
+            Console.WriteLine("    --algorithm=<name>     FEMapCreator algorithm: experimental, legacy, or hybrid (default: experimental)");
             Console.WriteLine("  --translate              Dump or import ROM text (requires --rom)");
             Console.WriteLine("    --out=<path>           Export text to TSV file");
             Console.WriteLine("    --in=<path>            Import text from TSV file and write to ROM");

@@ -28183,8 +28183,8 @@ FEMapCreator 资源目录的绝对路径
 :Discover and choose a compatible tileset first.
 请先发现并选择兼容的图块集。
 
-:Algorithm is required.
-必须填写算法。
+:Algorithm must be one of: {0}.
+算法必须是以下之一：{0}。
 
 :Tileset discovery returned no result.
 图块集发现未返回结果。

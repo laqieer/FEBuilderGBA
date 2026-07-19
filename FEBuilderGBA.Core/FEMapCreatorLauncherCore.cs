@@ -71,7 +71,8 @@ namespace FEBuilderGBA
 
                     string hostPath = Environment.GetEnvironmentVariable("DOTNET_HOST_PATH");
                     if (TryNormalizeAbsoluteLocalFile(hostPath, requireDirectoryComponent: false,
-                        out string fullHostPath, out string _))
+                        out string fullHostPath, out string _)
+                        && File.Exists(fullHostPath))
                     {
                         spec.Command = fullHostPath;
                     }
@@ -201,14 +202,11 @@ namespace FEBuilderGBA
             }
 
             string candidate = rawPath.Trim();
-            if (Uri.TryCreate(candidate, UriKind.Absolute, out Uri uri))
+            if (candidate.StartsWith("file:", StringComparison.OrdinalIgnoreCase)
+                || candidate.Contains("://", StringComparison.Ordinal))
             {
-                if (!uri.IsFile)
-                {
-                    error = "Path must be a local absolute file path, not a URL: " + rawPath;
-                    return false;
-                }
-                candidate = uri.LocalPath;
+                error = "Path must be a local absolute file path, not a URL: " + rawPath;
+                return false;
             }
 
             if (!Path.IsPathRooted(candidate))

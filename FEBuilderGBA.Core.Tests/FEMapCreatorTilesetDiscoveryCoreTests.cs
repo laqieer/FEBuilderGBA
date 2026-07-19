@@ -72,7 +72,9 @@ namespace FEBuilderGBA.Core.Tests
                 string previousHostPath = originalHostPath ?? "";
                 try
                 {
-                    Environment.SetEnvironmentVariable("DOTNET_HOST_PATH", null);
+                    Environment.SetEnvironmentVariable(
+                        "DOTNET_HOST_PATH",
+                        Path.Combine(tempRoot, "missing-dotnet-host.exe"));
                     string femapCreatorDll = CreateEmptyFile(tempRoot, "FEMapCreator.dll");
                     string assetsRoot = Path.Combine(tempRoot, "assets");
                     Directory.CreateDirectory(assetsRoot);
@@ -240,9 +242,9 @@ namespace FEBuilderGBA.Core.Tests
                 string assetsRoot = Path.Combine(tempRoot, "assets");
                 Directory.CreateDirectory(assetsRoot);
 
-                File.WriteAllBytes(Path.Combine(assetsRoot, "compatible.png"), CreateIndexedPng(512, 16));
+                File.WriteAllBytes(Path.Combine(assetsRoot, "compatible.png"), CreatePngHeader(512, 16));
                 File.WriteAllText(Path.Combine(assetsRoot, "compatible.json"), "{}");
-                File.WriteAllBytes(Path.Combine(assetsRoot, "incompatible.png"), CreateIndexedPng(256, 16));
+                File.WriteAllBytes(Path.Combine(assetsRoot, "incompatible.png"), CreatePngHeader(256, 16));
                 File.WriteAllText(Path.Combine(assetsRoot, "incompatible.json"), "{}");
 
                 string json = JsonSerializer.Serialize(new
@@ -286,6 +288,8 @@ namespace FEBuilderGBA.Core.Tests
                 FEMapCreatorTilesetInfo incompatible = result.Tilesets.Single(x => x.Name == "Incompatible");
                 Assert.True(compatible.IsCompatible);
                 Assert.True(compatible.IsUsable);
+                Assert.Equal(512, compatible.ImageWidth);
+                Assert.Equal(16, compatible.ImageHeight);
                 Assert.False(incompatible.IsCompatible);
                 Assert.Contains("width 256 is incompatible", incompatible.Diagnostic, StringComparison.OrdinalIgnoreCase);
                 Assert.Single(result.UsableTilesets);
@@ -346,7 +350,7 @@ namespace FEBuilderGBA.Core.Tests
                 Width = 4,
                 Height = 4,
                 TilesetName = tileset.Name,
-                Algorithm = "cellular",
+                Algorithm = RandomMapGeneratorAlgorithms.Default,
                 Seed = 42,
                 FEMapCreatorPath = femapCreatorPath,
                 AssetsDir = assetsDir,
@@ -363,6 +367,29 @@ namespace FEBuilderGBA.Core.Tests
             byte[] pngBytes = IndexedPngWriter.Write(indices, width, height, palette, paletteColorCount: 1);
             Assert.NotNull(pngBytes);
             return pngBytes;
+        }
+
+        static byte[] CreatePngHeader(int width, int height)
+        {
+            byte[] header =
+            {
+                137, 80, 78, 71, 13, 10, 26, 10,
+                0, 0, 0, 13,
+                (byte)'I', (byte)'H', (byte)'D', (byte)'R',
+                0, 0, 0, 0,
+                0, 0, 0, 0,
+            };
+            WriteUInt32BigEndian(header, 16, (uint)width);
+            WriteUInt32BigEndian(header, 20, (uint)height);
+            return header;
+        }
+
+        static void WriteUInt32BigEndian(byte[] data, int offset, uint value)
+        {
+            data[offset] = (byte)(value >> 24);
+            data[offset + 1] = (byte)(value >> 16);
+            data[offset + 2] = (byte)(value >> 8);
+            data[offset + 3] = (byte)value;
         }
 
         static string CreateTempDirectory()

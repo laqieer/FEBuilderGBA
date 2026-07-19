@@ -26,7 +26,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
     public sealed class GenerateRandomMapDialogViewModel : ViewModelBase
     {
-        internal const string DefaultAlgorithm = "cellular"; // Keep in sync with FEBuilderGBA.CLI.Program.RandomMapGeneratorDefaultAlgorithm.
+        internal const string DefaultAlgorithm = RandomMapGeneratorAlgorithms.Default;
 
         readonly ProcessRunnerDelegate _runner;
         readonly Func<string, string?, ProcessRunnerDelegate, FEMapCreatorTilesetDiscoveryResult> _discoverTilesets;
@@ -74,6 +74,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         public ObservableCollection<GenerateRandomMapTilesetOption> Tilesets { get; }
+        public IReadOnlyList<string> Algorithms => RandomMapGeneratorAlgorithms.All;
         public GenerateRandomMapDialogResult? Result => _result;
 
         public int Width
@@ -324,9 +325,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ErrorMessage = R._("Discover and choose a compatible tileset first.");
                 return;
             }
-            if (string.IsNullOrWhiteSpace(Algorithm))
+            if (!RandomMapGeneratorAlgorithms.TryNormalize(
+                Algorithm, out string normalizedAlgorithm))
             {
-                ErrorMessage = R._("Algorithm is required.");
+                ErrorMessage = string.Format(
+                    R._("Algorithm must be one of: {0}."),
+                    string.Join(", ", RandomMapGeneratorAlgorithms.All));
                 return;
             }
             if (!TryGetSeed(out int effectiveSeed, out string seedError))
@@ -344,7 +348,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     Width = Width,
                     Height = Height,
                     TilesetName = SelectedTileset.Name,
-                    Algorithm = Algorithm.Trim(),
+                    Algorithm = normalizedAlgorithm,
                     Seed = effectiveSeed,
                     FEMapCreatorPath = FEMapCreatorPath,
                     AssetsDir = AssetsDir,
@@ -395,7 +399,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             return !IsBusy
                 && !string.IsNullOrWhiteSpace(FEMapCreatorPath)
-                && !string.IsNullOrWhiteSpace(Algorithm)
+                && RandomMapGeneratorAlgorithms.TryNormalize(Algorithm, out _)
                 && SelectedTileset != null
                 && IsSeedValid();
         }

@@ -81,12 +81,13 @@
                    Text="{Binding AlgorithmLabel}"
                    VerticalAlignment="Center"
                    Margin="0,0,12,8" />
-        <TextBox Grid.Row="3" Grid.Column="1"
-                 AutomationProperties.AutomationId="GenerateRandomMap_Algorithm_Input"
-                 Name="AlgorithmTextBox"
-                 Text="{Binding Algorithm}"
-                 IsEnabled="{Binding AreInputsEnabled}"
-                 Margin="0,0,8,8" />
+        <ComboBox Grid.Row="3" Grid.Column="1"
+                  AutomationProperties.AutomationId="GenerateRandomMap_Algorithm_Combo"
+                  Name="AlgorithmComboBox"
+                  ItemsSource="{Binding Algorithms}"
+                  SelectedItem="{Binding Algorithm}"
+                  IsEnabled="{Binding AreInputsEnabled}"
+                  Margin="0,0,8,8" />
 
         <TextBlock Grid.Row="4" Grid.Column="0"
                    AutomationProperties.AutomationId="GenerateRandomMap_Seed_Label"

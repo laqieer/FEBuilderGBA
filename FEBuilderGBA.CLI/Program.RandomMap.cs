@@ -19,9 +19,12 @@ namespace FEBuilderGBA.CLI
 
     static partial class Program
     {
-        internal const int RandomMapGeneratorCsvMinimumDimension = 1;
-        internal const int RandomMapGeneratorCsvMaximumDimension = 64;
-        internal const string RandomMapGeneratorDefaultAlgorithm = "cellular";
+        internal const int RandomMapGeneratorCsvMinimumDimension =
+            RandomMapGeneratorCore.MinimumDimension;
+        internal const int RandomMapGeneratorCsvMaximumDimension =
+            RandomMapGeneratorCore.MaximumDimension;
+        internal const string RandomMapGeneratorDefaultAlgorithm =
+            RandomMapGeneratorAlgorithms.Default;
 
         static int RunGenerateRandomMap(Dictionary<string, string> argsDic)
         {
@@ -89,9 +92,12 @@ namespace FEBuilderGBA.CLI
             string algorithm = RandomMapGeneratorDefaultAlgorithm;
             if (argsDic.TryGetValue("--algorithm", out string algorithmValue))
             {
-                if (string.IsNullOrWhiteSpace(algorithmValue))
-                    return Fail("--generate-random-map requires --algorithm=<name> when --algorithm is supplied");
-                algorithm = algorithmValue.Trim();
+                if (!RandomMapGeneratorAlgorithms.TryNormalize(
+                    algorithmValue, out algorithm))
+                {
+                    return Fail("--generate-random-map requires --algorithm to be one of: "
+                        + string.Join(", ", RandomMapGeneratorAlgorithms.All));
+                }
             }
 
             int seed;
@@ -140,27 +146,19 @@ namespace FEBuilderGBA.CLI
             }
             catch (IOException ex)
             {
-                if (json)
-                    return Fail("Failed to write output: " + ex.Message);
-                throw;
+                return Fail("Failed to write output: " + ex.Message);
             }
             catch (UnauthorizedAccessException ex)
             {
-                if (json)
-                    return Fail("Failed to write output: " + ex.Message);
-                throw;
+                return Fail("Failed to write output: " + ex.Message);
             }
             catch (ArgumentException ex)
             {
-                if (json)
-                    return Fail("Failed to write output: " + ex.Message);
-                throw;
+                return Fail("Failed to write output: " + ex.Message);
             }
             catch (NotSupportedException ex)
             {
-                if (json)
-                    return Fail("Failed to write output: " + ex.Message);
-                throw;
+                return Fail("Failed to write output: " + ex.Message);
             }
 
             if (json)

@@ -193,14 +193,12 @@ namespace FEBuilderGBA
             }
 
             string rawRoot = reportedAssetsRoot.Trim();
-            if (Uri.TryCreate(rawRoot, UriKind.Absolute, out Uri uri))
+            if (rawRoot.StartsWith("file:", StringComparison.OrdinalIgnoreCase)
+                || rawRoot.Contains("://", StringComparison.Ordinal))
             {
-                if (!uri.IsFile)
-                {
-                    error = "FEMapCreator assetsRoot must be a local absolute path: " + reportedAssetsRoot;
-                    return "";
-                }
-                rawRoot = uri.LocalPath;
+                error = "FEMapCreator assetsRoot must be a local absolute path, not a URL: "
+                    + reportedAssetsRoot;
+                return "";
             }
 
             if (!Path.IsPathRooted(rawRoot))
@@ -275,24 +273,108 @@ namespace FEBuilderGBA
 
             if (string.IsNullOrWhiteSpace(info.Diagnostic) && !string.IsNullOrEmpty(info.ResolvedImagePath))
             {
-                IndexedPngInfo pngInfo = IndexedPngReader.Read(File.ReadAllBytes(info.ResolvedImagePath));
-                if (!pngInfo.Ok)
+                if (!TryReadPngDimensions(
+                    info.ResolvedImagePath,
+                    out int pngWidth,
+                    out int pngHeight,
+                    out string pngError))
                 {
                     info.Diagnostic = AppendDiagnostic(info.Diagnostic,
-                        "Tileset image is not a valid PNG: " + pngInfo.Error);
+                        "Tileset image is not a valid PNG: " + pngError);
                 }
-                else if (pngInfo.Width != MapEditorTilesetCore.PALETTE_COLUMNS * MapEditorTilesetCore.CHIPSET_PIXEL_SIZE)
+                else if (pngWidth != MapEditorTilesetCore.PALETTE_COLUMNS * MapEditorTilesetCore.CHIPSET_PIXEL_SIZE)
                 {
                     info.Diagnostic = AppendDiagnostic(info.Diagnostic,
-                        $"Tileset image width {pngInfo.Width} is incompatible; expected {MapEditorTilesetCore.PALETTE_COLUMNS * MapEditorTilesetCore.CHIPSET_PIXEL_SIZE}.");
+                        $"Tileset image width {pngWidth} is incompatible; expected {MapEditorTilesetCore.PALETTE_COLUMNS * MapEditorTilesetCore.CHIPSET_PIXEL_SIZE}.");
                 }
                 else
                 {
+                    info.ImageWidth = pngWidth;
+                    info.ImageHeight = pngHeight;
                     info.IsCompatible = true;
                 }
             }
 
             return info;
+        }
+
+        static bool TryReadPngDimensions(
+            string path,
+            out int width,
+            out int height,
+            out string error)
+        {
+            width = 0;
+            height = 0;
+            error = "";
+
+            try
+            {
+                byte[] header = new byte[24];
+                using (var stream = new FileStream(
+                    path, FileMode.Open, FileAccess.Read, FileShare.Read))
+                {
+                    int total = 0;
+                    while (total < header.Length)
+                    {
+                        int read = stream.Read(header, total, header.Length - total);
+                        if (read == 0) break;
+                        total += read;
+                    }
+                    if (total != header.Length)
+                    {
+                        error = "PNG header is truncated.";
+                        return false;
+                    }
+                }
+
+                byte[] signature = { 137, 80, 78, 71, 13, 10, 26, 10 };
+                for (int i = 0; i < signature.Length; i++)
+                {
+                    if (header[i] != signature[i])
+                    {
+                        error = "Bad PNG signature.";
+                        return false;
+                    }
+                }
+
+                uint ihdrLength = ReadUInt32BigEndian(header, 8);
+                if (ihdrLength != 13
+                    || header[12] != (byte)'I'
+                    || header[13] != (byte)'H'
+                    || header[14] != (byte)'D'
+                    || header[15] != (byte)'R')
+                {
+                    error = "PNG does not start with a valid IHDR chunk.";
+                    return false;
+                }
+
+                uint rawWidth = ReadUInt32BigEndian(header, 16);
+                uint rawHeight = ReadUInt32BigEndian(header, 20);
+                if (rawWidth == 0 || rawHeight == 0
+                    || rawWidth > int.MaxValue || rawHeight > int.MaxValue)
+                {
+                    error = "PNG dimensions are invalid.";
+                    return false;
+                }
+
+                width = (int)rawWidth;
+                height = (int)rawHeight;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+        }
+
+        static uint ReadUInt32BigEndian(byte[] data, int offset)
+        {
+            return ((uint)data[offset] << 24)
+                | ((uint)data[offset + 1] << 16)
+                | ((uint)data[offset + 2] << 8)
+                | data[offset + 3];
         }
 
         static bool TryConfinePath(
