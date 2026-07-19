@@ -1520,15 +1520,29 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>
-        /// Convenience: build an <see cref="IImage"/> preview from a quantized
-        /// load-result, ready to drop into a <c>GbaImageControl</c>. Returns
-        /// null on failure.
+        /// Build the shared, color-keyed + auto-quantized preview
+        /// <see cref="ImageImportService.LoadResult"/> used by BOTH the
+        /// Step-2 source preview (<see cref="BuildPreviewImage"/>) and the
+        /// wizard's per-frame live preview (<c>RefreshFramePreview</c> in
+        /// ImagePortraitImporterView, via <see cref="PortraitImportPreviewCore.RenderFramePreview"/>).
+        /// (#1980) The frame preview previously read the raw, un-keyed
+        /// <c>LoadedImage.IndexedPixels</c>/<c>GBAPalette</c> directly, so an
+        /// opaque non-zero background never got mapped to transparent index
+        /// 0 the way the Step-2 preview does — this method is the single
+        /// place both call sites now share so they render from identical
+        /// prepared buffers.
+        ///
+        /// Never mutates <paramref name="loadResult"/>'s buffers: <see
+        /// cref="BuildColorKeyedRgba"/> works on a private RGBA copy and
+        /// <see cref="DecreaseColorCore.Quantize"/> returns freshly allocated
+        /// index/palette arrays. Returns null on any unusable input (null
+        /// result, failed load, missing <see cref="CoreState.ImageService"/>,
+        /// or a quantize failure) so callers can safely clear their cache.
         /// </summary>
-        public static IImage BuildPreviewImage(ImageImportService.LoadResult loadResult)
+        public static ImageImportService.LoadResult BuildPreparedPreviewLoadResult(
+            ImageImportService.LoadResult loadResult)
         {
             if (loadResult == null || !loadResult.Success) return null;
-            IImageService svc = CoreState.ImageService;
-            if (svc == null) return null;
 
             byte[] keyed = BuildColorKeyedRgba(loadResult);
             if (keyed == null) return null;
@@ -1536,7 +1550,7 @@ namespace FEBuilderGBA.Avalonia.Services
             var qr = DecreaseColorCore.Quantize(keyed, loadResult.Width, loadResult.Height, 16);
             if (qr == null || qr.IndexData == null || qr.GBAPalette == null) return null;
 
-            var previewResult = new ImageImportService.LoadResult
+            return new ImageImportService.LoadResult
             {
                 Success = true,
                 Width = loadResult.Width,
@@ -1544,12 +1558,38 @@ namespace FEBuilderGBA.Avalonia.Services
                 IndexedPixels = qr.IndexData,
                 GBAPalette = qr.GBAPalette,
             };
-            byte[] rgba = ReconstructRgbaWithPaletteZeroTransparent(previewResult);
+        }
+
+        /// <summary>
+        /// Convenience: build an <see cref="IImage"/> preview from an
+        /// already-prepared (color-keyed + quantized) load-result — see
+        /// <see cref="BuildPreparedPreviewLoadResult"/>. Ready to drop into a
+        /// <c>GbaImageControl</c>. Returns null on failure.
+        /// </summary>
+        public static IImage BuildPreviewImageFromPrepared(ImageImportService.LoadResult preparedLoadResult)
+        {
+            if (preparedLoadResult == null || !preparedLoadResult.Success) return null;
+            IImageService svc = CoreState.ImageService;
+            if (svc == null) return null;
+
+            byte[] rgba = ReconstructRgbaWithPaletteZeroTransparent(preparedLoadResult);
             if (rgba == null) return null;
 
-            IImage img = svc.CreateImage(loadResult.Width, loadResult.Height);
+            IImage img = svc.CreateImage(preparedLoadResult.Width, preparedLoadResult.Height);
             img.SetPixelData(rgba);
             return img;
         }
+
+        /// <summary>
+        /// Convenience: build an <see cref="IImage"/> preview from a raw
+        /// (un-prepared) load-result, ready to drop into a
+        /// <c>GbaImageControl</c>. Returns null on failure. Delegates to
+        /// <see cref="BuildPreparedPreviewLoadResult"/> +
+        /// <see cref="BuildPreviewImageFromPrepared"/> so this and the
+        /// wizard's cached per-load preview share one preparation pipeline
+        /// (#1980).
+        /// </summary>
+        public static IImage BuildPreviewImage(ImageImportService.LoadResult loadResult)
+            => BuildPreviewImageFromPrepared(BuildPreparedPreviewLoadResult(loadResult));
     }
 }
