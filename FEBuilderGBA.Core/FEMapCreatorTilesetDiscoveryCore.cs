@@ -311,7 +311,7 @@ namespace FEBuilderGBA
 
             try
             {
-                byte[] header = new byte[24];
+                byte[] header = new byte[33];
                 using (var stream = new FileStream(
                     path, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
@@ -359,6 +359,25 @@ namespace FEBuilderGBA
                     return false;
                 }
 
+                byte bitDepth = header[24];
+                byte colorType = header[25];
+                if (!IsValidPngColorFormat(bitDepth, colorType)
+                    || header[26] != 0
+                    || header[27] != 0
+                    || header[28] > 1)
+                {
+                    error = "PNG IHDR fields are invalid.";
+                    return false;
+                }
+
+                uint expectedCrc = ReadUInt32BigEndian(header, 29);
+                uint actualCrc = ComputePngCrc(header, 12, 17);
+                if (expectedCrc != actualCrc)
+                {
+                    error = "PNG IHDR CRC is invalid.";
+                    return false;
+                }
+
                 width = (int)rawWidth;
                 height = (int)rawHeight;
                 return true;
@@ -376,6 +395,35 @@ namespace FEBuilderGBA
                 | ((uint)data[offset + 1] << 16)
                 | ((uint)data[offset + 2] << 8)
                 | data[offset + 3];
+        }
+
+        static bool IsValidPngColorFormat(byte bitDepth, byte colorType)
+        {
+            return colorType switch
+            {
+                0 => bitDepth is 1 or 2 or 4 or 8 or 16,
+                2 => bitDepth is 8 or 16,
+                3 => bitDepth is 1 or 2 or 4 or 8,
+                4 => bitDepth is 8 or 16,
+                6 => bitDepth is 8 or 16,
+                _ => false,
+            };
+        }
+
+        static uint ComputePngCrc(byte[] data, int offset, int count)
+        {
+            uint crc = 0xFFFFFFFFu;
+            for (int i = 0; i < count; i++)
+            {
+                crc ^= data[offset + i];
+                for (int bit = 0; bit < 8; bit++)
+                {
+                    crc = (crc & 1) != 0
+                        ? 0xEDB88320u ^ (crc >> 1)
+                        : crc >> 1;
+                }
+            }
+            return crc ^ 0xFFFFFFFFu;
         }
 
         static bool TryConfinePath(

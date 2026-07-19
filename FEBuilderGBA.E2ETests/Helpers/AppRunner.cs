@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
@@ -72,7 +73,10 @@ namespace FEBuilderGBA.E2ETests.Helpers
         /// The process is killed after <paramref name="timeoutMs"/> ms.
         /// </summary>
         public static (int ExitCode, string Stdout, string Stderr) Run(
-            string exePath, string args, int timeoutMs = 15_000)
+            string exePath,
+            string args,
+            int timeoutMs = 15_000,
+            IReadOnlyDictionary<string, string?>? environment = null)
         {
             var sb_out = new StringBuilder();
             var sb_err = new StringBuilder();
@@ -85,6 +89,16 @@ namespace FEBuilderGBA.E2ETests.Helpers
                 CreateNoWindow         = true,
                 WorkingDirectory       = Path.GetDirectoryName(exePath)!,
             };
+            if (environment != null)
+            {
+                foreach (KeyValuePair<string, string?> entry in environment)
+                {
+                    if (entry.Value == null)
+                        psi.Environment.Remove(entry.Key);
+                    else
+                        psi.Environment[entry.Key] = entry.Value;
+                }
+            }
 
             using var p = new Process { StartInfo = psi };
             p.OutputDataReceived += (_, e) => { if (e.Data != null) sb_out.AppendLine(e.Data); };

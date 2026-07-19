@@ -11,6 +11,7 @@ namespace FEBuilderGBA.E2ETests.Tests
     public sealed class CliRandomMapGeneratorE2ETests : IDisposable
     {
         private static readonly string CliExe = AppRunner.FindCliExePath();
+        private static readonly string FakeFEMapCreatorDll = FindFakeFEMapCreatorDll();
         private readonly string _root;
         private readonly List<string> _filesToDelete = new();
 
@@ -190,6 +191,126 @@ namespace FEBuilderGBA.E2ETests.Tests
             Assert.False(root.GetProperty("ok").GetBoolean());
             Assert.Contains("--femapcreator", root.GetProperty("error").GetString());
             Assert.False(File.Exists(outPath));
+        }
+
+        [Fact]
+        public void Success_RealProcessBoundary_WritesDeterministicCsvAndCleansTemp()
+        {
+            string outPath = TempFile("success.csv");
+            string recordPath = TempFile("success-working-dir.txt");
+            var environment = FakeEnvironment("success", recordPath);
+
+            var (code, stdout, stderr) = AppRunner.Run(
+                CliExe,
+                $"--generate-random-map --femapcreator=\"{FakeFEMapCreatorDll}\" --tileset=\"E2E Tileset\" --width=2 --height=2 --seed=42 --out=\"{outPath}\"",
+                timeoutMs: 30_000,
+                environment: environment);
+
+            Assert.Equal(0, code);
+            Assert.Equal("", stderr);
+            Assert.Contains("seed=42", stdout);
+            Assert.True(File.Exists(outPath));
+            string[] lines = File.ReadAllLines(outPath);
+            Assert.Equal("# FEBuilderGBA Map Export: width=2, height=2", lines[0]);
+            Assert.Equal("0,4", lines[1]);
+            Assert.Equal("8,12", lines[2]);
+            AssertRecordedTempDirectoryWasRemoved(recordPath);
+        }
+
+        [Fact]
+        public void ExternalNonZeroExit_RealProcessBoundary_LeavesNoOutputAndCleansTemp()
+        {
+            string outPath = TempFile("nonzero.csv");
+            string recordPath = TempFile("nonzero-working-dir.txt");
+            var environment = FakeEnvironment("nonzero", recordPath);
+
+            var (code, _, stderr) = AppRunner.Run(
+                CliExe,
+                $"--generate-random-map --femapcreator=\"{FakeFEMapCreatorDll}\" --tileset=\"E2E Tileset\" --width=2 --height=2 --out=\"{outPath}\"",
+                timeoutMs: 30_000,
+                environment: environment);
+
+            Assert.NotEqual(0, code);
+            Assert.Contains("exited with code 7", stderr, StringComparison.OrdinalIgnoreCase);
+            Assert.False(File.Exists(outPath));
+            AssertRecordedTempDirectoryWasRemoved(recordPath);
+        }
+
+        [Fact]
+        public void MalformedMar_RealProcessBoundary_LeavesNoOutputAndCleansTemp()
+        {
+            string outPath = TempFile("malformed.csv");
+            string recordPath = TempFile("malformed-working-dir.txt");
+            var environment = FakeEnvironment("malformed", recordPath);
+
+            var (code, _, stderr) = AppRunner.Run(
+                CliExe,
+                $"--generate-random-map --femapcreator=\"{FakeFEMapCreatorDll}\" --tileset=\"E2E Tileset\" --width=2 --height=2 --out=\"{outPath}\"",
+                timeoutMs: 30_000,
+                environment: environment);
+
+            Assert.NotEqual(0, code);
+            Assert.Contains("not divisible by 32", stderr, StringComparison.OrdinalIgnoreCase);
+            Assert.False(File.Exists(outPath));
+            AssertRecordedTempDirectoryWasRemoved(recordPath);
+        }
+
+        private static IReadOnlyDictionary<string, string?> FakeEnvironment(
+            string mode,
+            string recordPath)
+        {
+            return new Dictionary<string, string?>
+            {
+                ["FEBUILDERGBA_FAKE_FEMAPCREATOR_MODE"] = mode,
+                ["FEBUILDERGBA_FAKE_FEMAPCREATOR_RECORD"] = recordPath,
+            };
+        }
+
+        private static void AssertRecordedTempDirectoryWasRemoved(string recordPath)
+        {
+            Assert.True(File.Exists(recordPath));
+            string tempDirectory = File.ReadAllText(recordPath).Trim();
+            Assert.Contains("FEBuilderGBA-mapgen-", Path.GetFileName(tempDirectory));
+            Assert.False(Directory.Exists(tempDirectory));
+        }
+
+        private static string FindFakeFEMapCreatorDll()
+        {
+            string? directory = AppContext.BaseDirectory;
+            while (directory != null
+                && !File.Exists(Path.Combine(directory, "FEBuilderGBA.sln")))
+            {
+                directory = Path.GetDirectoryName(directory);
+            }
+            if (directory == null)
+                throw new InvalidOperationException("Could not locate FEBuilderGBA.sln.");
+
+            string fakeRoot = Path.Combine(
+                directory,
+                "FEBuilderGBA.E2ETests",
+                "FakeFEMapCreator");
+            string[] candidates = Directory.GetFiles(
+                fakeRoot,
+                "FakeFEMapCreator.dll",
+                SearchOption.AllDirectories);
+            if (candidates.Length == 0)
+                throw new FileNotFoundException("FakeFEMapCreator.dll was not built.");
+            Array.Sort(candidates, StringComparer.OrdinalIgnoreCase);
+            string binSegment =
+                Path.DirectorySeparatorChar + "bin" + Path.DirectorySeparatorChar;
+            for (int i = candidates.Length - 1; i >= 0; i--)
+            {
+                string candidate = candidates[i];
+                if (candidate.Contains(binSegment, StringComparison.OrdinalIgnoreCase)
+                    && File.Exists(Path.Combine(
+                        Path.GetDirectoryName(candidate)!,
+                        "FakeFEMapCreator.runtimeconfig.json")))
+                {
+                    return candidate;
+                }
+            }
+            throw new FileNotFoundException(
+                "Runnable FakeFEMapCreator.dll output was not built.");
         }
 
         private string TempFile(string fileName)

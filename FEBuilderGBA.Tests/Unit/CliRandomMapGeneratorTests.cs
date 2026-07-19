@@ -43,6 +43,8 @@ namespace FEBuilderGBA.Tests.Unit
             var operations = new RandomMapGeneratorCliOperations
             {
                 GenerateSeed = () => 31415926,
+                DiscoverTilesets = (path, assetsDir, runner) =>
+                    UsableDiscovery("Grassland"),
             };
 
             var result = Run(
@@ -107,6 +109,8 @@ namespace FEBuilderGBA.Tests.Unit
 
             var operations = new RandomMapGeneratorCliOperations
             {
+                DiscoverTilesets = (path, assetsDir, runner) =>
+                    UsableDiscovery("Grassland"),
                 Generate = (request, runner) =>
                 {
                     generateCalls++;
@@ -144,6 +148,8 @@ namespace FEBuilderGBA.Tests.Unit
 
             var operations = new RandomMapGeneratorCliOperations
             {
+                DiscoverTilesets = (path, assetsDir, runner) =>
+                    UsableDiscovery("Grassland"),
                 Generate = (request, runner) =>
                 {
                     generateCalls++;
@@ -181,6 +187,8 @@ namespace FEBuilderGBA.Tests.Unit
 
             var operations = new RandomMapGeneratorCliOperations
             {
+                DiscoverTilesets = (path, assetsDir, runner) =>
+                    UsableDiscovery("Grassland"),
                 Generate = (request, runner) => new RandomMapGenerationResult
                 {
                     Success = false,
@@ -216,6 +224,8 @@ namespace FEBuilderGBA.Tests.Unit
 
             var operations = new RandomMapGeneratorCliOperations
             {
+                DiscoverTilesets = (path, assetsDir, runner) =>
+                    UsableDiscovery("Grassland"),
                 Generate = (request, runner) => new RandomMapGenerationResult
                 {
                     Success = true,
@@ -257,6 +267,8 @@ namespace FEBuilderGBA.Tests.Unit
 
             var operations = new RandomMapGeneratorCliOperations
             {
+                DiscoverTilesets = (path, assetsDir, runner) =>
+                    UsableDiscovery("Grassland"),
                 Generate = (request, runner) => new RandomMapGenerationResult
                 {
                     Success = true,
@@ -282,6 +294,45 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Equal(1, result.Code);
             Assert.Contains("disk full", result.Stderr, StringComparison.OrdinalIgnoreCase);
             Assert.Equal("", result.Stdout);
+            Assert.False(File.Exists(outPath));
+        }
+
+        [Fact]
+        public void IncompatibleTileset_DoesNotGenerateOrWrite()
+        {
+            string femapCreatorPath = CreateEmptyFile("FEMapCreator.exe");
+            string outPath = Path.Combine(_root, "incompatible.csv");
+            int generateCalls = 0;
+            int writeCalls = 0;
+
+            var operations = new RandomMapGeneratorCliOperations
+            {
+                DiscoverTilesets = (path, assetsDir, runner) =>
+                    UsableDiscovery("Different Tileset"),
+                Generate = (request, runner) =>
+                {
+                    generateCalls++;
+                    return FailResult("should not run");
+                },
+                WriteOutputs = outputs => writeCalls++,
+            };
+
+            var result = Run(
+                CliProgram.ParseArgs(new[]
+                {
+                    "--generate-random-map",
+                    "--femapcreator=" + femapCreatorPath,
+                    "--tileset=Grassland",
+                    "--width=2",
+                    "--height=2",
+                    "--out=" + outPath,
+                }),
+                operations);
+
+            Assert.Equal(1, result.Code);
+            Assert.Contains("compatible 32-column", result.Stderr);
+            Assert.Equal(0, generateCalls);
+            Assert.Equal(0, writeCalls);
             Assert.False(File.Exists(outPath));
         }
 
@@ -323,6 +374,23 @@ namespace FEBuilderGBA.Tests.Unit
                 ErrorCategory = RandomMapGeneratorErrorCategory.ParseFailed,
                 ErrorMessage = error,
             };
+        }
+
+        private static FEMapCreatorTilesetDiscoveryResult UsableDiscovery(string name)
+        {
+            var result = new FEMapCreatorTilesetDiscoveryResult
+            {
+                Success = true,
+                ErrorCategory = RandomMapGeneratorErrorCategory.None,
+            };
+            result.UsableTilesets.Add(new FEMapCreatorTilesetInfo
+            {
+                Name = name,
+                HasImage = true,
+                HasGenerationData = true,
+                IsCompatible = true,
+            });
+            return result;
         }
     }
 }

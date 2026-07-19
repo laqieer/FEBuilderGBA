@@ -6,59 +6,59 @@
                              Width="620" Height="520">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
     <StackPanel Margin="16" Spacing="12">
-      <TextBlock AutomationProperties.AutomationId="GenerateRandomMap_Title_Label"
+      <TextBlock AutomationProperties.AutomationId="GenerateRandomMapDialogContent_Title_Label"
                  Text="{Binding TitleText}"
                  FontSize="18"
                  FontWeight="Bold" />
 
-      <TextBlock AutomationProperties.AutomationId="GenerateRandomMap_Size_Label"
+      <TextBlock AutomationProperties.AutomationId="GenerateRandomMapDialogContent_Size_Label"
                  Text="{Binding MapSizeText}"
                  TextWrapping="Wrap" />
 
       <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto" Margin="0,4,0,0">
         <TextBlock Grid.Row="0" Grid.Column="0"
-                   AutomationProperties.AutomationId="GenerateRandomMap_FEMapCreator_Label"
+                   AutomationProperties.AutomationId="GenerateRandomMapDialogContent_FEMapCreator_Label"
                    Text="{Binding FEMapCreatorPathLabel}"
                    VerticalAlignment="Center"
                    Margin="0,0,12,8" />
         <TextBox Grid.Row="0" Grid.Column="1"
-                 AutomationProperties.AutomationId="GenerateRandomMap_FEMapCreator_Input"
+                 AutomationProperties.AutomationId="GenerateRandomMapDialogContent_FEMapCreator_Input"
                  Name="FEMapCreatorPathTextBox"
                  Text="{Binding FEMapCreatorPath}"
                  Watermark="{Binding FEMapCreatorPathWatermark}"
                  IsEnabled="{Binding AreInputsEnabled}"
                  Margin="0,0,8,8" />
         <Button Grid.Row="0" Grid.Column="2"
-                AutomationProperties.AutomationId="GenerateRandomMap_BrowseProgram_Button"
+                AutomationProperties.AutomationId="GenerateRandomMapDialogContent_BrowseProgram_Button"
                 Content="{Binding BrowseProgramButtonText}"
                 Command="{Binding BrowseFEMapCreatorCommand}"
                 Margin="0,0,0,8" />
 
         <TextBlock Grid.Row="1" Grid.Column="0"
-                   AutomationProperties.AutomationId="GenerateRandomMap_AssetsDir_Label"
+                   AutomationProperties.AutomationId="GenerateRandomMapDialogContent_AssetsDir_Label"
                    Text="{Binding AssetsDirLabel}"
                    VerticalAlignment="Center"
                    Margin="0,0,12,8" />
         <TextBox Grid.Row="1" Grid.Column="1"
-                 AutomationProperties.AutomationId="GenerateRandomMap_AssetsDir_Input"
+                 AutomationProperties.AutomationId="GenerateRandomMapDialogContent_AssetsDir_Input"
                  Name="AssetsDirTextBox"
                  Text="{Binding AssetsDir}"
                  Watermark="{Binding AssetsDirWatermark}"
                  IsEnabled="{Binding AreInputsEnabled}"
                  Margin="0,0,8,8" />
         <Button Grid.Row="1" Grid.Column="2"
-                AutomationProperties.AutomationId="GenerateRandomMap_BrowseFolder_Button"
+                AutomationProperties.AutomationId="GenerateRandomMapDialogContent_BrowseFolder_Button"
                 Content="{Binding BrowseFolderButtonText}"
                 Command="{Binding BrowseAssetsDirCommand}"
                 Margin="0,0,0,8" />
 
         <TextBlock Grid.Row="2" Grid.Column="0"
-                   AutomationProperties.AutomationId="GenerateRandomMap_Tileset_Label"
+                   AutomationProperties.AutomationId="GenerateRandomMapDialogContent_Tileset_Label"
                    Text="{Binding TilesetLabel}"
                    VerticalAlignment="Center"
                    Margin="0,0,12,8" />
         <ComboBox Grid.Row="2" Grid.Column="1"
-                  AutomationProperties.AutomationId="GenerateRandomMap_Tileset_Combo"
+                  AutomationProperties.AutomationId="GenerateRandomMapDialogContent_Tileset_Combo"
                   Name="TilesetComboBox"
                   ItemsSource="{Binding Tilesets}"
                   SelectedItem="{Binding SelectedTileset}"
@@ -71,18 +71,18 @@
           </ComboBox.ItemTemplate>
         </ComboBox>
         <Button Grid.Row="2" Grid.Column="2"
-                AutomationProperties.AutomationId="GenerateRandomMap_DiscoverTilesets_Button"
+                AutomationProperties.AutomationId="GenerateRandomMapDialogContent_DiscoverTilesets_Button"
                 Content="{Binding DiscoverTilesetsButtonText}"
                 Command="{Binding DiscoverTilesetsCommand}"
                 Margin="0,0,0,8" />
 
         <TextBlock Grid.Row="3" Grid.Column="0"
-                   AutomationProperties.AutomationId="GenerateRandomMap_Algorithm_Label"
+                   AutomationProperties.AutomationId="GenerateRandomMapDialogContent_Algorithm_Label"
                    Text="{Binding AlgorithmLabel}"
                    VerticalAlignment="Center"
                    Margin="0,0,12,8" />
         <ComboBox Grid.Row="3" Grid.Column="1"
-                  AutomationProperties.AutomationId="GenerateRandomMap_Algorithm_Combo"
+                  AutomationProperties.AutomationId="GenerateRandomMapDialogContent_Algorithm_Combo"
                   Name="AlgorithmComboBox"
                   ItemsSource="{Binding Algorithms}"
                   SelectedItem="{Binding Algorithm}"
@@ -90,12 +90,12 @@
                   Margin="0,0,8,8" />
 
         <TextBlock Grid.Row="4" Grid.Column="0"
-                   AutomationProperties.AutomationId="GenerateRandomMap_Seed_Label"
+                   AutomationProperties.AutomationId="GenerateRandomMapDialogContent_Seed_Label"
                    Text="{Binding SeedLabel}"
                    VerticalAlignment="Center"
                    Margin="0,0,12,0" />
         <TextBox Grid.Row="4" Grid.Column="1"
-                 AutomationProperties.AutomationId="GenerateRandomMap_Seed_Input"
+                 AutomationProperties.AutomationId="GenerateRandomMapDialogContent_Seed_Input"
                  Name="SeedTextBox"
                  Text="{Binding SeedText}"
                  IsEnabled="{Binding AreInputsEnabled}"
@@ -103,29 +103,29 @@
       </Grid>
 
       <Border BorderBrush="DarkOrange" BorderThickness="1" Padding="12" CornerRadius="4">
-        <TextBlock AutomationProperties.AutomationId="GenerateRandomMap_Warning_Label"
+        <TextBlock AutomationProperties.AutomationId="GenerateRandomMapDialogContent_Warning_Label"
                    Text="{Binding WarningText}"
                    TextWrapping="Wrap" />
       </Border>
 
-      <ProgressBar AutomationProperties.AutomationId="GenerateRandomMap_Busy_Control"
+      <ProgressBar AutomationProperties.AutomationId="GenerateRandomMapDialogContent_Busy_Control"
                    IsIndeterminate="True"
                    IsVisible="{Binding IsBusy}"
                    Height="6" />
 
-      <TextBlock AutomationProperties.AutomationId="GenerateRandomMap_Error_Label"
+      <TextBlock AutomationProperties.AutomationId="GenerateRandomMapDialogContent_Error_Label"
                  Text="{Binding ErrorMessage}"
                  TextWrapping="Wrap"
                  Foreground="IndianRed"
                  IsVisible="{Binding HasError}" />
 
       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-        <Button AutomationProperties.AutomationId="GenerateRandomMap_Generate_Button"
+        <Button AutomationProperties.AutomationId="GenerateRandomMapDialogContent_Generate_Button"
                 Content="{Binding GenerateButtonText}"
                 Command="{Binding GenerateCommand}"
                 Width="110"
                 IsDefault="True" />
-        <Button AutomationProperties.AutomationId="GenerateRandomMap_Cancel_Button"
+        <Button AutomationProperties.AutomationId="GenerateRandomMapDialogContent_Cancel_Button"
                 Content="{Binding CancelButtonText}"
                 Command="{Binding CancelCommand}"
                 Width="110"

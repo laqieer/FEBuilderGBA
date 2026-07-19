@@ -32,4 +32,10 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="FakeFEMapCreator\**\*.cs" />
+    <ProjectReference Include="FakeFEMapCreator\FakeFEMapCreator.csproj"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
 </Project>

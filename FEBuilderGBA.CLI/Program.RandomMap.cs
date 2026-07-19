@@ -11,6 +11,11 @@ namespace FEBuilderGBA.CLI
     internal sealed class RandomMapGeneratorCliOperations
     {
         internal Func<int> GenerateSeed { get; init; } = () => Random.Shared.Next();
+        internal Func<string, string, ProcessRunnerDelegate, FEMapCreatorTilesetDiscoveryResult>
+            DiscoverTilesets { get; init; } =
+                (path, assetsDir, runner) =>
+                    FEMapCreatorTilesetDiscoveryCore.DiscoverTilesets(
+                        path, assetsDir, runner);
         internal Func<RandomMapGenerationRequest, ProcessRunnerDelegate, RandomMapGenerationResult> Generate
         { get; init; } = (request, runner) => RandomMapGeneratorCore.Generate(request, runner);
         internal Action<IReadOnlyList<AtomicFileSetWriterCore.FileOutput>> WriteOutputs
@@ -41,6 +46,7 @@ namespace FEBuilderGBA.CLI
         {
             if (argsDic == null
                 || operations?.Generate == null
+                || operations.DiscoverTilesets == null
                 || operations.GenerateSeed == null
                 || operations.WriteOutputs == null
                 || stdout == null
@@ -111,11 +117,38 @@ namespace FEBuilderGBA.CLI
                 seed = operations.GenerateSeed();
             }
 
+            FEMapCreatorTilesetDiscoveryResult discovery =
+                operations.DiscoverTilesets(femapCreatorPath, assetsDir, runner);
+            if (discovery == null)
+                return Fail("FEMapCreator tileset discovery returned no result.");
+            if (!discovery.Success)
+            {
+                return Fail(string.IsNullOrWhiteSpace(discovery.ErrorMessage)
+                    ? "FEMapCreator tileset discovery failed."
+                    : discovery.ErrorMessage);
+            }
+
+            FEMapCreatorTilesetInfo selectedTileset = null;
+            foreach (FEMapCreatorTilesetInfo candidate in discovery.UsableTilesets)
+            {
+                if (string.Equals(
+                    candidate.Name, tilesetName.Trim(), StringComparison.Ordinal))
+                {
+                    selectedTileset = candidate;
+                    break;
+                }
+            }
+            if (selectedTileset == null)
+            {
+                return Fail(
+                    $"FEMapCreator tileset '{tilesetName.Trim()}' was not found as a complete, compatible 32-column tileset.");
+            }
+
             var request = new RandomMapGenerationRequest
             {
                 Width = width,
                 Height = height,
-                TilesetName = tilesetName.Trim(),
+                TilesetName = selectedTileset.Name,
                 Algorithm = algorithm,
                 Seed = seed,
                 FEMapCreatorPath = femapCreatorPath.Trim(),

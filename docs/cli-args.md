@@ -40,7 +40,7 @@ WinForms CLI counterpart to align against.
 | `--buildfile-roundtrip` | Export → independent rebuild → byte-compare against `--rom`; exit 0 exact / 2 drift / 1 error | `--rom`, `--clean` (opt: `--force-version`) | E2E COVERED (RomLocator-gated) | CLI-ONLY (N/A) |
 | `--songexchange` | Copy song between ROMs | `--rom`, `--fromrom`, `--fromsong`, `--tosong` | E2E COVERED | ALIGNED |
 | `--convertmap1picture` | Convert image to map tiles | `--in`, one or more of `--outImg`/`--outTSA`/`--outPal` (opt: `--json`) | E2E COVERED | ALIGNED |
-| `--generate-random-map` | Generate FEBuilderGBA CSV through a trusted local FEMapCreator CLI | `--femapcreator`, `--tileset`, `--width`, `--height`, `--out` (opt: `--assets-dir`, `--seed`, `--algorithm`, `--json`) | UNIT COVERED + E2E REJECTION COVERED | CLI-ONLY (N/A) |
+| `--generate-random-map` | Generate FEBuilderGBA CSV through a trusted local FEMapCreator CLI | `--femapcreator`, `--tileset`, `--width`, `--height`, `--out` (opt: `--assets-dir`, `--seed`, `--algorithm`, `--json`) | UNIT + REAL-PROCESS E2E COVERED | CLI-ONLY (N/A) |
 | `--translate` | Dump or import ROM text | `--rom` | E2E COVERED | ALIGNED |
 | `--translate-roundtrip` | Validate text export/import round-trip | `--rom` (opt: `--out`) | E2E COVERED | ALIGNED |
 | `--lastrom` | Load last-used ROM from config | — | E2E COVERED | ALIGNED |

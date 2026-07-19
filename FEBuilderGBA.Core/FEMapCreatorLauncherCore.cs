@@ -143,7 +143,7 @@ namespace FEBuilderGBA
 
         /// <summary>OS-appropriate path comparison for containment checks.</summary>
         internal static StringComparison PathComparison =>
-            OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+            OperatingSystem.IsWindows()
                 ? StringComparison.OrdinalIgnoreCase
                 : StringComparison.Ordinal;
 
