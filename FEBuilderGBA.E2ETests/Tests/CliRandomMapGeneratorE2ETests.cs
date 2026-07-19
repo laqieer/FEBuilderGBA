@@ -45,6 +45,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             var (code, stdout, _) = AppRunner.Run(CliExe, "--help", timeoutMs: 15_000);
             Assert.Equal(0, code);
             Assert.Contains("--generate-random-map", stdout);
+            Assert.Contains("executable native file on Unix", stdout);
         }
 
         [Fact]

@@ -520,7 +520,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  --convertmap1picture     Convert image to map tiles (requires --in and one or more of --outImg, --outTSA, --outPal; --json for machine output)");
             Console.WriteLine("  --generate-random-map    Generate a CSV map through a trusted local FEMapCreator CLI");
             Console.WriteLine("                           (requires --femapcreator, --tileset, --width, --height, --out; opt --assets-dir, --seed, --algorithm, --json)");
-            Console.WriteLine("    --femapcreator=<path>  Trusted absolute local FEMapCreator .exe or .dll");
+            Console.WriteLine("    --femapcreator=<path>  Trusted absolute local .exe/.dll or executable native file on Unix");
             Console.WriteLine("    --tileset=<name>       FEMapCreator tileset name to generate with");
             Console.WriteLine("    --width=<int>          Output map width in tiles (1-64)");
             Console.WriteLine("    --height=<int>         Output map height in tiles (1-64)");

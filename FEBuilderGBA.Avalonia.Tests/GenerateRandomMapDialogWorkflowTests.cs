@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using global::Avalonia.Automation;
 using global::Avalonia.Controls;
 using global::Avalonia.Headless.XUnit;
 using global::Avalonia.Threading;
@@ -110,6 +111,33 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Equal(
                 RandomMapGeneratorAlgorithms.Default,
                 combo.SelectedItem);
+        }
+
+        [AvaloniaFact]
+        public void Dialog_InputsExposeLocalizedAccessibleNames()
+        {
+            var content = new GenerateRandomMapDialogContent();
+
+            Assert.Equal(
+                "FEMapCreator program",
+                AutomationProperties.GetName(
+                    content.FindControl<TextBox>("FEMapCreatorPathTextBox")!));
+            Assert.Equal(
+                "Assets directory (optional)",
+                AutomationProperties.GetName(
+                    content.FindControl<TextBox>("AssetsDirTextBox")!));
+            Assert.Equal(
+                "Tileset",
+                AutomationProperties.GetName(
+                    content.FindControl<ComboBox>("TilesetComboBox")!));
+            Assert.Equal(
+                "Algorithm",
+                AutomationProperties.GetName(
+                    content.FindControl<ComboBox>("AlgorithmComboBox")!));
+            Assert.Equal(
+                "Seed (optional)",
+                AutomationProperties.GetName(
+                    content.FindControl<TextBox>("SeedTextBox")!));
         }
 
         [AvaloniaFact]
@@ -282,6 +310,10 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Assert.Equal(new[] { true, false }, busyTransitions);
                 Assert.Single(fakeRunner.Calls);
                 Assert.True(vm.HasError);
+                Assert.StartsWith(
+                    "Tileset discovery failed:",
+                    vm.ErrorMessage,
+                    StringComparison.Ordinal);
                 Assert.Contains("exited with code 7", vm.ErrorMessage, StringComparison.OrdinalIgnoreCase);
                 Assert.Empty(vm.Tilesets);
                 Assert.Null(vm.SelectedTileset);
@@ -457,6 +489,10 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Assert.Equal(new[] { true, false }, busyTransitions);
                 Assert.Equal(2, fakeRunner.Calls.Count);
                 Assert.True(vm.HasError);
+                Assert.StartsWith(
+                    "Random map generation failed:",
+                    vm.ErrorMessage,
+                    StringComparison.Ordinal);
                 Assert.Contains("exited with code 9", vm.ErrorMessage, StringComparison.OrdinalIgnoreCase);
                 Assert.Contains("failed", vm.ErrorMessage, StringComparison.OrdinalIgnoreCase);
                 Assert.Null(vm.Result);

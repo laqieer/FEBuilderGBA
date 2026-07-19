@@ -23,6 +23,7 @@
                    Margin="0,0,12,8" />
         <TextBox Grid.Row="0" Grid.Column="1"
                  AutomationProperties.AutomationId="GenerateRandomMapDialogContent_FEMapCreator_Input"
+                 AutomationProperties.Name="{Binding FEMapCreatorPathLabel}"
                  Name="FEMapCreatorPathTextBox"
                  Text="{Binding FEMapCreatorPath}"
                  Watermark="{Binding FEMapCreatorPathWatermark}"
@@ -41,6 +42,7 @@
                    Margin="0,0,12,8" />
         <TextBox Grid.Row="1" Grid.Column="1"
                  AutomationProperties.AutomationId="GenerateRandomMapDialogContent_AssetsDir_Input"
+                 AutomationProperties.Name="{Binding AssetsDirLabel}"
                  Name="AssetsDirTextBox"
                  Text="{Binding AssetsDir}"
                  Watermark="{Binding AssetsDirWatermark}"
@@ -59,6 +61,7 @@
                    Margin="0,0,12,8" />
         <ComboBox Grid.Row="2" Grid.Column="1"
                   AutomationProperties.AutomationId="GenerateRandomMapDialogContent_Tileset_Combo"
+                  AutomationProperties.Name="{Binding TilesetLabel}"
                   Name="TilesetComboBox"
                   ItemsSource="{Binding Tilesets}"
                   SelectedItem="{Binding SelectedTileset}"
@@ -83,6 +86,7 @@
                    Margin="0,0,12,8" />
         <ComboBox Grid.Row="3" Grid.Column="1"
                   AutomationProperties.AutomationId="GenerateRandomMapDialogContent_Algorithm_Combo"
+                  AutomationProperties.Name="{Binding AlgorithmLabel}"
                   Name="AlgorithmComboBox"
                   ItemsSource="{Binding Algorithms}"
                   SelectedItem="{Binding Algorithm}"
@@ -96,6 +100,7 @@
                    Margin="0,0,12,0" />
         <TextBox Grid.Row="4" Grid.Column="1"
                  AutomationProperties.AutomationId="GenerateRandomMapDialogContent_Seed_Input"
+                 AutomationProperties.Name="{Binding SeedLabel}"
                  Name="SeedTextBox"
                  Text="{Binding SeedText}"
                  IsEnabled="{Binding AreInputsEnabled}"
@@ -116,7 +121,6 @@
       <TextBlock AutomationProperties.AutomationId="GenerateRandomMapDialogContent_Error_Label"
                  Text="{Binding ErrorMessage}"
                  TextWrapping="Wrap"
-                 Foreground="IndianRed"
                  IsVisible="{Binding HasError}" />
 
       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">

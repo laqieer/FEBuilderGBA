@@ -281,7 +281,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
                     if (!result.Success)
                     {
-                        ErrorMessage = result.ErrorMessage ?? R._("Tileset discovery failed.");
+                        ErrorMessage = string.IsNullOrWhiteSpace(result.ErrorMessage)
+                            ? R._("Tileset discovery failed.")
+                            : string.Format(
+                                R._("Tileset discovery failed: {0}"),
+                                result.ErrorMessage);
                         return;
                     }
 
@@ -367,7 +371,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
                     if (!result.Success)
                     {
-                        ErrorMessage = result.ErrorMessage ?? R._("Random map generation failed.");
+                        ErrorMessage = string.IsNullOrWhiteSpace(result.ErrorMessage)
+                            ? R._("Random map generation failed.")
+                            : string.Format(
+                                R._("Random map generation failed: {0}"),
+                                result.ErrorMessage);
                         return;
                     }
 
