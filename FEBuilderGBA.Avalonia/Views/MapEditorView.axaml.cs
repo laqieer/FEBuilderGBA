@@ -224,7 +224,8 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void UpdateTilePaletteStrict() => UpdateTilePaletteCore(strict: true);
+        internal void UpdateTilePaletteStrict()
+            => UpdateTilePaletteCore(strict: true);
 
         void OnZoomIn(object? sender, RoutedEventArgs e)
         {
@@ -451,7 +452,7 @@ namespace FEBuilderGBA.Avalonia.Views
             UpdateTilePalette();
         }
 
-        void RefreshMapImageFromCurrentSelectionStrict()
+        internal void RefreshMapImageFromCurrentSelectionStrict()
         {
             if (_vm.CurrentAddr == 0)
                 throw new InvalidOperationException(R._("No map data loaded — select a map first."));
@@ -464,7 +465,7 @@ namespace FEBuilderGBA.Avalonia.Views
             UpdateUI(rgba);
         }
 
-        void RefreshMapFromCurrentSelectionStrict()
+        internal void RefreshMapFromCurrentSelectionStrict()
         {
             RefreshMapImageFromCurrentSelectionStrict();
             UpdateTilePaletteStrict();

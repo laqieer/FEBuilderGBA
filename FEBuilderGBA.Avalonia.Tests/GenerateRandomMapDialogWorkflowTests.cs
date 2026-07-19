@@ -14,6 +14,7 @@ using FEBuilderGBA;
 using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
+using FEBuilderGBA.Avalonia.Views;
 
 namespace FEBuilderGBA.Avalonia.Tests
 {
@@ -627,6 +628,8 @@ namespace FEBuilderGBA.Avalonia.Tests
         [InlineData("selection")]
         [InlineData("plist")]
         [InlineData("table")]
+        [InlineData("pointer")]
+        [InlineData("payload")]
         public async Task ApplyGeneratedMapOnUiThreadAsync_ContextChanged_AbortsBeforeUndo(
             string changeKind)
         {
@@ -669,6 +672,18 @@ namespace FEBuilderGBA.Avalonia.Tests
                 case "table":
                     CoreState.ROM!.write_p32(0x220, 0x260);
                     break;
+                case "pointer":
+                    const uint newMapAddr = 0x1200;
+                    CoreState.ROM!.write_range(
+                        newMapAddr,
+                        LZ77.compress(originalMap));
+                    CoreState.ROM.write_p32(pointerEntryAddr, newMapAddr);
+                    break;
+                case "payload":
+                    CoreState.ROM!.write_range(
+                        oldAddr,
+                        LZ77.compress(BuildMap(2, 2, 0x0009)));
+                    break;
                 default:
                     throw new InvalidOperationException(
                         "Unknown change kind: " + changeKind);
@@ -702,6 +717,36 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Equal(0, undo.CommitCalls);
             Assert.Equal(0, undo.RollbackCalls);
             Assert.Equal(changeKind == "rom" ? 0 : 1, reloadCalls);
+        }
+
+        [AvaloniaFact]
+        public void MapEditorView_StrictRandomMapAdaptersThrowAndAreWired()
+        {
+            var view = new MapEditorView();
+
+            Assert.Throws<InvalidOperationException>(
+                view.RefreshMapImageFromCurrentSelectionStrict);
+            Assert.Throws<InvalidOperationException>(
+                view.UpdateTilePaletteStrict);
+
+            string source = File.ReadAllText(Path.Combine(
+                FindRepoRoot(),
+                "FEBuilderGBA.Avalonia",
+                "Views",
+                "MapEditorView.axaml.cs"));
+            int callStart = source.IndexOf(
+                "ApplyGeneratedMapOnUiThreadAsync(",
+                StringComparison.Ordinal);
+            Assert.True(callStart >= 0);
+            string call = source.Substring(
+                callStart,
+                Math.Min(1200, source.Length - callStart));
+
+            Assert.Contains(
+                "RefreshMapImageFromCurrentSelectionStrict",
+                call);
+            Assert.Contains("UpdateTilePaletteStrict", call);
+            Assert.Contains("RefreshMapFromCurrentSelectionStrict", call);
         }
 
         [AvaloniaFact]
@@ -861,6 +906,18 @@ namespace FEBuilderGBA.Avalonia.Tests
             property!.SetValue(rom.RomInfo, tablePointerAddr);
             rom.write_p32(tablePointerAddr, tableBase);
             rom.write_u8(vm.CurrentAddr + 8, mapPlist);
+        }
+
+        static string FindRepoRoot()
+        {
+            string? directory = AppContext.BaseDirectory;
+            while (directory != null
+                && !File.Exists(Path.Combine(directory, "FEBuilderGBA.sln")))
+            {
+                directory = Path.GetDirectoryName(directory);
+            }
+            Assert.NotNull(directory);
+            return directory!;
         }
 
         static void SetPrivateField(object target, string name, object value)
