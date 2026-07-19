@@ -159,6 +159,52 @@ class TestFallThrough(GuardTestCase):
         output, code = guard.run(payload)
         self.assertEqual((output, code), ("{}", 0))
 
+    def test_missing_session_id_falls_through_before_any_state_is_touched(self):
+        image = self.make_image("a.png", 1000)
+        payload = json.dumps({
+            "cwd": REPO_ROOT,
+            "toolName": "view",
+            "toolArgs": {"path": image},
+        })
+        output, code = guard.run(payload)
+        self.assertEqual((output, code), ("{}", 0))
+        # A missing sessionId must never resolve/create the state
+        # directory at all -- not even the override path.
+        self.assertFalse(os.path.isdir(self._state_dir))
+
+    def test_empty_session_id_falls_through_before_any_state_is_touched(self):
+        image = self.make_image("a.png", 1000)
+        output, code = guard.run(_payload(session_id="", tool_args={"path": image}))
+        self.assertEqual((output, code), ("{}", 0))
+        self.assertFalse(os.path.isdir(self._state_dir))
+
+    def test_non_string_session_id_falls_through_before_any_state_is_touched(self):
+        image = self.make_image("a.png", 1000)
+        for bad_session_id in (12345, None, [], {}, True):
+            payload = json.dumps({
+                "sessionId": bad_session_id,
+                "cwd": REPO_ROOT,
+                "toolName": "view",
+                "toolArgs": {"path": image},
+            })
+            output, code = guard.run(payload)
+            self.assertEqual((output, code), ("{}", 0), "sessionId={0!r}".format(bad_session_id))
+        # None of the above must ever have created or charged state --
+        # never a shared "unknown-session" permanent bucket for real runs.
+        self.assertFalse(os.path.isdir(self._state_dir))
+
+    def test_valid_session_id_does_create_state_for_contrast(self):
+        # Sanity check contrasting the above: a valid sessionId does reach
+        # state creation, proving the fall-through above is specifically
+        # about sessionId validity and not some other unrelated defect.
+        image = self.make_image("a.png", 1000)
+        output, code = guard.run(_payload(session_id="a-real-session", tool_args={"path": image}))
+        self.assertEqual((output, code), ("{}", 0))
+        self.assertTrue(os.path.isdir(self._state_dir))
+        self.assertTrue(
+            os.path.exists(os.path.join(self._state_dir, guard.STATE_FILE_NAME))
+        )
+
 
 class TestBudgetEnforcement(GuardTestCase):
     def test_first_image_is_authorized_and_recorded(self):
@@ -464,14 +510,18 @@ class TestImageExtensions(GuardTestCase):
             os.environ.pop(guard.BUDGET_ENV_VAR, None)
 
 
-class TestUserPartitionedFallback(unittest.TestCase):
-    def test_current_user_token_is_stable_and_nonempty(self):
-        token = guard._current_user_token()
-        self.assertIsInstance(token, str)
-        self.assertTrue(token)
-        self.assertEqual(token, guard._current_user_token())
+class TestPrivateFallbackDir(unittest.TestCase):
+    """Coverage for the $COPILOT_HOME/context-guard private fallback layout.
 
-    def test_fallback_state_dir_is_partitioned_by_user_token(self):
+    Replaces the old OS-temp, per-user-token-partitioned fallback (removed
+    entirely: predictable shared-temp paths are symlink/ownership
+    attackable by any other local user). The new design nests a private,
+    verified two-level directory (`<COPILOT_HOME>/context-guard/<sessionId>`)
+    under this user's own Copilot home, never under a world-writable
+    shared temp root, and never chmod's $COPILOT_HOME itself.
+    """
+
+    def test_fallback_state_dir_is_nested_under_copilot_home_context_guard(self):
         fake_home = tempfile.mkdtemp(prefix="ctxguard-home-")
         try:
             old_home = os.environ.get("COPILOT_HOME")
@@ -480,18 +530,14 @@ class TestUserPartitionedFallback(unittest.TestCase):
             try:
                 state_dir, is_fallback = guard._resolve_state_dir("never-created-session")
                 self.assertTrue(is_fallback)
-                token = guard._current_user_token()
-                # The token is embedded directly in the top-level fallback
-                # root's own directory name (e.g.
-                # "copilot-context-guard-uid-1000"), not as a standalone
-                # path component -- so this must be a substring check of
-                # some path component, not an exact-segment membership
-                # check.
-                self.assertTrue(
-                    any(token in part for part in state_dir.split(os.sep)),
-                    "expected user token {0!r} embedded in some component of "
-                    "{1!r}".format(token, state_dir),
-                )
+                expected_root = os.path.join(fake_home, guard.CONTEXT_GUARD_CACHE_SUBDIR)
+                self.assertEqual(os.path.dirname(state_dir), expected_root)
+                self.assertEqual(os.path.basename(state_dir), "never-created-session")
+                # The path must be derived purely from $COPILOT_HOME (verified
+                # above), never from a shared OS-temp-rooted layout -- note
+                # fake_home itself happens to live under the real OS temp dir
+                # here only because tempfile.mkdtemp() is used for *test*
+                # isolation, not because production code touches tempdir.
             finally:
                 if old_home is None:
                     os.environ.pop("COPILOT_HOME", None)
@@ -502,95 +548,105 @@ class TestUserPartitionedFallback(unittest.TestCase):
         finally:
             shutil.rmtree(fake_home, ignore_errors=True)
 
-    def test_user_fallback_root_name_is_user_specific_not_a_shared_subdir(self):
-        root = guard._user_fallback_root()
-        token = guard._current_user_token()
-        self.assertIn(token, os.path.basename(root))
-        # Regression guard: the bare, non-user-specific subdir name must
-        # never itself be the fallback root -- that was the shared-parent
-        # layout that let one local user's chmod 0700 lock out every other
-        # UID sharing the same OS temp directory.
-        self.assertNotEqual(os.path.basename(root), guard.FALLBACK_SUBDIR_NAME)
-        shared_root = os.path.join(tempfile.gettempdir(), guard.FALLBACK_SUBDIR_NAME)
-        self.assertNotEqual(root, shared_root)
-
-    @unittest.skipIf(sys.platform.startswith("win"), "POSIX-only permission tightening")
-    def test_makedirs_private_tightens_permissions_to_0700(self):
-        root = tempfile.mkdtemp(prefix="ctxguard-private-")
+    def test_is_safe_private_dir_target_true_for_nonexistent_path(self):
+        fake_home = tempfile.mkdtemp(prefix="ctxguard-safe-")
         try:
-            target = os.path.join(root, "a", "b", "c")
-            self.assertTrue(guard._makedirs_private(target, root))
-            for component in (target, os.path.join(root, "a", "b"), os.path.join(root, "a")):
-                mode = stat.S_IMODE(os.stat(component).st_mode)
-                self.assertEqual(mode, 0o700, "expected 0700 on {0}".format(component))
-            # Must never touch stop_at (root) itself's permissions upward,
-            # i.e. it stops walking exactly at stop_at (root is included,
-            # nothing above it is touched -- there's nothing above root in
-            # this test, so just assert root itself still exists untouched
-            # in a way that would surface an exception if walk-up broke).
+            candidate = os.path.join(fake_home, "does-not-exist-yet")
+            self.assertTrue(guard._is_safe_private_dir_target(candidate))
+        finally:
+            shutil.rmtree(fake_home, ignore_errors=True)
+
+    def test_is_safe_private_dir_target_true_for_own_real_directory(self):
+        real_dir = tempfile.mkdtemp(prefix="ctxguard-safe-real-")
+        try:
+            self.assertTrue(guard._is_safe_private_dir_target(real_dir))
+        finally:
+            shutil.rmtree(real_dir, ignore_errors=True)
+
+    def test_is_safe_private_dir_target_false_for_plain_file(self):
+        fake_home = tempfile.mkdtemp(prefix="ctxguard-safe-file-")
+        try:
+            file_path = os.path.join(fake_home, "not-a-dir")
+            with open(file_path, "w", encoding="utf-8") as fh:
+                fh.write("x")
+            self.assertFalse(guard._is_safe_private_dir_target(file_path))
+        finally:
+            shutil.rmtree(fake_home, ignore_errors=True)
+
+    @unittest.skipIf(sys.platform.startswith("win"), "symlink semantics differ on Windows")
+    def test_is_safe_private_dir_target_false_for_preexisting_symlink(self):
+        fake_home = tempfile.mkdtemp(prefix="ctxguard-safe-symlink-")
+        real_target = tempfile.mkdtemp(prefix="ctxguard-symlink-target-")
+        try:
+            link_path = os.path.join(fake_home, "planted-symlink")
+            os.symlink(real_target, link_path)
+            self.assertFalse(
+                guard._is_safe_private_dir_target(link_path),
+                "a pre-existing symlink must never be trusted as a private dir target",
+            )
+        finally:
+            shutil.rmtree(fake_home, ignore_errors=True)
+            shutil.rmtree(real_target, ignore_errors=True)
+
+    @unittest.skipIf(sys.platform.startswith("win"), "POSIX-only ownership check")
+    @unittest.skipUnless(hasattr(os, "geteuid"), "requires os.geteuid")
+    def test_is_safe_private_dir_target_true_for_own_uid(self):
+        real_dir = tempfile.mkdtemp(prefix="ctxguard-safe-own-uid-")
+        try:
+            self.assertEqual(os.stat(real_dir).st_uid, os.geteuid())
+            self.assertTrue(guard._is_safe_private_dir_target(real_dir))
+        finally:
+            shutil.rmtree(real_dir, ignore_errors=True)
+
+    def test_prepare_private_fallback_dir_creates_and_chmods_both_levels(self):
+        fake_home = tempfile.mkdtemp(prefix="ctxguard-prepare-")
+        try:
+            root = os.path.join(fake_home, guard.CONTEXT_GUARD_CACHE_SUBDIR)
+            state_dir = os.path.join(root, "some-session")
+            self.assertTrue(guard._prepare_private_fallback_dir(state_dir))
             self.assertTrue(os.path.isdir(root))
-        finally:
-            shutil.rmtree(root, ignore_errors=True)
-
-    @unittest.skipIf(sys.platform.startswith("win"), "POSIX-only permission tightening")
-    def test_private_stop_at_is_user_specific_and_shared_temp_root_untouched(self):
-        """Regression test for the shared-parent chmod-lockout bug.
-
-        The buggy layout used a shared ``<tmp>/copilot-context-guard``
-        parent as ``_makedirs_private``'s ``stop_at``: the first local user
-        to run the guard would ``chmod 0700`` that shared parent, silently
-        denying every *other* local UID write access to create their own
-        subdirectory beneath it. This asserts, for two distinct simulated
-        users sharing one fake OS temp root, that: (1) each user's private
-        stop_at/root embeds that user's own token, (2) both users can
-        independently create and privatize their own fallback state
-        without interfering with each other, and (3) the actual shared OS
-        temp root itself is never a chmod target.
-        """
-        fake_tmp = tempfile.mkdtemp(prefix="ctxguard-faketmp-")
-        try:
-            original_tmp_mode = stat.S_IMODE(os.stat(fake_tmp).st_mode)
-            original_gettempdir = guard.tempfile.gettempdir
-            original_token_fn = guard._current_user_token
-            guard.tempfile.gettempdir = lambda: fake_tmp
-            try:
-                for token, session in (("uid-1111", "session-a"), ("uid-2222", "session-b")):
-                    guard._current_user_token = lambda t=token: t
-                    root = guard._user_fallback_root()
-                    self.assertIn(token, os.path.basename(root))
-                    self.assertNotEqual(os.path.basename(root), guard.FALLBACK_SUBDIR_NAME)
-
-                    state_dir = os.path.join(root, session)
-                    self.assertTrue(
-                        guard._makedirs_private(state_dir, root),
-                        "user {0!r} must be able to create its own fallback "
-                        "state dir independently of any other user's".format(token),
-                    )
-                    self.assertEqual(stat.S_IMODE(os.stat(root).st_mode), 0o700)
-                    self.assertEqual(stat.S_IMODE(os.stat(state_dir).st_mode), 0o700)
-
-                # The shared OS temp root itself must never be chmod-targeted.
-                self.assertEqual(
-                    stat.S_IMODE(os.stat(fake_tmp).st_mode), original_tmp_mode
+            self.assertTrue(os.path.isdir(state_dir))
+            if not sys.platform.startswith("win"):
+                self.assertEqual(stat.S_IMODE(os.stat(root).st_mode), 0o700)
+                self.assertEqual(stat.S_IMODE(os.stat(state_dir).st_mode), 0o700)
+            # $COPILOT_HOME (fake_home) itself must never be chmod'ed --
+            # only the context-guard root and session subdir beneath it.
+            if not sys.platform.startswith("win"):
+                home_mode = stat.S_IMODE(os.stat(fake_home).st_mode)
+                self.assertNotEqual(
+                    home_mode, 0o700,
+                    "$COPILOT_HOME itself must never be chmod'ed to 0700 by the guard",
                 )
-            finally:
-                guard.tempfile.gettempdir = original_gettempdir
-                guard._current_user_token = original_token_fn
         finally:
-            os.chmod(fake_tmp, 0o700)
-            shutil.rmtree(fake_tmp, ignore_errors=True)
+            shutil.rmtree(fake_home, ignore_errors=True)
 
-    def test_makedirs_private_returns_false_on_creation_failure(self):
-        if sys.platform.startswith("win"):
-            self.skipTest("permission-based makedirs failure is unreliable to force on Windows")
-        root = tempfile.mkdtemp(prefix="ctxguard-private-fail-")
+    @unittest.skipIf(sys.platform.startswith("win"), "symlink semantics differ on Windows")
+    def test_prepare_private_fallback_dir_rejects_preexisting_root_symlink(self):
+        fake_home = tempfile.mkdtemp(prefix="ctxguard-prepare-symlink-")
+        attacker_target = tempfile.mkdtemp(prefix="ctxguard-attacker-")
         try:
-            os.chmod(root, 0o500)  # read+execute only, no write: cannot create children
-            target = os.path.join(root, "nope", "deeper")
-            self.assertFalse(guard._makedirs_private(target, root))
+            root = os.path.join(fake_home, guard.CONTEXT_GUARD_CACHE_SUBDIR)
+            os.symlink(attacker_target, root)
+            state_dir = os.path.join(root, "some-session")
+            self.assertFalse(
+                guard._prepare_private_fallback_dir(state_dir),
+                "must refuse to reuse an attacker-plantable symlink at the cache root",
+            )
         finally:
-            os.chmod(root, 0o700)
-            shutil.rmtree(root, ignore_errors=True)
+            shutil.rmtree(fake_home, ignore_errors=True)
+            shutil.rmtree(attacker_target, ignore_errors=True)
+
+    @unittest.skipIf(sys.platform.startswith("win"), "permission-based failure unreliable on Windows")
+    def test_prepare_private_fallback_dir_returns_false_on_creation_failure(self):
+        fake_home = tempfile.mkdtemp(prefix="ctxguard-prepare-fail-")
+        try:
+            os.chmod(fake_home, 0o500)  # read+execute only: cannot create children
+            root = os.path.join(fake_home, guard.CONTEXT_GUARD_CACHE_SUBDIR)
+            state_dir = os.path.join(root, "some-session")
+            self.assertFalse(guard._prepare_private_fallback_dir(state_dir))
+        finally:
+            os.chmod(fake_home, 0o700)
+            shutil.rmtree(fake_home, ignore_errors=True)
 
 
 class TestNoAutomaticStatePruning(unittest.TestCase):
@@ -611,11 +667,8 @@ class TestNoAutomaticStatePruning(unittest.TestCase):
     """
 
     def setUp(self):
-        self._fake_tmp = tempfile.mkdtemp(prefix="ctxguard-noprune-tmp-")
         self._fake_home = tempfile.mkdtemp(prefix="ctxguard-noprune-home-")
         self._images_dir = tempfile.mkdtemp(prefix="ctxguard-noprune-img-")
-        self._original_gettempdir = guard.tempfile.gettempdir
-        guard.tempfile.gettempdir = lambda: self._fake_tmp
         self._old_home = os.environ.get("COPILOT_HOME")
         self._old_override = os.environ.pop(guard.STATE_DIR_OVERRIDE_ENV_VAR, None)
         self._old_budget = os.environ.get(guard.BUDGET_ENV_VAR)
@@ -623,7 +676,6 @@ class TestNoAutomaticStatePruning(unittest.TestCase):
         os.environ.pop(guard.BUDGET_ENV_VAR, None)
 
     def tearDown(self):
-        guard.tempfile.gettempdir = self._original_gettempdir
         if self._old_home is None:
             os.environ.pop("COPILOT_HOME", None)
         else:
@@ -634,12 +686,11 @@ class TestNoAutomaticStatePruning(unittest.TestCase):
             os.environ.pop(guard.BUDGET_ENV_VAR, None)
         else:
             os.environ[guard.BUDGET_ENV_VAR] = self._old_budget
-        shutil.rmtree(self._fake_tmp, ignore_errors=True)
         shutil.rmtree(self._fake_home, ignore_errors=True)
         shutil.rmtree(self._images_dir, ignore_errors=True)
 
     def test_ancient_sibling_fallback_state_survives_a_real_run_call(self):
-        root = guard._user_fallback_root()
+        root = os.path.join(self._fake_home, guard.CONTEXT_GUARD_CACHE_SUBDIR)
         os.makedirs(root, exist_ok=True)
 
         # Simulate another (much older than any plausible TTL) resumed
@@ -713,7 +764,7 @@ class TestStateDirResolution(unittest.TestCase):
         finally:
             shutil.rmtree(fake_home, ignore_errors=True)
 
-    def test_falls_back_to_temp_when_session_dir_unresolvable(self):
+    def test_falls_back_to_context_guard_cache_when_session_dir_unresolvable(self):
         fake_home = tempfile.mkdtemp(prefix="ctxguard-home-")
         try:
             old_home = os.environ.get("COPILOT_HOME")
@@ -722,7 +773,13 @@ class TestStateDirResolution(unittest.TestCase):
             try:
                 state_dir, is_fallback = guard._resolve_state_dir("never-created-session")
                 self.assertTrue(is_fallback)
-                self.assertTrue(state_dir.startswith(tempfile.gettempdir()))
+                expected_root = os.path.join(fake_home, guard.CONTEXT_GUARD_CACHE_SUBDIR)
+                self.assertTrue(state_dir.startswith(expected_root))
+                # The path must be rooted at $COPILOT_HOME/context-guard
+                # (verified above), never derived from a shared OS-temp
+                # layout -- fake_home itself only happens to live under the
+                # real OS temp dir here because tempfile.mkdtemp() is used
+                # for *test* isolation, not because production code does.
             finally:
                 if old_home is None:
                     os.environ.pop("COPILOT_HOME", None)
@@ -994,6 +1051,50 @@ class TestBashWrapper(unittest.TestCase):
         out, code = self._run_with_stand_in_guard(bad_guard)
         self.assertEqual((out.strip(), code), ("{}", 0))
 
+    def test_exit_0_with_malformed_json_stdout_never_forwarded(self):
+        # The guard's only legitimate exit-0 decision is abstention: the
+        # wrapper must always emit the fixed "{}" literal on a normal
+        # exit, regardless of what the child process printed -- never
+        # trust/forward raw child stdout on exit 0.
+        bad_guard = os.path.join(self._tmp, "bad_guard.py")
+        with open(bad_guard, "w", encoding="utf-8") as fh:
+            fh.write("import sys\nsys.stdout.write('{not valid json')\nsys.exit(0)\n")
+        out, code = self._run_with_stand_in_guard(bad_guard)
+        self.assertEqual((out.strip(), code), ("{}", 0))
+
+    def test_exit_0_with_partial_json_stdout_never_forwarded(self):
+        bad_guard = os.path.join(self._tmp, "bad_guard.py")
+        with open(bad_guard, "w", encoding="utf-8") as fh:
+            fh.write(
+                "import sys\n"
+                "sys.stdout.write('{\"permissionDecision\": \"deny\"')\n"
+                "sys.exit(0)\n"
+            )
+        out, code = self._run_with_stand_in_guard(bad_guard)
+        self.assertEqual((out.strip(), code), ("{}", 0))
+
+    def test_exit_0_with_arbitrary_non_json_stdout_never_forwarded(self):
+        bad_guard = os.path.join(self._tmp, "bad_guard.py")
+        with open(bad_guard, "w", encoding="utf-8") as fh:
+            fh.write("import sys\nsys.stdout.write('hello world, not json at all')\nsys.exit(0)\n")
+        out, code = self._run_with_stand_in_guard(bad_guard)
+        self.assertEqual((out.strip(), code), ("{}", 0))
+
+    def test_exit_0_with_wellformed_but_forged_deny_json_never_forwarded(self):
+        # Even a well-formed deny-shaped JSON object printed on a normal
+        # exit 0 must never be trusted -- exit 2 is the only channel that
+        # can ever carry a deny decision.
+        bad_guard = os.path.join(self._tmp, "bad_guard.py")
+        with open(bad_guard, "w", encoding="utf-8") as fh:
+            fh.write(
+                "import sys\n"
+                "sys.stdout.write('{\"permissionDecision\": \"deny\", "
+                "\"permissionDecisionReason\": \"forged\"}')\n"
+                "sys.exit(0)\n"
+            )
+        out, code = self._run_with_stand_in_guard(bad_guard)
+        self.assertEqual((out.strip(), code), ("{}", 0))
+
 
 def _pwsh_executable():
     for candidate in ("pwsh", "powershell"):
@@ -1143,6 +1244,43 @@ class TestPowerShellWrapper(unittest.TestCase):
         bad_guard = os.path.join(self._tmp, "bad_guard.py")
         with open(bad_guard, "w", encoding="utf-8") as fh:
             fh.write("import sys\nsys.exit(2)\n")
+        out, code = self._run_with_stand_in_guard(bad_guard)
+        self.assertEqual((out.strip(), code), ("{}", 0))
+
+    def test_exit_0_with_malformed_json_stdout_never_forwarded(self):
+        bad_guard = os.path.join(self._tmp, "bad_guard.py")
+        with open(bad_guard, "w", encoding="utf-8") as fh:
+            fh.write("import sys\nsys.stdout.write('{not valid json')\nsys.exit(0)\n")
+        out, code = self._run_with_stand_in_guard(bad_guard)
+        self.assertEqual((out.strip(), code), ("{}", 0))
+
+    def test_exit_0_with_partial_json_stdout_never_forwarded(self):
+        bad_guard = os.path.join(self._tmp, "bad_guard.py")
+        with open(bad_guard, "w", encoding="utf-8") as fh:
+            fh.write(
+                "import sys\n"
+                "sys.stdout.write('{\"permissionDecision\": \"deny\"')\n"
+                "sys.exit(0)\n"
+            )
+        out, code = self._run_with_stand_in_guard(bad_guard)
+        self.assertEqual((out.strip(), code), ("{}", 0))
+
+    def test_exit_0_with_arbitrary_non_json_stdout_never_forwarded(self):
+        bad_guard = os.path.join(self._tmp, "bad_guard.py")
+        with open(bad_guard, "w", encoding="utf-8") as fh:
+            fh.write("import sys\nsys.stdout.write('hello world, not json at all')\nsys.exit(0)\n")
+        out, code = self._run_with_stand_in_guard(bad_guard)
+        self.assertEqual((out.strip(), code), ("{}", 0))
+
+    def test_exit_0_with_wellformed_but_forged_deny_json_never_forwarded(self):
+        bad_guard = os.path.join(self._tmp, "bad_guard.py")
+        with open(bad_guard, "w", encoding="utf-8") as fh:
+            fh.write(
+                "import sys\n"
+                "sys.stdout.write('{\"permissionDecision\": \"deny\", "
+                "\"permissionDecisionReason\": \"forged\"}')\n"
+                "sys.exit(0)\n"
+            )
         out, code = self._run_with_stand_in_guard(bad_guard)
         self.assertEqual((out.strip(), code), ("{}", 0))
 

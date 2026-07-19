@@ -11,8 +11,10 @@
 # can never accidentally deny a `view` call: only a *validated* exit-2
 # decision from the guard -- stdout is a JSON object with
 # permissionDecision == "deny" and a non-empty permissionDecisionReason -- is
-# allowed to propagate as a deny. Everything else becomes a fail-open "{}"
-# with wrapper exit 0.
+# allowed to propagate as a deny. Every other outcome (any non-zero exit, or
+# a normal exit 0) becomes the fixed fail-open "{}" literal with wrapper
+# exit 0 -- child stdout on a normal exit 0 is never forwarded verbatim,
+# since the guard's only legitimate exit-0 decision is abstention.
 set -u
 
 hook_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
@@ -74,9 +76,12 @@ if [ "$status" -ne 0 ]; then
   exit 0
 fi
 
-if [ -z "$output" ]; then
-  printf '{}'
-else
-  printf '%s' "$output"
-fi
+# The guard's only legitimate exit-0 decision is abstention: every code
+# path in copilot_context_guard.py that is not a definitive, validated
+# exit-2 deny prints exactly "{}" and exits 0. Never forward the child's
+# raw stdout here -- doing so would let a corrupted/partial/arbitrary
+# stdout payload on a normal exit (e.g. truncated output, a stray print,
+# a future regression) masquerade as a decision object. Always emit the
+# fixed abstention literal instead of trusting/echoing child stdout.
+printf '{}'
 exit 0

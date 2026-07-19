@@ -32,18 +32,32 @@ issue #1995 for the full rationale):
 * State is never read from the runtime's ``events.jsonl`` history. It is
   stored outside the Git worktree: preferably beside the resolved Copilot
   session directory (``~/.copilot/session-state/<sessionId>/hook-state/``),
-  falling back to the OS temp directory when the session directory cannot be
-  resolved. Access is guarded by an OS-kernel advisory file lock (POSIX
-  ``fcntl.flock``, Windows ``msvcrt.locking``) with jittered retry up to a
-  bounded timeout, then fail-open on contention; state updates are written
-  atomically. Kernel locks are automatically released by the OS when the
-  holding process exits or crashes, so there is no stale-lock window and no
-  stale-lock deletion race to reason about.
+  falling back to a private per-session directory under this user's own
+  Copilot home (``$COPILOT_HOME/context-guard/<sanitized-sessionId>``,
+  e.g. ``~/.copilot/context-guard/...``) when the session directory cannot
+  be resolved. The fallback is never placed under a shared OS temp
+  directory: a predictable path there is symlink/ownership-attackable by
+  any other local user. Before creating or reusing the fallback root or
+  its per-session subdirectory, each is checked to reject a pre-existing
+  symlink or non-directory outright, and (POSIX, best-effort) to require
+  ownership by the current effective user; any uncertainty fails open
+  without touching state. Only the ``context-guard`` root and its session
+  subdirectories are ever created/chmod'ed 0700 -- ``$COPILOT_HOME``
+  itself is never chmod'ed. Access is guarded by an OS-kernel advisory
+  file lock (POSIX ``fcntl.flock``, Windows ``msvcrt.locking``) with
+  jittered retry up to a bounded timeout, then fail-open on contention;
+  state updates are written atomically. Kernel locks are automatically
+  released by the OS when the holding process exits or crashes, so there
+  is no stale-lock window and no stale-lock deletion race to reason
+  about. A missing, empty, or non-string ``sessionId`` is treated as
+  uncertain input and falls through *before* any state is resolved or
+  persisted -- it is never mapped to a shared, permanent fallback bucket.
 """
 
 import json
 import os
 import random
+import stat
 import sys
 import tempfile
 import time
@@ -75,7 +89,12 @@ LOCK_FILE_SUFFIX = ".lock"
 LOCK_MAX_WAIT_SECONDS = 2.0
 LOCK_RETRY_MIN_SECONDS = 0.01
 LOCK_RETRY_MAX_SECONDS = 0.05
-FALLBACK_SUBDIR_NAME = "copilot-context-guard"
+
+# Private, user-owned fallback cache root, nested directly under this
+# user's own Copilot home (e.g. ``~/.copilot/context-guard``) -- deliberately
+# NOT under a shared OS temp directory (see _resolve_state_dir/_is_safe_
+# private_dir_target docstrings for the symlink/ownership rationale).
+CONTEXT_GUARD_CACHE_SUBDIR = "context-guard"
 
 FALL_THROUGH = "{}"
 
@@ -86,7 +105,15 @@ def _emit(text):
 
 
 def _sanitize_session_id(session_id):
-    """Reduce sessionId to a filesystem-safe token; never raises."""
+    """Reduce sessionId to a filesystem-safe token; never raises.
+
+    The ``"unknown-session"`` fallback below is a defensive default for
+    direct/programmatic callers only. ``run()`` itself always rejects a
+    missing, empty, or non-string ``sessionId`` (falling through before
+    ever resolving or persisting state) *before* calling this function, so
+    a real invocation never reaches -- and never charges bytes against --
+    this shared bucket name.
+    """
     if not isinstance(session_id, str) or not session_id:
         return "unknown-session"
     safe = "".join(ch if (ch.isalnum() or ch in "-_") else "_" for ch in session_id)
@@ -105,74 +132,69 @@ def _copilot_home():
     return os.path.join(base, ".copilot")
 
 
-def _current_user_token():
-    """Best-effort per-user token used to partition the OS-temp fallback dir.
+def _is_safe_private_dir_target(path):
+    """True if ``path`` is safe to create or reuse as a private state dir.
 
-    Prevents unrelated local users sharing a multi-user temp directory
-    (e.g. POSIX ``/tmp``) from colliding on -- or reading -- the same
-    fallback state path. Never raises; falls back to a fixed token if no
-    usable identity is found.
+    Safe means either: ``path`` does not exist yet (nothing to reject, and
+    it can be created fresh), or it already exists as a real directory --
+    never a symlink -- that is, on POSIX where ownership can be checked,
+    owned by this process's current effective user.
+
+    Rejects (returns False) a pre-existing symlink or non-directory at
+    ``path`` outright: silently following or reusing either could hand
+    session-budget state to an attacker-controlled location, e.g. a
+    symlink planted by another local user at a predictable path. Any
+    failure to even stat the path is also treated as unsafe -- this
+    function fails open by refusing to use an uncertain path, never by
+    trusting one.
     """
     try:
-        if hasattr(os, "getuid"):
-            return "uid-{0}".format(os.getuid())
-    except Exception:
-        pass
-    for var in ("USERNAME", "USER", "LOGNAME"):
-        val = os.environ.get(var)
-        if val:
-            return "user-{0}".format(_sanitize_session_id(val))
-    return "user-unknown"
-
-
-def _makedirs_private(path, stop_at):
-    """Create ``path`` (and parents) then best-effort chmod ``0700`` every
-    directory component from ``path`` up to and including ``stop_at``.
-
-    POSIX-only tightening (a no-op on Windows, where the same owner-only
-    semantics don't apply); bounded to ``stop_at`` so we never touch
-    directories we don't own the creation of (e.g. the OS temp root
-    itself). Returns True if ``path`` exists (created or already present)
-    after this call, False if directory creation failed outright.
-    """
-    try:
-        os.makedirs(path, exist_ok=True)
+        st = os.lstat(path)
     except OSError:
+        return True  # does not exist yet: safe to create fresh
+    if stat.S_ISLNK(st.st_mode):
         return False
-    if not sys.platform.startswith("win"):
-        stop_norm = os.path.normpath(stop_at)
-        current = os.path.normpath(path)
-        while True:
-            try:
-                os.chmod(current, 0o700)
-            except OSError:
-                pass
-            if current == stop_norm:
-                break
-            parent = os.path.dirname(current)
-            if not parent or parent == current:
-                break
-            current = parent
+    if not stat.S_ISDIR(st.st_mode):
+        return False
+    if not sys.platform.startswith("win") and hasattr(os, "geteuid"):
+        try:
+            if st.st_uid != os.geteuid():
+                return False
+        except OSError:
+            return False
     return True
 
 
-def _user_fallback_root():
-    """The per-user top-level OS-temp fallback root.
+def _prepare_private_fallback_dir(state_dir):
+    """Verify then create the private per-session fallback state directory.
 
-    The user token is embedded directly in this top-level directory's own
-    name (``<tmp>/copilot-context-guard-<user-token>``) rather than as a
-    nested subdirectory of a shared ``<tmp>/copilot-context-guard`` parent.
-    This is deliberate: a nested layout would require ``_makedirs_private``
-    to walk up through -- and ``chmod 0700`` -- the shared parent directory
-    itself, which the first user to run the guard would then lock every
-    other local UID out of. Because this root's own name is already
-    user-specific, it is always safe to privatize in full without ever
-    touching anything actually shared between users (``tempfile.gettempdir()``
-    itself is never a target).
+    ``state_dir`` must be ``<context-guard cache root>/<sanitized-sessionId>``
+    (see ``_resolve_state_dir``). Both the cache root and the per-session
+    subdirectory are independently checked with
+    ``_is_safe_private_dir_target`` -- and, once verified, chmod'ed
+    ``0700`` (POSIX-only; a no-op on Windows) -- before either is created
+    or reused, since either level could be a location an attacker planted
+    ahead of time at this predictable path. This never walks or touches
+    anything above the cache root: ``$COPILOT_HOME``/``.copilot`` itself
+    is never created here (beyond whatever ``os.makedirs`` needs to reach
+    the cache root) nor ever chmod'ed. Returns True on success, False on
+    any uncertainty -- the caller must fail open without persisting
+    anything.
     """
-    return os.path.join(
-        tempfile.gettempdir(), "{0}-{1}".format(FALLBACK_SUBDIR_NAME, _current_user_token())
-    )
+    root = os.path.dirname(state_dir)
+    for directory in (root, state_dir):
+        if not _is_safe_private_dir_target(directory):
+            return False
+        try:
+            os.makedirs(directory, exist_ok=True)
+        except OSError:
+            return False
+        if not sys.platform.startswith("win"):
+            try:
+                os.chmod(directory, 0o700)
+            except OSError:
+                pass
+    return True
 
 
 def _resolve_state_dir(session_id):
@@ -180,9 +202,18 @@ def _resolve_state_dir(session_id):
 
     Prefers the real Copilot session-state directory (sibling to the
     session's git worktree ``files/`` dir, so state never lands inside the
-    tracked Git tree). Falls back to a per-user OS temp/cache directory
-    (see ``_user_fallback_root()``), scoped per sanitized sessionId, when
-    the session directory cannot be resolved. Returns (state_dir, is_fallback).
+    tracked Git tree). Falls back to a private per-session directory
+    nested under this user's own Copilot home
+    (``$COPILOT_HOME/context-guard/<sanitized-sessionId>``), scoped per
+    sanitized sessionId, when the session directory cannot be resolved.
+    Deliberately never a shared OS temp directory: a predictable path
+    there would be symlink/ownership-attackable by any other local user.
+    ``session_id`` must already have been validated as a non-empty string
+    by the caller (see ``run()``) -- this function does not itself decide
+    whether an invalid sessionId should fail through. Returns
+    ``(state_dir, is_fallback)``; the fallback path is not verified for
+    safety here (see ``_prepare_private_fallback_dir``, which the caller
+    must invoke before creating or trusting it).
     """
     override = os.environ.get(STATE_DIR_OVERRIDE_ENV_VAR)
     if override:
@@ -197,7 +228,8 @@ def _resolve_state_dir(session_id):
     except OSError:
         pass
 
-    return os.path.join(_user_fallback_root(), safe_id), True
+    fallback_root = os.path.join(home, CONTEXT_GUARD_CACHE_SUBDIR)
+    return os.path.join(fallback_root, safe_id), True
 
 
 class _LockNotAcquired(Exception):
@@ -405,11 +437,17 @@ def run(stdin_text):
     fingerprint = _normalized_fingerprint(abs_path, size, mtime_ns)
 
     session_id = payload.get("sessionId")
+    if not isinstance(session_id, str) or not session_id:
+        # Missing/empty/non-string sessionId is uncertain input: fail open
+        # before ever resolving or persisting state, so a real run never
+        # falls back to a shared, permanent "unknown-session" bucket.
+        return FALL_THROUGH, 0
+
     state_dir, is_fallback = _resolve_state_dir(session_id)
     state_path = os.path.join(state_dir, STATE_FILE_NAME)
 
     if is_fallback:
-        if not _makedirs_private(state_dir, _user_fallback_root()):
+        if not _prepare_private_fallback_dir(state_dir):
             return FALL_THROUGH, 0
     else:
         try:

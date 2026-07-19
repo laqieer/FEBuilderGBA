@@ -835,10 +835,13 @@ and [github/copilot-cli#1688](https://github.com/github/copilot-cli/issues/1688)
   the working directory is trusted** (untrusted directories fall back to the user-level setting).
   Repo scope generally outranks user scope in the settings merge order (`user` → `repo` → `local`),
   so shipping this file makes `default` context tier apply automatically for any trusted checkout of
-  this repo, without requiring each contributor to set it manually. If you deliberately want
-  `long_context` for your own session despite this file, override it at session/user scope (e.g. the
-  `--context long_context` CLI flag, or `/settings set contextTier long_context` in an interactive
-  session) — session/local overrides still win over the repo default.
+  this repo, without requiring each contributor to set it manually — a plain user-scope setting of
+  `long_context` will **not** override it. If you deliberately want `long_context` for your own
+  session despite this file, the effective override is **`local` scope**, which outranks `repo` in
+  the merge order: run `/settings --local contextTier long_context` from within this checkout (not
+  the invalid `/settings set contextTier long_context`, which does not target a scope and will not
+  beat the repo default). The session launch flag `copilot --context long_context` remains a valid
+  way to request `long_context` for that one session's launch.
 
 **Recovery commands (Copilot CLI):**
 - `/context` — inspect current context usage before it becomes a problem.
