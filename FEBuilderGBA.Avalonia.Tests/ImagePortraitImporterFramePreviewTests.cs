@@ -141,7 +141,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Contains("_preparedPreview = null;", clearBody);
             Assert.Contains("PreviewImage?.SetImage(null);", clearBody);
             Assert.Contains("FramePreviewImage?.SetImage(null);", clearBody);
-            Assert.Contains("SourceFileLabel.Text = \"(no file selected)\";", clearBody);
+            Assert.Contains("SourceFileLabel.Text = R._(\"(no file selected)\");", clearBody);
             Assert.Contains("ImageSizeLabel.Text = string.Empty;", clearBody);
             Assert.Contains("SheetModeLabel.Text = string.Empty;", clearBody);
             Assert.Contains("RefreshImportButtonState();", clearBody);

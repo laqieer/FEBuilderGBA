@@ -385,7 +385,7 @@ namespace FEBuilderGBA.Avalonia.Views
             _preparedPreview = null;
             PreviewImage?.SetImage(null);
             FramePreviewImage?.SetImage(null);
-            SourceFileLabel.Text = "(no file selected)";
+            SourceFileLabel.Text = R._("(no file selected)");
             ImageSizeLabel.Text = string.Empty;
             SheetModeLabel.Text = string.Empty;
             StatusLabel.Text = string.Empty;
