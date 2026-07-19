@@ -251,12 +251,14 @@ For each unit:
 - The plan comment MUST pass the **Review Gate** before proceeding. Pick your branch — see **Developer & Reviewer Roles** above.
 - **Branch A (Claude Code CLI → Copilot CLI)** — Copilot CLI must post its review on GitHub (not just locally):
   ```bash
-  copilot -p "Review the plan comment on issue #<N> in laqieer/FEBuilderGBA. \
+  # Windows (PowerShell): $env:GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS = "true"
+  GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS=true copilot -p "Review the plan comment on issue #<N> in laqieer/FEBuilderGBA. \
   Post your review findings as a comment on the issue. \
   After you finish posting the review, prune any git worktree you created for this review: run 'git worktree prune' and 'git worktree remove --force' any checkout you made under your session-state directory. \
   Include your Copilot CLI version and model at the end." \
   --autopilot --enable-all-github-mcp-tools --allow-all-tools
   ```
+  > **Why set `GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS=true` before launch?** This external `copilot -p` invocation starts a fresh session outside any already-running interactive one, so the repo's `preToolUse` context-budget hook (`.github/hooks/copilot-context-budget.json`, issue #1995) only takes effect if repo-hook execution is explicitly enabled for that new session — set the literal string `"true"` (not `1` or unset) before launch, then verify with `/env` once inside an interactive session (see README.md's "Context safety" section).
   > **Why `--allow-all-tools`?** Copilot CLI needs both read tools (to fetch the issue/PR) and write tools (to post comments/reviews). `--enable-all-github-mcp-tools` exposes the GitHub MCP tools, and `--allow-all-tools` auto-approves their use so the non-interactive `--autopilot` session can complete without prompts.
 - **Branch B (Copilot CLI → in-session board)** — convene the cross-model board per **Developer & Reviewer Roles → Branch B**, passing only the issue number and the plan-comment URL/ID as the artifact — never the plan-comment body or issue body pasted into this prompt. Each board member fetches the issue title/body/acceptance-criteria and the plan-comment body itself inside its own isolated invocation (`gh issue view <N> -R laqieer/FEBuilderGBA --comments`; see "Context Hygiene" above), then posts the consolidated review as an issue comment. **Never** `agency cc`.
 - The Review Gate checks for:
@@ -480,7 +482,8 @@ First evaluate the **Screenshot-only helper PR exemption** under **Developer & R
 
 - **Branch A (Claude Code CLI → Copilot CLI)** — **Invocation:** trigger review and ensure it posts on the PR:
   ```bash
-  copilot -p "Review pull request #<N> in laqieer/FEBuilderGBA. \
+  # Windows (PowerShell): $env:GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS = "true"
+  GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS=true copilot -p "Review pull request #<N> in laqieer/FEBuilderGBA. \
   Perform a full code review: check correctness, test coverage, style, potential bugs, and adherence to the plan. \
   Screenshot check: if the PR title starts with 'feat' or 'fix', verify the PR description contains at least one rendered image (Markdown ![...](URL) or HTML <img> tag) proving the change works. \
   For PRs that modify GUI files (FEBuilderGBA.Avalonia/ or FEBuilderGBA/ WinForms): screenshots MUST show the ACTUAL running application GUI with controls and data visible — NOT fabricated terminal-output images drawn on a blank background. Verify the screenshot content is RELEVANT to the behavior change (e.g., a Class Editor fix should show the Class Editor with populated data). \
@@ -499,6 +502,7 @@ First evaluate the **Screenshot-only helper PR exemption** under **Developer & R
   Include your Copilot CLI version and model at the end." \
   --autopilot --enable-all-github-mcp-tools --allow-all-tools
   ```
+  > **Why set `GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS=true` before launch?** Same rationale as the plan-review invocation above: this is a fresh external session, so the repo's `preToolUse` context-budget hook (issue #1995) only applies if repo-hook execution is explicitly enabled beforehand — set the literal string `"true"`, then verify with `/env` once inside an interactive session.
 - **Branch B (Copilot CLI → in-session board)** — convene the cross-model board per **Developer & Reviewer Roles → Branch B**, passing only the PR number, its current head SHA, the accepted-plan comment URL, and the issue number as the artifact — never `gh pr diff` output, the PR body text, or a changed-files listing embedded in this prompt. Each board member fetches the PR diff, PR body, changed-files list, accepted plan comment, and issue body itself inside its own isolated invocation (see "Context Hygiene" above), then applies the **same** rubric the Branch-A prompt above encodes (screenshot validity + feature-branch-URL rejection, `## GUI Test Report`, `## Test plan` all-`[x]`, scope creep). Post the consolidated verdict as a clearly-labeled `## Cross-Model Review Board` PR comment. **Never** `agency cc`.
 - **Verify the Review Gate or exemption on the PR:**
   - **Branch A** — a `Copilot`-bot review carrying the required footer:

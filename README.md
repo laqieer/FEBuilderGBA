@@ -828,8 +828,13 @@ and [github/copilot-cli#1688](https://github.com/github/copilot-cli/issues/1688)
   It is fail-open by design: any uncertain, malformed, or infrastructure-failure path abstains
   (`{}`, exit 0) rather than blocking unrelated work, and only a definitive cumulative overflow denies
   (JSON `permissionDecision: "deny"` + a reason, exit 2). Repository hooks only execute when the
-  session has repo-hook execution enabled; verify with `/env` that
-  `GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS=true` is set (the literal string `"true"`, not `1`).
+  session has repo-hook execution enabled: for any external `copilot -p ...` launch (a fresh session,
+  not an already-running interactive one — see the `copilot -p` examples in
+  `DEVELOPMENT-WORKFLOW.md` / `.claude/skills/dev-flow/SKILL.md`), explicitly **set**
+  `GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS=true` (the literal string `"true"`, not `1` or unset) in the
+  environment *before* launch — e.g. `GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS=true copilot -p ...` on
+  bash, or `$env:GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS = "true"` before the call on PowerShell — and
+  then, once inside an interactive session, confirm it took effect with `/env`.
 - `.github/copilot/settings.json` ships `{"contextTier": "default"}`. Per official Copilot CLI docs,
   a repository-level `contextTier` setting takes precedence over a user-level setting **only when
   the working directory is trusted** (untrusted directories fall back to the user-level setting).

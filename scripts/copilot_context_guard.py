@@ -189,12 +189,16 @@ def _prepare_private_fallback_dir(state_dir):
     ``_is_safe_private_dir_target`` -- and, once verified, chmod'ed
     ``0700`` (POSIX-only; a no-op on Windows) -- before either is created
     or reused, since either level could be a location an attacker planted
-    ahead of time at this predictable path. This never walks or touches
-    anything above the cache root: ``$COPILOT_HOME``/``.copilot`` itself
-    is never created here (beyond whatever ``os.makedirs`` needs to reach
-    the cache root) nor ever chmod'ed. Returns True on success, False on
-    any uncertainty -- the caller must fail open without persisting
-    anything.
+    ahead of time at this predictable path. A ``chmod`` failure on POSIX
+    is treated as fatal (returns False) rather than silently ignored: the
+    private-permission guarantee cannot be honored if the mode could not
+    be set, so the caller must abstain instead of using or persisting
+    state in a directory whose permissions are unverified. This never
+    walks or touches anything above the cache root: ``$COPILOT_HOME``/
+    ``.copilot`` itself is never created here (beyond whatever
+    ``os.makedirs`` needs to reach the cache root) nor ever chmod'ed.
+    Returns True on success, False on any uncertainty -- the caller must
+    fail open without persisting anything.
 
     A precheck-then-create window exists between the
     ``_is_safe_private_dir_target`` call and ``os.makedirs``:
@@ -225,7 +229,13 @@ def _prepare_private_fallback_dir(state_dir):
             try:
                 os.chmod(directory, 0o700)
             except OSError:
-                pass
+                # A chmod failure here means the private-permission
+                # guarantee cannot be honored -- silently proceeding
+                # would leave a fallback state directory whose mode is
+                # unknown/unverified. Fail closed: the caller must
+                # abstain rather than use or persist state in a
+                # directory that isn't provably private.
+                return False
     return True
 
 

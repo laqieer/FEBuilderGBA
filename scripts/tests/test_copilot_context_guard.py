@@ -657,6 +657,80 @@ class TestPrivateFallbackDir(unittest.TestCase):
             os.chmod(fake_home, 0o700)
             shutil.rmtree(fake_home, ignore_errors=True)
 
+    @unittest.skipIf(sys.platform.startswith("win"), "chmod semantics differ on Windows")
+    def test_prepare_private_fallback_dir_returns_false_on_chmod_failure(self):
+        """A chmod(0700) failure on an otherwise legitimately-owned,
+        freshly-created directory must abort the whole operation (return
+        False) rather than silently ignore it and report success --
+        proceeding with an unverified/unknown mode would violate the
+        private-state guarantee this function exists to provide.
+        """
+        fake_home = tempfile.mkdtemp(prefix="ctxguard-prepare-chmodfail-")
+        try:
+            root = os.path.join(fake_home, guard.CONTEXT_GUARD_CACHE_SUBDIR)
+            state_dir = os.path.join(root, "some-session")
+
+            original_chmod = guard.os.chmod
+
+            def failing_chmod(path, mode, *args, **kwargs):
+                raise OSError(13, "Permission denied")
+
+            guard.os.chmod = failing_chmod
+            try:
+                self.assertFalse(guard._prepare_private_fallback_dir(state_dir))
+            finally:
+                guard.os.chmod = original_chmod
+        finally:
+            shutil.rmtree(fake_home, ignore_errors=True)
+
+    @unittest.skipIf(sys.platform.startswith("win"), "chmod semantics differ on Windows")
+    def test_run_abstains_and_persists_no_state_when_chmod_fails_during_fallback_prep(self):
+        """End-to-end regression: if the private-permission chmod fails
+        while preparing the fallback state directory, run() must fall
+        through (``{}``, 0) and must never create/persist a state file --
+        proving _prepare_private_fallback_dir's False return is honored
+        by the caller and no budget state is silently used/charged.
+        """
+        fake_home = tempfile.mkdtemp(prefix="ctxguard-run-chmodfail-home-")
+        images_dir = tempfile.mkdtemp(prefix="ctxguard-run-chmodfail-img-")
+        old_home = os.environ.get("COPILOT_HOME")
+        old_override = os.environ.pop(guard.STATE_DIR_OVERRIDE_ENV_VAR, None)
+        os.environ["COPILOT_HOME"] = fake_home
+        try:
+            image_path = os.path.join(images_dir, "test.png")
+            _write_random_file(image_path, 1024)
+
+            original_chmod = guard.os.chmod
+
+            def failing_chmod(path, mode, *args, **kwargs):
+                raise OSError(13, "Permission denied")
+
+            guard.os.chmod = failing_chmod
+            try:
+                output, code = guard.run(_payload(
+                    session_id="chmod-failure-session",
+                    tool_args={"path": image_path},
+                ))
+            finally:
+                guard.os.chmod = original_chmod
+
+            self.assertEqual((output, code), ("{}", 0))
+            root = os.path.join(fake_home, guard.CONTEXT_GUARD_CACHE_SUBDIR)
+            state_dir = os.path.join(root, guard._sanitize_session_id("chmod-failure-session"))
+            self.assertFalse(
+                os.path.exists(os.path.join(state_dir, guard.STATE_FILE_NAME)),
+                "no budget state may be persisted when private-dir preparation fails",
+            )
+        finally:
+            if old_home is None:
+                os.environ.pop("COPILOT_HOME", None)
+            else:
+                os.environ["COPILOT_HOME"] = old_home
+            if old_override is not None:
+                os.environ[guard.STATE_DIR_OVERRIDE_ENV_VAR] = old_override
+            shutil.rmtree(fake_home, ignore_errors=True)
+            shutil.rmtree(images_dir, ignore_errors=True)
+
 
     def test_is_safe_private_dir_target_false_for_permission_error(self):
         # Only FileNotFoundError from os.lstat means "confirmed absent, safe
@@ -731,6 +805,15 @@ class TestPrivateFallbackDir(unittest.TestCase):
         """
         fake_home = tempfile.mkdtemp(prefix="ctxguard-toctou-home-")
         attacker_target = tempfile.mkdtemp(prefix="ctxguard-toctou-attacker-")
+        # tempfile.mkdtemp() already creates directories at mode 0700 on
+        # POSIX, so asserting "not 0700 afterwards" proves nothing -- it
+        # would already be 0700 before the guard ever ran. Explicitly set
+        # a DISTINCT baseline mode and assert it is preserved exactly, so
+        # this test actually fails if the guard ever chmod's the
+        # attacker-controlled target.
+        os.chmod(attacker_target, 0o755)
+        original_attacker_mode = stat.S_IMODE(os.stat(attacker_target).st_mode)
+        self.assertEqual(original_attacker_mode, 0o755)
         root = os.path.join(fake_home, guard.CONTEXT_GUARD_CACHE_SUBDIR)
         try:
             original_makedirs = guard.os.makedirs
@@ -751,7 +834,10 @@ class TestPrivateFallbackDir(unittest.TestCase):
                 guard.os.makedirs = original_makedirs
 
             self.assertEqual(os.listdir(attacker_target), [])
-            self.assertNotEqual(stat.S_IMODE(os.stat(attacker_target).st_mode), 0o700)
+            self.assertEqual(
+                stat.S_IMODE(os.stat(attacker_target).st_mode), original_attacker_mode,
+                "attacker-controlled target must never be chmod'ed by the guard",
+            )
         finally:
             if os.path.islink(root):
                 os.remove(root)
