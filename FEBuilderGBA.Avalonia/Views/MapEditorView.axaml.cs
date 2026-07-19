@@ -5,6 +5,7 @@ using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Platform.Storage;
+using global::Avalonia.Threading;
 using global::Avalonia.VisualTree;
 using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Dialogs;
@@ -20,6 +21,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly UndoService _undo = new();
         int _zoom = 1;
         byte[] _lastRgba; // cached for refresh
+        bool _generatingRandomMap;
 
         public string ViewTitle => "Visual Map Editor";
         public new bool IsLoaded => _vm.IsLoaded;
@@ -41,6 +43,7 @@ namespace FEBuilderGBA.Avalonia.Views
             ExportTmxButton.Click += ExportTmx_Click;
             ImportTmxButton.Click += ImportTmx_Click;
             ResizeMapButton.Click += ResizeMap_Click;
+            GenerateRandomMapButton.Click += GenerateRandomMap_Click;
             AddHandler(KeyDownEvent, OnEditorKeyDown, RoutingStrategies.Tunnel);
             // Paint Mode defaults to OFF (no regression to existing select behaviour).
             PaintModeCheck.IsChecked = false;
@@ -421,16 +424,21 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                if (_vm.CurrentAddr == 0) return;
-                byte[] rgba = _vm.LoadMapImage(_vm.CurrentAddr, _vm.MapId);
-                _lastRgba = rgba;
-                UpdateUI(rgba);
-                UpdateTilePalette();
+                RefreshMapFromCurrentSelection();
             }
             catch (Exception ex)
             {
                 Log.ErrorF("MapEditorView.OnRefreshMap failed: {0}", ex.Message);
             }
+        }
+
+        void RefreshMapFromCurrentSelection()
+        {
+            if (_vm.CurrentAddr == 0) return;
+            byte[] rgba = _vm.LoadMapImage(_vm.CurrentAddr, _vm.MapId);
+            _lastRgba = rgba;
+            UpdateUI(rgba);
+            UpdateTilePalette();
         }
 
         void UpdateTileUI()
@@ -853,6 +861,61 @@ namespace FEBuilderGBA.Avalonia.Views
                 Log.Error("MapEditorView.ResizeMap_Click failed: " + ex.ToString());
                 CoreState.Services?.ShowError(string.Format(R._("Resize failed: {0}"), ex.Message));
             }
+        }
+
+        async void GenerateRandomMap_Click(object? sender, RoutedEventArgs e)
+        {
+            if (_generatingRandomMap)
+                return;
+
+            try
+            {
+                _generatingRandomMap = true;
+
+                GenerateRandomMapDialogResult? result = await GenerateRandomMapWorkflow.OpenDialogIfReadyAsync(
+                    _vm,
+                    assetName => DecompMapAssetGuard.BlockIfDecomp(assetName),
+                    ShowError,
+                    (width, height) => GenerateRandomMapDialog.Show(TopLevel.GetTopLevel(this) as Window, width, height));
+                if (result == null)
+                    return;
+
+                if (result.Mars == null || result.Mars.Length != result.Width * result.Height)
+                {
+                    ShowError(R._("Random map generation returned no map data."));
+                    return;
+                }
+
+                // The FEMapCreator shell-out and MAR parsing happen inside the dialog VM's
+                // Task.Run work. The workflow marshals every ROM/undo/cache mutation and the
+                // success notification back onto the Avalonia UI thread.
+                string? applyError =
+                    await GenerateRandomMapWorkflow.ApplyGeneratedMapOnUiThreadAsync(
+                        _vm,
+                        _undo,
+                        result,
+                        RefreshMapFromCurrentSelection,
+                        UpdateTilePalette,
+                        message => CoreState.Services?.ShowInfo(message));
+
+                if (!string.IsNullOrWhiteSpace(applyError))
+                    ShowError(string.Format(R._("Generate random map failed: {0}"), applyError));
+            }
+            catch (Exception ex)
+            {
+                Log.Error("MapEditorView.GenerateRandomMap_Click failed: " + ex.ToString());
+                ShowError(string.Format(R._("Generate random map failed: {0}"), ex.Message));
+            }
+            finally
+            {
+                _generatingRandomMap = false;
+            }
+        }
+
+        void ShowError(string message)
+        {
+            if (!string.IsNullOrWhiteSpace(message))
+                CoreState.Services?.ShowError(message);
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

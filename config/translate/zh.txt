@@ -28131,3 +28131,102 @@ Git 操作失败，退出代码 {0}。
 
 :Download the desktop app
 下载桌面版
+
+:Generate Random Map…
+生成随机地图…
+
+:Generate Random Map
+生成随机地图
+
+:Current map size: {0}x{1} tiles
+当前地图大小: {0}x{1} 图块
+
+:FEMapCreator program
+FEMapCreator 程序
+
+:Absolute path to a FEMapCreator program or managed DLL
+FEMapCreator 程序或托管 DLL 的绝对路径
+
+:Assets directory (optional)
+资源目录（可选）
+
+:Absolute path to the FEMapCreator assets directory
+FEMapCreator 资源目录的绝对路径
+
+:Tileset
+图块集
+
+:Algorithm
+算法
+
+:Seed (optional)
+种子（可选）
+
+:Browse Program…
+浏览程序…
+
+:Browse Folder…
+浏览文件夹…
+
+:Discover Tilesets
+发现图块集
+
+:Generate
+生成
+
+:The program you select above will run on this computer with your user account's privileges. Only point this at a FEMapCreator installation you trust.
+你在上面选择的程序将以你当前用户账户的权限在这台计算机上运行。只应将其指向你信任的 FEMapCreator 安装。
+
+:Choose a FEMapCreator program first.
+请先选择 FEMapCreator 程序。
+
+:Discover and choose a compatible tileset first.
+请先发现并选择兼容的图块集。
+
+:Algorithm must be one of: {0}.
+算法必须是以下之一：{0}。
+
+:Tileset discovery returned no result.
+图块集发现未返回结果。
+
+:Tileset discovery failed.
+图块集发现失败。
+
+:Tileset discovery failed: {0}
+图块集发现失败: {0}
+
+:FEMapCreator reported no compatible tilesets.
+FEMapCreator 未报告任何兼容的图块集。
+
+:Random map generation returned no result.
+随机地图生成未返回结果。
+
+:Random map generation failed.
+随机地图生成失败。
+
+:Random map generation failed: {0}
+随机地图生成失败: {0}
+
+:Random map dialog action failed: {0}
+随机地图对话框操作失败: {0}
+
+:Seed must be a valid 32-bit integer.
+种子必须是有效的 32 位整数。
+
+:Select FEMapCreator program
+选择 FEMapCreator 程序
+
+:Select FEMapCreator assets directory
+选择 FEMapCreator 资源目录
+
+:Random map generation returned no map data.
+随机地图生成未返回地图数据。
+
+:Generated random map: {0}x{1}, seed={2}.
+已生成随机地图: {0}x{1}, seed={2}。
+
+:Generate random map failed: {0}
+生成随机地图失败: {0}
+
+:Generated map was rolled back, but refreshing the editor failed: {0}
+已回滚生成的地图，但刷新编辑器失败: {0}

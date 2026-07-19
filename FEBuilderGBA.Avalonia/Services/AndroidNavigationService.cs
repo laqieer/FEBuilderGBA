@@ -93,7 +93,12 @@ namespace FEBuilderGBA.Avalonia.Services
 
         public bool CanGoBack => _stack.CanGoBack;
         public Control? CurrentContent => _stack.CurrentTop?.Page;
-        public bool GoBack() => _stack.Back();
+        public bool GoBack()
+        {
+            if (!CanDismissCurrentPage())
+                return false;
+            return _stack.Back();
+        }
         public event Action? StackChanged;
 
         /// <summary>
@@ -300,6 +305,9 @@ namespace FEBuilderGBA.Avalonia.Services
         /// <inheritdoc />
         public void CloseAll()
         {
+            if (!CanDismissCurrentPage())
+                return;
+
             // Cancel every pending pick/modal to null and drop back to the root
             // launcher page. Mirrors desktop CloseAll (all editor windows close).
             // ClearToRoot raises StackChanged, so OnStackChanged fires `Closed`
@@ -308,6 +316,10 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         // --- helpers ---------------------------------------------------------
+
+        bool CanDismissCurrentPage()
+            => _stack.CurrentTop?.Page is not IEmbeddableEditor editor
+                || editor.CanClose;
 
         // Window.OnOpened / Window.OnClosed are the protected virtual methods the
         // windowing system calls on Show()/Close(); invoking them raises the public

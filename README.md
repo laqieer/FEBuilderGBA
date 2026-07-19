@@ -227,6 +227,11 @@ dotnet run --project FEBuilderGBA.CLI -- --buildfile-roundtrip --rom=modified.gb
 # crc32/sha256 do not) instead reports the declared-vs-actual crc32/sha256 hashes, not an offset.
 dotnet run --project FEBuilderGBA.CLI -- --songexchange --rom=dest.gba --fromrom=source.gba --fromsong=1 --tosong=2
 dotnet run --project FEBuilderGBA.CLI -- --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin --outPal=palette.bin --json
+# Run a trusted local FEMapCreator installation through the external-process adapter
+# (Windows .exe, managed .dll, or an executable native file on Unix);
+# FEBuilderGBA never downloads or bundles FEMapCreator or its assets. The output is
+# FEBuilderGBA CSV and does not load or mutate a ROM.
+dotnet run --project FEBuilderGBA.CLI -- --generate-random-map --femapcreator=C:\tools\FEMapCreator.exe --tileset="FE6 - Fields - 01020304" --width=15 --height=10 --algorithm=experimental --seed=42 --out=random-map.csv
 dotnet run --project FEBuilderGBA.CLI -- --translate --rom=rom.gba --out=texts.tsv
 dotnet run --project FEBuilderGBA.CLI -- --translate --rom=rom.gba --in=texts.tsv
 dotnet run --project FEBuilderGBA.CLI -- --translate-roundtrip --rom=rom.gba
@@ -491,6 +496,7 @@ The project includes a dedicated end-to-end test suite (`FEBuilderGBA.E2ETests`)
 | `Tests/CliTests.cs` | No | CLI flag `--version`: exit code 0, output contains "FEBuilderGBA" and version info |
 | `Tests/CliArgsE2ETests.cs` | No | CLI primary commands via `FEBuilderGBA.CLI`: `--help/-h`, `--version`, `--makeups`, `--applyups`, `--lint`, `--disasm`, `--decreasecolor`, `--pointercalc`, `--rebuild`, `--songexchange`, `--convertmap1picture`, `--translate`, `--translate-roundtrip`, `--lastrom`, `--force-detail`, `--translate_batch`, `--test/--testonly`, `--import-battle-anime`, `--export-battle-anime`, `--diff`, `--import-portrait-all`, `--export-map-settings`, `--lz77`, `--checksum`, `--repair-header`, `--rom-info`, `--list-tables`, `--export-palette`, `--import-palette` (plus the unknown-command path) — 69 tests ([docs/cli-args.md](docs/cli-args.md)) |
 | `Tests/CliPlaytestE2ETests.cs` | No | `--playtest` help, strict preflight, shipped-runner discovery, paths with spaces, timeout bounds, and synthesized JSON/output-file behavior without requiring Python, mGBA, or a proprietary ROM |
+| `Tests/CliRandomMapGeneratorE2ETests.cs` | No | `--generate-random-map` help/validation plus deterministic success, external non-zero exit, malformed MAR, atomic no-output behavior, and temp cleanup through a repository-owned source-built fake FEMapCreator process |
 | `Tests/GuiStartupTests.cs` | No | GUI startup: window appears within 30 s, has non-empty title, has child controls, responds to WM_CLOSE |
 | `Tests/DiagnosticTests.cs` | No | Diagnostic: logs all window handles, titles (hex-encoded), and class names — always passes |
 | `Tests/RomCliTests.cs` | Yes (×5/×2) | `--lint`, `--makeups` × 5 ROMs; `--rebuild` × 2 representative ROMs (FE8U, FE6) — 12 tests, skipped without ROMs |

@@ -25,6 +25,8 @@ namespace FEBuilderGBA.Avalonia.Services
     {
         EditorDescriptor Descriptor { get; }
         object? DialogResult => null;
+        /// <summary>Whether host-initiated close/back navigation may dismiss this editor.</summary>
+        bool CanClose => true;
         event EventHandler? CloseRequested;
     }
 

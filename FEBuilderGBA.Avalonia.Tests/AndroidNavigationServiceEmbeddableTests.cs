@@ -43,6 +43,26 @@ public class AndroidNavigationServiceEmbeddableTests
     }
 
     [AvaloniaFact]
+    public void Back_is_blocked_while_embeddable_editor_refuses_close()
+    {
+        INavigationHost host = NewServiceWithRoot();
+        var service = (AndroidNavigationService)host;
+        var editor = service.Open<TestEmbeddableEditor>();
+        editor.CanClose = false;
+
+        Assert.True(host.CanGoBack);
+        service.CloseAll();
+        Assert.Same(editor, host.CurrentContent);
+        Assert.False(host.GoBack());
+        Assert.Same(editor, host.CurrentContent);
+
+        editor.CanClose = true;
+        Assert.True(host.CanGoBack);
+        Assert.True(host.GoBack());
+        Assert.False(host.CanGoBack);
+    }
+
+    [AvaloniaFact]
     public void Reopen_resurfaces_same_embeddable_without_duplicate_stack_entry()
     {
         INavigationHost host = NewServiceWithRoot();

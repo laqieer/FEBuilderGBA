@@ -45,6 +45,12 @@
                     Content="Resize Map…"
                     VerticalAlignment="Center" />
           </StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="8" Name="MapRandomCommandToolbar">
+            <Button AutomationProperties.AutomationId="MapEditor_GenerateRandomMap_Button"
+                    Name="GenerateRandomMapButton"
+                    Content="Generate Random Map…"
+                    VerticalAlignment="Center" />
+          </StackPanel>
         </StackPanel>
       </StackPanel>
 

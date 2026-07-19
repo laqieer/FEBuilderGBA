@@ -40,6 +40,7 @@ WinForms CLI counterpart to align against.
 | `--buildfile-roundtrip` | Export → independent rebuild → byte-compare against `--rom`; exit 0 exact / 2 drift / 1 error | `--rom`, `--clean` (opt: `--force-version`) | E2E COVERED (RomLocator-gated) | CLI-ONLY (N/A) |
 | `--songexchange` | Copy song between ROMs | `--rom`, `--fromrom`, `--fromsong`, `--tosong` | E2E COVERED | ALIGNED |
 | `--convertmap1picture` | Convert image to map tiles | `--in`, one or more of `--outImg`/`--outTSA`/`--outPal` (opt: `--json`) | E2E COVERED | ALIGNED |
+| `--generate-random-map` | Generate FEBuilderGBA CSV through a trusted local FEMapCreator CLI | `--femapcreator`, `--tileset`, `--width`, `--height`, `--out` (opt: `--assets-dir`, `--seed`, `--algorithm`, `--json`) | UNIT + REAL-PROCESS E2E COVERED | CLI-ONLY (N/A) |
 | `--translate` | Dump or import ROM text | `--rom` | E2E COVERED | ALIGNED |
 | `--translate-roundtrip` | Validate text export/import round-trip | `--rom` (opt: `--out`) | E2E COVERED | ALIGNED |
 | `--lastrom` | Load last-used ROM from config | — | E2E COVERED | ALIGNED |
@@ -69,9 +70,11 @@ WinForms CLI counterpart to align against.
 | `--patch=<path>` | Specify UPS patch file | `--applyups` |
 | `--rom2=<path>` | Second ROM file to compare against | `--diff` |
 | `--in=<path>` | Input file | `--decreasecolor`, `--convertmap1picture`, `--translate`, `--lz77`, `--import-palette`, `--import-battle-anime` |
-| `--out=<path>` | Output file | `--playtest` (result JSON), `--decreasecolor`, `--translate`, `--translate-roundtrip`, `--translate_batch`, `--export-map-settings`, `--lz77`, `--export-palette`, `--export-battle-anime`, `--diff`, `--export-buildfile` (new project directory, must not exist), `--build-buildfile` (new destination ROM, must not exist) |
+| `--out=<path>` | Output file | `--playtest` (result JSON), `--decreasecolor`, `--generate-random-map`, `--translate`, `--translate-roundtrip`, `--translate_batch`, `--export-map-settings`, `--lz77`, `--export-palette`, `--export-battle-anime`, `--diff`, `--export-buildfile` (new project directory, must not exist), `--build-buildfile` (new destination ROM, must not exist) |
 | `--scenario=<path>` | Strict schema-v1 playtest scenario JSON | `--playtest` |
 | `--artifact-dir=<dir>` | Existing directory that persists an optional final-frame PNG; capture/hash evidence does not require it | `--playtest` |
+| `--femapcreator=<path>` | Trusted absolute local Windows `.exe`, managed `.dll`, or executable native file on Unix | `--generate-random-map` |
+| `--assets-dir=<path>` | Optional absolute FEMapCreator assets-root override | `--generate-random-map` |
 | `--python=<executable>` | Python interpreter containing the pinned mGBA binding | `--playtest` |
 | `--timeout=<ms>` | Native runner timeout, 1,000-3,600,000 (default 600,000) | `--playtest` |
 | `--check` | Check the pinned mGBA dependency without a ROM/scenario | `--playtest` |
@@ -89,8 +92,13 @@ WinForms CLI counterpart to align against.
 | `--noScale` | Do not scale colors to GBA 5-bit range | `--decreasecolor` |
 | `--noReserve1stColor` | Do not reserve palette slot 0 for transparency | `--decreasecolor` |
 | `--ignoreTSA` | Ignore TSA tile deduplication constraints | `--decreasecolor` |
+| `--tileset=<name>` | FEMapCreator tileset name passed to `generate` | `--generate-random-map` |
+| `--width=<int>` | Output map width in tiles for CSV random-map generation | `--generate-random-map` |
+| `--height=<int>` | Output map height in tiles for CSV random-map generation | `--generate-random-map` |
+| `--seed=<int>` | Deterministic FEMapCreator generation seed | `--generate-random-map` |
+| `--algorithm=<name>` | FEMapCreator generation algorithm: `experimental`, `legacy`, or `hybrid` (default: `experimental`) | `--generate-random-map` |
 | `--outPal=<path>` | Output the matching GBA palette data | `--convertmap1picture` |
-| `--json` | Emit one machine-readable result object on stdout; errors remain non-zero | `--decreasecolor`, `--convertmap1picture` |
+| `--json` | Emit one machine-readable result object on stdout; errors remain non-zero | `--decreasecolor`, `--convertmap1picture`, `--generate-random-map` |
 | `--target=<path>` | Target ROM file | `--pointercalc` |
 | `--address=<hex_list>` | Hex address list (comma-separated or file) | `--pointercalc` |
 | `--tracelevel=<n>` | Search depth level | `--pointercalc` |

@@ -22,6 +22,7 @@ public class TestEmbeddableEditor : TranslatedUserControl, IEmbeddableEditor
     public uint LastAddress { get; private set; }
     public int LoadCalls { get; private set; }
     public int SelectFirstItemCalls { get; private set; }
+    public bool CanClose { get; set; } = true;
 
     public virtual EditorDescriptor Descriptor => new("Test Embeddable", 321, 123, MinWidth: 111, MinHeight: 99);
     public virtual object? DialogResult => null;
