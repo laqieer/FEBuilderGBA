@@ -113,6 +113,11 @@ namespace FEBuilderGBA.CLI
                 return RunConvertMap1Picture(argsDic);
             }
 
+            if (argsDic.ContainsKey("--generate-random-map"))
+            {
+                return RunGenerateRandomMap(argsDic);
+            }
+
             if (argsDic.ContainsKey("--translate-roundtrip"))
             {
                 return RunTranslateRoundTrip(argsDic);
@@ -513,6 +518,14 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("                           exit 0 exact, 2 reproducibility drift, 1 usage/validation/IO error");
             Console.WriteLine("  --songexchange           Copy song between ROMs (requires --rom, --fromrom, --fromsong, --tosong)");
             Console.WriteLine("  --convertmap1picture     Convert image to map tiles (requires --in and one or more of --outImg, --outTSA, --outPal; --json for machine output)");
+            Console.WriteLine("  --generate-random-map    Generate a CSV map through a trusted local FEMapCreator CLI");
+            Console.WriteLine("                           (requires --femapcreator, --tileset, --width, --height, --out; opt --assets-dir, --seed, --algorithm, --json)");
+            Console.WriteLine("    --femapcreator=<path>  Trusted absolute local FEMapCreator .exe or .dll");
+            Console.WriteLine("    --tileset=<name>       FEMapCreator tileset name to generate with");
+            Console.WriteLine("    --width=<int>          Output map width in tiles (1-64)");
+            Console.WriteLine("    --height=<int>         Output map height in tiles (1-64)");
+            Console.WriteLine("    --seed=<int>           Deterministic generation seed (default: auto-generated)");
+            Console.WriteLine("    --algorithm=<name>     FEMapCreator algorithm name (default: cellular)");
             Console.WriteLine("  --translate              Dump or import ROM text (requires --rom)");
             Console.WriteLine("    --out=<path>           Export text to TSV file");
             Console.WriteLine("    --in=<path>            Import text from TSV file and write to ROM");
@@ -724,6 +737,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  FEBuilderGBA.CLI --songexchange --rom=dest.gba --fromrom=source.gba --fromsong=0x1A --tosong=0x1A");
             Console.WriteLine("  FEBuilderGBA.CLI --migrate-diff --project=decomp/ --rom2=edited.gba --out=migrate.tsv");
             Console.WriteLine("  FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin --outPal=palette.bin");
+            Console.WriteLine("  FEBuilderGBA.CLI --generate-random-map --femapcreator=C:\\tools\\FEMapCreator.exe --tileset=Grassland --width=15 --height=10 --out=map.csv --json");
             Console.WriteLine("  FEBuilderGBA.CLI --translate --rom=rom.gba --out=texts.tsv");
             Console.WriteLine("  FEBuilderGBA.CLI --translate --rom=rom.gba --in=texts.tsv");
             Console.WriteLine("  FEBuilderGBA.CLI --translate-roundtrip --rom=rom.gba");
