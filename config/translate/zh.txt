@@ -28144,8 +28144,8 @@ Git 操作失败，退出代码 {0}。
 :FEMapCreator program
 FEMapCreator 程序
 
-:Absolute path to FEMapCreator.exe or FEMapCreator.dll
-FEMapCreator.exe 或 FEMapCreator.dll 的绝对路径
+:Absolute path to a FEMapCreator program or managed DLL
+FEMapCreator 程序或托管 DLL 的绝对路径
 
 :Assets directory (optional)
 资源目录（可选）

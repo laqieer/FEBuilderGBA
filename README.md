@@ -227,7 +227,8 @@ dotnet run --project FEBuilderGBA.CLI -- --buildfile-roundtrip --rom=modified.gb
 # crc32/sha256 do not) instead reports the declared-vs-actual crc32/sha256 hashes, not an offset.
 dotnet run --project FEBuilderGBA.CLI -- --songexchange --rom=dest.gba --fromrom=source.gba --fromsong=1 --tosong=2
 dotnet run --project FEBuilderGBA.CLI -- --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin --outPal=palette.bin --json
-# Run a trusted local FEMapCreator installation through the external-process adapter;
+# Run a trusted local FEMapCreator installation through the external-process adapter
+# (Windows .exe, managed .dll, or an executable native file on Unix);
 # FEBuilderGBA never downloads or bundles FEMapCreator or its assets. The output is
 # FEBuilderGBA CSV and does not load or mutate a ROM.
 dotnet run --project FEBuilderGBA.CLI -- --generate-random-map --femapcreator=C:\tools\FEMapCreator.exe --tileset="FE6 - Fields - 01020304" --width=15 --height=10 --algorithm=experimental --seed=42 --out=random-map.csv

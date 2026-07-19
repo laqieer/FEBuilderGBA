@@ -11,7 +11,7 @@ namespace FEBuilderGBA.Avalonia.Dialogs
 {
     public partial class GenerateRandomMapDialogContent : TranslatedUserControl, IEmbeddableEditor
     {
-        readonly GenerateRandomMapDialogViewModel _vm = new();
+        readonly GenerateRandomMapDialogViewModel _vm;
 
         public string ViewTitle => _vm.TitleText;
         public new bool IsLoaded => true;
@@ -22,10 +22,17 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             CanResize: false);
         public object? DialogResult => _vm.Result;
         public GenerateRandomMapDialogResult? Result => _vm.Result;
+        public bool CanClose => !_vm.IsBusy;
         public event EventHandler? CloseRequested;
 
         public GenerateRandomMapDialogContent()
+            : this(new GenerateRandomMapDialogViewModel())
         {
+        }
+
+        internal GenerateRandomMapDialogContent(GenerateRandomMapDialogViewModel vm)
+        {
+            _vm = vm ?? throw new ArgumentNullException(nameof(vm));
             InitializeComponent();
             DataContext = _vm;
             _vm.SetBrowseHandlers(BrowseFEMapCreatorAsync, BrowseAssetsDirAsync);

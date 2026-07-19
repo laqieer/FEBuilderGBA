@@ -86,8 +86,10 @@ namespace FEBuilderGBA
                     return spec;
                 }
 
-                if (string.Equals(normalizedExtension, ".exe", StringComparison.Ordinal)
-                    || (!OperatingSystem.IsWindows() && normalizedExtension.Length == 0))
+                bool isNativeExecutable = OperatingSystem.IsWindows()
+                    ? string.Equals(normalizedExtension, ".exe", StringComparison.Ordinal)
+                    : HasUnixExecutePermission(fullProgramPath);
+                if (isNativeExecutable)
                 {
                     spec.Success = true;
                     spec.ProgramPath = fullProgramPath;
@@ -98,7 +100,9 @@ namespace FEBuilderGBA
                 }
 
                 spec.ErrorCategory = RandomMapGeneratorErrorCategory.InvalidPath;
-                spec.ErrorMessage = "Unsupported FEMapCreator program type: " + fullProgramPath;
+                spec.ErrorMessage = OperatingSystem.IsWindows()
+                    ? "Unsupported FEMapCreator program type: " + fullProgramPath
+                    : "FEMapCreator native program is not executable: " + fullProgramPath;
                 return spec;
             }
             catch (Exception ex)
@@ -107,6 +111,19 @@ namespace FEBuilderGBA
                 spec.ErrorMessage = "Unable to validate FEMapCreator path: " + ex.Message;
                 return spec;
             }
+        }
+
+        static bool HasUnixExecutePermission(string path)
+        {
+            if (OperatingSystem.IsWindows())
+                return false;
+
+            UnixFileMode mode = File.GetUnixFileMode(path);
+            const UnixFileMode ExecuteBits =
+                UnixFileMode.UserExecute
+                | UnixFileMode.GroupExecute
+                | UnixFileMode.OtherExecute;
+            return (mode & ExecuteBits) != 0;
         }
 
         /// <summary>

@@ -170,8 +170,46 @@ namespace FEBuilderGBA.E2ETests.Tests
                 timeoutMs: 15_000);
 
             Assert.NotEqual(0, code);
-            Assert.Contains("must be absolute", stderr, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("fully qualified and absolute", stderr, StringComparison.OrdinalIgnoreCase);
             Assert.False(File.Exists(outPath));
+        }
+
+        [Fact]
+        public void OutputCollidingWithProgram_IsRejectedWithoutModifyingProgram()
+        {
+            string programCopy = TempFile("FakeFEMapCreator.dll");
+            File.Copy(FakeFEMapCreatorDll, programCopy);
+            byte[] original = File.ReadAllBytes(programCopy);
+
+            var (code, _, stderr) = AppRunner.Run(
+                CliExe,
+                $"--generate-random-map --femapcreator=\"{programCopy}\" --tileset=\"E2E Tileset\" --width=2 --height=2 --out=\"{programCopy}\"",
+                timeoutMs: 15_000);
+
+            Assert.NotEqual(0, code);
+            Assert.Contains("FEMapCreator program", stderr);
+            Assert.Equal(original, File.ReadAllBytes(programCopy));
+        }
+
+        [Fact]
+        public void OutputCollidingWithDiscoveredImage_IsRejectedBeforeGeneration()
+        {
+            string assetsDir = Path.Combine(_root, "assets");
+            Directory.CreateDirectory(assetsDir);
+            string imagePath = Path.Combine(assetsDir, "e2e.png");
+
+            var (code, _, stderr) = AppRunner.Run(
+                CliExe,
+                $"--generate-random-map --femapcreator=\"{FakeFEMapCreatorDll}\" --assets-dir=\"{assetsDir}\" --tileset=\"E2E Tileset\" --width=2 --height=2 --out=\"{imagePath}\"",
+                timeoutMs: 30_000,
+                environment: FakeEnvironment("success", TempFile("collision-working-dir.txt")));
+
+            Assert.NotEqual(0, code);
+            Assert.Contains("selected tileset image asset", stderr);
+            Assert.True(File.Exists(imagePath));
+            Assert.Equal(
+                new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 },
+                File.ReadAllBytes(imagePath)[..8]);
         }
 
         [Fact]

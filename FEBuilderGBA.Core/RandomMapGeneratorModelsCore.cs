@@ -95,7 +95,7 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// User-selected FEMapCreator program path. Must resolve to an existing absolute local
-        /// <c>.exe</c>, managed <c>.dll</c>, or an extensionless native file on non-Windows.
+        /// Windows <c>.exe</c>, managed <c>.dll</c>, or executable native file on non-Windows.
         /// </summary>
         public string FEMapCreatorPath { get; set; } = "";
 
@@ -175,11 +175,13 @@ namespace FEBuilderGBA
         /// </summary>
         public bool IsCompatible { get; set; }
 
-        /// <summary>True when the FEMapCreator-reported asset pair is present and undiagnosed.</summary>
+        /// <summary>True when the FEMapCreator-reported asset pair is present, confined, and undiagnosed.</summary>
         public bool IsComplete =>
             !string.IsNullOrWhiteSpace(Name)
             && HasImage
             && HasGenerationData
+            && !string.IsNullOrWhiteSpace(ResolvedImagePath)
+            && !string.IsNullOrWhiteSpace(ResolvedGenerationDataPath)
             && string.IsNullOrWhiteSpace(Diagnostic);
 
         /// <summary>True when the tileset is complete and FEBuilder-compatible.</summary>

@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Headless.XUnit;
@@ -108,6 +109,57 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Equal(
                 RandomMapGeneratorAlgorithms.Default,
                 combo.SelectedItem);
+        }
+
+        [AvaloniaFact]
+        public async Task Dialog_TitleBarCloseIsBlockedWhileExternalWorkIsBusy()
+        {
+            using var started = new ManualResetEventSlim(false);
+            using var release = new ManualResetEventSlim(false);
+            var vm = new GenerateRandomMapDialogViewModel(
+                discoverTilesets: (path, assetsDir, runner) =>
+                {
+                    started.Set();
+                    release.Wait(TimeSpan.FromSeconds(10));
+                    return new FEMapCreatorTilesetDiscoveryResult
+                    {
+                        Success = false,
+                        ErrorCategory = RandomMapGeneratorErrorCategory.ProcessStartFailed,
+                        ErrorMessage = "finished",
+                    };
+                });
+            vm.Initialize(15, 10);
+            vm.FEMapCreatorPath = Path.Combine(Path.GetTempPath(), "FEMapCreator.exe");
+
+            var content = new GenerateRandomMapDialogContent(vm);
+            var dialog = new GenerateRandomMapDialog(content);
+            dialog.Show();
+            Task operation = vm.DiscoverTilesetsAsync();
+            try
+            {
+                Assert.True(started.Wait(TimeSpan.FromSeconds(10)));
+                Assert.True(vm.IsBusy);
+                Assert.False(content.CanClose);
+
+                dialog.Close();
+
+                Assert.True(dialog.IsVisible);
+                Assert.True(vm.IsBusy);
+
+                release.Set();
+                await operation;
+                Assert.True(content.CanClose);
+
+                dialog.Close();
+                Assert.False(dialog.IsVisible);
+            }
+            finally
+            {
+                release.Set();
+                await operation;
+                if (dialog.IsVisible)
+                    dialog.Close();
+            }
         }
 
         [Fact]
@@ -563,6 +615,15 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             string path = Path.Combine(directory, fileName);
             File.WriteAllText(path, "");
+            if (!OperatingSystem.IsWindows())
+            {
+                File.SetUnixFileMode(
+                    path,
+                    File.GetUnixFileMode(path)
+                    | UnixFileMode.UserExecute
+                    | UnixFileMode.GroupExecute
+                    | UnixFileMode.OtherExecute);
+            }
             return path;
         }
 

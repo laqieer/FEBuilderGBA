@@ -9,14 +9,21 @@ namespace FEBuilderGBA.Avalonia.Dialogs
     public partial class GenerateRandomMapDialog : TranslatedWindow
     {
         GenerateRandomMapDialogContent? _content;
+        bool _allowClose;
 
         public GenerateRandomMapDialogResult? DialogResult { get; private set; }
 
         public GenerateRandomMapDialog()
+            : this(new GenerateRandomMapDialogContent())
+        {
+        }
+
+        internal GenerateRandomMapDialog(GenerateRandomMapDialogContent content)
         {
             InitializeComponent();
-            _content = new GenerateRandomMapDialogContent();
+            _content = content ?? throw new System.ArgumentNullException(nameof(content));
             Content = _content;
+            Closing += GenerateRandomMapDialog_Closing;
         }
 
         public GenerateRandomMapDialog(int width, int height)
@@ -27,8 +34,15 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             _content.CloseRequested += (_, _) =>
             {
                 DialogResult = _content.Result;
+                _allowClose = true;
                 Close();
             };
+        }
+
+        void GenerateRandomMapDialog_Closing(object? sender, WindowClosingEventArgs e)
+        {
+            if (!_allowClose && _content?.CanClose == false)
+                e.Cancel = true;
         }
 
         public static async System.Threading.Tasks.Task<GenerateRandomMapDialogResult?> Show(

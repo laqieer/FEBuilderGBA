@@ -87,6 +87,22 @@ namespace FEBuilderGBA.CLI
             if (!TryParseRandomMapDimension(argsDic, "--height", out int height, out string heightError))
                 return Fail(heightError);
 
+            FEMapCreatorLauncherCore.FEMapCreatorLaunchSpec programSpec =
+                FEMapCreatorLauncherCore.CreateLaunchSpec(
+                    femapCreatorPath,
+                    Array.Empty<string>());
+            if (!programSpec.Success)
+                return Fail(programSpec.ErrorMessage);
+
+            if (!TryEnsureDistinctOutputPath(
+                outPath,
+                programSpec.ProgramPath,
+                "FEMapCreator program",
+                out string outputCollisionError))
+            {
+                return Fail(outputCollisionError);
+            }
+
             string assetsDir = "";
             if (argsDic.TryGetValue("--assets-dir", out string assetsDirValue))
             {
@@ -142,6 +158,20 @@ namespace FEBuilderGBA.CLI
             {
                 return Fail(
                     $"FEMapCreator tileset '{tilesetName.Trim()}' was not found as a complete, compatible 32-column tileset.");
+            }
+
+            if (!TryEnsureDistinctOutputPath(
+                    outPath,
+                    selectedTileset.ResolvedImagePath,
+                    "selected tileset image asset",
+                    out outputCollisionError)
+                || !TryEnsureDistinctOutputPath(
+                    outPath,
+                    selectedTileset.ResolvedGenerationDataPath,
+                    "selected tileset generation-data asset",
+                    out outputCollisionError))
+            {
+                return Fail(outputCollisionError);
             }
 
             var request = new RandomMapGenerationRequest
@@ -230,6 +260,68 @@ namespace FEBuilderGBA.CLI
                 return false;
             value = rawValue.Trim();
             return true;
+        }
+
+        static bool TryEnsureDistinctOutputPath(
+            string outPath,
+            string protectedPath,
+            string protectedDescription,
+            out string error)
+        {
+            error = "";
+            if (string.IsNullOrWhiteSpace(protectedPath))
+                return true;
+
+            try
+            {
+                string resolvedOutPath =
+                    BuildfilePathSafety.ResolvePhysicalPath(outPath);
+                string resolvedProtectedPath =
+                    BuildfilePathSafety.ResolvePhysicalPath(protectedPath);
+                bool collides =
+                    string.Equals(
+                        resolvedOutPath,
+                        resolvedProtectedPath,
+                        FEMapCreatorLauncherCore.PathComparison);
+                if (!collides
+                    && (File.Exists(resolvedOutPath)
+                        || Directory.Exists(resolvedOutPath)))
+                {
+                    collides = ProjectionFileSystemSafety.SameExistingFileSystemEntry(
+                        resolvedOutPath,
+                        resolvedProtectedPath);
+                }
+                if (!collides)
+                    return true;
+
+                error =
+                    $"--out must not refer to the {protectedDescription}: {outPath}";
+                return false;
+            }
+            catch (IOException ex)
+            {
+                error =
+                    $"Unable to validate --out against the {protectedDescription}: {ex.Message}";
+                return false;
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                error =
+                    $"Unable to validate --out against the {protectedDescription}: {ex.Message}";
+                return false;
+            }
+            catch (ArgumentException ex)
+            {
+                error =
+                    $"Unable to validate --out against the {protectedDescription}: {ex.Message}";
+                return false;
+            }
+            catch (NotSupportedException ex)
+            {
+                error =
+                    $"Unable to validate --out against the {protectedDescription}: {ex.Message}";
+                return false;
+            }
         }
 
         static bool TryParseRandomMapDimension(

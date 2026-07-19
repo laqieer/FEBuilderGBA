@@ -73,7 +73,7 @@ WinForms CLI counterpart to align against.
 | `--out=<path>` | Output file | `--playtest` (result JSON), `--decreasecolor`, `--generate-random-map`, `--translate`, `--translate-roundtrip`, `--translate_batch`, `--export-map-settings`, `--lz77`, `--export-palette`, `--export-battle-anime`, `--diff`, `--export-buildfile` (new project directory, must not exist), `--build-buildfile` (new destination ROM, must not exist) |
 | `--scenario=<path>` | Strict schema-v1 playtest scenario JSON | `--playtest` |
 | `--artifact-dir=<dir>` | Existing directory that persists an optional final-frame PNG; capture/hash evidence does not require it | `--playtest` |
-| `--femapcreator=<path>` | Trusted absolute local FEMapCreator executable or managed `.dll` | `--generate-random-map` |
+| `--femapcreator=<path>` | Trusted absolute local Windows `.exe`, managed `.dll`, or executable native file on Unix | `--generate-random-map` |
 | `--assets-dir=<path>` | Optional absolute FEMapCreator assets-root override | `--generate-random-map` |
 | `--python=<executable>` | Python interpreter containing the pinned mGBA binding | `--playtest` |
 | `--timeout=<ms>` | Native runner timeout, 1,000-3,600,000 (default 600,000) | `--playtest` |

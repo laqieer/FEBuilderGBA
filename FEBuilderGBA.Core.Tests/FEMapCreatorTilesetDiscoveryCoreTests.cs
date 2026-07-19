@@ -214,6 +214,24 @@ namespace FEBuilderGBA.Core.Tests
                             hasGenerationData = true,
                             diagnostic = "",
                         },
+                        new
+                        {
+                            name = "MissingImagePath",
+                            imagePath = "",
+                            generationDataPath = "good.json",
+                            hasImage = true,
+                            hasGenerationData = true,
+                            diagnostic = "",
+                        },
+                        new
+                        {
+                            name = "MissingGenerationPath",
+                            imagePath = "good.png",
+                            generationDataPath = "",
+                            hasImage = true,
+                            hasGenerationData = true,
+                            diagnostic = "",
+                        },
                     },
                 });
 
@@ -228,13 +246,15 @@ namespace FEBuilderGBA.Core.Tests
                     });
 
                 Assert.True(result.Success, result.ErrorMessage);
-                Assert.Equal(5, result.Tilesets.Count);
+                Assert.Equal(7, result.Tilesets.Count);
                 Assert.Single(result.UsableTilesets);
                 Assert.Equal("Complete", result.UsableTilesets[0].Name);
                 Assert.Contains("no generation-data asset", result.Tilesets.Single(x => x.Name == "Incomplete").Diagnostic, StringComparison.OrdinalIgnoreCase);
                 Assert.Contains("escapes the sanctioned asset root", result.Tilesets.Single(x => x.Name == "EscapeRelative").Diagnostic, StringComparison.OrdinalIgnoreCase);
                 Assert.Contains("escapes the sanctioned asset root", result.Tilesets.Single(x => x.Name == "EscapeAbsolute").Diagnostic, StringComparison.OrdinalIgnoreCase);
                 Assert.Contains("not a URL", result.Tilesets.Single(x => x.Name == "AssetUri").Diagnostic, StringComparison.OrdinalIgnoreCase);
+                Assert.Contains("path is missing", result.Tilesets.Single(x => x.Name == "MissingImagePath").Diagnostic, StringComparison.OrdinalIgnoreCase);
+                Assert.Contains("path is missing", result.Tilesets.Single(x => x.Name == "MissingGenerationPath").Diagnostic, StringComparison.OrdinalIgnoreCase);
             }
             finally
             {
@@ -521,6 +541,15 @@ namespace FEBuilderGBA.Core.Tests
         {
             string path = Path.Combine(directory, fileName);
             File.WriteAllText(path, "");
+            if (!OperatingSystem.IsWindows())
+            {
+                File.SetUnixFileMode(
+                    path,
+                    File.GetUnixFileMode(path)
+                    | UnixFileMode.UserExecute
+                    | UnixFileMode.GroupExecute
+                    | UnixFileMode.OtherExecute);
+            }
             return path;
         }
 

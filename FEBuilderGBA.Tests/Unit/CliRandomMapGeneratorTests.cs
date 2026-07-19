@@ -139,6 +139,95 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
+        public void OutputAliasOfProgram_IsRejectedBeforeDiscoveryOrWrite()
+        {
+            string femapCreatorPath = CreateEmptyFile("FEMapCreator.exe");
+            string outPath = Path.Combine(_root, ".", "FEMapCreator.exe");
+            Assert.NotEqual(femapCreatorPath, outPath);
+            int discoveryCalls = 0;
+            int generateCalls = 0;
+            int writeCalls = 0;
+
+            var operations = new RandomMapGeneratorCliOperations
+            {
+                DiscoverTilesets = (path, assetsDir, runner) =>
+                {
+                    discoveryCalls++;
+                    return UsableDiscovery("Grassland");
+                },
+                Generate = (request, runner) =>
+                {
+                    generateCalls++;
+                    return FailResult("must not run");
+                },
+                WriteOutputs = outputs => writeCalls++,
+            };
+
+            var result = Run(
+                CliProgram.ParseArgs(new[]
+                {
+                    "--generate-random-map",
+                    "--femapcreator=" + femapCreatorPath,
+                    "--tileset=Grassland",
+                    "--width=2",
+                    "--height=2",
+                    "--out=" + outPath,
+                }),
+                operations);
+
+            Assert.Equal(1, result.Code);
+            Assert.Contains("FEMapCreator program", result.Stderr);
+            Assert.Equal(0, discoveryCalls);
+            Assert.Equal(0, generateCalls);
+            Assert.Equal(0, writeCalls);
+            Assert.True(File.Exists(femapCreatorPath));
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void OutputCollidingWithSelectedAsset_IsRejectedBeforeGenerationOrWrite(
+            bool collideWithImage)
+        {
+            string femapCreatorPath = CreateEmptyFile("FEMapCreator.exe");
+            string imagePath = CreateEmptyFile("grassland.png");
+            string generationDataPath = CreateEmptyFile("grassland.json");
+            string outPath = collideWithImage ? imagePath : generationDataPath;
+            int generateCalls = 0;
+            int writeCalls = 0;
+
+            var operations = new RandomMapGeneratorCliOperations
+            {
+                DiscoverTilesets = (path, assetsDir, runner) =>
+                    UsableDiscovery("Grassland", imagePath, generationDataPath),
+                Generate = (request, runner) =>
+                {
+                    generateCalls++;
+                    return FailResult("must not run");
+                },
+                WriteOutputs = outputs => writeCalls++,
+            };
+
+            var result = Run(
+                CliProgram.ParseArgs(new[]
+                {
+                    "--generate-random-map",
+                    "--femapcreator=" + femapCreatorPath,
+                    "--tileset=Grassland",
+                    "--width=2",
+                    "--height=2",
+                    "--out=" + outPath,
+                }),
+                operations);
+
+            Assert.Equal(1, result.Code);
+            Assert.Contains("selected tileset", result.Stderr);
+            Assert.Equal(0, generateCalls);
+            Assert.Equal(0, writeCalls);
+            Assert.True(File.Exists(outPath));
+        }
+
+        [Fact]
         public void UnsupportedAlgorithm_DoesNotGenerateOrWrite()
         {
             int generateCalls = 0;
@@ -376,7 +465,10 @@ namespace FEBuilderGBA.Tests.Unit
             };
         }
 
-        private static FEMapCreatorTilesetDiscoveryResult UsableDiscovery(string name)
+        private static FEMapCreatorTilesetDiscoveryResult UsableDiscovery(
+            string name,
+            string resolvedImagePath = "",
+            string resolvedGenerationDataPath = "")
         {
             var result = new FEMapCreatorTilesetDiscoveryResult
             {
@@ -389,6 +481,8 @@ namespace FEBuilderGBA.Tests.Unit
                 HasImage = true,
                 HasGenerationData = true,
                 IsCompatible = true,
+                ResolvedImagePath = resolvedImagePath,
+                ResolvedGenerationDataPath = resolvedGenerationDataPath,
             });
             return result;
         }

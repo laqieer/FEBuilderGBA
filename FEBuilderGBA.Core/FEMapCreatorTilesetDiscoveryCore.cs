@@ -244,8 +244,7 @@ namespace FEBuilderGBA
 
             if (!TryConfinePath(info.ImagePath, effectiveAssetsRoot, out string resolvedImagePath, out string imagePathError))
             {
-                if (!string.IsNullOrWhiteSpace(info.ImagePath))
-                    info.Diagnostic = AppendDiagnostic(info.Diagnostic, imagePathError);
+                info.Diagnostic = AppendDiagnostic(info.Diagnostic, imagePathError);
             }
             else
             {
@@ -259,8 +258,7 @@ namespace FEBuilderGBA
 
             if (!TryConfinePath(info.GenerationDataPath, effectiveAssetsRoot, out string resolvedGenerationDataPath, out string generationPathError))
             {
-                if (!string.IsNullOrWhiteSpace(info.GenerationDataPath))
-                    info.Diagnostic = AppendDiagnostic(info.Diagnostic, generationPathError);
+                info.Diagnostic = AppendDiagnostic(info.Diagnostic, generationPathError);
             }
             else
             {

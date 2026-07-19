@@ -193,7 +193,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public string TitleText => R._("Generate Random Map");
         public string FEMapCreatorPathLabel => R._("FEMapCreator program");
-        public string FEMapCreatorPathWatermark => R._("Absolute path to FEMapCreator.exe or FEMapCreator.dll");
+        public string FEMapCreatorPathWatermark => R._("Absolute path to a FEMapCreator program or managed DLL");
         public string AssetsDirLabel => R._("Assets directory (optional)");
         public string AssetsDirWatermark => R._("Absolute path to the FEMapCreator assets directory");
         public string TilesetLabel => R._("Tileset");

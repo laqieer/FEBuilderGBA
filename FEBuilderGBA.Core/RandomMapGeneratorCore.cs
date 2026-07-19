@@ -82,17 +82,19 @@ namespace FEBuilderGBA
                         "FEMapCreator reported success but did not produce the expected MAR file: " + outputMarPath,
                         processResult);
 
-                long expectedLength = (long)request.Width * request.Height * 2;
-                long actualLength = new FileInfo(outputMarPath).Length;
-                if (actualLength != expectedLength)
+                int expectedLength = request.Width * request.Height * 2;
+                if (!TryReadExactMar(
+                    outputMarPath,
+                    expectedLength,
+                    out byte[] marBytes,
+                    out string readError))
                 {
                     return FailFromProcessResult(
                         RandomMapGeneratorErrorCategory.ParseFailed,
-                        $"Generated MAR length mismatch: expected {expectedLength} bytes but got {actualLength}.",
+                        readError,
                         processResult);
                 }
 
-                byte[] marBytes = File.ReadAllBytes(outputMarPath);
                 if (!RandomMapGeneratorMarParserCore.TryParse(
                     marBytes,
                     request.Width,
@@ -123,6 +125,56 @@ namespace FEBuilderGBA
             {
                 CleanupTempDirectory(tempDir);
             }
+        }
+
+        static bool TryReadExactMar(
+            string outputMarPath,
+            int expectedLength,
+            out byte[] marBytes,
+            out string error)
+        {
+            marBytes = Array.Empty<byte>();
+            error = "";
+
+            using var stream = new FileStream(
+                outputMarPath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                bufferSize: 4096,
+                FileOptions.SequentialScan);
+
+            long initialLength = stream.Length;
+            if (initialLength != expectedLength)
+            {
+                error =
+                    $"Generated MAR length mismatch: expected {expectedLength} bytes but got {initialLength}.";
+                return false;
+            }
+
+            var buffer = new byte[expectedLength];
+            int offset = 0;
+            while (offset < buffer.Length)
+            {
+                int read = stream.Read(buffer, offset, buffer.Length - offset);
+                if (read == 0)
+                {
+                    error =
+                        $"Generated MAR length mismatch: expected {expectedLength} bytes but reached EOF after {offset}.";
+                    return false;
+                }
+                offset += read;
+            }
+
+            if (stream.ReadByte() != -1)
+            {
+                error =
+                    $"Generated MAR length mismatch: expected {expectedLength} bytes but the file contains trailing data.";
+                return false;
+            }
+
+            marBytes = buffer;
+            return true;
         }
 
         static bool TryValidateRequest(

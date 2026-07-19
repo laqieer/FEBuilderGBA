@@ -80,6 +80,65 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void Generate_UsesExecutableUnixProgramWithDottedName()
+        {
+            if (OperatingSystem.IsWindows())
+                return;
+
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string femapCreatorPath = CreateEmptyFile(tempRoot, "FE_Map_Creator.Cli");
+                var request = CreateValidRequest(femapCreatorPath);
+                int calls = 0;
+
+                RandomMapGenerationResult executableResult = RandomMapGeneratorCore.Generate(
+                    request,
+                    (command, args, workingDir, timeoutMs, maximumOutputChars) =>
+                    {
+                        calls++;
+                        Assert.Equal(femapCreatorPath, command);
+                        WriteRawMar(FindArgumentValue(args, "--output"), 4, _ => 0);
+                        return new ProcessRunResult
+                        {
+                            Started = true,
+                            ExitCode = 0,
+                            Stdout = "",
+                            Stderr = "",
+                        };
+                    });
+
+                Assert.True(executableResult.Success, executableResult.ErrorMessage);
+                Assert.Equal(1, calls);
+
+                File.SetUnixFileMode(
+                    femapCreatorPath,
+                    UnixFileMode.UserRead | UnixFileMode.UserWrite);
+                RandomMapGenerationResult nonExecutableResult = RandomMapGeneratorCore.Generate(
+                    CreateValidRequest(femapCreatorPath),
+                    (command, args, workingDir, timeoutMs, maximumOutputChars) =>
+                    {
+                        calls++;
+                        return ProcessRunResult.NotStarted("must not run");
+                    });
+
+                Assert.False(nonExecutableResult.Success);
+                Assert.Equal(
+                    RandomMapGeneratorErrorCategory.InvalidPath,
+                    nonExecutableResult.ErrorCategory);
+                Assert.Contains(
+                    "not executable",
+                    nonExecutableResult.ErrorMessage,
+                    StringComparison.OrdinalIgnoreCase);
+                Assert.Equal(1, calls);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
         public void Generate_AppendsAssetsDirAfterForce()
         {
             string tempRoot = CreateTempDirectory();
@@ -464,6 +523,41 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void Generate_RejectsMarWithTrailingData()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string femapCreatorPath = CreateEmptyFile(tempRoot, "FEMapCreator.exe");
+                var request = CreateValidRequest(femapCreatorPath);
+
+                RandomMapGenerationResult result = RandomMapGeneratorCore.Generate(
+                    request,
+                    (command, args, workingDir, timeoutMs, maximumOutputChars) =>
+                    {
+                        File.WriteAllBytes(
+                            FindArgumentValue(args, "--output"),
+                            new byte[request.Width * request.Height * 2 + 1]);
+                        return new ProcessRunResult
+                        {
+                            Started = true,
+                            ExitCode = 0,
+                            Stdout = "",
+                            Stderr = "",
+                        };
+                    });
+
+                Assert.False(result.Success);
+                Assert.Equal(RandomMapGeneratorErrorCategory.ParseFailed, result.ErrorCategory);
+                Assert.Contains("length mismatch", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
         public void Parse_ConvertsGoldenVectorsThroughChipsetIndexPipeline()
         {
             byte[] raw = BuildRawMarBytes(new short[] { 0, 32, 992, 1024, 32736 });
@@ -596,6 +690,16 @@ namespace FEBuilderGBA.Core.Tests
         {
             string path = Path.Combine(directory, fileName);
             File.WriteAllText(path, "");
+            if (!OperatingSystem.IsWindows()
+                && !fileName.EndsWith(".py", StringComparison.OrdinalIgnoreCase))
+            {
+                File.SetUnixFileMode(
+                    path,
+                    File.GetUnixFileMode(path)
+                    | UnixFileMode.UserExecute
+                    | UnixFileMode.GroupExecute
+                    | UnixFileMode.OtherExecute);
+            }
             return path;
         }
 

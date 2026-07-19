@@ -636,11 +636,11 @@ Generate FEBuilderGBA CSV map output through a trusted local FEMapCreator CLI.
 
 | Option | Required | Description |
 |---|---|---|
-| `--femapcreator=<path>` | Yes | Trusted absolute local FEMapCreator program path. The CLI never downloads or bundles FEMapCreator; it only launches the user-specified `.exe` or managed `.dll`. |
+| `--femapcreator=<path>` | Yes | Trusted absolute local FEMapCreator program path. The CLI never downloads or bundles FEMapCreator; it launches a Windows `.exe`, a managed `.dll`, or a native file carrying an executable bit on Unix. |
 | `--tileset=<name>` | Yes | FEMapCreator tileset name to pass to `generate`. |
 | `--width=<int>` | Yes | Output map width in tiles. Range: **1..64** so the generated CSV round-trips through FEBuilderGBA's map CSV parser. |
 | `--height=<int>` | Yes | Output map height in tiles. Range: **1..64** so the generated CSV round-trips through FEBuilderGBA's map CSV parser. |
-| `--out=<path>` | Yes | Output FEBuilderGBA CSV file. Written atomically only after generation, MAR parsing, and CSV serialization all succeed. |
+| `--out=<path>` | Yes | Output FEBuilderGBA CSV file. It must not alias the selected FEMapCreator program or discovered tileset assets, and is written atomically only after generation, bounded MAR parsing, and CSV serialization all succeed. |
 | `--assets-dir=<path>` | No | Optional absolute FEMapCreator assets-root override passed through to `--assets-dir`. |
 | `--seed=<int>` | No | Deterministic generation seed. If omitted, the CLI generates one locally and reports the effective value. |
 | `--algorithm=<name>` | No | FEMapCreator algorithm: `experimental`, `legacy`, or `hybrid`. Default: **`experimental`**. |
@@ -652,7 +652,8 @@ FEBuilderGBA.CLI --generate-random-map --femapcreator=C:\tools\FEMapCreator.exe 
 ```
 
 This command does **not** require a ROM and does **not** mutate ROM state. It shells out only to
-the exact FEMapCreator path you provided, converts the resulting headerless signed-LE `.mar`
+the exact FEMapCreator path you provided, reads the resulting headerless signed-LE `.mar` once
+into its exact bounded size, converts
 (`tileIndex * 32`) into FEBuilderGBA MAR values (`chipsetIndex * 4`), serializes the map through
 `MapExportCsv.Serialize`, and publishes the final CSV through `AtomicFileSetWriterCore`.
 
