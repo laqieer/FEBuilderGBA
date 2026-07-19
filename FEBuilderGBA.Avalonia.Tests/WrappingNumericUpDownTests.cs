@@ -525,6 +525,52 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
         }
 
+        [AvaloniaFact]
+        public void InvalidText_RemainsBlockedAcrossSpinPropertyTransitions_ThenValidTextRecovers()
+        {
+            var (window, control) = CreateShownControl(minimum: 0, maximum: 10, value: 5, increment: 1);
+            try
+            {
+                var textBox = GetTextBox(control);
+                textBox.Focus();
+                textBox.SelectAll();
+                window.KeyTextInput("x");
+
+                var spinner = GetSpinner(control);
+                Assert.Equal(ValidSpinDirections.None, spinner.ValidSpinDirection);
+
+                control.IsReadOnly = true;
+                control.IsReadOnly = false;
+                Assert.Equal(ValidSpinDirections.None, spinner.ValidSpinDirection);
+
+                control.AllowSpin = false;
+                control.AllowSpin = true;
+                Assert.Equal(ValidSpinDirections.None, spinner.ValidSpinDirection);
+
+                control.Increment = 0;
+                control.Increment = 1;
+                Assert.Equal(ValidSpinDirections.None, spinner.ValidSpinDirection);
+
+                Click(GetIncreaseButton(control));
+                Assert.Equal(5m, control.Value);
+
+                textBox.Focus();
+                textBox.SelectAll();
+                window.KeyTextInput("10");
+                Assert.Equal(10m, control.Value);
+                Assert.Equal(
+                    ValidSpinDirections.Increase | ValidSpinDirections.Decrease,
+                    spinner.ValidSpinDirection);
+
+                Click(GetIncreaseButton(control));
+                Assert.Equal(0m, control.Value);
+            }
+            finally
+            {
+                window.Close();
+            }
+        }
+
         // --------------------------------------------------------------
         // Genuine pointer press-and-hold (#1985 acceptance-test gap): real
         // window.MouseDown/MouseUp on the actual PART_IncreaseButton /

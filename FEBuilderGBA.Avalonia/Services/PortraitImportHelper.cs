@@ -1522,7 +1522,8 @@ namespace FEBuilderGBA.Avalonia.Services
         /// <summary>
         /// Build the shared, color-keyed + auto-quantized preview
         /// <see cref="ImageImportService.LoadResult"/> used by BOTH the
-        /// Step-2 source preview (<see cref="BuildPreviewImage"/>) and the
+        /// Step-2 source preview (<see cref="BuildPreviewImageFromPrepared"/>)
+        /// and the
         /// wizard's per-frame live preview (<c>RefreshFramePreview</c> in
         /// ImagePortraitImporterView, via <see cref="PortraitImportPreviewCore.RenderFramePreview"/>).
         /// (#1980) The frame preview previously read the raw, un-keyed
@@ -1536,8 +1537,10 @@ namespace FEBuilderGBA.Avalonia.Services
         /// cref="BuildColorKeyedRgba"/> works on a private RGBA copy and
         /// <see cref="DecreaseColorCore.Quantize"/> returns freshly allocated
         /// index/palette arrays. Returns null on any unusable input (null
-        /// result, failed load, missing <see cref="CoreState.ImageService"/>,
-        /// or a quantize failure) so callers can safely clear their cache.
+        /// result, failed load, a quantize failure, or a missing <see
+        /// cref="CoreState.ImageService"/> when indexed-palette input must be
+        /// reconstructed because no RGBA source buffer is available) so
+        /// callers can safely clear their cache.
         /// </summary>
         public static ImageImportService.LoadResult BuildPreparedPreviewLoadResult(
             ImageImportService.LoadResult loadResult)

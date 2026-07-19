@@ -66,6 +66,7 @@
 //     that is the only key base's CommitInput()/SyncTextAndValueProperties
 //     path actually runs on.
 using System;
+using System.Globalization;
 using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Controls.Metadata;
@@ -89,11 +90,13 @@ namespace FEBuilderGBA.Avalonia.Controls
         // event on it, so reacquiring it on every OnApplyTemplate call
         // cannot leak or duplicate handlers.
         private Spinner _spinner;
+        private bool _hasInvalidText;
 
         protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
         {
             base.OnApplyTemplate(e);
             _spinner = e.NameScope.Find<Spinner>("PART_Spinner");
+            _hasInvalidText = IsCurrentTextInvalid();
             ApplyValidSpinDirection();
         }
 
@@ -153,7 +156,8 @@ namespace FEBuilderGBA.Avalonia.Controls
         protected override void OnTextChanged(string oldValue, string newValue)
         {
             base.OnTextChanged(oldValue, newValue);
-            ApplyValidSpinDirectionAfterTextSync();
+            _hasInvalidText = IsCurrentTextInvalid();
+            ApplyValidSpinDirectionAfterTextSync(_hasInvalidText);
         }
 
         // Losing focus commits pending text via the private CommitInput(),
@@ -169,7 +173,9 @@ namespace FEBuilderGBA.Avalonia.Controls
         {
             bool preserveInvalidText = HasInvalidTextSpinBlock();
             base.OnLostFocus(e);
-            ApplyValidSpinDirectionAfterTextSync(preserveInvalidText);
+            _hasInvalidText = IsCurrentTextInvalid();
+            ApplyValidSpinDirectionAfterTextSync(
+                preserveInvalidText || _hasInvalidText);
         }
 
         // Pressing Enter commits pending text via the same private
@@ -187,17 +193,60 @@ namespace FEBuilderGBA.Avalonia.Controls
             base.OnKeyDown(e);
             if (e.Key == Key.Enter)
             {
-                ApplyValidSpinDirectionAfterTextSync(preserveInvalidText);
+                _hasInvalidText = IsCurrentTextInvalid();
+                ApplyValidSpinDirectionAfterTextSync(
+                    preserveInvalidText || _hasInvalidText);
             }
         }
 
         private bool HasInvalidTextSpinBlock()
         {
-            return _spinner != null
+            return _hasInvalidText
+                || (_spinner != null
                 && AllowSpin
                 && !IsReadOnly
                 && Increment != 0
-                && _spinner.ValidSpinDirection == ValidSpinDirections.None;
+                && _spinner.ValidSpinDirection == ValidSpinDirections.None);
+        }
+
+        private bool IsCurrentTextInvalid()
+        {
+            string text = Text;
+            if (string.IsNullOrEmpty(text))
+            {
+                return false;
+            }
+
+            try
+            {
+                if (TextConverter != null)
+                {
+                    object converted = TextConverter.Convert(
+                        text, typeof(decimal?), null, CultureInfo.CurrentCulture);
+                    if (converted == null)
+                    {
+                        return false;
+                    }
+                    if (converted is not decimal convertedValue)
+                    {
+                        return true;
+                    }
+                    return !ClipValueToMinMax
+                        && (convertedValue < Minimum || convertedValue > Maximum);
+                }
+
+                if (!decimal.TryParse(
+                    text, ParsingNumberStyle, NumberFormat, out decimal value))
+                {
+                    return true;
+                }
+                return !ClipValueToMinMax
+                    && (value < Minimum || value > Maximum);
+            }
+            catch
+            {
+                return true;
+            }
         }
 
         /// <summary>
@@ -215,7 +264,8 @@ namespace FEBuilderGBA.Avalonia.Controls
                 return;
             }
 
-            _spinner.ValidSpinDirection = (AllowSpin && !IsReadOnly && Increment != 0)
+            _spinner.ValidSpinDirection = (!_hasInvalidText
+                && AllowSpin && !IsReadOnly && Increment != 0)
                 ? (ValidSpinDirections.Increase | ValidSpinDirections.Decrease)
                 : ValidSpinDirections.None;
         }
