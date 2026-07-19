@@ -133,6 +133,31 @@ Model: GPT-5.6 Sol (gpt-5.6-sol)
 
 Use the **live session values** from the current runtime — never hardcode. This footer is non-negotiable and must never be omitted, even on short comments or approvals.
 
+## Context safety (avoid CAPI request-byte overflows — issue #1995)
+
+The CAPI backend rejects a serialized request above a fixed byte ceiling, independent of the token-based context
+window this CLI otherwise manages. Large embedded diffs, CI logs, or images can silently blow that byte ceiling
+before ordinary compaction ever triggers. Follow these rules in every session in this repository:
+
+- **Never embed a full `gh pr diff`, full CI log, or raw image bytes/base64 directly in your own conversation.**
+  When you need to review a diff/log/screenshot, fetch it inside a fresh, isolated `task` sub-agent and have that
+  sub-agent report back a bounded summary (findings + file/line citations), not the raw content.
+- **One fresh child per screenshot.** Never load several screenshots into one context; spawn a dedicated child per
+  image when visual inspection is required.
+- **Child completion contract.** Any sub-agent you spawn must return a final report **≤ 8 KiB**: verdict, findings,
+  and citations only — no raw diff hunks, full logs, base64, or image bytes. If a draft report would exceed that,
+  have the sub-agent condense and re-run rather than paste the overflow.
+- **Untrusted-PR full-diff review is mandatory and isolated.** Screen an untrusted PR's full diff in a fresh,
+  read-only, no-exec child before building/testing/reviewing it further; see `DEVELOPMENT-WORKFLOW.md`'s "Context
+  Hygiene" and "Untrusted content & anti-malware" sections.
+- **Recover instead of accumulating.** Use `/context` to check usage, `/compact` proactively (don't wait for an
+  overflow), `/rewind` to discard a bad detour, and `/new` (backed by this session's checkpoints/plan) to start
+  clean once a phase is done. See `README.md`'s "Context safety" section, the repository `preToolUse` hook
+  (`.github/hooks/copilot-context-budget.json`, `scripts/copilot_context_guard.py`) that best-effort denies
+  cumulative oversized image reads via `view`, and upstream
+  [github/copilot-cli#3767](https://github.com/github/copilot-cli/issues/3767) /
+  [github/copilot-cli#1688](https://github.com/github/copilot-cli/issues/1688).
+
 ## GitHub targeting rules
 
 - This checkout is a forked working copy. Treat `origin` (`laqieer/FEBuilderGBA`) as the default GitHub repository for issue reads, issue searches, issue lists, and all GitHub write actions.

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "type": "command",
+        "bash": "bash scripts/copilot-context-guard.sh",
+        "powershell": "& \".\\scripts\\copilot-context-guard.ps1\"",
+        "cwd": ".",
+        "timeoutSec": 10
+      }
+    ]
+  }
+}
