@@ -1,0 +1,527 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using Xunit;
+
+namespace FEBuilderGBA.Core.Tests
+{
+    public class RandomMapGeneratorCoreTests
+    {
+        sealed class RecordedCall
+        {
+            public string Command = "";
+            public List<string> Arguments = new List<string>();
+            public string WorkingDirectory = "";
+            public int TimeoutMs;
+            public int MaximumOutputChars;
+        }
+
+        [Fact]
+        public void Generate_UsesNativeExecutableAndExpectedArguments()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string femapCreatorPath = CreateEmptyFile(tempRoot, "FEMapCreator.exe");
+                var request = new RandomMapGenerationRequest
+                {
+                    Width = 15,
+                    Height = 10,
+                    TilesetName = "Grassland",
+                    Algorithm = "cellular",
+                    Seed = 42,
+                    FEMapCreatorPath = femapCreatorPath,
+                };
+
+                var call = new RecordedCall();
+                bool sawCall = false;
+                RandomMapGenerationResult result = RandomMapGeneratorCore.Generate(
+                    request,
+                    (command, args, workingDir, timeoutMs, maximumOutputChars) =>
+                    {
+                        sawCall = true;
+                        call = Record(command, args, workingDir, timeoutMs, maximumOutputChars);
+                        WriteRawMar(FindArgumentValue(call.Arguments, "--output"),
+                            request.Width * request.Height,
+                            rawValueFactory: _ => 0);
+                        return new ProcessRunResult
+                        {
+                            Started = true,
+                            ExitCode = 0,
+                            Stdout = "ok",
+                            Stderr = "",
+                        };
+                    });
+
+                Assert.True(result.Success, result.ErrorMessage);
+                Assert.True(sawCall);
+                Assert.Equal(femapCreatorPath, call.Command);
+                Assert.Equal(120000, call.TimeoutMs);
+                Assert.Equal(1000000, call.MaximumOutputChars);
+                Assert.Equal(new[]
+                {
+                    "generate",
+                    "--width", "15",
+                    "--height", "10",
+                    "--tileset", "Grassland",
+                    "--algorithm", "cellular",
+                    "--seed", "42",
+                    "--output", request.OutputMarPath,
+                    "--format", "mar",
+                    "--require-complete",
+                    "--force",
+                }, call.Arguments);
+                Assert.DoesNotContain("--json", call.Arguments);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
+        public void Generate_AppendsAssetsDirAfterForce()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string femapCreatorPath = CreateEmptyFile(tempRoot, "FEMapCreator.exe");
+                string assetsDir = Path.Combine(tempRoot, "assets");
+                Directory.CreateDirectory(assetsDir);
+                var request = new RandomMapGenerationRequest
+                {
+                    Width = 2,
+                    Height = 2,
+                    TilesetName = "Grassland",
+                    Algorithm = "cellular",
+                    Seed = 42,
+                    FEMapCreatorPath = femapCreatorPath,
+                    AssetsDir = assetsDir,
+                };
+
+                var call = new RecordedCall();
+                bool sawCall = false;
+                RandomMapGenerationResult result = RandomMapGeneratorCore.Generate(
+                    request,
+                    (command, args, workingDir, timeoutMs, maximumOutputChars) =>
+                    {
+                        sawCall = true;
+                        call = Record(command, args, workingDir, timeoutMs, maximumOutputChars);
+                        WriteRawMar(FindArgumentValue(call.Arguments, "--output"), 4, _ => 0);
+                        return new ProcessRunResult
+                        {
+                            Started = true,
+                            ExitCode = 0,
+                            Stdout = "",
+                            Stderr = "",
+                        };
+                    });
+
+                Assert.True(result.Success, result.ErrorMessage);
+                Assert.True(sawCall);
+                Assert.Equal(new[]
+                {
+                    "generate",
+                    "--width", "2",
+                    "--height", "2",
+                    "--tileset", "Grassland",
+                    "--algorithm", "cellular",
+                    "--seed", "42",
+                    "--output", request.OutputMarPath,
+                    "--format", "mar",
+                    "--require-complete",
+                    "--force",
+                    "--assets-dir", assetsDir,
+                }, call.Arguments);
+                Assert.DoesNotContain("--json", call.Arguments);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
+        public void Generate_RejectsUrlRelativeBareMissingAndUnsupportedPaths()
+        {
+            RandomMapGenerationResult urlResult = RandomMapGeneratorCore.Generate(new RandomMapGenerationRequest
+            {
+                Width = 1,
+                Height = 1,
+                TilesetName = "Grassland",
+                Algorithm = "cellular",
+                Seed = 1,
+                FEMapCreatorPath = "https://example.com/femapcreator.exe",
+            });
+            Assert.False(urlResult.Success);
+            Assert.Equal(RandomMapGeneratorErrorCategory.InvalidPath, urlResult.ErrorCategory);
+
+            RandomMapGenerationResult relativeResult = RandomMapGeneratorCore.Generate(new RandomMapGenerationRequest
+            {
+                Width = 1,
+                Height = 1,
+                TilesetName = "Grassland",
+                Algorithm = "cellular",
+                Seed = 1,
+                FEMapCreatorPath = "tools\\femapcreator.exe",
+            });
+            Assert.False(relativeResult.Success);
+            Assert.Equal(RandomMapGeneratorErrorCategory.InvalidPath, relativeResult.ErrorCategory);
+
+            RandomMapGenerationResult bareResult = RandomMapGeneratorCore.Generate(new RandomMapGenerationRequest
+            {
+                Width = 1,
+                Height = 1,
+                TilesetName = "Grassland",
+                Algorithm = "cellular",
+                Seed = 1,
+                FEMapCreatorPath = "femapcreator.exe",
+            });
+            Assert.False(bareResult.Success);
+            Assert.Equal(RandomMapGeneratorErrorCategory.InvalidPath, bareResult.ErrorCategory);
+
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string missingPath = Path.Combine(tempRoot, "missing.exe");
+                RandomMapGenerationResult missingResult = RandomMapGeneratorCore.Generate(new RandomMapGenerationRequest
+                {
+                    Width = 1,
+                    Height = 1,
+                    TilesetName = "Grassland",
+                    Algorithm = "cellular",
+                    Seed = 1,
+                    FEMapCreatorPath = missingPath,
+                });
+                Assert.False(missingResult.Success);
+                Assert.Equal(RandomMapGeneratorErrorCategory.InvalidPath, missingResult.ErrorCategory);
+
+                string unsupportedPath = CreateEmptyFile(tempRoot, "femapcreator.py");
+                RandomMapGenerationResult unsupportedResult = RandomMapGeneratorCore.Generate(new RandomMapGenerationRequest
+                {
+                    Width = 1,
+                    Height = 1,
+                    TilesetName = "Grassland",
+                    Algorithm = "cellular",
+                    Seed = 1,
+                    FEMapCreatorPath = unsupportedPath,
+                });
+                Assert.False(unsupportedResult.Success);
+                Assert.Equal(RandomMapGeneratorErrorCategory.InvalidPath, unsupportedResult.ErrorCategory);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
+        public void Generate_DeletesTempDirectoryAfterSuccess()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string femapCreatorPath = CreateEmptyFile(tempRoot, "FEMapCreator.exe");
+                var request = CreateValidRequest(femapCreatorPath);
+                string observedWorkingDirectory = "";
+
+                RandomMapGenerationResult result = RandomMapGeneratorCore.Generate(
+                    request,
+                    (command, args, workingDir, timeoutMs, maximumOutputChars) =>
+                    {
+                        observedWorkingDirectory = workingDir;
+                        Assert.StartsWith("FEBuilderGBA-mapgen-", Path.GetFileName(workingDir), StringComparison.Ordinal);
+                        Assert.True(Directory.Exists(workingDir));
+                        File.WriteAllText(Path.Combine(workingDir, "marker.txt"), "marker");
+                        WriteRawMar(FindArgumentValue(args, "--output"), 4, _ => 0);
+                        return new ProcessRunResult
+                        {
+                            Started = true,
+                            ExitCode = 0,
+                            Stdout = "",
+                            Stderr = "",
+                        };
+                    });
+
+                Assert.True(result.Success, result.ErrorMessage);
+                Assert.False(string.IsNullOrWhiteSpace(observedWorkingDirectory));
+                Assert.False(Directory.Exists(observedWorkingDirectory));
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
+        public void Generate_DeletesTempDirectoryAfterFailure()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string femapCreatorPath = CreateEmptyFile(tempRoot, "FEMapCreator.exe");
+                var request = CreateValidRequest(femapCreatorPath);
+                string observedWorkingDirectory = "";
+
+                RandomMapGenerationResult result = RandomMapGeneratorCore.Generate(
+                    request,
+                    (command, args, workingDir, timeoutMs, maximumOutputChars) =>
+                    {
+                        observedWorkingDirectory = workingDir;
+                        Assert.StartsWith("FEBuilderGBA-mapgen-", Path.GetFileName(workingDir), StringComparison.Ordinal);
+                        File.WriteAllText(Path.Combine(workingDir, "marker.txt"), "marker");
+                        return ProcessRunResult.NotStarted("boom");
+                    });
+
+                Assert.False(result.Success);
+                Assert.Equal(RandomMapGeneratorErrorCategory.ProcessStartFailed, result.ErrorCategory);
+                Assert.False(Directory.Exists(observedWorkingDirectory));
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
+        public void Generate_MapsProcessFailureCategories()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string femapCreatorPath = CreateEmptyFile(tempRoot, "FEMapCreator.exe");
+                var request = CreateValidRequest(femapCreatorPath);
+
+                RandomMapGenerationResult notStarted = RandomMapGeneratorCore.Generate(
+                    request,
+                    (command, args, workingDir, timeoutMs, maximumOutputChars) =>
+                        ProcessRunResult.NotStarted("start failed"));
+                Assert.Equal(RandomMapGeneratorErrorCategory.ProcessStartFailed, notStarted.ErrorCategory);
+
+                RandomMapGenerationResult timedOut = RandomMapGeneratorCore.Generate(
+                    CreateValidRequest(femapCreatorPath),
+                    (command, args, workingDir, timeoutMs, maximumOutputChars) => new ProcessRunResult
+                    {
+                        Started = true,
+                        TimedOut = true,
+                        ExitCode = -1,
+                        Stdout = "",
+                        Stderr = "",
+                    });
+                Assert.Equal(RandomMapGeneratorErrorCategory.TimedOut, timedOut.ErrorCategory);
+
+                RandomMapGenerationResult outputLimit = RandomMapGeneratorCore.Generate(
+                    CreateValidRequest(femapCreatorPath),
+                    (command, args, workingDir, timeoutMs, maximumOutputChars) => new ProcessRunResult
+                    {
+                        Started = true,
+                        OutputLimitExceeded = true,
+                        ExitCode = -1,
+                        Stdout = "",
+                        Stderr = "",
+                    });
+                Assert.Equal(RandomMapGeneratorErrorCategory.OutputLimitExceeded, outputLimit.ErrorCategory);
+
+                RandomMapGenerationResult nonZero = RandomMapGeneratorCore.Generate(
+                    CreateValidRequest(femapCreatorPath),
+                    (command, args, workingDir, timeoutMs, maximumOutputChars) => new ProcessRunResult
+                    {
+                        Started = true,
+                        ExitCode = 9,
+                        Stdout = "",
+                        Stderr = "",
+                    });
+                Assert.Equal(RandomMapGeneratorErrorCategory.NonZeroExit, nonZero.ErrorCategory);
+
+                RandomMapGenerationResult missingOutput = RandomMapGeneratorCore.Generate(
+                    CreateValidRequest(femapCreatorPath),
+                    (command, args, workingDir, timeoutMs, maximumOutputChars) => new ProcessRunResult
+                    {
+                        Started = true,
+                        ExitCode = 0,
+                        Stdout = "",
+                        Stderr = "",
+                    });
+                Assert.Equal(RandomMapGeneratorErrorCategory.OutputMissing, missingOutput.ErrorCategory);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
+        public void Generate_ReturnsParseFailedForMalformedMar()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string femapCreatorPath = CreateEmptyFile(tempRoot, "FEMapCreator.exe");
+                var request = CreateValidRequest(femapCreatorPath);
+
+                RandomMapGenerationResult result = RandomMapGeneratorCore.Generate(
+                    request,
+                    (command, args, workingDir, timeoutMs, maximumOutputChars) =>
+                    {
+                        File.WriteAllBytes(FindArgumentValue(args, "--output"), new byte[] { 1, 2, 3, 4, 5, 6 });
+                        return new ProcessRunResult
+                        {
+                            Started = true,
+                            ExitCode = 0,
+                            Stdout = "",
+                            Stderr = "",
+                        };
+                    });
+
+                Assert.False(result.Success);
+                Assert.Equal(RandomMapGeneratorErrorCategory.ParseFailed, result.ErrorCategory);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
+        public void Parse_ConvertsGoldenVectorsThroughChipsetIndexPipeline()
+        {
+            byte[] raw = BuildRawMarBytes(new short[] { 0, 32, 992, 1024, 32736 });
+
+            bool ok = RandomMapGeneratorMarParserCore.TryParse(raw, 5, 1, out ushort[] mars, out string error);
+
+            Assert.True(ok, error);
+            Assert.Equal(new ushort[] { 0, 4, 124, 128, 4092 }, mars);
+        }
+
+        [Fact]
+        public void Parse_RejectsNegativeValue()
+        {
+            byte[] raw = BuildRawMarBytes(new short[] { -32 });
+
+            bool ok = RandomMapGeneratorMarParserCore.TryParse(raw, 1, 1, out ushort[] _, out string error);
+
+            Assert.False(ok);
+            Assert.Contains("negative", error, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public void Parse_RejectsNonMultipleOf32()
+        {
+            byte[] raw = BuildRawMarBytes(new short[] { 31 });
+
+            bool ok = RandomMapGeneratorMarParserCore.TryParse(raw, 1, 1, out ushort[] _, out string error);
+
+            Assert.False(ok);
+            Assert.Contains("divisible by 32", error, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public void Parse_RejectsIndexOutsideConfiguredChipsetCount()
+        {
+            byte[] raw = BuildRawMarBytes(new short[] { 256 });
+
+            bool ok = RandomMapGeneratorMarParserCore.TryParse(raw, 1, 1, 8, out ushort[] _, out string error);
+
+            Assert.False(ok);
+            Assert.Contains("chipset index 8", error, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public void Parse_RejectsWrongLength()
+        {
+            byte[] raw = BuildRawMarBytes(new short[] { 0, 32, 64 });
+
+            bool ok = RandomMapGeneratorMarParserCore.TryParse(raw, 1, 1, out ushort[] _, out string error);
+
+            Assert.False(ok);
+            Assert.Contains("length mismatch", error, StringComparison.OrdinalIgnoreCase);
+        }
+
+        static RandomMapGenerationRequest CreateValidRequest(string femapCreatorPath)
+        {
+            return new RandomMapGenerationRequest
+            {
+                Width = 2,
+                Height = 2,
+                TilesetName = "Grassland",
+                Algorithm = "cellular",
+                Seed = 42,
+                FEMapCreatorPath = femapCreatorPath,
+            };
+        }
+
+        static RecordedCall Record(
+            string command,
+            IEnumerable<string> args,
+            string workingDir,
+            int timeoutMs,
+            int maximumOutputChars)
+        {
+            var call = new RecordedCall
+            {
+                Command = command,
+                WorkingDirectory = workingDir,
+                TimeoutMs = timeoutMs,
+                MaximumOutputChars = maximumOutputChars,
+            };
+            call.Arguments.AddRange(args);
+            return call;
+        }
+
+        static string FindArgumentValue(IEnumerable<string> args, string name)
+        {
+            string previous = "";
+            foreach (string arg in args)
+            {
+                if (previous == name)
+                    return arg;
+                previous = arg;
+            }
+            return "";
+        }
+
+        static void WriteRawMar(string outputPath, int entryCount, Func<int, short> rawValueFactory)
+        {
+            var bytes = new byte[entryCount * 2];
+            for (int i = 0; i < entryCount; i++)
+            {
+                short rawValue = rawValueFactory(i);
+                bytes[i * 2] = (byte)(rawValue & 0xFF);
+                bytes[i * 2 + 1] = (byte)((rawValue >> 8) & 0xFF);
+            }
+            File.WriteAllBytes(outputPath, bytes);
+        }
+
+        static byte[] BuildRawMarBytes(IReadOnlyList<short> rawValues)
+        {
+            var bytes = new byte[rawValues.Count * 2];
+            for (int i = 0; i < rawValues.Count; i++)
+            {
+                short rawValue = rawValues[i];
+                bytes[i * 2] = (byte)(rawValue & 0xFF);
+                bytes[i * 2 + 1] = (byte)((rawValue >> 8) & 0xFF);
+            }
+            return bytes;
+        }
+
+        static string CreateTempDirectory()
+        {
+            string path = Path.Combine(Path.GetTempPath(), "febuildergba-randommap-tests-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(path);
+            return path;
+        }
+
+        static string CreateEmptyFile(string directory, string fileName)
+        {
+            string path = Path.Combine(directory, fileName);
+            File.WriteAllText(path, "");
+            return path;
+        }
+
+        static void DeleteDirectoryIfPresent(string path)
+        {
+            if (!string.IsNullOrEmpty(path) && Directory.Exists(path))
+                Directory.Delete(path, recursive: true);
+        }
+    }
+}
