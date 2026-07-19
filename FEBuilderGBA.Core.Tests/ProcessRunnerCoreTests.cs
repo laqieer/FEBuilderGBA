@@ -400,6 +400,50 @@ namespace FEBuilderGBA.Core.Tests
                     containmentTerminated));
         }
 
+        [Fact]
+        public void PrepareUnobservedPosixFallback_LiveLeaderConsumesOneShot()
+        {
+            var state =
+                ProcessRunnerCore.PosixUnobservedTerminationState.NotAttempted;
+
+            bool prepared = ProcessRunnerCore.PrepareUnobservedPosixFallback(
+                leaderExited: false,
+                ref state);
+            int signalCalls = 0;
+            bool delayed = ProcessRunnerCore.TryTerminateUnobservedPosixGroup(
+                123,
+                (pid, signal) =>
+                {
+                    signalCalls++;
+                    return 0;
+                },
+                () => 0,
+                ref state);
+
+            Assert.False(prepared);
+            Assert.False(delayed);
+            Assert.Equal(
+                ProcessRunnerCore.PosixUnobservedTerminationState.Failed,
+                state);
+            Assert.Equal(0, signalCalls);
+        }
+
+        [Fact]
+        public void PrepareUnobservedPosixFallback_ExitedLeaderKeepsOneShotAvailable()
+        {
+            var state =
+                ProcessRunnerCore.PosixUnobservedTerminationState.NotAttempted;
+
+            bool prepared = ProcessRunnerCore.PrepareUnobservedPosixFallback(
+                leaderExited: true,
+                ref state);
+
+            Assert.True(prepared);
+            Assert.Equal(
+                ProcessRunnerCore.PosixUnobservedTerminationState.NotAttempted,
+                state);
+        }
+
         [Theory]
         [InlineData(0)]
         [InlineData(1)]

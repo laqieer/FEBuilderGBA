@@ -126,6 +126,19 @@ namespace FEBuilderGBA
             bool containmentTerminated)
             => terminationFailed || !containmentTerminated;
 
+        internal static bool PrepareUnobservedPosixFallback(
+            bool leaderExited,
+            ref PosixUnobservedTerminationState state)
+        {
+            if (state != PosixUnobservedTerminationState.NotAttempted)
+                return false;
+            if (leaderExited)
+                return true;
+
+            state = PosixUnobservedTerminationState.Failed;
+            return false;
+        }
+
         private interface IProcessContainment : IDisposable
         {
             bool Terminate();
@@ -328,8 +341,13 @@ namespace FEBuilderGBA
 
                 if (!TryActivate(maximumAttempts: 1000))
                 {
-                    if (!TryWaitForExit(_process, 0))
+                    bool leaderExited = TryWaitForExit(_process, 0);
+                    if (!PrepareUnobservedPosixFallback(
+                        leaderExited,
+                        ref _unobservedState))
+                    {
                         return false;
+                    }
 
                     return TryTerminateUnobservedPosixGroup(
                         _processGroup,
