@@ -33,8 +33,12 @@ issue #1995 for the full rationale):
   stored outside the Git worktree: preferably beside the resolved Copilot
   session directory (``~/.copilot/session-state/<sessionId>/hook-state/``),
   falling back to the OS temp directory when the session directory cannot be
-  resolved. Access is guarded by an atomic directory lock with jittered
-  retry and stale-lock recovery; state updates are written atomically.
+  resolved. Access is guarded by an OS-kernel advisory file lock (POSIX
+  ``fcntl.flock``, Windows ``msvcrt.locking``) with jittered retry up to a
+  bounded timeout, then fail-open on contention; state updates are written
+  atomically. Kernel locks are automatically released by the OS when the
+  holding process exits or crashes, so there is no stale-lock window and no
+  stale-lock deletion race to reason about.
 """
 
 import json
@@ -44,6 +48,13 @@ import shutil
 import sys
 import tempfile
 import time
+
+if sys.platform.startswith("win"):
+    import msvcrt
+    fcntl = None
+else:
+    import fcntl
+    msvcrt = None
 
 # --- Tunables -----------------------------------------------------------
 
@@ -61,8 +72,7 @@ SUPPORTED_IMAGE_EXTENSIONS = {
 }
 
 STATE_FILE_NAME = "context-budget.json"
-LOCK_DIR_SUFFIX = ".lock"
-STALE_LOCK_SECONDS = 15
+LOCK_FILE_SUFFIX = ".lock"
 LOCK_MAX_WAIT_SECONDS = 2.0
 LOCK_RETRY_MIN_SECONDS = 0.01
 LOCK_RETRY_MAX_SECONDS = 0.05
@@ -221,45 +231,85 @@ class _LockNotAcquired(Exception):
     pass
 
 
-class _DirectoryLock(object):
-    """Atomic directory-based lock with jittered retry and stale recovery.
+class _FileLock(object):
+    """OS-kernel advisory file lock: POSIX ``fcntl.flock``, Windows
+    ``msvcrt.locking``.
 
-    Directory creation (``os.mkdir``) is atomic on every platform this
-    script targets (POSIX and Windows), which is why it is used as the lock
-    primitive instead of a lock file.
+    Deliberately *not* a directory-existence lock with a stale-lock TTL: a
+    getmtime-then-unconditional-rmtree stale-lock recovery scheme has an
+    inherent race -- a lock holder can recreate/refresh its lock between
+    another process's staleness check and its ``rmtree`` call, causing the
+    "stale" cleanup to delete a lock another process is actively (and
+    legitimately) holding. Kernel file locks avoid this class of bug
+    entirely: the OS releases them automatically the moment the holding
+    process's file descriptor is closed, whether that happens via normal
+    ``__exit__``, an uncaught exception, or the process crashing/being
+    killed outright -- so there is no "is this lock stale?" question to
+    answer, and therefore nothing to race. The lock *file* itself is
+    created once (if absent) and then left in place; only the transient
+    kernel-level lock on it (not the file's existence) provides mutual
+    exclusion, so leaving it behind is harmless.
     """
 
     def __init__(self, target_path):
-        self._lock_dir = target_path + LOCK_DIR_SUFFIX
-        self._acquired = False
+        self._lock_path = target_path + LOCK_FILE_SUFFIX
+        self._fh = None
 
     def __enter__(self):
         deadline = time.monotonic() + LOCK_MAX_WAIT_SECONDS
         while True:
             try:
-                os.mkdir(self._lock_dir)
-                self._acquired = True
-                return self
-            except FileExistsError:
-                self._maybe_break_stale_lock()
+                self._fh = open(self._lock_path, "a+b")
             except OSError:
-                # Cannot create the lock (e.g. parent dir missing/denied).
                 raise _LockNotAcquired()
-            if time.monotonic() >= deadline:
-                raise _LockNotAcquired()
-            time.sleep(random.uniform(LOCK_RETRY_MIN_SECONDS, LOCK_RETRY_MAX_SECONDS))
+            try:
+                self._acquire_kernel_lock()
+                return self
+            except OSError:
+                self._fh.close()
+                self._fh = None
+                if time.monotonic() >= deadline:
+                    raise _LockNotAcquired()
+                time.sleep(random.uniform(LOCK_RETRY_MIN_SECONDS, LOCK_RETRY_MAX_SECONDS))
 
-    def _maybe_break_stale_lock(self):
-        try:
-            age = time.time() - os.path.getmtime(self._lock_dir)
-            if age > STALE_LOCK_SECONDS:
-                shutil.rmtree(self._lock_dir, ignore_errors=True)
-        except OSError:
-            pass
+    def _acquire_kernel_lock(self):
+        fd = self._fh.fileno()
+        if sys.platform.startswith("win"):
+            if msvcrt is None:
+                raise OSError("msvcrt unavailable")
+            # msvcrt.locking locks byte ranges starting at the current file
+            # position; the file needs at least one byte to lock byte 0.
+            if os.fstat(fd).st_size == 0:
+                try:
+                    self._fh.write(b"\0")
+                    self._fh.flush()
+                except OSError:
+                    pass
+            self._fh.seek(0)
+            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+        else:
+            if fcntl is None:
+                raise OSError("fcntl unavailable")
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+    def _release_kernel_lock(self):
+        fd = self._fh.fileno()
+        if sys.platform.startswith("win"):
+            if msvcrt is not None:
+                self._fh.seek(0)
+                msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+        elif fcntl is not None:
+            fcntl.flock(fd, fcntl.LOCK_UN)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if self._acquired:
-            shutil.rmtree(self._lock_dir, ignore_errors=True)
+        if self._fh is not None:
+            try:
+                self._release_kernel_lock()
+            except OSError:
+                pass
+            finally:
+                self._fh.close()
+                self._fh = None
         return False
 
 
@@ -396,7 +446,7 @@ def run(stdin_text):
             return FALL_THROUGH, 0
 
     try:
-        with _DirectoryLock(state_path):
+        with _FileLock(state_path):
             state, was_corrupt = _load_state(state_path)
             if was_corrupt:
                 # Uncertain state: fail open without persisting anything.

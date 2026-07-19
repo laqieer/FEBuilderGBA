@@ -4,8 +4,8 @@ Covers:
   * scripts/copilot_context_guard.py -- the fail-open preToolUse decision
     logic (documented camelCase payload, fall-through rules, cumulative
     dual-signal deny, dedupe/update, environment override, malformed/corrupt
-    state handling, sessionId sanitization, stale-lock recovery, atomic
-    writes, TTL cleanup).
+    state handling, sessionId sanitization, OS-kernel file-lock contention,
+    atomic writes, TTL cleanup).
   * .github/hooks/copilot-context-budget.json -- hook configuration
     loadability and internal `view`-only dispatch.
   * scripts/copilot-context-guard.sh and scripts/copilot-context-guard.ps1 --
@@ -278,37 +278,136 @@ class TestCorruptAndContendedState(GuardTestCase):
         image = self.make_image("a.png", 1000)
         os.makedirs(self._state_dir, exist_ok=True)
         state_path = os.path.join(self._state_dir, guard.STATE_FILE_NAME)
-        lock_dir = state_path + guard.LOCK_DIR_SUFFIX
-        os.makedirs(lock_dir, exist_ok=True)
 
         original_max_wait = guard.LOCK_MAX_WAIT_SECONDS
         guard.LOCK_MAX_WAIT_SECONDS = 0.2
         try:
-            start = time.monotonic()
-            output, code = guard.run(_payload(tool_args={"path": image}))
-            elapsed = time.monotonic() - start
+            # Hold the OS-kernel lock via a second, independent open() of the
+            # same lock file (same process, different file descriptor/handle
+            # -- flock/msvcrt.locking contend on the open file description
+            # or handle, not on the process, so this genuinely contends).
+            with guard._FileLock(state_path):
+                start = time.monotonic()
+                output, code = guard.run(_payload(tool_args={"path": image}))
+                elapsed = time.monotonic() - start
         finally:
             guard.LOCK_MAX_WAIT_SECONDS = original_max_wait
-            shutil.rmtree(lock_dir, ignore_errors=True)
 
         self.assertEqual((output, code), ("{}", 0))
         self.assertLess(elapsed, 5.0)
 
-    def test_stale_lock_is_recovered(self):
-        image = self.make_image("a.png", 1000)
-        os.makedirs(self._state_dir, exist_ok=True)
-        state_path = os.path.join(self._state_dir, guard.STATE_FILE_NAME)
-        lock_dir = state_path + guard.LOCK_DIR_SUFFIX
-        os.makedirs(lock_dir, exist_ok=True)
-        # Backdate the lock well past the staleness threshold.
-        old_time = time.time() - (guard.STALE_LOCK_SECONDS + 5)
-        os.utime(lock_dir, (old_time, old_time))
 
-        output, code = guard.run(_payload(tool_args={"path": image}))
-        self.assertEqual((output, code), ("{}", 0))
-        with open(state_path) as fh:
-            state = json.load(fh)
-        self.assertEqual(state["total_bytes"], 1000)
+_LOCK_HOLDER_SCRIPT = """
+import os
+import sys
+import time
+
+sys.path.insert(0, {scripts_dir!r})
+import copilot_context_guard as guard
+
+target_path = sys.argv[1]
+ready_marker = sys.argv[2]
+hold_seconds = float(sys.argv[3])
+crash = len(sys.argv) > 4 and sys.argv[4] == "crash"
+
+lock = guard._FileLock(target_path)
+lock.__enter__()
+with open(ready_marker, "w", encoding="utf-8") as fh:
+    fh.write("ready")
+
+time.sleep(hold_seconds)
+
+if crash:
+    # Simulate an unclean crash/kill: bypass __exit__ entirely (no explicit
+    # unlock, no normal interpreter shutdown handlers) and terminate the
+    # process immediately. The OS must still release the kernel lock as
+    # part of tearing down the process's open file descriptors/handles.
+    os._exit(1)
+else:
+    lock.__exit__(None, None, None)
+"""
+
+
+class TestFileLockCrossProcess(unittest.TestCase):
+    """Real cross-process contention coverage for the OS-kernel file lock.
+
+    Regression coverage for the stale-lock race this replaces: a directory
+    lock with a getmtime-then-rmtree staleness check can delete a lock that
+    a legitimate holder just recreated/refreshed. The kernel-lock design has
+    no staleness window at all -- these tests prove that directly against a
+    real second process, on whichever platform the suite runs on (POSIX
+    ``fcntl.flock`` / Windows ``msvcrt.locking``, selected internally by
+    ``_FileLock``).
+    """
+
+    def setUp(self):
+        self._tmp = tempfile.mkdtemp(prefix="ctxguard-filelock-")
+        self._target = os.path.join(self._tmp, "state")
+        self._ready_marker = os.path.join(self._tmp, "ready")
+        self._holder_script = os.path.join(self._tmp, "holder.py")
+        with open(self._holder_script, "w", encoding="utf-8") as fh:
+            fh.write(_LOCK_HOLDER_SCRIPT.format(scripts_dir=SCRIPTS_DIR))
+        self._original_max_wait = guard.LOCK_MAX_WAIT_SECONDS
+
+    def tearDown(self):
+        guard.LOCK_MAX_WAIT_SECONDS = self._original_max_wait
+        shutil.rmtree(self._tmp, ignore_errors=True)
+
+    def _spawn_holder(self, hold_seconds, crash=False):
+        args = [
+            sys.executable, self._holder_script, self._target,
+            self._ready_marker, str(hold_seconds),
+        ]
+        if crash:
+            args.append("crash")
+        proc = subprocess.Popen(args)
+        deadline = time.monotonic() + 10.0
+        while not os.path.exists(self._ready_marker):
+            if time.monotonic() > deadline:
+                proc.kill()
+                proc.wait(timeout=10)
+                raise AssertionError("holder subprocess never signaled ready")
+            time.sleep(0.02)
+        return proc
+
+    def _acquire_with_retry(self, overall_timeout=5.0):
+        deadline = time.monotonic() + overall_timeout
+        while time.monotonic() < deadline:
+            try:
+                with guard._FileLock(self._target):
+                    return True
+            except guard._LockNotAcquired:
+                time.sleep(0.05)
+        return False
+
+    def test_second_process_cannot_enter_while_held(self):
+        guard.LOCK_MAX_WAIT_SECONDS = 0.3
+        proc = self._spawn_holder(hold_seconds=2.0)
+        try:
+            with self.assertRaises(guard._LockNotAcquired):
+                with guard._FileLock(self._target):
+                    pass  # pragma: no cover -- must not be reached
+        finally:
+            proc.wait(timeout=10)
+
+    def test_lock_is_acquirable_after_holder_exits_normally(self):
+        proc = self._spawn_holder(hold_seconds=0.3)
+        proc.wait(timeout=10)
+        self.assertEqual(proc.returncode, 0)
+        self.assertTrue(
+            self._acquire_with_retry(),
+            "expected to acquire the lock once the holder released it normally",
+        )
+
+    def test_lock_is_acquirable_after_holder_crashes(self):
+        proc = self._spawn_holder(hold_seconds=0.3, crash=True)
+        proc.wait(timeout=10)
+        self.assertEqual(proc.returncode, 1)
+        self.assertTrue(
+            self._acquire_with_retry(),
+            "expected the OS to release the kernel lock when the holder "
+            "process crashed (os._exit) without ever calling __exit__",
+        )
 
 
 class TestSanitizationAndFingerprint(unittest.TestCase):
