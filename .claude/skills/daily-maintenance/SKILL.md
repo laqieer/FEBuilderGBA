@@ -98,6 +98,32 @@ Use the **running session's** version (the value injected in the system prompt a
    ```
    Expect `isDraft=false` and the **8 required** platform zips — WinForms + CLI ×3 RIDs + Avalonia ×3 RIDs + Android APK; `release.yml`'s own pre-publish gate already fails the run if any of those 8 is missing. `FEBuilderGBA-ios-unsigned-ipa.zip` is an **optional advisory** 9th asset (attached only when the `continue-on-error` iOS job succeeds), so a valid release may have just 8 assets — do NOT block on iOS alone. If the release run FAILED or a required asset is missing, investigate the failing job (`gh run view <run-id> --log-failed`) and fix / re-run (`gh run rerun <run-id>`) before considering the release complete.
 
+## Context Hygiene (bounded coordinator, fresh children — issue #1995)
+
+This routine runs long and unattended, so its own coordinator context is a scarce resource: the CAPI backend
+rejects a request above a fixed byte ceiling regardless of token-based compaction, and a coordinator that
+accumulates full diffs/logs/screenshots across many issues/PRs in one run can hit that ceiling long before it
+finishes. Treat the coordinator role as a **bounded dispatcher**, not a place to hold raw content:
+
+- **Spawn a fresh child per implementation, per safety screen, and per screenshot.** Each issue/PR you work during
+  the run gets its own `task` sub-agent invocation for (a) the actual code change (dev-flow), (b) the untrusted-
+  content/full-diff safety screen (guardrail (i)), and (c) any GUI screenshot capture/inspection — never reuse one
+  long-lived child across unrelated issues/PRs, and never paste `gh pr diff`/CI logs/screenshot bytes into the
+  coordinator's own context. Each child fetches what it needs itself from identifiers (issue/PR number, head SHA)
+  you pass it. See `DEVELOPMENT-WORKFLOW.md`'s "Context Hygiene" section for the full rationale and the shared
+  8 KiB child-completion-report contract (verdict + citations only, no raw diffs/logs/base64/images).
+- **Loop-until-zero applies across children and checkpoints, not within one giant context.** The "Mandatory
+  completion loop" below re-scans open issues/PRs after each pass; treat every re-scan iteration as a checkpoint
+  boundary where you may `/compact` or start delegating the next batch to fresh children rather than carrying
+  forward everything already resolved.
+- **Verify hook-backed protection is actually active.** This repo ships a best-effort `preToolUse` context-budget
+  hook (`.github/hooks/copilot-context-budget.json`, `scripts/copilot_context_guard.py`) that denies cumulative
+  oversized image reads via `view`. Repository hooks only run when repo-hook execution is enabled for the session;
+  confirm with the exact literal environment variable `GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS=true` (this must be
+  the literal string `"true"`, not `1` or unset) and cross-check with `/env` inside the session. If the hook is
+  absent, disabled, or its runtime support is unavailable, **fall back to the structural discipline above** (fresh
+  children, no embedded diffs/logs/images, 8 KiB reports) — do not treat the hook as the only safeguard.
+
 ## Mandatory completion loop
 
 After finishing the current issue list, **RE-SCAN** `gh issue list -R laqieer/FEBuilderGBA --state open` AND `gh pr list -R laqieer/FEBuilderGBA --state open`. New issues/PRs may have appeared during processing. Keep resolving until **BOTH open issues AND open PRs are zero**. Only then report done. Never declare completion while any open issue/PR remains.

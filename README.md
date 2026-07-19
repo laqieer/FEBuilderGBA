@@ -803,6 +803,52 @@ See
 [docs/MCP-SERVER.md](docs/MCP-SERVER.md) for the full tool/resource reference, protocol details,
 and setup instructions.
 
+## Context safety (Copilot CLI / Claude Code sessions)
+
+AI coding sessions in this repo (Copilot CLI, Claude Code) manage their context window by **token**
+count, but the underlying CAPI backend that serializes a request to the model rejects any payload
+above a fixed **byte** ceiling. Those are different quantities: a handful of screenshots or a large
+`gh pr diff`/CI log can add megabytes of bytes while barely moving the token count, so a session can
+hit the CAPI byte ceiling and fail well before ordinary token-based compaction would ever trigger.
+See issue [#1995](https://github.com/laqieer/FEBuilderGBA/issues/1995) for the original report, and
+upstream discussions [github/copilot-cli#3767](https://github.com/github/copilot-cli/issues/3767)
+and [github/copilot-cli#1688](https://github.com/github/copilot-cli/issues/1688).
+
+**Safeguards in this repo:**
+- `DEVELOPMENT-WORKFLOW.md`'s "Context Hygiene" section and `.github/copilot-instructions.md`'s
+  "Context safety" section require every review/reviewer step to pass identifiers (issue/PR number,
+  plan-comment URL, head SHA) rather than embedding full diffs, logs, or images, to spawn a fresh
+  child sub-agent per screenshot or safety screen, and to bound every child's final report to ≤ 8 KiB
+  of findings + citations (no raw diff hunks, logs, base64, or image bytes).
+- `.github/hooks/copilot-context-budget.json` registers a best-effort `preToolUse` command hook
+  (`scripts/copilot_context_guard.py`, plus `scripts/copilot-context-guard.sh` /
+  `scripts/copilot-context-guard.ps1` platform wrappers) that tracks cumulative bytes of image files
+  read through the `view` tool in a session and denies a further read once a conservative budget
+  (default 1,250,000 bytes, overridable via `COPILOT_CONTEXT_GUARD_BUDGET_BYTES`) would be exceeded.
+  It is fail-open by design: any uncertain, malformed, or infrastructure-failure path abstains
+  (`{}`, exit 0) rather than blocking unrelated work, and only a definitive cumulative overflow denies
+  (JSON `permissionDecision: "deny"` + a reason, exit 2). Repository hooks only execute when the
+  session has repo-hook execution enabled; verify with `/env` that
+  `GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS=true` is set (the literal string `"true"`, not `1`).
+  We could not runtime-verify from this environment whether a repository-level
+  `.github/copilot/settings.json` `contextTier: "default"` actually overrides a user-level
+  `long_context` setting (no non-interactive way to introspect effective settings was found), so that
+  file is intentionally **not** shipped here. If your session still needs `default` context tier for
+  this repo, set it explicitly for your own session/user — e.g. the `--context default` CLI flag, or
+  `/settings set contextTier default --repo` in an interactive session.
+
+**Recovery commands (Copilot CLI):**
+- `/context` — inspect current context usage before it becomes a problem.
+- `/compact` — proactively compact instead of waiting for an automatic/emergency compaction.
+- `/rewind` — discard a bad exploratory detour (e.g. after loading an oversized diff/log by mistake)
+  without restarting the whole session.
+- `/new` — start a clean session once a phase is truly done; session checkpoints and the session's
+  `plan.md` preserve continuity so a fresh session can pick the work back up. If a session's hook
+  state (`scripts/copilot_context_guard.py`'s persisted byte counters) needs a hard reset rather than
+  a normal `/new`, delete its state directory explicitly (see the script's module docstring for the
+  resolved path) — there is no automatic mid-session reset, by design, since state must survive
+  ordinary compaction.
+
 README for Korean character table
 ===
 
