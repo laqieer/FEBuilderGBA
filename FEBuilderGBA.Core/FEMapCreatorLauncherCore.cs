@@ -72,7 +72,8 @@ namespace FEBuilderGBA
                     string hostPath = Environment.GetEnvironmentVariable("DOTNET_HOST_PATH");
                     if (TryNormalizeAbsoluteLocalFile(hostPath, requireDirectoryComponent: false,
                         out string fullHostPath, out string _)
-                        && File.Exists(fullHostPath))
+                        && File.Exists(fullHostPath)
+                        && IsUsableManagedHost(fullHostPath))
                     {
                         spec.Command = fullHostPath;
                     }
@@ -124,6 +125,29 @@ namespace FEBuilderGBA
                 | UnixFileMode.GroupExecute
                 | UnixFileMode.OtherExecute;
             return (mode & ExecuteBits) != 0;
+        }
+
+        static bool IsUsableManagedHost(string path)
+        {
+            if (OperatingSystem.IsWindows())
+                return true;
+
+            try
+            {
+                return HasUnixExecutePermission(path);
+            }
+            catch (IOException)
+            {
+                return false;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return false;
+            }
+            catch (PlatformNotSupportedException)
+            {
+                return false;
+            }
         }
 
         /// <summary>

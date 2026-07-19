@@ -178,43 +178,53 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        void UpdateTilePaletteCore(bool strict)
+        {
+            byte[] paletteRgba = _vm.RenderChipsetPalette(out int pw, out int ph);
+            if (paletteRgba == null || pw <= 0 || ph <= 0)
+            {
+                TilePaletteImage.Source = null;
+                TilePaletteImage.Width = double.NaN;
+                TilePaletteImage.Height = double.NaN;
+                ChipsetInfoLabel.Text = R._("No chipset selected");
+                if (strict)
+                    throw new InvalidOperationException(
+                        R._("Failed to render the generated map chipset palette."));
+                return;
+            }
+            var bmp = IconBitmapBuilder.FromRgba(paletteRgba, pw, ph);
+            if (bmp == null)
+            {
+                TilePaletteImage.Source = null;
+                ChipsetInfoLabel.Text = R._("No chipset selected");
+                if (strict)
+                    throw new InvalidOperationException(
+                        R._("Failed to render the generated map chipset palette."));
+                return;
+            }
+            TilePaletteImage.Source = bmp;
+            TilePaletteImage.Width = pw;
+            TilePaletteImage.Height = ph;
+            if (_vm.HasChipsetSelected)
+                ChipsetInfoLabel.Text = _vm.ChipsetInfo;
+            else
+                ChipsetInfoLabel.Text = R._("No chipset selected");
+        }
+
         /// <summary>Re-render the chipset palette for the currently-loaded map.</summary>
         void UpdateTilePalette()
         {
             try
             {
-                byte[] paletteRgba = _vm.RenderChipsetPalette(out int pw, out int ph);
-                if (paletteRgba == null || pw <= 0 || ph <= 0)
-                {
-                    TilePaletteImage.Source = null;
-                    TilePaletteImage.Width = double.NaN;
-                    TilePaletteImage.Height = double.NaN;
-                    // Clear the chipset info too — otherwise a stale label from a
-                    // previously-loaded map would remain visible after the palette
-                    // is cleared.
-                    ChipsetInfoLabel.Text = R._("No chipset selected");
-                    return;
-                }
-                var bmp = IconBitmapBuilder.FromRgba(paletteRgba, pw, ph);
-                if (bmp == null)
-                {
-                    TilePaletteImage.Source = null;
-                    ChipsetInfoLabel.Text = R._("No chipset selected");
-                    return;
-                }
-                TilePaletteImage.Source = bmp;
-                TilePaletteImage.Width = pw;
-                TilePaletteImage.Height = ph;
-                if (_vm.HasChipsetSelected)
-                    ChipsetInfoLabel.Text = _vm.ChipsetInfo;
-                else
-                    ChipsetInfoLabel.Text = R._("No chipset selected");
+                UpdateTilePaletteCore(strict: false);
             }
             catch (Exception ex)
             {
                 Log.ErrorF("MapEditorView.UpdateTilePalette failed: {0}", ex.Message);
             }
         }
+
+        void UpdateTilePaletteStrict() => UpdateTilePaletteCore(strict: true);
 
         void OnZoomIn(object? sender, RoutedEventArgs e)
         {
@@ -439,6 +449,25 @@ namespace FEBuilderGBA.Avalonia.Views
             _lastRgba = rgba;
             UpdateUI(rgba);
             UpdateTilePalette();
+        }
+
+        void RefreshMapImageFromCurrentSelectionStrict()
+        {
+            if (_vm.CurrentAddr == 0)
+                throw new InvalidOperationException(R._("No map data loaded — select a map first."));
+
+            byte[] rgba = _vm.LoadMapImage(_vm.CurrentAddr, _vm.MapId);
+            if (rgba == null)
+                throw new InvalidOperationException(R._("Failed to render the generated map."));
+
+            _lastRgba = rgba;
+            UpdateUI(rgba);
+        }
+
+        void RefreshMapFromCurrentSelectionStrict()
+        {
+            RefreshMapImageFromCurrentSelectionStrict();
+            UpdateTilePaletteStrict();
         }
 
         void UpdateTileUI()
@@ -872,6 +901,16 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _generatingRandomMap = true;
 
+                if (!_vm.TryCaptureMapWriteIdentity(
+                    out MapEditorViewModel.MapWriteIdentity writeIdentity,
+                    out string identityError))
+                {
+                    ShowError(string.Format(
+                        R._("Generate random map failed: {0}"),
+                        identityError));
+                    return;
+                }
+
                 GenerateRandomMapDialogResult? result = await GenerateRandomMapWorkflow.OpenDialogIfReadyAsync(
                     _vm,
                     assetName => DecompMapAssetGuard.BlockIfDecomp(assetName),
@@ -894,8 +933,10 @@ namespace FEBuilderGBA.Avalonia.Views
                         _vm,
                         _undo,
                         result,
-                        RefreshMapFromCurrentSelection,
-                        UpdateTilePalette,
+                        writeIdentity,
+                        RefreshMapImageFromCurrentSelectionStrict,
+                        UpdateTilePaletteStrict,
+                        RefreshMapFromCurrentSelectionStrict,
                         message => CoreState.Services?.ShowInfo(message));
 
                 if (!string.IsNullOrWhiteSpace(applyError))

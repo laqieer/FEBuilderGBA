@@ -40,6 +40,136 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// </summary>
         internal byte[] GetMapDataSnapshot() => _cachedMapData == null ? null : (byte[])_cachedMapData.Clone();
 
+        internal sealed class MapWriteIdentity
+        {
+            internal ROM Rom = null!;
+            internal uint CurrentAddr;
+            internal uint MapId;
+            internal uint PointerEntryAddr;
+            internal uint MapDataAddr;
+            internal byte[] MapData = Array.Empty<byte>();
+        }
+
+        internal bool TryCaptureMapWriteIdentity(
+            out MapWriteIdentity identity,
+            out string error)
+        {
+            identity = null!;
+            error = "";
+
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null)
+            {
+                error = "No ROM loaded.";
+                return false;
+            }
+            if (_cachedMapData == null)
+            {
+                error = "No map loaded.";
+                return false;
+            }
+            if (!TryReadMapData(
+                rom,
+                _cachedMapPointerEntryAddr,
+                out uint mapDataAddr,
+                out byte[] mapData,
+                out error))
+            {
+                return false;
+            }
+            if (!mapData.AsSpan().SequenceEqual(_cachedMapData))
+            {
+                error = "The selected map cache is stale.";
+                return false;
+            }
+
+            identity = new MapWriteIdentity
+            {
+                Rom = rom,
+                CurrentAddr = CurrentAddr,
+                MapId = MapId,
+                PointerEntryAddr = _cachedMapPointerEntryAddr,
+                MapDataAddr = mapDataAddr,
+                MapData = mapData,
+            };
+            return true;
+        }
+
+        internal bool IsMapWriteIdentityCurrent(
+            MapWriteIdentity identity,
+            out string error)
+        {
+            error = "";
+            if (identity == null)
+            {
+                error = "Random-map write identity is missing.";
+                return false;
+            }
+            if (!ReferenceEquals(CoreState.ROM, identity.Rom))
+            {
+                error = "The loaded ROM changed while random-map generation was running.";
+                return false;
+            }
+            if (CurrentAddr != identity.CurrentAddr
+                || MapId != identity.MapId
+                || _cachedMapPointerEntryAddr != identity.PointerEntryAddr)
+            {
+                error = "The selected map changed while random-map generation was running.";
+                return false;
+            }
+            if (!TryReadMapData(
+                identity.Rom,
+                identity.PointerEntryAddr,
+                out uint mapDataAddr,
+                out byte[] mapData,
+                out error))
+            {
+                return false;
+            }
+            if (mapDataAddr != identity.MapDataAddr
+                || !mapData.AsSpan().SequenceEqual(identity.MapData))
+            {
+                error = "The selected map data changed while random-map generation was running.";
+                return false;
+            }
+            return true;
+        }
+
+        static bool TryReadMapData(
+            ROM rom,
+            uint pointerEntryAddr,
+            out uint mapDataAddr,
+            out byte[] mapData,
+            out string error)
+        {
+            mapDataAddr = U.NOT_FOUND;
+            mapData = Array.Empty<byte>();
+            error = "";
+
+            if (rom?.Data == null
+                || rom.Data.Length < 4
+                || pointerEntryAddr > (uint)(rom.Data.Length - 4))
+            {
+                error = "The selected map pointer entry is invalid.";
+                return false;
+            }
+
+            mapDataAddr = rom.p32(pointerEntryAddr);
+            if (!U.isSafetyOffset(mapDataAddr, rom))
+            {
+                error = "The selected map data pointer is invalid.";
+                return false;
+            }
+
+            mapData = LZ77.decompress(rom.Data, mapDataAddr);
+            if (mapData == null || mapData.Length < 2)
+            {
+                error = "The selected map data could not be decompressed.";
+                return false;
+            }
+            return true;
+        }
+
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public int MapWidth { get => _mapWidth; set => SetField(ref _mapWidth, value); }
