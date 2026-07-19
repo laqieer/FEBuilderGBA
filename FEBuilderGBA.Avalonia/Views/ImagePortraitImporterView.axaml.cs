@@ -336,11 +336,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 var loadResult = ImageImportService.LoadAndQuantizeFromFile(filePath, 0, 0, 16);
                 if (loadResult == null)
                 {
+                    ClearLoadedImageState();
                     CoreState.Services.ShowError("Failed to load image (no result).");
                     return;
                 }
                 if (!loadResult.Success)
                 {
+                    ClearLoadedImageState();
                     CoreState.Services.ShowError(loadResult.Error ?? "Failed to load image.");
                     return;
                 }
@@ -371,9 +373,24 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
+                ClearLoadedImageState();
                 Log.ErrorF("ImagePortraitImporterView.LoadImageFromPath failed: {0}", ex.Message);
                 CoreState.Services.ShowError($"Load image failed: {ex.Message}");
             }
+        }
+
+        void ClearLoadedImageState()
+        {
+            _vm.LoadedImage = null;
+            _preparedPreview = null;
+            PreviewImage?.SetImage(null);
+            FramePreviewImage?.SetImage(null);
+            SourceFileLabel.Text = "(no file selected)";
+            ImageSizeLabel.Text = string.Empty;
+            SheetModeLabel.Text = string.Empty;
+            StatusLabel.Text = string.Empty;
+            StatusLabel.Foreground = global::Avalonia.Media.Brushes.Gray;
+            RefreshImportButtonState();
         }
 
         // #661: batch folder import — enumerate every .png / .bmp in the

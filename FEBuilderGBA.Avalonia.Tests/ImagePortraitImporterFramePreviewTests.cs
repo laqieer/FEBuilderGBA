@@ -117,6 +117,35 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
+        public void CodeBehind_FailedImageLoadClearsPreviousImportState()
+        {
+            string source = ReadCodeBehind();
+
+            int clearStart = source.IndexOf("void ClearLoadedImageState()", StringComparison.Ordinal);
+            Assert.True(clearStart >= 0, "ClearLoadedImageState helper not found");
+            int clearEnd = source.IndexOf("// #661: batch folder import", clearStart, StringComparison.Ordinal);
+            Assert.True(clearEnd > clearStart, "ClearLoadedImageState helper boundary not found");
+            string clearBody = source.Substring(clearStart, clearEnd - clearStart);
+
+            Assert.Contains("_vm.LoadedImage = null;", clearBody);
+            Assert.Contains("_preparedPreview = null;", clearBody);
+            Assert.Contains("PreviewImage?.SetImage(null);", clearBody);
+            Assert.Contains("FramePreviewImage?.SetImage(null);", clearBody);
+            Assert.Contains("SourceFileLabel.Text = \"(no file selected)\";", clearBody);
+            Assert.Contains("ImageSizeLabel.Text = string.Empty;", clearBody);
+            Assert.Contains("SheetModeLabel.Text = string.Empty;", clearBody);
+            Assert.Contains("RefreshImportButtonState();", clearBody);
+
+            int loadStart = source.IndexOf("void LoadImageFromPath(string filePath)", StringComparison.Ordinal);
+            Assert.True(loadStart >= 0, "LoadImageFromPath not found");
+            string loadBody = source.Substring(loadStart, clearStart - loadStart);
+
+            // Null result, unsuccessful result, and unexpected exception must all
+            // invalidate the previously loaded portrait before returning.
+            Assert.Equal(3, CountOccurrences(loadBody, "ClearLoadedImageState();"));
+        }
+
+        [Fact]
         public void CodeBehind_SeedsScreenshotHarness()
         {
             string source = ReadCodeBehind();
