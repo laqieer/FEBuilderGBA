@@ -148,21 +148,43 @@ namespace FEBuilderGBA
                 : StringComparison.Ordinal;
 
         /// <summary>
-        /// Best-effort check that <paramref name="candidatePath"/> stays under
-        /// <paramref name="rootPath"/> after full-path normalization.
+        /// Resolve both paths physically (including ancestor symlinks/junctions)
+        /// and check that <paramref name="candidatePath"/> stays under
+        /// <paramref name="rootPath"/>.
         /// </summary>
         internal static bool IsUnderRoot(string candidatePath, string rootPath)
         {
             if (string.IsNullOrWhiteSpace(candidatePath) || string.IsNullOrWhiteSpace(rootPath))
                 return false;
 
-            string normalizedCandidate = Path.TrimEndingDirectorySeparator(Path.GetFullPath(candidatePath));
-            string normalizedRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(rootPath));
-            if (string.Equals(normalizedCandidate, normalizedRoot, PathComparison))
-                return true;
+            try
+            {
+                string physicalCandidate = BuildfilePathSafety.ResolvePhysicalPath(candidatePath);
+                string physicalRoot = BuildfilePathSafety.ResolvePhysicalPath(rootPath);
+                if (string.Equals(physicalCandidate, physicalRoot, PathComparison))
+                    return true;
 
-            string rootWithSeparator = normalizedRoot + Path.DirectorySeparatorChar;
-            return normalizedCandidate.StartsWith(rootWithSeparator, PathComparison);
+                string rootWithSeparator =
+                    Path.TrimEndingDirectorySeparator(physicalRoot)
+                    + Path.DirectorySeparatorChar;
+                return physicalCandidate.StartsWith(rootWithSeparator, PathComparison);
+            }
+            catch (IOException)
+            {
+                return false;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return false;
+            }
+            catch (ArgumentException)
+            {
+                return false;
+            }
+            catch (NotSupportedException)
+            {
+                return false;
+            }
         }
 
         internal static bool TryNormalizeAbsoluteLocalFile(
@@ -209,9 +231,9 @@ namespace FEBuilderGBA
                 return false;
             }
 
-            if (!Path.IsPathRooted(candidate))
+            if (!Path.IsPathFullyQualified(candidate))
             {
-                error = "Path must be absolute: " + rawPath;
+                error = "Path must be fully qualified and absolute: " + rawPath;
                 return false;
             }
 

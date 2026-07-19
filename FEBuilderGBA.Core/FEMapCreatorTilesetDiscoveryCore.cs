@@ -201,9 +201,10 @@ namespace FEBuilderGBA
                 return "";
             }
 
-            if (!Path.IsPathRooted(rawRoot))
+            if (!Path.IsPathFullyQualified(rawRoot))
             {
-                error = "FEMapCreator assetsRoot must be an absolute path: " + reportedAssetsRoot;
+                error = "FEMapCreator assetsRoot must be fully qualified and absolute: "
+                    + reportedAssetsRoot;
                 return "";
             }
 
@@ -389,6 +390,13 @@ namespace FEBuilderGBA
             if (string.IsNullOrWhiteSpace(rawPath))
             {
                 error = "Asset path is missing.";
+                return false;
+            }
+
+            if (rawPath.StartsWith("file:", StringComparison.OrdinalIgnoreCase)
+                || rawPath.Contains("://", StringComparison.Ordinal))
+            {
+                error = "Asset path must be a local filesystem path, not a URL: " + rawPath;
                 return false;
             }
 

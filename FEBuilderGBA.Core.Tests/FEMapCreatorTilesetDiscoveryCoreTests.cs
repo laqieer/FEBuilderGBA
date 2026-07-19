@@ -205,6 +205,15 @@ namespace FEBuilderGBA.Core.Tests
                             hasGenerationData = true,
                             diagnostic = "",
                         },
+                        new
+                        {
+                            name = "AssetUri",
+                            imagePath = new Uri(outsideImage).AbsoluteUri,
+                            generationDataPath = "good.json",
+                            hasImage = true,
+                            hasGenerationData = true,
+                            diagnostic = "",
+                        },
                     },
                 });
 
@@ -219,12 +228,87 @@ namespace FEBuilderGBA.Core.Tests
                     });
 
                 Assert.True(result.Success, result.ErrorMessage);
-                Assert.Equal(4, result.Tilesets.Count);
+                Assert.Equal(5, result.Tilesets.Count);
                 Assert.Single(result.UsableTilesets);
                 Assert.Equal("Complete", result.UsableTilesets[0].Name);
                 Assert.Contains("no generation-data asset", result.Tilesets.Single(x => x.Name == "Incomplete").Diagnostic, StringComparison.OrdinalIgnoreCase);
                 Assert.Contains("escapes the sanctioned asset root", result.Tilesets.Single(x => x.Name == "EscapeRelative").Diagnostic, StringComparison.OrdinalIgnoreCase);
                 Assert.Contains("escapes the sanctioned asset root", result.Tilesets.Single(x => x.Name == "EscapeAbsolute").Diagnostic, StringComparison.OrdinalIgnoreCase);
+                Assert.Contains("not a URL", result.Tilesets.Single(x => x.Name == "AssetUri").Diagnostic, StringComparison.OrdinalIgnoreCase);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
+        public void DiscoverTilesets_RejectsSymlinkedAssetEscape()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string femapCreatorExe = CreateEmptyFile(tempRoot, "FEMapCreator.exe");
+                string assetsRoot = Path.Combine(tempRoot, "assets");
+                string outsideRoot = Path.Combine(tempRoot, "outside");
+                Directory.CreateDirectory(assetsRoot);
+                Directory.CreateDirectory(outsideRoot);
+
+                string outsideImage = Path.Combine(outsideRoot, "outside.png");
+                string outsideData = Path.Combine(outsideRoot, "outside.json");
+                File.WriteAllBytes(outsideImage, CreatePngHeader(512, 16));
+                File.WriteAllText(outsideData, "{}");
+
+                string link = Path.Combine(assetsRoot, "linked");
+                try
+                {
+                    Directory.CreateSymbolicLink(link, outsideRoot);
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    return;
+                }
+                catch (IOException)
+                {
+                    return;
+                }
+
+                string json = JsonSerializer.Serialize(new
+                {
+                    assetsRoot = assetsRoot,
+                    tilesets = new[]
+                    {
+                        new
+                        {
+                            name = "LinkedEscape",
+                            imagePath = Path.Combine("linked", "outside.png"),
+                            generationDataPath = Path.Combine("linked", "outside.json"),
+                            hasImage = true,
+                            hasGenerationData = true,
+                            diagnostic = "",
+                        },
+                    },
+                });
+
+                FEMapCreatorTilesetDiscoveryResult result =
+                    FEMapCreatorTilesetDiscoveryCore.DiscoverTilesets(
+                        femapCreatorExe,
+                        runner: (command, args, workingDir, timeoutMs, maximumOutputChars) =>
+                            new ProcessRunResult
+                            {
+                                Started = true,
+                                ExitCode = 0,
+                                Stdout = json,
+                                Stderr = "",
+                            });
+
+                Assert.True(result.Success, result.ErrorMessage);
+                FEMapCreatorTilesetInfo escaped = Assert.Single(result.Tilesets);
+                Assert.False(escaped.IsUsable);
+                Assert.Contains(
+                    "escapes the sanctioned asset root",
+                    escaped.Diagnostic,
+                    StringComparison.OrdinalIgnoreCase);
             }
             finally
             {

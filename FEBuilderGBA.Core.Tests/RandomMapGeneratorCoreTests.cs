@@ -169,6 +169,24 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(fileUriResult.Success);
             Assert.Equal(RandomMapGeneratorErrorCategory.InvalidPath, fileUriResult.ErrorCategory);
 
+            foreach (string notFullyQualified in new[] { @"C:tool.exe", @"\tool.exe" })
+            {
+                RandomMapGenerationResult rootedButRelative = RandomMapGeneratorCore.Generate(
+                    new RandomMapGenerationRequest
+                    {
+                        Width = 1,
+                        Height = 1,
+                        TilesetName = "Grassland",
+                        Algorithm = RandomMapGeneratorAlgorithms.Default,
+                        Seed = 1,
+                        FEMapCreatorPath = notFullyQualified,
+                    });
+                Assert.False(rootedButRelative.Success);
+                Assert.Equal(
+                    RandomMapGeneratorErrorCategory.InvalidPath,
+                    rootedButRelative.ErrorCategory);
+            }
+
             RandomMapGenerationResult relativeResult = RandomMapGeneratorCore.Generate(new RandomMapGenerationRequest
             {
                 Width = 1,
