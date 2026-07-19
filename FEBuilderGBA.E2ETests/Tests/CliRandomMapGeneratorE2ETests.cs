@@ -1,0 +1,210 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Text.Json;
+using FEBuilderGBA.E2ETests.Helpers;
+using Xunit;
+
+namespace FEBuilderGBA.E2ETests.Tests
+{
+    public sealed class CliRandomMapGeneratorE2ETests : IDisposable
+    {
+        private static readonly string CliExe = AppRunner.FindCliExePath();
+        private readonly string _root;
+        private readonly List<string> _filesToDelete = new();
+
+        public CliRandomMapGeneratorE2ETests()
+        {
+            _root = Path.Combine(
+                Path.GetTempPath(),
+                "febuildergba-random-map-e2e-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(_root);
+        }
+
+        public void Dispose()
+        {
+            foreach (string file in _filesToDelete)
+            {
+                try { if (File.Exists(file)) File.Delete(file); } catch { }
+            }
+            try
+            {
+                if (Directory.Exists(_root))
+                    Directory.Delete(_root, recursive: true);
+            }
+            catch
+            {
+            }
+        }
+
+        [Fact]
+        public void Help_ListsGenerateRandomMap()
+        {
+            var (code, stdout, _) = AppRunner.Run(CliExe, "--help", timeoutMs: 15_000);
+            Assert.Equal(0, code);
+            Assert.Contains("--generate-random-map", stdout);
+        }
+
+        [Fact]
+        public void MissingFemapcreator_ErrorsAndDoesNotCreateOutput()
+        {
+            string outPath = TempFile("missing-femapcreator.csv");
+            var (code, _, stderr) = AppRunner.Run(
+                CliExe,
+                $"--generate-random-map --tileset=Grassland --width=2 --height=2 --out=\"{outPath}\"",
+                timeoutMs: 15_000);
+
+            Assert.NotEqual(0, code);
+            Assert.Contains("--femapcreator", stderr);
+            Assert.False(File.Exists(outPath));
+        }
+
+        [Fact]
+        public void MissingTileset_ErrorsAndDoesNotCreateOutput()
+        {
+            string femapCreatorPath = CreateEmptyFile("FEMapCreator.exe");
+            string outPath = TempFile("missing-tileset.csv");
+            var (code, _, stderr) = AppRunner.Run(
+                CliExe,
+                $"--generate-random-map --femapcreator=\"{femapCreatorPath}\" --width=2 --height=2 --out=\"{outPath}\"",
+                timeoutMs: 15_000);
+
+            Assert.NotEqual(0, code);
+            Assert.Contains("--tileset", stderr);
+            Assert.False(File.Exists(outPath));
+        }
+
+        [Fact]
+        public void MissingWidth_ErrorsAndDoesNotCreateOutput()
+        {
+            string femapCreatorPath = CreateEmptyFile("FEMapCreator.exe");
+            string outPath = TempFile("missing-width.csv");
+            var (code, _, stderr) = AppRunner.Run(
+                CliExe,
+                $"--generate-random-map --femapcreator=\"{femapCreatorPath}\" --tileset=Grassland --height=2 --out=\"{outPath}\"",
+                timeoutMs: 15_000);
+
+            Assert.NotEqual(0, code);
+            Assert.Contains("--width", stderr);
+            Assert.False(File.Exists(outPath));
+        }
+
+        [Fact]
+        public void MissingHeight_ErrorsAndDoesNotCreateOutput()
+        {
+            string femapCreatorPath = CreateEmptyFile("FEMapCreator.exe");
+            string outPath = TempFile("missing-height.csv");
+            var (code, _, stderr) = AppRunner.Run(
+                CliExe,
+                $"--generate-random-map --femapcreator=\"{femapCreatorPath}\" --tileset=Grassland --width=2 --out=\"{outPath}\"",
+                timeoutMs: 15_000);
+
+            Assert.NotEqual(0, code);
+            Assert.Contains("--height", stderr);
+            Assert.False(File.Exists(outPath));
+        }
+
+        [Fact]
+        public void MissingOut_Errors()
+        {
+            string femapCreatorPath = CreateEmptyFile("FEMapCreator.exe");
+            var (code, _, stderr) = AppRunner.Run(
+                CliExe,
+                $"--generate-random-map --femapcreator=\"{femapCreatorPath}\" --tileset=Grassland --width=2 --height=2",
+                timeoutMs: 15_000);
+
+            Assert.NotEqual(0, code);
+            Assert.Contains("--out", stderr);
+        }
+
+        [Theory]
+        [InlineData("--width", "0")]
+        [InlineData("--width", "-1")]
+        [InlineData("--width", "65")]
+        [InlineData("--height", "0")]
+        [InlineData("--height", "-1")]
+        [InlineData("--height", "65")]
+        public void InvalidDimensions_AreRejectedBeforeLaunch(string flag, string value)
+        {
+            string femapCreatorPath = CreateEmptyFile("FEMapCreator.exe");
+            string outPath = TempFile("invalid-dimension.csv");
+            string width = flag == "--width" ? value : "2";
+            string height = flag == "--height" ? value : "2";
+
+            var (code, _, stderr) = AppRunner.Run(
+                CliExe,
+                $"--generate-random-map --femapcreator=\"{femapCreatorPath}\" --tileset=Grassland --width={width} --height={height} --out=\"{outPath}\"",
+                timeoutMs: 15_000);
+
+            Assert.NotEqual(0, code);
+            Assert.Contains(flag, stderr);
+            Assert.False(File.Exists(outPath));
+        }
+
+        [Fact]
+        public void NonexistentFemapcreator_UsesCorePathValidation()
+        {
+            string missingPath = Path.Combine(_root, "missing", "FEMapCreator.exe");
+            string outPath = TempFile("missing-binary.csv");
+
+            var (code, _, stderr) = AppRunner.Run(
+                CliExe,
+                $"--generate-random-map --femapcreator=\"{missingPath}\" --tileset=Grassland --width=2 --height=2 --out=\"{outPath}\"",
+                timeoutMs: 15_000);
+
+            Assert.NotEqual(0, code);
+            Assert.Contains("does not exist", stderr, StringComparison.OrdinalIgnoreCase);
+            Assert.False(File.Exists(outPath));
+        }
+
+        [Fact]
+        public void RelativeFemapcreator_IsRejectedBeforeLaunch()
+        {
+            string outPath = TempFile("relative-binary.csv");
+
+            var (code, _, stderr) = AppRunner.Run(
+                CliExe,
+                $"--generate-random-map --femapcreator=FEMapCreator.exe --tileset=Grassland --width=2 --height=2 --out=\"{outPath}\"",
+                timeoutMs: 15_000);
+
+            Assert.NotEqual(0, code);
+            Assert.Contains("must be absolute", stderr, StringComparison.OrdinalIgnoreCase);
+            Assert.False(File.Exists(outPath));
+        }
+
+        [Fact]
+        public void JsonError_GoesToStdoutAndDoesNotCreateOutput()
+        {
+            string outPath = TempFile("json-error.csv");
+            var (code, stdout, stderr) = AppRunner.Run(
+                CliExe,
+                $"--generate-random-map --tileset=Grassland --width=2 --height=2 --out=\"{outPath}\" --json",
+                timeoutMs: 15_000);
+
+            Assert.NotEqual(0, code);
+            Assert.Equal("", stderr);
+            using JsonDocument document = JsonDocument.Parse(stdout);
+            JsonElement root = document.RootElement;
+            Assert.Equal("generate-random-map", root.GetProperty("command").GetString());
+            Assert.False(root.GetProperty("ok").GetBoolean());
+            Assert.Contains("--femapcreator", root.GetProperty("error").GetString());
+            Assert.False(File.Exists(outPath));
+        }
+
+        private string TempFile(string fileName)
+        {
+            string path = Path.Combine(_root, fileName);
+            _filesToDelete.Add(path);
+            return path;
+        }
+
+        private string CreateEmptyFile(string fileName)
+        {
+            string path = Path.Combine(_root, fileName);
+            File.WriteAllBytes(path, Array.Empty<byte>());
+            _filesToDelete.Add(path);
+            return path;
+        }
+    }
+}
