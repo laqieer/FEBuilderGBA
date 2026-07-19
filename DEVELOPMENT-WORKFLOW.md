@@ -29,7 +29,7 @@ the developer**.
 
 | Developer | Review Gate consults | Mechanism |
 |-----------|----------------------|-----------|
-| **Claude Code CLI** | **Copilot CLI** | `copilot -p "..." --autopilot --enable-all-github-mcp-tools --allow-all-tools` (Branch A) |
+| **Claude Code CLI** | **Copilot CLI** | `GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS=true copilot -p "..." --autopilot --enable-all-github-mcp-tools --allow-all-tools` (Branch A; see the runnable bash/PowerShell examples in **Phase 2 step 4** / **Phase 4 step 10** below for the full invocation and the Windows `$env:` equivalent) |
 | **Copilot CLI** | **Its own other models** — an in-session cross-model board | `task` sub-agent per model → synthesize → post via `gh` (Branch B). **Never** `agency cc` / Claude Code. |
 
 ### Screenshot-only helper PR exemption (PR gate only)
