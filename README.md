@@ -803,6 +803,55 @@ See
 [docs/MCP-SERVER.md](docs/MCP-SERVER.md) for the full tool/resource reference, protocol details,
 and setup instructions.
 
+## Context safety (Copilot CLI / Claude Code sessions)
+
+AI coding sessions in this repo (Copilot CLI, Claude Code) manage their context window by **token**
+count, but the underlying CAPI backend that serializes a request to the model rejects any payload
+above a fixed **byte** ceiling. Those are different quantities: a handful of screenshots or a large
+`gh pr diff`/CI log can add megabytes of bytes while barely moving the token count, so a session can
+hit the CAPI byte ceiling and fail well before ordinary token-based compaction would ever trigger.
+See issue [#1995](https://github.com/laqieer/FEBuilderGBA/issues/1995) for the original report, and
+upstream discussions [github/copilot-cli#3767](https://github.com/github/copilot-cli/issues/3767)
+and [github/copilot-cli#1688](https://github.com/github/copilot-cli/issues/1688).
+
+**Safeguards in this repo:**
+- `DEVELOPMENT-WORKFLOW.md`'s "Context Hygiene" section and `.github/copilot-instructions.md`'s
+  "Context safety" section require every review/reviewer step to pass identifiers (issue/PR number,
+  plan-comment URL, head SHA) rather than embedding full diffs, logs, or images, to spawn a fresh
+  child sub-agent per screenshot or safety screen, and to bound every child's final report to ≤ 8 KiB
+  of findings + citations (no raw diff hunks, logs, base64, or image bytes).
+- `.github/hooks/copilot-context-budget.json` registers a best-effort `preToolUse` command hook
+  (`scripts/copilot_context_guard.py`, plus `scripts/copilot-context-guard.sh` /
+  `scripts/copilot-context-guard.ps1` platform wrappers) that tracks cumulative bytes of image files
+  read through the `view` tool in a session and denies a further read once a conservative budget
+  (default 1,250,000 bytes, overridable via `COPILOT_CONTEXT_GUARD_BUDGET_BYTES`) would be exceeded.
+  It is fail-open by design: any uncertain, malformed, or infrastructure-failure path abstains
+  (`{}`, exit 0) rather than blocking unrelated work, and only a definitive cumulative overflow denies
+  (JSON `permissionDecision: "deny"` + a reason, exit 2). Repository hooks only execute when the
+  session has repo-hook execution enabled; verify with `/env` that
+  `GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS=true` is set (the literal string `"true"`, not `1`).
+- `.github/copilot/settings.json` ships `{"contextTier": "default"}`. Per official Copilot CLI docs,
+  a repository-level `contextTier` setting takes precedence over a user-level setting **only when
+  the working directory is trusted** (untrusted directories fall back to the user-level setting).
+  Repo scope generally outranks user scope in the settings merge order (`user` → `repo` → `local`),
+  so shipping this file makes `default` context tier apply automatically for any trusted checkout of
+  this repo, without requiring each contributor to set it manually. If you deliberately want
+  `long_context` for your own session despite this file, override it at session/user scope (e.g. the
+  `--context long_context` CLI flag, or `/settings set contextTier long_context` in an interactive
+  session) — session/local overrides still win over the repo default.
+
+**Recovery commands (Copilot CLI):**
+- `/context` — inspect current context usage before it becomes a problem.
+- `/compact` — proactively compact instead of waiting for an automatic/emergency compaction.
+- `/rewind` — discard a bad exploratory detour (e.g. after loading an oversized diff/log by mistake)
+  without restarting the whole session.
+- `/new` — start a clean session once a phase is truly done; session checkpoints and the session's
+  `plan.md` preserve continuity so a fresh session can pick the work back up. If a session's hook
+  state (`scripts/copilot_context_guard.py`'s persisted byte counters) needs a hard reset rather than
+  a normal `/new`, delete its state directory explicitly (see the script's module docstring for the
+  resolved path) — there is no automatic mid-session reset, by design, since state must survive
+  ordinary compaction.
+
 README for Korean character table
 ===
 

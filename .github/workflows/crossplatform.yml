@@ -41,6 +41,9 @@ jobs:
       working-directory: tools/gba-playtest
       run: python -m pytest -q
 
+    - name: Run copilot-context-guard contract tests (issue #1995)
+      run: python -m unittest discover -s scripts/tests -p "test_copilot_context_guard.py" -v
+
     - name: Build ColorzCore (bundled EA tool)
       run: dotnet build tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release
 
