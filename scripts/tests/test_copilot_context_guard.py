@@ -23,6 +23,7 @@ import io
 import json
 import os
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -381,7 +382,17 @@ class TestUserPartitionedFallback(unittest.TestCase):
                 state_dir, is_fallback = guard._resolve_state_dir("never-created-session")
                 self.assertTrue(is_fallback)
                 token = guard._current_user_token()
-                self.assertIn(token, state_dir.split(os.sep))
+                # The token is embedded directly in the top-level fallback
+                # root's own directory name (e.g.
+                # "copilot-context-guard-uid-1000"), not as a standalone
+                # path component -- so this must be a substring check of
+                # some path component, not an exact-segment membership
+                # check.
+                self.assertTrue(
+                    any(token in part for part in state_dir.split(os.sep)),
+                    "expected user token {0!r} embedded in some component of "
+                    "{1!r}".format(token, state_dir),
+                )
             finally:
                 if old_home is None:
                     os.environ.pop("COPILOT_HOME", None)
@@ -392,10 +403,20 @@ class TestUserPartitionedFallback(unittest.TestCase):
         finally:
             shutil.rmtree(fake_home, ignore_errors=True)
 
+    def test_user_fallback_root_name_is_user_specific_not_a_shared_subdir(self):
+        root = guard._user_fallback_root()
+        token = guard._current_user_token()
+        self.assertIn(token, os.path.basename(root))
+        # Regression guard: the bare, non-user-specific subdir name must
+        # never itself be the fallback root -- that was the shared-parent
+        # layout that let one local user's chmod 0700 lock out every other
+        # UID sharing the same OS temp directory.
+        self.assertNotEqual(os.path.basename(root), guard.FALLBACK_SUBDIR_NAME)
+        shared_root = os.path.join(tempfile.gettempdir(), guard.FALLBACK_SUBDIR_NAME)
+        self.assertNotEqual(root, shared_root)
+
     @unittest.skipIf(sys.platform.startswith("win"), "POSIX-only permission tightening")
     def test_makedirs_private_tightens_permissions_to_0700(self):
-        import stat
-
         root = tempfile.mkdtemp(prefix="ctxguard-private-")
         try:
             target = os.path.join(root, "a", "b", "c")
@@ -411,6 +432,54 @@ class TestUserPartitionedFallback(unittest.TestCase):
             self.assertTrue(os.path.isdir(root))
         finally:
             shutil.rmtree(root, ignore_errors=True)
+
+    @unittest.skipIf(sys.platform.startswith("win"), "POSIX-only permission tightening")
+    def test_private_stop_at_is_user_specific_and_shared_temp_root_untouched(self):
+        """Regression test for the shared-parent chmod-lockout bug.
+
+        The buggy layout used a shared ``<tmp>/copilot-context-guard``
+        parent as ``_makedirs_private``'s ``stop_at``: the first local user
+        to run the guard would ``chmod 0700`` that shared parent, silently
+        denying every *other* local UID write access to create their own
+        subdirectory beneath it. This asserts, for two distinct simulated
+        users sharing one fake OS temp root, that: (1) each user's private
+        stop_at/root embeds that user's own token, (2) both users can
+        independently create and privatize their own fallback state
+        without interfering with each other, and (3) the actual shared OS
+        temp root itself is never a chmod target.
+        """
+        fake_tmp = tempfile.mkdtemp(prefix="ctxguard-faketmp-")
+        try:
+            original_tmp_mode = stat.S_IMODE(os.stat(fake_tmp).st_mode)
+            original_gettempdir = guard.tempfile.gettempdir
+            original_token_fn = guard._current_user_token
+            guard.tempfile.gettempdir = lambda: fake_tmp
+            try:
+                for token, session in (("uid-1111", "session-a"), ("uid-2222", "session-b")):
+                    guard._current_user_token = lambda t=token: t
+                    root = guard._user_fallback_root()
+                    self.assertIn(token, os.path.basename(root))
+                    self.assertNotEqual(os.path.basename(root), guard.FALLBACK_SUBDIR_NAME)
+
+                    state_dir = os.path.join(root, session)
+                    self.assertTrue(
+                        guard._makedirs_private(state_dir, root),
+                        "user {0!r} must be able to create its own fallback "
+                        "state dir independently of any other user's".format(token),
+                    )
+                    self.assertEqual(stat.S_IMODE(os.stat(root).st_mode), 0o700)
+                    self.assertEqual(stat.S_IMODE(os.stat(state_dir).st_mode), 0o700)
+
+                # The shared OS temp root itself must never be chmod-targeted.
+                self.assertEqual(
+                    stat.S_IMODE(os.stat(fake_tmp).st_mode), original_tmp_mode
+                )
+            finally:
+                guard.tempfile.gettempdir = original_gettempdir
+                guard._current_user_token = original_token_fn
+        finally:
+            os.chmod(fake_tmp, 0o700)
+            shutil.rmtree(fake_tmp, ignore_errors=True)
 
     def test_makedirs_private_returns_false_on_creation_failure(self):
         if sys.platform.startswith("win"):

@@ -148,16 +148,33 @@ def _makedirs_private(path, stop_at):
     return True
 
 
+def _user_fallback_root():
+    """The per-user top-level OS-temp fallback root.
+
+    The user token is embedded directly in this top-level directory's own
+    name (``<tmp>/copilot-context-guard-<user-token>``) rather than as a
+    nested subdirectory of a shared ``<tmp>/copilot-context-guard`` parent.
+    This is deliberate: a nested layout would require ``_makedirs_private``
+    to walk up through -- and ``chmod 0700`` -- the shared parent directory
+    itself, which the first user to run the guard would then lock every
+    other local UID out of. Because this root's own name is already
+    user-specific, it is always safe to privatize in full without ever
+    touching anything actually shared between users (``tempfile.gettempdir()``
+    itself is never a target).
+    """
+    return os.path.join(
+        tempfile.gettempdir(), "{0}-{1}".format(FALLBACK_SUBDIR_NAME, _current_user_token())
+    )
+
+
 def _resolve_state_dir(session_id):
     """Resolve the directory that will hold this session's guard state.
 
     Prefers the real Copilot session-state directory (sibling to the
     session's git worktree ``files/`` dir, so state never lands inside the
-    tracked Git tree). Falls back to an OS temp/cache directory, partitioned
-    per sanitized sessionId **and** per current user/UID (so unrelated local
-    users sharing a multi-user temp directory never collide on the same
-    path), when the session directory cannot be resolved. Returns
-    (state_dir, is_fallback).
+    tracked Git tree). Falls back to a per-user OS temp/cache directory
+    (see ``_user_fallback_root()``), scoped per sanitized sessionId, when
+    the session directory cannot be resolved. Returns (state_dir, is_fallback).
     """
     override = os.environ.get(STATE_DIR_OVERRIDE_ENV_VAR)
     if override:
@@ -172,10 +189,7 @@ def _resolve_state_dir(session_id):
     except OSError:
         pass
 
-    fallback_root = os.path.join(
-        tempfile.gettempdir(), FALLBACK_SUBDIR_NAME, _current_user_token()
-    )
-    return os.path.join(fallback_root, safe_id), True
+    return os.path.join(_user_fallback_root(), safe_id), True
 
 
 def _cleanup_stale_temp_state(fallback_root):
@@ -373,8 +387,7 @@ def run(stdin_text):
 
     if is_fallback:
         _cleanup_stale_temp_state(os.path.dirname(state_dir))
-        fallback_anchor = os.path.join(tempfile.gettempdir(), FALLBACK_SUBDIR_NAME)
-        if not _makedirs_private(state_dir, fallback_anchor):
+        if not _makedirs_private(state_dir, _user_fallback_root()):
             return FALL_THROUGH, 0
     else:
         try:
