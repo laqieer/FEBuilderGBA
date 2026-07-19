@@ -316,6 +316,10 @@ namespace FEBuilderGBA.Core.Tests
                 ProcessRunnerCore.PosixUnobservedTerminationState.Failed,
                 state);
             Assert.Equal(1, calls);
+            Assert.True(
+                ProcessRunnerCore.MergeTerminationFailure(
+                    terminationFailed: false,
+                    containmentTerminated: first));
         }
 
         [Fact]
@@ -377,6 +381,23 @@ namespace FEBuilderGBA.Core.Tests
                 ProcessRunnerCore.PosixUnobservedTerminationState.Failed,
                 state);
             Assert.Equal(1, calls);
+        }
+
+        [Theory]
+        [InlineData(false, true, false)]
+        [InlineData(false, false, true)]
+        [InlineData(true, true, true)]
+        [InlineData(true, false, true)]
+        public void MergeTerminationFailure_PreservesAnyFailure(
+            bool existingFailure,
+            bool containmentTerminated,
+            bool expected)
+        {
+            Assert.Equal(
+                expected,
+                ProcessRunnerCore.MergeTerminationFailure(
+                    existingFailure,
+                    containmentTerminated));
         }
 
         [Theory]

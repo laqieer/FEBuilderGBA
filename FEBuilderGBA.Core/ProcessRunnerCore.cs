@@ -121,6 +121,11 @@ namespace FEBuilderGBA
             return false;
         }
 
+        internal static bool MergeTerminationFailure(
+            bool terminationFailed,
+            bool containmentTerminated)
+            => terminationFailed || !containmentTerminated;
+
         private interface IProcessContainment : IDisposable
         {
             bool Terminate();
@@ -726,16 +731,20 @@ namespace FEBuilderGBA
                             break;
                     }
 
+                    if (!terminationFailed)
+                    {
+                        proc.WaitForExit();
+                        bool containmentTerminated =
+                            containment?.Terminate() ?? true;
+                        terminationFailed = MergeTerminationFailure(
+                            terminationFailed,
+                            containmentTerminated);
+                    }
                     if (terminationFailed)
                     {
                         RetainProcessForTermination(proc, containment);
                         containment = null;
                         processRetained = true;
-                    }
-                    else
-                    {
-                        proc.WaitForExit();
-                        containment?.Terminate();
                     }
 
                     bool streamsDrained = Task.WaitAll(
