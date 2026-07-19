@@ -43,6 +43,9 @@ The opt-in `--playtest` command drives a source-pinned mGBA 0.10.5 binding with
 strict JSON input, exact frame/key/RAM actions, assertions, watchdogs, and an
 optional final PNG. It emits one JSON verdict and preserves exit `0` (pass),
 `1` (setup/harness error), and `2` (behavioral verification failure).
+On POSIX hosts, the bounded runner isolates the worker process group and performs
+one-shot descendant cleanup after a short-lived leader exits, so inherited pipes
+cannot stall result capture.
 
 ```bash
 FEBuilderGBA.CLI --playtest --check --python=/path/to/playtest-python
