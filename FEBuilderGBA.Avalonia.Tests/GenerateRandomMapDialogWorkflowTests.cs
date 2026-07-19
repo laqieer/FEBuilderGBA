@@ -548,7 +548,14 @@ namespace FEBuilderGBA.Avalonia.Tests
             CoreState.ROM!.write_p32(pointerEntryAddr, oldAddr);
             CoreState.ROM.write_range(oldAddr, originalCompressed);
 
-            var vm = new MapEditorViewModel { MapWidth = 2, MapHeight = 2 };
+            var vm = new MapEditorViewModel
+            {
+                CurrentAddr = 0x300,
+                MapId = 1,
+                MapWidth = 2,
+                MapHeight = 2,
+            };
+            ConfigureMapPointerIdentity(vm, pointerEntryAddr, mapPlist: 1);
             SetPrivateField(vm, "_cachedMapPointerEntryAddr", pointerEntryAddr);
             SetPrivateField(vm, "_cachedMapData", (byte[])originalMap.Clone());
             Assert.True(
@@ -616,10 +623,12 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [AvaloniaTheory]
-        [InlineData(true)]
-        [InlineData(false)]
+        [InlineData("rom")]
+        [InlineData("selection")]
+        [InlineData("plist")]
+        [InlineData("table")]
         public async Task ApplyGeneratedMapOnUiThreadAsync_ContextChanged_AbortsBeforeUndo(
-            bool replaceRom)
+            string changeKind)
         {
             CoreState.ROM = CreateRom();
             CoreState.Undo = new Undo();
@@ -637,6 +646,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 MapWidth = 2,
                 MapHeight = 2,
             };
+            ConfigureMapPointerIdentity(vm, pointerEntryAddr, mapPlist: 1);
             SetPrivateField(vm, "_cachedMapPointerEntryAddr", pointerEntryAddr);
             SetPrivateField(vm, "_cachedMapData", (byte[])originalMap.Clone());
             Assert.True(
@@ -645,10 +655,24 @@ namespace FEBuilderGBA.Avalonia.Tests
                     out string identityError),
                 identityError);
 
-            if (replaceRom)
-                CoreState.ROM = CreateRom();
-            else
-                vm.MapId = 2;
+            switch (changeKind)
+            {
+                case "rom":
+                    CoreState.ROM = CreateRom();
+                    break;
+                case "selection":
+                    vm.MapId = 2;
+                    break;
+                case "plist":
+                    CoreState.ROM!.write_u8(vm.CurrentAddr + 8, 2);
+                    break;
+                case "table":
+                    CoreState.ROM!.write_p32(0x220, 0x260);
+                    break;
+                default:
+                    throw new InvalidOperationException(
+                        "Unknown change kind: " + changeKind);
+            }
 
             var undo = new RecordingUndoService(new List<string>());
             int reloadCalls = 0;
@@ -677,7 +701,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Equal(0, undo.BeginCalls);
             Assert.Equal(0, undo.CommitCalls);
             Assert.Equal(0, undo.RollbackCalls);
-            Assert.Equal(replaceRom ? 0 : 1, reloadCalls);
+            Assert.Equal(changeKind == "rom" ? 0 : 1, reloadCalls);
         }
 
         [AvaloniaFact]
@@ -700,6 +724,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 MapWidth = 2,
                 MapHeight = 2,
             };
+            ConfigureMapPointerIdentity(vm, pointerEntryAddr, mapPlist: 1);
             SetPrivateField(vm, "_cachedMapPointerEntryAddr", pointerEntryAddr);
             SetPrivateField(vm, "_cachedMapData", (byte[])originalMap.Clone());
             Assert.True(
@@ -820,6 +845,23 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         static void SeedMapData(MapEditorViewModel vm, byte[] mapData)
             => SetPrivateField(vm, "_cachedMapData", (byte[])mapData.Clone());
+
+        static void ConfigureMapPointerIdentity(
+            MapEditorViewModel vm,
+            uint pointerEntryAddr,
+            byte mapPlist)
+        {
+            ROM rom = CoreState.ROM!;
+            const uint tablePointerAddr = 0x220;
+            uint tableBase = pointerEntryAddr - mapPlist * 4u;
+            PropertyInfo? property = rom.RomInfo.GetType().BaseType?.GetProperty(
+                "map_map_pointer_pointer",
+                BindingFlags.Public | BindingFlags.Instance);
+            Assert.NotNull(property);
+            property!.SetValue(rom.RomInfo, tablePointerAddr);
+            rom.write_p32(tablePointerAddr, tableBase);
+            rom.write_u8(vm.CurrentAddr + 8, mapPlist);
+        }
 
         static void SetPrivateField(object target, string name, object value)
         {

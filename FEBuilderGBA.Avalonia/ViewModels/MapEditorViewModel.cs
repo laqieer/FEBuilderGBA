@@ -68,9 +68,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 error = "No map loaded.";
                 return false;
             }
+            if (!TryResolveMapPointerEntry(
+                rom,
+                CurrentAddr,
+                out uint pointerEntryAddr,
+                out error))
+            {
+                return false;
+            }
+            if (pointerEntryAddr != _cachedMapPointerEntryAddr)
+            {
+                error = "The selected map pointer entry cache is stale.";
+                return false;
+            }
             if (!TryReadMapData(
                 rom,
-                _cachedMapPointerEntryAddr,
+                pointerEntryAddr,
                 out uint mapDataAddr,
                 out byte[] mapData,
                 out error))
@@ -88,7 +101,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 Rom = rom,
                 CurrentAddr = CurrentAddr,
                 MapId = MapId,
-                PointerEntryAddr = _cachedMapPointerEntryAddr,
+                PointerEntryAddr = pointerEntryAddr,
                 MapDataAddr = mapDataAddr,
                 MapData = mapData,
             };
@@ -111,15 +124,28 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return false;
             }
             if (CurrentAddr != identity.CurrentAddr
-                || MapId != identity.MapId
-                || _cachedMapPointerEntryAddr != identity.PointerEntryAddr)
+                || MapId != identity.MapId)
             {
                 error = "The selected map changed while random-map generation was running.";
                 return false;
             }
+            if (!TryResolveMapPointerEntry(
+                identity.Rom,
+                CurrentAddr,
+                out uint pointerEntryAddr,
+                out error))
+            {
+                return false;
+            }
+            if (pointerEntryAddr != identity.PointerEntryAddr
+                || _cachedMapPointerEntryAddr != identity.PointerEntryAddr)
+            {
+                error = "The selected map pointer entry changed while random-map generation was running.";
+                return false;
+            }
             if (!TryReadMapData(
                 identity.Rom,
-                identity.PointerEntryAddr,
+                pointerEntryAddr,
                 out uint mapDataAddr,
                 out byte[] mapData,
                 out error))
@@ -132,6 +158,56 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 error = "The selected map data changed while random-map generation was running.";
                 return false;
             }
+            return true;
+        }
+
+        static bool TryResolveMapPointerEntry(
+            ROM rom,
+            uint mapSettingAddr,
+            out uint pointerEntryAddr,
+            out string error)
+        {
+            pointerEntryAddr = U.NOT_FOUND;
+            error = "";
+
+            if (rom?.RomInfo == null
+                || rom.Data == null
+                || rom.Data.Length < 9
+                || mapSettingAddr > (uint)(rom.Data.Length - 9))
+            {
+                error = "The selected map setting address is invalid.";
+                return false;
+            }
+
+            uint mapPlist = rom.u8(mapSettingAddr + 8);
+            if (mapPlist == 0)
+            {
+                error = "The selected map has no map-data PLIST.";
+                return false;
+            }
+
+            uint tablePointerAddr = rom.RomInfo.map_map_pointer_pointer;
+            if (tablePointerAddr > (uint)(rom.Data.Length - 4))
+            {
+                error = "The map-data table pointer is invalid.";
+                return false;
+            }
+
+            uint tableBase = rom.p32(tablePointerAddr);
+            if (!U.isSafetyOffset(tableBase, rom))
+            {
+                error = "The map-data table base is invalid.";
+                return false;
+            }
+
+            ulong entry = tableBase + (ulong)mapPlist * 4;
+            if (entry > (ulong)(rom.Data.Length - 4))
+            {
+                error = "The selected map pointer entry is outside the ROM.";
+                return false;
+            }
+
+            pointerEntryAddr = (uint)entry;
             return true;
         }
 
@@ -340,8 +416,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
 
             // Compute the pointer table entry address for write-back
-            uint mapTableBase = rom.p32(rom.RomInfo.map_map_pointer_pointer);
-            _cachedMapPointerEntryAddr = (uint)(mapTableBase + mappointer_plist * 4);
+            if (!TryResolveMapPointerEntry(
+                rom,
+                addr,
+                out _cachedMapPointerEntryAddr,
+                out string mapPointerError))
+            {
+                info.AppendLine("ERROR: " + mapPointerError);
+                MapInfo = info.ToString();
+                IsLoaded = true;
+                return null;
+            }
 
             // Decompress map arrangement data
             byte[] mapData = LZ77.decompress(rom.Data, map_offset);
