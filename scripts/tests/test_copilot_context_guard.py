@@ -649,6 +649,107 @@ class TestPrivateFallbackDir(unittest.TestCase):
             shutil.rmtree(fake_home, ignore_errors=True)
 
 
+    def test_is_safe_private_dir_target_false_for_permission_error(self):
+        # Only FileNotFoundError from os.lstat means "confirmed absent, safe
+        # to create fresh" -- every other OSError (permission denied, I/O
+        # error, etc.) must fail closed (return False), never be conflated
+        # with "does not exist yet".
+        original_lstat = guard.os.lstat
+
+        def raising_lstat(path, *args, **kwargs):
+            raise PermissionError(13, "Permission denied")
+
+        guard.os.lstat = raising_lstat
+        try:
+            self.assertFalse(guard._is_safe_private_dir_target("/irrelevant/path"))
+        finally:
+            guard.os.lstat = original_lstat
+
+    @unittest.skipIf(sys.platform.startswith("win"), "symlink semantics differ on Windows")
+    def test_prepare_private_fallback_dir_symlink_root_and_permission_error_creates_nothing(self):
+        """Combined regression: a planted symlink root plus a one-shot
+        PermissionError from os.lstat must still make
+        _prepare_private_fallback_dir() return False and create nothing
+        under the attacker-controlled target -- proving the fail-closed
+        os.lstat handling (not just the symlink check) blocks the call
+        before any os.makedirs/chmod ever runs.
+        """
+        fake_home = tempfile.mkdtemp(prefix="ctxguard-toctou-home-")
+        attacker_target = tempfile.mkdtemp(prefix="ctxguard-toctou-attacker-")
+        root = os.path.join(fake_home, guard.CONTEXT_GUARD_CACHE_SUBDIR)
+        try:
+            os.symlink(attacker_target, root)  # attacker-planted root symlink
+            state_dir = os.path.join(root, "some-session")
+
+            original_lstat = guard.os.lstat
+            call_count = {"n": 0}
+
+            def one_shot_permission_error_lstat(path, *args, **kwargs):
+                call_count["n"] += 1
+                if call_count["n"] == 1:
+                    raise PermissionError(13, "Permission denied")
+                return original_lstat(path, *args, **kwargs)
+
+            guard.os.lstat = one_shot_permission_error_lstat
+            try:
+                self.assertFalse(guard._prepare_private_fallback_dir(state_dir))
+            finally:
+                guard.os.lstat = original_lstat
+
+            self.assertGreaterEqual(call_count["n"], 1)
+            # Nothing must have been created inside the attacker-controlled
+            # target, and the per-session directory must never have been
+            # created either.
+            self.assertEqual(os.listdir(attacker_target), [])
+            self.assertFalse(os.path.lexists(state_dir))
+        finally:
+            if os.path.islink(root):
+                os.remove(root)
+            shutil.rmtree(fake_home, ignore_errors=True)
+            shutil.rmtree(attacker_target, ignore_errors=True)
+
+    @unittest.skipIf(sys.platform.startswith("win"), "symlink semantics differ on Windows")
+    def test_prepare_private_fallback_dir_rejects_toctou_symlink_planted_during_makedirs(self):
+        """Simulates an attacker winning the race between the pre-creation
+        safety check and directory creation: a symlink to an
+        attacker-controlled directory appears in place of a real directory
+        exactly when ``os.makedirs()`` is called. ``os.makedirs(...,
+        exist_ok=True)`` would otherwise silently accept this (it uses the
+        symlink-following ``os.path.isdir()`` internally to decide
+        "already exists, fine") -- the mandatory post-creation ``os.lstat``
+        re-verification must catch and reject it instead, before any
+        chmod or use.
+        """
+        fake_home = tempfile.mkdtemp(prefix="ctxguard-toctou-home-")
+        attacker_target = tempfile.mkdtemp(prefix="ctxguard-toctou-attacker-")
+        root = os.path.join(fake_home, guard.CONTEXT_GUARD_CACHE_SUBDIR)
+        try:
+            original_makedirs = guard.os.makedirs
+
+            def racy_makedirs(path, exist_ok=False):
+                if os.path.normpath(path) == os.path.normpath(root) and not os.path.lexists(root):
+                    # Attacker wins the race: plant a symlink instead of a
+                    # real directory exactly at the moment of creation.
+                    os.symlink(attacker_target, root)
+                    return
+                return original_makedirs(path, exist_ok=exist_ok)
+
+            guard.os.makedirs = racy_makedirs
+            try:
+                state_dir = os.path.join(root, "some-session")
+                self.assertFalse(guard._prepare_private_fallback_dir(state_dir))
+            finally:
+                guard.os.makedirs = original_makedirs
+
+            self.assertEqual(os.listdir(attacker_target), [])
+            self.assertNotEqual(stat.S_IMODE(os.stat(attacker_target).st_mode), 0o700)
+        finally:
+            if os.path.islink(root):
+                os.remove(root)
+            shutil.rmtree(fake_home, ignore_errors=True)
+            shutil.rmtree(attacker_target, ignore_errors=True)
+
+
 class TestNoAutomaticStatePruning(unittest.TestCase):
     """Regression coverage: run() must never auto-prune fallback state.
 

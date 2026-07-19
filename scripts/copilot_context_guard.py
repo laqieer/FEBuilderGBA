@@ -132,26 +132,12 @@ def _copilot_home():
     return os.path.join(base, ".copilot")
 
 
-def _is_safe_private_dir_target(path):
-    """True if ``path`` is safe to create or reuse as a private state dir.
-
-    Safe means either: ``path`` does not exist yet (nothing to reject, and
-    it can be created fresh), or it already exists as a real directory --
-    never a symlink -- that is, on POSIX where ownership can be checked,
-    owned by this process's current effective user.
-
-    Rejects (returns False) a pre-existing symlink or non-directory at
-    ``path`` outright: silently following or reusing either could hand
-    session-budget state to an attacker-controlled location, e.g. a
-    symlink planted by another local user at a predictable path. Any
-    failure to even stat the path is also treated as unsafe -- this
-    function fails open by refusing to use an uncertain path, never by
-    trusting one.
+def _is_owned_real_dir(st):
+    """True if stat result ``st`` describes a real, non-symlink directory
+    that this process's current effective user (POSIX only, best-effort)
+    owns. Shared by both the pre-creation safety check and the
+    post-creation TOCTOU re-verification below.
     """
-    try:
-        st = os.lstat(path)
-    except OSError:
-        return True  # does not exist yet: safe to create fresh
     if stat.S_ISLNK(st.st_mode):
         return False
     if not stat.S_ISDIR(st.st_mode):
@@ -163,6 +149,35 @@ def _is_safe_private_dir_target(path):
         except OSError:
             return False
     return True
+
+
+def _is_safe_private_dir_target(path):
+    """True if ``path`` is safe to create or reuse as a private state dir.
+
+    Safe means either: ``path`` does not exist yet (nothing to reject, and
+    it can be created fresh), or it already exists as a real directory --
+    never a symlink -- that is, on POSIX where ownership can be checked,
+    owned by this process's current effective user.
+
+    Rejects (returns False) a pre-existing symlink or non-directory at
+    ``path`` outright: silently following or reusing either could hand
+    session-budget state to an attacker-controlled location, e.g. a
+    symlink planted by another local user at a predictable path. Only a
+    ``FileNotFoundError`` from ``os.lstat`` means "does not exist yet" and
+    is treated as safe-to-create; every *other* ``OSError`` (permission
+    denied, I/O error, etc.) means the path's true nature could not be
+    verified and must never be conflated with "safe" -- this function
+    fails closed (returns False, "not safe") on any such uncertainty, so
+    the caller aborts instead of silently creating or reusing an
+    unverifiable path.
+    """
+    try:
+        st = os.lstat(path)
+    except FileNotFoundError:
+        return True  # confirmed absent: safe to create fresh
+    except OSError:
+        return False  # unknown/unverifiable state: never assume safe
+    return _is_owned_real_dir(st)
 
 
 def _prepare_private_fallback_dir(state_dir):
@@ -180,6 +195,17 @@ def _prepare_private_fallback_dir(state_dir):
     the cache root) nor ever chmod'ed. Returns True on success, False on
     any uncertainty -- the caller must fail open without persisting
     anything.
+
+    A precheck-then-create window exists between the
+    ``_is_safe_private_dir_target`` call and ``os.makedirs``:
+    ``os.makedirs(..., exist_ok=True)`` treats an existing path as
+    acceptable whenever ``os.path.isdir()`` (which *follows* symlinks) is
+    True, so an attacker who plants a symlink-to-an-existing-directory in
+    that window would make ``os.makedirs`` succeed silently without ever
+    creating anything real. To close that TOCTOU gap, the path is
+    re-verified with a fresh (non-symlink-following) ``os.lstat`` *after*
+    ``os.makedirs`` returns and *before* any ``chmod`` or use -- a mismatch
+    here aborts immediately, never chmod'ing or trusting the replaced path.
     """
     root = os.path.dirname(state_dir)
     for directory in (root, state_dir):
@@ -188,6 +214,12 @@ def _prepare_private_fallback_dir(state_dir):
         try:
             os.makedirs(directory, exist_ok=True)
         except OSError:
+            return False
+        try:
+            post_st = os.lstat(directory)
+        except OSError:
+            return False
+        if not _is_owned_real_dir(post_st):
             return False
         if not sys.platform.startswith("win"):
             try:
