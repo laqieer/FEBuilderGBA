@@ -504,6 +504,18 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             var failed = new ImageImportService.LoadResult { Success = false, Width = 96, Height = 80 };
             Assert.Null(PortraitImportHelper.BuildPreparedPreviewLoadResult(failed));
+
+            var overflow = new ImageImportService.LoadResult
+            {
+                Success = true,
+                Width = int.MaxValue,
+                Height = 2,
+                RGBAPixels = Array.Empty<byte>(),
+                IndexedPixels = Array.Empty<byte>(),
+                GBAPalette = new byte[32],
+            };
+            Assert.Null(PortraitImportHelper.BuildPreparedPreviewLoadResult(overflow));
+            Assert.Null(PortraitImportHelper.ReconstructRgbaWithPaletteZeroTransparent(overflow));
         }
 
         // ------------------------------------------------------------------
@@ -1287,51 +1299,6 @@ namespace FEBuilderGBA.Avalonia.Tests
                 GBAPalette = qr.GBAPalette,
                 RGBAPixels = rgba,
                 SourcePath = "C:\\tmp\\opaque.png",
-            };
-        }
-
-        /// <summary>
-        /// Like <see cref="MakeOpaqueBackgroundLoadResult"/> (solid opaque
-        /// background + a foreground square), but the foreground is a
-        /// multi-band gradient with 15+ distinct colors so the median-cut
-        /// quantizer fills all 16 palette slots — matching a real 16-color
-        /// portrait sheet. Needed for
-        /// <see cref="PortraitImportPreviewCore.RenderFramePreview"/>, which
-        /// requires <c>palette.Length &gt;= 32</c> (16 colors); the plain
-        /// 2-color <see cref="MakeOpaqueBackgroundLoadResult"/> fixture only
-        /// quantizes to 2 colors and is rejected by that guard.
-        /// </summary>
-        static ImageImportService.LoadResult MakeOpaqueBackgroundManyColorsLoadResult(int w, int h)
-        {
-            byte[] rgba = SolidRgba(w, h, 0, 255, 0, 255);
-            const int bands = 15;
-            int y0 = 16, y1 = Math.Min(h, 64);
-            int bandHeight = Math.Max(1, (y1 - y0) / bands);
-            for (int band = 0; band < bands; band++)
-            {
-                byte r = (byte)(16 + band * 15);
-                byte g = (byte)(40 + band * 10);
-                byte b = (byte)(220 - band * 12);
-                int yStart = y0 + band * bandHeight;
-                int yEnd = band == bands - 1 ? y1 : Math.Min(yStart + bandHeight, y1);
-                for (int y = yStart; y < yEnd; y++)
-                {
-                    for (int x = 16; x < Math.Min(w, 64); x++)
-                    {
-                        SetPixel(rgba, w, x, y, r, g, b, 255);
-                    }
-                }
-            }
-            var qr = DecreaseColorCore.Quantize(rgba, w, h, 16);
-            return new ImageImportService.LoadResult
-            {
-                Success = true,
-                Width = w,
-                Height = h,
-                IndexedPixels = qr.IndexData,
-                GBAPalette = qr.GBAPalette,
-                RGBAPixels = rgba,
-                SourcePath = "C:\\tmp\\opaque_manycolors.png",
             };
         }
 

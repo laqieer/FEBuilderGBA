@@ -74,6 +74,8 @@ namespace FEBuilderGBA.Avalonia.Tests
             string sourceSlice = source.Substring(sourceNoteIdx, Math.Min(600, source.Length - sourceNoteIdx));
             Assert.Contains("SOURCE preview", sourceSlice);
             Assert.Contains("stays fixed", sourceSlice);
+            Assert.Contains("InfoBannerTextBrush", sourceSlice);
+            Assert.DoesNotContain("Foreground=\"DarkCyan\"", sourceSlice);
 
             // Target-note copy: row selection only picks the write target;
             // no ROM mutation before Import.
@@ -81,6 +83,14 @@ namespace FEBuilderGBA.Avalonia.Tests
             string targetSlice = source.Substring(targetNoteIdx, Math.Min(600, source.Length - targetNoteIdx));
             Assert.Contains("target slot", targetSlice);
             Assert.Contains("no ROM data changes until you click Import", targetSlice);
+            Assert.DoesNotContain("Foreground=\"Gray\"", targetSlice);
+
+            int frameNoteIdx = source.IndexOf(
+                "ImagePortraitImporter_FramePreview_Note_Label",
+                StringComparison.Ordinal);
+            string frameNoteSlice = source.Substring(
+                frameNoteIdx, Math.Min(600, source.Length - frameNoteIdx));
+            Assert.DoesNotContain("Foreground=\"Gray\"", frameNoteSlice);
         }
 
         [Fact]

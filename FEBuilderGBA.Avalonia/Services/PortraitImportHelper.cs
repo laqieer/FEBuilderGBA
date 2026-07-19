@@ -1143,8 +1143,9 @@ namespace FEBuilderGBA.Avalonia.Services
             if (svc == null) return null;
 
             int w = loadResult.Width, h = loadResult.Height;
-            byte[] rgba = new byte[w * h * 4];
-            for (int i = 0; i < loadResult.IndexedPixels.Length && i < w * h; i++)
+            if (!TryGetRgbaByteCount(w, h, out int bytes, out int pixels)) return null;
+            byte[] rgba = new byte[bytes];
+            for (int i = 0; i < loadResult.IndexedPixels.Length && i < pixels; i++)
             {
                 int palIdx = loadResult.IndexedPixels[i];
                 int palOff = palIdx * 2;
@@ -1172,8 +1173,12 @@ namespace FEBuilderGBA.Avalonia.Services
 
         static byte[] GetSourceRgba(ImageImportService.LoadResult loadResult)
         {
-            if (loadResult == null || loadResult.Width <= 0 || loadResult.Height <= 0) return null;
-            int bytes = loadResult.Width * loadResult.Height * 4;
+            if (loadResult == null
+                || !TryGetRgbaByteCount(
+                    loadResult.Width, loadResult.Height, out int bytes, out _))
+            {
+                return null;
+            }
             if (loadResult.RGBAPixels != null && loadResult.RGBAPixels.Length >= bytes)
             {
                 byte[] copy = new byte[bytes];
@@ -1192,8 +1197,9 @@ namespace FEBuilderGBA.Avalonia.Services
             if (svc == null) return null;
 
             int w = loadResult.Width, h = loadResult.Height;
-            byte[] rgba = new byte[w * h * 4];
-            for (int i = 0; i < loadResult.IndexedPixels.Length && i < w * h; i++)
+            if (!TryGetRgbaByteCount(w, h, out int bytes, out int pixels)) return null;
+            byte[] rgba = new byte[bytes];
+            for (int i = 0; i < loadResult.IndexedPixels.Length && i < pixels; i++)
             {
                 int palIdx = loadResult.IndexedPixels[i];
                 int palOff = palIdx * 2;
@@ -1209,6 +1215,21 @@ namespace FEBuilderGBA.Avalonia.Services
                 }
             }
             return rgba;
+        }
+
+        static bool TryGetRgbaByteCount(
+            int width, int height, out int bytes, out int pixels)
+        {
+            bytes = 0;
+            pixels = 0;
+            if (width <= 0 || height <= 0) return false;
+
+            long pixelCount = (long)width * height;
+            if (pixelCount > int.MaxValue / 4) return false;
+
+            pixels = (int)pixelCount;
+            bytes = pixels * 4;
+            return true;
         }
 
         public static bool ApplyPortraitBackgroundColorKey(byte[] rgba, int w, int h)
