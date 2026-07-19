@@ -113,7 +113,9 @@ namespace FEBuilderGBA.Core.Tests
 
                 File.SetUnixFileMode(
                     femapCreatorPath,
-                    UnixFileMode.UserRead | UnixFileMode.UserWrite);
+                    UnixFileMode.UserRead
+                    | UnixFileMode.UserWrite
+                    | UnixFileMode.OtherExecute);
                 RandomMapGenerationResult nonExecutableResult = RandomMapGeneratorCore.Generate(
                     CreateValidRequest(femapCreatorPath),
                     (command, args, workingDir, timeoutMs, maximumOutputChars) =>

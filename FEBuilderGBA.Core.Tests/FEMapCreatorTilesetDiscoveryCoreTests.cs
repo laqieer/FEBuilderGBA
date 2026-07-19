@@ -128,7 +128,9 @@ namespace FEBuilderGBA.Core.Tests
                     string hostPath = CreateEmptyFile(tempRoot, "dotnet-host");
                     File.SetUnixFileMode(
                         hostPath,
-                        UnixFileMode.UserRead | UnixFileMode.UserWrite);
+                        UnixFileMode.UserRead
+                        | UnixFileMode.UserWrite
+                        | UnixFileMode.OtherExecute);
                     string assetsRoot = Path.Combine(tempRoot, "assets");
                     Directory.CreateDirectory(assetsRoot);
                     Environment.SetEnvironmentVariable("DOTNET_HOST_PATH", hostPath);

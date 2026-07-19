@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices;
 
 namespace FEBuilderGBA
 {
@@ -11,6 +12,13 @@ namespace FEBuilderGBA
     /// </summary>
     public static class FEMapCreatorLauncherCore
     {
+        const int UnixExecuteAccessMode = 1;
+
+        [DllImport("libc", EntryPoint = "access", SetLastError = true)]
+        static extern int UnixAccess(
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string path,
+            int mode);
+
         internal sealed class FEMapCreatorLaunchSpec
         {
             public bool Success;
@@ -89,7 +97,7 @@ namespace FEBuilderGBA
 
                 bool isNativeExecutable = OperatingSystem.IsWindows()
                     ? string.Equals(normalizedExtension, ".exe", StringComparison.Ordinal)
-                    : HasUnixExecutePermission(fullProgramPath);
+                    : HasUnixExecuteAccess(fullProgramPath);
                 if (isNativeExecutable)
                 {
                     spec.Success = true;
@@ -114,17 +122,11 @@ namespace FEBuilderGBA
             }
         }
 
-        static bool HasUnixExecutePermission(string path)
+        static bool HasUnixExecuteAccess(string path)
         {
             if (OperatingSystem.IsWindows())
                 return false;
-
-            UnixFileMode mode = File.GetUnixFileMode(path);
-            const UnixFileMode ExecuteBits =
-                UnixFileMode.UserExecute
-                | UnixFileMode.GroupExecute
-                | UnixFileMode.OtherExecute;
-            return (mode & ExecuteBits) != 0;
+            return UnixAccess(path, UnixExecuteAccessMode) == 0;
         }
 
         static bool IsUsableManagedHost(string path)
@@ -134,13 +136,13 @@ namespace FEBuilderGBA
 
             try
             {
-                return HasUnixExecutePermission(path);
+                return HasUnixExecuteAccess(path);
             }
-            catch (IOException)
+            catch (DllNotFoundException)
             {
                 return false;
             }
-            catch (UnauthorizedAccessException)
+            catch (EntryPointNotFoundException)
             {
                 return false;
             }
