@@ -88,6 +88,34 @@ failure can never be silently logged as "nothing to assert" and exit `0`. The sm
 calls the hook once before any editor is open and asserts it fails closed, proving the C# contract
 against the live app rather than only checking source text.
 
+### Validator contract self-check (runs before any browser launches)
+
+The fail-closed gate above is itself covered by a small case table
+(`layout-metrics-validation.cases.mjs`) that is imported by **both**:
+
+- `layout-metrics-validation.test.mjs` — the full `node:test` regression suite (run directly with
+  `node layout-metrics-validation.test.mjs`, or with `node --test`).
+- `smoke.mjs` — which re-runs the SAME cases as a fast, dependency-free self-check the moment it
+  starts (before the HTTP server or the browser are created). If the gate itself has silently
+  regressed (e.g. a future edit stops rejecting `{}`), the self-check logs bounded diagnostics and
+  exits `2` — before any browser work is attempted.
+
+`.github/workflows/pages.yml` only ever invokes `smoke.mjs` directly; it does not run
+`node --test`. This self-check is what gives that CI-gating entrypoint the same regression coverage
+as the pure test file, without any change to the workflow file itself. A normal, successful smoke
+run logs a single `validator contract self-check passed (...)` line confirming the check ran.
+
+## Diagnostic screenshot retention on failure
+
+Every viewport run tracks whether it has already written its `mainPath` screenshot via one of the
+normal success/known-failure code paths. If a run instead fails **before** ever reaching an existing
+screenshot call site (e.g. the initial `page.goto()` itself times out), the script makes one
+best-effort, full-viewport fallback capture at `mainPath` right before closing the page/context — so
+a run that fails early still leaves visual evidence instead of none at all. A fallback capture
+failure is logged but never added to the run's failure list: it can never hide or replace the
+original recorded failure reason. Any stale file already at `mainPath` from a prior invocation is
+removed at the start of the run so it can never be mistaken for the current run's outcome.
+
 ## Why the editor proof uses a JSExport hook
 
 Avalonia.Browser renders the UI into one Skia `<canvas>`, so Playwright cannot reliably click

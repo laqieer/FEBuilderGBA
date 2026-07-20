@@ -60,7 +60,44 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright';
-import { validateMapEditorLayoutMetrics, bounded } from './layout-metrics-validation.mjs';
+import { validateMapEditorLayoutMetrics, bounded, REQUIRED_METRIC_KEYS } from './layout-metrics-validation.mjs';
+import { CASES, missingKeyCases } from './layout-metrics-validation.cases.mjs';
+
+// #1998 follow-up (review): a fast, dependency-free re-verification of the SAME fail-closed
+// validateMapEditorLayoutMetrics() contract exercised by layout-metrics-validation.test.mjs's
+// `node:test` coverage — run ONCE here, before any browser is launched. `.github/workflows/pages.yml`
+// only ever invokes this script directly (never `node --test`), so without this self-check a future
+// accidental change that silently weakens the fail-closed gate would have ZERO coverage on the path
+// that actually gates CI/merges — no workflow file is touched to get that coverage. Both this
+// self-check and the node:test suite import the SAME shared case table
+// (layout-metrics-validation.cases.mjs) so the two coverage paths can never silently diverge.
+function runContractSelfCheck() {
+  const allCases = [...CASES, ...missingKeyCases(REQUIRED_METRIC_KEYS)];
+  const selfCheckFailures = [];
+  for (const c of allCases) {
+    const { metrics, errors } = validateMapEditorLayoutMetrics(c.input, c.options);
+    if (c.expect === 'accept') {
+      if (metrics === null || errors.length > 0) {
+        selfCheckFailures.push(`"${c.name}": expected ACCEPT but got metrics=${metrics === null ? 'null' : 'object'}, ` +
+          `errors=${bounded(JSON.stringify(errors))}`);
+      }
+    } else if (metrics !== null || errors.length === 0) {
+      selfCheckFailures.push(`"${c.name}": expected REJECT but got metrics=${metrics === null ? 'null' : 'object'}, ` +
+        `errors=${bounded(JSON.stringify(errors))}`);
+    } else if (c.errorIncludes && !errors.some((e) => e.includes(c.errorIncludes))) {
+      selfCheckFailures.push(`"${c.name}": rejected as expected, but no error message mentioned "${c.errorIncludes}": ` +
+        bounded(JSON.stringify(errors)));
+    }
+  }
+  if (selfCheckFailures.length > 0) {
+    console.error('[smoke] validator contract self-check FAILED — the fail-closed ' +
+      'validateMapEditorLayoutMetrics() gate itself appears broken (checked before launching any browser):\n - ' +
+      selfCheckFailures.join('\n - '));
+    process.exit(2);
+  }
+  console.log(`[smoke] validator contract self-check passed (${allCases.length} cases, shared with ` +
+    'layout-metrics-validation.test.mjs — see layout-metrics-validation.cases.mjs).');
+}
 
 const WWWROOT = process.env.SMOKE_WWWROOT;
 const BASE_PATH = process.env.SMOKE_BASE_PATH || '/FEBuilderGBA/';
@@ -113,6 +150,10 @@ function resolveViewportPlan() {
   return [{ width, height, tag: 'explicit', owning: true }];
 }
 const VIEWPORT_PLAN = resolveViewportPlan();
+
+// Run the validator contract self-check now — env/viewport parsing is done, but no server or
+// browser has started yet.
+runContractSelfCheck();
 
 // Derives a collision-free sidecar path from a base screenshot path, e.g.
 // deriveSidecar('web-boot-smoke.png', 'compact') -> 'web-boot-smoke.compact.png'.
@@ -225,6 +266,21 @@ async function runViewport(browser, vp, url) {
   const movecostAfterPath = deriveSidecar(mainPath, 'movecost');
   fs.mkdirSync(path.dirname(mainPath) || '.', { recursive: true });
 
+  // #1998 follow-up (review): track whether THIS run has already captured its final mainPath
+  // screenshot via one of the normal success/known-failure call sites below. If a run instead fails
+  // BEFORE ever reaching an existing screenshot call site (e.g. page.goto() itself times out), the
+  // shared `finally` block below makes one best-effort full-viewport capture so the run still leaves
+  // visual evidence — without ever suppressing/replacing the ORIGINAL recorded failure reason.
+  let mainScreenshotWritten = false;
+  // Remove any stale screenshot left over from a PRIOR invocation at this exact path first, so an
+  // old (possibly successful) capture can never be mistaken for THIS run's outcome if both the
+  // normal path and the fallback below fail to write a fresh one.
+  try {
+    if (fs.existsSync(mainPath)) fs.unlinkSync(mainPath);
+  } catch (e) {
+    console.log(`[smoke] ${tag} could not remove stale screenshot at ${mainPath} (non-fatal): ${bounded(e.message)}`);
+  }
+
   const context = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, deviceScaleFactor: 1 });
   const page = await context.newPage();
 
@@ -299,6 +355,7 @@ async function runViewport(browser, vp, url) {
         } catch {
           failures.push(`${tag} globalThis.__febTest missing — publish the bundle with -p:E2E_HOOKS=true (SMOKE_ROM set but E2E hooks absent)`);
           await page.screenshot({ path: mainPath });
+          mainScreenshotWritten = true;
           console.log(`[smoke] ${tag} screenshot -> ${mainPath}`);
           throw new Error('__FEB_E2E_HOOKS_MISSING__');
         }
@@ -462,10 +519,12 @@ async function runViewport(browser, vp, url) {
         // Final screenshot: the Map Editor, full viewport, NO content clip — exactly vp.width x
         // vp.height at DPR 1.
         await page.screenshot({ path: mainPath });
+        mainScreenshotWritten = true;
         console.log(`[smoke] ${tag} final full-viewport Map Editor screenshot -> ${mainPath}`);
       } else {
         console.log(`[smoke] ${tag} SMOKE_ROM not set; boot-only smoke — taking a single full-viewport screenshot.`);
         await page.screenshot({ path: mainPath });
+        mainScreenshotWritten = true;
         console.log(`[smoke] ${tag} screenshot -> ${mainPath}`);
       }
     } catch (e) {
@@ -479,6 +538,19 @@ async function runViewport(browser, vp, url) {
     }
     if (notSupportedErrors.length) {
       failures.push(`${tag} Unexpected NotSupportedException/windowing-platform error(s): ${notSupportedErrors.join('\n---\n')}`);
+    }
+    // #1998 follow-up (review): if no normal code path above ever captured mainPath (e.g. page.goto
+    // itself timed out, or any other exception fired before the first screenshot call site above),
+    // make a best-effort full-viewport capture here so this run still leaves visual failure
+    // evidence. A fallback-capture failure is logged but NEVER pushed into `failures` — it must
+    // never hide or replace the ORIGINAL recorded failure reason.
+    if (!mainScreenshotWritten) {
+      try {
+        await page.screenshot({ path: mainPath });
+        console.log(`[smoke] ${tag} best-effort fallback screenshot captured after failure -> ${mainPath}`);
+      } catch (e) {
+        console.log(`[smoke] ${tag} fallback screenshot capture FAILED (original failure evidence above still stands): ${bounded(e.message)}`);
+      }
     }
     await page.close().catch(() => {});
     await context.close().catch(() => {});

@@ -117,22 +117,39 @@ namespace FEBuilderGBA.Avalonia.Tests
                 double tmxWidth = tmxToolbar.Bounds.Width;
                 double randomWidth = randomToolbar.Bounds.Width;
 
-                double availableBodyWidth = ArrangeAndGetToolbarWidth(view, EditorWidth, EditorHeight);
+                // #1998 follow-up (review): compare against MapUpperControlsScroller's actual
+                // VIEWPORT width — NOT MapEditorInfoPanel.Bounds.Width. Because
+                // HorizontalScrollBarVisibility="Auto" gives the scroller's content its natural
+                // (unconstrained) width, MapEditorInfoPanel.Bounds.Width is itself derived FROM
+                // the widest toolbar row, so comparing a toolbar's width against it was close to
+                // tautological (a child's width can never meaningfully exceed a parent whose own
+                // width is defined as "the widest child"). ScrollViewer.Viewport.Width is the real,
+                // visible, viewport-bounded area — the only direct measurement of whether a
+                // toolbar row actually fits without horizontal scrolling at this arrangement.
+                double availableViewportWidth = ArrangeAndGetUpperControlsViewportWidth(view, EditorWidth, EditorHeight);
 
+                Assert.True(availableViewportWidth > 0,
+                    $"MapUpperControlsScroller should report a real, non-zero viewport width at EditorWidth ({availableViewportWidth:F1}).");
                 Assert.True(csvWidth > 0, "CSV command toolbar should have a real, non-zero measured width.");
-                Assert.True(csvWidth <= availableBodyWidth,
+                Assert.True(navWidth <= availableViewportWidth,
+                    $"Navigation toolbar desired width ({navWidth:F1}) exceeds " +
+                    $"the upper-controls scroller's actual viewport width ({availableViewportWidth:F1}).");
+                Assert.True(csvWidth <= availableViewportWidth,
                     $"CSV command toolbar desired width ({csvWidth:F1}) exceeds " +
-                    $"the arranged toolbar content width ({availableBodyWidth:F1}).");
-                Assert.True(tmxWidth <= availableBodyWidth,
+                    $"the upper-controls scroller's actual viewport width ({availableViewportWidth:F1}).");
+                Assert.True(tmxWidth <= availableViewportWidth,
                     $"TMX command toolbar desired width ({tmxWidth:F1}) exceeds " +
-                    $"the arranged toolbar content width ({availableBodyWidth:F1}).");
+                    $"the upper-controls scroller's actual viewport width ({availableViewportWidth:F1}).");
+                Assert.True(randomWidth <= availableViewportWidth,
+                    $"Random-map command toolbar desired width ({randomWidth:F1}) exceeds " +
+                    $"the upper-controls scroller's actual viewport width ({availableViewportWidth:F1}).");
 
                 // #1998: re-measure the toolbar rows at MinWidth (rather than reusing the
                 // widths captured at EditorWidth above) so this compares widths from the
-                // SAME arrangement pass as availableMinBodyWidth. Comparing widths from two
+                // SAME arrangement pass as availableMinViewportWidth. Comparing widths from two
                 // different arrangements would be invalid once ArrangeAt genuinely honors
                 // the requested size, since these toolbars stretch to fill available width.
-                double availableMinBodyWidth = ArrangeAndGetToolbarWidth(
+                double availableMinViewportWidth = ArrangeAndGetUpperControlsViewportWidth(
                     view,
                     view.Descriptor.MinWidth,
                     view.Descriptor.MinHeight);
@@ -143,9 +160,11 @@ namespace FEBuilderGBA.Avalonia.Tests
                 double widestSplitToolbarRowAtMinWidth =
                     new[] { navWidthAtMinWidth, csvWidthAtMinWidth, tmxWidthAtMinWidth, randomWidthAtMinWidth }.Max();
 
-                Assert.True(widestSplitToolbarRowAtMinWidth <= availableMinBodyWidth,
+                Assert.True(availableMinViewportWidth > 0,
+                    $"MapUpperControlsScroller should report a real, non-zero viewport width at MinWidth ({availableMinViewportWidth:F1}).");
+                Assert.True(widestSplitToolbarRowAtMinWidth <= availableMinViewportWidth,
                     $"Widest split toolbar row at MinWidth ({widestSplitToolbarRowAtMinWidth:F1}) exceeds the MinWidth " +
-                    $"toolbar content width ({availableMinBodyWidth:F1}); manual resize could clip the toolbar.");
+                    $"upper-controls scroller's actual viewport width ({availableMinViewportWidth:F1}); manual resize could clip the toolbar.");
                 Assert.True(view.Descriptor.MinHeight >= MinimumUsableMapHeight,
                     $"MapEditorView descriptor MinHeight ({view.Descriptor.MinHeight:F1}) should leave a usable map canvas area.");
 
@@ -385,10 +404,19 @@ namespace FEBuilderGBA.Avalonia.Tests
             return control.DesiredSize.Width;
         }
 
-        private static double ArrangeAndGetToolbarWidth(MapEditorView view, double width, double height)
+        // #1998 follow-up (review): returns MapUpperControlsScroller's actual VIEWPORT width —
+        // the real, visible, viewport-bounded area — rather than MapEditorInfoPanel.Bounds.Width.
+        // The scroller's content (MapEditorInfoPanel and its toolbar children) is given its
+        // natural/unconstrained width because HorizontalScrollBarVisibility="Auto", so
+        // MapEditorInfoPanel.Bounds.Width is itself DERIVED from the widest toolbar child; a
+        // toolbar's width can never meaningfully exceed a parent whose own width IS "the widest
+        // child" (a near-tautological comparison the previous version made). Viewport.Width is
+        // the only direct measurement of whether a toolbar actually fits without horizontal
+        // scrolling at a given arrangement.
+        private static double ArrangeAndGetUpperControlsViewportWidth(MapEditorView view, double width, double height)
         {
             ArrangeAt(view, width, height);
-            return Required<StackPanel>(view, "MapEditorInfoPanel").Bounds.Width;
+            return Required<ScrollViewer>(view, "MapUpperControlsScroller").Viewport.Width;
         }
 
         // #1998: resize by wrapping the view in an explicitly-sized Border rather than
