@@ -74,6 +74,20 @@ size — and how much space its populated palette/terrain lists need — is ROM-
 smaller/larger chapter can legitimately need more or less room than the synthetic fixture assumes.
 Real ROM runs always render the ROM's own authentic map/palette pixels.
 
+## Fail-closed metrics contract (post-review hardening)
+
+`TestHooks.MapEditorLayoutMetrics` never returns `{}` or a success-shaped payload with missing/
+sentinel fields. Every situation where trustworthy metrics cannot be produced — no navigation host/
+content is active, the wrong editor is open (a named upper-controls/map-canvas/canvas-scroller
+control is missing), synthetic injection was requested but `MapImageControl` is absent, an unset
+compute result, or a caught exception — returns a bounded JSON `error` string instead. `smoke.mjs`
+treats ANY `error` field, non-object/array JSON, an unexpected title, or any of the 8 required
+numeric metrics being missing/non-finite/negative as a hard failure (shared
+`layout-metrics-validation.mjs` gate), for both synthetic and real-ROM runs — a probe/runtime
+failure can never be silently logged as "nothing to assert" and exit `0`. The smoke script also
+calls the hook once before any editor is open and asserts it fails closed, proving the C# contract
+against the live app rather than only checking source text.
+
 ## Why the editor proof uses a JSExport hook
 
 Avalonia.Browser renders the UI into one Skia `<canvas>`, so Playwright cannot reliably click

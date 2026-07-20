@@ -1,5 +1,6 @@
 #if E2E_HOOKS
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.JavaScript;
@@ -121,6 +122,15 @@ public static partial class TestHooks
     // `true` when the loaded ROM was itself declared synthetic (SMOKE_ROM=synthetic); passing `true`
     // against a real loaded ROM is treated as an inconsistent request and hard-fails with a JSON
     // `error` field instead of silently mutating real ROM-derived pixels.
+    //
+    // Fail-closed contract (post-review fix — a review finding showed the previous `{}` returns
+    // let a probe/runtime failure silently false-pass): EVERY situation where trustworthy metrics
+    // cannot be produced — no navigation host/content, the wrong editor is open (named upper/map/
+    // canvas controls not found), synthetic injection requested but MapImageControl is missing, an
+    // unset compute result, or any caught exception — returns a JSON object with a non-empty,
+    // bounded `error` string. This method must never return `{}` or a success-shaped payload with
+    // missing/sentinel fields; callers (smoke.mjs) must treat ANY `error` field, or any missing/
+    // non-finite metric, as a hard failure rather than "nothing to assert".
     [JSExport]
     public static string MapEditorLayoutMetrics(bool injectSyntheticMapPixels)
     {
@@ -128,11 +138,9 @@ public static partial class TestHooks
         {
             if (injectSyntheticMapPixels && !_lastLoadedRomWasSynthetic)
             {
-                return JsonSerializer.Serialize(new
-                {
-                    error = "MapEditorLayoutMetrics(injectSyntheticMapPixels: true) requested against a non-synthetic ROM load; " +
-                             "synthetic map pixels are only permitted when LoadRomBase64 was called with isSynthetic: true."
-                });
+                return SerializeError(
+                    "MapEditorLayoutMetrics(injectSyntheticMapPixels: true) requested against a non-synthetic ROM load; " +
+                    "synthetic map pixels are only permitted when LoadRomBase64 was called with isSynthetic: true.");
             }
 
             string? json = null;
@@ -142,7 +150,7 @@ public static partial class TestHooks
                 if (WindowManager.Instance.Service is not INavigationHost host
                     || host.CurrentContent is not Control editor)
                 {
-                    json = "{}";
+                    json = SerializeError("MapEditorLayoutMetrics: no active navigation host/content — no editor is open.");
                     return;
                 }
 
@@ -151,25 +159,30 @@ public static partial class TestHooks
                     var mapImage = editor.GetVisualDescendants()
                         .OfType<GbaImageControl>()
                         .FirstOrDefault(c => c.Name == "MapImageControl");
-                    if (mapImage is not null)
+                    if (mapImage is null)
                     {
-                        // Large enough (non-square, >= ~2000x1000) to genuinely overflow
-                        // MapCanvasPanel's inner scroller (MapCanvasScroller) on BOTH axes even at
-                        // the 1920x852 acceptance viewport, mirroring
-                        // MapEditorButtonReadabilityTests' SyntheticMapSize intent but sized for the
-                        // browser smoke test's real (non-headless-fixture) viewport dimensions.
-                        const int width = 2200;
-                        const int height = 1200;
-                        byte[] rgba = new byte[width * height * 4];
-                        for (int i = 0; i < width * height; i++)
-                        {
-                            rgba[i * 4 + 0] = 80;
-                            rgba[i * 4 + 1] = 120;
-                            rgba[i * 4 + 2] = 160;
-                            rgba[i * 4 + 3] = 255;
-                        }
-                        mapImage.SetRgbaData(rgba, width, height);
+                        json = SerializeError(
+                            $"MapEditorLayoutMetrics: synthetic injection requested but MapImageControl was not found " +
+                            $"(current editor: \"{Bound(host.CurrentTitle)}\").");
+                        return;
                     }
+
+                    // Large enough (non-square, >= ~2000x1000) to genuinely overflow
+                    // MapCanvasPanel's inner scroller (MapCanvasScroller) on BOTH axes even at
+                    // the 1920x852 acceptance viewport, mirroring
+                    // MapEditorButtonReadabilityTests' SyntheticMapSize intent but sized for the
+                    // browser smoke test's real (non-headless-fixture) viewport dimensions.
+                    const int width = 2200;
+                    const int height = 1200;
+                    byte[] rgba = new byte[width * height * 4];
+                    for (int i = 0; i < width * height; i++)
+                    {
+                        rgba[i * 4 + 0] = 80;
+                        rgba[i * 4 + 1] = 120;
+                        rgba[i * 4 + 2] = 160;
+                        rgba[i * 4 + 3] = 255;
+                    }
+                    mapImage.SetRgbaData(rgba, width, height);
                 }
 
                 Dispatcher.UIThread.RunJobs(DispatcherPriority.Render);
@@ -182,17 +195,29 @@ public static partial class TestHooks
                 var canvasScroller = editor.GetVisualDescendants()
                     .OfType<ScrollViewer>().FirstOrDefault(c => c.Name == "MapCanvasScroller");
 
+                var missing = new List<string>();
+                if (upperScroller is null) missing.Add("MapUpperControlsScroller");
+                if (mapCanvas is null) missing.Add("MapCanvasPanel");
+                if (canvasScroller is null) missing.Add("MapCanvasScroller");
+                if (missing.Count > 0)
+                {
+                    json = SerializeError(
+                        $"MapEditorLayoutMetrics: required control(s) not found: {string.Join(", ", missing)} " +
+                        $"(current editor: \"{Bound(host.CurrentTitle)}\" — the wrong editor may be open).");
+                    return;
+                }
+
                 var metrics = new
                 {
                     title = host.CurrentTitle ?? "",
-                    upperExtentHeight = upperScroller?.Extent.Height ?? -1,
-                    upperViewportHeight = upperScroller?.Viewport.Height ?? -1,
-                    mapCanvasWidth = mapCanvas?.Bounds.Width ?? -1,
-                    mapCanvasHeight = mapCanvas?.Bounds.Height ?? -1,
-                    canvasExtentWidth = canvasScroller?.Extent.Width ?? -1,
-                    canvasViewportWidth = canvasScroller?.Viewport.Width ?? -1,
-                    canvasExtentHeight = canvasScroller?.Extent.Height ?? -1,
-                    canvasViewportHeight = canvasScroller?.Viewport.Height ?? -1,
+                    upperExtentHeight = upperScroller!.Extent.Height,
+                    upperViewportHeight = upperScroller.Viewport.Height,
+                    mapCanvasWidth = mapCanvas!.Bounds.Width,
+                    mapCanvasHeight = mapCanvas.Bounds.Height,
+                    canvasExtentWidth = canvasScroller!.Extent.Width,
+                    canvasViewportWidth = canvasScroller.Viewport.Width,
+                    canvasExtentHeight = canvasScroller.Extent.Height,
+                    canvasViewportHeight = canvasScroller.Viewport.Height,
                 };
                 json = JsonSerializer.Serialize(metrics);
             }
@@ -202,13 +227,23 @@ public static partial class TestHooks
             else
                 Dispatcher.UIThread.Invoke(Compute);
 
-            return json ?? "{}";
+            return json ?? SerializeError("MapEditorLayoutMetrics: no result was produced.");
         }
         catch (Exception ex)
         {
             Log.Error("Browser TestHooks.MapEditorLayoutMetrics failed: ", ex.ToString());
-            return "{}";
+            return SerializeError("MapEditorLayoutMetrics: an exception occurred while computing layout metrics; see server logs.");
         }
     }
+
+    // Bounds a value embedded in a diagnostic `error` message so a runaway/unexpected editor title
+    // (or any other caller-controlled string) can never blow up the returned payload.
+    private static string Bound(string? value, int maxLen = 120)
+    {
+        string s = value ?? "";
+        return s.Length > maxLen ? s.Substring(0, maxLen) + "…" : s;
+    }
+
+    private static string SerializeError(string message) => JsonSerializer.Serialize(new { error = message });
 }
 #endif

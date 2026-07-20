@@ -60,6 +60,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright';
+import { validateMapEditorLayoutMetrics, bounded } from './layout-metrics-validation.mjs';
 
 const WWWROOT = process.env.SMOKE_WWWROOT;
 const BASE_PATH = process.env.SMOKE_BASE_PATH || '/FEBuilderGBA/';
@@ -302,6 +303,20 @@ async function runViewport(browser, vp, url) {
           throw new Error('__FEB_E2E_HOOKS_MISSING__');
         }
 
+        // #1998 follow-up: exercise the C# hook's fail-closed "wrong editor" path against the LIVE
+        // app, not just source text — at this point only the launcher is showing (no Map Editor is
+        // open), so TestHooks.MapEditorLayoutMetrics MUST return a JSON `error` payload rather than
+        // `{}` or success-shaped defaults. This proves the hook contract itself, not merely the JS
+        // gate below.
+        const preNavMetricsRaw = await page.evaluate(() => globalThis.__febTest.MapEditorLayoutMetrics(false));
+        const { errors: preNavErrors } = validateMapEditorLayoutMetrics(preNavMetricsRaw, { requireTitle: false });
+        if (preNavErrors.length === 0) {
+          failures.push(`${tag} MapEditorLayoutMetrics() called before opening the Map Editor did NOT fail closed ` +
+            `(expected a rejected/error payload): ${bounded(preNavMetricsRaw)}`);
+        } else {
+          console.log(`[smoke] ${tag} MapEditorLayoutMetrics() fail-closed pre-navigation probe confirmed (#1998 follow-up): ${bounded(preNavErrors[0])}`);
+        }
+
         const loaded = await page.evaluate(
           async ([s, synthetic]) => await globalThis.__febTest.LoadRomBase64(s, synthetic),
           [ROM_BYTES.toString('base64'), IS_SYNTHETIC_ROM]);
@@ -377,16 +392,14 @@ async function runViewport(browser, vp, url) {
         const metricsRaw = await page.evaluate(
           (injectSynthetic) => globalThis.__febTest.MapEditorLayoutMetrics(injectSynthetic),
           IS_SYNTHETIC_ROM);
-        let metrics = null;
-        try {
-          metrics = JSON.parse(metricsRaw);
-        } catch (e) {
-          failures.push(`${tag} MapEditorLayoutMetrics() returned non-JSON: ${metricsRaw}`);
-        }
-        if (metrics && metrics.error) {
-          failures.push(`${tag} MapEditorLayoutMetrics() reported a hard config error: ${metrics.error}`);
-          metrics = null;
-        }
+        // #1998 follow-up: fail-closed completeness gate — a probe/runtime exception, missing
+        // editor, missing named control, or non-finite/negative metric must NEVER be silently
+        // treated as "no assertions to run" (the reviewed false-pass class: a real-ROM desktop run
+        // with `{}` metrics logged "undefined/undefined" and exited 0). `metrics` is only non-null
+        // here when EVERY required field is present, finite, and non-negative, for BOTH synthetic
+        // and real-ROM modes.
+        const { metrics, errors: metricsErrors } = validateMapEditorLayoutMetrics(metricsRaw);
+        failures.push(...metricsErrors.map((e) => `${tag} ${e}`));
         if (metrics) {
           console.log(`[smoke] ${tag} Map Editor layout metrics: ${metricsRaw}`);
           const isCompact = vp.height < MAP_EDITOR_COMPACT_HEIGHT_THRESHOLD;
