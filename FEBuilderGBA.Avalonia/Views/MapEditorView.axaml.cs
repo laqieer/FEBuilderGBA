@@ -52,6 +52,68 @@ namespace FEBuilderGBA.Avalonia.Views
             // Wiring both would double-fire the handler. The handler converts pointer
             // coords to image-pixel coords via e.GetPosition(TilePaletteImage).
             TilePaletteHitArea.PointerPressed += OnTilePaletteClick;
+            // #1998: cap the upper controls scroller height from the right column's
+            // arranged height so a compact browser viewport scrolls the controls
+            // instead of squeezing/overflowing the pinned map canvas below it.
+            MapEditorRightColumnGrid.SizeChanged += OnRightColumnSizeChanged;
+        }
+
+        /// <summary>
+        /// #1998: minimum usable Map Canvas height guaranteed even in a compact
+        /// (browser-zoomed) viewport. Mirrors MapCanvasPanel's XAML MinHeight and
+        /// MapEditorButtonReadabilityTests' MinimumUsableMapHeight constant.
+        /// </summary>
+        internal const double MapCanvasMinHeight = 240;
+
+        /// <summary>
+        /// #1998: minimum height left for the upper controls scroller even when the
+        /// available viewport is extremely short, so the toolbar/palette/tile-editor
+        /// region never fully collapses to zero.
+        /// </summary>
+        internal const double UpperControlsMinHeight = 80;
+
+        /// <summary>
+        /// #1998 (review: gemini-3.5-flash) — guard against resize-loop jitter from
+        /// floating-point layout noise. Only re-apply MaxHeight when the requested
+        /// change exceeds this many device-independent pixels.
+        /// </summary>
+        const double MaxHeightChangeEpsilon = 0.5;
+
+        void OnRightColumnSizeChanged(object? sender, SizeChangedEventArgs e)
+        {
+            UpdateUpperControlsMaxHeight(e.NewSize.Height);
+        }
+
+        void UpdateUpperControlsMaxHeight(double availableHeight)
+        {
+            double newMaxHeight = ComputeUpperControlsMaxHeight(availableHeight, MapCanvasMinHeight, UpperControlsMinHeight);
+            double current = MapUpperControlsScroller.MaxHeight;
+            // Guarded assignment (never a fixed Height, never an Arrange override): skip
+            // the write entirely when the change is sub-pixel-jitter sized, so repeated
+            // layout passes triggered by our own MaxHeight write cannot loop.
+            if (double.IsNaN(current) || Math.Abs(current - newMaxHeight) > MaxHeightChangeEpsilon)
+            {
+                MapUpperControlsScroller.MaxHeight = newMaxHeight;
+            }
+        }
+
+        /// <summary>
+        /// #1998 pure helper: compute the MaxHeight to apply to the upper controls
+        /// ScrollViewer so the pinned Map Canvas below it keeps at least
+        /// <paramref name="canvasMinHeight"/> px, while the controls region itself
+        /// keeps at least <paramref name="controlsMinHeight"/> px even in an
+        /// extremely short viewport. Returns <see cref="double.PositiveInfinity"/>
+        /// (no cap — natural desktop sizing) when <paramref name="availableHeight"/>
+        /// isn't a usable finite measurement yet. Exposed internal so edge cases can
+        /// be unit-tested directly without a full headless layout pass.
+        /// </summary>
+        internal static double ComputeUpperControlsMaxHeight(double availableHeight, double canvasMinHeight, double controlsMinHeight)
+        {
+            if (double.IsNaN(availableHeight) || double.IsInfinity(availableHeight) || availableHeight <= 0)
+                return double.PositiveInfinity;
+
+            double budget = availableHeight - canvasMinHeight;
+            return Math.Max(controlsMinHeight, budget);
         }
 
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)

@@ -17,10 +17,18 @@
 //                     <base href> so base-relative resolution is exercised the same way as prod.
 //   SMOKE_SCREENSHOT  (default `web-smoke.png`) screenshot output path.
 //   SMOKE_TIMEOUT_MS  (default 120000) boot timeout — cold wasm + ~6.8 MB config.zip is slow.
+//   SMOKE_VIEWPORT_WIDTH  (default 1280) browser viewport width (#1998).
+//   SMOKE_VIEWPORT_HEIGHT (default 800)  browser viewport height (#1998) — below
+//                         MAP_EDITOR_COMPACT_HEIGHT_THRESHOLD this exercises the Map Editor's
+//                         compact (upper-controls-scroll) path; at/above it, the normal desktop
+//                         (acceptance) path. Run the script twice (e.g. a compact height and the
+//                         1920x852 acceptance size) to exercise both.
 //   SMOKE_ROM         (optional) ROM fixture path, or `synthetic` to generate a license-clean FE8U
 //                     header-only ROM. When present, the smoke test loads it through the E2E-only
 //                     JSExport hook, opens Move Cost Editor through the real launcher delegate, and
 //                     asserts the embeddable editor page renders (real #1873 single-view proof).
+//                     It also opens the Map Editor (#1998) and asserts its compact/desktop layout
+//                     split behaves correctly at the configured viewport size.
 
 import http from 'node:http';
 import fs from 'node:fs';
@@ -38,9 +46,17 @@ if (!WWWROOT || !fs.existsSync(WWWROOT)) {
   process.exit(2);
 }
 const ROOT = path.resolve(WWWROOT);
-const VIEWPORT_WIDTH = 1280;
-const VIEWPORT_HEIGHT = 800;
+// #1998: viewport size is configurable so the same script can exercise both an "acceptance"
+// (ample-height desktop) layout and a "compact" (short browser viewport) layout for the Map
+// Editor split-scroller behavior — see the MAP_EDITOR_COMPACT_HEIGHT_THRESHOLD comment below.
+const VIEWPORT_WIDTH = Number(process.env.SMOKE_VIEWPORT_WIDTH || 1280);
+const VIEWPORT_HEIGHT = Number(process.env.SMOKE_VIEWPORT_HEIGHT || 800);
 const EDITOR_CONTENT_CLIP = { x: 0, y: 80, width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT - 80 };
+// Below this viewport height, the Map Editor's upper controls are expected to overflow and
+// scroll (compact path); at/above it, the normal desktop layout is expected to fit without
+// scrolling (acceptance path). 700 sits between the compact fixtures used in CI (e.g. 500-600)
+// and the editor's own natural desktop height (800), matching MapEditorButtonReadabilityTests.
+const MAP_EDITOR_COMPACT_HEIGHT_THRESHOLD = 700;
 
 // Correct MIME types matter: a `.wasm` served as anything but application/wasm makes the streaming
 // instantiation fail and the runtime never boots — i.e. a failure for the WRONG reason.
@@ -185,6 +201,17 @@ try {
     failures.push(`.app-splash was NOT removed after the canvas mounted (#1869 — the loading spinner overlays the app): ${e.message}`);
   }
 
+  // #1998: log the effective device-pixel-ratio and visualViewport scale so a CI run's Map Editor
+  // layout metrics can be cross-checked against the actual rendering scale at this viewport size.
+  const viewportInfo = await page.evaluate(() => ({
+    devicePixelRatio: window.devicePixelRatio,
+    visualViewportScale: window.visualViewport ? window.visualViewport.scale : null,
+    visualViewportWidth: window.visualViewport ? window.visualViewport.width : null,
+    visualViewportHeight: window.visualViewport ? window.visualViewport.height : null,
+  }));
+  console.log(`[smoke] viewport=${VIEWPORT_WIDTH}x${VIEWPORT_HEIGHT} devicePixelRatio=${viewportInfo.devicePixelRatio} ` +
+    `visualViewport.scale=${viewportInfo.visualViewportScale} visualViewport=${viewportInfo.visualViewportWidth}x${viewportInfo.visualViewportHeight}`);
+
   rom = smokeRomBytes();
   if (ROM_PATH && !rom) {
     failures.push('SMOKE_ROM was set but no ROM bytes were available; fix SMOKE_ROM (use a valid path or "synthetic") before running the editor-nav smoke.');
@@ -256,6 +283,53 @@ try {
         failures.push(`OpenEditor('AIScript') returned "${opened2}"; a newly-exposed catalog editor failed to open on wasm (#1891)`);
       } else {
         console.log(`[smoke] newly-exposed catalog editor opened on wasm (#1891): "${opened2}".`);
+      }
+
+      // #1998: open the Map Editor through the real launcher (exact catalog key "MapEditor") and
+      // assert the compact/desktop split-scroller layout behaves correctly at THIS run's viewport.
+      const openedMap = await page.evaluate(() => globalThis.__febTest.OpenEditor('MapEditor'));
+      await page.waitForTimeout(1000);
+      const curMap = await page.evaluate(() => globalThis.__febTest.CurrentEditorTitle());
+      const renderedMap = await page.evaluate(() => globalThis.__febTest.CurrentEditorBodyRendered());
+      if (openedMap !== 'Visual Map Editor') {
+        failures.push(`OpenEditor('MapEditor') returned "${openedMap}"; expected "Visual Map Editor"`);
+      }
+      if (curMap !== 'Visual Map Editor') {
+        failures.push(`CurrentEditorTitle() returned "${curMap}" after opening MapEditor; expected "Visual Map Editor"`);
+      }
+      if (renderedMap !== true) {
+        failures.push(`Map Editor body did not render (Bounds/visual children empty) — CurrentEditorBodyRendered()=${renderedMap}`);
+      }
+
+      const metricsRaw = await page.evaluate(() => globalThis.__febTest.MapEditorLayoutMetrics());
+      let metrics = null;
+      try {
+        metrics = JSON.parse(metricsRaw);
+      } catch (e) {
+        failures.push(`MapEditorLayoutMetrics() returned non-JSON: ${metricsRaw}`);
+      }
+      if (metrics) {
+        console.log(`[smoke] Map Editor layout metrics @ ${VIEWPORT_WIDTH}x${VIEWPORT_HEIGHT}: ${metricsRaw}`);
+        const isCompact = VIEWPORT_HEIGHT < MAP_EDITOR_COMPACT_HEIGHT_THRESHOLD;
+        const MIN_USABLE_MAP_CANVAS_HEIGHT = 240;
+        if (metrics.mapCanvasHeight < MIN_USABLE_MAP_CANVAS_HEIGHT - 0.5) {
+          failures.push(`Map canvas height (${metrics.mapCanvasHeight}) fell below the ${MIN_USABLE_MAP_CANVAS_HEIGHT}px usable minimum at viewport ${VIEWPORT_WIDTH}x${VIEWPORT_HEIGHT}`);
+        }
+        if (isCompact) {
+          if (!(metrics.upperExtentHeight > metrics.upperViewportHeight + 0.5)) {
+            failures.push(`Compact viewport (${VIEWPORT_WIDTH}x${VIEWPORT_HEIGHT}) expected the Map Editor's upper controls to overflow and scroll ` +
+              `(Extent=${metrics.upperExtentHeight}, Viewport=${metrics.upperViewportHeight})`);
+          } else {
+            console.log('[smoke] Map Editor compact-viewport upper-controls overflow confirmed (#1998).');
+          }
+        } else {
+          if (!(metrics.upperExtentHeight <= metrics.upperViewportHeight + 0.5)) {
+            failures.push(`Acceptance-size viewport (${VIEWPORT_WIDTH}x${VIEWPORT_HEIGHT}) expected the Map Editor's upper controls to fit ` +
+              `without scrolling (Extent=${metrics.upperExtentHeight}, Viewport=${metrics.upperViewportHeight})`);
+          } else {
+            console.log('[smoke] Map Editor acceptance-size natural layout confirmed (#1998).');
+          }
+        }
       }
     } catch (e) {
       if (e.message !== '__FEB_E2E_HOOKS_MISSING__') {

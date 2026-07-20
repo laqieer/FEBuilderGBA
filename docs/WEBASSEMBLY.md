@@ -168,6 +168,17 @@ ignores the per-reference `AdditionalProperties`, else `NETSDK1005` (same mechan
   *renders* (Avalonia canvas mounts; no `avalonia.js` response `>= 400`). It runs on PRs (a boot
   regression fails the PR) and gates the deploy on `master`. Added after #1867, where every asset
   returned `200` but the app never booted — an HTTP-200 check could not catch that.
+  - **Map Editor layout probe (#1998).** `smoke.mjs` accepts `SMOKE_VIEWPORT_WIDTH` /
+    `SMOKE_VIEWPORT_HEIGHT` (default `1280x800`) so it can be invoked at both a compact height
+    (below the internal `700`px threshold) and an acceptance-size viewport (e.g. `1920x852`). With
+    `SMOKE_ROM` set, it opens the Map Editor through the real launcher (`OpenEditor('MapEditor')`),
+    logs `devicePixelRatio` / `visualViewport.scale`, and calls the E2E-only
+    `MapEditorLayoutMetrics()` hook to assert the split-scroller layout: the map canvas stays
+    ≥240px tall at any viewport, the upper info/toolbar/palette region's scroller overflows at
+    compact heights, and does not overflow at acceptance size. `MapEditorLayoutMetrics()` (in
+    `TestHooks.cs`, gated by `E2E_HOOKS`) populates `MapImageControl` with a deterministic
+    synthetic RGBA pattern (no ROM/license data) solely so the inner canvas scroller has real
+    content to measure.
 
 ### Why the web app first hung on the splash (#1867)
 
