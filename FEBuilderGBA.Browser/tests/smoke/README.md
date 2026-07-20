@@ -48,7 +48,12 @@ fresh isolated context/page per viewport:
 
 Failures from either viewport are aggregated; the process exits nonzero if either run fails. This is
 the mode `.github/workflows/pages.yml` uses today (it never sets the viewport env vars), so both of
-its existing invocations get dual-viewport coverage with no workflow changes.
+its existing invocations get dual-viewport coverage with no workflow changes. Each viewport's
+browser context/page creation is guarded independently (#1998 follow-up, review): if
+`browser.newContext()`/`context.newPage()` itself rejects for one viewport (e.g. a mid-matrix
+Chromium disconnect), that failure is caught, any partially-created context is closed, and a tagged
+failure is returned instead of letting the exception escape the matrix loop — so a setup failure on
+one viewport can never abort the whole run and silently skip the remaining viewport(s).
 
 If you set **both** `SMOKE_VIEWPORT_WIDTH` and `SMOKE_VIEWPORT_HEIGHT`, the script instead runs
 **exactly that single viewport** (no matrix). Both values must be **positive integers** (Playwright

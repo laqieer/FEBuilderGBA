@@ -329,8 +329,22 @@ async function runViewport(browser, vp, url) {
     console.log(`[smoke] ${tag} could not remove stale screenshot at ${mainPath} (non-fatal): ${bounded(e.message)}`);
   }
 
-  const context = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, deviceScaleFactor: 1 });
-  const page = await context.newPage();
+  // #1998 follow-up (review): newContext()/newPage() must NOT run unprotected — if either rejects
+  // (e.g. Chromium disconnects while creating a later matrix viewport's context), an unguarded
+  // `await` here throws OUT of runViewport() entirely, aborting the caller's `for` loop over
+  // VIEWPORT_PLAN: the remaining viewport(s) are never exercised and their failures never reach the
+  // aggregated report. Catch setup failures here, close any partially-created context, and return a
+  // tagged failure (exactly like every other failure path in this function) so the matrix loop
+  // always continues to the next viewport.
+  let context;
+  let page;
+  try {
+    context = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, deviceScaleFactor: 1 });
+    page = await context.newPage();
+  } catch (e) {
+    await context?.close().catch(() => {});
+    return [`${tag} failed to create browser context/page (setup failure — this viewport could not be exercised): ${bounded(e.message)}`];
+  }
 
   // The #1867 tripwire: any Avalonia JS module (avalonia.js OR storage.js) that responds >= 400 or
   // hard-fails to load — both are boot-critical modules published to _framework/ (Copilot review, #1868).
