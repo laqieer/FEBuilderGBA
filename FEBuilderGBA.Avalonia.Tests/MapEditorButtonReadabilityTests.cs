@@ -392,9 +392,14 @@ namespace FEBuilderGBA.Avalonia.Tests
         [AvaloniaTheory]
         [InlineData(800, 240, 80, 560)]   // ample room: budget (800-240=560) exceeds the controls floor.
         [InlineData(320, 240, 80, 80)]    // exact floor boundary: budget == controlsMin.
-        [InlineData(200, 240, 80, 80)]    // pathologically short viewport: controls floor wins over the
-                                          // canvas budget (documented edge case — canvas may dip under 240
-                                          // only in this extreme case; the controls region never collapses).
+        // pathologically short viewport: this is the pure MaxHeight CAP formula only — it still
+        // returns 80 here (Math.Max(80, negative budget)), but that is NOT itself a live-arranged
+        // guarantee (review PRRT_kwDOH0Mc1M6STCQa). Whether the controls region actually GETS 80px
+        // is now governed separately by ComputeUpperControlsMinHeight, which — for this exact
+        // (availableHeight=200, canvasMin=240) input pair — deliberately returns 0 (no forced
+        // floor) so MapCanvasPanel's own containment always wins in this extreme case; see
+        // ComputeUpperControlsMinHeight_FiniteEdgeCases below.
+        [InlineData(200, 240, 80, 80)]
         public void ComputeUpperControlsMaxHeight_FiniteEdgeCases(double availableHeight, double canvasMin, double controlsMin, double expected)
         {
             double actual = MapEditorView.ComputeUpperControlsMaxHeight(availableHeight, canvasMin, controlsMin);
@@ -410,6 +415,135 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             double actual = MapEditorView.ComputeUpperControlsMaxHeight(availableHeight, MinimumUsableMapHeight, 80);
             Assert.True(double.IsPositiveInfinity(actual), $"Expected no cap (PositiveInfinity) but got {actual}.");
+        }
+
+        // #1998 (review PRRT_kwDOH0Mc1M6STCQa): ComputeUpperControlsMinHeight is the REAL floor
+        // guarantee — MaxHeight alone (above) only caps the upper row, it never guaranteed it a
+        // minimum. canvasMinFootprint below is MapCanvasMinFootprint (240 + 8px bottom margin =
+        // 248), matching what UpdateUpperControlsMaxHeight actually reserves (review
+        // PRRT_kwDOH0Mc1M6STCQB).
+        [AvaloniaTheory]
+        [InlineData(800, 248, 80, 80)]   // ample room: both floors satisfied simultaneously.
+        [InlineData(328, 248, 80, 80)]   // exact combined-floor boundary (248+80): both floors just fit.
+        [InlineData(320, 248, 80, 0)]    // 8px short of the combined floor: canvas containment wins;
+                                          // the controls region has NO guaranteed floor here.
+        [InlineData(200, 248, 80, 0)]    // pathologically short: same as above, canvas containment wins.
+        public void ComputeUpperControlsMinHeight_FiniteEdgeCases(double availableHeight, double canvasMinFootprint, double controlsMin, double expected)
+        {
+            double actual = MapEditorView.ComputeUpperControlsMinHeight(availableHeight, canvasMinFootprint, controlsMin);
+            Assert.Equal(expected, actual, precision: 3);
+        }
+
+        [AvaloniaTheory]
+        [InlineData(0)]              // not yet measured (0 height): no forced floor.
+        [InlineData(double.NaN)]     // no forced floor while unmeasured.
+        [InlineData(double.PositiveInfinity)] // unconstrained measure pass: no forced floor.
+        [InlineData(-10)]            // defensively reject negative heights: no forced floor.
+        public void ComputeUpperControlsMinHeight_UnusableAvailableHeight_ReturnsZero(double availableHeight)
+        {
+            double actual = MapEditorView.ComputeUpperControlsMinHeight(
+                availableHeight, MapEditorView.MapCanvasMinFootprint, MapEditorView.UpperControlsMinHeight);
+            Assert.Equal(0, actual, precision: 3);
+        }
+
+        [AvaloniaFact]
+        public void MapCanvasPanel_BottomMarginMatchesReservedFootprintConstant()
+        {
+            // #1998 (review PRRT_kwDOH0Mc1M6STCQB): regression guard against the XAML Margin and
+            // the code-behind MapCanvasVerticalMargin constant drifting apart from each other.
+            var view = new MapEditorView();
+            var mapCanvas = Required<Border>(view, "MapCanvasPanel");
+
+            Assert.Equal(MapEditorView.MapCanvasVerticalMargin, mapCanvas.Margin.Top + mapCanvas.Margin.Bottom, precision: 3);
+        }
+
+        [AvaloniaFact]
+        public void CompactViewport_MapCanvasContainment_IncludesBottomMarginWithinArrangedBounds()
+        {
+            // #1998 (review PRRT_kwDOH0Mc1M6STCQB): the pre-existing compact tests only asserted
+            // mapCanvas.Bounds.Height >= MinimumUsableMapHeight, which cannot detect a regression
+            // that reserves only the panel's bare MinHeight and ignores its own Margin="8,0,8,8"
+            // bottom margin — that would let the upper-controls cap eat into the margin and
+            // clip/push the panel's bottom (including its horizontal scrollbar) past the arranged
+            // right-column grid. This test directly proves containment: the panel's rendered
+            // bottom edge PLUS its own bottom margin must fit within the grid's arranged height.
+            var view = new MapEditorView();
+            view.Show();
+            try
+            {
+                var map = Required<GbaImageControl>(view, "MapImageControl");
+                map.SetRgbaData(MakeSyntheticMapRgba(SyntheticMapSize, SyntheticMapSize), SyntheticMapSize, SyntheticMapSize);
+
+                double naturalControlsHeight = MeasureNaturalUpperControlsHeight(view);
+                double compactHeight = naturalControlsHeight + MinimumUsableMapHeight - 40;
+                ArrangeAt(view, EditorWidth, compactHeight);
+
+                var grid = Required<Grid>(view, "MapEditorRightColumnGrid");
+                var mapCanvas = Required<Border>(view, "MapCanvasPanel");
+
+                Assert.True(mapCanvas.Bounds.Height >= MinimumUsableMapHeight,
+                    $"Map canvas height ({mapCanvas.Bounds.Height:F1}) should remain usable.");
+
+                double consumedBottom = mapCanvas.Bounds.Bottom + mapCanvas.Margin.Bottom;
+                Assert.True(consumedBottom <= grid.Bounds.Height + 0.5,
+                    $"MapCanvasPanel's rendered bottom edge plus its {mapCanvas.Margin.Bottom}px bottom " +
+                    $"margin ({consumedBottom:F1}) must fit within the right column grid's arranged " +
+                    $"height ({grid.Bounds.Height:F1}) — otherwise the panel's bottom (including its " +
+                    "horizontal scrollbar) is clipped/pushed off-screen.");
+            }
+            finally
+            {
+                view.Close();
+            }
+        }
+
+        [AvaloniaFact]
+        public void PathologicallyShortViewport_CanvasContainmentWinsOverControlsFloor()
+        {
+            // #1998 (review PRRT_kwDOH0Mc1M6STCQa): below the combined floor threshold
+            // (MapCanvasMinFootprint + UpperControlsMinHeight = 328), the upper controls region
+            // gets NO guaranteed MinHeight floor — MapCanvasPanel's own containment always wins,
+            // so it never regresses the exact clipping bug from PRRT_kwDOH0Mc1M6STCQB.
+            var view = new MapEditorView();
+            view.Show();
+            try
+            {
+                ArrangeAt(view, EditorWidth, 200);
+
+                var upperScroller = Required<ScrollViewer>(view, "MapUpperControlsScroller");
+                var mapCanvas = Required<Border>(view, "MapCanvasPanel");
+
+                Assert.Equal(0, upperScroller.MinHeight, precision: 3);
+                Assert.True(mapCanvas.Bounds.Height >= MinimumUsableMapHeight,
+                    $"Even in a pathologically short viewport, canvas containment must win " +
+                    $"(actual={mapCanvas.Bounds.Height:F1}).");
+            }
+            finally
+            {
+                view.Close();
+            }
+        }
+
+        [AvaloniaFact]
+        public void CompactViewport_AboveCombinedFloorThreshold_ControlsScrollerGetsRealMinHeightFloor()
+        {
+            // #1998 (review PRRT_kwDOH0Mc1M6STCQa): comfortably above the combined floor
+            // threshold, BOTH floors can coexist — this must be a REAL enforced MinHeight, not
+            // merely a MaxHeight cap that happens to work because content is always larger.
+            var view = new MapEditorView();
+            view.Show();
+            try
+            {
+                ArrangeAt(view, EditorWidth, 400);
+
+                var upperScroller = Required<ScrollViewer>(view, "MapUpperControlsScroller");
+
+                Assert.Equal(MapEditorView.UpperControlsMinHeight, upperScroller.MinHeight, precision: 3);
+            }
+            finally
+            {
+                view.Close();
+            }
         }
 
         [AvaloniaTheory]

@@ -64,6 +64,7 @@ import { validateMapEditorLayoutMetrics, bounded, parseHookError, REQUIRED_METRI
 import { CASES, missingKeyCases } from './layout-metrics-validation.cases.mjs';
 import { parseViewportOverride } from './viewport-override.mjs';
 import { CASES as VIEWPORT_CASES } from './viewport-override.cases.mjs';
+import { deriveSidecar, getViewportArtifactPaths } from './viewport-artifacts.mjs';
 
 // #1998 follow-up (review): a fast, dependency-free re-verification of the SAME fail-closed
 // validateMapEditorLayoutMetrics() contract exercised by layout-metrics-validation.test.mjs's
@@ -203,13 +204,6 @@ const VIEWPORT_PLAN = resolveViewportPlan();
 // browser has started yet.
 runContractSelfCheck();
 
-// Derives a collision-free sidecar path from a base screenshot path, e.g.
-// deriveSidecar('web-boot-smoke.png', 'compact') -> 'web-boot-smoke.compact.png'.
-function deriveSidecar(basePath, suffix) {
-  const parsed = path.parse(basePath);
-  return path.join(parsed.dir || '.', `${parsed.name}.${suffix}${parsed.ext || '.png'}`);
-}
-
 // Correct MIME types matter: a `.wasm` served as anything but application/wasm makes the streaming
 // instantiation fail and the runtime never boots — i.e. a failure for the WRONG reason.
 const MIME = {
@@ -320,13 +314,20 @@ async function runViewport(browser, vp, url) {
   // shared `finally` block below makes one best-effort full-viewport capture so the run still leaves
   // visual evidence — without ever suppressing/replacing the ORIGINAL recorded failure reason.
   let mainScreenshotWritten = false;
-  // Remove any stale screenshot left over from a PRIOR invocation at this exact path first, so an
-  // old (possibly successful) capture can never be mistaken for THIS run's outcome if both the
-  // normal path and the fallback below fail to write a fresh one.
-  try {
-    if (fs.existsSync(mainPath)) fs.unlinkSync(mainPath);
-  } catch (e) {
-    console.log(`[smoke] ${tag} could not remove stale screenshot at ${mainPath} (non-fatal): ${bounded(e.message)}`);
+  // #1998 follow-up (review PRRT_kwDOH0Mc1M6STCRA): remove EVERY artifact path this viewport run
+  // may produce — not just mainPath. An early failure (e.g. before beforePath or the Move Cost
+  // sidecars are ever (re)written by THIS run) would otherwise leave a stale PRIOR invocation's
+  // sidecar sitting next to a fresh mainPath/fallback screenshot, making a stale pre-navigation
+  // `.before.png` (or stale Move Cost pair) look like it belongs to the current failing run.
+  // getViewportArtifactPaths() is the single shared definition of the full artifact set (also
+  // covered directly by viewport-artifacts.test.mjs), so this list can never silently drift out of
+  // sync with what the run below actually writes.
+  for (const stalePath of getViewportArtifactPaths(mainPath)) {
+    try {
+      if (fs.existsSync(stalePath)) fs.unlinkSync(stalePath);
+    } catch (e) {
+      console.log(`[smoke] ${tag} could not remove stale artifact at ${stalePath} (non-fatal): ${bounded(e.message)}`);
+    }
   }
 
   // #1998 follow-up (review): newContext()/newPage() must NOT run unprotected — if either rejects

@@ -87,7 +87,11 @@ The **main** pair (`SMOKE_SCREENSHOT` / its sidecar equivalent, and its `.before
 has one — see above) are always
 full-viewport captures with **no content clip**, at device-pixel-ratio 1 — so they are exactly
 `width`×`height` pixels. The `.before.png` is taken right after boot, before any editor opens; the
-main screenshot is taken **last**, after opening the Visual Map Editor, so it proves the Map
+main screenshot is taken immediately after opening the Visual Map Editor and its layout assertions
+pass — not literally last or gated on every other check succeeding (review PRRT_kwDOH0Mc1M6STCQs):
+for the synthetic-ROM run specifically, a destructive stale-synthetic-authorization reload probe
+still runs *after* this capture and can still fail the run, but it never re-takes or mutates the
+already-written screenshot. This proves the Map
 Editor's actual on-screen layout at that viewport. The Move Cost Editor's own proof pair
 (`*.movecost.before.png` / `*.movecost.png`) uses a recomputed 80px-header content clip specific to
 each run's viewport, and is diffed byte-for-byte to prove the editor body actually re-rendered.

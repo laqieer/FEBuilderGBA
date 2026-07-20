@@ -211,9 +211,14 @@ ignores the per-reference `AdditionalProperties`, else `NETSDK1005` (same mechan
     `injectSyntheticMapPixels` is opt-in and only honored when the currently-loaded ROM was itself
     loaded via `LoadRomBase64(..., isSynthetic: true)`; requesting synthetic injection against a
     real ROM load is rejected with a JSON `error` field rather than silently overwriting the real
-    ROM's authentic rendered map/palette pixels. The Map Editor's own screenshot is taken **last**,
-    full-viewport with no content clip (device-pixel-ratio 1), after all other checks pass; the
-    Move Cost Editor keeps its own separate before/after screenshot pair (recomputed per-viewport
+    ROM's authentic rendered map/palette pixels. The Map Editor's own screenshot is taken
+    full-viewport with no content clip (device-pixel-ratio 1) immediately after the layout
+    assertions above pass — but this is **not** literally the last thing the run does or gated on
+    every other check passing (review PRRT_kwDOH0Mc1M6STCQs on PR #2000 head
+    `8b599f0b3673c54fa3f2d25a10f00931c75c5420`): for the synthetic-ROM run specifically, a
+    destructive stale-synthetic-authorization reload probe (#1998 follow-up, above) still executes
+    *after* this capture and can still fail the run; it never re-takes or mutates the screenshot
+    already written. The Move Cost Editor keeps its own separate before/after screenshot pair (recomputed per-viewport
     content clip) under sidecar filenames derived from `SMOKE_SCREENSHOT`, and only the acceptance
     (or single explicit) run's `SMOKE_SCREENSHOT`/`.before.png` pair matches what
     `.github/workflows/pages.yml` uploads.
