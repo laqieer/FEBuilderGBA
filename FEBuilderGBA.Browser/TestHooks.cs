@@ -20,11 +20,25 @@ public static partial class TestHooks
     // synthetic by the caller (SMOKE_ROM=synthetic). MapEditorLayoutMetrics's synthetic-pixel
     // injection is gated on this flag so a real-ROM smoke run can never have its authentic
     // rendered map/palette pixels silently overwritten.
+    //
+    // #1998 follow-up (review): LoadRomBase64 REVOKES this authorization at the very start of every
+    // call, before decode/load/initialize/refresh — it is granted again only after the entire load
+    // sequence succeeds. This prevents a stale `true` from an earlier successful synthetic load from
+    // surviving a later failed or exceptional load attempt (see the live-browser regression in
+    // smoke.mjs that reloads a deliberately-invalid non-synthetic ROM after a successful synthetic
+    // run and asserts synthetic injection is then rejected).
     private static bool _lastLoadedRomWasSynthetic;
 
     [JSExport]
     public static async Task<bool> LoadRomBase64(string base64, bool isSynthetic)
     {
+        // #1998 follow-up (review): revoke any PREVIOUSLY-granted synthetic authorization before
+        // attempting this load. If this call fails (returns false) OR throws at any point below,
+        // the flag must stay false — a stale `true` from an EARLIER successful synthetic load must
+        // never survive a failed/exceptional subsequent load attempt (e.g. a deliberately-failing
+        // non-synthetic reload after a successful synthetic run). Authorization is granted again ONLY
+        // after decode + ROM load + InitializeLoadedRom + Refresh have ALL completed successfully.
+        _lastLoadedRomWasSynthetic = false;
         try
         {
             byte[] bytes = Convert.FromBase64String(base64);

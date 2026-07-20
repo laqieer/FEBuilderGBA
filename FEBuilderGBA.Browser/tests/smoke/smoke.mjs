@@ -521,6 +521,38 @@ async function runViewport(browser, vp, url) {
         await page.screenshot({ path: mainPath });
         mainScreenshotWritten = true;
         console.log(`[smoke] ${tag} final full-viewport Map Editor screenshot -> ${mainPath}`);
+
+        // #1998 follow-up (review): live regression proving stale synthetic authorization is
+        // revoked on a NEW load attempt. Runs ONLY for the synthetic-ROM run, and ONLY AFTER this
+        // run's own MapEditor assertions/screenshot are already captured above, so it can never
+        // mutate accepted evidence. Attempts a deliberately-invalid non-synthetic reload (garbage
+        // bytes — NOT the synthetic fixture) in the SAME page/context that already holds a granted
+        // synthetic authorization from the successful load above; LoadRomBase64 must return false
+        // (the reload itself fails/is rejected), and a subsequent synthetic-injection request MUST
+        // then be rejected with a hook `error` payload — proving the earlier `true` authorization
+        // did NOT survive the failed reload attempt (TestHooks.LoadRomBase64 revokes authorization
+        // at the very start of every call, before decode/load/initialize/refresh, and re-grants it
+        // only after the full sequence succeeds).
+        if (IS_SYNTHETIC_ROM) {
+          const garbageBase64 = Buffer.from('not a real GBA rom, deliberately invalid').toString('base64');
+          const reloadOk = await page.evaluate(
+            async (b64) => await globalThis.__febTest.LoadRomBase64(b64, false),
+            garbageBase64);
+          if (reloadOk !== false) {
+            failures.push(`${tag} stale-authorization probe: deliberately-invalid non-synthetic reload ` +
+              `unexpectedly returned ${reloadOk}; expected false`);
+          } else {
+            const postReloadMetricsRaw = await page.evaluate(() => globalThis.__febTest.MapEditorLayoutMetrics(true));
+            const { errors: postReloadErrors } = validateMapEditorLayoutMetrics(postReloadMetricsRaw, { requireTitle: false });
+            if (postReloadErrors.length === 0) {
+              failures.push(`${tag} stale-authorization probe FAILED: synthetic injection was still authorized ` +
+                `after a failed non-synthetic reload attempt (expected a rejected/error payload): ${bounded(postReloadMetricsRaw)}`);
+            } else {
+              console.log(`[smoke] ${tag} stale synthetic authorization correctly revoked after a failed reload ` +
+                `(#1998 follow-up): ${bounded(postReloadErrors[0])}`);
+            }
+          }
+        }
       } else {
         console.log(`[smoke] ${tag} SMOKE_ROM not set; boot-only smoke — taking a single full-viewport screenshot.`);
         await page.screenshot({ path: mainPath });

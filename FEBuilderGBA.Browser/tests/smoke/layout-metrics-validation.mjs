@@ -62,8 +62,14 @@ export function validateMapEditorLayoutMetrics(metricsRaw, { requireTitle = true
     return { metrics: null, errors };
   }
 
-  if (typeof parsed.error === 'string' && parsed.error.length > 0) {
-    errors.push(`MapEditorLayoutMetrics() reported a hard config error: ${bounded(parsed.error)}`);
+  // #1998 follow-up (review): reject the OWN-property PRESENCE of `error` regardless of its type or
+  // value — an empty string, `null`, `0`, `false`, or an object/array all still mean "the hook is
+  // reporting a problem" and must never be treated as absent just because the earlier
+  // `typeof === 'string' && length > 0` check happened not to match that particular value/type.
+  // `Object.hasOwn` (rather than `'error' in parsed` or a truthiness check) also correctly ignores
+  // any `error` inherited from a prototype rather than actually present in the parsed JSON object.
+  if (Object.hasOwn(parsed, 'error')) {
+    errors.push(`MapEditorLayoutMetrics() reported a hard config error: ${bounded(JSON.stringify(parsed.error))}`);
     return { metrics: null, errors };
   }
 

@@ -58,6 +58,33 @@ export const CASES = [
     errorIncludes: 'hard config error',
   },
   {
+    // #1998 follow-up (review): an `error` key must reject regardless of type/value — an empty
+    // string is still an OWN property named `error` and must not slip past a truthiness/length
+    // check the way the pre-review implementation would have allowed.
+    name: 'rejects a hook payload with an empty-string `error` property',
+    input: JSON.stringify({ ...VALID_METRICS, error: '' }),
+    expect: 'reject',
+    errorIncludes: 'hard config error',
+  },
+  {
+    name: 'rejects a hook payload with a `null`-valued `error` property',
+    input: JSON.stringify({ ...VALID_METRICS, error: null }),
+    expect: 'reject',
+    errorIncludes: 'hard config error',
+  },
+  {
+    name: 'rejects a hook payload with a numeric (non-string) `error` property',
+    input: JSON.stringify({ ...VALID_METRICS, error: 0 }),
+    expect: 'reject',
+    errorIncludes: 'hard config error',
+  },
+  {
+    name: 'rejects a hook payload with an object-valued `error` property',
+    input: JSON.stringify({ ...VALID_METRICS, error: { code: 42 } }),
+    expect: 'reject',
+    errorIncludes: 'hard config error',
+  },
+  {
     name: 'rejects an unexpected title',
     input: JSON.stringify({ ...VALID_METRICS, title: 'Move Cost Editor' }),
     expect: 'reject',
