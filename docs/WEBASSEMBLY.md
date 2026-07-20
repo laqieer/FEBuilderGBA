@@ -168,6 +168,60 @@ ignores the per-reference `AdditionalProperties`, else `NETSDK1005` (same mechan
   *renders* (Avalonia canvas mounts; no `avalonia.js` response `>= 400`). It runs on PRs (a boot
   regression fails the PR) and gates the deploy on `master`. Added after #1867, where every asset
   returned `200` but the app never booted — an HTTP-200 check could not catch that.
+  - **Map Editor layout probe (#1998, follow-up).** By default — when both
+    `SMOKE_VIEWPORT_WIDTH`/`SMOKE_VIEWPORT_HEIGHT` are unset — `smoke.mjs` runs an in-process,
+    sequential dual-viewport matrix in one browser process (fresh isolated context/page per
+    viewport): `600x500` ("compact", below the internal `700`px classification threshold) then
+    `1920x852` ("acceptance"). Failures from either viewport are aggregated; the process exits
+    nonzero if either fails. This is the mode both `pages.yml` invocations use today (neither sets
+    the viewport vars), so CI gets both layouts covered with no workflow changes. Setting **both**
+    vars runs exactly that single viewport instead (setting only one is rejected, exit code `2`).
+    With `SMOKE_ROM` set, each viewport run opens the Map Editor through the real launcher
+    (`OpenEditor('MapEditor')`), logs `devicePixelRatio` / `visualViewport.scale`, and calls the
+    E2E-only `MapEditorLayoutMetrics(injectSyntheticMapPixels)` hook to assert the split-scroller
+    layout: the map canvas stays ≥240px tall at any viewport, and its upper info/toolbar/palette
+    scroller overflows at compact viewports on **both axes**, gated by **two independent viewport
+    dimensions** (#1998 follow-up, OpenAI review on PR #2000 head `d8413c4af`: a single
+    height-only gate wrongly coupled the two axes, false-failing a valid wide-but-short explicit
+    viewport such as 1920×500) — vertically, gated purely by viewport **height** below the
+    internal `700`px threshold (asserted universally; any realistic content overflows a ~189px
+    viewport height, regardless of width) and, since the #1998 horizontal-scroll follow-up,
+    horizontally, gated purely by viewport **width** below an internal `700`px threshold
+    (empirically measured, PR #2000 head `123b3c782` review: at 500px height, overflow holds at
+    600px width for both synthetic and real-ROM content — 458/342 and 548/342 — but stops being a
+    reliable margin by 700-800px width, where content naturally grows to fill the available space
+    and eventually fits without scrolling; 700 is the highest width still safely below that
+    crossover, and 700px+ — including 1920×852/1920×500 and any other wide explicit viewport such
+    as 1000×500 — is logged only, never hard-required to overflow) independent of height —
+    asserted universally for both synthetic and real ROMs, via `upperExtentWidth`/`upperViewportWidth`.
+    A narrow-but-tall explicit
+    viewport (e.g. 600×852) is still asserted to overflow horizontally even though it is not
+    compact by height, and a wide-but-short explicit viewport (e.g. 1920×500) is still asserted to
+    overflow vertically without any (false) horizontal-overflow requirement. The desktop "upper controls fit without scrolling" expectation and the
+    both-axis (width AND height) inner-canvas-overflow expectation are hard-asserted **only** when
+    `SMOKE_ROM=synthetic`, whose fixture map is deliberately oversized (~2200×1200) to guarantee
+    both; for a **real** ROM the same metrics are logged instead of hard-asserted, since a real
+    chapter's on-screen map size and populated-palette content height are ROM-data-dependent (a
+    real FE8U chapter has been observed needing more upper-region height than the 1920×852
+    viewport provides, correctly falling back to scrolling rather than indicating a layout bug).
+    The pre-navigation and stale-authorization live regressions below assert the SPECIFIC
+    TestHooks.cs `error` text for the condition under test (`parseHookError`), not merely that some
+    rejection occurred, so an unrelated validator rejection can never be mistaken for proof of the
+    intended fail-closed branch (#1998 follow-up, review on PR #2000 head `123b3c782`).
+    `injectSyntheticMapPixels` is opt-in and only honored when the currently-loaded ROM was itself
+    loaded via `LoadRomBase64(..., isSynthetic: true)`; requesting synthetic injection against a
+    real ROM load is rejected with a JSON `error` field rather than silently overwriting the real
+    ROM's authentic rendered map/palette pixels. The Map Editor's own screenshot is taken
+    full-viewport with no content clip (device-pixel-ratio 1) immediately after the layout
+    assertions above pass — but this is **not** literally the last thing the run does or gated on
+    every other check passing (review PRRT_kwDOH0Mc1M6STCQs on PR #2000 head
+    `8b599f0b3673c54fa3f2d25a10f00931c75c5420`): for the synthetic-ROM run specifically, a
+    destructive stale-synthetic-authorization reload probe (#1998 follow-up, above) still executes
+    *after* this capture and can still fail the run; it never re-takes or mutates the screenshot
+    already written. The Move Cost Editor keeps its own separate before/after screenshot pair (recomputed per-viewport
+    content clip) under sidecar filenames derived from `SMOKE_SCREENSHOT`, and only the acceptance
+    (or single explicit) run's `SMOKE_SCREENSHOT`/`.before.png` pair matches what
+    `.github/workflows/pages.yml` uploads.
 
 ### Why the web app first hung on the splash (#1867)
 
