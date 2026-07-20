@@ -79,9 +79,10 @@ by the workflow.
 which loads a fixture and opens the Move Cost / Map Editors). A **boot-only** run (`SMOKE_ROM`
 unset — no editor ever opens) never has a "before navigating to an editor" state to distinguish, so
 it writes a single full-viewport screenshot to `mainPath` only and produces **no `.before.png`** at
-all; see `.github/workflows/pages.yml`'s boot-smoke invocation, which uploads only the main
-`web-boot-smoke.png` (plus its compact-matrix sidecar, per the naming above) — never a
-`web-boot-smoke.before.png`.
+all; see `.github/workflows/pages.yml`'s boot-smoke invocation, whose `upload-artifact` step names
+an exact single file (`path: web-boot-smoke.png`) — it uploads ONLY that main screenshot, never the
+compact-matrix sidecar (which, like every sidecar described above, exists purely for local/manual
+inspection and is not a CI artifact) and never a `web-boot-smoke.before.png`.
 
 The **main** pair (`SMOKE_SCREENSHOT` / its sidecar equivalent, and its `.before.png` when the run
 has one — see above) are always
