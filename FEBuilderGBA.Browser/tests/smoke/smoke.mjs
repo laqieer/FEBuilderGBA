@@ -62,6 +62,8 @@ import path from 'node:path';
 import { chromium } from 'playwright';
 import { validateMapEditorLayoutMetrics, bounded, REQUIRED_METRIC_KEYS } from './layout-metrics-validation.mjs';
 import { CASES, missingKeyCases } from './layout-metrics-validation.cases.mjs';
+import { parseViewportOverride } from './viewport-override.mjs';
+import { CASES as VIEWPORT_CASES } from './viewport-override.cases.mjs';
 
 // #1998 follow-up (review): a fast, dependency-free re-verification of the SAME fail-closed
 // validateMapEditorLayoutMetrics() contract exercised by layout-metrics-validation.test.mjs's
@@ -99,6 +101,41 @@ function runContractSelfCheck() {
     'layout-metrics-validation.test.mjs — see layout-metrics-validation.cases.mjs).');
 }
 
+// #1998 follow-up (review): a fast, dependency-free re-verification of the SAME
+// parseViewportOverride() contract exercised by viewport-override.test.mjs's `node:test` coverage —
+// run ONCE here, before any server/browser starts. A code-review finding showed a fractional
+// explicit viewport value (e.g. "600.5") previously passed the finite/>0-only check and reached
+// Playwright's `browser.newContext({ viewport })`, which requires integer dimensions and throws an
+// UNHANDLED setup error — turning a should-be-controlled `exit 2` into a crash after startup had
+// already begun. This self-check and the node:test suite import the SAME shared case table
+// (viewport-override.cases.mjs), and both call the SAME parseViewportOverride() function used to
+// resolve the real SMOKE_VIEWPORT_WIDTH/SMOKE_VIEWPORT_HEIGHT env values below, so the two
+// coverage paths — and the parsing logic itself — can never silently diverge.
+function runViewportParserSelfCheck() {
+  const selfCheckFailures = [];
+  for (const c of VIEWPORT_CASES) {
+    const result = parseViewportOverride(c.wRaw, c.hRaw);
+    if (c.expect === 'accept') {
+      if (!result.ok || JSON.stringify(result.plan) !== JSON.stringify(c.expectedPlan)) {
+        selfCheckFailures.push(`"${c.name}": expected ACCEPT with the expected plan but got ` +
+          `ok=${result.ok}, plan=${bounded(JSON.stringify(result.ok ? result.plan : result.error))}`);
+      }
+    } else if (result.ok) {
+      selfCheckFailures.push(`"${c.name}": expected REJECT but got ok=true, plan=${bounded(JSON.stringify(result.plan))}`);
+    } else if (c.errorIncludes && !result.error.includes(c.errorIncludes)) {
+      selfCheckFailures.push(`"${c.name}": rejected as expected, but the error message did not mention ` +
+        `"${c.errorIncludes}": ${bounded(result.error)}`);
+    }
+  }
+  if (selfCheckFailures.length > 0) {
+    console.error('[smoke] viewport-override parser self-check FAILED — parseViewportOverride() itself ' +
+      'appears broken (checked before launching any browser):\n - ' + selfCheckFailures.join('\n - '));
+    process.exit(2);
+  }
+  console.log(`[smoke] viewport-override parser self-check passed (${VIEWPORT_CASES.length} cases, shared ` +
+    'with viewport-override.test.mjs — see viewport-override.cases.mjs).');
+}
+
 const WWWROOT = process.env.SMOKE_WWWROOT;
 const BASE_PATH = process.env.SMOKE_BASE_PATH || '/FEBuilderGBA/';
 const SCREENSHOT = process.env.SMOKE_SCREENSHOT || 'web-smoke.png';
@@ -122,33 +159,18 @@ const MAP_EDITOR_COMPACT_HEIGHT_THRESHOLD = 700;
 // The map canvas panel must stay usable at any viewport height (#1998 layout contract).
 const MIN_USABLE_MAP_CANVAS_HEIGHT = 240;
 
-// #1998 follow-up: resolve the viewport(s) to exercise. Both-or-neither of SMOKE_VIEWPORT_WIDTH /
+// #1998 follow-up: resolve the viewport(s) to exercise via the pure parseViewportOverride()
+// function (viewport-override.mjs) — both-or-neither of SMOKE_VIEWPORT_WIDTH /
 // SMOKE_VIEWPORT_HEIGHT; absent -> default in-process compact+acceptance matrix (see file header).
 function resolveViewportPlan() {
-  const wRaw = process.env.SMOKE_VIEWPORT_WIDTH;
-  const hRaw = process.env.SMOKE_VIEWPORT_HEIGHT;
-  const wSet = wRaw !== undefined && wRaw !== '';
-  const hSet = hRaw !== undefined && hRaw !== '';
-  if (wSet !== hSet) {
-    console.error('[smoke] SMOKE_VIEWPORT_WIDTH and SMOKE_VIEWPORT_HEIGHT must both be set together, or ' +
-      'both left unset for the default compact+acceptance matrix ' +
-      `(got SMOKE_VIEWPORT_WIDTH=${wRaw ?? '<unset>'}, SMOKE_VIEWPORT_HEIGHT=${hRaw ?? '<unset>'})`);
+  const result = parseViewportOverride(process.env.SMOKE_VIEWPORT_WIDTH, process.env.SMOKE_VIEWPORT_HEIGHT);
+  if (!result.ok) {
+    console.error(`[smoke] ${result.error}`);
     process.exit(2);
   }
-  if (!wSet) {
-    return [
-      { width: 600, height: 500, tag: 'compact', owning: false },
-      { width: 1920, height: 852, tag: 'acceptance', owning: true },
-    ];
-  }
-  const width = Number(wRaw);
-  const height = Number(hRaw);
-  if (!Number.isFinite(width) || width <= 0 || !Number.isFinite(height) || height <= 0) {
-    console.error(`[smoke] SMOKE_VIEWPORT_WIDTH/SMOKE_VIEWPORT_HEIGHT must both be positive finite numbers (got "${wRaw}"x"${hRaw}")`);
-    process.exit(2);
-  }
-  return [{ width, height, tag: 'explicit', owning: true }];
+  return result.plan;
 }
+runViewportParserSelfCheck();
 const VIEWPORT_PLAN = resolveViewportPlan();
 
 // Run the validator contract self-check now — env/viewport parsing is done, but no server or

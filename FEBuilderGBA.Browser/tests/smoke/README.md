@@ -37,8 +37,15 @@ the mode `.github/workflows/pages.yml` uses today (it never sets the viewport en
 its existing invocations get dual-viewport coverage with no workflow changes.
 
 If you set **both** `SMOKE_VIEWPORT_WIDTH` and `SMOKE_VIEWPORT_HEIGHT`, the script instead runs
-**exactly that single viewport** (no matrix). Setting only one of the two is rejected with a clear
-error and exit code `2`.
+**exactly that single viewport** (no matrix). Both values must be **positive integers** (Playwright
+requires integer viewport dimensions — a fractional value like `600.5` is rejected before any
+server/browser starts, not left to crash Playwright's `newContext` call with an unhandled setup
+error). Setting only one of the two, or an invalid value (fractional, zero, negative, or
+non-numeric), is rejected with a clear, bounded error and exit code `2`. This parsing lives in the
+pure `parseViewportOverride()` function (`viewport-override.mjs`), shared by the real env-var
+resolution below, `viewport-override.test.mjs`'s `node --test` coverage, and a fast,
+dependency-free self-check the script runs on itself before launching any server/browser (see
+"Validator contract self-check" below).
 
 Screenshot ownership: the acceptance run (or the single explicit-viewport run) owns the exact
 `SMOKE_SCREENSHOT` path and its `.before.png` — the same two files
@@ -121,6 +128,13 @@ The fail-closed gate above is itself covered by a small case table
 as the pure test file, without any change to the workflow file itself. A normal, successful smoke
 run logs a single `validator contract self-check passed (...)` line confirming the check ran.
 
+The same pattern covers the viewport-override parser: a small case table
+(`viewport-override.cases.mjs`) is imported by both `viewport-override.test.mjs` (`node --test`) and
+`smoke.mjs`'s own fast self-check, which calls the exact same `parseViewportOverride()` function
+used to resolve the real `SMOKE_VIEWPORT_WIDTH`/`SMOKE_VIEWPORT_HEIGHT` env values, before the HTTP
+server or the browser are created. A normal, successful smoke run logs a
+`viewport-override parser self-check passed (...)` line.
+
 ## Diagnostic screenshot retention on failure
 
 Every viewport run tracks whether it has already written its `mainPath` screenshot via one of the
@@ -198,4 +212,4 @@ still produced by the clean production publish.
 | `SMOKE_SCREENSHOT` | `web-smoke.png` | Screenshot output path — see "Viewport coverage and screenshots" above for exactly which run owns this vs. a derived sidecar. |
 | `SMOKE_TIMEOUT_MS` | `120000` | Boot timeout (cold wasm + ~6.8 MB `config.zip` is slow). |
 | `SMOKE_ROM` | (unset) | ROM path for editor-nav proof, or `synthetic` for the license-clean generated FE8U-shaped ROM (the only value that triggers synthetic map-pixel injection). |
-| `SMOKE_VIEWPORT_WIDTH` / `SMOKE_VIEWPORT_HEIGHT` | (unset; both-or-neither) | Explicit single-viewport override. Leave **both** unset for the default 600×500 + 1920×852 matrix described above. |
+| `SMOKE_VIEWPORT_WIDTH` / `SMOKE_VIEWPORT_HEIGHT` | (unset; both-or-neither) | Explicit single-viewport override — both must be **positive integers**. Leave **both** unset for the default 600×500 + 1920×852 matrix described above. |
