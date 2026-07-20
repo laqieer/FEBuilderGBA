@@ -14416,6 +14416,87 @@ FEMapCreator アセット ディレクトリを選択
 :Generated map was rolled back, but refreshing the editor failed: {0}
 生成したマップはロールバックされましたが、エディターの再読み込みに失敗しました: {0}
 
+:The map's tileset changed since generation started; discarding the result to avoid writing a mismatched layout.
+生成開始後にマップのタイルセットが変更されたため、不整合なレイアウトの書き込みを避けるために結果を破棄します。
+
+:Could not resolve the current map's tileset: {0}
+現在のマップのタイルセットを解決できませんでした: {0}
+
+:Could not build the built-in generator's source corpus: {0}
+内蔵ジェネレーターのソースコーパスを構築できませんでした: {0}
+
+:Built-in random map generation returned no result.
+内蔵ランダムマップ生成が結果を返しませんでした。
+
+:Random map request was invalid: {0}
+ランダムマップのリクエストが無効です: {0}
+
+:This tileset does not have enough source map data for the built-in generator: {0}
+このタイルセットには内蔵ジェネレーターに必要なソースマップデータが不足しています: {0}
+
+:Random map generation was cancelled.
+ランダムマップの生成はキャンセルされました。
+
+:The built-in generator could not find a valid layout within its search budget: {0}
+内蔵ジェネレーターは探索予算内で有効なレイアウトを見つけられませんでした: {0}
+
+:This map's tileset could not be identified.
+このマップのタイルセットを識別できませんでした。
+
+:FEMapCreator is not configured. Set it up in Options first.
+FEMapCreator が設定されていません。先にオプションで設定してください。
+
+:Discovering tilesets...
+タイルセットを検出しています...
+
+:Found {0} usable tileset(s).
+使用可能なタイルセットが {0} 個見つかりました。
+
+:No usable tilesets were found.
+使用可能なタイルセットが見つかりませんでした。
+
+:Select a tileset first.
+先にタイルセットを選択してください。
+
+:Configuration is not available.
+設定を利用できません。
+
+:Mapping saved for tileset '{0}'.
+タイルセット '{0}' のマッピングを保存しました。
+
+:Map Tileset for External FEMapCreator
+外部 FEMapCreator 用のタイルセットをマッピング
+
+:Save Mapping
+マッピングを保存
+
+:Generating...
+生成しています...
+
+:Backend: {0}
+バックエンド: {0}
+
+:External FEMapCreator
+外部 FEMapCreator
+
+:Built-in
+内蔵
+
+:Map Tileset…
+タイルセットをマッピング…
+
+:Seed:
+シード:
+
+:Randomize
+ランダム化
+
+:Could not identify this map's tileset: {0}
+このマップのタイルセットを識別できませんでした: {0}
+
+:Map the current tileset to an external FEMapCreator tileset for one-click random-map generation
+現在のタイルセットを外部 FEMapCreator のタイルセットにマッピングして、ワンクリックでランダムマップを生成します
+
 :FEMapCreator (Optional, External Tool)
 FEMapCreator (任意の外部ツール)
 

@@ -235,6 +235,16 @@ dotnet run --project FEBuilderGBA.CLI -- --convertmap1picture --in=map.png --out
 # FEBuilderGBA never downloads or bundles FEMapCreator or its assets. The output is
 # FEBuilderGBA CSV and does not load or mutate a ROM.
 dotnet run --project FEBuilderGBA.CLI -- --generate-random-map --femapcreator=C:\tools\FEMapCreator.exe --tileset="FE6 - Fields - 01020304" --width=15 --height=10 --algorithm=experimental --seed=42 --out=random-map.csv
+# The Avalonia Map Editor's "Generate" button is true one-click (no dialog, no ellipsis): it uses the
+# current map's dimensions and an inline, directly replayable seed. If a per-tileset FEMapCreator mapping
+# is configured and current (via the "Map Tileset..." button, explicit user action only), it runs the
+# external adapter above; any launch/exit/parse failure is surfaced directly and never silently swapped
+# for the built-in engine. Otherwise — or if the saved mapping is stale/invalid, which is visibly explained
+# rather than silently substituted — it uses an independently designed, clean-room, deterministic built-in
+# generator (see docs/CORE-SEAMS.md and docs/ENGINEERING-NOTES.md) that needs no external tool, network
+# access, or download, and produces the same layout again when re-run with the displayed seed. This engine
+# is experimental and visual-coherence-only: it does not guarantee gameplay/objective validity (reachable
+# chests, doors, spawns, etc.).
 dotnet run --project FEBuilderGBA.CLI -- --translate --rom=rom.gba --out=texts.tsv
 dotnet run --project FEBuilderGBA.CLI -- --translate --rom=rom.gba --in=texts.tsv
 dotnet run --project FEBuilderGBA.CLI -- --translate-roundtrip --rom=rom.gba

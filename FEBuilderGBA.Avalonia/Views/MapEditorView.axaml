@@ -59,8 +59,30 @@
           <StackPanel Orientation="Horizontal" Spacing="8" Name="MapRandomCommandToolbar">
             <Button AutomationProperties.AutomationId="MapEditor_GenerateRandomMap_Button"
                     Name="GenerateRandomMapButton"
-                    Content="Generate Random Map…"
+                    Content="Generate Random Map"
                     VerticalAlignment="Center" />
+            <Button AutomationProperties.AutomationId="MapEditor_MapTileset_Button"
+                    Name="MapTilesetButton"
+                    Content="Map Tileset…"
+                    ToolTip.Tip="Map the current tileset to an external FEMapCreator tileset for one-click random-map generation"
+                    VerticalAlignment="Center" />
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="8" Name="MapRandomSeedToolbar">
+            <TextBlock Text="Seed:" VerticalAlignment="Center" />
+            <TextBox AutomationProperties.AutomationId="MapEditor_RandomMapSeedText_Input"
+                     Name="RandomMapSeedTextBox"
+                     Width="110"
+                     FontFamily="Consolas,Courier New,monospace" />
+            <Button AutomationProperties.AutomationId="MapEditor_RandomizeSeedBtn_Button"
+                    Name="RandomizeSeedButton"
+                    Content="Randomize"
+                    VerticalAlignment="Center" />
+            <TextBlock AutomationProperties.AutomationId="MapEditor_RandomMapStatus_Label"
+                       Name="RandomMapStatusLabel"
+                       VerticalAlignment="Center"
+                       TextWrapping="Wrap"
+                       FontSize="11"
+                       Foreground="Gray" />
           </StackPanel>
         </StackPanel>
       </StackPanel>

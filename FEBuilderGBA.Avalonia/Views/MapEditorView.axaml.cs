@@ -1,6 +1,7 @@
 ﻿using global::Avalonia;
 using System;
 using System.IO;
+using System.Threading;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
@@ -22,6 +23,8 @@ namespace FEBuilderGBA.Avalonia.Views
         int _zoom = 1;
         byte[] _lastRgba; // cached for refresh
         bool _generatingRandomMap;
+        readonly RandomMapOneClickService _randomMapService;
+        CancellationTokenSource? _randomMapCts;
 
         public string ViewTitle => "Visual Map Editor";
         public new bool IsLoaded => _vm.IsLoaded;
@@ -32,6 +35,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public MapEditorView()
         {
             InitializeComponent();
+            _randomMapService = new RandomMapOneClickService();
             EntryList.SelectedAddressChanged += OnSelected;
             ZoomInBtn.Click += OnZoomIn;
             ZoomOutBtn.Click += OnZoomOut;
@@ -44,6 +48,11 @@ namespace FEBuilderGBA.Avalonia.Views
             ImportTmxButton.Click += ImportTmx_Click;
             ResizeMapButton.Click += ResizeMap_Click;
             GenerateRandomMapButton.Click += GenerateRandomMap_Click;
+            RandomizeSeedButton.Click += RandomizeSeed_Click;
+            MapTilesetButton.Click += MapTileset_Click;
+            // #1978 Slice 3: cancel any in-flight one-click generation when the editor is
+            // detached (map switched/editor closed) so a stale generation can never apply.
+            DetachedFromVisualTree += (_, _) => _randomMapCts?.Cancel();
             AddHandler(KeyDownEvent, OnEditorKeyDown, RoutingStrategies.Tunnel);
             // Paint Mode defaults to OFF (no regression to existing select behaviour).
             PaintModeCheck.IsChecked = false;
@@ -1013,9 +1022,22 @@ namespace FEBuilderGBA.Avalonia.Views
             if (_generatingRandomMap)
                 return;
 
+            _randomMapCts?.Dispose();
+            var cts = new CancellationTokenSource();
+            _randomMapCts = cts;
+
             try
             {
                 _generatingRandomMap = true;
+                SetRandomMapBusyState(true, R._("Generating..."));
+
+                if (!GenerateRandomMapWorkflow.TryPrepareForGeneration(
+                    _vm,
+                    assetName => DecompMapAssetGuard.BlockIfDecomp(assetName),
+                    ShowError))
+                {
+                    return;
+                }
 
                 if (!_vm.TryCaptureMapWriteIdentity(
                     out MapEditorViewModel.MapWriteIdentity writeIdentity,
@@ -1027,29 +1049,67 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
 
-                GenerateRandomMapDialogResult? result = await GenerateRandomMapWorkflow.OpenDialogIfReadyAsync(
-                    _vm,
-                    assetName => DecompMapAssetGuard.BlockIfDecomp(assetName),
-                    ShowError,
-                    (width, height) => GenerateRandomMapDialog.Show(TopLevel.GetTopLevel(this) as Window, width, height));
-                if (result == null)
+                if (!TryGetSeed(out int seed, out string seedError))
+                {
+                    ShowError(seedError);
                     return;
+                }
 
-                if (result.Mars == null || result.Mars.Length != result.Width * result.Height)
+                uint mapSettingAddr = _vm.CurrentAddr;
+                int width = _vm.MapWidth;
+                int height = _vm.MapHeight;
+
+                if (!BuiltInRandomMapTilesetCore.TryResolveMapTileset(CoreState.ROM, mapSettingAddr, out MapTilesetSnapshot snapshot, out string tilesetError))
+                {
+                    ShowError(string.Format(R._("Generate random map failed: {0}"), tilesetError));
+                    return;
+                }
+                TilesetFingerprint expectedFingerprint = snapshot.Fingerprint;
+                ushort[]? currentGrid = BuildCurrentGrid(width, height);
+
+                RandomMapOneClickResult result;
+                try
+                {
+                    result = await _randomMapService.GenerateAsync(
+                        CoreState.ROM, mapSettingAddr, width, height, currentGrid, seed, cts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
+
+                if (!result.Success || result.Outcome == null)
+                {
+                    ShowError(string.Format(R._("Generate random map failed: {0}"), result.ErrorMessage));
+                    return;
+                }
+
+                if (!string.IsNullOrWhiteSpace(result.Notice))
+                    CoreState.Services?.ShowInfo(result.Notice);
+
+                RandomMapGenerationOutcome outcome = result.Outcome;
+                if (outcome.Mars == null || outcome.Mars.Length != outcome.Width * outcome.Height)
                 {
                     ShowError(R._("Random map generation returned no map data."));
                     return;
                 }
 
-                // The FEMapCreator shell-out and MAR parsing happen inside the dialog VM's
-                // Task.Run work. The workflow marshals every ROM/undo/cache mutation and the
-                // success notification back onto the Avalonia UI thread.
+                // Write the directly-replayable seed back so the user can reproduce this
+                // exact layout later by generating again with the same displayed value.
+                RandomMapSeedTextBox.Text = outcome.EffectiveSeed.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+                // The FEMapCreator shell-out / built-in search happens inside
+                // RandomMapOneClickService off the UI thread. The workflow marshals every
+                // ROM/undo/cache mutation and the success notification back onto the
+                // Avalonia UI thread, and re-validates identity + tileset fingerprint
+                // immediately before writing so a stale context never mutates the ROM.
                 string? applyError =
                     await GenerateRandomMapWorkflow.ApplyGeneratedMapOnUiThreadAsync(
                         _vm,
                         _undo,
-                        result,
+                        outcome,
                         writeIdentity,
+                        expectedFingerprint,
                         RefreshMapImageFromCurrentSelectionStrict,
                         UpdateTilePaletteStrict,
                         RefreshMapFromCurrentSelectionStrict,
@@ -1057,6 +1117,12 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 if (!string.IsNullOrWhiteSpace(applyError))
                     ShowError(string.Format(R._("Generate random map failed: {0}"), applyError));
+                else
+                    SetRandomMapBusyState(false, string.Format(
+                        R._("Backend: {0}"),
+                        result.BackendUsed == RandomMapBackendUsed.External
+                            ? R._("External FEMapCreator")
+                            : R._("Built-in")));
             }
             catch (Exception ex)
             {
@@ -1066,7 +1132,76 @@ namespace FEBuilderGBA.Avalonia.Views
             finally
             {
                 _generatingRandomMap = false;
+                SetRandomMapBusyState(false);
             }
+        }
+
+        void SetRandomMapBusyState(bool busy, string? statusText = null)
+        {
+            GenerateRandomMapButton.IsEnabled = !busy;
+            RandomizeSeedButton.IsEnabled = !busy;
+            MapTilesetButton.IsEnabled = !busy;
+            RandomMapSeedTextBox.IsEnabled = !busy;
+            if (statusText != null)
+                RandomMapStatusLabel.Text = statusText;
+        }
+
+        void RandomizeSeed_Click(object? sender, RoutedEventArgs e)
+        {
+            RandomMapSeedTextBox.Text = Random.Shared.Next().ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        async void MapTileset_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!BuiltInRandomMapTilesetCore.TryResolveMapTileset(CoreState.ROM, _vm.CurrentAddr, out MapTilesetSnapshot snapshot, out string error))
+            {
+                ShowError(string.Format(R._("Could not identify this map's tileset: {0}"), error));
+                return;
+            }
+
+            await MapTilesetMappingDialog.Show(TopLevel.GetTopLevel(this) as Window, snapshot.Fingerprint);
+        }
+
+        bool TryGetSeed(out int seed, out string error)
+        {
+            error = "";
+            string? text = RandomMapSeedTextBox.Text;
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                seed = Random.Shared.Next();
+                return true;
+            }
+            if (int.TryParse(text, out seed))
+                return true;
+
+            seed = 0;
+            error = R._("Seed must be a valid 32-bit integer.");
+            return false;
+        }
+
+        /// <summary>
+        /// Convert the currently cached map bytes into a row-major MAR grid for the built-in
+        /// engine's source-identity ladder. Returns null (rather than throwing) when the cache
+        /// is unavailable or any cell cannot be read — the generator treats a null
+        /// <c>currentGrid</c> as "nothing to compare against" rather than a failure.
+        /// </summary>
+        ushort[]? BuildCurrentGrid(int width, int height)
+        {
+            byte[] cached = _vm.GetMapDataSnapshot();
+            if (cached == null || width <= 0 || height <= 0)
+                return null;
+
+            var grid = new ushort[width * height];
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    if (!MapEditorTilesetCore.TryReadMar(cached, width, height, x, y, out ushort mar))
+                        return null;
+                    grid[y * width + x] = mar;
+                }
+            }
+            return grid;
         }
 
         void ShowError(string message)

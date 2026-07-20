@@ -28237,6 +28237,87 @@ FEMapCreator 未报告任何兼容的图块集。
 :Generated map was rolled back, but refreshing the editor failed: {0}
 已回滚生成的地图，但刷新编辑器失败: {0}
 
+:The map's tileset changed since generation started; discarding the result to avoid writing a mismatched layout.
+自生成开始以来地图的图块集已更改；为避免写入不匹配的布局，已丢弃该结果。
+
+:Could not resolve the current map's tileset: {0}
+无法解析当前地图的图块集: {0}
+
+:Could not build the built-in generator's source corpus: {0}
+无法构建内置生成器的源语料库: {0}
+
+:Built-in random map generation returned no result.
+内置随机地图生成未返回结果。
+
+:Random map request was invalid: {0}
+随机地图请求无效: {0}
+
+:This tileset does not have enough source map data for the built-in generator: {0}
+此图块集没有足够的源地图数据供内置生成器使用: {0}
+
+:Random map generation was cancelled.
+随机地图生成已取消。
+
+:The built-in generator could not find a valid layout within its search budget: {0}
+内置生成器未能在搜索预算内找到有效布局: {0}
+
+:This map's tileset could not be identified.
+无法识别此地图的图块集。
+
+:FEMapCreator is not configured. Set it up in Options first.
+尚未配置 FEMapCreator。请先在选项中进行设置。
+
+:Discovering tilesets...
+正在检测图块集...
+
+:Found {0} usable tileset(s).
+找到 {0} 个可用的图块集。
+
+:No usable tilesets were found.
+未找到可用的图块集。
+
+:Select a tileset first.
+请先选择一个图块集。
+
+:Configuration is not available.
+配置不可用。
+
+:Mapping saved for tileset '{0}'.
+已保存图块集 '{0}' 的映射。
+
+:Map Tileset for External FEMapCreator
+为外部 FEMapCreator 映射图块集
+
+:Save Mapping
+保存映射
+
+:Generating...
+正在生成...
+
+:Backend: {0}
+后端: {0}
+
+:External FEMapCreator
+外部 FEMapCreator
+
+:Built-in
+内置
+
+:Map Tileset…
+映射图块集…
+
+:Seed:
+种子:
+
+:Randomize
+随机化
+
+:Could not identify this map's tileset: {0}
+无法识别此地图的图块集: {0}
+
+:Map the current tileset to an external FEMapCreator tileset for one-click random-map generation
+将当前图块集映射到外部 FEMapCreator 图块集，以便一键生成随机地图
+
 :FEMapCreator (Optional, External Tool)
 FEMapCreator（可选外部工具）
 
