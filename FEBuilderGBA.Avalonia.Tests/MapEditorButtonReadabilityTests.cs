@@ -498,12 +498,27 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [AvaloniaFact]
-        public void PathologicallyShortViewport_CanvasContainmentWinsOverControlsFloor()
+        public void PathologicallyShortViewport_BelowCombinedFloorThreshold_ControlsGetNoFloorButCanvasKeepsMinimumHeight()
         {
-            // #1998 (review PRRT_kwDOH0Mc1M6STCQa): below the combined floor threshold
-            // (MapCanvasMinFootprint + UpperControlsMinHeight = 328), the upper controls region
-            // gets NO guaranteed MinHeight floor — MapCanvasPanel's own containment always wins,
-            // so it never regresses the exact clipping bug from PRRT_kwDOH0Mc1M6STCQB.
+            // #1998 (review PRRT_kwDOH0Mc1M6STCQa, revised per PRRT_kwDOH0Mc1M6SVA6x): below the
+            // combined floor threshold (MapCanvasMinFootprint + UpperControlsMinHeight = 328), the
+            // upper controls region gets NO guaranteed MinHeight floor, so MapCanvasPanel is never
+            // starved smaller than its own MinimumUsableMapHeight to make room for the controls
+            // floor. That is the ONLY claim this test proves.
+            //
+            // It does NOT prove — and must not claim — that MapCanvasPanel's rendered bottom edge
+            // (plus its bottom margin) fits within the right column grid's arranged bounds. At
+            // height=200, the viewport itself (200) is shorter than MapCanvasMinFootprint alone
+            // (248 = MapCanvasMinHeight 240 + MapCanvasVerticalMargin 8), so full margin-inclusive
+            // grid containment is architecturally impossible here regardless of how the upper
+            // controls region behaves — there is no floor logic that can reserve more room for the
+            // canvas than the grid itself has. Asserting only `Bounds.Height >= 240` at this height
+            // can pass PRECISELY BECAUSE the panel's arranged bounds overflow past the grid's own
+            // arranged height (see the assertion below, which documents that overflow explicitly
+            // instead of silently ignoring it). Full containment IS guaranteed starting at the
+            // combined floor threshold (328 DIP) — see
+            // CompactViewport_AtAndAboveCombinedFloorThreshold_CanvasContainmentHolds below, which
+            // is this test's "supported lower bound" counterpart.
             var view = new MapEditorView();
             view.Show();
             try
@@ -512,11 +527,23 @@ namespace FEBuilderGBA.Avalonia.Tests
 
                 var upperScroller = Required<ScrollViewer>(view, "MapUpperControlsScroller");
                 var mapCanvas = Required<Border>(view, "MapCanvasPanel");
+                var grid = Required<Grid>(view, "MapEditorRightColumnGrid");
 
                 Assert.Equal(0, upperScroller.MinHeight, precision: 3);
                 Assert.True(mapCanvas.Bounds.Height >= MinimumUsableMapHeight,
-                    $"Even in a pathologically short viewport, canvas containment must win " +
-                    $"(actual={mapCanvas.Bounds.Height:F1}).");
+                    $"Even in a pathologically short viewport, the canvas must keep its own " +
+                    $"minimum usable height rather than being squeezed smaller for the controls " +
+                    $"floor (actual={mapCanvas.Bounds.Height:F1}).");
+
+                double consumedBottom = mapCanvas.Bounds.Bottom + mapCanvas.Margin.Bottom;
+                Assert.True(consumedBottom > grid.Bounds.Height,
+                    $"At this pathologically short height (200 DIP < MapCanvasMinFootprint's " +
+                    $"{MapEditorView.MapCanvasMinFootprint} DIP), full margin-inclusive grid " +
+                    $"containment is architecturally impossible and IS expected to be exceeded " +
+                    $"(consumedBottom={consumedBottom:F1}, grid.Bounds.Height={grid.Bounds.Height:F1}) " +
+                    "— this documents the known, accepted tradeoff rather than silently allowing a " +
+                    "future change to mask it. If this now holds, MapCanvasMinFootprint/the combined " +
+                    "threshold no longer describe reality and the contract comment must be revised.");
             }
             finally
             {
@@ -539,6 +566,40 @@ namespace FEBuilderGBA.Avalonia.Tests
                 var upperScroller = Required<ScrollViewer>(view, "MapUpperControlsScroller");
 
                 Assert.Equal(MapEditorView.UpperControlsMinHeight, upperScroller.MinHeight, precision: 3);
+            }
+            finally
+            {
+                view.Close();
+            }
+        }
+
+        [AvaloniaFact]
+        public void CompactViewport_AtAndAboveCombinedFloorThreshold_CanvasContainmentHolds()
+        {
+            // #1998 (review PRRT_kwDOH0Mc1M6SVA6x): the "supported lower bound" for full
+            // margin-inclusive canvas containment referenced by
+            // PathologicallyShortViewport_BelowCombinedFloorThreshold_ControlsGetNoFloorButCanvasKeepsMinimumHeight
+            // above — proves that AT the combined floor threshold itself (MapCanvasMinFootprint +
+            // UpperControlsMinHeight = 328 DIP), MapCanvasPanel's rendered bottom edge (plus its
+            // bottom margin) fits within the right column grid's arranged bounds, the same
+            // containment proof CompactViewport_MapCanvasContainment_IncludesBottomMarginWithinArrangedBounds
+            // uses at a taller, natural-content-driven compact height.
+            double combinedThreshold = MapEditorView.MapCanvasMinFootprint + MapEditorView.UpperControlsMinHeight;
+            var view = new MapEditorView();
+            view.Show();
+            try
+            {
+                ArrangeAt(view, EditorWidth, combinedThreshold);
+
+                var mapCanvas = Required<Border>(view, "MapCanvasPanel");
+                var grid = Required<Grid>(view, "MapEditorRightColumnGrid");
+
+                double consumedBottom = mapCanvas.Bounds.Bottom + mapCanvas.Margin.Bottom;
+                Assert.True(consumedBottom <= grid.Bounds.Height + 0.5,
+                    $"At the combined floor threshold ({combinedThreshold} DIP), MapCanvasPanel's " +
+                    $"rendered bottom edge plus its {mapCanvas.Margin.Bottom}px bottom margin " +
+                    $"({consumedBottom:F1}) must fit within the right column grid's arranged " +
+                    $"height ({grid.Bounds.Height:F1}).");
             }
             finally
             {

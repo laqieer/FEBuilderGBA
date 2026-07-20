@@ -65,6 +65,7 @@ import { CASES, missingKeyCases } from './layout-metrics-validation.cases.mjs';
 import { parseViewportOverride } from './viewport-override.mjs';
 import { CASES as VIEWPORT_CASES } from './viewport-override.cases.mjs';
 import { deriveSidecar, getViewportArtifactPaths } from './viewport-artifacts.mjs';
+import { CASES as ARTIFACT_CASES } from './viewport-artifacts.cases.mjs';
 
 // #1998 follow-up (review): a fast, dependency-free re-verification of the SAME fail-closed
 // validateMapEditorLayoutMetrics() contract exercised by layout-metrics-validation.test.mjs's
@@ -137,6 +138,37 @@ function runViewportParserSelfCheck() {
     'with viewport-override.test.mjs — see viewport-override.cases.mjs).');
 }
 
+// #1998 follow-up (review PRRT_kwDOH0Mc1M6SVA6P): a fast, dependency-free re-verification of the
+// SAME deriveSidecar()/getViewportArtifactPaths() contract exercised by
+// viewport-artifacts.test.mjs's `node:test` coverage — run ONCE here, before any browser is
+// launched. Without this self-check, `viewport-artifacts.test.mjs` alone provides ZERO CI
+// protection: `.github/workflows/pages.yml` only ever invokes this script directly (never
+// `node --test`), so a regression in the per-run startup artifact cleanup (e.g. dropping one of
+// the 4 paths a viewport run may produce, letting a stale sidecar masquerade as current-run
+// evidence) could merge while every required check stays green. Both this self-check and the
+// node:test suite import the SAME shared case table (viewport-artifacts.cases.mjs) so the two
+// coverage paths can never silently diverge.
+const ARTIFACT_FNS = { deriveSidecar, getViewportArtifactPaths };
+function runArtifactContractSelfCheck() {
+  const selfCheckFailures = [];
+  for (const c of ARTIFACT_CASES) {
+    const fn = ARTIFACT_FNS[c.fn];
+    const actual = fn ? fn(...c.args) : undefined;
+    if (JSON.stringify(actual) !== JSON.stringify(c.expected)) {
+      selfCheckFailures.push(`"${c.name}": expected ${bounded(JSON.stringify(c.expected))} but got ` +
+        `${bounded(JSON.stringify(actual))}`);
+    }
+  }
+  if (selfCheckFailures.length > 0) {
+    console.error('[smoke] artifact-path contract self-check FAILED — deriveSidecar()/' +
+      'getViewportArtifactPaths() appear broken (checked before launching any browser):\n - ' +
+      selfCheckFailures.join('\n - '));
+    process.exit(2);
+  }
+  console.log(`[smoke] artifact-path contract self-check passed (${ARTIFACT_CASES.length} cases, ` +
+    'shared with viewport-artifacts.test.mjs — see viewport-artifacts.cases.mjs).');
+}
+
 const WWWROOT = process.env.SMOKE_WWWROOT;
 const BASE_PATH = process.env.SMOKE_BASE_PATH || '/FEBuilderGBA/';
 const SCREENSHOT = process.env.SMOKE_SCREENSHOT || 'web-smoke.png';
@@ -203,6 +235,7 @@ const VIEWPORT_PLAN = resolveViewportPlan();
 // Run the validator contract self-check now — env/viewport parsing is done, but no server or
 // browser has started yet.
 runContractSelfCheck();
+runArtifactContractSelfCheck();
 
 // Correct MIME types matter: a `.wasm` served as anything but application/wasm makes the streaming
 // instantiation fail and the runtime never boots — i.e. a failure for the WRONG reason.

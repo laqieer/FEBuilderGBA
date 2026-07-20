@@ -175,6 +175,17 @@ used to resolve the real `SMOKE_VIEWPORT_WIDTH`/`SMOKE_VIEWPORT_HEIGHT` env valu
 server or the browser are created. A normal, successful smoke run logs a
 `viewport-override parser self-check passed (...)` line.
 
+The same pattern also covers the per-viewport startup artifact cleanup (see "Diagnostic screenshot
+retention on failure" below): a small case table (`viewport-artifacts.cases.mjs`) is imported by
+both `viewport-artifacts.test.mjs` (`node --test`) and `smoke.mjs`'s own fast self-check, which
+calls the exact same `deriveSidecar()`/`getViewportArtifactPaths()` functions used to build the
+list of stale paths removed at the start of every viewport run, before the HTTP server or the
+browser are created. Without this self-check, `viewport-artifacts.test.mjs` alone provided zero CI
+protection — `.github/workflows/pages.yml` only ever invokes `smoke.mjs` directly, never
+`node --test` — so a regression in the cleanup logic could have merged while every required check
+stayed green. A normal, successful smoke run logs an `artifact-path contract self-check passed
+(...)` line.
+
 ## Diagnostic screenshot retention on failure
 
 Every viewport run tracks whether it has already written its `mainPath` screenshot via one of the
@@ -183,8 +194,10 @@ screenshot call site (e.g. the initial `page.goto()` itself times out), the scri
 best-effort, full-viewport fallback capture at `mainPath` right before closing the page/context — so
 a run that fails early still leaves visual evidence instead of none at all. A fallback capture
 failure is logged but never added to the run's failure list: it can never hide or replace the
-original recorded failure reason. Any stale file already at `mainPath` from a prior invocation is
-removed at the start of the run so it can never be mistaken for the current run's outcome.
+original recorded failure reason. Every artifact path this viewport run may produce — `mainPath`,
+its `.before.png`, and both Move Cost before/after sidecars (see `getViewportArtifactPaths()` in
+`viewport-artifacts.mjs`) — is removed at the start of the run, so a stale file from a prior
+invocation can never be mistaken for the current run's outcome.
 
 ## Why the editor proof uses a JSExport hook
 
