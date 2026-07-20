@@ -18,10 +18,17 @@ can — this test does.
 3. When `SMOKE_ROM` is set, the real wasm runtime loads a ROM, invokes the production launcher
    command for "Move Cost Editor", verifies the current single-view editor title, then opens the
    Visual Map Editor (#1998) and asserts its compact/desktop split-scroller layout at the run's
-   viewport — at the compact 600×500 viewport this covers **both axes** of the upper controls
-   scroller (`upperExtentHeight`/`upperViewportHeight` and, since the #1998 horizontal-scroll
-   follow-up, `upperExtentWidth`/`upperViewportWidth`), for both the synthetic and a real ROM,
-   while the pinned map canvas stays usable.
+   viewport — the vertical (upper-controls-scroll) axis is gated purely by viewport **height**
+   below an internal `700`px threshold, and the horizontal axis purely by viewport **width** below
+   an internal `1200`px threshold, independently of each other (#1998 follow-up, OpenAI review on
+   PR #2000 head `d8413c4af`: a single height-gate previously coupled both axes, which would
+   false-fail a valid wide-but-short explicit viewport such as 1920×500). At the default compact
+   600×500 viewport both axes are naturally overflowing and both are asserted
+   (`upperExtentHeight`/`upperViewportHeight` and `upperExtentWidth`/`upperViewportWidth`), for
+   both the synthetic and a real ROM, while the pinned map canvas stays usable. An explicit
+   viewport that is compact on only one dimension (e.g. `1920x500` or `600x852`) still asserts
+   overflow on the axis that is actually compact, without requiring (or forbidding) overflow on
+   the other axis.
 
 It always writes a screenshot for proof / debugging — see "Viewport coverage and screenshots" below
 for exactly which run owns which filename.

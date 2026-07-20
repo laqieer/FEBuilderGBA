@@ -180,11 +180,20 @@ ignores the per-reference `AdditionalProperties`, else `NETSDK1005` (same mechan
     (`OpenEditor('MapEditor')`), logs `devicePixelRatio` / `visualViewport.scale`, and calls the
     E2E-only `MapEditorLayoutMetrics(injectSyntheticMapPixels)` hook to assert the split-scroller
     layout: the map canvas stays ≥240px tall at any viewport, and its upper info/toolbar/palette
-    scroller overflows at compact viewports on **both axes** — vertically (asserted universally;
-    any realistic content overflows a ~189px viewport height) and, since the #1998 horizontal-scroll
-    follow-up, horizontally too (asserted universally at the 600×500 compact viewport, for both
+    scroller overflows at compact viewports on **both axes**, gated by **two independent viewport
+    dimensions** (#1998 follow-up, OpenAI review on PR #2000 head `d8413c4af`: a single
+    height-only gate wrongly coupled the two axes, false-failing a valid wide-but-short explicit
+    viewport such as 1920×500) — vertically, gated purely by viewport **height** below the
+    internal `700`px threshold (asserted universally; any realistic content overflows a ~189px
+    viewport height, regardless of width) and, since the #1998 horizontal-scroll follow-up,
+    horizontally, gated purely by viewport **width** below an internal `1200`px threshold (the
+    documented desktop layout width) independent of height — asserted universally for both
     synthetic and real ROMs, via `upperExtentWidth`/`upperViewportWidth`; a real FE8U ROM measured
-    ~548px of upper-controls content against a ~342px viewport width). The desktop "upper controls fit without scrolling" expectation and the
+    ~548px of upper-controls content against a ~342px viewport width at 600×500, and ~1662px
+    (fitting exactly) at both 1920×852 and an explicit 1920×500. A narrow-but-tall explicit
+    viewport (e.g. 600×852) is still asserted to overflow horizontally even though it is not
+    compact by height, and a wide-but-short explicit viewport (e.g. 1920×500) is still asserted to
+    overflow vertically without any (false) horizontal-overflow requirement. The desktop "upper controls fit without scrolling" expectation and the
     both-axis (width AND height) inner-canvas-overflow expectation are hard-asserted **only** when
     `SMOKE_ROM=synthetic`, whose fixture map is deliberately oversized (~2200×1200) to guarantee
     both; for a **real** ROM the same metrics are logged instead of hard-asserted, since a real

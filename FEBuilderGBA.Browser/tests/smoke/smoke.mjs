@@ -152,10 +152,24 @@ if (!WWWROOT || !fs.existsSync(WWWROOT)) {
 const ROOT = path.resolve(WWWROOT);
 
 // Below this viewport height, the Map Editor's upper controls are expected to overflow and
-// scroll (compact path); at/above it, the normal desktop layout is expected to fit without
-// scrolling (acceptance path). 700 sits between the compact fixtures used in CI (e.g. 500-600)
-// and the editor's own natural desktop height (800), matching MapEditorButtonReadabilityTests.
+// scroll VERTICALLY (compact path); at/above it, the normal desktop layout is expected to fit
+// without scrolling (acceptance path). 700 sits between the compact fixtures used in CI (e.g.
+// 500-600) and the editor's own natural desktop height (800), matching
+// MapEditorButtonReadabilityTests. This gate is HEIGHT-ONLY — see MAP_EDITOR_COMPACT_WIDTH_THRESHOLD
+// below for the independent width gate (#1998 follow-up, OpenAI review on PR #2000 head
+// d8413c4af: a wide-but-short explicit viewport such as 1920x500 must still be treated as
+// compact for the vertical axis without also being forced into the horizontal-overflow path).
 const MAP_EDITOR_COMPACT_HEIGHT_THRESHOLD = 700;
+// Below this viewport WIDTH, the Map Editor's upper controls are expected to overflow and scroll
+// HORIZONTALLY; at/above it, the toolbar/info rows are expected to fit without horizontal
+// scrolling. 1200 is the documented desktop layout width the accepted #1998 plan requires this
+// change to preserve ("desktop 1200x800 layout", see CLAUDE.md and
+// MapEditorButtonReadabilityTests.EditorWidth) — narrower than the app's own natural desktop
+// width is the supported compact/mobile width path; the 1920px acceptance width (and any other
+// explicit viewport at least as wide as the natural desktop layout, e.g. 1920x500) sits above it
+// and is expected to fit without horizontal scrolling. This gate is WIDTH-ONLY and fully
+// independent of MAP_EDITOR_COMPACT_HEIGHT_THRESHOLD above.
+const MAP_EDITOR_COMPACT_WIDTH_THRESHOLD = 1200;
 // The map canvas panel must stay usable at any viewport height (#1998 layout contract).
 const MIN_USABLE_MAP_CANVAS_HEIGHT = 240;
 
@@ -481,41 +495,44 @@ async function runViewport(browser, vp, url) {
         failures.push(...metricsErrors.map((e) => `${tag} ${e}`));
         if (metrics) {
           console.log(`[smoke] ${tag} Map Editor layout metrics: ${metricsRaw}`);
-          const isCompact = vp.height < MAP_EDITOR_COMPACT_HEIGHT_THRESHOLD;
+          // #1998 follow-up (OpenAI review, PR #2000 head d8413c4af): the two compact axes are
+          // INDEPENDENT layout facts and must be gated by INDEPENDENT viewport dimensions — a
+          // vertical-only threshold on `vp.height` was wrongly gating BOTH axes, so a valid
+          // explicit wide-short viewport (e.g. 1920x500) false-failed the horizontal-overflow
+          // assertion even though 1920px of width is ample for the toolbar rows to fit without
+          // scrolling. `isCompactHeight` gates the vertical (upper-controls) axis exactly as
+          // before; `isCompactWidth` gates the horizontal axis independently, using the
+          // documented desktop layout width (1200x800, see accepted plan / CLAUDE.md) as the
+          // "content should fit" boundary — narrower than that is the supported compact/mobile
+          // width path, at/above it (including the 1920px acceptance width) is wide enough for
+          // the toolbar rows to lay out without needing horizontal scroll.
+          const isCompactHeight = vp.height < MAP_EDITOR_COMPACT_HEIGHT_THRESHOLD;
+          const isCompactWidth = vp.width < MAP_EDITOR_COMPACT_WIDTH_THRESHOLD;
           if (metrics.mapCanvasHeight < MIN_USABLE_MAP_CANVAS_HEIGHT - 0.5) {
             failures.push(`${tag} Map canvas height (${metrics.mapCanvasHeight}) fell below the ${MIN_USABLE_MAP_CANVAS_HEIGHT}px usable minimum`);
           }
-          // The compact-viewport overflow direction is safe to hard-assert universally: at a ~189px
-          // upper-controls viewport, ANY realistic info/toolbar/palette/tile-editor content will
-          // overflow it, regardless of which ROM/chapter is loaded.
-          if (isCompact) {
+          // Vertical axis — gated by HEIGHT ONLY. The compact-viewport overflow direction is safe
+          // to hard-assert universally: at a ~189px upper-controls viewport, ANY realistic
+          // info/toolbar/palette/tile-editor content will overflow it, regardless of which
+          // ROM/chapter is loaded or how wide the viewport is.
+          if (isCompactHeight) {
             if (!(metrics.upperExtentHeight > metrics.upperViewportHeight + 0.5)) {
-              failures.push(`${tag} compact viewport expected the Map Editor's upper controls to overflow and scroll ` +
+              failures.push(`${tag} compact-height viewport expected the Map Editor's upper controls to overflow and scroll ` +
                 `(Extent=${metrics.upperExtentHeight}, Viewport=${metrics.upperViewportHeight})`);
             } else {
-              console.log(`[smoke] ${tag} Map Editor compact-viewport upper-controls overflow confirmed (#1998).`);
+              console.log(`[smoke] ${tag} Map Editor compact-height upper-controls overflow confirmed (#1998).`);
             }
-            // #1998 follow-up (horizontal axis): the pre-existing coverage above only proved the
-            // upper controls scroller overflows/scrolls VERTICALLY. At the actual 600px-wide compact
-            // smoke viewport the toolbar/info rows are also demonstrably wider than the viewport
-            // (measured ~910px content vs a ~342px viewport), so this axis is hard-asserted for
-            // BOTH synthetic and real-ROM runs — unlike the height axis above, toolbar/button
-            // layout width does not depend on which ROM/chapter data is loaded.
-            if (!(metrics.upperExtentWidth > metrics.upperViewportWidth + 0.5)) {
-              failures.push(`${tag} compact viewport expected the Map Editor's upper controls to overflow and scroll ` +
-                `horizontally (ExtentWidth=${metrics.upperExtentWidth}, ViewportWidth=${metrics.upperViewportWidth})`);
-            } else {
-              console.log(`[smoke] ${tag} Map Editor compact-viewport upper-controls horizontal overflow confirmed (#1998 follow-up).`);
-            }
-          } else if (IS_SYNTHETIC_ROM) {
+          } else if (IS_SYNTHETIC_ROM && !isCompactWidth) {
             // The desktop "must fit without scrolling" direction is data-dependent: a real ROM's
             // populated palette/terrain lists can genuinely need MORE upper-region height than a
             // given desktop viewport provides (observed: a real FE8U chapter needed ~613px of
             // upper-controls content at 1920x852, exceeding its 541px viewport) — that is the
             // split-scroller correctly falling back to scrolling, not a layout bug. Hard-assert the
-            // "fits naturally" expectation only for the synthetic ROM, whose fixture content is
-            // deliberately sized to match this exact assumption; for a real ROM, log the same
-            // metrics instead (see the `else` branch below).
+            // "fits naturally" expectation only for the synthetic ROM AND only when the viewport is
+            // also NOT compact-width — a narrow-but-tall explicit viewport (e.g. 600x852) has less
+            // horizontal room, so its upper-region content may legitimately need more vertical
+            // space than a genuinely wide+tall viewport; that combination is logged instead (see
+            // the trailing `else` branch), not hard-asserted either way.
             if (!(metrics.upperExtentHeight <= metrics.upperViewportHeight + 0.5)) {
               failures.push(`${tag} acceptance-size viewport expected the Map Editor's upper controls to fit ` +
                 `without scrolling (Extent=${metrics.upperExtentHeight}, Viewport=${metrics.upperViewportHeight})`);
@@ -523,8 +540,29 @@ async function runViewport(browser, vp, url) {
               console.log(`[smoke] ${tag} Map Editor acceptance-size natural layout confirmed (#1998).`);
             }
           } else {
-            console.log(`[smoke] ${tag} real-ROM acceptance-size upper-controls extent/viewport (logged, not hard-asserted): ` +
+            console.log(`[smoke] ${tag} upper-controls height extent/viewport (logged, not hard-asserted): ` +
               `${metrics.upperExtentHeight}/${metrics.upperViewportHeight}`);
+          }
+          // Horizontal axis — gated by WIDTH ONLY, independent of the height gate above (#1998
+          // follow-up + OpenAI review fix). At the actual 600px-wide compact smoke viewport the
+          // toolbar/info rows are demonstrably wider than the viewport (measured ~910px content vs
+          // a ~342px viewport), so overflow is hard-asserted for BOTH synthetic and real-ROM runs
+          // whenever the viewport width is below the compact-width threshold — toolbar/button
+          // layout width does not depend on which ROM/chapter data is loaded. At/above the
+          // threshold (e.g. the 1920px acceptance width, or any other sufficiently wide explicit
+          // viewport such as 1920x500) the content is expected to fit, so overflow is only logged,
+          // never asserted either way (a real ROM's content could still need more width than a
+          // given wide viewport in principle, so "must fit" is not hard-asserted here either).
+          if (isCompactWidth) {
+            if (!(metrics.upperExtentWidth > metrics.upperViewportWidth + 0.5)) {
+              failures.push(`${tag} compact-width viewport expected the Map Editor's upper controls to overflow and scroll ` +
+                `horizontally (ExtentWidth=${metrics.upperExtentWidth}, ViewportWidth=${metrics.upperViewportWidth})`);
+            } else {
+              console.log(`[smoke] ${tag} Map Editor compact-width upper-controls horizontal overflow confirmed (#1998 follow-up).`);
+            }
+          } else {
+            console.log(`[smoke] ${tag} upper-controls width extent/viewport (logged, not hard-asserted): ` +
+              `${metrics.upperExtentWidth}/${metrics.upperViewportWidth}`);
           }
           // Both-axis inner-canvas overflow: hard-asserted ONLY for the synthetic ROM (its map
           // image is deliberately oversized to guarantee overflow on both axes at any viewport up
