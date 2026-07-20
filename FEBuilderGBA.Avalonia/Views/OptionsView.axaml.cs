@@ -23,6 +23,13 @@ namespace FEBuilderGBA.Avalonia.Views
         string _originalLanguageCode = "";
         bool _loadedOnce;
 
+        /// <summary>
+        /// Test-only seam exposing this view's ViewModel instance (e.g. for asserting on
+        /// <see cref="OptionsViewModel.FEMapCreatorExecutableIdentityCacheForTests"/>'s
+        /// hash-reuse counter). Never used by production code.
+        /// </summary>
+        internal OptionsViewModel ViewModelForTests => _vm;
+
         public OptionsView()
         {
             InitializeComponent();

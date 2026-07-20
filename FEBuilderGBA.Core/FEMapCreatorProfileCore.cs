@@ -90,8 +90,26 @@ namespace FEBuilderGBA
         /// (not an error) regardless of the assets root; the assets root itself is optional and a
         /// blank value is always valid. A non-blank executable path that fails normalization or does
         /// not exist yields <see cref="FEMapCreatorSetupStatus.Invalid"/>.
+        /// <para>
+        /// <paramref name="executableIdentityCache"/> is an optional, caller-owned, per-session
+        /// (never static) reuse cache for the executable's SHA-256 hash — pass one when calling
+        /// this repeatedly for live UI status display (e.g. on every keystroke) to avoid re-hashing
+        /// an unchanged executable on every call; omit it (or pass null) for one-shot/authoritative
+        /// callers such as <see cref="FEMapCreatorTilesetMappingStoreCore.Lookup"/>, which must
+        /// always get a fresh, uncached hash.
+        /// </para>
         /// </summary>
         public static FEMapCreatorSetupSnapshot Validate(string rawExecutablePath, string rawAssetsRoot)
+            => Validate(rawExecutablePath, rawAssetsRoot, executableIdentityCache: null);
+
+        /// <summary>
+        /// Internal overload of <see cref="Validate(string, string)"/> accepting an optional,
+        /// caller-owned <see cref="FEMapCreatorExecutableIdentityCache"/> (see remarks above). Not
+        /// part of the public API surface — the cache type is an internal UI-responsiveness detail,
+        /// not a durable public contract — but visible to <c>FEBuilderGBA.Avalonia</c> via
+        /// <c>InternalsVisibleTo</c> so <c>OptionsViewModel</c> can pass its per-session cache.
+        /// </summary>
+        internal static FEMapCreatorSetupSnapshot Validate(string rawExecutablePath, string rawAssetsRoot, FEMapCreatorExecutableIdentityCache? executableIdentityCache)
         {
             if (string.IsNullOrWhiteSpace(rawExecutablePath))
                 return new FEMapCreatorSetupSnapshot(FEMapCreatorSetupStatus.NotConfigured, "", "", "");
@@ -115,8 +133,13 @@ namespace FEBuilderGBA
                 return new FEMapCreatorSetupSnapshot(FEMapCreatorSetupStatus.Invalid, normalizedExecutablePath, "", assetsError);
             }
 
-            if (!FileContentIdentityCore.TryCompute(
-                normalizedExecutablePath, out long exeSize, out long exeTicks, out string exeSha, out string hashError))
+            long exeSize, exeTicks;
+            string exeSha, hashError;
+            bool hashOk = executableIdentityCache != null
+                ? executableIdentityCache.TryGetOrCompute(normalizedExecutablePath, out exeSize, out exeTicks, out exeSha, out hashError)
+                : FileContentIdentityCore.TryCompute(normalizedExecutablePath, out exeSize, out exeTicks, out exeSha, out hashError);
+
+            if (!hashOk)
             {
                 // File.Exists just passed above; only a race (deleted/locked between checks)
                 // should ever reach here, but surface it as Invalid rather than silently

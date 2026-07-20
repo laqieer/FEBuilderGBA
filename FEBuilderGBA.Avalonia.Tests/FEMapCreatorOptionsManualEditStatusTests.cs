@@ -102,5 +102,59 @@ namespace FEBuilderGBA.Avalonia.Tests
                 try { Directory.Delete(tempRoot, true); } catch { /* best effort */ }
             }
         }
+
+        [AvaloniaFact]
+        public void RapidAssetsRootEdits_DoNotRepeatedlyHashUnchangedExecutable_WhileStatusStillConverges()
+        {
+            // #1978 Slice 2 second review follow-up (finding #1): typing into the assets-root
+            // field must not trigger a fresh SHA-256 computation of the (unchanged) executable
+            // on every keystroke, while the displayed status must still end up correct.
+            string tempRoot = Path.Combine(Path.GetTempPath(), "femc_opt_manual_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempRoot);
+            try
+            {
+                string exePath = Path.Combine(tempRoot, "FEMapCreator.exe");
+                File.WriteAllBytes(exePath, new byte[] { 1, 2, 3, 4, 5 });
+                string assetsRoot = Path.Combine(tempRoot, "assets");
+                Directory.CreateDirectory(assetsRoot);
+
+                var view = new OptionsView();
+                var pathBox = view.FindControl<TextBox>("FEMapCreatorPathTextBox");
+                var assetsBox = view.FindControl<TextBox>("FEMapCreatorAssetsRootTextBox");
+                var statusText = view.FindControl<TextBlock>("FEMapCreatorStatusText");
+                Assert.NotNull(pathBox);
+                Assert.NotNull(assetsBox);
+                Assert.NotNull(statusText);
+
+                pathBox!.Text = exePath;
+                Dispatcher.UIThread.RunJobs();
+                Assert.DoesNotContain("Invalid", statusText!.Text, StringComparison.OrdinalIgnoreCase);
+
+                var cache = view.ViewModelForTests.FEMapCreatorExecutableIdentityCacheForTests;
+                Assert.Equal(1, cache.HashComputeCount);
+
+                // Simulate rapid manual typing of the assets-root path, one character at a time,
+                // each triggering a TextChanged-driven status refresh (matching finding #3's
+                // already-shipped manual-edit-status behavior).
+                string partial = "";
+                foreach (char c in assetsRoot)
+                {
+                    partial += c;
+                    assetsBox!.Text = partial;
+                    Dispatcher.UIThread.RunJobs();
+                }
+
+                // The executable itself never changed across all of these keystrokes.
+                Assert.Equal(1, cache.HashComputeCount);
+
+                // ...and the status still converges to the correct, non-Invalid result once the
+                // fully-typed assets root matches a real, existing directory.
+                Assert.DoesNotContain("Invalid", statusText.Text, StringComparison.OrdinalIgnoreCase);
+            }
+            finally
+            {
+                try { Directory.Delete(tempRoot, true); } catch { /* best effort */ }
+            }
+        }
     }
 }

@@ -28249,9 +28249,6 @@ FEMapCreator 是由 bwdyeti 创建的独立实用工具；FEBuilderGBA 不捆绑
 :Assets Root (optional)
 资源根目录（可选）
 
-:Clear
-清除
-
 :Not configured (optional).
 未配置（可选）。
 

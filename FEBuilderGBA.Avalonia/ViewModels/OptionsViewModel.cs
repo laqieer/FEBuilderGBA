@@ -54,6 +54,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string _femapCreatorPath = "";
         string _femapCreatorAssetsRoot = "";
 
+        // Per-dialog-session (NEVER static/shared) reuse cache for the FEMapCreator executable's
+        // SHA-256 hash. A fresh OptionsViewModel — i.e. every time Options is opened — gets a
+        // fresh, empty cache, so there is no cross-session/cross-ROM staleness risk; it exists
+        // solely so GetFEMapCreatorSetupSnapshot() doesn't re-hash an unchanged executable on
+        // every keystroke typed into either FEMapCreator textbox (Slice 2 review follow-up).
+        readonly FEMapCreatorExecutableIdentityCache _femapCreatorExecutableIdentityCache = new();
+
         /// <summary>Current language selection entry (e.g. "en — English").</summary>
         public string Language
         {
@@ -150,8 +157,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// </summary>
         public FEMapCreatorSetupSnapshot GetFEMapCreatorSetupSnapshot()
         {
-            return FEMapCreatorProfileCore.Validate(FEMapCreatorPath, FEMapCreatorAssetsRoot);
+            return FEMapCreatorProfileCore.Validate(FEMapCreatorPath, FEMapCreatorAssetsRoot, _femapCreatorExecutableIdentityCache);
         }
+
+        /// <summary>
+        /// Test-only seam exposing this session's executable-identity cache so tests can assert
+        /// hash-reuse behavior (e.g. <c>HashComputeCount</c> stays flat across repeated calls with
+        /// an unchanged executable). Never read by production code; internal, not public API.
+        /// </summary>
+        internal FEMapCreatorExecutableIdentityCache FEMapCreatorExecutableIdentityCacheForTests => _femapCreatorExecutableIdentityCache;
 
         /// <summary>
         /// Human-readable, localized summary of <see cref="GetFEMapCreatorSetupSnapshot"/> for
