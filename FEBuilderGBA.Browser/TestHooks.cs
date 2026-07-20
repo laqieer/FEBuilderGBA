@@ -15,8 +15,14 @@ using FEBuilderGBA.Avalonia.Views;
 
 public static partial class TestHooks
 {
+    // #1998 follow-up: tracks whether the most recently loaded ROM was explicitly declared
+    // synthetic by the caller (SMOKE_ROM=synthetic). MapEditorLayoutMetrics's synthetic-pixel
+    // injection is gated on this flag so a real-ROM smoke run can never have its authentic
+    // rendered map/palette pixels silently overwritten.
+    private static bool _lastLoadedRomWasSynthetic;
+
     [JSExport]
-    public static async Task<bool> LoadRomBase64(string base64)
+    public static async Task<bool> LoadRomBase64(string base64, bool isSynthetic)
     {
         try
         {
@@ -28,6 +34,7 @@ public static partial class TestHooks
 
             RomFileService.InitializeLoadedRom(rom);
             MainView.RefreshForLoadedRomForTest();
+            _lastLoadedRomWasSynthetic = isSynthetic;
             return true;
         }
         catch (Exception ex)
@@ -106,17 +113,28 @@ public static partial class TestHooks
         }
     }
 
-    // #1998: bounded Map Editor layout probe for the CI browser smoke test — returns only layout
-    // METRICS (extents/viewports/bounds) as JSON, never ROM contents. When the currently-open editor
-    // is the Map Editor, MapImageControl is populated with a small deterministic synthetic RGBA
-    // pattern (no ROM/license data involved) purely so its inner MapCanvasScroller genuinely
-    // overflows at 1x zoom, letting the smoke test assert real (non-degenerate) overflow behavior
-    // the same way FEBuilderGBA.Avalonia.Tests.MapEditorButtonReadabilityTests does headlessly.
+    // #1998 follow-up: bounded Map Editor layout probe for the CI browser smoke test — returns only
+    // layout METRICS (extents/viewports/bounds) as JSON, never ROM contents. Synthetic map-pixel
+    // injection is now OPT-IN via `injectSyntheticMapPixels` (previously this always overwrote
+    // MapImageControl's pixels unconditionally, which meant a real-ROM smoke run could never prove
+    // its own authentic rendered map — see issue #1998 follow-up plan). Callers must only pass
+    // `true` when the loaded ROM was itself declared synthetic (SMOKE_ROM=synthetic); passing `true`
+    // against a real loaded ROM is treated as an inconsistent request and hard-fails with a JSON
+    // `error` field instead of silently mutating real ROM-derived pixels.
     [JSExport]
-    public static string MapEditorLayoutMetrics()
+    public static string MapEditorLayoutMetrics(bool injectSyntheticMapPixels)
     {
         try
         {
+            if (injectSyntheticMapPixels && !_lastLoadedRomWasSynthetic)
+            {
+                return JsonSerializer.Serialize(new
+                {
+                    error = "MapEditorLayoutMetrics(injectSyntheticMapPixels: true) requested against a non-synthetic ROM load; " +
+                             "synthetic map pixels are only permitted when LoadRomBase64 was called with isSynthetic: true."
+                });
+            }
+
             string? json = null;
 
             void Compute()
@@ -128,24 +146,30 @@ public static partial class TestHooks
                     return;
                 }
 
-                var mapImage = editor.GetVisualDescendants()
-                    .OfType<GbaImageControl>()
-                    .FirstOrDefault(c => c.Name == "MapImageControl");
-                if (mapImage is not null)
+                if (injectSyntheticMapPixels)
                 {
-                    // Large enough to genuinely overflow MapCanvasPanel's inner scroller
-                    // (MapCanvasScroller) regardless of viewport size, mirroring
-                    // MapEditorButtonReadabilityTests' SyntheticMapSize.
-                    const int size = 600;
-                    byte[] rgba = new byte[size * size * 4];
-                    for (int i = 0; i < size * size; i++)
+                    var mapImage = editor.GetVisualDescendants()
+                        .OfType<GbaImageControl>()
+                        .FirstOrDefault(c => c.Name == "MapImageControl");
+                    if (mapImage is not null)
                     {
-                        rgba[i * 4 + 0] = 80;
-                        rgba[i * 4 + 1] = 120;
-                        rgba[i * 4 + 2] = 160;
-                        rgba[i * 4 + 3] = 255;
+                        // Large enough (non-square, >= ~2000x1000) to genuinely overflow
+                        // MapCanvasPanel's inner scroller (MapCanvasScroller) on BOTH axes even at
+                        // the 1920x852 acceptance viewport, mirroring
+                        // MapEditorButtonReadabilityTests' SyntheticMapSize intent but sized for the
+                        // browser smoke test's real (non-headless-fixture) viewport dimensions.
+                        const int width = 2200;
+                        const int height = 1200;
+                        byte[] rgba = new byte[width * height * 4];
+                        for (int i = 0; i < width * height; i++)
+                        {
+                            rgba[i * 4 + 0] = 80;
+                            rgba[i * 4 + 1] = 120;
+                            rgba[i * 4 + 2] = 160;
+                            rgba[i * 4 + 3] = 255;
+                        }
+                        mapImage.SetRgbaData(rgba, width, height);
                     }
-                    mapImage.SetRgbaData(rgba, size, size);
                 }
 
                 Dispatcher.UIThread.RunJobs(DispatcherPriority.Render);
@@ -165,6 +189,8 @@ public static partial class TestHooks
                     upperViewportHeight = upperScroller?.Viewport.Height ?? -1,
                     mapCanvasWidth = mapCanvas?.Bounds.Width ?? -1,
                     mapCanvasHeight = mapCanvas?.Bounds.Height ?? -1,
+                    canvasExtentWidth = canvasScroller?.Extent.Width ?? -1,
+                    canvasViewportWidth = canvasScroller?.Viewport.Width ?? -1,
                     canvasExtentHeight = canvasScroller?.Extent.Height ?? -1,
                     canvasViewportHeight = canvasScroller?.Viewport.Height ?? -1,
                 };

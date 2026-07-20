@@ -168,17 +168,35 @@ ignores the per-reference `AdditionalProperties`, else `NETSDK1005` (same mechan
   *renders* (Avalonia canvas mounts; no `avalonia.js` response `>= 400`). It runs on PRs (a boot
   regression fails the PR) and gates the deploy on `master`. Added after #1867, where every asset
   returned `200` but the app never booted — an HTTP-200 check could not catch that.
-  - **Map Editor layout probe (#1998).** `smoke.mjs` accepts `SMOKE_VIEWPORT_WIDTH` /
-    `SMOKE_VIEWPORT_HEIGHT` (default `1280x800`) so it can be invoked at both a compact height
-    (below the internal `700`px threshold) and an acceptance-size viewport (e.g. `1920x852`). With
-    `SMOKE_ROM` set, it opens the Map Editor through the real launcher (`OpenEditor('MapEditor')`),
-    logs `devicePixelRatio` / `visualViewport.scale`, and calls the E2E-only
-    `MapEditorLayoutMetrics()` hook to assert the split-scroller layout: the map canvas stays
-    ≥240px tall at any viewport, the upper info/toolbar/palette region's scroller overflows at
-    compact heights, and does not overflow at acceptance size. `MapEditorLayoutMetrics()` (in
-    `TestHooks.cs`, gated by `E2E_HOOKS`) populates `MapImageControl` with a deterministic
-    synthetic RGBA pattern (no ROM/license data) solely so the inner canvas scroller has real
-    content to measure.
+  - **Map Editor layout probe (#1998, follow-up).** By default — when both
+    `SMOKE_VIEWPORT_WIDTH`/`SMOKE_VIEWPORT_HEIGHT` are unset — `smoke.mjs` runs an in-process,
+    sequential dual-viewport matrix in one browser process (fresh isolated context/page per
+    viewport): `600x500` ("compact", below the internal `700`px classification threshold) then
+    `1920x852` ("acceptance"). Failures from either viewport are aggregated; the process exits
+    nonzero if either fails. This is the mode both `pages.yml` invocations use today (neither sets
+    the viewport vars), so CI gets both layouts covered with no workflow changes. Setting **both**
+    vars runs exactly that single viewport instead (setting only one is rejected, exit code `2`).
+    With `SMOKE_ROM` set, each viewport run opens the Map Editor through the real launcher
+    (`OpenEditor('MapEditor')`), logs `devicePixelRatio` / `visualViewport.scale`, and calls the
+    E2E-only `MapEditorLayoutMetrics(injectSyntheticMapPixels)` hook to assert the split-scroller
+    layout: the map canvas stays ≥240px tall at any viewport, and its upper info/toolbar/palette
+    scroller overflows at compact heights (asserted universally — any realistic content overflows a
+    ~189px viewport). The desktop "upper controls fit without scrolling" expectation and the
+    both-axis (width AND height) inner-canvas-overflow expectation are hard-asserted **only** when
+    `SMOKE_ROM=synthetic`, whose fixture map is deliberately oversized (~2200×1200) to guarantee
+    both; for a **real** ROM the same metrics are logged instead of hard-asserted, since a real
+    chapter's on-screen map size and populated-palette content height are ROM-data-dependent (a
+    real FE8U chapter has been observed needing more upper-region height than the 1920×852
+    viewport provides, correctly falling back to scrolling rather than indicating a layout bug).
+    `injectSyntheticMapPixels` is opt-in and only honored when the currently-loaded ROM was itself
+    loaded via `LoadRomBase64(..., isSynthetic: true)`; requesting synthetic injection against a
+    real ROM load is rejected with a JSON `error` field rather than silently overwriting the real
+    ROM's authentic rendered map/palette pixels. The Map Editor's own screenshot is taken **last**,
+    full-viewport with no content clip (device-pixel-ratio 1), after all other checks pass; the
+    Move Cost Editor keeps its own separate before/after screenshot pair (recomputed per-viewport
+    content clip) under sidecar filenames derived from `SMOKE_SCREENSHOT`, and only the acceptance
+    (or single explicit) run's `SMOKE_SCREENSHOT`/`.before.png` pair matches what
+    `.github/workflows/pages.yml` uploads.
 
 ### Why the web app first hung on the splash (#1867)
 

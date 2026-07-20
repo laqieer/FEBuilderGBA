@@ -16,9 +16,63 @@ can — this test does.
 1. No `avalonia.js` request returns `>= 400` (the exact #1867 symptom).
 2. The Avalonia Skia `<canvas>` mounts (the splash in `#out` is replaced) — i.e. the app rendered.
 3. When `SMOKE_ROM` is set, the real wasm runtime loads a ROM, invokes the production launcher
-   command for "Move Cost Editor", and verifies the current single-view editor title.
+   command for "Move Cost Editor", verifies the current single-view editor title, then opens the
+   Visual Map Editor (#1998) and asserts its compact/desktop split-scroller layout at the run's
+   viewport.
 
-It always writes a screenshot for proof / debugging.
+It always writes a screenshot for proof / debugging — see "Viewport coverage and screenshots" below
+for exactly which run owns which filename.
+
+## Viewport coverage and screenshots (#1998 follow-up)
+
+By default — when **both** `SMOKE_VIEWPORT_WIDTH` and `SMOKE_VIEWPORT_HEIGHT` are left unset — the
+script runs an **in-process, sequential dual-viewport matrix** in a single browser process, using a
+fresh isolated context/page per viewport:
+
+1. **600×500 ("compact")** — exercises the Map Editor's compact upper-controls-scroll path.
+2. **1920×852 ("acceptance")** — exercises the normal desktop layout.
+
+Failures from either viewport are aggregated; the process exits nonzero if either run fails. This is
+the mode `.github/workflows/pages.yml` uses today (it never sets the viewport env vars), so both of
+its existing invocations get dual-viewport coverage with no workflow changes.
+
+If you set **both** `SMOKE_VIEWPORT_WIDTH` and `SMOKE_VIEWPORT_HEIGHT`, the script instead runs
+**exactly that single viewport** (no matrix). Setting only one of the two is rejected with a clear
+error and exit code `2`.
+
+Screenshot ownership: the acceptance run (or the single explicit-viewport run) owns the exact
+`SMOKE_SCREENSHOT` path and its `.before.png` — the same two files
+`.github/workflows/pages.yml` uploads today. Every other screenshot (the compact matrix pass, and
+the Move Cost Editor's own before/after proof at every viewport) is written to a collision-free
+sidecar filename derived from `SMOKE_SCREENSHOT`, e.g. `web-editor-nav-smoke.compact.png` or
+`web-editor-nav-smoke.movecost.png`. **These sidecars are not uploaded as CI artifacts** — they
+exist purely for local/manual inspection; only `SMOKE_SCREENSHOT` and its `.before.png` are uploaded
+by the workflow.
+
+The **main** pair (`SMOKE_SCREENSHOT` / its sidecar equivalent, and its `.before.png`) are always
+full-viewport captures with **no content clip**, at device-pixel-ratio 1 — so they are exactly
+`width`×`height` pixels. The `.before.png` is taken right after boot, before any editor opens; the
+main screenshot is taken **last**, after opening the Visual Map Editor, so it proves the Map
+Editor's actual on-screen layout at that viewport. The Move Cost Editor's own proof pair
+(`*.movecost.before.png` / `*.movecost.png`) uses a recomputed 80px-header content clip specific to
+each run's viewport, and is diffed byte-for-byte to prove the editor body actually re-rendered.
+
+## Real ROM vs. synthetic ROM (#1998 follow-up)
+
+Synthetic map pixels are injected into the Map Editor's canvas **only** when `SMOKE_ROM` is exactly
+the literal string `synthetic` — never for a real ROM path. With synthetic pixels active, the
+in-process E2E hook (`TestHooks.MapEditorLayoutMetrics`) is asked to inject synthetic pixels *and*
+requesting that against a real ROM load is treated as an inconsistent configuration and hard-fails
+with a JSON `error` field (never silently overwrites real ROM-derived pixels). With synthetic
+pixels active, the smoke test hard-asserts both inner-canvas axes overflow their scroller viewport
+(`extent > viewport` for width AND height) — the synthetic fixture is deliberately oversized
+(~2200×1200) to guarantee this at any viewport up to 1920×852.
+
+With a **real** ROM, the same extent/viewport metrics (and the desktop "upper controls fit without
+scrolling" expectation) are **logged**, not hard-asserted, because a real chapter's on-screen map
+size — and how much space its populated palette/terrain lists need — is ROM-data-dependent; a
+smaller/larger chapter can legitimately need more or less room than the synthetic fixture assumes.
+Real ROM runs always render the ROM's own authentic map/palette pixels.
 
 ## Why the editor proof uses a JSExport hook
 
@@ -83,6 +137,7 @@ still produced by the clean production publish.
 |---|---|---|
 | `SMOKE_WWWROOT` | (required) | Absolute path to the published `.../publish/wwwroot`. |
 | `SMOKE_BASE_PATH` | `/FEBuilderGBA/` | Sub-path to serve under (mirror the deployed `<base href>`). |
-| `SMOKE_SCREENSHOT` | `web-smoke.png` | Screenshot output path. |
+| `SMOKE_SCREENSHOT` | `web-smoke.png` | Screenshot output path — see "Viewport coverage and screenshots" above for exactly which run owns this vs. a derived sidecar. |
 | `SMOKE_TIMEOUT_MS` | `120000` | Boot timeout (cold wasm + ~6.8 MB `config.zip` is slow). |
-| `SMOKE_ROM` | (unset) | ROM path for editor-nav proof, or `synthetic` for the license-clean generated FE8U-shaped ROM. |
+| `SMOKE_ROM` | (unset) | ROM path for editor-nav proof, or `synthetic` for the license-clean generated FE8U-shaped ROM (the only value that triggers synthetic map-pixel injection). |
+| `SMOKE_VIEWPORT_WIDTH` / `SMOKE_VIEWPORT_HEIGHT` | (unset; both-or-neither) | Explicit single-viewport override. Leave **both** unset for the default 600×500 + 1920×852 matrix described above. |
