@@ -152,6 +152,79 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(BuiltInRandomMapEdgeSignatureCore.VerticallyCompatible(chipA, null));
         }
 
+        [Fact]
+        public void HorizontallyCompatible_ReturnsTrue_WhenTouchingColumnsGenuinelyMatch()
+        {
+            // West chip (MAR 0): left column = constant 9 (tileA), right column = px-varying
+            // (tileB, so its px=7 boundary column is constant 7). East chip (MAR 4): left
+            // column = constant 7 (tileC, matching west's right column exactly), right
+            // column = py-varying (tileD, so it does NOT match west's left column). This
+            // proves HorizontallyCompatible does a genuine positive match on the touching
+            // pair (west.Right == east.Left) while staying direction-sensitive: swapping the
+            // arguments compares the non-matching pair and must return false.
+            byte[] objData = new byte[BytesPerTile * 4];
+            FillTile(objData, 0, (px, py) => 9);  // tileA: constant 9
+            FillTile(objData, 1, (px, py) => px); // tileB: varies with px only
+            FillTile(objData, 2, (px, py) => 7);  // tileC: constant 7
+            FillTile(objData, 3, (px, py) => py); // tileD: varies with py only
+
+            byte[] configData = new byte[16];
+            SetTsa(configData, 0, sub: 0, tileIndex: 0, hFlip: false, vFlip: false); // west left (top)
+            SetTsa(configData, 0, sub: 1, tileIndex: 1, hFlip: false, vFlip: false); // west right (top)
+            SetTsa(configData, 0, sub: 2, tileIndex: 0, hFlip: false, vFlip: false); // west left (bottom)
+            SetTsa(configData, 0, sub: 3, tileIndex: 1, hFlip: false, vFlip: false); // west right (bottom)
+            SetTsa(configData, 8, sub: 0, tileIndex: 2, hFlip: false, vFlip: false); // east left (top)
+            SetTsa(configData, 8, sub: 1, tileIndex: 3, hFlip: false, vFlip: false); // east right (top)
+            SetTsa(configData, 8, sub: 2, tileIndex: 2, hFlip: false, vFlip: false); // east left (bottom)
+            SetTsa(configData, 8, sub: 3, tileIndex: 3, hFlip: false, vFlip: false); // east right (bottom)
+
+            Assert.True(BuiltInRandomMapEdgeSignatureCore.TryComputeEdgeSignature(0, configData, objData, out var west));
+            Assert.True(BuiltInRandomMapEdgeSignatureCore.TryComputeEdgeSignature(4, configData, objData, out var east));
+
+            // west.Right (tileB, px=7 -> constant 7) equals east.Left (tileC, constant 7).
+            for (int i = 0; i < west.Right.Length; i++) Assert.Equal(7, west.Right[i]);
+            for (int i = 0; i < east.Left.Length; i++) Assert.Equal(7, east.Left[i]);
+
+            Assert.True(BuiltInRandomMapEdgeSignatureCore.HorizontallyCompatible(west, east));
+            // Reversed order compares east.Right (py-varying) against west.Left (constant 9): must not match.
+            Assert.False(BuiltInRandomMapEdgeSignatureCore.HorizontallyCompatible(east, west));
+        }
+
+        [Fact]
+        public void VerticallyCompatible_ReturnsTrue_WhenTouchingRowsGenuinelyMatch()
+        {
+            // North chip (MAR 0): top row = constant 9 (tileA), bottom row = constant 7
+            // (tileC). South chip (MAR 4): top row = constant 7 (tileC, matching north's
+            // bottom row exactly), bottom row = px-varying (tileB, so it does NOT match
+            // north's top row). Proves a genuine positive vertical match plus
+            // direction-sensitivity symmetric to the horizontal case above.
+            byte[] objData = new byte[BytesPerTile * 3];
+            FillTile(objData, 0, (px, py) => 9);  // tileA: constant 9
+            FillTile(objData, 1, (px, py) => px); // tileB: varies with px only
+            FillTile(objData, 2, (px, py) => 7);  // tileC: constant 7
+
+            byte[] configData = new byte[16];
+            SetTsa(configData, 0, sub: 0, tileIndex: 0, hFlip: false, vFlip: false); // north top (left)
+            SetTsa(configData, 0, sub: 1, tileIndex: 0, hFlip: false, vFlip: false); // north top (right)
+            SetTsa(configData, 0, sub: 2, tileIndex: 2, hFlip: false, vFlip: false); // north bottom (left)
+            SetTsa(configData, 0, sub: 3, tileIndex: 2, hFlip: false, vFlip: false); // north bottom (right)
+            SetTsa(configData, 8, sub: 0, tileIndex: 2, hFlip: false, vFlip: false); // south top (left)
+            SetTsa(configData, 8, sub: 1, tileIndex: 2, hFlip: false, vFlip: false); // south top (right)
+            SetTsa(configData, 8, sub: 2, tileIndex: 1, hFlip: false, vFlip: false); // south bottom (left)
+            SetTsa(configData, 8, sub: 3, tileIndex: 1, hFlip: false, vFlip: false); // south bottom (right)
+
+            Assert.True(BuiltInRandomMapEdgeSignatureCore.TryComputeEdgeSignature(0, configData, objData, out var north));
+            Assert.True(BuiltInRandomMapEdgeSignatureCore.TryComputeEdgeSignature(4, configData, objData, out var south));
+
+            // north.Bottom (tileC, constant 7) equals south.Top (tileC, constant 7).
+            for (int i = 0; i < north.Bottom.Length; i++) Assert.Equal(7, north.Bottom[i]);
+            for (int i = 0; i < south.Top.Length; i++) Assert.Equal(7, south.Top[i]);
+
+            Assert.True(BuiltInRandomMapEdgeSignatureCore.VerticallyCompatible(north, south));
+            // Reversed order compares south.Bottom (px-varying) against north.Top (constant 9): must not match.
+            Assert.False(BuiltInRandomMapEdgeSignatureCore.VerticallyCompatible(south, north));
+        }
+
         static void FillTile(byte[] objData, int tileIndex, System.Func<int, int, int> colorAt)
         {
             int baseOff = tileIndex * BytesPerTile;

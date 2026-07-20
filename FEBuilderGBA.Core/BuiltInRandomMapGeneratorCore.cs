@@ -69,7 +69,15 @@ namespace FEBuilderGBA
         /// Generate a <paramref name="width"/> x <paramref name="height"/> layout from
         /// <paramref name="corpus"/>. Never mutates <paramref name="corpus"/> or
         /// <paramref name="currentGrid"/>; <see cref="BuiltInRandomMapGenerationResult.Mars"/>
-        /// is always a freshly allocated array.
+        /// is always a freshly allocated array. Candidate MAR values are prefiltered through
+        /// <see cref="BuiltInRandomMapTilesetCore.IsMarRenderable"/> before any model or search
+        /// state is built, so a value that can never render cannot consume node budget.
+        /// Source-identity condition (Plan v4): every restart except the ladder's very last
+        /// rejects a completion that is sequence-identical to <paramref name="currentGrid"/>
+        /// and keeps backtracking within that attempt for a distinct one; only the final
+        /// attempt — reached only when no distinct completion was found earlier — may accept
+        /// an identical completion. When <paramref name="currentGrid"/> is null this rule never
+        /// applies (there is nothing to be identical to).
         /// </summary>
         public static BuiltInRandomMapGenerationResult Generate(
             BuiltInRandomMapTilesetCorpus corpus,
@@ -88,10 +96,21 @@ namespace FEBuilderGBA
                 return Failure(BuiltInRandomMapErrorCategory.InvalidInput, $"Width {width} exceeds the maximum {limitWidth} for height {height}.");
             if (currentGrid != null && currentGrid.Length != width * height)
                 return Failure(BuiltInRandomMapErrorCategory.InvalidInput, "currentGrid length does not match width*height.");
-            if (corpus.Candidates.Count < MinimumDistinctCandidates)
-                return Failure(BuiltInRandomMapErrorCategory.InsufficientSourceData, $"Corpus offers only {corpus.Candidates.Count} distinct chipset(s); at least {MinimumDistinctCandidates} are required.");
 
-            bool relaxedAvailable = TryBuildEdgeSignatures(corpus, out Dictionary<ushort, MetatileEdgeSignature> signatures);
+            // Prefilter to only renderable candidates *before* any model/search construction:
+            // a MAR value that can never legally render must not consume node budget or be
+            // able to trigger a spurious SearchExhausted. corpus.Candidates is already
+            // ascending, so a single forward pass preserves that deterministic order.
+            var candidates = new List<ushort>(corpus.Candidates.Count);
+            foreach (ushort candidate in corpus.Candidates)
+                if (BuiltInRandomMapTilesetCore.IsMarRenderable(candidate, corpus.ConfigData))
+                    candidates.Add(candidate);
+
+            if (candidates.Count < MinimumDistinctCandidates)
+                return Failure(BuiltInRandomMapErrorCategory.InsufficientSourceData,
+                    $"Corpus offers only {candidates.Count} renderable chipset(s) (of {corpus.Candidates.Count} total); at least {MinimumDistinctCandidates} are required.");
+
+            bool relaxedAvailable = TryBuildEdgeSignatures(corpus, candidates, out Dictionary<ushort, MetatileEdgeSignature> signatures);
             if (!corpus.HasStrictAdjacencyEvidence && !relaxedAvailable)
                 return Failure(BuiltInRandomMapErrorCategory.InsufficientSourceData, "Corpus has neither observed adjacency pairs nor decodable edge signatures.");
 
@@ -111,7 +130,7 @@ namespace FEBuilderGBA
                     bool isFinalAttempt = i == attempts.Count - 1;
 
                     AttemptResult attempt = RunAttempt(
-                        corpus, model, signatures, width, height, currentGrid,
+                        corpus, candidates, model, signatures, width, height, currentGrid,
                         derivedSeed, requireDifferentFromSource: !isFinalAttempt, cancellationToken);
 
                     if (attempt.Outcome == AttemptOutcome.Success)
@@ -141,12 +160,12 @@ namespace FEBuilderGBA
             return unchecked(baseSeed * 397 + restartIndex * 31 + modelSalt + unchecked((int)0x9E3779B9));
         }
 
-        static bool TryBuildEdgeSignatures(BuiltInRandomMapTilesetCorpus corpus, out Dictionary<ushort, MetatileEdgeSignature> signatures)
+        static bool TryBuildEdgeSignatures(BuiltInRandomMapTilesetCorpus corpus, IReadOnlyList<ushort> candidates, out Dictionary<ushort, MetatileEdgeSignature> signatures)
         {
             signatures = new Dictionary<ushort, MetatileEdgeSignature>();
             if (corpus.ConfigData == null || corpus.ObjData == null) return false;
 
-            foreach (ushort candidate in corpus.Candidates)
+            foreach (ushort candidate in candidates)
             {
                 if (BuiltInRandomMapEdgeSignatureCore.TryComputeEdgeSignature(candidate, corpus.ConfigData, corpus.ObjData, out MetatileEdgeSignature signature))
                     signatures[candidate] = signature;
@@ -173,6 +192,7 @@ namespace FEBuilderGBA
         /// </summary>
         static AttemptResult RunAttempt(
             BuiltInRandomMapTilesetCorpus corpus,
+            IReadOnlyList<ushort> candidates,
             BuiltInRandomMapAdjacencyModel model,
             Dictionary<ushort, MetatileEdgeSignature> signatures,
             int width,
@@ -197,7 +217,7 @@ namespace FEBuilderGBA
                 int x = cell % width;
                 int y = cell / width;
                 bool border = x == 0 || y == 0 || x == width - 1 || y == height - 1;
-                candidateOrder[cell] = OrderCandidates(corpus, border, rng);
+                candidateOrder[cell] = OrderCandidates(corpus, candidates, border, rng);
             }
 
             int nodeBudget = ComputeNodeBudget(width, height);
@@ -214,7 +234,7 @@ namespace FEBuilderGBA
                     Array.Copy(assigned, candidateGrid, totalCells);
 
                     bool identical = requireDifferentFromSource && currentGrid != null && SequenceEqual(candidateGrid, currentGrid);
-                    if (!identical && PassesQualityGates(corpus, model, signatures, candidateGrid, width, height))
+                    if (!identical && PassesQualityGates(corpus, candidates, model, signatures, candidateGrid, width, height))
                         return new AttemptResult(AttemptOutcome.Success, candidateGrid);
 
                     // Reject (soft-fail): back up one cell and keep searching for a different completion.
@@ -284,6 +304,7 @@ namespace FEBuilderGBA
 
         static bool PassesQualityGates(
             BuiltInRandomMapTilesetCorpus corpus,
+            IReadOnlyList<ushort> candidates,
             BuiltInRandomMapAdjacencyModel model,
             Dictionary<ushort, MetatileEdgeSignature> signatures,
             ushort[] mars,
@@ -305,7 +326,7 @@ namespace FEBuilderGBA
                 }
             }
 
-            if (corpus.Candidates.Count >= DiversityGateCandidateThreshold && mars.Length >= DiversityGateCandidateThreshold)
+            if (candidates.Count >= DiversityGateCandidateThreshold && mars.Length >= DiversityGateCandidateThreshold)
             {
                 var counts = new Dictionary<ushort, int>();
                 foreach (ushort v in mars)
@@ -323,10 +344,10 @@ namespace FEBuilderGBA
             return true;
         }
 
-        static List<ushort> OrderCandidates(BuiltInRandomMapTilesetCorpus corpus, bool border, Random rng)
+        static List<ushort> OrderCandidates(BuiltInRandomMapTilesetCorpus corpus, IReadOnlyList<ushort> candidates, bool border, Random rng)
         {
-            var scored = new List<(ushort value, double key)>(corpus.Candidates.Count);
-            foreach (ushort candidate in corpus.Candidates)
+            var scored = new List<(ushort value, double key)>(candidates.Count);
+            foreach (ushort candidate in candidates)
             {
                 double weight = 1;
                 if (border && corpus.BorderFrequency.TryGetValue(candidate, out long borderCount) && borderCount > 0)
