@@ -52,6 +52,121 @@ namespace FEBuilderGBA.Avalonia.Views
             // Wiring both would double-fire the handler. The handler converts pointer
             // coords to image-pixel coords via e.GetPosition(TilePaletteImage).
             TilePaletteHitArea.PointerPressed += OnTilePaletteClick;
+            // #1998: cap the upper controls scroller height from the right column's
+            // arranged height so a compact browser viewport scrolls the controls
+            // instead of squeezing/overflowing the pinned map canvas below it.
+            MapEditorRightColumnGrid.SizeChanged += OnRightColumnSizeChanged;
+        }
+
+        /// <summary>
+        /// #1998: minimum usable Map Canvas height guaranteed even in a compact
+        /// (browser-zoomed) viewport. Mirrors MapCanvasPanel's XAML MinHeight and
+        /// MapEditorButtonReadabilityTests' MinimumUsableMapHeight constant.
+        /// </summary>
+        internal const double MapCanvasMinHeight = 240;
+
+        /// <summary>
+        /// #1998 (review PRRT_kwDOH0Mc1M6STCQB) — MapCanvasPanel's XAML
+        /// <c>Margin="8,0,8,8"</c> (top=0, bottom=8) consumes additional vertical space
+        /// in the star row beyond the panel's own MinHeight. Reserving only
+        /// <see cref="MapCanvasMinHeight"/> left this 8 DIP unaccounted for, letting the
+        /// upper-controls cap eat into the panel's bottom margin and clip/push its
+        /// bottom edge (including its horizontal scrollbar) off-screen.
+        /// </summary>
+        internal const double MapCanvasVerticalMargin = 8;
+
+        /// <summary>
+        /// #1998 (review PRRT_kwDOH0Mc1M6STCQB) — the panel's full reserved vertical
+        /// footprint (own MinHeight plus its vertical margins). This, not
+        /// <see cref="MapCanvasMinHeight"/> alone, is what the upper-controls cap must
+        /// subtract from the available height to actually guarantee containment.
+        /// </summary>
+        internal const double MapCanvasMinFootprint = MapCanvasMinHeight + MapCanvasVerticalMargin;
+
+        /// <summary>
+        /// #1998: minimum height left for the upper controls scroller even when the
+        /// available viewport is extremely short, so the toolbar/palette/tile-editor
+        /// region never fully collapses to zero.
+        /// </summary>
+        internal const double UpperControlsMinHeight = 80;
+
+        /// <summary>
+        /// #1998 (review: gemini-3.5-flash) — guard against resize-loop jitter from
+        /// floating-point layout noise. Only re-apply MaxHeight when the requested
+        /// change exceeds this many device-independent pixels.
+        /// </summary>
+        const double MaxHeightChangeEpsilon = 0.5;
+
+        void OnRightColumnSizeChanged(object? sender, SizeChangedEventArgs e)
+        {
+            UpdateUpperControlsMaxHeight(e.NewSize.Height);
+        }
+
+        void UpdateUpperControlsMaxHeight(double availableHeight)
+        {
+            double newMaxHeight = ComputeUpperControlsMaxHeight(availableHeight, MapCanvasMinFootprint, UpperControlsMinHeight);
+            double current = MapUpperControlsScroller.MaxHeight;
+            // Guarded assignment (never a fixed Height, never an Arrange override): skip
+            // the write entirely when the change is sub-pixel-jitter sized, so repeated
+            // layout passes triggered by our own MaxHeight write cannot loop.
+            if (double.IsNaN(current) || Math.Abs(current - newMaxHeight) > MaxHeightChangeEpsilon)
+            {
+                MapUpperControlsScroller.MaxHeight = newMaxHeight;
+            }
+
+            // #1998 (review PRRT_kwDOH0Mc1M6STCQa) — MaxHeight alone only CAPS the upper
+            // row; it never guaranteed an actual arranged floor. The previous
+            // "controls floor wins" claim only happened to hold because the controls'
+            // natural content is always taller than UpperControlsMinHeight in practice,
+            // not because anything enforced it. Apply a REAL MinHeight too, but only when
+            // there is room for BOTH floors simultaneously — forcing it below that
+            // combined threshold would starve MapCanvasPanel's own reserved footprint and
+            // reproduce the exact containment bug from PRRT_kwDOH0Mc1M6STCQB, so canvas
+            // containment always wins in that documented edge case instead.
+            double newMinHeight = ComputeUpperControlsMinHeight(availableHeight, MapCanvasMinFootprint, UpperControlsMinHeight);
+            double currentMin = MapUpperControlsScroller.MinHeight;
+            if (double.IsNaN(currentMin) || Math.Abs(currentMin - newMinHeight) > MaxHeightChangeEpsilon)
+            {
+                MapUpperControlsScroller.MinHeight = newMinHeight;
+            }
+        }
+
+        /// <summary>
+        /// #1998 pure helper: compute the MaxHeight to apply to the upper controls
+        /// ScrollViewer so the pinned Map Canvas below it keeps at least
+        /// <paramref name="canvasMinHeight"/> px, while the controls region itself
+        /// keeps at least <paramref name="controlsMinHeight"/> px even in an
+        /// extremely short viewport. Returns <see cref="double.PositiveInfinity"/>
+        /// (no cap — natural desktop sizing) when <paramref name="availableHeight"/>
+        /// isn't a usable finite measurement yet. Exposed internal so edge cases can
+        /// be unit-tested directly without a full headless layout pass.
+        /// </summary>
+        internal static double ComputeUpperControlsMaxHeight(double availableHeight, double canvasMinHeight, double controlsMinHeight)
+        {
+            if (double.IsNaN(availableHeight) || double.IsInfinity(availableHeight) || availableHeight <= 0)
+                return double.PositiveInfinity;
+
+            double budget = availableHeight - canvasMinHeight;
+            return Math.Max(controlsMinHeight, budget);
+        }
+
+        /// <summary>
+        /// #1998 (review PRRT_kwDOH0Mc1M6STCQa) pure helper: compute the actual MinHeight
+        /// floor to apply to the upper controls ScrollViewer. Returns
+        /// <paramref name="controlsMinHeight"/> only when <paramref name="availableHeight"/>
+        /// has room for BOTH the controls floor AND the canvas's full reserved footprint
+        /// (<paramref name="canvasMinFootprint"/>) at the same time; otherwise returns 0
+        /// (no forced floor) so MapCanvasPanel's own containment always takes priority in
+        /// this documented, pathologically-short edge case. Returns 0 (rather than
+        /// <see cref="double.PositiveInfinity"/>) when <paramref name="availableHeight"/>
+        /// isn't a usable finite measurement yet, matching Avalonia's default MinHeight.
+        /// </summary>
+        internal static double ComputeUpperControlsMinHeight(double availableHeight, double canvasMinFootprint, double controlsMinHeight)
+        {
+            if (double.IsNaN(availableHeight) || double.IsInfinity(availableHeight) || availableHeight <= 0)
+                return 0;
+
+            return availableHeight >= canvasMinFootprint + controlsMinHeight ? controlsMinHeight : 0;
         }
 
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)

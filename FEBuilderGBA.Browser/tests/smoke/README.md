@@ -16,9 +16,188 @@ can — this test does.
 1. No `avalonia.js` request returns `>= 400` (the exact #1867 symptom).
 2. The Avalonia Skia `<canvas>` mounts (the splash in `#out` is replaced) — i.e. the app rendered.
 3. When `SMOKE_ROM` is set, the real wasm runtime loads a ROM, invokes the production launcher
-   command for "Move Cost Editor", and verifies the current single-view editor title.
+   command for "Move Cost Editor", verifies the current single-view editor title, then opens the
+   Visual Map Editor (#1998) and asserts its compact/desktop split-scroller layout at the run's
+   viewport — the vertical (upper-controls-scroll) axis is gated purely by viewport **height**
+   below an internal `700`px threshold, and the horizontal axis purely by viewport **width**
+   below an internal `700`px threshold (empirically measured: overflow is confirmed at 600px width
+   for both synthetic and real-ROM content, but stops being reliable by 700-800px, so the assertion
+   only hard-requires overflow strictly below 700px and only logs — never hard-asserts either way —
+   at 700px and above, including the 1920px acceptance width and any other wide explicit viewport),
+   independently of each other (#1998 follow-up, OpenAI review on PR #2000 head `d8413c4af`: a
+   single height-gate previously coupled both axes, which would false-fail a valid wide-but-short
+   explicit viewport such as 1920×500). At the default compact
+   600×500 viewport both axes are naturally overflowing and both are asserted
+   (`upperExtentHeight`/`upperViewportHeight` and `upperExtentWidth`/`upperViewportWidth`), for
+   both the synthetic and a real ROM, while the pinned map canvas stays usable. An explicit
+   viewport that is compact on only one dimension (e.g. `1920x500` or `600x852`) still asserts
+   overflow on the axis that is actually compact, without requiring (or forbidding) overflow on
+   the other axis.
 
-It always writes a screenshot for proof / debugging.
+It always writes a screenshot for proof / debugging — see "Viewport coverage and screenshots" below
+for exactly which run owns which filename.
+
+## Viewport coverage and screenshots (#1998 follow-up)
+
+By default — when **both** `SMOKE_VIEWPORT_WIDTH` and `SMOKE_VIEWPORT_HEIGHT` are left unset — the
+script runs an **in-process, sequential dual-viewport matrix** in a single browser process, using a
+fresh isolated context/page per viewport:
+
+1. **600×500 ("compact")** — exercises the Map Editor's compact upper-controls-scroll path.
+2. **1920×852 ("acceptance")** — exercises the normal desktop layout.
+
+Failures from either viewport are aggregated; the process exits nonzero if either run fails. This is
+the mode `.github/workflows/pages.yml` uses today (it never sets the viewport env vars), so both of
+its existing invocations get dual-viewport coverage with no workflow changes. Each viewport's
+browser context/page creation is guarded independently (#1998 follow-up, review): if
+`browser.newContext()`/`context.newPage()` itself rejects for one viewport (e.g. a mid-matrix
+Chromium disconnect), that failure is caught, any partially-created context is closed, and a tagged
+failure is returned instead of letting the exception escape the matrix loop — so a setup failure on
+one viewport can never abort the whole run and silently skip the remaining viewport(s).
+
+If you set **both** `SMOKE_VIEWPORT_WIDTH` and `SMOKE_VIEWPORT_HEIGHT`, the script instead runs
+**exactly that single viewport** (no matrix). Both values must be **positive integers** (Playwright
+requires integer viewport dimensions — a fractional value like `600.5` is rejected before any
+server/browser starts, not left to crash Playwright's `newContext` call with an unhandled setup
+error). Setting only one of the two, or an invalid value (fractional, zero, negative, or
+non-numeric), is rejected with a clear, bounded error and exit code `2`. This parsing lives in the
+pure `parseViewportOverride()` function (`viewport-override.mjs`), shared by the real env-var
+resolution below, `viewport-override.test.mjs`'s `node --test` coverage, and a fast,
+dependency-free self-check the script runs on itself before launching any server/browser (see
+"Validator contract self-check" below).
+
+Screenshot ownership: the acceptance run (or the single explicit-viewport run) owns the exact
+`SMOKE_SCREENSHOT` path and its `.before.png` — the same two files
+`.github/workflows/pages.yml` uploads today. Every other screenshot (the compact matrix pass, and
+the Move Cost Editor's own before/after proof at every viewport) is written to a collision-free
+sidecar filename derived from `SMOKE_SCREENSHOT`, e.g. `web-editor-nav-smoke.compact.png` or
+`web-editor-nav-smoke.movecost.png`. **These sidecars are not uploaded as CI artifacts** — they
+exist purely for local/manual inspection; only `SMOKE_SCREENSHOT` and its `.before.png` are uploaded
+by the workflow.
+
+**This ownership description applies only when `SMOKE_ROM` is set** (the editor-nav/ROM smoke path,
+which loads a fixture and opens the Move Cost / Map Editors). A **boot-only** run (`SMOKE_ROM`
+unset — no editor ever opens) never has a "before navigating to an editor" state to distinguish, so
+it writes a single full-viewport screenshot to `mainPath` only and produces **no `.before.png`** at
+all; see `.github/workflows/pages.yml`'s boot-smoke invocation, whose `upload-artifact` step names
+an exact single file (`path: web-boot-smoke.png`) — it uploads ONLY that main screenshot, never the
+compact-matrix sidecar (which, like every sidecar described above, exists purely for local/manual
+inspection and is not a CI artifact) and never a `web-boot-smoke.before.png`.
+
+The **main** pair (`SMOKE_SCREENSHOT` / its sidecar equivalent, and its `.before.png` when the run
+has one — see above) are always
+full-viewport captures with **no content clip**, at device-pixel-ratio 1 — so they are exactly
+`width`×`height` pixels. The `.before.png` is taken right after boot, before any editor opens; the
+main screenshot is taken immediately after opening the Visual Map Editor and its layout assertions
+pass — not literally last or gated on every other check succeeding (review PRRT_kwDOH0Mc1M6STCQs):
+for the synthetic-ROM run specifically, a destructive stale-synthetic-authorization reload probe
+still runs *after* this capture and can still fail the run, but it never re-takes or mutates the
+already-written screenshot. This proves the Map
+Editor's actual on-screen layout at that viewport. The Move Cost Editor's own proof pair
+(`*.movecost.before.png` / `*.movecost.png`) uses a recomputed 80px-header content clip specific to
+each run's viewport, and is diffed byte-for-byte to prove the editor body actually re-rendered.
+
+## Real ROM vs. synthetic ROM (#1998 follow-up)
+
+Synthetic map pixels are injected into the Map Editor's canvas **only** when `SMOKE_ROM` is exactly
+the literal string `synthetic` — never for a real ROM path. With synthetic pixels active, the
+in-process E2E hook (`TestHooks.MapEditorLayoutMetrics`) is asked to inject synthetic pixels *and*
+requesting that against a real ROM load is treated as an inconsistent configuration and hard-fails
+with a JSON `error` field (never silently overwrites real ROM-derived pixels). With synthetic
+pixels active, the smoke test hard-asserts both inner-canvas axes overflow their scroller viewport
+(`extent > viewport` for width AND height) — the synthetic fixture is deliberately oversized
+(~2200×1200) to guarantee this at any viewport up to 1920×852.
+
+With a **real** ROM, the same extent/viewport metrics (and the desktop "upper controls fit without
+scrolling" expectation) are **logged**, not hard-asserted, because a real chapter's on-screen map
+size — and how much space its populated palette/terrain lists need — is ROM-data-dependent; a
+smaller/larger chapter can legitimately need more or less room than the synthetic fixture assumes.
+Real ROM runs always render the ROM's own authentic map/palette pixels.
+
+## Fail-closed metrics contract (post-review hardening)
+
+`TestHooks.MapEditorLayoutMetrics` never returns `{}` or a success-shaped payload with missing/
+sentinel fields. Every situation where trustworthy metrics cannot be produced — no navigation host/
+content is active, the wrong editor is open (a named upper-controls/map-canvas/canvas-scroller
+control is missing), synthetic injection was requested but `MapImageControl` is absent, an unset
+compute result, or a caught exception — returns a bounded JSON `error` string instead. `smoke.mjs`
+treats the OWN-property **presence** of an `error` key as a hard failure regardless of its
+type/value (`''`, `null`, a number, or an object all reject — not only a non-empty string), plus
+non-object/array JSON, an unexpected title, or any of the 10 required numeric metrics being
+missing/non-finite/negative (shared `layout-metrics-validation.mjs` gate, using `Object.hasOwn` so
+metrics can never carry an `error` key of any shape), for both synthetic and real-ROM runs — a
+probe/runtime failure can never be silently logged as "nothing to assert" and exit `0`. The smoke
+script also calls the hook once before any editor is open and asserts it fails closed, proving the
+C# contract against the live app rather than only checking source text. This pre-navigation probe
+(and the stale-authorization probe below) go one step further than "any rejection happened": each
+parses the returned `error` value (`parseHookError`) and requires it to match the SPECIFIC
+TestHooks.cs error text for the exact condition under test (e.g. "no active navigation host/content"
+or "required control(s) not found" pre-navigation; "requested against a non-synthetic ROM load"
+post-reload) — an unrelated validator rejection (malformed JSON, missing metric keys, etc.) can
+never be mistaken for proof of that specific fail-closed branch (#1998 follow-up, review on PR #2000
+head `123b3c782`).
+
+### Synthetic authorization is revoked before every load attempt
+
+`TestHooks.LoadRomBase64` resets its internal synthetic-authorization flag to `false` as the very
+first statement of every call — before Base64 decode, ROM load, `InitializeLoadedRom`, or
+`Refresh` — and re-grants it only after the entire load+initialization+refresh sequence completes
+successfully. A prior successful synthetic load's authorization can never leak into a later failed
+or exceptional load attempt (e.g. a subsequent non-synthetic reload that fails). The synthetic
+smoke run proves this live: after its own MapEditor assertions/screenshot are captured, it attempts
+a deliberately-invalid non-synthetic reload in the same page, asserts `LoadRomBase64` returns
+`false`, then requests synthetic injection again and asserts `MapEditorLayoutMetrics` now returns
+an `error` — confirming the earlier `true` authorization did not survive the failed reload. This
+probe runs only for the synthetic-ROM run and only after that run's own evidence is already
+captured, so it can never mutate accepted screenshots/metrics.
+
+### Validator contract self-check (runs before any browser launches)
+
+The fail-closed gate above is itself covered by a small case table
+(`layout-metrics-validation.cases.mjs`) that is imported by **both**:
+
+- `layout-metrics-validation.test.mjs` — the full `node:test` regression suite (run directly with
+  `node layout-metrics-validation.test.mjs`, or with `node --test`).
+- `smoke.mjs` — which re-runs the SAME cases as a fast, dependency-free self-check the moment it
+  starts (before the HTTP server or the browser are created). If the gate itself has silently
+  regressed (e.g. a future edit stops rejecting `{}`), the self-check logs bounded diagnostics and
+  exits `2` — before any browser work is attempted.
+
+`.github/workflows/pages.yml` only ever invokes `smoke.mjs` directly; it does not run
+`node --test`. This self-check is what gives that CI-gating entrypoint the same regression coverage
+as the pure test file, without any change to the workflow file itself. A normal, successful smoke
+run logs a single `validator contract self-check passed (...)` line confirming the check ran.
+
+The same pattern covers the viewport-override parser: a small case table
+(`viewport-override.cases.mjs`) is imported by both `viewport-override.test.mjs` (`node --test`) and
+`smoke.mjs`'s own fast self-check, which calls the exact same `parseViewportOverride()` function
+used to resolve the real `SMOKE_VIEWPORT_WIDTH`/`SMOKE_VIEWPORT_HEIGHT` env values, before the HTTP
+server or the browser are created. A normal, successful smoke run logs a
+`viewport-override parser self-check passed (...)` line.
+
+The same pattern also covers the per-viewport startup artifact cleanup (see "Diagnostic screenshot
+retention on failure" below): a small case table (`viewport-artifacts.cases.mjs`) is imported by
+both `viewport-artifacts.test.mjs` (`node --test`) and `smoke.mjs`'s own fast self-check, which
+calls the exact same `deriveSidecar()`/`getViewportArtifactPaths()` functions used to build the
+list of stale paths removed at the start of every viewport run, before the HTTP server or the
+browser are created. Without this self-check, `viewport-artifacts.test.mjs` alone provided zero CI
+protection — `.github/workflows/pages.yml` only ever invokes `smoke.mjs` directly, never
+`node --test` — so a regression in the cleanup logic could have merged while every required check
+stayed green. A normal, successful smoke run logs an `artifact-path contract self-check passed
+(...)` line.
+
+## Diagnostic screenshot retention on failure
+
+Every viewport run tracks whether it has already written its `mainPath` screenshot via one of the
+normal success/known-failure code paths. If a run instead fails **before** ever reaching an existing
+screenshot call site (e.g. the initial `page.goto()` itself times out), the script makes one
+best-effort, full-viewport fallback capture at `mainPath` right before closing the page/context — so
+a run that fails early still leaves visual evidence instead of none at all. A fallback capture
+failure is logged but never added to the run's failure list: it can never hide or replace the
+original recorded failure reason. Every artifact path this viewport run may produce — `mainPath`,
+its `.before.png`, and both Move Cost before/after sidecars (see `getViewportArtifactPaths()` in
+`viewport-artifacts.mjs`) — is removed at the start of the run, so a stale file from a prior
+invocation can never be mistaken for the current run's outcome.
 
 ## Why the editor proof uses a JSExport hook
 
@@ -83,6 +262,7 @@ still produced by the clean production publish.
 |---|---|---|
 | `SMOKE_WWWROOT` | (required) | Absolute path to the published `.../publish/wwwroot`. |
 | `SMOKE_BASE_PATH` | `/FEBuilderGBA/` | Sub-path to serve under (mirror the deployed `<base href>`). |
-| `SMOKE_SCREENSHOT` | `web-smoke.png` | Screenshot output path. |
+| `SMOKE_SCREENSHOT` | `web-smoke.png` | Screenshot output path — see "Viewport coverage and screenshots" above for exactly which run owns this vs. a derived sidecar. |
 | `SMOKE_TIMEOUT_MS` | `120000` | Boot timeout (cold wasm + ~6.8 MB `config.zip` is slow). |
-| `SMOKE_ROM` | (unset) | ROM path for editor-nav proof, or `synthetic` for the license-clean generated FE8U-shaped ROM. |
+| `SMOKE_ROM` | (unset) | ROM path for editor-nav proof, or `synthetic` for the license-clean generated FE8U-shaped ROM (the only value that triggers synthetic map-pixel injection). |
+| `SMOKE_VIEWPORT_WIDTH` / `SMOKE_VIEWPORT_HEIGHT` | (unset; both-or-neither) | Explicit single-viewport override — both must be **positive integers**. Leave **both** unset for the default 600×500 + 1920×852 matrix described above. |
