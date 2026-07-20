@@ -15,6 +15,9 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal("", snapshot.ExecutablePath);
             Assert.Equal("", snapshot.AssetsRoot);
             Assert.Equal("", snapshot.ErrorMessage);
+            Assert.Equal(0, snapshot.ExecutableSizeBytes);
+            Assert.Equal(0, snapshot.ExecutableLastWriteUtcTicks);
+            Assert.Equal("", snapshot.ExecutableSha256);
 
             FEMapCreatorSetupSnapshot snapshotWhitespace = FEMapCreatorProfileCore.Validate("   ", null);
             Assert.Equal(FEMapCreatorSetupStatus.NotConfigured, snapshotWhitespace.Status);
@@ -34,6 +37,35 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal(Path.GetFullPath(exePath), snapshot.ExecutablePath);
                 Assert.Equal("", snapshot.AssetsRoot);
                 Assert.Equal("", snapshot.ErrorMessage);
+                Assert.Equal(0, snapshot.ExecutableSizeBytes);
+                Assert.NotEqual(0, snapshot.ExecutableLastWriteUtcTicks);
+                Assert.NotEqual("", snapshot.ExecutableSha256);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
+        public void Validate_ExecutableContentIdentity_ChangesWhenBytesChangeAtSamePath()
+        {
+            // #1978 Slice 2 review fix: the mapping-store staleness check depends on this
+            // identity actually changing when the executable is rewritten in place.
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string exePath = Path.Combine(tempRoot, "FEMapCreator.exe");
+                File.WriteAllBytes(exePath, new byte[] { 1, 2, 3 });
+                FEMapCreatorSetupSnapshot before = FEMapCreatorProfileCore.Validate(exePath, "");
+                Assert.Equal(FEMapCreatorSetupStatus.Configured, before.Status);
+
+                File.WriteAllBytes(exePath, new byte[] { 9, 9, 9, 9, 9 });
+                FEMapCreatorSetupSnapshot after = FEMapCreatorProfileCore.Validate(exePath, "");
+                Assert.Equal(FEMapCreatorSetupStatus.Configured, after.Status);
+
+                Assert.NotEqual(before.ExecutableSizeBytes, after.ExecutableSizeBytes);
+                Assert.NotEqual(before.ExecutableSha256, after.ExecutableSha256);
             }
             finally
             {

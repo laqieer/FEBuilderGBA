@@ -200,12 +200,12 @@
               <TextBlock Text="FEMapCreator is an independent utility credited to bwdyeti; FEBuilderGBA does not bundle, host, license, or guarantee it." TextWrapping="Wrap" FontSize="11" Foreground="Gray" />
               <TextBlock Text="Executable Path" Margin="0,4,0,0" />
               <Grid ColumnDefinitions="*,Auto">
-                <TextBox AutomationProperties.AutomationId="Options_FEMapCreatorPathText_Input" Name="FEMapCreatorPathTextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <TextBox AutomationProperties.AutomationId="Options_FEMapCreatorPathText_Input" Name="FEMapCreatorPathTextBox" Grid.Column="0" Margin="0,0,8,0" TextChanged="FEMapCreatorField_TextChanged" />
                 <Button AutomationProperties.AutomationId="Options_BrowseFile20_Button" Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="FEMapCreatorPathTextBox" Padding="12,6" />
               </Grid>
               <TextBlock Text="Assets Root (optional)" Margin="0,4,0,0" />
               <Grid ColumnDefinitions="*,Auto,Auto">
-                <TextBox AutomationProperties.AutomationId="Options_FEMapCreatorAssetsRootText_Input" Name="FEMapCreatorAssetsRootTextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <TextBox AutomationProperties.AutomationId="Options_FEMapCreatorAssetsRootText_Input" Name="FEMapCreatorAssetsRootTextBox" Grid.Column="0" Margin="0,0,8,0" TextChanged="FEMapCreatorField_TextChanged" />
                 <Button AutomationProperties.AutomationId="Options_BrowseFolder2_Button" Grid.Column="1" Content="Browse..." Click="BrowseFolder_Click" Tag="FEMapCreatorAssetsRootTextBox" Padding="12,6" Margin="0,0,8,0" />
                 <Button AutomationProperties.AutomationId="Options_ClearFEMapCreatorAssetsRoot_Button" Grid.Column="2" Name="ClearFEMapCreatorAssetsRootButton" Content="Clear" Click="ClearFEMapCreatorAssetsRoot_Click" Padding="12,6" />
               </Grid>

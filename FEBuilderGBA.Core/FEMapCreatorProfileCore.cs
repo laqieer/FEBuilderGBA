@@ -19,6 +19,11 @@ namespace FEBuilderGBA
     /// <summary>
     /// Immutable validated snapshot of the persisted FEMapCreator executable path plus optional
     /// assets root (#1978 Slice 2). Produced by <see cref="FEMapCreatorProfileCore.Validate"/>.
+    /// When <see cref="Status"/> is <see cref="FEMapCreatorSetupStatus.Configured"/>, the
+    /// executable's content identity (<see cref="ExecutableSizeBytes"/>/
+    /// <see cref="ExecutableLastWriteUtcTicks"/>/<see cref="ExecutableSha256"/>) is also captured
+    /// so <see cref="FEMapCreatorTilesetMappingStoreCore.Lookup"/> can detect that the configured
+    /// executable itself has changed since a mapping was recorded, not just its path string.
     /// </summary>
     public sealed class FEMapCreatorSetupSnapshot
     {
@@ -26,12 +31,18 @@ namespace FEBuilderGBA
             FEMapCreatorSetupStatus status,
             string executablePath,
             string assetsRoot,
-            string errorMessage)
+            string errorMessage,
+            long executableSizeBytes = 0,
+            long executableLastWriteUtcTicks = 0,
+            string executableSha256 = "")
         {
             Status = status;
             ExecutablePath = executablePath ?? "";
             AssetsRoot = assetsRoot ?? "";
             ErrorMessage = errorMessage ?? "";
+            ExecutableSizeBytes = executableSizeBytes;
+            ExecutableLastWriteUtcTicks = executableLastWriteUtcTicks;
+            ExecutableSha256 = executableSha256 ?? "";
         }
 
         /// <summary>Overall setup status.</summary>
@@ -45,6 +56,15 @@ namespace FEBuilderGBA
 
         /// <summary>Validation failure detail; "" when <see cref="Status"/> is not <see cref="FEMapCreatorSetupStatus.Invalid"/>.</summary>
         public string ErrorMessage { get; }
+
+        /// <summary>Executable file size in bytes at validation time; 0 unless <see cref="Status"/> is <see cref="FEMapCreatorSetupStatus.Configured"/>.</summary>
+        public long ExecutableSizeBytes { get; }
+
+        /// <summary>Executable last-write time (UTC ticks) at validation time; 0 unless <see cref="Status"/> is <see cref="FEMapCreatorSetupStatus.Configured"/>.</summary>
+        public long ExecutableLastWriteUtcTicks { get; }
+
+        /// <summary>Executable SHA-256 content hash (lowercase hex) at validation time; "" unless <see cref="Status"/> is <see cref="FEMapCreatorSetupStatus.Configured"/>.</summary>
+        public string ExecutableSha256 { get; }
     }
 
     /// <summary>
@@ -95,7 +115,19 @@ namespace FEBuilderGBA
                 return new FEMapCreatorSetupSnapshot(FEMapCreatorSetupStatus.Invalid, normalizedExecutablePath, "", assetsError);
             }
 
-            return new FEMapCreatorSetupSnapshot(FEMapCreatorSetupStatus.Configured, normalizedExecutablePath, normalizedAssetsRoot, "");
+            if (!FileContentIdentityCore.TryCompute(
+                normalizedExecutablePath, out long exeSize, out long exeTicks, out string exeSha, out string hashError))
+            {
+                // File.Exists just passed above; only a race (deleted/locked between checks)
+                // should ever reach here, but surface it as Invalid rather than silently
+                // returning a Configured snapshot with no real executable identity.
+                return new FEMapCreatorSetupSnapshot(FEMapCreatorSetupStatus.Invalid, "", "",
+                    "FEMapCreator executable could not be read: " + hashError);
+            }
+
+            return new FEMapCreatorSetupSnapshot(
+                FEMapCreatorSetupStatus.Configured, normalizedExecutablePath, normalizedAssetsRoot, "",
+                exeSize, exeTicks, exeSha);
         }
     }
 }

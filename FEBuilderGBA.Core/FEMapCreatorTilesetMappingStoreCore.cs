@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace FEBuilderGBA
@@ -18,7 +16,8 @@ namespace FEBuilderGBA
         Current,
 
         /// <summary>A mapping exists but the mapped image/generation-data file has changed size, timestamp, or
-        /// content hash — or gone missing entirely — since it was recorded.</summary>
+        /// content hash, has gone missing, or the currently-configured FEMapCreator executable/assets root
+        /// no longer matches what was recorded when the mapping was made.</summary>
         Stale,
 
         /// <summary>A mapping entry exists in storage but is structurally unusable (e.g. missing required fields
@@ -29,8 +28,11 @@ namespace FEBuilderGBA
     /// <summary>
     /// One persisted external FEMapCreator tileset mapped to a specific built-in tileset fingerprint
     /// (#1978 Slice 2). Immutable; captures enough concrete file identity (path + size + last-write
-    /// time + SHA-256) for <see cref="FEMapCreatorTilesetMappingStoreCore.Lookup"/> to detect
-    /// staleness without re-running FEMapCreator discovery.
+    /// time + SHA-256) for the mapped image/generation-data files, AND for the FEMapCreator
+    /// executable itself, so <see cref="FEMapCreatorTilesetMappingStoreCore.Lookup"/> can detect
+    /// staleness caused by any of those three files changing — without re-running FEMapCreator
+    /// discovery. The assets root is recorded as a normalized path only (it is a directory, not a
+    /// single hashable file); an empty assets root is a valid, fully-supported identity value.
     /// </summary>
     public sealed class FEMapCreatorTilesetMappingEntry
     {
@@ -39,7 +41,8 @@ namespace FEBuilderGBA
             string tilesetName,
             string imagePath, long imageSizeBytes, long imageLastWriteUtcTicks, string imageSha256,
             string generationDataPath, long generationDataSizeBytes, long generationDataLastWriteUtcTicks, string generationDataSha256,
-            string executablePath, string assetsRoot)
+            string executablePath, long executableSizeBytes, long executableLastWriteUtcTicks, string executableSha256,
+            string assetsRoot)
         {
             FingerprintValue = fingerprintValue ?? "";
             TilesetName = tilesetName ?? "";
@@ -52,6 +55,9 @@ namespace FEBuilderGBA
             GenerationDataLastWriteUtcTicks = generationDataLastWriteUtcTicks;
             GenerationDataSha256 = generationDataSha256 ?? "";
             ExecutablePath = executablePath ?? "";
+            ExecutableSizeBytes = executableSizeBytes;
+            ExecutableLastWriteUtcTicks = executableLastWriteUtcTicks;
+            ExecutableSha256 = executableSha256 ?? "";
             AssetsRoot = assetsRoot ?? "";
         }
 
@@ -73,24 +79,31 @@ namespace FEBuilderGBA
         public long GenerationDataLastWriteUtcTicks { get; }
         public string GenerationDataSha256 { get; }
 
-        /// <summary>Normalized FEMapCreator executable path in effect when this mapping was recorded (informational only).</summary>
+        /// <summary>Normalized FEMapCreator executable path in effect when this mapping was recorded.</summary>
         public string ExecutablePath { get; }
+        public long ExecutableSizeBytes { get; }
+        public long ExecutableLastWriteUtcTicks { get; }
+        public string ExecutableSha256 { get; }
 
-        /// <summary>Normalized FEMapCreator assets root in effect when this mapping was recorded (informational only; may be empty).</summary>
+        /// <summary>Normalized FEMapCreator assets root in effect when this mapping was recorded (may be empty — a blank assets root is a valid identity value).</summary>
         public string AssetsRoot { get; }
 
         /// <summary>
-        /// True when the entry has the minimum fields required to be trusted: non-empty fingerprint,
-        /// tileset name, and both mapped file paths. Entries failing this check are treated as
-        /// unknown/legacy/malformed and are skipped by <see cref="FEMapCreatorTilesetMappingStoreCore.LoadAll"/>
-        /// or flagged <see cref="FEMapCreatorMappingStatus.Invalid"/> by
+        /// True when the entry has the minimum fields required to be trusted: non-empty
+        /// fingerprint, tileset name, both mapped file paths, and a recorded executable
+        /// path+hash (the assets root remains optional/may be blank). Entries failing this check
+        /// are treated as unknown/legacy/malformed and are skipped by
+        /// <see cref="FEMapCreatorTilesetMappingStoreCore.LoadAll"/> or flagged
+        /// <see cref="FEMapCreatorMappingStatus.Invalid"/> by
         /// <see cref="FEMapCreatorTilesetMappingStoreCore.Lookup"/>.
         /// </summary>
         public bool IsStructurallyValid =>
             !string.IsNullOrWhiteSpace(FingerprintValue)
             && !string.IsNullOrWhiteSpace(TilesetName)
             && !string.IsNullOrWhiteSpace(ImagePath)
-            && !string.IsNullOrWhiteSpace(GenerationDataPath);
+            && !string.IsNullOrWhiteSpace(GenerationDataPath)
+            && !string.IsNullOrWhiteSpace(ExecutablePath)
+            && !string.IsNullOrWhiteSpace(ExecutableSha256);
     }
 
     /// <summary>Result of <see cref="FEMapCreatorTilesetMappingStoreCore.Lookup"/>.</summary>
@@ -129,10 +142,13 @@ namespace FEBuilderGBA
     /// <see cref="Config"/> store (#1978 Slice 2). Deliberately holds no static/in-memory cache:
     /// every call re-reads the mappings supplied by the caller (loaded fresh from
     /// <see cref="Config"/> via <see cref="LoadAll"/>) and, for <see cref="Lookup"/>, re-stats and
-    /// re-hashes the mapped files on disk right now — so a mapping never leaks stale state across
-    /// ROM/tileset switches, and a concurrently-edited external file is always caught rather than
-    /// silently presented as current. File reads only: this class never launches a process or
-    /// touches the network.
+    /// re-hashes the mapped files on disk right now, AND requires the caller to pass a freshly
+    /// validated <see cref="FEMapCreatorSetupSnapshot"/> (<c>currentProfile</c>) so the currently
+    /// configured executable/assets-root identity is compared against what was recorded at
+    /// mapping-creation time — so a mapping never leaks stale state across ROM/tileset switches or
+    /// FEMapCreator reconfiguration, and a concurrently-edited external file or executable is
+    /// always caught rather than silently presented as current. File reads only: this class never
+    /// launches a process or touches the network.
     /// </summary>
     public static class FEMapCreatorTilesetMappingStoreCore
     {
@@ -152,6 +168,9 @@ namespace FEBuilderGBA
             public long GenerationDataLastWriteUtcTicks { get; set; }
             public string GenerationDataSha256 { get; set; } = "";
             public string ExecutablePath { get; set; } = "";
+            public long ExecutableSizeBytes { get; set; }
+            public long ExecutableLastWriteUtcTicks { get; set; }
+            public string ExecutableSha256 { get; set; } = "";
             public string AssetsRoot { get; set; } = "";
         }
 
@@ -187,7 +206,8 @@ namespace FEBuilderGBA
                     dto.FingerprintValue, dto.TilesetName,
                     dto.ImagePath, dto.ImageSizeBytes, dto.ImageLastWriteUtcTicks, dto.ImageSha256,
                     dto.GenerationDataPath, dto.GenerationDataSizeBytes, dto.GenerationDataLastWriteUtcTicks, dto.GenerationDataSha256,
-                    dto.ExecutablePath, dto.AssetsRoot);
+                    dto.ExecutablePath, dto.ExecutableSizeBytes, dto.ExecutableLastWriteUtcTicks, dto.ExecutableSha256,
+                    dto.AssetsRoot);
                 if (!entry.IsStructurallyValid)
                     continue; // unknown/legacy/malformed entry: skip explicitly rather than surface it as usable
                 result.Add(entry);
@@ -218,6 +238,9 @@ namespace FEBuilderGBA
                 GenerationDataLastWriteUtcTicks = e.GenerationDataLastWriteUtcTicks,
                 GenerationDataSha256 = e.GenerationDataSha256,
                 ExecutablePath = e.ExecutablePath,
+                ExecutableSizeBytes = e.ExecutableSizeBytes,
+                ExecutableLastWriteUtcTicks = e.ExecutableLastWriteUtcTicks,
+                ExecutableSha256 = e.ExecutableSha256,
                 AssetsRoot = e.AssetsRoot,
             }).ToList();
 
@@ -226,17 +249,19 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Build a new entry from the current on-disk state of <paramref name="imagePath"/> and
-        /// <paramref name="generationDataPath"/>. Never throws; returns false with
-        /// <paramref name="error"/> set when the fingerprint/tileset name are blank or either mapped
-        /// file cannot be read.
+        /// <paramref name="generationDataPath"/>, recording <paramref name="currentProfile"/>'s
+        /// executable identity and assets root alongside them. Never throws; returns false with
+        /// <paramref name="error"/> set when the fingerprint/tileset name are blank, either mapped
+        /// file cannot be read, or <paramref name="currentProfile"/> is not currently
+        /// <see cref="FEMapCreatorSetupStatus.Configured"/> (a mapping cannot safely record an
+        /// executable identity that was never successfully validated).
         /// </summary>
         public static bool TryCreateEntry(
             TilesetFingerprint fingerprint,
             string tilesetName,
             string imagePath,
             string generationDataPath,
-            string executablePath,
-            string assetsRoot,
+            FEMapCreatorSetupSnapshot currentProfile,
             out FEMapCreatorTilesetMappingEntry entry,
             out string error)
         {
@@ -253,17 +278,23 @@ namespace FEBuilderGBA
                 error = "Tileset name is empty.";
                 return false;
             }
-
-            if (!TryStatAndHash(imagePath, out long imageSize, out long imageTicks, out string imageSha, out error))
+            if (currentProfile == null || currentProfile.Status != FEMapCreatorSetupStatus.Configured)
+            {
+                error = "FEMapCreator executable is not currently configured or is invalid; cannot record a mapping without a validated executable.";
                 return false;
-            if (!TryStatAndHash(generationDataPath, out long dataSize, out long dataTicks, out string dataSha, out error))
+            }
+
+            if (!FileContentIdentityCore.TryCompute(imagePath, out long imageSize, out long imageTicks, out string imageSha, out error))
+                return false;
+            if (!FileContentIdentityCore.TryCompute(generationDataPath, out long dataSize, out long dataTicks, out string dataSha, out error))
                 return false;
 
             entry = new FEMapCreatorTilesetMappingEntry(
                 fingerprint.Value, tilesetName,
                 imagePath, imageSize, imageTicks, imageSha,
                 generationDataPath, dataSize, dataTicks, dataSha,
-                executablePath ?? "", assetsRoot ?? "");
+                currentProfile.ExecutablePath, currentProfile.ExecutableSizeBytes, currentProfile.ExecutableLastWriteUtcTicks, currentProfile.ExecutableSha256,
+                currentProfile.AssetsRoot);
             return true;
         }
 
@@ -307,18 +338,25 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Find the mapping for <paramref name="fingerprint"/> and revalidate its recorded file
-        /// identity against the files on disk right now. Never returns a stale mapping labeled
-        /// <see cref="FEMapCreatorMappingStatus.Current"/>: any missing mapped file, or any
-        /// size/mtime/hash difference from what was recorded, yields
-        /// <see cref="FEMapCreatorMappingStatus.Stale"/> with a specific
-        /// <see cref="FEMapCreatorMappingLookupResult.Reason"/>. A structurally invalid stored entry
-        /// (e.g. from a future/foreign schema) yields <see cref="FEMapCreatorMappingStatus.Invalid"/>
-        /// rather than being silently skipped or presented as usable.
+        /// Find the mapping for <paramref name="fingerprint"/> and revalidate its recorded
+        /// identity — the mapped image/generation-data files on disk right now, AND
+        /// <paramref name="currentProfile"/> (the caller's freshly-validated
+        /// <see cref="FEMapCreatorProfileCore.Validate"/> snapshot) against the executable/assets
+        /// identity recorded at mapping-creation time — before ever reporting
+        /// <see cref="FEMapCreatorMappingStatus.Current"/>. This is the only safe selection path:
+        /// a mapping is never presented as current merely because the mapped tileset files are
+        /// unchanged while the configured FEMapCreator executable or assets root has since
+        /// changed, been cleared, or become invalid. Any missing/changed mapped file, executable
+        /// mismatch, or assets-root mismatch yields <see cref="FEMapCreatorMappingStatus.Stale"/>
+        /// with a specific <see cref="FEMapCreatorMappingLookupResult.Reason"/>. A structurally
+        /// invalid stored entry (e.g. from a future/foreign schema) yields
+        /// <see cref="FEMapCreatorMappingStatus.Invalid"/> rather than being silently skipped or
+        /// presented as usable.
         /// </summary>
         public static FEMapCreatorMappingLookupResult Lookup(
             IReadOnlyList<FEMapCreatorTilesetMappingEntry> mappings,
-            TilesetFingerprint fingerprint)
+            TilesetFingerprint fingerprint,
+            FEMapCreatorSetupSnapshot currentProfile)
         {
             if (mappings == null || fingerprint.IsEmpty)
                 return FEMapCreatorMappingLookupResult.NoMapping();
@@ -331,61 +369,34 @@ namespace FEBuilderGBA
             if (!entry.IsStructurallyValid)
                 return FEMapCreatorMappingLookupResult.Invalid(entry, "Stored mapping entry is missing required fields.");
 
-            if (!TryStatAndHash(entry.ImagePath, out long imageSize, out long imageTicks, out string imageSha, out string imageError))
+            if (!FileContentIdentityCore.TryCompute(entry.ImagePath, out long imageSize, out long imageTicks, out string imageSha, out string imageError))
                 return FEMapCreatorMappingLookupResult.Stale(entry, "Mapped image file is no longer readable: " + imageError);
             if (imageSize != entry.ImageSizeBytes || imageTicks != entry.ImageLastWriteUtcTicks
                 || !string.Equals(imageSha, entry.ImageSha256, StringComparison.Ordinal))
                 return FEMapCreatorMappingLookupResult.Stale(entry, "Mapped image file has changed since this mapping was recorded.");
 
-            if (!TryStatAndHash(entry.GenerationDataPath, out long dataSize, out long dataTicks, out string dataSha, out string dataError))
+            if (!FileContentIdentityCore.TryCompute(entry.GenerationDataPath, out long dataSize, out long dataTicks, out string dataSha, out string dataError))
                 return FEMapCreatorMappingLookupResult.Stale(entry, "Mapped generation-data file is no longer readable: " + dataError);
             if (dataSize != entry.GenerationDataSizeBytes || dataTicks != entry.GenerationDataLastWriteUtcTicks
                 || !string.Equals(dataSha, entry.GenerationDataSha256, StringComparison.Ordinal))
                 return FEMapCreatorMappingLookupResult.Stale(entry, "Mapped generation-data file has changed since this mapping was recorded.");
 
+            // Executable/assets-root identity: never accept the mapping as Current on stale
+            // image/gen-data evidence alone — the configured FEMapCreator setup itself must
+            // still match what was recorded when the mapping was made.
+            if (currentProfile == null || currentProfile.Status != FEMapCreatorSetupStatus.Configured)
+                return FEMapCreatorMappingLookupResult.Stale(entry, "FEMapCreator executable is not currently configured or is invalid.");
+
+            if (!string.Equals(currentProfile.ExecutablePath, entry.ExecutablePath, FEMapCreatorLauncherCore.PathComparison))
+                return FEMapCreatorMappingLookupResult.Stale(entry, "The configured FEMapCreator executable path has changed since this mapping was recorded.");
+            if (currentProfile.ExecutableSizeBytes != entry.ExecutableSizeBytes
+                || currentProfile.ExecutableLastWriteUtcTicks != entry.ExecutableLastWriteUtcTicks
+                || !string.Equals(currentProfile.ExecutableSha256, entry.ExecutableSha256, StringComparison.Ordinal))
+                return FEMapCreatorMappingLookupResult.Stale(entry, "The configured FEMapCreator executable's content has changed since this mapping was recorded.");
+            if (!string.Equals(currentProfile.AssetsRoot, entry.AssetsRoot, FEMapCreatorLauncherCore.PathComparison))
+                return FEMapCreatorMappingLookupResult.Stale(entry, "The configured FEMapCreator assets root has changed since this mapping was recorded.");
+
             return FEMapCreatorMappingLookupResult.Current(entry);
-        }
-
-        static bool TryStatAndHash(string path, out long sizeBytes, out long lastWriteUtcTicks, out string sha256Hex, out string error)
-        {
-            sizeBytes = 0;
-            lastWriteUtcTicks = 0;
-            sha256Hex = "";
-            error = "";
-
-            if (string.IsNullOrWhiteSpace(path))
-            {
-                error = "Path is empty.";
-                return false;
-            }
-            if (!File.Exists(path))
-            {
-                error = "File does not exist: " + path;
-                return false;
-            }
-
-            try
-            {
-                var info = new FileInfo(path);
-                sizeBytes = info.Length;
-                lastWriteUtcTicks = info.LastWriteTimeUtc.Ticks;
-
-                using SHA256 sha = SHA256.Create();
-                using FileStream stream = File.OpenRead(path);
-                byte[] hash = sha.ComputeHash(stream);
-                sha256Hex = Convert.ToHexString(hash).ToLowerInvariant();
-                return true;
-            }
-            catch (IOException ex)
-            {
-                error = ex.Message;
-                return false;
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                error = ex.Message;
-                return false;
-            }
         }
     }
 }

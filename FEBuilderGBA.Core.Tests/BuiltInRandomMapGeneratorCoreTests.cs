@@ -90,6 +90,38 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void Generate_EffectiveSeed_IsCallerSeed_NotInternalDerivedRestartSeed()
+        {
+            // Plan v4 review fix: EffectiveSeed must be directly replayable — i.e. exactly the
+            // seed the caller passed in, never the internal per-restart derived value.
+            var corpus = MakeStrictCorpus();
+            const int callerSeed = 999;
+            var result = BuiltInRandomMapGeneratorCore.Generate(corpus, Width, Height, null, seed: callerSeed, CancellationToken.None);
+
+            Assert.True(result.Success, result.ErrorMessage);
+            Assert.Equal(callerSeed, result.EffectiveSeed);
+        }
+
+        [Fact]
+        public void Generate_ReplayingWithResultEffectiveSeed_ReproducesIdenticalOutcome()
+        {
+            // Plan v4 review fix: calling Generate again with result.EffectiveSeed (rather than
+            // the original caller seed variable) must deterministically reproduce the same
+            // Mars/AdjacencyModel/RestartsUsed outcome — proving the seed is truly replayable.
+            var corpus = MakeStrictCorpus();
+            var first = BuiltInRandomMapGeneratorCore.Generate(corpus, Width, Height, null, seed: 424242, CancellationToken.None);
+            Assert.True(first.Success, first.ErrorMessage);
+
+            var replay = BuiltInRandomMapGeneratorCore.Generate(corpus, Width, Height, null, seed: first.EffectiveSeed, CancellationToken.None);
+
+            Assert.True(replay.Success, replay.ErrorMessage);
+            Assert.Equal(first.Mars, replay.Mars);
+            Assert.Equal(first.AdjacencyModel, replay.AdjacencyModel);
+            Assert.Equal(first.RestartsUsed, replay.RestartsUsed);
+            Assert.Equal(first.EffectiveSeed, replay.EffectiveSeed);
+        }
+
+        [Fact]
         public void Generate_DoesNotMutateCorpusOrCurrentGrid()
         {
             var corpus = MakeStrictCorpus();

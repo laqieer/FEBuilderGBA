@@ -92,8 +92,15 @@ namespace FEBuilderGBA
         public ushort[] Mars { get; }
 
         /// <summary>
-        /// The actual per-restart derived seed that produced <see cref="Mars"/>. Differs from
-        /// the caller's requested seed whenever a restart other than the first succeeded.
+        /// The caller-supplied seed that produced <see cref="Mars"/> — always equal to the
+        /// <c>seed</c> argument passed to <see cref="BuiltInRandomMapGeneratorCore.Generate"/>,
+        /// never an internally-derived per-restart value. This makes the value directly
+        /// replayable: calling <c>Generate</c> again with the same corpus, width, height,
+        /// currentGrid, and <c>seed=EffectiveSeed</c> deterministically reproduces this same
+        /// <see cref="Mars"/>/<see cref="AdjacencyModel"/>/<see cref="RestartsUsed"/> outcome.
+        /// The internal per-restart derived seed used to drive the actual search RNG is
+        /// private and never surfaced here. Meaningful only when <see cref="Success"/> is
+        /// true; 0 on failure.
         /// </summary>
         public int EffectiveSeed { get; }
 

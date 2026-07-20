@@ -138,7 +138,7 @@ namespace FEBuilderGBA
                         int distinct = CountDistinct(attempt.Mars);
                         return new BuiltInRandomMapGenerationResult(
                             true, BuiltInRandomMapErrorCategory.None, "Generated successfully.",
-                            attempt.Mars, derivedSeed, model, restart + 1, distinct);
+                            attempt.Mars, seed, model, restart + 1, distinct);
                     }
                 }
 

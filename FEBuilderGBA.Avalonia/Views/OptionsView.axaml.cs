@@ -95,6 +95,16 @@ namespace FEBuilderGBA.Avalonia.Views
             FEMapCreatorStatusText.Text = _vm.GetFEMapCreatorStatusText();
         }
 
+        /// <summary>
+        /// Keeps the FEMapCreator status line honest as the user types directly into either
+        /// textbox, not only after Browse/Clear/initial load. Read-only re-validation only — no
+        /// process launch, discovery, or network access is triggered by editing text.
+        /// </summary>
+        void FEMapCreatorField_TextChanged(object? sender, global::Avalonia.Controls.TextChangedEventArgs e)
+        {
+            RefreshFEMapCreatorStatus();
+        }
+
         async void BrowseFile_Click(object? sender, RoutedEventArgs e)
         {
             if (sender is not Button btn || btn.Tag is not string targetName)

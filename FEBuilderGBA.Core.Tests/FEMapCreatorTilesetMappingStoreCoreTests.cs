@@ -44,8 +44,8 @@ namespace FEBuilderGBA.Core.Tests
             {
                 [FEMapCreatorTilesetMappingStoreCore.MappingsConfigKey] =
                     "[" +
-                    "{\"FingerprintValue\":\"abc123\",\"TilesetName\":\"\",\"ImagePath\":\"x\",\"GenerationDataPath\":\"y\"}," +
-                    "{\"FingerprintValue\":\"def456\",\"TilesetName\":\"Plains\",\"ImagePath\":\"img.png\",\"GenerationDataPath\":\"gen.json\"}" +
+                    "{\"FingerprintValue\":\"abc123\",\"TilesetName\":\"\",\"ImagePath\":\"x\",\"GenerationDataPath\":\"y\",\"ExecutablePath\":\"e\",\"ExecutableSha256\":\"h\"}," +
+                    "{\"FingerprintValue\":\"def456\",\"TilesetName\":\"Plains\",\"ImagePath\":\"img.png\",\"GenerationDataPath\":\"gen.json\",\"ExecutablePath\":\"exe.path\",\"ExecutableSha256\":\"exehash\"}" +
                     "]",
             };
 
@@ -57,6 +57,22 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void LoadAll_SkipsEntryMissingExecutableIdentity()
+        {
+            // #1978 Slice 2 review fix: an entry recorded before a validated executable existed
+            // (or from a foreign/legacy schema) must never be treated as usable.
+            var config = new Config
+            {
+                [FEMapCreatorTilesetMappingStoreCore.MappingsConfigKey] =
+                    "[{\"FingerprintValue\":\"abc123\",\"TilesetName\":\"Plains\",\"ImagePath\":\"img.png\",\"GenerationDataPath\":\"gen.json\"}]",
+            };
+
+            IReadOnlyList<FEMapCreatorTilesetMappingEntry> loaded = FEMapCreatorTilesetMappingStoreCore.LoadAll(config);
+
+            Assert.Empty(loaded);
+        }
+
+        [Fact]
         public void SaveAll_LoadAll_RoundTrip_PreservesAllFields()
         {
             string tempRoot = CreateTempDirectory();
@@ -64,11 +80,12 @@ namespace FEBuilderGBA.Core.Tests
             {
                 string imagePath = CreateFile(tempRoot, "tileset.png", new byte[] { 1, 2, 3 });
                 string genPath = CreateFile(tempRoot, "tileset.json", new byte[] { 4, 5, 6, 7 });
+                FEMapCreatorSetupSnapshot profile = MakeConfiguredProfile(tempRoot, "assets");
 
                 var config = new Config();
                 var fingerprint = TilesetFingerprint.Compute(8, new byte[] { 1 }, new byte[] { 2 }, new byte[] { 3 });
                 Assert.True(FEMapCreatorTilesetMappingStoreCore.TryCreateEntry(
-                    fingerprint, "Plains", imagePath, genPath, "exe.path", "assets",
+                    fingerprint, "Plains", imagePath, genPath, profile,
                     out FEMapCreatorTilesetMappingEntry entry, out string error));
                 Assert.Equal("", error);
 
@@ -89,6 +106,9 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal(entry.GenerationDataSizeBytes, roundTripped.GenerationDataSizeBytes);
                 Assert.Equal(entry.GenerationDataSha256, roundTripped.GenerationDataSha256);
                 Assert.Equal(entry.ExecutablePath, roundTripped.ExecutablePath);
+                Assert.Equal(entry.ExecutableSizeBytes, roundTripped.ExecutableSizeBytes);
+                Assert.Equal(entry.ExecutableLastWriteUtcTicks, roundTripped.ExecutableLastWriteUtcTicks);
+                Assert.Equal(entry.ExecutableSha256, roundTripped.ExecutableSha256);
                 Assert.Equal(entry.AssetsRoot, roundTripped.AssetsRoot);
             }
             finally
@@ -100,13 +120,22 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void TryCreateEntry_EmptyFingerprint_ReturnsFalse()
         {
-            bool ok = FEMapCreatorTilesetMappingStoreCore.TryCreateEntry(
-                TilesetFingerprint.Empty, "Plains", "img.png", "gen.json", "exe", "assets",
-                out FEMapCreatorTilesetMappingEntry entry, out string error);
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                FEMapCreatorSetupSnapshot profile = MakeConfiguredProfile(tempRoot, "");
+                bool ok = FEMapCreatorTilesetMappingStoreCore.TryCreateEntry(
+                    TilesetFingerprint.Empty, "Plains", "img.png", "gen.json", profile,
+                    out FEMapCreatorTilesetMappingEntry entry, out string error);
 
-            Assert.False(ok);
-            Assert.Null(entry);
-            Assert.NotEqual("", error);
+                Assert.False(ok);
+                Assert.Null(entry);
+                Assert.NotEqual("", error);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
         }
 
         [Fact]
@@ -118,14 +147,51 @@ namespace FEBuilderGBA.Core.Tests
                 string genPath = CreateFile(tempRoot, "tileset.json", new byte[] { 1 });
                 string missingImage = Path.Combine(tempRoot, "missing.png");
                 var fingerprint = TilesetFingerprint.Compute(7, new byte[] { 9 }, new byte[] { 9 }, new byte[] { 9 });
+                FEMapCreatorSetupSnapshot profile = MakeConfiguredProfile(tempRoot, "");
 
                 bool ok = FEMapCreatorTilesetMappingStoreCore.TryCreateEntry(
-                    fingerprint, "Plains", missingImage, genPath, "exe", "assets",
+                    fingerprint, "Plains", missingImage, genPath, profile,
                     out FEMapCreatorTilesetMappingEntry entry, out string error);
 
                 Assert.False(ok);
                 Assert.Null(entry);
                 Assert.Contains("does not exist", error, StringComparison.OrdinalIgnoreCase);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
+        public void TryCreateEntry_ProfileNotConfigured_ReturnsFalseWithError()
+        {
+            // #1978 Slice 2 review fix: a mapping must never record an executable identity that
+            // was never successfully validated.
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string imagePath = CreateFile(tempRoot, "tileset.png", new byte[] { 1 });
+                string genPath = CreateFile(tempRoot, "tileset.json", new byte[] { 2 });
+                var fingerprint = TilesetFingerprint.Compute(7, new byte[] { 9 }, new byte[] { 9 }, new byte[] { 9 });
+
+                FEMapCreatorSetupSnapshot notConfigured = FEMapCreatorProfileCore.Validate("", "");
+                Assert.Equal(FEMapCreatorSetupStatus.NotConfigured, notConfigured.Status);
+
+                bool ok = FEMapCreatorTilesetMappingStoreCore.TryCreateEntry(
+                    fingerprint, "Plains", imagePath, genPath, notConfigured,
+                    out FEMapCreatorTilesetMappingEntry entry, out string error);
+
+                Assert.False(ok);
+                Assert.Null(entry);
+                Assert.NotEqual("", error);
+
+                bool okNull = FEMapCreatorTilesetMappingStoreCore.TryCreateEntry(
+                    fingerprint, "Plains", imagePath, genPath, null,
+                    out FEMapCreatorTilesetMappingEntry entryNull, out string errorNull);
+                Assert.False(okNull);
+                Assert.Null(entryNull);
+                Assert.NotEqual("", errorNull);
             }
             finally
             {
@@ -185,7 +251,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var fingerprint = TilesetFingerprint.Compute(6, new byte[] { 1 }, new byte[] { 1 }, new byte[] { 1 });
             FEMapCreatorMappingLookupResult result = FEMapCreatorTilesetMappingStoreCore.Lookup(
-                Array.Empty<FEMapCreatorTilesetMappingEntry>(), fingerprint);
+                Array.Empty<FEMapCreatorTilesetMappingEntry>(), fingerprint, null);
 
             Assert.Equal(FEMapCreatorMappingStatus.NoMapping, result.Status);
             Assert.Null(result.Entry);
@@ -196,13 +262,13 @@ namespace FEBuilderGBA.Core.Tests
         {
             var entry = MakeEntry("fp-a", "TilesetA");
             FEMapCreatorMappingLookupResult result = FEMapCreatorTilesetMappingStoreCore.Lookup(
-                new[] { entry }, TilesetFingerprint.Empty);
+                new[] { entry }, TilesetFingerprint.Empty, null);
 
             Assert.Equal(FEMapCreatorMappingStatus.NoMapping, result.Status);
         }
 
         [Fact]
-        public void Lookup_Current_WhenMappedFilesUnchanged()
+        public void Lookup_Current_WhenMappedFilesAndProfileUnchanged()
         {
             string tempRoot = CreateTempDirectory();
             try
@@ -210,13 +276,18 @@ namespace FEBuilderGBA.Core.Tests
                 string imagePath = CreateFile(tempRoot, "tileset.png", new byte[] { 1, 2, 3, 4 });
                 string genPath = CreateFile(tempRoot, "tileset.json", new byte[] { 5, 6 });
                 var fingerprint = TilesetFingerprint.Compute(8, new byte[] { 1 }, new byte[] { 2 }, new byte[] { 3 });
+                FEMapCreatorSetupSnapshot profile = MakeConfiguredProfile(tempRoot, "assets");
 
                 Assert.True(FEMapCreatorTilesetMappingStoreCore.TryCreateEntry(
-                    fingerprint, "Plains", imagePath, genPath, "exe", "assets",
+                    fingerprint, "Plains", imagePath, genPath, profile,
                     out FEMapCreatorTilesetMappingEntry entry, out _));
 
+                // Re-validating the same, unchanged executable/assets root must not itself
+                // manufacture staleness.
+                FEMapCreatorSetupSnapshot currentProfile = FEMapCreatorProfileCore.Validate(profile.ExecutablePath, profile.AssetsRoot);
+
                 FEMapCreatorMappingLookupResult result = FEMapCreatorTilesetMappingStoreCore.Lookup(
-                    new[] { entry }, fingerprint);
+                    new[] { entry }, fingerprint, currentProfile);
 
                 Assert.Equal(FEMapCreatorMappingStatus.Current, result.Status);
                 Assert.Same(entry, result.Entry);
@@ -237,16 +308,17 @@ namespace FEBuilderGBA.Core.Tests
                 string imagePath = CreateFile(tempRoot, "tileset.png", new byte[] { 1, 2, 3, 4 });
                 string genPath = CreateFile(tempRoot, "tileset.json", new byte[] { 5, 6 });
                 var fingerprint = TilesetFingerprint.Compute(8, new byte[] { 1 }, new byte[] { 2 }, new byte[] { 3 });
+                FEMapCreatorSetupSnapshot profile = MakeConfiguredProfile(tempRoot, "");
 
                 Assert.True(FEMapCreatorTilesetMappingStoreCore.TryCreateEntry(
-                    fingerprint, "Plains", imagePath, genPath, "exe", "assets",
+                    fingerprint, "Plains", imagePath, genPath, profile,
                     out FEMapCreatorTilesetMappingEntry entry, out _));
 
                 // Simulate the external tileset image being re-exported/edited after mapping.
                 File.WriteAllBytes(imagePath, new byte[] { 9, 9, 9, 9, 9, 9 });
 
                 FEMapCreatorMappingLookupResult result = FEMapCreatorTilesetMappingStoreCore.Lookup(
-                    new[] { entry }, fingerprint);
+                    new[] { entry }, fingerprint, profile);
 
                 Assert.Equal(FEMapCreatorMappingStatus.Stale, result.Status);
                 Assert.Contains("image", result.Reason, StringComparison.OrdinalIgnoreCase);
@@ -266,18 +338,193 @@ namespace FEBuilderGBA.Core.Tests
                 string imagePath = CreateFile(tempRoot, "tileset.png", new byte[] { 1, 2, 3, 4 });
                 string genPath = CreateFile(tempRoot, "tileset.json", new byte[] { 5, 6 });
                 var fingerprint = TilesetFingerprint.Compute(8, new byte[] { 1 }, new byte[] { 2 }, new byte[] { 3 });
+                FEMapCreatorSetupSnapshot profile = MakeConfiguredProfile(tempRoot, "");
 
                 Assert.True(FEMapCreatorTilesetMappingStoreCore.TryCreateEntry(
-                    fingerprint, "Plains", imagePath, genPath, "exe", "assets",
+                    fingerprint, "Plains", imagePath, genPath, profile,
                     out FEMapCreatorTilesetMappingEntry entry, out _));
 
                 File.Delete(genPath);
 
                 FEMapCreatorMappingLookupResult result = FEMapCreatorTilesetMappingStoreCore.Lookup(
-                    new[] { entry }, fingerprint);
+                    new[] { entry }, fingerprint, profile);
 
                 Assert.Equal(FEMapCreatorMappingStatus.Stale, result.Status);
                 Assert.Contains("generation-data", result.Reason, StringComparison.OrdinalIgnoreCase);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
+        public void Lookup_Stale_WhenExecutablePathChangesAfterMapping()
+        {
+            // #1978 Slice 2 review fix (finding #1): a mapping created against one executable
+            // path must go Stale once a *different* executable is configured, even though the
+            // mapped image/generation-data files on disk are completely unchanged.
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string imagePath = CreateFile(tempRoot, "tileset.png", new byte[] { 1, 2, 3 });
+                string genPath = CreateFile(tempRoot, "tileset.json", new byte[] { 4, 5 });
+                var fingerprint = TilesetFingerprint.Compute(8, new byte[] { 1 }, new byte[] { 2 }, new byte[] { 3 });
+
+                FEMapCreatorSetupSnapshot originalProfile = MakeConfiguredProfile(tempRoot, "", exeFileName: "original.exe");
+                Assert.True(FEMapCreatorTilesetMappingStoreCore.TryCreateEntry(
+                    fingerprint, "Plains", imagePath, genPath, originalProfile,
+                    out FEMapCreatorTilesetMappingEntry entry, out _));
+
+                FEMapCreatorSetupSnapshot differentExeProfile = MakeConfiguredProfile(tempRoot, "", exeFileName: "different.exe");
+
+                FEMapCreatorMappingLookupResult result = FEMapCreatorTilesetMappingStoreCore.Lookup(
+                    new[] { entry }, fingerprint, differentExeProfile);
+
+                Assert.Equal(FEMapCreatorMappingStatus.Stale, result.Status);
+                Assert.Contains("executable", result.Reason, StringComparison.OrdinalIgnoreCase);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
+        public void Lookup_Stale_WhenExecutableContentChangesAtSamePath()
+        {
+            // Same executable path, but its bytes changed (e.g. FEMapCreator was upgraded
+            // in-place) — must still be caught via size/mtime/hash, not just the path string.
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string imagePath = CreateFile(tempRoot, "tileset.png", new byte[] { 1, 2, 3 });
+                string genPath = CreateFile(tempRoot, "tileset.json", new byte[] { 4, 5 });
+                var fingerprint = TilesetFingerprint.Compute(8, new byte[] { 1 }, new byte[] { 2 }, new byte[] { 3 });
+
+                string exePath = CreateFile(tempRoot, "femapcreator.exe", new byte[] { 1, 2, 3, 4, 5 });
+                FEMapCreatorSetupSnapshot profile = FEMapCreatorProfileCore.Validate(exePath, "");
+                Assert.Equal(FEMapCreatorSetupStatus.Configured, profile.Status);
+
+                Assert.True(FEMapCreatorTilesetMappingStoreCore.TryCreateEntry(
+                    fingerprint, "Plains", imagePath, genPath, profile,
+                    out FEMapCreatorTilesetMappingEntry entry, out _));
+
+                // Rewrite the executable's content in place, at the identical path.
+                File.WriteAllBytes(exePath, new byte[] { 9, 9, 9, 9, 9, 9, 9, 9 });
+                FEMapCreatorSetupSnapshot rewrittenProfile = FEMapCreatorProfileCore.Validate(exePath, "");
+                Assert.Equal(FEMapCreatorSetupStatus.Configured, rewrittenProfile.Status);
+
+                FEMapCreatorMappingLookupResult result = FEMapCreatorTilesetMappingStoreCore.Lookup(
+                    new[] { entry }, fingerprint, rewrittenProfile);
+
+                Assert.Equal(FEMapCreatorMappingStatus.Stale, result.Status);
+                Assert.Contains("executable", result.Reason, StringComparison.OrdinalIgnoreCase);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
+        public void Lookup_Stale_WhenAssetsRootChanges()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string imagePath = CreateFile(tempRoot, "tileset.png", new byte[] { 1, 2, 3 });
+                string genPath = CreateFile(tempRoot, "tileset.json", new byte[] { 4, 5 });
+                var fingerprint = TilesetFingerprint.Compute(8, new byte[] { 1 }, new byte[] { 2 }, new byte[] { 3 });
+
+                string assetsRootOne = CreateSubDirectory(tempRoot, "assets1");
+                string assetsRootTwo = CreateSubDirectory(tempRoot, "assets2");
+                string exePath = CreateFile(tempRoot, "femapcreator.exe", new byte[] { 1 });
+                FEMapCreatorSetupSnapshot profileOne = FEMapCreatorProfileCore.Validate(exePath, assetsRootOne);
+                Assert.Equal(FEMapCreatorSetupStatus.Configured, profileOne.Status);
+
+                Assert.True(FEMapCreatorTilesetMappingStoreCore.TryCreateEntry(
+                    fingerprint, "Plains", imagePath, genPath, profileOne,
+                    out FEMapCreatorTilesetMappingEntry entry, out _));
+
+                FEMapCreatorSetupSnapshot profileTwo = FEMapCreatorProfileCore.Validate(exePath, assetsRootTwo);
+                Assert.Equal(FEMapCreatorSetupStatus.Configured, profileTwo.Status);
+
+                FEMapCreatorMappingLookupResult result = FEMapCreatorTilesetMappingStoreCore.Lookup(
+                    new[] { entry }, fingerprint, profileTwo);
+
+                Assert.Equal(FEMapCreatorMappingStatus.Stale, result.Status);
+                Assert.Contains("assets root", result.Reason, StringComparison.OrdinalIgnoreCase);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
+        public void Lookup_Stale_WhenAssetsRootClearedToBlank()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string imagePath = CreateFile(tempRoot, "tileset.png", new byte[] { 1, 2, 3 });
+                string genPath = CreateFile(tempRoot, "tileset.json", new byte[] { 4, 5 });
+                var fingerprint = TilesetFingerprint.Compute(8, new byte[] { 1 }, new byte[] { 2 }, new byte[] { 3 });
+
+                string assetsRoot = CreateSubDirectory(tempRoot, "assets1");
+                string exePath = CreateFile(tempRoot, "femapcreator.exe", new byte[] { 1 });
+                FEMapCreatorSetupSnapshot profileWithAssets = FEMapCreatorProfileCore.Validate(exePath, assetsRoot);
+                Assert.Equal(FEMapCreatorSetupStatus.Configured, profileWithAssets.Status);
+                Assert.NotEqual("", profileWithAssets.AssetsRoot);
+
+                Assert.True(FEMapCreatorTilesetMappingStoreCore.TryCreateEntry(
+                    fingerprint, "Plains", imagePath, genPath, profileWithAssets,
+                    out FEMapCreatorTilesetMappingEntry entry, out _));
+
+                // Blank assets root is a valid configuration by itself, but it is a *different*
+                // identity from the non-blank root recorded at mapping time.
+                FEMapCreatorSetupSnapshot profileCleared = FEMapCreatorProfileCore.Validate(exePath, "");
+                Assert.Equal(FEMapCreatorSetupStatus.Configured, profileCleared.Status);
+                Assert.Equal("", profileCleared.AssetsRoot);
+
+                FEMapCreatorMappingLookupResult result = FEMapCreatorTilesetMappingStoreCore.Lookup(
+                    new[] { entry }, fingerprint, profileCleared);
+
+                Assert.Equal(FEMapCreatorMappingStatus.Stale, result.Status);
+                Assert.Contains("assets root", result.Reason, StringComparison.OrdinalIgnoreCase);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
+        public void Lookup_Stale_WhenCurrentProfileIsNullOrNotConfigured()
+        {
+            // A mapping must never present as Current when there is currently no way to verify
+            // that the recorded executable identity still matches.
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string imagePath = CreateFile(tempRoot, "tileset.png", new byte[] { 1, 2, 3 });
+                string genPath = CreateFile(tempRoot, "tileset.json", new byte[] { 4, 5 });
+                var fingerprint = TilesetFingerprint.Compute(8, new byte[] { 1 }, new byte[] { 2 }, new byte[] { 3 });
+                FEMapCreatorSetupSnapshot profile = MakeConfiguredProfile(tempRoot, "");
+
+                Assert.True(FEMapCreatorTilesetMappingStoreCore.TryCreateEntry(
+                    fingerprint, "Plains", imagePath, genPath, profile,
+                    out FEMapCreatorTilesetMappingEntry entry, out _));
+
+                FEMapCreatorMappingLookupResult resultNull = FEMapCreatorTilesetMappingStoreCore.Lookup(
+                    new[] { entry }, fingerprint, null);
+                Assert.Equal(FEMapCreatorMappingStatus.Stale, resultNull.Status);
+
+                FEMapCreatorSetupSnapshot notConfigured = FEMapCreatorProfileCore.Validate("", "");
+                FEMapCreatorMappingLookupResult resultNotConfigured = FEMapCreatorTilesetMappingStoreCore.Lookup(
+                    new[] { entry }, fingerprint, notConfigured);
+                Assert.Equal(FEMapCreatorMappingStatus.Stale, resultNotConfigured.Status);
             }
             finally
             {
@@ -293,10 +540,11 @@ namespace FEBuilderGBA.Core.Tests
             // never silently reported as Current.
             var fingerprint = TilesetFingerprint.Compute(6, new byte[] { 1 }, new byte[] { 1 }, new byte[] { 1 });
             var malformed = new FEMapCreatorTilesetMappingEntry(
-                fingerprint.Value, "", "img.png", 1, 1, "hash", "gen.json", 1, 1, "hash", "exe", "assets");
+                fingerprint.Value, "", "img.png", 1, 1, "hash", "gen.json", 1, 1, "hash",
+                "exe", 1, 1, "exehash", "assets");
 
             FEMapCreatorMappingLookupResult result = FEMapCreatorTilesetMappingStoreCore.Lookup(
-                new[] { malformed }, fingerprint);
+                new[] { malformed }, fingerprint, null);
 
             Assert.Equal(FEMapCreatorMappingStatus.Invalid, result.Status);
         }
@@ -311,20 +559,21 @@ namespace FEBuilderGBA.Core.Tests
                 string genPathA = CreateFile(tempRoot, "a.json", new byte[] { 2 });
                 string imagePathB = CreateFile(tempRoot, "b.png", new byte[] { 3 });
                 string genPathB = CreateFile(tempRoot, "b.json", new byte[] { 4 });
+                FEMapCreatorSetupSnapshot profile = MakeConfiguredProfile(tempRoot, "assets");
 
                 var fingerprintA = TilesetFingerprint.Compute(6, new byte[] { 1 }, new byte[] { 1 }, new byte[] { 1 });
                 var fingerprintB = TilesetFingerprint.Compute(8, new byte[] { 2 }, new byte[] { 2 }, new byte[] { 2 });
                 Assert.NotEqual(fingerprintA, fingerprintB);
 
                 Assert.True(FEMapCreatorTilesetMappingStoreCore.TryCreateEntry(
-                    fingerprintA, "TilesetA", imagePathA, genPathA, "exe", "assets", out var entryA, out _));
+                    fingerprintA, "TilesetA", imagePathA, genPathA, profile, out var entryA, out _));
                 Assert.True(FEMapCreatorTilesetMappingStoreCore.TryCreateEntry(
-                    fingerprintB, "TilesetB", imagePathB, genPathB, "exe", "assets", out var entryB, out _));
+                    fingerprintB, "TilesetB", imagePathB, genPathB, profile, out var entryB, out _));
 
                 var mappings = new[] { entryA, entryB };
 
-                FEMapCreatorMappingLookupResult resultA = FEMapCreatorTilesetMappingStoreCore.Lookup(mappings, fingerprintA);
-                FEMapCreatorMappingLookupResult resultB = FEMapCreatorTilesetMappingStoreCore.Lookup(mappings, fingerprintB);
+                FEMapCreatorMappingLookupResult resultA = FEMapCreatorTilesetMappingStoreCore.Lookup(mappings, fingerprintA, profile);
+                FEMapCreatorMappingLookupResult resultB = FEMapCreatorTilesetMappingStoreCore.Lookup(mappings, fingerprintB, profile);
 
                 Assert.Equal(FEMapCreatorMappingStatus.Current, resultA.Status);
                 Assert.Equal("TilesetA", resultA.Entry.TilesetName);
@@ -360,11 +609,32 @@ namespace FEBuilderGBA.Core.Tests
                 fingerprintValue, tilesetName,
                 "image.png", 10, 100, "imagehash",
                 "gen.json", 20, 200, "genhash",
-                "exe.path", "assets.root");
+                "exe.path", 30, 300, "exehash",
+                "assets.root");
+
+        /// <summary>Create and validate a real, currently-Configured FEMapCreator profile inside <paramref name="tempRoot"/>.</summary>
+        static FEMapCreatorSetupSnapshot MakeConfiguredProfile(string tempRoot, string assetsRoot, string exeFileName = "femapcreator.exe")
+        {
+            string exePath = CreateFile(tempRoot, exeFileName, new byte[] { 0x4D, 0x5A, 1, 2, 3 });
+            string normalizedAssetsRoot = "";
+            if (!string.IsNullOrWhiteSpace(assetsRoot))
+                normalizedAssetsRoot = CreateSubDirectory(tempRoot, assetsRoot);
+
+            FEMapCreatorSetupSnapshot profile = FEMapCreatorProfileCore.Validate(exePath, normalizedAssetsRoot);
+            Assert.Equal(FEMapCreatorSetupStatus.Configured, profile.Status);
+            return profile;
+        }
 
         static string CreateTempDirectory()
         {
             string path = Path.Combine(Path.GetTempPath(), "femapcreator_mapping_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(path);
+            return path;
+        }
+
+        static string CreateSubDirectory(string parent, string name)
+        {
+            string path = Path.Combine(parent, name);
             Directory.CreateDirectory(path);
             return path;
         }
