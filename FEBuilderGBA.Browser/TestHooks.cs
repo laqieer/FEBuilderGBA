@@ -224,7 +224,9 @@ public static partial class TestHooks
                 var metrics = new
                 {
                     title = host.CurrentTitle ?? "",
-                    upperExtentHeight = upperScroller!.Extent.Height,
+                    upperExtentWidth = upperScroller!.Extent.Width,
+                    upperViewportWidth = upperScroller.Viewport.Width,
+                    upperExtentHeight = upperScroller.Extent.Height,
                     upperViewportHeight = upperScroller.Viewport.Height,
                     mapCanvasWidth = mapCanvas!.Bounds.Width,
                     mapCanvasHeight = mapCanvas.Bounds.Height,

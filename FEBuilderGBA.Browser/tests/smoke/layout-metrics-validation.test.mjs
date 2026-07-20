@@ -36,6 +36,8 @@ for (const c of [...CASES, ...missingKeyCases(REQUIRED_METRIC_KEYS)]) {
 test('accepted metrics expose the expected field values (VALID_METRICS shape)', () => {
   const { metrics, errors } = validateMapEditorLayoutMetrics(JSON.stringify({
     title: 'Visual Map Editor',
+    upperExtentWidth: 910,
+    upperViewportWidth: 342,
     upperExtentHeight: 613,
     upperViewportHeight: 189,
     mapCanvasWidth: 326,

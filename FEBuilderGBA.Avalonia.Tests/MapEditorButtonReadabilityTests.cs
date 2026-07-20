@@ -326,6 +326,69 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
         }
 
+        // Actual compact browser smoke viewport (600x500, per FEBuilderGBA.Browser/tests/smoke/smoke.mjs
+        // SMOKE_VIEWPORT_WIDTH/HEIGHT defaults) — distinct from the wide EditorWidth=1200 used by the
+        // height-only compact tests above. At this genuinely narrow width the upper controls toolbar rows
+        // overflow horizontally (measured natural extent ~910px vs a 342px viewport), which the pre-existing
+        // 1200-wide compact tests could never exercise. This proves the horizontal axis of
+        // MapUpperControlsScroller's independent Auto scroll — not just the vertical axis — while the
+        // pinned MapCanvasPanel stays unaffected and usable.
+        private const double CompactBrowserWidth = 600;
+        private const double CompactBrowserHeight = 500;
+
+        [AvaloniaFact]
+        public void CompactWidth600_UpperControlsOverflowHorizontallyAndScroll_MapCanvasStaysPinnedAndUsable()
+        {
+            var view = new MapEditorView();
+            view.Show();
+            try
+            {
+                var map = Required<GbaImageControl>(view, "MapImageControl");
+                map.SetRgbaData(MakeSyntheticMapRgba(SyntheticMapSize, SyntheticMapSize), SyntheticMapSize, SyntheticMapSize);
+                ArrangeAt(view, CompactBrowserWidth, CompactBrowserHeight);
+
+                var upperScroller = Required<ScrollViewer>(view, "MapUpperControlsScroller");
+                var mapCanvas = Required<Border>(view, "MapCanvasPanel");
+
+                // Genuine horizontal overflow at the real 600px compact width — not a synthetic prop.
+                Assert.True(upperScroller.Extent.Width > upperScroller.Viewport.Width,
+                    $"Expected upper controls to overflow horizontally at {CompactBrowserWidth}px width " +
+                    $"(Extent.Width={upperScroller.Extent.Width:F1} should exceed Viewport.Width={upperScroller.Viewport.Width:F1}).");
+
+                double horizontalScrollRange = upperScroller.Extent.Width - upperScroller.Viewport.Width;
+                Assert.True(horizontalScrollRange > 0,
+                    $"Expected a positive horizontal scroll range at {CompactBrowserWidth}px width (was {horizontalScrollRange:F1}).");
+
+                var mapCanvasBoundsBefore = mapCanvas.Bounds;
+                Assert.True(mapCanvasBoundsBefore.Height >= MinimumUsableMapHeight,
+                    $"Expected MapCanvasPanel height >= {MinimumUsableMapHeight} at {CompactBrowserWidth}px width (was {mapCanvasBoundsBefore.Height:F1}).");
+
+                // Preserve independent vertical scroll behavior at this same narrow width (the axis the
+                // pre-existing 1200-wide compact tests already cover) — the two axes must not interfere.
+                Assert.True(upperScroller.Extent.Height > upperScroller.Viewport.Height,
+                    $"Expected upper controls to also overflow vertically at {CompactBrowserHeight}px height " +
+                    $"(Extent.Height={upperScroller.Extent.Height:F1} should exceed Viewport.Height={upperScroller.Viewport.Height:F1}).");
+
+                // Scroll the upper controls horizontally to the end of the range and confirm it actually moved.
+                upperScroller.Offset = new Vector(horizontalScrollRange, upperScroller.Offset.Y);
+                view.UpdateLayout();
+
+                Assert.True(upperScroller.Offset.X > 0,
+                    $"Expected MapUpperControlsScroller.Offset.X to move off zero after a horizontal scroll (was {upperScroller.Offset.X:F1}).");
+
+                var mapCanvasBoundsAfter = mapCanvas.Bounds;
+                Assert.Equal(mapCanvasBoundsBefore.Width, mapCanvasBoundsAfter.Width);
+                Assert.Equal(mapCanvasBoundsBefore.Height, mapCanvasBoundsAfter.Height);
+                Assert.Equal(mapCanvasBoundsBefore.Y, mapCanvasBoundsAfter.Y);
+                Assert.True(mapCanvasBoundsAfter.Height >= MinimumUsableMapHeight,
+                    $"Expected MapCanvasPanel to remain usable (height >= {MinimumUsableMapHeight}) after scrolling the upper controls horizontally (was {mapCanvasBoundsAfter.Height:F1}).");
+            }
+            finally
+            {
+                view.Close();
+            }
+        }
+
         [AvaloniaTheory]
         [InlineData(800, 240, 80, 560)]   // ample room: budget (800-240=560) exceeds the controls floor.
         [InlineData(320, 240, 80, 80)]    // exact floor boundary: budget == controlsMin.

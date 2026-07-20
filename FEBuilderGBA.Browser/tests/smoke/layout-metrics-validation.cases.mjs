@@ -13,6 +13,8 @@
 
 export const VALID_METRICS = {
   title: 'Visual Map Editor',
+  upperExtentWidth: 910,
+  upperViewportWidth: 342,
   upperExtentHeight: 613,
   upperViewportHeight: 189,
   mapCanvasWidth: 326,

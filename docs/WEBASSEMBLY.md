@@ -180,8 +180,11 @@ ignores the per-reference `AdditionalProperties`, else `NETSDK1005` (same mechan
     (`OpenEditor('MapEditor')`), logs `devicePixelRatio` / `visualViewport.scale`, and calls the
     E2E-only `MapEditorLayoutMetrics(injectSyntheticMapPixels)` hook to assert the split-scroller
     layout: the map canvas stays ≥240px tall at any viewport, and its upper info/toolbar/palette
-    scroller overflows at compact heights (asserted universally — any realistic content overflows a
-    ~189px viewport). The desktop "upper controls fit without scrolling" expectation and the
+    scroller overflows at compact viewports on **both axes** — vertically (asserted universally;
+    any realistic content overflows a ~189px viewport height) and, since the #1998 horizontal-scroll
+    follow-up, horizontally too (asserted universally at the 600×500 compact viewport, for both
+    synthetic and real ROMs, via `upperExtentWidth`/`upperViewportWidth`; a real FE8U ROM measured
+    ~548px of upper-controls content against a ~342px viewport width). The desktop "upper controls fit without scrolling" expectation and the
     both-axis (width AND height) inner-canvas-overflow expectation are hard-asserted **only** when
     `SMOKE_ROM=synthetic`, whose fixture map is deliberately oversized (~2200×1200) to guarantee
     both; for a **real** ROM the same metrics are logged instead of hard-asserted, since a real

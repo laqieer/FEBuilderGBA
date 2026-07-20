@@ -495,6 +495,18 @@ async function runViewport(browser, vp, url) {
             } else {
               console.log(`[smoke] ${tag} Map Editor compact-viewport upper-controls overflow confirmed (#1998).`);
             }
+            // #1998 follow-up (horizontal axis): the pre-existing coverage above only proved the
+            // upper controls scroller overflows/scrolls VERTICALLY. At the actual 600px-wide compact
+            // smoke viewport the toolbar/info rows are also demonstrably wider than the viewport
+            // (measured ~910px content vs a ~342px viewport), so this axis is hard-asserted for
+            // BOTH synthetic and real-ROM runs — unlike the height axis above, toolbar/button
+            // layout width does not depend on which ROM/chapter data is loaded.
+            if (!(metrics.upperExtentWidth > metrics.upperViewportWidth + 0.5)) {
+              failures.push(`${tag} compact viewport expected the Map Editor's upper controls to overflow and scroll ` +
+                `horizontally (ExtentWidth=${metrics.upperExtentWidth}, ViewportWidth=${metrics.upperViewportWidth})`);
+            } else {
+              console.log(`[smoke] ${tag} Map Editor compact-viewport upper-controls horizontal overflow confirmed (#1998 follow-up).`);
+            }
           } else if (IS_SYNTHETIC_ROM) {
             // The desktop "must fit without scrolling" direction is data-dependent: a real ROM's
             // populated palette/terrain lists can genuinely need MORE upper-region height than a

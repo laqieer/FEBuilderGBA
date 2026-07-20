@@ -18,7 +18,10 @@ can — this test does.
 3. When `SMOKE_ROM` is set, the real wasm runtime loads a ROM, invokes the production launcher
    command for "Move Cost Editor", verifies the current single-view editor title, then opens the
    Visual Map Editor (#1998) and asserts its compact/desktop split-scroller layout at the run's
-   viewport.
+   viewport — at the compact 600×500 viewport this covers **both axes** of the upper controls
+   scroller (`upperExtentHeight`/`upperViewportHeight` and, since the #1998 horizontal-scroll
+   follow-up, `upperExtentWidth`/`upperViewportWidth`), for both the synthetic and a real ROM,
+   while the pinned map canvas stays usable.
 
 It always writes a screenshot for proof / debugging — see "Viewport coverage and screenshots" below
 for exactly which run owns which filename.
@@ -56,7 +59,16 @@ sidecar filename derived from `SMOKE_SCREENSHOT`, e.g. `web-editor-nav-smoke.com
 exist purely for local/manual inspection; only `SMOKE_SCREENSHOT` and its `.before.png` are uploaded
 by the workflow.
 
-The **main** pair (`SMOKE_SCREENSHOT` / its sidecar equivalent, and its `.before.png`) are always
+**This ownership description applies only when `SMOKE_ROM` is set** (the editor-nav/ROM smoke path,
+which loads a fixture and opens the Move Cost / Map Editors). A **boot-only** run (`SMOKE_ROM`
+unset — no editor ever opens) never has a "before navigating to an editor" state to distinguish, so
+it writes a single full-viewport screenshot to `mainPath` only and produces **no `.before.png`** at
+all; see `.github/workflows/pages.yml`'s boot-smoke invocation, which uploads only the main
+`web-boot-smoke.png` (plus its compact-matrix sidecar, per the naming above) — never a
+`web-boot-smoke.before.png`.
+
+The **main** pair (`SMOKE_SCREENSHOT` / its sidecar equivalent, and its `.before.png` when the run
+has one — see above) are always
 full-viewport captures with **no content clip**, at device-pixel-ratio 1 — so they are exactly
 `width`×`height` pixels. The `.before.png` is taken right after boot, before any editor opens; the
 main screenshot is taken **last**, after opening the Visual Map Editor, so it proves the Map

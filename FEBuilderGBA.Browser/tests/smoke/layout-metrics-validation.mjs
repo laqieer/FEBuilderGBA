@@ -14,6 +14,8 @@
 // built-in `node:test` + `node:assert/strict`.
 
 export const REQUIRED_METRIC_KEYS = [
+  'upperExtentWidth',
+  'upperViewportWidth',
   'upperExtentHeight',
   'upperViewportHeight',
   'mapCanvasWidth',
