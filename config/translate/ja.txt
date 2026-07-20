@@ -14415,3 +14415,30 @@ FEMapCreator アセット ディレクトリを選択
 
 :Generated map was rolled back, but refreshing the editor failed: {0}
 生成したマップはロールバックされましたが、エディターの再読み込みに失敗しました: {0}
+
+:FEMapCreator (Optional, External Tool)
+FEMapCreator (任意の外部ツール)
+
+:FEMapCreator is an independent utility credited to bwdyeti; FEBuilderGBA does not bundle, host, license, or guarantee it.
+FEMapCreator は bwdyeti 氏によって作成された独立したユーティリティです。FEBuilderGBA はこれをバンドル、ホスト、ライセンス供与、または保証するものではありません。
+
+:Executable Path
+実行ファイルのパス
+
+:Assets Root (optional)
+アセット ルート (任意)
+
+:Clear
+クリア
+
+:Not configured (optional).
+未設定です (任意)。
+
+:Configured.
+設定済みです。
+
+:Invalid
+無効
+
+:unknown error
+不明なエラー

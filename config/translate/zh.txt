@@ -28236,3 +28236,30 @@ FEMapCreator 未报告任何兼容的图块集。
 
 :Generated map was rolled back, but refreshing the editor failed: {0}
 已回滚生成的地图，但刷新编辑器失败: {0}
+
+:FEMapCreator (Optional, External Tool)
+FEMapCreator（可选外部工具）
+
+:FEMapCreator is an independent utility credited to bwdyeti; FEBuilderGBA does not bundle, host, license, or guarantee it.
+FEMapCreator 是由 bwdyeti 创建的独立实用工具；FEBuilderGBA 不捆绑、托管、许可或保证其可用性。
+
+:Executable Path
+可执行文件路径
+
+:Assets Root (optional)
+资源根目录（可选）
+
+:Clear
+清除
+
+:Not configured (optional).
+未配置（可选）。
+
+:Configured.
+已配置。
+
+:Invalid
+无效
+
+:unknown error
+未知错误

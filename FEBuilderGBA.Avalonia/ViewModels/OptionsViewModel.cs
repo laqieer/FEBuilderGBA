@@ -48,6 +48,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string _submoduleFERepoUrl = "";
         string _submoduleFERepoMusicUrl = "";
 
+        // FEMapCreator (external random-map-generation tool) setup — #1978 Slice 2.
+        // Optional/empty by default: opening Options never assumes the tool is installed and
+        // never probes the filesystem beyond what Validate() below does on demand for display.
+        string _femapCreatorPath = "";
+        string _femapCreatorAssetsRoot = "";
+
         /// <summary>Current language selection entry (e.g. "en — English").</summary>
         public string Language
         {
@@ -126,6 +132,45 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public string SubmoduleFERepoUrl { get => _submoduleFERepoUrl; set => SetField(ref _submoduleFERepoUrl, value); }
         public string SubmoduleFERepoMusicUrl { get => _submoduleFERepoMusicUrl; set => SetField(ref _submoduleFERepoMusicUrl, value); }
 
+        // ---- FEMapCreator (external random-map-generation tool) setup ----
+        // #1978 Slice 2: durable configuration only. No auto-download/install/PATH-search, and
+        // no per-tileset mapping editing lives here (that stays in the Map Editor for Slice 3).
+
+        /// <summary>Absolute path to the external FEMapCreator executable (empty = not configured).</summary>
+        public string FEMapCreatorPath { get => _femapCreatorPath; set => SetField(ref _femapCreatorPath, value); }
+
+        /// <summary>Optional absolute path to an external FEMapCreator assets root (empty is valid).</summary>
+        public string FEMapCreatorAssetsRoot { get => _femapCreatorAssetsRoot; set => SetField(ref _femapCreatorAssetsRoot, value); }
+
+        /// <summary>
+        /// Re-validates the current (possibly unsaved) FEMapCreator path/assets-root values on
+        /// demand. Pure/read-only — only stats the filesystem, never launches a process or
+        /// touches the network. Callers (the Options view) use this to render a live status line
+        /// as the user edits the fields, without requiring a ROM to be loaded.
+        /// </summary>
+        public FEMapCreatorSetupSnapshot GetFEMapCreatorSetupSnapshot()
+        {
+            return FEMapCreatorProfileCore.Validate(FEMapCreatorPath, FEMapCreatorAssetsRoot);
+        }
+
+        /// <summary>
+        /// Human-readable, localized summary of <see cref="GetFEMapCreatorSetupSnapshot"/> for
+        /// display in the Options view.
+        /// </summary>
+        public string GetFEMapCreatorStatusText()
+        {
+            FEMapCreatorSetupSnapshot snapshot = GetFEMapCreatorSetupSnapshot();
+            switch (snapshot.Status)
+            {
+                case FEMapCreatorSetupStatus.NotConfigured:
+                    return R._("Not configured (optional).");
+                case FEMapCreatorSetupStatus.Configured:
+                    return R._("Configured.");
+                default:
+                    return R._("Invalid") + ": " + (snapshot.ErrorMessage ?? R._("unknown error"));
+            }
+        }
+
         /// <summary>Load settings from CoreState and Config.</summary>
         public void Load()
         {
@@ -183,6 +228,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     SubmodulePatch2Url = cfg.at("submodule_patch2_url", "");
                     SubmoduleFERepoUrl = cfg.at("submodule_fe_repo_url", "");
                     SubmoduleFERepoMusicUrl = cfg.at("submodule_fe_repo_music_url", "");
+
+                    // FEMapCreator setup (#1978 Slice 2) — read-only value load, no validation
+                    // side effects (no filesystem probing beyond what GetFEMapCreatorSetupSnapshot
+                    // does on-demand for display, no process launch, no network).
+                    FEMapCreatorPath = cfg.at(FEMapCreatorProfileCore.ExecutablePathConfigKey, "");
+                    FEMapCreatorAssetsRoot = cfg.at(FEMapCreatorProfileCore.AssetsRootConfigKey, "");
                 }
             }
             finally
@@ -267,6 +318,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 cfg["submodule_patch2_url"] = SubmodulePatch2Url ?? "";
                 cfg["submodule_fe_repo_url"] = SubmoduleFERepoUrl ?? "";
                 cfg["submodule_fe_repo_music_url"] = SubmoduleFERepoMusicUrl ?? "";
+
+                // FEMapCreator setup (#1978 Slice 2) — persisted verbatim; validation happens on
+                // read/display only, never blocks or mutates Save().
+                cfg[FEMapCreatorProfileCore.ExecutablePathConfigKey] = FEMapCreatorPath ?? "";
+                cfg[FEMapCreatorProfileCore.AssetsRootConfigKey] = FEMapCreatorAssetsRoot ?? "";
 
                 cfg.Save();
 

@@ -77,6 +77,22 @@ namespace FEBuilderGBA.Avalonia.Views
             FeclibTextBox.Text = _vm.Feclib;
             SrccodeTexteditorTextBox.Text = _vm.SrccodeTexteditor;
             SrccodeDirectoryTextBox.Text = _vm.SrccodeDirectory;
+
+            // FEMapCreator setup (#1978 Slice 2)
+            FEMapCreatorPathTextBox.Text = _vm.FEMapCreatorPath;
+            FEMapCreatorAssetsRootTextBox.Text = _vm.FEMapCreatorAssetsRoot;
+            RefreshFEMapCreatorStatus();
+        }
+
+        /// <summary>
+        /// Re-validates the (possibly unsaved) FEMapCreator path/assets-root textbox values and
+        /// updates the status line. Read-only — never launches a process or touches the network.
+        /// </summary>
+        void RefreshFEMapCreatorStatus()
+        {
+            _vm.FEMapCreatorPath = FEMapCreatorPathTextBox.Text ?? "";
+            _vm.FEMapCreatorAssetsRoot = FEMapCreatorAssetsRootTextBox.Text ?? "";
+            FEMapCreatorStatusText.Text = _vm.GetFEMapCreatorStatusText();
         }
 
         async void BrowseFile_Click(object? sender, RoutedEventArgs e)
@@ -108,6 +124,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     target.Text = path;
                 else
                     CoreState.Services?.ShowInfo(R._("This setting configures an external tool path and requires desktop file-system access; it is not available on this device."));
+                RefreshFEMapCreatorStatus();
             }
         }
 
@@ -135,7 +152,15 @@ namespace FEBuilderGBA.Avalonia.Views
                     target.Text = path;
                 else
                     CoreState.Services?.ShowInfo(R._("This setting configures an external tool directory and requires desktop file-system access; it is not available on this device."));
+                RefreshFEMapCreatorStatus();
             }
+        }
+
+        /// <summary>Clears the optional FEMapCreator assets-root field (empty is a valid, supported state).</summary>
+        void ClearFEMapCreatorAssetsRoot_Click(object? sender, RoutedEventArgs e)
+        {
+            FEMapCreatorAssetsRootTextBox.Text = "";
+            RefreshFEMapCreatorStatus();
         }
 
         void OkButton_Click(object? sender, RoutedEventArgs e)
@@ -173,6 +198,10 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.Feclib = FeclibTextBox.Text ?? "";
             _vm.SrccodeTexteditor = SrccodeTexteditorTextBox.Text ?? "";
             _vm.SrccodeDirectory = SrccodeDirectoryTextBox.Text ?? "";
+
+            // FEMapCreator setup (#1978 Slice 2)
+            _vm.FEMapCreatorPath = FEMapCreatorPathTextBox.Text ?? "";
+            _vm.FEMapCreatorAssetsRoot = FEMapCreatorAssetsRootTextBox.Text ?? "";
 
             string newLangCode = OptionsViewModel.ExtractLanguageCode(_vm.Language);
             bool languageChanged = !string.Equals(_originalLanguageCode, newLangCode, StringComparison.Ordinal);
