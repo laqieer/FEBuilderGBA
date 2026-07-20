@@ -670,14 +670,22 @@ console.log(`[smoke] serving ${ROOT} at ${url} (boot timeout ${BOOT_TIMEOUT_MS} 
 console.log(`[smoke] viewport plan: ${VIEWPORT_PLAN.map((v) => `${v.width}x${v.height}(${v.tag})`).join(', ')}`);
 
 const allFailures = [];
-const browser = await chromium.launch({ args: ['--no-sandbox'] });
+// `chromium.launch()` itself must be INSIDE the protected region: if launch() throws (e.g. no
+// browser binary installed), the already-listening HTTP server from line ~666 above must still be
+// closed — the accepted plan requires the server always closes, in every failure path, not just
+// once a Browser handle exists. `browser` starts undefined and is only awaited/closed if launch()
+// actually produced one.
+let browser;
 try {
+  browser = await chromium.launch({ args: ['--no-sandbox'] });
   for (const vp of VIEWPORT_PLAN) {
     const runFailures = await runViewport(browser, vp, url);
     allFailures.push(...runFailures);
   }
 } finally {
-  await browser.close().catch(() => {});
+  if (browser) {
+    await browser.close().catch(() => {});
+  }
   await new Promise((resolve) => server.close(resolve));
 }
 

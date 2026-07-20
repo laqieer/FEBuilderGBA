@@ -109,7 +109,7 @@ control is missing), synthetic injection was requested but `MapImageControl` is 
 compute result, or a caught exception — returns a bounded JSON `error` string instead. `smoke.mjs`
 treats the OWN-property **presence** of an `error` key as a hard failure regardless of its
 type/value (`''`, `null`, a number, or an object all reject — not only a non-empty string), plus
-non-object/array JSON, an unexpected title, or any of the 8 required numeric metrics being
+non-object/array JSON, an unexpected title, or any of the 10 required numeric metrics being
 missing/non-finite/negative (shared `layout-metrics-validation.mjs` gate, using `Object.hasOwn` so
 metrics can never carry an `error` key of any shape), for both synthetic and real-ROM runs — a
 probe/runtime failure can never be silently logged as "nothing to assert" and exit `0`. The smoke
