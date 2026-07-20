@@ -186,11 +186,15 @@ ignores the per-reference `AdditionalProperties`, else `NETSDK1005` (same mechan
     viewport such as 1920×500) — vertically, gated purely by viewport **height** below the
     internal `700`px threshold (asserted universally; any realistic content overflows a ~189px
     viewport height, regardless of width) and, since the #1998 horizontal-scroll follow-up,
-    horizontally, gated purely by viewport **width** below an internal `1200`px threshold (the
-    documented desktop layout width) independent of height — asserted universally for both
-    synthetic and real ROMs, via `upperExtentWidth`/`upperViewportWidth`; a real FE8U ROM measured
-    ~548px of upper-controls content against a ~342px viewport width at 600×500, and ~1662px
-    (fitting exactly) at both 1920×852 and an explicit 1920×500. A narrow-but-tall explicit
+    horizontally, gated purely by viewport **width** below an internal `700`px threshold
+    (empirically measured, PR #2000 head `123b3c782` review: at 500px height, overflow holds at
+    600px width for both synthetic and real-ROM content — 458/342 and 548/342 — but stops being a
+    reliable margin by 700-800px width, where content naturally grows to fill the available space
+    and eventually fits without scrolling; 700 is the highest width still safely below that
+    crossover, and 700px+ — including 1920×852/1920×500 and any other wide explicit viewport such
+    as 1000×500 — is logged only, never hard-required to overflow) independent of height —
+    asserted universally for both synthetic and real ROMs, via `upperExtentWidth`/`upperViewportWidth`.
+    A narrow-but-tall explicit
     viewport (e.g. 600×852) is still asserted to overflow horizontally even though it is not
     compact by height, and a wide-but-short explicit viewport (e.g. 1920×500) is still asserted to
     overflow vertically without any (false) horizontal-overflow requirement. The desktop "upper controls fit without scrolling" expectation and the
@@ -200,6 +204,10 @@ ignores the per-reference `AdditionalProperties`, else `NETSDK1005` (same mechan
     chapter's on-screen map size and populated-palette content height are ROM-data-dependent (a
     real FE8U chapter has been observed needing more upper-region height than the 1920×852
     viewport provides, correctly falling back to scrolling rather than indicating a layout bug).
+    The pre-navigation and stale-authorization live regressions below assert the SPECIFIC
+    TestHooks.cs `error` text for the condition under test (`parseHookError`), not merely that some
+    rejection occurred, so an unrelated validator rejection can never be mistaken for proof of the
+    intended fail-closed branch (#1998 follow-up, review on PR #2000 head `123b3c782`).
     `injectSyntheticMapPixels` is opt-in and only honored when the currently-loaded ROM was itself
     loaded via `LoadRomBase64(..., isSynthetic: true)`; requesting synthetic injection against a
     real ROM load is rejected with a JSON `error` field rather than silently overwriting the real

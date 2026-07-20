@@ -19,10 +19,14 @@ can — this test does.
    command for "Move Cost Editor", verifies the current single-view editor title, then opens the
    Visual Map Editor (#1998) and asserts its compact/desktop split-scroller layout at the run's
    viewport — the vertical (upper-controls-scroll) axis is gated purely by viewport **height**
-   below an internal `700`px threshold, and the horizontal axis purely by viewport **width** below
-   an internal `1200`px threshold, independently of each other (#1998 follow-up, OpenAI review on
-   PR #2000 head `d8413c4af`: a single height-gate previously coupled both axes, which would
-   false-fail a valid wide-but-short explicit viewport such as 1920×500). At the default compact
+   below an internal `700`px threshold, and the horizontal axis purely by viewport **width**
+   below an internal `700`px threshold (empirically measured: overflow is confirmed at 600px width
+   for both synthetic and real-ROM content, but stops being reliable by 700-800px, so the assertion
+   only hard-requires overflow strictly below 700px and only logs — never hard-asserts either way —
+   at 700px and above, including the 1920px acceptance width and any other wide explicit viewport),
+   independently of each other (#1998 follow-up, OpenAI review on PR #2000 head `d8413c4af`: a
+   single height-gate previously coupled both axes, which would false-fail a valid wide-but-short
+   explicit viewport such as 1920×500). At the default compact
    600×500 viewport both axes are naturally overflowing and both are asserted
    (`upperExtentHeight`/`upperViewportHeight` and `upperExtentWidth`/`upperViewportWidth`), for
    both the synthetic and a real ROM, while the pinned map canvas stays usable. An explicit
@@ -114,7 +118,14 @@ missing/non-finite/negative (shared `layout-metrics-validation.mjs` gate, using 
 metrics can never carry an `error` key of any shape), for both synthetic and real-ROM runs — a
 probe/runtime failure can never be silently logged as "nothing to assert" and exit `0`. The smoke
 script also calls the hook once before any editor is open and asserts it fails closed, proving the
-C# contract against the live app rather than only checking source text.
+C# contract against the live app rather than only checking source text. This pre-navigation probe
+(and the stale-authorization probe below) go one step further than "any rejection happened": each
+parses the returned `error` value (`parseHookError`) and requires it to match the SPECIFIC
+TestHooks.cs error text for the exact condition under test (e.g. "no active navigation host/content"
+or "required control(s) not found" pre-navigation; "requested against a non-synthetic ROM load"
+post-reload) — an unrelated validator rejection (malformed JSON, missing metric keys, etc.) can
+never be mistaken for proof of that specific fail-closed branch (#1998 follow-up, review on PR #2000
+head `123b3c782`).
 
 ### Synthetic authorization is revoked before every load attempt
 

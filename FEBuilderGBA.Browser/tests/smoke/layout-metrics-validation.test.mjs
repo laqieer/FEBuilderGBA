@@ -13,7 +13,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateMapEditorLayoutMetrics, bounded, REQUIRED_METRIC_KEYS } from './layout-metrics-validation.mjs';
+import { validateMapEditorLayoutMetrics, bounded, parseHookError, REQUIRED_METRIC_KEYS } from './layout-metrics-validation.mjs';
 import { CASES, missingKeyCases } from './layout-metrics-validation.cases.mjs';
 
 for (const c of [...CASES, ...missingKeyCases(REQUIRED_METRIC_KEYS)]) {
@@ -59,4 +59,31 @@ test('bounded() truncates long diagnostic strings and leaves short ones untouche
   const result = bounded(long, 50);
   assert.ok(result.length < long.length);
   assert.ok(result.includes('truncated'));
+});
+
+// #1998 follow-up (review): parseHookError() lets smoke.mjs's live regressions assert the SPECIFIC
+// TestHooks.cs error text was returned, not merely that "the JS validator rejected something".
+test('parseHookError() extracts the own `error` property from a hook error payload', () => {
+  const raw = JSON.stringify({ error: 'MapEditorLayoutMetrics: no active navigation host/content — no editor is open.' });
+  assert.equal(parseHookError(raw), 'MapEditorLayoutMetrics: no active navigation host/content — no editor is open.');
+});
+
+test('parseHookError() stringifies a non-string `error` value (still an own property)', () => {
+  assert.equal(parseHookError(JSON.stringify({ error: 0 })), '0');
+  assert.equal(parseHookError(JSON.stringify({ error: null })), 'null');
+});
+
+test('parseHookError() returns null for a payload with no `error` property (e.g. valid metrics)', () => {
+  assert.equal(parseHookError(JSON.stringify({ title: 'Visual Map Editor', mapCanvasHeight: 240 })), null);
+});
+
+test('parseHookError() returns null for `{}` (the reviewed false-pass payload)', () => {
+  assert.equal(parseHookError('{}'), null);
+});
+
+test('parseHookError() returns null for non-JSON and non-object payloads', () => {
+  assert.equal(parseHookError('not json'), null);
+  assert.equal(parseHookError('null'), null);
+  assert.equal(parseHookError('[1,2,3]'), null);
+  assert.equal(parseHookError('"a string"'), null);
 });

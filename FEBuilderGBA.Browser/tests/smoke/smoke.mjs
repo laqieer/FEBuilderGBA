@@ -60,7 +60,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright';
-import { validateMapEditorLayoutMetrics, bounded, REQUIRED_METRIC_KEYS } from './layout-metrics-validation.mjs';
+import { validateMapEditorLayoutMetrics, bounded, parseHookError, REQUIRED_METRIC_KEYS } from './layout-metrics-validation.mjs';
 import { CASES, missingKeyCases } from './layout-metrics-validation.cases.mjs';
 import { parseViewportOverride } from './viewport-override.mjs';
 import { CASES as VIEWPORT_CASES } from './viewport-override.cases.mjs';
@@ -161,15 +161,27 @@ const ROOT = path.resolve(WWWROOT);
 // compact for the vertical axis without also being forced into the horizontal-overflow path).
 const MAP_EDITOR_COMPACT_HEIGHT_THRESHOLD = 700;
 // Below this viewport WIDTH, the Map Editor's upper controls are expected to overflow and scroll
-// HORIZONTALLY; at/above it, the toolbar/info rows are expected to fit without horizontal
-// scrolling. 1200 is the documented desktop layout width the accepted #1998 plan requires this
-// change to preserve ("desktop 1200x800 layout", see CLAUDE.md and
-// MapEditorButtonReadabilityTests.EditorWidth) — narrower than the app's own natural desktop
-// width is the supported compact/mobile width path; the 1920px acceptance width (and any other
-// explicit viewport at least as wide as the natural desktop layout, e.g. 1920x500) sits above it
-// and is expected to fit without horizontal scrolling. This gate is WIDTH-ONLY and fully
-// independent of MAP_EDITOR_COMPACT_HEIGHT_THRESHOLD above.
-const MAP_EDITOR_COMPACT_WIDTH_THRESHOLD = 1200;
+// HORIZONTALLY; at/above it, overflow is only logged, never hard-asserted either way. This gate is
+// WIDTH-ONLY and fully independent of MAP_EDITOR_COMPACT_HEIGHT_THRESHOLD above.
+//
+// #1998 follow-up (review, PR #2000 head 123b3c782): the previous value (1200, "the documented
+// desktop layout width") was NOT where horizontal overflow actually starts/stops — it was picked
+// by analogy to MapEditorButtonReadabilityTests.EditorWidth, not measured. `upperExtentWidth` is
+// NOT a fixed content size: the upper ScrollViewer's content re-wraps to use whatever width is
+// available, so its measured extent GROWS with the viewport up to the content's natural width,
+// then overflow stops entirely. Empirically measured at 500px height (synthetic / real FE8U,
+// width -> extent/viewport): 600 -> 458/342 & 548/342 (overflow); 700 -> 458/442 & 548/442 (still
+// overflow, but by as little as 16-6px — too close to the crossover to treat as a reliable
+// hard-assert boundary); 800 -> 542/542 & 548/542 (synthetic content fits exactly; real still
+// overflows only by 6px); 900/1000/1100 -> content fits with no overflow at all. Given that
+// crossover data, 700 is the highest width still safely BELOW where content provably stops
+// overflowing for BOTH ROM modes (with real-ROM margin still positive at 700), so it doubles as
+// the boundary: widths STRICTLY below 700 hard-assert overflow (this covers every compact fixture
+// this suite uses — 600x500, 600x852, and any narrower explicit viewport); 700 and above
+// (including the ambiguous 700-800px zone itself, the 1920px acceptance width, and any other wide
+// explicit viewport such as 1920x500 or 1000x500) are logged only, never hard-required to
+// overflow OR to fit, since real-ROM content width is ROM/chapter-data-dependent in principle.
+const MAP_EDITOR_COMPACT_WIDTH_THRESHOLD = 700;
 // The map canvas panel must stay usable at any viewport height (#1998 layout contract).
 const MIN_USABLE_MAP_CANVAS_HEIGHT = 240;
 
@@ -401,13 +413,32 @@ async function runViewport(browser, vp, url) {
         // open), so TestHooks.MapEditorLayoutMetrics MUST return a JSON `error` payload rather than
         // `{}` or success-shaped defaults. This proves the hook contract itself, not merely the JS
         // gate below.
+        //
+        // #1998 follow-up (review): checking `preNavErrors.length === 0` alone does NOT prove this
+        // — `validateMapEditorLayoutMetrics` also rejects non-JSON, missing/non-finite metrics, and
+        // other unrelated payload shapes, any of which would make this probe log "confirmed" while
+        // never having exercised TestHooks.cs's actual "no editor is open" branch. Require the
+        // parsed payload to carry an own `error` property (parseHookError) whose text matches the
+        // SPECIFIC known TestHooks.cs pre-navigation error(s) — either "no active navigation
+        // host/content" (no navigation content at all) or "required control(s) not found" (a
+        // navigation host exists — e.g. the launcher — but the Map Editor's named controls are
+        // absent, which is what this app actually returns pre-navigation).
         const preNavMetricsRaw = await page.evaluate(() => globalThis.__febTest.MapEditorLayoutMetrics(false));
         const { errors: preNavErrors } = validateMapEditorLayoutMetrics(preNavMetricsRaw, { requireTitle: false });
+        const preNavHookError = parseHookError(preNavMetricsRaw);
+        const PRENAV_EXPECTED_ERROR_SUBSTRINGS = [
+          'no active navigation host/content',
+          'required control(s) not found',
+        ];
         if (preNavErrors.length === 0) {
           failures.push(`${tag} MapEditorLayoutMetrics() called before opening the Map Editor did NOT fail closed ` +
             `(expected a rejected/error payload): ${bounded(preNavMetricsRaw)}`);
+        } else if (!preNavHookError || !PRENAV_EXPECTED_ERROR_SUBSTRINGS.some((s) => preNavHookError.includes(s))) {
+          failures.push(`${tag} MapEditorLayoutMetrics() pre-navigation probe rejected the payload, but NOT with ` +
+            `the expected TestHooks.cs fail-closed error (expected one of ${JSON.stringify(PRENAV_EXPECTED_ERROR_SUBSTRINGS)}); ` +
+            `this may be an unrelated validator rejection rather than proof of the actual hook contract. Got: ${bounded(preNavMetricsRaw)}`);
         } else {
-          console.log(`[smoke] ${tag} MapEditorLayoutMetrics() fail-closed pre-navigation probe confirmed (#1998 follow-up): ${bounded(preNavErrors[0])}`);
+          console.log(`[smoke] ${tag} MapEditorLayoutMetrics() fail-closed pre-navigation probe confirmed (#1998 follow-up): ${bounded(preNavHookError)}`);
         }
 
         const loaded = await page.evaluate(
@@ -501,11 +532,11 @@ async function runViewport(browser, vp, url) {
           // explicit wide-short viewport (e.g. 1920x500) false-failed the horizontal-overflow
           // assertion even though 1920px of width is ample for the toolbar rows to fit without
           // scrolling. `isCompactHeight` gates the vertical (upper-controls) axis exactly as
-          // before; `isCompactWidth` gates the horizontal axis independently, using the
-          // documented desktop layout width (1200x800, see accepted plan / CLAUDE.md) as the
-          // "content should fit" boundary — narrower than that is the supported compact/mobile
-          // width path, at/above it (including the 1920px acceptance width) is wide enough for
-          // the toolbar rows to lay out without needing horizontal scroll.
+          // before; `isCompactWidth` gates the horizontal axis independently, using
+          // MAP_EDITOR_COMPACT_WIDTH_THRESHOLD (see its definition above for the
+          // empirically-measured crossover data justifying the value) as the boundary — narrower
+          // than that reliably overflows, at/above it (including the 1920px acceptance width and
+          // any wider explicit viewport) overflow is logged only, never hard-required either way.
           const isCompactHeight = vp.height < MAP_EDITOR_COMPACT_HEIGHT_THRESHOLD;
           const isCompactWidth = vp.width < MAP_EDITOR_COMPACT_WIDTH_THRESHOLD;
           if (metrics.mapCanvasHeight < MIN_USABLE_MAP_CANVAS_HEIGHT - 0.5) {
@@ -544,13 +575,14 @@ async function runViewport(browser, vp, url) {
               `${metrics.upperExtentHeight}/${metrics.upperViewportHeight}`);
           }
           // Horizontal axis — gated by WIDTH ONLY, independent of the height gate above (#1998
-          // follow-up + OpenAI review fix). At the actual 600px-wide compact smoke viewport the
-          // toolbar/info rows are demonstrably wider than the viewport (measured ~910px content vs
-          // a ~342px viewport), so overflow is hard-asserted for BOTH synthetic and real-ROM runs
-          // whenever the viewport width is below the compact-width threshold — toolbar/button
-          // layout width does not depend on which ROM/chapter data is loaded. At/above the
-          // threshold (e.g. the 1920px acceptance width, or any other sufficiently wide explicit
-          // viewport such as 1920x500) the content is expected to fit, so overflow is only logged,
+          // follow-up + OpenAI review fix). Below MAP_EDITOR_COMPACT_WIDTH_THRESHOLD (see its
+          // definition above for the empirically-measured crossover data), the toolbar/info rows
+          // are demonstrably wider than the viewport at the actual 600px-wide compact smoke
+          // viewport (measured 458-548px content vs a ~342px viewport), so overflow is
+          // hard-asserted for BOTH synthetic and real-ROM runs — toolbar/button layout width does
+          // not depend on which ROM/chapter data is loaded. At/above the threshold (including the
+          // 1920px acceptance width and any other sufficiently wide explicit viewport such as
+          // 1920x500 or 1000x500) the content is expected to fit, so overflow is only logged,
           // never asserted either way (a real ROM's content could still need more width than a
           // given wide viewport in principle, so "must fit" is not hard-asserted here either).
           if (isCompactWidth) {
@@ -616,12 +648,25 @@ async function runViewport(browser, vp, url) {
           } else {
             const postReloadMetricsRaw = await page.evaluate(() => globalThis.__febTest.MapEditorLayoutMetrics(true));
             const { errors: postReloadErrors } = validateMapEditorLayoutMetrics(postReloadMetricsRaw, { requireTitle: false });
+            const postReloadHookError = parseHookError(postReloadMetricsRaw);
+            // #1998 follow-up (review): as with the pre-navigation probe above, `postReloadErrors.length
+            // === 0` alone does not prove authorization was actually revoked — the JS validator also
+            // rejects unrelated shapes (non-JSON, missing/non-finite metrics, a title mismatch would
+            // also not apply here since requireTitle is false). Require the SPECIFIC TestHooks.cs
+            // authorization-revoked error text (TestHooks.cs's `injectSyntheticMapPixels: true`
+            // requested against a non-synthetic ROM load` branch) so this probe evidences the exact
+            // state transition under test, not merely "some rejection happened".
+            const AUTH_REVOKED_EXPECTED_SUBSTRING = 'requested against a non-synthetic ROM load';
             if (postReloadErrors.length === 0) {
               failures.push(`${tag} stale-authorization probe FAILED: synthetic injection was still authorized ` +
                 `after a failed non-synthetic reload attempt (expected a rejected/error payload): ${bounded(postReloadMetricsRaw)}`);
+            } else if (!postReloadHookError || !postReloadHookError.includes(AUTH_REVOKED_EXPECTED_SUBSTRING)) {
+              failures.push(`${tag} stale-authorization probe rejected the payload, but NOT with the expected ` +
+                `TestHooks.cs authorization-revoked error (expected substring ${JSON.stringify(AUTH_REVOKED_EXPECTED_SUBSTRING)}); ` +
+                `this may be an unrelated validator rejection rather than proof of revoked authorization. Got: ${bounded(postReloadMetricsRaw)}`);
             } else {
               console.log(`[smoke] ${tag} stale synthetic authorization correctly revoked after a failed reload ` +
-                `(#1998 follow-up): ${bounded(postReloadErrors[0])}`);
+                `(#1998 follow-up): ${bounded(postReloadHookError)}`);
             }
           }
         }

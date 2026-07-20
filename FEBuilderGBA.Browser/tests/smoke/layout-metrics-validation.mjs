@@ -90,3 +90,35 @@ export function validateMapEditorLayoutMetrics(metricsRaw, { requireTitle = true
 
   return { metrics: parsed, errors };
 }
+
+// #1998 follow-up (review): smoke.mjs's live regressions (the pre-navigation "wrong editor is
+// open" probe and the stale-synthetic-authorization probe) previously only checked that
+// `validateMapEditorLayoutMetrics` rejected the payload AT ALL, then logged that as "confirming"
+// a SPECIFIC TestHooks.cs fail-closed error path. But that JS-side validator rejects many
+// UNRELATED payload shapes too (non-JSON, missing/non-finite metric keys, a title mismatch when
+// `requireTitle` is true) — none of those prove the C# hook actually returned the intended
+// `error` contract for the exact condition under test, so an unrelated bug could still make the
+// probe log "confirmed" while never having exercised the real TestHooks.cs branch.
+//
+// `parseHookError` isolates JUST the "does this payload carry an own `error` property, and if so
+// what is it" question (the same own-property test used above), independent of title/metric-key
+// validation, so a caller can assert the SPECIFIC expected TestHooks.cs error text/substring was
+// actually returned — not merely that "some rejection happened".
+//
+// Returns the error value coerced to a string, or `null` when the payload is not parseable JSON,
+// is not a plain object, or has no own `error` property.
+export function parseHookError(metricsRaw) {
+  let parsed;
+  try {
+    parsed = JSON.parse(metricsRaw);
+  } catch {
+    return null;
+  }
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return null;
+  }
+  if (!Object.hasOwn(parsed, 'error')) {
+    return null;
+  }
+  return String(parsed.error);
+}
