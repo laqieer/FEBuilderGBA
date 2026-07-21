@@ -27,6 +27,25 @@ namespace FEBuilderGBA
     }
 
     /// <summary>
+    /// Locale-neutral reason why a saved FEMapCreator mapping is stale or invalid. User-facing
+    /// text is selected from this value at the UI boundary; optional filesystem diagnostics stay
+    /// in <see cref="FEMapCreatorMappingLookupResult.Detail"/>.
+    /// </summary>
+    public enum FEMapCreatorMappingReason
+    {
+        None,
+        StoredEntryMissingRequiredFields,
+        ImageUnreadable,
+        ImageChanged,
+        GenerationDataUnreadable,
+        GenerationDataChanged,
+        ProfileUnavailable,
+        ExecutablePathChanged,
+        ExecutableContentChanged,
+        AssetsRootChanged,
+    }
+
+    /// <summary>
     /// One persisted external FEMapCreator tileset mapped to a specific built-in tileset fingerprint
     /// (#1978 Slice 2). Immutable; captures enough concrete file identity (path + size + last-write
     /// time + SHA-256) for the mapped image/generation-data files, AND for the FEMapCreator
@@ -110,11 +129,16 @@ namespace FEBuilderGBA
     /// <summary>Result of <see cref="FEMapCreatorTilesetMappingStoreCore.Lookup"/>.</summary>
     public sealed class FEMapCreatorMappingLookupResult
     {
-        FEMapCreatorMappingLookupResult(FEMapCreatorMappingStatus status, FEMapCreatorTilesetMappingEntry entry, string reason)
+        FEMapCreatorMappingLookupResult(
+            FEMapCreatorMappingStatus status,
+            FEMapCreatorTilesetMappingEntry entry,
+            FEMapCreatorMappingReason reason,
+            string detail)
         {
             Status = status;
             Entry = entry;
-            Reason = reason ?? "";
+            Reason = reason;
+            Detail = detail ?? "";
         }
 
         /// <summary>Typed lookup outcome.</summary>
@@ -124,18 +148,45 @@ namespace FEBuilderGBA
         /// and <see cref="FEMapCreatorMappingStatus.Invalid"/>; null for <see cref="FEMapCreatorMappingStatus.NoMapping"/>.</summary>
         public FEMapCreatorTilesetMappingEntry Entry { get; }
 
-        /// <summary>Human-readable detail explaining a <see cref="FEMapCreatorMappingStatus.Stale"/> or
-        /// <see cref="FEMapCreatorMappingStatus.Invalid"/> result; "" for Current/NoMapping.</summary>
-        public string Reason { get; }
+        /// <summary>Locale-neutral reason for a stale/invalid result; None for Current/NoMapping.</summary>
+        public FEMapCreatorMappingReason Reason { get; }
+
+        /// <summary>
+        /// Optional technical detail, such as a filesystem error, kept separate from localized
+        /// user-facing text. Empty when no additional diagnostic is available.
+        /// </summary>
+        public string Detail { get; }
 
         public static FEMapCreatorMappingLookupResult NoMapping() =>
-            new FEMapCreatorMappingLookupResult(FEMapCreatorMappingStatus.NoMapping, null, "");
+            new FEMapCreatorMappingLookupResult(
+                FEMapCreatorMappingStatus.NoMapping,
+                null,
+                FEMapCreatorMappingReason.None,
+                "");
         public static FEMapCreatorMappingLookupResult Current(FEMapCreatorTilesetMappingEntry entry) =>
-            new FEMapCreatorMappingLookupResult(FEMapCreatorMappingStatus.Current, entry, "");
-        public static FEMapCreatorMappingLookupResult Stale(FEMapCreatorTilesetMappingEntry entry, string reason) =>
-            new FEMapCreatorMappingLookupResult(FEMapCreatorMappingStatus.Stale, entry, reason);
-        public static FEMapCreatorMappingLookupResult Invalid(FEMapCreatorTilesetMappingEntry entry, string reason) =>
-            new FEMapCreatorMappingLookupResult(FEMapCreatorMappingStatus.Invalid, entry, reason);
+            new FEMapCreatorMappingLookupResult(
+                FEMapCreatorMappingStatus.Current,
+                entry,
+                FEMapCreatorMappingReason.None,
+                "");
+        public static FEMapCreatorMappingLookupResult Stale(
+            FEMapCreatorTilesetMappingEntry entry,
+            FEMapCreatorMappingReason reason,
+            string detail = "") =>
+            new FEMapCreatorMappingLookupResult(
+                FEMapCreatorMappingStatus.Stale,
+                entry,
+                reason,
+                detail);
+        public static FEMapCreatorMappingLookupResult Invalid(
+            FEMapCreatorTilesetMappingEntry entry,
+            FEMapCreatorMappingReason reason,
+            string detail = "") =>
+            new FEMapCreatorMappingLookupResult(
+                FEMapCreatorMappingStatus.Invalid,
+                entry,
+                reason,
+                detail);
     }
 
     /// <summary>
@@ -423,7 +474,9 @@ namespace FEBuilderGBA
                 return FEMapCreatorMappingLookupResult.NoMapping();
 
             if (!entry.IsStructurallyValid)
-                return FEMapCreatorMappingLookupResult.Invalid(entry, "Stored mapping entry is missing required fields.");
+                return FEMapCreatorMappingLookupResult.Invalid(
+                    entry,
+                    FEMapCreatorMappingReason.StoredEntryMissingRequiredFields);
 
             if (!FileContentIdentityCore.TryCompute(
                 entry.ImagePath,
@@ -432,10 +485,15 @@ namespace FEBuilderGBA
                 out long imageTicks,
                 out string imageSha,
                 out string imageError))
-                return FEMapCreatorMappingLookupResult.Stale(entry, "Mapped image file is no longer readable: " + imageError);
+                return FEMapCreatorMappingLookupResult.Stale(
+                    entry,
+                    FEMapCreatorMappingReason.ImageUnreadable,
+                    imageError);
             if (imageSize != entry.ImageSizeBytes || imageTicks != entry.ImageLastWriteUtcTicks
                 || !string.Equals(imageSha, entry.ImageSha256, StringComparison.Ordinal))
-                return FEMapCreatorMappingLookupResult.Stale(entry, "Mapped image file has changed since this mapping was recorded.");
+                return FEMapCreatorMappingLookupResult.Stale(
+                    entry,
+                    FEMapCreatorMappingReason.ImageChanged);
 
             if (!FileContentIdentityCore.TryCompute(
                 entry.GenerationDataPath,
@@ -444,25 +502,38 @@ namespace FEBuilderGBA
                 out long dataTicks,
                 out string dataSha,
                 out string dataError))
-                return FEMapCreatorMappingLookupResult.Stale(entry, "Mapped generation-data file is no longer readable: " + dataError);
+                return FEMapCreatorMappingLookupResult.Stale(
+                    entry,
+                    FEMapCreatorMappingReason.GenerationDataUnreadable,
+                    dataError);
             if (dataSize != entry.GenerationDataSizeBytes || dataTicks != entry.GenerationDataLastWriteUtcTicks
                 || !string.Equals(dataSha, entry.GenerationDataSha256, StringComparison.Ordinal))
-                return FEMapCreatorMappingLookupResult.Stale(entry, "Mapped generation-data file has changed since this mapping was recorded.");
+                return FEMapCreatorMappingLookupResult.Stale(
+                    entry,
+                    FEMapCreatorMappingReason.GenerationDataChanged);
 
             // Executable/assets-root identity: never accept the mapping as Current on stale
             // image/gen-data evidence alone — the configured FEMapCreator setup itself must
             // still match what was recorded when the mapping was made.
             if (currentProfile == null || currentProfile.Status != FEMapCreatorSetupStatus.Configured)
-                return FEMapCreatorMappingLookupResult.Stale(entry, "FEMapCreator executable is not currently configured or is invalid.");
+                return FEMapCreatorMappingLookupResult.Stale(
+                    entry,
+                    FEMapCreatorMappingReason.ProfileUnavailable);
 
             if (!string.Equals(currentProfile.ExecutablePath, entry.ExecutablePath, FEMapCreatorLauncherCore.PathComparison))
-                return FEMapCreatorMappingLookupResult.Stale(entry, "The configured FEMapCreator executable path has changed since this mapping was recorded.");
+                return FEMapCreatorMappingLookupResult.Stale(
+                    entry,
+                    FEMapCreatorMappingReason.ExecutablePathChanged);
             if (currentProfile.ExecutableSizeBytes != entry.ExecutableSizeBytes
                 || currentProfile.ExecutableLastWriteUtcTicks != entry.ExecutableLastWriteUtcTicks
                 || !string.Equals(currentProfile.ExecutableSha256, entry.ExecutableSha256, StringComparison.Ordinal))
-                return FEMapCreatorMappingLookupResult.Stale(entry, "The configured FEMapCreator executable's content has changed since this mapping was recorded.");
+                return FEMapCreatorMappingLookupResult.Stale(
+                    entry,
+                    FEMapCreatorMappingReason.ExecutableContentChanged);
             if (!string.Equals(currentProfile.AssetsRoot, entry.AssetsRoot, FEMapCreatorLauncherCore.PathComparison))
-                return FEMapCreatorMappingLookupResult.Stale(entry, "The configured FEMapCreator assets root has changed since this mapping was recorded.");
+                return FEMapCreatorMappingLookupResult.Stale(
+                    entry,
+                    FEMapCreatorMappingReason.AssetsRootChanged);
 
             return FEMapCreatorMappingLookupResult.Current(entry);
         }

@@ -54,7 +54,8 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.False(externalInvoked);
             Assert.Equal(RandomMapBackendUsed.BuiltIn, result.BackendUsed);
             Assert.Equal(FEMapCreatorMappingStatus.NoMapping, result.MappingStatus);
-            Assert.Equal("", result.MappingReason);
+            Assert.Equal(FEMapCreatorMappingReason.None, result.MappingReason);
+            Assert.Equal("", result.MappingDetail);
             Assert.NotNull(result.Outcome);
             Assert.Equal(111, result.Outcome!.EffectiveSeed);
         }
@@ -152,7 +153,8 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.False(builtInInvoked);
             Assert.Equal(RandomMapBackendUsed.External, result.BackendUsed);
             Assert.Equal(FEMapCreatorMappingStatus.Current, result.MappingStatus);
-            Assert.Equal("", result.MappingReason);
+            Assert.Equal(FEMapCreatorMappingReason.None, result.MappingReason);
+            Assert.Equal("", result.MappingDetail);
             Assert.Equal(new ushort[] { 10, 11, 12, 13 }, result.Outcome!.Mars);
             Assert.Equal(55, result.Outcome.EffectiveSeed);
         }
@@ -181,7 +183,10 @@ namespace FEBuilderGBA.Avalonia.Tests
                 },
                 resolveMapping: (fingerprint, configSnapshot, cancellationToken) => (
                     new FEMapCreatorSetupSnapshot(FEMapCreatorSetupStatus.Configured, @"C:\trusted\FEMapCreator.exe", "", ""),
-                    FEMapCreatorMappingLookupResult.Stale(entry, "the mapped image file changed size")));
+                    FEMapCreatorMappingLookupResult.Stale(
+                        entry,
+                        FEMapCreatorMappingReason.ImageChanged,
+                        "the mapped image file changed size")));
 
             RandomMapOneClickResult result = await service.GenerateAsync(
                 rom, mapSettingAddr, 2, 2, currentGrid: null, seed: 7, CancellationToken.None);
@@ -190,7 +195,8 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.False(externalInvoked);
             Assert.Equal(RandomMapBackendUsed.BuiltIn, result.BackendUsed);
             Assert.Equal(FEMapCreatorMappingStatus.Stale, result.MappingStatus);
-            Assert.Contains("changed size", result.MappingReason, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(FEMapCreatorMappingReason.ImageChanged, result.MappingReason);
+            Assert.Contains("changed size", result.MappingDetail, StringComparison.OrdinalIgnoreCase);
         }
 
         [AvaloniaFact]

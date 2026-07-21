@@ -266,7 +266,7 @@ namespace FEBuilderGBA
             data = Array.Empty<byte>();
             error = "";
 
-            if (LZ77.getCompressedSize(rom.Data, dataOffset) == 0)
+            if (LZ77.getCompressedSizeStrict(rom.Data, dataOffset) == 0)
             {
                 error = $"{dataName} data is not a complete valid LZ77 stream.";
                 return false;

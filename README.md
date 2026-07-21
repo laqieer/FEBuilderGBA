@@ -259,11 +259,14 @@ dotnet run --project FEBuilderGBA.CLI -- --generate-random-map --femapcreator=C:
 # Generate runs the external adapter above; once started, any launch/exit/parse failure is surfaced directly
 # and never silently swapped for the built-in engine, and cancelling (or closing the editor) terminates the
 # owned external process rather than letting it finish and apply. Otherwise — or if the saved mapping is
-# stale/invalid, which is visibly explained (on success, failure, or cancellation alike) rather than silently
-# substituted — it uses an independently designed, clean-room, deterministic built-in generator (see
+# stale/invalid, which is visibly explained with a localized typed reason (on success, failure, or cancellation
+# alike) while raw filesystem diagnostics remain separate rather than leaking English into the notice — it uses
+# an independently designed, clean-room, deterministic built-in generator (see
 # docs/CORE-SEAMS.md and docs/ENGINEERING-NOTES.md) that needs no external tool, network access, or download,
 # and produces the same layout again when re-run with the displayed seed. This engine is experimental and
 # visual-coherence-only: it does not guarantee gameplay/objective validity (reachable chests, doors, spawns, etc.).
+# Its primary OBJ, nonzero secondary OBJ, CFG, and MAP inputs must each be complete LZ77 streams whose
+# back-references point into already-produced output; truncated or out-of-history streams fail before decompression.
 # Options states that limitation explicitly, and successful generation reports the exact backend name:
 # "Built-in Experimental" or "FEMapCreator Experimental".
 # The optional first-run tool-initialization wizard's EndPage adds a small, always-optional FEMapCreator

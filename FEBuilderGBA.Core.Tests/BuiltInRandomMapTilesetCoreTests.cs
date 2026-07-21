@@ -192,6 +192,70 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains("complete valid LZ77", error);
         }
 
+        [Theory]
+        [InlineData("Primary OBJ")]
+        [InlineData("Secondary OBJ")]
+        [InlineData("Config")]
+        [InlineData("MAP")]
+        public void TryResolveMapTileset_OutOfHistoryBackReference_FailsForEveryCompressedInput(
+            string dataName)
+        {
+            ROM rom = BuiltInRandomMapTestFixture.CreateRom();
+            byte[] primaryObj = MakeBytes(64, seed: 1);
+            byte[] secondaryObj = MakeBytes(32, seed: 2);
+            byte[] pal = MakeBytes(2 * 16 * 16, seed: 3);
+            byte[] cfg = MakeBytes(24, seed: 4);
+            ushort[] mars = new ushort[15 * 10];
+            uint addr = BuiltInRandomMapTestFixture.WriteMap(
+                rom,
+                0,
+                tilesetSlot: 1,
+                primaryObj,
+                pal,
+                cfg,
+                15,
+                10,
+                mars,
+                secondaryObjSlot: 2,
+                secondaryObjRaw: secondaryObj);
+            byte[] malformed =
+            {
+                0x10, 0x03, 0x00, 0x00,
+                0x80,
+                0x00, 0x00,
+                0x11, 0x22, 0x33,
+            };
+            uint malformedOffset = checked((uint)(rom.Data.Length - malformed.Length));
+            System.Array.Copy(malformed, 0, rom.Data, malformedOffset, malformed.Length);
+            (uint tablePointerAddress, int plist) target = dataName switch
+            {
+                "Primary OBJ" => (rom.RomInfo.map_obj_pointer, 1),
+                "Secondary OBJ" => (rom.RomInfo.map_obj_pointer, 2),
+                "Config" => (rom.RomInfo.map_config_pointer, 1),
+                "MAP" => (rom.RomInfo.map_map_pointer_pointer, 1),
+                _ => throw new System.ArgumentOutOfRangeException(nameof(dataName)),
+            };
+            uint tableOffset = rom.p32(target.tablePointerAddress);
+            BuiltInRandomMapTestFixture.WriteU32(
+                rom,
+                tableOffset + checked((uint)target.plist * 4),
+                0x08000000u + malformedOffset);
+
+            Assert.NotEqual(0u, LZ77.getCompressedSize(rom.Data, malformedOffset));
+            Assert.Equal(0u, LZ77.getCompressedSizeStrict(rom.Data, malformedOffset));
+
+            bool ok = BuiltInRandomMapTilesetCore.TryResolveMapTileset(
+                rom,
+                addr,
+                out MapTilesetSnapshot snapshot,
+                out string error);
+
+            Assert.False(ok);
+            Assert.Null(snapshot);
+            Assert.Contains(dataName, error);
+            Assert.Contains("complete valid LZ77", error);
+        }
+
         [Fact]
         public void TryResolveMapTileset_TruncatedSecondaryObjStream_Fails()
         {

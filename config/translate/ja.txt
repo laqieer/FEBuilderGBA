@@ -14455,6 +14455,33 @@ FEMapCreator アセット ディレクトリを選択
 :The saved FEMapCreator tileset mapping is no longer valid.
 保存済みの FEMapCreator タイルセット対応付けは無効になっています。
 
+:The saved mapping entry is missing required fields.
+保存済みの対応付けエントリに必須項目がありません。
+
+:The mapped image file is no longer readable.
+対応付けられた画像ファイルを読み取れなくなりました。
+
+:The mapped image file has changed since the mapping was saved.
+対応付けを保存した後に画像ファイルが変更されました。
+
+:The mapped generation-data file is no longer readable.
+対応付けられた生成データファイルを読み取れなくなりました。
+
+:The mapped generation-data file has changed since the mapping was saved.
+対応付けを保存した後に生成データファイルが変更されました。
+
+:FEMapCreator is no longer configured or valid.
+FEMapCreator は設定されていないか、無効になっています。
+
+:The configured FEMapCreator executable path has changed.
+設定された FEMapCreator 実行ファイルのパスが変更されました。
+
+:The configured FEMapCreator executable content has changed.
+設定された FEMapCreator 実行ファイルの内容が変更されました。
+
+:The configured FEMapCreator assets root has changed.
+設定された FEMapCreator アセットルートが変更されました。
+
 :The saved FEMapCreator tileset mapping is stale ({0}); using the built-in generator instead.
 保存済みの FEMapCreator タイルセット対応付けは古くなっています ({0})。代わりに内蔵ジェネレーターを使用します。
 

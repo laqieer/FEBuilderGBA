@@ -395,7 +395,8 @@ namespace FEBuilderGBA.Core.Tests
 
                 Assert.Equal(FEMapCreatorMappingStatus.Current, result.Status);
                 Assert.Same(entry, result.Entry);
-                Assert.Equal("", result.Reason);
+                Assert.Equal(FEMapCreatorMappingReason.None, result.Reason);
+                Assert.Equal("", result.Detail);
             }
             finally
             {
@@ -455,7 +456,38 @@ namespace FEBuilderGBA.Core.Tests
                     new[] { entry }, fingerprint, profile);
 
                 Assert.Equal(FEMapCreatorMappingStatus.Stale, result.Status);
-                Assert.Contains("image", result.Reason, StringComparison.OrdinalIgnoreCase);
+                Assert.Equal(FEMapCreatorMappingReason.ImageChanged, result.Reason);
+                Assert.Equal("", result.Detail);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
+        public void Lookup_Stale_WhenImageFileDeletedAfterMapping()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string imagePath = CreateFile(tempRoot, "tileset.png", new byte[] { 1, 2, 3, 4 });
+                string genPath = CreateFile(tempRoot, "tileset.json", new byte[] { 5, 6 });
+                var fingerprint = TilesetFingerprint.Compute(8, new byte[] { 1 }, new byte[] { 2 }, new byte[] { 3 });
+                FEMapCreatorSetupSnapshot profile = MakeConfiguredProfile(tempRoot, "");
+
+                Assert.True(FEMapCreatorTilesetMappingStoreCore.TryCreateEntry(
+                    fingerprint, "Plains", imagePath, genPath, profile,
+                    out FEMapCreatorTilesetMappingEntry entry, out _));
+
+                File.Delete(imagePath);
+
+                FEMapCreatorMappingLookupResult result = FEMapCreatorTilesetMappingStoreCore.Lookup(
+                    new[] { entry }, fingerprint, profile);
+
+                Assert.Equal(FEMapCreatorMappingStatus.Stale, result.Status);
+                Assert.Equal(FEMapCreatorMappingReason.ImageUnreadable, result.Reason);
+                Assert.NotEqual("", result.Detail);
             }
             finally
             {
@@ -484,7 +516,38 @@ namespace FEBuilderGBA.Core.Tests
                     new[] { entry }, fingerprint, profile);
 
                 Assert.Equal(FEMapCreatorMappingStatus.Stale, result.Status);
-                Assert.Contains("generation-data", result.Reason, StringComparison.OrdinalIgnoreCase);
+                Assert.Equal(FEMapCreatorMappingReason.GenerationDataUnreadable, result.Reason);
+                Assert.NotEqual("", result.Detail);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
+        public void Lookup_Stale_WhenGenerationDataContentChangesAfterMapping()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string imagePath = CreateFile(tempRoot, "tileset.png", new byte[] { 1, 2, 3, 4 });
+                string genPath = CreateFile(tempRoot, "tileset.json", new byte[] { 5, 6 });
+                var fingerprint = TilesetFingerprint.Compute(8, new byte[] { 1 }, new byte[] { 2 }, new byte[] { 3 });
+                FEMapCreatorSetupSnapshot profile = MakeConfiguredProfile(tempRoot, "");
+
+                Assert.True(FEMapCreatorTilesetMappingStoreCore.TryCreateEntry(
+                    fingerprint, "Plains", imagePath, genPath, profile,
+                    out FEMapCreatorTilesetMappingEntry entry, out _));
+
+                File.WriteAllBytes(genPath, new byte[] { 9, 9, 9, 9 });
+
+                FEMapCreatorMappingLookupResult result = FEMapCreatorTilesetMappingStoreCore.Lookup(
+                    new[] { entry }, fingerprint, profile);
+
+                Assert.Equal(FEMapCreatorMappingStatus.Stale, result.Status);
+                Assert.Equal(FEMapCreatorMappingReason.GenerationDataChanged, result.Reason);
+                Assert.Equal("", result.Detail);
             }
             finally
             {
@@ -516,7 +579,8 @@ namespace FEBuilderGBA.Core.Tests
                     new[] { entry }, fingerprint, differentExeProfile);
 
                 Assert.Equal(FEMapCreatorMappingStatus.Stale, result.Status);
-                Assert.Contains("executable", result.Reason, StringComparison.OrdinalIgnoreCase);
+                Assert.Equal(FEMapCreatorMappingReason.ExecutablePathChanged, result.Reason);
+                Assert.Equal("", result.Detail);
             }
             finally
             {
@@ -553,7 +617,8 @@ namespace FEBuilderGBA.Core.Tests
                     new[] { entry }, fingerprint, rewrittenProfile);
 
                 Assert.Equal(FEMapCreatorMappingStatus.Stale, result.Status);
-                Assert.Contains("executable", result.Reason, StringComparison.OrdinalIgnoreCase);
+                Assert.Equal(FEMapCreatorMappingReason.ExecutableContentChanged, result.Reason);
+                Assert.Equal("", result.Detail);
             }
             finally
             {
@@ -588,7 +653,8 @@ namespace FEBuilderGBA.Core.Tests
                     new[] { entry }, fingerprint, profileTwo);
 
                 Assert.Equal(FEMapCreatorMappingStatus.Stale, result.Status);
-                Assert.Contains("assets root", result.Reason, StringComparison.OrdinalIgnoreCase);
+                Assert.Equal(FEMapCreatorMappingReason.AssetsRootChanged, result.Reason);
+                Assert.Equal("", result.Detail);
             }
             finally
             {
@@ -626,7 +692,8 @@ namespace FEBuilderGBA.Core.Tests
                     new[] { entry }, fingerprint, profileCleared);
 
                 Assert.Equal(FEMapCreatorMappingStatus.Stale, result.Status);
-                Assert.Contains("assets root", result.Reason, StringComparison.OrdinalIgnoreCase);
+                Assert.Equal(FEMapCreatorMappingReason.AssetsRootChanged, result.Reason);
+                Assert.Equal("", result.Detail);
             }
             finally
             {
@@ -654,11 +721,15 @@ namespace FEBuilderGBA.Core.Tests
                 FEMapCreatorMappingLookupResult resultNull = FEMapCreatorTilesetMappingStoreCore.Lookup(
                     new[] { entry }, fingerprint, null);
                 Assert.Equal(FEMapCreatorMappingStatus.Stale, resultNull.Status);
+                Assert.Equal(FEMapCreatorMappingReason.ProfileUnavailable, resultNull.Reason);
+                Assert.Equal("", resultNull.Detail);
 
                 FEMapCreatorSetupSnapshot notConfigured = FEMapCreatorProfileCore.Validate("", "");
                 FEMapCreatorMappingLookupResult resultNotConfigured = FEMapCreatorTilesetMappingStoreCore.Lookup(
                     new[] { entry }, fingerprint, notConfigured);
                 Assert.Equal(FEMapCreatorMappingStatus.Stale, resultNotConfigured.Status);
+                Assert.Equal(FEMapCreatorMappingReason.ProfileUnavailable, resultNotConfigured.Reason);
+                Assert.Equal("", resultNotConfigured.Detail);
             }
             finally
             {
@@ -681,6 +752,8 @@ namespace FEBuilderGBA.Core.Tests
                 new[] { malformed }, fingerprint, null);
 
             Assert.Equal(FEMapCreatorMappingStatus.Invalid, result.Status);
+            Assert.Equal(FEMapCreatorMappingReason.StoredEntryMissingRequiredFields, result.Reason);
+            Assert.Equal("", result.Detail);
         }
 
         [Fact]

@@ -28276,6 +28276,33 @@ FEMapCreator 未报告任何兼容的图块集。
 :The saved FEMapCreator tileset mapping is no longer valid.
 已保存的 FEMapCreator 图块集映射已不再有效。
 
+:The saved mapping entry is missing required fields.
+已保存的映射条目缺少必填字段。
+
+:The mapped image file is no longer readable.
+映射的图像文件已无法读取。
+
+:The mapped image file has changed since the mapping was saved.
+保存映射后，图像文件已发生更改。
+
+:The mapped generation-data file is no longer readable.
+映射的生成数据文件已无法读取。
+
+:The mapped generation-data file has changed since the mapping was saved.
+保存映射后，生成数据文件已发生更改。
+
+:FEMapCreator is no longer configured or valid.
+FEMapCreator 未配置或当前无效。
+
+:The configured FEMapCreator executable path has changed.
+已配置的 FEMapCreator 可执行文件路径已更改。
+
+:The configured FEMapCreator executable content has changed.
+已配置的 FEMapCreator 可执行文件内容已更改。
+
+:The configured FEMapCreator assets root has changed.
+已配置的 FEMapCreator 资源根目录已更改。
+
 :The saved FEMapCreator tileset mapping is stale ({0}); using the built-in generator instead.
 已保存的 FEMapCreator 图块集映射已过期（{0}）；将改用内置生成器。
 

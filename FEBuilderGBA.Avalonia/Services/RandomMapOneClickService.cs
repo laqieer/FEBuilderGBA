@@ -42,8 +42,11 @@ namespace FEBuilderGBA.Avalonia.Services
         /// </summary>
         public FEMapCreatorMappingStatus MappingStatus { get; init; } = FEMapCreatorMappingStatus.NoMapping;
 
-        /// <summary>Technical detail associated with <see cref="MappingStatus"/>.</summary>
-        public string MappingReason { get; init; } = "";
+        /// <summary>Locale-neutral reason associated with <see cref="MappingStatus"/>.</summary>
+        public FEMapCreatorMappingReason MappingReason { get; init; } = FEMapCreatorMappingReason.None;
+
+        /// <summary>Optional technical detail kept separate from localized user-facing text.</summary>
+        public string MappingDetail { get; init; } = "";
     }
 
     /// <summary>
@@ -247,6 +250,7 @@ namespace FEBuilderGBA.Avalonia.Services
                     BackendUsed = RandomMapBackendUsed.External,
                     MappingStatus = selection.MappingStatus,
                     MappingReason = selection.MappingReason,
+                    MappingDetail = selection.MappingDetail,
                     Outcome = new RandomMapGenerationOutcome
                     {
                         Mars = externalResult.Mars,
@@ -305,6 +309,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 BackendUsed = RandomMapBackendUsed.BuiltIn,
                 MappingStatus = selection.MappingStatus,
                 MappingReason = selection.MappingReason,
+                MappingDetail = selection.MappingDetail,
                 Outcome = new RandomMapGenerationOutcome
                 {
                     Mars = outcome.builtInResult.Mars,
@@ -349,7 +354,8 @@ namespace FEBuilderGBA.Avalonia.Services
             Success = false,
             ErrorMessage = message,
             MappingStatus = selection?.MappingStatus ?? FEMapCreatorMappingStatus.NoMapping,
-            MappingReason = selection?.MappingReason ?? "",
+            MappingReason = selection?.MappingReason ?? FEMapCreatorMappingReason.None,
+            MappingDetail = selection?.MappingDetail ?? "",
         };
 
         static RandomMapOneClickResult Cancelled(
@@ -359,7 +365,8 @@ namespace FEBuilderGBA.Avalonia.Services
             Cancelled = true,
             ErrorMessage = R._("Random map generation was cancelled."),
             MappingStatus = selection?.MappingStatus ?? FEMapCreatorMappingStatus.NoMapping,
-            MappingReason = selection?.MappingReason ?? "",
+            MappingReason = selection?.MappingReason ?? FEMapCreatorMappingReason.None,
+            MappingDetail = selection?.MappingDetail ?? "",
         };
 
         static (FEMapCreatorSetupSnapshot Profile, FEMapCreatorMappingLookupResult MappingLookup) DefaultResolveMapping(

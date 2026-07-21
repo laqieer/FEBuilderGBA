@@ -57,6 +57,24 @@ namespace FEBuilderGBA
         //圧縮されているデータ長を求めます.
         public static uint getCompressedSize(byte[] input, uint offset)
         {
+            return getCompressedSizeLow(input, offset, rejectInvalidBackReferences: false);
+        }
+
+        /// <summary>
+        /// Returns the compressed byte length only when every back-reference points into
+        /// already-produced output. Unlike <see cref="getCompressedSize"/>, malformed
+        /// out-of-history references are rejected instead of skipped.
+        /// </summary>
+        public static uint getCompressedSizeStrict(byte[] input, uint offset)
+        {
+            return getCompressedSizeLow(input, offset, rejectInvalidBackReferences: true);
+        }
+
+        static uint getCompressedSizeLow(
+            byte[] input,
+            uint offset,
+            bool rejectInvalidBackReferences)
+        {
             if (input.Length <= offset)
             {
                 return 0;
@@ -134,6 +152,10 @@ namespace FEBuilderGBA
                         }
                         if (writeAddress <= copyOffset)
                         {//どうしようもない壊れ方をしている場合、無視するしかない.
+                            if (rejectInvalidBackReferences)
+                            {
+                                return 0;
+                            }
                             amountToCopy = 0;
                         }
 

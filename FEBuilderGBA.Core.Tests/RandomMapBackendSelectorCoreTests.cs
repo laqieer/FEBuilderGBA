@@ -26,48 +26,59 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(RandomMapBackendKind.External, selection.Kind);
             Assert.Same(entry, selection.ExternalMapping);
             Assert.Equal(FEMapCreatorMappingStatus.Current, selection.MappingStatus);
-            Assert.Equal("", selection.MappingReason);
+            Assert.Equal(FEMapCreatorMappingReason.None, selection.MappingReason);
+            Assert.Equal("", selection.MappingDetail);
         }
 
         [Fact]
         public void Select_Stale_UsesBuiltInAndPreservesTypedReason()
         {
             FEMapCreatorTilesetMappingEntry entry = MakeEntry();
-            FEMapCreatorMappingLookupResult lookup = FEMapCreatorMappingLookupResult.Stale(entry, "executable content changed");
+            FEMapCreatorMappingLookupResult lookup = FEMapCreatorMappingLookupResult.Stale(
+                entry,
+                FEMapCreatorMappingReason.ExecutableContentChanged,
+                "diagnostic");
 
             RandomMapBackendSelection selection = RandomMapBackendSelectorCore.Select(lookup);
 
             Assert.Equal(RandomMapBackendKind.BuiltIn, selection.Kind);
             Assert.Null(selection.ExternalMapping);
             Assert.Equal(FEMapCreatorMappingStatus.Stale, selection.MappingStatus);
-            Assert.Equal("executable content changed", selection.MappingReason);
+            Assert.Equal(FEMapCreatorMappingReason.ExecutableContentChanged, selection.MappingReason);
+            Assert.Equal("diagnostic", selection.MappingDetail);
         }
 
         [Fact]
         public void Select_Invalid_UsesBuiltInAndPreservesTypedReason()
         {
             FEMapCreatorTilesetMappingEntry entry = MakeEntry();
-            FEMapCreatorMappingLookupResult lookup = FEMapCreatorMappingLookupResult.Invalid(entry, "malformed entry");
+            FEMapCreatorMappingLookupResult lookup = FEMapCreatorMappingLookupResult.Invalid(
+                entry,
+                FEMapCreatorMappingReason.StoredEntryMissingRequiredFields);
 
             RandomMapBackendSelection selection = RandomMapBackendSelectorCore.Select(lookup);
 
             Assert.Equal(RandomMapBackendKind.BuiltIn, selection.Kind);
             Assert.Null(selection.ExternalMapping);
             Assert.Equal(FEMapCreatorMappingStatus.Invalid, selection.MappingStatus);
-            Assert.Equal("malformed entry", selection.MappingReason);
+            Assert.Equal(FEMapCreatorMappingReason.StoredEntryMissingRequiredFields, selection.MappingReason);
+            Assert.Equal("", selection.MappingDetail);
         }
 
         [Fact]
         public void Select_Stale_WithBlankReason_PreservesBlankReasonForLocalizedUiFallback()
         {
             FEMapCreatorTilesetMappingEntry entry = MakeEntry();
-            FEMapCreatorMappingLookupResult lookup = FEMapCreatorMappingLookupResult.Stale(entry, "");
+            FEMapCreatorMappingLookupResult lookup = FEMapCreatorMappingLookupResult.Stale(
+                entry,
+                FEMapCreatorMappingReason.None);
 
             RandomMapBackendSelection selection = RandomMapBackendSelectorCore.Select(lookup);
 
             Assert.Equal(RandomMapBackendKind.BuiltIn, selection.Kind);
             Assert.Equal(FEMapCreatorMappingStatus.Stale, selection.MappingStatus);
-            Assert.Equal("", selection.MappingReason);
+            Assert.Equal(FEMapCreatorMappingReason.None, selection.MappingReason);
+            Assert.Equal("", selection.MappingDetail);
         }
 
         [Fact]
@@ -80,7 +91,8 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(RandomMapBackendKind.BuiltIn, selection.Kind);
             Assert.Null(selection.ExternalMapping);
             Assert.Equal(FEMapCreatorMappingStatus.NoMapping, selection.MappingStatus);
-            Assert.Equal("", selection.MappingReason);
+            Assert.Equal(FEMapCreatorMappingReason.None, selection.MappingReason);
+            Assert.Equal("", selection.MappingDetail);
         }
 
         [Fact]

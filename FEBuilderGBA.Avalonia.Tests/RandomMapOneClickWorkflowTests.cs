@@ -491,7 +491,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
-        public void RandomMapSeedAndRecoveryStrings_HaveJapaneseAndChineseTranslations()
+        public void RandomMapSeedRecoveryAndMappingStrings_HaveJapaneseAndChineseTranslations()
         {
             string repoRoot = RandomMapOneClickTestSupport.FindRepoRoot();
             L10nFinding seedFinding = Assert.Single(
@@ -507,15 +507,28 @@ namespace FEBuilderGBA.Avalonia.Tests
             {
                 "Draw or import a representative map for this tileset, or configure FEMapCreator in Options.",
                 "Try a different seed, or configure FEMapCreator in Options.",
+                "The saved mapping entry is missing required fields.",
+                "The mapped image file is no longer readable.",
+                "The mapped image file has changed since the mapping was saved.",
+                "The mapped generation-data file is no longer readable.",
+                "The mapped generation-data file has changed since the mapping was saved.",
+                "FEMapCreator is no longer configured or valid.",
+                "The configured FEMapCreator executable path has changed.",
+                "The configured FEMapCreator executable content has changed.",
+                "The configured FEMapCreator assets root has changed.",
             })
             {
-                Assert.Contains(
-                    codeFindings,
-                    f => f.SourcePath.EndsWith(
-                            "FEBuilderGBA.Avalonia/Services/RandomMapOneClickService.cs",
-                            StringComparison.Ordinal) &&
-                        f.Literal == literal &&
-                        f.Verdict == L10nVerdict.Translated);
+                Assert.True(
+                    codeFindings.Any(f =>
+                        (f.SourcePath.EndsWith(
+                             "FEBuilderGBA.Avalonia/Services/RandomMapOneClickService.cs",
+                             StringComparison.Ordinal)
+                         || f.SourcePath.EndsWith(
+                             "FEBuilderGBA.Avalonia/Views/MapEditorView.axaml.cs",
+                             StringComparison.Ordinal))
+                        && f.Literal == literal
+                        && f.Verdict == L10nVerdict.Translated),
+                    $"Missing Japanese/Chinese translation coverage for: {literal}");
             }
         }
 
@@ -546,22 +559,33 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [AvaloniaTheory]
-        [InlineData(FEMapCreatorMappingStatus.Stale, "changed", "stale")]
-        [InlineData(FEMapCreatorMappingStatus.Invalid, "malformed", "invalid")]
+        [InlineData(FEMapCreatorMappingStatus.Invalid, FEMapCreatorMappingReason.StoredEntryMissingRequiredFields, "missing required fields", "invalid")]
+        [InlineData(FEMapCreatorMappingStatus.Stale, FEMapCreatorMappingReason.ImageUnreadable, "image file is no longer readable", "stale")]
+        [InlineData(FEMapCreatorMappingStatus.Stale, FEMapCreatorMappingReason.ImageChanged, "image file has changed", "stale")]
+        [InlineData(FEMapCreatorMappingStatus.Stale, FEMapCreatorMappingReason.GenerationDataUnreadable, "generation-data file is no longer readable", "stale")]
+        [InlineData(FEMapCreatorMappingStatus.Stale, FEMapCreatorMappingReason.GenerationDataChanged, "generation-data file has changed", "stale")]
+        [InlineData(FEMapCreatorMappingStatus.Stale, FEMapCreatorMappingReason.ProfileUnavailable, "no longer configured or valid", "stale")]
+        [InlineData(FEMapCreatorMappingStatus.Stale, FEMapCreatorMappingReason.ExecutablePathChanged, "executable path has changed", "stale")]
+        [InlineData(FEMapCreatorMappingStatus.Stale, FEMapCreatorMappingReason.ExecutableContentChanged, "executable content has changed", "stale")]
+        [InlineData(FEMapCreatorMappingStatus.Stale, FEMapCreatorMappingReason.AssetsRootChanged, "assets root has changed", "stale")]
+        [InlineData(FEMapCreatorMappingStatus.Stale, FEMapCreatorMappingReason.None, "no longer valid", "stale")]
         public void FormatMappingNotice_LocalizesTypedFallbackAtUiBoundary(
             FEMapCreatorMappingStatus status,
-            string reason,
+            FEMapCreatorMappingReason reason,
+            string expectedReasonText,
             string expectedStatusWord)
         {
             string notice = MapEditorView.FormatMappingNotice(new RandomMapOneClickResult
             {
                 MappingStatus = status,
                 MappingReason = reason,
+                MappingDetail = "raw technical detail must not be displayed",
             });
 
             Assert.Contains(expectedStatusWord, notice, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains(reason, notice);
+            Assert.Contains(expectedReasonText, notice, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("built-in", notice, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("raw technical detail", notice, StringComparison.OrdinalIgnoreCase);
         }
 
         [AvaloniaTheory]

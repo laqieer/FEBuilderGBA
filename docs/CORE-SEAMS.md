@@ -21,9 +21,9 @@ later in this catalog:
   fingerprint input.
 - Every built-in random-map compressed input is validated as a complete LZ77
   stream before decompression: primary OBJ, any nonzero secondary OBJ, CFG, and
-  MAP all fail closed on premature EOF. A nonzero secondary OBJ PLIST is
-  mandatory identity input and cannot be silently omitted when unresolved or
-  malformed.
+  MAP all fail closed on premature EOF or a back-reference that points outside
+  already-produced output history. A nonzero secondary OBJ PLIST is mandatory
+  identity input and cannot be silently omitted when unresolved or malformed.
 - `BuiltInRandomMapEdgeSignatureCore` follows the accepted Plan v4 sparse-corpus
   contract: it compares raw, palette-independent 4bpp boundary indices after TSA
   hFlip/vFlip. Palette-bank bits do not change structural edge compatibility.
@@ -68,8 +68,9 @@ later in this catalog:
   satisfy.
 - Fingerprinted malformed FEMapCreator mappings survive load/save so `Lookup`
   reports `Invalid` instead of silently degrading to `NoMapping`. Backend
-  selection carries typed mapping status/reason only; Avalonia localizes the
-  stale/invalid notice at the UI boundary.
+  selection carries a typed mapping status/reason enum plus separate optional
+  technical detail; Avalonia localizes the reason at the UI boundary and never
+  embeds raw filesystem diagnostics into the stale/invalid notice.
 - One-click FEMapCreator profile/mapping resolution runs off the UI thread.
   Authoritative executable, image, and generation-data hashes use bounded reads
   that observe the generation cancellation token. The three required Config

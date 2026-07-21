@@ -1261,9 +1261,28 @@ namespace FEBuilderGBA.Avalonia.Views
                 return "";
             }
 
-            string reason = string.IsNullOrWhiteSpace(result.MappingReason)
-                ? R._("The saved FEMapCreator tileset mapping is no longer valid.")
-                : result.MappingReason;
+            string reason = result.MappingReason switch
+            {
+                FEMapCreatorMappingReason.StoredEntryMissingRequiredFields =>
+                    R._("The saved mapping entry is missing required fields."),
+                FEMapCreatorMappingReason.ImageUnreadable =>
+                    R._("The mapped image file is no longer readable."),
+                FEMapCreatorMappingReason.ImageChanged =>
+                    R._("The mapped image file has changed since the mapping was saved."),
+                FEMapCreatorMappingReason.GenerationDataUnreadable =>
+                    R._("The mapped generation-data file is no longer readable."),
+                FEMapCreatorMappingReason.GenerationDataChanged =>
+                    R._("The mapped generation-data file has changed since the mapping was saved."),
+                FEMapCreatorMappingReason.ProfileUnavailable =>
+                    R._("FEMapCreator is no longer configured or valid."),
+                FEMapCreatorMappingReason.ExecutablePathChanged =>
+                    R._("The configured FEMapCreator executable path has changed."),
+                FEMapCreatorMappingReason.ExecutableContentChanged =>
+                    R._("The configured FEMapCreator executable content has changed."),
+                FEMapCreatorMappingReason.AssetsRootChanged =>
+                    R._("The configured FEMapCreator assets root has changed."),
+                _ => R._("The saved FEMapCreator tileset mapping is no longer valid."),
+            };
             string format = result.MappingStatus == FEMapCreatorMappingStatus.Stale
                 ? R._("The saved FEMapCreator tileset mapping is stale ({0}); using the built-in generator instead.")
                 : R._("The saved FEMapCreator tileset mapping is invalid ({0}); using the built-in generator instead.");

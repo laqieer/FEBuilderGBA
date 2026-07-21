@@ -24,12 +24,14 @@ namespace FEBuilderGBA
             RandomMapBackendKind kind,
             FEMapCreatorTilesetMappingEntry externalMapping,
             FEMapCreatorMappingStatus mappingStatus,
-            string mappingReason)
+            FEMapCreatorMappingReason mappingReason,
+            string mappingDetail)
         {
             Kind = kind;
             ExternalMapping = externalMapping;
             MappingStatus = mappingStatus;
-            MappingReason = mappingReason ?? "";
+            MappingReason = mappingReason;
+            MappingDetail = mappingDetail ?? "";
         }
 
         /// <summary>Which backend to run.</summary>
@@ -47,24 +49,30 @@ namespace FEBuilderGBA
         /// </summary>
         public FEMapCreatorMappingStatus MappingStatus { get; }
 
-        /// <summary>Technical detail associated with a stale/invalid mapping.</summary>
-        public string MappingReason { get; }
+        /// <summary>Locale-neutral reason associated with a stale/invalid mapping.</summary>
+        public FEMapCreatorMappingReason MappingReason { get; }
+
+        /// <summary>Optional technical detail kept separate from localized user-facing text.</summary>
+        public string MappingDetail { get; }
 
         internal static RandomMapBackendSelection UseExternal(FEMapCreatorTilesetMappingEntry mapping) =>
             new RandomMapBackendSelection(
                 RandomMapBackendKind.External,
                 mapping,
                 FEMapCreatorMappingStatus.Current,
+                FEMapCreatorMappingReason.None,
                 "");
 
         internal static RandomMapBackendSelection UseBuiltIn(
             FEMapCreatorMappingStatus mappingStatus,
-            string mappingReason = "") =>
+            FEMapCreatorMappingReason mappingReason = FEMapCreatorMappingReason.None,
+            string mappingDetail = "") =>
             new RandomMapBackendSelection(
                 RandomMapBackendKind.BuiltIn,
                 null,
                 mappingStatus,
-                mappingReason);
+                mappingReason,
+                mappingDetail);
     }
 
     /// <summary>
@@ -100,7 +108,8 @@ namespace FEBuilderGBA
                 case FEMapCreatorMappingStatus.Invalid:
                     return RandomMapBackendSelection.UseBuiltIn(
                         mappingLookup.Status,
-                        mappingLookup.Reason);
+                        mappingLookup.Reason,
+                        mappingLookup.Detail);
 
                 case FEMapCreatorMappingStatus.NoMapping:
                 default:
