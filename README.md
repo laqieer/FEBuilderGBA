@@ -240,7 +240,11 @@ dotnet run --project FEBuilderGBA.CLI -- --generate-random-map --femapcreator=C:
 # backend starts, and the adjacent Cancel button remains enabled during generation so the operation can be
 # stopped without closing the editor. Authoritative FEMapCreator profile/mapping hashes — including Options'
 # Save Mapping image and generation-data identities — run off the UI thread and observe cancellation between
-# bounded file reads. Discovery and Save Mapping share one exclusive busy/cancel state. Built-in generation clones the ROM and
+# bounded file reads. Generation resolves/decompresses the authoritative OBJ/PAL/CFG/MAP tileset snapshot on
+# the same worker boundary and returns that exact fingerprint for the apply-time live-ROM guard; Map Editor no
+# longer performs a separate pre-service resolve on the dispatcher (the guard still re-resolves the live ROM
+# immediately before mutation).
+# Discovery and Save Mapping share one exclusive busy/cancel state. Built-in generation clones the ROM and
 # current grid before the worker hop, so corpus scanning never races live editor writes; if that grid cannot be
 # decoded exactly, generation fails before either backend is invoked rather than disabling source-identity rejection. Cancellation is also
 # observed while each cell's weighted candidate order is prepared. Built-in tileset loading rejects truncated
@@ -258,7 +262,8 @@ dotnet run --project FEBuilderGBA.CLI -- --generate-random-map --femapcreator=C:
 # If a mapping is configured and current,
 # Generate runs the external adapter above; once started, any launch/exit/parse failure is surfaced directly
 # and never silently swapped for the built-in engine, and cancelling (or closing the editor) terminates the
-# owned external process rather than letting it finish and apply. A successful result from either backend is
+# owned external process rather than letting it finish and apply. Both generation and tileset discovery re-check
+# cancellation after path/launch-spec setup and immediately before invoking any process runner. A successful result from either backend is
 # compared with the captured source grid; a sequence-identical layout fails instead of applying an unchanged
 # map as a successful undo transaction. Otherwise — or if the saved mapping is
 # stale/invalid, which is visibly explained with a localized typed reason (on success, failure, or cancellation

@@ -60,6 +60,40 @@ namespace FEBuilderGBA
             CancellationToken cancellationToken = default,
             ProcessRunnerCancellableDelegate cancellableRunner = null)
         {
+            return DiscoverTilesetsCore(
+                feMapCreatorPath,
+                assetsDir,
+                runner,
+                cancellationToken,
+                cancellableRunner,
+                beforeProcessLaunch: null);
+        }
+
+        internal static FEMapCreatorTilesetDiscoveryResult DiscoverTilesetsWithPreLaunchHook(
+            string feMapCreatorPath,
+            string assetsDir,
+            ProcessRunnerDelegate runner,
+            CancellationToken cancellationToken,
+            ProcessRunnerCancellableDelegate cancellableRunner,
+            Action beforeProcessLaunch)
+        {
+            return DiscoverTilesetsCore(
+                feMapCreatorPath,
+                assetsDir,
+                runner,
+                cancellationToken,
+                cancellableRunner,
+                beforeProcessLaunch);
+        }
+
+        static FEMapCreatorTilesetDiscoveryResult DiscoverTilesetsCore(
+            string feMapCreatorPath,
+            string assetsDir,
+            ProcessRunnerDelegate runner,
+            CancellationToken cancellationToken,
+            ProcessRunnerCancellableDelegate cancellableRunner,
+            Action beforeProcessLaunch)
+        {
             try
             {
                 if (cancellationToken.IsCancellationRequested)
@@ -82,6 +116,10 @@ namespace FEBuilderGBA
                         BuildDiscoveryArguments(normalizedAssetsDir));
                 if (!spec.Success)
                     return Fail(spec.ErrorCategory, spec.ErrorMessage);
+
+                beforeProcessLaunch?.Invoke();
+                if (cancellationToken.IsCancellationRequested)
+                    return Fail(RandomMapGeneratorErrorCategory.Cancelled, "FEMapCreator tileset discovery was cancelled.");
 
                 ProcessRunResult processResult;
                 if (cancellableRunner != null)

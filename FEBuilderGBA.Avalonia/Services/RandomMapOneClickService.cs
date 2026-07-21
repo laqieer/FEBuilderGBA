@@ -36,6 +36,13 @@ namespace FEBuilderGBA.Avalonia.Services
         public RandomMapBackendUsed BackendUsed { get; init; }
 
         /// <summary>
+        /// Fingerprint resolved from the immutable ROM snapshot used for backend selection.
+        /// The Map Editor reuses this exact identity for its apply-time live-ROM guard instead
+        /// of performing a separate pre-service resolution on the dispatcher.
+        /// </summary>
+        public TilesetFingerprint SourceTilesetFingerprint { get; init; } = TilesetFingerprint.Empty;
+
+        /// <summary>
         /// Typed mapping state carried through every outcome. The Map Editor formats any
         /// stale/invalid fallback notice with localized <c>R._(...)</c> text at the Avalonia UI
         /// boundary rather than receiving an English sentence from Core.
@@ -70,6 +77,17 @@ namespace FEBuilderGBA.Avalonia.Services
         internal string RawAssetsRoot { get; }
         internal string RawMappingsJson { get; }
     }
+
+    /// <summary>
+    /// Cancellation-aware seam for resolving/decompressing the immutable generation tileset.
+    /// The service always dispatches this work away from the Avalonia UI thread.
+    /// </summary>
+    internal delegate bool RandomMapTilesetResolverDelegate(
+        ROM rom,
+        uint mapSettingAddr,
+        CancellationToken cancellationToken,
+        out MapTilesetSnapshot snapshot,
+        out string error);
 
     /// <summary>
     /// Delegate used to resolve the current, freshly-validated FEMapCreator profile and
@@ -128,17 +146,20 @@ namespace FEBuilderGBA.Avalonia.Services
         readonly RandomMapExternalGenerateDelegate _generateExternal;
         readonly RandomMapBuiltInGenerateDelegate _generateBuiltIn;
         readonly RandomMapMappingResolverDelegate _resolveMapping;
+        readonly RandomMapTilesetResolverDelegate _resolveTileset;
 
         internal RandomMapOneClickService(
             ProcessRunnerDelegate? runner = null,
             RandomMapExternalGenerateDelegate? generateExternal = null,
             RandomMapBuiltInGenerateDelegate? generateBuiltIn = null,
-            RandomMapMappingResolverDelegate? resolveMapping = null)
+            RandomMapMappingResolverDelegate? resolveMapping = null,
+            RandomMapTilesetResolverDelegate? resolveTileset = null)
         {
             _runner = runner;
             _generateExternal = generateExternal ?? DefaultGenerateExternal;
             _generateBuiltIn = generateBuiltIn ?? BuiltInRandomMapGeneratorCore.TryGenerateFromRom;
             _resolveMapping = resolveMapping ?? DefaultResolveMapping;
+            _resolveTileset = resolveTileset ?? DefaultResolveTileset;
         }
 
         /// <summary>
@@ -172,17 +193,38 @@ namespace FEBuilderGBA.Avalonia.Services
             // worker must never scan the shared mutable ROM/current-grid objects.
             ROM generationRom = rom.Clone();
             ushort[]? generationGrid = currentGrid == null ? null : (ushort[])currentGrid.Clone();
+            RandomMapMappingConfigSnapshot mappingConfig = CaptureMappingConfig();
 
-            if (!BuiltInRandomMapTilesetCore.TryResolveMapTileset(
-                generationRom,
-                mapSettingAddr,
-                out MapTilesetSnapshot snapshot,
-                out string tilesetError))
+            (bool Success, MapTilesetSnapshot Snapshot, string Error) tilesetResolution;
+            try
             {
-                return Failure(string.Format(R._("Could not resolve the current map's tileset: {0}"), tilesetError));
+                tilesetResolution = await Task.Run(
+                    () =>
+                    {
+                        bool success = _resolveTileset(
+                            generationRom,
+                            mapSettingAddr,
+                            cancellationToken,
+                            out MapTilesetSnapshot resolvedSnapshot,
+                            out string resolveError);
+                        return (success, resolvedSnapshot, resolveError);
+                    },
+                    cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+            catch (OperationCanceledException)
+            {
+                return Cancelled();
             }
 
-            RandomMapMappingConfigSnapshot mappingConfig = CaptureMappingConfig();
+            if (!tilesetResolution.Success)
+            {
+                return Failure(string.Format(
+                    R._("Could not resolve the current map's tileset: {0}"),
+                    tilesetResolution.Error));
+            }
+
+            MapTilesetSnapshot snapshot = tilesetResolution.Snapshot;
             FEMapCreatorSetupSnapshot profile;
             FEMapCreatorMappingLookupResult mappingLookup;
             try
@@ -254,6 +296,7 @@ namespace FEBuilderGBA.Avalonia.Services
                     MappingStatus = selection.MappingStatus,
                     MappingReason = selection.MappingReason,
                     MappingDetail = selection.MappingDetail,
+                    SourceTilesetFingerprint = snapshot.Fingerprint,
                     Outcome = new RandomMapGenerationOutcome
                     {
                         Mars = externalResult.Mars,
@@ -316,6 +359,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 MappingStatus = selection.MappingStatus,
                 MappingReason = selection.MappingReason,
                 MappingDetail = selection.MappingDetail,
+                SourceTilesetFingerprint = snapshot.Fingerprint,
                 Outcome = new RandomMapGenerationOutcome
                 {
                     Mars = outcome.builtInResult.Mars,
@@ -392,6 +436,23 @@ namespace FEBuilderGBA.Avalonia.Services
             MappingReason = selection?.MappingReason ?? FEMapCreatorMappingReason.None,
             MappingDetail = selection?.MappingDetail ?? "",
         };
+
+        static bool DefaultResolveTileset(
+            ROM rom,
+            uint mapSettingAddr,
+            CancellationToken cancellationToken,
+            out MapTilesetSnapshot snapshot,
+            out string error)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            bool success = BuiltInRandomMapTilesetCore.TryResolveMapTileset(
+                rom,
+                mapSettingAddr,
+                out snapshot,
+                out error);
+            cancellationToken.ThrowIfCancellationRequested();
+            return success;
+        }
 
         static (FEMapCreatorSetupSnapshot Profile, FEMapCreatorMappingLookupResult MappingLookup) DefaultResolveMapping(
             TilesetFingerprint fingerprint,

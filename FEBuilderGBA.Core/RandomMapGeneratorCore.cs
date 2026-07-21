@@ -47,6 +47,36 @@ namespace FEBuilderGBA
             CancellationToken cancellationToken = default,
             ProcessRunnerCancellableDelegate cancellableRunner = null)
         {
+            return GenerateCore(
+                request,
+                runner,
+                cancellationToken,
+                cancellableRunner,
+                beforeProcessLaunch: null);
+        }
+
+        internal static RandomMapGenerationResult GenerateWithPreLaunchHook(
+            RandomMapGenerationRequest request,
+            ProcessRunnerDelegate runner,
+            CancellationToken cancellationToken,
+            ProcessRunnerCancellableDelegate cancellableRunner,
+            Action beforeProcessLaunch)
+        {
+            return GenerateCore(
+                request,
+                runner,
+                cancellationToken,
+                cancellableRunner,
+                beforeProcessLaunch);
+        }
+
+        static RandomMapGenerationResult GenerateCore(
+            RandomMapGenerationRequest request,
+            ProcessRunnerDelegate runner,
+            CancellationToken cancellationToken,
+            ProcessRunnerCancellableDelegate cancellableRunner,
+            Action beforeProcessLaunch)
+        {
             if (cancellationToken.IsCancellationRequested)
                 return Fail(RandomMapGeneratorErrorCategory.Cancelled, "Random map generation was cancelled.");
 
@@ -76,6 +106,10 @@ namespace FEBuilderGBA
                             outputMarPath));
                 if (!spec.Success)
                     return Fail(spec.ErrorCategory, spec.ErrorMessage);
+
+                beforeProcessLaunch?.Invoke();
+                if (cancellationToken.IsCancellationRequested)
+                    return Fail(RandomMapGeneratorErrorCategory.Cancelled, "Random map generation was cancelled.");
 
                 ProcessRunResult processResult;
                 if (cancellableRunner != null)

@@ -666,6 +666,38 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        [Fact]
+        public void Generate_CancelledAfterSetupBeforeRunner_DoesNotLaunch()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string femapCreatorPath = CreateEmptyFile(tempRoot, "FEMapCreator.exe");
+                var request = CreateValidRequest(femapCreatorPath);
+                using var cts = new CancellationTokenSource();
+                bool sawCall = false;
+
+                RandomMapGenerationResult result = RandomMapGeneratorCore.GenerateWithPreLaunchHook(
+                    request,
+                    (command, args, workingDir, timeoutMs, maximumOutputChars) =>
+                    {
+                        sawCall = true;
+                        return new ProcessRunResult { Started = true, ExitCode = 0 };
+                    },
+                    cts.Token,
+                    cancellableRunner: null,
+                    beforeProcessLaunch: cts.Cancel);
+
+                Assert.False(result.Success);
+                Assert.Equal(RandomMapGeneratorErrorCategory.Cancelled, result.ErrorCategory);
+                Assert.False(sawCall, "Generate must re-check cancellation after setup and immediately before runner invocation.");
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
         // A late-arriving successful result from a custom (non-cancellable) fake runner must
         // still be discarded once the token is observed cancelled immediately afterwards.
         [Fact]

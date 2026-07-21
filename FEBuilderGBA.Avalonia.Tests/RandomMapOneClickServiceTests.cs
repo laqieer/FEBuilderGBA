@@ -410,6 +410,105 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [AvaloniaFact]
+        public async Task GenerateAsync_TilesetResolution_RunsOffUiThreadOnceAndReturnsFingerprint()
+        {
+            ROM rom = RandomMapOneClickTestSupport.CreateResolvableTilesetRom(
+                2, 2, 0x0001, out uint mapSettingAddr, out _, out _);
+            int resolutionCalls = 0;
+            TilesetFingerprint expectedFingerprint = TilesetFingerprint.Empty;
+            var service = new RandomMapOneClickService(
+                runner: null,
+                generateExternal: (request, cancellationToken) =>
+                    throw new InvalidOperationException("must not run external backend"),
+                generateBuiltIn: (ROM r, uint addr, int width, int height, ushort[]? currentGrid, int seed, CancellationToken ct,
+                    out BuiltInRandomMapGenerationResult? result, out string error) =>
+                {
+                    result = MakeBuiltInSuccess(width, height, seed);
+                    error = "";
+                    return true;
+                },
+                resolveMapping: (fingerprint, configSnapshot, cancellationToken) => (
+                    new FEMapCreatorSetupSnapshot(FEMapCreatorSetupStatus.NotConfigured, "", "", ""),
+                    FEMapCreatorMappingLookupResult.NoMapping()),
+                resolveTileset: (ROM r, uint addr, CancellationToken cancellationToken,
+                    out MapTilesetSnapshot snapshot, out string error) =>
+                {
+                    Assert.False(Dispatcher.UIThread.CheckAccess());
+                    Interlocked.Increment(ref resolutionCalls);
+                    bool success = BuiltInRandomMapTilesetCore.TryResolveMapTileset(
+                        r, addr, out snapshot, out error);
+                    if (success)
+                        expectedFingerprint = snapshot.Fingerprint;
+                    return success;
+                });
+
+            RandomMapOneClickResult result = await service.GenerateAsync(
+                rom, mapSettingAddr, 2, 2, currentGrid: null, seed: 321, CancellationToken.None);
+
+            Assert.True(result.Success);
+            Assert.Equal(1, resolutionCalls);
+            Assert.False(expectedFingerprint.IsEmpty);
+            Assert.Equal(expectedFingerprint, result.SourceTilesetFingerprint);
+        }
+
+        [AvaloniaFact]
+        public async Task GenerateAsync_TilesetResolution_CancellationStopsBeforeMappingAndBackend()
+        {
+            ROM rom = RandomMapOneClickTestSupport.CreateResolvableTilesetRom(
+                2, 2, 0x0001, out uint mapSettingAddr, out _, out _);
+            var resolverStarted = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            bool mappingInvoked = false;
+            bool builtInInvoked = false;
+            bool externalInvoked = false;
+            var service = new RandomMapOneClickService(
+                runner: null,
+                generateExternal: (request, cancellationToken) =>
+                {
+                    externalInvoked = true;
+                    return new RandomMapGenerationResult { Success = true };
+                },
+                generateBuiltIn: (ROM r, uint addr, int width, int height, ushort[]? currentGrid, int seed, CancellationToken ct,
+                    out BuiltInRandomMapGenerationResult? result, out string error) =>
+                {
+                    builtInInvoked = true;
+                    result = null;
+                    error = "";
+                    return true;
+                },
+                resolveMapping: (fingerprint, configSnapshot, cancellationToken) =>
+                {
+                    mappingInvoked = true;
+                    throw new InvalidOperationException("must not resolve mapping after cancellation");
+                },
+                resolveTileset: (ROM r, uint addr, CancellationToken cancellationToken,
+                    out MapTilesetSnapshot snapshot, out string error) =>
+                {
+                    Assert.False(Dispatcher.UIThread.CheckAccess());
+                    bool success = BuiltInRandomMapTilesetCore.TryResolveMapTileset(
+                        r, addr, out snapshot, out error);
+                    resolverStarted.TrySetResult(true);
+                    Assert.True(cancellationToken.WaitHandle.WaitOne(TimeSpan.FromSeconds(5)));
+                    cancellationToken.ThrowIfCancellationRequested();
+                    return success;
+                });
+
+            using var cts = new CancellationTokenSource();
+            Task<RandomMapOneClickResult> generation = service.GenerateAsync(
+                rom, mapSettingAddr, 2, 2, currentGrid: null, seed: 1, cts.Token);
+
+            await resolverStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            cts.Cancel();
+            RandomMapOneClickResult result = await generation.WaitAsync(TimeSpan.FromSeconds(5));
+
+            Assert.False(result.Success);
+            Assert.True(result.Cancelled);
+            Assert.False(mappingInvoked);
+            Assert.False(builtInInvoked);
+            Assert.False(externalInvoked);
+        }
+
+        [AvaloniaFact]
         public async Task GenerateAsync_MappingResolution_RunsOffUiThreadAndObservesCancellation()
         {
             ROM rom = RandomMapOneClickTestSupport.CreateResolvableTilesetRom(

@@ -76,6 +76,12 @@ later in this catalog:
   that observe the generation cancellation token. The three required Config
   strings are snapshotted before the worker hop; the background resolver never
   reads the live UI-mutated Config dictionary.
+- The same worker boundary owns the authoritative OBJ/PAL/CFG/MAP tileset
+  resolution and decompression. `RandomMapOneClickResult` returns that immutable
+  snapshot's fingerprint for the Map Editor's apply-time live-ROM guard, so no
+  separate pre-service resolve runs on the dispatcher. The guard intentionally
+  re-resolves the live ROM immediately before mutation to close the stale-context
+  race.
 - The Map Editor has an inline generation Cancel button, materializes blank seeds
   before backend invocation, and passes cancellation into the dispatched apply
   callback before undo/ROM mutation. "Map Tileset..." selects Options' External
@@ -90,6 +96,9 @@ later in this catalog:
   orchestration boundary compares every successful external or built-in result
   with that captured grid and rejects a sequence-identical layout instead of
   committing an unchanged map as success.
+- External generation and FEMapCreator tileset discovery both re-check the
+  caller token after launch-spec setup and immediately before dispatching either
+  the cancellation-aware or legacy process runner.
 - Options displays the Built-in Experimental visual-coherence-only disclaimer;
   success status names the exact `Built-in Experimental` or
   `FEMapCreator Experimental` backend. The setup wizard opens Options and invokes

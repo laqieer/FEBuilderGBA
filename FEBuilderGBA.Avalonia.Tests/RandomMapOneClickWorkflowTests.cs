@@ -744,6 +744,18 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Contains("Fail(", guard, StringComparison.Ordinal);
             Assert.Contains("return;", guard, StringComparison.Ordinal);
             Assert.DoesNotContain("ushort[]? currentGrid", method, StringComparison.Ordinal);
+            Assert.DoesNotContain(
+                "BuiltInRandomMapTilesetCore.TryResolveMapTileset",
+                method,
+                StringComparison.Ordinal);
+
+            int fingerprint = method.IndexOf(
+                "TilesetFingerprint expectedFingerprint = result.SourceTilesetFingerprint;",
+                StringComparison.Ordinal);
+            int apply = method.IndexOf(
+                "GenerateRandomMapWorkflow.ApplyGeneratedMapOnUiThreadAsync(",
+                StringComparison.Ordinal);
+            Assert.True(fingerprint > backend && apply > fingerprint);
         }
 
         [Fact]

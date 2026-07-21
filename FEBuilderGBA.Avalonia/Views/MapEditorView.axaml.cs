@@ -1072,12 +1072,6 @@ namespace FEBuilderGBA.Avalonia.Views
                 int width = _vm.MapWidth;
                 int height = _vm.MapHeight;
 
-                if (!BuiltInRandomMapTilesetCore.TryResolveMapTileset(CoreState.ROM, mapSettingAddr, out MapTilesetSnapshot snapshot, out string tilesetError))
-                {
-                    Fail(string.Format(R._("Generate random map failed: {0}"), tilesetError));
-                    return;
-                }
-                TilesetFingerprint expectedFingerprint = snapshot.Fingerprint;
                 if (!TryBuildCurrentGrid(
                     _vm.GetMapDataSnapshot(),
                     width,
@@ -1124,6 +1118,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     CoreState.Services?.ShowInfo(notice);
 
                 RandomMapGenerationOutcome outcome = result.Outcome;
+                TilesetFingerprint expectedFingerprint = result.SourceTilesetFingerprint;
                 if (outcome.Mars == null || outcome.Mars.Length != outcome.Width * outcome.Height)
                 {
                     Fail(R._("Random map generation returned no map data."));

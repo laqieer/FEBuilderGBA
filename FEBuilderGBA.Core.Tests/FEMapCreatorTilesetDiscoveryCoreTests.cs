@@ -263,6 +263,39 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void DiscoverTilesets_CancelledAfterSetupBeforeRunner_DoesNotLaunch()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string femapCreatorExe = CreateEmptyFile(tempRoot, "FEMapCreator.exe");
+                using var cts = new CancellationTokenSource();
+                bool sawCall = false;
+
+                FEMapCreatorTilesetDiscoveryResult result =
+                    FEMapCreatorTilesetDiscoveryCore.DiscoverTilesetsWithPreLaunchHook(
+                        femapCreatorExe,
+                        assetsDir: null,
+                        runner: (command, args, workingDir, timeoutMs, maximumOutputChars) =>
+                        {
+                            sawCall = true;
+                            return new ProcessRunResult { Started = true, ExitCode = 0, Stdout = "{}" };
+                        },
+                        cancellationToken: cts.Token,
+                        cancellableRunner: null,
+                        beforeProcessLaunch: cts.Cancel);
+
+                Assert.False(result.Success);
+                Assert.Equal(RandomMapGeneratorErrorCategory.Cancelled, result.ErrorCategory);
+                Assert.False(sawCall, "Discovery must re-check cancellation after setup and immediately before runner invocation.");
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
         public void DiscoverTilesets_CancellableRunnerOverride_ReportsCancelledFromProcessResult()
         {
             string tempRoot = CreateTempDirectory();
