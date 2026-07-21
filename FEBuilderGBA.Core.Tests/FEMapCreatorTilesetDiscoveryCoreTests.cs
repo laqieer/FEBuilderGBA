@@ -290,6 +290,33 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void DiscoverTilesets_CancellableRunnerThrowsAssociatedCancellation_ReportsCancelled()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string femapCreatorExe = CreateEmptyFile(tempRoot, "FEMapCreator.exe");
+                using var cts = new CancellationTokenSource();
+
+                FEMapCreatorTilesetDiscoveryResult result = FEMapCreatorTilesetDiscoveryCore.DiscoverTilesets(
+                    femapCreatorExe,
+                    cancellationToken: cts.Token,
+                    cancellableRunner: (command, args, workingDir, timeoutMs, maximumOutputChars, token) =>
+                    {
+                        cts.Cancel();
+                        throw new OperationCanceledException(token);
+                    });
+
+                Assert.False(result.Success);
+                Assert.Equal(RandomMapGeneratorErrorCategory.Cancelled, result.ErrorCategory);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
         public void DiscoverTilesets_ParsesCompleteIncompleteAndEscapedEntries()
         {
             string tempRoot = CreateTempDirectory();

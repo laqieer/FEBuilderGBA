@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -254,6 +255,51 @@ namespace FEBuilderGBA.Core.Tests
 
             Assert.False(result.Success);
             Assert.Equal(BuiltInRandomMapErrorCategory.Cancelled, result.ErrorCategory);
+        }
+
+        [Fact]
+        public void Generate_CancelledDuringCandidateOrderPrecomputation_StopsBeforeRemainingCells()
+        {
+            var candidates = new List<ushort> { 0, 4, 8 };
+            var frequency = new Dictionary<ushort, long> { [0] = 1, [4] = 1, [8] = 1 };
+            var adjacency = new Dictionary<ushort, IReadOnlySet<ushort>>
+            {
+                [0] = Set(0, 4, 8),
+                [4] = Set(0, 4, 8),
+                [8] = Set(0, 4, 8),
+            };
+            using var cts = new CancellationTokenSource();
+            var cancellingBorderFrequency = new CancellingReadOnlyDictionary(
+                frequency,
+                cts,
+                cancelAfterTryGetValueCalls: candidates.Count + 1);
+            var corpus = BuiltInRandomMapTilesetCorpus.CreateForTesting(
+                TilesetFingerprint.Empty,
+                new List<uint> { 0 },
+                candidates,
+                frequency,
+                cancellingBorderFrequency,
+                adjacency,
+                adjacency,
+                objData: null,
+                paletteData: null,
+                configData: new byte[64],
+                totalCells: Width * Height);
+
+            BuiltInRandomMapGenerationResult result = BuiltInRandomMapGeneratorCore.Generate(
+                corpus,
+                Width,
+                Height,
+                currentGrid: null,
+                seed: 1,
+                cts.Token);
+
+            Assert.True(cts.IsCancellationRequested);
+            Assert.False(result.Success);
+            Assert.Equal(BuiltInRandomMapErrorCategory.Cancelled, result.ErrorCategory);
+            Assert.True(
+                cancellingBorderFrequency.TryGetValueCalls < Width * Height * candidates.Count,
+                "Cancellation must be observed between cells instead of precomputing every remaining candidate order.");
         }
 
         [Fact]
@@ -526,6 +572,43 @@ namespace FEBuilderGBA.Core.Tests
             int off = tsaBase + sub * 2;
             configData[off] = (byte)(tsa & 0xFF);
             configData[off + 1] = (byte)((tsa >> 8) & 0xFF);
+        }
+
+        sealed class CancellingReadOnlyDictionary : IReadOnlyDictionary<ushort, long>
+        {
+            readonly IReadOnlyDictionary<ushort, long> inner;
+            readonly CancellationTokenSource cancellationTokenSource;
+            readonly int cancelAfterTryGetValueCalls;
+
+            public CancellingReadOnlyDictionary(
+                IReadOnlyDictionary<ushort, long> inner,
+                CancellationTokenSource cancellationTokenSource,
+                int cancelAfterTryGetValueCalls)
+            {
+                this.inner = inner;
+                this.cancellationTokenSource = cancellationTokenSource;
+                this.cancelAfterTryGetValueCalls = cancelAfterTryGetValueCalls;
+            }
+
+            public int TryGetValueCalls { get; private set; }
+            public long this[ushort key] => inner[key];
+            public IEnumerable<ushort> Keys => inner.Keys;
+            public IEnumerable<long> Values => inner.Values;
+            public int Count => inner.Count;
+
+            public bool ContainsKey(ushort key) => inner.ContainsKey(key);
+
+            public bool TryGetValue(ushort key, out long value)
+            {
+                TryGetValueCalls++;
+                bool found = inner.TryGetValue(key, out value);
+                if (TryGetValueCalls == cancelAfterTryGetValueCalls)
+                    cancellationTokenSource.Cancel();
+                return found;
+            }
+
+            public IEnumerator<KeyValuePair<ushort, long>> GetEnumerator() => inner.GetEnumerator();
+            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
         }
     }
 }

@@ -158,6 +158,13 @@ namespace FEBuilderGBA
                     StderrTail = Tail(processResult.Stderr),
                 };
             }
+            catch (OperationCanceledException ex) when (
+                cancellationToken.IsCancellationRequested ||
+                (cancellationToken.CanBeCanceled && ex.CancellationToken == cancellationToken))
+            {
+                return Fail(RandomMapGeneratorErrorCategory.Cancelled,
+                    "Random map generation was cancelled.");
+            }
             catch (Exception ex)
             {
                 return Fail(RandomMapGeneratorErrorCategory.ParseFailed,

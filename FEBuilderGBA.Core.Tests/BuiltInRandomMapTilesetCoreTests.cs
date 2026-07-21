@@ -107,6 +107,188 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void TryResolveMapTileset_ValidSecondaryObj_AppendsBytes()
+        {
+            ROM rom = BuiltInRandomMapTestFixture.CreateRom();
+            byte[] primaryObj = MakeBytes(64, seed: 1);
+            byte[] secondaryObj = MakeBytes(32, seed: 2);
+            byte[] pal = MakeBytes(2 * 16 * 16, seed: 3);
+            byte[] cfg = MakeBytes(24, seed: 4);
+            ushort[] mars = new ushort[15 * 10];
+            uint addr = BuiltInRandomMapTestFixture.WriteMap(
+                rom,
+                mapIndex: 0,
+                tilesetSlot: 1,
+                primaryObj,
+                pal,
+                cfg,
+                15,
+                10,
+                mars,
+                secondaryObjSlot: 2,
+                secondaryObjRaw: secondaryObj);
+
+            bool ok = BuiltInRandomMapTilesetCore.TryResolveMapTileset(
+                rom,
+                addr,
+                out MapTilesetSnapshot snapshot,
+                out string error);
+
+            Assert.True(ok, error);
+            byte[] expected = new byte[primaryObj.Length + secondaryObj.Length];
+            System.Array.Copy(primaryObj, 0, expected, 0, primaryObj.Length);
+            System.Array.Copy(secondaryObj, 0, expected, primaryObj.Length, secondaryObj.Length);
+            Assert.Equal(expected, snapshot.ObjData);
+        }
+
+        [Fact]
+        public void TryResolveMapTileset_NonzeroUnresolvedSecondaryObj_Fails()
+        {
+            ROM rom = BuiltInRandomMapTestFixture.CreateRom();
+            byte[] obj = MakeBytes(64, seed: 1);
+            byte[] pal = MakeBytes(2 * 16 * 16, seed: 2);
+            byte[] cfg = MakeBytes(24, seed: 3);
+            ushort[] mars = new ushort[15 * 10];
+            uint addr = BuiltInRandomMapTestFixture.WriteMap(
+                rom, 0, tilesetSlot: 1, obj, pal, cfg, 15, 10, mars);
+            rom.Data[addr + 5] = 2;
+
+            bool ok = BuiltInRandomMapTilesetCore.TryResolveMapTileset(
+                rom,
+                addr,
+                out MapTilesetSnapshot snapshot,
+                out string error);
+
+            Assert.False(ok);
+            Assert.Null(snapshot);
+            Assert.Contains("Secondary OBJ PLIST 2", error);
+        }
+
+        [Fact]
+        public void TryResolveMapTileset_TruncatedPrimaryObjStream_Fails()
+        {
+            ROM rom = BuiltInRandomMapTestFixture.CreateRom();
+            byte[] obj = MakeBytes(64, seed: 1);
+            byte[] pal = MakeBytes(2 * 16 * 16, seed: 2);
+            byte[] cfg = MakeBytes(24, seed: 3);
+            ushort[] mars = new ushort[15 * 10];
+            uint addr = BuiltInRandomMapTestFixture.WriteMap(
+                rom, 0, tilesetSlot: 1, obj, pal, cfg, 15, 10, mars);
+            RepointToTruncatedCompressedStreamAtEof(
+                rom,
+                rom.RomInfo.map_obj_pointer,
+                plist: 1,
+                obj);
+
+            bool ok = BuiltInRandomMapTilesetCore.TryResolveMapTileset(
+                rom,
+                addr,
+                out MapTilesetSnapshot snapshot,
+                out string error);
+
+            Assert.False(ok);
+            Assert.Null(snapshot);
+            Assert.Contains("Primary OBJ", error);
+            Assert.Contains("complete valid LZ77", error);
+        }
+
+        [Fact]
+        public void TryResolveMapTileset_TruncatedSecondaryObjStream_Fails()
+        {
+            ROM rom = BuiltInRandomMapTestFixture.CreateRom();
+            byte[] primaryObj = MakeBytes(64, seed: 1);
+            byte[] secondaryObj = MakeBytes(32, seed: 2);
+            byte[] pal = MakeBytes(2 * 16 * 16, seed: 3);
+            byte[] cfg = MakeBytes(24, seed: 4);
+            ushort[] mars = new ushort[15 * 10];
+            uint addr = BuiltInRandomMapTestFixture.WriteMap(
+                rom,
+                mapIndex: 0,
+                tilesetSlot: 1,
+                primaryObj,
+                pal,
+                cfg,
+                15,
+                10,
+                mars,
+                secondaryObjSlot: 2,
+                secondaryObjRaw: secondaryObj);
+            RepointToTruncatedCompressedStreamAtEof(
+                rom,
+                rom.RomInfo.map_obj_pointer,
+                plist: 2,
+                secondaryObj);
+
+            bool ok = BuiltInRandomMapTilesetCore.TryResolveMapTileset(
+                rom,
+                addr,
+                out MapTilesetSnapshot snapshot,
+                out string error);
+
+            Assert.False(ok);
+            Assert.Null(snapshot);
+            Assert.Contains("Secondary OBJ", error);
+            Assert.Contains("complete valid LZ77", error);
+        }
+
+        [Fact]
+        public void TryResolveMapTileset_TruncatedConfigStream_Fails()
+        {
+            ROM rom = BuiltInRandomMapTestFixture.CreateRom();
+            byte[] obj = MakeBytes(64, seed: 1);
+            byte[] pal = MakeBytes(2 * 16 * 16, seed: 2);
+            byte[] cfg = MakeBytes(24, seed: 3);
+            ushort[] mars = new ushort[15 * 10];
+            uint addr = BuiltInRandomMapTestFixture.WriteMap(
+                rom, 0, tilesetSlot: 1, obj, pal, cfg, 15, 10, mars);
+            RepointToTruncatedCompressedStreamAtEof(
+                rom,
+                rom.RomInfo.map_config_pointer,
+                plist: 1,
+                cfg);
+
+            bool ok = BuiltInRandomMapTilesetCore.TryResolveMapTileset(
+                rom,
+                addr,
+                out MapTilesetSnapshot snapshot,
+                out string error);
+
+            Assert.False(ok);
+            Assert.Null(snapshot);
+            Assert.Contains("Config", error);
+            Assert.Contains("complete valid LZ77", error);
+        }
+
+        [Fact]
+        public void TryResolveMapTileset_TruncatedMapStream_Fails()
+        {
+            ROM rom = BuiltInRandomMapTestFixture.CreateRom();
+            byte[] obj = MakeBytes(64, seed: 1);
+            byte[] pal = MakeBytes(2 * 16 * 16, seed: 2);
+            byte[] cfg = MakeBytes(24, seed: 3);
+            ushort[] mars = new ushort[15 * 10];
+            uint addr = BuiltInRandomMapTestFixture.WriteMap(
+                rom, 0, tilesetSlot: 1, obj, pal, cfg, 15, 10, mars);
+            byte[] mapData = BuiltInRandomMapTestFixture.BuildMapBuffer(15, 10, mars);
+            RepointToTruncatedCompressedStreamAtEof(
+                rom,
+                rom.RomInfo.map_map_pointer_pointer,
+                plist: 1,
+                mapData);
+
+            bool ok = BuiltInRandomMapTilesetCore.TryResolveMapTileset(
+                rom,
+                addr,
+                out MapTilesetSnapshot snapshot,
+                out string error);
+
+            Assert.False(ok);
+            Assert.Null(snapshot);
+            Assert.Contains("MAP", error);
+            Assert.Contains("complete valid LZ77", error);
+        }
+
+        [Fact]
         public void Fingerprint_SameBytesSameVersion_AreEqual()
         {
             byte[] obj = MakeBytes(64, 1);
@@ -196,6 +378,27 @@ namespace FEBuilderGBA.Core.Tests
             var rng = new System.Random(seed);
             rng.NextBytes(result);
             return result;
+        }
+
+        static void RepointToTruncatedCompressedStreamAtEof(
+            ROM rom,
+            uint tablePointerAddress,
+            int plist,
+            byte[] rawData)
+        {
+            byte[] compressed = LZ77.compress(rawData);
+            uint completeLength = LZ77.getCompressedSize(compressed, 0);
+            Assert.True(completeLength > 1);
+            int truncatedLength = checked((int)completeLength - 1);
+            uint truncatedOffset = checked((uint)(rom.Data.Length - truncatedLength));
+            System.Array.Copy(compressed, 0, rom.Data, truncatedOffset, truncatedLength);
+
+            uint tableOffset = rom.p32(tablePointerAddress);
+            BuiltInRandomMapTestFixture.WriteU32(
+                rom,
+                tableOffset + checked((uint)plist * 4),
+                0x08000000u + truncatedOffset);
+            Assert.Equal(0u, LZ77.getCompressedSize(rom.Data, truncatedOffset));
         }
     }
 }

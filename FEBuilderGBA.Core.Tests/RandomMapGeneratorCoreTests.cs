@@ -731,6 +731,35 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        [Fact]
+        public void Generate_CancellableRunnerThrowsAssociatedCancellation_ReportsCancelled()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string femapCreatorPath = CreateEmptyFile(tempRoot, "FEMapCreator.exe");
+                var request = CreateValidRequest(femapCreatorPath);
+                using var cts = new CancellationTokenSource();
+
+                RandomMapGenerationResult result = RandomMapGeneratorCore.Generate(
+                    request,
+                    runner: null,
+                    cancellationToken: cts.Token,
+                    cancellableRunner: (command, args, workingDir, timeoutMs, maximumOutputChars, token) =>
+                    {
+                        cts.Cancel();
+                        throw new OperationCanceledException(token);
+                    });
+
+                Assert.False(result.Success);
+                Assert.Equal(RandomMapGeneratorErrorCategory.Cancelled, result.ErrorCategory);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
         static RandomMapGenerationRequest CreateValidRequest(string femapCreatorPath)
         {
             return new RandomMapGenerationRequest

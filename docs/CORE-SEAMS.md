@@ -19,12 +19,22 @@ later in this catalog:
   does not have all four bytes in the ROM and requires the complete fixed
   512-byte palette snapshot; truncation is a resolution failure, never a shorter
   fingerprint input.
+- Every built-in random-map compressed input is validated as a complete LZ77
+  stream before decompression: primary OBJ, any nonzero secondary OBJ, CFG, and
+  MAP all fail closed on premature EOF. A nonzero secondary OBJ PLIST is
+  mandatory identity input and cannot be silently omitted when unresolved or
+  malformed.
 - `BuiltInRandomMapEdgeSignatureCore` follows the accepted Plan v4 sparse-corpus
   contract: it compares raw, palette-independent 4bpp boundary indices after TSA
   hFlip/vFlip. Palette-bank bits do not change structural edge compatibility.
 - `BuiltInRandomMapCorpusCore.TryBuildCorpus` accepts a cancellation token and
   checks it during map, row, and cell scanning; `TryGenerateFromRom` converts
   cancellation into typed `BuiltInRandomMapErrorCategory.Cancelled`.
+- Solver cancellation is also checked once per cell while weighted candidate
+  orders are precomputed, before bounded backtracking begins. The external
+  generation and discovery adapters convert runner-thrown, caller-token-associated
+  `OperationCanceledException` instances into typed `Cancelled` results instead
+  of misclassifying them as parse failures.
 - Fingerprinted malformed FEMapCreator mappings survive load/save so `Lookup`
   reports `Invalid` instead of silently degrading to `NoMapping`. Backend
   selection carries typed mapping status/reason only; Avalonia localizes the

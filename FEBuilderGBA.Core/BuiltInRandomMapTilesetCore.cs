@@ -175,10 +175,13 @@ namespace FEBuilderGBA
                 return false;
             }
 
-            byte[] objData = LZ77.decompress(rom.Data, objOffset);
-            if (objData == null || objData.Length == 0)
+            if (!TryDecompressCompleteLz77(
+                rom,
+                objOffset,
+                "Primary OBJ",
+                out byte[] objData,
+                out error))
             {
-                error = "Failed to decompress OBJ tile data.";
                 return false;
             }
 
@@ -187,17 +190,25 @@ namespace FEBuilderGBA
             if (obj2Plist > 0)
             {
                 uint obj2Offset = ResolvePlist(rom, rom.RomInfo.map_obj_pointer, obj2Plist);
-                if (obj2Offset != U.NOT_FOUND)
+                if (obj2Offset == U.NOT_FOUND)
                 {
-                    byte[] obj2Data = LZ77.decompress(rom.Data, obj2Offset);
-                    if (obj2Data != null && obj2Data.Length > 0)
-                    {
-                        byte[] combined = new byte[objData.Length + obj2Data.Length];
-                        Array.Copy(objData, 0, combined, 0, objData.Length);
-                        Array.Copy(obj2Data, 0, combined, objData.Length, obj2Data.Length);
-                        objData = combined;
-                    }
+                    error = $"Secondary OBJ PLIST {obj2Plist} could not be resolved.";
+                    return false;
                 }
+                if (!TryDecompressCompleteLz77(
+                    rom,
+                    obj2Offset,
+                    "Secondary OBJ",
+                    out byte[] obj2Data,
+                    out error))
+                {
+                    return false;
+                }
+
+                byte[] combined = new byte[objData.Length + obj2Data.Length];
+                Array.Copy(objData, 0, combined, 0, objData.Length);
+                Array.Copy(obj2Data, 0, combined, objData.Length, obj2Data.Length);
+                objData = combined;
             }
 
             const int paletteBytes = 2 * 16 * 16; // 16 palettes * 16 colors * 2 bytes
@@ -209,17 +220,23 @@ namespace FEBuilderGBA
             byte[] paletteData = new byte[paletteBytes];
             Array.Copy(rom.Data, palOffset, paletteData, 0, paletteBytes);
 
-            byte[] configData = LZ77.decompress(rom.Data, configOffset);
-            if (configData == null || configData.Length == 0)
+            if (!TryDecompressCompleteLz77(
+                rom,
+                configOffset,
+                "Config",
+                out byte[] configData,
+                out error))
             {
-                error = "Failed to decompress chipset config.";
                 return false;
             }
 
-            byte[] mapData = LZ77.decompress(rom.Data, mapOffset);
-            if (mapData == null || mapData.Length < 2)
+            if (!TryDecompressCompleteLz77(
+                rom,
+                mapOffset,
+                "MAP",
+                out byte[] mapData,
+                out error))
             {
-                error = "Failed to decompress map data.";
                 return false;
             }
 
@@ -236,6 +253,26 @@ namespace FEBuilderGBA
             snapshot = new MapTilesetSnapshot(
                 mapSettingAddr, mapOffset, mapData, width, height,
                 objData, paletteData, configData, fingerprint);
+            return true;
+        }
+
+        static bool TryDecompressCompleteLz77(
+            ROM rom,
+            uint dataOffset,
+            string dataName,
+            out byte[] data,
+            out string error)
+        {
+            data = Array.Empty<byte>();
+            error = "";
+
+            if (LZ77.getCompressedSize(rom.Data, dataOffset) == 0)
+            {
+                error = $"{dataName} data is not a complete valid LZ77 stream.";
+                return false;
+            }
+
+            data = LZ77.decompress(rom.Data, dataOffset);
             return true;
         }
 

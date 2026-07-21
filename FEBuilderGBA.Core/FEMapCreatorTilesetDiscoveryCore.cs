@@ -165,6 +165,13 @@ namespace FEBuilderGBA
 
                 return result;
             }
+            catch (OperationCanceledException ex) when (
+                cancellationToken.IsCancellationRequested ||
+                (cancellationToken.CanBeCanceled && ex.CancellationToken == cancellationToken))
+            {
+                return Fail(RandomMapGeneratorErrorCategory.Cancelled,
+                    "FEMapCreator tileset discovery was cancelled.");
+            }
             catch (Exception ex)
             {
                 return Fail(RandomMapGeneratorErrorCategory.ParseFailed,

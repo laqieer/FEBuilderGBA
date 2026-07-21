@@ -239,6 +239,7 @@ namespace FEBuilderGBA
             // backtracking later revisits a given cell.
             for (int cell = 0; cell < totalCells; cell++)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 int x = cell % width;
                 int y = cell / width;
                 bool border = x == 0 || y == 0 || x == width - 1 || y == height - 1;
