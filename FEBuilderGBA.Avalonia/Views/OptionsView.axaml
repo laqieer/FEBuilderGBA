@@ -209,7 +209,7 @@
                 <Button AutomationProperties.AutomationId="Options_BrowseFolder2_Button" Grid.Column="1" Content="Browse..." Click="BrowseFolder_Click" Tag="FEMapCreatorAssetsRootTextBox" Padding="12,6" Margin="0,0,8,0" />
                 <Button AutomationProperties.AutomationId="Options_ClearFEMapCreatorAssetsRoot_Button" Grid.Column="2" Name="ClearFEMapCreatorAssetsRootButton" Content="Clear" Click="ClearFEMapCreatorAssetsRoot_Click" Padding="12,6" />
               </Grid>
-              <TextBlock AutomationProperties.AutomationId="Options_FEMapCreatorStatusText_Text" Name="FEMapCreatorStatusText" Margin="0,4,0,0" FontStyle="Italic" />
+              <TextBlock AutomationProperties.AutomationId="Options_FEMapCreatorStatusText_Label" Name="FEMapCreatorStatusText" Margin="0,4,0,0" FontStyle="Italic" />
             </StackPanel>
 
             <!-- Per-current-map-tileset mapping (#1978 Slice 3 review finding #5): relocated here
@@ -219,15 +219,15 @@
                  one, only Discover is available (Save requires an active map context). -->
             <StackPanel Spacing="4">
               <TextBlock Text="Random-Map Tileset Mapping (Optional)" FontWeight="Bold" Margin="0,8,0,0" />
-              <TextBlock AutomationProperties.AutomationId="Options_TilesetMappingContextText_Text" Name="TilesetMappingContextText" TextWrapping="Wrap" FontSize="11" Foreground="Gray" />
+              <TextBlock AutomationProperties.AutomationId="Options_TilesetMappingContextText_Label" Name="TilesetMappingContextText" TextWrapping="Wrap" FontSize="11" Foreground="Gray" />
               <StackPanel Orientation="Horizontal" Spacing="8">
                 <Button AutomationProperties.AutomationId="Options_DiscoverTilesets_Button" Name="DiscoverTilesetsButton" Content="Discover Tilesets" Click="DiscoverTilesets_Click" Padding="12,6" />
                 <Button AutomationProperties.AutomationId="Options_CancelDiscoverTilesets_Button" Name="CancelDiscoverTilesetsButton" Content="Cancel" Click="CancelDiscoverTilesets_Click" Padding="12,6" IsEnabled="False" />
                 <Button AutomationProperties.AutomationId="Options_SaveTilesetMapping_Button" Name="SaveTilesetMappingButton" Content="Save Mapping" Click="SaveTilesetMapping_Click" Padding="12,6" />
               </StackPanel>
               <ListBox AutomationProperties.AutomationId="Options_TilesetOptions_List" Name="TilesetOptionsListBox" MaxHeight="120" SelectionChanged="TilesetOptionsListBox_SelectionChanged" />
-              <TextBlock AutomationProperties.AutomationId="Options_TilesetMappingStatusText_Text" Name="TilesetMappingStatusText" Margin="0,4,0,0" FontStyle="Italic" />
-              <TextBlock AutomationProperties.AutomationId="Options_TilesetMappingErrorText_Text" Name="TilesetMappingErrorText" Margin="0,2,0,0" FontStyle="Italic" Foreground="Red" />
+              <TextBlock AutomationProperties.AutomationId="Options_TilesetMappingStatusText_Label" Name="TilesetMappingStatusText" Margin="0,4,0,0" FontStyle="Italic" />
+              <TextBlock AutomationProperties.AutomationId="Options_TilesetMappingErrorText_Label" Name="TilesetMappingErrorText" Margin="0,2,0,0" FontStyle="Italic" Foreground="Red" />
             </StackPanel>
 
           </StackPanel>
