@@ -137,8 +137,8 @@ namespace FEBuilderGBA.Core.Tests
             Assert.NotSame(currentGrid, result.Mars);
 
             // MakeStrictCorpus's fully-connected 0/4/8 ring admits an astronomically large
-            // number of valid completions, so the non-final-restart source-difference rule
-            // (Generate rejects a candidate identical to currentGrid while an alternate is
+            // number of valid completions, so the source-difference rule (Generate rejects a
+            // candidate identical to currentGrid, on every attempt, while an alternate is
             // still reachable) is expected to succeed on the very first restart with a grid
             // that differs from the deliberately-patterned currentGrid.
             Assert.True(result.Success, result.ErrorMessage);
@@ -337,12 +337,11 @@ namespace FEBuilderGBA.Core.Tests
 
             // Re-run with currentGrid set to the exact grid the same seed would otherwise
             // reproduce. MakeStrictCorpus's fully-connected 0/4/8 ring admits an enormous
-            // number of valid completions, so a genuine alternate is always reachable
-            // within the same attempt: this proves the source-identity rule *rejects* the
-            // identical candidate (rather than silently accepting it) and keeps
-            // backtracking for a distinct one, resolving on the very same restart index the
-            // identical completion first appeared on -- i.e. rejection-with-alternate is
-            // enforced on an ordinary, non-final restart, not deferred to the ladder's end.
+            // number of valid completions, so a genuine alternate is always reachable within
+            // the same attempt: this proves the source-identity rule *rejects* the identical
+            // candidate on every attempt of the ladder (there is no final-attempt exception —
+            // Plan v4 §2.6 is absolute) and keeps backtracking for a distinct one, resolving
+            // on the very same restart index the identical completion first appeared on.
             var repeat = BuiltInRandomMapGeneratorCore.Generate(corpus, Width, Height, baseline.Mars, seed: 909, CancellationToken.None);
 
             Assert.True(repeat.Success, repeat.ErrorMessage);
@@ -352,19 +351,20 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void Generate_FinalRestartAcceptsSourceIdentity_WhenNoAlternateSolutionExists()
+        public void Generate_SourceIdenticalOnlySolution_FailsSearchExhausted_AndLeavesInputUntouched()
         {
-            // Deliberately construct a corpus with EXACTLY one valid strict-compatible
-            // complete grid (all-zero): "4" has no adjacency evidence at all in either
-            // direction, so it dead-ends the instant it acquires a neighbor, and only
-            // "0 followed by 0" is ever valid. With currentGrid pre-set to that unique
-            // grid, every non-final restart must fully exhaust its search (the only
-            // completion is identical and gets rejected, and no alternate can ever exist)
-            // -- proving the identity-rejection rule is enforced even at the cost of a
-            // full Exhausted restart -- while the ladder's *final* restart is deliberately
-            // allowed to accept that same identical completion, which is the only way
-            // Generate can ever succeed for this corpus. This is intentional, deterministic
-            // Plan v4 behavior, not an accidental fallback.
+            // Plan v4 §2.6 is absolute: no identity/uniform-fill success fallback anywhere in
+            // the ladder, including its last attempt. Deliberately construct a corpus with
+            // EXACTLY one valid strict-compatible complete grid (all-zero, i.e. a uniform
+            // single-MAR layout): "4" has no adjacency evidence at all in either direction, so
+            // it dead-ends the instant it acquires a neighbor, and only "0 followed by 0" is
+            // ever valid. With currentGrid pre-set to that unique grid, EVERY restart of EVERY
+            // attempt (all 4 Strict restarts; EdgeRelaxed never activates because objData is
+            // null) must reject the only completion it can ever find as source-identical and
+            // keep backtracking until its node budget or search space is exhausted -- there is
+            // no final-attempt exception that may accept it, so Generate must report
+            // SearchExhausted rather than fabricate a success by returning the source grid (or
+            // any other uniform, single-MAR grid) unchanged.
             var candidates = new List<ushort> { 0, 4 };
             var freq = new Dictionary<ushort, long> { [0] = 5, [4] = 5 };
             var horizontal = new Dictionary<ushort, IReadOnlySet<ushort>> { [0] = Set(0) };
@@ -375,14 +375,16 @@ namespace FEBuilderGBA.Core.Tests
                 TilesetFingerprint.Empty, new List<uint> { 0 }, candidates, freq, freq,
                 horizontal, vertical, objData: null, paletteData: null, configData: configData, totalCells: Width * Height);
 
-            ushort[] currentGrid = new ushort[Width * Height]; // all-zero: the one valid grid.
+            ushort[] currentGrid = new ushort[Width * Height]; // all-zero: the one otherwise-valid grid.
+            ushort[] currentGridCopy = (ushort[])currentGrid.Clone();
 
             var result = BuiltInRandomMapGeneratorCore.Generate(corpus, Width, Height, currentGrid, seed: 1, CancellationToken.None);
 
-            Assert.True(result.Success, result.ErrorMessage);
-            Assert.Equal(BuiltInRandomMapAdjacencyModel.Strict, result.AdjacencyModel);
-            Assert.Equal(BuiltInRandomMapGeneratorCore.RestartCount, result.RestartsUsed); // only the ladder's last attempt could ever succeed.
-            Assert.Equal(currentGrid, result.Mars); // the final attempt intentionally accepted the identical grid.
+            Assert.False(result.Success);
+            Assert.Equal(BuiltInRandomMapErrorCategory.SearchExhausted, result.ErrorCategory);
+            Assert.Empty(result.Mars);
+            // No mutation on failure: the caller-supplied currentGrid must be untouched.
+            Assert.Equal(currentGridCopy, currentGrid);
         }
 
         [Fact]

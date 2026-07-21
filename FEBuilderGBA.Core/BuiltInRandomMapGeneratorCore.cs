@@ -72,12 +72,15 @@ namespace FEBuilderGBA
         /// is always a freshly allocated array. Candidate MAR values are prefiltered through
         /// <see cref="BuiltInRandomMapTilesetCore.IsMarRenderable"/> before any model or search
         /// state is built, so a value that can never render cannot consume node budget.
-        /// Source-identity condition (Plan v4): every restart except the ladder's very last
-        /// rejects a completion that is sequence-identical to <paramref name="currentGrid"/>
-        /// and keeps backtracking within that attempt for a distinct one; only the final
-        /// attempt — reached only when no distinct completion was found earlier — may accept
-        /// an identical completion. When <paramref name="currentGrid"/> is null this rule never
-        /// applies (there is nothing to be identical to).
+        /// Source-identity condition (Plan v4 §2.6, absolute — no identity/uniform-fill success
+        /// fallback): EVERY restart of EVERY model, including the ladder's very last attempt,
+        /// rejects a completion that is sequence-identical to <paramref name="currentGrid"/> and
+        /// keeps backtracking within that attempt for a distinct one. If no attempt in the whole
+        /// ladder ever finds a quality-gated completion that differs from <paramref name="currentGrid"/>,
+        /// generation reports <see cref="BuiltInRandomMapErrorCategory.SearchExhausted"/> —
+        /// there is no attempt, final or otherwise, that may fall back to returning the source
+        /// grid unchanged. When <paramref name="currentGrid"/> is null this rule never applies
+        /// (there is nothing to be identical to).
         /// </summary>
         public static BuiltInRandomMapGenerationResult Generate(
             BuiltInRandomMapTilesetCorpus corpus,
@@ -127,11 +130,10 @@ namespace FEBuilderGBA
                     cancellationToken.ThrowIfCancellationRequested();
                     (BuiltInRandomMapAdjacencyModel model, int restart) = attempts[i];
                     int derivedSeed = DeriveSeed(seed, restart, model);
-                    bool isFinalAttempt = i == attempts.Count - 1;
 
                     AttemptResult attempt = RunAttempt(
                         corpus, candidates, model, signatures, width, height, currentGrid,
-                        derivedSeed, requireDifferentFromSource: !isFinalAttempt, cancellationToken);
+                        derivedSeed, cancellationToken);
 
                     if (attempt.Outcome == AttemptOutcome.Success)
                     {
@@ -199,7 +201,6 @@ namespace FEBuilderGBA
             int height,
             ushort[] currentGrid,
             int seed,
-            bool requireDifferentFromSource,
             CancellationToken cancellationToken)
         {
             int totalCells = width * height;
@@ -233,7 +234,7 @@ namespace FEBuilderGBA
                     ushort[] candidateGrid = new ushort[totalCells];
                     Array.Copy(assigned, candidateGrid, totalCells);
 
-                    bool identical = requireDifferentFromSource && currentGrid != null && SequenceEqual(candidateGrid, currentGrid);
+                    bool identical = currentGrid != null && SequenceEqual(candidateGrid, currentGrid);
                     if (!identical && PassesQualityGates(corpus, candidates, model, signatures, candidateGrid, width, height))
                         return new AttemptResult(AttemptOutcome.Success, candidateGrid);
 
