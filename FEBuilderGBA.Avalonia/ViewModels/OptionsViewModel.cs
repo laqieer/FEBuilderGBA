@@ -312,9 +312,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public void CancelTilesetDiscovery() => _tilesetDiscoveryCts?.Cancel();
 
         /// <summary>
-        /// Run FEMapCreator tileset discovery off the calling thread using the currently
-        /// persisted, already-validated profile. Only ever invoked by an explicit user click —
-        /// never by construction, <see cref="Load"/>, or <see cref="SetTilesetContext"/>. A
+        /// Run FEMapCreator tileset discovery off the calling thread using the current,
+        /// possibly unsaved Options values. Only ever invoked by an explicit user click — never
+        /// by construction, <see cref="Load"/>, or <see cref="SetTilesetContext"/>. A
         /// second concurrent call (e.g. a duplicate click racing this one) is ignored — it
         /// returns immediately without cancelling or replacing the in-flight run (#1978 Slice 3
         /// re-review finding #2); callers wanting to abort the in-flight run must call
@@ -341,10 +341,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 Tilesets.Clear();
                 SelectedTileset = null;
 
-                Config? cfg = _getConfig();
-                string rawExePath = cfg?.at(FEMapCreatorProfileCore.ExecutablePathConfigKey, "") ?? "";
-                string rawAssetsRoot = cfg?.at(FEMapCreatorProfileCore.AssetsRootConfigKey, "") ?? "";
-                FEMapCreatorSetupSnapshot profile = FEMapCreatorProfileCore.Validate(rawExePath, rawAssetsRoot);
+                FEMapCreatorSetupSnapshot profile = GetFEMapCreatorSetupSnapshot();
                 if (profile.Status != FEMapCreatorSetupStatus.Configured)
                 {
                     TilesetMappingErrorMessage = string.IsNullOrWhiteSpace(profile.ErrorMessage)
@@ -441,9 +438,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return false;
             }
 
-            string rawExePath = cfg.at(FEMapCreatorProfileCore.ExecutablePathConfigKey, "");
-            string rawAssetsRoot = cfg.at(FEMapCreatorProfileCore.AssetsRootConfigKey, "");
-            FEMapCreatorSetupSnapshot profile = FEMapCreatorProfileCore.Validate(rawExePath, rawAssetsRoot);
+            FEMapCreatorSetupSnapshot profile = GetFEMapCreatorSetupSnapshot();
 
             if (!FEMapCreatorTilesetMappingStoreCore.TryCreateEntry(
                 CurrentTilesetFingerprint,
@@ -460,6 +455,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             IReadOnlyList<FEMapCreatorTilesetMappingEntry> mappings = FEMapCreatorTilesetMappingStoreCore.LoadAll(cfg);
             mappings = FEMapCreatorTilesetMappingStoreCore.Upsert(mappings, entry);
+            // Save Mapping is an explicit persistence action. Commit the same live setup values
+            // used to discover/create this entry so the saved mapping cannot immediately become
+            // stale against an older persisted profile if the user has not pressed Options OK yet.
+            cfg[FEMapCreatorProfileCore.ExecutablePathConfigKey] = FEMapCreatorPath ?? "";
+            cfg[FEMapCreatorProfileCore.AssetsRootConfigKey] = FEMapCreatorAssetsRoot ?? "";
             FEMapCreatorTilesetMappingStoreCore.SaveAll(cfg, mappings);
             cfg.Save();
 
