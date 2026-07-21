@@ -286,6 +286,7 @@ namespace FEBuilderGBA
         /// </summary>
         public static bool IsMarRenderable(ushort marValue, byte[] configData)
         {
+            if ((marValue & 0x3) != 0) return false;
             int chipsetIndex = MapEditorTilesetCore.MarToChipsetIndex(marValue);
             if (chipsetIndex < 0 || chipsetIndex >= MapEditorTilesetCore.CHIPSET_COUNT) return false;
             if (configData == null) return false;

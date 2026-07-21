@@ -68,5 +68,41 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Throws<DirectoryNotFoundException>(() => cfg.SaveOrThrow(path));
             Assert.False(File.Exists(path));
         }
+
+        [Fact]
+        public void SaveOrThrow_ReplaceFails_PreservesExistingFileAndCleansTemp()
+        {
+            var persisted = Config.LoadOrCreate(_configPath);
+            persisted["emulator"] = @"C:\tools\old.exe";
+            persisted.SaveOrThrow(_configPath);
+            string originalXml = File.ReadAllText(_configPath);
+
+            var proposed = new Config
+            {
+                ["emulator"] = @"C:\tools\new.exe",
+            };
+
+            IOException failure = Assert.Throws<IOException>(() =>
+                proposed.SaveOrThrow(
+                    _configPath,
+                    (tempPath, targetPath) =>
+                    {
+                        Assert.Equal(Path.GetDirectoryName(_configPath), Path.GetDirectoryName(tempPath));
+                        Assert.Equal(Path.GetFullPath(_configPath), targetPath);
+                        Assert.True(File.Exists(tempPath));
+                        var staged = new Config();
+                        staged.Load(tempPath);
+                        Assert.Equal(@"C:\tools\new.exe", staged.at("emulator", ""));
+                        throw new IOException("replace failed");
+                    }));
+
+            Assert.Equal("replace failed", failure.Message);
+            Assert.Equal(originalXml, File.ReadAllText(_configPath));
+            Config reloaded = Config.LoadOrCreate(_configPath);
+            Assert.Equal(@"C:\tools\old.exe", reloaded.at("emulator", ""));
+            Assert.Empty(Directory.GetFiles(
+                Path.GetDirectoryName(_configPath)!,
+                ".fegba-config-*.tmp"));
+        }
     }
 }

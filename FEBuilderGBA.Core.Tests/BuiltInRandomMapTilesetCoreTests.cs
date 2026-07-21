@@ -349,6 +349,9 @@ namespace FEBuilderGBA.Core.Tests
 
         [Theory]
         [InlineData(0, true)]
+        [InlineData(1, false)]           // non-canonical: low MAR bits must be zero
+        [InlineData(2, false)]
+        [InlineData(3, false)]
         [InlineData(4, true)]
         [InlineData(1020 << 2, true)]  // last valid chipset index * 4
         [InlineData(0xFFFC, false)]     // chipset index 16383, out of CHIPSET_COUNT range

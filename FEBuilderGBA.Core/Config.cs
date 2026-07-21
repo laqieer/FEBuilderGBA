@@ -30,10 +30,19 @@ namespace FEBuilderGBA
         /// Persist this config while allowing the caller to observe write failures. Legacy
         /// <see cref="Save(string)"/> keeps its UI-reporting, exception-swallowing behavior;
         /// explicit transactional workflows should use this method and publish success only
-        /// after it returns.
+        /// after it returns. The target is replaced only after a sibling temp file is fully
+        /// written and flushed.
         /// </summary>
         public void SaveOrThrow(string fullfilename)
         {
+            SaveOrThrow(fullfilename, ReplaceFile);
+        }
+
+        /// <summary>Internal replacement seam for deterministic fault-injection tests.</summary>
+        internal void SaveOrThrow(string fullfilename, Action<string, string> replaceFile)
+        {
+            if (replaceFile == null) throw new ArgumentNullException(nameof(replaceFile));
+
             //XMLシリアライザが初期化できないので自前でやる.
             XmlDocument xml = new XmlDocument();
             XmlElement elem = xml.CreateElement("root");
@@ -59,9 +68,63 @@ namespace FEBuilderGBA
                 value_elem.AppendChild(item_node);
             }
 
-            using (StreamWriter w = new StreamWriter(fullfilename))
+            string fullPath = Path.GetFullPath(fullfilename);
+            string directory = Path.GetDirectoryName(fullPath);
+            string tempPath = Path.Combine(
+                directory,
+                ".fegba-config-" + Guid.NewGuid().ToString("N") + ".tmp");
+            try
             {
-                xml.Save(w);
+                using (var stream = new FileStream(
+                    tempPath,
+                    FileMode.CreateNew,
+                    FileAccess.Write,
+                    FileShare.None))
+                {
+                    using (var writer = new StreamWriter(
+                        stream,
+                        new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
+                        bufferSize: 1024,
+                        leaveOpen: true))
+                    {
+                        xml.Save(writer);
+                        writer.Flush();
+                    }
+                    stream.Flush(flushToDisk: true);
+                }
+
+                // The old config remains intact until the complete sibling temp file has been
+                // flushed. A failed move also leaves the old target in place.
+                replaceFile(tempPath, fullPath);
+            }
+            finally
+            {
+                DeleteTempFileBestEffort(tempPath);
+            }
+        }
+
+        static void ReplaceFile(string tempPath, string fullPath)
+        {
+            File.Move(tempPath, fullPath, overwrite: true);
+        }
+
+        static void DeleteTempFileBestEffort(string tempPath)
+        {
+            try
+            {
+                File.Delete(tempPath);
+            }
+            catch (IOException ex)
+            {
+                Log.Debug($"Config.SaveOrThrow: could not remove temporary file '{tempPath}'. {ex}");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                Log.Debug($"Config.SaveOrThrow: could not remove temporary file '{tempPath}'. {ex}");
+            }
+            catch (System.Security.SecurityException ex)
+            {
+                Log.Debug($"Config.SaveOrThrow: could not remove temporary file '{tempPath}'. {ex}");
             }
         }
         public string ConfigFilename { get; protected set; }

@@ -31,6 +31,21 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [AvaloniaFact]
+        public void FEMapCreatorPathFields_AreAssociatedWithVisibleLabels()
+        {
+            var view = new OptionsView();
+            Label pathLabel = view.FindControl<Label>("FEMapCreatorPathLabel")!;
+            TextBox pathBox = view.FindControl<TextBox>("FEMapCreatorPathTextBox")!;
+            Label assetsLabel = view.FindControl<Label>("FEMapCreatorAssetsRootLabel")!;
+            TextBox assetsBox = view.FindControl<TextBox>("FEMapCreatorAssetsRootTextBox")!;
+
+            Assert.Same(pathBox, pathLabel.Target);
+            Assert.Equal("Executable Path", pathLabel.Content);
+            Assert.Same(assetsBox, assetsLabel.Target);
+            Assert.Equal("Assets Root (optional)", assetsLabel.Content);
+        }
+
+        [AvaloniaFact]
         public void TypingExistingExecutablePath_ImmediatelyShowsConfiguredStatus()
         {
             string tempRoot = Path.Combine(Path.GetTempPath(), "femc_opt_manual_" + Guid.NewGuid().ToString("N"));
