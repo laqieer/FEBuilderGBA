@@ -41,6 +41,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         readonly ToolInitWizardViewModel _vm = new();
+        static readonly Uri FEMapCreatorProjectUri = new("https://github.com/laqieer/FEMapCreator");
         public string ViewTitle => "Setup Wizard";
         public new bool IsLoaded { get; private set; }
 
@@ -542,16 +543,41 @@ namespace FEBuilderGBA.Avalonia.Views
         // ===================================================================
 
         /// <summary>
-        /// Opens the fixed upstream FEMapCreator project/setup page in the
-        /// user's system browser. This only starts the OS browser at a fixed
-        /// URL — it never downloads, installs, or executes FEMapCreator
-        /// itself, and this repository never fetches/vendors that page's
-        /// content.
+        /// Opens the fixed FEMapCreator project/setup page through Avalonia's
+        /// cross-platform launcher. This never downloads, installs, or
+        /// executes FEMapCreator itself, and this repository never
+        /// fetches/vendors that page's content.
         /// </summary>
-        void OnOpenFEMapCreatorProjectPage_Click(object? sender, RoutedEventArgs e)
+        async void OnOpenFEMapCreatorProjectPage_Click(object? sender, RoutedEventArgs e)
         {
-            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://github.com/laqieer/FEMapCreator") { UseShellExecute = true }); }
-            catch (Exception ex) { FEBuilderGBA.Log.ErrorF("ToolInitWizardView.OnOpenFEMapCreatorProjectPage_Click launch browser: {0}", ex.Message); }
+            SetFEMapCreatorProjectPageStatus(null);
+            var top = TopLevel.GetTopLevel(this);
+            if (top == null)
+            {
+                ShowFEMapCreatorProjectPageError();
+                return;
+            }
+
+            bool launched = await top.Launcher.LaunchUriAsync(FEMapCreatorProjectUri);
+            if (!launched)
+                ShowFEMapCreatorProjectPageError();
+        }
+
+        void ShowFEMapCreatorProjectPageError()
+        {
+            string message = FEBuilderGBA.R._("Couldn't open link:") + " " + FEMapCreatorProjectUri;
+            SetFEMapCreatorProjectPageStatus(message);
+            FEBuilderGBA.Log.Error(
+                "ToolInitWizardView could not open FEMapCreator project page:",
+                FEMapCreatorProjectUri.ToString());
+        }
+
+        void SetFEMapCreatorProjectPageStatus(string? message)
+        {
+            var status = this.FindControl<TextBlock>("FEMapCreatorActionStatusTextBlock")
+                ?? throw new InvalidOperationException("FEMapCreator action status control is missing.");
+            status.Text = message ?? string.Empty;
+            status.IsVisible = !string.IsNullOrEmpty(message);
         }
 
         /// <summary>

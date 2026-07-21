@@ -539,6 +539,10 @@
                         AutomationProperties.AutomationId="ToolInitWizard_OpenFEMapCreatorOptions_Button"
                         Click="OnOpenFEMapCreatorOptions_Click" Padding="12,6" />
               </StackPanel>
+              <TextBlock Name="FEMapCreatorActionStatusTextBlock"
+                         AutomationProperties.AutomationId="ToolInitWizard_FEMapCreatorActionStatus_Label"
+                         IsVisible="False" TextWrapping="Wrap" FontSize="11"
+                         Foreground="OrangeRed" />
             </StackPanel>
           </Border>
 

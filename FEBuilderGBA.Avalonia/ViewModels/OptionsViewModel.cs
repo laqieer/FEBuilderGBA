@@ -195,8 +195,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public string SubmoduleFERepoMusicUrl { get => _submoduleFERepoMusicUrl; set => SetField(ref _submoduleFERepoMusicUrl, value); }
 
         // ---- FEMapCreator (external random-map-generation tool) setup ----
-        // #1978 Slice 2: durable configuration only. No auto-download/install/PATH-search, and
-        // no per-tileset mapping editing lives here (that stays in the Map Editor for Slice 3).
+        // #1978: Options owns durable configuration, explicit discovery, and per-fingerprint
+        // mapping. No auto-download/install/PATH-search occurs here.
 
         /// <summary>Absolute path to the external FEMapCreator executable (empty = not configured).</summary>
         public string FEMapCreatorPath { get => _femapCreatorPath; set => SetField(ref _femapCreatorPath, value); }

@@ -135,6 +135,11 @@ public class ToolInitWizardParityTests
             "AutomationProperties.AutomationId=\"ToolInitWizard_OpenFEMapCreatorOptions_Button\"",
             axaml);
         Assert.Contains("Click=\"OnOpenFEMapCreatorOptions_Click\"", axaml);
+        Assert.Contains(
+            "AutomationProperties.AutomationId=\"ToolInitWizard_FEMapCreatorActionStatus_Label\"",
+            axaml);
+        Assert.Contains("Name=\"FEMapCreatorActionStatusTextBlock\"", axaml);
+        Assert.Contains("IsVisible=\"False\"", axaml);
     }
 
     [Fact]
@@ -184,9 +189,9 @@ public class ToolInitWizardParityTests
     {
         // Whole-class sweep (per Slice 3 review pattern): the two new
         // handlers must not contain download/installer/PATH-search/registry/
-        // environment-variable code — only a fixed-URL browser Process.Start
-        // (project page) and a WindowManager.Open<OptionsView>() navigation
-        // call (Options), matching the established MainWindow conventions.
+        // environment-variable code — only a fixed-URL Avalonia launcher
+        // action (project page) and a WindowManager.Open<OptionsView>()
+        // navigation call (Options).
         string source = File.ReadAllText(ViewCodeBehindPath());
         int start = source.IndexOf(
             "void OnOpenFEMapCreatorProjectPage_Click", StringComparison.Ordinal);
@@ -196,10 +201,19 @@ public class ToolInitWizardParityTests
             "Could not locate the FEMapCreator handler block in code-behind.");
         string handlers = source[start..end];
 
-        Assert.Contains("https://github.com/laqieer/FEMapCreator", handlers);
-        Assert.Contains("UseShellExecute = true", handlers);
+        Assert.Contains("https://github.com/laqieer/FEMapCreator", source);
+        Assert.Contains("async void OnOpenFEMapCreatorProjectPage_Click", source);
+        Assert.Contains("TopLevel.GetTopLevel(this)", handlers);
+        Assert.Contains("await top.Launcher.LaunchUriAsync(FEMapCreatorProjectUri)", handlers);
+        Assert.Contains("if (!launched)", handlers);
+        Assert.Contains("ShowFEMapCreatorProjectPageError()", handlers);
+        Assert.Contains("FEMapCreatorActionStatusTextBlock", handlers);
         Assert.Contains("WindowManager.Instance.Open<OptionsView>()", handlers);
 
+        Assert.DoesNotContain("System.Diagnostics.Process", handlers);
+        Assert.DoesNotContain("Process.Start", handlers);
+        Assert.DoesNotContain("ProcessStartInfo", handlers);
+        Assert.DoesNotContain("UseShellExecute", handlers);
         Assert.DoesNotContain("Download", handlers, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Install", handlers, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Environment.GetEnvironmentVariable", handlers);
@@ -207,6 +221,27 @@ public class ToolInitWizardParityTests
         Assert.DoesNotContain("PATH", handlers, StringComparison.Ordinal);
         Assert.DoesNotContain("FEMapCreatorTilesetDiscoveryCore", handlers);
         Assert.DoesNotContain("OpenModal", handlers);
+
+        var root = Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(source).GetRoot();
+        var relevantMethods = root.DescendantNodes()
+            .OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>()
+            .Where(method => method.Identifier.ValueText is
+                "OnOpenFEMapCreatorProjectPage_Click" or
+                "ShowFEMapCreatorProjectPageError" or
+                "SetFEMapCreatorProjectPageStatus")
+            .ToArray();
+        Assert.Equal(3, relevantMethods.Length);
+        var broadCatches = relevantMethods
+            .SelectMany(method => method.DescendantNodes()
+                .OfType<Microsoft.CodeAnalysis.CSharp.Syntax.CatchClauseSyntax>())
+            .Where(clause =>
+            {
+                if (clause.Declaration == null)
+                    return true;
+                string type = clause.Declaration.Type.ToString();
+                return type is "Exception" or "System.Exception" or "global::System.Exception";
+            });
+        Assert.Empty(broadCatches);
     }
 
     [Fact]
@@ -1251,6 +1286,31 @@ public class ToolInitWizardParityTests
         {
             WindowManager.Instance.SetService(original);
         }
+    }
+
+    [AvaloniaFact]
+    public void OpenFEMapCreatorProjectPageButton_Click_WithoutTopLevel_ShowsInlineError()
+    {
+        var view = new ToolInitWizardView();
+        var status = view.GetLogicalDescendants()
+            .OfType<TextBlock>()
+            .FirstOrDefault(textBlock =>
+                global::Avalonia.Automation.AutomationProperties.GetAutomationId(textBlock)
+                    == "ToolInitWizard_FEMapCreatorActionStatus_Label");
+        Assert.NotNull(status);
+        Assert.False(status!.IsVisible);
+
+        var btn = view.GetLogicalDescendants()
+            .OfType<Button>()
+            .FirstOrDefault(button =>
+                global::Avalonia.Automation.AutomationProperties.GetAutomationId(button)
+                    == "ToolInitWizard_OpenFEMapCreatorProjectPage_Button");
+        Assert.NotNull(btn);
+        btn!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+
+        Assert.True(status.IsVisible);
+        Assert.StartsWith(FEBuilderGBA.R._("Couldn't open link:"), status.Text);
+        Assert.Contains("https://github.com/laqieer/FEMapCreator", status.Text);
     }
 
     [AvaloniaFact]
