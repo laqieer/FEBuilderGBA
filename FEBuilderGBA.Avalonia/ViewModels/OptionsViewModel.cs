@@ -37,6 +37,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         FEMapCreatorSetupSnapshot currentProfile,
         CancellationToken cancellationToken);
 
+    internal delegate void ConfigSaveDelegate(Config config, string fullFilename);
+
     /// <summary>
     /// ViewModel for the user preferences (Options) dialog.
     /// </summary>
@@ -87,14 +89,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string _femapCreatorPath = "";
         string _femapCreatorAssetsRoot = "";
 
-        // Per-dialog-session (NEVER static/shared) reuse cache for the FEMapCreator executable's
-        // SHA-256 hash. A fresh OptionsViewModel — i.e. every time Options is opened — gets a
-        // fresh, empty cache, so there is no cross-session/cross-ROM staleness risk; it exists
-        // solely so GetFEMapCreatorSetupSnapshot() doesn't re-hash an unchanged executable on
-        // every keystroke typed into either FEMapCreator textbox. Discovery and Save Mapping
-        // always bypass it and re-hash authoritatively.
-        readonly FEMapCreatorExecutableIdentityCache _femapCreatorExecutableIdentityCache = new();
-
         // ---- Per-current-tileset-fingerprint mapping (#1978 Slice 3 review finding #5) ----
         // Relocated here (from the retired standalone Map Editor "Map Tileset…" dialog) so all
         // FEMapCreator setup — executable/assets AND discovered per-fingerprint mapping — lives
@@ -103,6 +97,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         readonly FEMapCreatorDiscoverDelegate _discoverTilesets;
         readonly FEMapCreatorProfileValidateDelegate _validateProfile;
         readonly FEMapCreatorMappingEntryCreateDelegate _createMappingEntry;
+        readonly ConfigSaveDelegate _saveConfig;
         readonly Func<Config?> _getConfig;
         readonly object _tilesetMappingOperationSync = new();
         CancellationTokenSource? _tilesetMappingOperationCts;
@@ -123,7 +118,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 discoverTilesets: null,
                 getConfig: null,
                 validateProfile: null,
-                createMappingEntry: null)
+                createMappingEntry: null,
+                saveConfig: null)
         {
         }
 
@@ -132,12 +128,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             FEMapCreatorDiscoverDelegate? discoverTilesets,
             Func<Config?>? getConfig,
             FEMapCreatorProfileValidateDelegate? validateProfile = null,
-            FEMapCreatorMappingEntryCreateDelegate? createMappingEntry = null)
+            FEMapCreatorMappingEntryCreateDelegate? createMappingEntry = null,
+            ConfigSaveDelegate? saveConfig = null)
         {
             _discoverTilesets = discoverTilesets ?? DefaultDiscoverTilesets;
             _getConfig = getConfig ?? (() => CoreState.Config);
             _validateProfile = validateProfile ?? DefaultValidateProfile;
             _createMappingEntry = createMappingEntry ?? DefaultCreateMappingEntry;
+            _saveConfig = saveConfig ?? DefaultSaveConfig;
         }
 
         static FEMapCreatorTilesetDiscoveryResult DefaultDiscoverTilesets(string executablePath, string? assetsRoot, CancellationToken cancellationToken)
@@ -171,6 +169,26 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 out string error);
             return new FEMapCreatorMappingEntryCreationResult(success, entry, error);
         }
+
+        static void DefaultSaveConfig(Config config, string fullFilename) =>
+            config.SaveOrThrow(fullFilename);
+
+        static Config CloneConfig(Config source)
+        {
+            var clone = new Config();
+            foreach (KeyValuePair<string, string> pair in source)
+                clone[pair.Key] = pair.Value;
+            return clone;
+        }
+
+        static bool IsConfigPersistenceException(Exception ex) =>
+            ex is IOException
+            || ex is UnauthorizedAccessException
+            || ex is System.Security.SecurityException
+            || ex is System.Xml.XmlException
+            || ex is ArgumentException
+            || ex is NotSupportedException
+            || ex is InvalidOperationException;
 
         /// <summary>Current language selection entry (e.g. "en — English").</summary>
         public string Language
@@ -293,9 +311,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// touches the network. Callers (the Options view) use this to render a live status line
         /// as the user edits the fields, without requiring a ROM to be loaded.
         /// </summary>
-        public FEMapCreatorSetupSnapshot GetFEMapCreatorSetupSnapshot()
+        public FEMapCreatorSetupSnapshot GetFEMapCreatorStatusSnapshot()
         {
-            return FEMapCreatorProfileCore.Validate(FEMapCreatorPath, FEMapCreatorAssetsRoot, _femapCreatorExecutableIdentityCache);
+            return FEMapCreatorProfileCore.ValidateForStatus(FEMapCreatorPath, FEMapCreatorAssetsRoot);
         }
 
         static bool IsSameFEMapCreatorProfile(FEMapCreatorSetupSnapshot expected, FEMapCreatorSetupSnapshot current)
@@ -310,19 +328,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Test-only seam exposing this session's executable-identity cache so tests can assert
-        /// hash-reuse behavior (e.g. <c>HashComputeCount</c> stays flat across repeated calls with
-        /// an unchanged executable). Never read by production code; internal, not public API.
-        /// </summary>
-        internal FEMapCreatorExecutableIdentityCache FEMapCreatorExecutableIdentityCacheForTests => _femapCreatorExecutableIdentityCache;
-
-        /// <summary>
-        /// Human-readable, localized summary of <see cref="GetFEMapCreatorSetupSnapshot"/> for
+        /// Human-readable, localized summary of <see cref="GetFEMapCreatorStatusSnapshot"/> for
         /// display in the Options view.
         /// </summary>
         public string GetFEMapCreatorStatusText()
         {
-            FEMapCreatorSetupSnapshot snapshot = GetFEMapCreatorSetupSnapshot();
+            FEMapCreatorSetupSnapshot snapshot = GetFEMapCreatorStatusSnapshot();
             switch (snapshot.Status)
             {
                 case FEMapCreatorSetupStatus.NotConfigured:
@@ -564,7 +575,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>
         /// Persist a mapping from <see cref="CurrentTilesetFingerprint"/> to
         /// <see cref="SelectedTileset"/> using <see cref="FEMapCreatorTilesetMappingStoreCore.TryCreateEntry"/>
-        /// + <c>Upsert</c> + <c>SaveAll</c> + <see cref="Config.Save"/>. Returns false with
+        /// + <c>Upsert</c> + <c>SaveAll</c> + <see cref="Config.SaveOrThrow(string)"/>. Returns false with
         /// <see cref="TilesetMappingErrorMessage"/> set on validation failure. Authoritative
         /// executable/image/generation-data hashes run off the calling thread and observe the
         /// operation's cancellation token. Never launches a process.
@@ -669,12 +680,32 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 IReadOnlyList<FEMapCreatorTilesetMappingEntry> mappings =
                     FEMapCreatorTilesetMappingStoreCore.LoadAll(cfg);
                 mappings = FEMapCreatorTilesetMappingStoreCore.Upsert(mappings, creation.Entry);
-                // Save Mapping explicitly persists the same live setup values used to discover
-                // and hash this entry, even when the user has not pressed Options OK yet.
+                token.ThrowIfCancellationRequested();
+
+                // Persist a detached snapshot first. The live config is updated only after the
+                // write succeeds, so a disk failure cannot leave a mapping that appears usable
+                // for this process but disappears after restart.
+                Config pendingConfig = CloneConfig(cfg);
+                pendingConfig[FEMapCreatorProfileCore.ExecutablePathConfigKey] = executablePath;
+                pendingConfig[FEMapCreatorProfileCore.AssetsRootConfigKey] = assetsRoot;
+                FEMapCreatorTilesetMappingStoreCore.SaveAll(pendingConfig, mappings);
+                try
+                {
+                    _saveConfig(pendingConfig, cfg.ConfigFilename);
+                }
+                catch (Exception ex) when (IsConfigPersistenceException(ex))
+                {
+                    Log.Error($"OptionsViewModel.SaveTilesetMappingAsync: config persistence failed. {ex}");
+                    TilesetMappingErrorMessage =
+                        R._("Failed to save the tileset mapping.") + "\r\n" + ex.Message;
+                    TilesetMappingStatusMessage = "";
+                    return false;
+                }
+
                 cfg[FEMapCreatorProfileCore.ExecutablePathConfigKey] = executablePath;
                 cfg[FEMapCreatorProfileCore.AssetsRootConfigKey] = assetsRoot;
-                FEMapCreatorTilesetMappingStoreCore.SaveAll(cfg, mappings);
-                cfg.Save();
+                cfg[FEMapCreatorTilesetMappingStoreCore.MappingsConfigKey] =
+                    pendingConfig[FEMapCreatorTilesetMappingStoreCore.MappingsConfigKey];
 
                 TilesetMappingSaved = true;
                 TilesetMappingStatusMessage =
@@ -752,7 +783,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     SubmoduleFERepoMusicUrl = cfg.at("submodule_fe_repo_music_url", "");
 
                     // FEMapCreator setup (#1978 Slice 2) — read-only value load, no validation
-                    // side effects (no filesystem probing beyond what GetFEMapCreatorSetupSnapshot
+                    // side effects (no filesystem probing beyond what GetFEMapCreatorStatusSnapshot
                     // does on-demand for display, no process launch, no network).
                     FEMapCreatorPath = cfg.at(FEMapCreatorProfileCore.ExecutablePathConfigKey, "");
                     FEMapCreatorAssetsRoot = cfg.at(FEMapCreatorProfileCore.AssetsRootConfigKey, "");

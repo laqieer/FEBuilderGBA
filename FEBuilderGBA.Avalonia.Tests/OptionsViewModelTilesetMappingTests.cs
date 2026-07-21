@@ -690,7 +690,71 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
-        public async Task DiscoverTilesetsAsync_SameMetadataReplacementAfterLiveStatusCache_UsesFreshIdentity()
+        public async Task SaveTilesetMappingAsync_ConfigWriteFails_DoesNotPublishOrMutateLiveConfig()
+        {
+            string persistedExePath = MakeFile("PersistedFEMapCreator.exe", new byte[] { 1 });
+            string liveExePath = MakeFile("LiveFEMapCreator.exe", new byte[] { 2 });
+            CoreState.Config![FEMapCreatorProfileCore.ExecutablePathConfigKey] = persistedExePath;
+            CoreState.Config[FEMapCreatorProfileCore.AssetsRootConfigKey] = "persisted-assets";
+            Assert.False(CoreState.Config.ContainsKey(FEMapCreatorTilesetMappingStoreCore.MappingsConfigKey));
+            CoreState.Config.SaveOrThrow(CoreState.Config.ConfigFilename);
+
+            string imagePath = MakeFile("grassland.png", new byte[] { 1, 2, 3, 4 });
+            string genDataPath = MakeFile("grassland.json", new byte[] { 5, 6, 7, 8 });
+            TilesetFingerprint fingerprint = TilesetFingerprint.Compute(
+                8, new byte[] { 1 }, new byte[] { 2 }, new byte[] { 3 });
+            bool saveAttempted = false;
+            var vm = new OptionsViewModel(
+                discoverTilesets: (exe, assets, token) =>
+                {
+                    var result = new FEMapCreatorTilesetDiscoveryResult { Success = true };
+                    result.Tilesets.Add(new FEMapCreatorTilesetInfo
+                    {
+                        Name = "Grassland",
+                        HasImage = true,
+                        HasGenerationData = true,
+                        ResolvedImagePath = imagePath,
+                        ResolvedGenerationDataPath = genDataPath,
+                        IsCompatible = true,
+                    });
+                    return result;
+                },
+                getConfig: () => CoreState.Config,
+                saveConfig: (pendingConfig, filename) =>
+                {
+                    saveAttempted = true;
+                    Assert.Equal(CoreState.Config.ConfigFilename, filename);
+                    Assert.Equal(liveExePath, pendingConfig.at(FEMapCreatorProfileCore.ExecutablePathConfigKey));
+                    Assert.Single(FEMapCreatorTilesetMappingStoreCore.LoadAll(pendingConfig));
+                    throw new IOException("disk full");
+                })
+            {
+                FEMapCreatorPath = liveExePath,
+                FEMapCreatorAssetsRoot = "",
+            };
+            vm.SetTilesetContext(fingerprint);
+            await vm.DiscoverTilesetsAsync();
+            vm.SelectedTileset = Assert.Single(vm.Tilesets);
+
+            bool saved = await vm.SaveTilesetMappingAsync();
+
+            Assert.True(saveAttempted);
+            Assert.False(saved);
+            Assert.False(vm.TilesetMappingSaved);
+            Assert.Equal("", vm.TilesetMappingStatusMessage);
+            Assert.Contains("disk full", vm.TilesetMappingErrorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(persistedExePath, CoreState.Config.at(FEMapCreatorProfileCore.ExecutablePathConfigKey));
+            Assert.Equal("persisted-assets", CoreState.Config.at(FEMapCreatorProfileCore.AssetsRootConfigKey));
+            Assert.False(CoreState.Config.ContainsKey(FEMapCreatorTilesetMappingStoreCore.MappingsConfigKey));
+
+            Config reloaded = Config.LoadOrCreate(CoreState.Config.ConfigFilename);
+            Assert.Equal(persistedExePath, reloaded.at(FEMapCreatorProfileCore.ExecutablePathConfigKey));
+            Assert.Equal("persisted-assets", reloaded.at(FEMapCreatorProfileCore.AssetsRootConfigKey));
+            Assert.False(reloaded.ContainsKey(FEMapCreatorTilesetMappingStoreCore.MappingsConfigKey));
+        }
+
+        [Fact]
+        public async Task DiscoverTilesetsAsync_SameMetadataReplacementAfterLiveStatusProbe_UsesFreshIdentity()
         {
             string exePath = MakeFile("FEMapCreator.exe", new byte[] { 1, 2, 3 });
             File.SetLastWriteTimeUtc(exePath, new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc));
@@ -719,7 +783,9 @@ namespace FEBuilderGBA.Avalonia.Tests
             };
             vm.SetTilesetContext(fingerprint);
 
-            FEMapCreatorSetupSnapshot cached = vm.GetFEMapCreatorSetupSnapshot();
+            FEMapCreatorSetupSnapshot liveStatus = vm.GetFEMapCreatorStatusSnapshot();
+            Assert.Equal("", liveStatus.ExecutableSha256);
+            FEMapCreatorSetupSnapshot original = FEMapCreatorProfileCore.Validate(exePath, "");
             RewriteWithSameMetadata(exePath, new byte[] { 9, 8, 7 });
 
             await vm.DiscoverTilesetsAsync();
@@ -728,7 +794,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.True(await vm.SaveTilesetMappingAsync());
 
             FEMapCreatorSetupSnapshot current = FEMapCreatorProfileCore.Validate(exePath, "");
-            Assert.NotEqual(cached.ExecutableSha256, current.ExecutableSha256);
+            Assert.NotEqual(original.ExecutableSha256, current.ExecutableSha256);
             FEMapCreatorMappingLookupResult lookup = FEMapCreatorTilesetMappingStoreCore.Lookup(
                 FEMapCreatorTilesetMappingStoreCore.LoadAll(CoreState.Config!),
                 fingerprint,

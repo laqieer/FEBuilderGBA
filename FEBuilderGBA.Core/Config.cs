@@ -15,8 +15,26 @@ namespace FEBuilderGBA
 
         public void Save(string fullfilename)
         {
-            //XMLシリアライザが初期化できないので自前でやる.
+            try
+            {
+                SaveOrThrow(fullfilename);
+            }
+            catch (Exception e)
+            {
+                R.ShowStopError("設定ファイルに書き込めません。\r\n{0}\r\n{1}", fullfilename, e.ToString());
+            }
+            return;
+        }
 
+        /// <summary>
+        /// Persist this config while allowing the caller to observe write failures. Legacy
+        /// <see cref="Save(string)"/> keeps its UI-reporting, exception-swallowing behavior;
+        /// explicit transactional workflows should use this method and publish success only
+        /// after it returns.
+        /// </summary>
+        public void SaveOrThrow(string fullfilename)
+        {
+            //XMLシリアライザが初期化できないので自前でやる.
             XmlDocument xml = new XmlDocument();
             XmlElement elem = xml.CreateElement("root");
             xml.AppendChild(elem);
@@ -40,18 +58,11 @@ namespace FEBuilderGBA
                 item_node.Value = pair.Value;
                 value_elem.AppendChild(item_node);
             }
-            try
+
+            using (StreamWriter w = new StreamWriter(fullfilename))
             {
-                using (StreamWriter w = new StreamWriter(fullfilename))
-                {
-                    xml.Save(w);
-                }
+                xml.Save(w);
             }
-            catch (Exception e)
-            {
-                R.ShowStopError("設定ファイルに書き込めません。\r\n{0}\r\n{1}", fullfilename, e.ToString());
-            }
-            return;
         }
         public string ConfigFilename { get; protected set; }
 

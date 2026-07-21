@@ -219,8 +219,8 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Serialize <paramref name="mappings"/> back into <paramref name="config"/>. The caller is
-        /// responsible for calling <see cref="Config.Save()"/> afterward (this mirrors every other
-        /// config writer in the Options flow, which batches multiple key writes before one Save()).
+        /// responsible for persisting the config afterward. Workflows that publish a success state
+        /// must use <see cref="Config.SaveOrThrow(string)"/> so write failures remain observable.
         /// </summary>
         public static void SaveAll(Config config, IReadOnlyList<FEMapCreatorTilesetMappingEntry> mappings)
         {
@@ -308,9 +308,11 @@ namespace FEBuilderGBA
                 error = "Tileset name is empty.";
                 return false;
             }
-            if (currentProfile == null || currentProfile.Status != FEMapCreatorSetupStatus.Configured)
+            if (currentProfile == null
+                || currentProfile.Status != FEMapCreatorSetupStatus.Configured
+                || string.IsNullOrWhiteSpace(currentProfile.ExecutableSha256))
             {
-                error = "FEMapCreator executable is not currently configured or is invalid; cannot record a mapping without a validated executable.";
+                error = "FEMapCreator executable is not authoritatively validated; cannot record a mapping without a current executable content hash.";
                 return false;
             }
 

@@ -20,9 +20,8 @@ namespace FEBuilderGBA
     internal static class FileContentIdentityCore
     {
         /// <summary>
-        /// Stat-only (no hashing) identity check: file size + last-write-UTC ticks. Cheap enough
-        /// to call on every keystroke; used by <see cref="FEMapCreatorExecutableIdentityCache"/>
-        /// to decide whether a full SHA-256 recompute is actually necessary.
+        /// Stat-only (no hashing) identity check: file size + last-write-UTC ticks. Used by live
+        /// FEMapCreator status so opening or typing in Options never reads executable content.
         /// </summary>
         internal static bool TryStat(string path, out long sizeBytes, out long lastWriteUtcTicks, out string error)
         {
@@ -59,10 +58,6 @@ namespace FEBuilderGBA
                 return false;
             }
         }
-
-        /// <summary>Hash-only (no size/mtime stat): SHA-256 content hash of <paramref name="path"/>, lowercase hex.</summary>
-        internal static bool TryComputeHashOnly(string path, out string sha256Hex, out string error)
-            => TryComputeHashOnly(path, CancellationToken.None, out sha256Hex, out error);
 
         /// <summary>
         /// Cancellation-aware SHA-256 hash. Cancellation is checked before opening the file and
@@ -130,9 +125,7 @@ namespace FEBuilderGBA
         /// <summary>
         /// Stat and hash <paramref name="path"/>. Returns false with <paramref name="error"/> set
         /// when the path is blank, does not exist, or cannot be read (I/O error, access denied).
-        /// Always performs a full re-stat + re-hash — callers needing an authoritative, never-cached
-        /// identity (e.g. <see cref="FEMapCreatorTilesetMappingStoreCore.Lookup"/>) must keep using
-        /// this method directly rather than <see cref="FEMapCreatorExecutableIdentityCache"/>.
+        /// Always performs a full re-stat + re-hash for authoritative identity checks.
         /// </summary>
         internal static bool TryCompute(string path, out long sizeBytes, out long lastWriteUtcTicks, out string sha256Hex, out string error)
             => TryCompute(path, CancellationToken.None, out sizeBytes, out lastWriteUtcTicks, out sha256Hex, out error);

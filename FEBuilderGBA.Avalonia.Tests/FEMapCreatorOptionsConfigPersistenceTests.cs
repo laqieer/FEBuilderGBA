@@ -89,7 +89,7 @@ public class FEMapCreatorOptionsConfigPersistenceTests : IDisposable
         vm.FEMapCreatorPath = exe;
         vm.FEMapCreatorAssetsRoot = "";
 
-        FEMapCreatorSetupSnapshot snapshot = vm.GetFEMapCreatorSetupSnapshot();
+        FEMapCreatorSetupSnapshot snapshot = vm.GetFEMapCreatorStatusSnapshot();
         Assert.Equal(FEMapCreatorSetupStatus.Configured, snapshot.Status);
     }
 
@@ -101,7 +101,7 @@ public class FEMapCreatorOptionsConfigPersistenceTests : IDisposable
         vm.FEMapCreatorPath = "";
         vm.FEMapCreatorAssetsRoot = "";
 
-        FEMapCreatorSetupSnapshot snapshot = vm.GetFEMapCreatorSetupSnapshot();
+        FEMapCreatorSetupSnapshot snapshot = vm.GetFEMapCreatorStatusSnapshot();
         Assert.Equal(FEMapCreatorSetupStatus.NotConfigured, snapshot.Status);
     }
 
@@ -113,7 +113,7 @@ public class FEMapCreatorOptionsConfigPersistenceTests : IDisposable
         vm.FEMapCreatorPath = Path.Combine(_baseDir, "does-not-exist.exe");
         vm.FEMapCreatorAssetsRoot = "";
 
-        FEMapCreatorSetupSnapshot snapshot = vm.GetFEMapCreatorSetupSnapshot();
+        FEMapCreatorSetupSnapshot snapshot = vm.GetFEMapCreatorStatusSnapshot();
         Assert.Equal(FEMapCreatorSetupStatus.Invalid, snapshot.Status);
         Assert.False(string.IsNullOrEmpty(snapshot.ErrorMessage));
     }
@@ -156,7 +156,7 @@ public class FEMapCreatorOptionsConfigPersistenceTests : IDisposable
         vm2.Load();
         Assert.Equal(exe, vm2.FEMapCreatorPath);
         Assert.Equal("", vm2.FEMapCreatorAssetsRoot);
-        Assert.Equal(FEMapCreatorSetupStatus.Configured, vm2.GetFEMapCreatorSetupSnapshot().Status);
+        Assert.Equal(FEMapCreatorSetupStatus.Configured, vm2.GetFEMapCreatorStatusSnapshot().Status);
     }
 
     [Fact]

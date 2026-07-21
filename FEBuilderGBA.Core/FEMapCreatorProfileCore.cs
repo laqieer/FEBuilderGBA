@@ -20,11 +20,11 @@ namespace FEBuilderGBA
     /// <summary>
     /// Immutable validated snapshot of the persisted FEMapCreator executable path plus optional
     /// assets root (#1978 Slice 2). Produced by <see cref="FEMapCreatorProfileCore.Validate"/>.
-    /// When <see cref="Status"/> is <see cref="FEMapCreatorSetupStatus.Configured"/>, the
-    /// executable's content identity (<see cref="ExecutableSizeBytes"/>/
-    /// <see cref="ExecutableLastWriteUtcTicks"/>/<see cref="ExecutableSha256"/>) is also captured
-    /// so <see cref="FEMapCreatorTilesetMappingStoreCore.Lookup"/> can detect that the configured
-    /// executable itself has changed since a mapping was recorded, not just its path string.
+    /// Authoritative configured snapshots capture the executable's content identity
+    /// (<see cref="ExecutableSizeBytes"/>/<see cref="ExecutableLastWriteUtcTicks"/>/
+    /// <see cref="ExecutableSha256"/>) so <see cref="FEMapCreatorTilesetMappingStoreCore.Lookup"/>
+    /// can detect that the executable itself changed. Live status snapshots deliberately omit
+    /// the hash and are not valid inputs for authoritative mapping operations.
     /// </summary>
     public sealed class FEMapCreatorSetupSnapshot
     {
@@ -64,7 +64,7 @@ namespace FEBuilderGBA
         /// <summary>Executable last-write time (UTC ticks) at validation time; 0 unless <see cref="Status"/> is <see cref="FEMapCreatorSetupStatus.Configured"/>.</summary>
         public long ExecutableLastWriteUtcTicks { get; }
 
-        /// <summary>Executable SHA-256 content hash (lowercase hex) at validation time; "" unless <see cref="Status"/> is <see cref="FEMapCreatorSetupStatus.Configured"/>.</summary>
+        /// <summary>Executable SHA-256 content hash (lowercase hex) for authoritative validation; "" for live status and non-configured snapshots.</summary>
         public string ExecutableSha256 { get; }
     }
 
@@ -73,9 +73,9 @@ namespace FEBuilderGBA
     /// <see cref="ExecutablePathConfigKey"/> / <see cref="AssetsRootConfigKey"/>), reusing
     /// <see cref="FEMapCreatorLauncherCore"/>'s existing path-normalization rules so Options/config
     /// validation never diverges from the launch-time checks used by the random-map dialog and
-    /// tileset discovery (#1978 Slice 2). Pure and never throws; performs local filesystem
-    /// existence checks only — it never launches a process or touches the network, so it is safe
-    /// to call from Options load/construction without any explicit user action.
+    /// tileset discovery (#1978 Slice 2). It never launches a process or touches the network.
+    /// Authoritative validation hashes the executable and belongs on a worker; live Options
+    /// status uses the metadata-only <see cref="ValidateForStatus"/> path.
     /// </summary>
     public static class FEMapCreatorProfileCore
     {
@@ -90,81 +90,75 @@ namespace FEBuilderGBA
         /// <paramref name="rawExecutablePath"/> yields <see cref="FEMapCreatorSetupStatus.NotConfigured"/>
         /// (not an error) regardless of the assets root; the assets root itself is optional and a
         /// blank value is always valid. A non-blank executable path that fails normalization or does
-        /// not exist yields <see cref="FEMapCreatorSetupStatus.Invalid"/>.
-        /// <para>
-        /// <paramref name="executableIdentityCache"/> is an optional, caller-owned, per-session
-        /// (never static) reuse cache for the executable's SHA-256 hash — pass one when calling
-        /// this repeatedly for live UI status display (e.g. on every keystroke) to avoid re-hashing
-        /// an unchanged executable on every call; omit it (or pass null) for one-shot/authoritative
-        /// callers such as <see cref="FEMapCreatorTilesetMappingStoreCore.Lookup"/>, which must
-        /// always get a fresh, uncached hash.
-        /// </para>
+        /// not exist yields <see cref="FEMapCreatorSetupStatus.Invalid"/>. This authoritative path
+        /// always computes a fresh SHA-256 digest.
         /// </summary>
         public static FEMapCreatorSetupSnapshot Validate(string rawExecutablePath, string rawAssetsRoot)
-            => Validate(rawExecutablePath, rawAssetsRoot, executableIdentityCache: null, CancellationToken.None);
+            => Validate(rawExecutablePath, rawAssetsRoot, CancellationToken.None);
 
         /// <summary>
-        /// Internal overload of <see cref="Validate(string, string)"/> accepting an optional,
-        /// caller-owned <see cref="FEMapCreatorExecutableIdentityCache"/> (see remarks above). Not
-        /// part of the public API surface — the cache type is an internal UI-responsiveness detail,
-        /// not a durable public contract — but visible to <c>FEBuilderGBA.Avalonia</c> via
-        /// <c>InternalsVisibleTo</c> so <c>OptionsViewModel</c> can pass its per-session cache.
+        /// Metadata-only validation for live Options status. Performs the same path validation as
+        /// <see cref="Validate(string, string)"/> and captures size/mtime, but never reads or hashes
+        /// executable content on the dispatcher.
         /// </summary>
-        internal static FEMapCreatorSetupSnapshot Validate(string rawExecutablePath, string rawAssetsRoot, FEMapCreatorExecutableIdentityCache? executableIdentityCache)
-            => Validate(rawExecutablePath, rawAssetsRoot, executableIdentityCache, CancellationToken.None);
+        internal static FEMapCreatorSetupSnapshot ValidateForStatus(
+            string rawExecutablePath,
+            string rawAssetsRoot)
+        {
+            FEMapCreatorSetupSnapshot? invalid = ValidatePaths(
+                rawExecutablePath,
+                rawAssetsRoot,
+                out string normalizedExecutablePath,
+                out string normalizedAssetsRoot);
+            if (invalid != null)
+                return invalid;
+
+            if (!FileContentIdentityCore.TryStat(
+                normalizedExecutablePath,
+                out long exeSize,
+                out long exeTicks,
+                out string statError))
+            {
+                return new FEMapCreatorSetupSnapshot(
+                    FEMapCreatorSetupStatus.Invalid,
+                    "",
+                    "",
+                    "FEMapCreator executable could not be inspected: " + statError);
+            }
+
+            return new FEMapCreatorSetupSnapshot(
+                FEMapCreatorSetupStatus.Configured,
+                normalizedExecutablePath,
+                normalizedAssetsRoot,
+                "",
+                exeSize,
+                exeTicks);
+        }
 
         /// <summary>
-        /// Authoritative cancellation-aware validation used by one-click generation. Unlike the
-        /// live Options status path, this intentionally bypasses the executable hash cache.
+        /// Authoritative cancellation-aware validation used by worker-backed FEMapCreator actions.
         /// </summary>
         internal static FEMapCreatorSetupSnapshot Validate(
             string rawExecutablePath,
             string rawAssetsRoot,
             CancellationToken cancellationToken)
-            => Validate(rawExecutablePath, rawAssetsRoot, executableIdentityCache: null, cancellationToken);
-
-        static FEMapCreatorSetupSnapshot Validate(
-            string rawExecutablePath,
-            string rawAssetsRoot,
-            FEMapCreatorExecutableIdentityCache? executableIdentityCache,
-            CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (string.IsNullOrWhiteSpace(rawExecutablePath))
-                return new FEMapCreatorSetupSnapshot(FEMapCreatorSetupStatus.NotConfigured, "", "", "");
+            FEMapCreatorSetupSnapshot? invalid = ValidatePaths(
+                rawExecutablePath,
+                rawAssetsRoot,
+                out string normalizedExecutablePath,
+                out string normalizedAssetsRoot);
+            if (invalid != null)
+                return invalid;
 
-            if (!FEMapCreatorLauncherCore.TryNormalizeAbsoluteLocalFile(
-                rawExecutablePath, requireDirectoryComponent: true,
-                out string normalizedExecutablePath, out string exeError))
-            {
-                return new FEMapCreatorSetupSnapshot(FEMapCreatorSetupStatus.Invalid, "", "", exeError);
-            }
-
-            if (!File.Exists(normalizedExecutablePath))
-            {
-                return new FEMapCreatorSetupSnapshot(FEMapCreatorSetupStatus.Invalid, "", "",
-                    "FEMapCreator executable does not exist: " + normalizedExecutablePath);
-            }
-
-            if (!FEMapCreatorLauncherCore.TryNormalizeAssetsDirectory(
-                rawAssetsRoot, out string normalizedAssetsRoot, out string assetsError))
-            {
-                return new FEMapCreatorSetupSnapshot(FEMapCreatorSetupStatus.Invalid, normalizedExecutablePath, "", assetsError);
-            }
-
-            long exeSize, exeTicks;
-            string exeSha, hashError;
-            bool hashOk = executableIdentityCache != null
-                ? executableIdentityCache.TryGetOrCompute(normalizedExecutablePath, out exeSize, out exeTicks, out exeSha, out hashError)
-                : FileContentIdentityCore.TryCompute(
-                    normalizedExecutablePath,
-                    cancellationToken,
-                    out exeSize,
-                    out exeTicks,
-                    out exeSha,
-                    out hashError);
-
-            if (!hashOk)
+            if (!FileContentIdentityCore.TryCompute(
+                normalizedExecutablePath,
+                cancellationToken,
+                out long exeSize,
+                out long exeTicks,
+                out string exeSha,
+                out string hashError))
             {
                 // File.Exists just passed above; only a race (deleted/locked between checks)
                 // should ever reach here, but surface it as Invalid rather than silently
@@ -176,6 +170,50 @@ namespace FEBuilderGBA
             return new FEMapCreatorSetupSnapshot(
                 FEMapCreatorSetupStatus.Configured, normalizedExecutablePath, normalizedAssetsRoot, "",
                 exeSize, exeTicks, exeSha);
+        }
+
+        static FEMapCreatorSetupSnapshot? ValidatePaths(
+            string rawExecutablePath,
+            string rawAssetsRoot,
+            out string normalizedExecutablePath,
+            out string normalizedAssetsRoot)
+        {
+            normalizedExecutablePath = "";
+            normalizedAssetsRoot = "";
+            if (string.IsNullOrWhiteSpace(rawExecutablePath))
+                return new FEMapCreatorSetupSnapshot(FEMapCreatorSetupStatus.NotConfigured, "", "", "");
+
+            if (!FEMapCreatorLauncherCore.TryNormalizeAbsoluteLocalFile(
+                rawExecutablePath,
+                requireDirectoryComponent: true,
+                out normalizedExecutablePath,
+                out string exeError))
+            {
+                return new FEMapCreatorSetupSnapshot(FEMapCreatorSetupStatus.Invalid, "", "", exeError);
+            }
+
+            if (!File.Exists(normalizedExecutablePath))
+            {
+                return new FEMapCreatorSetupSnapshot(
+                    FEMapCreatorSetupStatus.Invalid,
+                    "",
+                    "",
+                    "FEMapCreator executable does not exist: " + normalizedExecutablePath);
+            }
+
+            if (!FEMapCreatorLauncherCore.TryNormalizeAssetsDirectory(
+                rawAssetsRoot,
+                out normalizedAssetsRoot,
+                out string assetsError))
+            {
+                return new FEMapCreatorSetupSnapshot(
+                    FEMapCreatorSetupStatus.Invalid,
+                    normalizedExecutablePath,
+                    "",
+                    assetsError);
+            }
+
+            return null;
         }
     }
 }

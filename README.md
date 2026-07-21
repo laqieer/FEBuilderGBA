@@ -247,10 +247,13 @@ dotnet run --project FEBuilderGBA.CLI -- --generate-random-map --femapcreator=C:
 # instead of being silently omitted from the tileset identity. Per-tileset FEMapCreator discovery and
 # mapping now live only in Options' FEMapCreator section (Map Editor's "Map Tileset..." button is just a
 # shortcut that selects Options' External Tools tab and scrolls the FEMapCreator section into view with the
-# current tileset pre-selected). Editing either live FEMapCreator path
-# cancels any in-flight discovery or Save Mapping operation and clears discovered choices, so Save Mapping always requires a fresh discovery
-# from the same executable/assets profile. The keystroke status cache is never trusted by discovery or Save
-# Mapping; both authoritatively re-hash even same-size/same-mtime executable replacements. If a mapping is configured and current,
+# current tileset pre-selected). Live path status performs path and file-metadata checks only, so opening
+# Options or typing never hashes executable content on the UI thread. Editing either live FEMapCreator path
+# cancels any in-flight discovery or Save Mapping operation and clears discovered choices, so Save Mapping
+# always requires a fresh discovery from the same executable/assets profile. Discovery and Save Mapping both
+# authoritatively re-hash even same-size/same-mtime executable replacements. Save Mapping persists a detached
+# config snapshot first and updates the live config only after the disk write succeeds; write failures remain
+# visible and cannot masquerade as an in-memory-only success. If a mapping is configured and current,
 # Generate runs the external adapter above; once started, any launch/exit/parse failure is surfaced directly
 # and never silently swapped for the built-in engine, and cancelling (or closing the editor) terminates the
 # owned external process rather than letting it finish and apply. Otherwise — or if the saved mapping is

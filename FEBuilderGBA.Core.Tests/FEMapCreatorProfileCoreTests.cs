@@ -49,6 +49,29 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void ValidateForStatus_ExistingExecutable_ReportsMetadataWithoutContentHash()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string exePath = Path.Combine(tempRoot, "FEMapCreator.exe");
+                File.WriteAllBytes(exePath, new byte[] { 1, 2, 3 });
+
+                FEMapCreatorSetupSnapshot snapshot = FEMapCreatorProfileCore.ValidateForStatus(exePath, "");
+
+                Assert.Equal(FEMapCreatorSetupStatus.Configured, snapshot.Status);
+                Assert.Equal(Path.GetFullPath(exePath), snapshot.ExecutablePath);
+                Assert.Equal(3, snapshot.ExecutableSizeBytes);
+                Assert.NotEqual(0, snapshot.ExecutableLastWriteUtcTicks);
+                Assert.Equal("", snapshot.ExecutableSha256);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
         public void Validate_ExecutableContentIdentity_ChangesWhenBytesChangeAtSamePath()
         {
             // #1978 Slice 2 review fix: the mapping-store staleness check depends on this

@@ -104,11 +104,10 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [AvaloniaFact]
-        public void RapidAssetsRootEdits_DoNotRepeatedlyHashUnchangedExecutable_WhileStatusStillConverges()
+        public void RapidAssetsRootEdits_RemainMetadataOnly_WhileStatusStillConverges()
         {
-            // #1978 Slice 2 second review follow-up (finding #1): typing into the assets-root
-            // field must not trigger a fresh SHA-256 computation of the (unchanged) executable
-            // on every keystroke, while the displayed status must still end up correct.
+            // Live status must not hash executable content on any textbox keystroke, while the
+            // displayed status must still converge when the complete assets path becomes valid.
             string tempRoot = Path.Combine(Path.GetTempPath(), "femc_opt_manual_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(tempRoot);
             try
@@ -130,8 +129,9 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Dispatcher.UIThread.RunJobs();
                 Assert.DoesNotContain("Invalid", statusText!.Text, StringComparison.OrdinalIgnoreCase);
 
-                var cache = view.ViewModelForTests.FEMapCreatorExecutableIdentityCacheForTests;
-                Assert.Equal(1, cache.HashComputeCount);
+                FEMapCreatorSetupSnapshot initial = view.ViewModelForTests.GetFEMapCreatorStatusSnapshot();
+                Assert.Equal(FEMapCreatorSetupStatus.Configured, initial.Status);
+                Assert.Equal("", initial.ExecutableSha256);
 
                 // Simulate rapid manual typing of the assets-root path, one character at a time,
                 // each triggering a TextChanged-driven status refresh (matching finding #3's
@@ -144,8 +144,11 @@ namespace FEBuilderGBA.Avalonia.Tests
                     Dispatcher.UIThread.RunJobs();
                 }
 
-                // The executable itself never changed across all of these keystrokes.
-                Assert.Equal(1, cache.HashComputeCount);
+                FEMapCreatorSetupSnapshot afterTyping = view.ViewModelForTests.GetFEMapCreatorStatusSnapshot();
+                Assert.Equal(FEMapCreatorSetupStatus.Configured, afterTyping.Status);
+                Assert.Equal("", afterTyping.ExecutableSha256);
+                Assert.Equal(initial.ExecutableSizeBytes, afterTyping.ExecutableSizeBytes);
+                Assert.Equal(initial.ExecutableLastWriteUtcTicks, afterTyping.ExecutableLastWriteUtcTicks);
 
                 // ...and the status still converges to the correct, non-Invalid result once the
                 // fully-typed assets root matches a real, existing directory.

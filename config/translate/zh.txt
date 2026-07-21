@@ -28309,6 +28309,9 @@ FEMapCreator 未报告任何兼容的图块集。
 :Tileset mapping save was cancelled.
 图块集映射保存已取消。
 
+:Failed to save the tileset mapping.
+无法保存图块集映射。
+
 :Found {0} usable tileset(s).
 找到 {0} 个可用的图块集。
 

@@ -25,9 +25,8 @@ namespace FEBuilderGBA.Avalonia.Views
         TilesetFingerprint? _pendingTilesetContext;
 
         /// <summary>
-        /// Test-only seam exposing this view's ViewModel instance (e.g. for asserting on
-        /// <see cref="OptionsViewModel.FEMapCreatorExecutableIdentityCacheForTests"/>'s
-        /// hash-reuse counter). Never used by production code.
+        /// Test-only seam exposing this view's ViewModel instance for live-status assertions.
+        /// Never used by production code.
         /// </summary>
         internal OptionsViewModel ViewModelForTests => _vm;
 
@@ -210,7 +209,8 @@ namespace FEBuilderGBA.Avalonia.Views
 
         /// <summary>
         /// Re-validates the (possibly unsaved) FEMapCreator path/assets-root textbox values and
-        /// updates the status line. Read-only — never launches a process or touches the network.
+        /// updates the status line. Read-only and metadata-only — never hashes executable
+        /// content, launches a process, or touches the network.
         /// </summary>
         void RefreshFEMapCreatorStatus()
         {

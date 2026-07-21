@@ -274,6 +274,36 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void TryCreateEntry_LiveStatusSnapshot_ReturnsFalseWithoutHashingAssets()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string exePath = CreateFile(tempRoot, "FEMapCreator.exe", new byte[] { 1 });
+                FEMapCreatorSetupSnapshot liveStatus = FEMapCreatorProfileCore.ValidateForStatus(exePath, "");
+                Assert.Equal(FEMapCreatorSetupStatus.Configured, liveStatus.Status);
+                Assert.Equal("", liveStatus.ExecutableSha256);
+
+                bool ok = FEMapCreatorTilesetMappingStoreCore.TryCreateEntry(
+                    TilesetFingerprint.Compute(7, new byte[] { 9 }, new byte[] { 9 }, new byte[] { 9 }),
+                    "Plains",
+                    Path.Combine(tempRoot, "missing.png"),
+                    Path.Combine(tempRoot, "missing.json"),
+                    liveStatus,
+                    out FEMapCreatorTilesetMappingEntry entry,
+                    out string error);
+
+                Assert.False(ok);
+                Assert.Null(entry);
+                Assert.Contains("authoritatively", error, StringComparison.OrdinalIgnoreCase);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
         public void Upsert_ReplacesExistingFingerprint_PreservesPosition()
         {
             var entryA1 = MakeEntry("fp-a", "TilesetA-v1");

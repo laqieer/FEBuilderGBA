@@ -55,5 +55,18 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(@"C:\tools\vba.exe", reloaded.at("emulator", ""));
             Assert.Equal(@"C:\tools\sappy.exe", reloaded.at("sappy", ""));
         }
+
+        [Fact]
+        public void SaveOrThrow_MissingParentDirectory_PropagatesFailure()
+        {
+            var cfg = new Config
+            {
+                ["emulator"] = @"C:\tools\vba.exe",
+            };
+            string path = Path.Combine(_dir, "missing", "config.xml");
+
+            Assert.Throws<DirectoryNotFoundException>(() => cfg.SaveOrThrow(path));
+            Assert.False(File.Exists(path));
+        }
     }
 }
