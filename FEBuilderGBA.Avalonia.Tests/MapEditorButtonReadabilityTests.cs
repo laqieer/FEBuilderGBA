@@ -75,6 +75,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         [InlineData("ImportTmxButton")]
         [InlineData("ResizeMapButton")]
         [InlineData("GenerateRandomMapButton")]
+        [InlineData("CancelRandomMapButton")]
         [InlineData("WriteTileBtn")]
         [InlineData("RefreshMapBtn")]
         public void MapEditorButtons_KeepThemeBackgroundsAndDoNotHardCodeBrushes(string name)
@@ -655,6 +656,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         [InlineData("MapEditor_ImportTmx_Button", "Import Map (Tiled)")]
         [InlineData("MapEditor_ResizeMap_Button", "Resize Map…")]
         [InlineData("MapEditor_GenerateRandomMap_Button", "Generate Random Map")]
+        [InlineData("MapEditor_CancelRandomMap_Button", "Cancel")]
         [InlineData("MapEditor_WriteTileBtn_Button", "Write Tile")]
         [InlineData("MapEditor_RefreshMapBtn_Button", "Refresh Map")]
         public void AffectedButtons_RemainDiscoverableByAutomationId(string automationId, string content)

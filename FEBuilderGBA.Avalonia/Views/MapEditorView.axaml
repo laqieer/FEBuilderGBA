@@ -61,6 +61,11 @@
                     Name="GenerateRandomMapButton"
                     Content="Generate Random Map"
                     VerticalAlignment="Center" />
+            <Button AutomationProperties.AutomationId="MapEditor_CancelRandomMap_Button"
+                    Name="CancelRandomMapButton"
+                    Content="Cancel"
+                    IsEnabled="False"
+                    VerticalAlignment="Center" />
             <Button AutomationProperties.AutomationId="MapEditor_MapTileset_Button"
                     Name="MapTilesetButton"
                     Content="Map Tileset…"

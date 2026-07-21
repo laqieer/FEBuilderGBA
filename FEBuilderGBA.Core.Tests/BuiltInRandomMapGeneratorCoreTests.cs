@@ -256,6 +256,44 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(BuiltInRandomMapErrorCategory.Cancelled, result.ErrorCategory);
         }
 
+        [Fact]
+        public void TryGenerateFromRom_PreCancelledCorpusScan_ReturnsTypedCancelledResult()
+        {
+            ROM rom = BuiltInRandomMapTestFixture.CreateRom();
+            ushort[] source = new ushort[Width * Height];
+            for (int i = 0; i < source.Length; i++)
+                source[i] = (ushort)((i % 3) * 4);
+            uint mapSettingAddr = BuiltInRandomMapTestFixture.WriteMap(
+                rom,
+                mapIndex: 0,
+                tilesetSlot: 1,
+                objRaw: new byte[BytesPerTile],
+                palRaw: IdentityPalette(),
+                configRaw: new byte[64],
+                Width,
+                Height,
+                source);
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            bool resolved = BuiltInRandomMapGeneratorCore.TryGenerateFromRom(
+                rom,
+                mapSettingAddr,
+                Width,
+                Height,
+                source,
+                seed: 123,
+                cts.Token,
+                out BuiltInRandomMapGenerationResult result,
+                out string error);
+
+            Assert.True(resolved);
+            Assert.NotNull(result);
+            Assert.False(result.Success);
+            Assert.Equal(BuiltInRandomMapErrorCategory.Cancelled, result.ErrorCategory);
+            Assert.NotEmpty(error);
+        }
+
         [Theory]
         [InlineData(14, 10)] // width below MAP_MIN_WIDTH
         [InlineData(15, 9)]  // height below MAP_MIN_HEIGHT
@@ -315,7 +353,7 @@ namespace FEBuilderGBA.Core.Tests
 
             var corpus = BuiltInRandomMapTilesetCorpus.CreateForTesting(
                 TilesetFingerprint.Empty, new List<uint> { 0 }, candidates, freq, freq,
-                empty, empty, objData, paletteData: null, configData, totalCells: Width * Height);
+                empty, empty, objData, paletteData: IdentityPalette(), configData, totalCells: Width * Height);
 
             Assert.False(corpus.HasStrictAdjacencyEvidence);
 
@@ -464,6 +502,20 @@ namespace FEBuilderGBA.Core.Tests
             byte packed = (byte)((color & 0xF) | ((color & 0xF) << 4));
             for (int i = 0; i < BytesPerTile; i++)
                 objData[baseOff + i] = packed;
+        }
+
+        static byte[] IdentityPalette()
+        {
+            byte[] paletteData = new byte[2 * 16 * 16];
+            for (int palette = 0; palette < 16; palette++)
+            {
+                for (int color = 0; color < 16; color++)
+                {
+                    int offset = (palette * 16 + color) * 2;
+                    paletteData[offset] = (byte)color;
+                }
+            }
+            return paletteData;
         }
 
         static void SetTsa(byte[] configData, int tsaBase, int sub, int tileIndex, bool hFlip, bool vFlip)

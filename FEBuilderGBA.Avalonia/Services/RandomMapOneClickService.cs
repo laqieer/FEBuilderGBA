@@ -36,14 +36,14 @@ namespace FEBuilderGBA.Avalonia.Services
         public RandomMapBackendUsed BackendUsed { get; init; }
 
         /// <summary>
-        /// Non-empty only when the built-in engine ran because a saved external mapping exists
-        /// but is no longer valid (<see cref="FEMapCreatorMappingStatus.Stale"/>/
-        /// <see cref="FEMapCreatorMappingStatus.Invalid"/>) — must be shown to the user, never
-        /// silently swallowed. Carried on every built-in outcome (success, failure, AND
-        /// cancellation — #1978 Slice 3 review finding #2), never on an external outcome or a
-        /// plain no-mapping-configured built-in run.
+        /// Typed mapping state carried through every outcome. The Map Editor formats any
+        /// stale/invalid fallback notice with localized <c>R._(...)</c> text at the Avalonia UI
+        /// boundary rather than receiving an English sentence from Core.
         /// </summary>
-        public string Notice { get; init; } = "";
+        public FEMapCreatorMappingStatus MappingStatus { get; init; } = FEMapCreatorMappingStatus.NoMapping;
+
+        /// <summary>Technical detail associated with <see cref="MappingStatus"/>.</summary>
+        public string MappingReason { get; init; } = "";
     }
 
     /// <summary>
@@ -170,7 +170,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 {
                     // A started external process was cancelled before returning a result:
                     // discard it — never apply a late/partial result (review finding #1).
-                    return Cancelled(selection.Notice);
+                    return Cancelled(selection);
                 }
 
                 // Mandatory re-check immediately after backend completion (review finding #1):
@@ -179,7 +179,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (cancellationToken.IsCancellationRequested
                     || externalResult?.ErrorCategory == RandomMapGeneratorErrorCategory.Cancelled)
                 {
-                    return Cancelled(selection.Notice);
+                    return Cancelled(selection);
                 }
 
                 if (externalResult == null || !externalResult.Success)
@@ -189,14 +189,15 @@ namespace FEBuilderGBA.Avalonia.Services
                         : (string.IsNullOrWhiteSpace(externalResult.ErrorMessage)
                             ? R._("Random map generation failed.")
                             : externalResult.ErrorMessage);
-                    return Failure(detail, selection.Notice);
+                    return Failure(detail, selection);
                 }
 
                 return new RandomMapOneClickResult
                 {
                     Success = true,
                     BackendUsed = RandomMapBackendUsed.External,
-                    Notice = selection.Notice,
+                    MappingStatus = selection.MappingStatus,
+                    MappingReason = selection.MappingReason,
                     Outcome = new RandomMapGenerationOutcome
                     {
                         Mars = externalResult.Mars,
@@ -224,12 +225,12 @@ namespace FEBuilderGBA.Avalonia.Services
             }
             catch (OperationCanceledException)
             {
-                return Cancelled(selection.Notice);
+                return Cancelled(selection);
             }
 
             // Mandatory re-check immediately after backend completion (review finding #1).
             if (cancellationToken.IsCancellationRequested)
-                return Cancelled(selection.Notice);
+                return Cancelled(selection);
 
             if (!outcome.corpusOk)
             {
@@ -237,23 +238,24 @@ namespace FEBuilderGBA.Avalonia.Services
                 // outcome, including corpus-resolution failure — never only on success.
                 return Failure(
                     string.Format(R._("Could not build the built-in generator's source corpus: {0}"), outcome.builtInError),
-                    selection.Notice);
+                    selection);
             }
 
             if (outcome.builtInResult == null || !outcome.builtInResult.Success)
             {
                 if (outcome.builtInResult?.ErrorCategory == BuiltInRandomMapErrorCategory.Cancelled)
-                    return Cancelled(selection.Notice);
+                    return Cancelled(selection);
 
                 // Review finding #2: carry the notice on generator failure too.
-                return Failure(MapBuiltInError(outcome.builtInResult), selection.Notice);
+                return Failure(MapBuiltInError(outcome.builtInResult), selection);
             }
 
             return new RandomMapOneClickResult
             {
                 Success = true,
                 BackendUsed = RandomMapBackendUsed.BuiltIn,
-                Notice = selection.Notice,
+                MappingStatus = selection.MappingStatus,
+                MappingReason = selection.MappingReason,
                 Outcome = new RandomMapGenerationOutcome
                 {
                     Mars = outcome.builtInResult.Mars,
@@ -287,19 +289,24 @@ namespace FEBuilderGBA.Avalonia.Services
             };
         }
 
-        static RandomMapOneClickResult Failure(string message, string notice = "") => new RandomMapOneClickResult
+        static RandomMapOneClickResult Failure(
+            string message,
+            RandomMapBackendSelection? selection = null) => new RandomMapOneClickResult
         {
             Success = false,
             ErrorMessage = message,
-            Notice = notice,
+            MappingStatus = selection?.MappingStatus ?? FEMapCreatorMappingStatus.NoMapping,
+            MappingReason = selection?.MappingReason ?? "",
         };
 
-        static RandomMapOneClickResult Cancelled(string notice = "") => new RandomMapOneClickResult
+        static RandomMapOneClickResult Cancelled(
+            RandomMapBackendSelection selection) => new RandomMapOneClickResult
         {
             Success = false,
             Cancelled = true,
             ErrorMessage = R._("Random map generation was cancelled."),
-            Notice = notice,
+            MappingStatus = selection.MappingStatus,
+            MappingReason = selection.MappingReason,
         };
 
         static (FEMapCreatorSetupSnapshot Profile, FEMapCreatorMappingLookupResult MappingLookup) DefaultResolveMapping(TilesetFingerprint fingerprint)

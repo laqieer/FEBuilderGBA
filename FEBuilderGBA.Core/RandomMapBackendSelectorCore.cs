@@ -23,11 +23,13 @@ namespace FEBuilderGBA
         RandomMapBackendSelection(
             RandomMapBackendKind kind,
             FEMapCreatorTilesetMappingEntry externalMapping,
-            string notice)
+            FEMapCreatorMappingStatus mappingStatus,
+            string mappingReason)
         {
             Kind = kind;
             ExternalMapping = externalMapping;
-            Notice = notice ?? "";
+            MappingStatus = mappingStatus;
+            MappingReason = mappingReason ?? "";
         }
 
         /// <summary>Which backend to run.</summary>
@@ -40,21 +42,29 @@ namespace FEBuilderGBA
         public FEMapCreatorTilesetMappingEntry ExternalMapping { get; }
 
         /// <summary>
-        /// Non-empty, user-facing explanation for why the built-in engine was used even though
-        /// a mapping exists but is no longer valid (<see cref="FEMapCreatorMappingStatus.Stale"/>
-        /// or <see cref="FEMapCreatorMappingStatus.Invalid"/>). Empty when there was simply no
-        /// mapping at all, or when the external backend was selected — this is deliberately NOT
-        /// a generic status message, so callers can distinguish "no mapping configured" (silent,
-        /// expected default) from "a mapping exists but could not be trusted" (must be shown to
-        /// the user, never silently swallowed).
+        /// Typed mapping state preserved for the UI boundary. Core deliberately does not build
+        /// an English user-facing fallback notice.
         /// </summary>
-        public string Notice { get; }
+        public FEMapCreatorMappingStatus MappingStatus { get; }
+
+        /// <summary>Technical detail associated with a stale/invalid mapping.</summary>
+        public string MappingReason { get; }
 
         internal static RandomMapBackendSelection UseExternal(FEMapCreatorTilesetMappingEntry mapping) =>
-            new RandomMapBackendSelection(RandomMapBackendKind.External, mapping, "");
+            new RandomMapBackendSelection(
+                RandomMapBackendKind.External,
+                mapping,
+                FEMapCreatorMappingStatus.Current,
+                "");
 
-        internal static RandomMapBackendSelection UseBuiltIn(string notice) =>
-            new RandomMapBackendSelection(RandomMapBackendKind.BuiltIn, null, notice);
+        internal static RandomMapBackendSelection UseBuiltIn(
+            FEMapCreatorMappingStatus mappingStatus,
+            string mappingReason = "") =>
+            new RandomMapBackendSelection(
+                RandomMapBackendKind.BuiltIn,
+                null,
+                mappingStatus,
+                mappingReason);
     }
 
     /// <summary>
@@ -68,11 +78,10 @@ namespace FEBuilderGBA
     /// the profile was <see cref="FEMapCreatorSetupStatus.Configured"/> at lookup time) selects
     /// <see cref="RandomMapBackendKind.External"/> with no notice.</item>
     /// <item>Mapping <see cref="FEMapCreatorMappingStatus.Stale"/> or <see cref="FEMapCreatorMappingStatus.Invalid"/>
-    /// selects <see cref="RandomMapBackendKind.BuiltIn"/> with a non-empty, actionable
-    /// <see cref="RandomMapBackendSelection.Notice"/> so the caller can visibly explain the
-    /// fallback rather than silently using the built-in engine.</item>
+    /// selects <see cref="RandomMapBackendKind.BuiltIn"/> while preserving the typed status and
+    /// reason so the caller can visibly explain the fallback in the active locale.</item>
     /// <item>Mapping <see cref="FEMapCreatorMappingStatus.NoMapping"/> selects
-    /// <see cref="RandomMapBackendKind.BuiltIn"/> with an empty notice — this is the expected,
+    /// <see cref="RandomMapBackendKind.BuiltIn"/> with NoMapping status — this is the expected,
     /// unremarkable default before any mapping has ever been configured.</item>
     /// </list>
     /// </summary>
@@ -89,17 +98,13 @@ namespace FEBuilderGBA
 
                 case FEMapCreatorMappingStatus.Stale:
                 case FEMapCreatorMappingStatus.Invalid:
-                    string reason = string.IsNullOrWhiteSpace(mappingLookup.Reason)
-                        ? "The saved FEMapCreator tileset mapping is no longer valid."
-                        : mappingLookup.Reason;
                     return RandomMapBackendSelection.UseBuiltIn(
-                        "The saved FEMapCreator tileset mapping no longer matches the current setup ("
-                        + reason
-                        + "); used the built-in generator instead.");
+                        mappingLookup.Status,
+                        mappingLookup.Reason);
 
                 case FEMapCreatorMappingStatus.NoMapping:
                 default:
-                    return RandomMapBackendSelection.UseBuiltIn("");
+                    return RandomMapBackendSelection.UseBuiltIn(FEMapCreatorMappingStatus.NoMapping);
             }
         }
     }

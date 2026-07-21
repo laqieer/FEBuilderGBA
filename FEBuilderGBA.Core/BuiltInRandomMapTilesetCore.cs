@@ -201,14 +201,13 @@ namespace FEBuilderGBA
             }
 
             const int paletteBytes = 2 * 16 * 16; // 16 palettes * 16 colors * 2 bytes
-            int palLen = Math.Min(paletteBytes, rom.Data.Length - (int)palOffset);
-            if (palLen <= 0)
+            if (palOffset >= (uint)rom.Data.Length || (uint)rom.Data.Length - palOffset < paletteBytes)
             {
-                error = "Palette offset is invalid.";
+                error = "Palette data does not contain the required 512-byte snapshot.";
                 return false;
             }
-            byte[] paletteData = new byte[palLen];
-            Array.Copy(rom.Data, palOffset, paletteData, 0, palLen);
+            byte[] paletteData = new byte[paletteBytes];
+            Array.Copy(rom.Data, palOffset, paletteData, 0, paletteBytes);
 
             byte[] configData = LZ77.decompress(rom.Data, configOffset);
             if (configData == null || configData.Length == 0)
@@ -265,6 +264,8 @@ namespace FEBuilderGBA
         static uint ResolvePlist(ROM rom, uint basePointer, uint plist)
         {
             if (basePointer == 0 || plist == 0) return U.NOT_FOUND;
+            if (basePointer >= (uint)rom.Data.Length || (uint)rom.Data.Length - basePointer < 4)
+                return U.NOT_FOUND;
 
             uint tableBase = rom.p32(basePointer);
             if (!U.isSafetyOffset(tableBase, rom)) return U.NOT_FOUND;

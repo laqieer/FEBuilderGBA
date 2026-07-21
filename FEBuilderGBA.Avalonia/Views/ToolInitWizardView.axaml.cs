@@ -558,18 +558,46 @@ namespace FEBuilderGBA.Avalonia.Views
                 return;
             }
 
-            bool launched = await top.Launcher.LaunchUriAsync(FEMapCreatorProjectUri);
-            if (!launched)
-                ShowFEMapCreatorProjectPageError();
+            try
+            {
+                bool launched = await top.Launcher.LaunchUriAsync(FEMapCreatorProjectUri);
+                if (!launched)
+                    ShowFEMapCreatorProjectPageError();
+            }
+            catch (System.ComponentModel.Win32Exception ex)
+            {
+                ShowFEMapCreatorProjectPageError(ex);
+            }
+            catch (System.IO.IOException ex)
+            {
+                ShowFEMapCreatorProjectPageError(ex);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                ShowFEMapCreatorProjectPageError(ex);
+            }
+            catch (InvalidOperationException ex)
+            {
+                ShowFEMapCreatorProjectPageError(ex);
+            }
+            catch (NotSupportedException ex)
+            {
+                ShowFEMapCreatorProjectPageError(ex);
+            }
+            catch (System.Security.SecurityException ex)
+            {
+                ShowFEMapCreatorProjectPageError(ex);
+            }
         }
 
-        void ShowFEMapCreatorProjectPageError()
+        void ShowFEMapCreatorProjectPageError(Exception? exception = null)
         {
             string message = FEBuilderGBA.R._("Couldn't open link:") + " " + FEMapCreatorProjectUri;
             SetFEMapCreatorProjectPageStatus(message);
             FEBuilderGBA.Log.Error(
                 "ToolInitWizardView could not open FEMapCreator project page:",
-                FEMapCreatorProjectUri.ToString());
+                FEMapCreatorProjectUri.ToString(),
+                exception?.ToString() ?? "");
         }
 
         void SetFEMapCreatorProjectPageStatus(string? message)

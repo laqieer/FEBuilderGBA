@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using Xunit;
 using FEBuilderGBA;
 
@@ -147,6 +149,22 @@ namespace FEBuilderGBA.Core.Tests
             byte[] before = (byte[])rom.Data.Clone();
             Assert.True(BuiltInRandomMapCorpusCore.TryBuildCorpus(rom, addr, out _, out string error), error);
             Assert.Equal(before, rom.Data);
+        }
+
+        [Fact]
+        public void TryBuildCorpus_PreCancelledToken_StopsBeforeScanning()
+        {
+            ROM rom = BuiltInRandomMapTestFixture.CreateRom();
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            Assert.Throws<OperationCanceledException>(() =>
+                BuiltInRandomMapCorpusCore.TryBuildCorpus(
+                    rom,
+                    0x00600000,
+                    cts.Token,
+                    out _,
+                    out _));
         }
     }
 }

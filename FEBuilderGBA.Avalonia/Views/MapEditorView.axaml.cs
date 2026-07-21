@@ -48,6 +48,7 @@ namespace FEBuilderGBA.Avalonia.Views
             ImportTmxButton.Click += ImportTmx_Click;
             ResizeMapButton.Click += ResizeMap_Click;
             GenerateRandomMapButton.Click += GenerateRandomMap_Click;
+            CancelRandomMapButton.Click += CancelRandomMap_Click;
             RandomizeSeedButton.Click += RandomizeSeed_Click;
             MapTilesetButton.Click += MapTileset_Click;
             // #1978 Slice 3: cancel any in-flight one-click generation when the editor is
@@ -1048,6 +1049,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     assetName => DecompMapAssetGuard.BlockIfDecomp(assetName),
                     msg => Fail(msg)))
                 {
+                    SetRandomMapBusyState(false, R._("Failed."));
                     return;
                 }
 
@@ -1064,6 +1066,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     Fail(seedError);
                     return;
                 }
+                RandomMapSeedTextBox.Text = seed.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
                 uint mapSettingAddr = _vm.CurrentAddr;
                 int width = _vm.MapWidth;
@@ -1093,20 +1096,22 @@ namespace FEBuilderGBA.Avalonia.Views
                 {
                     // Review finding #2: a stale/invalid-mapping notice must still be visible
                     // even when the backend attempt ends in cancellation, not only on failure.
-                    if (!string.IsNullOrWhiteSpace(result.Notice))
-                        CoreState.Services?.ShowInfo(result.Notice);
+                    string mappingNotice = FormatMappingNotice(result);
+                    if (!string.IsNullOrWhiteSpace(mappingNotice))
+                        CoreState.Services?.ShowInfo(mappingNotice);
                     CancelStatus();
                     return;
                 }
 
+                string notice = FormatMappingNotice(result);
                 if (!result.Success || result.Outcome == null)
                 {
-                    Fail(string.Format(R._("Generate random map failed: {0}"), result.ErrorMessage), result.Notice);
+                    Fail(string.Format(R._("Generate random map failed: {0}"), result.ErrorMessage), notice);
                     return;
                 }
 
-                if (!string.IsNullOrWhiteSpace(result.Notice))
-                    CoreState.Services?.ShowInfo(result.Notice);
+                if (!string.IsNullOrWhiteSpace(notice))
+                    CoreState.Services?.ShowInfo(notice);
 
                 RandomMapGenerationOutcome outcome = result.Outcome;
                 if (outcome.Mars == null || outcome.Mars.Length != outcome.Width * outcome.Height)
@@ -1141,6 +1146,7 @@ namespace FEBuilderGBA.Avalonia.Views
                         outcome,
                         writeIdentity,
                         expectedFingerprint,
+                        cts.Token,
                         RefreshMapImageFromCurrentSelectionStrict,
                         UpdateTilePaletteStrict,
                         RefreshMapFromCurrentSelectionStrict,
@@ -1154,6 +1160,10 @@ namespace FEBuilderGBA.Avalonia.Views
                         result.BackendUsed == RandomMapBackendUsed.External
                             ? R._("External FEMapCreator")
                             : R._("Built-in")));
+            }
+            catch (OperationCanceledException)
+            {
+                CancelStatus();
             }
             catch (Exception ex)
             {
@@ -1179,15 +1189,18 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void SetRandomMapBusyState(bool busy, string? statusText = null)
+        internal void SetRandomMapBusyState(bool busy, string? statusText = null)
         {
             GenerateRandomMapButton.IsEnabled = !busy;
+            CancelRandomMapButton.IsEnabled = busy;
             RandomizeSeedButton.IsEnabled = !busy;
             MapTilesetButton.IsEnabled = !busy;
             RandomMapSeedTextBox.IsEnabled = !busy;
             if (statusText != null)
                 RandomMapStatusLabel.Text = statusText;
         }
+
+        void CancelRandomMap_Click(object? sender, RoutedEventArgs e) => _randomMapCts?.Cancel();
 
         void RandomizeSeed_Click(object? sender, RoutedEventArgs e)
         {
@@ -1215,13 +1228,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 view => view.SetTilesetContext(snapshot.Fingerprint));
         }
 
-        bool TryGetSeed(out int seed, out string error)
+        internal bool TryGetSeed(out int seed, out string error)
         {
             error = "";
             string? text = RandomMapSeedTextBox.Text;
             if (string.IsNullOrWhiteSpace(text))
             {
                 seed = Random.Shared.Next();
+                RandomMapSeedTextBox.Text = seed.ToString(System.Globalization.CultureInfo.InvariantCulture);
                 return true;
             }
             if (int.TryParse(text, out seed))
@@ -1230,6 +1244,24 @@ namespace FEBuilderGBA.Avalonia.Views
             seed = 0;
             error = R._("Seed must be a valid 32-bit integer.");
             return false;
+        }
+
+        internal static string FormatMappingNotice(RandomMapOneClickResult result)
+        {
+            ArgumentNullException.ThrowIfNull(result);
+            if (result.MappingStatus != FEMapCreatorMappingStatus.Stale
+                && result.MappingStatus != FEMapCreatorMappingStatus.Invalid)
+            {
+                return "";
+            }
+
+            string reason = string.IsNullOrWhiteSpace(result.MappingReason)
+                ? R._("The saved FEMapCreator tileset mapping is no longer valid.")
+                : result.MappingReason;
+            string format = result.MappingStatus == FEMapCreatorMappingStatus.Stale
+                ? R._("The saved FEMapCreator tileset mapping is stale ({0}); using the built-in generator instead.")
+                : R._("The saved FEMapCreator tileset mapping is invalid ({0}); using the built-in generator instead.");
+            return string.Format(format, reason);
         }
 
         /// <summary>

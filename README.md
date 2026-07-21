@@ -235,10 +235,13 @@ dotnet run --project FEBuilderGBA.CLI -- --convertmap1picture --in=map.png --out
 # FEBuilderGBA never downloads or bundles FEMapCreator or its assets. The output is
 # FEBuilderGBA CSV and does not load or mutate a ROM.
 dotnet run --project FEBuilderGBA.CLI -- --generate-random-map --femapcreator=C:\tools\FEMapCreator.exe --tileset="FE6 - Fields - 01020304" --width=15 --height=10 --algorithm=experimental --seed=42 --out=random-map.csv
-# The Avalonia Map Editor's "Generate" button is true one-click (no dialog, no ellipsis): it uses the
-# current map's dimensions and an inline, directly replayable seed. Per-tileset FEMapCreator discovery and
+# The Avalonia Map Editor's "Generate Random Map" button is true one-click (no dialog, no ellipsis): it uses the
+# current map's dimensions and an inline, directly replayable seed. A blank seed is materialized before either
+# backend starts, and the adjacent Cancel button remains enabled during generation so the operation can be
+# stopped without closing the editor. Per-tileset FEMapCreator discovery and
 # mapping now live only in Options' FEMapCreator section (Map Editor's "Map Tileset..." button is just a
-# shortcut that opens Options with the current tileset pre-selected). Editing either live FEMapCreator path
+# shortcut that selects Options' External Tools tab and scrolls the FEMapCreator section into view with the
+# current tileset pre-selected). Editing either live FEMapCreator path
 # cancels any in-flight discovery and clears its choices, so Save Mapping always requires a fresh discovery
 # from the same executable/assets profile. If a mapping is configured and current,
 # Generate runs the external adapter above; once started, any launch/exit/parse failure is surfaced directly

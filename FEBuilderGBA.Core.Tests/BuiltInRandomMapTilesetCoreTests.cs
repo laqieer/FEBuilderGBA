@@ -55,6 +55,58 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void TryResolveMapTileset_PlistBasePointerSlotStraddlesEof_FailsWithoutThrowing()
+        {
+            ROM template = BuiltInRandomMapTestFixture.CreateRom();
+            uint pointerSlot = template.RomInfo.map_obj_pointer;
+            var rom = new ROM();
+            rom.LoadLow("test.gba", new byte[checked((int)pointerSlot + 3)], "BE8E01");
+            BuiltInRandomMapTestFixture.WriteU16(rom, 4, 1);
+            rom.Data[6] = 1;
+            rom.Data[7] = 1;
+            rom.Data[8] = 1;
+
+            bool ok = BuiltInRandomMapTilesetCore.TryResolveMapTileset(
+                rom,
+                0,
+                out MapTilesetSnapshot snapshot,
+                out string error);
+
+            Assert.False(ok);
+            Assert.Null(snapshot);
+            Assert.NotEmpty(error);
+        }
+
+        [Fact]
+        public void TryResolveMapTileset_TruncatedFixedPaletteSnapshot_Fails()
+        {
+            ROM rom = BuiltInRandomMapTestFixture.CreateRom();
+            byte[] obj = MakeBytes(64, seed: 1);
+            byte[] pal = MakeBytes(2 * 16 * 16, seed: 2);
+            byte[] cfg = MakeBytes(24, seed: 3);
+            ushort[] mars = new ushort[15 * 10];
+            uint addr = BuiltInRandomMapTestFixture.WriteMap(
+                rom, 0, tilesetSlot: 1, obj, pal, cfg, 15, 10, mars);
+
+            uint paletteTable = rom.p32(rom.RomInfo.map_pal_pointer);
+            uint truncatedPaletteAddr = (uint)rom.Data.Length - 511;
+            BuiltInRandomMapTestFixture.WriteU32(
+                rom,
+                paletteTable + 4,
+                0x08000000u + truncatedPaletteAddr);
+
+            bool ok = BuiltInRandomMapTilesetCore.TryResolveMapTileset(
+                rom,
+                addr,
+                out MapTilesetSnapshot snapshot,
+                out string error);
+
+            Assert.False(ok);
+            Assert.Null(snapshot);
+            Assert.Contains("512-byte", error);
+        }
+
+        [Fact]
         public void Fingerprint_SameBytesSameVersion_AreEqual()
         {
             byte[] obj = MakeBytes(64, 1);

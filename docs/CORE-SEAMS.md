@@ -10,6 +10,30 @@ a WinForms form, with its behavioural contract and the issue that introduced it.
 file is the exhaustive reference. New seam entries belong **here** (one paragraph
 each), NOT in `CLAUDE.md`.
 
+## #1978 Review-Hardening Corrections
+
+These corrections supersede the older wording in the detailed random-map entries
+later in this catalog:
+
+- `BuiltInRandomMapTilesetCore` now rejects any PLIST table-base pointer slot that
+  does not have all four bytes in the ROM and requires the complete fixed
+  512-byte palette snapshot; truncation is a resolution failure, never a shorter
+  fingerprint input.
+- `BuiltInRandomMapEdgeSignatureCore` resolves each non-zero 4bpp index through
+  the TSA-selected palette bank and compares visible BGR555 colors. Index zero
+  remains transparent/blank regardless of palette-bank color 0.
+- `BuiltInRandomMapCorpusCore.TryBuildCorpus` accepts a cancellation token and
+  checks it during map, row, and cell scanning; `TryGenerateFromRom` converts
+  cancellation into typed `BuiltInRandomMapErrorCategory.Cancelled`.
+- Fingerprinted malformed FEMapCreator mappings survive load/save so `Lookup`
+  reports `Invalid` instead of silently degrading to `NoMapping`. Backend
+  selection carries typed mapping status/reason only; Avalonia localizes the
+  stale/invalid notice at the UI boundary.
+- The Map Editor has an inline generation Cancel button, materializes blank seeds
+  before backend invocation, and passes cancellation into the dispatched apply
+  callback before undo/ROM mutation. "Map Tileset..." selects Options' External
+  Tools tab and brings the FEMapCreator section into view.
+
 ## Graphics-System Core Seams
 
 The `ImageUtil*.cs` family plus the LZ77/battle/skill/map/world-map/event/song

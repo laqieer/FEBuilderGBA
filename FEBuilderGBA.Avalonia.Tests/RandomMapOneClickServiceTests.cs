@@ -19,7 +19,7 @@ namespace FEBuilderGBA.Avalonia.Tests
     public class RandomMapOneClickServiceTests
     {
         [AvaloniaFact]
-        public async Task GenerateAsync_NoMapping_UsesBuiltInWithEmptyNotice()
+        public async Task GenerateAsync_NoMapping_UsesBuiltInWithTypedNoMappingState()
         {
             ROM rom = RandomMapOneClickTestSupport.CreateResolvableTilesetRom(
                 2, 2, 0x0001, out uint mapSettingAddr, out _, out _);
@@ -52,7 +52,8 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.True(builtInInvoked);
             Assert.False(externalInvoked);
             Assert.Equal(RandomMapBackendUsed.BuiltIn, result.BackendUsed);
-            Assert.Equal("", result.Notice);
+            Assert.Equal(FEMapCreatorMappingStatus.NoMapping, result.MappingStatus);
+            Assert.Equal("", result.MappingReason);
             Assert.NotNull(result.Outcome);
             Assert.Equal(111, result.Outcome!.EffectiveSeed);
         }
@@ -96,13 +97,14 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.True(result.Success);
             Assert.False(builtInInvoked);
             Assert.Equal(RandomMapBackendUsed.External, result.BackendUsed);
-            Assert.Equal("", result.Notice);
+            Assert.Equal(FEMapCreatorMappingStatus.Current, result.MappingStatus);
+            Assert.Equal("", result.MappingReason);
             Assert.Equal(new ushort[] { 10, 11, 12, 13 }, result.Outcome!.Mars);
             Assert.Equal(55, result.Outcome.EffectiveSeed);
         }
 
         [AvaloniaFact]
-        public async Task GenerateAsync_StaleMapping_UsesBuiltInWithNonEmptyNotice()
+        public async Task GenerateAsync_StaleMapping_UsesBuiltInAndPreservesTypedReason()
         {
             ROM rom = RandomMapOneClickTestSupport.CreateResolvableTilesetRom(
                 2, 2, 0x0001, out uint mapSettingAddr, out _, out _);
@@ -133,8 +135,8 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.True(result.Success);
             Assert.False(externalInvoked);
             Assert.Equal(RandomMapBackendUsed.BuiltIn, result.BackendUsed);
-            Assert.NotEqual("", result.Notice);
-            Assert.Contains("no longer matches", result.Notice, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(FEMapCreatorMappingStatus.Stale, result.MappingStatus);
+            Assert.Contains("changed size", result.MappingReason, StringComparison.OrdinalIgnoreCase);
         }
 
         [AvaloniaFact]

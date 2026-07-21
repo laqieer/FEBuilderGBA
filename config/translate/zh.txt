@@ -28270,6 +28270,15 @@ FEMapCreator 未报告任何兼容的图块集。
 :Random map generation was cancelled.
 随机地图生成已取消。
 
+:The saved FEMapCreator tileset mapping is no longer valid.
+已保存的 FEMapCreator 图块集映射已不再有效。
+
+:The saved FEMapCreator tileset mapping is stale ({0}); using the built-in generator instead.
+已保存的 FEMapCreator 图块集映射已过期（{0}）；将改用内置生成器。
+
+:The saved FEMapCreator tileset mapping is invalid ({0}); using the built-in generator instead.
+已保存的 FEMapCreator 图块集映射无效（{0}）；将改用内置生成器。
+
 :The built-in generator could not find a valid layout within its search budget: {0}
 内置生成器未能在搜索预算内找到有效布局: {0}
 

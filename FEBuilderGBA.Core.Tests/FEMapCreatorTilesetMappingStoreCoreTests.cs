@@ -38,7 +38,7 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void LoadAll_SkipsStructurallyMalformedEntries_KeepsValidOnes()
+        public void LoadAll_PreservesFingerprintMalformedEntries_AndKeepsValidOnes()
         {
             var config = new Config
             {
@@ -51,25 +51,67 @@ namespace FEBuilderGBA.Core.Tests
 
             IReadOnlyList<FEMapCreatorTilesetMappingEntry> loaded = FEMapCreatorTilesetMappingStoreCore.LoadAll(config);
 
-            FEMapCreatorTilesetMappingEntry only = Assert.Single(loaded);
-            Assert.Equal("def456", only.FingerprintValue);
-            Assert.Equal("Plains", only.TilesetName);
+            Assert.Equal(2, loaded.Count);
+            Assert.Equal("abc123", loaded[0].FingerprintValue);
+            Assert.False(loaded[0].IsStructurallyValid);
+            Assert.Equal("def456", loaded[1].FingerprintValue);
+            Assert.Equal("Plains", loaded[1].TilesetName);
         }
 
         [Fact]
-        public void LoadAll_SkipsEntryMissingExecutableIdentity()
+        public void LoadAll_PreservesEntryMissingExecutableIdentity_SoLookupReportsInvalid()
         {
             // #1978 Slice 2 review fix: an entry recorded before a validated executable existed
             // (or from a foreign/legacy schema) must never be treated as usable.
+            var fingerprint = TilesetFingerprint.Compute(
+                8,
+                new byte[] { 1 },
+                new byte[] { 2 },
+                new byte[] { 3 });
             var config = new Config
             {
                 [FEMapCreatorTilesetMappingStoreCore.MappingsConfigKey] =
-                    "[{\"FingerprintValue\":\"abc123\",\"TilesetName\":\"Plains\",\"ImagePath\":\"img.png\",\"GenerationDataPath\":\"gen.json\"}]",
+                    "[{\"FingerprintValue\":\"" + fingerprint.Value + "\",\"TilesetName\":\"Plains\",\"ImagePath\":\"img.png\",\"GenerationDataPath\":\"gen.json\"}]",
             };
 
             IReadOnlyList<FEMapCreatorTilesetMappingEntry> loaded = FEMapCreatorTilesetMappingStoreCore.LoadAll(config);
+            FEMapCreatorTilesetMappingEntry entry = Assert.Single(loaded);
+            Assert.False(entry.IsStructurallyValid);
 
-            Assert.Empty(loaded);
+            FEMapCreatorMappingLookupResult lookup =
+                FEMapCreatorTilesetMappingStoreCore.Lookup(loaded, fingerprint, null);
+            Assert.Equal(FEMapCreatorMappingStatus.Invalid, lookup.Status);
+            Assert.Same(entry, lookup.Entry);
+        }
+
+        [Fact]
+        public void LoadAll_SkipsMalformedEntryWithoutFingerprint()
+        {
+            var config = new Config
+            {
+                [FEMapCreatorTilesetMappingStoreCore.MappingsConfigKey] =
+                    "[{\"FingerprintValue\":\"\",\"TilesetName\":\"Plains\"}]",
+            };
+
+            Assert.Empty(FEMapCreatorTilesetMappingStoreCore.LoadAll(config));
+        }
+
+        [Fact]
+        public void SaveAll_RoundTripsFingerprintMalformedEntry()
+        {
+            var malformed = new FEMapCreatorTilesetMappingEntry(
+                "fp-malformed", "", "", 0, 0, "",
+                "", 0, 0, "",
+                "", 0, 0, "",
+                "");
+            var config = new Config();
+
+            FEMapCreatorTilesetMappingStoreCore.SaveAll(config, new[] { malformed });
+            FEMapCreatorTilesetMappingEntry roundTripped =
+                Assert.Single(FEMapCreatorTilesetMappingStoreCore.LoadAll(config));
+
+            Assert.Equal("fp-malformed", roundTripped.FingerprintValue);
+            Assert.False(roundTripped.IsStructurallyValid);
         }
 
         [Fact]

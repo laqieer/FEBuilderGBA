@@ -51,6 +51,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public void SetTilesetContext(TilesetFingerprint fingerprint)
         {
             _pendingTilesetContext = fingerprint;
+            NavigateToFEMapCreatorSection();
             if (_loadedOnce)
                 ApplyTilesetContext(fingerprint);
         }
@@ -59,6 +60,14 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             _vm.SetTilesetContext(fingerprint);
             RefreshTilesetMappingUi();
+            NavigateToFEMapCreatorSection();
+        }
+
+        void NavigateToFEMapCreatorSection()
+        {
+            OptionsTabControl.SelectedItem = ExternalToolsTabItem;
+            global::Avalonia.Threading.Dispatcher.UIThread.Post(
+                () => FEMapCreatorSectionPanel.BringIntoView());
         }
 
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
@@ -120,6 +129,8 @@ namespace FEBuilderGBA.Avalonia.Views
             if (_pendingTilesetContext.HasValue)
                 _vm.SetTilesetContext(_pendingTilesetContext.Value);
             RefreshTilesetMappingUi();
+            if (_pendingTilesetContext.HasValue)
+                NavigateToFEMapCreatorSection();
         }
 
         /// <summary>

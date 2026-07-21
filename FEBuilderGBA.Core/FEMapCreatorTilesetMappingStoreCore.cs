@@ -92,9 +92,9 @@ namespace FEBuilderGBA
         /// True when the entry has the minimum fields required to be trusted: non-empty
         /// fingerprint, tileset name, both mapped file paths, and a recorded executable
         /// path+hash (the assets root remains optional/may be blank). Entries failing this check
-        /// are treated as unknown/legacy/malformed and are skipped by
-        /// <see cref="FEMapCreatorTilesetMappingStoreCore.LoadAll"/> or flagged
-        /// <see cref="FEMapCreatorMappingStatus.Invalid"/> by
+        /// are treated as unknown/legacy/malformed and preserved by
+        /// <see cref="FEMapCreatorTilesetMappingStoreCore.LoadAll"/> when they retain a
+        /// fingerprint, then flagged <see cref="FEMapCreatorMappingStatus.Invalid"/> by
         /// <see cref="FEMapCreatorTilesetMappingStoreCore.Lookup"/>.
         /// </summary>
         public bool IsStructurallyValid =>
@@ -177,7 +177,8 @@ namespace FEBuilderGBA
         /// <summary>
         /// Load all persisted mappings from <paramref name="config"/>. Tolerates a missing key, an
         /// empty/corrupt JSON blob (treated as zero mappings), and individual malformed/legacy
-        /// entries (skipped one-by-one, not thrown) — this method never throws.
+        /// entries. Fingerprinted malformed entries are preserved so lookup can report Invalid;
+        /// only rows without a fingerprint are skipped. This method never throws.
         /// </summary>
         public static IReadOnlyList<FEMapCreatorTilesetMappingEntry> LoadAll(Config config)
         {
@@ -208,8 +209,8 @@ namespace FEBuilderGBA
                     dto.GenerationDataPath, dto.GenerationDataSizeBytes, dto.GenerationDataLastWriteUtcTicks, dto.GenerationDataSha256,
                     dto.ExecutablePath, dto.ExecutableSizeBytes, dto.ExecutableLastWriteUtcTicks, dto.ExecutableSha256,
                     dto.AssetsRoot);
-                if (!entry.IsStructurallyValid)
-                    continue; // unknown/legacy/malformed entry: skip explicitly rather than surface it as usable
+                if (string.IsNullOrWhiteSpace(entry.FingerprintValue))
+                    continue;
                 result.Add(entry);
             }
             return result;
@@ -225,7 +226,9 @@ namespace FEBuilderGBA
             if (config == null) return;
             mappings ??= Array.Empty<FEMapCreatorTilesetMappingEntry>();
 
-            var dtos = mappings.Select(e => new MappingDto
+            var dtos = mappings
+                .Where(e => e != null && !string.IsNullOrWhiteSpace(e.FingerprintValue))
+                .Select(e => new MappingDto
             {
                 FingerprintValue = e.FingerprintValue,
                 TilesetName = e.TilesetName,

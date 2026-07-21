@@ -207,6 +207,13 @@ public class ToolInitWizardParityTests
         Assert.Contains("await top.Launcher.LaunchUriAsync(FEMapCreatorProjectUri)", handlers);
         Assert.Contains("if (!launched)", handlers);
         Assert.Contains("ShowFEMapCreatorProjectPageError()", handlers);
+        Assert.Contains("catch (System.ComponentModel.Win32Exception ex)", handlers);
+        Assert.Contains("catch (System.IO.IOException ex)", handlers);
+        Assert.Contains("catch (UnauthorizedAccessException ex)", handlers);
+        Assert.Contains("catch (InvalidOperationException ex)", handlers);
+        Assert.Contains("catch (NotSupportedException ex)", handlers);
+        Assert.Contains("catch (System.Security.SecurityException ex)", handlers);
+        Assert.Contains("ShowFEMapCreatorProjectPageError(ex)", handlers);
         Assert.Contains("FEMapCreatorActionStatusTextBlock", handlers);
         Assert.Contains("WindowManager.Instance.Open<OptionsView>()", handlers);
 

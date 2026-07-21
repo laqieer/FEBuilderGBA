@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="FEBuilderGBA.Avalonia.Views.OptionsView">
   <Grid RowDefinitions="*,Auto" Margin="16">
-    <TabControl AutomationProperties.AutomationId="Options_TabControl1_TabControl" Grid.Row="0">
+    <TabControl AutomationProperties.AutomationId="Options_TabControl1_TabControl" Name="OptionsTabControl" Grid.Row="0">
       <!-- General Tab -->
       <TabItem AutomationProperties.AutomationId="Options_General_Tab" Header="General">
         <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,8,0,0">
@@ -63,8 +63,8 @@
       </TabItem>
 
       <!-- External Tools Tab -->
-      <TabItem AutomationProperties.AutomationId="Options_ExternalTools_Tab" Header="External Tools">
-        <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,8,0,0">
+      <TabItem AutomationProperties.AutomationId="Options_ExternalTools_Tab" Name="ExternalToolsTabItem" Header="External Tools">
+        <ScrollViewer Name="ExternalToolsScrollViewer" VerticalScrollBarVisibility="Auto" Margin="0,8,0,0">
           <StackPanel Spacing="16">
 
             <!-- Emulation -->
@@ -195,7 +195,7 @@
             </StackPanel>
 
             <!-- FEMapCreator (external random-map-generation tool) setup — #1978 Slice 2 -->
-            <StackPanel Spacing="4">
+            <StackPanel Name="FEMapCreatorSectionPanel" Spacing="4">
               <TextBlock Text="FEMapCreator (Optional, External Tool)" FontWeight="Bold" Margin="0,0,0,4" />
               <TextBlock Text="FEMapCreator is an independent utility credited to bwdyeti; FEBuilderGBA does not bundle, host, license, or guarantee it." TextWrapping="Wrap" FontSize="11" Foreground="Gray" />
               <TextBlock Text="Executable Path" Margin="0,4,0,0" />

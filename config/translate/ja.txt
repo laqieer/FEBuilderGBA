@@ -14449,6 +14449,15 @@ FEMapCreator アセット ディレクトリを選択
 :Random map generation was cancelled.
 ランダムマップの生成はキャンセルされました。
 
+:The saved FEMapCreator tileset mapping is no longer valid.
+保存済みの FEMapCreator タイルセット対応付けは無効になっています。
+
+:The saved FEMapCreator tileset mapping is stale ({0}); using the built-in generator instead.
+保存済みの FEMapCreator タイルセット対応付けは古くなっています ({0})。代わりに内蔵ジェネレーターを使用します。
+
+:The saved FEMapCreator tileset mapping is invalid ({0}); using the built-in generator instead.
+保存済みの FEMapCreator タイルセット対応付けは無効です ({0})。代わりに内蔵ジェネレーターを使用します。
+
 :The built-in generator could not find a valid layout within its search budget: {0}
 内蔵ジェネレーターは探索予算内で有効なレイアウトを見つけられませんでした: {0}
 

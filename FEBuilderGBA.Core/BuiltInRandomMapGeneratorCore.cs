@@ -57,11 +57,28 @@ namespace FEBuilderGBA
             out string error)
         {
             result = null;
-            if (!BuiltInRandomMapCorpusCore.TryBuildCorpus(rom, mapSettingAddr, out BuiltInRandomMapTilesetCorpus corpus, out error))
-                return false;
+            try
+            {
+                if (!BuiltInRandomMapCorpusCore.TryBuildCorpus(
+                    rom,
+                    mapSettingAddr,
+                    cancellationToken,
+                    out BuiltInRandomMapTilesetCorpus corpus,
+                    out error))
+                {
+                    return false;
+                }
 
-            result = Generate(corpus, width, height, currentGrid, seed, cancellationToken);
-            error = result.ErrorMessage;
+                result = Generate(corpus, width, height, currentGrid, seed, cancellationToken);
+                error = result.ErrorMessage;
+            }
+            catch (OperationCanceledException)
+            {
+                result = Failure(
+                    BuiltInRandomMapErrorCategory.Cancelled,
+                    "Random map generation was cancelled.");
+                error = result.ErrorMessage;
+            }
             return true;
         }
 
@@ -165,12 +182,20 @@ namespace FEBuilderGBA
         static bool TryBuildEdgeSignatures(BuiltInRandomMapTilesetCorpus corpus, IReadOnlyList<ushort> candidates, out Dictionary<ushort, MetatileEdgeSignature> signatures)
         {
             signatures = new Dictionary<ushort, MetatileEdgeSignature>();
-            if (corpus.ConfigData == null || corpus.ObjData == null) return false;
+            if (corpus.ConfigData == null || corpus.ObjData == null || corpus.PaletteData == null)
+                return false;
 
             foreach (ushort candidate in candidates)
             {
-                if (BuiltInRandomMapEdgeSignatureCore.TryComputeEdgeSignature(candidate, corpus.ConfigData, corpus.ObjData, out MetatileEdgeSignature signature))
+                if (BuiltInRandomMapEdgeSignatureCore.TryComputeEdgeSignature(
+                    candidate,
+                    corpus.ConfigData,
+                    corpus.ObjData,
+                    corpus.PaletteData,
+                    out MetatileEdgeSignature signature))
+                {
                     signatures[candidate] = signature;
+                }
             }
             return signatures.Count >= MinimumDistinctCandidates;
         }

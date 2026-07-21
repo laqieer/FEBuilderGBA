@@ -11,7 +11,9 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using global::Avalonia.Controls;
 using global::Avalonia.Headless.XUnit;
+using global::Avalonia.Interactivity;
 using global::Avalonia.Threading;
 using FEBuilderGBA;
 using FEBuilderGBA.Avalonia.Services;
@@ -140,6 +142,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                     outcome,
                     writeIdentity,
                     TilesetFingerprint.Empty,
+                    CancellationToken.None,
                     refreshMapFromCurrentSelection: () =>
                     {
                         callbacksOnUiThread &= Dispatcher.UIThread.CheckAccess();
@@ -254,6 +257,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                     },
                     writeIdentity,
                     TilesetFingerprint.Empty,
+                    CancellationToken.None,
                     refreshMapFromCurrentSelection: () => throw new InvalidOperationException("must not refresh success"),
                     updateTilePalette: () => throw new InvalidOperationException("must not update palette"),
                     reloadFromRom: () => reloadCalls++,
@@ -313,6 +317,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                     },
                     writeIdentity,
                     TilesetFingerprint.Empty,
+                    CancellationToken.None,
                     refreshMapFromCurrentSelection: () => { },
                     updateTilePalette: () => throw new InvalidOperationException("post-write failure"),
                     reloadFromRom: () =>
@@ -381,6 +386,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                     },
                     writeIdentity,
                     capturedFingerprint,
+                    CancellationToken.None,
                     refreshMapFromCurrentSelection: () => throw new InvalidOperationException("must not refresh"),
                     updateTilePalette: () => throw new InvalidOperationException("must not update palette"),
                     reloadFromRom: () => throw new InvalidOperationException("must not reload"),
@@ -392,6 +398,129 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Equal(0, undo.CommitCalls);
             Assert.Equal(0, undo.RollbackCalls);
             Assert.Equal(originalMap, vm.GetMapDataSnapshot());
+        }
+
+        [AvaloniaFact]
+        public async Task ApplyGeneratedMapOnUiThreadAsync_CancelledBeforeDispatcherMutation_DoesNotBeginUndo()
+        {
+            CoreState.ROM = RandomMapOneClickTestSupport.CreateRom();
+            CoreState.Undo = new Undo();
+
+            const uint pointerEntryAddr = 0x240;
+            const uint oldAddr = 0x1000;
+            byte[] originalMap = RandomMapOneClickTestSupport.BuildMap(2, 2, 0x0001);
+            CoreState.ROM!.write_p32(pointerEntryAddr, oldAddr);
+            CoreState.ROM.write_range(oldAddr, LZ77.compress(originalMap));
+
+            var vm = new MapEditorViewModel
+            {
+                CurrentAddr = 0x300,
+                MapId = 1,
+                MapWidth = 2,
+                MapHeight = 2,
+            };
+            RandomMapOneClickTestSupport.ConfigureMapPointerIdentity(vm, pointerEntryAddr, mapPlist: 1);
+            RandomMapOneClickTestSupport.SetPrivateField(vm, "_cachedMapPointerEntryAddr", pointerEntryAddr);
+            RandomMapOneClickTestSupport.SetPrivateField(vm, "_cachedMapData", (byte[])originalMap.Clone());
+            Assert.True(vm.TryCaptureMapWriteIdentity(
+                out MapEditorViewModel.MapWriteIdentity writeIdentity,
+                out string identityError), identityError);
+
+            var undo = new RandomMapOneClickTestSupport.RecordingUndoService(new List<string>());
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            await Assert.ThrowsAsync<OperationCanceledException>(() => Task.Run(() =>
+                GenerateRandomMapWorkflow.ApplyGeneratedMapOnUiThreadAsync(
+                    vm,
+                    undo,
+                    new RandomMapGenerationOutcome
+                    {
+                        Mars = new ushort[] { 2, 3, 4, 5 },
+                        Width = 2,
+                        Height = 2,
+                        EffectiveSeed = 13,
+                    },
+                    writeIdentity,
+                    TilesetFingerprint.Empty,
+                    cts.Token,
+                    refreshMapFromCurrentSelection: () => throw new InvalidOperationException("must not refresh"),
+                    updateTilePalette: () => throw new InvalidOperationException("must not update palette"),
+                    reloadFromRom: () => throw new InvalidOperationException("must not reload"),
+                    showInfo: _ => throw new InvalidOperationException("must not show success"))));
+
+            Assert.Equal(0, undo.BeginCalls);
+            Assert.Equal(0, undo.CommitCalls);
+            Assert.Equal(0, undo.RollbackCalls);
+            Assert.Equal(originalMap, vm.GetMapDataSnapshot());
+        }
+
+        [AvaloniaFact]
+        public void MapEditorView_RandomMapBusyState_EnablesOnlyInlineCancelAction()
+        {
+            var view = new MapEditorView();
+            var generate = view.FindControl<Button>("GenerateRandomMapButton");
+            var cancel = view.FindControl<Button>("CancelRandomMapButton");
+            var randomize = view.FindControl<Button>("RandomizeSeedButton");
+            var tileset = view.FindControl<Button>("MapTilesetButton");
+            var seed = view.FindControl<TextBox>("RandomMapSeedTextBox");
+
+            view.SetRandomMapBusyState(true);
+
+            Assert.False(generate!.IsEnabled);
+            Assert.True(cancel!.IsEnabled);
+            Assert.False(randomize!.IsEnabled);
+            Assert.False(tileset!.IsEnabled);
+            Assert.False(seed!.IsEnabled);
+
+            view.SetRandomMapBusyState(false);
+            Assert.True(generate.IsEnabled);
+            Assert.False(cancel.IsEnabled);
+        }
+
+        [AvaloniaFact]
+        public void MapEditorView_BlankSeed_IsMaterializedImmediatelyForReplay()
+        {
+            var view = new MapEditorView();
+            TextBox seedBox = view.FindControl<TextBox>("RandomMapSeedTextBox")!;
+            seedBox.Text = "";
+
+            Assert.True(view.TryGetSeed(out int seed, out string error), error);
+            Assert.Equal(
+                seed.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                seedBox.Text);
+        }
+
+        [AvaloniaFact]
+        public void MapEditorView_PreflightFailure_SetsTerminalFailedStatus()
+        {
+            var view = new MapEditorView();
+            Button generate = view.FindControl<Button>("GenerateRandomMapButton")!;
+            TextBlock status = view.FindControl<TextBlock>("RandomMapStatusLabel")!;
+
+            generate.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.Equal("Failed.", status.Text);
+        }
+
+        [AvaloniaTheory]
+        [InlineData(FEMapCreatorMappingStatus.Stale, "changed", "stale")]
+        [InlineData(FEMapCreatorMappingStatus.Invalid, "malformed", "invalid")]
+        public void FormatMappingNotice_LocalizesTypedFallbackAtUiBoundary(
+            FEMapCreatorMappingStatus status,
+            string reason,
+            string expectedStatusWord)
+        {
+            string notice = MapEditorView.FormatMappingNotice(new RandomMapOneClickResult
+            {
+                MappingStatus = status,
+                MappingReason = reason,
+            });
+
+            Assert.Contains(expectedStatusWord, notice, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains(reason, notice);
+            Assert.Contains("built-in", notice, StringComparison.OrdinalIgnoreCase);
         }
 
         // ------------------------------------------------------------------
@@ -479,7 +608,7 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             int methodStart = source.IndexOf("async void GenerateRandomMap_Click(", StringComparison.Ordinal);
             Assert.True(methodStart >= 0);
-            int methodEnd = source.IndexOf("\n        void SetRandomMapBusyState(", methodStart, StringComparison.Ordinal);
+            int methodEnd = source.IndexOf("\n        internal void SetRandomMapBusyState(", methodStart, StringComparison.Ordinal);
             Assert.True(methodEnd > methodStart);
             string method = source.Substring(methodStart, methodEnd - methodStart);
 

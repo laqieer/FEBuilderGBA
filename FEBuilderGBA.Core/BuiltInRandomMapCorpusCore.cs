@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 namespace FEBuilderGBA
 {
@@ -126,10 +127,24 @@ namespace FEBuilderGBA
             ROM rom,
             uint currentMapSettingAddr,
             out BuiltInRandomMapTilesetCorpus corpus,
+            out string error) =>
+            TryBuildCorpus(
+                rom,
+                currentMapSettingAddr,
+                CancellationToken.None,
+                out corpus,
+                out error);
+
+        public static bool TryBuildCorpus(
+            ROM rom,
+            uint currentMapSettingAddr,
+            CancellationToken cancellationToken,
+            out BuiltInRandomMapTilesetCorpus corpus,
             out string error)
         {
             corpus = null;
             error = "";
+            cancellationToken.ThrowIfCancellationRequested();
 
             if (!BuiltInRandomMapTilesetCore.TryResolveMapTileset(rom, currentMapSettingAddr, out MapTilesetSnapshot current, out error))
                 return false;
@@ -144,13 +159,21 @@ namespace FEBuilderGBA
             List<AddrResult> mapList = MapSettingCore.MakeMapIDList(rom);
             foreach (AddrResult entry in mapList)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 if (!BuiltInRandomMapTilesetCore.TryResolveMapTileset(rom, entry.addr, out MapTilesetSnapshot snapshot, out _))
                     continue;
                 if (snapshot.Fingerprint != current.Fingerprint)
                     continue;
 
                 contributingMapIds.Add(entry.tag);
-                AccumulateMap(snapshot, frequency, borderFrequency, horizontal, vertical, ref totalCells);
+                AccumulateMap(
+                    snapshot,
+                    frequency,
+                    borderFrequency,
+                    horizontal,
+                    vertical,
+                    ref totalCells,
+                    cancellationToken);
             }
 
             var candidates = new List<ushort>(frequency.Keys);
@@ -177,7 +200,8 @@ namespace FEBuilderGBA
             SortedDictionary<ushort, long> borderFrequency,
             SortedDictionary<ushort, SortedSet<ushort>> horizontal,
             SortedDictionary<ushort, SortedSet<ushort>> vertical,
-            ref long totalCells)
+            ref long totalCells,
+            CancellationToken cancellationToken)
         {
             int width = snapshot.Width;
             int height = snapshot.Height;
@@ -191,8 +215,10 @@ namespace FEBuilderGBA
 
             for (int y = 0; y < height; y++)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 for (int x = 0; x < width; x++)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     ushort mar = ReadMar(x, y);
                     frequency.TryGetValue(mar, out long count);
                     frequency[mar] = count + 1;

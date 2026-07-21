@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -113,6 +114,7 @@ namespace FEBuilderGBA.Avalonia.Services
             RandomMapGenerationOutcome result,
             MapEditorViewModel.MapWriteIdentity expectedIdentity,
             TilesetFingerprint expectedFingerprint,
+            CancellationToken cancellationToken,
             Action refreshMapFromCurrentSelection,
             Action updateTilePalette,
             Action reloadFromRom,
@@ -130,6 +132,8 @@ namespace FEBuilderGBA.Avalonia.Services
             string? applyError = null;
             await global::Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 if (!vm.IsMapWriteIdentityCurrent(
                     expectedIdentity,
                     out string identityError))
@@ -167,6 +171,7 @@ namespace FEBuilderGBA.Avalonia.Services
                     }
                 }
 
+                cancellationToken.ThrowIfCancellationRequested();
                 bool applied = TryApplyGeneratedMap(
                     vm,
                     undo,
