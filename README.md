@@ -238,7 +238,9 @@ dotnet run --project FEBuilderGBA.CLI -- --generate-random-map --femapcreator=C:
 # The Avalonia Map Editor's "Generate" button is true one-click (no dialog, no ellipsis): it uses the
 # current map's dimensions and an inline, directly replayable seed. Per-tileset FEMapCreator discovery and
 # mapping now live only in Options' FEMapCreator section (Map Editor's "Map Tileset..." button is just a
-# shortcut that opens Options with the current tileset pre-selected). If a mapping is configured and current,
+# shortcut that opens Options with the current tileset pre-selected). Editing either live FEMapCreator path
+# cancels any in-flight discovery and clears its choices, so Save Mapping always requires a fresh discovery
+# from the same executable/assets profile. If a mapping is configured and current,
 # Generate runs the external adapter above; once started, any launch/exit/parse failure is surfaced directly
 # and never silently swapped for the built-in engine, and cancelling (or closing the editor) terminates the
 # owned external process rather than letting it finish and apply. Otherwise — or if the saved mapping is

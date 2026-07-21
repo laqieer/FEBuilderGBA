@@ -97,6 +97,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string _tilesetMappingErrorMessage = "";
         bool _isDiscoveringTilesets;
         FEMapCreatorTilesetOption? _selectedTileset;
+        FEMapCreatorSetupSnapshot? _tilesetDiscoveryProfile;
 
         public OptionsViewModel()
             : this(discoverTilesets: null, getConfig: null)
@@ -199,10 +200,37 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // mapping. No auto-download/install/PATH-search occurs here.
 
         /// <summary>Absolute path to the external FEMapCreator executable (empty = not configured).</summary>
-        public string FEMapCreatorPath { get => _femapCreatorPath; set => SetField(ref _femapCreatorPath, value); }
+        public string FEMapCreatorPath
+        {
+            get => _femapCreatorPath;
+            set
+            {
+                if (SetField(ref _femapCreatorPath, value ?? ""))
+                    InvalidateTilesetDiscovery();
+            }
+        }
 
         /// <summary>Optional absolute path to an external FEMapCreator assets root (empty is valid).</summary>
-        public string FEMapCreatorAssetsRoot { get => _femapCreatorAssetsRoot; set => SetField(ref _femapCreatorAssetsRoot, value); }
+        public string FEMapCreatorAssetsRoot
+        {
+            get => _femapCreatorAssetsRoot;
+            set
+            {
+                if (SetField(ref _femapCreatorAssetsRoot, value ?? ""))
+                    InvalidateTilesetDiscovery();
+            }
+        }
+
+        void InvalidateTilesetDiscovery()
+        {
+            CancelTilesetDiscovery();
+            _tilesetDiscoveryProfile = null;
+            Tilesets.Clear();
+            SelectedTileset = null;
+            TilesetMappingSaved = false;
+            TilesetMappingErrorMessage = "";
+            TilesetMappingStatusMessage = "";
+        }
 
         /// <summary>
         /// Re-validates the current (possibly unsaved) FEMapCreator path/assets-root values on
@@ -213,6 +241,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public FEMapCreatorSetupSnapshot GetFEMapCreatorSetupSnapshot()
         {
             return FEMapCreatorProfileCore.Validate(FEMapCreatorPath, FEMapCreatorAssetsRoot, _femapCreatorExecutableIdentityCache);
+        }
+
+        static bool IsSameFEMapCreatorProfile(FEMapCreatorSetupSnapshot expected, FEMapCreatorSetupSnapshot current)
+        {
+            return expected.Status == FEMapCreatorSetupStatus.Configured
+                && current.Status == FEMapCreatorSetupStatus.Configured
+                && string.Equals(expected.ExecutablePath, current.ExecutablePath, FEMapCreatorLauncherCore.PathComparison)
+                && expected.ExecutableSizeBytes == current.ExecutableSizeBytes
+                && expected.ExecutableLastWriteUtcTicks == current.ExecutableLastWriteUtcTicks
+                && string.Equals(expected.ExecutableSha256, current.ExecutableSha256, StringComparison.Ordinal)
+                && string.Equals(expected.AssetsRoot, current.AssetsRoot, FEMapCreatorLauncherCore.PathComparison);
         }
 
         /// <summary>
@@ -340,6 +379,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 TilesetMappingErrorMessage = "";
                 Tilesets.Clear();
                 SelectedTileset = null;
+                _tilesetDiscoveryProfile = null;
 
                 FEMapCreatorSetupSnapshot profile = GetFEMapCreatorSetupSnapshot();
                 if (profile.Status != FEMapCreatorSetupStatus.Configured)
@@ -375,7 +415,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     return;
                 }
 
+                FEMapCreatorSetupSnapshot currentProfile = GetFEMapCreatorSetupSnapshot();
+                if (!IsSameFEMapCreatorProfile(profile, currentProfile))
+                {
+                    TilesetMappingErrorMessage = R._("Discover and choose a compatible tileset first.");
+                    TilesetMappingStatusMessage = "";
+                    return;
+                }
+
                 List<FEMapCreatorTilesetInfo> usable = result.Tilesets.Where(t => t.IsUsable).ToList();
+                _tilesetDiscoveryProfile = usable.Count > 0 ? profile : null;
                 foreach (FEMapCreatorTilesetInfo t in usable)
                 {
                     Tilesets.Add(new FEMapCreatorTilesetOption
@@ -439,6 +488,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
 
             FEMapCreatorSetupSnapshot profile = GetFEMapCreatorSetupSnapshot();
+            if (_tilesetDiscoveryProfile == null
+                || !IsSameFEMapCreatorProfile(_tilesetDiscoveryProfile, profile)
+                || !Tilesets.Contains(SelectedTileset))
+            {
+                TilesetMappingErrorMessage = R._("Discover and choose a compatible tileset first.");
+                return false;
+            }
 
             if (!FEMapCreatorTilesetMappingStoreCore.TryCreateEntry(
                 CurrentTilesetFingerprint,

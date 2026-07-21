@@ -190,6 +190,97 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.NotEqual("", vm.TilesetMappingErrorMessage);
         }
 
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task ChangingCurrentProfileAfterDiscovery_ClearsStaleTilesetsAndSelection(bool changeAssetsRoot)
+        {
+            string firstExePath = MakeFile("FirstFEMapCreator.exe");
+            string secondExePath = MakeFile("SecondFEMapCreator.exe");
+            string firstAssetsRoot = Path.Combine(_baseDir, "FirstAssets");
+            string secondAssetsRoot = Path.Combine(_baseDir, "SecondAssets");
+            Directory.CreateDirectory(firstAssetsRoot);
+            Directory.CreateDirectory(secondAssetsRoot);
+
+            var vm = new OptionsViewModel(
+                discoverTilesets: (exe, assets, token) =>
+                {
+                    var discoveryResult = new FEMapCreatorTilesetDiscoveryResult { Success = true };
+                    discoveryResult.Tilesets.Add(new FEMapCreatorTilesetInfo
+                    {
+                        Name = "Grassland",
+                        HasImage = true,
+                        HasGenerationData = true,
+                        ResolvedImagePath = "g.png",
+                        ResolvedGenerationDataPath = "g.json",
+                        IsCompatible = true,
+                    });
+                    return discoveryResult;
+                },
+                getConfig: () => CoreState.Config)
+            {
+                FEMapCreatorPath = firstExePath,
+                FEMapCreatorAssetsRoot = firstAssetsRoot,
+            };
+
+            await vm.DiscoverTilesetsAsync();
+            Assert.Single(vm.Tilesets);
+            vm.SelectedTileset = vm.Tilesets[0];
+
+            if (changeAssetsRoot)
+                vm.FEMapCreatorAssetsRoot = secondAssetsRoot;
+            else
+                vm.FEMapCreatorPath = secondExePath;
+
+            Assert.Empty(vm.Tilesets);
+            Assert.Null(vm.SelectedTileset);
+            Assert.False(vm.TilesetMappingSaved);
+        }
+
+        [Fact]
+        public async Task ChangingCurrentProfileDuringDiscovery_CancelsAndDiscardsLateResults()
+        {
+            string firstExePath = MakeFile("FirstFEMapCreator.exe");
+            string secondExePath = MakeFile("SecondFEMapCreator.exe");
+            var started = new ManualResetEventSlim(false);
+            var release = new ManualResetEventSlim(false);
+
+            var vm = new OptionsViewModel(
+                discoverTilesets: (exe, assets, token) =>
+                {
+                    started.Set();
+                    while (!token.IsCancellationRequested && !release.IsSet)
+                        Thread.Sleep(5);
+                    var discoveryResult = new FEMapCreatorTilesetDiscoveryResult { Success = true };
+                    discoveryResult.Tilesets.Add(new FEMapCreatorTilesetInfo
+                    {
+                        Name = "LateResult",
+                        HasImage = true,
+                        HasGenerationData = true,
+                        ResolvedImagePath = "late.png",
+                        ResolvedGenerationDataPath = "late.json",
+                        IsCompatible = true,
+                    });
+                    return discoveryResult;
+                },
+                getConfig: () => CoreState.Config)
+            {
+                FEMapCreatorPath = firstExePath,
+            };
+
+            Task discoveryTask = vm.DiscoverTilesetsAsync();
+            Assert.True(started.Wait(TimeSpan.FromSeconds(5)));
+
+            vm.FEMapCreatorPath = secondExePath;
+            release.Set();
+            await discoveryTask;
+
+            Assert.Empty(vm.Tilesets);
+            Assert.Null(vm.SelectedTileset);
+            Assert.Contains("cancel", vm.TilesetMappingStatusMessage, StringComparison.OrdinalIgnoreCase);
+            AssertNoStaleDiscoveryCts(vm);
+        }
+
         [Fact]
         public async Task DiscoverTilesetsAsync_DelegateFailure_SetsErrorAndClearsTilesets()
         {
@@ -410,7 +501,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
-        public void SaveTilesetMapping_UsesCurrentProfileAndPersistsRetrievableMapping()
+        public async Task SaveTilesetMapping_UsesCurrentProfileAndPersistsRetrievableMapping()
         {
             string persistedExePath = MakeFile("PersistedFEMapCreator.exe", new byte[] { 1, 1, 1 });
             string liveExePath = MakeFile("LiveFEMapCreator.exe", new byte[] { 9, 9, 9 });
@@ -420,11 +511,28 @@ namespace FEBuilderGBA.Avalonia.Tests
             string genDataPath = MakeFile("grassland.json", new byte[] { 5, 6, 7, 8 });
 
             TilesetFingerprint fingerprint = TilesetFingerprint.Compute(8, new byte[] { 1 }, new byte[] { 2 }, new byte[] { 3 });
-            var vm = new OptionsViewModel(discoverTilesets: null, getConfig: () => CoreState.Config);
-            vm.SetTilesetContext(fingerprint);
-            vm.SelectedTileset = new FEMapCreatorTilesetOption { Name = "Grassland", ImagePath = imagePath, GenerationDataPath = genDataPath };
+            var vm = new OptionsViewModel(
+                discoverTilesets: (exe, assets, token) =>
+                {
+                    var discoveryResult = new FEMapCreatorTilesetDiscoveryResult { Success = true };
+                    discoveryResult.Tilesets.Add(new FEMapCreatorTilesetInfo
+                    {
+                        Name = "Grassland",
+                        HasImage = true,
+                        HasGenerationData = true,
+                        ResolvedImagePath = imagePath,
+                        ResolvedGenerationDataPath = genDataPath,
+                        IsCompatible = true,
+                    });
+                    return discoveryResult;
+                },
+                getConfig: () => CoreState.Config);
             vm.FEMapCreatorPath = liveExePath;
             vm.FEMapCreatorAssetsRoot = "";
+            vm.SetTilesetContext(fingerprint);
+            await vm.DiscoverTilesetsAsync();
+            Assert.Single(vm.Tilesets);
+            vm.SelectedTileset = vm.Tilesets[0];
 
             bool saved = vm.SaveTilesetMapping();
 
@@ -445,6 +553,31 @@ namespace FEBuilderGBA.Avalonia.Tests
             Config reloaded = Config.LoadOrCreate(Path.Combine(_baseDir, "config", "config.xml"));
             var reloadedMappings = FEMapCreatorTilesetMappingStoreCore.LoadAll(reloaded);
             Assert.Single(reloadedMappings);
+        }
+
+        [Fact]
+        public void SaveTilesetMapping_RejectsSelectionNotProducedByCurrentDiscovery()
+        {
+            string exePath = MakeFile("FEMapCreator.exe");
+            string imagePath = MakeFile("grassland.png");
+            string genDataPath = MakeFile("grassland.json");
+            var vm = new OptionsViewModel(discoverTilesets: null, getConfig: () => CoreState.Config)
+            {
+                FEMapCreatorPath = exePath,
+            };
+            vm.SetTilesetContext(TilesetFingerprint.Compute(8, new byte[] { 1 }, new byte[] { 2 }, new byte[] { 3 }));
+            vm.SelectedTileset = new FEMapCreatorTilesetOption
+            {
+                Name = "Grassland",
+                ImagePath = imagePath,
+                GenerationDataPath = genDataPath,
+            };
+
+            bool saved = vm.SaveTilesetMapping();
+
+            Assert.False(saved);
+            Assert.Equal(R._("Discover and choose a compatible tileset first."), vm.TilesetMappingErrorMessage);
+            Assert.Empty(FEMapCreatorTilesetMappingStoreCore.LoadAll(CoreState.Config!));
         }
     }
 }

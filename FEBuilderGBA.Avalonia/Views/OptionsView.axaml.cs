@@ -199,6 +199,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void FEMapCreatorField_TextChanged(object? sender, global::Avalonia.Controls.TextChangedEventArgs e)
         {
             RefreshFEMapCreatorStatus();
+            RefreshTilesetMappingUi();
         }
 
         async void BrowseFile_Click(object? sender, RoutedEventArgs e)
