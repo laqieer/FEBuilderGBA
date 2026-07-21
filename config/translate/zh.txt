@@ -28291,6 +28291,9 @@ FEMapCreator 未报告任何兼容的图块集。
 :This map's tileset could not be identified.
 无法识别此地图的图块集。
 
+:The current map data could not be decoded.
+无法解码当前地图数据。
+
 :FEMapCreator is not configured. Set it up in Options first.
 尚未配置 FEMapCreator。请先在选项中进行设置。
 
@@ -28383,6 +28386,9 @@ FEMapCreator 是由 bwdyeti 创建的独立实用工具；FEBuilderGBA 不捆绑
 
 :Assets Root (optional)
 资源根目录（可选）
+
+:Discovered Tilesets
+已发现的图块集
 
 :Not configured (optional).
 未配置（可选）。

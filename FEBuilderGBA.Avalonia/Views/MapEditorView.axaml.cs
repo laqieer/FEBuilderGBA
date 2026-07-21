@@ -1078,7 +1078,17 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
                 TilesetFingerprint expectedFingerprint = snapshot.Fingerprint;
-                ushort[]? currentGrid = BuildCurrentGrid(width, height);
+                if (!TryBuildCurrentGrid(
+                    _vm.GetMapDataSnapshot(),
+                    width,
+                    height,
+                    out ushort[] currentGrid))
+                {
+                    Fail(string.Format(
+                        R._("Generate random map failed: {0}"),
+                        R._("The current map data could not be decoded.")));
+                    return;
+                }
 
                 RandomMapOneClickResult result;
                 try
@@ -1270,27 +1280,33 @@ namespace FEBuilderGBA.Avalonia.Views
 
         /// <summary>
         /// Convert the currently cached map bytes into a row-major MAR grid for the built-in
-        /// engine's source-identity ladder. Returns null (rather than throwing) when the cache
-        /// is unavailable or any cell cannot be read — the generator treats a null
-        /// <c>currentGrid</c> as "nothing to compare against" rather than a failure.
+        /// engine's source-identity ladder. Fails closed when the cache is unavailable,
+        /// dimensionally inconsistent, or any cell cannot be read.
         /// </summary>
-        ushort[]? BuildCurrentGrid(int width, int height)
+        internal static bool TryBuildCurrentGrid(
+            byte[] cached,
+            int width,
+            int height,
+            out ushort[] grid)
         {
-            byte[] cached = _vm.GetMapDataSnapshot();
-            if (cached == null || width <= 0 || height <= 0)
-                return null;
+            grid = Array.Empty<ushort>();
+            if (cached == null || cached.Length < 2 || width <= 0 || height <= 0)
+                return false;
+            if (cached[0] != width || cached[1] != height)
+                return false;
 
-            var grid = new ushort[width * height];
+            var parsed = new ushort[width * height];
             for (int y = 0; y < height; y++)
             {
                 for (int x = 0; x < width; x++)
                 {
                     if (!MapEditorTilesetCore.TryReadMar(cached, width, height, x, y, out ushort mar))
-                        return null;
-                    grid[y * width + x] = mar;
+                        return false;
+                    parsed[y * width + x] = mar;
                 }
             }
-            return grid;
+            grid = parsed;
+            return true;
         }
 
         void ShowError(string message)

@@ -31,18 +31,22 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [AvaloniaFact]
-        public void FEMapCreatorPathFields_AreAssociatedWithVisibleLabels()
+        public void FEMapCreatorInputs_AreAssociatedWithVisibleLabels()
         {
             var view = new OptionsView();
             Label pathLabel = view.FindControl<Label>("FEMapCreatorPathLabel")!;
             TextBox pathBox = view.FindControl<TextBox>("FEMapCreatorPathTextBox")!;
             Label assetsLabel = view.FindControl<Label>("FEMapCreatorAssetsRootLabel")!;
             TextBox assetsBox = view.FindControl<TextBox>("FEMapCreatorAssetsRootTextBox")!;
+            Label tilesetsLabel = view.FindControl<Label>("TilesetOptionsLabel")!;
+            ListBox tilesets = view.FindControl<ListBox>("TilesetOptionsListBox")!;
 
             Assert.Same(pathBox, pathLabel.Target);
             Assert.Equal("Executable Path", pathLabel.Content);
             Assert.Same(assetsBox, assetsLabel.Target);
             Assert.Equal("Assets Root (optional)", assetsLabel.Content);
+            Assert.Same(tilesets, tilesetsLabel.Target);
+            Assert.Equal("Discovered Tilesets", tilesetsLabel.Content);
         }
 
         [AvaloniaFact]

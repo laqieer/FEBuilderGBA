@@ -241,7 +241,8 @@ dotnet run --project FEBuilderGBA.CLI -- --generate-random-map --femapcreator=C:
 # stopped without closing the editor. Authoritative FEMapCreator profile/mapping hashes — including Options'
 # Save Mapping image and generation-data identities — run off the UI thread and observe cancellation between
 # bounded file reads. Discovery and Save Mapping share one exclusive busy/cancel state. Built-in generation clones the ROM and
-# current grid before the worker hop, so corpus scanning never races live editor writes. Cancellation is also
+# current grid before the worker hop, so corpus scanning never races live editor writes; if that grid cannot be
+# decoded exactly, generation fails before either backend is invoked rather than disabling source-identity rejection. Cancellation is also
 # observed while each cell's weighted candidate order is prepared. Built-in tileset loading rejects truncated
 # primary/secondary OBJ, CFG, or MAP LZ77 streams, and a nonzero secondary OBJ reference must resolve completely
 # instead of being silently omitted from the tileset identity. Per-tileset FEMapCreator discovery and

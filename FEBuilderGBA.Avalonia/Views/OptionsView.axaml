@@ -239,6 +239,12 @@
                 <Button AutomationProperties.AutomationId="Options_CancelDiscoverTilesets_Button" Name="CancelDiscoverTilesetsButton" Content="Cancel" Click="CancelDiscoverTilesets_Click" Padding="12,6" IsEnabled="False" />
                 <Button AutomationProperties.AutomationId="Options_SaveTilesetMapping_Button" Name="SaveTilesetMappingButton" Content="Save Mapping" Click="SaveTilesetMapping_Click" Padding="12,6" />
               </StackPanel>
+              <Label AutomationProperties.AutomationId="Options_TilesetOptions_Label"
+                     Name="TilesetOptionsLabel"
+                     Content="Discovered Tilesets"
+                     Target="{Binding #TilesetOptionsListBox}"
+                     Padding="0"
+                     Margin="0,4,0,0" />
               <ListBox AutomationProperties.AutomationId="Options_TilesetOptions_List" Name="TilesetOptionsListBox" MaxHeight="120" SelectionChanged="TilesetOptionsListBox_SelectionChanged" />
               <TextBlock AutomationProperties.AutomationId="Options_TilesetMappingStatusText_Label" Name="TilesetMappingStatusText" Margin="0,4,0,0" FontStyle="Italic" />
               <TextBlock AutomationProperties.AutomationId="Options_TilesetMappingErrorText_Label" Name="TilesetMappingErrorText" Margin="0,2,0,0" FontStyle="Italic" Foreground="Red" />

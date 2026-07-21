@@ -690,5 +690,35 @@ namespace FEBuilderGBA.Avalonia.Tests
             int detachIdx = source.IndexOf("DetachedFromVisualTree += (_, _) => _randomMapCts?.Cancel();", StringComparison.Ordinal);
             Assert.True(detachIdx >= 0, "DetachedFromVisualTree must remain a cancel-only handler for _randomMapCts.");
         }
+
+        [Fact]
+        public void MapEditorView_CurrentGridPreflight_FailsClosedBeforeBackendInvocation()
+        {
+            byte[] valid = { 2, 1, 4, 0, 8, 0 };
+            Assert.True(MapEditorView.TryBuildCurrentGrid(valid, 2, 1, out ushort[] grid));
+            Assert.Equal(new ushort[] { 4, 8 }, grid);
+
+            Assert.False(MapEditorView.TryBuildCurrentGrid(null!, 2, 1, out _));
+            Assert.False(MapEditorView.TryBuildCurrentGrid(new byte[] { 1, 1, 4, 0 }, 2, 1, out _));
+            Assert.False(MapEditorView.TryBuildCurrentGrid(new byte[] { 2, 1, 4, 0, 8 }, 2, 1, out _));
+
+            string source = File.ReadAllText(Path.Combine(
+                RandomMapOneClickTestSupport.FindRepoRoot(),
+                "FEBuilderGBA.Avalonia",
+                "Views",
+                "MapEditorView.axaml.cs"));
+            int methodStart = source.IndexOf("async void GenerateRandomMap_Click(", StringComparison.Ordinal);
+            int methodEnd = source.IndexOf("\n        internal void SetRandomMapBusyState(", methodStart, StringComparison.Ordinal);
+            Assert.True(methodStart >= 0 && methodEnd > methodStart);
+            string method = source.Substring(methodStart, methodEnd - methodStart);
+
+            int preflight = method.IndexOf("if (!TryBuildCurrentGrid(", StringComparison.Ordinal);
+            int backend = method.IndexOf("_randomMapService.GenerateAsync(", StringComparison.Ordinal);
+            Assert.True(preflight >= 0 && backend > preflight);
+            string guard = method.Substring(preflight, backend - preflight);
+            Assert.Contains("Fail(", guard, StringComparison.Ordinal);
+            Assert.Contains("return;", guard, StringComparison.Ordinal);
+            Assert.DoesNotContain("ushort[]? currentGrid", method, StringComparison.Ordinal);
+        }
     }
 }
