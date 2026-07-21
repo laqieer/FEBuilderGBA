@@ -4,18 +4,16 @@ using System;
 namespace FEBuilderGBA
 {
     /// <summary>
-    /// The four boundary rows/columns of raw (palette-independent) 4bpp color indices for one
-    /// 16x16 metatile (chipset), as actually rendered after TSA hFlip/vFlip is applied. Used
-    /// to decide whether two chipsets are structurally compatible along a shared edge when
-    /// the strict, directly-observed adjacency model (<see cref="BuiltInRandomMapAdjacencyModel.Strict"/>)
+    /// The four boundary rows/columns of visible, palette-resolved color samples for one 16x16
+    /// metatile (chipset), after TSA hFlip/vFlip and palette-bank selection are applied. Used to
+    /// decide whether two chipsets are visually compatible along a shared edge when the strict,
+    /// directly-observed adjacency model (<see cref="BuiltInRandomMapAdjacencyModel.Strict"/>)
     /// has too little corpus evidence.
     ///
-    /// <para>Each array holds exactly 16 raw color indices (0..15), ordered by increasing
-    /// screen coordinate along that edge (top/bottom: increasing x; left/right: increasing
-    /// y). Values are the same nibble <see cref="MapEditorTilesetCore.RenderTile4bpp"/> would
-    /// look up in the palette — this signature intentionally stops one step earlier (no
-    /// palette indirection) so two chipsets that share art but use different palette slots
-    /// still compare as compatible, matching how the game visually tiles them.</para>
+    /// <para>Each array holds exactly 16 samples ordered by increasing screen coordinate along
+    /// that edge (top/bottom: increasing x; left/right: increasing y). A non-zero 4bpp index is
+    /// represented by its 16-bit BGR555 palette color; index zero remains the shared blank value
+    /// regardless of palette bank.</para>
     /// </summary>
     public sealed class MetatileEdgeSignature
     {
@@ -27,16 +25,16 @@ namespace FEBuilderGBA
             Right = right;
         }
 
-        /// <summary>Raw color indices along the top edge (py=0), left-to-right, 16 entries.</summary>
+        /// <summary>Visible color samples along the top edge (py=0), left-to-right, 16 entries.</summary>
         public int[] Top { get; }
 
-        /// <summary>Raw color indices along the bottom edge (py=15), left-to-right, 16 entries.</summary>
+        /// <summary>Visible color samples along the bottom edge (py=15), left-to-right, 16 entries.</summary>
         public int[] Bottom { get; }
 
-        /// <summary>Raw color indices along the left edge (px=0), top-to-bottom, 16 entries.</summary>
+        /// <summary>Visible color samples along the left edge (px=0), top-to-bottom, 16 entries.</summary>
         public int[] Left { get; }
 
-        /// <summary>Raw color indices along the right edge (px=15), top-to-bottom, 16 entries.</summary>
+        /// <summary>Visible color samples along the right edge (px=15), top-to-bottom, 16 entries.</summary>
         public int[] Right { get; }
     }
 
