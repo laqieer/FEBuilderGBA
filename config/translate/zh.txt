@@ -28240,6 +28240,9 @@ FEMapCreator 未报告任何兼容的图块集。
 :Random map generation returned no map data.
 随机地图生成未返回地图数据。
 
+:Random map generation returned the current map unchanged. Try a different seed.
+随机地图生成返回了与当前地图相同的结果。请尝试其他种子。
+
 :Generated random map: {0}x{1}, seed={2}.
 已生成随机地图: {0}x{1}, seed={2}。
 

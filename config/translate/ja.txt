@@ -14419,6 +14419,9 @@ FEMapCreator アセット ディレクトリを選択
 :Random map generation returned no map data.
 ランダムマップ生成がマップ データを返しませんでした。
 
+:Random map generation returned the current map unchanged. Try a different seed.
+ランダムマップ生成が現在のマップを変更せずに返しました。別のシードを試してください。
+
 :Generated random map: {0}x{1}, seed={2}.
 ランダムマップを生成しました: {0}x{1}, seed={2}。
 

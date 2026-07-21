@@ -258,7 +258,9 @@ dotnet run --project FEBuilderGBA.CLI -- --generate-random-map --femapcreator=C:
 # If a mapping is configured and current,
 # Generate runs the external adapter above; once started, any launch/exit/parse failure is surfaced directly
 # and never silently swapped for the built-in engine, and cancelling (or closing the editor) terminates the
-# owned external process rather than letting it finish and apply. Otherwise — or if the saved mapping is
+# owned external process rather than letting it finish and apply. A successful result from either backend is
+# compared with the captured source grid; a sequence-identical layout fails instead of applying an unchanged
+# map as a successful undo transaction. Otherwise — or if the saved mapping is
 # stale/invalid, which is visibly explained with a localized typed reason (on success, failure, or cancellation
 # alike) while raw filesystem diagnostics remain separate rather than leaking English into the notice — it uses
 # an independently designed, clean-room, deterministic built-in generator (see

@@ -507,6 +507,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             {
                 "Draw or import a representative map for this tileset, or configure FEMapCreator in Options.",
                 "Try a different seed, or configure FEMapCreator in Options.",
+                "Random map generation returned the current map unchanged. Try a different seed.",
                 "The saved mapping entry is missing required fields.",
                 "The mapped image file is no longer readable.",
                 "The mapped image file has changed since the mapping was saved.",
@@ -743,6 +744,32 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Contains("Fail(", guard, StringComparison.Ordinal);
             Assert.Contains("return;", guard, StringComparison.Ordinal);
             Assert.DoesNotContain("ushort[]? currentGrid", method, StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void MapEditorView_BackendFailure_ReturnsBeforeApplyOrUndoMutation()
+        {
+            string source = File.ReadAllText(Path.Combine(
+                RandomMapOneClickTestSupport.FindRepoRoot(),
+                "FEBuilderGBA.Avalonia",
+                "Views",
+                "MapEditorView.axaml.cs"));
+            int methodStart = source.IndexOf("async void GenerateRandomMap_Click(", StringComparison.Ordinal);
+            int methodEnd = source.IndexOf("\n        internal void SetRandomMapBusyState(", methodStart, StringComparison.Ordinal);
+            Assert.True(methodStart >= 0 && methodEnd > methodStart);
+            string method = source.Substring(methodStart, methodEnd - methodStart);
+
+            int failureGuard = method.IndexOf(
+                "if (!result.Success || result.Outcome == null)",
+                StringComparison.Ordinal);
+            int apply = method.IndexOf(
+                "GenerateRandomMapWorkflow.ApplyGeneratedMapOnUiThreadAsync(",
+                StringComparison.Ordinal);
+            Assert.True(failureGuard >= 0 && apply > failureGuard);
+
+            string failureBlock = method.Substring(failureGuard, apply - failureGuard);
+            Assert.Contains("Fail(", failureBlock, StringComparison.Ordinal);
+            Assert.Contains("return;", failureBlock, StringComparison.Ordinal);
         }
     }
 }

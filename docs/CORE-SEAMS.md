@@ -84,9 +84,12 @@ later in this catalog:
   hashes executable content on the dispatcher. Explicit discovery and Save Mapping
   use fresh authoritative hashes, so a same-size executable replacement with
   preserved mtime cannot create an immediately stale mapping.
-- One-click built-in generation clones the ROM and current grid before its first
-  worker hop. Corpus resolution therefore reads an immutable point-in-time
-  snapshot while apply-time live-ROM identity/fingerprint checks remain mandatory.
+- One-click generation clones the ROM and current grid before its first worker
+  hop. Corpus resolution therefore reads an immutable point-in-time snapshot
+  while apply-time live-ROM identity/fingerprint checks remain mandatory. The
+  orchestration boundary compares every successful external or built-in result
+  with that captured grid and rejects a sequence-identical layout instead of
+  committing an unchanged map as success.
 - Options displays the Built-in Experimental visual-coherence-only disclaimer;
   success status names the exact `Built-in Experimental` or
   `FEMapCreator Experimental` backend. The setup wizard opens Options and invokes

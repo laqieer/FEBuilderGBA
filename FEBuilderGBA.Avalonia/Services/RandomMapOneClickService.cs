@@ -244,6 +244,9 @@ namespace FEBuilderGBA.Avalonia.Services
                     return Failure(detail, selection);
                 }
 
+                if (IsSourceIdentical(externalResult.Mars, generationGrid))
+                    return SourceIdentityFailure(selection);
+
                 return new RandomMapOneClickResult
                 {
                     Success = true,
@@ -303,6 +306,9 @@ namespace FEBuilderGBA.Avalonia.Services
                 return Failure(MapBuiltInError(outcome.builtInResult), selection);
             }
 
+            if (IsSourceIdentical(outcome.builtInResult.Mars, generationGrid))
+                return SourceIdentityFailure(selection);
+
             return new RandomMapOneClickResult
             {
                 Success = true,
@@ -346,6 +352,24 @@ namespace FEBuilderGBA.Avalonia.Services
                 _ => detail,
             };
         }
+
+        static bool IsSourceIdentical(ushort[]? candidate, ushort[]? source)
+        {
+            if (candidate == null || source == null || candidate.Length != source.Length)
+                return false;
+
+            for (int i = 0; i < candidate.Length; i++)
+            {
+                if (candidate[i] != source[i])
+                    return false;
+            }
+            return true;
+        }
+
+        static RandomMapOneClickResult SourceIdentityFailure(RandomMapBackendSelection selection) =>
+            Failure(
+                R._("Random map generation returned the current map unchanged. Try a different seed."),
+                selection);
 
         static RandomMapOneClickResult Failure(
             string message,

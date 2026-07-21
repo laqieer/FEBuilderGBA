@@ -147,7 +147,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                     FEMapCreatorMappingLookupResult.Current(entry)));
 
             RandomMapOneClickResult result = await service.GenerateAsync(
-                rom, mapSettingAddr, 2, 2, currentGrid: null, seed: 55, CancellationToken.None);
+                rom, mapSettingAddr, 2, 2, currentGrid: new ushort[] { 1, 2, 3, 4 }, seed: 55, CancellationToken.None);
 
             Assert.True(result.Success);
             Assert.False(builtInInvoked);
@@ -157,6 +157,75 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Equal("", result.MappingDetail);
             Assert.Equal(new ushort[] { 10, 11, 12, 13 }, result.Outcome!.Mars);
             Assert.Equal(55, result.Outcome.EffectiveSeed);
+        }
+
+        [AvaloniaFact]
+        public async Task GenerateAsync_CurrentMapping_IdenticalExternalResult_FailsWithoutBuiltInFallback()
+        {
+            ROM rom = RandomMapOneClickTestSupport.CreateResolvableTilesetRom(
+                2, 2, 0x0001, out uint mapSettingAddr, out _, out _);
+
+            ushort[] currentGrid = { 10, 11, 12, 13 };
+            bool builtInInvoked = false;
+            var entry = MakeMappingEntry("Grassland");
+            var service = new RandomMapOneClickService(
+                runner: null,
+                generateExternal: (request, runner) => new RandomMapGenerationResult
+                {
+                    Success = true,
+                    Mars = (ushort[])currentGrid.Clone(),
+                },
+                generateBuiltIn: (ROM r, uint addr, int width, int height, ushort[]? grid, int seed, CancellationToken ct,
+                    out BuiltInRandomMapGenerationResult? result, out string error) =>
+                {
+                    builtInInvoked = true;
+                    result = null;
+                    error = "";
+                    return false;
+                },
+                resolveMapping: (fingerprint, configSnapshot, cancellationToken) => (
+                    new FEMapCreatorSetupSnapshot(FEMapCreatorSetupStatus.Configured, @"C:\trusted\FEMapCreator.exe", "", ""),
+                    FEMapCreatorMappingLookupResult.Current(entry)));
+
+            RandomMapOneClickResult result = await service.GenerateAsync(
+                rom, mapSettingAddr, 2, 2, currentGrid, seed: 55, CancellationToken.None);
+
+            Assert.False(result.Success);
+            Assert.False(builtInInvoked);
+            Assert.Equal(FEMapCreatorMappingStatus.Current, result.MappingStatus);
+            Assert.Contains("unchanged", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.Null(result.Outcome);
+        }
+
+        [AvaloniaFact]
+        public async Task GenerateAsync_BuiltInIdenticalResult_FailsAtSharedBoundary()
+        {
+            ROM rom = RandomMapOneClickTestSupport.CreateResolvableTilesetRom(
+                2, 2, 0x0001, out uint mapSettingAddr, out _, out _);
+
+            ushort[] currentGrid = { 0, 0, 0, 0 };
+            var service = new RandomMapOneClickService(
+                runner: null,
+                generateExternal: (request, runner) =>
+                    throw new InvalidOperationException("must not run external backend"),
+                generateBuiltIn: (ROM r, uint addr, int width, int height, ushort[]? grid, int seed, CancellationToken ct,
+                    out BuiltInRandomMapGenerationResult? result, out string error) =>
+                {
+                    result = MakeBuiltInSuccess(width, height, seed);
+                    error = "";
+                    return true;
+                },
+                resolveMapping: (fingerprint, configSnapshot, cancellationToken) => (
+                    new FEMapCreatorSetupSnapshot(FEMapCreatorSetupStatus.NotConfigured, "", "", ""),
+                    FEMapCreatorMappingLookupResult.NoMapping()));
+
+            RandomMapOneClickResult result = await service.GenerateAsync(
+                rom, mapSettingAddr, 2, 2, currentGrid, seed: 55, CancellationToken.None);
+
+            Assert.False(result.Success);
+            Assert.Equal(FEMapCreatorMappingStatus.NoMapping, result.MappingStatus);
+            Assert.Contains("unchanged", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.Null(result.Outcome);
         }
 
         [AvaloniaFact]
