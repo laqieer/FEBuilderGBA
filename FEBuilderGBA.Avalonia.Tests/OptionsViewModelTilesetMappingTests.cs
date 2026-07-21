@@ -105,6 +105,52 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
+        public async Task DiscoverTilesetsAsync_SetsBusyBeforeInitialProfileHashRunsOffCallerThread()
+        {
+            string exePath = MakeFile("FEMapCreator.exe");
+            int callerThreadId = Environment.CurrentManagedThreadId;
+            int workerThreadId = callerThreadId;
+            int validationCount = 0;
+            using var started = new ManualResetEventSlim(false);
+            using var release = new ManualResetEventSlim(false);
+            var vm = new OptionsViewModel(
+                discoverTilesets: (exe, assets, token) =>
+                    new FEMapCreatorTilesetDiscoveryResult { Success = true },
+                getConfig: () => CoreState.Config,
+                validateProfile: (exe, assets, token) =>
+                {
+                    if (Interlocked.Increment(ref validationCount) == 1)
+                    {
+                        workerThreadId = Environment.CurrentManagedThreadId;
+                        started.Set();
+                        release.Wait(token);
+                    }
+                    return FEMapCreatorProfileCore.Validate(exe, assets, token);
+                })
+            {
+                FEMapCreatorPath = exePath,
+            };
+
+            Task operation = vm.DiscoverTilesetsAsync();
+            Assert.True(started.Wait(TimeSpan.FromSeconds(5)));
+            try
+            {
+                Assert.True(vm.IsDiscoveringTilesets);
+                Assert.True(vm.IsTilesetMappingOperationInProgress);
+                Assert.NotEqual(callerThreadId, workerThreadId);
+            }
+            finally
+            {
+                release.Set();
+            }
+
+            await operation;
+            Assert.False(vm.IsDiscoveringTilesets);
+            Assert.False(vm.IsTilesetMappingOperationInProgress);
+            AssertNoStaleOperationCts(vm);
+        }
+
+        [Fact]
         public async Task DiscoverTilesetsAsync_ConfiguredProfile_InvokesDelegateAndPopulatesUsableTilesetsOnly()
         {
             string exePath = MakeFile("FEMapCreator.exe");
@@ -291,7 +337,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Empty(vm.Tilesets);
             Assert.Null(vm.SelectedTileset);
             Assert.Contains("cancel", vm.TilesetMappingStatusMessage, StringComparison.OrdinalIgnoreCase);
-            AssertNoStaleDiscoveryCts(vm);
+            AssertNoStaleOperationCts(vm);
         }
 
         [Fact]
@@ -350,22 +396,21 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Empty(vm.Tilesets);
             Assert.False(vm.IsDiscoveringTilesets);
             Assert.Contains("cancel", vm.TilesetMappingStatusMessage, StringComparison.OrdinalIgnoreCase);
-            AssertNoStaleDiscoveryCts(vm);
+            AssertNoStaleOperationCts(vm);
         }
 
-        static CancellationTokenSource? GetTilesetDiscoveryCts(OptionsViewModel vm)
+        static CancellationTokenSource? GetTilesetMappingOperationCts(OptionsViewModel vm)
         {
             FieldInfo? field = typeof(OptionsViewModel).GetField(
-                "_tilesetDiscoveryCts", BindingFlags.NonPublic | BindingFlags.Instance);
+                "_tilesetMappingOperationCts", BindingFlags.NonPublic | BindingFlags.Instance);
             Assert.NotNull(field);
             return (CancellationTokenSource?)field!.GetValue(vm);
         }
 
-        // #1978 Slice 3 re-review finding #1: after DiscoverTilesetsAsync fully completes
-        // (success, failure, or cancellation), the shared _tilesetDiscoveryCts field must be
-        // cleared back to null (its owning run disposed its own source in `finally`) rather than
-        // left pointing at a disposed-but-still-referenced instance.
-        static void AssertNoStaleDiscoveryCts(OptionsViewModel vm) => Assert.Null(GetTilesetDiscoveryCts(vm));
+        // After discovery or Save Mapping fully completes, the shared operation CTS must be
+        // cleared rather than left pointing at a disposed-but-still-referenced instance.
+        static void AssertNoStaleOperationCts(OptionsViewModel vm) =>
+            Assert.Null(GetTilesetMappingOperationCts(vm));
 
         [Fact]
         public async Task DiscoverTilesetsAsync_SuccessfulCompletion_ClearsCancellationTokenSourceField()
@@ -378,10 +423,10 @@ namespace FEBuilderGBA.Avalonia.Tests
                 getConfig: () => CoreState.Config);
             vm.FEMapCreatorPath = exePath;
 
-            Assert.Null(GetTilesetDiscoveryCts(vm));
+            Assert.Null(GetTilesetMappingOperationCts(vm));
             await vm.DiscoverTilesetsAsync();
 
-            AssertNoStaleDiscoveryCts(vm);
+            AssertNoStaleOperationCts(vm);
         }
 
         [Fact]
@@ -401,7 +446,7 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             await vm.DiscoverTilesetsAsync();
 
-            AssertNoStaleDiscoveryCts(vm);
+            AssertNoStaleOperationCts(vm);
         }
 
         [Fact]
@@ -414,7 +459,7 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             await vm.DiscoverTilesetsAsync();
 
-            AssertNoStaleDiscoveryCts(vm);
+            AssertNoStaleOperationCts(vm);
         }
 
         [Fact]
@@ -471,17 +516,93 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.False(vm.IsDiscoveringTilesets);
             Assert.Single(vm.Tilesets);
             Assert.Equal("Grassland", vm.Tilesets[0].Name);
-            AssertNoStaleDiscoveryCts(vm);
+            AssertNoStaleOperationCts(vm);
         }
 
         [Fact]
-        public void SaveTilesetMapping_EmptyFingerprint_FailsWithoutTouchingConfig()
+        public async Task SaveTilesetMappingAsync_EntryHashStageRunsOffCallerThreadAndSharesCancellationGate()
+        {
+            string exePath = MakeFile("FEMapCreator.exe");
+            string imagePath = MakeFile("grassland.png");
+            string genDataPath = MakeFile("grassland.json");
+            int callerThreadId = Environment.CurrentManagedThreadId;
+            int workerThreadId = callerThreadId;
+            int discoveryCalls = 0;
+            bool busyWhenWorkerStarted = false;
+            using var started = new ManualResetEventSlim(false);
+
+            OptionsViewModel? vm = null;
+            vm = new OptionsViewModel(
+                discoverTilesets: (exe, assets, token) =>
+                {
+                    Interlocked.Increment(ref discoveryCalls);
+                    var result = new FEMapCreatorTilesetDiscoveryResult { Success = true };
+                    result.Tilesets.Add(new FEMapCreatorTilesetInfo
+                    {
+                        Name = "Grassland",
+                        HasImage = true,
+                        HasGenerationData = true,
+                        ResolvedImagePath = imagePath,
+                        ResolvedGenerationDataPath = genDataPath,
+                        IsCompatible = true,
+                    });
+                    return result;
+                },
+                getConfig: () => CoreState.Config,
+                createMappingEntry: (fingerprint, name, image, data, profile, token) =>
+                {
+                    workerThreadId = Environment.CurrentManagedThreadId;
+                    busyWhenWorkerStarted =
+                        vm.IsSavingTilesetMapping &&
+                        vm.IsTilesetMappingOperationInProgress;
+                    started.Set();
+                    token.WaitHandle.WaitOne();
+                    token.ThrowIfCancellationRequested();
+                    return new FEMapCreatorMappingEntryCreationResult(false, null, "unexpected release");
+                })
+            {
+                FEMapCreatorPath = exePath,
+            };
+            vm.SetTilesetContext(TilesetFingerprint.Compute(
+                8, new byte[] { 1 }, new byte[] { 2 }, new byte[] { 3 }));
+            await vm.DiscoverTilesetsAsync();
+            vm.SelectedTileset = Assert.Single(vm.Tilesets);
+
+            Task<bool> saveTask = vm.SaveTilesetMappingAsync();
+            Assert.True(started.Wait(TimeSpan.FromSeconds(5)));
+            try
+            {
+                Assert.True(busyWhenWorkerStarted);
+                Assert.True(vm.IsSavingTilesetMapping);
+                Assert.True(vm.IsTilesetMappingOperationInProgress);
+                Assert.NotEqual(callerThreadId, workerThreadId);
+
+                await vm.DiscoverTilesetsAsync();
+                Assert.Equal(1, discoveryCalls);
+
+                vm.CancelTilesetMappingOperation();
+            }
+            finally
+            {
+                vm.CancelTilesetMappingOperation();
+            }
+
+            Assert.False(await saveTask);
+            Assert.Contains("cancel", vm.TilesetMappingStatusMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.False(vm.IsSavingTilesetMapping);
+            Assert.False(vm.IsTilesetMappingOperationInProgress);
+            Assert.Empty(FEMapCreatorTilesetMappingStoreCore.LoadAll(CoreState.Config!));
+            AssertNoStaleOperationCts(vm);
+        }
+
+        [Fact]
+        public async Task SaveTilesetMappingAsync_EmptyFingerprint_FailsWithoutTouchingConfig()
         {
             var vm = new OptionsViewModel(discoverTilesets: null, getConfig: () => CoreState.Config);
             vm.SetTilesetContext(TilesetFingerprint.Empty);
             vm.SelectedTileset = new FEMapCreatorTilesetOption { Name = "Grassland" };
 
-            bool saved = vm.SaveTilesetMapping();
+            bool saved = await vm.SaveTilesetMappingAsync();
 
             Assert.False(saved);
             Assert.NotEqual("", vm.TilesetMappingErrorMessage);
@@ -489,32 +610,32 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
-        public void SaveTilesetMapping_NoSelection_Fails()
+        public async Task SaveTilesetMappingAsync_NoSelection_Fails()
         {
             var vm = new OptionsViewModel(discoverTilesets: null, getConfig: () => CoreState.Config);
             vm.SetTilesetContext(TilesetFingerprint.Compute(8, new byte[] { 1 }, new byte[] { 2 }, new byte[] { 3 }));
 
-            bool saved = vm.SaveTilesetMapping();
+            bool saved = await vm.SaveTilesetMappingAsync();
 
             Assert.False(saved);
             Assert.NotEqual("", vm.TilesetMappingErrorMessage);
         }
 
         [Fact]
-        public void SaveTilesetMapping_NoConfig_Fails()
+        public async Task SaveTilesetMappingAsync_NoConfig_Fails()
         {
             var vm = new OptionsViewModel(discoverTilesets: null, getConfig: () => null);
             vm.SetTilesetContext(TilesetFingerprint.Compute(8, new byte[] { 1 }, new byte[] { 2 }, new byte[] { 3 }));
             vm.SelectedTileset = new FEMapCreatorTilesetOption { Name = "Grassland", ImagePath = "g.png", GenerationDataPath = "g.json" };
 
-            bool saved = vm.SaveTilesetMapping();
+            bool saved = await vm.SaveTilesetMappingAsync();
 
             Assert.False(saved);
             Assert.NotEqual("", vm.TilesetMappingErrorMessage);
         }
 
         [Fact]
-        public async Task SaveTilesetMapping_UsesCurrentProfileAndPersistsRetrievableMapping()
+        public async Task SaveTilesetMappingAsync_UsesCurrentProfileAndPersistsRetrievableMapping()
         {
             string persistedExePath = MakeFile("PersistedFEMapCreator.exe", new byte[] { 1, 1, 1 });
             string liveExePath = MakeFile("LiveFEMapCreator.exe", new byte[] { 9, 9, 9 });
@@ -547,7 +668,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Single(vm.Tilesets);
             vm.SelectedTileset = vm.Tilesets[0];
 
-            bool saved = vm.SaveTilesetMapping();
+            bool saved = await vm.SaveTilesetMappingAsync();
 
             Assert.True(saved);
             Assert.True(vm.TilesetMappingSaved);
@@ -604,7 +725,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             await vm.DiscoverTilesetsAsync();
             Assert.Single(vm.Tilesets);
             vm.SelectedTileset = vm.Tilesets[0];
-            Assert.True(vm.SaveTilesetMapping());
+            Assert.True(await vm.SaveTilesetMappingAsync());
 
             FEMapCreatorSetupSnapshot current = FEMapCreatorProfileCore.Validate(exePath, "");
             Assert.NotEqual(cached.ExecutableSha256, current.ExecutableSha256);
@@ -616,7 +737,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
-        public async Task SaveTilesetMapping_SameMetadataReplacementAfterDiscovery_RejectsStaleDiscovery()
+        public async Task SaveTilesetMappingAsync_SameMetadataReplacementAfterDiscovery_RejectsStaleDiscovery()
         {
             string exePath = MakeFile("FEMapCreator.exe", new byte[] { 1, 2, 3 });
             File.SetLastWriteTimeUtc(exePath, new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc));
@@ -648,7 +769,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             vm.SelectedTileset = Assert.Single(vm.Tilesets);
             RewriteWithSameMetadata(exePath, new byte[] { 4, 5, 6 });
 
-            Assert.False(vm.SaveTilesetMapping());
+            Assert.False(await vm.SaveTilesetMappingAsync());
             Assert.Equal(
                 R._("Discover and choose a compatible tileset first."),
                 vm.TilesetMappingErrorMessage);
@@ -656,7 +777,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
-        public void SaveTilesetMapping_RejectsSelectionNotProducedByCurrentDiscovery()
+        public async Task SaveTilesetMappingAsync_RejectsSelectionNotProducedByCurrentDiscovery()
         {
             string exePath = MakeFile("FEMapCreator.exe");
             string imagePath = MakeFile("grassland.png");
@@ -673,7 +794,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 GenerationDataPath = genDataPath,
             };
 
-            bool saved = vm.SaveTilesetMapping();
+            bool saved = await vm.SaveTilesetMappingAsync();
 
             Assert.False(saved);
             Assert.Equal(R._("Discover and choose a compatible tileset first."), vm.TilesetMappingErrorMessage);

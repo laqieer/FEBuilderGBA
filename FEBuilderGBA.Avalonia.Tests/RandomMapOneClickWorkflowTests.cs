@@ -16,6 +16,7 @@ using global::Avalonia.Headless.XUnit;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Threading;
 using FEBuilderGBA;
+using FEBuilderGBA.Avalonia.GapSweep;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 using FEBuilderGBA.Avalonia.Views;
@@ -476,6 +477,46 @@ namespace FEBuilderGBA.Avalonia.Tests
             view.SetRandomMapBusyState(false);
             Assert.True(generate.IsEnabled);
             Assert.False(cancel.IsEnabled);
+        }
+
+        [AvaloniaFact]
+        public void MapEditorView_SeedTextBox_IsAssociatedWithLocalizedLabel()
+        {
+            var view = new MapEditorView();
+            Label label = view.FindControl<Label>("RandomMapSeedLabel")!;
+            TextBox seed = view.FindControl<TextBox>("RandomMapSeedTextBox")!;
+
+            Assert.Same(seed, label.Target);
+            Assert.Equal("Seed:", label.Content);
+        }
+
+        [Fact]
+        public void RandomMapSeedAndRecoveryStrings_HaveJapaneseAndChineseTranslations()
+        {
+            string repoRoot = RandomMapOneClickTestSupport.FindRepoRoot();
+            L10nFinding seedFinding = Assert.Single(
+                L10nScanner.Scan(repoRoot, new[] { "ja", "zh" })
+                    .Where(f =>
+                        f.AxamlPath.EndsWith("FEBuilderGBA.Avalonia/Views/MapEditorView.axaml", StringComparison.Ordinal) &&
+                        f.Literal == "Seed:"));
+            Assert.Equal(L10nVerdict.Translated, seedFinding.Verdict);
+
+            IReadOnlyList<L10nScanner.CodeLiteralFinding> codeFindings =
+                L10nScanner.ScanCodeLiterals(repoRoot, new[] { "ja", "zh" });
+            foreach (string literal in new[]
+            {
+                "Draw or import a representative map for this tileset, or configure FEMapCreator in Options.",
+                "Try a different seed, or configure FEMapCreator in Options.",
+            })
+            {
+                Assert.Contains(
+                    codeFindings,
+                    f => f.SourcePath.EndsWith(
+                            "FEBuilderGBA.Avalonia/Services/RandomMapOneClickService.cs",
+                            StringComparison.Ordinal) &&
+                        f.Literal == literal &&
+                        f.Verdict == L10nVerdict.Translated);
+            }
         }
 
         [AvaloniaFact]

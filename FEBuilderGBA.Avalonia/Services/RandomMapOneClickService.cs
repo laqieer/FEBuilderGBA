@@ -329,11 +329,15 @@ namespace FEBuilderGBA.Avalonia.Services
                 BuiltInRandomMapErrorCategory.InvalidInput =>
                     string.Format(R._("Random map request was invalid: {0}"), detail),
                 BuiltInRandomMapErrorCategory.InsufficientSourceData =>
-                    string.Format(R._("This tileset does not have enough source map data for the built-in generator: {0}"), detail),
+                    string.Format(R._("This tileset does not have enough source map data for the built-in generator: {0}"), detail)
+                    + " "
+                    + R._("Draw or import a representative map for this tileset, or configure FEMapCreator in Options."),
                 BuiltInRandomMapErrorCategory.Cancelled =>
                     R._("Random map generation was cancelled."),
                 BuiltInRandomMapErrorCategory.SearchExhausted =>
-                    string.Format(R._("The built-in generator could not find a valid layout within its search budget: {0}"), detail),
+                    string.Format(R._("The built-in generator could not find a valid layout within its search budget: {0}"), detail)
+                    + " "
+                    + R._("Try a different seed, or configure FEMapCreator in Options."),
                 _ => detail,
             };
         }

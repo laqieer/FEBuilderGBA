@@ -28267,6 +28267,9 @@ FEMapCreator 未报告任何兼容的图块集。
 :This tileset does not have enough source map data for the built-in generator: {0}
 此图块集没有足够的源地图数据供内置生成器使用: {0}
 
+:Draw or import a representative map for this tileset, or configure FEMapCreator in Options.
+为此图块集绘制或导入一张有代表性的地图，或在选项中配置 FEMapCreator。
+
 :Random map generation was cancelled.
 随机地图生成已取消。
 
@@ -28281,6 +28284,9 @@ FEMapCreator 未报告任何兼容的图块集。
 
 :The built-in generator could not find a valid layout within its search budget: {0}
 内置生成器未能在搜索预算内找到有效布局: {0}
+
+:Try a different seed, or configure FEMapCreator in Options.
+请尝试其他种子，或在选项中配置 FEMapCreator。
 
 :This map's tileset could not be identified.
 无法识别此地图的图块集。
@@ -28297,6 +28303,12 @@ FEMapCreator 未报告任何兼容的图块集。
 :Tileset discovery was cancelled.
 图块集检测已取消。
 
+:Saving tileset mapping...
+正在保存图块集映射...
+
+:Tileset mapping save was cancelled.
+图块集映射保存已取消。
+
 :Found {0} usable tileset(s).
 找到 {0} 个可用的图块集。
 
@@ -28308,6 +28320,9 @@ FEMapCreator 未报告任何兼容的图块集。
 
 :Configuration is not available.
 配置不可用。
+
+:Wait for the current tileset operation to finish or cancel it first.
+请等待当前图块集操作完成，或先将其取消。
 
 :Mapping saved for tileset '{0}'.
 已保存图块集 '{0}' 的映射。

@@ -73,7 +73,12 @@
                     VerticalAlignment="Center" />
           </StackPanel>
           <StackPanel Orientation="Horizontal" Spacing="8" Name="MapRandomSeedToolbar">
-            <TextBlock Text="Seed:" VerticalAlignment="Center" />
+            <Label AutomationProperties.AutomationId="MapEditor_RandomMapSeed_Label"
+                   Name="RandomMapSeedLabel"
+                   Content="Seed:"
+                   Target="{Binding #RandomMapSeedTextBox}"
+                   Padding="0"
+                   VerticalAlignment="Center" />
             <TextBox AutomationProperties.AutomationId="MapEditor_RandomMapSeedText_Input"
                      Name="RandomMapSeedTextBox"
                      Width="110"

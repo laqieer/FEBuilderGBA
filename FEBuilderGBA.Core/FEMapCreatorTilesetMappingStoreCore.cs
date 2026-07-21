@@ -268,9 +268,35 @@ namespace FEBuilderGBA
             FEMapCreatorSetupSnapshot currentProfile,
             out FEMapCreatorTilesetMappingEntry entry,
             out string error)
+            => TryCreateEntry(
+                fingerprint,
+                tilesetName,
+                imagePath,
+                generationDataPath,
+                currentProfile,
+                CancellationToken.None,
+                out entry,
+                out error);
+
+        /// <summary>
+        /// Cancellation-aware entry creation used by asynchronous UI workflows. Cancellation is
+        /// observed before validation and throughout both bounded file-hash reads; validation
+        /// failures still return false, while cancellation propagates as
+        /// <see cref="OperationCanceledException"/>.
+        /// </summary>
+        internal static bool TryCreateEntry(
+            TilesetFingerprint fingerprint,
+            string tilesetName,
+            string imagePath,
+            string generationDataPath,
+            FEMapCreatorSetupSnapshot currentProfile,
+            CancellationToken cancellationToken,
+            out FEMapCreatorTilesetMappingEntry entry,
+            out string error)
         {
             entry = null;
             error = "";
+            cancellationToken.ThrowIfCancellationRequested();
 
             if (fingerprint.IsEmpty)
             {
@@ -288,9 +314,21 @@ namespace FEBuilderGBA
                 return false;
             }
 
-            if (!FileContentIdentityCore.TryCompute(imagePath, out long imageSize, out long imageTicks, out string imageSha, out error))
+            if (!FileContentIdentityCore.TryCompute(
+                imagePath,
+                cancellationToken,
+                out long imageSize,
+                out long imageTicks,
+                out string imageSha,
+                out error))
                 return false;
-            if (!FileContentIdentityCore.TryCompute(generationDataPath, out long dataSize, out long dataTicks, out string dataSha, out error))
+            if (!FileContentIdentityCore.TryCompute(
+                generationDataPath,
+                cancellationToken,
+                out long dataSize,
+                out long dataTicks,
+                out string dataSha,
+                out error))
                 return false;
 
             entry = new FEMapCreatorTilesetMappingEntry(

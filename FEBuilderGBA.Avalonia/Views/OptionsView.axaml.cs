@@ -34,10 +34,9 @@ namespace FEBuilderGBA.Avalonia.Views
         public OptionsView()
         {
             InitializeComponent();
-            // #1978 Slice 3 review finding #5: cancel any in-flight tileset discovery when this
-            // view detaches/closes so a started external discovery process is genuinely owned
-            // and terminated, and a late result can never be applied after close.
-            DetachedFromVisualTree += (_, _) => _vm.CancelTilesetDiscovery();
+            // Cancel discovery or Save Mapping when this view detaches so no late worker result
+            // can publish state or persist a mapping after the owning Options surface closes.
+            DetachedFromVisualTree += (_, _) => _vm.CancelTilesetMappingOperation();
         }
 
         /// <summary>
@@ -152,9 +151,11 @@ namespace FEBuilderGBA.Avalonia.Views
             TilesetOptionsListBox.SelectedItem = _vm.SelectedTileset;
             TilesetMappingStatusText.Text = _vm.TilesetMappingStatusMessage;
             TilesetMappingErrorText.Text = _vm.TilesetMappingErrorMessage;
-            DiscoverTilesetsButton.IsEnabled = !_vm.IsDiscoveringTilesets;
-            CancelDiscoverTilesetsButton.IsEnabled = _vm.IsDiscoveringTilesets;
-            SaveTilesetMappingButton.IsEnabled = _vm.HasTilesetContext && _vm.SelectedTileset != null && !_vm.IsDiscoveringTilesets;
+            bool busy = _vm.IsTilesetMappingOperationInProgress;
+            TilesetOptionsListBox.IsEnabled = !busy;
+            DiscoverTilesetsButton.IsEnabled = !busy;
+            CancelDiscoverTilesetsButton.IsEnabled = busy;
+            SaveTilesetMappingButton.IsEnabled = _vm.HasTilesetContext && _vm.SelectedTileset != null && !busy;
         }
 
         /// <summary>
@@ -165,12 +166,12 @@ namespace FEBuilderGBA.Avalonia.Views
         /// </summary>
         async void DiscoverTilesets_Click(object? sender, RoutedEventArgs e)
         {
-            if (_vm.IsDiscoveringTilesets) return;
-            DiscoverTilesetsButton.IsEnabled = false;
-            CancelDiscoverTilesetsButton.IsEnabled = true;
+            if (_vm.IsTilesetMappingOperationInProgress) return;
+            Task operation = _vm.DiscoverTilesetsAsync();
+            RefreshTilesetMappingUi();
             try
             {
-                await _vm.DiscoverTilesetsAsync();
+                await operation;
             }
             finally
             {
@@ -178,7 +179,8 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void CancelDiscoverTilesets_Click(object? sender, RoutedEventArgs e) => _vm.CancelTilesetDiscovery();
+        void CancelDiscoverTilesets_Click(object? sender, RoutedEventArgs e) =>
+            _vm.CancelTilesetMappingOperation();
 
         void TilesetOptionsListBox_SelectionChanged(object? sender, global::Avalonia.Controls.SelectionChangedEventArgs e)
         {
@@ -188,13 +190,22 @@ namespace FEBuilderGBA.Avalonia.Views
 
         /// <summary>
         /// Persists the selected discovered tileset as the mapping for the current fingerprint
-        /// context via <see cref="OptionsViewModel.SaveTilesetMapping"/> (which itself uses
+        /// context via <see cref="OptionsViewModel.SaveTilesetMappingAsync"/> (which itself uses
         /// <c>TryCreateEntry</c>/<c>Upsert</c>/<c>SaveAll</c>). Never launches a process.
         /// </summary>
-        void SaveTilesetMapping_Click(object? sender, RoutedEventArgs e)
+        async void SaveTilesetMapping_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.SaveTilesetMapping();
+            if (_vm.IsTilesetMappingOperationInProgress) return;
+            Task<bool> operation = _vm.SaveTilesetMappingAsync();
             RefreshTilesetMappingUi();
+            try
+            {
+                await operation;
+            }
+            finally
+            {
+                RefreshTilesetMappingUi();
+            }
         }
 
         /// <summary>

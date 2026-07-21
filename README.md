@@ -238,8 +238,9 @@ dotnet run --project FEBuilderGBA.CLI -- --generate-random-map --femapcreator=C:
 # The Avalonia Map Editor's "Generate Random Map" button is true one-click (no dialog, no ellipsis): it uses the
 # current map's dimensions and an inline, directly replayable seed. A blank seed is materialized before either
 # backend starts, and the adjacent Cancel button remains enabled during generation so the operation can be
-# stopped without closing the editor. Authoritative FEMapCreator profile/mapping hashes run off the UI thread
-# and observe that same cancellation token between bounded file reads. Built-in generation clones the ROM and
+# stopped without closing the editor. Authoritative FEMapCreator profile/mapping hashes — including Options'
+# Save Mapping image and generation-data identities — run off the UI thread and observe cancellation between
+# bounded file reads. Discovery and Save Mapping share one exclusive busy/cancel state. Built-in generation clones the ROM and
 # current grid before the worker hop, so corpus scanning never races live editor writes. Cancellation is also
 # observed while each cell's weighted candidate order is prepared. Built-in tileset loading rejects truncated
 # primary/secondary OBJ, CFG, or MAP LZ77 streams, and a nonzero secondary OBJ reference must resolve completely
@@ -247,7 +248,7 @@ dotnet run --project FEBuilderGBA.CLI -- --generate-random-map --femapcreator=C:
 # mapping now live only in Options' FEMapCreator section (Map Editor's "Map Tileset..." button is just a
 # shortcut that selects Options' External Tools tab and scrolls the FEMapCreator section into view with the
 # current tileset pre-selected). Editing either live FEMapCreator path
-# cancels any in-flight discovery and clears its choices, so Save Mapping always requires a fresh discovery
+# cancels any in-flight discovery or Save Mapping operation and clears discovered choices, so Save Mapping always requires a fresh discovery
 # from the same executable/assets profile. The keystroke status cache is never trusted by discovery or Save
 # Mapping; both authoritatively re-hash even same-size/same-mtime executable replacements. If a mapping is configured and current,
 # Generate runs the external adapter above; once started, any launch/exit/parse failure is surfaced directly

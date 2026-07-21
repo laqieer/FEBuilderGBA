@@ -284,10 +284,22 @@ namespace FEBuilderGBA.Avalonia.Tests
                 return result.ErrorMessage;
             }
 
-            Assert.Contains("invalid", await RunWithError(BuiltInRandomMapErrorCategory.InvalidInput), StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("enough source", await RunWithError(BuiltInRandomMapErrorCategory.InsufficientSourceData), StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("cancelled", await RunWithError(BuiltInRandomMapErrorCategory.Cancelled), StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("search budget", await RunWithError(BuiltInRandomMapErrorCategory.SearchExhausted), StringComparison.OrdinalIgnoreCase);
+            string invalid = await RunWithError(BuiltInRandomMapErrorCategory.InvalidInput);
+            string insufficient = await RunWithError(BuiltInRandomMapErrorCategory.InsufficientSourceData);
+            string cancelled = await RunWithError(BuiltInRandomMapErrorCategory.Cancelled);
+            string exhausted = await RunWithError(BuiltInRandomMapErrorCategory.SearchExhausted);
+
+            Assert.Contains("invalid", invalid, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("enough source", insufficient, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("representative map", insufficient, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("FEMapCreator", insufficient, StringComparison.Ordinal);
+            Assert.DoesNotContain("different seed", invalid, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("different seed", insufficient, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("cancelled", cancelled, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("different seed", cancelled, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("search budget", exhausted, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("different seed", exhausted, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("FEMapCreator", exhausted, StringComparison.Ordinal);
         }
 
         [AvaloniaFact]

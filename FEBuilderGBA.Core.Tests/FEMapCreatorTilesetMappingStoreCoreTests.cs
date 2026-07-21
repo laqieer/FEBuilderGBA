@@ -182,6 +182,37 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void TryCreateEntry_CancellationAwareOverload_ThrowsBeforeHashing()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string imagePath = CreateFile(tempRoot, "tileset.png", new byte[] { 1 });
+                string genPath = CreateFile(tempRoot, "tileset.json", new byte[] { 2 });
+                var fingerprint = TilesetFingerprint.Compute(
+                    8, new byte[] { 1 }, new byte[] { 2 }, new byte[] { 3 });
+                FEMapCreatorSetupSnapshot profile = MakeConfiguredProfile(tempRoot, "");
+                using var cts = new CancellationTokenSource();
+                cts.Cancel();
+
+                Assert.Throws<OperationCanceledException>(() =>
+                    FEMapCreatorTilesetMappingStoreCore.TryCreateEntry(
+                        fingerprint,
+                        "Plains",
+                        imagePath,
+                        genPath,
+                        profile,
+                        cts.Token,
+                        out _,
+                        out _));
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
         public void TryCreateEntry_MissingImageFile_ReturnsFalseWithError()
         {
             string tempRoot = CreateTempDirectory();
