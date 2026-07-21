@@ -514,6 +514,34 @@
                          Text="Setup is complete. The wizard saved your tool paths and preferences.&#x0A;&#x0A;You can change these at any time from Menu -&gt; Options.&#x0A;&#x0A;Press Finish to close this wizard." />
             </ScrollViewer>
           </Border>
+
+          <!-- ==================== FEMapCreator (Optional, External Tool) — #1978 Slice 4 ====================
+               An optional row only: never required for wizard completion (no Skip/Next gate below
+               it), no download/installer/PATH search/automatic discovery/process execution of
+               FEMapCreator occurs merely from this row being displayed. Both actions below are
+               explicit-click-only; the browse/path/mapping form itself intentionally lives only in
+               Options (Plan v4 §4/§7), not duplicated here. -->
+          <Border BorderBrush="LightGray" BorderThickness="1" Padding="10" Margin="0,4,0,0">
+            <StackPanel Spacing="4">
+              <TextBlock Text="FEMapCreator (Optional, External Tool)" FontWeight="Bold"
+                         AutomationProperties.AutomationId="ToolInitWizard_FEMapCreatorHeader_Label" />
+              <TextBlock Text="FEMapCreator is an independent utility credited to bwdyeti; FEBuilderGBA does not bundle, host, license, or guarantee it."
+                         TextWrapping="Wrap" FontSize="11" Foreground="Gray"
+                         AutomationProperties.AutomationId="ToolInitWizard_FEMapCreatorDisclaimer_Label" />
+              <TextBlock Text="Built-in Experimental remains available immediately if you skip this or leave it unconfigured."
+                         TextWrapping="Wrap" FontSize="11"
+                         AutomationProperties.AutomationId="ToolInitWizard_FEMapCreatorSkipNotice_Label" />
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="Open Project Page"
+                        AutomationProperties.AutomationId="ToolInitWizard_OpenFEMapCreatorProjectPage_Button"
+                        Click="OnOpenFEMapCreatorProjectPage_Click" Padding="12,6" />
+                <Button Content="Open FEMapCreator in Options"
+                        AutomationProperties.AutomationId="ToolInitWizard_OpenFEMapCreatorOptions_Button"
+                        Click="OnOpenFEMapCreatorOptions_Click" Padding="12,6" />
+              </StackPanel>
+            </StackPanel>
+          </Border>
+
           <Button Content="Finish"
                   AutomationProperties.AutomationId="ToolInitWizard_End_Button"
                   HorizontalAlignment="Right" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"

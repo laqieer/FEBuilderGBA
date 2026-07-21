@@ -8229,6 +8229,15 @@ FEBuilderGBAへようこそ。\r\n\r\nここでは初期設定を行います。
 :All settings complete.
 すべての設定が完了しました。
 
+:Built-in Experimental remains available immediately if you skip this or leave it unconfigured.
+これをスキップしたり未設定のままにしたりしても、内蔵の試験的機能はすぐに利用できます。
+
+:Open Project Page
+プロジェクトページを開く
+
+:Open FEMapCreator in Options
+オプションでFEMapCreatorを開く
+
 :Download a stable version of VBA-M
 安定して動作するバージョンのVBA-Mをダウンロードする
 

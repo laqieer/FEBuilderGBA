@@ -22064,6 +22064,15 @@ git
 :All settings complete.
 全部设置已完成。
 
+:Built-in Experimental remains available immediately if you skip this or leave it unconfigured.
+即使跳过此项或不进行配置，内置实验性功能仍可立即使用。
+
+:Open Project Page
+打开项目页面
+
+:Open FEMapCreator in Options
+在选项中打开 FEMapCreator
+
 :Download a stable version of VBA-M
 下载稳定版本的 VBA-M
 

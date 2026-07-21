@@ -531,6 +531,44 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         // ===================================================================
+        // EndPage — optional FEMapCreator setup row (#1978 Slice 4).
+        //
+        // Neither handler below is invoked from construction, page display,
+        // or Finish — only an explicit user click reaches this code. Neither
+        // launches/discovers/searches PATH for FEMapCreator itself, and
+        // neither mutates FEMapCreator config; the actual executable/assets
+        // path form and per-fingerprint discovery/mapping action live only in
+        // Options (Plan v4 §4/§7), never duplicated here.
+        // ===================================================================
+
+        /// <summary>
+        /// Opens the fixed upstream FEMapCreator project/setup page in the
+        /// user's system browser. This only starts the OS browser at a fixed
+        /// URL — it never downloads, installs, or executes FEMapCreator
+        /// itself, and this repository never fetches/vendors that page's
+        /// content.
+        /// </summary>
+        void OnOpenFEMapCreatorProjectPage_Click(object? sender, RoutedEventArgs e)
+        {
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://github.com/laqieer/FEMapCreator") { UseShellExecute = true }); }
+            catch (Exception ex) { FEBuilderGBA.Log.ErrorF("ToolInitWizardView.OnOpenFEMapCreatorProjectPage_Click launch browser: {0}", ex.Message); }
+        }
+
+        /// <summary>
+        /// Navigates to the existing Options FEMapCreator section — the sole
+        /// owner (Plan v4 §4/§7, #1978 Slice 3 review finding #5) of
+        /// executable/assets-root setup, explicit discovery, and
+        /// per-current-fingerprint mapping. This wizard has no loaded map, so
+        /// no fingerprint context is passed; Options honestly explains that a
+        /// Map Editor shortcut is needed for per-map mapping rather than
+        /// fabricating one.
+        /// </summary>
+        void OnOpenFEMapCreatorOptions_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<OptionsView>();
+        }
+
+        // ===================================================================
         // Download helpers (#1031).
         // ===================================================================
 

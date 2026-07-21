@@ -247,6 +247,14 @@ dotnet run --project FEBuilderGBA.CLI -- --generate-random-map --femapcreator=C:
 # docs/CORE-SEAMS.md and docs/ENGINEERING-NOTES.md) that needs no external tool, network access, or download,
 # and produces the same layout again when re-run with the displayed seed. This engine is experimental and
 # visual-coherence-only: it does not guarantee gameplay/objective validity (reachable chests, doors, spawns, etc.).
+# The optional first-run tool-initialization wizard's EndPage adds a small, always-optional FEMapCreator
+# row: it states plainly that FEMapCreator is an independent utility credited to bwdyeti and that
+# FEBuilderGBA does not bundle, host, license, or guarantee it, and that Built-in Experimental remains
+# available immediately if you skip it or leave it unconfigured. Its two buttons only ever act on an
+# explicit click — one opens the fixed upstream project/setup page in your browser, the other navigates to
+# the same Options FEMapCreator section above (no separate path/mapping form is duplicated in the wizard).
+# Neither the wizard nor Options ever downloads, installs, searches PATH, auto-discovers, or launches
+# FEMapCreator merely from being opened or displayed.
 dotnet run --project FEBuilderGBA.CLI -- --translate --rom=rom.gba --out=texts.tsv
 dotnet run --project FEBuilderGBA.CLI -- --translate --rom=rom.gba --in=texts.tsv
 dotnet run --project FEBuilderGBA.CLI -- --translate-roundtrip --rom=rom.gba
