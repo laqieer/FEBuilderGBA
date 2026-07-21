@@ -9,6 +9,7 @@
 // FEMapCreatorOptionsConfigPersistenceTests (#1978 Slice 2).
 using System;
 using System.IO;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using FEBuilderGBA;
@@ -187,6 +188,125 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Empty(vm.Tilesets);
             Assert.False(vm.IsDiscoveringTilesets);
             Assert.Contains("cancel", vm.TilesetMappingStatusMessage, StringComparison.OrdinalIgnoreCase);
+            AssertNoStaleDiscoveryCts(vm);
+        }
+
+        static CancellationTokenSource? GetTilesetDiscoveryCts(OptionsViewModel vm)
+        {
+            FieldInfo? field = typeof(OptionsViewModel).GetField(
+                "_tilesetDiscoveryCts", BindingFlags.NonPublic | BindingFlags.Instance);
+            Assert.NotNull(field);
+            return (CancellationTokenSource?)field!.GetValue(vm);
+        }
+
+        // #1978 Slice 3 re-review finding #1: after DiscoverTilesetsAsync fully completes
+        // (success, failure, or cancellation), the shared _tilesetDiscoveryCts field must be
+        // cleared back to null (its owning run disposed its own source in `finally`) rather than
+        // left pointing at a disposed-but-still-referenced instance.
+        static void AssertNoStaleDiscoveryCts(OptionsViewModel vm) => Assert.Null(GetTilesetDiscoveryCts(vm));
+
+        [Fact]
+        public async Task DiscoverTilesetsAsync_SuccessfulCompletion_ClearsCancellationTokenSourceField()
+        {
+            string exePath = MakeFile("FEMapCreator.exe");
+            CoreState.Config![FEMapCreatorProfileCore.ExecutablePathConfigKey] = exePath;
+
+            var vm = new OptionsViewModel(
+                discoverTilesets: (exe, assets, token) => new FEMapCreatorTilesetDiscoveryResult { Success = true },
+                getConfig: () => CoreState.Config);
+
+            Assert.Null(GetTilesetDiscoveryCts(vm));
+            await vm.DiscoverTilesetsAsync();
+
+            AssertNoStaleDiscoveryCts(vm);
+        }
+
+        [Fact]
+        public async Task DiscoverTilesetsAsync_DelegateFailure_ClearsCancellationTokenSourceField()
+        {
+            string exePath = MakeFile("FEMapCreator.exe");
+            CoreState.Config![FEMapCreatorProfileCore.ExecutablePathConfigKey] = exePath;
+
+            var vm = new OptionsViewModel(
+                discoverTilesets: (exe, assets, token) => new FEMapCreatorTilesetDiscoveryResult
+                {
+                    Success = false,
+                    ErrorMessage = "boom",
+                },
+                getConfig: () => CoreState.Config);
+
+            await vm.DiscoverTilesetsAsync();
+
+            AssertNoStaleDiscoveryCts(vm);
+        }
+
+        [Fact]
+        public async Task DiscoverTilesetsAsync_NoProfileConfigured_ClearsCancellationTokenSourceField()
+        {
+            // The early "not configured" return happens before the discovery Task.Run — proving
+            // the CTS created for this attempt is still disposed/cleared even on that early path
+            // (this path previously leaked a never-disposed CancellationTokenSource).
+            var vm = new OptionsViewModel(discoverTilesets: null, getConfig: () => CoreState.Config);
+
+            await vm.DiscoverTilesetsAsync();
+
+            AssertNoStaleDiscoveryCts(vm);
+        }
+
+        [Fact]
+        public async Task DiscoverTilesetsAsync_ConcurrentCall_IsIgnoredWithoutCancellingOrReplacingFirstRun()
+        {
+            string exePath = MakeFile("FEMapCreator.exe");
+            CoreState.Config![FEMapCreatorProfileCore.ExecutablePathConfigKey] = exePath;
+
+            var started = new ManualResetEventSlim(false);
+            var release = new ManualResetEventSlim(false);
+            int invocationCount = 0;
+            var vm = new OptionsViewModel(
+                discoverTilesets: (exe, assets, token) =>
+                {
+                    Interlocked.Increment(ref invocationCount);
+                    started.Set();
+                    // Simulate a slow external discovery process; must not observe cancellation
+                    // from a concurrent second DiscoverTilesetsAsync() call (finding #2 — a
+                    // duplicate concurrent call must be ignored, not cancel the first run).
+                    while (!token.IsCancellationRequested && !release.IsSet)
+                        Thread.Sleep(5);
+                    Assert.False(token.IsCancellationRequested);
+                    var discoveryResult = new FEMapCreatorTilesetDiscoveryResult { Success = true };
+                    discoveryResult.Tilesets.Add(new FEMapCreatorTilesetInfo
+                    {
+                        Name = "Grassland",
+                        HasImage = true,
+                        HasGenerationData = true,
+                        IsCompatible = true,
+                        ResolvedImagePath = "g.png",
+                        ResolvedGenerationDataPath = "g.json",
+                    });
+                    return discoveryResult;
+                },
+                getConfig: () => CoreState.Config);
+
+            Task firstCall = vm.DiscoverTilesetsAsync();
+            Assert.True(started.Wait(TimeSpan.FromSeconds(5)));
+
+            // A second concurrent call while the first is in flight must be ignored: it must
+            // return promptly without invoking the delegate again and without disturbing the
+            // first run's busy/cancellation state.
+            Task secondCall = vm.DiscoverTilesetsAsync();
+            await secondCall;
+
+            Assert.Equal(1, invocationCount);
+            Assert.True(vm.IsDiscoveringTilesets); // first run still in flight, untouched
+
+            release.Set();
+            await firstCall;
+
+            Assert.Equal(1, invocationCount);
+            Assert.False(vm.IsDiscoveringTilesets);
+            Assert.Single(vm.Tilesets);
+            Assert.Equal("Grassland", vm.Tilesets[0].Name);
+            AssertNoStaleDiscoveryCts(vm);
         }
 
         [Fact]

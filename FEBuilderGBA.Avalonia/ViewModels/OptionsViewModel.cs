@@ -86,6 +86,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         readonly FEMapCreatorDiscoverDelegate _discoverTilesets;
         readonly Func<Config?> _getConfig;
         CancellationTokenSource? _tilesetDiscoveryCts;
+        // Race-safe duplicate-call guard for DiscoverTilesetsAsync (#1978 Slice 3 re-review
+        // finding #2): 0 = idle, 1 = a discovery is in flight. Interlocked.CompareExchange makes
+        // "is one already running?" atomic regardless of which thread a concurrent caller uses,
+        // so a second concurrent call is ignored (not merged with, and never cancels/replaces)
+        // the first. Only CancelTilesetDiscovery()/the owning run's own finally ever end a run.
+        int _discoveryGate;
         TilesetFingerprint _currentTilesetFingerprint = TilesetFingerprint.Empty;
         string _tilesetMappingStatusMessage = "";
         string _tilesetMappingErrorMessage = "";
@@ -308,38 +314,48 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>
         /// Run FEMapCreator tileset discovery off the calling thread using the currently
         /// persisted, already-validated profile. Only ever invoked by an explicit user click —
-        /// never by construction, <see cref="Load"/>, or <see cref="SetTilesetContext"/>. Safe to
-        /// call again while a previous run is in flight: the previous run's token is cancelled
-        /// first so at most one discovery is ever in flight.
+        /// never by construction, <see cref="Load"/>, or <see cref="SetTilesetContext"/>. A
+        /// second concurrent call (e.g. a duplicate click racing this one) is ignored — it
+        /// returns immediately without cancelling or replacing the in-flight run (#1978 Slice 3
+        /// re-review finding #2); callers wanting to abort the in-flight run must call
+        /// <see cref="CancelTilesetDiscovery"/> explicitly. The owning run always disposes its
+        /// own <see cref="CancellationTokenSource"/> deterministically in its own <c>finally</c>
+        /// (never from another call or from <see cref="CancelTilesetDiscovery"/>), clearing the
+        /// shared field only if it still refers to this run's own source (re-review finding #1).
         /// </summary>
         public async Task DiscoverTilesetsAsync()
         {
-            _tilesetDiscoveryCts?.Cancel();
-            _tilesetDiscoveryCts?.Dispose();
+            if (Interlocked.CompareExchange(ref _discoveryGate, 1, 0) != 0)
+            {
+                // Another discovery is already in flight; do not cancel/replace it.
+                return;
+            }
+
             var cts = new CancellationTokenSource();
             _tilesetDiscoveryCts = cts;
             CancellationToken token = cts.Token;
 
-            TilesetMappingErrorMessage = "";
-            Tilesets.Clear();
-            SelectedTileset = null;
-
-            Config? cfg = _getConfig();
-            string rawExePath = cfg?.at(FEMapCreatorProfileCore.ExecutablePathConfigKey, "") ?? "";
-            string rawAssetsRoot = cfg?.at(FEMapCreatorProfileCore.AssetsRootConfigKey, "") ?? "";
-            FEMapCreatorSetupSnapshot profile = FEMapCreatorProfileCore.Validate(rawExePath, rawAssetsRoot);
-            if (profile.Status != FEMapCreatorSetupStatus.Configured)
-            {
-                TilesetMappingErrorMessage = string.IsNullOrWhiteSpace(profile.ErrorMessage)
-                    ? R._("FEMapCreator is not configured. Set the executable path above first.")
-                    : profile.ErrorMessage;
-                return;
-            }
-
-            IsDiscoveringTilesets = true;
-            TilesetMappingStatusMessage = R._("Discovering tilesets...");
             try
             {
+                TilesetMappingErrorMessage = "";
+                Tilesets.Clear();
+                SelectedTileset = null;
+
+                Config? cfg = _getConfig();
+                string rawExePath = cfg?.at(FEMapCreatorProfileCore.ExecutablePathConfigKey, "") ?? "";
+                string rawAssetsRoot = cfg?.at(FEMapCreatorProfileCore.AssetsRootConfigKey, "") ?? "";
+                FEMapCreatorSetupSnapshot profile = FEMapCreatorProfileCore.Validate(rawExePath, rawAssetsRoot);
+                if (profile.Status != FEMapCreatorSetupStatus.Configured)
+                {
+                    TilesetMappingErrorMessage = string.IsNullOrWhiteSpace(profile.ErrorMessage)
+                        ? R._("FEMapCreator is not configured. Set the executable path above first.")
+                        : profile.ErrorMessage;
+                    return;
+                }
+
+                IsDiscoveringTilesets = true;
+                TilesetMappingStatusMessage = R._("Discovering tilesets...");
+
                 FEMapCreatorTilesetDiscoveryResult result = await Task.Run(
                     () => _discoverTilesets(
                         profile.ExecutablePath,
@@ -384,7 +400,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             finally
             {
+                // Deterministic, race-safe disposal: only clear the shared field if it still
+                // refers to THIS run's own source (nobody else may have replaced it, since a
+                // concurrent call is gated out above), then dispose it. CancelTilesetDiscovery()
+                // only ever calls Cancel() — never Dispose() — so it can safely race this finally
+                // without ever cancelling an already-disposed source.
+                if (ReferenceEquals(_tilesetDiscoveryCts, cts))
+                    _tilesetDiscoveryCts = null;
+                cts.Dispose();
                 IsDiscoveringTilesets = false;
+                Interlocked.Exchange(ref _discoveryGate, 0);
             }
         }
 

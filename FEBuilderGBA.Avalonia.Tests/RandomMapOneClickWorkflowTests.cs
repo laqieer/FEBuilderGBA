@@ -454,5 +454,58 @@ namespace FEBuilderGBA.Avalonia.Tests
                     "GenerateRandomMapDialogViewModel.cs")),
                 "The dialog-first GenerateRandomMapDialogViewModel must be fully retired.");
         }
+
+        // ------------------------------------------------------------------
+        // Structural: _randomMapCts race-safe cancel/dispose ownership (#1978 Slice 3 re-review
+        // finding #1). GenerateRandomMap_Click is a private async-void UI event handler that
+        // needs a fully resolvable ROM tileset to drive end-to-end (see
+        // RandomMapOneClickServiceTests/RandomMapOneClickWorkflowTests above for the behavioral
+        // coverage of everything downstream of tileset resolution); the CTS lifecycle itself —
+        // "never dispose while an in-flight run still depends on it; the owning run disposes in
+        // its own finally; detach only cancels" — is a structural/source-level contract, so it is
+        // verified the same way this file already verifies other MapEditorView.axaml.cs wiring
+        // contracts (see the two tests immediately above) rather than by re-deriving a full
+        // tileset-resolvable ROM fixture solely for this check.
+        // ------------------------------------------------------------------
+
+        [AvaloniaFact]
+        public void MapEditorView_RandomMapCts_NeverDisposedWhileStillOwnedByAnInFlightRun()
+        {
+            string source = File.ReadAllText(Path.Combine(
+                RandomMapOneClickTestSupport.FindRepoRoot(),
+                "FEBuilderGBA.Avalonia",
+                "Views",
+                "MapEditorView.axaml.cs"));
+
+            int methodStart = source.IndexOf("async void GenerateRandomMap_Click(", StringComparison.Ordinal);
+            Assert.True(methodStart >= 0);
+            int methodEnd = source.IndexOf("\n        void SetRandomMapBusyState(", methodStart, StringComparison.Ordinal);
+            Assert.True(methodEnd > methodStart);
+            string method = source.Substring(methodStart, methodEnd - methodStart);
+
+            // The old "dispose the previous CTS synchronously at the top of the handler" pattern
+            // must be gone: it disposed a source that a still-in-flight prior run could still be
+            // depending on (only reachable in practice via the _generatingRandomMap guard, but
+            // the unsafe call shape itself must not remain in the source).
+            Assert.DoesNotContain("_randomMapCts?.Dispose();\r\n            var cts = new CancellationTokenSource();", method, StringComparison.Ordinal);
+            Assert.DoesNotContain("_randomMapCts?.Dispose();\n            var cts = new CancellationTokenSource();", method, StringComparison.Ordinal);
+
+            // The owning run's own finally must: (1) clear the shared field only if it still
+            // refers to this run's own source, (2) then dispose that same local source — race-safe
+            // regardless of a concurrent DetachedFromVisualTree cancel-only call.
+            Assert.Contains("ReferenceEquals(_randomMapCts, cts)", method, StringComparison.Ordinal);
+            int finallyIdx = method.IndexOf("finally", StringComparison.Ordinal);
+            Assert.True(finallyIdx >= 0);
+            string finallyBlock = method.Substring(finallyIdx);
+            int referenceEqualsIdx = finallyBlock.IndexOf("ReferenceEquals(_randomMapCts, cts)", StringComparison.Ordinal);
+            int disposeIdx = finallyBlock.IndexOf("cts.Dispose();", StringComparison.Ordinal);
+            Assert.True(referenceEqualsIdx >= 0 && disposeIdx > referenceEqualsIdx,
+                "finally must clear the field before disposing the local cts.");
+
+            // DetachedFromVisualTree must remain cancel-only — it must never dispose a source an
+            // in-flight run still owns.
+            int detachIdx = source.IndexOf("DetachedFromVisualTree += (_, _) => _randomMapCts?.Cancel();", StringComparison.Ordinal);
+            Assert.True(detachIdx >= 0, "DetachedFromVisualTree must remain a cancel-only handler for _randomMapCts.");
+        }
     }
 }

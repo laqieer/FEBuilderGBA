@@ -1022,7 +1022,6 @@ namespace FEBuilderGBA.Avalonia.Views
             if (_generatingRandomMap)
                 return;
 
-            _randomMapCts?.Dispose();
             var cts = new CancellationTokenSource();
             _randomMapCts = cts;
 
@@ -1163,6 +1162,15 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             finally
             {
+                // Deterministic, race-safe disposal (#1978 Slice 3 re-review finding #1): only
+                // clear the shared field if it still refers to THIS invocation's own source (the
+                // _generatingRandomMap guard above prevents a second concurrent invocation from
+                // ever replacing it), then dispose it. DetachedFromVisualTree only ever calls
+                // Cancel() — never Dispose() — so it can safely race this finally without ever
+                // cancelling an already-disposed source.
+                if (ReferenceEquals(_randomMapCts, cts))
+                    _randomMapCts = null;
+                cts.Dispose();
                 _generatingRandomMap = false;
                 // Do not overwrite the deterministic status text already set above (Fail/
                 // CancelStatus/success-backend line) with a null-text no-op; just make sure the
