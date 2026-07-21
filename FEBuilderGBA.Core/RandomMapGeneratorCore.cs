@@ -27,11 +27,31 @@ namespace FEBuilderGBA
         /// Generate a random map through FEMapCreator, parse its temporary <c>.mar</c> file,
         /// and return converted FEBuilder MAR values. Never throws.
         /// </summary>
+        /// <param name="cancellationToken">
+        /// Checked immediately before launching and immediately after the process call
+        /// returns/finishes, so a signalled token always yields
+        /// <see cref="RandomMapGeneratorErrorCategory.Cancelled"/> and never a stale success.
+        /// When <paramref name="cancellableRunner"/> is not supplied and the caller also did not
+        /// override <paramref name="runner"/>, this call automatically uses the cancellation-aware
+        /// <see cref="ProcessRunnerCore.Run(string, System.Collections.Generic.IEnumerable{string}, string, int, int, CancellationToken)"/>
+        /// overload, which owns and terminates its own external process on cancellation instead
+        /// of merely abandoning an awaited Task.
+        /// </param>
+        /// <param name="cancellableRunner">
+        /// Optional cancellation-aware process-runner override for tests. Takes precedence over
+        /// <paramref name="runner"/> when both are supplied.
+        /// </param>
         public static RandomMapGenerationResult Generate(
             RandomMapGenerationRequest request,
-            ProcessRunnerDelegate runner = null)
+            ProcessRunnerDelegate runner = null,
+            CancellationToken cancellationToken = default,
+            ProcessRunnerCancellableDelegate cancellableRunner = null)
         {
-            runner ??= ProcessRunnerCore.Run;
+            if (cancellationToken.IsCancellationRequested)
+                return Fail(RandomMapGeneratorErrorCategory.Cancelled, "Random map generation was cancelled.");
+
+            if (cancellableRunner == null && runner == null)
+                cancellableRunner = ProcessRunnerCore.Run;
 
             if (!TryValidateRequest(
                 request,
@@ -57,12 +77,31 @@ namespace FEBuilderGBA
                 if (!spec.Success)
                     return Fail(spec.ErrorCategory, spec.ErrorMessage);
 
-                ProcessRunResult processResult = runner(
-                    spec.Command,
-                    spec.Arguments,
-                    tempDir,
-                    ProcessTimeoutMs,
-                    MaximumOutputChars);
+                ProcessRunResult processResult;
+                if (cancellableRunner != null)
+                {
+                    processResult = cancellableRunner(
+                        spec.Command,
+                        spec.Arguments,
+                        tempDir,
+                        ProcessTimeoutMs,
+                        MaximumOutputChars,
+                        cancellationToken);
+                }
+                else
+                {
+                    processResult = runner(
+                        spec.Command,
+                        spec.Arguments,
+                        tempDir,
+                        ProcessTimeoutMs,
+                        MaximumOutputChars);
+                }
+                if (processResult.Cancelled || cancellationToken.IsCancellationRequested)
+                {
+                    return Fail(RandomMapGeneratorErrorCategory.Cancelled,
+                        "Random map generation was cancelled; the result was discarded.");
+                }
                 if (!processResult.Started)
                     return FailForNotStarted(spec, processResult);
                 if (processResult.TimedOut)

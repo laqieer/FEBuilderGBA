@@ -22,6 +22,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly OptionsViewModel _vm = new();
         string _originalLanguageCode = "";
         bool _loadedOnce;
+        TilesetFingerprint? _pendingTilesetContext;
 
         /// <summary>
         /// Test-only seam exposing this view's ViewModel instance (e.g. for asserting on
@@ -33,6 +34,31 @@ namespace FEBuilderGBA.Avalonia.Views
         public OptionsView()
         {
             InitializeComponent();
+            // #1978 Slice 3 review finding #5: cancel any in-flight tileset discovery when this
+            // view detaches/closes so a started external discovery process is genuinely owned
+            // and terminated, and a late result can never be applied after close.
+            DetachedFromVisualTree += (_, _) => _vm.CancelTilesetDiscovery();
+        }
+
+        /// <summary>
+        /// Set which map's tileset fingerprint the mapping section below applies to. Called by a
+        /// Map Editor shortcut navigating here via
+        /// <c>WindowManager.Instance.OpenModal&lt;OptionsView&gt;(owner, view =&gt; view.SetTilesetContext(fingerprint))</c>.
+        /// Read-only/pure — never launches a process, never touches config or the network. Safe
+        /// to call before this view has attached/loaded (the context is applied once loading
+        /// completes) or afterwards (applied immediately).
+        /// </summary>
+        public void SetTilesetContext(TilesetFingerprint fingerprint)
+        {
+            _pendingTilesetContext = fingerprint;
+            if (_loadedOnce)
+                ApplyTilesetContext(fingerprint);
+        }
+
+        void ApplyTilesetContext(TilesetFingerprint fingerprint)
+        {
+            _vm.SetTilesetContext(fingerprint);
+            RefreshTilesetMappingUi();
         }
 
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
@@ -89,6 +115,69 @@ namespace FEBuilderGBA.Avalonia.Views
             FEMapCreatorPathTextBox.Text = _vm.FEMapCreatorPath;
             FEMapCreatorAssetsRootTextBox.Text = _vm.FEMapCreatorAssetsRoot;
             RefreshFEMapCreatorStatus();
+
+            // Random-map tileset mapping (#1978 Slice 3 review finding #5)
+            if (_pendingTilesetContext.HasValue)
+                _vm.SetTilesetContext(_pendingTilesetContext.Value);
+            RefreshTilesetMappingUi();
+        }
+
+        /// <summary>
+        /// Refreshes the discovered-tileset list, status/error text, and button enabled-state from
+        /// the ViewModel. Read-only — never launches a process or touches the network.
+        /// </summary>
+        void RefreshTilesetMappingUi()
+        {
+            TilesetMappingContextText.Text = _vm.HasTilesetContext
+                ? R._("Configuring the random-map tileset mapping for the map that opened this section.")
+                : R._("Open this section from a Map Editor's random-map controls to configure a mapping for its current tileset.");
+            TilesetOptionsListBox.ItemsSource = _vm.Tilesets;
+            TilesetOptionsListBox.SelectedItem = _vm.SelectedTileset;
+            TilesetMappingStatusText.Text = _vm.TilesetMappingStatusMessage;
+            TilesetMappingErrorText.Text = _vm.TilesetMappingErrorMessage;
+            DiscoverTilesetsButton.IsEnabled = !_vm.IsDiscoveringTilesets;
+            CancelDiscoverTilesetsButton.IsEnabled = _vm.IsDiscoveringTilesets;
+            SaveTilesetMappingButton.IsEnabled = _vm.HasTilesetContext && _vm.SelectedTileset != null && !_vm.IsDiscoveringTilesets;
+        }
+
+        /// <summary>
+        /// Explicit user-initiated tileset discovery (#1978 Slice 3 review finding #3): runs off
+        /// the UI thread via <see cref="OptionsViewModel.DiscoverTilesetsAsync"/>, keeps the view
+        /// responsive, and supports cancellation via <see cref="CancelDiscoverTilesets_Click"/> or
+        /// closing this view. Never runs automatically on Options construction/open/typing.
+        /// </summary>
+        async void DiscoverTilesets_Click(object? sender, RoutedEventArgs e)
+        {
+            if (_vm.IsDiscoveringTilesets) return;
+            DiscoverTilesetsButton.IsEnabled = false;
+            CancelDiscoverTilesetsButton.IsEnabled = true;
+            try
+            {
+                await _vm.DiscoverTilesetsAsync();
+            }
+            finally
+            {
+                RefreshTilesetMappingUi();
+            }
+        }
+
+        void CancelDiscoverTilesets_Click(object? sender, RoutedEventArgs e) => _vm.CancelTilesetDiscovery();
+
+        void TilesetOptionsListBox_SelectionChanged(object? sender, global::Avalonia.Controls.SelectionChangedEventArgs e)
+        {
+            _vm.SelectedTileset = TilesetOptionsListBox.SelectedItem as FEMapCreatorTilesetOption;
+            RefreshTilesetMappingUi();
+        }
+
+        /// <summary>
+        /// Persists the selected discovered tileset as the mapping for the current fingerprint
+        /// context via <see cref="OptionsViewModel.SaveTilesetMapping"/> (which itself uses
+        /// <c>TryCreateEntry</c>/<c>Upsert</c>/<c>SaveAll</c>). Never launches a process.
+        /// </summary>
+        void SaveTilesetMapping_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.SaveTilesetMapping();
+            RefreshTilesetMappingUi();
         }
 
         /// <summary>

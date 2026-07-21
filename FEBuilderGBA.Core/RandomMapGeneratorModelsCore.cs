@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 using System;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace FEBuilderGBA
 {
@@ -14,6 +15,21 @@ namespace FEBuilderGBA
         string workingDir,
         int timeoutMs,
         int maximumOutputChars);
+
+    /// <summary>
+    /// Cancellation-aware variant of <see cref="ProcessRunnerDelegate"/> (#1978 Slice 3
+    /// review). When a caller does not override this seam, it defaults to the exact-arity
+    /// <see cref="ProcessRunnerCore.Run(string, IEnumerable{string}, string, int, int, CancellationToken)"/>
+    /// overload, which owns and terminates its own process on cancellation instead of merely
+    /// abandoning an awaited <see cref="System.Threading.Tasks.Task"/>.
+    /// </summary>
+    public delegate ProcessRunResult ProcessRunnerCancellableDelegate(
+        string command,
+        IEnumerable<string> args,
+        string workingDir,
+        int timeoutMs,
+        int maximumOutputChars,
+        CancellationToken cancellationToken);
 
     /// <summary>FEMapCreator generation algorithms supported by its public CLI.</summary>
     public static class RandomMapGeneratorAlgorithms
@@ -71,6 +87,9 @@ namespace FEBuilderGBA
         IncompatibleTileset,
         /// <summary>Generated output or discovery JSON could not be parsed safely.</summary>
         ParseFailed,
+        /// <summary>The caller's <see cref="CancellationToken"/> was signalled; any in-flight or
+        /// just-completed process result was discarded and must not be applied.</summary>
+        Cancelled,
     }
 
     internal static class FEMapCreatorProcessDiagnosticCore

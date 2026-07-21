@@ -26058,6 +26058,9 @@ ROM 重建成功。已写入 {0}（{1} 字节）。
 :Cancelled.
 已取消。
 
+:Failed.
+失败。
+
 :The output ROM must be a different file from the original ROM and the loaded ROM.
 输出 ROM 必须与原始 ROM 和已加载的 ROM 是不同的文件。
 
@@ -28267,8 +28270,14 @@ FEMapCreator 未报告任何兼容的图块集。
 :FEMapCreator is not configured. Set it up in Options first.
 尚未配置 FEMapCreator。请先在选项中进行设置。
 
+:FEMapCreator is not configured. Set the executable path above first.
+尚未配置 FEMapCreator。请先在上方设置可执行文件路径。
+
 :Discovering tilesets...
 正在检测图块集...
+
+:Tileset discovery was cancelled.
+图块集检测已取消。
 
 :Found {0} usable tileset(s).
 找到 {0} 个可用的图块集。
@@ -28338,6 +28347,15 @@ FEMapCreator 是由 bwdyeti 创建的独立实用工具；FEBuilderGBA 不捆绑
 
 :Invalid
 无效
+
+:Random-Map Tileset Mapping (Optional)
+随机地图图块集映射（可选）
+
+:Configuring the random-map tileset mapping for the map that opened this section.
+正在为打开此部分的地图配置随机地图图块集映射。
+
+:Open this section from a Map Editor's random-map controls to configure a mapping for its current tileset.
+请从地图编辑器的随机地图控件打开此部分，以配置其当前图块集的映射。
 
 :unknown error
 未知错误

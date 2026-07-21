@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 using Xunit;
 
 namespace FEBuilderGBA.Core.Tests
@@ -222,6 +223,65 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal(RandomMapGeneratorErrorCategory.NonZeroExit, result.ErrorCategory);
                 Assert.Contains("exited with code 7", result.ErrorMessage);
                 Assert.Contains("tileset configuration is invalid", result.ErrorMessage);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        // #1978 Slice 3 review finding #3: explicit discovery must be cancellation-aware, mirroring
+        // the external random-map generation adapter (finding #1).
+        [Fact]
+        public void DiscoverTilesets_PreCancelledToken_ReturnsCancelledWithoutLaunching()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string femapCreatorExe = CreateEmptyFile(tempRoot, "FEMapCreator.exe");
+                using var cts = new CancellationTokenSource();
+                cts.Cancel();
+                bool sawCall = false;
+
+                FEMapCreatorTilesetDiscoveryResult result = FEMapCreatorTilesetDiscoveryCore.DiscoverTilesets(
+                    femapCreatorExe,
+                    runner: (command, args, workingDir, timeoutMs, maximumOutputChars) =>
+                    {
+                        sawCall = true;
+                        return new ProcessRunResult { Started = true, ExitCode = 0, Stdout = "{}" };
+                    },
+                    cancellationToken: cts.Token);
+
+                Assert.False(result.Success);
+                Assert.Equal(RandomMapGeneratorErrorCategory.Cancelled, result.ErrorCategory);
+                Assert.False(sawCall, "DiscoverTilesets must not launch once the token is already cancelled.");
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
+        public void DiscoverTilesets_CancellableRunnerOverride_ReportsCancelledFromProcessResult()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string femapCreatorExe = CreateEmptyFile(tempRoot, "FEMapCreator.exe");
+                bool sawCancellableCall = false;
+
+                FEMapCreatorTilesetDiscoveryResult result = FEMapCreatorTilesetDiscoveryCore.DiscoverTilesets(
+                    femapCreatorExe,
+                    cancellableRunner: (command, args, workingDir, timeoutMs, maximumOutputChars, token) =>
+                    {
+                        sawCancellableCall = true;
+                        return new ProcessRunResult { Started = true, Cancelled = true, ExitCode = -1 };
+                    });
+
+                Assert.True(sawCancellableCall);
+                Assert.False(result.Success);
+                Assert.Equal(RandomMapGeneratorErrorCategory.Cancelled, result.ErrorCategory);
             }
             finally
             {

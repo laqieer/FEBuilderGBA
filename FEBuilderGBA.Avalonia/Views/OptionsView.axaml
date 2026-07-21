@@ -212,6 +212,24 @@
               <TextBlock AutomationProperties.AutomationId="Options_FEMapCreatorStatusText_Text" Name="FEMapCreatorStatusText" Margin="0,4,0,0" FontStyle="Italic" />
             </StackPanel>
 
+            <!-- Per-current-map-tileset mapping (#1978 Slice 3 review finding #5): relocated here
+                 (from the retired standalone Map Editor "Map Tileset…" dialog) so all FEMapCreator
+                 setup — executable/assets AND discovered per-fingerprint mapping — lives in one
+                 place. A Map Editor shortcut may navigate here with a fingerprint context; without
+                 one, only Discover is available (Save requires an active map context). -->
+            <StackPanel Spacing="4">
+              <TextBlock Text="Random-Map Tileset Mapping (Optional)" FontWeight="Bold" Margin="0,8,0,0" />
+              <TextBlock AutomationProperties.AutomationId="Options_TilesetMappingContextText_Text" Name="TilesetMappingContextText" TextWrapping="Wrap" FontSize="11" Foreground="Gray" />
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button AutomationProperties.AutomationId="Options_DiscoverTilesets_Button" Name="DiscoverTilesetsButton" Content="Discover Tilesets" Click="DiscoverTilesets_Click" Padding="12,6" />
+                <Button AutomationProperties.AutomationId="Options_CancelDiscoverTilesets_Button" Name="CancelDiscoverTilesetsButton" Content="Cancel" Click="CancelDiscoverTilesets_Click" Padding="12,6" IsEnabled="False" />
+                <Button AutomationProperties.AutomationId="Options_SaveTilesetMapping_Button" Name="SaveTilesetMappingButton" Content="Save Mapping" Click="SaveTilesetMapping_Click" Padding="12,6" />
+              </StackPanel>
+              <ListBox AutomationProperties.AutomationId="Options_TilesetOptions_List" Name="TilesetOptionsListBox" MaxHeight="120" SelectionChanged="TilesetOptionsListBox_SelectionChanged" />
+              <TextBlock AutomationProperties.AutomationId="Options_TilesetMappingStatusText_Text" Name="TilesetMappingStatusText" Margin="0,4,0,0" FontStyle="Italic" />
+              <TextBlock AutomationProperties.AutomationId="Options_TilesetMappingErrorText_Text" Name="TilesetMappingErrorText" Margin="0,2,0,0" FontStyle="Italic" Foreground="Red" />
+            </StackPanel>
+
           </StackPanel>
         </ScrollViewer>
       </TabItem>

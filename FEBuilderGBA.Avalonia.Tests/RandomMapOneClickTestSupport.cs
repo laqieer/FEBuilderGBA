@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // #1978 Slice 3: shared, fully synthetic (non-copyrighted) ROM fixtures for the one-click
 // Map Editor integration tests (RandomMapOneClickWorkflowTests / RandomMapOneClickServiceTests /
-// MapTilesetMappingDialogViewModelTests). Deliberately duplicated from (rather than referencing)
+// OptionsViewModelTilesetMappingTests). Deliberately duplicated from (rather than referencing)
 // FEBuilderGBA.Core.Tests's BuiltInRandomMapTestFixture: the two test assemblies are independent
 // and this is test-only scaffolding, not production logic.
 using System;

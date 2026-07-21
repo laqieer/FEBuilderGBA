@@ -1026,6 +1026,19 @@ namespace FEBuilderGBA.Avalonia.Views
             var cts = new CancellationTokenSource();
             _randomMapCts = cts;
 
+            // #1978 Slice 3 review finding #4: every exit path below must leave a deterministic
+            // Ready/Failed/Cancelled/backend status rather than the transient "Generating..."
+            // text set just below, whether it exits via return, exception, or cancellation.
+            void Fail(string message, string notice = "")
+            {
+                ShowError(string.IsNullOrWhiteSpace(notice) ? message : notice + " " + message);
+                SetRandomMapBusyState(false, R._("Failed."));
+            }
+            void CancelStatus()
+            {
+                SetRandomMapBusyState(false, R._("Cancelled."));
+            }
+
             try
             {
                 _generatingRandomMap = true;
@@ -1034,7 +1047,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (!GenerateRandomMapWorkflow.TryPrepareForGeneration(
                     _vm,
                     assetName => DecompMapAssetGuard.BlockIfDecomp(assetName),
-                    ShowError))
+                    msg => Fail(msg)))
                 {
                     return;
                 }
@@ -1043,15 +1056,13 @@ namespace FEBuilderGBA.Avalonia.Views
                     out MapEditorViewModel.MapWriteIdentity writeIdentity,
                     out string identityError))
                 {
-                    ShowError(string.Format(
-                        R._("Generate random map failed: {0}"),
-                        identityError));
+                    Fail(string.Format(R._("Generate random map failed: {0}"), identityError));
                     return;
                 }
 
                 if (!TryGetSeed(out int seed, out string seedError))
                 {
-                    ShowError(seedError);
+                    Fail(seedError);
                     return;
                 }
 
@@ -1061,7 +1072,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 if (!BuiltInRandomMapTilesetCore.TryResolveMapTileset(CoreState.ROM, mapSettingAddr, out MapTilesetSnapshot snapshot, out string tilesetError))
                 {
-                    ShowError(string.Format(R._("Generate random map failed: {0}"), tilesetError));
+                    Fail(string.Format(R._("Generate random map failed: {0}"), tilesetError));
                     return;
                 }
                 TilesetFingerprint expectedFingerprint = snapshot.Fingerprint;
@@ -1075,12 +1086,23 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 catch (OperationCanceledException)
                 {
+                    CancelStatus();
+                    return;
+                }
+
+                if (result.Cancelled)
+                {
+                    // Review finding #2: a stale/invalid-mapping notice must still be visible
+                    // even when the backend attempt ends in cancellation, not only on failure.
+                    if (!string.IsNullOrWhiteSpace(result.Notice))
+                        CoreState.Services?.ShowInfo(result.Notice);
+                    CancelStatus();
                     return;
                 }
 
                 if (!result.Success || result.Outcome == null)
                 {
-                    ShowError(string.Format(R._("Generate random map failed: {0}"), result.ErrorMessage));
+                    Fail(string.Format(R._("Generate random map failed: {0}"), result.ErrorMessage), result.Notice);
                     return;
                 }
 
@@ -1090,13 +1112,23 @@ namespace FEBuilderGBA.Avalonia.Views
                 RandomMapGenerationOutcome outcome = result.Outcome;
                 if (outcome.Mars == null || outcome.Mars.Length != outcome.Width * outcome.Height)
                 {
-                    ShowError(R._("Random map generation returned no map data."));
+                    Fail(R._("Random map generation returned no map data."));
                     return;
                 }
 
                 // Write the directly-replayable seed back so the user can reproduce this
                 // exact layout later by generating again with the same displayed value.
                 RandomMapSeedTextBox.Text = outcome.EffectiveSeed.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+                // Mandatory re-check immediately before the UI-thread apply (review finding #1
+                // remainder): a cancellation observed after the backend call returned (e.g. this
+                // view detaching/closing while marshalling back to the UI thread) must never
+                // reach ApplyGeneratedMapOnUiThreadAsync's ROM mutation.
+                if (cts.Token.IsCancellationRequested)
+                {
+                    CancelStatus();
+                    return;
+                }
 
                 // The FEMapCreator shell-out / built-in search happens inside
                 // RandomMapOneClickService off the UI thread. The workflow marshals every
@@ -1116,7 +1148,7 @@ namespace FEBuilderGBA.Avalonia.Views
                         message => CoreState.Services?.ShowInfo(message));
 
                 if (!string.IsNullOrWhiteSpace(applyError))
-                    ShowError(string.Format(R._("Generate random map failed: {0}"), applyError));
+                    Fail(string.Format(R._("Generate random map failed: {0}"), applyError));
                 else
                     SetRandomMapBusyState(false, string.Format(
                         R._("Backend: {0}"),
@@ -1127,11 +1159,14 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 Log.Error("MapEditorView.GenerateRandomMap_Click failed: " + ex.ToString());
-                ShowError(string.Format(R._("Generate random map failed: {0}"), ex.Message));
+                Fail(string.Format(R._("Generate random map failed: {0}"), ex.Message));
             }
             finally
             {
                 _generatingRandomMap = false;
+                // Do not overwrite the deterministic status text already set above (Fail/
+                // CancelStatus/success-backend line) with a null-text no-op; just make sure the
+                // controls are re-enabled even on an unexpected early exit.
                 SetRandomMapBusyState(false);
             }
         }
@@ -1151,6 +1186,14 @@ namespace FEBuilderGBA.Avalonia.Views
             RandomMapSeedTextBox.Text = Random.Shared.Next().ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
 
+        /// <summary>
+        /// #1978 Slice 3 review finding #5: this button no longer owns a standalone mapping
+        /// dialog. It only identifies the current map's tileset fingerprint and navigates to the
+        /// FEMapCreator section of Options (Plan v4 §4/§7's intended home for discovery,
+        /// discovered-tileset selection, and per-fingerprint mapping save/status/stale
+        /// guidance), passing that fingerprint as context. Generation itself remains one-click
+        /// and never opens this or any other dialog.
+        /// </summary>
         async void MapTileset_Click(object? sender, RoutedEventArgs e)
         {
             if (!BuiltInRandomMapTilesetCore.TryResolveMapTileset(CoreState.ROM, _vm.CurrentAddr, out MapTilesetSnapshot snapshot, out string error))
@@ -1159,7 +1202,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 return;
             }
 
-            await MapTilesetMappingDialog.Show(TopLevel.GetTopLevel(this) as Window, snapshot.Fingerprint);
+            await WindowManager.Instance.OpenModal<OptionsView>(
+                TopLevel.GetTopLevel(this) as Window,
+                view => view.SetTilesetContext(snapshot.Fingerprint));
         }
 
         bool TryGetSeed(out int seed, out string error)

@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using System.Threading;
 
 namespace FEBuilderGBA
 {
@@ -39,14 +40,33 @@ namespace FEBuilderGBA
         /// result. When <paramref name="assetsDir"/> is supplied, it must be an existing
         /// absolute directory and is forwarded as <c>--assets-dir</c>.
         /// </summary>
+        /// <param name="cancellationToken">
+        /// Checked before launching and immediately after the process call returns, so a
+        /// signalled token always yields <see cref="RandomMapGeneratorErrorCategory.Cancelled"/>
+        /// and never a stale success. When <paramref name="cancellableRunner"/> is not supplied
+        /// and the caller also did not override <paramref name="runner"/>, this call
+        /// automatically uses the cancellation-aware
+        /// <see cref="ProcessRunnerCore.Run(string, IEnumerable{string}, string, int, int, CancellationToken)"/>
+        /// overload, which owns and terminates its own external process on cancellation.
+        /// </param>
+        /// <param name="cancellableRunner">
+        /// Optional cancellation-aware process-runner override for tests. Takes precedence over
+        /// <paramref name="runner"/> when both are supplied.
+        /// </param>
         public static FEMapCreatorTilesetDiscoveryResult DiscoverTilesets(
             string feMapCreatorPath,
             string assetsDir = null,
-            ProcessRunnerDelegate runner = null)
+            ProcessRunnerDelegate runner = null,
+            CancellationToken cancellationToken = default,
+            ProcessRunnerCancellableDelegate cancellableRunner = null)
         {
             try
             {
-                runner ??= ProcessRunnerCore.Run;
+                if (cancellationToken.IsCancellationRequested)
+                    return Fail(RandomMapGeneratorErrorCategory.Cancelled, "FEMapCreator tileset discovery was cancelled.");
+
+                if (cancellableRunner == null && runner == null)
+                    cancellableRunner = ProcessRunnerCore.Run;
 
                 if (!FEMapCreatorLauncherCore.TryNormalizeAssetsDirectory(
                     assetsDir,
@@ -63,12 +83,31 @@ namespace FEBuilderGBA
                 if (!spec.Success)
                     return Fail(spec.ErrorCategory, spec.ErrorMessage);
 
-                ProcessRunResult processResult = runner(
-                    spec.Command,
-                    spec.Arguments,
-                    spec.WorkingDirectory,
-                    ProcessTimeoutMs,
-                    MaximumOutputChars);
+                ProcessRunResult processResult;
+                if (cancellableRunner != null)
+                {
+                    processResult = cancellableRunner(
+                        spec.Command,
+                        spec.Arguments,
+                        spec.WorkingDirectory,
+                        ProcessTimeoutMs,
+                        MaximumOutputChars,
+                        cancellationToken);
+                }
+                else
+                {
+                    processResult = runner(
+                        spec.Command,
+                        spec.Arguments,
+                        spec.WorkingDirectory,
+                        ProcessTimeoutMs,
+                        MaximumOutputChars);
+                }
+                if (processResult.Cancelled || cancellationToken.IsCancellationRequested)
+                {
+                    return Fail(RandomMapGeneratorErrorCategory.Cancelled,
+                        "FEMapCreator tileset discovery was cancelled; the result was discarded.");
+                }
                 if (!processResult.Started)
                     return FailForNotStarted(spec, processResult);
                 if (processResult.TimedOut)

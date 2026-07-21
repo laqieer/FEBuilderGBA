@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using Xunit;
 
 namespace FEBuilderGBA.Core.Tests
@@ -630,6 +631,104 @@ namespace FEBuilderGBA.Core.Tests
 
             Assert.False(ok);
             Assert.Contains("length mismatch", error, StringComparison.OrdinalIgnoreCase);
+        }
+
+        // #1978 Slice 3 review finding #1: an already-signalled token must short-circuit before
+        // any process launch, and never surface a success even if a fake runner returns one.
+        [Fact]
+        public void Generate_PreCancelledToken_ReturnsCancelledWithoutLaunching()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string femapCreatorPath = CreateEmptyFile(tempRoot, "FEMapCreator.exe");
+                var request = CreateValidRequest(femapCreatorPath);
+                using var cts = new CancellationTokenSource();
+                cts.Cancel();
+
+                bool sawCall = false;
+                RandomMapGenerationResult result = RandomMapGeneratorCore.Generate(
+                    request,
+                    (command, args, workingDir, timeoutMs, maximumOutputChars) =>
+                    {
+                        sawCall = true;
+                        return new ProcessRunResult { Started = true, ExitCode = 0 };
+                    },
+                    cts.Token);
+
+                Assert.False(result.Success);
+                Assert.Equal(RandomMapGeneratorErrorCategory.Cancelled, result.ErrorCategory);
+                Assert.False(sawCall, "Generate must not launch the process once the token is already cancelled.");
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        // A late-arriving successful result from a custom (non-cancellable) fake runner must
+        // still be discarded once the token is observed cancelled immediately afterwards.
+        [Fact]
+        public void Generate_TokenCancelledAfterSyncRunnerReturnsSuccess_DiscardsLateResult()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string femapCreatorPath = CreateEmptyFile(tempRoot, "FEMapCreator.exe");
+                var request = CreateValidRequest(femapCreatorPath);
+                using var cts = new CancellationTokenSource();
+
+                RandomMapGenerationResult result = RandomMapGeneratorCore.Generate(
+                    request,
+                    (command, args, workingDir, timeoutMs, maximumOutputChars) =>
+                    {
+                        WriteRawMar(FindArgumentValue(args, "--output"), request.Width * request.Height, _ => 0);
+                        // Simulate cancellation being requested while the (fake) external
+                        // process was running, observed only once the call returns.
+                        cts.Cancel();
+                        return new ProcessRunResult { Started = true, ExitCode = 0, Stdout = "ok" };
+                    },
+                    cts.Token);
+
+                Assert.False(result.Success);
+                Assert.Equal(RandomMapGeneratorErrorCategory.Cancelled, result.ErrorCategory);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        // The default production path (no runner/cancellableRunner override) must route through
+        // the cancellation-aware ProcessRunnerCore.Run overload automatically.
+        [Fact]
+        public void Generate_CancellableRunnerOverride_ReportsCancelledFromProcessResult()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string femapCreatorPath = CreateEmptyFile(tempRoot, "FEMapCreator.exe");
+                var request = CreateValidRequest(femapCreatorPath);
+                bool sawCancellableCall = false;
+
+                RandomMapGenerationResult result = RandomMapGeneratorCore.Generate(
+                    request,
+                    runner: null,
+                    cancellationToken: default,
+                    cancellableRunner: (command, args, workingDir, timeoutMs, maximumOutputChars, token) =>
+                    {
+                        sawCancellableCall = true;
+                        return new ProcessRunResult { Started = true, Cancelled = true, ExitCode = -1 };
+                    });
+
+                Assert.True(sawCancellableCall);
+                Assert.False(result.Success);
+                Assert.Equal(RandomMapGeneratorErrorCategory.Cancelled, result.ErrorCategory);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
         }
 
         static RandomMapGenerationRequest CreateValidRequest(string femapCreatorPath)

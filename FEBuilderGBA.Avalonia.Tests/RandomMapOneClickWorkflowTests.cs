@@ -2,7 +2,8 @@
 // #1978 Slice 3: one-click Map Editor integration. Replaces the retired
 // GenerateRandomMapDialogWorkflowTests.cs (dialog-first flow) with coverage for the no-dialog
 // GenerateRandomMapWorkflow helpers, RandomMapOneClickService backend orchestration, and the
-// explicit MapTilesetMappingDialogViewModel mapping action.
+// explicit per-fingerprint mapping action (relocated to the Options FEMapCreator section per
+// review finding #5; see OptionsViewModelTilesetMappingTests).
 using System;
 using System.Collections.Generic;
 using System.IO;
