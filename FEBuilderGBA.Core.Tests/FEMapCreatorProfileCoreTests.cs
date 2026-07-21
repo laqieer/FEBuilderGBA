@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 using System;
 using System.IO;
+using System.Threading;
 using Xunit;
 
 namespace FEBuilderGBA.Core.Tests
@@ -88,6 +89,25 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal(FEMapCreatorSetupStatus.Configured, snapshot.Status);
                 Assert.Equal(Path.GetFullPath(exePath), snapshot.ExecutablePath);
                 Assert.Equal(Path.GetFullPath(assetsRoot), snapshot.AssetsRoot);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
+        public void Validate_CancelledToken_ThrowsBeforeAuthoritativeHashing()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string exePath = CreateEmptyFile(tempRoot, "FEMapCreator.exe");
+                using var cts = new CancellationTokenSource();
+                cts.Cancel();
+
+                Assert.Throws<OperationCanceledException>(() =>
+                    FEMapCreatorProfileCore.Validate(exePath, "", cts.Token));
             }
             finally
             {

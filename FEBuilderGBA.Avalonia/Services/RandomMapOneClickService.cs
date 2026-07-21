@@ -47,15 +47,40 @@ namespace FEBuilderGBA.Avalonia.Services
     }
 
     /// <summary>
+    /// Immutable snapshot of the three shared Config values needed by authoritative FEMapCreator
+    /// mapping resolution. Captured before the worker hop so the background resolver never reads
+    /// the live, UI-mutated <see cref="Config"/> dictionary.
+    /// </summary>
+    internal sealed class RandomMapMappingConfigSnapshot
+    {
+        internal RandomMapMappingConfigSnapshot(
+            string rawExecutablePath,
+            string rawAssetsRoot,
+            string rawMappingsJson)
+        {
+            RawExecutablePath = rawExecutablePath ?? "";
+            RawAssetsRoot = rawAssetsRoot ?? "";
+            RawMappingsJson = rawMappingsJson ?? "";
+        }
+
+        internal string RawExecutablePath { get; }
+        internal string RawAssetsRoot { get; }
+        internal string RawMappingsJson { get; }
+    }
+
+    /// <summary>
     /// Delegate used to resolve the current, freshly-validated FEMapCreator profile and
     /// per-fingerprint mapping lookup (#1978 Slice 3). The default production implementation
     /// reads <see cref="CoreState.Config"/> and touches only the local filesystem (via
     /// <see cref="FEMapCreatorProfileCore.Validate"/> / <see cref="FEMapCreatorTilesetMappingStoreCore.Lookup"/>)
-    /// — it never launches a process or touches the network, so it is safe to call synchronously
-    /// on every one-click generation before any backend is chosen.
+    /// — it never launches a process or touches the network. The service runs it off the UI
+    /// thread and supplies cancellation through every authoritative file hash.
     /// </summary>
     internal delegate (FEMapCreatorSetupSnapshot Profile, FEMapCreatorMappingLookupResult MappingLookup)
-        RandomMapMappingResolverDelegate(TilesetFingerprint fingerprint);
+        RandomMapMappingResolverDelegate(
+            TilesetFingerprint fingerprint,
+            RandomMapMappingConfigSnapshot configSnapshot,
+            CancellationToken cancellationToken);
 
     /// <summary>Delegate wrapping the built-in engine's one-call ROM resolution + generation entry point.</summary>
     internal delegate bool RandomMapBuiltInGenerateDelegate(
@@ -142,10 +167,22 @@ namespace FEBuilderGBA.Avalonia.Services
                 return Failure(string.Format(R._("Could not resolve the current map's tileset: {0}"), tilesetError));
             }
 
-            (FEMapCreatorSetupSnapshot profile, FEMapCreatorMappingLookupResult mappingLookup) = _resolveMapping(snapshot.Fingerprint);
-            RandomMapBackendSelection selection = RandomMapBackendSelectorCore.Select(mappingLookup);
+            RandomMapMappingConfigSnapshot mappingConfig = CaptureMappingConfig();
+            FEMapCreatorSetupSnapshot profile;
+            FEMapCreatorMappingLookupResult mappingLookup;
+            try
+            {
+                (profile, mappingLookup) = await Task.Run(
+                    () => _resolveMapping(snapshot.Fingerprint, mappingConfig, cancellationToken),
+                    cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+            catch (OperationCanceledException)
+            {
+                return Cancelled();
+            }
 
-            cancellationToken.ThrowIfCancellationRequested();
+            RandomMapBackendSelection selection = RandomMapBackendSelectorCore.Select(mappingLookup);
 
             if (selection.Kind == RandomMapBackendKind.External)
             {
@@ -300,27 +337,47 @@ namespace FEBuilderGBA.Avalonia.Services
         };
 
         static RandomMapOneClickResult Cancelled(
-            RandomMapBackendSelection selection) => new RandomMapOneClickResult
+            RandomMapBackendSelection? selection = null) => new RandomMapOneClickResult
         {
             Success = false,
             Cancelled = true,
             ErrorMessage = R._("Random map generation was cancelled."),
-            MappingStatus = selection.MappingStatus,
-            MappingReason = selection.MappingReason,
+            MappingStatus = selection?.MappingStatus ?? FEMapCreatorMappingStatus.NoMapping,
+            MappingReason = selection?.MappingReason ?? "",
         };
 
-        static (FEMapCreatorSetupSnapshot Profile, FEMapCreatorMappingLookupResult MappingLookup) DefaultResolveMapping(TilesetFingerprint fingerprint)
+        static (FEMapCreatorSetupSnapshot Profile, FEMapCreatorMappingLookupResult MappingLookup) DefaultResolveMapping(
+            TilesetFingerprint fingerprint,
+            RandomMapMappingConfigSnapshot configSnapshot,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            FEMapCreatorSetupSnapshot profile =
+                FEMapCreatorProfileCore.Validate(
+                    configSnapshot.RawExecutablePath,
+                    configSnapshot.RawAssetsRoot,
+                    cancellationToken);
+
+            var detachedConfig = new Config();
+            if (!string.IsNullOrWhiteSpace(configSnapshot.RawMappingsJson))
+            {
+                detachedConfig[FEMapCreatorTilesetMappingStoreCore.MappingsConfigKey] =
+                    configSnapshot.RawMappingsJson;
+            }
+            var mappings = FEMapCreatorTilesetMappingStoreCore.LoadAll(detachedConfig);
+            cancellationToken.ThrowIfCancellationRequested();
+            FEMapCreatorMappingLookupResult lookup =
+                FEMapCreatorTilesetMappingStoreCore.Lookup(mappings, fingerprint, profile, cancellationToken);
+            return (profile, lookup);
+        }
+
+        static RandomMapMappingConfigSnapshot CaptureMappingConfig()
         {
             Config config = CoreState.Config;
-            string rawExePath = config?.at(FEMapCreatorProfileCore.ExecutablePathConfigKey, "") ?? "";
-            string rawAssetsRoot = config?.at(FEMapCreatorProfileCore.AssetsRootConfigKey, "") ?? "";
-            FEMapCreatorSetupSnapshot profile = FEMapCreatorProfileCore.Validate(rawExePath, rawAssetsRoot);
-
-            var mappings = config != null
-                ? FEMapCreatorTilesetMappingStoreCore.LoadAll(config)
-                : Array.Empty<FEMapCreatorTilesetMappingEntry>();
-            FEMapCreatorMappingLookupResult lookup = FEMapCreatorTilesetMappingStoreCore.Lookup(mappings, fingerprint, profile);
-            return (profile, lookup);
+            return new RandomMapMappingConfigSnapshot(
+                config?.at(FEMapCreatorProfileCore.ExecutablePathConfigKey, "") ?? "",
+                config?.at(FEMapCreatorProfileCore.AssetsRootConfigKey, "") ?? "",
+                config?.at(FEMapCreatorTilesetMappingStoreCore.MappingsConfigKey, "") ?? "");
         }
     }
 }

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 using System.IO;
+using System.Threading;
 
 namespace FEBuilderGBA
 {
@@ -100,7 +101,7 @@ namespace FEBuilderGBA
         /// </para>
         /// </summary>
         public static FEMapCreatorSetupSnapshot Validate(string rawExecutablePath, string rawAssetsRoot)
-            => Validate(rawExecutablePath, rawAssetsRoot, executableIdentityCache: null);
+            => Validate(rawExecutablePath, rawAssetsRoot, executableIdentityCache: null, CancellationToken.None);
 
         /// <summary>
         /// Internal overload of <see cref="Validate(string, string)"/> accepting an optional,
@@ -110,7 +111,25 @@ namespace FEBuilderGBA
         /// <c>InternalsVisibleTo</c> so <c>OptionsViewModel</c> can pass its per-session cache.
         /// </summary>
         internal static FEMapCreatorSetupSnapshot Validate(string rawExecutablePath, string rawAssetsRoot, FEMapCreatorExecutableIdentityCache? executableIdentityCache)
+            => Validate(rawExecutablePath, rawAssetsRoot, executableIdentityCache, CancellationToken.None);
+
+        /// <summary>
+        /// Authoritative cancellation-aware validation used by one-click generation. Unlike the
+        /// live Options status path, this intentionally bypasses the executable hash cache.
+        /// </summary>
+        internal static FEMapCreatorSetupSnapshot Validate(
+            string rawExecutablePath,
+            string rawAssetsRoot,
+            CancellationToken cancellationToken)
+            => Validate(rawExecutablePath, rawAssetsRoot, executableIdentityCache: null, cancellationToken);
+
+        static FEMapCreatorSetupSnapshot Validate(
+            string rawExecutablePath,
+            string rawAssetsRoot,
+            FEMapCreatorExecutableIdentityCache? executableIdentityCache,
+            CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (string.IsNullOrWhiteSpace(rawExecutablePath))
                 return new FEMapCreatorSetupSnapshot(FEMapCreatorSetupStatus.NotConfigured, "", "", "");
 
@@ -137,7 +156,13 @@ namespace FEBuilderGBA
             string exeSha, hashError;
             bool hashOk = executableIdentityCache != null
                 ? executableIdentityCache.TryGetOrCompute(normalizedExecutablePath, out exeSize, out exeTicks, out exeSha, out hashError)
-                : FileContentIdentityCore.TryCompute(normalizedExecutablePath, out exeSize, out exeTicks, out exeSha, out hashError);
+                : FileContentIdentityCore.TryCompute(
+                    normalizedExecutablePath,
+                    cancellationToken,
+                    out exeSize,
+                    out exeTicks,
+                    out exeSha,
+                    out hashError);
 
             if (!hashOk)
             {

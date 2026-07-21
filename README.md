@@ -238,7 +238,8 @@ dotnet run --project FEBuilderGBA.CLI -- --generate-random-map --femapcreator=C:
 # The Avalonia Map Editor's "Generate Random Map" button is true one-click (no dialog, no ellipsis): it uses the
 # current map's dimensions and an inline, directly replayable seed. A blank seed is materialized before either
 # backend starts, and the adjacent Cancel button remains enabled during generation so the operation can be
-# stopped without closing the editor. Per-tileset FEMapCreator discovery and
+# stopped without closing the editor. Authoritative FEMapCreator profile/mapping hashes run off the UI thread
+# and observe that same cancellation token between bounded file reads. Per-tileset FEMapCreator discovery and
 # mapping now live only in Options' FEMapCreator section (Map Editor's "Map Tileset..." button is just a
 # shortcut that selects Options' External Tools tab and scrolls the FEMapCreator section into view with the
 # current tileset pre-selected). Editing either live FEMapCreator path

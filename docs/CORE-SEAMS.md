@@ -29,6 +29,11 @@ later in this catalog:
   reports `Invalid` instead of silently degrading to `NoMapping`. Backend
   selection carries typed mapping status/reason only; Avalonia localizes the
   stale/invalid notice at the UI boundary.
+- One-click FEMapCreator profile/mapping resolution runs off the UI thread.
+  Authoritative executable, image, and generation-data hashes use bounded reads
+  that observe the generation cancellation token. The three required Config
+  strings are snapshotted before the worker hop; the background resolver never
+  reads the live UI-mutated Config dictionary.
 - The Map Editor has an inline generation Cancel button, materializes blank seeds
   before backend invocation, and passes cancellation into the dispatched apply
   callback before undo/ROM mutation. "Map Tileset..." selects Options' External

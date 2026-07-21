@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 
 namespace FEBuilderGBA
 {
@@ -360,7 +361,19 @@ namespace FEBuilderGBA
             IReadOnlyList<FEMapCreatorTilesetMappingEntry> mappings,
             TilesetFingerprint fingerprint,
             FEMapCreatorSetupSnapshot currentProfile)
+            => Lookup(mappings, fingerprint, currentProfile, CancellationToken.None);
+
+        /// <summary>
+        /// Cancellation-aware authoritative lookup used by one-click generation. Cancellation
+        /// propagates while either mapped file is being hashed.
+        /// </summary>
+        internal static FEMapCreatorMappingLookupResult Lookup(
+            IReadOnlyList<FEMapCreatorTilesetMappingEntry> mappings,
+            TilesetFingerprint fingerprint,
+            FEMapCreatorSetupSnapshot currentProfile,
+            CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (mappings == null || fingerprint.IsEmpty)
                 return FEMapCreatorMappingLookupResult.NoMapping();
 
@@ -372,13 +385,25 @@ namespace FEBuilderGBA
             if (!entry.IsStructurallyValid)
                 return FEMapCreatorMappingLookupResult.Invalid(entry, "Stored mapping entry is missing required fields.");
 
-            if (!FileContentIdentityCore.TryCompute(entry.ImagePath, out long imageSize, out long imageTicks, out string imageSha, out string imageError))
+            if (!FileContentIdentityCore.TryCompute(
+                entry.ImagePath,
+                cancellationToken,
+                out long imageSize,
+                out long imageTicks,
+                out string imageSha,
+                out string imageError))
                 return FEMapCreatorMappingLookupResult.Stale(entry, "Mapped image file is no longer readable: " + imageError);
             if (imageSize != entry.ImageSizeBytes || imageTicks != entry.ImageLastWriteUtcTicks
                 || !string.Equals(imageSha, entry.ImageSha256, StringComparison.Ordinal))
                 return FEMapCreatorMappingLookupResult.Stale(entry, "Mapped image file has changed since this mapping was recorded.");
 
-            if (!FileContentIdentityCore.TryCompute(entry.GenerationDataPath, out long dataSize, out long dataTicks, out string dataSha, out string dataError))
+            if (!FileContentIdentityCore.TryCompute(
+                entry.GenerationDataPath,
+                cancellationToken,
+                out long dataSize,
+                out long dataTicks,
+                out string dataSha,
+                out string dataError))
                 return FEMapCreatorMappingLookupResult.Stale(entry, "Mapped generation-data file is no longer readable: " + dataError);
             if (dataSize != entry.GenerationDataSizeBytes || dataTicks != entry.GenerationDataLastWriteUtcTicks
                 || !string.Equals(dataSha, entry.GenerationDataSha256, StringComparison.Ordinal))

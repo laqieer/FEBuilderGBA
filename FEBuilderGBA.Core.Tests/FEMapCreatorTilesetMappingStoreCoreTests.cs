@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using Xunit;
 
 namespace FEBuilderGBA.Core.Tests
@@ -334,6 +335,36 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal(FEMapCreatorMappingStatus.Current, result.Status);
                 Assert.Same(entry, result.Entry);
                 Assert.Equal("", result.Reason);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
+        public void Lookup_CancelledToken_ThrowsBeforeAuthoritativeFileHashing()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string imagePath = CreateFile(tempRoot, "tileset.png", new byte[] { 1, 2, 3, 4 });
+                string genPath = CreateFile(tempRoot, "tileset.json", new byte[] { 5, 6 });
+                var fingerprint = TilesetFingerprint.Compute(
+                    8,
+                    new byte[] { 1 },
+                    new byte[] { 2 },
+                    new byte[] { 3 });
+                FEMapCreatorSetupSnapshot profile = MakeConfiguredProfile(tempRoot, "assets");
+                Assert.True(FEMapCreatorTilesetMappingStoreCore.TryCreateEntry(
+                    fingerprint, "Plains", imagePath, genPath, profile,
+                    out FEMapCreatorTilesetMappingEntry entry, out _));
+                using var cts = new CancellationTokenSource();
+                cts.Cancel();
+
+                Assert.Throws<OperationCanceledException>(() =>
+                    FEMapCreatorTilesetMappingStoreCore.Lookup(
+                        new[] { entry }, fingerprint, profile, cts.Token));
             }
             finally
             {

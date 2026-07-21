@@ -2,6 +2,7 @@
 using System;
 using System.IO;
 using System.Security.Cryptography;
+using System.Threading;
 
 namespace FEBuilderGBA
 {
@@ -11,8 +12,10 @@ namespace FEBuilderGBA
     /// changed since it was recorded: <see cref="FEMapCreatorProfileCore"/> (executable identity)
     /// and <see cref="FEMapCreatorTilesetMappingStoreCore"/> (mapped tileset image/generation-data
     /// file identity) both delegate here so the two staleness checks can never silently diverge.
-    /// Never throws; read-only — opens the file for reading only, never writes, deletes, or
-    /// launches anything, and never touches the network.
+    /// The legacy no-token overloads never throw; cancellation-aware overloads additionally
+    /// propagate <see cref="OperationCanceledException"/> when cancellation is requested.
+    /// Read-only — opens the file for reading only, never writes, deletes, launches anything,
+    /// or touches the network.
     /// </summary>
     internal static class FileContentIdentityCore
     {
@@ -59,9 +62,22 @@ namespace FEBuilderGBA
 
         /// <summary>Hash-only (no size/mtime stat): SHA-256 content hash of <paramref name="path"/>, lowercase hex.</summary>
         internal static bool TryComputeHashOnly(string path, out string sha256Hex, out string error)
+            => TryComputeHashOnly(path, CancellationToken.None, out sha256Hex, out error);
+
+        /// <summary>
+        /// Cancellation-aware SHA-256 hash. Cancellation is checked before opening the file and
+        /// between bounded reads so a large local executable or tileset file cannot keep an
+        /// awaiting UI workflow unresponsive until the entire hash completes.
+        /// </summary>
+        internal static bool TryComputeHashOnly(
+            string path,
+            CancellationToken cancellationToken,
+            out string sha256Hex,
+            out string error)
         {
             sha256Hex = "";
             error = "";
+            cancellationToken.ThrowIfCancellationRequested();
 
             if (string.IsNullOrWhiteSpace(path))
             {
@@ -76,9 +92,26 @@ namespace FEBuilderGBA
 
             try
             {
-                using SHA256 sha = SHA256.Create();
-                using FileStream stream = File.OpenRead(path);
-                byte[] hash = sha.ComputeHash(stream);
+                using IncrementalHash sha = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+                using FileStream stream = new FileStream(
+                    path,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.Read,
+                    bufferSize: 64 * 1024,
+                    FileOptions.SequentialScan);
+                byte[] buffer = new byte[64 * 1024];
+                while (true)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    int read = stream.Read(buffer, 0, buffer.Length);
+                    if (read == 0)
+                        break;
+                    cancellationToken.ThrowIfCancellationRequested();
+                    sha.AppendData(buffer, 0, read);
+                }
+                cancellationToken.ThrowIfCancellationRequested();
+                byte[] hash = sha.GetHashAndReset();
                 sha256Hex = Convert.ToHexString(hash).ToLowerInvariant();
                 return true;
             }
@@ -102,13 +135,27 @@ namespace FEBuilderGBA
         /// this method directly rather than <see cref="FEMapCreatorExecutableIdentityCache"/>.
         /// </summary>
         internal static bool TryCompute(string path, out long sizeBytes, out long lastWriteUtcTicks, out string sha256Hex, out string error)
+            => TryCompute(path, CancellationToken.None, out sizeBytes, out lastWriteUtcTicks, out sha256Hex, out error);
+
+        /// <summary>
+        /// Cancellation-aware stat + SHA-256 identity calculation. The token is observed before
+        /// statting and throughout the bounded hash-read loop.
+        /// </summary>
+        internal static bool TryCompute(
+            string path,
+            CancellationToken cancellationToken,
+            out long sizeBytes,
+            out long lastWriteUtcTicks,
+            out string sha256Hex,
+            out string error)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (!TryStat(path, out sizeBytes, out lastWriteUtcTicks, out error))
             {
                 sha256Hex = "";
                 return false;
             }
-            return TryComputeHashOnly(path, out sha256Hex, out error);
+            return TryComputeHashOnly(path, cancellationToken, out sha256Hex, out error);
         }
     }
 }

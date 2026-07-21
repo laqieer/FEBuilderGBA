@@ -8,6 +8,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using global::Avalonia.Headless.XUnit;
+using global::Avalonia.Threading;
 using FEBuilderGBA;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
@@ -41,7 +42,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                     error = "";
                     return true;
                 },
-                resolveMapping: fingerprint => (
+                resolveMapping: (fingerprint, configSnapshot, cancellationToken) => (
                     new FEMapCreatorSetupSnapshot(FEMapCreatorSetupStatus.NotConfigured, "", "", ""),
                     FEMapCreatorMappingLookupResult.NoMapping()));
 
@@ -87,7 +88,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                     error = "";
                     return false;
                 },
-                resolveMapping: fingerprint => (
+                resolveMapping: (fingerprint, configSnapshot, cancellationToken) => (
                     new FEMapCreatorSetupSnapshot(FEMapCreatorSetupStatus.Configured, @"C:\trusted\FEMapCreator.exe", "", ""),
                     FEMapCreatorMappingLookupResult.Current(entry)));
 
@@ -125,7 +126,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                     error = "";
                     return true;
                 },
-                resolveMapping: fingerprint => (
+                resolveMapping: (fingerprint, configSnapshot, cancellationToken) => (
                     new FEMapCreatorSetupSnapshot(FEMapCreatorSetupStatus.Configured, @"C:\trusted\FEMapCreator.exe", "", ""),
                     FEMapCreatorMappingLookupResult.Stale(entry, "the mapped image file changed size")));
 
@@ -163,7 +164,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                     error = "";
                     return false;
                 },
-                resolveMapping: fingerprint => (
+                resolveMapping: (fingerprint, configSnapshot, cancellationToken) => (
                     new FEMapCreatorSetupSnapshot(FEMapCreatorSetupStatus.Configured, @"C:\trusted\FEMapCreator.exe", "", ""),
                     FEMapCreatorMappingLookupResult.Current(entry)));
 
@@ -192,7 +193,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                     error = "";
                     return true;
                 },
-                resolveMapping: fingerprint => throw new InvalidOperationException("must not resolve mapping before tileset is known"));
+                resolveMapping: (fingerprint, configSnapshot, cancellationToken) => throw new InvalidOperationException("must not resolve mapping before tileset is known"));
 
             RandomMapOneClickResult result = await service.GenerateAsync(
                 rom, mapSettingAddr: 0x300, 2, 2, currentGrid: null, seed: 1, CancellationToken.None);
@@ -220,7 +221,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                         error = "";
                         return true;
                     },
-                    resolveMapping: fingerprint => (
+                    resolveMapping: (fingerprint, configSnapshot, cancellationToken) => (
                         new FEMapCreatorSetupSnapshot(FEMapCreatorSetupStatus.NotConfigured, "", "", ""),
                         FEMapCreatorMappingLookupResult.NoMapping()));
 
@@ -254,7 +255,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                     error = "";
                     return true;
                 },
-                resolveMapping: fingerprint => (
+                resolveMapping: (fingerprint, configSnapshot, cancellationToken) => (
                     new FEMapCreatorSetupSnapshot(FEMapCreatorSetupStatus.NotConfigured, "", "", ""),
                     FEMapCreatorMappingLookupResult.NoMapping()));
 
@@ -266,6 +267,124 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             Assert.False(builtInInvoked);
             Assert.False(externalInvoked);
+        }
+
+        [AvaloniaFact]
+        public async Task GenerateAsync_MappingResolution_RunsOffUiThreadAndObservesCancellation()
+        {
+            ROM rom = RandomMapOneClickTestSupport.CreateResolvableTilesetRom(
+                2, 2, 0x0001, out uint mapSettingAddr, out _, out _);
+            var resolverStarted = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            bool builtInInvoked = false;
+            bool externalInvoked = false;
+            var service = new RandomMapOneClickService(
+                runner: null,
+                generateExternal: (request, cancellationToken) =>
+                {
+                    externalInvoked = true;
+                    return new RandomMapGenerationResult { Success = true };
+                },
+                generateBuiltIn: (ROM r, uint addr, int width, int height, ushort[]? currentGrid, int seed, CancellationToken ct,
+                    out BuiltInRandomMapGenerationResult? result, out string error) =>
+                {
+                    builtInInvoked = true;
+                    result = null;
+                    error = "";
+                    return true;
+                },
+                resolveMapping: (fingerprint, configSnapshot, cancellationToken) =>
+                {
+                    Assert.False(Dispatcher.UIThread.CheckAccess());
+                    resolverStarted.TrySetResult(true);
+                    Assert.True(cancellationToken.WaitHandle.WaitOne(TimeSpan.FromSeconds(5)));
+                    cancellationToken.ThrowIfCancellationRequested();
+                    throw new InvalidOperationException("unreachable");
+                });
+
+            using var cts = new CancellationTokenSource();
+            Task<RandomMapOneClickResult> generation = service.GenerateAsync(
+                rom, mapSettingAddr, 2, 2, currentGrid: null, seed: 1, cts.Token);
+
+            await resolverStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            cts.Cancel();
+            RandomMapOneClickResult result =
+                await generation.WaitAsync(TimeSpan.FromSeconds(5));
+
+            Assert.False(result.Success);
+            Assert.True(result.Cancelled);
+            Assert.Equal(FEMapCreatorMappingStatus.NoMapping, result.MappingStatus);
+            Assert.False(builtInInvoked);
+            Assert.False(externalInvoked);
+        }
+
+        [AvaloniaFact]
+        public async Task GenerateAsync_MappingResolution_UsesStableConfigSnapshot()
+        {
+            ROM rom = RandomMapOneClickTestSupport.CreateResolvableTilesetRom(
+                2, 2, 0x0001, out uint mapSettingAddr, out _, out _);
+            Config previousConfig = CoreState.Config;
+            var resolverStarted = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            using var resolverRelease = new ManualResetEventSlim(false);
+            string observedExecutablePath = "";
+            string observedAssetsRoot = "";
+            string observedMappingsJson = "";
+
+            try
+            {
+                CoreState.Config = new Config
+                {
+                    [FEMapCreatorProfileCore.ExecutablePathConfigKey] = "original-executable",
+                    [FEMapCreatorProfileCore.AssetsRootConfigKey] = "original-assets",
+                    [FEMapCreatorTilesetMappingStoreCore.MappingsConfigKey] = "original-mappings",
+                };
+                var service = new RandomMapOneClickService(
+                    runner: null,
+                    generateExternal: (request, cancellationToken) =>
+                        throw new InvalidOperationException("must not run external backend"),
+                    generateBuiltIn: (ROM r, uint addr, int width, int height, ushort[]? currentGrid, int seed, CancellationToken ct,
+                        out BuiltInRandomMapGenerationResult? result, out string error) =>
+                    {
+                        result = MakeBuiltInSuccess(width, height, seed);
+                        error = "";
+                        return true;
+                    },
+                    resolveMapping: (fingerprint, configSnapshot, cancellationToken) =>
+                    {
+                        Assert.False(Dispatcher.UIThread.CheckAccess());
+                        observedExecutablePath = configSnapshot.RawExecutablePath;
+                        observedAssetsRoot = configSnapshot.RawAssetsRoot;
+                        observedMappingsJson = configSnapshot.RawMappingsJson;
+                        resolverStarted.TrySetResult(true);
+                        Assert.True(resolverRelease.Wait(TimeSpan.FromSeconds(5), cancellationToken));
+                        return (
+                            new FEMapCreatorSetupSnapshot(FEMapCreatorSetupStatus.NotConfigured, "", "", ""),
+                            FEMapCreatorMappingLookupResult.NoMapping());
+                    });
+
+                Task<RandomMapOneClickResult> generation = service.GenerateAsync(
+                    rom, mapSettingAddr, 2, 2, currentGrid: null, seed: 1, CancellationToken.None);
+                await resolverStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+                CoreState.Config[FEMapCreatorProfileCore.ExecutablePathConfigKey] = "changed-executable";
+                CoreState.Config[FEMapCreatorProfileCore.AssetsRootConfigKey] = "changed-assets";
+                CoreState.Config[FEMapCreatorTilesetMappingStoreCore.MappingsConfigKey] = "changed-mappings";
+                resolverRelease.Set();
+
+                RandomMapOneClickResult result =
+                    await generation.WaitAsync(TimeSpan.FromSeconds(5));
+
+                Assert.True(result.Success);
+                Assert.Equal("original-executable", observedExecutablePath);
+                Assert.Equal("original-assets", observedAssetsRoot);
+                Assert.Equal("original-mappings", observedMappingsJson);
+            }
+            finally
+            {
+                resolverRelease.Set();
+                CoreState.Config = previousConfig;
+            }
         }
 
         static BuiltInRandomMapGenerationResult MakeBuiltInSuccess(int width, int height, int seed)
