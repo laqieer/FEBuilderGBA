@@ -523,6 +523,19 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Contains("built-in", notice, StringComparison.OrdinalIgnoreCase);
         }
 
+        [AvaloniaTheory]
+        [InlineData((int)RandomMapBackendUsed.BuiltIn, "Built-in Experimental")]
+        [InlineData((int)RandomMapBackendUsed.External, "FEMapCreator Experimental")]
+        public void FormatBackendStatus_UsesPlanV4ExperimentalNames(
+            int backendValue,
+            string expectedName)
+        {
+            var backend = (RandomMapBackendUsed)backendValue;
+            Assert.Equal(
+                string.Format(R._("Backend: {0}"), R._(expectedName)),
+                MapEditorView.FormatBackendStatus(backend));
+        }
+
         // ------------------------------------------------------------------
         // Structural: no dialog, no ellipsis, adapters wired correctly
         // ------------------------------------------------------------------

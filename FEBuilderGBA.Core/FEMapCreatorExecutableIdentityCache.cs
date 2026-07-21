@@ -15,10 +15,10 @@ namespace FEBuilderGBA
     /// session) owns its own instance, so there is no cross-session/cross-ROM staleness or leakage
     /// risk — a freshly opened Options dialog always starts with an empty cache and hashes once on
     /// first display. This cache is purely a UI-responsiveness optimization for the on-demand status
-    /// display; it must NEVER be used by <see cref="FEMapCreatorTilesetMappingStoreCore.Lookup"/>,
-    /// which always performs a full, uncached re-stat + re-hash to remain authoritative for
-    /// mapping staleness detection (a mapping's "is this still the same executable?" check must
-    /// never be short-circuited by a UI-only convenience cache).
+    /// display; it must NEVER be used by authoritative discovery, mapping persistence, or
+    /// <see cref="FEMapCreatorTilesetMappingStoreCore.Lookup"/>. Those paths always perform a full,
+    /// uncached re-stat + re-hash because a same-length replacement can preserve its timestamp and
+    /// must not be mistaken for the prior executable.
     /// </summary>
     internal sealed class FEMapCreatorExecutableIdentityCache
     {

@@ -50,6 +50,19 @@ namespace FEBuilderGBA.Avalonia.Tests
             return path;
         }
 
+        static void RewriteWithSameMetadata(string path, byte[] replacement)
+        {
+            long originalLength = new FileInfo(path).Length;
+            DateTime originalLastWrite = File.GetLastWriteTimeUtc(path);
+            Assert.Equal(originalLength, replacement.LongLength);
+
+            File.WriteAllBytes(path, replacement);
+            File.SetLastWriteTimeUtc(path, originalLastWrite);
+
+            Assert.Equal(originalLength, new FileInfo(path).Length);
+            Assert.Equal(originalLastWrite.Ticks, File.GetLastWriteTimeUtc(path).Ticks);
+        }
+
         [Fact]
         public void SetTilesetContext_NeverInvokesDiscovery()
         {
@@ -553,6 +566,93 @@ namespace FEBuilderGBA.Avalonia.Tests
             Config reloaded = Config.LoadOrCreate(Path.Combine(_baseDir, "config", "config.xml"));
             var reloadedMappings = FEMapCreatorTilesetMappingStoreCore.LoadAll(reloaded);
             Assert.Single(reloadedMappings);
+        }
+
+        [Fact]
+        public async Task DiscoverTilesetsAsync_SameMetadataReplacementAfterLiveStatusCache_UsesFreshIdentity()
+        {
+            string exePath = MakeFile("FEMapCreator.exe", new byte[] { 1, 2, 3 });
+            File.SetLastWriteTimeUtc(exePath, new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+            string imagePath = MakeFile("grassland.png", new byte[] { 1, 2, 3, 4 });
+            string genDataPath = MakeFile("grassland.json", new byte[] { 5, 6, 7, 8 });
+            TilesetFingerprint fingerprint = TilesetFingerprint.Compute(
+                8, new byte[] { 1 }, new byte[] { 2 }, new byte[] { 3 });
+            var vm = new OptionsViewModel(
+                discoverTilesets: (exe, assets, token) =>
+                {
+                    var result = new FEMapCreatorTilesetDiscoveryResult { Success = true };
+                    result.Tilesets.Add(new FEMapCreatorTilesetInfo
+                    {
+                        Name = "Grassland",
+                        HasImage = true,
+                        HasGenerationData = true,
+                        ResolvedImagePath = imagePath,
+                        ResolvedGenerationDataPath = genDataPath,
+                        IsCompatible = true,
+                    });
+                    return result;
+                },
+                getConfig: () => CoreState.Config)
+            {
+                FEMapCreatorPath = exePath,
+            };
+            vm.SetTilesetContext(fingerprint);
+
+            FEMapCreatorSetupSnapshot cached = vm.GetFEMapCreatorSetupSnapshot();
+            RewriteWithSameMetadata(exePath, new byte[] { 9, 8, 7 });
+
+            await vm.DiscoverTilesetsAsync();
+            Assert.Single(vm.Tilesets);
+            vm.SelectedTileset = vm.Tilesets[0];
+            Assert.True(vm.SaveTilesetMapping());
+
+            FEMapCreatorSetupSnapshot current = FEMapCreatorProfileCore.Validate(exePath, "");
+            Assert.NotEqual(cached.ExecutableSha256, current.ExecutableSha256);
+            FEMapCreatorMappingLookupResult lookup = FEMapCreatorTilesetMappingStoreCore.Lookup(
+                FEMapCreatorTilesetMappingStoreCore.LoadAll(CoreState.Config!),
+                fingerprint,
+                current);
+            Assert.Equal(FEMapCreatorMappingStatus.Current, lookup.Status);
+        }
+
+        [Fact]
+        public async Task SaveTilesetMapping_SameMetadataReplacementAfterDiscovery_RejectsStaleDiscovery()
+        {
+            string exePath = MakeFile("FEMapCreator.exe", new byte[] { 1, 2, 3 });
+            File.SetLastWriteTimeUtc(exePath, new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+            string imagePath = MakeFile("grassland.png");
+            string genDataPath = MakeFile("grassland.json");
+            var vm = new OptionsViewModel(
+                discoverTilesets: (exe, assets, token) =>
+                {
+                    var result = new FEMapCreatorTilesetDiscoveryResult { Success = true };
+                    result.Tilesets.Add(new FEMapCreatorTilesetInfo
+                    {
+                        Name = "Grassland",
+                        HasImage = true,
+                        HasGenerationData = true,
+                        ResolvedImagePath = imagePath,
+                        ResolvedGenerationDataPath = genDataPath,
+                        IsCompatible = true,
+                    });
+                    return result;
+                },
+                getConfig: () => CoreState.Config)
+            {
+                FEMapCreatorPath = exePath,
+            };
+            vm.SetTilesetContext(TilesetFingerprint.Compute(
+                8, new byte[] { 1 }, new byte[] { 2 }, new byte[] { 3 }));
+
+            await vm.DiscoverTilesetsAsync();
+            vm.SelectedTileset = Assert.Single(vm.Tilesets);
+            RewriteWithSameMetadata(exePath, new byte[] { 4, 5, 6 });
+
+            Assert.False(vm.SaveTilesetMapping());
+            Assert.Equal(
+                R._("Discover and choose a compatible tileset first."),
+                vm.TilesetMappingErrorMessage);
+            Assert.Empty(FEMapCreatorTilesetMappingStoreCore.LoadAll(CoreState.Config!));
         }
 
         [Fact]

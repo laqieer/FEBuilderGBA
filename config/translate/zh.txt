@@ -28330,6 +28330,15 @@ FEMapCreator 未报告任何兼容的图块集。
 :Built-in
 内置
 
+:Built-in Experimental
+内置实验性
+
+:FEMapCreator Experimental
+FEMapCreator 实验性
+
+:Built-in Experimental creates visually coherent layouts only; gameplay and objective validity are not guaranteed.
+内置实验性功能仅生成视觉连贯的布局；不保证游戏流程或目标可完成性。
+
 :Map Tileset…
 映射图块集…
 

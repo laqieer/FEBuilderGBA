@@ -1155,11 +1155,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (!string.IsNullOrWhiteSpace(applyError))
                     Fail(string.Format(R._("Generate random map failed: {0}"), applyError));
                 else
-                    SetRandomMapBusyState(false, string.Format(
-                        R._("Backend: {0}"),
-                        result.BackendUsed == RandomMapBackendUsed.External
-                            ? R._("External FEMapCreator")
-                            : R._("Built-in")));
+                    SetRandomMapBusyState(false, FormatBackendStatus(result.BackendUsed));
             }
             catch (OperationCanceledException)
             {
@@ -1262,6 +1258,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 ? R._("The saved FEMapCreator tileset mapping is stale ({0}); using the built-in generator instead.")
                 : R._("The saved FEMapCreator tileset mapping is invalid ({0}); using the built-in generator instead.");
             return string.Format(format, reason);
+        }
+
+        internal static string FormatBackendStatus(RandomMapBackendUsed backend)
+        {
+            string backendName = backend == RandomMapBackendUsed.External
+                ? R._("FEMapCreator Experimental")
+                : R._("Built-in Experimental");
+            return string.Format(R._("Backend: {0}"), backendName);
         }
 
         /// <summary>

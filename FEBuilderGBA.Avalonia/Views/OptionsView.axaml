@@ -219,6 +219,10 @@
                  one, only Discover is available (Save requires an active map context). -->
             <StackPanel Spacing="4">
               <TextBlock Text="Random-Map Tileset Mapping (Optional)" FontWeight="Bold" Margin="0,8,0,0" />
+              <TextBlock AutomationProperties.AutomationId="Options_BuiltInExperimentalDisclaimer_Label"
+                         Name="BuiltInExperimentalDisclaimerText"
+                         Text="Built-in Experimental creates visually coherent layouts only; gameplay and objective validity are not guaranteed."
+                         TextWrapping="Wrap" FontSize="11" Foreground="Gray" />
               <TextBlock AutomationProperties.AutomationId="Options_TilesetMappingContextText_Label" Name="TilesetMappingContextText" TextWrapping="Wrap" FontSize="11" Foreground="Gray" />
               <StackPanel Orientation="Horizontal" Spacing="8">
                 <Button AutomationProperties.AutomationId="Options_DiscoverTilesets_Button" Name="DiscoverTilesetsButton" Content="Discover Tilesets" Click="DiscoverTilesets_Click" Padding="12,6" />

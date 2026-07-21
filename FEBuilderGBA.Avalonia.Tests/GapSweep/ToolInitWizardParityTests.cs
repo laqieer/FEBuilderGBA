@@ -216,6 +216,7 @@ public class ToolInitWizardParityTests
         Assert.Contains("ShowFEMapCreatorProjectPageError(ex)", handlers);
         Assert.Contains("FEMapCreatorActionStatusTextBlock", handlers);
         Assert.Contains("WindowManager.Instance.Open<OptionsView>()", handlers);
+        Assert.Contains("options.ShowFEMapCreatorSection()", handlers);
 
         Assert.DoesNotContain("System.Diagnostics.Process", handlers);
         Assert.DoesNotContain("Process.Start", handlers);
@@ -1337,6 +1338,11 @@ public class ToolInitWizardParityTests
             btn!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal("Open", fake.LastCall);
             Assert.Equal(typeof(OptionsView), fake.LastType);
+            OptionsView options = Assert.IsType<OptionsView>(fake.LastControl);
+            Assert.Same(
+                options.FindControl<TabItem>("ExternalToolsTabItem"),
+                options.FindControl<TabControl>("OptionsTabControl")!.SelectedItem);
+            Assert.False(options.ViewModelForTests.HasTilesetContext);
         }
         finally
         {
@@ -1406,6 +1412,9 @@ public class ToolInitWizardParityTests
     [InlineData("Browse")]
     [InlineData("Windows-only download — use Browse to set the path manually.")]
     [InlineData("Built-in Experimental remains available immediately if you skip this or leave it unconfigured.")]
+    [InlineData("Built-in Experimental creates visually coherent layouts only; gameplay and objective validity are not guaranteed.")]
+    [InlineData("Built-in Experimental")]
+    [InlineData("FEMapCreator Experimental")]
     [InlineData("Open Project Page")]
     [InlineData("Open FEMapCreator in Options")]
     public void Localisation_NewLiterals_AreTranslated_InJaAndZh(string literal)

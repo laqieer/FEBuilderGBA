@@ -239,12 +239,14 @@ dotnet run --project FEBuilderGBA.CLI -- --generate-random-map --femapcreator=C:
 # current map's dimensions and an inline, directly replayable seed. A blank seed is materialized before either
 # backend starts, and the adjacent Cancel button remains enabled during generation so the operation can be
 # stopped without closing the editor. Authoritative FEMapCreator profile/mapping hashes run off the UI thread
-# and observe that same cancellation token between bounded file reads. Per-tileset FEMapCreator discovery and
+# and observe that same cancellation token between bounded file reads. Built-in generation clones the ROM and
+# current grid before the worker hop, so corpus scanning never races live editor writes. Per-tileset FEMapCreator discovery and
 # mapping now live only in Options' FEMapCreator section (Map Editor's "Map Tileset..." button is just a
 # shortcut that selects Options' External Tools tab and scrolls the FEMapCreator section into view with the
 # current tileset pre-selected). Editing either live FEMapCreator path
 # cancels any in-flight discovery and clears its choices, so Save Mapping always requires a fresh discovery
-# from the same executable/assets profile. If a mapping is configured and current,
+# from the same executable/assets profile. The keystroke status cache is never trusted by discovery or Save
+# Mapping; both authoritatively re-hash even same-size/same-mtime executable replacements. If a mapping is configured and current,
 # Generate runs the external adapter above; once started, any launch/exit/parse failure is surfaced directly
 # and never silently swapped for the built-in engine, and cancelling (or closing the editor) terminates the
 # owned external process rather than letting it finish and apply. Otherwise — or if the saved mapping is
@@ -253,12 +255,15 @@ dotnet run --project FEBuilderGBA.CLI -- --generate-random-map --femapcreator=C:
 # docs/CORE-SEAMS.md and docs/ENGINEERING-NOTES.md) that needs no external tool, network access, or download,
 # and produces the same layout again when re-run with the displayed seed. This engine is experimental and
 # visual-coherence-only: it does not guarantee gameplay/objective validity (reachable chests, doors, spawns, etc.).
+# Options states that limitation explicitly, and successful generation reports the exact backend name:
+# "Built-in Experimental" or "FEMapCreator Experimental".
 # The optional first-run tool-initialization wizard's EndPage adds a small, always-optional FEMapCreator
 # row: it states plainly that FEMapCreator is an independent utility credited to bwdyeti and that
 # FEBuilderGBA does not bundle, host, license, or guarantee it, and that Built-in Experimental remains
 # available immediately if you skip it or leave it unconfigured. Its two buttons only ever act on an
 # explicit click — one opens the fixed upstream project/setup page in your browser, the other navigates to
-# the same Options FEMapCreator section above (no separate path/mapping form is duplicated in the wizard).
+# and scrolls the same Options FEMapCreator section above without inventing a map fingerprint (no separate
+# path/mapping form is duplicated in the wizard).
 # Neither the wizard nor Options ever downloads, installs, searches PATH, auto-discovers, or launches
 # FEMapCreator merely from being opened or displayed.
 dotnet run --project FEBuilderGBA.CLI -- --translate --rom=rom.gba --out=texts.tsv

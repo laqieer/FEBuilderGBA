@@ -191,7 +191,6 @@ namespace FEBuilderGBA
                     candidate,
                     corpus.ConfigData,
                     corpus.ObjData,
-                    corpus.PaletteData,
                     out MetatileEdgeSignature signature))
                 {
                     signatures[candidate] = signature;

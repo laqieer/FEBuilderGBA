@@ -75,7 +75,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // SHA-256 hash. A fresh OptionsViewModel — i.e. every time Options is opened — gets a
         // fresh, empty cache, so there is no cross-session/cross-ROM staleness risk; it exists
         // solely so GetFEMapCreatorSetupSnapshot() doesn't re-hash an unchanged executable on
-        // every keystroke typed into either FEMapCreator textbox (Slice 2 review follow-up).
+        // every keystroke typed into either FEMapCreator textbox. Discovery and Save Mapping
+        // always bypass it and re-hash authoritatively.
         readonly FEMapCreatorExecutableIdentityCache _femapCreatorExecutableIdentityCache = new();
 
         // ---- Per-current-tileset-fingerprint mapping (#1978 Slice 3 review finding #5) ----
@@ -381,7 +382,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 SelectedTileset = null;
                 _tilesetDiscoveryProfile = null;
 
-                FEMapCreatorSetupSnapshot profile = GetFEMapCreatorSetupSnapshot();
+                string discoveryExecutablePath = FEMapCreatorPath;
+                string discoveryAssetsRoot = FEMapCreatorAssetsRoot;
+                FEMapCreatorSetupSnapshot profile = await Task.Run(
+                    () => FEMapCreatorProfileCore.Validate(
+                        discoveryExecutablePath,
+                        discoveryAssetsRoot,
+                        token),
+                    token);
                 if (profile.Status != FEMapCreatorSetupStatus.Configured)
                 {
                     TilesetMappingErrorMessage = string.IsNullOrWhiteSpace(profile.ErrorMessage)
@@ -415,7 +423,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     return;
                 }
 
-                FEMapCreatorSetupSnapshot currentProfile = GetFEMapCreatorSetupSnapshot();
+                string currentExecutablePath = FEMapCreatorPath;
+                string currentAssetsRoot = FEMapCreatorAssetsRoot;
+                FEMapCreatorSetupSnapshot currentProfile = await Task.Run(
+                    () => FEMapCreatorProfileCore.Validate(
+                        currentExecutablePath,
+                        currentAssetsRoot,
+                        token),
+                    token);
                 if (!IsSameFEMapCreatorProfile(profile, currentProfile))
                 {
                     TilesetMappingErrorMessage = R._("Discover and choose a compatible tileset first.");
@@ -487,7 +502,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return false;
             }
 
-            FEMapCreatorSetupSnapshot profile = GetFEMapCreatorSetupSnapshot();
+            FEMapCreatorSetupSnapshot profile =
+                FEMapCreatorProfileCore.Validate(FEMapCreatorPath, FEMapCreatorAssetsRoot);
             if (_tilesetDiscoveryProfile == null
                 || !IsSameFEMapCreatorProfile(_tilesetDiscoveryProfile, profile)
                 || !Tilesets.Contains(SelectedTileset))

@@ -113,8 +113,11 @@ namespace FEBuilderGBA.Avalonia.Services
     /// once the external adapter is launched, any failure is surfaced directly. A cancellation
     /// observed after a backend attempt starts is discarded (never applied) and reported as a
     /// distinct <see cref="RandomMapOneClickResult.Cancelled"/> outcome rather than a stale
-    /// success or generic failure (review finding #1). Every dependency is injectable so tests
-    /// never need a real FEMapCreator process, ROM, or config file.
+    /// success or generic failure (review finding #1). Before the first worker hop it clones the
+    /// ROM and current-grid inputs, so built-in corpus generation reads one immutable point-in-time
+    /// snapshot while the live UI remains editable; apply-time identity checks still guard the
+    /// eventual write. Every dependency is injectable so tests never need a real FEMapCreator
+    /// process, ROM, or config file.
     /// </summary>
     internal sealed class RandomMapOneClickService
     {
@@ -162,7 +165,16 @@ namespace FEBuilderGBA.Avalonia.Services
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (!BuiltInRandomMapTilesetCore.TryResolveMapTileset(rom, mapSettingAddr, out MapTilesetSnapshot snapshot, out string tilesetError))
+            // Clone before the first await while the UI dispatcher still owns the call. The
+            // worker must never scan the shared mutable ROM/current-grid objects.
+            ROM generationRom = rom.Clone();
+            ushort[]? generationGrid = currentGrid == null ? null : (ushort[])currentGrid.Clone();
+
+            if (!BuiltInRandomMapTilesetCore.TryResolveMapTileset(
+                generationRom,
+                mapSettingAddr,
+                out MapTilesetSnapshot snapshot,
+                out string tilesetError))
             {
                 return Failure(string.Format(R._("Could not resolve the current map's tileset: {0}"), tilesetError));
             }
@@ -254,7 +266,7 @@ namespace FEBuilderGBA.Avalonia.Services
                     () =>
                     {
                         bool corpusResolved = _generateBuiltIn(
-                            rom, mapSettingAddr, width, height, currentGrid, seed, cancellationToken,
+                            generationRom, mapSettingAddr, width, height, generationGrid, seed, cancellationToken,
                             out BuiltInRandomMapGenerationResult? r, out string e);
                         return (corpusResolved, r, e);
                     },

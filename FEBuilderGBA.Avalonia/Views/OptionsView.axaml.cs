@@ -51,16 +51,22 @@ namespace FEBuilderGBA.Avalonia.Views
         public void SetTilesetContext(TilesetFingerprint fingerprint)
         {
             _pendingTilesetContext = fingerprint;
-            NavigateToFEMapCreatorSection();
+            ShowFEMapCreatorSection();
             if (_loadedOnce)
                 ApplyTilesetContext(fingerprint);
         }
+
+        /// <summary>
+        /// Selects External Tools and scrolls the FEMapCreator section into view without inventing
+        /// a map fingerprint. Used by the setup wizard, which has no loaded-map context.
+        /// </summary>
+        public void ShowFEMapCreatorSection() => NavigateToFEMapCreatorSection();
 
         void ApplyTilesetContext(TilesetFingerprint fingerprint)
         {
             _vm.SetTilesetContext(fingerprint);
             RefreshTilesetMappingUi();
-            NavigateToFEMapCreatorSection();
+            ShowFEMapCreatorSection();
         }
 
         void NavigateToFEMapCreatorSection()

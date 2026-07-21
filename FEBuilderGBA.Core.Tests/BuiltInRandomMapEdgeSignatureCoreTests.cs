@@ -13,7 +13,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             byte[] configData = new byte[4]; // too small for any TSA block
             bool ok = BuiltInRandomMapEdgeSignatureCore.TryComputeEdgeSignature(
-                0, configData, new byte[32], IdentityPalette(), out var sig);
+                0, configData, new byte[32], out var sig);
             Assert.False(ok);
             Assert.Null(sig);
         }
@@ -22,18 +22,8 @@ namespace FEBuilderGBA.Core.Tests
         public void TryComputeEdgeSignature_NullConfigData_ReturnsFalse()
         {
             bool ok = BuiltInRandomMapEdgeSignatureCore.TryComputeEdgeSignature(
-                0, null, new byte[32], IdentityPalette(), out var sig);
+                0, null, new byte[32], out var sig);
             Assert.False(ok);
-        }
-
-        [Fact]
-        public void TryComputeEdgeSignature_TruncatedPaletteData_ReturnsFalse()
-        {
-            bool ok = BuiltInRandomMapEdgeSignatureCore.TryComputeEdgeSignature(
-                0, new byte[8], new byte[32], new byte[511], out var sig);
-
-            Assert.False(ok);
-            Assert.Null(sig);
         }
 
         [Fact]
@@ -53,7 +43,7 @@ namespace FEBuilderGBA.Core.Tests
             SetTsa(configData, 0, sub: 3, tileIndex: 3, hFlip: false, vFlip: false);
 
             bool ok = BuiltInRandomMapEdgeSignatureCore.TryComputeEdgeSignature(
-                0, configData, objData, IdentityPalette(), out var sig);
+                0, configData, objData, out var sig);
             Assert.True(ok);
 
             int[] ExpectedTop() => Concat(Row(0, 0), Row(1, 0));
@@ -110,7 +100,7 @@ namespace FEBuilderGBA.Core.Tests
             SetTsa(configData, 0, sub: 3, tileIndex: 1, hFlip: false, vFlip: true);
 
             bool ok = BuiltInRandomMapEdgeSignatureCore.TryComputeEdgeSignature(
-                0, configData, objData, IdentityPalette(), out var sig);
+                0, configData, objData, out var sig);
             Assert.True(ok);
 
             // Left edge = sub0 col0 (tile0, no flip) then sub2 col0 (tile1, no flip).
@@ -150,9 +140,8 @@ namespace FEBuilderGBA.Core.Tests
             SetTsa(configData, 8, sub: 2, tileIndex: 0, hFlip: false, vFlip: false);
             SetTsa(configData, 8, sub: 3, tileIndex: 1, hFlip: false, vFlip: false);
 
-            byte[] paletteData = IdentityPalette();
-            Assert.True(BuiltInRandomMapEdgeSignatureCore.TryComputeEdgeSignature(0, configData, objData, paletteData, out var chipA));
-            Assert.True(BuiltInRandomMapEdgeSignatureCore.TryComputeEdgeSignature(4, configData, objData, paletteData, out var chipB));
+            Assert.True(BuiltInRandomMapEdgeSignatureCore.TryComputeEdgeSignature(0, configData, objData, out var chipA));
+            Assert.True(BuiltInRandomMapEdgeSignatureCore.TryComputeEdgeSignature(4, configData, objData, out var chipB));
 
             // chipA (all tile 0) vs itself: chipA.Right (tile0/tile0 px=7 col) must equal chipA.Left (tile0/tile0 px=0 col).
             // tile0 content = px, so col7 = [7,7,...] and col0 = [0,0,...] -> NOT compatible with itself.
@@ -193,9 +182,8 @@ namespace FEBuilderGBA.Core.Tests
             SetTsa(configData, 8, sub: 2, tileIndex: 2, hFlip: false, vFlip: false); // east left (bottom)
             SetTsa(configData, 8, sub: 3, tileIndex: 3, hFlip: false, vFlip: false); // east right (bottom)
 
-            byte[] paletteData = IdentityPalette();
-            Assert.True(BuiltInRandomMapEdgeSignatureCore.TryComputeEdgeSignature(0, configData, objData, paletteData, out var west));
-            Assert.True(BuiltInRandomMapEdgeSignatureCore.TryComputeEdgeSignature(4, configData, objData, paletteData, out var east));
+            Assert.True(BuiltInRandomMapEdgeSignatureCore.TryComputeEdgeSignature(0, configData, objData, out var west));
+            Assert.True(BuiltInRandomMapEdgeSignatureCore.TryComputeEdgeSignature(4, configData, objData, out var east));
 
             // west.Right (tileB, px=7 -> constant 7) equals east.Left (tileC, constant 7).
             for (int i = 0; i < west.Right.Length; i++) Assert.Equal(7, west.Right[i]);
@@ -229,9 +217,8 @@ namespace FEBuilderGBA.Core.Tests
             SetTsa(configData, 8, sub: 2, tileIndex: 1, hFlip: false, vFlip: false); // south bottom (left)
             SetTsa(configData, 8, sub: 3, tileIndex: 1, hFlip: false, vFlip: false); // south bottom (right)
 
-            byte[] paletteData = IdentityPalette();
-            Assert.True(BuiltInRandomMapEdgeSignatureCore.TryComputeEdgeSignature(0, configData, objData, paletteData, out var north));
-            Assert.True(BuiltInRandomMapEdgeSignatureCore.TryComputeEdgeSignature(4, configData, objData, paletteData, out var south));
+            Assert.True(BuiltInRandomMapEdgeSignatureCore.TryComputeEdgeSignature(0, configData, objData, out var north));
+            Assert.True(BuiltInRandomMapEdgeSignatureCore.TryComputeEdgeSignature(4, configData, objData, out var south));
 
             // north.Bottom (tileC, constant 7) equals south.Top (tileC, constant 7).
             for (int i = 0; i < north.Bottom.Length; i++) Assert.Equal(7, north.Bottom[i]);
@@ -243,7 +230,7 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void Compatibility_UsesPaletteResolvedColors_NotRaw4BppIndices()
+        public void Compatibility_IgnoresPaletteBanks_AndUsesRaw4BppIndices()
         {
             byte[] objData = new byte[BytesPerTile];
             FillTile(objData, 0, (_, _) => 1);
@@ -254,43 +241,12 @@ namespace FEBuilderGBA.Core.Tests
                 SetTsa(configData, 8, sub, tileIndex: 0, hFlip: false, vFlip: false, paletteIndex: 1);
             }
 
-            byte[] paletteData = IdentityPalette();
-            SetPaletteColor(paletteData, 0, 1, 0x001F);
-            SetPaletteColor(paletteData, 1, 1, 0x03E0);
-
             Assert.True(BuiltInRandomMapEdgeSignatureCore.TryComputeEdgeSignature(
-                0, configData, objData, paletteData, out var west));
+                0, configData, objData, out var west));
             Assert.True(BuiltInRandomMapEdgeSignatureCore.TryComputeEdgeSignature(
-                4, configData, objData, paletteData, out var east));
-            Assert.False(BuiltInRandomMapEdgeSignatureCore.HorizontallyCompatible(west, east));
-
-            SetPaletteColor(paletteData, 1, 1, 0x001F);
-            Assert.True(BuiltInRandomMapEdgeSignatureCore.TryComputeEdgeSignature(
-                4, configData, objData, paletteData, out east));
-            Assert.True(BuiltInRandomMapEdgeSignatureCore.HorizontallyCompatible(west, east));
-        }
-
-        [Fact]
-        public void TransparentIndexZero_RemainsBlankAcrossPaletteBanks()
-        {
-            byte[] objData = new byte[BytesPerTile];
-            byte[] configData = new byte[16];
-            for (int sub = 0; sub < 4; sub++)
-            {
-                SetTsa(configData, 0, sub, 0, false, false, paletteIndex: 0);
-                SetTsa(configData, 8, sub, 0, false, false, paletteIndex: 15);
-            }
-
-            byte[] paletteData = IdentityPalette();
-            SetPaletteColor(paletteData, 0, 0, 0x001F);
-            SetPaletteColor(paletteData, 15, 0, 0x7C00);
-
-            Assert.True(BuiltInRandomMapEdgeSignatureCore.TryComputeEdgeSignature(
-                0, configData, objData, paletteData, out var west));
-            Assert.True(BuiltInRandomMapEdgeSignatureCore.TryComputeEdgeSignature(
-                4, configData, objData, paletteData, out var east));
-            Assert.All(west.Right, color => Assert.Equal(0, color));
-            Assert.All(east.Left, color => Assert.Equal(0, color));
+                4, configData, objData, out var east));
+            Assert.All(west.Right, index => Assert.Equal(1, index));
+            Assert.All(east.Left, index => Assert.Equal(1, index));
             Assert.True(BuiltInRandomMapEdgeSignatureCore.HorizontallyCompatible(west, east));
         }
 
@@ -306,26 +262,6 @@ namespace FEBuilderGBA.Core.Tests
                     objData[baseOff + py * 4 + px / 2] = (byte)(lo | (hi << 4));
                 }
             }
-        }
-
-        static byte[] IdentityPalette()
-        {
-            byte[] paletteData = new byte[2 * 16 * 16];
-            for (int palette = 0; palette < 16; palette++)
-                for (int color = 0; color < 16; color++)
-                    SetPaletteColor(paletteData, palette, color, (ushort)color);
-            return paletteData;
-        }
-
-        static void SetPaletteColor(
-            byte[] paletteData,
-            int paletteIndex,
-            int colorIndex,
-            ushort color)
-        {
-            int offset = (paletteIndex * 16 + colorIndex) * 2;
-            paletteData[offset] = (byte)(color & 0xFF);
-            paletteData[offset + 1] = (byte)(color >> 8);
         }
 
         static void SetTsa(

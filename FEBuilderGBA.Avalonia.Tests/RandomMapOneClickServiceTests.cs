@@ -60,6 +60,59 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [AvaloniaFact]
+        public async Task GenerateAsync_BuiltInUsesImmutableRomAndGridSnapshots()
+        {
+            ROM rom = RandomMapOneClickTestSupport.CreateResolvableTilesetRom(
+                2, 2, 0x0001, out uint mapSettingAddr, out _, out _);
+            uint originalRomByte = rom.u8(0);
+            ushort[] currentGrid = { 1, 2, 3, 4 };
+            using var resolverEntered = new ManualResetEventSlim(false);
+            using var releaseResolver = new ManualResetEventSlim(false);
+
+            ROM? workerRom = null;
+            ushort[]? workerGrid = null;
+            var service = new RandomMapOneClickService(
+                runner: null,
+                generateExternal: (request, runner) =>
+                    throw new InvalidOperationException("must not run external backend"),
+                generateBuiltIn: (ROM r, uint addr, int width, int height, ushort[]? grid, int seed, CancellationToken ct,
+                    out BuiltInRandomMapGenerationResult? result, out string error) =>
+                {
+                    workerRom = r;
+                    workerGrid = grid;
+                    result = MakeBuiltInSuccess(width, height, seed);
+                    error = "";
+                    return true;
+                },
+                resolveMapping: (fingerprint, configSnapshot, cancellationToken) =>
+                {
+                    resolverEntered.Set();
+                    releaseResolver.Wait(cancellationToken);
+                    return (
+                        new FEMapCreatorSetupSnapshot(FEMapCreatorSetupStatus.NotConfigured, "", "", ""),
+                        FEMapCreatorMappingLookupResult.NoMapping());
+                });
+
+            Task<RandomMapOneClickResult> generation = service.GenerateAsync(
+                rom, mapSettingAddr, 2, 2, currentGrid, seed: 222, CancellationToken.None);
+            Assert.True(resolverEntered.Wait(TimeSpan.FromSeconds(5)));
+
+            rom.write_u8(0, (uint)(originalRomByte ^ 0xFF));
+            currentGrid[0] = 999;
+            releaseResolver.Set();
+
+            RandomMapOneClickResult result = await generation;
+
+            Assert.True(result.Success);
+            Assert.NotNull(workerRom);
+            Assert.NotSame(rom, workerRom);
+            Assert.Equal(originalRomByte, workerRom!.u8(0));
+            Assert.NotNull(workerGrid);
+            Assert.NotSame(currentGrid, workerGrid);
+            Assert.Equal(new ushort[] { 1, 2, 3, 4 }, workerGrid);
+        }
+
+        [AvaloniaFact]
         public async Task GenerateAsync_CurrentMapping_UsesExternalOnlyAndNeverInvokesBuiltIn()
         {
             ROM rom = RandomMapOneClickTestSupport.CreateResolvableTilesetRom(

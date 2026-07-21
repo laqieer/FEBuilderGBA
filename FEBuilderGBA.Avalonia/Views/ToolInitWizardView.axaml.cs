@@ -619,7 +619,8 @@ namespace FEBuilderGBA.Avalonia.Views
         /// </summary>
         void OnOpenFEMapCreatorOptions_Click(object? sender, RoutedEventArgs e)
         {
-            WindowManager.Instance.Open<OptionsView>();
+            OptionsView options = WindowManager.Instance.Open<OptionsView>();
+            options.ShowFEMapCreatorSection();
         }
 
         // ===================================================================

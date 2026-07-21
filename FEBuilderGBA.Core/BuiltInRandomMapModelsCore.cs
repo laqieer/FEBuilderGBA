@@ -44,8 +44,8 @@ namespace FEBuilderGBA
         Strict,
 
         /// <summary>
-        /// Candidate pairs are compatible when their touching 16x16 metatile boundary
-        /// pixel-index signatures match exactly (see
+        /// Candidate pairs are compatible when their touching 16x16 metatile boundary raw,
+        /// palette-independent 4bpp pixel-index signatures match exactly (see
         /// <see cref="BuiltInRandomMapEdgeSignatureCore"/>). Used when the strict model
         /// has too little (or no) direct observation to drive a search.
         /// </summary>

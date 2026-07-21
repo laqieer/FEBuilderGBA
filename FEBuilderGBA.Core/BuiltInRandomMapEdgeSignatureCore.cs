@@ -4,16 +4,16 @@ using System;
 namespace FEBuilderGBA
 {
     /// <summary>
-    /// The four boundary rows/columns of visible, palette-resolved color samples for one 16x16
-    /// metatile (chipset), after TSA hFlip/vFlip and palette-bank selection are applied. Used to
-    /// decide whether two chipsets are visually compatible along a shared edge when the strict,
-    /// directly-observed adjacency model (<see cref="BuiltInRandomMapAdjacencyModel.Strict"/>)
-    /// has too little corpus evidence.
+    /// The four boundary rows/columns of raw (palette-independent) 4bpp color indices for one
+    /// 16x16 metatile (chipset), after TSA hFlip/vFlip is applied. Used to decide whether two
+    /// chipsets are structurally compatible along a shared edge when the strict, directly-observed
+    /// adjacency model (<see cref="BuiltInRandomMapAdjacencyModel.Strict"/>) has too little corpus
+    /// evidence.
     ///
-    /// <para>Each array holds exactly 16 samples ordered by increasing screen coordinate along
-    /// that edge (top/bottom: increasing x; left/right: increasing y). A non-zero 4bpp index is
-    /// represented by its 16-bit BGR555 palette color; index zero remains the shared blank value
-    /// regardless of palette bank.</para>
+    /// <para>Each array holds exactly 16 raw indices (0..15), ordered by increasing screen
+    /// coordinate along that edge (top/bottom: increasing x; left/right: increasing y). The
+    /// signature intentionally stops before palette lookup so identical tile art remains
+    /// compatible across palette banks, matching the accepted #1978 Plan v4 contract.</para>
     /// </summary>
     public sealed class MetatileEdgeSignature
     {
@@ -25,22 +25,22 @@ namespace FEBuilderGBA
             Right = right;
         }
 
-        /// <summary>Visible color samples along the top edge (py=0), left-to-right, 16 entries.</summary>
+        /// <summary>Raw 4bpp indices along the top edge (py=0), left-to-right, 16 entries.</summary>
         public int[] Top { get; }
 
-        /// <summary>Visible color samples along the bottom edge (py=15), left-to-right, 16 entries.</summary>
+        /// <summary>Raw 4bpp indices along the bottom edge (py=15), left-to-right, 16 entries.</summary>
         public int[] Bottom { get; }
 
-        /// <summary>Visible color samples along the left edge (px=0), top-to-bottom, 16 entries.</summary>
+        /// <summary>Raw 4bpp indices along the left edge (px=0), top-to-bottom, 16 entries.</summary>
         public int[] Left { get; }
 
-        /// <summary>Visible color samples along the right edge (px=15), top-to-bottom, 16 entries.</summary>
+        /// <summary>Raw 4bpp indices along the right edge (px=15), top-to-bottom, 16 entries.</summary>
         public int[] Right { get; }
     }
 
     /// <summary>
     /// Computes <see cref="MetatileEdgeSignature"/>s directly from decompressed OBJ/CFG
-    /// tileset bytes (no ROM access) and defines the exact edge-matching
+    /// tileset bytes (no ROM access or palette lookup) and defines the exact edge-matching
     /// semantics used by the relaxed adjacency model. See <c>docs/CORE-SEAMS.md</c>
     /// ("Built-in Random Map Generator") for the documented signature contract.
     /// </summary>
@@ -55,28 +55,24 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Decode the boundary signature for the chipset addressed by <paramref name="marValue"/>.
-        /// Returns false when the TSA block is out of range for <paramref name="configData"/>
-        /// or the full fixed palette snapshot is unavailable. Non-zero 4bpp indices are resolved
-        /// through each TSA sub-tile's palette bank; index zero remains transparent.
+        /// Returns false when the TSA block is out of range for <paramref name="configData"/>.
         /// </summary>
         public static bool TryComputeEdgeSignature(
             ushort marValue,
             byte[] configData,
             byte[] objData,
-            byte[] paletteData,
             out MetatileEdgeSignature signature)
         {
             signature = null;
-            if (configData == null || paletteData == null || paletteData.Length < 2 * 16 * 16)
-                return false;
+            if (configData == null) return false;
 
             int tsaBase = marValue << 1;
             if (tsaBase + 7 >= configData.Length) return false;
 
-            ReadSubTile(configData, tsaBase, 0, out int tile0, out bool hf0, out bool vf0, out int pal0);
-            ReadSubTile(configData, tsaBase, 1, out int tile1, out bool hf1, out bool vf1, out int pal1);
-            ReadSubTile(configData, tsaBase, 2, out int tile2, out bool hf2, out bool vf2, out int pal2);
-            ReadSubTile(configData, tsaBase, 3, out int tile3, out bool hf3, out bool vf3, out int pal3);
+            ReadSubTile(configData, tsaBase, 0, out int tile0, out bool hf0, out bool vf0);
+            ReadSubTile(configData, tsaBase, 1, out int tile1, out bool hf1, out bool vf1);
+            ReadSubTile(configData, tsaBase, 2, out int tile2, out bool hf2, out bool vf2);
+            ReadSubTile(configData, tsaBase, 3, out int tile3, out bool hf3, out bool vf3);
 
             int[] top = new int[16];
             int[] bottom = new int[16];
@@ -85,17 +81,17 @@ namespace FEBuilderGBA
 
             for (int x = 0; x < 8; x++)
             {
-                top[x] = VisibleColor(objData, paletteData, tile0, pal0, hf0, vf0, x, 0);
-                top[x + 8] = VisibleColor(objData, paletteData, tile1, pal1, hf1, vf1, x, 0);
-                bottom[x] = VisibleColor(objData, paletteData, tile2, pal2, hf2, vf2, x, 7);
-                bottom[x + 8] = VisibleColor(objData, paletteData, tile3, pal3, hf3, vf3, x, 7);
+                top[x] = RawIndex(objData, tile0, hf0, vf0, x, 0);
+                top[x + 8] = RawIndex(objData, tile1, hf1, vf1, x, 0);
+                bottom[x] = RawIndex(objData, tile2, hf2, vf2, x, 7);
+                bottom[x + 8] = RawIndex(objData, tile3, hf3, vf3, x, 7);
             }
             for (int y = 0; y < 8; y++)
             {
-                left[y] = VisibleColor(objData, paletteData, tile0, pal0, hf0, vf0, 0, y);
-                left[y + 8] = VisibleColor(objData, paletteData, tile2, pal2, hf2, vf2, 0, y);
-                right[y] = VisibleColor(objData, paletteData, tile1, pal1, hf1, vf1, 7, y);
-                right[y + 8] = VisibleColor(objData, paletteData, tile3, pal3, hf3, vf3, 7, y);
+                left[y] = RawIndex(objData, tile0, hf0, vf0, 0, y);
+                left[y + 8] = RawIndex(objData, tile2, hf2, vf2, 0, y);
+                right[y] = RawIndex(objData, tile1, hf1, vf1, 7, y);
+                right[y + 8] = RawIndex(objData, tile3, hf3, vf3, 7, y);
             }
 
             signature = new MetatileEdgeSignature(top, bottom, left, right);
@@ -104,8 +100,8 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Whether a chipset placed at <paramref name="west"/> may be immediately west of a
-        /// chipset placed at <paramref name="east"/>: the touching column of palette-resolved
-        /// BGR555 colors must match exactly, top-to-bottom.
+        /// chipset placed at <paramref name="east"/>: the touching column of raw indices must
+        /// match exactly, index-for-index, top-to-bottom.
         /// </summary>
         public static bool HorizontallyCompatible(MetatileEdgeSignature west, MetatileEdgeSignature east)
         {
@@ -115,8 +111,8 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Whether a chipset placed at <paramref name="north"/> may be immediately north of a
-        /// chipset placed at <paramref name="south"/>: the touching row of palette-resolved
-        /// BGR555 colors must match exactly, left-to-right.
+        /// chipset placed at <paramref name="south"/>: the touching row of raw indices must
+        /// match exactly, index-for-index, left-to-right.
         /// </summary>
         public static bool VerticallyCompatible(MetatileEdgeSignature north, MetatileEdgeSignature south)
         {
@@ -138,33 +134,13 @@ namespace FEBuilderGBA
             int sub,
             out int tileIndex,
             out bool hFlip,
-            out bool vFlip,
-            out int paletteIndex)
+            out bool vFlip)
         {
             int tsaOff = tsaBase + sub * 2;
             ushort tsa = (ushort)(configData[tsaOff] | (configData[tsaOff + 1] << 8));
             tileIndex = tsa & 0x3FF;
             hFlip = (tsa & 0x400) != 0;
             vFlip = (tsa & 0x800) != 0;
-            paletteIndex = (tsa >> 12) & 0xF;
-        }
-
-        static int VisibleColor(
-            byte[] objData,
-            byte[] paletteData,
-            int tileIndex,
-            int paletteIndex,
-            bool hFlip,
-            bool vFlip,
-            int px,
-            int py)
-        {
-            int colorIndex = RawIndex(objData, tileIndex, hFlip, vFlip, px, py);
-            if (colorIndex == 0)
-                return 0;
-
-            int paletteOffset = (paletteIndex * 16 + colorIndex) * 2;
-            return paletteData[paletteOffset] | (paletteData[paletteOffset + 1] << 8);
         }
 
         /// <summary>

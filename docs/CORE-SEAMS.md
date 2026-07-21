@@ -19,9 +19,9 @@ later in this catalog:
   does not have all four bytes in the ROM and requires the complete fixed
   512-byte palette snapshot; truncation is a resolution failure, never a shorter
   fingerprint input.
-- `BuiltInRandomMapEdgeSignatureCore` resolves each non-zero 4bpp index through
-  the TSA-selected palette bank and compares visible BGR555 colors. Index zero
-  remains transparent/blank regardless of palette-bank color 0.
+- `BuiltInRandomMapEdgeSignatureCore` follows the accepted Plan v4 sparse-corpus
+  contract: it compares raw, palette-independent 4bpp boundary indices after TSA
+  hFlip/vFlip. Palette-bank bits do not change structural edge compatibility.
 - `BuiltInRandomMapCorpusCore.TryBuildCorpus` accepts a cancellation token and
   checks it during map, row, and cell scanning; `TryGenerateFromRom` converts
   cancellation into typed `BuiltInRandomMapErrorCategory.Cancelled`.
@@ -38,6 +38,16 @@ later in this catalog:
   before backend invocation, and passes cancellation into the dispatched apply
   callback before undo/ROM mutation. "Map Tileset..." selects Options' External
   Tools tab and brings the FEMapCreator section into view.
+- The Options executable-identity cache is live-status-only. Explicit discovery
+  and Save Mapping use uncached authoritative hashes, so a same-size executable
+  replacement with preserved mtime cannot create an immediately stale mapping.
+- One-click built-in generation clones the ROM and current grid before its first
+  worker hop. Corpus resolution therefore reads an immutable point-in-time
+  snapshot while apply-time live-ROM identity/fingerprint checks remain mandatory.
+- Options displays the Built-in Experimental visual-coherence-only disclaimer;
+  success status names the exact `Built-in Experimental` or
+  `FEMapCreator Experimental` backend. The setup wizard opens Options and invokes
+  the no-fingerprint `ShowFEMapCreatorSection` initializer.
 
 ## Graphics-System Core Seams
 
