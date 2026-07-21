@@ -245,7 +245,8 @@ dotnet run --project FEBuilderGBA.CLI -- --generate-random-map --femapcreator=C:
 # longer performs a separate pre-service resolve on the dispatcher (the guard still re-resolves the live ROM
 # immediately before mutation).
 # Discovery and Save Mapping share one exclusive busy/cancel state. Built-in generation clones the ROM and
-# current grid before the worker hop, so corpus scanning never races live editor writes; if that grid cannot be
+# current grid before the worker hop, then scans cancellation-aware address/tag rows directly (without display-name
+# decoding or global-ROM text reads), so corpus scanning never races live editor writes; if that grid cannot be
 # decoded exactly, generation fails before either backend is invoked rather than disabling source-identity rejection. Cancellation is also
 # observed while each cell's weighted candidate order is prepared. Built-in tileset loading rejects truncated
 # primary/secondary OBJ, CFG, or MAP LZ77 streams, and a nonzero secondary OBJ reference must resolve completely

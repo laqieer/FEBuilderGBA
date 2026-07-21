@@ -46,7 +46,7 @@ namespace FEBuilderGBA
         public TilesetFingerprint Fingerprint { get; }
 
         /// <summary>
-        /// Ascending map ids (in the same order <see cref="MapSettingCore.MakeMapIDList"/>
+        /// Ascending map ids (in the same order <see cref="MapSettingCore.EnumerateMapAddresses"/>
         /// enumerates them) that matched <see cref="Fingerprint"/> and contributed evidence.
         /// </summary>
         public IReadOnlyList<uint> ContributingMapIds { get; }
@@ -156,8 +156,7 @@ namespace FEBuilderGBA
             var vertical = new SortedDictionary<ushort, SortedSet<ushort>>();
             long totalCells = 0;
 
-            List<AddrResult> mapList = MapSettingCore.MakeMapIDList(rom);
-            foreach (AddrResult entry in mapList)
+            foreach (AddrResult entry in MapSettingCore.EnumerateMapAddresses(rom, cancellationToken))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (!BuiltInRandomMapTilesetCore.TryResolveMapTileset(rom, entry.addr, out MapTilesetSnapshot snapshot, out _))

@@ -28,8 +28,11 @@ later in this catalog:
   contract: it compares raw, palette-independent 4bpp boundary indices after TSA
   hFlip/vFlip. Palette-bank bits do not change structural edge compatibility.
 - `BuiltInRandomMapCorpusCore.TryBuildCorpus` accepts a cancellation token and
-  checks it during map, row, and cell scanning; `TryGenerateFromRom` converts
-  cancellation into typed `BuiltInRandomMapErrorCategory.Cancelled`.
+  checks it during map-address enumeration, text-table validation, row, and cell
+  scanning. Its address/tag-only enumeration supersedes the detailed entry's
+  historical `MakeMapIDList(rom)` wording: corpus generation never formats map
+  display names or reads text from `CoreState.ROM`; `TryGenerateFromRom`
+  converts cancellation into typed `BuiltInRandomMapErrorCategory.Cancelled`.
 - The solver is an iterative constraint-satisfaction search, not a plain
   row-major scan: minimum-remaining-values (MRV) cell selection (deterministic
   row-major tie-break) plus four-neighbor (west/east/north/south) constraint

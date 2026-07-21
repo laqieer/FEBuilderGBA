@@ -11,6 +11,37 @@ namespace FEBuilderGBA.Core.Tests
     [Collection("SharedState")]
     public class BuiltInRandomMapCorpusCoreTests
     {
+        sealed class CountingTextEncoder : ISystemTextEncoder
+        {
+            readonly HeadlessSystemTextEncoder _inner;
+
+            public CountingTextEncoder(ROM rom)
+            {
+                _inner = new HeadlessSystemTextEncoder(rom);
+            }
+
+            public int DecodeCount { get; private set; }
+
+            public void ResetDecodeCount() => DecodeCount = 0;
+
+            public string Decode(byte[] str)
+            {
+                DecodeCount++;
+                return _inner.Decode(str);
+            }
+
+            public string Decode(byte[] str, int start, int len)
+            {
+                DecodeCount++;
+                return _inner.Decode(str, start, len);
+            }
+
+            public byte[] Encode(string str) => _inner.Encode(str);
+
+            public Dictionary<string, uint> GetTBLEncodeDicLow() =>
+                _inner.GetTBLEncodeDicLow();
+        }
+
         static byte[] MakeBytes(int length, int seed)
         {
             byte[] result = new byte[length];
@@ -149,6 +180,68 @@ namespace FEBuilderGBA.Core.Tests
             byte[] before = (byte[])rom.Data.Clone();
             Assert.True(BuiltInRandomMapCorpusCore.TryBuildCorpus(rom, addr, out _, out string error), error);
             Assert.Equal(before, rom.Data);
+        }
+
+        [Fact]
+        public void TryBuildCorpus_DoesNotDecodeDisplayNamesThroughGlobalTextRuntime()
+        {
+            ROM rom = BuiltInRandomMapTestFixture.CreateRom();
+            ushort[] mars = new ushort[15 * 10];
+            uint addr = BuiltInRandomMapTestFixture.WriteMap(
+                rom,
+                0,
+                tilesetSlot: 1,
+                MakeBytes(64, 1),
+                Palette(2),
+                MakeBytes(24, 3),
+                15,
+                10,
+                mars);
+
+            const uint textTableAddr = 0x00650000;
+            const uint textDataAddr = 0x00650100;
+            BuiltInRandomMapTestFixture.WriteU32(
+                rom,
+                rom.RomInfo.text_pointer,
+                0x08000000 + textTableAddr);
+            BuiltInRandomMapTestFixture.WriteU32(
+                rom,
+                textTableAddr,
+                0x88000000 + textDataAddr);
+            rom.Data[textDataAddr + 0] = (byte)'M';
+            rom.Data[textDataAddr + 1] = (byte)'a';
+            rom.Data[textDataAddr + 2] = (byte)'p';
+            rom.Data[textDataAddr + 3] = 0;
+            rom.Data[textDataAddr + 4] = 0;
+
+            ROM savedRom = CoreState.ROM;
+            ISystemTextEncoder savedEncoder = CoreState.SystemTextEncoder;
+            var countingEncoder = new CountingTextEncoder(rom);
+            try
+            {
+                CoreState.ROM = rom;
+                CoreState.SystemTextEncoder = countingEncoder;
+                PatchDetection.ClearAllCaches();
+
+                Assert.NotEmpty(MapSettingCore.MakeMapIDList(rom));
+                Assert.True(countingEncoder.DecodeCount > 0);
+                countingEncoder.ResetDecodeCount();
+
+                Assert.True(
+                    BuiltInRandomMapCorpusCore.TryBuildCorpus(
+                        rom,
+                        addr,
+                        out _,
+                        out string error),
+                    error);
+                Assert.Equal(0, countingEncoder.DecodeCount);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.SystemTextEncoder = savedEncoder;
+                PatchDetection.ClearAllCaches();
+            }
         }
 
         [Fact]

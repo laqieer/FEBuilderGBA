@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace FEBuilderGBA
 {
@@ -18,51 +19,71 @@ namespace FEBuilderGBA
         /// <summary>
         /// Enumerate all maps from <c>CoreState.ROM</c>'s map setting pointer table.
         /// Returns list of (address, display-name) pairs.
-        /// For ROM-explicit callers (e.g. <see cref="ItemShopCore"/>) use the
-        /// <see cref="MakeMapIDList(ROM)"/> overload — that path never reads
-        /// <c>CoreState.ROM</c>, so it is safe when operating on a ROM other
-        /// than the global one.
         /// </summary>
         public static List<AddrResult> MakeMapIDList() => MakeMapIDList(CoreState.ROM);
 
         /// <summary>
         /// Enumerate all maps from the given ROM's map setting pointer table.
-        /// Does NOT read <c>CoreState.ROM</c>; every lookup uses
-        /// <paramref name="rom"/>.
+        /// Structural row enumeration uses <paramref name="rom"/>, while display-name
+        /// decoding uses the current text runtime. Snapshot-isolated callers that only
+        /// need addresses/tags should use <see cref="EnumerateMapAddresses"/>.
         /// </summary>
         public static List<AddrResult> MakeMapIDList(ROM rom)
         {
+            var result = new List<AddrResult>();
+            foreach (AddrResult entry in EnumerateMapAddresses(rom, CancellationToken.None))
+            {
+                string name = U.ToHexString(entry.tag) + " " + GetMapName(rom, entry.addr);
+                result.Add(new AddrResult(entry.addr, name, entry.tag));
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Enumerate map-setting addresses and zero-based row tags without formatting
+        /// display names. Every ROM read is made against <paramref name="rom"/>, and
+        /// cancellation is observed before setup, before each row, and while validating
+        /// a potentially long text-pointer table.
+        /// </summary>
+        internal static IEnumerable<AddrResult> EnumerateMapAddresses(
+            ROM rom,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
             if (rom == null || rom.RomInfo == null)
-                return new List<AddrResult>();
+                yield break;
 
             uint basePointer = rom.RomInfo.map_setting_pointer;
             uint dataSize = rom.RomInfo.map_setting_datasize;
-
             if (basePointer == 0 || dataSize == 0)
-                return new List<AddrResult>();
+                yield break;
+            if (!U.isSafetyOffset(basePointer, rom)
+                || (ulong)basePointer + 4 > (ulong)rom.Data.Length)
+                yield break;
 
-            // Read base address from the pointer
             uint baseAddr = rom.p32(basePointer);
             if (!U.isSafetyOffset(baseAddr, rom))
-                return new List<AddrResult>();
+                yield break;
 
-            var result = new List<AddrResult>();
-
-            for (int i = 0; ; i++)
+            for (uint i = 0; ; i++)
             {
-                uint addr = (uint)(baseAddr + (i * dataSize));
-                if (!U.isSafetyOffset(addr, rom) || addr + dataSize > (uint)rom.Data.Length)
-                    break;
+                cancellationToken.ThrowIfCancellationRequested();
 
-                // Check for end of map data
-                if (!IsMapSettingValid(rom, addr))
-                    break;
+                ulong addr64 = (ulong)baseAddr + ((ulong)i * dataSize);
+                if (addr64 > uint.MaxValue)
+                    yield break;
 
-                string name = U.ToHexString((uint)i) + " " + GetMapName(rom, addr);
-                result.Add(new AddrResult(addr, name, (uint)i));
+                uint addr = (uint)addr64;
+                if (!U.isSafetyOffset(addr, rom)
+                    || addr64 + dataSize > (ulong)rom.Data.Length)
+                    yield break;
+                if (!IsMapSettingValid(rom, addr, cancellationToken))
+                    yield break;
+
+                yield return new AddrResult(addr, "", i);
+                if (i == uint.MaxValue)
+                    yield break;
             }
-
-            return result;
         }
 
         /// <summary>
@@ -109,17 +130,21 @@ namespace FEBuilderGBA
             // Overflow-safe full-row EOF bound — the entire record must be in ROM.
             if ((ulong)addr + dataSize > (ulong)rom.Data.Length) return U.NOT_FOUND;
 
-            // Gate against the ENUMERATED list, not just IsMapSettingValid on the
+            // Gate against the ENUMERATED rows, not just IsMapSettingValid on the
             // candidate row in isolation: MakeMapIDList stops at the first invalid
             // (terminator) row, so a valid-looking row AFTER an earlier terminator
             // is NOT a real map entry and must resolve to NOT_FOUND. Require the
-            // candidate id to be in the list AND map back to the exact same
+            // candidate id to be enumerated AND map back to the exact same
             // address (Copilot CLI review on #1086).
             uint id = delta / dataSize;
-            var list = MakeMapIDList(rom);
-            if (id >= (uint)list.Count) return U.NOT_FOUND;
-            if (list[(int)id].addr != addr) return U.NOT_FOUND;
-            return id;
+            foreach (AddrResult entry in EnumerateMapAddresses(rom, CancellationToken.None))
+            {
+                if (entry.tag == id)
+                    return entry.addr == addr ? id : U.NOT_FOUND;
+                if (entry.tag > id)
+                    break;
+            }
+            return U.NOT_FOUND;
         }
 
         /// <summary>
@@ -127,7 +152,10 @@ namespace FEBuilderGBA
         /// </summary>
         public static int GetMapCount()
         {
-            return MakeMapIDList().Count;
+            int count = 0;
+            foreach (AddrResult _ in EnumerateMapAddresses(CoreState.ROM, CancellationToken.None))
+                count++;
+            return count;
         }
 
         /// <summary>
@@ -165,8 +193,16 @@ namespace FEBuilderGBA
         /// (<c>TextRefTableRegistry</c>) which needs the same terminator
         /// heuristic as the editor's list builder.
         /// </summary>
-        internal static bool IsMapSettingValid(ROM rom, uint addr)
+        internal static bool IsMapSettingValid(ROM rom, uint addr) =>
+            IsMapSettingValid(rom, addr, CancellationToken.None);
+
+        static bool IsMapSettingValid(
+            ROM rom,
+            uint addr,
+            CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             // WinForms treats a pointer in the first dword as a valid map entry.
             uint a = rom.u32(addr + 0);
             if (U.isPointer(a))
@@ -189,7 +225,7 @@ namespace FEBuilderGBA
             // For FE7/FE8-style ROMs with larger data size, do text ID bounds check
             if (rom.RomInfo.map_setting_datasize >= 148)
             {
-                uint textmax = GetTextDataCount(rom);
+                uint textmax = GetTextDataCount(rom, cancellationToken);
                 if (textmax > 0)
                 {
                     // Map name text IDs are at the same offset for FE7/FE7U/FE8
@@ -230,19 +266,22 @@ namespace FEBuilderGBA
         /// <summary>
         /// Get the text data count from ROM (simplified - avoids TextForm dependency).
         /// </summary>
-        static uint GetTextDataCount(ROM rom)
+        static uint GetTextDataCount(ROM rom, CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (rom.RomInfo.text_pointer == 0) return 0;
+            if (!U.isSafetyOffset(rom.RomInfo.text_pointer, rom)
+                || (ulong)rom.RomInfo.text_pointer + 4 > (ulong)rom.Data.Length)
+                return 0;
+
             uint textBase = rom.p32(rom.RomInfo.text_pointer);
-            // Use the ROM-pinned safety check so this stays consistent with the
-            // public MakeMapIDList(ROM rom) contract — never silently falls back
-            // to CoreState.ROM.
             if (!U.isSafetyOffset(textBase, rom)) return 0;
 
             // Walk the text pointer table to find count
             // Simplified: use a reasonable upper bound
             for (uint i = 0; i < 0x2000; i++)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 uint entryAddr = (uint)(textBase + i * 4);
                 if (entryAddr + 4 > (uint)rom.Data.Length) return i;
 

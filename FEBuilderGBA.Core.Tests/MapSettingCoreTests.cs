@@ -1,3 +1,5 @@
+using System;
+using System.Threading;
 using Xunit;
 using FEBuilderGBA;
 
@@ -64,6 +66,30 @@ namespace FEBuilderGBA.Core.Tests
             {
                 CoreState.ROM = origRom;
             }
+        }
+
+        [Fact]
+        public void EnumerateMapAddresses_CancelledBetweenRows_StopsBeforeSecondRow()
+        {
+            var rom = new ROM();
+            rom.LoadLow("test.gba", new byte[0x1000000], "BE8E01");
+
+            uint baseAddr = 0x200;
+            uint dataSize = rom.RomInfo.map_setting_datasize;
+            WriteU32(rom.Data, (int)rom.RomInfo.map_setting_pointer, 0x08000000 + baseAddr);
+            WriteU32(rom.Data, (int)baseAddr, 0x08000300);
+            WriteU32(rom.Data, (int)(baseAddr + dataSize), 0x08000300);
+
+            using var cts = new CancellationTokenSource();
+            using var rows = MapSettingCore
+                .EnumerateMapAddresses(rom, cts.Token)
+                .GetEnumerator();
+
+            Assert.True(rows.MoveNext());
+            Assert.Equal(0u, rows.Current.tag);
+
+            cts.Cancel();
+            Assert.Throws<OperationCanceledException>(() => rows.MoveNext());
         }
 
         // ---- Version data size tests ----

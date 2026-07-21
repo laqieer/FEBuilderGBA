@@ -79,8 +79,9 @@ namespace FEBuilderGBA
     /// Decides, per Plan v4, whether a one-click random-map request should run the external
     /// FEMapCreator adapter or the built-in engine (#1978 Slice 3). Pure function of its inputs:
     /// performs no filesystem, process, or network access itself (callers are expected to have
-    /// already produced <paramref name="profile"/> via <see cref="FEMapCreatorProfileCore.Validate"/>
-    /// and <paramref name="mappingLookup"/> via <see cref="FEMapCreatorTilesetMappingStoreCore.Lookup"/>).
+    /// already validated the FEMapCreator profile via <see cref="FEMapCreatorProfileCore.Validate"/>
+    /// before producing <paramref name="mappingLookup"/> via
+    /// <see cref="FEMapCreatorTilesetMappingStoreCore.Lookup"/>).
     /// <list type="bullet">
     /// <item>Mapping <see cref="FEMapCreatorMappingStatus.Current"/> (which itself already implies
     /// the profile was <see cref="FEMapCreatorSetupStatus.Configured"/> at lookup time) selects
