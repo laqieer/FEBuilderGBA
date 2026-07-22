@@ -98,7 +98,9 @@ later in this catalog:
 - Options live status validates paths and stats executable metadata only; it never
   hashes executable content on the dispatcher. Explicit discovery and Save Mapping
   use fresh authoritative hashes, so a same-size executable replacement with
-  preserved mtime cannot create an immediately stale mapping.
+  preserved mtime cannot create an immediately stale mapping. Options snapshots
+  both stored FEMapCreator strings before assigning either event-wired textbox, so
+  initial load cannot erase the assets root while publishing the executable path.
 - Save Mapping re-checks its operation token after detached JSON snapshot
   serialization and passes that token into the persistence boundary, whose default
   implementation checks again immediately before `Config.SaveOrThrow`. Cancel or
@@ -115,7 +117,10 @@ later in this catalog:
 - Options displays the Built-in Experimental visual-coherence-only disclaimer;
   success status names the exact `Built-in Experimental` or
   `FEMapCreator Experimental` backend. The setup wizard opens Options and invokes
-  the no-fingerprint `ShowFEMapCreatorSection` initializer.
+  the no-fingerprint `ShowFEMapCreatorSection` initializer. Map Editor generation
+  status, Options FEMapCreator profile/mapping status and errors, and the wizard's
+  action-error row use polite automation live regions for non-interruptive
+  assistive announcements.
 
 ## Graphics-System Core Seams
 

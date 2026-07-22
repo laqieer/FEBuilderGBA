@@ -6,8 +6,12 @@
 // submodule, and full CoreState save/restore around each test.
 using System;
 using System.IO;
+using Avalonia.Controls;
+using Avalonia.Headless.XUnit;
+using Avalonia.Threading;
 using FEBuilderGBA;
 using FEBuilderGBA.Avalonia.ViewModels;
+using FEBuilderGBA.Avalonia.Views;
 using Xunit;
 
 namespace FEBuilderGBA.Avalonia.Tests;
@@ -77,6 +81,42 @@ public class FEMapCreatorOptionsConfigPersistenceTests : IDisposable
         vm2.Load();
         Assert.Equal(exe, vm2.FEMapCreatorPath);
         Assert.Equal(assets, vm2.FEMapCreatorAssetsRoot);
+    }
+
+    [AvaloniaFact]
+    public void OptionsView_Load_PreservesBothStoredFEMapCreatorFields()
+    {
+        string exe = MakeFile("FEMapCreator.exe");
+        string assets = MakeDir("assets");
+        var saved = new OptionsViewModel();
+        saved.Load();
+        saved.FEMapCreatorPath = exe;
+        saved.FEMapCreatorAssetsRoot = assets;
+        saved.Save();
+
+        var view = new OptionsView();
+        var host = new Window
+        {
+            Width = 620,
+            Height = 560,
+            Content = view,
+        };
+        host.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+
+            TextBox pathBox = view.FindControl<TextBox>("FEMapCreatorPathTextBox")!;
+            TextBox assetsBox = view.FindControl<TextBox>("FEMapCreatorAssetsRootTextBox")!;
+            Assert.Equal(exe, pathBox.Text);
+            Assert.Equal(assets, assetsBox.Text);
+            Assert.Equal(exe, view.ViewModelForTests.FEMapCreatorPath);
+            Assert.Equal(assets, view.ViewModelForTests.FEMapCreatorAssetsRoot);
+        }
+        finally
+        {
+            host.Close();
+        }
     }
 
     [Fact]

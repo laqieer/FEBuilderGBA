@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+using System.Collections.Generic;
 using Xunit;
 using FEBuilderGBA;
 
@@ -364,6 +365,24 @@ namespace FEBuilderGBA.Core.Tests
 
             Assert.Equal(a, b);
             Assert.True(a == b);
+        }
+
+        [Fact]
+        public void Fingerprint_DefaultAndEmpty_AreEqualHashCompatibleDictionaryKeys()
+        {
+            TilesetFingerprint defaultFingerprint = default;
+            TilesetFingerprint emptyFingerprint = TilesetFingerprint.Empty;
+
+            Assert.Equal(defaultFingerprint, emptyFingerprint);
+            Assert.True(defaultFingerprint == emptyFingerprint);
+            Assert.Equal(defaultFingerprint.GetHashCode(), emptyFingerprint.GetHashCode());
+
+            var values = new Dictionary<TilesetFingerprint, string>
+            {
+                [defaultFingerprint] = "empty",
+            };
+            Assert.True(values.TryGetValue(emptyFingerprint, out string value));
+            Assert.Equal("empty", value);
         }
 
         [Fact]

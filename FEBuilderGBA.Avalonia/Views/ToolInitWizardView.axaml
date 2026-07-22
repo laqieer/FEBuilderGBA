@@ -541,6 +541,7 @@
               </StackPanel>
               <TextBlock Name="FEMapCreatorActionStatusTextBlock"
                          AutomationProperties.AutomationId="ToolInitWizard_FEMapCreatorActionStatus_Label"
+                         AutomationProperties.LiveSetting="Polite"
                          IsVisible="False" TextWrapping="Wrap" FontSize="11"
                          Foreground="OrangeRed" />
             </StackPanel>

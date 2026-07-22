@@ -92,6 +92,7 @@
                        VerticalAlignment="Center"
                        TextWrapping="Wrap"
                        FontSize="11"
+                       AutomationProperties.LiveSetting="Polite"
                        Foreground="Gray" />
           </StackPanel>
         </StackPanel>

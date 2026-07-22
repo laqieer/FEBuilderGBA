@@ -125,8 +125,10 @@ namespace FEBuilderGBA.Avalonia.Views
             SrccodeDirectoryTextBox.Text = _vm.SrccodeDirectory;
 
             // FEMapCreator setup (#1978 Slice 2)
-            FEMapCreatorPathTextBox.Text = _vm.FEMapCreatorPath;
-            FEMapCreatorAssetsRootTextBox.Text = _vm.FEMapCreatorAssetsRoot;
+            string feMapCreatorPath = _vm.FEMapCreatorPath;
+            string feMapCreatorAssetsRoot = _vm.FEMapCreatorAssetsRoot;
+            FEMapCreatorPathTextBox.Text = feMapCreatorPath;
+            FEMapCreatorAssetsRootTextBox.Text = feMapCreatorAssetsRoot;
             RefreshFEMapCreatorStatus();
 
             // Random-map tileset mapping (#1978 Slice 3 review finding #5)

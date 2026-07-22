@@ -28,6 +28,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Xml.Linq;
+using global::Avalonia.Automation;
 using global::Avalonia.Controls;
 using global::Avalonia.Headless.XUnit;
 using global::Avalonia.Interactivity;
@@ -140,6 +141,15 @@ public class ToolInitWizardParityTests
             axaml);
         Assert.Contains("Name=\"FEMapCreatorActionStatusTextBlock\"", axaml);
         Assert.Contains("IsVisible=\"False\"", axaml);
+    }
+
+    [AvaloniaFact]
+    public void EndPage_FEMapCreatorActionStatus_IsPoliteLiveRegion()
+    {
+        var view = new ToolInitWizardView();
+        TextBlock status = view.FindControl<TextBlock>("FEMapCreatorActionStatusTextBlock")!;
+
+        Assert.Equal(AutomationLiveSetting.Polite, AutomationProperties.GetLiveSetting(status));
     }
 
     [Fact]

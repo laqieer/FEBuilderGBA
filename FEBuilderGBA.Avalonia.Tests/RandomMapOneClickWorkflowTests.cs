@@ -11,6 +11,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using global::Avalonia.Automation;
 using global::Avalonia.Controls;
 using global::Avalonia.Headless.XUnit;
 using global::Avalonia.Interactivity;
@@ -557,6 +558,15 @@ namespace FEBuilderGBA.Avalonia.Tests
             Dispatcher.UIThread.RunJobs();
 
             Assert.Equal("Failed.", status.Text);
+        }
+
+        [AvaloniaFact]
+        public void MapEditorView_RandomMapStatus_IsPoliteLiveRegion()
+        {
+            var view = new MapEditorView();
+            TextBlock status = view.FindControl<TextBlock>("RandomMapStatusLabel")!;
+
+            Assert.Equal(AutomationLiveSetting.Polite, AutomationProperties.GetLiveSetting(status));
         }
 
         [AvaloniaTheory]

@@ -52,9 +52,10 @@ namespace FEBuilderGBA
             writer.Write(data);
         }
 
-        public bool Equals(TilesetFingerprint other) => string.Equals(Value, other.Value, StringComparison.Ordinal);
+        public bool Equals(TilesetFingerprint other) =>
+            string.Equals(Value ?? "", other.Value ?? "", StringComparison.Ordinal);
         public override bool Equals(object obj) => obj is TilesetFingerprint other && Equals(other);
-        public override int GetHashCode() => Value == null ? 0 : StringComparer.Ordinal.GetHashCode(Value);
+        public override int GetHashCode() => StringComparer.Ordinal.GetHashCode(Value ?? "");
         public override string ToString() => Value ?? "";
         public static bool operator ==(TilesetFingerprint left, TilesetFingerprint right) => left.Equals(right);
         public static bool operator !=(TilesetFingerprint left, TilesetFingerprint right) => !left.Equals(right);

@@ -2,6 +2,7 @@
 // #1978 Slice 2 review fix (finding #3): the FEMapCreator Options status line must refresh as
 // soon as the user types directly into either textbox — not only after Browse/Clear/initial
 // Load — while never launching a process, performing discovery, or touching the network.
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
@@ -47,6 +48,19 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Equal("Assets Root (optional)", assetsLabel.Content);
             Assert.Same(tilesets, tilesetsLabel.Target);
             Assert.Equal("Discovered Tilesets", tilesetsLabel.Content);
+        }
+
+        [AvaloniaFact]
+        public void FEMapCreatorAndTilesetMappingStatuses_ArePoliteLiveRegions()
+        {
+            var view = new OptionsView();
+            TextBlock profileStatus = view.FindControl<TextBlock>("FEMapCreatorStatusText")!;
+            TextBlock status = view.FindControl<TextBlock>("TilesetMappingStatusText")!;
+            TextBlock error = view.FindControl<TextBlock>("TilesetMappingErrorText")!;
+
+            Assert.Equal(AutomationLiveSetting.Polite, AutomationProperties.GetLiveSetting(profileStatus));
+            Assert.Equal(AutomationLiveSetting.Polite, AutomationProperties.GetLiveSetting(status));
+            Assert.Equal(AutomationLiveSetting.Polite, AutomationProperties.GetLiveSetting(error));
         }
 
         [AvaloniaFact]

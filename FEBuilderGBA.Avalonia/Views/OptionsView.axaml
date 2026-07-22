@@ -219,7 +219,7 @@
                 <Button AutomationProperties.AutomationId="Options_BrowseFolder2_Button" Grid.Column="1" Content="Browse..." Click="BrowseFolder_Click" Tag="FEMapCreatorAssetsRootTextBox" Padding="12,6" Margin="0,0,8,0" />
                 <Button AutomationProperties.AutomationId="Options_ClearFEMapCreatorAssetsRoot_Button" Grid.Column="2" Name="ClearFEMapCreatorAssetsRootButton" Content="Clear" Click="ClearFEMapCreatorAssetsRoot_Click" Padding="12,6" />
               </Grid>
-              <TextBlock AutomationProperties.AutomationId="Options_FEMapCreatorStatusText_Label" Name="FEMapCreatorStatusText" Margin="0,4,0,0" FontStyle="Italic" />
+              <TextBlock AutomationProperties.AutomationId="Options_FEMapCreatorStatusText_Label" AutomationProperties.LiveSetting="Polite" Name="FEMapCreatorStatusText" Margin="0,4,0,0" FontStyle="Italic" />
             </StackPanel>
 
             <!-- Per-current-map-tileset mapping (#1978 Slice 3 review finding #5): relocated here
@@ -246,8 +246,8 @@
                      Padding="0"
                      Margin="0,4,0,0" />
               <ListBox AutomationProperties.AutomationId="Options_TilesetOptions_List" Name="TilesetOptionsListBox" MaxHeight="120" SelectionChanged="TilesetOptionsListBox_SelectionChanged" />
-              <TextBlock AutomationProperties.AutomationId="Options_TilesetMappingStatusText_Label" Name="TilesetMappingStatusText" Margin="0,4,0,0" FontStyle="Italic" />
-              <TextBlock AutomationProperties.AutomationId="Options_TilesetMappingErrorText_Label" Name="TilesetMappingErrorText" Margin="0,2,0,0" FontStyle="Italic" Foreground="Red" />
+              <TextBlock AutomationProperties.AutomationId="Options_TilesetMappingStatusText_Label" AutomationProperties.LiveSetting="Polite" Name="TilesetMappingStatusText" Margin="0,4,0,0" FontStyle="Italic" />
+              <TextBlock AutomationProperties.AutomationId="Options_TilesetMappingErrorText_Label" AutomationProperties.LiveSetting="Polite" Name="TilesetMappingErrorText" Margin="0,2,0,0" FontStyle="Italic" Foreground="Red" />
             </StackPanel>
 
           </StackPanel>

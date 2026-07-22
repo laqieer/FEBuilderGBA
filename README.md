@@ -254,7 +254,9 @@ dotnet run --project FEBuilderGBA.CLI -- --generate-random-map --femapcreator=C:
 # mapping now live only in Options' FEMapCreator section (Map Editor's "Map Tileset..." button is just a
 # shortcut that selects Options' External Tools tab and scrolls the FEMapCreator section into view with the
 # current tileset pre-selected). Live path status performs path and file-metadata checks only, so opening
-# Options or typing never hashes executable content on the UI thread. Editing either live FEMapCreator path
+# Options or typing never hashes executable content on the UI thread. Loading Options snapshots both saved
+# FEMapCreator fields before textbox change events run, so neither persisted value can clear the other.
+# Editing either live FEMapCreator path
 # cancels any in-flight discovery or Save Mapping operation and clears discovered choices, so Save Mapping
 # always requires a fresh discovery from the same executable/assets profile. Discovery and Save Mapping both
 # authoritatively re-hash even same-size/same-mtime executable replacements. Save Mapping persists a detached
@@ -290,6 +292,8 @@ dotnet run --project FEBuilderGBA.CLI -- --generate-random-map --femapcreator=C:
 # and scrolls the same Options FEMapCreator section above without inventing a map fingerprint (no separate
 # path/mapping form is duplicated in the wizard). Platform-specific browser-launch failures are logged and
 # reported in that row instead of escaping the wizard's async UI handler.
+# Dynamic random-map status, Options FEMapCreator profile/mapping status and errors, and the wizard action-error
+# row are polite automation live regions so assistive technology announces actionable updates without interruption.
 # Neither the wizard nor Options ever downloads, installs, searches PATH, auto-discovers, or launches
 # FEMapCreator merely from being opened or displayed.
 dotnet run --project FEBuilderGBA.CLI -- --translate --rom=rom.gba --out=texts.tsv
