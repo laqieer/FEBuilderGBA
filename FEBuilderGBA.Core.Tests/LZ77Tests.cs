@@ -60,5 +60,30 @@ namespace FEBuilderGBA.Core.Tests
 
             Assert.Null(ex);
         }
+
+        [Fact]
+        public void GetCompressedSizeStrict_ValidRoundTripStream_ReturnsCompressedLength()
+        {
+            byte[] compressed = LZ77.compress(new byte[] { 1, 2, 3, 1, 2, 3 });
+
+            Assert.Equal(
+                LZ77.getCompressedSize(compressed, 0),
+                LZ77.getCompressedSizeStrict(compressed, 0));
+        }
+
+        [Fact]
+        public void GetCompressedSizeStrict_InvalidBackReferenceFollowedByLiterals_ReturnsZero()
+        {
+            byte[] malformed =
+            {
+                0x10, 0x03, 0x00, 0x00,
+                0x80,
+                0x00, 0x00,
+                0x11, 0x22, 0x33,
+            };
+
+            Assert.NotEqual(0u, LZ77.getCompressedSize(malformed, 0));
+            Assert.Equal(0u, LZ77.getCompressedSizeStrict(malformed, 0));
+        }
     }
 }

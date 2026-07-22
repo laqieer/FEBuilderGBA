@@ -25,6 +25,13 @@ namespace FEBuilderGBA
         /// <summary>True when synchronous termination failed and a lifetime reaper took ownership.</summary>
         public bool TerminationFailed { get; init; }
 
+        /// <summary>
+        /// True when the supplied <see cref="CancellationToken"/> was signalled while the process
+        /// was running and this call owned/terminated its own <see cref="Process"/> in response.
+        /// Never true for the token-less overloads.
+        /// </summary>
+        public bool Cancelled { get; init; }
+
         /// <summary>Process exit code (0 on success). Meaningful only when Started is true.</summary>
         public int ExitCode { get; init; }
 
@@ -44,6 +51,7 @@ namespace FEBuilderGBA
             TimedOut = false,
             OutputLimitExceeded = false,
             TerminationFailed = false,
+            Cancelled = false,
             ExitCode = -1,
             Stdout = "",
             Stderr = "",
@@ -606,6 +614,34 @@ namespace FEBuilderGBA
             int timeoutMs,
             int maximumOutputChars)
         {
+            return Run(command, args, workingDir, timeoutMs, maximumOutputChars, CancellationToken.None);
+        }
+
+        /// <summary>
+        /// Run an external process with a hard per-stream capture limit and cooperative
+        /// cancellation. Never throws.
+        /// </summary>
+        /// <param name="maximumOutputChars">
+        /// Maximum characters captured independently from stdout and stderr;
+        /// ≤ 0 means unlimited.
+        /// </param>
+        /// <param name="cancellationToken">
+        /// When signalled while the process is running, this call owns and terminates only its
+        /// own <see cref="Process"/> (the same machinery used for the timeout path) and returns
+        /// promptly with <see cref="ProcessRunResult.Cancelled"/> set. Checked on the same
+        /// ≤50ms poll cadence as the timeout. This is a distinct exact-arity overload
+        /// (not a default parameter on the 5-argument overload) so the fixed-arity
+        /// <see cref="ProcessRunnerDelegate"/> method-group conversion used throughout the
+        /// codebase remains unambiguous and unaffected.
+        /// </param>
+        public static ProcessRunResult Run(
+            string command,
+            IEnumerable<string> args,
+            string workingDir,
+            int timeoutMs,
+            int maximumOutputChars,
+            CancellationToken cancellationToken)
+        {
             try
             {
                 if (string.IsNullOrWhiteSpace(command))
@@ -721,12 +757,22 @@ namespace FEBuilderGBA
                     bool timedOut = false;
                     bool outputLimitExceeded = false;
                     bool terminationFailed = false;
+                    bool cancelled = false;
                     var stopwatch = Stopwatch.StartNew();
                     while (true)
                     {
                         if (Volatile.Read(ref outputLimitSignal) != 0)
                         {
                             outputLimitExceeded = true;
+                            terminationFailed = !TryTerminateProcess(
+                                proc,
+                                containment);
+                            break;
+                        }
+
+                        if (cancellationToken.IsCancellationRequested)
+                        {
+                            cancelled = true;
                             terminationFailed = !TryTerminateProcess(
                                 proc,
                                 containment);
@@ -788,6 +834,7 @@ namespace FEBuilderGBA
                         || (!timedOut
                             && !outputLimitExceeded
                             && !terminationFailed
+                            && !cancelled
                             && streamReadFailed);
                     string capturedStdout = streamsDrained ? stdout.ToString() : "";
                     string capturedStderr = streamsDrained ? stderr.ToString() : "";
@@ -801,6 +848,10 @@ namespace FEBuilderGBA
                     else if (timedOut)
                     {
                         errorMessage = $"Process timed out after {timeout} ms.";
+                    }
+                    else if (cancelled)
+                    {
+                        errorMessage = "Process was cancelled.";
                     }
                     else if (captureFailed)
                     {
@@ -821,8 +872,9 @@ namespace FEBuilderGBA
                         TimedOut = timedOut,
                         OutputLimitExceeded = outputLimitExceeded,
                         TerminationFailed = terminationFailed,
+                        Cancelled = cancelled,
                         ExitCode = timedOut || outputLimitExceeded
-                            || terminationFailed || captureFailed
+                            || terminationFailed || cancelled || captureFailed
                             ? -1
                             : proc.ExitCode,
                         Stdout = capturedStdout,

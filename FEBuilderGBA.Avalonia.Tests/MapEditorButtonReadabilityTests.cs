@@ -75,6 +75,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         [InlineData("ImportTmxButton")]
         [InlineData("ResizeMapButton")]
         [InlineData("GenerateRandomMapButton")]
+        [InlineData("CancelRandomMapButton")]
         [InlineData("WriteTileBtn")]
         [InlineData("RefreshMapBtn")]
         public void MapEditorButtons_KeepThemeBackgroundsAndDoNotHardCodeBrushes(string name)
@@ -175,6 +176,47 @@ namespace FEBuilderGBA.Avalonia.Tests
 
                 Assert.True(mapCanvas.Bounds.Height >= MinimumUsableMapHeight,
                     $"Map canvas height at MinHeight ({mapCanvas.Bounds.Height:F1}) should remain usable.");
+            }
+            finally
+            {
+                view.Close();
+            }
+        }
+
+        // #1978 Slice 3: the inline seed row (RandomMapSeedTextBox/RandomizeSeedButton/
+        // RandomMapStatusLabel) is a new sibling toolbar row alongside MapRandomCommandToolbar.
+        // Prove it also stays reachable (no horizontal scroll needed) at both the preferred
+        // editor width and the narrowest declared MinWidth, matching the existing split-toolbar
+        // rows checked above.
+        [AvaloniaFact]
+        public void RandomMapSeedToolbar_FitsDeclaredEditorWidthAndMinWidth()
+        {
+            var view = new MapEditorView();
+            view.Show();
+            try
+            {
+                ArrangeAt(view, EditorWidth, EditorHeight);
+
+                var seedToolbar = Required<StackPanel>(view, "MapRandomSeedToolbar");
+                var seedTextBox = Required<TextBox>(view, "RandomMapSeedTextBox");
+                var randomizeButton = Required<Button>(view, "RandomizeSeedButton");
+                var mapTilesetButton = Required<Button>(view, "MapTilesetButton");
+
+                double availableViewportWidth = ArrangeAndGetUpperControlsViewportWidth(view, EditorWidth, EditorHeight);
+                Assert.True(seedToolbar.Bounds.Width > 0, "Seed toolbar should have a real, non-zero measured width.");
+                Assert.True(seedToolbar.Bounds.Width <= availableViewportWidth,
+                    $"Seed toolbar desired width ({seedToolbar.Bounds.Width:F1}) exceeds " +
+                    $"the upper-controls scroller's actual viewport width ({availableViewportWidth:F1}).");
+
+                double availableMinViewportWidth = ArrangeAndGetUpperControlsViewportWidth(
+                    view, view.Descriptor.MinWidth, view.Descriptor.MinHeight);
+                Assert.True(seedToolbar.Bounds.Width <= availableMinViewportWidth,
+                    $"Seed toolbar width at MinWidth ({seedToolbar.Bounds.Width:F1}) exceeds the MinWidth " +
+                    $"upper-controls scroller's actual viewport width ({availableMinViewportWidth:F1}); manual resize could clip it.");
+
+                Assert.NotNull(seedTextBox);
+                Assert.NotNull(randomizeButton);
+                Assert.NotNull(mapTilesetButton);
             }
             finally
             {
@@ -613,7 +655,8 @@ namespace FEBuilderGBA.Avalonia.Tests
         [InlineData("MapEditor_ExportTmx_Button", "Export Map (Tiled)")]
         [InlineData("MapEditor_ImportTmx_Button", "Import Map (Tiled)")]
         [InlineData("MapEditor_ResizeMap_Button", "Resize Map…")]
-        [InlineData("MapEditor_GenerateRandomMap_Button", "Generate Random Map…")]
+        [InlineData("MapEditor_GenerateRandomMap_Button", "Generate Random Map")]
+        [InlineData("MapEditor_CancelRandomMap_Button", "Cancel")]
         [InlineData("MapEditor_WriteTileBtn_Button", "Write Tile")]
         [InlineData("MapEditor_RefreshMapBtn_Button", "Refresh Map")]
         public void AffectedButtons_RemainDiscoverableByAutomationId(string automationId, string content)

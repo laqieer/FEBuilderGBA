@@ -29,13 +29,16 @@ sealed class RecordingNavigationService : INavigationService
     public string? LastCall;
     public Type? LastType;
     public uint LastAddress;
+    public Control? LastControl;
     public Window? MainWindow { get; set; }
     public Window? ActiveEditorWindow => null;
 
     public T Open<T>() where T : Control, new()
     {
         LastCall = "Open"; LastType = typeof(T);
-        return new T();
+        var control = new T();
+        LastControl = control;
+        return control;
     }
 
     public T Navigate<T>(uint address) where T : Control, IEditorView, new()

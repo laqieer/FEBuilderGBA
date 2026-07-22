@@ -235,6 +235,89 @@ dotnet run --project FEBuilderGBA.CLI -- --convertmap1picture --in=map.png --out
 # FEBuilderGBA never downloads or bundles FEMapCreator or its assets. The output is
 # FEBuilderGBA CSV and does not load or mutate a ROM.
 dotnet run --project FEBuilderGBA.CLI -- --generate-random-map --femapcreator=C:\tools\FEMapCreator.exe --tileset="FE6 - Fields - 01020304" --width=15 --height=10 --algorithm=experimental --seed=42 --out=random-map.csv
+# The Avalonia Map Editor's "Generate Random Map" button is true one-click (no dialog, no ellipsis): it uses the
+# current map's dimensions and an inline, directly replayable seed. A blank seed is materialized before either
+# backend starts, and the adjacent Cancel button remains enabled during generation so the operation can be
+# stopped without closing the editor. Authoritative FEMapCreator profile/mapping hashes — including Options'
+# Save Mapping image and generation-data identities — run off the UI thread, collect size/timestamp/hash from
+# one opened file handle, and observe cancellation between bounded file reads. Generation resolves/decompresses
+# the authoritative OBJ/PAL/CFG/MAP tileset snapshot on
+# the same worker boundary and returns that exact fingerprint for the apply-time live-ROM guard; Map Editor no
+# longer performs a separate pre-service resolve on the dispatcher (the guard still re-resolves the live ROM
+# immediately before mutation).
+# Discovery and Save Mapping share one exclusive busy/cancel state. Built-in generation clones the ROM and
+# current grid before the worker hop, then scans cancellation-aware address/tag rows directly (without display-name
+# decoding or global-ROM text reads), so corpus scanning never races live editor writes; if that grid cannot be
+# decoded exactly, generation fails before either backend is invoked rather than disabling source-identity rejection. Cancellation is also
+# observed while each cell's weighted candidate order is prepared. Built-in tileset loading rejects truncated
+# primary/secondary OBJ, CFG, or MAP LZ77 streams, and a nonzero secondary OBJ reference must resolve completely
+# instead of being silently omitted from the tileset identity. Per-tileset FEMapCreator discovery and
+# mapping now live only in Options' FEMapCreator section (Map Editor's "Map Tileset..." button is just a
+# shortcut that selects Options' External Tools tab and scrolls the FEMapCreator section into view with the
+# current tileset pre-selected). Live path status performs path and file-metadata checks only, so opening
+# Options or typing never hashes executable content on the UI thread. Both live and authoritative profile
+# validation reuse the launcher's supported-program rules, so Windows accepts `.exe`/managed `.dll` paths
+# and Unix native programs must still have execute access before the profile can be Configured.
+# Loading Options snapshots both saved
+# FEMapCreator fields before textbox change events run, so neither persisted value can clear the other.
+# Editing either live FEMapCreator path
+# cancels any in-flight discovery or Save Mapping operation and clears discovered choices, so Save Mapping
+# always requires a fresh discovery from the same executable/assets profile. Discovery and Save Mapping both
+# authoritatively re-hash even same-size/same-mtime executable replacements. Discovery re-checks cancellation
+# after its final authoritative profile validation immediately before publishing any returned tilesets.
+# Save Mapping persists a detached
+# config snapshot to a flushed sibling temp file, atomically replaces config.xml, and updates the live config
+# only after that succeeds; it re-checks cancellation after snapshot serialization and again at the flushed-temp
+# replacement boundary — immediately before the atomic replaceFile, once the sibling temp is fully written and
+# flushed — so a cancellation observed at that boundary still leaves the original config.xml on disk untouched
+# and the temp is always cleaned. Write failures preserve the prior
+# disk/live state and cannot masquerade as success.
+# If a mapping is configured and current,
+# Generate runs the external adapter above; once started, any launch/exit/parse failure is surfaced directly
+# and never silently swapped for the built-in engine, and cancelling (or closing the editor) terminates the
+# owned external process rather than letting it finish and apply. Both generation and tileset discovery re-check
+# cancellation after path/launch-spec setup and immediately before invoking any process runner. A successful
+# result from either backend must contain exactly width*height cells, and every returned MAR must have a complete
+# TSA configuration block in the resolved tileset snapshot, with at least two distinct MAR values in the final
+# layout. After FEMapCreator exits, its executable, image, and generation-data identities are authoritatively
+# revalidated against the same immutable mapping snapshot before success publication. Invalid, degenerate, or
+# identity-stale external output fails without falling back to the built-in engine. Built-in, external-adapter,
+# and backend-neutral result storage clone generated MARs
+# and return copies to callers, so later consumer mutation cannot invalidate replay or diversity metadata.
+# The resolved MapTilesetSnapshot and its derived tileset corpus are immutable: they clone all MAP/OBJ/PAL/CFG
+# buffers, contributing-map/candidate lists, frequency dictionaries, and directional adjacency sets before
+# exposing defensive public views. Relaxed-model metatile edge signatures likewise clone all four edge arrays.
+# Mutating caller sources, getter results, or cast public collection views therefore cannot alter stored data or
+# diverge the tileset Fingerprint, while trusted generator/validation hot paths read internal zero-copy buffers
+# to avoid repeated per-generation clones.
+# The validated result is then compared with the captured source grid; a
+# sequence-identical layout fails instead of applying an unchanged map as a successful undo transaction.
+# Otherwise — or if the saved mapping is
+# stale/invalid, which is visibly explained with a localized typed reason (on success, failure, or cancellation
+# alike) while raw filesystem diagnostics remain separate rather than leaking English into the notice — it uses
+# an independently designed, clean-room, deterministic built-in generator (see
+# docs/CORE-SEAMS.md and docs/ENGINEERING-NOTES.md) that needs no external tool, network access, or download,
+# and produces the same layout again when re-run with the displayed seed. This engine is experimental and
+# visual-coherence-only: it does not guarantee gameplay/objective validity (reachable chests, doors, spawns, etc.).
+# Every built-in success uses at least two distinct MAR values; adjacency models exposing fewer than two viable
+# candidates fail as insufficient source data, while the stricter three-value/90%-occupancy gate still applies
+# whenever the active model exposes at least three viable candidates.
+# Its primary OBJ, nonzero secondary OBJ, CFG, and MAP inputs must each be complete LZ77 streams whose
+# back-references point into already-produced output; truncated or out-of-history streams fail before decompression.
+# Options states that limitation explicitly, and successful generation reports the exact backend name:
+# "Built-in Experimental" or "FEMapCreator Experimental".
+# The optional first-run tool-initialization wizard's EndPage adds a small, always-optional FEMapCreator
+# row: it states plainly that FEMapCreator is an independent utility credited to bwdyeti and that
+# FEBuilderGBA does not bundle, host, license, or guarantee it, and that Built-in Experimental remains
+# available immediately if you skip it or leave it unconfigured. Its two buttons only ever act on an
+# explicit click — one opens the fixed upstream project/setup page in your browser, the other navigates to
+# and scrolls the same Options FEMapCreator section above without inventing a map fingerprint (no separate
+# path/mapping form is duplicated in the wizard). Platform-specific browser-launch failures are logged and
+# reported in that row instead of escaping the wizard's async UI handler.
+# Dynamic random-map status, Options FEMapCreator profile/mapping status and errors, and the wizard action-error
+# row are polite automation live regions so assistive technology announces actionable updates without interruption.
+# Neither the wizard nor Options ever downloads, installs, searches PATH, auto-discovers, or launches
+# FEMapCreator merely from being opened or displayed.
 dotnet run --project FEBuilderGBA.CLI -- --translate --rom=rom.gba --out=texts.tsv
 dotnet run --project FEBuilderGBA.CLI -- --translate --rom=rom.gba --in=texts.tsv
 dotnet run --project FEBuilderGBA.CLI -- --translate-roundtrip --rom=rom.gba

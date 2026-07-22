@@ -1,6 +1,7 @@
 ﻿using global::Avalonia;
 using System;
 using System.IO;
+using System.Threading;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
@@ -22,6 +23,8 @@ namespace FEBuilderGBA.Avalonia.Views
         int _zoom = 1;
         byte[] _lastRgba; // cached for refresh
         bool _generatingRandomMap;
+        readonly RandomMapOneClickService _randomMapService;
+        CancellationTokenSource? _randomMapCts;
 
         public string ViewTitle => "Visual Map Editor";
         public new bool IsLoaded => _vm.IsLoaded;
@@ -32,6 +35,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public MapEditorView()
         {
             InitializeComponent();
+            _randomMapService = new RandomMapOneClickService();
             EntryList.SelectedAddressChanged += OnSelected;
             ZoomInBtn.Click += OnZoomIn;
             ZoomOutBtn.Click += OnZoomOut;
@@ -44,6 +48,12 @@ namespace FEBuilderGBA.Avalonia.Views
             ImportTmxButton.Click += ImportTmx_Click;
             ResizeMapButton.Click += ResizeMap_Click;
             GenerateRandomMapButton.Click += GenerateRandomMap_Click;
+            CancelRandomMapButton.Click += CancelRandomMap_Click;
+            RandomizeSeedButton.Click += RandomizeSeed_Click;
+            MapTilesetButton.Click += MapTileset_Click;
+            // #1978 Slice 3: cancel any in-flight one-click generation when the editor is
+            // detached (map switched/editor closed) so a stale generation can never apply.
+            DetachedFromVisualTree += (_, _) => _randomMapCts?.Cancel();
             AddHandler(KeyDownEvent, OnEditorKeyDown, RoutingStrategies.Tunnel);
             // Paint Mode defaults to OFF (no regression to existing select behaviour).
             PaintModeCheck.IsChecked = false;
@@ -1013,60 +1023,304 @@ namespace FEBuilderGBA.Avalonia.Views
             if (_generatingRandomMap)
                 return;
 
+            var cts = new CancellationTokenSource();
+            _randomMapCts = cts;
+
+            // #1978 Slice 3 review finding #4: every exit path below must leave a deterministic
+            // Ready/Failed/Cancelled/backend status rather than the transient "Generating..."
+            // text set just below, whether it exits via return, exception, or cancellation.
+            void Fail(string message, string notice = "")
+            {
+                ShowError(string.IsNullOrWhiteSpace(notice) ? message : notice + " " + message);
+                SetRandomMapBusyState(false, R._("Failed."));
+            }
+            void CancelStatus()
+            {
+                SetRandomMapBusyState(false, R._("Cancelled."));
+            }
+
             try
             {
                 _generatingRandomMap = true;
+                SetRandomMapBusyState(true, R._("Generating..."));
+
+                if (!GenerateRandomMapWorkflow.TryPrepareForGeneration(
+                    _vm,
+                    assetName => DecompMapAssetGuard.BlockIfDecomp(assetName),
+                    msg => Fail(msg)))
+                {
+                    SetRandomMapBusyState(false, R._("Failed."));
+                    return;
+                }
 
                 if (!_vm.TryCaptureMapWriteIdentity(
                     out MapEditorViewModel.MapWriteIdentity writeIdentity,
                     out string identityError))
                 {
-                    ShowError(string.Format(
-                        R._("Generate random map failed: {0}"),
-                        identityError));
+                    Fail(string.Format(R._("Generate random map failed: {0}"), identityError));
                     return;
                 }
 
-                GenerateRandomMapDialogResult? result = await GenerateRandomMapWorkflow.OpenDialogIfReadyAsync(
-                    _vm,
-                    assetName => DecompMapAssetGuard.BlockIfDecomp(assetName),
-                    ShowError,
-                    (width, height) => GenerateRandomMapDialog.Show(TopLevel.GetTopLevel(this) as Window, width, height));
-                if (result == null)
-                    return;
-
-                if (result.Mars == null || result.Mars.Length != result.Width * result.Height)
+                if (!TryGetSeed(out int seed, out string seedError))
                 {
-                    ShowError(R._("Random map generation returned no map data."));
+                    Fail(seedError);
+                    return;
+                }
+                RandomMapSeedTextBox.Text = seed.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+                uint mapSettingAddr = _vm.CurrentAddr;
+                int width = _vm.MapWidth;
+                int height = _vm.MapHeight;
+
+                if (!TryBuildCurrentGrid(
+                    _vm.GetMapDataSnapshot(),
+                    width,
+                    height,
+                    out ushort[] currentGrid))
+                {
+                    Fail(string.Format(
+                        R._("Generate random map failed: {0}"),
+                        R._("The current map data could not be decoded.")));
                     return;
                 }
 
-                // The FEMapCreator shell-out and MAR parsing happen inside the dialog VM's
-                // Task.Run work. The workflow marshals every ROM/undo/cache mutation and the
-                // success notification back onto the Avalonia UI thread.
+                RandomMapOneClickResult result;
+                try
+                {
+                    result = await _randomMapService.GenerateAsync(
+                        CoreState.ROM, mapSettingAddr, width, height, currentGrid, seed, cts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    CancelStatus();
+                    return;
+                }
+
+                if (result.Cancelled)
+                {
+                    // Review finding #2: a stale/invalid-mapping notice must still be visible
+                    // even when the backend attempt ends in cancellation, not only on failure.
+                    string mappingNotice = FormatMappingNotice(result);
+                    if (!string.IsNullOrWhiteSpace(mappingNotice))
+                        CoreState.Services?.ShowInfo(mappingNotice);
+                    CancelStatus();
+                    return;
+                }
+
+                string notice = FormatMappingNotice(result);
+                if (!result.Success || result.Outcome == null)
+                {
+                    Fail(string.Format(R._("Generate random map failed: {0}"), result.ErrorMessage), notice);
+                    return;
+                }
+
+                if (!string.IsNullOrWhiteSpace(notice))
+                    CoreState.Services?.ShowInfo(notice);
+
+                RandomMapGenerationOutcome outcome = result.Outcome;
+                TilesetFingerprint expectedFingerprint = result.SourceTilesetFingerprint;
+                if (outcome.Mars == null || outcome.Mars.Length != outcome.Width * outcome.Height)
+                {
+                    Fail(R._("Random map generation returned no map data."));
+                    return;
+                }
+
+                // Write the directly-replayable seed back so the user can reproduce this
+                // exact layout later by generating again with the same displayed value.
+                RandomMapSeedTextBox.Text = outcome.EffectiveSeed.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+                // Mandatory re-check immediately before the UI-thread apply (review finding #1
+                // remainder): a cancellation observed after the backend call returned (e.g. this
+                // view detaching/closing while marshalling back to the UI thread) must never
+                // reach ApplyGeneratedMapOnUiThreadAsync's ROM mutation.
+                if (cts.Token.IsCancellationRequested)
+                {
+                    CancelStatus();
+                    return;
+                }
+
+                // The FEMapCreator shell-out / built-in search happens inside
+                // RandomMapOneClickService off the UI thread. The workflow marshals every
+                // ROM/undo/cache mutation and the success notification back onto the
+                // Avalonia UI thread, and re-validates identity + tileset fingerprint
+                // immediately before writing so a stale context never mutates the ROM.
                 string? applyError =
                     await GenerateRandomMapWorkflow.ApplyGeneratedMapOnUiThreadAsync(
                         _vm,
                         _undo,
-                        result,
+                        outcome,
                         writeIdentity,
+                        expectedFingerprint,
+                        cts.Token,
                         RefreshMapImageFromCurrentSelectionStrict,
                         UpdateTilePaletteStrict,
                         RefreshMapFromCurrentSelectionStrict,
                         message => CoreState.Services?.ShowInfo(message));
 
                 if (!string.IsNullOrWhiteSpace(applyError))
-                    ShowError(string.Format(R._("Generate random map failed: {0}"), applyError));
+                    Fail(string.Format(R._("Generate random map failed: {0}"), applyError));
+                else
+                    SetRandomMapBusyState(false, FormatBackendStatus(result.BackendUsed));
+            }
+            catch (OperationCanceledException)
+            {
+                CancelStatus();
             }
             catch (Exception ex)
             {
                 Log.Error("MapEditorView.GenerateRandomMap_Click failed: " + ex.ToString());
-                ShowError(string.Format(R._("Generate random map failed: {0}"), ex.Message));
+                Fail(string.Format(R._("Generate random map failed: {0}"), ex.Message));
             }
             finally
             {
+                // Deterministic, race-safe disposal (#1978 Slice 3 re-review finding #1): only
+                // clear the shared field if it still refers to THIS invocation's own source (the
+                // _generatingRandomMap guard above prevents a second concurrent invocation from
+                // ever replacing it), then dispose it. DetachedFromVisualTree only ever calls
+                // Cancel() — never Dispose() — so it can safely race this finally without ever
+                // cancelling an already-disposed source.
+                if (ReferenceEquals(_randomMapCts, cts))
+                    _randomMapCts = null;
+                cts.Dispose();
                 _generatingRandomMap = false;
+                // Do not overwrite the deterministic status text already set above (Fail/
+                // CancelStatus/success-backend line) with a null-text no-op; just make sure the
+                // controls are re-enabled even on an unexpected early exit.
+                SetRandomMapBusyState(false);
             }
+        }
+
+        internal void SetRandomMapBusyState(bool busy, string? statusText = null)
+        {
+            GenerateRandomMapButton.IsEnabled = !busy;
+            CancelRandomMapButton.IsEnabled = busy;
+            RandomizeSeedButton.IsEnabled = !busy;
+            MapTilesetButton.IsEnabled = !busy;
+            RandomMapSeedTextBox.IsEnabled = !busy;
+            if (statusText != null)
+                RandomMapStatusLabel.Text = statusText;
+        }
+
+        void CancelRandomMap_Click(object? sender, RoutedEventArgs e) => _randomMapCts?.Cancel();
+
+        void RandomizeSeed_Click(object? sender, RoutedEventArgs e)
+        {
+            RandomMapSeedTextBox.Text = Random.Shared.Next().ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>
+        /// #1978 Slice 3 review finding #5: this button no longer owns a standalone mapping
+        /// dialog. It only identifies the current map's tileset fingerprint and navigates to the
+        /// FEMapCreator section of Options (Plan v4 §4/§7's intended home for discovery,
+        /// discovered-tileset selection, and per-fingerprint mapping save/status/stale
+        /// guidance), passing that fingerprint as context. Generation itself remains one-click
+        /// and never opens this or any other dialog.
+        /// </summary>
+        async void MapTileset_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!BuiltInRandomMapTilesetCore.TryResolveMapTileset(CoreState.ROM, _vm.CurrentAddr, out MapTilesetSnapshot snapshot, out string error))
+            {
+                ShowError(string.Format(R._("Could not identify this map's tileset: {0}"), error));
+                return;
+            }
+
+            await WindowManager.Instance.OpenModal<OptionsView>(
+                TopLevel.GetTopLevel(this) as Window,
+                view => view.SetTilesetContext(snapshot.Fingerprint));
+        }
+
+        internal bool TryGetSeed(out int seed, out string error)
+        {
+            error = "";
+            string? text = RandomMapSeedTextBox.Text;
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                seed = Random.Shared.Next();
+                RandomMapSeedTextBox.Text = seed.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                return true;
+            }
+            if (int.TryParse(text, out seed))
+                return true;
+
+            seed = 0;
+            error = R._("Seed must be a valid 32-bit integer.");
+            return false;
+        }
+
+        internal static string FormatMappingNotice(RandomMapOneClickResult result)
+        {
+            ArgumentNullException.ThrowIfNull(result);
+            if (result.MappingStatus != FEMapCreatorMappingStatus.Stale
+                && result.MappingStatus != FEMapCreatorMappingStatus.Invalid)
+            {
+                return "";
+            }
+
+            string reason = result.MappingReason switch
+            {
+                FEMapCreatorMappingReason.StoredEntryMissingRequiredFields =>
+                    R._("The saved mapping entry is missing required fields."),
+                FEMapCreatorMappingReason.ImageUnreadable =>
+                    R._("The mapped image file is no longer readable."),
+                FEMapCreatorMappingReason.ImageChanged =>
+                    R._("The mapped image file has changed since the mapping was saved."),
+                FEMapCreatorMappingReason.GenerationDataUnreadable =>
+                    R._("The mapped generation-data file is no longer readable."),
+                FEMapCreatorMappingReason.GenerationDataChanged =>
+                    R._("The mapped generation-data file has changed since the mapping was saved."),
+                FEMapCreatorMappingReason.ProfileUnavailable =>
+                    R._("FEMapCreator is no longer configured or valid."),
+                FEMapCreatorMappingReason.ExecutablePathChanged =>
+                    R._("The configured FEMapCreator executable path has changed."),
+                FEMapCreatorMappingReason.ExecutableContentChanged =>
+                    R._("The configured FEMapCreator executable content has changed."),
+                FEMapCreatorMappingReason.AssetsRootChanged =>
+                    R._("The configured FEMapCreator assets root has changed."),
+                _ => R._("The saved FEMapCreator tileset mapping is no longer valid."),
+            };
+            string format = result.MappingStatus == FEMapCreatorMappingStatus.Stale
+                ? R._("The saved FEMapCreator tileset mapping is stale ({0}); using the built-in generator instead.")
+                : R._("The saved FEMapCreator tileset mapping is invalid ({0}); using the built-in generator instead.");
+            return string.Format(format, reason);
+        }
+
+        internal static string FormatBackendStatus(RandomMapBackendUsed backend)
+        {
+            string backendName = backend == RandomMapBackendUsed.External
+                ? R._("FEMapCreator Experimental")
+                : R._("Built-in Experimental");
+            return string.Format(R._("Backend: {0}"), backendName);
+        }
+
+        /// <summary>
+        /// Convert the currently cached map bytes into a row-major MAR grid for the built-in
+        /// engine's source-identity ladder. Fails closed when the cache is unavailable,
+        /// dimensionally inconsistent, or any cell cannot be read.
+        /// </summary>
+        internal static bool TryBuildCurrentGrid(
+            byte[] cached,
+            int width,
+            int height,
+            out ushort[] grid)
+        {
+            grid = Array.Empty<ushort>();
+            if (cached == null || cached.Length < 2 || width <= 0 || height <= 0)
+                return false;
+            if (cached[0] != width || cached[1] != height)
+                return false;
+
+            var parsed = new ushort[width * height];
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    if (!MapEditorTilesetCore.TryReadMar(cached, width, height, x, y, out ushort mar))
+                        return false;
+                    parsed[y * width + x] = mar;
+                }
+            }
+            grid = parsed;
+            return true;
         }
 
         void ShowError(string message)

@@ -544,5 +544,85 @@ namespace FEBuilderGBA.Core.Tests
 
             Directory.Delete(root, recursive: true);
         }
+
+        // #1978 Slice 3 review finding #1: a cancelled Run(...) call must own and terminate its
+        // own long-running process rather than merely abandoning an awaited Task.
+        [Fact]
+        public void Run_CancellationTokenOwnsAndTerminatesLongRunningProcess()
+        {
+            string command;
+            string[] args;
+            if (OperatingSystem.IsWindows())
+            {
+                command = "powershell.exe";
+                args = new[] { "-NoProfile", "-Command", "Start-Sleep -Seconds 60" };
+            }
+            else
+            {
+                command = "/usr/bin/python3";
+                if (!File.Exists(command))
+                    return; // No suitable long-running interpreter on this non-Windows host.
+                args = new[] { "-c", "import time;time.sleep(60)" };
+            }
+
+            using var cts = new CancellationTokenSource();
+            var stopwatch = Stopwatch.StartNew();
+            System.Threading.Tasks.Task<ProcessRunResult> runTask =
+                System.Threading.Tasks.Task.Run(() => ProcessRunnerCore.Run(
+                    command,
+                    args,
+                    null,
+                    120_000,
+                    0,
+                    cts.Token));
+
+            // Give the process a moment to actually start before cancelling mid-flight.
+            Thread.Sleep(500);
+            cts.Cancel();
+
+            bool completed = runTask.Wait(TimeSpan.FromSeconds(15));
+            stopwatch.Stop();
+
+            Assert.True(completed, "Run(...) did not return after cancellation was requested.");
+            ProcessRunResult result = runTask.Result;
+            Assert.True(result.Started, result.ErrorMessage);
+            Assert.True(result.Cancelled, "Cancelled flag was not set.");
+            Assert.False(result.TimedOut);
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.True(
+                stopwatch.Elapsed < TimeSpan.FromSeconds(15),
+                $"Cancellation-triggered termination took too long: {stopwatch.Elapsed}.");
+        }
+
+        [Fact]
+        public void Run_AlreadyCancelledToken_StillOwnsAndTerminatesProcessQuickly()
+        {
+            string command;
+            string[] args;
+            if (OperatingSystem.IsWindows())
+            {
+                command = "powershell.exe";
+                args = new[] { "-NoProfile", "-Command", "Start-Sleep -Seconds 60" };
+            }
+            else
+            {
+                command = "/usr/bin/python3";
+                if (!File.Exists(command))
+                    return;
+                args = new[] { "-c", "import time;time.sleep(60)" };
+            }
+
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            var stopwatch = Stopwatch.StartNew();
+            ProcessRunResult result = ProcessRunnerCore.Run(command, args, null, 120_000, 0, cts.Token);
+            stopwatch.Stop();
+
+            Assert.True(result.Cancelled);
+            Assert.True(
+                stopwatch.Elapsed < TimeSpan.FromSeconds(15),
+                $"Pre-cancelled Run(...) took too long to return: {stopwatch.Elapsed}.");
+        }
     }
 }

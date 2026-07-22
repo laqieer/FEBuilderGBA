@@ -6,6 +6,10 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.SkippableFact" Version="1.4.13" />
@@ -55,6 +59,10 @@
     <Compile Include="..\FEBuilderGBA.Avalonia\ViewModels\AIScriptCategorySelectViewModel.cs" Link="AIScriptCategorySelectViewModel.cs" />
     <Compile Include="..\FEBuilderGBA.Avalonia\ViewModels\ProcsScriptCategorySelectViewModel.cs" Link="ProcsScriptCategorySelectViewModel.cs" />
     <Compile Include="..\FEBuilderGBA.Avalonia\ViewModels\OptionsViewModel.cs" Link="OptionsViewModel.cs" />
+    <!-- #1978 Slice 3 review finding #5: OptionsViewModel now also owns per-fingerprint tileset
+         mapping discovery, which references FEMapCreatorTilesetOption / RandomMapGenerationOutcome
+         (both plain data types, no Avalonia UI dependency). -->
+    <Compile Include="..\FEBuilderGBA.Avalonia\ViewModels\RandomMapGenerationOutcome.cs" Link="RandomMapGenerationOutcome.cs" />
     <Compile Include="..\FEBuilderGBA.Avalonia\ViewModels\ImageViewerViewModel.cs" Link="ImageViewerViewModel.cs" />
     <Compile Include="..\FEBuilderGBA.Avalonia\ViewModels\GraphicsToolViewViewModel.cs" Link="GraphicsToolViewViewModel.cs" />
     <Compile Include="..\FEBuilderGBA.Avalonia\Services\AbilityFlagNames.cs" Link="AbilityFlagNames.cs" />

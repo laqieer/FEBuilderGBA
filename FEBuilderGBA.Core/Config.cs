@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 using System.Xml;
 using System.IO;
 
@@ -15,8 +16,56 @@ namespace FEBuilderGBA
 
         public void Save(string fullfilename)
         {
-            //XMLシリアライザが初期化できないので自前でやる.
+            try
+            {
+                SaveOrThrow(fullfilename);
+            }
+            catch (Exception e)
+            {
+                R.ShowStopError("設定ファイルに書き込めません。\r\n{0}\r\n{1}", fullfilename, e.ToString());
+            }
+            return;
+        }
 
+        /// <summary>
+        /// Persist this config while allowing the caller to observe write failures. Legacy
+        /// <see cref="Save(string)"/> keeps its UI-reporting, exception-swallowing behavior;
+        /// explicit transactional workflows should use this method and publish success only
+        /// after it returns. The target is replaced only after a sibling temp file is fully
+        /// written and flushed.
+        /// </summary>
+        public void SaveOrThrow(string fullfilename)
+        {
+            SaveOrThrow(fullfilename, CancellationToken.None);
+        }
+
+        /// <summary>
+        /// Persist this config unless cancellation is observed before the atomic replacement
+        /// begins. Cancellation after replacement starts is intentionally too late to avoid
+        /// creating disk/live divergence in transactional callers.
+        /// </summary>
+        public void SaveOrThrow(string fullfilename, CancellationToken cancellationToken)
+        {
+            SaveOrThrow(fullfilename, cancellationToken, ReplaceFile, afterTempFileFlushed: null);
+        }
+
+        /// <summary>Internal replacement seam for deterministic fault-injection tests.</summary>
+        internal void SaveOrThrow(string fullfilename, Action<string, string> replaceFile)
+        {
+            SaveOrThrow(fullfilename, CancellationToken.None, replaceFile, afterTempFileFlushed: null);
+        }
+
+        /// <summary>Internal flush-boundary seam for deterministic cancellation tests.</summary>
+        internal void SaveOrThrow(
+            string fullfilename,
+            CancellationToken cancellationToken,
+            Action<string, string> replaceFile,
+            Action<string> afterTempFileFlushed)
+        {
+            if (replaceFile == null) throw new ArgumentNullException(nameof(replaceFile));
+            cancellationToken.ThrowIfCancellationRequested();
+
+            //XMLシリアライザが初期化できないので自前でやる.
             XmlDocument xml = new XmlDocument();
             XmlElement elem = xml.CreateElement("root");
             xml.AppendChild(elem);
@@ -40,18 +89,68 @@ namespace FEBuilderGBA
                 item_node.Value = pair.Value;
                 value_elem.AppendChild(item_node);
             }
+
+            string fullPath = Path.GetFullPath(fullfilename);
+            string directory = Path.GetDirectoryName(fullPath);
+            string tempPath = Path.Combine(
+                directory,
+                ".fegba-config-" + Guid.NewGuid().ToString("N") + ".tmp");
             try
             {
-                using (StreamWriter w = new StreamWriter(fullfilename))
+                using (var stream = new FileStream(
+                    tempPath,
+                    FileMode.CreateNew,
+                    FileAccess.Write,
+                    FileShare.None))
                 {
-                    xml.Save(w);
+                    using (var writer = new StreamWriter(
+                        stream,
+                        new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
+                        bufferSize: 1024,
+                        leaveOpen: true))
+                    {
+                        xml.Save(writer);
+                        writer.Flush();
+                    }
+                    stream.Flush(flushToDisk: true);
                 }
+
+                // The old config remains intact until the complete sibling temp file has been
+                // flushed. Cancellation linearizes immediately before replacement; a failed
+                // move also leaves the old target in place.
+                afterTempFileFlushed?.Invoke(tempPath);
+                cancellationToken.ThrowIfCancellationRequested();
+                replaceFile(tempPath, fullPath);
             }
-            catch (Exception e)
+            finally
             {
-                R.ShowStopError("設定ファイルに書き込めません。\r\n{0}\r\n{1}", fullfilename, e.ToString());
+                DeleteTempFileBestEffort(tempPath);
             }
-            return;
+        }
+
+        static void ReplaceFile(string tempPath, string fullPath)
+        {
+            File.Move(tempPath, fullPath, overwrite: true);
+        }
+
+        static void DeleteTempFileBestEffort(string tempPath)
+        {
+            try
+            {
+                File.Delete(tempPath);
+            }
+            catch (IOException ex)
+            {
+                Log.Debug($"Config.SaveOrThrow: could not remove temporary file '{tempPath}'. {ex}");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                Log.Debug($"Config.SaveOrThrow: could not remove temporary file '{tempPath}'. {ex}");
+            }
+            catch (System.Security.SecurityException ex)
+            {
+                Log.Debug($"Config.SaveOrThrow: could not remove temporary file '{tempPath}'. {ex}");
+            }
         }
         public string ConfigFilename { get; protected set; }
 

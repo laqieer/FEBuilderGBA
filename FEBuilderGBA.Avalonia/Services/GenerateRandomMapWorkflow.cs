@@ -1,36 +1,39 @@
 #nullable enable
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
-using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Services
 {
     internal static class GenerateRandomMapWorkflow
     {
-        internal static async Task<GenerateRandomMapDialogResult?> OpenDialogIfReadyAsync(
+        /// <summary>
+        /// Pre-flight readiness check shared by the one-click generate button (#1978 Slice 3):
+        /// a map must be loaded and the current tile-layout asset must not be blocked by the
+        /// decomp guard. Performs no generation itself and never opens a dialog.
+        /// </summary>
+        internal static bool TryPrepareForGeneration(
             MapEditorViewModel vm,
             Func<string, bool> decompGuard,
-            Action<string> showError,
-            Func<int, int, Task<GenerateRandomMapDialogResult?>> openDialog)
+            Action<string> showError)
         {
             ArgumentNullException.ThrowIfNull(vm);
             ArgumentNullException.ThrowIfNull(decompGuard);
             ArgumentNullException.ThrowIfNull(showError);
-            ArgumentNullException.ThrowIfNull(openDialog);
 
             byte[] cachedMap = vm.GetMapDataSnapshot();
             if (cachedMap == null || cachedMap.Length < 2)
             {
                 showError(R._("No map data loaded — select a map first."));
-                return null;
+                return false;
             }
 
             if (decompGuard(R._("map tile layout")))
-                return null;
+                return false;
 
-            return await openDialog(vm.MapWidth, vm.MapHeight);
+            return true;
         }
 
         internal static bool TryApplyGeneratedMap(
@@ -108,8 +111,10 @@ namespace FEBuilderGBA.Avalonia.Services
         internal static async Task<string?> ApplyGeneratedMapOnUiThreadAsync(
             MapEditorViewModel vm,
             UndoService undo,
-            GenerateRandomMapDialogResult result,
+            RandomMapGenerationOutcome result,
             MapEditorViewModel.MapWriteIdentity expectedIdentity,
+            TilesetFingerprint expectedFingerprint,
+            CancellationToken cancellationToken,
             Action refreshMapFromCurrentSelection,
             Action updateTilePalette,
             Action reloadFromRom,
@@ -127,6 +132,8 @@ namespace FEBuilderGBA.Avalonia.Services
             string? applyError = null;
             await global::Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 if (!vm.IsMapWriteIdentityCurrent(
                     expectedIdentity,
                     out string identityError))
@@ -148,10 +155,27 @@ namespace FEBuilderGBA.Avalonia.Services
                     return;
                 }
 
+                // #1978 Slice 3: the tileset fingerprint captured at click time must still match
+                // right before the generated grid is written — a tileset edit (OBJ/PAL/CFG) that
+                // happened during generation invalidates the result even when the map's write
+                // identity (pointer/size) is unchanged. Reject without mutation on any mismatch.
+                if (!expectedFingerprint.IsEmpty)
+                {
+                    bool fingerprintCurrent =
+                        BuiltInRandomMapTilesetCore.TryResolveMapTileset(CoreState.ROM, vm.CurrentAddr, out MapTilesetSnapshot snapshot, out string _)
+                        && snapshot.Fingerprint == expectedFingerprint;
+                    if (!fingerprintCurrent)
+                    {
+                        applyError = R._("The map's tileset changed since generation started; discarding the result to avoid writing a mismatched layout.");
+                        return;
+                    }
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
                 bool applied = TryApplyGeneratedMap(
                     vm,
                     undo,
-                    result.Mars,
+                    result.MarsBuffer,
                     result.Width,
                     result.Height,
                     postApplySuccess: () =>

@@ -41,6 +41,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         readonly ToolInitWizardViewModel _vm = new();
+        static readonly Uri FEMapCreatorProjectUri = new("https://github.com/laqieer/FEMapCreator");
         public string ViewTitle => "Setup Wizard";
         public new bool IsLoaded { get; private set; }
 
@@ -528,6 +529,103 @@ namespace FEBuilderGBA.Avalonia.Views
             // by other paths.
             _vm.ApplyAll();
             RequestClose();
+        }
+
+        // ===================================================================
+        // EndPage — optional FEMapCreator setup row (#1978 Slice 4).
+        //
+        // Neither handler below is invoked from construction, page display,
+        // or Finish — only an explicit user click reaches this code. Neither
+        // launches/discovers/searches PATH for FEMapCreator itself, and
+        // neither mutates FEMapCreator config; the actual executable/assets
+        // path form and per-fingerprint discovery/mapping action live only in
+        // Options (Plan v4 §4/§7), never duplicated here.
+        // ===================================================================
+
+        /// <summary>
+        /// Opens the fixed FEMapCreator project/setup page through Avalonia's
+        /// cross-platform launcher. This never downloads, installs, or
+        /// executes FEMapCreator itself, and this repository never
+        /// fetches/vendors that page's content.
+        /// </summary>
+        async void OnOpenFEMapCreatorProjectPage_Click(object? sender, RoutedEventArgs e)
+        {
+            SetFEMapCreatorProjectPageStatus(null);
+            var top = TopLevel.GetTopLevel(this);
+            if (top == null)
+            {
+                ShowFEMapCreatorProjectPageError();
+                return;
+            }
+
+            try
+            {
+                bool launched = await top.Launcher.LaunchUriAsync(FEMapCreatorProjectUri);
+                if (!launched)
+                    ShowFEMapCreatorProjectPageError();
+            }
+            catch (System.ComponentModel.Win32Exception ex)
+            {
+                ShowFEMapCreatorProjectPageError(ex);
+            }
+            catch (System.IO.IOException ex)
+            {
+                ShowFEMapCreatorProjectPageError(ex);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                ShowFEMapCreatorProjectPageError(ex);
+            }
+            catch (InvalidOperationException ex)
+            {
+                ShowFEMapCreatorProjectPageError(ex);
+            }
+            catch (NotSupportedException ex)
+            {
+                ShowFEMapCreatorProjectPageError(ex);
+            }
+            catch (System.Security.SecurityException ex)
+            {
+                ShowFEMapCreatorProjectPageError(ex);
+            }
+            catch (Exception ex)
+            {
+                // Async UI handlers must contain platform-specific launcher failures.
+                ShowFEMapCreatorProjectPageError(ex);
+            }
+        }
+
+        void ShowFEMapCreatorProjectPageError(Exception? exception = null)
+        {
+            string message = FEBuilderGBA.R._("Couldn't open link:") + " " + FEMapCreatorProjectUri;
+            SetFEMapCreatorProjectPageStatus(message);
+            FEBuilderGBA.Log.Error(
+                "ToolInitWizardView could not open FEMapCreator project page:",
+                FEMapCreatorProjectUri.ToString(),
+                exception?.ToString() ?? "");
+        }
+
+        void SetFEMapCreatorProjectPageStatus(string? message)
+        {
+            var status = this.FindControl<TextBlock>("FEMapCreatorActionStatusTextBlock")
+                ?? throw new InvalidOperationException("FEMapCreator action status control is missing.");
+            status.Text = message ?? string.Empty;
+            status.IsVisible = !string.IsNullOrEmpty(message);
+        }
+
+        /// <summary>
+        /// Navigates to the existing Options FEMapCreator section — the sole
+        /// owner (Plan v4 §4/§7, #1978 Slice 3 review finding #5) of
+        /// executable/assets-root setup, explicit discovery, and
+        /// per-current-fingerprint mapping. This wizard has no loaded map, so
+        /// no fingerprint context is passed; Options honestly explains that a
+        /// Map Editor shortcut is needed for per-map mapping rather than
+        /// fabricating one.
+        /// </summary>
+        void OnOpenFEMapCreatorOptions_Click(object? sender, RoutedEventArgs e)
+        {
+            OptionsView options = WindowManager.Instance.Open<OptionsView>();
+            options.ShowFEMapCreatorSection();
         }
 
         // ===================================================================

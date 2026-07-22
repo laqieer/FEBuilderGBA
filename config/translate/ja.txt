@@ -8229,6 +8229,15 @@ FEBuilderGBAへようこそ。\r\n\r\nここでは初期設定を行います。
 :All settings complete.
 すべての設定が完了しました。
 
+:Built-in Experimental remains available immediately if you skip this or leave it unconfigured.
+これをスキップしたり未設定のままにしたりしても、内蔵の試験的機能はすぐに利用できます。
+
+:Open Project Page
+プロジェクトページを開く
+
+:Open FEMapCreator in Options
+オプションでFEMapCreatorを開く
+
 :Download a stable version of VBA-M
 安定して動作するバージョンのVBA-Mをダウンロードする
 
@@ -12223,6 +12232,9 @@ ROMのRebuildに失敗しました。
 :Cancelled.
 キャンセルしました。
 
+:Failed.
+失敗しました。
+
 :The output ROM must be a different file from the original ROM and the loaded ROM.
 出力先のROMは、元のROMおよび読み込み中のROMとは別のファイルにしてください。
 
@@ -14407,6 +14419,21 @@ FEMapCreator アセット ディレクトリを選択
 :Random map generation returned no map data.
 ランダムマップ生成がマップ データを返しませんでした。
 
+:Random map generation returned {0} cells, but {1} were required for a {2}x{3} map.
+ランダムマップ生成は {0} 個のセルを返しましたが、{2}x{3} マップには {1} 個必要です。
+
+:Random map generation returned an unrenderable tile at cell {0} (MAR 0x{1:X4}) for the current map tileset.
+ランダムマップ生成が、現在のマップタイルセットでは描画できないタイルをセル {0} に返しました (MAR 0x{1:X4})。
+
+:Random map generation returned a uniform layout using only one MAR value. Try a different seed.
+ランダムマップ生成が 1 種類の MAR 値だけを使用した単調なレイアウトを返しました。別のシードを試してください。
+
+:Random map generation returned the current map unchanged. Try a different seed.
+ランダムマップ生成が現在のマップを変更せずに返しました。別のシードを試してください。
+
+:The FEMapCreator mapping changed during generation. Rediscover the tileset mapping in Options and try again.
+生成中に FEMapCreator のマッピングが変更されました。オプションでタイルセット マッピングを再検出して、もう一度お試しください。
+
 :Generated random map: {0}x{1}, seed={2}.
 ランダムマップを生成しました: {0}x{1}, seed={2}。
 
@@ -14415,3 +14442,192 @@ FEMapCreator アセット ディレクトリを選択
 
 :Generated map was rolled back, but refreshing the editor failed: {0}
 生成したマップはロールバックされましたが、エディターの再読み込みに失敗しました: {0}
+
+:The map's tileset changed since generation started; discarding the result to avoid writing a mismatched layout.
+生成開始後にマップのタイルセットが変更されたため、不整合なレイアウトの書き込みを避けるために結果を破棄します。
+
+:Could not resolve the current map's tileset: {0}
+現在のマップのタイルセットを解決できませんでした: {0}
+
+:Could not build the built-in generator's source corpus: {0}
+内蔵ジェネレーターのソースコーパスを構築できませんでした: {0}
+
+:Built-in random map generation returned no result.
+内蔵ランダムマップ生成が結果を返しませんでした。
+
+:Random map request was invalid: {0}
+ランダムマップのリクエストが無効です: {0}
+
+:This tileset does not have enough source map data for the built-in generator: {0}
+このタイルセットには内蔵ジェネレーターに必要なソースマップデータが不足しています: {0}
+
+:Draw or import a representative map for this tileset, or configure FEMapCreator in Options.
+このタイルセットの代表的なマップを作成またはインポートするか、オプションで FEMapCreator を設定してください。
+
+:Random map generation was cancelled.
+ランダムマップの生成はキャンセルされました。
+
+:The saved FEMapCreator tileset mapping is no longer valid.
+保存済みの FEMapCreator タイルセット対応付けは無効になっています。
+
+:The saved mapping entry is missing required fields.
+保存済みの対応付けエントリに必須項目がありません。
+
+:The mapped image file is no longer readable.
+対応付けられた画像ファイルを読み取れなくなりました。
+
+:The mapped image file has changed since the mapping was saved.
+対応付けを保存した後に画像ファイルが変更されました。
+
+:The mapped generation-data file is no longer readable.
+対応付けられた生成データファイルを読み取れなくなりました。
+
+:The mapped generation-data file has changed since the mapping was saved.
+対応付けを保存した後に生成データファイルが変更されました。
+
+:FEMapCreator is no longer configured or valid.
+FEMapCreator は設定されていないか、無効になっています。
+
+:The configured FEMapCreator executable path has changed.
+設定された FEMapCreator 実行ファイルのパスが変更されました。
+
+:The configured FEMapCreator executable content has changed.
+設定された FEMapCreator 実行ファイルの内容が変更されました。
+
+:The configured FEMapCreator assets root has changed.
+設定された FEMapCreator アセットルートが変更されました。
+
+:The saved FEMapCreator tileset mapping is stale ({0}); using the built-in generator instead.
+保存済みの FEMapCreator タイルセット対応付けは古くなっています ({0})。代わりに内蔵ジェネレーターを使用します。
+
+:The saved FEMapCreator tileset mapping is invalid ({0}); using the built-in generator instead.
+保存済みの FEMapCreator タイルセット対応付けは無効です ({0})。代わりに内蔵ジェネレーターを使用します。
+
+:The built-in generator could not find a valid layout within its search budget: {0}
+内蔵ジェネレーターは探索予算内で有効なレイアウトを見つけられませんでした: {0}
+
+:Try a different seed, or configure FEMapCreator in Options.
+別のシードを試すか、オプションで FEMapCreator を設定してください。
+
+:This map's tileset could not be identified.
+このマップのタイルセットを識別できませんでした。
+
+:The current map data could not be decoded.
+現在のマップデータをデコードできませんでした。
+
+:FEMapCreator is not configured. Set it up in Options first.
+FEMapCreator が設定されていません。先にオプションで設定してください。
+
+:FEMapCreator is not configured. Set the executable path above first.
+FEMapCreator が設定されていません。まず上の実行可能ファイルのパスを設定してください。
+
+:Discovering tilesets...
+タイルセットを検出しています...
+
+:Tileset discovery was cancelled.
+タイルセットの検出はキャンセルされました。
+
+:Saving tileset mapping...
+タイルセットのマッピングを保存しています...
+
+:Tileset mapping save was cancelled.
+タイルセットのマッピング保存はキャンセルされました。
+
+:Failed to save the tileset mapping.
+タイルセットのマッピングを保存できませんでした。
+
+:Found {0} usable tileset(s).
+使用可能なタイルセットが {0} 個見つかりました。
+
+:No usable tilesets were found.
+使用可能なタイルセットが見つかりませんでした。
+
+:Select a tileset first.
+先にタイルセットを選択してください。
+
+:Configuration is not available.
+設定を利用できません。
+
+:Wait for the current tileset operation to finish or cancel it first.
+現在のタイルセット操作が完了するまで待つか、先にキャンセルしてください。
+
+:Mapping saved for tileset '{0}'.
+タイルセット '{0}' のマッピングを保存しました。
+
+:Map Tileset for External FEMapCreator
+外部 FEMapCreator 用のタイルセットをマッピング
+
+:Save Mapping
+マッピングを保存
+
+:Generating...
+生成しています...
+
+:Backend: {0}
+バックエンド: {0}
+
+:External FEMapCreator
+外部 FEMapCreator
+
+:Built-in
+内蔵
+
+:Built-in Experimental
+内蔵（試験的）
+
+:FEMapCreator Experimental
+FEMapCreator（試験的）
+
+:Built-in Experimental creates visually coherent layouts only; gameplay and objective validity are not guaranteed.
+内蔵の試験的機能は見た目の整合性があるレイアウトのみを生成します。ゲーム進行や目的達成の妥当性は保証されません。
+
+:Map Tileset…
+タイルセットをマッピング…
+
+:Seed:
+シード:
+
+:Randomize
+ランダム化
+
+:Could not identify this map's tileset: {0}
+このマップのタイルセットを識別できませんでした: {0}
+
+:Map the current tileset to an external FEMapCreator tileset for one-click random-map generation
+現在のタイルセットを外部 FEMapCreator のタイルセットにマッピングして、ワンクリックでランダムマップを生成します
+
+:FEMapCreator (Optional, External Tool)
+FEMapCreator (任意の外部ツール)
+
+:FEMapCreator is an independent utility credited to bwdyeti; FEBuilderGBA does not bundle, host, license, or guarantee it.
+FEMapCreator は bwdyeti 氏によって作成された独立したユーティリティです。FEBuilderGBA はこれをバンドル、ホスト、ライセンス供与、または保証するものではありません。
+
+:Executable Path
+実行ファイルのパス
+
+:Assets Root (optional)
+アセット ルート (任意)
+
+:Discovered Tilesets
+検出されたタイルセット
+
+:Not configured (optional).
+未設定です (任意)。
+
+:Configured.
+設定済みです。
+
+:Invalid
+無効
+
+:Random-Map Tileset Mapping (Optional)
+ランダムマップ タイルセット マッピング（任意）
+
+:Configuring the random-map tileset mapping for the map that opened this section.
+このセクションを開いたマップのランダムマップ用タイルセットマッピングを設定しています。
+
+:Open this section from a Map Editor's random-map controls to configure a mapping for its current tileset.
+現在のタイルセットのマッピングを設定するには、マップエディターのランダムマップ操作からこのセクションを開いてください。
+
+:unknown error
+不明なエラー

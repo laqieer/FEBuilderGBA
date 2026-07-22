@@ -28,15 +28,21 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Xml.Linq;
+using global::Avalonia.Automation;
 using global::Avalonia.Controls;
 using global::Avalonia.Headless.XUnit;
 using global::Avalonia.Interactivity;
 using global::Avalonia.LogicalTree;
 using FEBuilderGBA;
 using FEBuilderGBA.Avalonia.GapSweep;
+using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 using FEBuilderGBA.Avalonia.Views;
 using Xunit;
+// RecordingNavigationService (#1122 fake) lives in FEBuilderGBA.Avalonia.Tests
+// (NavigationServiceTests.cs); reused here to prove the FEMapCreator "Open in
+// Options" action routes through WindowManager without opening a real window.
+using FEBuilderGBA.Avalonia.Tests;
 
 namespace FEBuilderGBA.Avalonia.Tests.GapSweep;
 
@@ -86,6 +92,183 @@ public class ToolInitWizardParityTests
         Assert.Contains(
             "AutomationProperties.AutomationId=\"ToolInitWizard_MainTab_TabControl\"",
             axaml);
+    }
+
+    // ===================================================================
+    // #1978 Slice 4 — optional FEMapCreator setup row on EndPage.
+    // ===================================================================
+
+    [Fact]
+    public void EndPage_HasFEMapCreatorRow_WithHeaderDisclaimerAndSkipNotice()
+    {
+        string axaml = ReadAxaml();
+        Assert.Contains(
+            "AutomationProperties.AutomationId=\"ToolInitWizard_FEMapCreatorHeader_Label\"",
+            axaml);
+        Assert.Contains("FEMapCreator (Optional, External Tool)", axaml);
+        Assert.Contains(
+            "AutomationProperties.AutomationId=\"ToolInitWizard_FEMapCreatorDisclaimer_Label\"",
+            axaml);
+        // Plan v4 §7 exact required disclaimer text (reused verbatim from the
+        // Options FEMapCreator section — same literal, same translation
+        // entry; no duplicate ja/zh keys needed for this one).
+        Assert.Contains(
+            "FEMapCreator is an independent utility credited to bwdyeti; " +
+            "FEBuilderGBA does not bundle, host, license, or guarantee it.",
+            axaml);
+        Assert.Contains(
+            "AutomationProperties.AutomationId=\"ToolInitWizard_FEMapCreatorSkipNotice_Label\"",
+            axaml);
+        Assert.Contains(
+            "Built-in Experimental remains available immediately if you skip this or leave it unconfigured.",
+            axaml);
+    }
+
+    [Fact]
+    public void EndPage_FEMapCreatorRow_HasBothExplicitActionButtons_WithClickWiring()
+    {
+        string axaml = ReadAxaml();
+        Assert.Contains(
+            "AutomationProperties.AutomationId=\"ToolInitWizard_OpenFEMapCreatorProjectPage_Button\"",
+            axaml);
+        Assert.Contains("Click=\"OnOpenFEMapCreatorProjectPage_Click\"", axaml);
+        Assert.Contains(
+            "AutomationProperties.AutomationId=\"ToolInitWizard_OpenFEMapCreatorOptions_Button\"",
+            axaml);
+        Assert.Contains("Click=\"OnOpenFEMapCreatorOptions_Click\"", axaml);
+        Assert.Contains(
+            "AutomationProperties.AutomationId=\"ToolInitWizard_FEMapCreatorActionStatus_Label\"",
+            axaml);
+        Assert.Contains("Name=\"FEMapCreatorActionStatusTextBlock\"", axaml);
+        Assert.Contains("IsVisible=\"False\"", axaml);
+    }
+
+    [AvaloniaFact]
+    public void EndPage_FEMapCreatorActionStatus_IsPoliteLiveRegion()
+    {
+        var view = new ToolInitWizardView();
+        TextBlock status = view.FindControl<TextBlock>("FEMapCreatorActionStatusTextBlock")!;
+
+        Assert.Equal(AutomationLiveSetting.Polite, AutomationProperties.GetLiveSetting(status));
+    }
+
+    [Fact]
+    public void EndPage_FEMapCreatorRow_IsNotANewTabItem()
+    {
+        // The row must live inside the existing EndPage TabItem, never add a
+        // 10th page — View_Has9TabItems is the primary guard; this test
+        // pins the row's location textually between the EndPage TabItem
+        // open tag and the pre-existing Finish button so a future edit
+        // can't silently relocate it into its own page.
+        string axaml = ReadAxaml();
+        int endPageIdx = axaml.IndexOf(
+            "AutomationProperties.AutomationId=\"ToolInitWizard_EndPage_Tab\"",
+            StringComparison.Ordinal);
+        int rowIdx = axaml.IndexOf(
+            "AutomationProperties.AutomationId=\"ToolInitWizard_FEMapCreatorHeader_Label\"",
+            StringComparison.Ordinal);
+        int finishIdx = axaml.IndexOf(
+            "AutomationProperties.AutomationId=\"ToolInitWizard_End_Button\"",
+            StringComparison.Ordinal);
+        Assert.True(endPageIdx >= 0 && rowIdx > endPageIdx && finishIdx > rowIdx,
+            "FEMapCreator row must sit inside EndPage, before the Finish button.");
+    }
+
+    [Fact]
+    public void FEMapCreatorRow_ContainsNoDownloadInstallOrPathSearchText()
+    {
+        // Scoped to the row block only (Header..the two buttons) so this
+        // doesn't collide with the pre-existing, legitimate Step1-6
+        // "Download ..." button literals elsewhere in the same file.
+        string axaml = ReadAxaml();
+        int start = axaml.IndexOf(
+            "AutomationProperties.AutomationId=\"ToolInitWizard_FEMapCreatorHeader_Label\"",
+            StringComparison.Ordinal);
+        int end = axaml.IndexOf(
+            "AutomationProperties.AutomationId=\"ToolInitWizard_End_Button\"",
+            StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start);
+        string row = axaml[start..end];
+        Assert.DoesNotContain("Download", row, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Install", row, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("PATH", row, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void FEMapCreatorClickHandlers_ContainOnlyFixedBrowserLaunchAndOptionsNavigation()
+    {
+        // Whole-class sweep (per Slice 3 review pattern): the two new
+        // handlers must not contain download/installer/PATH-search/registry/
+        // environment-variable code — only a fixed-URL Avalonia launcher
+        // action (project page) and a WindowManager.Open<OptionsView>()
+        // navigation call (Options).
+        string source = File.ReadAllText(ViewCodeBehindPath());
+        int start = source.IndexOf(
+            "void OnOpenFEMapCreatorProjectPage_Click", StringComparison.Ordinal);
+        int end = source.IndexOf(
+            "// Download helpers (#1031).", StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start,
+            "Could not locate the FEMapCreator handler block in code-behind.");
+        string handlers = source[start..end];
+
+        Assert.Contains("https://github.com/laqieer/FEMapCreator", source);
+        Assert.Contains("async void OnOpenFEMapCreatorProjectPage_Click", source);
+        Assert.Contains("TopLevel.GetTopLevel(this)", handlers);
+        Assert.Contains("await top.Launcher.LaunchUriAsync(FEMapCreatorProjectUri)", handlers);
+        Assert.Contains("if (!launched)", handlers);
+        Assert.Contains("ShowFEMapCreatorProjectPageError()", handlers);
+        Assert.Contains("catch (System.ComponentModel.Win32Exception ex)", handlers);
+        Assert.Contains("catch (System.IO.IOException ex)", handlers);
+        Assert.Contains("catch (UnauthorizedAccessException ex)", handlers);
+        Assert.Contains("catch (InvalidOperationException ex)", handlers);
+        Assert.Contains("catch (NotSupportedException ex)", handlers);
+        Assert.Contains("catch (System.Security.SecurityException ex)", handlers);
+        Assert.Contains("catch (Exception ex)", handlers);
+        Assert.Contains("ShowFEMapCreatorProjectPageError(ex)", handlers);
+        Assert.Contains("FEMapCreatorActionStatusTextBlock", handlers);
+        Assert.Contains("WindowManager.Instance.Open<OptionsView>()", handlers);
+        Assert.Contains("options.ShowFEMapCreatorSection()", handlers);
+
+        Assert.DoesNotContain("System.Diagnostics.Process", handlers);
+        Assert.DoesNotContain("Process.Start", handlers);
+        Assert.DoesNotContain("ProcessStartInfo", handlers);
+        Assert.DoesNotContain("UseShellExecute", handlers);
+        Assert.DoesNotContain("Download", handlers, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Install", handlers, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Environment.GetEnvironmentVariable", handlers);
+        Assert.DoesNotContain("Registry", handlers, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("PATH", handlers, StringComparison.Ordinal);
+        Assert.DoesNotContain("FEMapCreatorTilesetDiscoveryCore", handlers);
+        Assert.DoesNotContain("OpenModal", handlers);
+
+        var root = Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(source).GetRoot();
+        var relevantMethods = root.DescendantNodes()
+            .OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>()
+            .Where(method => method.Identifier.ValueText is
+                "OnOpenFEMapCreatorProjectPage_Click" or
+                "ShowFEMapCreatorProjectPageError" or
+                "SetFEMapCreatorProjectPageStatus")
+            .ToArray();
+        Assert.Equal(3, relevantMethods.Length);
+        var broadCatches = relevantMethods
+            .SelectMany(method => method.DescendantNodes()
+                .OfType<Microsoft.CodeAnalysis.CSharp.Syntax.CatchClauseSyntax>()
+                .Select(clause => (method, clause)))
+            .Where(item =>
+            {
+                if (item.clause.Declaration == null)
+                    return true;
+                string type = item.clause.Declaration.Type.ToString();
+                return type is "Exception" or "System.Exception" or "global::System.Exception";
+            })
+            .ToArray();
+        var launcherBoundaryCatch = Assert.Single(broadCatches);
+        Assert.Equal(
+            "OnOpenFEMapCreatorProjectPage_Click",
+            launcherBoundaryCatch.method.Identifier.ValueText);
+        Assert.Contains(
+            "ShowFEMapCreatorProjectPageError(ex)",
+            launcherBoundaryCatch.clause.Block.ToString());
     }
 
     [Fact]
@@ -1108,6 +1291,129 @@ public class ToolInitWizardParityTests
     }
 
     // ===================================================================
+    // #1978 Slice 4 — FEMapCreator row headless interaction. Uses the same
+    // RecordingNavigationService fake from NavigationServiceTests (#1122)
+    // so clicking "Open FEMapCreator in Options" is provably routed through
+    // WindowManager without ever constructing a real OptionsView/window,
+    // and so mere construction of the wizard can be proven NOT to call it.
+    // ===================================================================
+
+    [AvaloniaFact]
+    public void ConstructingWizardView_DoesNotNavigateToOptions_OrAnywhereElse()
+    {
+        var original = WindowManager.Instance.Service;
+        var fake = new RecordingNavigationService();
+        try
+        {
+            WindowManager.Instance.SetService(fake);
+            _ = new ToolInitWizardView();
+            Assert.Null(fake.LastCall);
+        }
+        finally
+        {
+            WindowManager.Instance.SetService(original);
+        }
+    }
+
+    [AvaloniaFact]
+    public void OpenFEMapCreatorProjectPageButton_Click_WithoutTopLevel_ShowsInlineError()
+    {
+        var view = new ToolInitWizardView();
+        var status = view.GetLogicalDescendants()
+            .OfType<TextBlock>()
+            .FirstOrDefault(textBlock =>
+                global::Avalonia.Automation.AutomationProperties.GetAutomationId(textBlock)
+                    == "ToolInitWizard_FEMapCreatorActionStatus_Label");
+        Assert.NotNull(status);
+        Assert.False(status!.IsVisible);
+
+        var btn = view.GetLogicalDescendants()
+            .OfType<Button>()
+            .FirstOrDefault(button =>
+                global::Avalonia.Automation.AutomationProperties.GetAutomationId(button)
+                    == "ToolInitWizard_OpenFEMapCreatorProjectPage_Button");
+        Assert.NotNull(btn);
+        btn!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+
+        Assert.True(status.IsVisible);
+        Assert.StartsWith(FEBuilderGBA.R._("Couldn't open link:"), status.Text);
+        Assert.Contains("https://github.com/laqieer/FEMapCreator", status.Text);
+    }
+
+    [AvaloniaFact]
+    public void OpenFEMapCreatorOptionsButton_Click_OpensOptionsView_ViaWindowManager()
+    {
+        var original = WindowManager.Instance.Service;
+        var fake = new RecordingNavigationService();
+        try
+        {
+            WindowManager.Instance.SetService(fake);
+            var view = new ToolInitWizardView();
+            var btn = view.GetLogicalDescendants()
+                .OfType<Button>()
+                .FirstOrDefault(b => global::Avalonia.Automation.AutomationProperties.GetAutomationId(b)
+                    == "ToolInitWizard_OpenFEMapCreatorOptions_Button");
+            Assert.NotNull(btn);
+            btn!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal("Open", fake.LastCall);
+            Assert.Equal(typeof(OptionsView), fake.LastType);
+            OptionsView options = Assert.IsType<OptionsView>(fake.LastControl);
+            Assert.Same(
+                options.FindControl<TabItem>("ExternalToolsTabItem"),
+                options.FindControl<TabControl>("OptionsTabControl")!.SelectedItem);
+            Assert.False(options.ViewModelForTests.HasTilesetContext);
+        }
+        finally
+        {
+            WindowManager.Instance.SetService(original);
+        }
+    }
+
+    [AvaloniaFact]
+    public void OpenFEMapCreatorOptionsButton_Click_DoesNotAdvanceOrChangeWizardPage()
+    {
+        // The Options-navigation action is a side action on EndPage; it
+        // must not itself count as wizard progress/completion.
+        var original = WindowManager.Instance.Service;
+        var fake = new RecordingNavigationService();
+        try
+        {
+            WindowManager.Instance.SetService(fake);
+            var view = new ToolInitWizardView();
+            var vm = (ToolInitWizardViewModel)view.DataViewModel!;
+            int pageBefore = vm.CurrentPage;
+            var btn = view.GetLogicalDescendants()
+                .OfType<Button>()
+                .FirstOrDefault(b => global::Avalonia.Automation.AutomationProperties.GetAutomationId(b)
+                    == "ToolInitWizard_OpenFEMapCreatorOptions_Button");
+            Assert.NotNull(btn);
+            btn!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(pageBefore, vm.CurrentPage);
+        }
+        finally
+        {
+            WindowManager.Instance.SetService(original);
+        }
+    }
+
+    [AvaloniaFact]
+    public void EndButton_Click_StillCallsApplyAllAndRequestsClose_Unaffected()
+    {
+        // Wizard-completion regression guard: the new optional row sits
+        // above the pre-existing Finish button and must not have altered
+        // OnEndButton_Click's ApplyAll()+RequestClose() contract.
+        string source = File.ReadAllText(ViewCodeBehindPath());
+        int start = source.IndexOf("void OnEndButton_Click", StringComparison.Ordinal);
+        int end = source.IndexOf(
+            "// EndPage — optional FEMapCreator setup row (#1978 Slice 4).",
+            StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start);
+        string body = source[start..end];
+        Assert.Contains("_vm.ApplyAll();", body);
+        Assert.Contains("RequestClose();", body);
+    }
+
+    // ===================================================================
     // 5) Localisation.
     // ===================================================================
 
@@ -1124,6 +1430,12 @@ public class ToolInitWizardParityTests
     [InlineData("Please wait...")]
     [InlineData("Browse")]
     [InlineData("Windows-only download — use Browse to set the path manually.")]
+    [InlineData("Built-in Experimental remains available immediately if you skip this or leave it unconfigured.")]
+    [InlineData("Built-in Experimental creates visually coherent layouts only; gameplay and objective validity are not guaranteed.")]
+    [InlineData("Built-in Experimental")]
+    [InlineData("FEMapCreator Experimental")]
+    [InlineData("Open Project Page")]
+    [InlineData("Open FEMapCreator in Options")]
     public void Localisation_NewLiterals_AreTranslated_InJaAndZh(string literal)
     {
         string repoRoot = FindRepoRoot();

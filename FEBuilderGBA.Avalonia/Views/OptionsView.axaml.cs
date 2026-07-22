@@ -22,10 +22,56 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly OptionsViewModel _vm = new();
         string _originalLanguageCode = "";
         bool _loadedOnce;
+        TilesetFingerprint? _pendingTilesetContext;
+
+        /// <summary>
+        /// Test-only seam exposing this view's ViewModel instance for live-status assertions.
+        /// Never used by production code.
+        /// </summary>
+        internal OptionsViewModel ViewModelForTests => _vm;
 
         public OptionsView()
         {
             InitializeComponent();
+            // Cancel discovery or Save Mapping when this view detaches so no late worker result
+            // can publish state or persist a mapping after the owning Options surface closes.
+            DetachedFromVisualTree += (_, _) => _vm.CancelTilesetMappingOperation();
+        }
+
+        /// <summary>
+        /// Set which map's tileset fingerprint the mapping section below applies to. Called by a
+        /// Map Editor shortcut navigating here via
+        /// <c>WindowManager.Instance.OpenModal&lt;OptionsView&gt;(owner, view =&gt; view.SetTilesetContext(fingerprint))</c>.
+        /// Read-only/pure — never launches a process, never touches config or the network. Safe
+        /// to call before this view has attached/loaded (the context is applied once loading
+        /// completes) or afterwards (applied immediately).
+        /// </summary>
+        public void SetTilesetContext(TilesetFingerprint fingerprint)
+        {
+            _pendingTilesetContext = fingerprint;
+            ShowFEMapCreatorSection();
+            if (_loadedOnce)
+                ApplyTilesetContext(fingerprint);
+        }
+
+        /// <summary>
+        /// Selects External Tools and scrolls the FEMapCreator section into view without inventing
+        /// a map fingerprint. Used by the setup wizard, which has no loaded-map context.
+        /// </summary>
+        public void ShowFEMapCreatorSection() => NavigateToFEMapCreatorSection();
+
+        void ApplyTilesetContext(TilesetFingerprint fingerprint)
+        {
+            _vm.SetTilesetContext(fingerprint);
+            RefreshTilesetMappingUi();
+            ShowFEMapCreatorSection();
+        }
+
+        void NavigateToFEMapCreatorSection()
+        {
+            OptionsTabControl.SelectedItem = ExternalToolsTabItem;
+            global::Avalonia.Threading.Dispatcher.UIThread.Post(
+                () => FEMapCreatorSectionPanel.BringIntoView());
         }
 
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
@@ -77,6 +123,113 @@ namespace FEBuilderGBA.Avalonia.Views
             FeclibTextBox.Text = _vm.Feclib;
             SrccodeTexteditorTextBox.Text = _vm.SrccodeTexteditor;
             SrccodeDirectoryTextBox.Text = _vm.SrccodeDirectory;
+
+            // FEMapCreator setup (#1978 Slice 2)
+            string feMapCreatorPath = _vm.FEMapCreatorPath;
+            string feMapCreatorAssetsRoot = _vm.FEMapCreatorAssetsRoot;
+            FEMapCreatorPathTextBox.Text = feMapCreatorPath;
+            FEMapCreatorAssetsRootTextBox.Text = feMapCreatorAssetsRoot;
+            RefreshFEMapCreatorStatus();
+
+            // Random-map tileset mapping (#1978 Slice 3 review finding #5)
+            if (_pendingTilesetContext.HasValue)
+                _vm.SetTilesetContext(_pendingTilesetContext.Value);
+            RefreshTilesetMappingUi();
+            if (_pendingTilesetContext.HasValue)
+                NavigateToFEMapCreatorSection();
+        }
+
+        /// <summary>
+        /// Refreshes the discovered-tileset list, status/error text, and button enabled-state from
+        /// the ViewModel. Read-only — never launches a process or touches the network.
+        /// </summary>
+        void RefreshTilesetMappingUi()
+        {
+            TilesetMappingContextText.Text = _vm.HasTilesetContext
+                ? R._("Configuring the random-map tileset mapping for the map that opened this section.")
+                : R._("Open this section from a Map Editor's random-map controls to configure a mapping for its current tileset.");
+            TilesetOptionsListBox.ItemsSource = _vm.Tilesets;
+            TilesetOptionsListBox.SelectedItem = _vm.SelectedTileset;
+            TilesetMappingStatusText.Text = _vm.TilesetMappingStatusMessage;
+            TilesetMappingErrorText.Text = _vm.TilesetMappingErrorMessage;
+            bool busy = _vm.IsTilesetMappingOperationInProgress;
+            TilesetOptionsListBox.IsEnabled = !busy;
+            DiscoverTilesetsButton.IsEnabled = !busy;
+            CancelDiscoverTilesetsButton.IsEnabled = busy;
+            SaveTilesetMappingButton.IsEnabled = _vm.HasTilesetContext && _vm.SelectedTileset != null && !busy;
+        }
+
+        /// <summary>
+        /// Explicit user-initiated tileset discovery (#1978 Slice 3 review finding #3): runs off
+        /// the UI thread via <see cref="OptionsViewModel.DiscoverTilesetsAsync"/>, keeps the view
+        /// responsive, and supports cancellation via <see cref="CancelDiscoverTilesets_Click"/> or
+        /// closing this view. Never runs automatically on Options construction/open/typing.
+        /// </summary>
+        async void DiscoverTilesets_Click(object? sender, RoutedEventArgs e)
+        {
+            if (_vm.IsTilesetMappingOperationInProgress) return;
+            Task operation = _vm.DiscoverTilesetsAsync();
+            RefreshTilesetMappingUi();
+            try
+            {
+                await operation;
+            }
+            finally
+            {
+                RefreshTilesetMappingUi();
+            }
+        }
+
+        void CancelDiscoverTilesets_Click(object? sender, RoutedEventArgs e) =>
+            _vm.CancelTilesetMappingOperation();
+
+        void TilesetOptionsListBox_SelectionChanged(object? sender, global::Avalonia.Controls.SelectionChangedEventArgs e)
+        {
+            _vm.SelectedTileset = TilesetOptionsListBox.SelectedItem as FEMapCreatorTilesetOption;
+            RefreshTilesetMappingUi();
+        }
+
+        /// <summary>
+        /// Persists the selected discovered tileset as the mapping for the current fingerprint
+        /// context via <see cref="OptionsViewModel.SaveTilesetMappingAsync"/> (which itself uses
+        /// <c>TryCreateEntry</c>/<c>Upsert</c>/<c>SaveAll</c>). Never launches a process.
+        /// </summary>
+        async void SaveTilesetMapping_Click(object? sender, RoutedEventArgs e)
+        {
+            if (_vm.IsTilesetMappingOperationInProgress) return;
+            Task<bool> operation = _vm.SaveTilesetMappingAsync();
+            RefreshTilesetMappingUi();
+            try
+            {
+                await operation;
+            }
+            finally
+            {
+                RefreshTilesetMappingUi();
+            }
+        }
+
+        /// <summary>
+        /// Re-validates the (possibly unsaved) FEMapCreator path/assets-root textbox values and
+        /// updates the status line. Read-only and metadata-only — never hashes executable
+        /// content, launches a process, or touches the network.
+        /// </summary>
+        void RefreshFEMapCreatorStatus()
+        {
+            _vm.FEMapCreatorPath = FEMapCreatorPathTextBox.Text ?? "";
+            _vm.FEMapCreatorAssetsRoot = FEMapCreatorAssetsRootTextBox.Text ?? "";
+            FEMapCreatorStatusText.Text = _vm.GetFEMapCreatorStatusText();
+        }
+
+        /// <summary>
+        /// Keeps the FEMapCreator status line honest as the user types directly into either
+        /// textbox, not only after Browse/Clear/initial load. Read-only re-validation only — no
+        /// process launch, discovery, or network access is triggered by editing text.
+        /// </summary>
+        void FEMapCreatorField_TextChanged(object? sender, global::Avalonia.Controls.TextChangedEventArgs e)
+        {
+            RefreshFEMapCreatorStatus();
+            RefreshTilesetMappingUi();
         }
 
         async void BrowseFile_Click(object? sender, RoutedEventArgs e)
@@ -108,6 +261,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     target.Text = path;
                 else
                     CoreState.Services?.ShowInfo(R._("This setting configures an external tool path and requires desktop file-system access; it is not available on this device."));
+                RefreshFEMapCreatorStatus();
             }
         }
 
@@ -135,7 +289,15 @@ namespace FEBuilderGBA.Avalonia.Views
                     target.Text = path;
                 else
                     CoreState.Services?.ShowInfo(R._("This setting configures an external tool directory and requires desktop file-system access; it is not available on this device."));
+                RefreshFEMapCreatorStatus();
             }
+        }
+
+        /// <summary>Clears the optional FEMapCreator assets-root field (empty is a valid, supported state).</summary>
+        void ClearFEMapCreatorAssetsRoot_Click(object? sender, RoutedEventArgs e)
+        {
+            FEMapCreatorAssetsRootTextBox.Text = "";
+            RefreshFEMapCreatorStatus();
         }
 
         void OkButton_Click(object? sender, RoutedEventArgs e)
@@ -173,6 +335,10 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.Feclib = FeclibTextBox.Text ?? "";
             _vm.SrccodeTexteditor = SrccodeTexteditorTextBox.Text ?? "";
             _vm.SrccodeDirectory = SrccodeDirectoryTextBox.Text ?? "";
+
+            // FEMapCreator setup (#1978 Slice 2)
+            _vm.FEMapCreatorPath = FEMapCreatorPathTextBox.Text ?? "";
+            _vm.FEMapCreatorAssetsRoot = FEMapCreatorAssetsRootTextBox.Text ?? "";
 
             string newLangCode = OptionsViewModel.ExtractLanguageCode(_vm.Language);
             bool languageChanged = !string.Equals(_originalLanguageCode, newLangCode, StringComparison.Ordinal);

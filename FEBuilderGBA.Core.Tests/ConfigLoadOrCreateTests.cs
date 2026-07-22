@@ -55,5 +55,100 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(@"C:\tools\vba.exe", reloaded.at("emulator", ""));
             Assert.Equal(@"C:\tools\sappy.exe", reloaded.at("sappy", ""));
         }
+
+        [Fact]
+        public void SaveOrThrow_MissingParentDirectory_PropagatesFailure()
+        {
+            var cfg = new Config
+            {
+                ["emulator"] = @"C:\tools\vba.exe",
+            };
+            string path = Path.Combine(_dir, "missing", "config.xml");
+
+            Assert.Throws<DirectoryNotFoundException>(() => cfg.SaveOrThrow(path));
+            Assert.False(File.Exists(path));
+        }
+
+        [Fact]
+        public void SaveOrThrow_ReplaceFails_PreservesExistingFileAndCleansTemp()
+        {
+            var persisted = Config.LoadOrCreate(_configPath);
+            persisted["emulator"] = @"C:\tools\old.exe";
+            persisted.SaveOrThrow(_configPath);
+            string originalXml = File.ReadAllText(_configPath);
+
+            var proposed = new Config
+            {
+                ["emulator"] = @"C:\tools\new.exe",
+            };
+
+            IOException failure = Assert.Throws<IOException>(() =>
+                proposed.SaveOrThrow(
+                    _configPath,
+                    (tempPath, targetPath) =>
+                    {
+                        Assert.Equal(Path.GetDirectoryName(_configPath), Path.GetDirectoryName(tempPath));
+                        Assert.Equal(Path.GetFullPath(_configPath), targetPath);
+                        Assert.True(File.Exists(tempPath));
+                        var staged = new Config();
+                        staged.Load(tempPath);
+                        Assert.Equal(@"C:\tools\new.exe", staged.at("emulator", ""));
+                        throw new IOException("replace failed");
+                    }));
+
+            Assert.Equal("replace failed", failure.Message);
+            Assert.Equal(originalXml, File.ReadAllText(_configPath));
+            Config reloaded = Config.LoadOrCreate(_configPath);
+            Assert.Equal(@"C:\tools\old.exe", reloaded.at("emulator", ""));
+            Assert.Empty(Directory.GetFiles(
+                Path.GetDirectoryName(_configPath)!,
+                ".fegba-config-*.tmp"));
+        }
+
+        [Fact]
+        public void SaveOrThrow_CancelAfterFlushBeforeReplace_LeavesOriginalAndCleansTemp()
+        {
+            var persisted = Config.LoadOrCreate(_configPath);
+            persisted["emulator"] = @"C:\tools\old.exe";
+            persisted.SaveOrThrow(_configPath);
+            string originalXml = File.ReadAllText(_configPath);
+
+            var proposed = new Config
+            {
+                ["emulator"] = @"C:\tools\new.exe",
+            };
+
+            using var cts = new System.Threading.CancellationTokenSource();
+            bool replaceCalled = false;
+            bool stagedExistedAtBoundary = false;
+            string? stagedEmulatorAtBoundary = null;
+
+            Assert.Throws<OperationCanceledException>(() =>
+                proposed.SaveOrThrow(
+                    _configPath,
+                    cts.Token,
+                    replaceFile: (tempPath, targetPath) => replaceCalled = true,
+                    afterTempFileFlushed: tempPath =>
+                    {
+                        // The fully flushed sibling temp exists and holds the new config, yet
+                        // the original target has not been touched. Cancelling here must
+                        // linearize immediately before replacement.
+                        stagedExistedAtBoundary = File.Exists(tempPath);
+                        var staged = new Config();
+                        staged.Load(tempPath);
+                        stagedEmulatorAtBoundary = staged.at("emulator", "");
+                        cts.Cancel();
+                    }));
+
+            Assert.False(replaceCalled);                                    // replacement delegate never runs
+            Assert.True(stagedExistedAtBoundary);                           // new staged config existed at the boundary
+            Assert.Equal(@"C:\tools\new.exe", stagedEmulatorAtBoundary);    // ...and held the proposed value
+            Assert.Equal(originalXml, File.ReadAllText(_configPath));       // original disk config untouched
+            Config reloaded = Config.LoadOrCreate(_configPath);
+            Assert.Equal(@"C:\tools\old.exe", reloaded.at("emulator", ""));
+            Assert.Empty(Directory.GetFiles(
+                Path.GetDirectoryName(_configPath)!,
+                ".fegba-config-*.tmp"));                                    // temp cleaned in finally
+        }
     }
 }

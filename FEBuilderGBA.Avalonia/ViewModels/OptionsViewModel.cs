@@ -1,9 +1,47 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
+    /// <summary>
+    /// Cancellation-aware FEMapCreator tileset-discovery seam used by
+    /// <see cref="OptionsViewModel.DiscoverTilesetsAsync"/> (#1978 Slice 3 review finding #5).
+    /// The default production implementation forwards the token into
+    /// <see cref="FEMapCreatorTilesetDiscoveryCore.DiscoverTilesets"/>'s cancellation-aware
+    /// overload so a started external discovery process is genuinely owned and terminated on
+    /// cancel, matching <see cref="Services.RandomMapExternalGenerateDelegate"/>'s contract.
+    /// </summary>
+    public delegate FEMapCreatorTilesetDiscoveryResult FEMapCreatorDiscoverDelegate(
+        string executablePath, string? assetsRoot, CancellationToken cancellationToken);
+
+    internal delegate FEMapCreatorSetupSnapshot FEMapCreatorProfileValidateDelegate(
+        string executablePath, string assetsRoot, CancellationToken cancellationToken);
+
+    internal readonly record struct FEMapCreatorMappingEntryCreationResult(
+        bool Success,
+        FEMapCreatorTilesetMappingEntry? Entry,
+        string Error);
+
+    internal delegate FEMapCreatorMappingEntryCreationResult FEMapCreatorMappingEntryCreateDelegate(
+        TilesetFingerprint fingerprint,
+        string tilesetName,
+        string imagePath,
+        string generationDataPath,
+        FEMapCreatorSetupSnapshot currentProfile,
+        CancellationToken cancellationToken);
+
+    internal delegate void ConfigSaveDelegate(
+        Config config,
+        string fullFilename,
+        CancellationToken cancellationToken);
+
     /// <summary>
     /// ViewModel for the user preferences (Options) dialog.
     /// </summary>
@@ -47,6 +85,119 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string _submodulePatch2Url = "";
         string _submoduleFERepoUrl = "";
         string _submoduleFERepoMusicUrl = "";
+
+        // FEMapCreator (external random-map-generation tool) setup — #1978 Slice 2.
+        // Optional/empty by default: opening Options never assumes the tool is installed and
+        // never probes the filesystem beyond what Validate() below does on demand for display.
+        string _femapCreatorPath = "";
+        string _femapCreatorAssetsRoot = "";
+
+        // ---- Per-current-tileset-fingerprint mapping (#1978 Slice 3 review finding #5) ----
+        // Relocated here (from the retired standalone Map Editor "Map Tileset…" dialog) so all
+        // FEMapCreator setup — executable/assets AND discovered per-fingerprint mapping — lives
+        // in one place per Plan v4 §4/§7. Discovery only ever runs from an explicit user click
+        // (DiscoverTilesetsAsync), never from Load()/the constructor/SetTilesetContext.
+        readonly FEMapCreatorDiscoverDelegate _discoverTilesets;
+        readonly FEMapCreatorProfileValidateDelegate _validateProfile;
+        readonly FEMapCreatorMappingEntryCreateDelegate _createMappingEntry;
+        readonly ConfigSaveDelegate _saveConfig;
+        readonly Func<Config?> _getConfig;
+        readonly object _tilesetMappingOperationSync = new();
+        CancellationTokenSource? _tilesetMappingOperationCts;
+        // Discovery and Save Mapping share one exclusive gate so neither can race the other's
+        // profile/file identity reads or publish stale state while the other operation is active.
+        int _tilesetMappingOperationGate;
+        TilesetFingerprint _currentTilesetFingerprint = TilesetFingerprint.Empty;
+        string _tilesetMappingStatusMessage = "";
+        string _tilesetMappingErrorMessage = "";
+        bool _isDiscoveringTilesets;
+        bool _isSavingTilesetMapping;
+        bool _isTilesetMappingOperationInProgress;
+        FEMapCreatorTilesetOption? _selectedTileset;
+        FEMapCreatorSetupSnapshot? _tilesetDiscoveryProfile;
+
+        public OptionsViewModel()
+            : this(
+                discoverTilesets: null,
+                getConfig: null,
+                validateProfile: null,
+                createMappingEntry: null,
+                saveConfig: null)
+        {
+        }
+
+        /// <summary>Test-injectable constructor — production callers always use the parameterless constructor above.</summary>
+        internal OptionsViewModel(
+            FEMapCreatorDiscoverDelegate? discoverTilesets,
+            Func<Config?>? getConfig,
+            FEMapCreatorProfileValidateDelegate? validateProfile = null,
+            FEMapCreatorMappingEntryCreateDelegate? createMappingEntry = null,
+            ConfigSaveDelegate? saveConfig = null)
+        {
+            _discoverTilesets = discoverTilesets ?? DefaultDiscoverTilesets;
+            _getConfig = getConfig ?? (() => CoreState.Config);
+            _validateProfile = validateProfile ?? DefaultValidateProfile;
+            _createMappingEntry = createMappingEntry ?? DefaultCreateMappingEntry;
+            _saveConfig = saveConfig ?? DefaultSaveConfig;
+        }
+
+        static FEMapCreatorTilesetDiscoveryResult DefaultDiscoverTilesets(string executablePath, string? assetsRoot, CancellationToken cancellationToken)
+        {
+            return FEMapCreatorTilesetDiscoveryCore.DiscoverTilesets(
+                executablePath, assetsRoot, cancellationToken: cancellationToken, cancellableRunner: ProcessRunnerCore.Run);
+        }
+
+        static FEMapCreatorSetupSnapshot DefaultValidateProfile(
+            string executablePath,
+            string assetsRoot,
+            CancellationToken cancellationToken) =>
+            FEMapCreatorProfileCore.Validate(executablePath, assetsRoot, cancellationToken);
+
+        static FEMapCreatorMappingEntryCreationResult DefaultCreateMappingEntry(
+            TilesetFingerprint fingerprint,
+            string tilesetName,
+            string imagePath,
+            string generationDataPath,
+            FEMapCreatorSetupSnapshot currentProfile,
+            CancellationToken cancellationToken)
+        {
+            bool success = FEMapCreatorTilesetMappingStoreCore.TryCreateEntry(
+                fingerprint,
+                tilesetName,
+                imagePath,
+                generationDataPath,
+                currentProfile,
+                cancellationToken,
+                out FEMapCreatorTilesetMappingEntry entry,
+                out string error);
+            return new FEMapCreatorMappingEntryCreationResult(success, entry, error);
+        }
+
+        static void DefaultSaveConfig(
+            Config config,
+            string fullFilename,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            config.SaveOrThrow(fullFilename, cancellationToken);
+        }
+
+        static Config CloneConfig(Config source)
+        {
+            var clone = new Config();
+            foreach (KeyValuePair<string, string> pair in source)
+                clone[pair.Key] = pair.Value;
+            return clone;
+        }
+
+        static bool IsConfigPersistenceException(Exception ex) =>
+            ex is IOException
+            || ex is UnauthorizedAccessException
+            || ex is System.Security.SecurityException
+            || ex is System.Xml.XmlException
+            || ex is ArgumentException
+            || ex is NotSupportedException
+            || ex is InvalidOperationException;
 
         /// <summary>Current language selection entry (e.g. "en — English").</summary>
         public string Language
@@ -126,6 +277,466 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public string SubmoduleFERepoUrl { get => _submoduleFERepoUrl; set => SetField(ref _submoduleFERepoUrl, value); }
         public string SubmoduleFERepoMusicUrl { get => _submoduleFERepoMusicUrl; set => SetField(ref _submoduleFERepoMusicUrl, value); }
 
+        // ---- FEMapCreator (external random-map-generation tool) setup ----
+        // #1978: Options owns durable configuration, explicit discovery, and per-fingerprint
+        // mapping. No auto-download/install/PATH-search occurs here.
+
+        /// <summary>Absolute path to the external FEMapCreator executable (empty = not configured).</summary>
+        public string FEMapCreatorPath
+        {
+            get => _femapCreatorPath;
+            set
+            {
+                if (SetField(ref _femapCreatorPath, value ?? ""))
+                    InvalidateTilesetDiscovery();
+            }
+        }
+
+        /// <summary>Optional absolute path to an external FEMapCreator assets root (empty is valid).</summary>
+        public string FEMapCreatorAssetsRoot
+        {
+            get => _femapCreatorAssetsRoot;
+            set
+            {
+                if (SetField(ref _femapCreatorAssetsRoot, value ?? ""))
+                    InvalidateTilesetDiscovery();
+            }
+        }
+
+        void InvalidateTilesetDiscovery()
+        {
+            CancelTilesetMappingOperation();
+            _tilesetDiscoveryProfile = null;
+            Tilesets.Clear();
+            SelectedTileset = null;
+            TilesetMappingSaved = false;
+            TilesetMappingErrorMessage = "";
+            TilesetMappingStatusMessage = "";
+        }
+
+        /// <summary>
+        /// Re-validates the current (possibly unsaved) FEMapCreator path/assets-root values on
+        /// demand. Pure/read-only — only stats the filesystem, never launches a process or
+        /// touches the network. Callers (the Options view) use this to render a live status line
+        /// as the user edits the fields, without requiring a ROM to be loaded.
+        /// </summary>
+        public FEMapCreatorSetupSnapshot GetFEMapCreatorStatusSnapshot()
+        {
+            return FEMapCreatorProfileCore.ValidateForStatus(FEMapCreatorPath, FEMapCreatorAssetsRoot);
+        }
+
+        static bool IsSameFEMapCreatorProfile(FEMapCreatorSetupSnapshot expected, FEMapCreatorSetupSnapshot current)
+        {
+            return expected.Status == FEMapCreatorSetupStatus.Configured
+                && current.Status == FEMapCreatorSetupStatus.Configured
+                && string.Equals(expected.ExecutablePath, current.ExecutablePath, FEMapCreatorLauncherCore.PathComparison)
+                && expected.ExecutableSizeBytes == current.ExecutableSizeBytes
+                && expected.ExecutableLastWriteUtcTicks == current.ExecutableLastWriteUtcTicks
+                && string.Equals(expected.ExecutableSha256, current.ExecutableSha256, StringComparison.Ordinal)
+                && string.Equals(expected.AssetsRoot, current.AssetsRoot, FEMapCreatorLauncherCore.PathComparison);
+        }
+
+        /// <summary>
+        /// Human-readable, localized summary of <see cref="GetFEMapCreatorStatusSnapshot"/> for
+        /// display in the Options view.
+        /// </summary>
+        public string GetFEMapCreatorStatusText()
+        {
+            FEMapCreatorSetupSnapshot snapshot = GetFEMapCreatorStatusSnapshot();
+            switch (snapshot.Status)
+            {
+                case FEMapCreatorSetupStatus.NotConfigured:
+                    return R._("Not configured (optional).");
+                case FEMapCreatorSetupStatus.Configured:
+                    return R._("Configured.");
+                default:
+                    return R._("Invalid") + ": " + (snapshot.ErrorMessage ?? R._("unknown error"));
+            }
+        }
+
+        // ---- Per-current-tileset-fingerprint mapping UI state (#1978 Slice 3 review finding #5) ----
+
+        /// <summary>
+        /// The fingerprint of the map that requested this Options section, set via
+        /// <see cref="SetTilesetContext"/>. <see cref="TilesetFingerprint.Empty"/> (the default)
+        /// means Options was opened without a specific map in context — the view must explain
+        /// how to reach this section from a Map Editor rather than guessing a fingerprint.
+        /// </summary>
+        public TilesetFingerprint CurrentTilesetFingerprint
+        {
+            get => _currentTilesetFingerprint;
+            private set => SetField(ref _currentTilesetFingerprint, value);
+        }
+
+        /// <summary>True once a valid, non-empty fingerprint has been supplied for this session.</summary>
+        public bool HasTilesetContext => !CurrentTilesetFingerprint.IsEmpty;
+
+        /// <summary>Discovered, usable FEMapCreator tilesets from the most recent <see cref="DiscoverTilesetsAsync"/> run.</summary>
+        public ObservableCollection<FEMapCreatorTilesetOption> Tilesets { get; } = new();
+
+        public FEMapCreatorTilesetOption? SelectedTileset
+        {
+            get => _selectedTileset;
+            set => SetField(ref _selectedTileset, value);
+        }
+
+        public string TilesetMappingStatusMessage
+        {
+            get => _tilesetMappingStatusMessage;
+            private set => SetField(ref _tilesetMappingStatusMessage, value);
+        }
+
+        public string TilesetMappingErrorMessage
+        {
+            get => _tilesetMappingErrorMessage;
+            private set => SetField(ref _tilesetMappingErrorMessage, value);
+        }
+
+        public bool IsDiscoveringTilesets
+        {
+            get => _isDiscoveringTilesets;
+            private set => SetField(ref _isDiscoveringTilesets, value);
+        }
+
+        public bool IsSavingTilesetMapping
+        {
+            get => _isSavingTilesetMapping;
+            private set => SetField(ref _isSavingTilesetMapping, value);
+        }
+
+        /// <summary>True while either discovery or Save Mapping owns the exclusive operation gate.</summary>
+        public bool IsTilesetMappingOperationInProgress
+        {
+            get => _isTilesetMappingOperationInProgress;
+            private set => SetField(ref _isTilesetMappingOperationInProgress, value);
+        }
+
+        /// <summary>True once <see cref="SaveTilesetMappingAsync"/> has committed a new mapping entry this session.</summary>
+        public bool TilesetMappingSaved { get; private set; }
+
+        /// <summary>
+        /// Sets which map's tileset fingerprint the discovery/save-mapping actions below apply
+        /// to. Called by a Map Editor "Configure random-map tileset…" shortcut when navigating
+        /// here (<c>WindowManager.OpenModal&lt;OptionsView&gt;(owner, view =&gt; view.SetTilesetContext(fingerprint))</c>);
+        /// read-only/pure — never launches a process, never touches config or the network.
+        /// </summary>
+        public void SetTilesetContext(TilesetFingerprint fingerprint)
+        {
+            if (!CurrentTilesetFingerprint.Equals(fingerprint))
+                CancelTilesetMappingOperation();
+            CurrentTilesetFingerprint = fingerprint;
+            TilesetMappingSaved = false;
+            TilesetMappingErrorMessage = "";
+            TilesetMappingStatusMessage = fingerprint.IsEmpty
+                ? R._("This map's tileset could not be identified.")
+                : "";
+        }
+
+        /// <summary>Cancel whichever exclusive discovery/save-mapping operation is in flight.</summary>
+        public void CancelTilesetMappingOperation()
+        {
+            lock (_tilesetMappingOperationSync)
+                _tilesetMappingOperationCts?.Cancel();
+        }
+
+        /// <summary>Backward-compatible discovery-specific alias for existing callers.</summary>
+        public void CancelTilesetDiscovery() => CancelTilesetMappingOperation();
+
+        bool TryBeginTilesetMappingOperation(out CancellationTokenSource? cts)
+        {
+            lock (_tilesetMappingOperationSync)
+            {
+                if (Interlocked.CompareExchange(ref _tilesetMappingOperationGate, 1, 0) != 0)
+                {
+                    cts = null;
+                    return false;
+                }
+
+                cts = new CancellationTokenSource();
+                _tilesetMappingOperationCts = cts;
+            }
+
+            IsTilesetMappingOperationInProgress = true;
+            return true;
+        }
+
+        void EndTilesetMappingOperation(CancellationTokenSource cts)
+        {
+            lock (_tilesetMappingOperationSync)
+            {
+                if (ReferenceEquals(_tilesetMappingOperationCts, cts))
+                    _tilesetMappingOperationCts = null;
+            }
+
+            cts.Dispose();
+            IsDiscoveringTilesets = false;
+            IsSavingTilesetMapping = false;
+            IsTilesetMappingOperationInProgress = false;
+            Interlocked.Exchange(ref _tilesetMappingOperationGate, 0);
+        }
+
+        /// <summary>
+        /// Run FEMapCreator tileset discovery off the calling thread using the current,
+        /// possibly unsaved Options values. Only ever invoked by an explicit user click — never
+        /// by construction, <see cref="Load"/>, or <see cref="SetTilesetContext"/>. The exclusive
+        /// operation gate rejects duplicate discovery calls and Save Mapping while discovery is
+        /// active. Busy state begins before the first authoritative executable hash and remains
+        /// active through post-discovery profile validation.
+        /// </summary>
+        public async Task DiscoverTilesetsAsync()
+        {
+            if (!TryBeginTilesetMappingOperation(out CancellationTokenSource? cts))
+                return;
+
+            CancellationToken token = cts!.Token;
+            IsDiscoveringTilesets = true;
+
+            try
+            {
+                TilesetMappingErrorMessage = "";
+                Tilesets.Clear();
+                SelectedTileset = null;
+                _tilesetDiscoveryProfile = null;
+                TilesetMappingStatusMessage = R._("Discovering tilesets...");
+
+                string discoveryExecutablePath = FEMapCreatorPath;
+                string discoveryAssetsRoot = FEMapCreatorAssetsRoot;
+                FEMapCreatorSetupSnapshot profile = await Task.Run(
+                    () => _validateProfile(
+                        discoveryExecutablePath,
+                        discoveryAssetsRoot,
+                        token),
+                    token);
+                if (profile.Status != FEMapCreatorSetupStatus.Configured)
+                {
+                    TilesetMappingErrorMessage = string.IsNullOrWhiteSpace(profile.ErrorMessage)
+                        ? R._("FEMapCreator is not configured. Set the executable path above first.")
+                        : profile.ErrorMessage;
+                    TilesetMappingStatusMessage = "";
+                    return;
+                }
+
+                FEMapCreatorTilesetDiscoveryResult result = await Task.Run(
+                    () => _discoverTilesets(
+                        profile.ExecutablePath,
+                        string.IsNullOrWhiteSpace(profile.AssetsRoot) ? null : profile.AssetsRoot,
+                        token),
+                    token);
+
+                if (token.IsCancellationRequested)
+                {
+                    TilesetMappingStatusMessage = R._("Tileset discovery was cancelled.");
+                    return;
+                }
+
+                if (!result.Success)
+                {
+                    TilesetMappingErrorMessage = string.IsNullOrWhiteSpace(result.ErrorMessage)
+                        ? R._("Tileset discovery failed.")
+                        : result.ErrorMessage;
+                    TilesetMappingStatusMessage = "";
+                    return;
+                }
+
+                string currentExecutablePath = FEMapCreatorPath;
+                string currentAssetsRoot = FEMapCreatorAssetsRoot;
+                FEMapCreatorSetupSnapshot currentProfile = await Task.Run(
+                    () => _validateProfile(
+                        currentExecutablePath,
+                        currentAssetsRoot,
+                        token),
+                    token);
+                if (!IsSameFEMapCreatorProfile(profile, currentProfile))
+                {
+                    TilesetMappingErrorMessage = R._("Discover and choose a compatible tileset first.");
+                    TilesetMappingStatusMessage = "";
+                    return;
+                }
+
+                List<FEMapCreatorTilesetInfo> usable = result.Tilesets.Where(t => t.IsUsable).ToList();
+                token.ThrowIfCancellationRequested();
+                _tilesetDiscoveryProfile = usable.Count > 0 ? profile : null;
+                foreach (FEMapCreatorTilesetInfo t in usable)
+                {
+                    Tilesets.Add(new FEMapCreatorTilesetOption
+                    {
+                        Name = t.Name,
+                        Diagnostic = t.Diagnostic,
+                        ImagePath = t.ResolvedImagePath,
+                        GenerationDataPath = t.ResolvedGenerationDataPath,
+                    });
+                }
+
+                TilesetMappingStatusMessage = usable.Count > 0
+                    ? string.Format(R._("Found {0} usable tileset(s)."), usable.Count)
+                    : R._("No usable tilesets were found.");
+            }
+            catch (OperationCanceledException ex)
+                when (token.IsCancellationRequested || ex.CancellationToken == token)
+            {
+                TilesetMappingStatusMessage = R._("Tileset discovery was cancelled.");
+            }
+            finally
+            {
+                EndTilesetMappingOperation(cts!);
+            }
+        }
+
+        /// <summary>
+        /// Persist a mapping from <see cref="CurrentTilesetFingerprint"/> to
+        /// <see cref="SelectedTileset"/> using <see cref="FEMapCreatorTilesetMappingStoreCore.TryCreateEntry"/>
+        /// + <c>Upsert</c> + <c>SaveAll</c> + <see cref="Config.SaveOrThrow(string, CancellationToken)"/>.
+        /// Returns false with
+        /// <see cref="TilesetMappingErrorMessage"/> set on validation failure. Authoritative
+        /// executable/image/generation-data hashes run off the calling thread and observe the
+        /// operation's cancellation token. Detached snapshot serialization and the durable
+        /// config-write boundary re-check the same token. Never launches a process.
+        /// </summary>
+        public async Task<bool> SaveTilesetMappingAsync()
+        {
+            TilesetMappingErrorMessage = "";
+            TilesetMappingSaved = false;
+            if (CurrentTilesetFingerprint.IsEmpty)
+            {
+                TilesetMappingErrorMessage = R._("This map's tileset could not be identified.");
+                return false;
+            }
+            FEMapCreatorTilesetOption? selectedTileset = SelectedTileset;
+            if (selectedTileset == null)
+            {
+                TilesetMappingErrorMessage = R._("Select a tileset first.");
+                return false;
+            }
+
+            Config? cfg = _getConfig();
+            if (cfg == null)
+            {
+                TilesetMappingErrorMessage = R._("Configuration is not available.");
+                return false;
+            }
+
+            FEMapCreatorSetupSnapshot? discoveryProfile = _tilesetDiscoveryProfile;
+            if (discoveryProfile == null || !Tilesets.Contains(selectedTileset))
+            {
+                TilesetMappingErrorMessage = R._("Discover and choose a compatible tileset first.");
+                return false;
+            }
+
+            if (!TryBeginTilesetMappingOperation(out CancellationTokenSource? cts))
+            {
+                TilesetMappingErrorMessage = R._("Wait for the current tileset operation to finish or cancel it first.");
+                return false;
+            }
+
+            CancellationToken token = cts!.Token;
+            IsSavingTilesetMapping = true;
+            TilesetMappingStatusMessage = R._("Saving tileset mapping...");
+
+            TilesetFingerprint fingerprint = CurrentTilesetFingerprint;
+            string executablePath = FEMapCreatorPath;
+            string assetsRoot = FEMapCreatorAssetsRoot;
+            string tilesetName = selectedTileset.Name;
+            string imagePath = selectedTileset.ImagePath;
+            string generationDataPath = selectedTileset.GenerationDataPath;
+
+            try
+            {
+                (bool ProfileMatches, FEMapCreatorTilesetMappingEntry? Entry, string Error) creation =
+                    await Task.Run(
+                        () =>
+                        {
+                            FEMapCreatorSetupSnapshot currentProfile =
+                                _validateProfile(executablePath, assetsRoot, token);
+                            if (!IsSameFEMapCreatorProfile(discoveryProfile, currentProfile))
+                                return (false, (FEMapCreatorTilesetMappingEntry?)null, "");
+
+                            FEMapCreatorMappingEntryCreationResult entryResult = _createMappingEntry(
+                                fingerprint,
+                                tilesetName,
+                                imagePath,
+                                generationDataPath,
+                                currentProfile,
+                                token);
+                            return (
+                                true,
+                                entryResult.Success ? entryResult.Entry : null,
+                                entryResult.Error);
+                        },
+                        token);
+
+                token.ThrowIfCancellationRequested();
+                if (!creation.ProfileMatches)
+                {
+                    TilesetMappingErrorMessage = R._("Discover and choose a compatible tileset first.");
+                    TilesetMappingStatusMessage = "";
+                    return false;
+                }
+                if (creation.Entry == null)
+                {
+                    TilesetMappingErrorMessage = creation.Error;
+                    TilesetMappingStatusMessage = "";
+                    return false;
+                }
+
+                if (!CurrentTilesetFingerprint.Equals(fingerprint)
+                    || !ReferenceEquals(SelectedTileset, selectedTileset)
+                    || !Tilesets.Contains(selectedTileset)
+                    || !string.Equals(FEMapCreatorPath, executablePath, StringComparison.Ordinal)
+                    || !string.Equals(FEMapCreatorAssetsRoot, assetsRoot, StringComparison.Ordinal))
+                {
+                    TilesetMappingErrorMessage = R._("Discover and choose a compatible tileset first.");
+                    TilesetMappingStatusMessage = "";
+                    return false;
+                }
+
+                IReadOnlyList<FEMapCreatorTilesetMappingEntry> mappings =
+                    FEMapCreatorTilesetMappingStoreCore.LoadAll(cfg);
+                mappings = FEMapCreatorTilesetMappingStoreCore.Upsert(mappings, creation.Entry);
+                token.ThrowIfCancellationRequested();
+
+                // Persist a detached snapshot first. The live config is updated only after the
+                // write succeeds, so a disk failure cannot leave a mapping that appears usable
+                // for this process but disappears after restart.
+                Config pendingConfig = CloneConfig(cfg);
+                pendingConfig[FEMapCreatorProfileCore.ExecutablePathConfigKey] = executablePath;
+                pendingConfig[FEMapCreatorProfileCore.AssetsRootConfigKey] = assetsRoot;
+                FEMapCreatorTilesetMappingStoreCore.SaveAll(pendingConfig, mappings);
+                token.ThrowIfCancellationRequested();
+                try
+                {
+                    _saveConfig(pendingConfig, cfg.ConfigFilename, token);
+                }
+                catch (Exception ex) when (IsConfigPersistenceException(ex))
+                {
+                    Log.Error($"OptionsViewModel.SaveTilesetMappingAsync: config persistence failed. {ex}");
+                    TilesetMappingErrorMessage =
+                        R._("Failed to save the tileset mapping.") + "\r\n" + ex.Message;
+                    TilesetMappingStatusMessage = "";
+                    return false;
+                }
+
+                cfg[FEMapCreatorProfileCore.ExecutablePathConfigKey] = executablePath;
+                cfg[FEMapCreatorProfileCore.AssetsRootConfigKey] = assetsRoot;
+                cfg[FEMapCreatorTilesetMappingStoreCore.MappingsConfigKey] =
+                    pendingConfig[FEMapCreatorTilesetMappingStoreCore.MappingsConfigKey];
+
+                TilesetMappingSaved = true;
+                TilesetMappingStatusMessage =
+                    string.Format(R._("Mapping saved for tileset '{0}'."), tilesetName);
+                return true;
+            }
+            catch (OperationCanceledException ex)
+                when (token.IsCancellationRequested || ex.CancellationToken == token)
+            {
+                TilesetMappingStatusMessage = R._("Tileset mapping save was cancelled.");
+                return false;
+            }
+            finally
+            {
+                EndTilesetMappingOperation(cts!);
+            }
+        }
+
         /// <summary>Load settings from CoreState and Config.</summary>
         public void Load()
         {
@@ -183,6 +794,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     SubmodulePatch2Url = cfg.at("submodule_patch2_url", "");
                     SubmoduleFERepoUrl = cfg.at("submodule_fe_repo_url", "");
                     SubmoduleFERepoMusicUrl = cfg.at("submodule_fe_repo_music_url", "");
+
+                    // FEMapCreator setup (#1978 Slice 2) — read-only value load, no validation
+                    // side effects (no filesystem probing beyond what GetFEMapCreatorStatusSnapshot
+                    // does on-demand for display, no process launch, no network).
+                    FEMapCreatorPath = cfg.at(FEMapCreatorProfileCore.ExecutablePathConfigKey, "");
+                    FEMapCreatorAssetsRoot = cfg.at(FEMapCreatorProfileCore.AssetsRootConfigKey, "");
                 }
             }
             finally
@@ -267,6 +884,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 cfg["submodule_patch2_url"] = SubmodulePatch2Url ?? "";
                 cfg["submodule_fe_repo_url"] = SubmoduleFERepoUrl ?? "";
                 cfg["submodule_fe_repo_music_url"] = SubmoduleFERepoMusicUrl ?? "";
+
+                // FEMapCreator setup (#1978 Slice 2) — persisted verbatim; validation happens on
+                // read/display only, never blocks or mutates Save().
+                cfg[FEMapCreatorProfileCore.ExecutablePathConfigKey] = FEMapCreatorPath ?? "";
+                cfg[FEMapCreatorProfileCore.AssetsRootConfigKey] = FEMapCreatorAssetsRoot ?? "";
 
                 cfg.Save();
 
