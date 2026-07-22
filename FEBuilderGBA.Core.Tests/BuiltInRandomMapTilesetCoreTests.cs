@@ -458,6 +458,67 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(BuiltInRandomMapTilesetCore.IsMarRenderable(0, null));
         }
 
+        [Fact]
+        public void MapTilesetSnapshot_MutatingConstructorSourceArrays_CannotAlterStoredDataOrFingerprint()
+        {
+            byte[] mapData = { 2, 2, 0, 0, 0, 0, 0, 0, 0, 0 };
+            byte[] objData = MakeBytes(64, 1);
+            byte[] paletteData = MakeBytes(32, 2);
+            byte[] configData = MakeBytes(24, 3);
+            TilesetFingerprint expected = TilesetFingerprint.Compute(8, objData, paletteData, configData);
+
+            var snapshot = new MapTilesetSnapshot(
+                0x1000u, 0x2000u, mapData, 2, 2, objData, paletteData, configData, expected);
+
+            byte[] mapCopy = (byte[])mapData.Clone();
+            byte[] objCopy = (byte[])objData.Clone();
+            byte[] palCopy = (byte[])paletteData.Clone();
+            byte[] cfgCopy = (byte[])configData.Clone();
+
+            // Mutate every caller-owned source array after construction.
+            mapData[0] ^= 0xFF;
+            objData[0] ^= 0xFF;
+            paletteData[0] ^= 0xFF;
+            configData[0] ^= 0xFF;
+
+            Assert.Equal(mapCopy, snapshot.MapData);
+            Assert.Equal(objCopy, snapshot.ObjData);
+            Assert.Equal(palCopy, snapshot.PaletteData);
+            Assert.Equal(cfgCopy, snapshot.ConfigData);
+            Assert.Equal(expected, snapshot.Fingerprint);
+        }
+
+        [Fact]
+        public void MapTilesetSnapshot_MutatingPublicGetterArrays_CannotAlterStoredDataOrFingerprint()
+        {
+            byte[] mapData = { 2, 2, 0, 0, 0, 0, 0, 0, 0, 0 };
+            byte[] objData = MakeBytes(64, 1);
+            byte[] paletteData = MakeBytes(32, 2);
+            byte[] configData = MakeBytes(24, 3);
+            TilesetFingerprint expected = TilesetFingerprint.Compute(8, objData, paletteData, configData);
+
+            var snapshot = new MapTilesetSnapshot(
+                0x1000u, 0x2000u, mapData, 2, 2, objData, paletteData, configData, expected);
+
+            byte[] mapBaseline = snapshot.MapData;
+            byte[] objBaseline = snapshot.ObjData;
+            byte[] palBaseline = snapshot.PaletteData;
+            byte[] cfgBaseline = snapshot.ConfigData;
+
+            // Each public getter must hand back a fresh defensive copy; mutating it must not
+            // write through to the snapshot's stored buffers.
+            snapshot.MapData[0] ^= 0xFF;
+            snapshot.ObjData[0] ^= 0xFF;
+            snapshot.PaletteData[0] ^= 0xFF;
+            snapshot.ConfigData[0] ^= 0xFF;
+
+            Assert.Equal(mapBaseline, snapshot.MapData);
+            Assert.Equal(objBaseline, snapshot.ObjData);
+            Assert.Equal(palBaseline, snapshot.PaletteData);
+            Assert.Equal(cfgBaseline, snapshot.ConfigData);
+            Assert.Equal(expected, snapshot.Fingerprint);
+        }
+
         static byte[] MakeBytes(int length, int seed)
         {
             byte[] result = new byte[length];

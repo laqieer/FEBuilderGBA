@@ -100,6 +100,8 @@ namespace FEBuilderGBA
             ? Array.Empty<ushort>()
             : (ushort[])_mars.Clone();
 
+        internal ushort[] MarsBuffer => _mars;
+
         /// <summary>
         /// The caller-supplied seed that produced <see cref="Mars"/> — always equal to the
         /// <c>seed</c> argument passed to <see cref="BuiltInRandomMapGeneratorCore.Generate"/>,

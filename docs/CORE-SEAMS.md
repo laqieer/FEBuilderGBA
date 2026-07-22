@@ -93,6 +93,19 @@ later in this catalog:
   separate pre-service resolve runs on the dispatcher. The guard intentionally
   re-resolves the live ROM immediately before mutation to close the stale-context
   race.
+- `MapTilesetSnapshot` and its derived `BuiltInRandomMapTilesetCorpus` are
+  fully immutable: they clone all MAP/OBJ/PAL/CFG buffers plus contributing-map
+  and candidate lists, frequency dictionaries, and every directional adjacency
+  set. Public arrays are defensive copies and public collection views reject
+  mutation, so changing caller sources, getter results, or cast views cannot alter
+  stored evidence or diverge the tileset `Fingerprint`. `MetatileEdgeSignature`
+  applies the same contract to all four relaxed-model edge arrays. Trusted hot
+  paths (corpus accumulation, generator candidate checks, edge matching, and
+  `RandomMapOneClickService` grid validation) read clearly named internal
+  zero-copy `*Buffer` members instead, so defensive public getters never cause
+  repeated per-generation clones. A narrowly named test-only corpus option may
+  preserve instrumented read-only lookup wrappers solely for cancellation and
+  propagation probes; production corpus construction never enables it.
 - The Map Editor has an inline generation Cancel button, materializes blank seeds
   before backend invocation, and passes cancellation into the dispatched apply
   callback before undo/ROM mutation. "Map Tileset..." selects Options' External
@@ -105,16 +118,25 @@ later in this catalog:
   initial load cannot erase the assets root while publishing the executable path.
 - Save Mapping re-checks its operation token after detached JSON snapshot
   serialization and passes that token into the persistence boundary, whose default
-  implementation checks again immediately before `Config.SaveOrThrow`. Cancel or
-  Options detach before that boundary cannot write or publish a late mapping.
+  implementation calls `Config.SaveOrThrow(string, CancellationToken)`. That
+  overload checks cancellation before work and again at the flushed-temp
+  replacement boundary — after the sibling temp file is fully written and flushed,
+  immediately before the atomic `replaceFile` — so a cancellation observed there
+  leaves the original config.xml untouched and never runs the replacement, and the
+  temp is always cleaned in `finally`. Cancel or Options detach before that
+  boundary cannot write or publish a late mapping.
+- Tileset discovery performs the same final-publication discipline: after its
+  second authoritative profile validation, it checks cancellation immediately
+  before assigning the discovery profile or adding any tileset options, so a
+  cancel racing that final worker return cannot publish late choices.
 - One-click generation clones the ROM and current grid before its first worker
   hop. Corpus resolution therefore reads an immutable point-in-time snapshot
   while apply-time live-ROM identity/fingerprint checks remain mandatory. The
   orchestration boundary compares every successful external or built-in result
   with that captured grid and rejects a sequence-identical layout instead of
-  committing an unchanged map as success. Built-in result objects clone their MAR
-  input and return copies on access, preserving replay/diversity metadata against
-  downstream mutation.
+  committing an unchanged map as success. Built-in, external-adapter, and
+  backend-neutral result objects clone their MAR input and return copies on
+  access, preserving replay/diversity metadata against downstream mutation.
 - External generation and FEMapCreator tileset discovery both re-check the
   caller token after launch-spec setup and immediately before dispatching either
   the cancellation-aware or legacy process runner.

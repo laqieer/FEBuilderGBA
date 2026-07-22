@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 using System.Xml;
 using System.IO;
 
@@ -35,13 +36,34 @@ namespace FEBuilderGBA
         /// </summary>
         public void SaveOrThrow(string fullfilename)
         {
-            SaveOrThrow(fullfilename, ReplaceFile);
+            SaveOrThrow(fullfilename, CancellationToken.None);
+        }
+
+        /// <summary>
+        /// Persist this config unless cancellation is observed before the atomic replacement
+        /// begins. Cancellation after replacement starts is intentionally too late to avoid
+        /// creating disk/live divergence in transactional callers.
+        /// </summary>
+        public void SaveOrThrow(string fullfilename, CancellationToken cancellationToken)
+        {
+            SaveOrThrow(fullfilename, cancellationToken, ReplaceFile, afterTempFileFlushed: null);
         }
 
         /// <summary>Internal replacement seam for deterministic fault-injection tests.</summary>
         internal void SaveOrThrow(string fullfilename, Action<string, string> replaceFile)
         {
+            SaveOrThrow(fullfilename, CancellationToken.None, replaceFile, afterTempFileFlushed: null);
+        }
+
+        /// <summary>Internal flush-boundary seam for deterministic cancellation tests.</summary>
+        internal void SaveOrThrow(
+            string fullfilename,
+            CancellationToken cancellationToken,
+            Action<string, string> replaceFile,
+            Action<string> afterTempFileFlushed)
+        {
             if (replaceFile == null) throw new ArgumentNullException(nameof(replaceFile));
+            cancellationToken.ThrowIfCancellationRequested();
 
             //XMLシリアライザが初期化できないので自前でやる.
             XmlDocument xml = new XmlDocument();
@@ -94,7 +116,10 @@ namespace FEBuilderGBA
                 }
 
                 // The old config remains intact until the complete sibling temp file has been
-                // flushed. A failed move also leaves the old target in place.
+                // flushed. Cancellation linearizes immediately before replacement; a failed
+                // move also leaves the old target in place.
+                afterTempFileFlushed?.Invoke(tempPath);
+                cancellationToken.ThrowIfCancellationRequested();
                 replaceFile(tempPath, fullPath);
             }
             finally

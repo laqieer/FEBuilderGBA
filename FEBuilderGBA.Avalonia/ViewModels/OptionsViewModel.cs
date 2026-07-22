@@ -179,7 +179,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            config.SaveOrThrow(fullFilename);
+            config.SaveOrThrow(fullFilename, cancellationToken);
         }
 
         static Config CloneConfig(Config source)
@@ -554,6 +554,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 }
 
                 List<FEMapCreatorTilesetInfo> usable = result.Tilesets.Where(t => t.IsUsable).ToList();
+                token.ThrowIfCancellationRequested();
                 _tilesetDiscoveryProfile = usable.Count > 0 ? profile : null;
                 foreach (FEMapCreatorTilesetInfo t in usable)
                 {
@@ -584,7 +585,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>
         /// Persist a mapping from <see cref="CurrentTilesetFingerprint"/> to
         /// <see cref="SelectedTileset"/> using <see cref="FEMapCreatorTilesetMappingStoreCore.TryCreateEntry"/>
-        /// + <c>Upsert</c> + <c>SaveAll</c> + <see cref="Config.SaveOrThrow(string)"/>. Returns false with
+        /// + <c>Upsert</c> + <c>SaveAll</c> + <see cref="Config.SaveOrThrow(string, CancellationToken)"/>.
+        /// Returns false with
         /// <see cref="TilesetMappingErrorMessage"/> set on validation failure. Authoritative
         /// executable/image/generation-data hashes run off the calling thread and observe the
         /// operation's cancellation token. Detached snapshot serialization and the durable

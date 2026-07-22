@@ -39,6 +39,19 @@ namespace FEBuilderGBA.Avalonia.Tests
             CoreState.DecompProject = _savedDecompProject;
         }
 
+        [Fact]
+        public void GenerationOutcome_Mars_SourceAndGetterMutationCannotAlterStoredOutcome()
+        {
+            ushort[] source = { 1, 2, 3 };
+            var outcome = new RandomMapGenerationOutcome { Mars = source };
+
+            source[0] = 99;
+            ushort[] publicCopy = outcome.Mars;
+            publicCopy[1] = 99;
+
+            Assert.Equal(new ushort[] { 1, 2, 3 }, outcome.Mars);
+        }
+
         // ------------------------------------------------------------------
         // TryPrepareForGeneration — no-dialog pre-flight guard
         // ------------------------------------------------------------------

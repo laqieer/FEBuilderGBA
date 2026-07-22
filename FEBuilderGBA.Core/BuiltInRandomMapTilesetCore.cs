@@ -68,6 +68,11 @@ namespace FEBuilderGBA
     /// </summary>
     public sealed class MapTilesetSnapshot
     {
+        readonly byte[] _mapData;
+        readonly byte[] _objData;
+        readonly byte[] _paletteData;
+        readonly byte[] _configData;
+
         internal MapTilesetSnapshot(
             uint mapSettingAddr,
             uint mapDataAddr,
@@ -81,12 +86,12 @@ namespace FEBuilderGBA
         {
             MapSettingAddr = mapSettingAddr;
             MapDataAddr = mapDataAddr;
-            MapData = mapData;
+            _mapData = (byte[])mapData.Clone();
             Width = width;
             Height = height;
-            ObjData = objData;
-            PaletteData = paletteData;
-            ConfigData = configData;
+            _objData = (byte[])objData.Clone();
+            _paletteData = (byte[])paletteData.Clone();
+            _configData = (byte[])configData.Clone();
             Fingerprint = fingerprint;
         }
 
@@ -100,7 +105,7 @@ namespace FEBuilderGBA
         /// Decompressed main-map buffer: 2-byte (width, height) header followed by row-major
         /// u16 MAR values, matching <see cref="MapEditorTilesetCore.TryReadMar"/>'s format.
         /// </summary>
-        public byte[] MapData { get; }
+        public byte[] MapData => (byte[])_mapData.Clone();
 
         /// <summary>Map width in 16x16 tiles (from the decompressed header).</summary>
         public int Width { get; }
@@ -109,16 +114,21 @@ namespace FEBuilderGBA
         public int Height { get; }
 
         /// <summary>Decompressed OBJ tile graphics (FE7's secondary tileset, when present, appended).</summary>
-        public byte[] ObjData { get; }
+        public byte[] ObjData => (byte[])_objData.Clone();
 
         /// <summary>Raw (not decompressed — palettes are never LZ77-compressed) palette bytes.</summary>
-        public byte[] PaletteData { get; }
+        public byte[] PaletteData => (byte[])_paletteData.Clone();
 
         /// <summary>Decompressed chipset config (TSA sub-tile table + terrain table).</summary>
-        public byte[] ConfigData { get; }
+        public byte[] ConfigData => (byte[])_configData.Clone();
 
         /// <summary>Stable identity of this snapshot's tileset. See <see cref="TilesetFingerprint"/>.</summary>
         public TilesetFingerprint Fingerprint { get; }
+
+        internal byte[] MapDataBuffer => _mapData;
+        internal byte[] ObjDataBuffer => _objData;
+        internal byte[] PaletteDataBuffer => _paletteData;
+        internal byte[] ConfigDataBuffer => _configData;
     }
 
     /// <summary>

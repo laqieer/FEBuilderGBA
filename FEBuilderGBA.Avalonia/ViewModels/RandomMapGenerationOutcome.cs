@@ -13,7 +13,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// </summary>
     public sealed class RandomMapGenerationOutcome
     {
-        public ushort[] Mars { get; init; } = Array.Empty<ushort>();
+        ushort[] _mars = Array.Empty<ushort>();
+
+        public ushort[] Mars
+        {
+            get => _mars.Length == 0 ? Array.Empty<ushort>() : (ushort[])_mars.Clone();
+            init => _mars = value == null || value.Length == 0
+                ? Array.Empty<ushort>()
+                : (ushort[])value.Clone();
+        }
+
+        internal ushort[] MarsBuffer => _mars;
         public int Width { get; init; }
         public int Height { get; init; }
 

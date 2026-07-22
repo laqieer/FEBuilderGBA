@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 using System;
+using System.Collections.Frozen;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
 
@@ -16,6 +18,10 @@ namespace FEBuilderGBA
     /// </summary>
     public sealed class BuiltInRandomMapTilesetCorpus
     {
+        readonly byte[] _objData;
+        readonly byte[] _paletteData;
+        readonly byte[] _configData;
+
         internal BuiltInRandomMapTilesetCorpus(
             TilesetFingerprint fingerprint,
             IReadOnlyList<uint> contributingMapIds,
@@ -27,18 +33,23 @@ namespace FEBuilderGBA
             byte[] objData,
             byte[] paletteData,
             byte[] configData,
-            long totalCells)
+            long totalCells,
+            bool preserveInstrumentedLookups = false)
         {
             Fingerprint = fingerprint;
-            ContributingMapIds = contributingMapIds;
-            Candidates = candidates;
-            Frequency = frequency;
-            BorderFrequency = borderFrequency;
-            HorizontalAdjacency = horizontalAdjacency;
-            VerticalAdjacency = verticalAdjacency;
-            ObjData = objData;
-            PaletteData = paletteData;
-            ConfigData = configData;
+            ContributingMapIds = Array.AsReadOnly(contributingMapIds.ToArray());
+            Candidates = Array.AsReadOnly(candidates.ToArray());
+            Frequency = preserveInstrumentedLookups ? frequency : CloneFrequency(frequency);
+            BorderFrequency = preserveInstrumentedLookups ? borderFrequency : CloneFrequency(borderFrequency);
+            HorizontalAdjacency = preserveInstrumentedLookups
+                ? horizontalAdjacency
+                : CloneAdjacency(horizontalAdjacency);
+            VerticalAdjacency = preserveInstrumentedLookups
+                ? verticalAdjacency
+                : CloneAdjacency(verticalAdjacency);
+            _objData = objData == null ? null : (byte[])objData.Clone();
+            _paletteData = paletteData == null ? null : (byte[])paletteData.Clone();
+            _configData = configData == null ? null : (byte[])configData.Clone();
             TotalCells = totalCells;
         }
 
@@ -73,16 +84,38 @@ namespace FEBuilderGBA
         public IReadOnlyDictionary<ushort, IReadOnlySet<ushort>> VerticalAdjacency { get; }
 
         /// <summary>Decompressed OBJ bytes shared by every contributing map (fingerprint-equal implies byte-identical).</summary>
-        public byte[] ObjData { get; }
+        public byte[] ObjData => _objData == null ? null : (byte[])_objData.Clone();
 
         /// <summary>Palette bytes shared by every contributing map.</summary>
-        public byte[] PaletteData { get; }
+        public byte[] PaletteData => _paletteData == null ? null : (byte[])_paletteData.Clone();
 
         /// <summary>Decompressed chipset config bytes shared by every contributing map.</summary>
-        public byte[] ConfigData { get; }
+        public byte[] ConfigData => _configData == null ? null : (byte[])_configData.Clone();
 
         /// <summary>Total cell count summed across every contributing map (evidence volume, not output size).</summary>
         public long TotalCells { get; }
+
+        internal byte[] ObjDataBuffer => _objData;
+        internal byte[] PaletteDataBuffer => _paletteData;
+        internal byte[] ConfigDataBuffer => _configData;
+
+        static IReadOnlyDictionary<ushort, long> CloneFrequency(
+            IReadOnlyDictionary<ushort, long> source)
+        {
+            var copy = new SortedDictionary<ushort, long>();
+            foreach (KeyValuePair<ushort, long> pair in source)
+                copy[pair.Key] = pair.Value;
+            return new ReadOnlyDictionary<ushort, long>(copy);
+        }
+
+        static IReadOnlyDictionary<ushort, IReadOnlySet<ushort>> CloneAdjacency(
+            IReadOnlyDictionary<ushort, IReadOnlySet<ushort>> source)
+        {
+            var copy = new SortedDictionary<ushort, IReadOnlySet<ushort>>();
+            foreach (KeyValuePair<ushort, IReadOnlySet<ushort>> pair in source)
+                copy[pair.Key] = pair.Value.ToFrozenSet();
+            return new ReadOnlyDictionary<ushort, IReadOnlySet<ushort>>(copy);
+        }
 
         /// <summary>True when the strict model has at least one recorded directional pair.</summary>
         public bool HasStrictAdjacencyEvidence => HorizontalAdjacency.Count > 0 || VerticalAdjacency.Count > 0;
@@ -104,10 +137,12 @@ namespace FEBuilderGBA
             byte[] objData,
             byte[] paletteData,
             byte[] configData,
-            long totalCells) =>
+            long totalCells,
+            bool preserveInstrumentedLookups = false) =>
             new BuiltInRandomMapTilesetCorpus(
                 fingerprint, contributingMapIds, candidates, frequency, borderFrequency,
-                horizontalAdjacency, verticalAdjacency, objData, paletteData, configData, totalCells);
+                horizontalAdjacency, verticalAdjacency, objData, paletteData, configData, totalCells,
+                preserveInstrumentedLookups);
     }
 
     /// <summary>
@@ -186,9 +221,9 @@ namespace FEBuilderGBA
                 borderFrequency,
                 ToReadOnlyAdjacency(horizontal),
                 ToReadOnlyAdjacency(vertical),
-                current.ObjData,
-                current.PaletteData,
-                current.ConfigData,
+                current.ObjDataBuffer,
+                current.PaletteDataBuffer,
+                current.ConfigDataBuffer,
                 totalCells);
             return true;
         }
@@ -204,7 +239,7 @@ namespace FEBuilderGBA
         {
             int width = snapshot.Width;
             int height = snapshot.Height;
-            byte[] mapData = snapshot.MapData;
+            byte[] mapData = snapshot.MapDataBuffer;
 
             ushort ReadMar(int x, int y)
             {

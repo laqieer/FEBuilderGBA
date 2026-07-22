@@ -399,6 +399,49 @@ namespace FEBuilderGBA.Avalonia.Tests
             AssertNoStaleOperationCts(vm);
         }
 
+        [Fact]
+        public async Task DiscoverTilesetsAsync_CancelledAfterFinalValidation_DoesNotPublishTilesets()
+        {
+            string exePath = MakeFile("FEMapCreator.exe");
+            CoreState.Config![FEMapCreatorProfileCore.ExecutablePathConfigKey] = exePath;
+
+            int validationCount = 0;
+            OptionsViewModel? vm = null;
+            vm = new OptionsViewModel(
+                discoverTilesets: (exe, assets, token) =>
+                {
+                    var discoveryResult = new FEMapCreatorTilesetDiscoveryResult { Success = true };
+                    discoveryResult.Tilesets.Add(new FEMapCreatorTilesetInfo
+                    {
+                        Name = "LateResult",
+                        HasImage = true,
+                        HasGenerationData = true,
+                        ResolvedImagePath = "late.png",
+                        ResolvedGenerationDataPath = "late.json",
+                        IsCompatible = true,
+                    });
+                    return discoveryResult;
+                },
+                getConfig: () => CoreState.Config,
+                validateProfile: (exe, assets, token) =>
+                {
+                    FEMapCreatorSetupSnapshot profile =
+                        FEMapCreatorProfileCore.Validate(exe, assets, token);
+                    if (Interlocked.Increment(ref validationCount) == 2)
+                        vm!.CancelTilesetDiscovery();
+                    return profile;
+                });
+            vm.FEMapCreatorPath = exePath;
+
+            await vm.DiscoverTilesetsAsync();
+
+            Assert.Equal(2, validationCount);
+            Assert.Empty(vm.Tilesets);
+            Assert.Null(vm.SelectedTileset);
+            Assert.Contains("cancel", vm.TilesetMappingStatusMessage, StringComparison.OrdinalIgnoreCase);
+            AssertNoStaleOperationCts(vm);
+        }
+
         static CancellationTokenSource? GetTilesetMappingOperationCts(OptionsViewModel vm)
         {
             FieldInfo? field = typeof(OptionsViewModel).GetField(

@@ -125,7 +125,7 @@ namespace FEBuilderGBA
             // ascending, so a single forward pass preserves that deterministic order.
             var candidates = new List<ushort>(corpus.Candidates.Count);
             foreach (ushort candidate in corpus.Candidates)
-                if (BuiltInRandomMapTilesetCore.IsMarRenderable(candidate, corpus.ConfigData))
+                if (BuiltInRandomMapTilesetCore.IsMarRenderable(candidate, corpus.ConfigDataBuffer))
                     candidates.Add(candidate);
 
             if (candidates.Count < MinimumDistinctCandidates)
@@ -195,15 +195,15 @@ namespace FEBuilderGBA
         static bool TryBuildEdgeSignatures(BuiltInRandomMapTilesetCorpus corpus, IReadOnlyList<ushort> candidates, out Dictionary<ushort, MetatileEdgeSignature> signatures)
         {
             signatures = new Dictionary<ushort, MetatileEdgeSignature>();
-            if (corpus.ConfigData == null || corpus.ObjData == null || corpus.PaletteData == null)
+            if (corpus.ConfigDataBuffer == null || corpus.ObjDataBuffer == null || corpus.PaletteDataBuffer == null)
                 return false;
 
             foreach (ushort candidate in candidates)
             {
                 if (BuiltInRandomMapEdgeSignatureCore.TryComputeEdgeSignature(
                     candidate,
-                    corpus.ConfigData,
-                    corpus.ObjData,
+                    corpus.ConfigDataBuffer,
+                    corpus.ObjDataBuffer,
                     out MetatileEdgeSignature signature))
                 {
                     signatures[candidate] = signature;
@@ -705,7 +705,7 @@ namespace FEBuilderGBA
             if (mars.Length != width * height) return false;
 
             for (int i = 0; i < mars.Length; i++)
-                if (!BuiltInRandomMapTilesetCore.IsMarRenderable(mars[i], corpus.ConfigData)) return false;
+                if (!BuiltInRandomMapTilesetCore.IsMarRenderable(mars[i], corpus.ConfigDataBuffer)) return false;
 
             for (int y = 0; y < height; y++)
             {

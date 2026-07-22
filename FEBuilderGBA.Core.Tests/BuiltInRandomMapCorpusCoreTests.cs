@@ -259,5 +259,87 @@ namespace FEBuilderGBA.Core.Tests
                     out _,
                     out _));
         }
+
+        [Fact]
+        public void Corpus_MutatingSourcesAndPublicViews_CannotAlterStoredEvidence()
+        {
+            byte[] objData = MakeBytes(64, 1);
+            byte[] paletteData = MakeBytes(32, 2);
+            byte[] configData = MakeBytes(24, 3);
+            var fingerprint = TilesetFingerprint.Compute(8, objData, paletteData, configData);
+            var contributingMapIds = new List<uint> { 0 };
+            var candidates = new List<ushort> { 0, 4 };
+            var frequency = new SortedDictionary<ushort, long> { [0] = 3, [4] = 1 };
+            var borderFrequency = new SortedDictionary<ushort, long> { [0] = 2 };
+            var horizontalSet = new SortedSet<ushort> { 4 };
+            var verticalSet = new SortedSet<ushort> { 0 };
+            var horizontal = new SortedDictionary<ushort, IReadOnlySet<ushort>>
+            {
+                [0] = horizontalSet,
+            };
+            var vertical = new SortedDictionary<ushort, IReadOnlySet<ushort>>
+            {
+                [4] = verticalSet,
+            };
+
+            var corpus = BuiltInRandomMapTilesetCorpus.CreateForTesting(
+                fingerprint,
+                contributingMapIds,
+                candidates,
+                frequency,
+                borderFrequency,
+                horizontal,
+                vertical,
+                objData,
+                paletteData,
+                configData,
+                totalCells: 4);
+
+            byte[] objCopy = (byte[])objData.Clone();
+            byte[] palCopy = (byte[])paletteData.Clone();
+            byte[] cfgCopy = (byte[])configData.Clone();
+
+            // Mutate every caller-owned source after construction.
+            contributingMapIds[0] = 99;
+            candidates[0] = 99;
+            frequency[0] = 99;
+            frequency[8] = 99;
+            borderFrequency.Clear();
+            horizontalSet.Add(8);
+            verticalSet.Clear();
+            objData[0] ^= 0xFF;
+            paletteData[0] ^= 0xFF;
+            configData[0] ^= 0xFF;
+
+            // Public collection views must not be castable into successful mutation paths.
+            Assert.Throws<NotSupportedException>(() =>
+                ((IList<uint>)corpus.ContributingMapIds)[0] = 77);
+            Assert.Throws<NotSupportedException>(() =>
+                ((IList<ushort>)corpus.Candidates)[0] = 77);
+            Assert.Throws<NotSupportedException>(() =>
+                ((IDictionary<ushort, long>)corpus.Frequency)[0] = 77);
+            Assert.Throws<NotSupportedException>(() =>
+                ((IDictionary<ushort, IReadOnlySet<ushort>>)corpus.HorizontalAdjacency).Clear());
+            ISet<ushort> publicSet =
+                Assert.IsAssignableFrom<ISet<ushort>>(corpus.HorizontalAdjacency[0]);
+            Assert.Throws<NotSupportedException>(() => publicSet.Add(8));
+
+            // Public byte-array getters must also return independent defensive copies.
+            corpus.ObjData[0] ^= 0xFF;
+            corpus.PaletteData[0] ^= 0xFF;
+            corpus.ConfigData[0] ^= 0xFF;
+
+            Assert.Equal(new uint[] { 0 }, corpus.ContributingMapIds);
+            Assert.Equal(new ushort[] { 0, 4 }, corpus.Candidates);
+            Assert.Equal(3, corpus.Frequency[0]);
+            Assert.Equal(1, corpus.Frequency[4]);
+            Assert.False(corpus.Frequency.ContainsKey(8));
+            Assert.Equal(2, corpus.BorderFrequency[0]);
+            Assert.Equal(new ushort[] { 4 }, corpus.HorizontalAdjacency[0].OrderBy(v => v));
+            Assert.Equal(new ushort[] { 0 }, corpus.VerticalAdjacency[4].OrderBy(v => v));
+            Assert.Equal(objCopy, corpus.ObjData);
+            Assert.Equal(palCopy, corpus.PaletteData);
+            Assert.Equal(cfgCopy, corpus.ConfigData);
+        }
     }
 }

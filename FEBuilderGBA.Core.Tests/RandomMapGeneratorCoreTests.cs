@@ -8,6 +8,19 @@ namespace FEBuilderGBA.Core.Tests
 {
     public class RandomMapGeneratorCoreTests
     {
+        [Fact]
+        public void GenerationResult_Mars_SourceAndGetterMutationCannotAlterStoredResult()
+        {
+            ushort[] source = { 1, 2, 3 };
+            var result = new RandomMapGenerationResult { Mars = source };
+
+            source[0] = 99;
+            ushort[] publicCopy = result.Mars;
+            publicCopy[1] = 99;
+
+            Assert.Equal(new ushort[] { 1, 2, 3 }, result.Mars);
+        }
+
         sealed class RecordedCall
         {
             public string Command = "";

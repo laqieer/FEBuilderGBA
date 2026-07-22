@@ -9,6 +9,30 @@ namespace FEBuilderGBA.Core.Tests
         const int BytesPerTile = 32;
 
         [Fact]
+        public void Signature_SourceAndGetterMutationCannotAlterStoredEdges()
+        {
+            int[] top = { 1, 2 };
+            int[] bottom = { 3, 4 };
+            int[] left = { 5, 6 };
+            int[] right = { 7, 8 };
+            var signature = new MetatileEdgeSignature(top, bottom, left, right);
+
+            top[0] = 99;
+            bottom[0] = 99;
+            left[0] = 99;
+            right[0] = 99;
+            signature.Top[1] = 99;
+            signature.Bottom[1] = 99;
+            signature.Left[1] = 99;
+            signature.Right[1] = 99;
+
+            Assert.Equal(new int[] { 1, 2 }, signature.Top);
+            Assert.Equal(new int[] { 3, 4 }, signature.Bottom);
+            Assert.Equal(new int[] { 5, 6 }, signature.Left);
+            Assert.Equal(new int[] { 7, 8 }, signature.Right);
+        }
+
+        [Fact]
         public void TryComputeEdgeSignature_OutOfRangeTsa_ReturnsFalse()
         {
             byte[] configData = new byte[4]; // too small for any TSA block

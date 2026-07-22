@@ -558,7 +558,8 @@ namespace FEBuilderGBA.Core.Tests
                 objData: null,
                 paletteData: null,
                 configData: new byte[64],
-                totalCells: Width * Height);
+                totalCells: Width * Height,
+                preserveInstrumentedLookups: true);
 
             BuiltInRandomMapGenerationResult result = BuiltInRandomMapGeneratorCore.Generate(
                 corpus,
@@ -615,7 +616,8 @@ namespace FEBuilderGBA.Core.Tests
                 objData: null,
                 paletteData: null,
                 configData: new byte[64],
-                totalCells: Width * Height);
+                totalCells: Width * Height,
+                preserveInstrumentedLookups: true);
 
             BuiltInRandomMapGenerationResult result = BuiltInRandomMapGeneratorCore.Generate(
                 corpus,
@@ -657,7 +659,8 @@ namespace FEBuilderGBA.Core.Tests
                 objData: null,
                 paletteData: null,
                 configData: new byte[candidates.Count * 8],
-                totalCells: Width * Height);
+                totalCells: Width * Height,
+                preserveInstrumentedLookups: true);
 
             BuiltInRandomMapGenerationResult result = BuiltInRandomMapGeneratorCore.Generate(
                 corpus,

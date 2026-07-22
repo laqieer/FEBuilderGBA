@@ -260,10 +260,14 @@ dotnet run --project FEBuilderGBA.CLI -- --generate-random-map --femapcreator=C:
 # Editing either live FEMapCreator path
 # cancels any in-flight discovery or Save Mapping operation and clears discovered choices, so Save Mapping
 # always requires a fresh discovery from the same executable/assets profile. Discovery and Save Mapping both
-# authoritatively re-hash even same-size/same-mtime executable replacements. Save Mapping persists a detached
+# authoritatively re-hash even same-size/same-mtime executable replacements. Discovery re-checks cancellation
+# after its final authoritative profile validation immediately before publishing any returned tilesets.
+# Save Mapping persists a detached
 # config snapshot to a flushed sibling temp file, atomically replaces config.xml, and updates the live config
-# only after that succeeds; it re-checks cancellation after snapshot serialization and again at the durable-write
-# boundary, so closing/cancelling Options cannot persist a late mapping. Write failures preserve the prior
+# only after that succeeds; it re-checks cancellation after snapshot serialization and again at the flushed-temp
+# replacement boundary — immediately before the atomic replaceFile, once the sibling temp is fully written and
+# flushed — so a cancellation observed at that boundary still leaves the original config.xml on disk untouched
+# and the temp is always cleaned. Write failures preserve the prior
 # disk/live state and cannot masquerade as success.
 # If a mapping is configured and current,
 # Generate runs the external adapter above; once started, any launch/exit/parse failure is surfaced directly
@@ -272,8 +276,14 @@ dotnet run --project FEBuilderGBA.CLI -- --generate-random-map --femapcreator=C:
 # cancellation after path/launch-spec setup and immediately before invoking any process runner. A successful
 # result from either backend must contain exactly width*height cells, and every returned MAR must have a complete
 # TSA configuration block in the resolved tileset snapshot; invalid external output fails without falling back
-# to the built-in engine. Built-in result storage clones generated MARs and returns copies to callers, so later
-# consumer mutation cannot invalidate replay or diversity metadata.
+# to the built-in engine. Built-in, external-adapter, and backend-neutral result storage clone generated MARs
+# and return copies to callers, so later consumer mutation cannot invalidate replay or diversity metadata.
+# The resolved MapTilesetSnapshot and its derived tileset corpus are immutable: they clone all MAP/OBJ/PAL/CFG
+# buffers, contributing-map/candidate lists, frequency dictionaries, and directional adjacency sets before
+# exposing defensive public views. Relaxed-model metatile edge signatures likewise clone all four edge arrays.
+# Mutating caller sources, getter results, or cast public collection views therefore cannot alter stored data or
+# diverge the tileset Fingerprint, while trusted generator/validation hot paths read internal zero-copy buffers
+# to avoid repeated per-generation clones.
 # The validated result is then compared with the captured source grid; a
 # sequence-identical layout fails instead of applying an unchanged map as a successful undo transaction.
 # Otherwise — or if the saved mapping is

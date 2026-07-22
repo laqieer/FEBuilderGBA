@@ -17,25 +17,35 @@ namespace FEBuilderGBA
     /// </summary>
     public sealed class MetatileEdgeSignature
     {
+        readonly int[] _top;
+        readonly int[] _bottom;
+        readonly int[] _left;
+        readonly int[] _right;
+
         internal MetatileEdgeSignature(int[] top, int[] bottom, int[] left, int[] right)
         {
-            Top = top;
-            Bottom = bottom;
-            Left = left;
-            Right = right;
+            _top = (int[])top.Clone();
+            _bottom = (int[])bottom.Clone();
+            _left = (int[])left.Clone();
+            _right = (int[])right.Clone();
         }
 
         /// <summary>Raw 4bpp indices along the top edge (py=0), left-to-right, 16 entries.</summary>
-        public int[] Top { get; }
+        public int[] Top => (int[])_top.Clone();
 
         /// <summary>Raw 4bpp indices along the bottom edge (py=15), left-to-right, 16 entries.</summary>
-        public int[] Bottom { get; }
+        public int[] Bottom => (int[])_bottom.Clone();
 
         /// <summary>Raw 4bpp indices along the left edge (px=0), top-to-bottom, 16 entries.</summary>
-        public int[] Left { get; }
+        public int[] Left => (int[])_left.Clone();
 
         /// <summary>Raw 4bpp indices along the right edge (px=15), top-to-bottom, 16 entries.</summary>
-        public int[] Right { get; }
+        public int[] Right => (int[])_right.Clone();
+
+        internal int[] TopBuffer => _top;
+        internal int[] BottomBuffer => _bottom;
+        internal int[] LeftBuffer => _left;
+        internal int[] RightBuffer => _right;
     }
 
     /// <summary>
@@ -106,7 +116,7 @@ namespace FEBuilderGBA
         public static bool HorizontallyCompatible(MetatileEdgeSignature west, MetatileEdgeSignature east)
         {
             if (west == null || east == null) return false;
-            return SequenceEqual(west.Right, east.Left);
+            return SequenceEqual(west.RightBuffer, east.LeftBuffer);
         }
 
         /// <summary>
@@ -117,7 +127,7 @@ namespace FEBuilderGBA
         public static bool VerticallyCompatible(MetatileEdgeSignature north, MetatileEdgeSignature south)
         {
             if (north == null || south == null) return false;
-            return SequenceEqual(north.Bottom, south.Top);
+            return SequenceEqual(north.BottomBuffer, south.TopBuffer);
         }
 
         static bool SequenceEqual(int[] a, int[] b)

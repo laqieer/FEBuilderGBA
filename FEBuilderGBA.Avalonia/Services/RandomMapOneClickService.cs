@@ -286,17 +286,21 @@ namespace FEBuilderGBA.Avalonia.Services
                     return Failure(detail, selection);
                 }
 
+                ushort[] externalMars = externalResult.MarsBuffer;
                 if (!TryValidateGeneratedGrid(
-                    externalResult.Mars,
+                    externalMars,
                     width,
                     height,
-                    snapshot.ConfigData,
+                    // Trusted read-only hot path: the validator only reads config bytes, so
+                    // use the snapshot's internal zero-copy buffer instead of the defensive
+                    // public getter to avoid an extra per-generation array clone.
+                    snapshot.ConfigDataBuffer,
                     out string externalValidationError))
                 {
                     return Failure(externalValidationError, selection);
                 }
 
-                if (IsSourceIdentical(externalResult.Mars, generationGrid))
+                if (IsSourceIdentical(externalMars, generationGrid))
                     return SourceIdentityFailure(selection);
 
                 return new RandomMapOneClickResult
@@ -309,7 +313,7 @@ namespace FEBuilderGBA.Avalonia.Services
                     SourceTilesetFingerprint = snapshot.Fingerprint,
                     Outcome = new RandomMapGenerationOutcome
                     {
-                        Mars = externalResult.Mars,
+                        Mars = externalMars,
                         Width = width,
                         Height = height,
                         EffectiveSeed = seed,
@@ -359,17 +363,20 @@ namespace FEBuilderGBA.Avalonia.Services
                 return Failure(MapBuiltInError(outcome.builtInResult), selection);
             }
 
+            ushort[] builtInMars = outcome.builtInResult.MarsBuffer;
             if (!TryValidateGeneratedGrid(
-                outcome.builtInResult.Mars,
+                builtInMars,
                 width,
                 height,
-                snapshot.ConfigData,
+                // Trusted read-only hot path: reuse the internal zero-copy config buffer
+                // rather than cloning through the public defensive getter.
+                snapshot.ConfigDataBuffer,
                 out string builtInValidationError))
             {
                 return Failure(builtInValidationError, selection);
             }
 
-            if (IsSourceIdentical(outcome.builtInResult.Mars, generationGrid))
+            if (IsSourceIdentical(builtInMars, generationGrid))
                 return SourceIdentityFailure(selection);
 
             return new RandomMapOneClickResult
@@ -382,7 +389,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 SourceTilesetFingerprint = snapshot.Fingerprint,
                 Outcome = new RandomMapGenerationOutcome
                 {
-                    Mars = outcome.builtInResult.Mars,
+                    Mars = builtInMars,
                     Width = width,
                     Height = height,
                     EffectiveSeed = outcome.builtInResult.EffectiveSeed,

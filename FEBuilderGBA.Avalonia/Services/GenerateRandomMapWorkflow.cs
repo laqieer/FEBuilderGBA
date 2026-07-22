@@ -175,7 +175,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 bool applied = TryApplyGeneratedMap(
                     vm,
                     undo,
-                    result.Mars,
+                    result.MarsBuffer,
                     result.Width,
                     result.Height,
                     postApplySuccess: () =>

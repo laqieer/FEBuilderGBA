@@ -164,6 +164,8 @@ namespace FEBuilderGBA
     /// </summary>
     public sealed class RandomMapGenerationResult
     {
+        ushort[] _mars = Array.Empty<ushort>();
+
         /// <summary>True when map generation and MAR parsing succeeded.</summary>
         public bool Success { get; set; }
 
@@ -174,7 +176,15 @@ namespace FEBuilderGBA
         public string ErrorMessage { get; set; } = "";
 
         /// <summary>Converted FEBuilder MAR values in row-major order. Empty on failure.</summary>
-        public ushort[] Mars { get; set; } = Array.Empty<ushort>();
+        public ushort[] Mars
+        {
+            get => _mars.Length == 0 ? Array.Empty<ushort>() : (ushort[])_mars.Clone();
+            set => _mars = value == null || value.Length == 0
+                ? Array.Empty<ushort>()
+                : (ushort[])value.Clone();
+        }
+
+        internal ushort[] MarsBuffer => _mars;
 
         /// <summary>Bounded tail of FEMapCreator standard output for diagnostics.</summary>
         public string StdoutTail { get; set; } = "";
