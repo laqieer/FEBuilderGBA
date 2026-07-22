@@ -138,7 +138,10 @@ namespace FEBuilderGBA.Avalonia.Services
     /// ROM and current-grid inputs, so built-in corpus generation reads one immutable point-in-time
     /// snapshot while the live UI remains editable; apply-time identity checks still guard the
     /// eventual write. Every dependency is injectable so tests never need a real FEMapCreator
-    /// process, ROM, or config file.
+    /// process, ROM, or config file. Both backend success paths share cardinality,
+    /// renderability, and two-distinct-MAR validation; external success additionally
+    /// revalidates the captured executable/image/generation-data identity after the process
+    /// exits and fails directly rather than falling back if that identity is no longer current.
     /// </summary>
     internal sealed class RandomMapOneClickService
     {
@@ -303,6 +306,38 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (IsSourceIdentical(externalMars, generationGrid))
                     return SourceIdentityFailure(selection);
 
+                FEMapCreatorMappingLookupResult postRunLookup;
+                try
+                {
+                    (_, postRunLookup) = await Task.Run(
+                            () => _resolveMapping(
+                                snapshot.Fingerprint,
+                                mappingConfig,
+                                cancellationToken),
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
+                catch (OperationCanceledException)
+                {
+                    return Cancelled(selection);
+                }
+
+                RandomMapBackendSelection postRunSelection =
+                    RandomMapBackendSelectorCore.Select(postRunLookup);
+                if (postRunSelection.Kind != RandomMapBackendKind.External
+                    || !MappingIdentityEquals(
+                        selection.ExternalMapping,
+                        postRunSelection.ExternalMapping))
+                {
+                    return Failure(
+                        R._("The FEMapCreator mapping changed during generation. Rediscover the tileset mapping in Options and try again."),
+                        selection);
+                }
+
+                if (cancellationToken.IsCancellationRequested)
+                    return Cancelled(selection);
+
                 return new RandomMapOneClickResult
                 {
                     Success = true,
@@ -452,8 +487,13 @@ namespace FEBuilderGBA.Avalonia.Services
                 return false;
             }
 
+            ushort firstMar = mars[0];
+            bool hasDistinctMar = false;
             for (int i = 0; i < mars.Length; i++)
             {
+                if (mars[i] != firstMar)
+                    hasDistinctMar = true;
+
                 if (!BuiltInRandomMapTilesetCore.IsMarRenderable(mars[i], configData))
                 {
                     error = string.Format(
@@ -464,8 +504,38 @@ namespace FEBuilderGBA.Avalonia.Services
                 }
             }
 
+            if (!hasDistinctMar)
+            {
+                error = R._("Random map generation returned a uniform layout using only one MAR value. Try a different seed.");
+                return false;
+            }
+
             error = "";
             return true;
+        }
+
+        static bool MappingIdentityEquals(
+            FEMapCreatorTilesetMappingEntry? left,
+            FEMapCreatorTilesetMappingEntry? right)
+        {
+            if (left == null || right == null)
+                return false;
+
+            return StringComparer.Ordinal.Equals(left.FingerprintValue, right.FingerprintValue)
+                && StringComparer.Ordinal.Equals(left.TilesetName, right.TilesetName)
+                && StringComparer.Ordinal.Equals(left.ImagePath, right.ImagePath)
+                && left.ImageSizeBytes == right.ImageSizeBytes
+                && left.ImageLastWriteUtcTicks == right.ImageLastWriteUtcTicks
+                && StringComparer.Ordinal.Equals(left.ImageSha256, right.ImageSha256)
+                && StringComparer.Ordinal.Equals(left.GenerationDataPath, right.GenerationDataPath)
+                && left.GenerationDataSizeBytes == right.GenerationDataSizeBytes
+                && left.GenerationDataLastWriteUtcTicks == right.GenerationDataLastWriteUtcTicks
+                && StringComparer.Ordinal.Equals(left.GenerationDataSha256, right.GenerationDataSha256)
+                && StringComparer.Ordinal.Equals(left.ExecutablePath, right.ExecutablePath)
+                && left.ExecutableSizeBytes == right.ExecutableSizeBytes
+                && left.ExecutableLastWriteUtcTicks == right.ExecutableLastWriteUtcTicks
+                && StringComparer.Ordinal.Equals(left.ExecutableSha256, right.ExecutableSha256)
+                && StringComparer.Ordinal.Equals(left.AssetsRoot, right.AssetsRoot);
         }
 
         static bool IsSourceIdentical(ushort[]? candidate, ushort[]? source)

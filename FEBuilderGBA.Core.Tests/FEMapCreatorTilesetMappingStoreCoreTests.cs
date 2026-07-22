@@ -304,6 +304,48 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void TryCreateEntry_ConfiguredSnapshotWithUnlaunchableExecutable_ReturnsFalseBeforeAssetHashing()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string unsupportedPath = CreateFile(
+                    tempRoot,
+                    "FEMapCreator.txt",
+                    new byte[] { 1, 2, 3 });
+                var syntheticProfile = new FEMapCreatorSetupSnapshot(
+                    FEMapCreatorSetupStatus.Configured,
+                    unsupportedPath,
+                    "",
+                    "",
+                    executableSizeBytes: 3,
+                    executableLastWriteUtcTicks: File.GetLastWriteTimeUtc(unsupportedPath).Ticks,
+                    executableSha256: "synthetic-hash");
+
+                bool ok = FEMapCreatorTilesetMappingStoreCore.TryCreateEntry(
+                    TilesetFingerprint.Compute(
+                        7,
+                        new byte[] { 9 },
+                        new byte[] { 9 },
+                        new byte[] { 9 }),
+                    "Plains",
+                    Path.Combine(tempRoot, "missing.png"),
+                    Path.Combine(tempRoot, "missing.json"),
+                    syntheticProfile,
+                    out FEMapCreatorTilesetMappingEntry entry,
+                    out string error);
+
+                Assert.False(ok);
+                Assert.Null(entry);
+                Assert.Contains("not launchable", error, StringComparison.OrdinalIgnoreCase);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
         public void Upsert_ReplacesExistingFingerprint_PreservesPosition()
         {
             var entryA1 = MakeEntry("fp-a", "TilesetA-v1");
@@ -738,6 +780,47 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void Lookup_Stale_WhenConfiguredSnapshotExecutableIsNoLongerLaunchable()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string imagePath = CreateFile(tempRoot, "tileset.png", new byte[] { 1, 2, 3 });
+                string genPath = CreateFile(tempRoot, "tileset.json", new byte[] { 4, 5 });
+                var fingerprint = TilesetFingerprint.Compute(
+                    8,
+                    new byte[] { 1 },
+                    new byte[] { 2 },
+                    new byte[] { 3 });
+                FEMapCreatorSetupSnapshot profile = MakeConfiguredProfile(tempRoot, "");
+                Assert.True(FEMapCreatorTilesetMappingStoreCore.TryCreateEntry(
+                    fingerprint,
+                    "Plains",
+                    imagePath,
+                    genPath,
+                    profile,
+                    out FEMapCreatorTilesetMappingEntry entry,
+                    out _));
+
+                File.Delete(profile.ExecutablePath);
+
+                FEMapCreatorMappingLookupResult result =
+                    FEMapCreatorTilesetMappingStoreCore.Lookup(
+                        new[] { entry },
+                        fingerprint,
+                        profile);
+
+                Assert.Equal(FEMapCreatorMappingStatus.Stale, result.Status);
+                Assert.Equal(FEMapCreatorMappingReason.ProfileUnavailable, result.Reason);
+                Assert.NotEqual("", result.Detail);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
         public void Lookup_Invalid_WhenStoredEntryMissingRequiredFields()
         {
             // Bypass LoadAll's own filtering to exercise Lookup's independent structural check
@@ -850,6 +933,16 @@ namespace FEBuilderGBA.Core.Tests
         {
             string path = Path.Combine(directory, fileName);
             File.WriteAllBytes(path, content);
+            if (!OperatingSystem.IsWindows()
+                && string.Equals(Path.GetExtension(path), ".exe", StringComparison.OrdinalIgnoreCase))
+            {
+                File.SetUnixFileMode(
+                    path,
+                    File.GetUnixFileMode(path)
+                        | UnixFileMode.UserExecute
+                        | UnixFileMode.GroupExecute
+                        | UnixFileMode.OtherExecute);
+            }
             return path;
         }
 

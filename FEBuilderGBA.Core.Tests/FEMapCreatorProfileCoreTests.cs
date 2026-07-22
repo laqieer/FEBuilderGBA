@@ -57,6 +57,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 string exePath = Path.Combine(tempRoot, "FEMapCreator.exe");
                 File.WriteAllBytes(exePath, new byte[] { 1, 2, 3 });
+                MakeExecutableOnUnixWhenNeeded(exePath);
 
                 FEMapCreatorSetupSnapshot snapshot = FEMapCreatorProfileCore.ValidateForStatus(exePath, "");
 
@@ -82,6 +83,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 string exePath = Path.Combine(tempRoot, "FEMapCreator.exe");
                 File.WriteAllBytes(exePath, new byte[] { 1, 2, 3 });
+                MakeExecutableOnUnixWhenNeeded(exePath);
                 FEMapCreatorSetupSnapshot before = FEMapCreatorProfileCore.Validate(exePath, "");
                 Assert.Equal(FEMapCreatorSetupStatus.Configured, before.Status);
 
@@ -258,6 +260,49 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void Validate_UnsupportedProgramType_IsInvalid()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string unsupportedPath = Path.Combine(tempRoot, "FEMapCreator.txt");
+                File.WriteAllBytes(unsupportedPath, new byte[] { 1, 2, 3 });
+
+                FEMapCreatorSetupSnapshot snapshot =
+                    FEMapCreatorProfileCore.Validate(unsupportedPath, "");
+
+                Assert.Equal(FEMapCreatorSetupStatus.Invalid, snapshot.Status);
+                Assert.NotEqual("", snapshot.ErrorMessage);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
+        public void ValidateForStatus_UnsupportedProgramType_IsInvalid()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                string unsupportedPath = Path.Combine(tempRoot, "FEMapCreator.txt");
+                File.WriteAllBytes(unsupportedPath, new byte[] { 1, 2, 3 });
+
+                FEMapCreatorSetupSnapshot snapshot =
+                    FEMapCreatorProfileCore.ValidateForStatus(unsupportedPath, "");
+
+                Assert.Equal(FEMapCreatorSetupStatus.Invalid, snapshot.Status);
+                Assert.NotEqual("", snapshot.ErrorMessage);
+                Assert.Equal("", snapshot.ExecutableSha256);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
         public void ConfigKeys_AreDistinctAndStable()
         {
             Assert.Equal("femapcreator_path", FEMapCreatorProfileCore.ExecutablePathConfigKey);
@@ -276,7 +321,22 @@ namespace FEBuilderGBA.Core.Tests
         {
             string path = Path.Combine(directory, fileName);
             File.WriteAllBytes(path, Array.Empty<byte>());
+            MakeExecutableOnUnixWhenNeeded(path);
             return path;
+        }
+
+        static void MakeExecutableOnUnixWhenNeeded(string path)
+        {
+            if (OperatingSystem.IsWindows()
+                || !string.Equals(Path.GetExtension(path), ".exe", StringComparison.OrdinalIgnoreCase))
+                return;
+
+            File.SetUnixFileMode(
+                path,
+                File.GetUnixFileMode(path)
+                    | UnixFileMode.UserExecute
+                    | UnixFileMode.GroupExecute
+                    | UnixFileMode.OtherExecute);
         }
 
         static void DeleteDirectoryIfPresent(string path)

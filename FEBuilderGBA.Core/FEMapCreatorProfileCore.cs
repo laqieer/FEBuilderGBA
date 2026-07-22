@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+using System;
 using System.IO;
 using System.Threading;
 
@@ -183,23 +184,19 @@ namespace FEBuilderGBA
             if (string.IsNullOrWhiteSpace(rawExecutablePath))
                 return new FEMapCreatorSetupSnapshot(FEMapCreatorSetupStatus.NotConfigured, "", "", "");
 
-            if (!FEMapCreatorLauncherCore.TryNormalizeAbsoluteLocalFile(
-                rawExecutablePath,
-                requireDirectoryComponent: true,
-                out normalizedExecutablePath,
-                out string exeError))
-            {
-                return new FEMapCreatorSetupSnapshot(FEMapCreatorSetupStatus.Invalid, "", "", exeError);
-            }
-
-            if (!File.Exists(normalizedExecutablePath))
+            FEMapCreatorLauncherCore.FEMapCreatorLaunchSpec launchSpec =
+                FEMapCreatorLauncherCore.CreateLaunchSpec(
+                    rawExecutablePath,
+                    Array.Empty<string>());
+            if (!launchSpec.Success)
             {
                 return new FEMapCreatorSetupSnapshot(
                     FEMapCreatorSetupStatus.Invalid,
                     "",
                     "",
-                    "FEMapCreator executable does not exist: " + normalizedExecutablePath);
+                    launchSpec.ErrorMessage);
             }
+            normalizedExecutablePath = launchSpec.ProgramPath;
 
             if (!FEMapCreatorLauncherCore.TryNormalizeAssetsDirectory(
                 rawAssetsRoot,

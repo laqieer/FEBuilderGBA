@@ -100,5 +100,20 @@ namespace FEBuilderGBA.Core.Tests
         {
             Assert.Throws<System.ArgumentNullException>(() => RandomMapBackendSelectorCore.Select(null));
         }
+
+        [Fact]
+        public void LookupResult_NonNoMappingFactoriesRejectNullEntries()
+        {
+            Assert.Throws<System.ArgumentNullException>(
+                () => FEMapCreatorMappingLookupResult.Current(null));
+            Assert.Throws<System.ArgumentNullException>(
+                () => FEMapCreatorMappingLookupResult.Stale(
+                    null,
+                    FEMapCreatorMappingReason.ImageChanged));
+            Assert.Throws<System.ArgumentNullException>(
+                () => FEMapCreatorMappingLookupResult.Invalid(
+                    null,
+                    FEMapCreatorMappingReason.StoredEntryMissingRequiredFields));
+        }
     }
 }

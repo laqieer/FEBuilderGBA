@@ -255,7 +255,10 @@ dotnet run --project FEBuilderGBA.CLI -- --generate-random-map --femapcreator=C:
 # mapping now live only in Options' FEMapCreator section (Map Editor's "Map Tileset..." button is just a
 # shortcut that selects Options' External Tools tab and scrolls the FEMapCreator section into view with the
 # current tileset pre-selected). Live path status performs path and file-metadata checks only, so opening
-# Options or typing never hashes executable content on the UI thread. Loading Options snapshots both saved
+# Options or typing never hashes executable content on the UI thread. Both live and authoritative profile
+# validation reuse the launcher's supported-program rules, so Windows accepts `.exe`/managed `.dll` paths
+# and Unix native programs must still have execute access before the profile can be Configured.
+# Loading Options snapshots both saved
 # FEMapCreator fields before textbox change events run, so neither persisted value can clear the other.
 # Editing either live FEMapCreator path
 # cancels any in-flight discovery or Save Mapping operation and clears discovered choices, so Save Mapping
@@ -275,8 +278,11 @@ dotnet run --project FEBuilderGBA.CLI -- --generate-random-map --femapcreator=C:
 # owned external process rather than letting it finish and apply. Both generation and tileset discovery re-check
 # cancellation after path/launch-spec setup and immediately before invoking any process runner. A successful
 # result from either backend must contain exactly width*height cells, and every returned MAR must have a complete
-# TSA configuration block in the resolved tileset snapshot; invalid external output fails without falling back
-# to the built-in engine. Built-in, external-adapter, and backend-neutral result storage clone generated MARs
+# TSA configuration block in the resolved tileset snapshot, with at least two distinct MAR values in the final
+# layout. After FEMapCreator exits, its executable, image, and generation-data identities are authoritatively
+# revalidated against the same immutable mapping snapshot before success publication. Invalid, degenerate, or
+# identity-stale external output fails without falling back to the built-in engine. Built-in, external-adapter,
+# and backend-neutral result storage clone generated MARs
 # and return copies to callers, so later consumer mutation cannot invalidate replay or diversity metadata.
 # The resolved MapTilesetSnapshot and its derived tileset corpus are immutable: they clone all MAP/OBJ/PAL/CFG
 # buffers, contributing-map/candidate lists, frequency dictionaries, and directional adjacency sets before

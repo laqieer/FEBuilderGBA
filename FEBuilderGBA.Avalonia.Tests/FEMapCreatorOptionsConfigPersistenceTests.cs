@@ -51,7 +51,22 @@ public class FEMapCreatorOptionsConfigPersistenceTests : IDisposable
     {
         string path = Path.Combine(_baseDir, name);
         File.WriteAllBytes(path, new byte[] { 1, 2, 3 });
+        MakeExecutableOnUnixWhenNeeded(path);
         return path;
+    }
+
+    static void MakeExecutableOnUnixWhenNeeded(string path)
+    {
+        if (OperatingSystem.IsWindows()
+            || !string.Equals(Path.GetExtension(path), ".exe", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        File.SetUnixFileMode(
+            path,
+            File.GetUnixFileMode(path)
+                | UnixFileMode.UserExecute
+                | UnixFileMode.GroupExecute
+                | UnixFileMode.OtherExecute);
     }
 
     string MakeDir(string name)

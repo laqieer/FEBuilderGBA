@@ -135,6 +135,9 @@ namespace FEBuilderGBA
             FEMapCreatorMappingReason reason,
             string detail)
         {
+            if (status != FEMapCreatorMappingStatus.NoMapping && entry == null)
+                throw new ArgumentNullException(nameof(entry));
+
             Status = status;
             Entry = entry;
             Reason = reason;
@@ -367,6 +370,20 @@ namespace FEBuilderGBA
                 return false;
             }
 
+            FEMapCreatorLauncherCore.FEMapCreatorLaunchSpec launchSpec =
+                FEMapCreatorLauncherCore.CreateLaunchSpec(
+                    currentProfile.ExecutablePath,
+                    Array.Empty<string>());
+            if (!launchSpec.Success
+                || !string.Equals(
+                    launchSpec.ProgramPath,
+                    currentProfile.ExecutablePath,
+                    FEMapCreatorLauncherCore.PathComparison))
+            {
+                error = "FEMapCreator executable is not launchable: " + launchSpec.ErrorMessage;
+                return false;
+            }
+
             if (!FileContentIdentityCore.TryCompute(
                 imagePath,
                 cancellationToken,
@@ -478,6 +495,27 @@ namespace FEBuilderGBA
                     entry,
                     FEMapCreatorMappingReason.StoredEntryMissingRequiredFields);
 
+            if (currentProfile == null || currentProfile.Status != FEMapCreatorSetupStatus.Configured)
+                return FEMapCreatorMappingLookupResult.Stale(
+                    entry,
+                    FEMapCreatorMappingReason.ProfileUnavailable);
+
+            FEMapCreatorLauncherCore.FEMapCreatorLaunchSpec launchSpec =
+                FEMapCreatorLauncherCore.CreateLaunchSpec(
+                    currentProfile.ExecutablePath,
+                    Array.Empty<string>());
+            if (!launchSpec.Success
+                || !string.Equals(
+                    launchSpec.ProgramPath,
+                    currentProfile.ExecutablePath,
+                    FEMapCreatorLauncherCore.PathComparison))
+            {
+                return FEMapCreatorMappingLookupResult.Stale(
+                    entry,
+                    FEMapCreatorMappingReason.ProfileUnavailable,
+                    launchSpec.ErrorMessage);
+            }
+
             if (!FileContentIdentityCore.TryCompute(
                 entry.ImagePath,
                 cancellationToken,
@@ -515,11 +553,6 @@ namespace FEBuilderGBA
             // Executable/assets-root identity: never accept the mapping as Current on stale
             // image/gen-data evidence alone — the configured FEMapCreator setup itself must
             // still match what was recorded when the mapping was made.
-            if (currentProfile == null || currentProfile.Status != FEMapCreatorSetupStatus.Configured)
-                return FEMapCreatorMappingLookupResult.Stale(
-                    entry,
-                    FEMapCreatorMappingReason.ProfileUnavailable);
-
             if (!string.Equals(currentProfile.ExecutablePath, entry.ExecutablePath, FEMapCreatorLauncherCore.PathComparison))
                 return FEMapCreatorMappingLookupResult.Stale(
                     entry,

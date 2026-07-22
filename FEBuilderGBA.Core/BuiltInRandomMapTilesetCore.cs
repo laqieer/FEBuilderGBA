@@ -5,12 +5,13 @@ using System.Security.Cryptography;
 namespace FEBuilderGBA
 {
     /// <summary>
-    /// Stable identity for "the tileset currently backing one loaded map", derived only from
-    /// the ROM version plus a hash of the map's decoded/decompressed OBJ, PAL, and CFG
-    /// (chipset config) bytes — never from mutable ROM pointers alone, so relocating those
-    /// tables (e.g. via table expansion) does not change the fingerprint as long as the
-    /// decoded bytes are unchanged, and two maps that render identically always compare
-    /// equal even if their PLIST indices differ.
+    /// Stable, conservative byte identity for "the tileset currently backing one loaded map",
+    /// derived only from the ROM version plus every byte of the map's decoded/decompressed
+    /// OBJ, PAL, and CFG (chipset config) buffers. Never derived from mutable ROM pointers
+    /// alone, so relocating those tables (e.g. via table expansion) does not change the
+    /// fingerprint when the decoded bytes are unchanged. Unused bytes deliberately
+    /// participate: equal fingerprints guarantee identical complete buffers, but differently
+    /// encoded buffers may still render equivalently.
     /// </summary>
     public readonly struct TilesetFingerprint : IEquatable<TilesetFingerprint>
     {

@@ -47,6 +47,16 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             string path = Path.Combine(_baseDir, name);
             File.WriteAllBytes(path, content ?? new byte[] { 1, 2, 3 });
+            if (!OperatingSystem.IsWindows()
+                && string.Equals(Path.GetExtension(path), ".exe", StringComparison.OrdinalIgnoreCase))
+            {
+                File.SetUnixFileMode(
+                    path,
+                    File.GetUnixFileMode(path)
+                        | UnixFileMode.UserExecute
+                        | UnixFileMode.GroupExecute
+                        | UnixFileMode.OtherExecute);
+            }
             return path;
         }
 

@@ -35,10 +35,13 @@ later in this catalog:
   converts cancellation into typed `BuiltInRandomMapErrorCategory.Cancelled`.
 - `RandomMapOneClickService` treats output validation as a shared orchestration
   postcondition for both backends: every successful result must contain exactly
-  `width*height` cells, and every MAR must have a complete TSA block in the
-  resolved immutable CFG snapshot before source-identity comparison or outcome
-  publication. Invalid external output fails directly and never falls back to
-  the built-in backend.
+  `width*height` cells, every MAR must have a complete TSA block in the resolved
+  immutable CFG snapshot, and the final layout must contain at least two distinct
+  MAR values before source-identity comparison or outcome publication. After
+  FEMapCreator exits, the service authoritatively revalidates the executable,
+  image, and generation-data identities against the same immutable profile and
+  mapping snapshot. Invalid, degenerate, or identity-stale external output fails
+  directly and never falls back to the built-in backend.
 - The solver is an iterative constraint-satisfaction search, not a plain
   row-major scan: minimum-remaining-values (MRV) cell selection (deterministic
   row-major tie-break) plus four-neighbor (west/east/north/south) constraint
@@ -521,6 +524,8 @@ the "### Graphics System" overview in `CLAUDE.md`.
 - `ToolInitWizardView.axaml` EndPage FEMapCreator optional row (Avalonia, #1978 Slice 4; no new Core API) — a purely informational, always-optional row added to the pre-existing 9-`TabItem` `ToolInitWizardView` wizard's final EndPage, never gating or required for `IsCompletedThroughStep6`/`ApplyAll()` wizard completion. It repeats the Plan v4 §7 disclaimer verbatim (`FEMapCreator is an independent utility credited to bwdyeti; FEBuilderGBA does not bundle, host, license, or guarantee it.`, reused from the pre-existing Options FEMapCreator section — same literal, same `ja.txt`/`zh.txt` translation entries, no duplicate keys) plus a "Built-in Experimental remains available immediately if you skip this or leave it unconfigured." notice, and exposes exactly two explicit-click-only actions: `OnOpenFEMapCreatorProjectPage_Click` (fixed-URL `https://github.com/laqieer/FEMapCreator` launch through Avalonia's cross-platform `TopLevel.Launcher.LaunchUriAsync`) and `OnOpenFEMapCreatorOptions_Click` (plain non-modal `WindowManager.Instance.Open<OptionsView>()`, no fingerprint context since the wizard has no loaded ROM/map). The project-page action checks both the missing-`TopLevel` and launcher-returns-`false` paths and renders a localized, row-local failure status instead of silently dropping the failure on browser/mobile heads. Neither handler runs on construction, page display, or Finish — proven by headless tests that inject the `RecordingNavigationService` fake (#1122) via `WindowManager.Instance.SetService`, assert zero calls from mere `new ToolInitWizardView()`, and click the detached project-page button to prove the inline error becomes visible. This row intentionally duplicates NO setup form: the executable/assets-root path fields and the per-current-fingerprint discovery/mapping action remain owned exclusively by the Options FEMapCreator section (Slice 2/3 above) per Plan v4 §4/§7 and the Slice 3 review's "Plan ownership mismatch" finding — the wizard only ever navigates there.
 
 > **Built-in random-map non-degeneracy addendum (#1978):** every successful built-in grid contains at least two distinct MAR values, independent of the conditional three-value/90%-occupancy gate. An adjacency model exposing fewer than two viable candidates is skipped; if every available model is below that floor, generation returns `InsufficientSourceData`. A model with at least two viable candidates but only uniform complete solutions exhausts without publishing success.
+
+> **FEMapCreator profile/fingerprint clarifications (#1978):** `Configured` means `FEMapCreatorLauncherCore.CreateLaunchSpec` currently accepts the program path (including Unix execute access), not merely that a file exists; mapping creation and lookup re-check the same launchability boundary so a stale public snapshot cannot select the external backend. `TilesetFingerprint` equality means the ROM version and the complete decoded OBJ/PAL/CFG byte buffers are identical. Unused bytes deliberately participate, so the fingerprint is conservative identity and never claims that all differently encoded buffers must render differently.
 
 ## Logging — `Log.*` vs `Log.*F` (string.Format) overloads
 

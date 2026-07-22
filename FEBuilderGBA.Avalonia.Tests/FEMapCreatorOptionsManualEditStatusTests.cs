@@ -72,6 +72,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             {
                 string exePath = Path.Combine(tempRoot, "FEMapCreator.exe");
                 File.WriteAllBytes(exePath, new byte[] { 1, 2, 3 });
+                MakeExecutableOnUnix(exePath);
 
                 var view = new OptionsView();
                 var pathBox = view.FindControl<TextBox>("FEMapCreatorPathTextBox");
@@ -101,6 +102,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             {
                 string exePath = Path.Combine(tempRoot, "FEMapCreator.exe");
                 File.WriteAllBytes(exePath, new byte[] { 1, 2, 3 });
+                MakeExecutableOnUnix(exePath);
 
                 var view = new OptionsView();
                 var pathBox = view.FindControl<TextBox>("FEMapCreatorPathTextBox");
@@ -147,6 +149,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             {
                 string exePath = Path.Combine(tempRoot, "FEMapCreator.exe");
                 File.WriteAllBytes(exePath, new byte[] { 1, 2, 3, 4, 5 });
+                MakeExecutableOnUnix(exePath);
                 string assetsRoot = Path.Combine(tempRoot, "assets");
                 Directory.CreateDirectory(assetsRoot);
 
@@ -191,6 +194,19 @@ namespace FEBuilderGBA.Avalonia.Tests
             {
                 try { Directory.Delete(tempRoot, true); } catch { /* best effort */ }
             }
+        }
+
+        static void MakeExecutableOnUnix(string path)
+        {
+            if (OperatingSystem.IsWindows())
+                return;
+
+            File.SetUnixFileMode(
+                path,
+                File.GetUnixFileMode(path)
+                    | UnixFileMode.UserExecute
+                    | UnixFileMode.GroupExecute
+                    | UnixFileMode.OtherExecute);
         }
     }
 }

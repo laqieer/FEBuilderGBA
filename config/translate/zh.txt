@@ -28246,8 +28246,14 @@ FEMapCreator 未报告任何兼容的图块集。
 :Random map generation returned an unrenderable tile at cell {0} (MAR 0x{1:X4}) for the current map tileset.
 随机地图生成在单元格 {0} 返回了当前地图图块集无法渲染的图块 (MAR 0x{1:X4})。
 
+:Random map generation returned a uniform layout using only one MAR value. Try a different seed.
+随机地图生成返回了仅使用一个 MAR 值的单一布局。请尝试其他种子。
+
 :Random map generation returned the current map unchanged. Try a different seed.
 随机地图生成返回了与当前地图相同的结果。请尝试其他种子。
+
+:The FEMapCreator mapping changed during generation. Rediscover the tileset mapping in Options and try again.
+生成期间 FEMapCreator 映射已更改。请在选项中重新发现图块集映射后重试。
 
 :Generated random map: {0}x{1}, seed={2}.
 已生成随机地图: {0}x{1}, seed={2}。
