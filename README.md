@@ -259,7 +259,9 @@ dotnet run --project FEBuilderGBA.CLI -- --generate-random-map --femapcreator=C:
 # always requires a fresh discovery from the same executable/assets profile. Discovery and Save Mapping both
 # authoritatively re-hash even same-size/same-mtime executable replacements. Save Mapping persists a detached
 # config snapshot to a flushed sibling temp file, atomically replaces config.xml, and updates the live config
-# only after that succeeds; write failures preserve the prior disk/live state and cannot masquerade as success.
+# only after that succeeds; it re-checks cancellation after snapshot serialization and again at the durable-write
+# boundary, so closing/cancelling Options cannot persist a late mapping. Write failures preserve the prior
+# disk/live state and cannot masquerade as success.
 # If a mapping is configured and current,
 # Generate runs the external adapter above; once started, any launch/exit/parse failure is surfaced directly
 # and never silently swapped for the built-in engine, and cancelling (or closing the editor) terminates the

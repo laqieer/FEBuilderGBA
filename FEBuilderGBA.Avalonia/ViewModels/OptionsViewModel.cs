@@ -37,7 +37,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         FEMapCreatorSetupSnapshot currentProfile,
         CancellationToken cancellationToken);
 
-    internal delegate void ConfigSaveDelegate(Config config, string fullFilename);
+    internal delegate void ConfigSaveDelegate(
+        Config config,
+        string fullFilename,
+        CancellationToken cancellationToken);
 
     /// <summary>
     /// ViewModel for the user preferences (Options) dialog.
@@ -170,8 +173,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new FEMapCreatorMappingEntryCreationResult(success, entry, error);
         }
 
-        static void DefaultSaveConfig(Config config, string fullFilename) =>
+        static void DefaultSaveConfig(
+            Config config,
+            string fullFilename,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
             config.SaveOrThrow(fullFilename);
+        }
 
         static Config CloneConfig(Config source)
         {
@@ -578,7 +587,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// + <c>Upsert</c> + <c>SaveAll</c> + <see cref="Config.SaveOrThrow(string)"/>. Returns false with
         /// <see cref="TilesetMappingErrorMessage"/> set on validation failure. Authoritative
         /// executable/image/generation-data hashes run off the calling thread and observe the
-        /// operation's cancellation token. Never launches a process.
+        /// operation's cancellation token. Detached snapshot serialization and the durable
+        /// config-write boundary re-check the same token. Never launches a process.
         /// </summary>
         public async Task<bool> SaveTilesetMappingAsync()
         {
@@ -689,9 +699,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 pendingConfig[FEMapCreatorProfileCore.ExecutablePathConfigKey] = executablePath;
                 pendingConfig[FEMapCreatorProfileCore.AssetsRootConfigKey] = assetsRoot;
                 FEMapCreatorTilesetMappingStoreCore.SaveAll(pendingConfig, mappings);
+                token.ThrowIfCancellationRequested();
                 try
                 {
-                    _saveConfig(pendingConfig, cfg.ConfigFilename);
+                    _saveConfig(pendingConfig, cfg.ConfigFilename, token);
                 }
                 catch (Exception ex) when (IsConfigPersistenceException(ex))
                 {

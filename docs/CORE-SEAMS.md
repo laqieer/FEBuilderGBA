@@ -99,6 +99,10 @@ later in this catalog:
   hashes executable content on the dispatcher. Explicit discovery and Save Mapping
   use fresh authoritative hashes, so a same-size executable replacement with
   preserved mtime cannot create an immediately stale mapping.
+- Save Mapping re-checks its operation token after detached JSON snapshot
+  serialization and passes that token into the persistence boundary, whose default
+  implementation checks again immediately before `Config.SaveOrThrow`. Cancel or
+  Options detach before that boundary cannot write or publish a late mapping.
 - One-click generation clones the ROM and current grid before its first worker
   hop. Corpus resolution therefore reads an immutable point-in-time snapshot
   while apply-time live-ROM identity/fingerprint checks remain mandatory. The
