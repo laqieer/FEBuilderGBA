@@ -130,7 +130,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             string infoMessage = "";
             var outcome = new RandomMapGenerationOutcome
             {
-                Mars = new ushort[] { 0x0002, 0x0003, 0x0004, 0x0005 },
+                Mars = new ushort[] { 0, 4, 8, 12 },
                 Width = 2,
                 Height = 2,
                 EffectiveSeed = 4242,
@@ -178,7 +178,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Contains("2x2", infoMessage);
             Assert.Contains("seed=4242", infoMessage);
             Assert.Equal(
-                new byte[] { 2, 2, 2, 0, 3, 0, 4, 0, 5, 0 },
+                new byte[] { 2, 2, 0, 0, 4, 0, 8, 0, 12, 0 },
                 vm.GetMapDataSnapshot());
         }
 
@@ -251,7 +251,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                     undo,
                     new RandomMapGenerationOutcome
                     {
-                        Mars = new ushort[] { 2, 3, 4, 5 },
+                        Mars = new ushort[] { 0, 4, 8, 12 },
                         Width = 2,
                         Height = 2,
                         EffectiveSeed = 7,
@@ -301,7 +301,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                     out string identityError),
                 identityError);
 
-            ushort[] generatedMars = { 0x0002, 0x0003, 0x0004, 0x0005 };
+            ushort[] generatedMars = { 0, 4, 8, 12 };
             bool reloadCalled = false;
             var undo = new UndoService();
 
@@ -380,7 +380,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                     undo,
                     new RandomMapGenerationOutcome
                     {
-                        Mars = new ushort[] { 2, 3, 4, 5 },
+                        Mars = new ushort[] { 0, 4, 8, 12 },
                         Width = 2,
                         Height = 2,
                         EffectiveSeed = 11,
@@ -437,7 +437,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                     undo,
                     new RandomMapGenerationOutcome
                     {
-                        Mars = new ushort[] { 2, 3, 4, 5 },
+                        Mars = new ushort[] { 0, 4, 8, 12 },
                         Width = 2,
                         Height = 2,
                         EffectiveSeed = 13,

@@ -14419,6 +14419,12 @@ FEMapCreator アセット ディレクトリを選択
 :Random map generation returned no map data.
 ランダムマップ生成がマップ データを返しませんでした。
 
+:Random map generation returned {0} cells, but {1} were required for a {2}x{3} map.
+ランダムマップ生成は {0} 個のセルを返しましたが、{2}x{3} マップには {1} 個必要です。
+
+:Random map generation returned an unrenderable tile at cell {0} (MAR 0x{1:X4}) for the current map tileset.
+ランダムマップ生成が、現在のマップタイルセットでは描画できないタイルをセル {0} に返しました (MAR 0x{1:X4})。
+
 :Random map generation returned the current map unchanged. Try a different seed.
 ランダムマップ生成が現在のマップを変更せずに返しました。別のシードを試してください。
 

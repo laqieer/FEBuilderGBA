@@ -33,6 +33,12 @@ later in this catalog:
   historical `MakeMapIDList(rom)` wording: corpus generation never formats map
   display names or reads text from `CoreState.ROM`; `TryGenerateFromRom`
   converts cancellation into typed `BuiltInRandomMapErrorCategory.Cancelled`.
+- `RandomMapOneClickService` treats output validation as a shared orchestration
+  postcondition for both backends: every successful result must contain exactly
+  `width*height` cells, and every MAR must have a complete TSA block in the
+  resolved immutable CFG snapshot before source-identity comparison or outcome
+  publication. Invalid external output fails directly and never falls back to
+  the built-in backend.
 - The solver is an iterative constraint-satisfaction search, not a plain
   row-major scan: minimum-remaining-values (MRV) cell selection (deterministic
   row-major tie-break) plus four-neighbor (west/east/north/south) constraint

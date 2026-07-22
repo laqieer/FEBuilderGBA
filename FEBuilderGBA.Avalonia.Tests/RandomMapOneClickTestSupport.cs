@@ -119,7 +119,12 @@ namespace FEBuilderGBA.Avalonia.Tests
             WriteU32(rom, rom.RomInfo.map_map_pointer_pointer, 0x08000000 + MapTableAddr);
 
             byte[] objCompressed = LZ77.compress(new byte[] { 1, 2, 3, 4 });
-            byte[] configCompressed = LZ77.compress(new byte[] { 5, 6, 7, 8 });
+            var configRaw = new byte[64];
+            configRaw[0] = 5;
+            configRaw[1] = 6;
+            configRaw[2] = 7;
+            configRaw[3] = 8;
+            byte[] configCompressed = LZ77.compress(configRaw);
             byte[] palRaw = new byte[512];
 
             Array.Copy(objCompressed, 0, rom.Data, ObjBlobAddr, objCompressed.Length);

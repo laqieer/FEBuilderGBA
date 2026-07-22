@@ -286,6 +286,16 @@ namespace FEBuilderGBA.Avalonia.Services
                     return Failure(detail, selection);
                 }
 
+                if (!TryValidateGeneratedGrid(
+                    externalResult.Mars,
+                    width,
+                    height,
+                    snapshot.ConfigData,
+                    out string externalValidationError))
+                {
+                    return Failure(externalValidationError, selection);
+                }
+
                 if (IsSourceIdentical(externalResult.Mars, generationGrid))
                     return SourceIdentityFailure(selection);
 
@@ -349,6 +359,16 @@ namespace FEBuilderGBA.Avalonia.Services
                 return Failure(MapBuiltInError(outcome.builtInResult), selection);
             }
 
+            if (!TryValidateGeneratedGrid(
+                outcome.builtInResult.Mars,
+                width,
+                height,
+                snapshot.ConfigData,
+                out string builtInValidationError))
+            {
+                return Failure(builtInValidationError, selection);
+            }
+
             if (IsSourceIdentical(outcome.builtInResult.Mars, generationGrid))
                 return SourceIdentityFailure(selection);
 
@@ -395,6 +415,50 @@ namespace FEBuilderGBA.Avalonia.Services
                     + R._("Try a different seed, or configure FEMapCreator in Options."),
                 _ => detail,
             };
+        }
+
+        static bool TryValidateGeneratedGrid(
+            ushort[]? mars,
+            int width,
+            int height,
+            byte[] configData,
+            out string error)
+        {
+            if (mars == null)
+            {
+                error = R._("Random map generation returned no map data.");
+                return false;
+            }
+
+            long requiredCellCount = (long)width * height;
+            if (width <= 0
+                || height <= 0
+                || requiredCellCount > int.MaxValue
+                || mars.Length != requiredCellCount)
+            {
+                error = string.Format(
+                    R._("Random map generation returned {0} cells, but {1} were required for a {2}x{3} map."),
+                    mars.Length,
+                    requiredCellCount,
+                    width,
+                    height);
+                return false;
+            }
+
+            for (int i = 0; i < mars.Length; i++)
+            {
+                if (!BuiltInRandomMapTilesetCore.IsMarRenderable(mars[i], configData))
+                {
+                    error = string.Format(
+                        R._("Random map generation returned an unrenderable tile at cell {0} (MAR 0x{1:X4}) for the current map tileset."),
+                        i,
+                        mars[i]);
+                    return false;
+                }
+            }
+
+            error = "";
+            return true;
         }
 
         static bool IsSourceIdentical(ushort[]? candidate, ushort[]? source)

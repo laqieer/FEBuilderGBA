@@ -131,7 +131,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                     return new RandomMapGenerationResult
                     {
                         Success = true,
-                        Mars = new ushort[] { 10, 11, 12, 13 },
+                        Mars = new ushort[] { 0, 4, 8, 12 },
                     };
                 },
                 generateBuiltIn: (ROM r, uint addr, int width, int height, ushort[]? currentGrid, int seed, CancellationToken ct,
@@ -147,7 +147,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                     FEMapCreatorMappingLookupResult.Current(entry)));
 
             RandomMapOneClickResult result = await service.GenerateAsync(
-                rom, mapSettingAddr, 2, 2, currentGrid: new ushort[] { 1, 2, 3, 4 }, seed: 55, CancellationToken.None);
+                rom, mapSettingAddr, 2, 2, currentGrid: new ushort[] { 16, 20, 24, 28 }, seed: 55, CancellationToken.None);
 
             Assert.True(result.Success);
             Assert.False(builtInInvoked);
@@ -155,7 +155,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Equal(FEMapCreatorMappingStatus.Current, result.MappingStatus);
             Assert.Equal(FEMapCreatorMappingReason.None, result.MappingReason);
             Assert.Equal("", result.MappingDetail);
-            Assert.Equal(new ushort[] { 10, 11, 12, 13 }, result.Outcome!.Mars);
+            Assert.Equal(new ushort[] { 0, 4, 8, 12 }, result.Outcome!.Mars);
             Assert.Equal(55, result.Outcome.EffectiveSeed);
         }
 
@@ -165,7 +165,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             ROM rom = RandomMapOneClickTestSupport.CreateResolvableTilesetRom(
                 2, 2, 0x0001, out uint mapSettingAddr, out _, out _);
 
-            ushort[] currentGrid = { 10, 11, 12, 13 };
+            ushort[] currentGrid = { 0, 4, 8, 12 };
             bool builtInInvoked = false;
             var entry = MakeMappingEntry("Grassland");
             var service = new RandomMapOneClickService(
@@ -198,6 +198,82 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [AvaloniaFact]
+        public async Task GenerateAsync_ExternalCellCountMismatch_FailsWithoutBuiltInFallback()
+        {
+            ROM rom = RandomMapOneClickTestSupport.CreateResolvableTilesetRom(
+                2, 2, 0x0001, out uint mapSettingAddr, out _, out _);
+
+            bool builtInInvoked = false;
+            var entry = MakeMappingEntry("Grassland");
+            var service = new RandomMapOneClickService(
+                runner: null,
+                generateExternal: (request, runner) =>
+                    new RandomMapGenerationResult
+                    {
+                        Success = true,
+                        Mars = new ushort[] { 0, 4, 8 },
+                    },
+                generateBuiltIn: (ROM r, uint addr, int width, int height, ushort[]? grid, int seed, CancellationToken ct,
+                    out BuiltInRandomMapGenerationResult? result, out string error) =>
+                {
+                    builtInInvoked = true;
+                    result = null;
+                    error = "";
+                    return false;
+                },
+                resolveMapping: (fingerprint, configSnapshot, cancellationToken) => (
+                    new FEMapCreatorSetupSnapshot(FEMapCreatorSetupStatus.Configured, @"C:\trusted\FEMapCreator.exe", "", ""),
+                    FEMapCreatorMappingLookupResult.Current(entry)));
+
+            RandomMapOneClickResult result = await service.GenerateAsync(
+                rom, mapSettingAddr, 2, 2, currentGrid: null, seed: 55, CancellationToken.None);
+
+            Assert.False(result.Success);
+            Assert.False(builtInInvoked);
+            Assert.Contains("3 cells", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("4 were required", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.Null(result.Outcome);
+        }
+
+        [AvaloniaFact]
+        public async Task GenerateAsync_ExternalNonRenderableMar_FailsWithoutBuiltInFallback()
+        {
+            ROM rom = RandomMapOneClickTestSupport.CreateResolvableTilesetRom(
+                2, 2, 0x0001, out uint mapSettingAddr, out _, out _);
+
+            bool builtInInvoked = false;
+            var entry = MakeMappingEntry("Grassland");
+            var service = new RandomMapOneClickService(
+                runner: null,
+                generateExternal: (request, runner) =>
+                    new RandomMapGenerationResult
+                    {
+                        Success = true,
+                        Mars = new ushort[] { 0, 4, 8, 32 },
+                    },
+                generateBuiltIn: (ROM r, uint addr, int width, int height, ushort[]? grid, int seed, CancellationToken ct,
+                    out BuiltInRandomMapGenerationResult? result, out string error) =>
+                {
+                    builtInInvoked = true;
+                    result = null;
+                    error = "";
+                    return false;
+                },
+                resolveMapping: (fingerprint, configSnapshot, cancellationToken) => (
+                    new FEMapCreatorSetupSnapshot(FEMapCreatorSetupStatus.Configured, @"C:\trusted\FEMapCreator.exe", "", ""),
+                    FEMapCreatorMappingLookupResult.Current(entry)));
+
+            RandomMapOneClickResult result = await service.GenerateAsync(
+                rom, mapSettingAddr, 2, 2, currentGrid: null, seed: 55, CancellationToken.None);
+
+            Assert.False(result.Success);
+            Assert.False(builtInInvoked);
+            Assert.Contains("cell 3", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("MAR 0x0020", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.Null(result.Outcome);
+        }
+
+        [AvaloniaFact]
         public async Task GenerateAsync_BuiltInIdenticalResult_FailsAtSharedBoundary()
         {
             ROM rom = RandomMapOneClickTestSupport.CreateResolvableTilesetRom(
@@ -225,6 +301,49 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.False(result.Success);
             Assert.Equal(FEMapCreatorMappingStatus.NoMapping, result.MappingStatus);
             Assert.Contains("unchanged", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.Null(result.Outcome);
+        }
+
+        [AvaloniaFact]
+        public async Task GenerateAsync_BuiltInNonRenderableMar_FailsAtSharedBoundary()
+        {
+            ROM rom = RandomMapOneClickTestSupport.CreateResolvableTilesetRom(
+                2, 2, 0x0001, out uint mapSettingAddr, out _, out _);
+
+            bool externalInvoked = false;
+            var service = new RandomMapOneClickService(
+                runner: null,
+                generateExternal: (request, runner) =>
+                {
+                    externalInvoked = true;
+                    return new RandomMapGenerationResult { Success = true };
+                },
+                generateBuiltIn: (ROM r, uint addr, int width, int height, ushort[]? grid, int seed, CancellationToken ct,
+                    out BuiltInRandomMapGenerationResult? result, out string error) =>
+                {
+                    result = new BuiltInRandomMapGenerationResult(
+                        success: true,
+                        errorCategory: BuiltInRandomMapErrorCategory.None,
+                        errorMessage: "",
+                        mars: new ushort[] { 0, 4, 8, 32 },
+                        effectiveSeed: seed,
+                        adjacencyModel: BuiltInRandomMapAdjacencyModel.Strict,
+                        restartsUsed: 1,
+                        distinctChipsetsUsed: 4);
+                    error = "";
+                    return true;
+                },
+                resolveMapping: (fingerprint, configSnapshot, cancellationToken) => (
+                    new FEMapCreatorSetupSnapshot(FEMapCreatorSetupStatus.NotConfigured, "", "", ""),
+                    FEMapCreatorMappingLookupResult.NoMapping()));
+
+            RandomMapOneClickResult result = await service.GenerateAsync(
+                rom, mapSettingAddr, 2, 2, currentGrid: null, seed: 55, CancellationToken.None);
+
+            Assert.False(result.Success);
+            Assert.False(externalInvoked);
+            Assert.Contains("cell 3", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("MAR 0x0020", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
             Assert.Null(result.Outcome);
         }
 

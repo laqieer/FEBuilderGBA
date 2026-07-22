@@ -264,9 +264,12 @@ dotnet run --project FEBuilderGBA.CLI -- --generate-random-map --femapcreator=C:
 # Generate runs the external adapter above; once started, any launch/exit/parse failure is surfaced directly
 # and never silently swapped for the built-in engine, and cancelling (or closing the editor) terminates the
 # owned external process rather than letting it finish and apply. Both generation and tileset discovery re-check
-# cancellation after path/launch-spec setup and immediately before invoking any process runner. A successful result from either backend is
-# compared with the captured source grid; a sequence-identical layout fails instead of applying an unchanged
-# map as a successful undo transaction. Otherwise — or if the saved mapping is
+# cancellation after path/launch-spec setup and immediately before invoking any process runner. A successful
+# result from either backend must contain exactly width*height cells, and every returned MAR must have a complete
+# TSA configuration block in the resolved tileset snapshot; invalid external output fails without falling back
+# to the built-in engine. The validated result is then compared with the captured source grid; a
+# sequence-identical layout fails instead of applying an unchanged map as a successful undo transaction.
+# Otherwise — or if the saved mapping is
 # stale/invalid, which is visibly explained with a localized typed reason (on success, failure, or cancellation
 # alike) while raw filesystem diagnostics remain separate rather than leaking English into the notice — it uses
 # an independently designed, clean-room, deterministic built-in generator (see
