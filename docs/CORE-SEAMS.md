@@ -82,9 +82,11 @@ later in this catalog:
   embeds raw filesystem diagnostics into the stale/invalid notice.
 - One-click FEMapCreator profile/mapping resolution runs off the UI thread.
   Authoritative executable, image, and generation-data hashes use bounded reads
-  that observe the generation cancellation token. The three required Config
-  strings are snapshotted before the worker hop; the background resolver never
-  reads the live UI-mutated Config dictionary.
+  that observe the generation cancellation token. Size, last-write timestamp,
+  and SHA-256 are collected from one opened handle, with an in-handle stability
+  check, so path replacement cannot mix metadata from one file with bytes from
+  another. The three required Config strings are snapshotted before the worker
+  hop; the background resolver never reads the live UI-mutated Config dictionary.
 - The same worker boundary owns the authoritative OBJ/PAL/CFG/MAP tileset
   resolution and decompression. `RandomMapOneClickResult` returns that immutable
   snapshot's fingerprint for the Map Editor's apply-time live-ROM guard, so no
@@ -110,7 +112,9 @@ later in this catalog:
   while apply-time live-ROM identity/fingerprint checks remain mandatory. The
   orchestration boundary compares every successful external or built-in result
   with that captured grid and rejects a sequence-identical layout instead of
-  committing an unchanged map as success.
+  committing an unchanged map as success. Built-in result objects clone their MAR
+  input and return copies on access, preserving replay/diversity metadata against
+  downstream mutation.
 - External generation and FEMapCreator tileset discovery both re-check the
   caller token after launch-spec setup and immediately before dispatching either
   the cancellation-aware or legacy process runner.

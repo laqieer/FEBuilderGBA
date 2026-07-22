@@ -147,6 +147,29 @@ namespace FEBuilderGBA.Core.Tests
             Assert.NotEqual(currentGrid, result.Mars);
         }
 
+        [Fact]
+        public void GenerationResult_Mars_CannotMutateStoredOutcome()
+        {
+            ushort[] source = new ushort[] { 0, 4, 8 };
+            var result = new BuiltInRandomMapGenerationResult(
+                success: true,
+                BuiltInRandomMapErrorCategory.None,
+                "ok",
+                source,
+                effectiveSeed: 1,
+                BuiltInRandomMapAdjacencyModel.Strict,
+                restartsUsed: 1,
+                distinctChipsetsUsed: 3);
+
+            source[0] = 12;
+            ushort[] exposed = result.Mars;
+            exposed[1] = 12;
+
+            Assert.Equal(new ushort[] { 0, 4, 8 }, result.Mars);
+            Assert.NotSame(exposed, result.Mars);
+            Assert.Equal(3, result.DistinctChipsetsUsed);
+        }
+
         [Theory]
         [InlineData(0)]
         [InlineData(1)]

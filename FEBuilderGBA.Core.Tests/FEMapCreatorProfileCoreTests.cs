@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 using System;
 using System.IO;
+using System.Security.Cryptography;
 using System.Threading;
 using Xunit;
 
@@ -90,6 +91,52 @@ namespace FEBuilderGBA.Core.Tests
 
                 Assert.NotEqual(before.ExecutableSizeBytes, after.ExecutableSizeBytes);
                 Assert.NotEqual(before.ExecutableSha256, after.ExecutableSha256);
+            }
+            finally
+            {
+                DeleteDirectoryIfPresent(tempRoot);
+            }
+        }
+
+        [Fact]
+        public void FileIdentity_PathReplacementBetweenMetadataAndHash_UsesOneOpenedFile()
+        {
+            string tempRoot = CreateTempDirectory();
+            try
+            {
+                byte[] originalBytes = new byte[] { 1, 2, 3 };
+                byte[] replacementBytes = new byte[] { 9, 8, 7, 6, 5 };
+                string path = Path.Combine(tempRoot, "identity.bin");
+                string replacementPath = Path.Combine(tempRoot, "replacement.bin");
+                File.WriteAllBytes(path, originalBytes);
+                File.WriteAllBytes(replacementPath, replacementBytes);
+                DateTime originalWriteTime = DateTime.UtcNow.AddMinutes(-10);
+                File.SetLastWriteTimeUtc(path, originalWriteTime);
+                long expectedTicks = File.GetLastWriteTimeUtc(path).Ticks;
+
+                bool replaced = false;
+                bool ok = FileContentIdentityCore.TryCompute(
+                    path,
+                    CancellationToken.None,
+                    () =>
+                    {
+                        File.Delete(path);
+                        File.Move(replacementPath, path);
+                        replaced = true;
+                    },
+                    out long sizeBytes,
+                    out long lastWriteUtcTicks,
+                    out string sha256Hex,
+                    out string error);
+
+                Assert.True(ok, error);
+                Assert.True(replaced);
+                Assert.Equal(originalBytes.Length, sizeBytes);
+                Assert.Equal(expectedTicks, lastWriteUtcTicks);
+                Assert.Equal(
+                    Convert.ToHexString(SHA256.HashData(originalBytes)).ToLowerInvariant(),
+                    sha256Hex);
+                Assert.Equal(replacementBytes, File.ReadAllBytes(path));
             }
             finally
             {

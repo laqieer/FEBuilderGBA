@@ -59,6 +59,8 @@ namespace FEBuilderGBA
     /// </summary>
     public sealed class BuiltInRandomMapGenerationResult
     {
+        readonly ushort[] _mars;
+
         internal BuiltInRandomMapGenerationResult(
             bool success,
             BuiltInRandomMapErrorCategory errorCategory,
@@ -72,7 +74,9 @@ namespace FEBuilderGBA
             Success = success;
             ErrorCategory = errorCategory;
             ErrorMessage = errorMessage ?? "";
-            Mars = mars ?? Array.Empty<ushort>();
+            _mars = mars == null || mars.Length == 0
+                ? Array.Empty<ushort>()
+                : (ushort[])mars.Clone();
             EffectiveSeed = effectiveSeed;
             AdjacencyModel = adjacencyModel;
             RestartsUsed = restartsUsed;
@@ -88,8 +92,13 @@ namespace FEBuilderGBA
         /// <summary>Human-readable failure detail, or a short success summary.</summary>
         public string ErrorMessage { get; }
 
-        /// <summary>Row-major FEBuilder MAR values at the requested dimensions. Empty on failure.</summary>
-        public ushort[] Mars { get; }
+        /// <summary>
+        /// Row-major FEBuilder MAR values at the requested dimensions. Empty on failure.
+        /// Returns a copy so callers cannot mutate the stored result.
+        /// </summary>
+        public ushort[] Mars => _mars.Length == 0
+            ? Array.Empty<ushort>()
+            : (ushort[])_mars.Clone();
 
         /// <summary>
         /// The caller-supplied seed that produced <see cref="Mars"/> — always equal to the

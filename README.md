@@ -239,8 +239,9 @@ dotnet run --project FEBuilderGBA.CLI -- --generate-random-map --femapcreator=C:
 # current map's dimensions and an inline, directly replayable seed. A blank seed is materialized before either
 # backend starts, and the adjacent Cancel button remains enabled during generation so the operation can be
 # stopped without closing the editor. Authoritative FEMapCreator profile/mapping hashes — including Options'
-# Save Mapping image and generation-data identities — run off the UI thread and observe cancellation between
-# bounded file reads. Generation resolves/decompresses the authoritative OBJ/PAL/CFG/MAP tileset snapshot on
+# Save Mapping image and generation-data identities — run off the UI thread, collect size/timestamp/hash from
+# one opened file handle, and observe cancellation between bounded file reads. Generation resolves/decompresses
+# the authoritative OBJ/PAL/CFG/MAP tileset snapshot on
 # the same worker boundary and returns that exact fingerprint for the apply-time live-ROM guard; Map Editor no
 # longer performs a separate pre-service resolve on the dispatcher (the guard still re-resolves the live ROM
 # immediately before mutation).
@@ -271,7 +272,9 @@ dotnet run --project FEBuilderGBA.CLI -- --generate-random-map --femapcreator=C:
 # cancellation after path/launch-spec setup and immediately before invoking any process runner. A successful
 # result from either backend must contain exactly width*height cells, and every returned MAR must have a complete
 # TSA configuration block in the resolved tileset snapshot; invalid external output fails without falling back
-# to the built-in engine. The validated result is then compared with the captured source grid; a
+# to the built-in engine. Built-in result storage clones generated MARs and returns copies to callers, so later
+# consumer mutation cannot invalidate replay or diversity metadata.
+# The validated result is then compared with the captured source grid; a
 # sequence-identical layout fails instead of applying an unchanged map as a successful undo transaction.
 # Otherwise — or if the saved mapping is
 # stale/invalid, which is visibly explained with a localized typed reason (on success, failure, or cancellation
