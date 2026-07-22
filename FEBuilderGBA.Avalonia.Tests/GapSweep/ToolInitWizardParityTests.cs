@@ -213,6 +213,7 @@ public class ToolInitWizardParityTests
         Assert.Contains("catch (InvalidOperationException ex)", handlers);
         Assert.Contains("catch (NotSupportedException ex)", handlers);
         Assert.Contains("catch (System.Security.SecurityException ex)", handlers);
+        Assert.Contains("catch (Exception ex)", handlers);
         Assert.Contains("ShowFEMapCreatorProjectPageError(ex)", handlers);
         Assert.Contains("FEMapCreatorActionStatusTextBlock", handlers);
         Assert.Contains("WindowManager.Instance.Open<OptionsView>()", handlers);
@@ -241,15 +242,23 @@ public class ToolInitWizardParityTests
         Assert.Equal(3, relevantMethods.Length);
         var broadCatches = relevantMethods
             .SelectMany(method => method.DescendantNodes()
-                .OfType<Microsoft.CodeAnalysis.CSharp.Syntax.CatchClauseSyntax>())
-            .Where(clause =>
+                .OfType<Microsoft.CodeAnalysis.CSharp.Syntax.CatchClauseSyntax>()
+                .Select(clause => (method, clause)))
+            .Where(item =>
             {
-                if (clause.Declaration == null)
+                if (item.clause.Declaration == null)
                     return true;
-                string type = clause.Declaration.Type.ToString();
+                string type = item.clause.Declaration.Type.ToString();
                 return type is "Exception" or "System.Exception" or "global::System.Exception";
-            });
-        Assert.Empty(broadCatches);
+            })
+            .ToArray();
+        var launcherBoundaryCatch = Assert.Single(broadCatches);
+        Assert.Equal(
+            "OnOpenFEMapCreatorProjectPage_Click",
+            launcherBoundaryCatch.method.Identifier.ValueText);
+        Assert.Contains(
+            "ShowFEMapCreatorProjectPageError(ex)",
+            launcherBoundaryCatch.clause.Block.ToString());
     }
 
     [Fact]

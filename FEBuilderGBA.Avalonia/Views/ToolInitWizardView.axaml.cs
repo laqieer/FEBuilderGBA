@@ -588,6 +588,11 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 ShowFEMapCreatorProjectPageError(ex);
             }
+            catch (Exception ex)
+            {
+                // Async UI handlers must contain platform-specific launcher failures.
+                ShowFEMapCreatorProjectPageError(ex);
+            }
         }
 
         void ShowFEMapCreatorProjectPageError(Exception? exception = null)

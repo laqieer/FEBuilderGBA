@@ -288,7 +288,8 @@ dotnet run --project FEBuilderGBA.CLI -- --generate-random-map --femapcreator=C:
 # available immediately if you skip it or leave it unconfigured. Its two buttons only ever act on an
 # explicit click — one opens the fixed upstream project/setup page in your browser, the other navigates to
 # and scrolls the same Options FEMapCreator section above without inventing a map fingerprint (no separate
-# path/mapping form is duplicated in the wizard).
+# path/mapping form is duplicated in the wizard). Platform-specific browser-launch failures are logged and
+# reported in that row instead of escaping the wizard's async UI handler.
 # Neither the wizard nor Options ever downloads, installs, searches PATH, auto-discovers, or launches
 # FEMapCreator merely from being opened or displayed.
 dotnet run --project FEBuilderGBA.CLI -- --translate --rom=rom.gba --out=texts.tsv
