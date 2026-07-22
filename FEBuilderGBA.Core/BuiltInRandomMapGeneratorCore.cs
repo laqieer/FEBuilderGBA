@@ -26,7 +26,7 @@ namespace FEBuilderGBA
         public const int MinimumNodeBudget = 10_000;
         /// <summary>Ceiling of the per-restart search-node budget.</summary>
         public const int MaximumNodeBudget = 1_000_000;
-        /// <summary>Fewest distinct MAR values a corpus must supply before a layout is even attempted.</summary>
+        /// <summary>Fewest renderable and model-viable MAR values required before a layout is attempted.</summary>
         public const int MinimumDistinctCandidates = 2;
         /// <summary>Diversity/occupancy quality gates only apply once the corpus offers at least this many candidates.</summary>
         public const int DiversityGateCandidateThreshold = 3;
@@ -148,6 +148,8 @@ namespace FEBuilderGBA
                 // computed once per distinct model — not per restart, and never re-derived
                 // inside the hot search loop — then reused across every restart of that model.
                 var viableByModel = new Dictionary<BuiltInRandomMapAdjacencyModel, IReadOnlyList<ushort>>();
+                bool attemptedViableModel = false;
+                int maximumViableCandidates = 0;
 
                 for (int i = 0; i < attempts.Count; i++)
                 {
@@ -160,6 +162,12 @@ namespace FEBuilderGBA
                         viableCandidates = ComputeViableCandidates(corpus, candidates, model, signatures, width, height, cancellationToken);
                         viableByModel[model] = viableCandidates;
                     }
+                    if (viableCandidates.Count > maximumViableCandidates)
+                        maximumViableCandidates = viableCandidates.Count;
+                    if (viableCandidates.Count < MinimumDistinctCandidates)
+                        continue;
+
+                    attemptedViableModel = true;
 
                     AttemptResult attempt = RunAttempt(
                         corpus, candidates, viableCandidates, model, signatures, width, height, currentGrid,
@@ -173,6 +181,10 @@ namespace FEBuilderGBA
                             attempt.Mars, seed, model, restart + 1, distinct);
                     }
                 }
+
+                if (!attemptedViableModel)
+                    return Failure(BuiltInRandomMapErrorCategory.InsufficientSourceData,
+                        $"No adjacency model exposes at least {MinimumDistinctCandidates} viable chipsets (maximum {maximumViableCandidates}).");
 
                 return Failure(BuiltInRandomMapErrorCategory.SearchExhausted,
                     "All deterministic restarts exhausted their node budgets without a quality-gated layout.");
@@ -686,9 +698,11 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Diversity/occupancy/renderability/adjacency quality gates for one complete candidate
-        /// grid. <paramref name="viableCandidates"/> (not the raw prefiltered candidate list)
-        /// gates the diversity check (Plan v4 solver review, comment 3621647167): a corpus
+        /// Non-degeneracy/renderability/adjacency quality gates for one complete candidate
+        /// grid. Every accepted grid uses at least <see cref="MinimumDistinctCandidates"/>
+        /// distinct values. <paramref name="viableCandidates"/> (not the raw prefiltered
+        /// candidate list) gates the stricter three-value/occupancy check (Plan v4 solver
+        /// review, comment 3621647167): a corpus
         /// offering three renderable MAR values where one is structurally isolated under
         /// <paramref name="model"/> must not be held to a three-distinct-values bar no
         /// completion could ever satisfy.
@@ -717,14 +731,16 @@ namespace FEBuilderGBA
                 }
             }
 
+            var counts = new Dictionary<ushort, int>();
+            foreach (ushort v in mars)
+            {
+                counts.TryGetValue(v, out int c);
+                counts[v] = c + 1;
+            }
+            if (counts.Count < MinimumDistinctCandidates) return false;
+
             if (viableCandidates.Count >= DiversityGateCandidateThreshold && mars.Length >= DiversityGateCandidateThreshold)
             {
-                var counts = new Dictionary<ushort, int>();
-                foreach (ushort v in mars)
-                {
-                    counts.TryGetValue(v, out int c);
-                    counts[v] = c + 1;
-                }
                 if (counts.Count < DiversityGateCandidateThreshold) return false;
 
                 int maxCount = 0;

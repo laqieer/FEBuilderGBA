@@ -293,6 +293,9 @@ dotnet run --project FEBuilderGBA.CLI -- --generate-random-map --femapcreator=C:
 # docs/CORE-SEAMS.md and docs/ENGINEERING-NOTES.md) that needs no external tool, network access, or download,
 # and produces the same layout again when re-run with the displayed seed. This engine is experimental and
 # visual-coherence-only: it does not guarantee gameplay/objective validity (reachable chests, doors, spawns, etc.).
+# Every built-in success uses at least two distinct MAR values; adjacency models exposing fewer than two viable
+# candidates fail as insufficient source data, while the stricter three-value/90%-occupancy gate still applies
+# whenever the active model exposes at least three viable candidates.
 # Its primary OBJ, nonzero secondary OBJ, CFG, and MAP inputs must each be complete LZ77 streams whose
 # back-references point into already-produced output; truncated or out-of-history streams fail before decompression.
 # Options states that limitation explicitly, and successful generation reports the exact backend name:

@@ -209,7 +209,7 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void Generate_NoHorizontallyCompatibleNeighbors_FailsSearchExhaustedQuickly()
+        public void Generate_NoHorizontallyCompatibleNeighbors_FailsInsufficientSourceDataWithoutSearch()
         {
             // Two candidates, each strictly observed as a border cell only (so
             // HasStrictAdjacencyEvidence's dictionaries exist) but with an *empty* successor
@@ -238,27 +238,15 @@ namespace FEBuilderGBA.Core.Tests
             var result = BuiltInRandomMapGeneratorCore.Generate(corpus, Width, Height, null, seed: 1, CancellationToken.None);
 
             Assert.False(result.Success);
-            Assert.Equal(BuiltInRandomMapErrorCategory.SearchExhausted, result.ErrorCategory);
+            Assert.Equal(BuiltInRandomMapErrorCategory.InsufficientSourceData, result.ErrorCategory);
         }
 
         [Fact]
-        public void Generate_OnlyOneModelViableCandidateWithTwoIsolatedExtras_SucceedsDespiteRawCandidateCountBeingThree()
+        public void Generate_OnlyOneModelViableCandidateWithTwoIsolatedExtras_FailsInsufficientSourceData()
         {
-            // Plan v4 solver review (comment 3621647167): the diversity gate must be scoped to
-            // candidates that are actually *viable* under the active model, not the raw
-            // renderable candidate count. Candidates 0/4/8 give Candidates.Count == 3 (the
-            // gate's raw threshold), but only "0 followed by 0" is ever a valid directional
-            // pair in either direction — MAR 4 and MAR 8 have no adjacency evidence at all (as
-            // upstream OR downstream) and so are structurally isolated: they can never be
-            // placed next to anything, including themselves. ComputeViableCandidates must
-            // exclude both, leaving exactly one viable candidate (0) — below the
-            // DiversityGateCandidateThreshold — so the gate never engages and the unique
-            // all-zero completion is accepted instead of being spuriously rejected for
-            // "insufficient diversity" it could structurally never achieve. A valid, non-null
-            // ConfigData is supplied so IsMarRenderable succeeds for every candidate and the
-            // outcome is attributable to viability scoping rather than an unrelated
-            // renderability failure; ObjData stays null so EdgeRelaxed is unavailable and only
-            // the Strict ladder runs.
+            // Model viability, not the raw renderable count, decides whether a model can produce
+            // a non-degenerate layout. Only MAR 0 can neighbor anything here, so the strict
+            // model must be rejected instead of publishing its unique all-zero completion.
             var candidates = new List<ushort> { 0, 4, 8 };
             var freq = new Dictionary<ushort, long> { [0] = 5, [4] = 5, [8] = 5 };
             var horizontal = new Dictionary<ushort, IReadOnlySet<ushort>> { [0] = Set(0) };
@@ -271,9 +259,40 @@ namespace FEBuilderGBA.Core.Tests
 
             var result = BuiltInRandomMapGeneratorCore.Generate(corpus, Width, Height, null, seed: 1, CancellationToken.None);
 
-            Assert.True(result.Success, result.ErrorMessage);
-            Assert.Equal(Width * Height, result.Mars.Length);
-            Assert.All(result.Mars, mar => Assert.Equal((ushort)0, mar));
+            Assert.False(result.Success);
+            Assert.Equal(BuiltInRandomMapErrorCategory.InsufficientSourceData, result.ErrorCategory);
+            Assert.Empty(result.Mars);
+        }
+
+        [Fact]
+        public void Generate_TwoViableCandidatesWithOnlyUniformSolutions_FailsSearchExhausted()
+        {
+            // Both MARs are individually model-viable, but their disconnected self-only
+            // components make every complete grid uniform. The final quality boundary must
+            // reject both all-zero and all-four completions even without a source grid.
+            var candidates = new List<ushort> { 0, 4 };
+            var freq = new Dictionary<ushort, long> { [0] = 5, [4] = 5 };
+            var horizontal = new Dictionary<ushort, IReadOnlySet<ushort>>
+            {
+                [0] = Set(0),
+                [4] = Set(4),
+            };
+            var vertical = new Dictionary<ushort, IReadOnlySet<ushort>>
+            {
+                [0] = Set(0),
+                [4] = Set(4),
+            };
+            byte[] configData = new byte[16];
+
+            var corpus = BuiltInRandomMapTilesetCorpus.CreateForTesting(
+                TilesetFingerprint.Empty, new List<uint> { 0 }, candidates, freq, freq,
+                horizontal, vertical, objData: null, paletteData: null, configData: configData, totalCells: Width * Height);
+
+            var result = BuiltInRandomMapGeneratorCore.Generate(corpus, Width, Height, null, seed: 1, CancellationToken.None);
+
+            Assert.False(result.Success);
+            Assert.Equal(BuiltInRandomMapErrorCategory.SearchExhausted, result.ErrorCategory);
+            Assert.Empty(result.Mars);
         }
 
         [Fact]
@@ -811,20 +830,12 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void Generate_SourceIdenticalOnlySolution_FailsSearchExhausted_AndLeavesInputUntouched()
+        public void Generate_SourceGridWithOnlyOneModelViableCandidate_FailsInsufficientSourceData_AndLeavesInputUntouched()
         {
-            // Plan v4 §2.6 is absolute: no identity/uniform-fill success fallback anywhere in
-            // the ladder, including its last attempt. Deliberately construct a corpus with
-            // EXACTLY one valid strict-compatible complete grid (all-zero, i.e. a uniform
-            // single-MAR layout): "4" has no adjacency evidence at all in either direction, so
-            // it dead-ends the instant it acquires a neighbor, and only "0 followed by 0" is
-            // ever valid. With currentGrid pre-set to that unique grid, EVERY restart of EVERY
-            // attempt (all 4 Strict restarts; EdgeRelaxed never activates because objData is
-            // null) must reject the only completion it can ever find as source-identical and
-            // keep backtracking until its node budget or search space is exhausted -- there is
-            // no final-attempt exception that may accept it, so Generate must report
-            // SearchExhausted rather than fabricate a success by returning the source grid (or
-            // any other uniform, single-MAR grid) unchanged.
+            // Only MAR 0 is viable under this model, so the non-degeneracy floor rejects it
+            // before search. The caller's matching all-zero source grid must remain untouched;
+            // the preceding alternate-solution regression independently covers identity
+            // rejection once a model exposes enough viable candidates to run.
             var candidates = new List<ushort> { 0, 4 };
             var freq = new Dictionary<ushort, long> { [0] = 5, [4] = 5 };
             var horizontal = new Dictionary<ushort, IReadOnlySet<ushort>> { [0] = Set(0) };
@@ -841,7 +852,7 @@ namespace FEBuilderGBA.Core.Tests
             var result = BuiltInRandomMapGeneratorCore.Generate(corpus, Width, Height, currentGrid, seed: 1, CancellationToken.None);
 
             Assert.False(result.Success);
-            Assert.Equal(BuiltInRandomMapErrorCategory.SearchExhausted, result.ErrorCategory);
+            Assert.Equal(BuiltInRandomMapErrorCategory.InsufficientSourceData, result.ErrorCategory);
             Assert.Empty(result.Mars);
             // No mutation on failure: the caller-supplied currentGrid must be untouched.
             Assert.Equal(currentGridCopy, currentGrid);
