@@ -155,7 +155,7 @@ Editors for map settings, tiles, terrain, and map style.
 | 61 | MapTileAnimationView | MapTileAnimationViewModel | Map tile animation editor |
 | 62 | MapTileAnimation1View | MapTileAnimation1ViewModel | Tile animation type 1 (image preview + PNG Import/Export + .mapanime1.txt batch — #1602) |
 | 63 | MapTileAnimation2View | MapTileAnimation2ViewModel | Tile animation type 2 |
-| 64 | MapEditorView | MapEditorViewModel | Visual map tile editor (chipset palette + click-to-paint + CSV map export, see #658) |
+| 64 | MapEditorView | MapEditorViewModel | Visual map tile editor (starts in Paint Mode; first click without a chipset eyedrops it, a later click paints; clear Paint Mode for select-only; opening alone does not write; WinForms unchanged; see #658/#2008) |
 | 65 | MapEditorAddMapChangeDialogView | MapEditorAddMapChangeDialogViewModel | Add map change dialog |
 | 66 | MapEditorAddMapChangeView | MapEditorAddMapChangeViewModel | Map change addition form |
 | 67 | MapEditorMarSizeDialogView | MapEditorMarSizeDialogViewModel | Map margin size dialog |
