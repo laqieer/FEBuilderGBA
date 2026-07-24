@@ -26,7 +26,7 @@
           <Button AutomationProperties.AutomationId="MapEditor_ZoomInBtn_Button" Name="ZoomInBtn" Content="+" Width="30" />
           <TextBlock AutomationProperties.AutomationId="MapEditor_Zoom_Label" Name="ZoomLabel" Text="1x" VerticalAlignment="Center" />
           <Button AutomationProperties.AutomationId="MapEditor_ZoomOutBtn_Button" Name="ZoomOutBtn" Content="-" Width="30" />
-          <CheckBox AutomationProperties.AutomationId="MapEditor_PaintMode_Check" Name="PaintModeCheck" Content="Paint Mode" VerticalAlignment="Center" Margin="16,0,0,0" />
+          <CheckBox AutomationProperties.AutomationId="MapEditor_PaintMode_Check" Name="PaintModeCheck" Content="Paint Mode" IsChecked="True" VerticalAlignment="Center" Margin="16,0,0,0" />
           <TextBlock Text="(click palette to pick a chipset, then click map to paint)" VerticalAlignment="Center" Foreground="Gray" FontSize="11" />
         </StackPanel>
         <StackPanel Spacing="4" Name="MapCommandToolbar">

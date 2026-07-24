@@ -55,8 +55,6 @@ namespace FEBuilderGBA.Avalonia.Views
             // detached (map switched/editor closed) so a stale generation can never apply.
             DetachedFromVisualTree += (_, _) => _randomMapCts?.Cancel();
             AddHandler(KeyDownEvent, OnEditorKeyDown, RoutingStrategies.Tunnel);
-            // Paint Mode defaults to OFF (no regression to existing select behaviour).
-            PaintModeCheck.IsChecked = false;
             // Hit-test the outer Border (Background=Transparent) only — clicks on the
             // inner Image bubble up here via Avalonia's routed PointerPressed event.
             // Wiring both would double-fire the handler. The handler converts pointer
