@@ -222,6 +222,11 @@ ignores the per-reference `AdditionalProperties`, else `NETSDK1005` (same mechan
     content clip) under sidecar filenames derived from `SMOKE_SCREENSHOT`, and only the acceptance
     (or single explicit) run's `SMOKE_SCREENSHOT`/`.before.png` pair matches what
     `.github/workflows/pages.yml` uploads.
+  - **Paint Mode default (#2008).** The shared Avalonia `MapEditorView` opens with
+    `Paint Mode` checked in the browser and native/desktop heads. Opening the editor alone
+    does not write to the ROM. With no chipset selected, the first map click eyedrops and
+    selects that tile's chipset; a subsequent deliberate click can paint it. Clear the
+    checkbox to restore select-only behavior. WinForms is unchanged.
 
 ### Why the web app first hung on the splash (#1867)
 
