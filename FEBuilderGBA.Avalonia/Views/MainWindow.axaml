@@ -164,6 +164,25 @@
             </WrapPanel>
           </Expander>
 
+          <!-- Map Editors (Advanced) -->
+          <Expander AutomationProperties.AutomationId="Main_MapEditors_Expander" Header="Map Editors" IsExpanded="True" Name="MapEditorsExpander">
+            <WrapPanel Orientation="Horizontal">
+              <Button AutomationProperties.AutomationId="Main_MapEditor_Button" Name="MapEditorButton" Content="Map Editor" Click="OpenMapEditor_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_MapSettingsFE6_Button" Name="MapSettingsFE6Button" Content="Map Settings (FE6)" Click="OpenMapSettingFE6_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_MapSettingsFE7_Button" Name="MapSettingsFE7Button" Content="Map Settings (FE7)" Click="OpenMapSettingFE7_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_MapSettingsFE7U_Button" Name="MapSettingsFE7UButton" Content="Map Settings (FE7U)" Click="OpenMapSettingFE7U_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_Difficulty_Button" Name="DifficultyButton" Content="Difficulty" Click="OpenMapSettingDifficulty_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_StyleEditor_Button" Name="StyleEditorButton" Content="Style Editor" Click="OpenMapStyleEditor_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_TerrainBG_Button" Name="TerrainBGButton" Content="Terrain BG" Click="OpenMapTerrainBGLookup_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_TerrainFloor_Button" Name="TerrainFloorButton" Content="Terrain Floor" Click="OpenMapTerrainFloorLookup_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_MiniMap_Button" Name="MiniMapButton" Content="Mini Map" Click="OpenMapMiniMapTerrainImage_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_TileAnim1_Button" Name="TileAnim1Button" Content="Tile Anim 1" Click="OpenMapTileAnimation1_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_TileAnim2_Button" Name="TileAnim2Button" Content="Tile Anim 2" Click="OpenMapTileAnimation2_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_LoadFunction_Button" Name="LoadFunctionButton" Content="Load Function" Click="OpenMapLoadFunction_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_TerrainEng_Button" Name="TerrainEngButton" Content="Terrain Eng" Click="OpenMapTerrainNameEng_Click" Margin="4" MinWidth="100" />
+            </WrapPanel>
+          </Expander>
+
           <!-- Maps -->
           <Expander AutomationProperties.AutomationId="Main_Maps_Expander" Header="Maps" IsExpanded="True" Name="MapsExpander">
             <WrapPanel Orientation="Horizontal">
@@ -358,25 +377,6 @@
               <Button AutomationProperties.AutomationId="Main_AISteal_Button" Name="AIStealButton" Content="AI Steal" Click="OpenAIStealItem_Click" Margin="4" MinWidth="100" />
               <Button AutomationProperties.AutomationId="Main_AITarget_Button" Name="AITargetButton" Content="AI Target" Click="OpenAITarget_Click" Margin="4" MinWidth="100" />
               <Button AutomationProperties.AutomationId="Main_AOERange_Button" Name="AOERangeButton" Content="AOE Range" Click="OpenAOERANGE_Click" Margin="4" MinWidth="100" />
-            </WrapPanel>
-          </Expander>
-
-          <!-- Map Editors (Advanced) -->
-          <Expander AutomationProperties.AutomationId="Main_MapEditors_Expander" Header="Map Editors" IsExpanded="True" Name="MapEditorsExpander">
-            <WrapPanel Orientation="Horizontal">
-              <Button AutomationProperties.AutomationId="Main_MapEditor_Button" Name="MapEditorButton" Content="Map Editor" Click="OpenMapEditor_Click" Margin="4" MinWidth="100" />
-              <Button AutomationProperties.AutomationId="Main_MapSettingsFE6_Button" Name="MapSettingsFE6Button" Content="Map Settings (FE6)" Click="OpenMapSettingFE6_Click" Margin="4" MinWidth="100" />
-              <Button AutomationProperties.AutomationId="Main_MapSettingsFE7_Button" Name="MapSettingsFE7Button" Content="Map Settings (FE7)" Click="OpenMapSettingFE7_Click" Margin="4" MinWidth="100" />
-              <Button AutomationProperties.AutomationId="Main_MapSettingsFE7U_Button" Name="MapSettingsFE7UButton" Content="Map Settings (FE7U)" Click="OpenMapSettingFE7U_Click" Margin="4" MinWidth="100" />
-              <Button AutomationProperties.AutomationId="Main_Difficulty_Button" Name="DifficultyButton" Content="Difficulty" Click="OpenMapSettingDifficulty_Click" Margin="4" MinWidth="100" />
-              <Button AutomationProperties.AutomationId="Main_StyleEditor_Button" Name="StyleEditorButton" Content="Style Editor" Click="OpenMapStyleEditor_Click" Margin="4" MinWidth="100" />
-              <Button AutomationProperties.AutomationId="Main_TerrainBG_Button" Name="TerrainBGButton" Content="Terrain BG" Click="OpenMapTerrainBGLookup_Click" Margin="4" MinWidth="100" />
-              <Button AutomationProperties.AutomationId="Main_TerrainFloor_Button" Name="TerrainFloorButton" Content="Terrain Floor" Click="OpenMapTerrainFloorLookup_Click" Margin="4" MinWidth="100" />
-              <Button AutomationProperties.AutomationId="Main_MiniMap_Button" Name="MiniMapButton" Content="Mini Map" Click="OpenMapMiniMapTerrainImage_Click" Margin="4" MinWidth="100" />
-              <Button AutomationProperties.AutomationId="Main_TileAnim1_Button" Name="TileAnim1Button" Content="Tile Anim 1" Click="OpenMapTileAnimation1_Click" Margin="4" MinWidth="100" />
-              <Button AutomationProperties.AutomationId="Main_TileAnim2_Button" Name="TileAnim2Button" Content="Tile Anim 2" Click="OpenMapTileAnimation2_Click" Margin="4" MinWidth="100" />
-              <Button AutomationProperties.AutomationId="Main_LoadFunction_Button" Name="LoadFunctionButton" Content="Load Function" Click="OpenMapLoadFunction_Click" Margin="4" MinWidth="100" />
-              <Button AutomationProperties.AutomationId="Main_TerrainEng_Button" Name="TerrainEngButton" Content="Terrain Eng" Click="OpenMapTerrainNameEng_Click" Margin="4" MinWidth="100" />
             </WrapPanel>
           </Expander>
 

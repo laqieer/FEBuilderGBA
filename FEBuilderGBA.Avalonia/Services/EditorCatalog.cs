@@ -100,6 +100,21 @@ namespace FEBuilderGBA.Avalonia.Services
             new("Items", "Usage Pointer", "ItemUsagePointerViewer", () => Open<ItemUsagePointerViewerView>(), typeof(ItemUsagePointerViewerView)),
             new("Items", "Effect Pointer", "ItemEffectPointerViewer", () => Open<ItemEffectPointerViewerView>(), typeof(ItemEffectPointerViewerView)),
 
+            // ---- Map Editors ----
+            new("Map Editors", "Map Editor", "MapEditor", () => Open<MapEditorView>(), typeof(MapEditorView)),
+            new("Map Editors", "Map Settings (FE6)", "MapSettingFE6", () => Open<MapSettingFE6View>(), typeof(MapSettingFE6View)),
+            new("Map Editors", "Map Settings (FE7)", "MapSettingFE7", () => Open<MapSettingFE7View>(), typeof(MapSettingFE7View)),
+            new("Map Editors", "Map Settings (FE7U)", "MapSettingFE7U", () => Open<MapSettingFE7UView>(), typeof(MapSettingFE7UView)),
+            new("Map Editors", "Difficulty", "MapSettingDifficulty", () => Open<MapSettingDifficultyView>(), typeof(MapSettingDifficultyView)),
+            new("Map Editors", "Style Editor", "MapStyleEditor", () => Open<MapStyleEditorView>(), typeof(MapStyleEditorView)),
+            new("Map Editors", "Terrain BG", "MapTerrainBGLookupTable", () => Open<MapTerrainBGLookupTableView>(), typeof(MapTerrainBGLookupTableView)),
+            new("Map Editors", "Terrain Floor", "MapTerrainFloorLookupTable", () => Open<MapTerrainFloorLookupTableView>(), typeof(MapTerrainFloorLookupTableView)),
+            new("Map Editors", "Mini Map", "MapMiniMapTerrainImage", () => Open<MapMiniMapTerrainImageView>(), typeof(MapMiniMapTerrainImageView)),
+            new("Map Editors", "Tile Anim 1", "MapTileAnimation1", () => Open<MapTileAnimation1View>(), typeof(MapTileAnimation1View)),
+            new("Map Editors", "Tile Anim 2", "MapTileAnimation2", () => Open<MapTileAnimation2View>(), typeof(MapTileAnimation2View)),
+            new("Map Editors", "Load Function", "MapLoadFunction", () => Open<MapLoadFunctionView>(), typeof(MapLoadFunctionView)),
+            new("Map Editors", "Terrain Eng", "MapTerrainNameEng", () => Open<MapTerrainNameEngView>(), typeof(MapTerrainNameEngView)),
+
             // ---- Maps ----
             new("Maps", "Map Settings", "MapSetting", OpenMapSettings, typeof(MapSettingView), typeof(MapSettingFE6View), typeof(MapSettingFE7View), typeof(MapSettingFE7UView)),
             new("Maps", "Terrain Names", "TerrainNameEditor", () => Open<TerrainNameEditorView>(), typeof(TerrainNameEditorView)),
@@ -230,21 +245,6 @@ namespace FEBuilderGBA.Avalonia.Services
             new("AI Scripts", "AI Steal", "AIStealItem", () => Open<AIStealItemView>(), typeof(AIStealItemView)),
             new("AI Scripts", "AI Target", "AITarget", () => Open<AITargetView>(), typeof(AITargetView)),
             new("AI Scripts", "AOE Range", "AOERANGE", () => Open<AOERANGEView>(), typeof(AOERANGEView)),
-
-            // ---- Map Editors ----
-            new("Map Editors", "Map Editor", "MapEditor", () => Open<MapEditorView>(), typeof(MapEditorView)),
-            new("Map Editors", "Map Settings (FE6)", "MapSettingFE6", () => Open<MapSettingFE6View>(), typeof(MapSettingFE6View)),
-            new("Map Editors", "Map Settings (FE7)", "MapSettingFE7", () => Open<MapSettingFE7View>(), typeof(MapSettingFE7View)),
-            new("Map Editors", "Map Settings (FE7U)", "MapSettingFE7U", () => Open<MapSettingFE7UView>(), typeof(MapSettingFE7UView)),
-            new("Map Editors", "Difficulty", "MapSettingDifficulty", () => Open<MapSettingDifficultyView>(), typeof(MapSettingDifficultyView)),
-            new("Map Editors", "Style Editor", "MapStyleEditor", () => Open<MapStyleEditorView>(), typeof(MapStyleEditorView)),
-            new("Map Editors", "Terrain BG", "MapTerrainBGLookupTable", () => Open<MapTerrainBGLookupTableView>(), typeof(MapTerrainBGLookupTableView)),
-            new("Map Editors", "Terrain Floor", "MapTerrainFloorLookupTable", () => Open<MapTerrainFloorLookupTableView>(), typeof(MapTerrainFloorLookupTableView)),
-            new("Map Editors", "Mini Map", "MapMiniMapTerrainImage", () => Open<MapMiniMapTerrainImageView>(), typeof(MapMiniMapTerrainImageView)),
-            new("Map Editors", "Tile Anim 1", "MapTileAnimation1", () => Open<MapTileAnimation1View>(), typeof(MapTileAnimation1View)),
-            new("Map Editors", "Tile Anim 2", "MapTileAnimation2", () => Open<MapTileAnimation2View>(), typeof(MapTileAnimation2View)),
-            new("Map Editors", "Load Function", "MapLoadFunction", () => Open<MapLoadFunctionView>(), typeof(MapLoadFunctionView)),
-            new("Map Editors", "Terrain Eng", "MapTerrainNameEng", () => Open<MapTerrainNameEngView>(), typeof(MapTerrainNameEngView)),
 
             // ---- Audio (Advanced) ----
             new("Audio (Advanced)", "Song Track", "SongTrack", () => Open<SongTrackView>(), typeof(SongTrackView)),

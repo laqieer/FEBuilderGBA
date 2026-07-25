@@ -40,6 +40,33 @@ public class EditorCatalogTests
     }
 
     [Fact]
+    public void Map_editors_catalog_keeps_exact_entry_metadata_order()
+    {
+        var category = Assert.Single(EditorCatalog.Categories.Where(g => g.Key == "Map Editors"));
+        var actual = category
+            .Select(e => (e.Key, e.Label, View: Assert.Single(e.Views).Name))
+            .ToArray();
+        var expected = new (string Key, string Label, string View)[]
+        {
+            ("MapEditor", "Map Editor", "MapEditorView"),
+            ("MapSettingFE6", "Map Settings (FE6)", "MapSettingFE6View"),
+            ("MapSettingFE7", "Map Settings (FE7)", "MapSettingFE7View"),
+            ("MapSettingFE7U", "Map Settings (FE7U)", "MapSettingFE7UView"),
+            ("MapSettingDifficulty", "Difficulty", "MapSettingDifficultyView"),
+            ("MapStyleEditor", "Style Editor", "MapStyleEditorView"),
+            ("MapTerrainBGLookupTable", "Terrain BG", "MapTerrainBGLookupTableView"),
+            ("MapTerrainFloorLookupTable", "Terrain Floor", "MapTerrainFloorLookupTableView"),
+            ("MapMiniMapTerrainImage", "Mini Map", "MapMiniMapTerrainImageView"),
+            ("MapTileAnimation1", "Tile Anim 1", "MapTileAnimation1View"),
+            ("MapTileAnimation2", "Tile Anim 2", "MapTileAnimation2View"),
+            ("MapLoadFunction", "Load Function", "MapLoadFunctionView"),
+            ("MapTerrainNameEng", "Terrain Eng", "MapTerrainNameEngView"),
+        };
+
+        Assert.Equal(expected, actual);
+    }
+
+    [Fact]
     public void Every_entry_has_open_action_and_at_least_one_view()
     {
         foreach (var e in EditorCatalog.AllEntries)

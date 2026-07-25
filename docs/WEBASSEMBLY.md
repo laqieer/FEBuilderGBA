@@ -81,6 +81,8 @@ dispatch, and gates entries to the loaded ROM version exactly as the desktop doe
 catalog editor is asserted to be `IEmbeddableEditor` (so a `Window`-derived editor can never slip in
 and throw on the single-view host). The 6 `EventTemplate` editors stay desktop-only (they derive from
 `TranslatedWindow`).
+The shared order keeps the dedicated **Map Editors** category immediately above **Maps** (#2009),
+matching the desktop launcher without changing any entry, command, or version gate.
 
 ## 3. Rendering (SkiaSharp + HarfBuzz native relink)
 
