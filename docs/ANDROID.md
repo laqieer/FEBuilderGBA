@@ -95,6 +95,8 @@ the `INavigationService` abstraction (#1122):
   need routing through `TopLevel.GetTopLevel(content)` — a device-validatable
   follow-up. The `MainView` ships an editor-launcher root + the nav host so
   the editor launcher is reachable.
+  Its shared catalog order places **Map Editors** immediately above **Maps** (#2009),
+  matching desktop while preserving every entry and version gate.
 
 > ✅ **Embeddable-editor path (#1873, slice 1).** Real single-view backends still cannot construct
 > legacy editor `Window`s, so converted editors are `TranslatedUserControl` + `IEmbeddableEditor`.

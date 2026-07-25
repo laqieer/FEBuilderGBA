@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 using FEBuilderGBA.Avalonia.Services;
 using Xunit;
 
@@ -30,6 +31,23 @@ public class EditorCatalogParityTests
     static readonly HashSet<string> NonEditorHandlers = new(StringComparer.Ordinal)
     {
         "Lint_Click",
+    };
+
+    static readonly (string Name, string AutomationId, string Content, string Click)[] ExpectedMapEditorButtons =
+    {
+        ("MapEditorButton", "Main_MapEditor_Button", "Map Editor", "OpenMapEditor_Click"),
+        ("MapSettingsFE6Button", "Main_MapSettingsFE6_Button", "Map Settings (FE6)", "OpenMapSettingFE6_Click"),
+        ("MapSettingsFE7Button", "Main_MapSettingsFE7_Button", "Map Settings (FE7)", "OpenMapSettingFE7_Click"),
+        ("MapSettingsFE7UButton", "Main_MapSettingsFE7U_Button", "Map Settings (FE7U)", "OpenMapSettingFE7U_Click"),
+        ("DifficultyButton", "Main_Difficulty_Button", "Difficulty", "OpenMapSettingDifficulty_Click"),
+        ("StyleEditorButton", "Main_StyleEditor_Button", "Style Editor", "OpenMapStyleEditor_Click"),
+        ("TerrainBGButton", "Main_TerrainBG_Button", "Terrain BG", "OpenMapTerrainBGLookup_Click"),
+        ("TerrainFloorButton", "Main_TerrainFloor_Button", "Terrain Floor", "OpenMapTerrainFloorLookup_Click"),
+        ("MiniMapButton", "Main_MiniMap_Button", "Mini Map", "OpenMapMiniMapTerrainImage_Click"),
+        ("TileAnim1Button", "Main_TileAnim1_Button", "Tile Anim 1", "OpenMapTileAnimation1_Click"),
+        ("TileAnim2Button", "Main_TileAnim2_Button", "Tile Anim 2", "OpenMapTileAnimation2_Click"),
+        ("LoadFunctionButton", "Main_LoadFunction_Button", "Load Function", "OpenMapLoadFunction_Click"),
+        ("TerrainEngButton", "Main_TerrainEng_Button", "Terrain Eng", "OpenMapTerrainNameEng_Click"),
     };
 
     [Fact]
@@ -109,6 +127,53 @@ public class EditorCatalogParityTests
         foreach (var excluded in ExcludedDesktopEditors)
             Assert.True(allDesktopTypes.Contains(excluded),
                 $"{excluded} is listed as an exclusion but is not a desktop body editor — remove the stale exclusion.");
+    }
+
+    [Fact]
+    public void Desktop_and_single_view_category_order_match_WithMapEditorsImmediatelyBeforeMaps()
+    {
+        XElement editorPanel = LoadDesktopEditorPanel();
+        XNamespace ns = editorPanel.Name.Namespace;
+        var desktopCategories = editorPanel.Elements(ns + "Expander")
+            .Select(e => (string?)e.Attribute("Header"))
+            .ToList();
+        var catalogCategories = EditorCatalog.Categories.Select(g => g.Key).ToList();
+
+        Assert.DoesNotContain(desktopCategories, string.IsNullOrWhiteSpace);
+        Assert.Equal(catalogCategories, desktopCategories);
+        Assert.Single(desktopCategories, c => c == "Map Editors");
+        Assert.Single(desktopCategories, c => c == "Maps");
+
+        int mapEditorsIndex = desktopCategories.IndexOf("Map Editors");
+        int mapsIndex = desktopCategories.IndexOf("Maps");
+        Assert.Equal(mapsIndex - 1, mapEditorsIndex);
+    }
+
+    [Fact]
+    public void Desktop_map_editors_block_keeps_exact_button_metadata_order()
+    {
+        XElement editorPanel = LoadDesktopEditorPanel();
+        XNamespace ns = editorPanel.Name.Namespace;
+        XElement mapEditors = editorPanel.Elements(ns + "Expander")
+            .Single(e => (string?)e.Attribute("Name") == "MapEditorsExpander");
+        var actual = mapEditors.Descendants(ns + "Button")
+            .Select(button => (
+                Name: (string?)button.Attribute("Name") ?? "",
+                AutomationId: (string?)button.Attribute("AutomationProperties.AutomationId") ?? "",
+                Content: (string?)button.Attribute("Content") ?? "",
+                Click: (string?)button.Attribute("Click") ?? ""))
+            .ToArray();
+
+        Assert.Equal(ExpectedMapEditorButtons, actual);
+    }
+
+    static XElement LoadDesktopEditorPanel()
+    {
+        string axaml = ReadRepoFile(Path.Combine("FEBuilderGBA.Avalonia", "Views", "MainWindow.axaml"));
+        XDocument document = XDocument.Parse(axaml);
+        XNamespace ns = document.Root!.Name.Namespace;
+        return document.Descendants(ns + "StackPanel")
+            .Single(e => (string?)e.Attribute("Name") == "EditorPanel");
     }
 
     /// <summary>Extract a C# method body (block- or expression-bodied) by name from source text.</summary>

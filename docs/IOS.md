@@ -27,6 +27,8 @@ Avalonia's iOS target uses the **single-view** application lifetime
 `singleView.MainView = new Views.MainView()`, and `MainView` installs the single-view
 `INavigationService` (page/view-stack host with a back stack) itself. **No `App` change was
 needed for iOS** — it presents the same editor-launcher shell as Android.
+That shared catalog places **Map Editors** immediately above **Maps** (#2009), matching
+the desktop order without changing any editor entry or version gate.
 
 `FEBuilderGBA.iOS/AppDelegate.cs` (`: AvaloniaAppDelegate<App>`) is the iOS equivalent of the
 Android `MainActivity` / the desktop `Program.Main`.
