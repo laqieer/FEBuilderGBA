@@ -494,9 +494,16 @@ namespace FEBuilderGBA
                 return oldAddr;
             }
 
-            uint newAddr = FindAndWriteData(rom, compressed);
+            // Relocation must never reuse an ambiguous mid-ROM 0x00/0xFF fill run
+            // (generic FindAndWriteData's search), because such a run can be a
+            // live pointer-referenced blob (e.g. an all-zero tile/data block)
+            // rather than genuinely free space. Instead, allocate by appending at
+            // the aligned ROM end, which is unambiguous. Fail before any mutation
+            // (pointer, payload, or old blob) when the append cannot fit.
+            uint newAddr = AppendToRomEnd(rom, newSize);
             if (newAddr == U.NOT_FOUND) return U.NOT_FOUND;
 
+            WriteBytes(rom, newAddr, compressed);
             rom.write_p32(pointerEntryAddr, newAddr);
             if (oldSize > 0 && !isShared)
                 rom.write_fill(oldAddr, oldSize, 0x00);
