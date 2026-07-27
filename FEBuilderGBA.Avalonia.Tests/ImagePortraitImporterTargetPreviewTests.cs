@@ -212,6 +212,31 @@ namespace FEBuilderGBA.Avalonia.Tests
             return buf;
         }
 
+        static byte[] ReadImageRgba(IImage image)
+        {
+            byte[] pixels = image.GetPixelData();
+            if (!image.IsIndexed) return pixels;
+
+            byte[] palette = image.GetPaletteRGBA();
+            byte[] rgba = new byte[pixels.Length * 4];
+            for (int i = 0; i < pixels.Length; i++)
+            {
+                int paletteOffset = pixels[i] * 4;
+                if (paletteOffset + 3 >= palette.Length) continue;
+                Buffer.BlockCopy(palette, paletteOffset, rgba, i * 4, 4);
+            }
+            return rgba;
+        }
+
+        static void AssertBitmapDisposed(Bitmap bitmap)
+        {
+            Assert.ThrowsAny<Exception>(() =>
+            {
+                using var stream = new MemoryStream();
+                bitmap.Save(stream);
+            });
+        }
+
         static byte[] FirstOpaquePixel(WriteableBitmap bmp)
         {
             byte[] pixels = ReadPixels(bmp);
@@ -633,7 +658,9 @@ namespace FEBuilderGBA.Avalonia.Tests
             using (UseImportState())
             {
                 var view = new ImagePortraitImporterView();
-                string tmpPng = WriteSynthSourcePng(0, 220, 0, 96, 80);
+                // A full 128x112 sheet rewrites D4 as well as D0/D8, so the
+                // post-import list thumbnail remains mini-renderable.
+                string tmpPng = WriteSynthSourcePng(0, 220, 0, 128, 112);
                 try
                 {
                     view.Show();
@@ -644,7 +671,10 @@ namespace FEBuilderGBA.Avalonia.Tests
                     Dispatcher.UIThread.RunJobs();
                     Assert.Equal(EntryAddr(1), list.SelectedItem!.addr);
                     Assert.Single(GetDisplayItems(list));
-                    Assert.NotNull(GetDisplayItems(list)[0].Icon);
+                    var iconBefore = Assert.IsType<Bitmap>(GetDisplayItems(list)[0].Icon);
+                    using IImage thumbnailBefore = PreviewIconHelper.LoadPortraitMini(1);
+                    Assert.NotNull(thumbnailBefore);
+                    byte[] thumbnailPixelsBefore = ReadImageRgba(thumbnailBefore);
 
                     InvokeLoadImageFromPath(view, tmpPng);
                     var sourceBefore = GetSourceImageDisplay(view).Source;
@@ -661,7 +691,12 @@ namespace FEBuilderGBA.Avalonia.Tests
                     Assert.Equal("0x01", searchBox!.Text);
                     Assert.Equal(1, listBox!.ItemCount);
                     Assert.Equal(EntryAddr(1), list.SelectedItem!.addr);
-                    Assert.Null(GetDisplayItems(list).Single().Icon);
+                    var iconAfter = Assert.IsType<Bitmap>(GetDisplayItems(list).Single().Icon);
+                    Assert.NotSame(iconBefore, iconAfter);
+                    using IImage thumbnailAfter = PreviewIconHelper.LoadPortraitMini(1);
+                    Assert.NotNull(thumbnailAfter);
+                    Assert.NotEqual(thumbnailPixelsBefore, ReadImageRgba(thumbnailAfter));
+                    AssertBitmapDisposed(iconBefore);
                     Assert.NotEqual(sheetBefore, rom.p32(EntryAddr(1)));
                     var targetAfter = Assert.IsType<WriteableBitmap>(target.Source);
                     Assert.Equal(96, targetAfter.PixelSize.Width);

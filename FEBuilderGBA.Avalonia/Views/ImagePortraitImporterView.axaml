@@ -55,7 +55,8 @@
             <Grid ColumnDefinitions="Auto,16,Auto">
               <StackPanel Grid.Column="0" Spacing="6">
                 <TextBlock AutomationProperties.AutomationId="ImagePortraitImporter_Preview_SourceHeading_Label"
-                           Text="NEW SOURCE" FontWeight="SemiBold" FontSize="11" Foreground="DarkCyan" />
+                           Text="NEW SOURCE" FontWeight="SemiBold" FontSize="11"
+                           Foreground="{DynamicResource SectionHeadingBrush}" />
                 <TextBlock AutomationProperties.AutomationId="ImagePortraitImporter_Preview_SourceNote_Label"
                            TextWrapping="Wrap" Foreground="{DynamicResource InfoBannerTextBrush}" FontSize="11" FontWeight="SemiBold" MaxWidth="260"
                            Text="SOURCE preview — this is always the picked PNG/BMP file, quantized. It stays fixed until you pick another file with Step 1; selecting a row in the list on the left only chooses the Import target (Step 3) and never changes this image." />
@@ -66,7 +67,8 @@
               </StackPanel>
               <StackPanel Grid.Column="2" Spacing="6">
                 <TextBlock AutomationProperties.AutomationId="ImagePortraitImporter_TargetPreview_Heading_Label"
-                           Text="CURRENT ROM TARGET" FontWeight="SemiBold" FontSize="11" Foreground="Firebrick" />
+                           Text="CURRENT ROM TARGET" FontWeight="SemiBold" FontSize="11"
+                           Foreground="{DynamicResource SectionHeadingBrush}" />
                 <TextBlock AutomationProperties.AutomationId="ImagePortraitImporter_TargetPreview_Note_Label"
                            TextWrapping="Wrap" Foreground="{DynamicResource InfoBannerTextBrush}" FontSize="11" FontWeight="SemiBold" MaxWidth="260"
                            Text="TARGET preview — the portrait CURRENTLY stored in the selected slot, read live from the ROM. It updates whenever you change the selection on the left, and again right after a successful Import; it stays independent of the staged SOURCE file beside it." />
