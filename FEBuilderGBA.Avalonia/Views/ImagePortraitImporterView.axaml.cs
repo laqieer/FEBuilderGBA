@@ -94,7 +94,14 @@ namespace FEBuilderGBA.Avalonia.Views
         public ImagePortraitImporterView()
         {
             InitializeComponent();
-            EntryList.SelectedAddressChanged += OnSelected;
+            // #2016: subscribe to the nullable SelectedItemChanged event
+            // (instead of SelectedAddressChanged) so the CURRENT ROM TARGET
+            // preview is driven from a single subscription that also sees
+            // deselect/filter/refresh outcomes (a bare address-only event
+            // cannot represent "no selection"). Consumed exactly once per
+            // list — do NOT also subscribe SelectedAddressChanged, or the
+            // target preview / detail panel would double-load per change.
+            EntryList.SelectedItemChanged += OnSelectedItemChanged;
 
             // #664: enable drag-and-drop for image files. Mirrors the
             // pattern from ImagePortraitView (ctor lines 43-45).
@@ -169,17 +176,91 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void OnSelected(uint addr)
+        void OnSelectedItemChanged(AddrResult item)
         {
+            // #2016: item is nullable — AddressListControl also reports a
+            // final null outcome for deselection or a filter that excludes
+            // the selected row. This handler only updates target-side state;
+            // the staged NEW SOURCE remains untouched.
             try
             {
+                uint addr = item?.addr ?? 0;
                 _vm.LoadEntry(addr);
                 UpdateUI();
+                RefreshTargetPreview(item);
                 RefreshImportButtonState();
             }
             catch (Exception ex)
             {
-                Log.ErrorF("ImagePortraitImporterView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("ImagePortraitImporterView.OnSelectedItemChanged failed: {0}", ex.Message);
+            }
+        }
+
+        // #2016: render the CURRENT ROM TARGET preview (the slot's existing
+        // portrait as it stands in the ROM right now) side-by-side with the
+        // NEW SOURCE preview (the staged file about to be imported). Always
+        // clears the stale target FIRST so a deselect/filter/invalid outcome
+        // (or any exception below) never leaves a stale portrait on screen
+        // that no longer corresponds to the current selection.
+        void RefreshTargetPreview(AddrResult item)
+        {
+            TargetPreviewImage.SetImage(null);
+            if (item == null) return;
+
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom == null) return;
+
+                // Resolve by the list row's own tag/id, falling back to its
+                // label only when tag == 0. The row identity remains valid
+                // when the list is filtered or reordered.
+                uint portraitId = ListIconLoaders.ResolvePortraitId(item);
+
+                // Preferred: full per-frame render (matches what the Portrait
+                // editor itself shows for this slot).
+                using (var full = PortraitRendererCore.DrawPortraitAutoById(portraitId))
+                {
+                    if (full != null)
+                    {
+                        TargetPreviewImage.SetImage(full);
+                        return;
+                    }
+                }
+
+                // Fallback: 32x32 mini face — also the ONLY renderable result
+                // for portraitId == 0 (DrawPortraitAutoById always returns
+                // null for id 0 by design), so slot 0 still shows something.
+                using (var mini = PreviewIconHelper.LoadPortraitMini(portraitId))
+                {
+                    if (mini != null)
+                        TargetPreviewImage.SetImage(mini);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorF("ImagePortraitImporterView.RefreshTargetPreview failed: {0}", ex.Message);
+            }
+        }
+
+        // #2016: after a successful Import, the just-written slot's list
+        // thumbnail AND the CURRENT ROM TARGET preview must reflect the NEW
+        // ROM bytes immediately — showing the stale pre-import icon/preview
+        // would look like the write silently failed. Reload the full icon
+        // list via the icon-preserving variant so the row's thumbnail
+        // refreshes WITHOUT losing the user's current selection (which in
+        // turn re-fires OnSelectedItemChanged for the same address, updating
+        // the target preview too).
+        void RefreshEntryListPreservingSelection(uint preserveAddr)
+        {
+            try
+            {
+                var items = _vm.LoadList();
+                EntryList.SetItemsWithIconsPreserveSelection(items, i => ListIconLoaders.PortraitLoader(items, i), preserveAddr);
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorF("ImagePortraitImporterView.RefreshEntryListPreservingSelection failed: {0}", ex.Message);
             }
         }
 
@@ -578,6 +659,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 StatusLabel.Text = $"Imported into 0x{addr:X08}";
                 StatusLabel.Foreground = global::Avalonia.Media.Brushes.DarkGreen;
                 CoreState.Services.ShowInfo("Portrait imported successfully.");
+
+                // #2016: refresh AFTER the success guard only — a failed
+                // import must never touch the list/target preview, since
+                // nothing on the ROM actually changed.
+                RefreshEntryListPreservingSelection(addr);
             }
             catch (Exception ex)
             {

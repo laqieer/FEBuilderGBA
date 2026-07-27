@@ -147,6 +147,56 @@ public class AddressListControlTests
     }
 
     // ---------------------------------------------------------------
+    // 2b. SetItemsWithIconsPreserveSelection (#2016) — icon-loader
+    // equivalent of SetItemsPreserveSelection, used by the Portrait Import
+    // Wizard's post-Import list refresh so a just-written slot's thumbnail
+    // updates WITHOUT losing the current selection.
+    // ---------------------------------------------------------------
+
+    [AvaloniaFact]
+    public void SetItemsWithIconsPreserveSelection_PopulatesListAndUsesIconLoader()
+    {
+        var control = new AddressListControl();
+        var items = MakeItems(4);
+        int iconLoaderCalls = 0;
+        control.SetItemsWithIconsPreserveSelection(items, _ => { iconLoaderCalls++; return null; }, items[2].addr);
+
+        var listBox = control.FindControl<ListBox>("AddressList");
+        Assert.NotNull(listBox);
+        Assert.Equal(4, listBox!.ItemCount);
+        Assert.True(iconLoaderCalls > 0, "icon loader should be invoked for the reloaded items");
+    }
+
+    [AvaloniaFact]
+    public void SetItemsWithIconsPreserveSelection_KeepsMatchingAddressSelected()
+    {
+        var control = new AddressListControl();
+        var items = MakeItems(5);
+        control.SetItems(items);
+        control.SelectAddress(items[3].addr);
+        Assert.Equal(items[3].addr, control.SelectedItem!.addr);
+
+        // Reload with a NEW list instance (simulates a post-Import re-read of
+        // the ROM) — the row at the SAME address must remain selected.
+        var reloaded = MakeItems(5);
+        control.SetItemsWithIconsPreserveSelection(reloaded, _ => null, items[3].addr);
+
+        Assert.NotNull(control.SelectedItem);
+        Assert.Equal(reloaded[3].addr, control.SelectedItem!.addr);
+    }
+
+    [AvaloniaFact]
+    public void SetItemsWithIconsPreserveSelection_AddressNotFound_FallsBackToFirst()
+    {
+        var control = new AddressListControl();
+        var items = MakeItems(3);
+        control.SetItemsWithIconsPreserveSelection(items, _ => null, 0xDEADBEEF);
+
+        Assert.NotNull(control.SelectedItem);
+        Assert.Equal(items[0].addr, control.SelectedItem!.addr);
+    }
+
+    // ---------------------------------------------------------------
     // 3. SelectedAddressChanged event fires on selection
     // ---------------------------------------------------------------
 
@@ -186,6 +236,127 @@ public class AddressListControlTests
         Assert.Equal(2, firedAddresses.Count);
         Assert.Equal(items[1].addr, firedAddresses[0]);
         Assert.Equal(items[3].addr, firedAddresses[1]);
+    }
+
+    // ---------------------------------------------------------------
+    // 3b. SelectedItemChanged (#2016) — additive nullable event that
+    // preserves SelectedAddressChanged's existing non-null behaviour above,
+    // while also covering final select/deselect/filter/refresh outcomes.
+    // ---------------------------------------------------------------
+
+    [AvaloniaFact]
+    public void SelectedItemChanged_FiresWithSelectedAddrResult()
+    {
+        var control = new AddressListControl();
+        var items = MakeItems(5);
+        control.SetItems(items);
+
+        AddrResult firedItem = null;
+        control.SelectedItemChanged += item => firedItem = item;
+
+        var listBox = control.FindControl<ListBox>("AddressList");
+        Assert.NotNull(listBox);
+        listBox!.SelectedIndex = 2;
+
+        Assert.NotNull(firedItem);
+        Assert.Equal(items[2].addr, firedItem.addr);
+    }
+
+    [AvaloniaFact]
+    public void SelectedItemChanged_FiresWithNull_OnDeselect()
+    {
+        var control = new AddressListControl();
+        var items = MakeItems(3);
+        control.SetItems(items);
+
+        var fired = new List<AddrResult>();
+        control.SelectedItemChanged += item => fired.Add(item);
+
+        control.Deselect();
+
+        Assert.Single(fired);
+        Assert.Null(fired[0]);
+    }
+
+    [AvaloniaFact]
+    public void SelectedItemChanged_DoesNotBreak_SelectedAddressChanged()
+    {
+        // #2016: SelectedItemChanged is additive — SelectedAddressChanged
+        // must keep firing exactly as before (non-null only) alongside it.
+        var control = new AddressListControl();
+        var items = MakeItems(4);
+        control.SetItems(items);
+
+        uint? addrFired = null;
+        AddrResult itemFired = null;
+        control.SelectedAddressChanged += addr => addrFired = addr;
+        control.SelectedItemChanged += item => itemFired = item;
+
+        var listBox = control.FindControl<ListBox>("AddressList");
+        listBox!.SelectedIndex = 1;
+
+        Assert.Equal(items[1].addr, addrFired);
+        Assert.NotNull(itemFired);
+        Assert.Equal(items[1].addr, itemFired.addr);
+    }
+
+    [AvaloniaFact]
+    public void SelectedItemChanged_FiresOnFilterExcludingSelection()
+    {
+        // A search filter that excludes the currently selected row is a
+        // "refresh" outcome the native ListBox SelectionChanged never
+        // covers on its own (RefreshDisplay's own transient-null notify
+        // handles it) — this is the "filter" case the #2016 plan calls out.
+        var control = new AddressListControl();
+        var items = MakeItems(3, prefix: "Alpha");
+        control.SetItems(items);
+        control.SelectAddress(items[1].addr);
+
+        var fired = new List<AddrResult>();
+        control.SelectedItemChanged += item => fired.Add(item);
+
+        control.ApplySearchFilter("no such row zzz");
+
+        Assert.Contains(fired, f => f == null);
+        Assert.Null(control.SelectedItem);
+    }
+
+    [AvaloniaFact]
+    public void SetItemsWithIconsPreserveSelection_FiresSelectedItemChanged_WithPreservedItem()
+    {
+        var control = new AddressListControl();
+        var items = MakeItems(4);
+        control.SetItems(items);
+        control.SelectAddress(items[2].addr);
+
+        var fired = new List<AddrResult>();
+        control.SelectedItemChanged += item => fired.Add(item);
+
+        var reloaded = MakeItems(4);
+        control.SetItemsWithIconsPreserveSelection(reloaded, _ => null, items[2].addr);
+
+        Assert.Single(fired);
+        Assert.NotNull(fired[0]);
+        Assert.Equal(reloaded[2].addr, fired[0].addr);
+    }
+
+    [AvaloniaFact]
+    public void SetItemsWithIconsPreserveSelection_KeepsActiveFilterAndVisibleSelection()
+    {
+        var control = new AddressListControl();
+        var items = MakeItems(5, prefix: "Alpha");
+        control.SetItems(items);
+        control.ApplySearchFilter("Alpha 2");
+        Assert.True(control.SelectAddress(items[2].addr));
+
+        var reloaded = MakeItems(5, prefix: "Alpha");
+        control.SetItemsWithIconsPreserveSelection(reloaded, _ => null, items[2].addr);
+
+        var searchBox = control.FindControl<TextBox>("SearchBox");
+        var listBox = control.FindControl<ListBox>("AddressList");
+        Assert.Equal("Alpha 2", searchBox!.Text);
+        Assert.Equal(1, listBox!.ItemCount);
+        Assert.Equal(reloaded[2].addr, control.SelectedItem!.addr);
     }
 
     [AvaloniaFact]

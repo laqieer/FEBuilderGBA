@@ -29,6 +29,7 @@ namespace FEBuilderGBA.Avalonia.Controls
         // When no filter is active, _filteredIndices[i] == i.
         List<int> _filteredIndices = new();
         bool _isRefreshing;
+        bool _isResolvingReload;
         // Optional icon loader function: given an item index, returns a Bitmap or null.
         Func<int, Bitmap?>? _iconLoader;
 
@@ -44,6 +45,18 @@ namespace FEBuilderGBA.Avalonia.Controls
 
         /// <summary>Fired when the selected address changes.</summary>
         public event Action<uint>? SelectedAddressChanged;
+
+        /// <summary>
+        /// Fired whenever the resolved <see cref="SelectedItem"/> outcome
+        /// changes — selection, deselection (<c>null</c>), a filter that
+        /// implicitly loses the previous selection, or a
+        /// SetItems*/RefreshDisplay reload. Unlike <see cref="SelectedAddressChanged"/>
+        /// (address-only, and never invoked when there is no selection) this
+        /// ALSO fires with a <c>null</c> payload whenever the final selection
+        /// is lost. Reload operations emit only their resolved outcome, after
+        /// any first-row or preserved-address selection has been applied.
+        /// </summary>
+        public event Action<AddrResult?>? SelectedItemChanged;
 
         /// <summary>Fired when user requests a hex editor for the selected address.</summary>
         public event Action<uint>? HexEditorRequested;
@@ -66,8 +79,16 @@ namespace FEBuilderGBA.Avalonia.Controls
         {
             _items = items ?? new List<AddrResult>();
             _iconLoader = null;
-            RefreshDisplay();
-            SelectFirst();
+            _isResolvingReload = true;
+            try
+            {
+                RefreshDisplay();
+                SelectFirst();
+            }
+            finally
+            {
+                CompleteResolvedReload(raiseAddressChanged: true);
+            }
         }
 
         /// <summary>
@@ -81,26 +102,69 @@ namespace FEBuilderGBA.Avalonia.Controls
         {
             _items = items ?? new List<AddrResult>();
             _iconLoader = null;
-            RefreshDisplay();
-            // Clear before attempting to select so the fallback path can
-            // reliably detect "preserveAddress not found" by checking
-            // SelectedIndex == -1 after the SelectAddress call.
-            AddressList.SelectedIndex = -1;
-            if (preserveAddress != 0)
-                SelectAddress(preserveAddress);
-            if (AddressList.SelectedIndex < 0)
-                SelectFirst();
+            _isResolvingReload = true;
+            try
+            {
+                RefreshDisplay();
+                SelectPreservedOrFirst(preserveAddress);
+            }
+            finally
+            {
+                CompleteResolvedReload(raiseAddressChanged: true);
+            }
         }
 
         /// <summary>Load address list with icon thumbnails for each item.</summary>
         /// <param name="items">The address list items.</param>
-        /// <param name="iconLoader">Function that takes an item index and returns a Bitmap thumbnail, or null.</param>
+        /// <param name="iconLoader">
+        /// Function that takes an item index and returns a newly owned Bitmap
+        /// thumbnail, or null. The control disposes returned bitmaps when the
+        /// displayed list is replaced.
+        /// </param>
         public void SetItemsWithIcons(List<AddrResult> items, Func<int, Bitmap?> iconLoader)
         {
             _items = items ?? new List<AddrResult>();
             _iconLoader = iconLoader;
-            RefreshDisplay();
-            SelectFirst();
+            _isResolvingReload = true;
+            try
+            {
+                RefreshDisplay();
+                SelectFirst();
+            }
+            finally
+            {
+                CompleteResolvedReload(raiseAddressChanged: true);
+            }
+        }
+
+        /// <summary>
+        /// Load address list WITH icon thumbnails and re-select the row
+        /// matching <paramref name="preserveAddress"/>, falling back to
+        /// <see cref="SelectFirst"/> when no row matches. Icon-loader
+        /// equivalent of <see cref="SetItemsPreserveSelection"/> — for hosts
+        /// (e.g. the Portrait Import Wizard's EntryList) that need per-row
+        /// icon thumbnails to refresh (a just-written slot's thumbnail must
+        /// reflect the new ROM bytes) AND the current selection to survive
+        /// that reload (issue #2016).
+        /// </summary>
+        /// <param name="iconLoader">
+        /// Function that returns a newly owned Bitmap per item; the control
+        /// disposes prior thumbnails when this list is refreshed.
+        /// </param>
+        public void SetItemsWithIconsPreserveSelection(List<AddrResult> items, Func<int, Bitmap?> iconLoader, uint preserveAddress)
+        {
+            _items = items ?? new List<AddrResult>();
+            _iconLoader = iconLoader;
+            _isResolvingReload = true;
+            try
+            {
+                RefreshDisplay();
+                SelectPreservedOrFirst(preserveAddress);
+            }
+            finally
+            {
+                CompleteResolvedReload(raiseAddressChanged: true);
+            }
         }
 
         /// <summary>Total number of items loaded into the list (regardless of filter state).</summary>
@@ -250,11 +314,38 @@ namespace FEBuilderGBA.Avalonia.Controls
             PickHint.IsVisible = true;
         }
 
+        string? CurrentFilter()
+        {
+            string? filter = SearchBox.Text;
+            return string.IsNullOrWhiteSpace(filter) ? null : filter;
+        }
+
+        void SelectPreservedOrFirst(uint preserveAddress)
+        {
+            AddressList.SelectedIndex = -1;
+            if (preserveAddress != 0)
+                SelectAddress(preserveAddress);
+            if (AddressList.SelectedIndex < 0)
+                SelectFirst();
+        }
+
+        void CompleteResolvedReload(bool raiseAddressChanged)
+        {
+            _isResolvingReload = false;
+            var selected = SelectedItem;
+            if (raiseAddressChanged && selected != null)
+                SelectedAddressChanged?.Invoke(selected.addr);
+            SelectedItemChanged?.Invoke(selected);
+        }
+
         void RefreshDisplay(string? filter = null)
         {
+            filter ??= CurrentFilter();
             _isRefreshing = true;
             try
             {
+                foreach (AddressListItem item in _displayItems)
+                    item.Icon?.Dispose();
                 _displayItems.Clear();
                 _filteredIndices.Clear();
                 for (int i = 0; i < _items.Count; i++)
@@ -276,14 +367,19 @@ namespace FEBuilderGBA.Avalonia.Controls
             {
                 _isRefreshing = false;
             }
+
+            if (!_isResolvingReload)
+                SelectedItemChanged?.Invoke(SelectedItem);
         }
 
         void AddressList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
         {
             if (_isRefreshing) return;
+            if (_isResolvingReload) return;
             var item = SelectedItem;
             if (item != null)
                 SelectedAddressChanged?.Invoke(item.addr);
+            SelectedItemChanged?.Invoke(item);
         }
 
         void AddressList_DoubleTapped(object? sender, TappedEventArgs e)
@@ -471,11 +567,19 @@ namespace FEBuilderGBA.Avalonia.Controls
         /// </summary>
         internal void ApplySearchFilter()
         {
-            string? filter = SearchBox.Text;
-            if (string.IsNullOrWhiteSpace(filter))
-                RefreshDisplay();
-            else
-                RefreshDisplay(filter);
+            uint? selectedAddress = SelectedItem?.addr;
+            _isResolvingReload = true;
+            try
+            {
+                RefreshDisplay(CurrentFilter());
+                AddressList.SelectedIndex = -1;
+                if (selectedAddress.HasValue)
+                    SelectAddress(selectedAddress.Value);
+            }
+            finally
+            {
+                CompleteResolvedReload(raiseAddressChanged: false);
+            }
         }
 
         async void CopyAddress_Click(object? sender, RoutedEventArgs e)

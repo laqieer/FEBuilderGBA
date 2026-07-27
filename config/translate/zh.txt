@@ -23870,8 +23870,17 @@ FE-Repo...
 :2. Quantized preview
 2. 减色预览
 
+:NEW SOURCE
+新源图
+
 :SOURCE preview — this is always the picked PNG/BMP file, quantized. It stays fixed until you pick another file with Step 1; selecting a row in the list on the left only chooses the Import target (Step 3) and never changes this image.
 源图预览 —— 这里始终显示所选 PNG/BMP 文件的减色结果。在步骤 1 选择其他文件之前它不会改变；在左侧列表选择一行只会指定导入目标（步骤 3），不会改变此图像。
+
+:CURRENT ROM TARGET
+当前 ROM 目标
+
+:TARGET preview — the portrait CURRENTLY stored in the selected slot, read live from the ROM. It updates whenever you change the selection on the left, and again right after a successful Import; it never shows the staged SOURCE file above.
+目标预览 —— 实时从 ROM 中读取所选槽位当前存储的头像。每当在左侧更改选择时都会更新，Import 成功后也会再次更新；它不会显示上方暂存的源图文件。
 
 :3. Target portrait slot (select on the left list)
 3. 目标肖像槽（在左侧列表中选择）
@@ -23950,6 +23959,9 @@ FE6 不支持按地图调整难度。FE6 的地图设定结构体没有本编辑
 
 :Per-frame preview (96x80)
 逐帧预览 (96x80)
+
+:Per-frame preview (96x80, SOURCE only)
+逐帧预览 (96x80，仅源图)
 
 :Live composite of the selected frame's eye/mouth crop onto the face. Auto-quantized source only — Share/Custom palette and Fuchidori are not reflected here (they change only the final import).
 将所选帧的眼部/口部裁剪实时合成到脸上的预览。仅显示自动减色后的源图 —— 共享/自定义调色板与描边不会在此反映（它们只影响最终导入）。

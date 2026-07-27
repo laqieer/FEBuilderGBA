@@ -45,17 +45,37 @@
         </Border>
 
         <!-- Step 2: Preview (#1981 — make explicit that this pane always
-             shows the SOURCE file, not whatever row is selected below). -->
+             shows the SOURCE file, not whatever row is selected below).
+             #2016: side-by-side with a CURRENT ROM TARGET preview so the
+             user can compare what is about to be imported against what the
+             selected slot already holds BEFORE clicking Import. -->
         <Border BorderBrush="Gray" BorderThickness="0,0,0,1" Padding="0,4" Margin="0,0,0,4">
           <StackPanel Spacing="6">
             <TextBlock Text="2. Quantized preview" FontWeight="SemiBold" />
-            <TextBlock AutomationProperties.AutomationId="ImagePortraitImporter_Preview_SourceNote_Label"
-                       TextWrapping="Wrap" Foreground="{DynamicResource InfoBannerTextBrush}" FontSize="11" FontWeight="SemiBold"
-                       Text="SOURCE preview — this is always the picked PNG/BMP file, quantized. It stays fixed until you pick another file with Step 1; selecting a row in the list on the left only chooses the Import target (Step 3) and never changes this image." />
-            <Border BorderBrush="DarkCyan" BorderThickness="2" Padding="2" HorizontalAlignment="Left">
-              <controls:GbaImageControl AutomationProperties.AutomationId="ImagePortraitImporter_Preview_Image"
-                                        Name="PreviewImage" />
-            </Border>
+            <Grid ColumnDefinitions="Auto,16,Auto">
+              <StackPanel Grid.Column="0" Spacing="6">
+                <TextBlock AutomationProperties.AutomationId="ImagePortraitImporter_Preview_SourceHeading_Label"
+                           Text="NEW SOURCE" FontWeight="SemiBold" FontSize="11" Foreground="DarkCyan" />
+                <TextBlock AutomationProperties.AutomationId="ImagePortraitImporter_Preview_SourceNote_Label"
+                           TextWrapping="Wrap" Foreground="{DynamicResource InfoBannerTextBrush}" FontSize="11" FontWeight="SemiBold" MaxWidth="260"
+                           Text="SOURCE preview — this is always the picked PNG/BMP file, quantized. It stays fixed until you pick another file with Step 1; selecting a row in the list on the left only chooses the Import target (Step 3) and never changes this image." />
+                <Border BorderBrush="DarkCyan" BorderThickness="2" Padding="2" HorizontalAlignment="Left">
+                  <controls:GbaImageControl AutomationProperties.AutomationId="ImagePortraitImporter_Preview_Image"
+                                            Name="PreviewImage" />
+                </Border>
+              </StackPanel>
+              <StackPanel Grid.Column="2" Spacing="6">
+                <TextBlock AutomationProperties.AutomationId="ImagePortraitImporter_TargetPreview_Heading_Label"
+                           Text="CURRENT ROM TARGET" FontWeight="SemiBold" FontSize="11" Foreground="Firebrick" />
+                <TextBlock AutomationProperties.AutomationId="ImagePortraitImporter_TargetPreview_Note_Label"
+                           TextWrapping="Wrap" Foreground="{DynamicResource InfoBannerTextBrush}" FontSize="11" FontWeight="SemiBold" MaxWidth="260"
+                           Text="TARGET preview — the portrait CURRENTLY stored in the selected slot, read live from the ROM. It updates whenever you change the selection on the left, and again right after a successful Import; it never shows the staged SOURCE file above." />
+                <Border BorderBrush="Firebrick" BorderThickness="2" Padding="2" HorizontalAlignment="Left">
+                  <controls:IconPreviewControl AutomationProperties.AutomationId="ImagePortraitImporter_TargetPreview_Image"
+                                                Name="TargetPreviewImage" Scale="1" MaxImageWidth="96" MaxImageHeight="80" />
+                </Border>
+              </StackPanel>
+            </Grid>
           </StackPanel>
         </Border>
 
@@ -186,7 +206,10 @@
                    change. Previews the AUTO-QUANTIZED source only: Share/Custom
                    palette + Fuchidori affect the final import pixels, not this
                    layout-aid pane. -->
-              <TextBlock Text="Per-frame preview (96x80)" FontWeight="SemiBold" Margin="0,8,0,0" />
+              <!-- #2016: explicitly label this SOURCE-only — it previews the
+                   staged import file, never the CURRENT ROM TARGET pane
+                   introduced in Step 2 above. -->
+              <TextBlock Text="Per-frame preview (96x80, SOURCE only)" FontWeight="SemiBold" Margin="0,8,0,0" />
               <TextBlock AutomationProperties.AutomationId="ImagePortraitImporter_FramePreview_Note_Label"
                          TextWrapping="Wrap" FontSize="11"
                          Text="Live composite of the selected frame's eye/mouth crop onto the face. Auto-quantized source only — Share/Custom palette and Fuchidori are not reflected here (they change only the final import)." />

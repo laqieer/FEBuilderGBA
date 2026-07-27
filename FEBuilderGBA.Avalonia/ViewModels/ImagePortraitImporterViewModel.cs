@@ -88,10 +88,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public void LoadEntry(uint addr)
         {
             ROM rom = CoreState.ROM;
-            if (rom == null) return;
+            if (rom == null)
+            {
+                CurrentAddr = 0;
+                IsLoaded = false;
+                return;
+            }
 
             CurrentAddr = addr;
-            IsLoaded = true;
+            IsLoaded = addr != 0;
         }
 
         /// <summary>
