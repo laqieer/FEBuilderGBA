@@ -554,6 +554,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
                     BatchResultsBox.Text = string.Join("\n", result.Lines);
                     BatchProgressBar.Value = BatchProgressBar.Maximum;
+                    RefreshBatchImportedEntries(result.ImportedEntryAddresses);
 
                     CoreState.Services.ShowInfo(
                         $"Batch import complete: {result.Imported} imported, {result.Failed} failed, {result.Skipped} skipped (total {result.Total}).");
@@ -581,6 +582,18 @@ namespace FEBuilderGBA.Avalonia.Views
                 Log.ErrorF("ImagePortraitImporterView.PickFolder_Click failed: {0}", ex.Message);
                 CoreState.Services.ShowError($"Pick folder failed: {ex.Message}");
             }
+        }
+
+        void RefreshBatchImportedEntries(System.Collections.Generic.IReadOnlyCollection<uint> addresses)
+        {
+            if (addresses == null || addresses.Count == 0) return;
+
+            foreach (uint address in addresses)
+                EntryList.RefreshIconAtAddress(address);
+
+            AddrResult selected = EntryList.SelectedItem;
+            if (selected != null && addresses.Contains(selected.addr))
+                OnSelectedItemChanged(selected);
         }
 
         void Import_Click(object? sender, RoutedEventArgs e)

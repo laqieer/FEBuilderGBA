@@ -257,6 +257,14 @@ namespace FEBuilderGBA.Avalonia.Tests
             mi!.Invoke(view, new object[] { address });
         }
 
+        static void InvokeRefreshBatchImportedEntries(ImagePortraitImporterView view, params uint[] addresses)
+        {
+            var mi = typeof(ImagePortraitImporterView).GetMethod("RefreshBatchImportedEntries",
+                BindingFlags.NonPublic | BindingFlags.Instance);
+            Assert.NotNull(mi);
+            mi!.Invoke(view, new object[] { addresses });
+        }
+
         static string WriteSynthSourcePng(byte r, byte g, byte b, int width = 16, int height = 16)
         {
             string path = Path.Combine(Path.GetTempPath(), $"wizard_target_preview_{Guid.NewGuid():N}.png");
@@ -560,6 +568,49 @@ namespace FEBuilderGBA.Avalonia.Tests
 
                     // Source pane untouched by the refresh.
                     Assert.Same(sourceRefBefore, GetSourceImageDisplay(view).Source);
+                }
+                finally
+                {
+                    CloseView(view);
+                    try { if (File.Exists(tmpPng)) File.Delete(tmpPng); } catch { }
+                }
+            }
+        }
+
+        [AvaloniaFact]
+        public void BatchRefresh_UpdatesImportedSelectedTargetAndPreservesSourceFilterSelection()
+        {
+            var rom = BuildRom();
+            using (UseRom(rom))
+            using (EnsureImageService())
+            {
+                var view = new ImagePortraitImporterView();
+                string tmpPng = WriteSynthSourcePng(40, 50, 60);
+                try
+                {
+                    view.Show();
+                    Dispatcher.UIThread.RunJobs();
+
+                    var list = view.FindControl<AddressListControl>("EntryList")!;
+                    Assert.True(list.SelectAddress(EntryAddr(1)));
+                    list.ApplySearchFilter("0x01");
+                    InvokeLoadImageFromPath(view, tmpPng);
+
+                    object sourceBefore = GetSourceImageDisplay(view).Source!;
+                    object iconBefore = GetDisplayItems(list).Single().Icon!;
+                    var target = GetTargetImageDisplay(view);
+                    byte[] targetBefore = ReadPixels(Assert.IsType<WriteableBitmap>(target.Source));
+
+                    rom.write_p32(EntryAddr(1) + 8, PaletteOffsetB);
+                    InvokeRefreshBatchImportedEntries(view, EntryAddr(1));
+                    Dispatcher.UIThread.RunJobs();
+
+                    Assert.Equal("0x01", list.FindControl<TextBox>("SearchBox")!.Text);
+                    Assert.Single(GetDisplayItems(list));
+                    Assert.Equal(EntryAddr(1), list.SelectedItem!.addr);
+                    Assert.NotSame(iconBefore, GetDisplayItems(list).Single().Icon);
+                    Assert.NotEqual(targetBefore, ReadPixels(Assert.IsType<WriteableBitmap>(target.Source)));
+                    Assert.Same(sourceBefore, GetSourceImageDisplay(view).Source);
                 }
                 finally
                 {

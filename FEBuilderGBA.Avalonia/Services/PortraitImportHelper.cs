@@ -68,7 +68,11 @@ namespace FEBuilderGBA.Avalonia.Services
     /// <param name="Skipped">Files skipped because the filename did not encode a slot ID.</param>
     /// <param name="Total">Total .png + .bmp files enumerated in the folder.</param>
     /// <param name="Lines">Human-readable per-file outcome lines, in enumeration order.</param>
-    public record FolderImportResult(int Imported, int Failed, int Skipped, int Total, List<string> Lines);
+    public record FolderImportResult(int Imported, int Failed, int Skipped, int Total, List<string> Lines)
+    {
+        /// <summary>Unique portrait-table entry addresses successfully written by the batch.</summary>
+        public IReadOnlyList<uint> ImportedEntryAddresses { get; init; } = Array.Empty<uint>();
+    }
 
     /// <summary>
     /// Shared portrait-slot import helper. Single source of truth for the
@@ -1429,6 +1433,7 @@ namespace FEBuilderGBA.Avalonia.Services
             }
 
             int imported = 0, failed = 0, skipped = 0;
+            var importedEntryAddresses = new List<uint>();
 
             foreach (string filePath in files)
             {
@@ -1513,6 +1518,8 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (outcome.Success)
                 {
                     imported++;
+                    if (!importedEntryAddresses.Contains(entryAddr))
+                        importedEntryAddresses.Add(entryAddr);
                     // Record the source file so the per-slot Open/Select
                     // Source buttons light up after a batch import.
                     RecordSourceFile(slotId, filePath);
@@ -1537,7 +1544,10 @@ namespace FEBuilderGBA.Avalonia.Services
                 await Task.Yield();
             }
 
-            return new FolderImportResult(imported, failed, skipped, files.Count, lines);
+            return new FolderImportResult(imported, failed, skipped, files.Count, lines)
+            {
+                ImportedEntryAddresses = importedEntryAddresses,
+            };
         }
 
         /// <summary>
