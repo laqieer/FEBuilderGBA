@@ -215,5 +215,198 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Null(ex);
             Assert.Equal(tailBefore, rom.getBinaryData(oldAddr, 3));
         }
+
+        static ROM CreateFilledRom(uint length, byte fill = 0xAA)
+        {
+            byte[] data = new byte[length];
+            Array.Fill(data, fill);
+            var rom = new ROM();
+            Assert.True(rom.LoadLow("synthetic-boundary.gba", data, "NAZO"));
+            CoreState.ROM = rom;
+            return rom;
+        }
+
+        // #2017: FindAndWriteData's generic mid-ROM 0x00/0xFF scan cannot tell a
+        // genuinely free run from a live pointer-referenced blob (e.g. a
+        // legitimately all-zero map/tile block). These tests seed such a
+        // referenced range inside the relocation search window and assert the
+        // relocation path never touches it — it must append at the aligned ROM
+        // end instead. They fail against the pre-fix code, which happily reuses
+        // the referenced range and reports success.
+        [Fact]
+        public void WriteCompressedInPlaceOrRelocate_Growth_AppendsInsteadOfOverwritingReferencedInteriorData()
+        {
+            var rom = CreateRom();
+            const uint ptr = 0x220;
+            const uint oldAddr = 0xE00;
+            const uint referencedPointerAddr = 0x140;
+            const uint referencedTargetAddr = 0x4010; // inside the CreateRom() zero-fill interior range
+            byte[] oldBlob = LiteralLz77(0xA0, 8);
+            byte[] newBlob = LiteralLz77(0xB0, 256);
+            SeedPointer(rom, ptr, oldAddr, oldBlob);
+            rom.write_p32(referencedPointerAddr, referencedTargetAddr);
+            byte[] referencedBefore = rom.getBinaryData(referencedTargetAddr, 64);
+            uint expectedAppendAddr = U.Padding4((uint)rom.Data.Length);
+
+            uint written = ImageImportCore.WriteCompressedInPlaceOrRelocate(rom, ptr, newBlob);
+
+            Assert.NotEqual(U.NOT_FOUND, written);
+            Assert.Equal(expectedAppendAddr, written);
+            Assert.Equal(written, rom.p32(ptr));
+            Assert.Equal(newBlob, rom.getBinaryData(written, (uint)newBlob.Length));
+            Assert.Equal(referencedBefore, rom.getBinaryData(referencedTargetAddr, 64));
+            Assert.Equal(referencedTargetAddr, rom.p32(referencedPointerAddr));
+        }
+
+        [Fact]
+        public void WriteCompressedInPlaceOrRelocate_SharedBlob_AppendsAndPreservesSiblingAndInteriorTarget()
+        {
+            var rom = CreateRom();
+            const uint ptrA = 0x224;
+            const uint ptrB = 0x228;
+            const uint sharedAddr = 0xF00;
+            const uint referencedPointerAddr = 0x144;
+            const uint referencedTargetAddr = 0x4020; // inside the CreateRom() zero-fill interior range
+            byte[] oldBlob = LiteralLz77(0x30, 8);
+            byte[] newBlob = LiteralLz77(0x60, 256);
+            SeedPointer(rom, ptrA, sharedAddr, oldBlob);
+            rom.write_p32(ptrB, sharedAddr);
+            rom.write_p32(referencedPointerAddr, referencedTargetAddr);
+            byte[] beforeSibling = rom.getBinaryData(sharedAddr, (uint)oldBlob.Length);
+            byte[] referencedBefore = rom.getBinaryData(referencedTargetAddr, 64);
+            uint expectedAppendAddr = U.Padding4((uint)rom.Data.Length);
+
+            uint written = ImageImportCore.WriteCompressedInPlaceOrRelocate(rom, ptrA, newBlob);
+
+            Assert.NotEqual(U.NOT_FOUND, written);
+            Assert.Equal(expectedAppendAddr, written);
+            Assert.Equal(written, rom.p32(ptrA));
+            Assert.Equal(sharedAddr, rom.p32(ptrB));
+            Assert.Equal(beforeSibling, rom.getBinaryData(sharedAddr, (uint)oldBlob.Length));
+            Assert.Equal(newBlob, rom.getBinaryData(written, (uint)newBlob.Length));
+            Assert.Equal(referencedBefore, rom.getBinaryData(referencedTargetAddr, 64));
+            Assert.Equal(referencedTargetAddr, rom.p32(referencedPointerAddr));
+        }
+
+        [Fact]
+        public void WriteCompressedInPlaceOrRelocate_ExactCapAppend_SucceedsAndEndsAtThirtyTwoMebibyteCap()
+        {
+            byte[] newBlob = LiteralLz77(0xC0, 32);
+            uint needSize = U.Padding4((uint)newBlob.Length);
+            uint romLength = 0x02000000 - needSize; // already 4-aligned
+            var rom = CreateFilledRom(romLength);
+            const uint ptr = 0x230;
+            const uint oldAddr = 0x300;
+            byte[] oldBlob = LiteralLz77(0xD0, 8);
+            SeedPointer(rom, ptr, oldAddr, oldBlob);
+
+            uint written = ImageImportCore.WriteCompressedInPlaceOrRelocate(rom, ptr, newBlob);
+
+            Assert.NotEqual(U.NOT_FOUND, written);
+            Assert.Equal(romLength, written);
+            Assert.Equal(0x02000000u, (uint)rom.Data.Length);
+            Assert.Equal(written, rom.p32(ptr));
+            Assert.Equal(newBlob, rom.getBinaryData(written, (uint)newBlob.Length));
+        }
+
+        [Fact]
+        public void WriteCompressedInPlaceOrRelocate_UnalignedNearCapOverflow_ReturnsNotFoundWithoutMutation()
+        {
+            const uint romLength = 0x01FFFFFD; // unaligned; Padding4() rounds up to the 32MB cap already
+            var rom = CreateFilledRom(romLength);
+            const uint ptr = 0x234;
+            const uint oldAddr = 0x340;
+            byte[] oldBlob = LiteralLz77(0xE0, 3); // padded compressed size 8: smaller than newBlob below, forcing relocation
+            SeedPointer(rom, ptr, oldAddr, oldBlob);
+            byte[] oldBlobBefore = rom.getBinaryData(oldAddr, (uint)oldBlob.Length);
+            byte[] newBlob = LiteralLz77(0xE8, 4); // small, but padding alone already exceeds the cap
+
+            uint written = ImageImportCore.WriteCompressedInPlaceOrRelocate(rom, ptr, newBlob);
+
+            Assert.Equal(U.NOT_FOUND, written);
+            Assert.Equal(romLength, (uint)rom.Data.Length);
+            Assert.Equal(oldAddr, rom.p32(ptr));
+            Assert.Equal(oldBlobBefore, rom.getBinaryData(oldAddr, (uint)oldBlob.Length));
+        }
+
+        // Mirrors the maintainer-confirmed #2017 scenario: a near-cap ROM whose
+        // relocation search window still contains a pointer-referenced
+        // zero-filled interior range. The pre-fix code silently reuses that
+        // range (reporting success while corrupting live data) instead of
+        // hitting the 32MB cap. The fix must fail atomically: no pointer write,
+        // no payload write, no old-blob clear, and the referenced range and ROM
+        // length are byte-for-byte and length-for-length unchanged.
+        [Fact]
+        public void WriteCompressedInPlaceOrRelocate_NearCapWithReferencedInteriorRange_FailsAtomicallyWithoutMutation()
+        {
+            const uint romLength = 0x01FFFFF0;
+            var rom = CreateFilledRom(romLength);
+            const uint interiorFreeAddr = 0x01000000;
+            const uint interiorFreeLength = 0x1000;
+            const uint referencedPointerAddr = 0x400;
+            const uint referencedTargetAddr = interiorFreeAddr + 0x10;
+            rom.write_fill(interiorFreeAddr, interiorFreeLength, 0x00);
+            rom.write_p32(referencedPointerAddr, referencedTargetAddr);
+            byte[] referencedBefore = rom.getBinaryData(referencedTargetAddr, 64);
+
+            const uint ptr = 0x404;
+            const uint oldAddr = 0x500;
+            byte[] oldBlob = LiteralLz77(0xF0, 8);
+            SeedPointer(rom, ptr, oldAddr, oldBlob);
+            byte[] oldBlobBefore = rom.getBinaryData(oldAddr, (uint)oldBlob.Length);
+            byte[] newBlob = LiteralLz77(0xF8, 24); // compressed+padded size is exactly 0x20
+            Assert.Equal(0x20u, U.Padding4((uint)newBlob.Length));
+            uint beforeLength = (uint)rom.Data.Length;
+
+            uint written = ImageImportCore.WriteCompressedInPlaceOrRelocate(rom, ptr, newBlob);
+
+            Assert.Equal(U.NOT_FOUND, written);
+            Assert.Equal(beforeLength, (uint)rom.Data.Length);
+            Assert.Equal(oldAddr, rom.p32(ptr));
+            Assert.Equal(oldBlobBefore, rom.getBinaryData(oldAddr, (uint)oldBlob.Length));
+            Assert.Equal(referencedBefore, rom.getBinaryData(referencedTargetAddr, 64));
+            Assert.Equal(referencedTargetAddr, rom.p32(referencedPointerAddr));
+        }
+
+        [Fact]
+        public void WriteCompressedInPlaceOrRelocate_AmbientUndoRestoresPointerBytesAndRomLength_AfterAppendRelocation()
+        {
+            var rom = CreateRom();
+            const uint ptr = 0x238;
+            const uint oldAddr = 0x1000;
+            byte[] oldBlob = LiteralLz77(0x60, 8);
+            byte[] newBlob = LiteralLz77(0x65, 300);
+            SeedPointer(rom, ptr, oldAddr, oldBlob);
+            byte[] beforeRom = rom.Data.ToArray();
+            uint beforeLength = (uint)rom.Data.Length;
+
+            var undo = new Undo();
+            var ud = new Undo.UndoData
+            {
+                time = DateTime.Now,
+                name = "compressed-write-append",
+                list = new System.Collections.Generic.List<Undo.UndoPostion>(),
+                filesize = beforeLength
+            };
+
+            uint written;
+            using (ROM.BeginUndoScope(ud))
+            {
+                written = ImageImportCore.WriteCompressedInPlaceOrRelocate(rom, ptr, newBlob);
+            }
+
+            Assert.NotEqual(U.NOT_FOUND, written);
+            // The default CreateRom() interior zero-fill range would fit this
+            // payload; growth proves the append path was used instead of that
+            // ambiguous interior reuse.
+            Assert.True(rom.Data.Length > beforeLength);
+            Assert.Equal(written, rom.p32(ptr));
+
+            undo.Rollback(ud);
+
+            Assert.Equal(beforeLength, (uint)rom.Data.Length);
+            Assert.Equal(oldAddr, rom.p32(ptr));
+            Assert.Equal(beforeRom, rom.Data);
+        }
     }
 }

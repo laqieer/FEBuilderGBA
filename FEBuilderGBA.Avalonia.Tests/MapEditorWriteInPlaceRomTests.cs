@@ -138,5 +138,75 @@ namespace FEBuilderGBA.Avalonia.Tests
             for (uint i = 0; i < oldSize; i++)
                 Assert.Equal(0x00, CoreState.ROM.Data[oldAddr + i]);
         }
+
+        // #2017 regression: ApplyMapGrid's relocation must append at the aligned
+        // ROM end rather than reusing the generic mid-ROM 0x00 fill run, because
+        // that run can be a live pointer-referenced block. This exercises the
+        // full apply/reload path: grid apply -> ROM write -> pointer update ->
+        // decompress-and-verify -> ViewModel cache -> ambient-undo rollback.
+        [Fact]
+        public void ApplyMapGrid_GrowthAppendsInsteadOfOverwritingReferencedInteriorData_AndReloadMatchesExactGrid()
+        {
+            const uint ptr = 0x24C;
+            const uint oldAddr = 0x1300;
+            const uint referencedPointerAddr = 0x150;
+            const uint referencedTargetAddr = 0x4030; // inside the CreateRom() zero-fill interior range
+            const int width = 15;
+            const int height = 10;
+            byte[] oldBlob = LiteralLz77(0x40, 8); // tiny: forces relocation for the full grid below
+            var vm = CreateVmWithMap(ptr, oldAddr, oldBlob, width, height);
+            var rom = CoreState.ROM!;
+            rom.write_p32(referencedPointerAddr, referencedTargetAddr);
+            byte[] referencedBefore = rom.getBinaryData(referencedTargetAddr, 64);
+            uint expectedAppendAddr = U.Padding4((uint)rom.Data.Length);
+            byte[] beforeRom = rom.Data.ToArray();
+
+            ushort[] mars = new ushort[width * height];
+            for (int i = 0; i < mars.Length; i++)
+                mars[i] = (ushort)(0x0010 + i); // deterministic, non-uniform per cell
+
+            var undo = new Undo();
+            var ud = new Undo.UndoData
+            {
+                time = DateTime.Now,
+                name = "map-grid-apply",
+                list = new System.Collections.Generic.List<Undo.UndoPostion>(),
+                filesize = (uint)rom.Data.Length
+            };
+
+            bool ok;
+            string error;
+            uint writeAddr;
+            using (ROM.BeginUndoScope(ud))
+            {
+                ok = vm.ApplyMapGrid(mars, width, height, out error, out writeAddr);
+            }
+
+            Assert.True(ok, error ?? "(null error)");
+            Assert.Equal(expectedAppendAddr, writeAddr);
+            Assert.Equal(writeAddr, rom.p32(ptr));
+            Assert.Equal(referencedBefore, rom.getBinaryData(referencedTargetAddr, 64));
+            Assert.Equal(referencedTargetAddr, rom.p32(referencedPointerAddr));
+
+            // Reload straight from the ROM bytes through the shared LZ77 decompressor
+            // and confirm both the ROM-backed stream and the ViewModel cache carry the
+            // exact staged grid.
+            byte[] decompressed = LZ77.decompress(rom.Data, writeAddr);
+            Assert.Equal((byte)width, decompressed[0]);
+            Assert.Equal((byte)height, decompressed[1]);
+            for (int i = 0; i < mars.Length; i++)
+            {
+                int off = 2 + i * 2;
+                int mar = decompressed[off] | (decompressed[off + 1] << 8);
+                Assert.Equal(mars[i], mar);
+            }
+            Assert.Equal(decompressed, vm.GetMapDataSnapshot());
+
+            undo.Rollback(ud);
+
+            Assert.Equal((uint)beforeRom.Length, (uint)rom.Data.Length);
+            Assert.Equal(oldAddr, rom.p32(ptr));
+            Assert.Equal(beforeRom, rom.Data);
+        }
     }
 }
