@@ -23879,8 +23879,8 @@ FE-Repo...
 :CURRENT ROM TARGET
 当前 ROM 目标
 
-:TARGET preview — the portrait CURRENTLY stored in the selected slot, read live from the ROM. It updates whenever you change the selection on the left, and again right after a successful Import; it never shows the staged SOURCE file above.
-目标预览 —— 实时从 ROM 中读取所选槽位当前存储的头像。每当在左侧更改选择时都会更新，Import 成功后也会再次更新；它不会显示上方暂存的源图文件。
+:TARGET preview — the portrait CURRENTLY stored in the selected slot, read live from the ROM. It updates whenever you change the selection on the left, and again right after a successful Import; it stays independent of the staged SOURCE file beside it.
+目标预览 —— 实时从 ROM 中读取所选槽位当前存储的头像。每当在左侧更改选择时都会更新，Import 成功后也会再次更新；它与旁边暂存的源图文件彼此独立。
 
 :3. Target portrait slot (select on the left list)
 3. 目标肖像槽（在左侧列表中选择）

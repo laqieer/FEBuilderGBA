@@ -69,7 +69,7 @@
                            Text="CURRENT ROM TARGET" FontWeight="SemiBold" FontSize="11" Foreground="Firebrick" />
                 <TextBlock AutomationProperties.AutomationId="ImagePortraitImporter_TargetPreview_Note_Label"
                            TextWrapping="Wrap" Foreground="{DynamicResource InfoBannerTextBrush}" FontSize="11" FontWeight="SemiBold" MaxWidth="260"
-                           Text="TARGET preview — the portrait CURRENTLY stored in the selected slot, read live from the ROM. It updates whenever you change the selection on the left, and again right after a successful Import; it never shows the staged SOURCE file above." />
+                           Text="TARGET preview — the portrait CURRENTLY stored in the selected slot, read live from the ROM. It updates whenever you change the selection on the left, and again right after a successful Import; it stays independent of the staged SOURCE file beside it." />
                 <Border BorderBrush="Firebrick" BorderThickness="2" Padding="2" HorizontalAlignment="Left">
                   <controls:IconPreviewControl AutomationProperties.AutomationId="ImagePortraitImporter_TargetPreview_Image"
                                                 Name="TargetPreviewImage" Scale="1" MaxImageWidth="96" MaxImageHeight="80" />
