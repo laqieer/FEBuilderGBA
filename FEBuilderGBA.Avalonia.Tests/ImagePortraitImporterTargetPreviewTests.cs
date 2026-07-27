@@ -119,7 +119,9 @@ namespace FEBuilderGBA.Avalonia.Tests
         static IDisposable UseRom(ROM rom)
         {
             ROM prev = CoreState.ROM;
+            NameResolver.ClearCache();
             CoreState.ROM = rom;
+            NameResolver.ClearCache();
             return new Restore(prev);
         }
 
@@ -127,7 +129,17 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             readonly ROM _prev;
             public Restore(ROM prev) => _prev = prev;
-            public void Dispose() => CoreState.ROM = _prev;
+            public void Dispose()
+            {
+                CoreState.ROM = _prev;
+                NameResolver.ClearCache();
+            }
+        }
+
+        static void CloseView(ImagePortraitImporterView view)
+        {
+            view.Close();
+            Dispatcher.UIThread.RunJobs();
         }
 
         static IDisposable EnsureImageService()
@@ -237,6 +249,14 @@ namespace FEBuilderGBA.Avalonia.Tests
             mi!.Invoke(view, new object?[] { null, new RoutedEventArgs() });
         }
 
+        static void InvokeRefreshImportedEntry(ImagePortraitImporterView view, uint address)
+        {
+            var mi = typeof(ImagePortraitImporterView).GetMethod("RefreshImportedEntry",
+                BindingFlags.NonPublic | BindingFlags.Instance);
+            Assert.NotNull(mi);
+            mi!.Invoke(view, new object[] { address });
+        }
+
         static string WriteSynthSourcePng(byte r, byte g, byte b, int width = 16, int height = 16)
         {
             string path = Path.Combine(Path.GetTempPath(), $"wizard_target_preview_{Guid.NewGuid():N}.png");
@@ -290,7 +310,7 @@ namespace FEBuilderGBA.Avalonia.Tests
 
                     Assert.NotEqual(pixelsA, pixelsB);
                 }
-                finally { view.Close(); }
+                finally { CloseView(view); }
             }
         }
 
@@ -324,7 +344,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                     using WriteableBitmap expected = IconBitmapBuilder.FromImage(expectedImage)!;
                     Assert.Equal(ReadPixels(expected), ReadPixels(bmp));
                 }
-                finally { view.Close(); }
+                finally { CloseView(view); }
             }
         }
 
@@ -360,7 +380,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                     Assert.Equal(80, bmp.PixelSize.Height);
                     Assert.Equal(expected, ReadPixels(bmp));
                 }
-                finally { view.Close(); }
+                finally { CloseView(view); }
             }
         }
 
@@ -399,7 +419,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 }
                 finally
                 {
-                    view.Close();
+                    CloseView(view);
                     try { if (File.Exists(tmpPng)) File.Delete(tmpPng); } catch { }
                 }
             }
@@ -430,7 +450,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                     Dispatcher.UIThread.RunJobs();
                     Assert.Null(GetTargetImageDisplay(view).Source);
                 }
-                finally { view.Close(); }
+                finally { CloseView(view); }
             }
         }
 
@@ -460,7 +480,7 @@ namespace FEBuilderGBA.Avalonia.Tests
 
                     Assert.Null(GetTargetImageDisplay(view).Source);
                 }
-                finally { view.Close(); }
+                finally { CloseView(view); }
             }
         }
 
@@ -488,7 +508,7 @@ namespace FEBuilderGBA.Avalonia.Tests
 
                     Assert.Null(GetTargetImageDisplay(view).Source);
                 }
-                finally { view.Close(); }
+                finally { CloseView(view); }
             }
         }
 
@@ -499,7 +519,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         // touch the SOURCE pane.
         // ------------------------------------------------------------------
         [AvaloniaFact]
-        public void PostRomMutation_RefreshPreservingSelection_UpdatesTargetKeepsSourceAndSelection()
+        public void PostRomMutation_TargetedRefresh_UpdatesTargetKeepsSourceAndSelection()
         {
             var rom = BuildRom();
             using (UseRom(rom))
@@ -527,18 +547,9 @@ namespace FEBuilderGBA.Avalonia.Tests
                     // instead of its original RED one.
                     rom.write_p32(EntryAddr(1) + 8, PaletteOffsetB);
 
-                    // Same production seam Import_Click's post-success
-                    // refresh uses (AddressListControl.SetItemsWithIconsPreserveSelection),
-                    // exercised directly here rather than through the full
-                    // pixel-quantize-and-write Import pipeline.
-                    var items = new System.Collections.Generic.List<AddrResult>
-                    {
-                        new AddrResult(EntryAddr(0), "0x00", 0),
-                        new AddrResult(EntryAddr(1), "0x01", 1),
-                        new AddrResult(EntryAddr(2), "0x02", 2),
-                        new AddrResult(EntryAddr(3), "0x03", 3),
-                    };
-                    list.SetItemsWithIconsPreserveSelection(items, i => ListIconLoaders.PortraitLoader(items, i), EntryAddr(1));
+                    // Exercise the same one-row refresh seam used by the
+                    // successful Import_Click path.
+                    InvokeRefreshImportedEntry(view, EntryAddr(1));
                     Dispatcher.UIThread.RunJobs();
 
                     // Selection preserved.
@@ -554,14 +565,14 @@ namespace FEBuilderGBA.Avalonia.Tests
                 }
                 finally
                 {
-                    view.Close();
+                    CloseView(view);
                     try { if (File.Exists(tmpPng)) File.Delete(tmpPng); } catch { }
                 }
             }
         }
 
         // ------------------------------------------------------------------
-        // The real Import_Click success path must re-read list icons and the
+        // The real Import_Click success path must refresh the written row and
         // target preview while preserving the source, selection, and filter.
         // ------------------------------------------------------------------
         [AvaloniaFact]
@@ -611,7 +622,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 }
                 finally
                 {
-                    view.Close();
+                    CloseView(view);
                     try { if (File.Exists(tmpPng)) File.Delete(tmpPng); } catch { }
                 }
             }
@@ -656,7 +667,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 }
                 finally
                 {
-                    view.Close();
+                    CloseView(view);
                     try { if (File.Exists(tmpPng)) File.Delete(tmpPng); } catch { }
                 }
             }

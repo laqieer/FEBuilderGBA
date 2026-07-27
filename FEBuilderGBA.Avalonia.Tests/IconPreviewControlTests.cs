@@ -40,6 +40,11 @@ public class IconPreviewControlTests
         return rgba;
     }
 
+    static void AssertDisposed(WriteableBitmap bitmap)
+    {
+        Assert.ThrowsAny<System.Exception>(() => bitmap.Lock());
+    }
+
     /// <summary>
     /// Disposable host that owns a transient <see cref="Window"/> for layout-pass
     /// testing of the embedded <see cref="IconPreviewControl"/>. Disposing closes
@@ -163,14 +168,48 @@ public class IconPreviewControlTests
 
         control.SetRgbaData(MakeRgba(16, 16), 16, 16);
         Assert.True(control.HasImage);
+        var imageDisplay = control.FindControl<Image>("ImageDisplay");
+        var previous = Assert.IsType<WriteableBitmap>(imageDisplay!.Source);
 
-        // Should not throw and must clear the source.
+        // Clearing detaches and disposes the control-owned bitmap.
         control.SetImage(null);
         Assert.False(control.HasImage);
-
-        var imageDisplay = control.FindControl<Image>("ImageDisplay");
-        Assert.NotNull(imageDisplay);
         Assert.Null(imageDisplay!.Source);
+        AssertDisposed(previous);
+    }
+
+    [AvaloniaFact]
+    public void ReplacingImage_DisposesPreviousOwnedBitmap()
+    {
+        var control = new IconPreviewControl();
+        using var host = HostInWindow(control);
+
+        control.SetRgbaData(MakeRgba(16, 16), 16, 16);
+        var imageDisplay = control.FindControl<Image>("ImageDisplay");
+        var previous = Assert.IsType<WriteableBitmap>(imageDisplay!.Source);
+
+        control.SetRgbaData(MakeRgba(32, 32), 32, 32);
+
+        Assert.NotSame(previous, imageDisplay.Source);
+        AssertDisposed(previous);
+    }
+
+    [AvaloniaFact]
+    public void DetachingControl_DisposesOwnedBitmap()
+    {
+        var control = new IconPreviewControl();
+        var host = HostInWindow(control);
+
+        control.SetRgbaData(MakeRgba(16, 16), 16, 16);
+        var imageDisplay = control.FindControl<Image>("ImageDisplay");
+        var previous = Assert.IsType<WriteableBitmap>(imageDisplay!.Source);
+
+        host.Dispose();
+        global::Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+
+        Assert.False(control.HasImage);
+        Assert.Null(imageDisplay.Source);
+        AssertDisposed(previous);
     }
 
     /// <summary>

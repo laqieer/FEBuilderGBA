@@ -172,29 +172,41 @@ namespace FEBuilderGBA.Avalonia.Controls
         {
             if (image == null)
             {
-                if (ImageDisplay != null) ImageDisplay.Source = null;
-                _bitmap = null;
-                UpdateImageSize();
+                ReplaceBitmap(null);
                 return;
             }
 
-            _bitmap = IconBitmapBuilder.FromImage(image);
-            if (ImageDisplay != null) ImageDisplay.Source = _bitmap;
-            UpdateImageSize();
+            ReplaceBitmap(IconBitmapBuilder.FromImage(image));
         }
 
         /// <summary>Display raw RGBA pixel data (mainly for tests).</summary>
         public void SetRgbaData(byte[] rgba, int width, int height)
         {
-            _bitmap = IconBitmapBuilder.FromRgba(rgba, width, height);
-            if (ImageDisplay != null) ImageDisplay.Source = _bitmap;
-            UpdateImageSize();
+            ReplaceBitmap(IconBitmapBuilder.FromRgba(rgba, width, height));
         }
 
         /// <summary>True once a bitmap has been loaded.</summary>
         public bool HasImage => _bitmap != null;
 
         // ---- Internal helpers ----
+
+        void ReplaceBitmap(WriteableBitmap? replacement)
+        {
+            WriteableBitmap? previous = _bitmap;
+            if (ReferenceEquals(previous, replacement)) return;
+
+            if (ImageDisplay != null) ImageDisplay.Source = null;
+            _bitmap = replacement;
+            if (ImageDisplay != null) ImageDisplay.Source = replacement;
+            previous?.Dispose();
+            UpdateImageSize();
+        }
+
+        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            ReplaceBitmap(null);
+            base.OnDetachedFromVisualTree(e);
+        }
 
         void UpdateOuterSize()
         {

@@ -243,24 +243,19 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        // #2016: after a successful Import, the just-written slot's list
-        // thumbnail AND the CURRENT ROM TARGET preview must reflect the NEW
-        // ROM bytes immediately — showing the stale pre-import icon/preview
-        // would look like the write silently failed. Reload the full icon
-        // list via the icon-preserving variant so the row's thumbnail
-        // refreshes WITHOUT losing the user's current selection (which in
-        // turn re-fires OnSelectedItemChanged for the same address, updating
-        // the target preview too).
-        void RefreshEntryListPreservingSelection(uint preserveAddr)
+        // #2016: refresh only the just-written row and target preview. A full
+        // portrait-table reload can render hundreds of thumbnails and is not
+        // needed because Import does not change row identity or labels.
+        void RefreshImportedEntry(uint address)
         {
             try
             {
-                var items = _vm.LoadList();
-                EntryList.SetItemsWithIconsPreserveSelection(items, i => ListIconLoaders.PortraitLoader(items, i), preserveAddr);
+                EntryList.RefreshIconAtAddress(address);
+                OnSelectedItemChanged(EntryList.SelectedItem);
             }
             catch (Exception ex)
             {
-                Log.ErrorF("ImagePortraitImporterView.RefreshEntryListPreservingSelection failed: {0}", ex.Message);
+                Log.ErrorF("ImagePortraitImporterView.RefreshImportedEntry failed: {0}", ex.Message);
             }
         }
 
@@ -663,7 +658,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // #2016: refresh AFTER the success guard only — a failed
                 // import must never touch the list/target preview, since
                 // nothing on the ROM actually changed.
-                RefreshEntryListPreservingSelection(addr);
+                RefreshImportedEntry(addr);
             }
             catch (Exception ex)
             {

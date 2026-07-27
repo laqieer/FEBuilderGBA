@@ -138,33 +138,57 @@ namespace FEBuilderGBA.Avalonia.Controls
         }
 
         /// <summary>
-        /// Load address list WITH icon thumbnails and re-select the row
-        /// matching <paramref name="preserveAddress"/>, falling back to
-        /// <see cref="SelectFirst"/> when no row matches. Icon-loader
-        /// equivalent of <see cref="SetItemsPreserveSelection"/> — for hosts
-        /// (e.g. the Portrait Import Wizard's EntryList) that need per-row
-        /// icon thumbnails to refresh (a just-written slot's thumbnail must
-        /// reflect the new ROM bytes) AND the current selection to survive
-        /// that reload (issue #2016).
+        /// Reload the owned thumbnail for the visible row at
+        /// <paramref name="address"/> without rebuilding the full list.
+        /// The active filter and selection stay unchanged.
         /// </summary>
-        /// <param name="iconLoader">
-        /// Function that returns a newly owned Bitmap per item; the control
-        /// disposes prior thumbnails when this list is refreshed.
-        /// </param>
-        public void SetItemsWithIconsPreserveSelection(List<AddrResult> items, Func<int, Bitmap?> iconLoader, uint preserveAddress)
+        /// <returns>True when a visible row was refreshed; false when the row
+        /// or icon loader is unavailable or the loader fails.</returns>
+        public bool RefreshIconAtAddress(uint address)
         {
-            _items = items ?? new List<AddrResult>();
-            _iconLoader = iconLoader;
-            _isResolvingReload = true;
+            if (_iconLoader == null) return false;
+
+            int itemIndex = _items.FindIndex(item => item.addr == address);
+            if (itemIndex < 0) return false;
+            int displayIndex = _filteredIndices.IndexOf(itemIndex);
+            if (displayIndex < 0 || displayIndex >= _displayItems.Count) return false;
+
+            Bitmap? replacement;
             try
             {
-                RefreshDisplay();
-                SelectPreservedOrFirst(preserveAddress);
+                replacement = _iconLoader(itemIndex);
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorF("AddressListControl.RefreshIconAtAddress failed: {0}", ex.Message);
+                return false;
+            }
+
+            AddressListItem previous = _displayItems[displayIndex];
+            uint? selectedAddress = SelectedItem?.addr;
+            _isRefreshing = true;
+            try
+            {
+                _displayItems[displayIndex] = new AddressListItem
+                {
+                    Text = previous.Text,
+                    Icon = replacement,
+                };
+                if (selectedAddress.HasValue && SelectedItem?.addr != selectedAddress.Value)
+                    SelectAddress(selectedAddress.Value);
+            }
+            catch
+            {
+                replacement?.Dispose();
+                throw;
             }
             finally
             {
-                CompleteResolvedReload(raiseAddressChanged: true);
+                _isRefreshing = false;
             }
+
+            previous.Icon?.Dispose();
+            return true;
         }
 
         /// <summary>Total number of items loaded into the list (regardless of filter state).</summary>
@@ -340,7 +364,6 @@ namespace FEBuilderGBA.Avalonia.Controls
 
         void RefreshDisplay(string? filter = null)
         {
-            filter ??= CurrentFilter();
             _isRefreshing = true;
             try
             {
@@ -367,9 +390,6 @@ namespace FEBuilderGBA.Avalonia.Controls
             {
                 _isRefreshing = false;
             }
-
-            if (!_isResolvingReload)
-                SelectedItemChanged?.Invoke(SelectedItem);
         }
 
         void AddressList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
