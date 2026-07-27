@@ -176,7 +176,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void OnSelectedItemChanged(AddrResult item)
+        void OnSelectedItemChanged(AddrResult? item)
         {
             // #2016: item is nullable — AddressListControl also reports a
             // final null outcome for deselection or a filter that excludes
@@ -202,7 +202,7 @@ namespace FEBuilderGBA.Avalonia.Views
         // clears the stale target FIRST so a deselect/filter/invalid outcome
         // (or any exception below) never leaves a stale portrait on screen
         // that no longer corresponds to the current selection.
-        void RefreshTargetPreview(AddrResult item)
+        void RefreshTargetPreview(AddrResult? item)
         {
             TargetPreviewImage.SetImage(null);
             if (item == null) return;
@@ -591,7 +591,7 @@ namespace FEBuilderGBA.Avalonia.Views
             foreach (uint address in addresses)
                 EntryList.RefreshIconAtAddress(address);
 
-            AddrResult selected = EntryList.SelectedItem;
+            AddrResult? selected = EntryList.SelectedItem;
             if (selected != null && addresses.Contains(selected.addr))
                 OnSelectedItemChanged(selected);
         }

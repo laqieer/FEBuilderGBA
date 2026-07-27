@@ -228,6 +228,48 @@ public class AddressListControlTests
         Assert.ThrowsAny<System.Exception>(() => oldIcon.Lock());
     }
 
+    [AvaloniaFact]
+    public void RefreshIconAtAddress_CollectionHandlerThrows_KeepsReplacementOwned()
+    {
+        var control = new AddressListControl();
+        var items = MakeItems(1);
+        WriteableBitmap? replacement = null;
+        int loadCount = 0;
+        control.SetItemsWithIcons(items, _ =>
+        {
+            var bitmap = IconBitmapBuilder.FromRgba(
+                loadCount++ == 0
+                    ? new byte[] { 255, 0, 0, 255 }
+                    : new byte[] { 0, 255, 0, 255 },
+                1, 1);
+            if (loadCount > 1) replacement = bitmap;
+            return bitmap;
+        });
+
+        var listBox = control.FindControl<ListBox>("AddressList");
+        var oldIcon = Assert.IsType<WriteableBitmap>(
+            Assert.IsType<AddressListItem>(listBox!.Items[0]).Icon);
+        var collection = Assert.IsAssignableFrom<INotifyCollectionChanged>(listBox.ItemsSource);
+        NotifyCollectionChangedEventHandler handler = (_, e) =>
+        {
+            if (e.Action == NotifyCollectionChangedAction.Replace)
+                throw new System.InvalidOperationException("test replacement observer");
+        };
+        collection.CollectionChanged += handler;
+
+        Assert.Throws<System.InvalidOperationException>(
+            () => control.RefreshIconAtAddress(items[0].addr));
+
+        var currentIcon = Assert.IsType<WriteableBitmap>(
+            Assert.IsType<AddressListItem>(listBox.Items[0]).Icon);
+        Assert.Same(replacement, currentIcon);
+        using (currentIcon.Lock()) { }
+        Assert.ThrowsAny<System.Exception>(() => oldIcon.Lock());
+
+        collection.CollectionChanged -= handler;
+        control.SetItems(new List<AddrResult>());
+    }
+
     // ---------------------------------------------------------------
     // 3. SelectedAddressChanged event fires on selection
     // ---------------------------------------------------------------

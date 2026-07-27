@@ -179,7 +179,12 @@ namespace FEBuilderGBA.Avalonia.Controls
             }
             catch
             {
-                replacement?.Dispose();
+                bool replacementIsOwned = displayIndex < _displayItems.Count
+                    && ReferenceEquals(_displayItems[displayIndex].Icon, replacement);
+                if (replacementIsOwned)
+                    previous.Icon?.Dispose();
+                else
+                    replacement?.Dispose();
                 throw;
             }
             finally
