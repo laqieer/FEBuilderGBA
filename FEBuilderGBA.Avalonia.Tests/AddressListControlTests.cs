@@ -225,6 +225,8 @@ public class AddressListControlTests
         control.SetItemsWithIcons(MakeItems(1, baseAddr: 0x2000), _ => null);
 
         Assert.True(usableWhenDetached);
+        using (oldIcon.Lock()) { }
+        global::Avalonia.Threading.Dispatcher.UIThread.RunJobs();
         Assert.ThrowsAny<System.Exception>(() => oldIcon.Lock());
     }
 
@@ -264,6 +266,8 @@ public class AddressListControlTests
             Assert.IsType<AddressListItem>(listBox.Items[0]).Icon);
         Assert.Same(replacement, currentIcon);
         using (currentIcon.Lock()) { }
+        using (oldIcon.Lock()) { }
+        global::Avalonia.Threading.Dispatcher.UIThread.RunJobs();
         Assert.ThrowsAny<System.Exception>(() => oldIcon.Lock());
 
         collection.CollectionChanged -= handler;

@@ -182,7 +182,7 @@ namespace FEBuilderGBA.Avalonia.Controls
                 bool replacementIsOwned = displayIndex < _displayItems.Count
                     && ReferenceEquals(_displayItems[displayIndex].Icon, replacement);
                 if (replacementIsOwned)
-                    previous.Icon?.Dispose();
+                    DisposeDetachedIconsLater(new[] { previous.Icon });
                 else
                     replacement?.Dispose();
                 throw;
@@ -192,7 +192,7 @@ namespace FEBuilderGBA.Avalonia.Controls
                 _isRefreshing = false;
             }
 
-            previous.Icon?.Dispose();
+            DisposeDetachedIconsLater(new[] { previous.Icon });
             return true;
         }
 
@@ -373,9 +373,17 @@ namespace FEBuilderGBA.Avalonia.Controls
             try
             {
                 var previousItems = new List<AddressListItem>(_displayItems);
-                _displayItems.Clear();
-                foreach (AddressListItem item in previousItems)
-                    item.Icon?.Dispose();
+                try
+                {
+                    _displayItems.Clear();
+                }
+                catch
+                {
+                    if (_displayItems.Count == 0)
+                        DisposeDetachedIconsLater(previousItems.ConvertAll(item => item.Icon));
+                    throw;
+                }
+                DisposeDetachedIconsLater(previousItems.ConvertAll(item => item.Icon));
                 _filteredIndices.Clear();
                 for (int i = 0; i < _items.Count; i++)
                 {
@@ -396,6 +404,23 @@ namespace FEBuilderGBA.Avalonia.Controls
             {
                 _isRefreshing = false;
             }
+        }
+
+        static void DisposeDetachedIconsLater(IEnumerable<Bitmap?> icons)
+        {
+            var owned = new List<Bitmap>();
+            foreach (Bitmap? icon in icons)
+            {
+                if (icon != null)
+                    owned.Add(icon);
+            }
+            if (owned.Count == 0) return;
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                foreach (Bitmap icon in owned)
+                    icon.Dispose();
+            }, DispatcherPriority.Background);
         }
 
         void AddressList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
