@@ -367,9 +367,10 @@ namespace FEBuilderGBA.Avalonia.Controls
             _isRefreshing = true;
             try
             {
-                foreach (AddressListItem item in _displayItems)
-                    item.Icon?.Dispose();
+                var previousItems = new List<AddressListItem>(_displayItems);
                 _displayItems.Clear();
+                foreach (AddressListItem item in previousItems)
+                    item.Icon?.Dispose();
                 _filteredIndices.Clear();
                 for (int i = 0; i < _items.Count; i++)
                 {

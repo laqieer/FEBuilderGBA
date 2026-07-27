@@ -1,6 +1,8 @@
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Media.Imaging;
 using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Services;
 
@@ -198,6 +200,32 @@ public class AddressListControlTests
 
         var listBox = control.FindControl<ListBox>("AddressList");
         Assert.Equal(4, listBox!.ItemCount);
+    }
+
+    [AvaloniaFact]
+    public void SetItemsWithIcons_DetachesRowsBeforeDisposingOwnedIcons()
+    {
+        var control = new AddressListControl();
+        var items = MakeItems(1);
+        control.SetItemsWithIcons(items, _ =>
+            IconBitmapBuilder.FromRgba(new byte[] { 255, 0, 0, 255 }, 1, 1));
+
+        var listBox = control.FindControl<ListBox>("AddressList");
+        var oldIcon = Assert.IsType<WriteableBitmap>(
+            Assert.IsType<AddressListItem>(listBox!.Items[0]).Icon);
+        var collection = Assert.IsAssignableFrom<INotifyCollectionChanged>(listBox.ItemsSource);
+        bool usableWhenDetached = false;
+        collection.CollectionChanged += (_, e) =>
+        {
+            if (e.Action != NotifyCollectionChangedAction.Reset) return;
+            using (oldIcon.Lock()) { }
+            usableWhenDetached = true;
+        };
+
+        control.SetItemsWithIcons(MakeItems(1, baseAddr: 0x2000), _ => null);
+
+        Assert.True(usableWhenDetached);
+        Assert.ThrowsAny<System.Exception>(() => oldIcon.Lock());
     }
 
     // ---------------------------------------------------------------
