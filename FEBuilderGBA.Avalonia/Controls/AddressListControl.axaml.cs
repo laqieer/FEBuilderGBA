@@ -29,6 +29,7 @@ namespace FEBuilderGBA.Avalonia.Controls
         // When no filter is active, _filteredIndices[i] == i.
         List<int> _filteredIndices = new();
         bool _isRefreshing;
+        bool _isResolvingReload;
         // Optional icon loader function: given an item index, returns a Bitmap or null.
         Func<int, Bitmap?>? _iconLoader;
 
@@ -44,6 +45,18 @@ namespace FEBuilderGBA.Avalonia.Controls
 
         /// <summary>Fired when the selected address changes.</summary>
         public event Action<uint>? SelectedAddressChanged;
+
+        /// <summary>
+        /// Fired whenever the resolved <see cref="SelectedItem"/> outcome
+        /// changes — selection, deselection (<c>null</c>), a filter that
+        /// implicitly loses the previous selection, or a
+        /// SetItems*/RefreshDisplay reload. Unlike <see cref="SelectedAddressChanged"/>
+        /// (address-only, and never invoked when there is no selection) this
+        /// ALSO fires with a <c>null</c> payload whenever the final selection
+        /// is lost. Reload operations emit only their resolved outcome, after
+        /// any first-row or preserved-address selection has been applied.
+        /// </summary>
+        public event Action<AddrResult?>? SelectedItemChanged;
 
         /// <summary>Fired when user requests a hex editor for the selected address.</summary>
         public event Action<uint>? HexEditorRequested;
@@ -66,8 +79,16 @@ namespace FEBuilderGBA.Avalonia.Controls
         {
             _items = items ?? new List<AddrResult>();
             _iconLoader = null;
-            RefreshDisplay();
-            SelectFirst();
+            _isResolvingReload = true;
+            try
+            {
+                RefreshDisplay();
+                SelectFirst();
+            }
+            finally
+            {
+                CompleteResolvedReload(raiseAddressChanged: true);
+            }
         }
 
         /// <summary>
@@ -81,26 +102,98 @@ namespace FEBuilderGBA.Avalonia.Controls
         {
             _items = items ?? new List<AddrResult>();
             _iconLoader = null;
-            RefreshDisplay();
-            // Clear before attempting to select so the fallback path can
-            // reliably detect "preserveAddress not found" by checking
-            // SelectedIndex == -1 after the SelectAddress call.
-            AddressList.SelectedIndex = -1;
-            if (preserveAddress != 0)
-                SelectAddress(preserveAddress);
-            if (AddressList.SelectedIndex < 0)
-                SelectFirst();
+            _isResolvingReload = true;
+            try
+            {
+                RefreshDisplay();
+                SelectPreservedOrFirst(preserveAddress);
+            }
+            finally
+            {
+                CompleteResolvedReload(raiseAddressChanged: true);
+            }
         }
 
         /// <summary>Load address list with icon thumbnails for each item.</summary>
         /// <param name="items">The address list items.</param>
-        /// <param name="iconLoader">Function that takes an item index and returns a Bitmap thumbnail, or null.</param>
+        /// <param name="iconLoader">
+        /// Function that takes an item index and returns a newly owned Bitmap
+        /// thumbnail, or null. The control disposes returned bitmaps when the
+        /// displayed list is replaced.
+        /// </param>
         public void SetItemsWithIcons(List<AddrResult> items, Func<int, Bitmap?> iconLoader)
         {
             _items = items ?? new List<AddrResult>();
             _iconLoader = iconLoader;
-            RefreshDisplay();
-            SelectFirst();
+            _isResolvingReload = true;
+            try
+            {
+                RefreshDisplay();
+                SelectFirst();
+            }
+            finally
+            {
+                CompleteResolvedReload(raiseAddressChanged: true);
+            }
+        }
+
+        /// <summary>
+        /// Reload the owned thumbnail for the visible row at
+        /// <paramref name="address"/> without rebuilding the full list.
+        /// The active filter and selection stay unchanged.
+        /// </summary>
+        /// <returns>True when a visible row was refreshed; false when the row
+        /// or icon loader is unavailable or the loader fails.</returns>
+        public bool RefreshIconAtAddress(uint address)
+        {
+            if (_iconLoader == null) return false;
+
+            int itemIndex = _items.FindIndex(item => item.addr == address);
+            if (itemIndex < 0) return false;
+            int displayIndex = _filteredIndices.IndexOf(itemIndex);
+            if (displayIndex < 0 || displayIndex >= _displayItems.Count) return false;
+
+            Bitmap? replacement;
+            try
+            {
+                replacement = _iconLoader(itemIndex);
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorF("AddressListControl.RefreshIconAtAddress failed: {0}", ex.Message);
+                return false;
+            }
+
+            AddressListItem previous = _displayItems[displayIndex];
+            uint? selectedAddress = SelectedItem?.addr;
+            _isRefreshing = true;
+            try
+            {
+                _displayItems[displayIndex] = new AddressListItem
+                {
+                    Text = previous.Text,
+                    Icon = replacement,
+                };
+                if (selectedAddress.HasValue && SelectedItem?.addr != selectedAddress.Value)
+                    SelectAddress(selectedAddress.Value);
+            }
+            catch
+            {
+                bool replacementIsOwned = displayIndex < _displayItems.Count
+                    && ReferenceEquals(_displayItems[displayIndex].Icon, replacement);
+                if (replacementIsOwned)
+                    DisposeDetachedIconsLater(new[] { previous.Icon });
+                else
+                    replacement?.Dispose();
+                throw;
+            }
+            finally
+            {
+                _isRefreshing = false;
+            }
+
+            DisposeDetachedIconsLater(new[] { previous.Icon });
+            return true;
         }
 
         /// <summary>Total number of items loaded into the list (regardless of filter state).</summary>
@@ -250,12 +343,47 @@ namespace FEBuilderGBA.Avalonia.Controls
             PickHint.IsVisible = true;
         }
 
+        string? CurrentFilter()
+        {
+            string? filter = SearchBox.Text;
+            return string.IsNullOrWhiteSpace(filter) ? null : filter;
+        }
+
+        void SelectPreservedOrFirst(uint preserveAddress)
+        {
+            AddressList.SelectedIndex = -1;
+            if (preserveAddress != 0)
+                SelectAddress(preserveAddress);
+            if (AddressList.SelectedIndex < 0)
+                SelectFirst();
+        }
+
+        void CompleteResolvedReload(bool raiseAddressChanged)
+        {
+            _isResolvingReload = false;
+            var selected = SelectedItem;
+            if (raiseAddressChanged && selected != null)
+                SelectedAddressChanged?.Invoke(selected.addr);
+            SelectedItemChanged?.Invoke(selected);
+        }
+
         void RefreshDisplay(string? filter = null)
         {
             _isRefreshing = true;
             try
             {
-                _displayItems.Clear();
+                var previousItems = new List<AddressListItem>(_displayItems);
+                try
+                {
+                    _displayItems.Clear();
+                }
+                catch
+                {
+                    if (_displayItems.Count == 0)
+                        DisposeDetachedIconsLater(previousItems.ConvertAll(item => item.Icon));
+                    throw;
+                }
+                DisposeDetachedIconsLater(previousItems.ConvertAll(item => item.Icon));
                 _filteredIndices.Clear();
                 for (int i = 0; i < _items.Count; i++)
                 {
@@ -278,12 +406,31 @@ namespace FEBuilderGBA.Avalonia.Controls
             }
         }
 
+        static void DisposeDetachedIconsLater(IEnumerable<Bitmap?> icons)
+        {
+            var owned = new List<Bitmap>();
+            foreach (Bitmap? icon in icons)
+            {
+                if (icon != null)
+                    owned.Add(icon);
+            }
+            if (owned.Count == 0) return;
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                foreach (Bitmap icon in owned)
+                    icon.Dispose();
+            }, DispatcherPriority.Background);
+        }
+
         void AddressList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
         {
             if (_isRefreshing) return;
+            if (_isResolvingReload) return;
             var item = SelectedItem;
             if (item != null)
                 SelectedAddressChanged?.Invoke(item.addr);
+            SelectedItemChanged?.Invoke(item);
         }
 
         void AddressList_DoubleTapped(object? sender, TappedEventArgs e)
@@ -471,11 +618,19 @@ namespace FEBuilderGBA.Avalonia.Controls
         /// </summary>
         internal void ApplySearchFilter()
         {
-            string? filter = SearchBox.Text;
-            if (string.IsNullOrWhiteSpace(filter))
-                RefreshDisplay();
-            else
-                RefreshDisplay(filter);
+            int selectedOriginalIndex = SelectedOriginalIndex;
+            _isResolvingReload = true;
+            try
+            {
+                RefreshDisplay(CurrentFilter());
+                AddressList.SelectedIndex = -1;
+                if (selectedOriginalIndex >= 0)
+                    SelectByIndex(selectedOriginalIndex);
+            }
+            finally
+            {
+                CompleteResolvedReload(raiseAddressChanged: false);
+            }
         }
 
         async void CopyAddress_Click(object? sender, RoutedEventArgs e)

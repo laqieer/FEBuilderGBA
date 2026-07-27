@@ -10044,8 +10044,17 @@ FE-Repo...
 :2. Quantized preview
 2. 減色プレビュー
 
+:NEW SOURCE
+新しいソース
+
 :SOURCE preview — this is always the picked PNG/BMP file, quantized. It stays fixed until you pick another file with Step 1; selecting a row in the list on the left only chooses the Import target (Step 3) and never changes this image.
 ソースプレビュー — これは選択した PNG/BMP ファイルを減色表示したものです。手順 1 で別のファイルを選ぶまで変わりません。左のリストで行を選んでもインポート先（手順 3）が変わるだけで、この画像は変わりません。
+
+:CURRENT ROM TARGET
+現在の ROM 書き込み先
+
+:TARGET preview — the portrait CURRENTLY stored in the selected slot, read live from the ROM. It updates whenever you change the selection on the left, and again right after a successful Import; it stays independent of the staged SOURCE file beside it.
+ターゲットプレビュー — 選択中のスロットに現在保存されている顔画像を、ROM からその都度読み込んで表示します。左のリストで選択を変更するたびに、また Import 成功直後にも更新されます。隣に表示されるステージ済みのソースファイルとは独立しています。
 
 :3. Target portrait slot (select on the left list)
 3. 書き込み先スロット（左のリストから選択）
@@ -10124,6 +10133,9 @@ ROMファイルを開いて難易度設定を編集してください。
 
 :Per-frame preview (96x80)
 フレームごとのプレビュー (96x80)
+
+:Per-frame preview (96x80, SOURCE only)
+フレームごとのプレビュー (96x80、ソースのみ)
 
 :Live composite of the selected frame's eye/mouth crop onto the face. Auto-quantized source only — Share/Custom palette and Fuchidori are not reflected here (they change only the final import).
 選択したフレームの目/口クロップを顔に合成したライブプレビューです。自動減色したソースのみ表示します — パレット共有/カスタムパレットや縁取りはここには反映されません（それらは最終的なインポートのみを変更します）。

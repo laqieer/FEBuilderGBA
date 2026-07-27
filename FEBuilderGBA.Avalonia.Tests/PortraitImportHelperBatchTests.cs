@@ -135,6 +135,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Assert.Equal(2, result.Imported);
                 Assert.Equal(0, result.Failed);
                 Assert.Equal(0, result.Skipped);
+                Assert.Equal(new[] { slot32, slot33 }, result.ImportedEntryAddresses);
                 Assert.NotEqual(slot32_d0_before, rom.p32(slot32 + 0));
                 Assert.NotEqual(slot33_d0_before, rom.p32(slot33 + 0));
             }

@@ -1,6 +1,8 @@
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Media.Imaging;
 using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Services;
 
@@ -147,6 +149,132 @@ public class AddressListControlTests
     }
 
     // ---------------------------------------------------------------
+    // 2b. Targeted icon refresh (#2016) — update one imported row without
+    // rebuilding hundreds of thumbnails or disturbing filter/selection.
+    // ---------------------------------------------------------------
+
+    [AvaloniaFact]
+    public void RefreshIconAtAddress_ReloadsOnlyMatchingRowAndPreservesFilterSelection()
+    {
+        var control = new AddressListControl();
+        var items = MakeItems(5);
+        int iconLoaderCalls = 0;
+        control.SetItemsWithIcons(items, _ => { iconLoaderCalls++; return null; });
+        control.ApplySearchFilter("Item 2");
+        Assert.True(control.SelectAddress(items[2].addr));
+        iconLoaderCalls = 0;
+
+        Assert.True(control.RefreshIconAtAddress(items[2].addr));
+
+        var searchBox = control.FindControl<TextBox>("SearchBox");
+        var listBox = control.FindControl<ListBox>("AddressList");
+        Assert.Equal(1, iconLoaderCalls);
+        Assert.Equal("Item 2", searchBox!.Text);
+        Assert.Equal(1, listBox!.ItemCount);
+        Assert.Equal(items[2].addr, control.SelectedItem!.addr);
+    }
+
+    [AvaloniaFact]
+    public void RefreshIconAtAddress_HiddenRow_DoesNotInvokeLoader()
+    {
+        var control = new AddressListControl();
+        var items = MakeItems(5);
+        int iconLoaderCalls = 0;
+        control.SetItemsWithIcons(items, _ => { iconLoaderCalls++; return null; });
+        control.ApplySearchFilter("Item 2");
+        iconLoaderCalls = 0;
+
+        Assert.False(control.RefreshIconAtAddress(items[3].addr));
+        Assert.Equal(0, iconLoaderCalls);
+    }
+
+    [AvaloniaFact]
+    public void SetItemsWithIcons_ReloadKeepsLegacyUnfilteredBehavior()
+    {
+        var control = new AddressListControl();
+        var items = MakeItems(5);
+        control.SetItems(items);
+        control.ApplySearchFilter("Item 2");
+
+        control.SetItemsWithIcons(MakeItems(4), _ => null);
+
+        var listBox = control.FindControl<ListBox>("AddressList");
+        Assert.Equal(4, listBox!.ItemCount);
+    }
+
+    [AvaloniaFact]
+    public void SetItemsWithIcons_DetachesRowsBeforeDisposingOwnedIcons()
+    {
+        var control = new AddressListControl();
+        var items = MakeItems(1);
+        control.SetItemsWithIcons(items, _ =>
+            IconBitmapBuilder.FromRgba(new byte[] { 255, 0, 0, 255 }, 1, 1));
+
+        var listBox = control.FindControl<ListBox>("AddressList");
+        var oldIcon = Assert.IsType<WriteableBitmap>(
+            Assert.IsType<AddressListItem>(listBox!.Items[0]).Icon);
+        var collection = Assert.IsAssignableFrom<INotifyCollectionChanged>(listBox.ItemsSource);
+        bool usableWhenDetached = false;
+        collection.CollectionChanged += (_, e) =>
+        {
+            if (e.Action != NotifyCollectionChangedAction.Reset) return;
+            using (oldIcon.Lock()) { }
+            usableWhenDetached = true;
+        };
+
+        control.SetItemsWithIcons(MakeItems(1, baseAddr: 0x2000), _ => null);
+
+        Assert.True(usableWhenDetached);
+        using (oldIcon.Lock()) { }
+        global::Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+        Assert.ThrowsAny<System.Exception>(() => oldIcon.Lock());
+    }
+
+    [AvaloniaFact]
+    public void RefreshIconAtAddress_CollectionHandlerThrows_KeepsReplacementOwned()
+    {
+        var control = new AddressListControl();
+        var items = MakeItems(1);
+        WriteableBitmap? replacement = null;
+        int loadCount = 0;
+        control.SetItemsWithIcons(items, _ =>
+        {
+            var bitmap = IconBitmapBuilder.FromRgba(
+                loadCount++ == 0
+                    ? new byte[] { 255, 0, 0, 255 }
+                    : new byte[] { 0, 255, 0, 255 },
+                1, 1);
+            if (loadCount > 1) replacement = bitmap;
+            return bitmap;
+        });
+
+        var listBox = control.FindControl<ListBox>("AddressList");
+        var oldIcon = Assert.IsType<WriteableBitmap>(
+            Assert.IsType<AddressListItem>(listBox!.Items[0]).Icon);
+        var collection = Assert.IsAssignableFrom<INotifyCollectionChanged>(listBox.ItemsSource);
+        NotifyCollectionChangedEventHandler handler = (_, e) =>
+        {
+            if (e.Action == NotifyCollectionChangedAction.Replace)
+                throw new System.InvalidOperationException("test replacement observer");
+        };
+        collection.CollectionChanged += handler;
+
+        Assert.Throws<System.InvalidOperationException>(
+            () => control.RefreshIconAtAddress(items[0].addr));
+
+        var currentIcon = Assert.IsType<WriteableBitmap>(
+            Assert.IsType<AddressListItem>(listBox.Items[0]).Icon);
+        Assert.Same(replacement, currentIcon);
+        using (currentIcon.Lock()) { }
+        using (oldIcon.Lock()) { }
+        global::Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+        Assert.ThrowsAny<System.Exception>(() => oldIcon.Lock());
+
+        collection.CollectionChanged -= handler;
+        control.SetItems(new List<AddrResult>());
+    }
+
+    // ---------------------------------------------------------------
     // 3. SelectedAddressChanged event fires on selection
     // ---------------------------------------------------------------
 
@@ -186,6 +314,107 @@ public class AddressListControlTests
         Assert.Equal(2, firedAddresses.Count);
         Assert.Equal(items[1].addr, firedAddresses[0]);
         Assert.Equal(items[3].addr, firedAddresses[1]);
+    }
+
+    // ---------------------------------------------------------------
+    // 3b. SelectedItemChanged (#2016) — additive nullable event that
+    // preserves SelectedAddressChanged's existing non-null behaviour above,
+    // while also covering final select/deselect/filter/refresh outcomes.
+    // ---------------------------------------------------------------
+
+    [AvaloniaFact]
+    public void SelectedItemChanged_FiresWithSelectedAddrResult()
+    {
+        var control = new AddressListControl();
+        var items = MakeItems(5);
+        control.SetItems(items);
+
+        AddrResult firedItem = null;
+        control.SelectedItemChanged += item => firedItem = item;
+
+        var listBox = control.FindControl<ListBox>("AddressList");
+        Assert.NotNull(listBox);
+        listBox!.SelectedIndex = 2;
+
+        Assert.NotNull(firedItem);
+        Assert.Equal(items[2].addr, firedItem.addr);
+    }
+
+    [AvaloniaFact]
+    public void SelectedItemChanged_FiresWithNull_OnDeselect()
+    {
+        var control = new AddressListControl();
+        var items = MakeItems(3);
+        control.SetItems(items);
+
+        var fired = new List<AddrResult>();
+        control.SelectedItemChanged += item => fired.Add(item);
+
+        control.Deselect();
+
+        Assert.Single(fired);
+        Assert.Null(fired[0]);
+    }
+
+    [AvaloniaFact]
+    public void SelectedItemChanged_DoesNotBreak_SelectedAddressChanged()
+    {
+        // #2016: SelectedItemChanged is additive — SelectedAddressChanged
+        // must keep firing exactly as before (non-null only) alongside it.
+        var control = new AddressListControl();
+        var items = MakeItems(4);
+        control.SetItems(items);
+
+        uint? addrFired = null;
+        AddrResult itemFired = null;
+        control.SelectedAddressChanged += addr => addrFired = addr;
+        control.SelectedItemChanged += item => itemFired = item;
+
+        var listBox = control.FindControl<ListBox>("AddressList");
+        listBox!.SelectedIndex = 1;
+
+        Assert.Equal(items[1].addr, addrFired);
+        Assert.NotNull(itemFired);
+        Assert.Equal(items[1].addr, itemFired.addr);
+    }
+
+    [AvaloniaFact]
+    public void SelectedItemChanged_FiresOnFilterExcludingSelection()
+    {
+        // A search filter that excludes the currently selected row is a
+        // "refresh" outcome. CompleteResolvedReload emits only the final
+        // null result after transient native selection events are suppressed.
+        var control = new AddressListControl();
+        var items = MakeItems(3, prefix: "Alpha");
+        control.SetItems(items);
+        control.SelectAddress(items[1].addr);
+
+        var fired = new List<AddrResult>();
+        control.SelectedItemChanged += item => fired.Add(item);
+
+        control.ApplySearchFilter("no such row zzz");
+
+        Assert.Contains(fired, f => f == null);
+        Assert.Null(control.SelectedItem);
+    }
+
+    [AvaloniaFact]
+    public void ApplySearchFilter_PreservesExactDuplicateAddressRow()
+    {
+        var control = new AddressListControl();
+        var items = new List<AddrResult>
+        {
+            new AddrResult(0x1000, "Alpha"),
+            new AddrResult(0x1000, "Beta"),
+            new AddrResult(0x1004, "Gamma"),
+        };
+        control.SetItems(items);
+        Assert.True(control.SelectByIndex(1));
+
+        control.ApplySearchFilter("Beta");
+
+        Assert.Equal(1, control.SelectedOriginalIndex);
+        Assert.Same(items[1], control.SelectedItem);
     }
 
     [AvaloniaFact]
