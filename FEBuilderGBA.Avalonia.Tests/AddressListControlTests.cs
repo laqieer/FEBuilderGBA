@@ -325,6 +325,25 @@ public class AddressListControlTests
     }
 
     [AvaloniaFact]
+    public void ApplySearchFilter_PreservesExactDuplicateAddressRow()
+    {
+        var control = new AddressListControl();
+        var items = new List<AddrResult>
+        {
+            new AddrResult(0x1000, "Alpha"),
+            new AddrResult(0x1000, "Beta"),
+            new AddrResult(0x1004, "Gamma"),
+        };
+        control.SetItems(items);
+        Assert.True(control.SelectByIndex(1));
+
+        control.ApplySearchFilter("Beta");
+
+        Assert.Equal(1, control.SelectedOriginalIndex);
+        Assert.Same(items[1], control.SelectedItem);
+    }
+
+    [AvaloniaFact]
     public void SelectedItem_ReturnsCorrectAddrResult()
     {
         var control = new AddressListControl();

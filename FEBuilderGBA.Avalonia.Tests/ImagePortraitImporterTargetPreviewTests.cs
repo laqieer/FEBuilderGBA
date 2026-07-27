@@ -340,9 +340,11 @@ namespace FEBuilderGBA.Avalonia.Tests
                     // 96x80 — the size alone proves the fallback fired.
                     Assert.Equal(32, bmp.PixelSize.Width);
                     Assert.Equal(32, bmp.PixelSize.Height);
-                    using IImage expectedImage = PreviewIconHelper.LoadPortraitMini(0);
-                    using WriteableBitmap expected = IconBitmapBuilder.FromImage(expectedImage)!;
-                    Assert.Equal(ReadPixels(expected), ReadPixels(bmp));
+                    // BuildRom gives palette index 1 the GBA white value
+                    // (31,31,31), which the image service expands to 248 in
+                    // each channel. Assert that deterministic fixture value
+                    // instead of recomputing through shared helper state.
+                    Assert.Equal(new byte[] { 248, 248, 248, 255 }, FirstOpaquePixel(bmp));
                 }
                 finally { CloseView(view); }
             }

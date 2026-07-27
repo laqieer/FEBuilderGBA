@@ -195,7 +195,7 @@ public class IconPreviewControlTests
     }
 
     [AvaloniaFact]
-    public void DetachingControl_DisposesOwnedBitmap()
+    public void DetachingControl_PreservesBitmapForNavigationReuse()
     {
         var control = new IconPreviewControl();
         var host = HostInWindow(control);
@@ -207,9 +207,10 @@ public class IconPreviewControlTests
         host.Dispose();
         global::Avalonia.Threading.Dispatcher.UIThread.RunJobs();
 
-        Assert.False(control.HasImage);
-        Assert.Null(imageDisplay.Source);
-        AssertDisposed(previous);
+        Assert.True(control.HasImage);
+        Assert.Same(previous, imageDisplay.Source);
+        using (previous.Lock()) { }
+        control.SetImage(null);
     }
 
     /// <summary>

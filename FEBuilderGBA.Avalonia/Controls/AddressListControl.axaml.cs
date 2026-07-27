@@ -587,14 +587,14 @@ namespace FEBuilderGBA.Avalonia.Controls
         /// </summary>
         internal void ApplySearchFilter()
         {
-            uint? selectedAddress = SelectedItem?.addr;
+            int selectedOriginalIndex = SelectedOriginalIndex;
             _isResolvingReload = true;
             try
             {
                 RefreshDisplay(CurrentFilter());
                 AddressList.SelectedIndex = -1;
-                if (selectedAddress.HasValue)
-                    SelectAddress(selectedAddress.Value);
+                if (selectedOriginalIndex >= 0)
+                    SelectByIndex(selectedOriginalIndex);
             }
             finally
             {

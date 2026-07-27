@@ -202,12 +202,6 @@ namespace FEBuilderGBA.Avalonia.Controls
             UpdateImageSize();
         }
 
-        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
-        {
-            ReplaceBitmap(null);
-            base.OnDetachedFromVisualTree(e);
-        }
-
         void UpdateOuterSize()
         {
             int scale = Math.Max(1, Scale);
