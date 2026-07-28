@@ -232,7 +232,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// Expand the currently-loaded unit list by the given number of rows.
         /// Mirrors the WF AddressListExpandsButton behavior:
         /// <list type="number">
-        ///   <item>Resolve the event-condition pointer slot for the current group.</item>
+        ///   <item>Revalidate the caller-supplied exact event-condition pointer slot.</item>
         ///   <item>Find free space, copy old rows, plant B0=0x01/B1=0x01 starter
         ///     bytes per WF EventUnitFE7Form.cs:485-490.</item>
         ///   <item>Repoint the slot so the next reload picks up the new base.</item>

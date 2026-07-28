@@ -256,6 +256,91 @@ namespace FEBuilderGBA.Core.Tests
                 System.IO.File.WriteAllLines(file, stable.Take(19).Select(
                     (slot, index) => CondTypeToken(slot.Type) + "\tBroken " + index));
                 Assert.Equal("Turn Conditions", MapEventUnitCore.GetDisplayCondSlots(rom)[0].Name);
+
+                MapEventUnitCore.ResetCondSlotCacheForTests();
+                System.IO.File.WriteAllLines(file, stable.Select(
+                    (slot, index) => (index == 0 ? "TALK" : CondTypeToken(slot.Type))
+                        + "\tWrong type " + index));
+                Assert.Equal("Turn Conditions", MapEventUnitCore.GetDisplayCondSlots(rom)[0].Name);
+            }
+            finally
+            {
+                CoreState.BaseDirectory = previousBase;
+                CoreState.Language = previousLanguage;
+                MapEventUnitCore.ResetCondSlotCacheForTests();
+                try { System.IO.Directory.Delete(root, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void DisplayCondSlots_FallsBackFromPrimaryToFallbackRoot()
+        {
+            string primaryRoot = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(), "eventcond_fallback_" + System.Guid.NewGuid().ToString("N"));
+            string fallbackRoot = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(), "eventcond_fallback_source_" + System.Guid.NewGuid().ToString("N"));
+            System.IO.Directory.CreateDirectory(primaryRoot);
+            string fallbackData = System.IO.Path.Combine(fallbackRoot, "config", "data");
+            System.IO.Directory.CreateDirectory(fallbackData);
+            ROM rom = TestHelper.MakeMinimalRom(8);
+            var stable = MapEventUnitCore.GetStableCondSlots(rom);
+            System.IO.File.WriteAllLines(
+                System.IO.Path.Combine(fallbackData, "eventcond_FE8.zh.txt"),
+                stable.Select((slot, index) =>
+                    CondTypeToken(slot.Type) + "\tFallback " + index));
+
+            try
+            {
+                MapEventUnitCore.ResetCondSlotCacheForTests();
+
+                Assert.Equal("Fallback 0",
+                    MapEventUnitCore.GetDisplayCondSlots(
+                        rom, primaryRoot, fallbackRoot, "zh")[0].Name);
+            }
+            finally
+            {
+                MapEventUnitCore.ResetCondSlotCacheForTests();
+                try { System.IO.Directory.Delete(primaryRoot, true); } catch { }
+                try { System.IO.Directory.Delete(fallbackRoot, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void DisplayCondSlots_CacheInvalidatesOnFileAndLanguageChange()
+        {
+            string root = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(), "eventcond_cache_" + System.Guid.NewGuid().ToString("N"));
+            string dataDir = System.IO.Path.Combine(root, "config", "data");
+            System.IO.Directory.CreateDirectory(dataDir);
+            ROM rom = TestHelper.MakeMinimalRom(8);
+            var stable = MapEventUnitCore.GetStableCondSlots(rom);
+            string zhFile = System.IO.Path.Combine(dataDir, "eventcond_FE8.zh.txt");
+            string jaFile = System.IO.Path.Combine(dataDir, "eventcond_FE8.ja.txt");
+
+            void WriteSlots(string path, string prefix) =>
+                System.IO.File.WriteAllLines(path, stable.Select(
+                    (slot, index) => CondTypeToken(slot.Type)
+                        + "\t" + prefix + " " + index));
+
+            string previousBase = CoreState.BaseDirectory;
+            string previousLanguage = CoreState.Language;
+            try
+            {
+                CoreState.BaseDirectory = root;
+                CoreState.Language = "zh";
+                WriteSlots(zhFile, "First");
+                WriteSlots(jaFile, "Japanese");
+                MapEventUnitCore.ResetCondSlotCacheForTests();
+                Assert.Equal("First 0",
+                    MapEventUnitCore.GetDisplayCondSlots(rom)[0].Name);
+
+                WriteSlots(zhFile, "Updated longer");
+                Assert.Equal("Updated longer 0",
+                    MapEventUnitCore.GetDisplayCondSlots(rom)[0].Name);
+
+                CoreState.Language = "ja";
+                Assert.Equal("Japanese 0",
+                    MapEventUnitCore.GetDisplayCondSlots(rom)[0].Name);
             }
             finally
             {

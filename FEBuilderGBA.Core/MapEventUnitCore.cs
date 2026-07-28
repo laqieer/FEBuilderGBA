@@ -60,28 +60,39 @@ namespace FEBuilderGBA
         /// </summary>
         public static List<CondSlot> GetDisplayCondSlots(ROM rom)
         {
+            string primaryRoot = string.IsNullOrWhiteSpace(CoreState.BaseDirectory)
+                ? AppContext.BaseDirectory : CoreState.BaseDirectory;
+            return GetDisplayCondSlots(
+                rom, primaryRoot, AppContext.BaseDirectory, CoreState.Language);
+        }
+
+        internal static List<CondSlot> GetDisplayCondSlots(
+            ROM rom,
+            string primaryRoot,
+            string fallbackRoot,
+            string requestedLanguage)
+        {
             List<CondSlot> stable = GetStableCondSlots(rom);
             if (stable.Count == 0) return stable;
 
-            string primaryRoot = string.IsNullOrWhiteSpace(CoreState.BaseDirectory)
-                ? AppContext.BaseDirectory : CoreState.BaseDirectory;
             string language = U.ResolveEffectiveLanguage(
-                CoreState.Language, primaryRoot);
+                requestedLanguage, primaryRoot);
             string path = U.ConfigDataFilename(
                 "eventcond_", rom, primaryRoot, language);
             try
             {
                 if (!File.Exists(path)
-                    && !PathsEqual(primaryRoot, AppContext.BaseDirectory))
+                    && !PathsEqual(primaryRoot, fallbackRoot))
                 {
                     string fallback = U.ConfigDataFilename(
-                        "eventcond_", rom, AppContext.BaseDirectory, language);
+                        "eventcond_", rom, fallbackRoot, language);
                     if (File.Exists(fallback)) path = fallback;
                 }
 
                 var file = new FileInfo(path);
                 string key = string.Join("|",
                     primaryRoot ?? "",
+                    fallbackRoot ?? "",
                     rom.RomInfo.TitleToFilename ?? "",
                     rom.RomInfo.VersionToFilename ?? "",
                     rom.RomInfo.version.ToString(),

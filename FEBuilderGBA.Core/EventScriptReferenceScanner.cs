@@ -314,11 +314,13 @@ namespace FEBuilderGBA
         // FE7-only tutorial table (WF MakeEventScriptForFE7Tutorial):
         // base p32(event_tutorial_pointer)+mapid*4, mapid<=0x30, 12-byte records,
         // ptr p32(addr+4), stop u32(addr)==0.
-        static bool AppendFE7Tutorial(ROM rom, uint mapid, List<EventEntry> list)
+        internal static bool AppendFE7Tutorial(
+            ROM rom, uint mapid, List<EventEntry> list)
         {
             if (mapid > 0x30) return true;
 
             uint tutorialPointer = rom.RomInfo.event_tutorial_pointer;
+            if (tutorialPointer == 0) return true;
             uint romLen = (uint)rom.Data.Length;
             if (!HasBytes(tutorialPointer, 4, romLen)) return false;
 
