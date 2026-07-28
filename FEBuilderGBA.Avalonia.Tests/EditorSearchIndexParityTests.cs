@@ -130,6 +130,24 @@ public class EditorSearchIndexParityTests
         }
     }
 
+    [Fact]
+    public void Open_handler_parser_follows_local_helper_dispatch()
+    {
+        const string source = """
+            private void Button_Click(object? sender, EventArgs e)
+            {
+                OpenThroughHelper();
+            }
+
+            private void OpenThroughHelper()
+            {
+                Open<FakeEditorView>();
+            }
+            """;
+
+        Assert.Equal(new[] { "FakeEditorView" }, ResolveOpenedViewTypes(source, "Button_Click"));
+    }
+
     /// <summary>
     /// The indexed aliases for one identity must equal the union of every declared title
     /// literal (C# ViewTitle, EditorDescriptor.Title, AXAML root Title) of its mapped Views.
@@ -222,11 +240,39 @@ public class EditorSearchIndexParityTests
 
     static List<string> ResolveOpenedViewTypes(string mainWindowSource, string clickHandler)
     {
-        string? body = ExtractMethodBody(mainWindowSource, clickHandler);
-        Assert.True(body != null, $"EditorPanel button handler {clickHandler} not found in MainWindow.axaml.cs.");
-        return Regex.Matches(body!, OpenVerbPattern)
-            .Select(m => m.Groups[1].Value)
-            .Distinct(StringComparer.Ordinal)
+        var types = new HashSet<string>(StringComparer.Ordinal);
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+
+        void Visit(string methodName)
+        {
+            if (!visited.Add(methodName))
+                return;
+
+            string? body = ExtractMethodBody(mainWindowSource, methodName);
+            Assert.True(body != null,
+                $"EditorPanel button handler/helper {methodName} not found in MainWindow.axaml.cs.");
+
+            foreach (Match match in Regex.Matches(body!, OpenVerbPattern))
+                types.Add(match.Groups[1].Value);
+
+            // Follow same-class helper calls so moving a version/patch dispatch behind a helper
+            // cannot silently narrow the title mirror. Dotted calls (service.Method()) are
+            // excluded; only method names that resolve in this source are traversed.
+            foreach (Match match in Regex.Matches(
+                body!,
+                @"(?<![A-Za-z0-9_.])([A-Za-z_][A-Za-z0-9_]*)\s*\("))
+            {
+                string helper = match.Groups[1].Value;
+                if (!visited.Contains(helper)
+                    && ExtractMethodBody(mainWindowSource, helper) != null)
+                {
+                    Visit(helper);
+                }
+            }
+        }
+
+        Visit(clickHandler);
+        return types
             .OrderBy(t => t, StringComparer.Ordinal)
             .ToList();
     }
