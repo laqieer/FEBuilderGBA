@@ -504,7 +504,7 @@ namespace FEBuilderGBA.Avalonia.Views
             root.Children.Add(filter);
 
             var catPanel = new StackPanel { Spacing = 4, Margin = new global::Avalonia.Thickness(12, 0, 12, 12) };
-            var cats = new List<(Expander Exp, List<(Button Btn, string Label)> Buttons)>();
+            var cats = new List<(Expander Exp, List<(Button Btn, string Label, string Key)> Buttons)>();
 
             foreach (var group in EditorCatalog.Categories)
             {
@@ -513,7 +513,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     continue;
 
                 var wrap = new WrapPanel { Orientation = Orientation.Horizontal };
-                var buttons = new List<(Button, string)>();
+                var buttons = new List<(Button, string, string)>();
                 foreach (var entry in applicable)
                 {
                     string label = R._(entry.Label);
@@ -527,7 +527,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     var open = entry.Open;
                     btn.Click += (_, _) => OpenFromLauncher(open);
                     wrap.Children.Add(btn);
-                    buttons.Add((btn, label));
+                    buttons.Add((btn, label, entry.Key));
                 }
 
                 var exp = new Expander
@@ -569,17 +569,21 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        /// <summary>Filter launcher buttons by label; hides empty categories and auto-expands matches.</summary>
-        static void ApplyLauncherFilter(List<(Expander Exp, List<(Button Btn, string Label)> Buttons)> cats, string? text)
+        /// <summary>
+        /// Filter launcher buttons by label and by the editor display title(s) the entry opens
+        /// (#2019); hides empty categories and auto-expands matches. Single-view only: no desktop
+        /// section-header matching, and grouping/count semantics are unchanged.
+        /// </summary>
+        internal static void ApplyLauncherFilter(List<(Expander Exp, List<(Button Btn, string Label, string Key)> Buttons)> cats, string? text)
         {
             string q = (text ?? "").Trim();
             bool hasFilter = q.Length > 0;
             foreach (var (exp, buttons) in cats)
             {
                 int visible = 0;
-                foreach (var (btn, label) in buttons)
+                foreach (var (btn, label, key) in buttons)
                 {
-                    bool match = !hasFilter || label.Contains(q, StringComparison.OrdinalIgnoreCase);
+                    bool match = !hasFilter || EditorSearchIndex.MatchesCatalogEntry(key, label, q);
                     btn.IsVisible = match;
                     if (match) visible++;
                 }

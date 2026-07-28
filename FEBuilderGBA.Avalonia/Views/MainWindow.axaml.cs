@@ -2859,8 +2859,9 @@ namespace FEBuilderGBA.Avalonia.Views
 
         /// <summary>
         /// Show/hide buttons and section expanders based on the filter text.
-        /// Case-insensitive substring match on button Content.
-        /// Also matches against the Expander header (section name).
+        /// Case-insensitive substring match on button Content, on the editor display
+        /// title(s) the button opens (#2019, via EditorSearchIndex keyed by the stable
+        /// Button Name), and on the Expander header (section name).
         /// </summary>
         void ApplyFilter(string filter)
         {
@@ -2891,7 +2892,10 @@ namespace FEBuilderGBA.Avalonia.Views
 
                     if (hasFilter)
                     {
-                        bool match = sectionMatch || content.Contains(filter, StringComparison.OrdinalIgnoreCase);
+                        // An unknown Button Name fails open inside the matcher: it degrades to
+                        // the pre-#2019 label-only match rather than hiding the button.
+                        bool match = sectionMatch
+                            || EditorSearchIndex.MatchesDesktopButton(btn.Name, content, filter);
                         btn.IsVisible = match;
                         if (match) { matchCount++; anyButtonVisible = true; }
                     }
