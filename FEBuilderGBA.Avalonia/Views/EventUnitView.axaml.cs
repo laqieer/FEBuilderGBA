@@ -20,7 +20,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ObservableCollection<string> _unitDisplayItems = new();
 
         List<AddrResult> _mapItems = new();
-        List<AddrResult> _groupItems = new();
+        List<MapEventUnitCore.UnitGroupResult> _groupItems = new();
         List<AddrResult> _unitItems = new();
 
         // Session-scoped NEW allocations (Avalonia equivalent of WF
@@ -89,11 +89,31 @@ namespace FEBuilderGBA.Avalonia.Views
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
         {
             base.OnAttachedToVisualTree(e);
+            CoreState.LanguageChanged -= OnLanguageChanged;
+            CoreState.LanguageChanged += OnLanguageChanged;
             if (!_hasLoadedList)
             {
                 _hasLoadedList = true;
                 LoadMapList();
             }
+        }
+
+        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            CoreState.LanguageChanged -= OnLanguageChanged;
+            base.OnDetachedFromVisualTree(e);
+        }
+
+        void OnLanguageChanged()
+        {
+            global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                try { ReloadGroupsPreservingSelection(); }
+                catch (Exception ex)
+                {
+                    Log.ErrorF("EventUnitView language refresh failed: {0}", ex.Message);
+                }
+            });
         }
 
         void LoadMapList()
@@ -124,26 +144,8 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                int idx = MapListBox.SelectedIndex;
-                if (idx < 0 || idx >= _mapItems.Count) return;
-
-                uint mapId = _mapItems[idx].tag;
-                _groupItems = _vm.LoadUnitGroups(mapId);
-                // Re-merge any session NEW allocations for this map that the
-                // group scan has not yet "booked" (mirrors WF
-                // EventUnitForm.AppendNoWriteNewData: drop a NEW entry once it
-                // shows up in the script-scan list, else keep it visible).
-                MergeNewAllocData(mapId);
-                _groupDisplayItems.Clear();
-                foreach (var item in _groupItems)
-                    _groupDisplayItems.Add(item.name);
-
-                _unitDisplayItems.Clear();
-                _unitItems = new List<AddrResult>();
-                ClearDetail();
-
-                if (_groupItems.Count > 0)
-                    GroupListBox.SelectedIndex = 0;
+                ReloadGroupsPreservingSelection(
+                    preserveCurrentSelection: false, clearUnits: true);
             }
             catch (Exception ex)
             {
@@ -158,7 +160,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 int idx = GroupListBox.SelectedIndex;
                 if (idx < 0 || idx >= _groupItems.Count) return;
 
-                uint groupAddr = _groupItems[idx].addr;
+                uint groupAddr = _groupItems[idx].Addr;
                 TopAddrBox.Text = string.Format("0x{0:X08}", groupAddr);
                 LoadUnitsFromAddress(groupAddr);
             }
@@ -675,8 +677,18 @@ namespace FEBuilderGBA.Avalonia.Views
                     // the Core GetUnitGroupsForMap POINTER_UNIT scan finds it.
                     var newEntry = new AddrResult(newBase, "NEW", mapId);
                     _newAllocData.Add(newEntry);
-                    _groupItems.Add(newEntry);
-                    _groupDisplayItems.Add("NEW");
+                    var newGroup = new MapEventUnitCore.UnitGroupResult
+                    {
+                        Addr = newBase,
+                        Name = MapEventUnitCore.FormatNewGroupName(newBase),
+                        SelectedMapId = mapId,
+                        DiscoveredMapId = mapId,
+                        OriginKind = MapEventUnitCore.UnitGroupOriginKind.ManualAllocation,
+                        SlotIndex = -1,
+                        SourceRecordAddress = newBase,
+                    };
+                    _groupItems.Add(newGroup);
+                    _groupDisplayItems.Add(newGroup.Name);
                     // Select it so the editable starter rows load.
                     GroupListBox.SelectedIndex = _groupDisplayItems.Count - 1;
 
@@ -712,7 +724,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 bool alreadyListed = false;
                 foreach (var g in _groupItems)
                 {
-                    if (g.addr == entry.addr) { alreadyListed = true; break; }
+                    if (g.Addr == entry.addr) { alreadyListed = true; break; }
                 }
                 if (alreadyListed)
                 {
@@ -721,9 +733,68 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 else
                 {
-                    _groupItems.Add(entry);
+                    _groupItems.Add(new MapEventUnitCore.UnitGroupResult
+                    {
+                        Addr = entry.addr,
+                        Name = MapEventUnitCore.FormatNewGroupName(entry.addr),
+                        SelectedMapId = mapId,
+                        DiscoveredMapId = mapId,
+                        OriginKind = MapEventUnitCore.UnitGroupOriginKind.ManualAllocation,
+                        SlotIndex = -1,
+                        SourceRecordAddress = entry.addr,
+                    });
                 }
             }
+        }
+
+        void ReloadGroupsPreservingSelection(
+            string? originKey = null,
+            uint address = U.NOT_FOUND,
+            bool preserveCurrentSelection = true,
+            bool clearUnits = false)
+        {
+            int mapIndex = MapListBox.SelectedIndex;
+            if (mapIndex < 0 || mapIndex >= _mapItems.Count)
+            {
+                GroupListBox.SelectedIndex = -1;
+                _groupItems.Clear();
+                _groupDisplayItems.Clear();
+                _unitItems.Clear();
+                _unitDisplayItems.Clear();
+                ClearDetail();
+                return;
+            }
+            if (preserveCurrentSelection && originKey == null)
+            {
+                int oldIndex = GroupListBox.SelectedIndex;
+                if (oldIndex >= 0 && oldIndex < _groupItems.Count)
+                {
+                    originKey = _groupItems[oldIndex].OriginKey;
+                    address = _groupItems[oldIndex].Addr;
+                }
+            }
+
+            GroupListBox.SelectedIndex = -1;
+            if (clearUnits)
+            {
+                _unitItems.Clear();
+                _unitDisplayItems.Clear();
+                ClearDetail();
+            }
+
+            uint mapId = _mapItems[mapIndex].tag;
+            _groupItems = _vm.LoadUnitGroups(mapId);
+            MergeNewAllocData(mapId);
+            _groupDisplayItems.Clear();
+            foreach (var group in _groupItems) _groupDisplayItems.Add(group.Name);
+
+            int select = -1;
+            for (int i = 0; i < _groupItems.Count; i++)
+                if (_groupItems[i].OriginKey == originKey
+                    && (address == U.NOT_FOUND || _groupItems[i].Addr == address))
+                { select = i; break; }
+            GroupListBox.SelectedIndex =
+                select >= 0 ? select : (_groupItems.Count > 0 ? 0 : -1);
         }
 
         void ExpandList_Click(object? sender, RoutedEventArgs e)
@@ -736,28 +807,39 @@ namespace FEBuilderGBA.Avalonia.Views
                     Log.Notify("EventUnitView.ExpandList_Click: no unit list selected yet.");
                     return;
                 }
+                int gi = GroupListBox.SelectedIndex;
+                if (gi < 0 || gi >= _groupItems.Count) return;
+                MapEventUnitCore.UnitGroupResult selected = _groupItems[gi];
+                if (!selected.CanExpand)
+                {
+                    CoreState.Services?.ShowError(string.Format(
+                        R._("This unit list cannot be expanded safely. Edit its source at {0}."),
+                        U.To0xHexString(selected.SourceRecordAddress)));
+                    return;
+                }
+                string originKey = selected.OriginKey;
+                uint oldBase = selected.Addr;
 
                 _undoService.Begin("Expand Event Unit List FE8");
                 try
                 {
-                    uint newBase = _vm.ExpandUnitListCurrent(addRows: 1);
+                    uint newBase = _vm.ExpandUnitListCurrent(
+                        addRows: 1, exactPointerSlot: selected.ExactPointerSlot);
                     if (newBase == U.NOT_FOUND)
                     {
                         _undoService.Rollback();
-                        Log.Notify("EventUnitView.ExpandList_Click: expansion failed (slot not found or no free space).");
+                        CoreState.Services?.ShowError(string.Format(
+                            R._("Expansion refused because the source pointer at {0} is stale or no free space is available."),
+                            U.To0xHexString(selected.SourceRecordAddress)));
                         return;
                     }
                     _undoService.Commit();
                     Log.Notify("EventUnitView.ExpandList_Click: expanded to new base " + string.Format("0x{0:X08}", newBase));
-                    // Update the cached group entry so re-selecting this
-                    // group doesn't load the stale orphaned table.
-                    int gi = GroupListBox.SelectedIndex;
-                    if (gi >= 0 && gi < _groupItems.Count)
-                    {
-                        var old = _groupItems[gi];
-                        _groupItems[gi] = new AddrResult(newBase, old.name, old.tag);
-                    }
-                    LoadUnitsFromAddress(newBase);
+                    for (int i = 0; i < _newAllocData.Count; i++)
+                        if (_newAllocData[i].addr == oldBase)
+                            _newAllocData[i] = new AddrResult(
+                                newBase, _newAllocData[i].name, _newAllocData[i].tag);
+                    ReloadGroupsPreservingSelection(originKey, newBase);
                 }
                 catch
                 {

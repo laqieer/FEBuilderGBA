@@ -76,11 +76,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>Build the unit group list for a map (Level 2 navigation).</summary>
-        public List<AddrResult> LoadUnitGroups(uint mapId)
+        public List<MapEventUnitCore.UnitGroupResult> LoadUnitGroups(uint mapId)
         {
             ROM rom = CoreState.ROM;
-            if (rom == null) return new List<AddrResult>();
-            return MapEventUnitCore.GetUnitGroupsForMap(rom, mapId);
+            if (rom == null) return new List<MapEventUnitCore.UnitGroupResult>();
+            return MapEventUnitCore.GetDetailedUnitGroupsForMap(rom, mapId);
         }
 
         /// <summary>Build the unit list from a base address (Level 3 navigation).</summary>

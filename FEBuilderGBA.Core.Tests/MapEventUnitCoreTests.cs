@@ -187,6 +187,34 @@ namespace FEBuilderGBA.Core.Tests
             var slots = MapEventUnitCore.GetCondSlots(rom);
             Assert.Equal(20, slots.Count);
         }
+
+        [Fact]
+        public void StableCondSlots_HaveAuthoritativePerVersionCounts()
+        {
+            Assert.Equal(7, MapEventUnitCore.GetStableCondSlots(TestHelper.MakeMinimalRom(6)).Count);
+            Assert.Equal(16, MapEventUnitCore.GetStableCondSlots(TestHelper.MakeMinimalRom(7)).Count);
+            Assert.Equal(20, MapEventUnitCore.GetStableCondSlots(TestHelper.MakeMinimalRom(8)).Count);
+        }
+
+        [Fact]
+        public void ConfigDataFilename_PureOverload_IsNullSafe()
+        {
+            string path = U.ConfigDataFilename(null, null, null, null);
+            Assert.False(string.IsNullOrWhiteSpace(path));
+            Assert.Contains("config", path);
+            Assert.Contains("data", path);
+        }
+
+        [Theory]
+        [InlineData(1u, 1u, 0u, "Turn 1 (Player)")]
+        [InlineData(2u, 5u, 0x40u, "Turn 2-5 (Ally)")]
+        [InlineData(3u, 3u, 0xC0u, "Turn 3 (4th Allegiance)")]
+        [InlineData(4u, 6u, 0x20u, "Turn 4-6 (0x20)")]
+        public void FormatTurnCondition_UsesSharedPhaseAndRangeContract(
+            uint start, uint end, uint phase, string expected)
+        {
+            Assert.Equal(expected, MapEventUnitCore.FormatTurnCondition(start, end, phase));
+        }
     }
 
     /// <summary>Test helper for creating minimal ROM objects.</summary>

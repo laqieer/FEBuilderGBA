@@ -845,6 +845,61 @@ public class EventUnitParityTests
             source);
     }
 
+    [Fact]
+    public void ExpansionViewModels_RequireExactSlot_AndNeverRederiveByAddress()
+    {
+        string root = FindRepoRoot();
+        foreach (string file in new[] {
+            "EventUnitViewModel.cs", "EventUnitFE7ViewModel.cs" })
+        {
+            string source = File.ReadAllText(Path.Combine(
+                root, "FEBuilderGBA.Avalonia", "ViewModels", file));
+            Assert.Contains(
+                "ExpandUnitListCurrent(uint addRows, uint exactPointerSlot)", source);
+            Assert.DoesNotContain("FindEventPointerSlotForUnitList", source);
+            Assert.Contains("rom.p32(exactPointerSlot) != SelectedUnitListBase", source);
+        }
+    }
+
+    [Fact]
+    public void FE7ManualAddressLoad_ClearsMapContextAndViewUsesManualPath()
+    {
+        var vm = new EventUnitFE7ViewModel
+        {
+            SelectedMapId = 0x2A,
+        };
+        ROM? previousRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = null;
+            Assert.Empty(vm.LoadUnitListFromAddress(0x00100000));
+            Assert.Equal(uint.MaxValue, vm.SelectedMapId);
+        }
+        finally
+        {
+            CoreState.ROM = previousRom;
+        }
+
+        string source = File.ReadAllText(Path.Combine(
+            FindRepoRoot(), "FEBuilderGBA.Avalonia", "Views",
+            "EventUnitFE7View.axaml.cs"));
+        Assert.Contains("_vm.LoadUnitListFromAddress(addr)", source);
+    }
+
+    [Fact]
+    public void AllEventUnitGroupLists_WrapAndExposeFullTooltip()
+    {
+        string root = FindRepoRoot();
+        foreach (string file in new[] {
+            "EventUnitView.axaml", "EventUnitFE7View.axaml", "EventUnitFE6View.axaml" })
+        {
+            string source = File.ReadAllText(Path.Combine(
+                root, "FEBuilderGBA.Avalonia", "Views", file));
+            Assert.Contains("TextWrapping=\"Wrap\"", source);
+            Assert.Contains("ToolTip.Tip=\"{Binding}\"", source);
+        }
+    }
+
     // -----------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------

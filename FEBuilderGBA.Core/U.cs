@@ -1784,35 +1784,53 @@ namespace FEBuilderGBA
 
         public static string ConfigDataFilename(string type)
         {
-            return ConfigDataFilename(type, CoreState.ROM);
+            return ConfigDataFilename(type, CoreState.ROM, CoreState.BaseDirectory, CoreState.Language);
         }
 
         public static string ConfigDataFilename(string type, ROM rom)
         {
-            string lang = CoreState.Language ?? "en";
+            return ConfigDataFilename(type, rom, CoreState.BaseDirectory, CoreState.Language);
+        }
+
+        /// <summary>
+        /// Pure, null-safe config/data path resolver. Unlike the legacy
+        /// overloads this method reads no global state, which makes config
+        /// discovery deterministic for Core, mobile, browser and tests.
+        /// </summary>
+        public static string ConfigDataFilename(
+            string type,
+            ROM? rom,
+            string? baseDirectory,
+            string? language)
+        {
+            type ??= "";
+            string root = string.IsNullOrWhiteSpace(baseDirectory)
+                ? AppContext.BaseDirectory
+                : baseDirectory;
+            string lang = string.IsNullOrWhiteSpace(language) ? "en" : language;
             bool canSecondLanguageEnglish = CanSecondLanguageEnglish(lang);
             string fullfilename;
-            if (rom != null)
+            if (rom?.RomInfo != null)
             {
-                fullfilename = Path.Combine(CoreState.BaseDirectory, "config", "data", type + rom.RomInfo.TitleToFilename + "." + lang + ".txt");
+                fullfilename = Path.Combine(root, "config", "data", type + rom.RomInfo.TitleToFilename + "." + lang + ".txt");
                 if (File.Exists(fullfilename)) return fullfilename;
                 if (canSecondLanguageEnglish)
                 {
-                    fullfilename = Path.Combine(CoreState.BaseDirectory, "config", "data", type + rom.RomInfo.TitleToFilename + ".en.txt");
+                    fullfilename = Path.Combine(root, "config", "data", type + rom.RomInfo.TitleToFilename + ".en.txt");
                     if (File.Exists(fullfilename)) return fullfilename;
                 }
-                fullfilename = Path.Combine(CoreState.BaseDirectory, "config", "data", type + rom.RomInfo.TitleToFilename + ".txt");
+                fullfilename = Path.Combine(root, "config", "data", type + rom.RomInfo.TitleToFilename + ".txt");
                 if (File.Exists(fullfilename)) return fullfilename;
             }
 
-            fullfilename = Path.Combine(CoreState.BaseDirectory, "config", "data", type + "ALL." + lang + ".txt");
+            fullfilename = Path.Combine(root, "config", "data", type + "ALL." + lang + ".txt");
             if (File.Exists(fullfilename)) return fullfilename;
             if (canSecondLanguageEnglish)
             {
-                fullfilename = Path.Combine(CoreState.BaseDirectory, "config", "data", type + "ALL.en.txt");
+                fullfilename = Path.Combine(root, "config", "data", type + "ALL.en.txt");
                 if (File.Exists(fullfilename)) return fullfilename;
             }
-            fullfilename = Path.Combine(CoreState.BaseDirectory, "config", "data", type + "ALL.txt");
+            fullfilename = Path.Combine(root, "config", "data", type + "ALL.txt");
             return fullfilename;
         }
 

@@ -66,6 +66,17 @@ deterministic startup contract, safety boundary, and CI proof.
 > are shared and cross-platform and are **not** restricted by this policy. See
 > **[docs/GUI-STRATEGY.md](docs/GUI-STRATEGY.md)**.
 
+### Event-unit origin safety
+
+The Avalonia FE6/FE7/FE8 Event Unit editors discover placement lists from both
+direct condition slots and event scripts. Rows are address-first and retain
+their condition-record/script-command origin, selected map, and
+script-discovered map instead
+of collapsing equal addresses. FE7/FE8 expansion is offered only for a safe
+direct origin and revalidates that exact pointer slot immediately before the
+write; script, manual, shared-address, and stale-slot selections are refused.
+FE6 remains read/edit-only with no expansion command.
+
 ### Cloning the Repository
 
 This repository uses **git submodules** for patch management. Clone with:

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 
 namespace FEBuilderGBA
 {
@@ -39,11 +40,75 @@ namespace FEBuilderGBA
             public string Name;
         }
 
+        static readonly object CondSlotCacheLock = new object();
+        static readonly Dictionary<string, List<CondSlot>> CondSlotCache =
+            new Dictionary<string, List<CondSlot>>(StringComparer.Ordinal);
+        static readonly HashSet<string> RejectedCondSlotDiagnostics =
+            new HashSet<string>(StringComparer.Ordinal);
+        const int MaxRejectedCondSlotDiagnostics = 32;
+
         /// <summary>
         /// Get the condition slot definitions for the current ROM version.
         /// These define the layout of the event condition block (each slot = one 4-byte pointer).
         /// </summary>
         public static List<CondSlot> GetCondSlots(ROM rom)
+        {
+            List<CondSlot> stable = GetStableCondSlots(rom);
+            if (stable.Count == 0) return stable;
+
+            string primaryRoot = string.IsNullOrWhiteSpace(CoreState.BaseDirectory)
+                ? AppContext.BaseDirectory : CoreState.BaseDirectory;
+            string path = U.ConfigDataFilename(
+                "eventcond_", rom, primaryRoot, CoreState.Language);
+            try
+            {
+                if (!File.Exists(path)
+                    && !PathsEqual(primaryRoot, AppContext.BaseDirectory))
+                {
+                    string fallback = U.ConfigDataFilename(
+                        "eventcond_", rom, AppContext.BaseDirectory, CoreState.Language);
+                    if (File.Exists(fallback)) path = fallback;
+                }
+
+                var file = new FileInfo(path);
+                string key = string.Join("|",
+                    primaryRoot ?? "",
+                    rom.RomInfo.TitleToFilename ?? "",
+                    rom.RomInfo.VersionToFilename ?? "",
+                    rom.RomInfo.version.ToString(),
+                    CoreState.Language ?? "",
+                    path ?? "",
+                    file.Exists ? file.LastWriteTimeUtc.Ticks.ToString() : "missing",
+                    file.Exists ? file.Length.ToString() : "missing");
+
+                lock (CondSlotCacheLock)
+                {
+                    if (CondSlotCache.TryGetValue(key, out List<CondSlot> cached))
+                        return CloneSlots(cached);
+                }
+
+                List<CondSlot> localized = ReadCondSlots(path);
+                if (!HasSameShape(stable, localized))
+                {
+                    ReportRejectedCondSlotsOnce(key, path, stable.Count, localized.Count);
+                    localized = stable;
+                }
+                lock (CondSlotCacheLock)
+                    CondSlotCache[key] = CloneSlots(localized);
+                return CloneSlots(localized);
+            }
+            catch (Exception)
+            {
+                ReportRejectedCondSlotsOnce("io|" + path, path, stable.Count, -1);
+                return stable;
+            }
+        }
+
+        /// <summary>
+        /// Authoritative, language-independent condition layout. Reference
+        /// reports use these names; localized files may replace names only.
+        /// </summary>
+        public static List<CondSlot> GetStableCondSlots(ROM rom)
         {
             if (rom?.RomInfo == null) return new List<CondSlot>();
 
@@ -53,6 +118,93 @@ namespace FEBuilderGBA
                 return GetCondSlotsFE7();
             else
                 return GetCondSlotsFE8();
+        }
+
+        static bool PathsEqual(string a, string b)
+        {
+            try
+            {
+                return string.Equals(Path.GetFullPath(a ?? ""), Path.GetFullPath(b ?? ""),
+                    OperatingSystem.IsWindows()
+                        ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+            }
+            catch { return string.Equals(a, b, StringComparison.Ordinal); }
+        }
+
+        static List<CondSlot> ReadCondSlots(string path)
+        {
+            var result = new List<CondSlot>();
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return result;
+            foreach (string raw in File.ReadLines(path))
+            {
+                if (string.IsNullOrWhiteSpace(raw) || U.IsComment(raw)) continue;
+                string line = U.ClipComment(raw);
+                if (string.IsNullOrWhiteSpace(line)) continue;
+                string[] columns = line.Split('\t');
+                if (columns.Length < 2 || !TryParseCondType(columns[0], out CondType type))
+                    return new List<CondSlot>();
+                result.Add(new CondSlot { Type = type, Name = columns[1].Trim() });
+            }
+            return result;
+        }
+
+        static bool TryParseCondType(string value, out CondType type)
+        {
+            switch ((value ?? "").Trim().ToUpperInvariant())
+            {
+                case "TURN": type = CondType.Turn; return true;
+                case "TALK": type = CondType.Talk; return true;
+                case "OBJECT": type = CondType.Object; return true;
+                case "ALWAYS": type = CondType.Always; return true;
+                case "TUTORIAL": type = CondType.Tutorial; return true;
+                case "TRAP": type = CondType.Trap; return true;
+                case "PLAYER_UNIT": type = CondType.PlayerUnit; return true;
+                case "ENEMY_UNIT": type = CondType.EnemyUnit; return true;
+                case "FREEMAP_PLAYER_UNIT": type = CondType.FreemapPlayerUnit; return true;
+                case "FREEMAP_ENEMY_UNIT": type = CondType.FreemapEnemyUnit; return true;
+                case "START_EVENT": type = CondType.StartEvent; return true;
+                case "END_EVENT": type = CondType.EndEvent; return true;
+                default: type = CondType.Unknown; return false;
+            }
+        }
+
+        static bool HasSameShape(List<CondSlot> stable, List<CondSlot> candidate)
+        {
+            if (stable.Count != candidate.Count) return false;
+            for (int i = 0; i < stable.Count; i++)
+                if (stable[i].Type != candidate[i].Type) return false;
+            return true;
+        }
+
+        static List<CondSlot> CloneSlots(List<CondSlot> source)
+        {
+            var result = new List<CondSlot>(source.Count);
+            foreach (CondSlot slot in source)
+                result.Add(new CondSlot { Type = slot.Type, Name = slot.Name });
+            return result;
+        }
+
+        static void ReportRejectedCondSlotsOnce(
+            string key, string path, int expected, int actual)
+        {
+            lock (CondSlotCacheLock)
+            {
+                if (RejectedCondSlotDiagnostics.Count >= MaxRejectedCondSlotDiagnostics
+                    || !RejectedCondSlotDiagnostics.Add(key))
+                    return;
+            }
+            Log.Debug("Ignoring invalid event-condition localization: "
+                + (path ?? "(null)") + " expected=" + expected + " actual=" + actual);
+        }
+
+        /// <summary>Test/language-reload seam; diagnostics are bounded.</summary>
+        internal static void ResetCondSlotCacheForTests()
+        {
+            lock (CondSlotCacheLock)
+            {
+                CondSlotCache.Clear();
+                RejectedCondSlotDiagnostics.Clear();
+            }
         }
 
         static List<CondSlot> GetCondSlotsFE6()
@@ -207,192 +359,403 @@ namespace FEBuilderGBA
             return ResolvePlistToEventAddr(rom, plist, out mapcondPointer);
         }
 
+        public enum UnitGroupOriginKind
+        {
+            DirectPlacement,
+            EventScript,
+            ManualAllocation,
+        }
+
         /// <summary>
-        /// Get all unit placement groups for a given map.
-        /// Returns a list of (address, display-name, mapId) for each unit placement pointer in the event condition block.
+        /// One selectable unit-list origin. Origin identity is deliberately
+        /// independent of list address so two condition rows pointing at the
+        /// same list remain visible.
+        /// </summary>
+        public sealed class UnitGroupResult
+        {
+            public uint Addr { get; set; }
+            public string Name { get; set; } = "";
+            public uint SelectedMapId { get; set; }
+            public uint DiscoveredMapId { get; set; }
+            public UnitGroupOriginKind OriginKind { get; set; }
+            public int SlotIndex { get; set; }
+            public uint SourceRecordAddress { get; set; }
+            public uint SourceScriptAddress { get; set; }
+            public uint SourceCommandAddress { get; set; }
+            public uint ExactPointerSlot { get; set; }
+            public bool CanExpand { get; set; }
+            public bool Incomplete { get; set; }
+
+            public string OriginKey =>
+                ((int)OriginKind).ToString() + ":" + SlotIndex + ":"
+                + SelectedMapId.ToString("X8") + ":"
+                + DiscoveredMapId.ToString("X8") + ":"
+                + SourceRecordAddress.ToString("X8") + ":"
+                + SourceScriptAddress.ToString("X8") + ":"
+                + SourceCommandAddress.ToString("X8");
+
+            public AddrResult ToAddrResult() =>
+                new AddrResult(Addr, Name, DiscoveredMapId);
+        }
+
+        sealed class ScriptUnitResult
+        {
+            public uint Address;
+            public uint MapId;
+            public uint CommandAddress;
+        }
+
+        sealed class TraversalResult
+        {
+            public readonly List<ScriptUnitResult> Units = new List<ScriptUnitResult>();
+            public uint ResultingMapId;
+            public bool Complete = true;
+        }
+
+        sealed class TraversalContext
+        {
+            public readonly ROM Rom;
+            public readonly EventScript Script;
+            public readonly Dictionary<(uint, uint), TraversalResult> Completed =
+                new Dictionary<(uint, uint), TraversalResult>();
+            public readonly HashSet<(uint, uint)> InProgress =
+                new HashSet<(uint, uint)>();
+            public int RemainingBudget = 65536;
+            public bool BudgetDiagnosticWritten;
+
+            public TraversalContext(ROM rom, EventScript script)
+            {
+                Rom = rom;
+                Script = script;
+            }
+        }
+
+        /// <summary>
+        /// Compatibility projection used by older callers. New UI code should
+        /// retain <see cref="UnitGroupResult"/> origin and exact-slot metadata.
         /// </summary>
         public static List<AddrResult> GetUnitGroupsForMap(ROM rom, uint mapId)
         {
             var result = new List<AddrResult>();
-            if (rom?.RomInfo == null) return result;
-
-            uint eventAddr = GetEventAddrForMap(rom, mapId);
-            if (eventAddr == U.NOT_FOUND) return result;
-
-            var slots = GetCondSlots(rom);
-            uint romLen = (uint)rom.Data.Length;
-
-            for (int i = 0; i < slots.Count; i++)
-            {
-                if (!IsUnitPlacementType(slots[i].Type))
-                    continue;
-
-                uint slotAddr = (uint)(eventAddr + i * 4);
-                if (slotAddr + 4 > romLen) break;
-
-                uint unitListAddr = rom.p32(slotAddr);
-                // ROM-pinned safety check (Copilot review #522 round 4)
-                // — match the bounds against the rom actually being walked.
-                if (!U.isSafetyOffset(unitListAddr, rom)) continue;
-                if (unitListAddr == 0) continue;
-
-                // Verify at least the first byte looks like a unit ID
-                if (unitListAddr >= romLen) continue;
-
-                result.Add(new AddrResult(unitListAddr, slots[i].Name, mapId));
-            }
-
-            // Event-script POINTER_UNIT scan (#776). The direct cond-slot
-            // loop above only finds unit lists wired into a raw placement
-            // slot. WF EventCondForm.MakeUnitPointer ALSO discovers unit
-            // lists referenced from the event SCRIPT (the way a WF
-            // "NEW"-allocated block becomes "booked" — the user references
-            // it from a LOAD/placement command in the Event Script editor).
-            // We mirror that here so the same script-referenced lists show
-            // up in the Avalonia group list (EventUnitViewModel.LoadUnitGroups
-            // calls this). The START_EVENT and END_EVENT cond slots hold a
-            // direct event-script pointer (WF EventCondForm.cs:1730-1736), so
-            // we disassemble each and collect POINTER_UNIT arg targets.
-            ScanEventScriptSlots(rom, eventAddr, slots, mapId, result);
-
+            foreach (UnitGroupResult group in GetDetailedUnitGroupsForMap(rom, mapId))
+                result.Add(group.ToAddrResult());
             return result;
         }
 
         /// <summary>
-        /// Walk the START_EVENT / END_EVENT cond slots (each a direct
-        /// event-script pointer) and append any
-        /// <see cref="EventScript.ArgType.POINTER_UNIT"/>-referenced unit-list
-        /// bases to <paramref name="result"/>, de-duplicated against the
-        /// direct-cond-slot entries already there. Mirrors the script-scan
-        /// half of WF <c>EventCondForm.MakeUnitPointer</c>.
-        ///
-        /// IMPORTANT — the Core EventScript disassembly path
-        /// (<see cref="EventScript.DisAseemble"/>,
-        /// <see cref="EventScript.IsExitCode"/> / FE8 dummy-end check, and the
-        /// per-command <c>CommentCache</c> lookup) is **bound to the static
-        /// <c>CoreState.ROM</c> / <c>CoreState.CommentCache</c>**, NOT to the
-        /// <paramref name="rom"/> parameter. To avoid mis-scanning or throwing
-        /// when <see cref="GetUnitGroupsForMap"/> is called with a ROM that is
-        /// not the active <c>CoreState.ROM</c> (or when it is null), the
-        /// script scan is **skipped** unless the passed ROM IS the active
-        /// <c>CoreState.ROM</c>. When skipped, <see cref="GetUnitGroupsForMap"/>
-        /// still returns the direct unit-placement cond-slot results — the
-        /// editor (Avalonia <c>EventUnitViewModel.LoadUnitGroups</c> / WF) only
-        /// ever calls this with the active ROM, so the script scan runs there.
-        /// This is a read-path scan, so it never pins/swaps the global state.
+        /// Discover direct placements first, then every script-bearing
+        /// condition origin using UnitDiscovery terminators.
         /// </summary>
-        static void ScanEventScriptSlots(ROM rom, uint eventAddr, List<CondSlot> slots, uint mapId, List<AddrResult> result)
+        public static List<UnitGroupResult> GetDetailedUnitGroupsForMap(ROM rom, uint mapId)
         {
-            var es = CoreState.EventScript;
-            if (es == null) return;
+            var result = new List<UnitGroupResult>();
+            if (rom?.RomInfo == null) return result;
+            uint eventAddr = GetEventAddrForMap(rom, mapId);
+            if (eventAddr == U.NOT_FOUND) return result;
 
-            // The EventScript disasm path dereferences the static CoreState.ROM
-            // (+ RomInfo/Data/CommentCache) rather than `rom`; only run the scan
-            // when they are the same instance so headless/multi-ROM callers can
-            // never mis-scan or NullRef (#786 review on #776).
-            if (CoreState.ROM == null || !ReferenceEquals(CoreState.ROM, rom)) return;
-
+            List<CondSlot> slots = GetCondSlots(rom);
             uint romLen = (uint)rom.Data.Length;
-            var tracelist = new List<uint>();
+            var seen = new HashSet<string>(StringComparer.Ordinal);
 
+            // Direct rows are intentionally first and are not address-deduped.
             for (int i = 0; i < slots.Count; i++)
             {
-                if (slots[i].Type != CondType.StartEvent && slots[i].Type != CondType.EndEvent)
-                    continue;
-
-                uint slotAddr = (uint)(eventAddr + i * 4);
-                if (slotAddr + 4 > romLen) break;
-
-                uint scriptAddr = rom.p32(slotAddr);
-                if (!U.isSafetyOffset(scriptAddr, rom)) continue;
-
-                ScanScriptForUnitPointers(rom, es, scriptAddr, slots[i].Name, mapId, tracelist, result);
+                if (!IsUnitPlacementType(slots[i].Type)) continue;
+                uint pointerSlot = eventAddr + (uint)i * 4;
+                if (!HasBytes(pointerSlot, 4, romLen)) break;
+                uint unitList = rom.p32(pointerSlot);
+                if (!U.isSafetyOffset(unitList, rom)) continue;
+                var group = new UnitGroupResult
+                {
+                    Addr = unitList,
+                    SelectedMapId = mapId,
+                    DiscoveredMapId = mapId,
+                    OriginKind = UnitGroupOriginKind.DirectPlacement,
+                    SlotIndex = i,
+                    SourceRecordAddress = pointerSlot,
+                    ExactPointerSlot = pointerSlot,
+                };
+                group.Name = FormatUnitGroupName(rom, group, slots[i].Name, null);
+                AddOriginAware(result, seen, group);
             }
+
+            // EventScript disassembly still owns static caches. Never pin or
+            // swap state: a non-active ROM safely receives direct rows only.
+            EventScript es = CoreState.EventScript;
+            if (es != null && ReferenceEquals(CoreState.ROM, rom))
+            {
+                var context = new TraversalContext(rom, es);
+                foreach (EventScriptReferenceScanner.EventEntry entry
+                    in EventScriptReferenceScanner.EnumerateEventEntries(
+                        rom, mapId,
+                        EventScriptReferenceScanner.EventEntryPolicy.UnitDiscovery))
+                {
+                    TraversalResult scan = TraverseScript(
+                        context, entry.ScriptAddress, mapId, 0);
+                    foreach (ScriptUnitResult found in scan.Units)
+                    {
+                        var group = new UnitGroupResult
+                        {
+                            Addr = found.Address,
+                            SelectedMapId = mapId,
+                            DiscoveredMapId = found.MapId,
+                            OriginKind = UnitGroupOriginKind.EventScript,
+                            SlotIndex = entry.SlotIndex,
+                            SourceRecordAddress = entry.SourceRecordAddress,
+                            SourceScriptAddress = entry.ScriptAddress,
+                            SourceCommandAddress = found.CommandAddress,
+                            ExactPointerSlot = 0,
+                            Incomplete = !scan.Complete,
+                        };
+                        group.Name = FormatUnitGroupName(rom, group,
+                            entry.OriginName, entry);
+                        AddOriginAware(result, seen, group);
+                    }
+                }
+            }
+
+            // Expansion is safe only when this direct slot is the sole origin
+            // of the list. Repointing one of several direct/script origins
+            // would split a formerly shared list and leave stale references.
+            foreach (UnitGroupResult group in result)
+            {
+                if (group.OriginKind != UnitGroupOriginKind.DirectPlacement)
+                    continue;
+                bool shared = false;
+                foreach (UnitGroupResult other in result)
+                {
+                    if (ReferenceEquals(group, other) || other.Addr != group.Addr) continue;
+                    shared = true;
+                    break;
+                }
+                group.CanExpand = !shared;
+            }
+            return result;
         }
 
-        /// <summary>
-        /// Disassemble the event script starting at <paramref name="scriptAddr"/>
-        /// and collect <see cref="EventScript.ArgType.POINTER_UNIT"/> arg
-        /// targets into <paramref name="result"/> (de-duped). Recurses through
-        /// <see cref="EventScript.ArgType.POINTER_EVENT"/> args (with a
-        /// trace-list cycle guard) the same way WF
-        /// <c>EventCondForm.MakeUnitPointerEventScan</c> does. The scan stops
-        /// on a real terminator (<see cref="EventScript.IsExitCode"/>) or after
-        /// 10 consecutive UNKNOWN commands (the WF cutoff for corrupt events).
-        /// </summary>
-        static void ScanScriptForUnitPointers(ROM rom, EventScript es, uint scriptAddr, string name, uint mapId, List<uint> tracelist, List<AddrResult> result)
+        static void AddOriginAware(
+            List<UnitGroupResult> result, HashSet<string> seen, UnitGroupResult group)
         {
-            // WF INVALIDATE_UNIT_POINTER (EventUnitForm.cs:2517): a deliberate
-            // "no unit specified" placeholder pointer that must not be listed.
-            const uint INVALIDATE_UNIT_POINTER = 0xFFFFFF;
+            string key = group.OriginKey + ":" + group.Addr.ToString("X8");
+            if (seen.Add(key)) result.Add(group);
+        }
 
-            uint addr = scriptAddr;
+        static TraversalResult TraverseScript(
+            TraversalContext context, uint scriptAddress, uint startingMapId, int depth)
+        {
+            var key = (scriptAddress, startingMapId);
+            if (context.Completed.TryGetValue(key, out TraversalResult memo))
+                return CloneTraversal(memo);
+
+            var result = new TraversalResult { ResultingMapId = startingMapId };
+            if (depth >= 64 || !context.InProgress.Add(key))
+            {
+                result.Complete = false;
+                return result;
+            }
+
+            uint addr = scriptAddress;
+            uint mapId = startingMapId;
+            uint branchMapId = startingMapId;
             uint lastBranchAddr = 0;
             int unknownCount = 0;
-
-            // Bound the walk defensively (matches WF's reliance on exit/unknown
-            // cutoffs but guarantees termination even on a pathological ROM).
-            for (int guard = 0; guard < 4096; guard++)
+            var seenUnits = new HashSet<(uint Address, uint MapId, uint CommandAddress)>();
+            try
             {
-                uint romLen = (uint)rom.Data.Length;
-                if (U.toOffset(addr) + 4 > romLen) break;
-
-                EventScript.OneCode code = es.DisAseemble(rom.Data, addr);
-                if (code?.Script == null) break;
-
-                if (EventScript.IsExitCode(code, addr, lastBranchAddr))
-                    break;
-
-                if (code.Script.Has == EventScript.ScriptHas.UNKNOWN)
+                for (int steps = 0; steps < 4096; steps++)
                 {
-                    unknownCount++;
-                    if (unknownCount > 10) break;
-                }
-                else
-                {
-                    unknownCount = 0;
-
-                    if (code.Script.Has == EventScript.ScriptHas.IF_CONDITIONAL)
+                    if (context.RemainingBudget <= 0)
                     {
-                        lastBranchAddr = addr;
-                    }
-                    else if (code.Script.Has == EventScript.ScriptHas.LABEL_CONDITIONAL)
-                    {
-                        lastBranchAddr = 0;
-                    }
-                    else if (code.Script.Has == EventScript.ScriptHas.POINTER_UNIT_OR_EVENT)
-                    {
-                        for (int a = 0; a < code.Script.Args.Length; a++)
+                        result.Complete = false;
+                        if (!context.BudgetDiagnosticWritten)
                         {
-                            EventScript.Arg arg = code.Script.Args[a];
-                            if (arg.Type == EventScript.ArgType.POINTER_EVENT)
+                            context.BudgetDiagnosticWritten = true;
+                            Log.Debug("Event unit discovery stopped: global instruction budget exhausted.");
+                        }
+                        break;
+                    }
+                    context.RemainingBudget--;
+
+                    uint romLen = (uint)context.Rom.Data.Length;
+                    uint offset = U.toOffset(addr);
+                    if (!HasBytes(offset, 4, romLen)) break;
+                    EventScript.OneCode code =
+                        context.Script.DisAseemble(context.Rom.Data, addr);
+                    if (code?.Script == null) { result.Complete = false; break; }
+                    if (EventScript.IsExitCode(code, addr, lastBranchAddr)) break;
+
+                    if (code.Script.Has == EventScript.ScriptHas.UNKNOWN)
+                    {
+                        if (++unknownCount > 10) break;
+                    }
+                    else
+                    {
+                        unknownCount = 0;
+                        if (code.Script.Has == EventScript.ScriptHas.IF_CONDITIONAL)
+                        {
+                            branchMapId = mapId;
+                            lastBranchAddr = addr;
+                        }
+                        else if (code.Script.Has == EventScript.ScriptHas.LABEL_CONDITIONAL)
+                        {
+                            mapId = branchMapId;
+                            lastBranchAddr = 0;
+                        }
+                        else if (code.Script.Has == EventScript.ScriptHas.POINTER_UNIT_OR_EVENT)
+                        {
+                            foreach (EventScript.Arg arg in code.Script.Args)
                             {
-                                uint v = U.toOffset(EventScript.GetArgValue(code, arg));
-                                if (U.isSafetyOffset(v, rom) && tracelist.IndexOf(v) < 0)
+                                uint value = EventScript.GetArgValue(code, arg);
+                                if (arg.Type == EventScript.ArgType.POINTER_EVENT)
                                 {
-                                    tracelist.Add(v);
-                                    ScanScriptForUnitPointers(rom, es, v, name, mapId, tracelist, result);
+                                    uint target = U.toOffset(value);
+                                    if (!U.isSafetyOffset(target, context.Rom)) continue;
+                                    TraversalResult child = TraverseScript(
+                                        context, target, mapId, depth + 1);
+                                    foreach (ScriptUnitResult unit in child.Units)
+                                    {
+                                        var unitKey = (
+                                            unit.Address, unit.MapId, unit.CommandAddress);
+                                        if (seenUnits.Add(unitKey))
+                                            result.Units.Add(new ScriptUnitResult
+                                            {
+                                                Address = unit.Address,
+                                                MapId = unit.MapId,
+                                                CommandAddress = unit.CommandAddress,
+                                            });
+                                    }
+                                    mapId = child.ResultingMapId;
+                                    if (!child.Complete) result.Complete = false;
                                 }
-                            }
-                            else if (arg.Type == EventScript.ArgType.POINTER_UNIT)
-                            {
-                                uint v = EventScript.GetArgValue(code, arg);
-                                if (!U.isPointer(v)) continue;
-                                v = U.toOffset(v);
-                                if (v == INVALIDATE_UNIT_POINTER) continue;
-                                if (U.isSafetyOffset(v, rom) && U.FindList(result, v) == U.NOT_FOUND)
+                                else if (arg.Type == EventScript.ArgType.POINTER_UNIT
+                                    && U.isPointer(value))
                                 {
-                                    result.Add(new AddrResult(v, name, mapId));
+                                    uint unit = U.toOffset(value);
+                                    if (unit == 0xFFFFFF
+                                        || !U.isSafetyOffset(unit, context.Rom))
+                                        continue;
+                                    var unitKey = (
+                                        Address: unit,
+                                        MapId: mapId,
+                                        CommandAddress: addr);
+                                    if (seenUnits.Add(unitKey))
+                                        result.Units.Add(new ScriptUnitResult
+                                        {
+                                            Address = unit,
+                                            MapId = mapId,
+                                            CommandAddress = addr,
+                                        });
                                 }
                             }
                         }
+                        else if (code.Script.Has == EventScript.ScriptHas.MAP)
+                        {
+                            foreach (EventScript.Arg arg in code.Script.Args)
+                                if (arg.Type == EventScript.ArgType.MAPCHAPTER)
+                                    mapId = EventScript.GetArgValue(code, arg);
+                        }
                     }
-                }
 
-                int step = code.Script.Size;
-                if (step <= 0) break; // guard against a zero-size match loop
-                addr += (uint)step;
+                    int size = code.Script.Size;
+                    if (size <= 0) { result.Complete = false; break; }
+                    addr += (uint)size;
+                    if (steps == 4095) result.Complete = false;
+                }
             }
+            finally
+            {
+                context.InProgress.Remove(key);
+            }
+
+            result.ResultingMapId = mapId;
+            if (result.Complete)
+                context.Completed[key] = CloneTraversal(result);
+            return result;
+        }
+
+        static TraversalResult CloneTraversal(TraversalResult source)
+        {
+            var clone = new TraversalResult
+            {
+                ResultingMapId = source.ResultingMapId,
+                Complete = source.Complete,
+            };
+            foreach (ScriptUnitResult unit in source.Units)
+                clone.Units.Add(new ScriptUnitResult
+                {
+                    Address = unit.Address,
+                    MapId = unit.MapId,
+                    CommandAddress = unit.CommandAddress,
+                });
+            return clone;
+        }
+
+        static string FormatUnitGroupName(
+            ROM rom,
+            UnitGroupResult group,
+            string originName,
+            EventScriptReferenceScanner.EventEntry entry)
+        {
+            string allegiance = GetUnitListAllegianceName(rom, group.Addr);
+            string origin = originName
+                ?? LocalizedEventUnitText("Event Unit: Unknown origin", "Unknown origin");
+            if (entry != null && entry.Type == CondType.Turn)
+                origin += " " + FormatTurnCondition(
+                    entry.TurnStart, entry.TurnEnd, entry.Phase);
+            return U.To0xHexString(group.Addr) + " " + allegiance
+                + " | " + origin + " @" + U.To0xHexString(group.SourceRecordAddress)
+                + " | MAP " + U.ToHexString(group.DiscoveredMapId);
+        }
+
+        static string GetUnitListAllegianceName(ROM rom, uint address)
+        {
+            if (!HasBytes(address, 4, (uint)rom.Data.Length))
+                return LocalizedEventUnitText("Event Unit: Unknown allegiance", "Unknown allegiance");
+            uint value = U.ParseUnitGrowAssign(rom.u8(address + 3));
+            switch (value)
+            {
+                case 0: return LocalizedEventUnitText("Event Unit: Player", "Player");
+                case 1: return LocalizedEventUnitText("Event Unit: Ally", "Ally");
+                case 2: return LocalizedEventUnitText("Event Unit: Enemy", "Enemy");
+                case 3: return LocalizedEventUnitText("Event Unit: 4th Allegiance", "4th Allegiance");
+                default: return LocalizedEventUnitText(
+                    "Event Unit: Unknown allegiance", "Unknown allegiance");
+            }
+        }
+
+        /// <summary>Shared Event Unit/Event Condition turn label.</summary>
+        public static string FormatTurnCondition(uint start, uint end, uint phase)
+        {
+            string phaseName;
+            switch (phase)
+            {
+                case 0x00: phaseName = LocalizedEventUnitText("Event Unit: Player", "Player"); break;
+                case 0x40: phaseName = LocalizedEventUnitText("Event Unit: Ally", "Ally"); break;
+                case 0x80: phaseName = LocalizedEventUnitText("Event Unit: Enemy", "Enemy"); break;
+                case 0xC0: phaseName = LocalizedEventUnitText(
+                    "Event Unit: 4th Allegiance", "4th Allegiance"); break;
+                default: phaseName = "0x" + phase.ToString("X2"); break;
+            }
+            string range = start == end
+                ? start.ToString()
+                : start + "-" + end;
+            return LocalizedEventUnitText("Event Unit: Turn", "Turn")
+                + " " + range + " (" + phaseName + ")";
+        }
+
+        public static string FormatNewGroupName(uint address)
+            => U.To0xHexString(address) + " "
+                + LocalizedEventUnitText("Event Unit: NEW", "NEW");
+
+        static string LocalizedEventUnitText(string key, string englishFallback)
+        {
+            string text = R._(key);
+            return string.Equals(text, key, StringComparison.Ordinal) ? englishFallback : text;
+        }
+
+        static bool HasBytes(uint address, uint size, uint length)
+        {
+            return size > 0 && address <= length && size <= length - address;
         }
 
         /// <summary>

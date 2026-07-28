@@ -20,7 +20,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ObservableCollection<string> _unitDisplayItems = new();
 
         List<AddrResult> _mapItems = new();
-        List<AddrResult> _groupItems = new();
+        List<MapEventUnitCore.UnitGroupResult> _groupItems = new();
         List<AddrResult> _unitItems = new();
 
         public string ViewTitle => "Event Unit (FE6)";
@@ -44,11 +44,31 @@ namespace FEBuilderGBA.Avalonia.Views
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
         {
             base.OnAttachedToVisualTree(e);
+            CoreState.LanguageChanged -= OnLanguageChanged;
+            CoreState.LanguageChanged += OnLanguageChanged;
             if (!_hasLoadedList)
             {
                 _hasLoadedList = true;
                 LoadMapList();
             }
+        }
+
+        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            CoreState.LanguageChanged -= OnLanguageChanged;
+            base.OnDetachedFromVisualTree(e);
+        }
+
+        void OnLanguageChanged()
+        {
+            global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                try { ReloadGroupsPreservingSelection(); }
+                catch (Exception ex)
+                {
+                    Log.ErrorF("EventUnitFE6View language refresh failed: {0}", ex.Message);
+                }
+            });
         }
 
         void LoadMapList()
@@ -73,21 +93,8 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                int idx = MapListBox.SelectedIndex;
-                if (idx < 0 || idx >= _mapItems.Count) return;
-
-                uint mapId = _mapItems[idx].tag;
-                _groupItems = _vm.LoadUnitGroups(mapId);
-                _groupDisplayItems.Clear();
-                foreach (var item in _groupItems)
-                    _groupDisplayItems.Add(item.name);
-
-                _unitDisplayItems.Clear();
-                _unitItems = new List<AddrResult>();
-                ClearDetail();
-
-                if (_groupItems.Count > 0)
-                    GroupListBox.SelectedIndex = 0;
+                ReloadGroupsPreservingSelection(
+                    preserveCurrentSelection: false, clearUnits: true);
             }
             catch (Exception ex)
             {
@@ -102,13 +109,56 @@ namespace FEBuilderGBA.Avalonia.Views
                 int idx = GroupListBox.SelectedIndex;
                 if (idx < 0 || idx >= _groupItems.Count) return;
 
-                uint groupAddr = _groupItems[idx].addr;
+                uint groupAddr = _groupItems[idx].Addr;
                 LoadUnitsFromAddress(groupAddr);
             }
             catch (Exception ex)
             {
                 Log.ErrorF("EventUnitFE6View.GroupListBox_SelectionChanged failed: {0}", ex.Message);
             }
+        }
+
+        void ReloadGroupsPreservingSelection(
+            string? origin = null,
+            uint address = U.NOT_FOUND,
+            bool preserveCurrentSelection = true,
+            bool clearUnits = false)
+        {
+            int mapIndex = MapListBox.SelectedIndex;
+            if (mapIndex < 0 || mapIndex >= _mapItems.Count)
+            {
+                GroupListBox.SelectedIndex = -1;
+                _groupItems.Clear();
+                _groupDisplayItems.Clear();
+                _unitItems.Clear();
+                _unitDisplayItems.Clear();
+                ClearDetail();
+                return;
+            }
+            if (preserveCurrentSelection && origin == null)
+            {
+                int oldIndex = GroupListBox.SelectedIndex;
+                if (oldIndex >= 0 && oldIndex < _groupItems.Count)
+                {
+                    origin = _groupItems[oldIndex].OriginKey;
+                    address = _groupItems[oldIndex].Addr;
+                }
+            }
+            GroupListBox.SelectedIndex = -1;
+            if (clearUnits)
+            {
+                _unitItems.Clear();
+                _unitDisplayItems.Clear();
+                ClearDetail();
+            }
+            _groupItems = _vm.LoadUnitGroups(_mapItems[mapIndex].tag);
+            _groupDisplayItems.Clear();
+            foreach (var group in _groupItems) _groupDisplayItems.Add(group.Name);
+            int select = -1;
+            for (int i = 0; i < _groupItems.Count; i++)
+                if (_groupItems[i].OriginKey == origin && _groupItems[i].Addr == address)
+                { select = i; break; }
+            GroupListBox.SelectedIndex = select >= 0 ? select : (_groupItems.Count > 0 ? 0 : -1);
         }
 
         void LoadUnitsFromAddress(uint baseAddr)

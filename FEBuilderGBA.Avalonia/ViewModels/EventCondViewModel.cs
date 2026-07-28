@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
@@ -183,53 +182,28 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return;
 
-            int ver = rom.RomInfo.version;
-            string lang = CoreState.Language ?? "en";
-
-            // Try language-specific file first, then English, then default (Japanese)
-            string baseName = $"eventcond_FE{ver}";
-            string configDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config", "data");
-
-            string[] candidates = {
-                Path.Combine(configDir, baseName + "." + lang + ".txt"),
-                Path.Combine(configDir, baseName + ".en.txt"),
-                Path.Combine(configDir, baseName + ".txt"),
-            };
-
-            string? filePath = null;
-            foreach (var c in candidates)
+            foreach (MapEventUnitCore.CondSlot slot in MapEventUnitCore.GetCondSlots(rom))
             {
-                if (File.Exists(c)) { filePath = c; break; }
-            }
-            if (filePath == null) return;
-
-            foreach (var line in File.ReadAllLines(filePath))
-            {
-                if (string.IsNullOrWhiteSpace(line) || line.StartsWith("//") || line.StartsWith("#"))
-                    continue;
-
-                string[] parts = line.Split('\t');
-                if (parts.Length < 2) continue;
-
-                var def = new CondSlotDef();
-                def.Name = parts[1];
-                def.Category = parts[0] switch
+                _slotDefs.Add(new CondSlotDef
                 {
-                    "TURN" => CondCategory.TURN,
-                    "TALK" => CondCategory.TALK,
-                    "OBJECT" => CondCategory.OBJECT,
-                    "ALWAYS" => CondCategory.ALWAYS,
-                    "TUTORIAL" => CondCategory.TUTORIAL,
-                    "TRAP" => CondCategory.TRAP,
-                    "PLAYER_UNIT" => CondCategory.PLAYER_UNIT,
-                    "ENEMY_UNIT" => CondCategory.ENEMY_UNIT,
-                    "FREEMAP_PLAYER_UNIT" => CondCategory.FREEMAP_PLAYER_UNIT,
-                    "FREEMAP_ENEMY_UNIT" => CondCategory.FREEMAP_ENEMY_UNIT,
-                    "START_EVENT" => CondCategory.START_EVENT,
-                    "END_EVENT" => CondCategory.END_EVENT,
-                    _ => CondCategory.UNKNOWN,
-                };
-                _slotDefs.Add(def);
+                    Name = slot.Name,
+                    Category = slot.Type switch
+                    {
+                        MapEventUnitCore.CondType.Turn => CondCategory.TURN,
+                        MapEventUnitCore.CondType.Talk => CondCategory.TALK,
+                        MapEventUnitCore.CondType.Object => CondCategory.OBJECT,
+                        MapEventUnitCore.CondType.Always => CondCategory.ALWAYS,
+                        MapEventUnitCore.CondType.Tutorial => CondCategory.TUTORIAL,
+                        MapEventUnitCore.CondType.Trap => CondCategory.TRAP,
+                        MapEventUnitCore.CondType.PlayerUnit => CondCategory.PLAYER_UNIT,
+                        MapEventUnitCore.CondType.EnemyUnit => CondCategory.ENEMY_UNIT,
+                        MapEventUnitCore.CondType.FreemapPlayerUnit => CondCategory.FREEMAP_PLAYER_UNIT,
+                        MapEventUnitCore.CondType.FreemapEnemyUnit => CondCategory.FREEMAP_ENEMY_UNIT,
+                        MapEventUnitCore.CondType.StartEvent => CondCategory.START_EVENT,
+                        MapEventUnitCore.CondType.EndEvent => CondCategory.END_EVENT,
+                        _ => CondCategory.UNKNOWN,
+                    },
+                });
             }
         }
 
@@ -588,8 +562,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     uint turnStart = rom.u8(addrCursor + 8);
                     uint turnEnd = rom.u8(addrCursor + 9);
                     uint phase = rom.u8(addrCursor + 10);
-                    string phaseName = phase == 0 ? "Player" : phase == 0x40 ? "Ally" : phase == 0x80 ? "Enemy" : $"0x{phase:X02}";
-                    name += $" Turn {turnStart}-{turnEnd} ({phaseName})";
+                    name += " " + MapEventUnitCore.FormatTurnCondition(
+                        turnStart, turnEnd, phase);
                 }
                 else if (slotDef.Category == CondCategory.TALK)
                 {

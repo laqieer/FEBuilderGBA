@@ -404,8 +404,20 @@ namespace FEBuilderGBA.Core.Tests
                 {
                     if (e.name == "Tutorial FE7") { hasTutorial = true; break; }
                 }
+
                 Assert.True(hasTutorial, "FE7U enumeration must include >=1 'Tutorial FE7' entry");
             });
+        }
+
+        [Fact]
+        public void FE7Tutorial_IsReferenceScanOnly()
+        {
+            Assert.True(EventScriptReferenceScanner.IncludesFE7Tutorial(
+                7, EventScriptReferenceScanner.EventEntryPolicy.ReferenceScan));
+            Assert.False(EventScriptReferenceScanner.IncludesFE7Tutorial(
+                7, EventScriptReferenceScanner.EventEntryPolicy.UnitDiscovery));
+            Assert.False(EventScriptReferenceScanner.IncludesFE7Tutorial(
+                8, EventScriptReferenceScanner.EventEntryPolicy.ReferenceScan));
         }
 
         static void RealRomFindBgNonEmpty(string romName)

@@ -10,6 +10,34 @@ a WinForms form, with its behavioural contract and the issue that introduced it.
 file is the exhaustive reference. New seam entries belong **here** (one paragraph
 each), NOT in `CLAUDE.md`.
 
+## #2022 Event-condition and event-unit discovery
+
+`MapEventUnitCore` owns the authoritative FE6/FE7/FE8 condition-slot shape.
+Localized `eventcond_` files may replace display names only when their count and
+every indexed type exactly match that stable shape; rejected files fall back
+wholesale, with an mtime/length-keyed cache and bounded diagnostics.
+`U.ConfigDataFilename(type, rom, baseDirectory, language)` is the pure,
+null-safe path seam. Reference reports deliberately use stable English slots;
+Event Unit and Event Condition surfaces use validated localized slots.
+
+`EventScriptReferenceScanner.EnumerateEventEntries` is the shared bounded
+condition walker. `UnitDiscovery` stops TURN/TALK/OBJECT at `u8==0`, while
+`ReferenceScan` stops TURN at `u32==0 || u8==0` and TALK/OBJECT at `u32==0`;
+ALWAYS uses `u32==0` in both. Tutorial value `1` is a blank record that is
+skipped without terminating, subject to record and ROM bounds. Object shops and
+chests are excluded, FE7 short TURN rows use 12 bytes, and FE7's tutorial side
+table is limited to map ids `0..0x30`.
+
+Detailed unit groups preserve slot/source-record identity, selected and
+MAPCHAPTER-discovered map ids, source script, and the stable unit command
+address, plus an exact direct pointer slot. Direct rows stay first;
+deduplication is by `(origin,address,map,command)`. Script traversal is
+per-call, cycle/depth/step/global-budget
+bounded, restores map state across IF/LABEL, and memoizes only complete
+`(script,start-map)` traversals including their resulting map. FE7/FE8 expansion
+accepts only the retained exact slot and revalidates it against the old base
+before mutation; script/manual/shared/stale origins are non-expandable.
+
 ## #1978 Review-Hardening Corrections
 
 These corrections supersede the older wording in the detailed random-map entries
