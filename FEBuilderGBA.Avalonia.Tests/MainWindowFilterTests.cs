@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using FEBuilderGBA;
 using FEBuilderGBA.Avalonia.Views;
 using global::Avalonia.Controls;
 using global::Avalonia.Headless.XUnit;
@@ -23,6 +24,11 @@ public class MainWindowFilterTests
         => typeof(MainWindow)
             .GetMethod("ApplyFilter", BindingFlags.NonPublic | BindingFlags.Instance)!
             .Invoke(window, new object[] { filter });
+
+    static void UpdateEditorVisibility(MainWindow window)
+        => typeof(MainWindow)
+            .GetMethod("UpdateEditorVisibility", BindingFlags.NonPublic | BindingFlags.Instance)!
+            .Invoke(window, null);
 
     static int MatchCount(MainWindow window)
     {
@@ -91,6 +97,38 @@ public class MainWindowFilterTests
 
         Assert.False(mapEditor.IsVisible, "Version gating must win over a title match.");
         Assert.Equal(0, MatchCount(window));
+    }
+
+    [AvaloniaFact]
+    public void Real_FE7_section_gate_stays_hidden_when_an_editor_title_matches()
+    {
+        ROM? previous = CoreState.ROM;
+        var rom = new ROM();
+        rom.LoadLow("synthetic-fe7u.gba", new byte[0x1000000], "AE7E01");
+        CoreState.ROM = rom;
+        try
+        {
+            var window = new MainWindow();
+            UpdateEditorVisibility(window);
+
+            var section = window.FindControl<Expander>("SkillsExpander");
+            var button = window.FindControl<Button>("SkillUnitButton");
+            Assert.NotNull(section);
+            Assert.NotNull(button);
+            Assert.False(section!.IsVisible);
+            Assert.False(button!.IsVisible);
+            Assert.True(MainWindow.IsButtonVersionHidden(button.Tag));
+
+            ApplyFilter(window, "Assignment (Unit)");
+
+            Assert.False(button.IsVisible);
+            Assert.False(section.IsVisible);
+            Assert.Equal(0, MatchCount(window));
+        }
+        finally
+        {
+            CoreState.ROM = previous;
+        }
     }
 
     [AvaloniaFact]
