@@ -398,6 +398,7 @@ public class MapEventUnitCoreNewAllocTests
             Assert.Equal(0u, scripted.ExactPointerSlot);
             Assert.False(scripted.CanExpand);
             Assert.StartsWith(U.To0xHexString(scriptUnitList), scripted.Name);
+            Assert.Contains("CMD " + U.To0xHexString(scriptAddr), scripted.Name);
         }
         finally
         {

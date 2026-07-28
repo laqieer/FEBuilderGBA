@@ -206,6 +206,92 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Theory]
+        [InlineData(6, "eventcond_FE6.en.txt")]
+        [InlineData(7, "eventcond_FE7.en.txt")]
+        [InlineData(8, "eventcond_FE8.en.txt")]
+        public void ConfigDataFilename_UsesShippedPerGameName(int version, string expected)
+        {
+            string root = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(), "eventcond_path_" + System.Guid.NewGuid().ToString("N"));
+            string dataDir = System.IO.Path.Combine(root, "config", "data");
+            System.IO.Directory.CreateDirectory(dataDir);
+            System.IO.File.WriteAllText(System.IO.Path.Combine(dataDir, expected), "");
+            try
+            {
+                string path = U.ConfigDataFilename(
+                    "eventcond_", TestHelper.MakeMinimalRom(version), root, "en");
+                Assert.Equal(expected, System.IO.Path.GetFileName(path));
+            }
+            finally
+            {
+                try { System.IO.Directory.Delete(root, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void StableAndDisplayCondSlots_AreSeparateAndShapeValidated()
+        {
+            string root = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(), "eventcond_display_" + System.Guid.NewGuid().ToString("N"));
+            string dataDir = System.IO.Path.Combine(root, "config", "data");
+            System.IO.Directory.CreateDirectory(dataDir);
+            ROM rom = TestHelper.MakeMinimalRom(8);
+            var stable = MapEventUnitCore.GetStableCondSlots(rom);
+            string file = System.IO.Path.Combine(dataDir, "eventcond_FE8.zh.txt");
+
+            string Token(MapEventUnitCore.CondType type) => type switch
+            {
+                MapEventUnitCore.CondType.Turn => "TURN",
+                MapEventUnitCore.CondType.Talk => "TALK",
+                MapEventUnitCore.CondType.Object => "OBJECT",
+                MapEventUnitCore.CondType.Always => "ALWAYS",
+                MapEventUnitCore.CondType.Tutorial => "TUTORIAL",
+                MapEventUnitCore.CondType.Trap => "TRAP",
+                MapEventUnitCore.CondType.PlayerUnit => "PLAYER_UNIT",
+                MapEventUnitCore.CondType.EnemyUnit => "ENEMY_UNIT",
+                MapEventUnitCore.CondType.FreemapPlayerUnit => "FREEMAP_PLAYER_UNIT",
+                MapEventUnitCore.CondType.FreemapEnemyUnit => "FREEMAP_ENEMY_UNIT",
+                MapEventUnitCore.CondType.StartEvent => "START_EVENT",
+                MapEventUnitCore.CondType.EndEvent => "END_EVENT",
+                _ => "UNKNOWN",
+            };
+
+            var previousBase = CoreState.BaseDirectory;
+            var previousLanguage = CoreState.Language;
+            try
+            {
+                CoreState.BaseDirectory = root;
+                CoreState.Language = "zh";
+                MapEventUnitCore.ResetCondSlotCacheForTests();
+                System.IO.File.WriteAllLines(file, stable.Select(
+                    (slot, index) => Token(slot.Type) + "\tLocalized " + index));
+
+                Assert.Equal("Turn Conditions", MapEventUnitCore.GetCondSlots(rom)[0].Name);
+                Assert.Equal("Localized 0", MapEventUnitCore.GetDisplayCondSlots(rom)[0].Name);
+
+                MapEventUnitCore.ResetCondSlotCacheForTests();
+                System.IO.File.WriteAllLines(file, stable.Take(19).Select(
+                    (slot, index) => Token(slot.Type) + "\tBroken " + index));
+                Assert.Equal("Turn Conditions", MapEventUnitCore.GetDisplayCondSlots(rom)[0].Name);
+            }
+            finally
+            {
+                CoreState.BaseDirectory = previousBase;
+                CoreState.Language = previousLanguage;
+                MapEventUnitCore.ResetCondSlotCacheForTests();
+                try { System.IO.Directory.Delete(root, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void EmptyUnitList_UsesEmptyAllegiance()
+        {
+            ROM rom = TestHelper.MakeMinimalRom(8);
+            const uint address = 0x1000;
+            Assert.Equal("Empty", MapEventUnitCore.GetUnitListAllegianceName(rom, address));
+        }
+
+        [Theory]
         [InlineData(1u, 1u, 0u, "Turn 1 (Player)")]
         [InlineData(2u, 5u, 0x40u, "Turn 2-5 (Ally)")]
         [InlineData(3u, 3u, 0xC0u, "Turn 3 (4th Allegiance)")]

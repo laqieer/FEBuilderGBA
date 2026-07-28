@@ -182,7 +182,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return;
 
-            foreach (MapEventUnitCore.CondSlot slot in MapEventUnitCore.GetCondSlots(rom))
+            foreach (MapEventUnitCore.CondSlot slot in MapEventUnitCore.GetDisplayCondSlots(rom))
             {
                 _slotDefs.Add(new CondSlotDef
                 {

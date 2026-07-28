@@ -117,8 +117,8 @@ namespace FEBuilderGBA
             if (eventAddr == U.NOT_FOUND) return list;
             uint romLen = (uint)rom.Data.Length;
             var slots = stableNames
-                ? MapEventUnitCore.GetStableCondSlots(rom)
-                : MapEventUnitCore.GetCondSlots(rom);
+                ? MapEventUnitCore.GetCondSlots(rom)
+                : MapEventUnitCore.GetDisplayCondSlots(rom);
 
             for (int i = 0; i < slots.Count; i++)
             {

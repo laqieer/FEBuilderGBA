@@ -52,6 +52,13 @@ namespace FEBuilderGBA
         /// These define the layout of the event condition block (each slot = one 4-byte pointer).
         /// </summary>
         public static List<CondSlot> GetCondSlots(ROM rom)
+            => GetStableCondSlots(rom);
+
+        /// <summary>
+        /// Localized display names over the stable condition-slot layout.
+        /// Reference/rebuild consumers must use <see cref="GetCondSlots"/>.
+        /// </summary>
+        public static List<CondSlot> GetDisplayCondSlots(ROM rom)
         {
             List<CondSlot> stable = GetStableCondSlots(rom);
             if (stable.Count == 0) return stable;
@@ -453,7 +460,7 @@ namespace FEBuilderGBA
             uint eventAddr = GetEventAddrForMap(rom, mapId);
             if (eventAddr == U.NOT_FOUND) return result;
 
-            List<CondSlot> slots = GetCondSlots(rom);
+            List<CondSlot> slots = GetDisplayCondSlots(rom);
             uint romLen = (uint)rom.Data.Length;
             var seen = new HashSet<string>(StringComparer.Ordinal);
 
@@ -702,15 +709,22 @@ namespace FEBuilderGBA
             if (entry != null && entry.Type == CondType.Turn)
                 origin += " " + FormatTurnCondition(
                     entry.TurnStart, entry.TurnEnd, entry.Phase);
+            if (group.OriginKind == UnitGroupOriginKind.EventScript
+                && group.SourceCommandAddress != 0)
+            {
+                origin += " CMD " + U.To0xHexString(group.SourceCommandAddress);
+            }
             return U.To0xHexString(group.Addr) + " " + allegiance
                 + " | " + origin + " @" + U.To0xHexString(group.SourceRecordAddress)
                 + " | MAP " + U.ToHexString(group.DiscoveredMapId);
         }
 
-        static string GetUnitListAllegianceName(ROM rom, uint address)
+        internal static string GetUnitListAllegianceName(ROM rom, uint address)
         {
             if (!HasBytes(address, 4, (uint)rom.Data.Length))
                 return LocalizedEventUnitText("Event Unit: Unknown allegiance", "Unknown allegiance");
+            if (rom.u8(address) == 0)
+                return LocalizedEventUnitText("Event Unit: Empty", "Empty");
             uint value = U.ParseUnitGrowAssign(rom.u8(address + 3));
             switch (value)
             {

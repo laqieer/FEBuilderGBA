@@ -14659,6 +14659,9 @@ FEMapCreator は bwdyeti 氏によって作成された独立したユーティ�
 :Event Unit: Unknown allegiance
 所属不明
 
+:Event Unit: Empty
+空
+
 :Event Unit: Unknown origin
 出典不明
 

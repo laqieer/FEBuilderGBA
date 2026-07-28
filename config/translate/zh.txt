@@ -28480,6 +28480,9 @@ FEMapCreator 是由 bwdyeti 创建的独立实用工具；FEBuilderGBA 不捆绑
 :Event Unit: Unknown allegiance
 阵营未知
 
+:Event Unit: Empty
+空
+
 :Event Unit: Unknown origin
 来源未知
 
