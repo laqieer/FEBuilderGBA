@@ -18,7 +18,8 @@ every indexed type exactly match that stable shape; rejected files fall back
 wholesale, with an mtime/length-keyed cache and bounded diagnostics.
 `U.ConfigDataFilename(type, rom, baseDirectory, language)` is the pure,
 null-safe path seam. Reference reports deliberately use stable English slots;
-Event Unit and Event Condition surfaces use validated localized slots.
+Event Unit and Event Condition surfaces use validated localized slots, with
+`auto` resolved through the same available-translation rule as the UI.
 
 `EventScriptReferenceScanner.EnumerateEventEntries` is the shared bounded
 condition walker. `UnitDiscovery` stops TURN/TALK/OBJECT at `u8==0`, while
@@ -35,8 +36,10 @@ deduplication is by `(origin,address,map,command)`. Script traversal is
 per-call, cycle/depth/step/global-budget
 bounded, restores map state across IF/LABEL, and memoizes only complete
 `(script,start-map)` traversals including their resulting map. FE7/FE8 expansion
-accepts only the retained exact slot and revalidates it against the old base
-before mutation; script/manual/shared/stale origins are non-expandable.
+is fail-closed unless active-ROM script discovery completes, accepts only the
+retained exact slot, and revalidates it against the old base before mutation;
+script/manual/shared/stale origins are non-expandable. Public FE7 tutorial
+reference labels retain the legacy exact `Tutorial FE7` value.
 
 ## #1978 Review-Hardening Corrections
 

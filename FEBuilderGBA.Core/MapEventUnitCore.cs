@@ -65,15 +65,17 @@ namespace FEBuilderGBA
 
             string primaryRoot = string.IsNullOrWhiteSpace(CoreState.BaseDirectory)
                 ? AppContext.BaseDirectory : CoreState.BaseDirectory;
+            string language = U.ResolveEffectiveLanguage(
+                CoreState.Language, primaryRoot);
             string path = U.ConfigDataFilename(
-                "eventcond_", rom, primaryRoot, CoreState.Language);
+                "eventcond_", rom, primaryRoot, language);
             try
             {
                 if (!File.Exists(path)
                     && !PathsEqual(primaryRoot, AppContext.BaseDirectory))
                 {
                     string fallback = U.ConfigDataFilename(
-                        "eventcond_", rom, AppContext.BaseDirectory, CoreState.Language);
+                        "eventcond_", rom, AppContext.BaseDirectory, language);
                     if (File.Exists(fallback)) path = fallback;
                 }
 
@@ -83,7 +85,7 @@ namespace FEBuilderGBA
                     rom.RomInfo.TitleToFilename ?? "",
                     rom.RomInfo.VersionToFilename ?? "",
                     rom.RomInfo.version.ToString(),
-                    CoreState.Language ?? "",
+                    language,
                     path ?? "",
                     file.Exists ? file.LastWriteTimeUtc.Ticks.ToString() : "missing",
                     file.Exists ? file.Length.ToString() : "missing");
@@ -489,7 +491,9 @@ namespace FEBuilderGBA
             // EventScript disassembly still owns static caches. Never pin or
             // swap state: a non-active ROM safely receives direct rows only.
             EventScript es = CoreState.EventScript;
-            if (es != null && ReferenceEquals(CoreState.ROM, rom))
+            bool scriptDiscoveryComplete =
+                es != null && ReferenceEquals(CoreState.ROM, rom);
+            if (scriptDiscoveryComplete)
             {
                 var context = new TraversalContext(rom, es);
                 foreach (EventScriptReferenceScanner.EventEntry entry
@@ -499,6 +503,8 @@ namespace FEBuilderGBA
                 {
                     TraversalResult scan = TraverseScript(
                         context, entry.ScriptAddress, mapId, 0);
+                    if (!scan.Complete)
+                        scriptDiscoveryComplete = false;
                     foreach (ScriptUnitResult found in scan.Units)
                     {
                         var group = new UnitGroupResult
@@ -521,9 +527,9 @@ namespace FEBuilderGBA
                 }
             }
 
-            // Expansion is safe only when this direct slot is the sole origin
-            // of the list. Repointing one of several direct/script origins
-            // would split a formerly shared list and leave stale references.
+            // Expansion is safe only after complete script discovery and when
+            // this direct slot is the sole known origin of the list. Otherwise
+            // an undiscovered origin could retain a stale pointer.
             foreach (UnitGroupResult group in result)
             {
                 if (group.OriginKind != UnitGroupOriginKind.DirectPlacement)
@@ -535,7 +541,7 @@ namespace FEBuilderGBA
                     shared = true;
                     break;
                 }
-                group.CanExpand = !shared;
+                group.CanExpand = scriptDiscoveryComplete && !shared;
             }
             return result;
         }
@@ -585,7 +591,11 @@ namespace FEBuilderGBA
 
                     uint romLen = (uint)context.Rom.Data.Length;
                     uint offset = U.toOffset(addr);
-                    if (!HasBytes(offset, 4, romLen)) break;
+                    if (!HasBytes(offset, 4, romLen))
+                    {
+                        result.Complete = false;
+                        break;
+                    }
                     EventScript.OneCode code =
                         context.Script.DisAseemble(context.Rom.Data, addr);
                     if (code?.Script == null) { result.Complete = false; break; }
@@ -593,7 +603,11 @@ namespace FEBuilderGBA
 
                     if (code.Script.Has == EventScript.ScriptHas.UNKNOWN)
                     {
-                        if (++unknownCount > 10) break;
+                        if (++unknownCount > 10)
+                        {
+                            result.Complete = false;
+                            break;
+                        }
                     }
                     else
                     {

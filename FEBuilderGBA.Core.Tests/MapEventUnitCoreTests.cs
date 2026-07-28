@@ -239,23 +239,6 @@ namespace FEBuilderGBA.Core.Tests
             var stable = MapEventUnitCore.GetStableCondSlots(rom);
             string file = System.IO.Path.Combine(dataDir, "eventcond_FE8.zh.txt");
 
-            string Token(MapEventUnitCore.CondType type) => type switch
-            {
-                MapEventUnitCore.CondType.Turn => "TURN",
-                MapEventUnitCore.CondType.Talk => "TALK",
-                MapEventUnitCore.CondType.Object => "OBJECT",
-                MapEventUnitCore.CondType.Always => "ALWAYS",
-                MapEventUnitCore.CondType.Tutorial => "TUTORIAL",
-                MapEventUnitCore.CondType.Trap => "TRAP",
-                MapEventUnitCore.CondType.PlayerUnit => "PLAYER_UNIT",
-                MapEventUnitCore.CondType.EnemyUnit => "ENEMY_UNIT",
-                MapEventUnitCore.CondType.FreemapPlayerUnit => "FREEMAP_PLAYER_UNIT",
-                MapEventUnitCore.CondType.FreemapEnemyUnit => "FREEMAP_ENEMY_UNIT",
-                MapEventUnitCore.CondType.StartEvent => "START_EVENT",
-                MapEventUnitCore.CondType.EndEvent => "END_EVENT",
-                _ => "UNKNOWN",
-            };
-
             var previousBase = CoreState.BaseDirectory;
             var previousLanguage = CoreState.Language;
             try
@@ -264,18 +247,62 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.Language = "zh";
                 MapEventUnitCore.ResetCondSlotCacheForTests();
                 System.IO.File.WriteAllLines(file, stable.Select(
-                    (slot, index) => Token(slot.Type) + "\tLocalized " + index));
+                    (slot, index) => CondTypeToken(slot.Type) + "\tLocalized " + index));
 
                 Assert.Equal("Turn Conditions", MapEventUnitCore.GetCondSlots(rom)[0].Name);
                 Assert.Equal("Localized 0", MapEventUnitCore.GetDisplayCondSlots(rom)[0].Name);
 
                 MapEventUnitCore.ResetCondSlotCacheForTests();
                 System.IO.File.WriteAllLines(file, stable.Take(19).Select(
-                    (slot, index) => Token(slot.Type) + "\tBroken " + index));
+                    (slot, index) => CondTypeToken(slot.Type) + "\tBroken " + index));
                 Assert.Equal("Turn Conditions", MapEventUnitCore.GetDisplayCondSlots(rom)[0].Name);
             }
             finally
             {
+                CoreState.BaseDirectory = previousBase;
+                CoreState.Language = previousLanguage;
+                MapEventUnitCore.ResetCondSlotCacheForTests();
+                try { System.IO.Directory.Delete(root, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void DisplayCondSlots_AutoUsesTranslationEffectiveLanguage()
+        {
+            string root = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(), "eventcond_auto_" + System.Guid.NewGuid().ToString("N"));
+            string dataDir = System.IO.Path.Combine(root, "config", "data");
+            string translateDir = System.IO.Path.Combine(root, "config", "translate");
+            System.IO.Directory.CreateDirectory(dataDir);
+            System.IO.Directory.CreateDirectory(translateDir);
+            ROM rom = TestHelper.MakeMinimalRom(8);
+            var stable = MapEventUnitCore.GetStableCondSlots(rom);
+            System.IO.File.WriteAllText(
+                System.IO.Path.Combine(translateDir, "zh.txt"), "");
+            System.IO.File.WriteAllLines(
+                System.IO.Path.Combine(dataDir, "eventcond_FE8.zh.txt"),
+                stable.Select((slot, index) =>
+                    CondTypeToken(slot.Type) + "\tAuto Localized " + index));
+
+            string previousBase = CoreState.BaseDirectory;
+            string previousLanguage = CoreState.Language;
+            var previousCulture = System.Globalization.CultureInfo.CurrentCulture;
+            try
+            {
+                CoreState.BaseDirectory = root;
+                CoreState.Language = "auto";
+                System.Globalization.CultureInfo.CurrentCulture =
+                    new System.Globalization.CultureInfo("zh-CN");
+                MapEventUnitCore.ResetCondSlotCacheForTests();
+
+                Assert.Equal("Auto Localized 0",
+                    MapEventUnitCore.GetDisplayCondSlots(rom)[0].Name);
+                Assert.Equal("zh", U.ResolveEffectiveLanguage(
+                    CoreState.Language, root));
+            }
+            finally
+            {
+                System.Globalization.CultureInfo.CurrentCulture = previousCulture;
                 CoreState.BaseDirectory = previousBase;
                 CoreState.Language = previousLanguage;
                 MapEventUnitCore.ResetCondSlotCacheForTests();
@@ -301,6 +328,23 @@ namespace FEBuilderGBA.Core.Tests
         {
             Assert.Equal(expected, MapEventUnitCore.FormatTurnCondition(start, end, phase));
         }
+
+        static string CondTypeToken(MapEventUnitCore.CondType type) => type switch
+        {
+            MapEventUnitCore.CondType.Turn => "TURN",
+            MapEventUnitCore.CondType.Talk => "TALK",
+            MapEventUnitCore.CondType.Object => "OBJECT",
+            MapEventUnitCore.CondType.Always => "ALWAYS",
+            MapEventUnitCore.CondType.Tutorial => "TUTORIAL",
+            MapEventUnitCore.CondType.Trap => "TRAP",
+            MapEventUnitCore.CondType.PlayerUnit => "PLAYER_UNIT",
+            MapEventUnitCore.CondType.EnemyUnit => "ENEMY_UNIT",
+            MapEventUnitCore.CondType.FreemapPlayerUnit => "FREEMAP_PLAYER_UNIT",
+            MapEventUnitCore.CondType.FreemapEnemyUnit => "FREEMAP_ENEMY_UNIT",
+            MapEventUnitCore.CondType.StartEvent => "START_EVENT",
+            MapEventUnitCore.CondType.EndEvent => "END_EVENT",
+            _ => "UNKNOWN",
+        };
     }
 
     /// <summary>Test helper for creating minimal ROM objects.</summary>

@@ -14,6 +14,8 @@ using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using Avalonia.Controls;
+using Avalonia.Headless.XUnit;
 using FEBuilderGBA.Avalonia.GapSweep;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
@@ -925,6 +927,46 @@ public class EventUnitParityTests
                 root, "FEBuilderGBA.Avalonia", "Views", file));
             Assert.Contains("TextWrapping=\"Wrap\"", source);
             Assert.Contains("ToolTip.Tip=\"{Binding}\"", source);
+        }
+    }
+
+    [AvaloniaFact]
+    public void EventUnitViews_ReattachRefreshesGroupsChangedWhileDetached()
+    {
+        ROM? previousRom = CoreState.ROM;
+        string previousLanguage = CoreState.Language;
+        var presenter = new ContentControl();
+        var window = new Window { Content = presenter };
+        CoreState.ROM = null;
+        window.Show();
+        try
+        {
+            foreach (Control view in new Control[] {
+                new EventUnitView(), new EventUnitFE7View(), new EventUnitFE6View() })
+            {
+                presenter.Content = view;
+                var field = view.GetType().GetField(
+                    "_groupDisplayItems",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                var groups = Assert.IsAssignableFrom<System.Collections.IList>(
+                    field?.GetValue(view));
+                groups.Add("stale detached-language label");
+
+                presenter.Content = new TextBlock();
+                CoreState.Language =
+                    CoreState.Language == "en" ? "ja" : "en";
+                presenter.Content = view;
+
+                Assert.DoesNotContain(
+                    "stale detached-language label", groups.Cast<string>());
+                presenter.Content = new TextBlock();
+            }
+        }
+        finally
+        {
+            window.Close();
+            CoreState.ROM = previousRom;
+            CoreState.Language = previousLanguage;
         }
     }
 

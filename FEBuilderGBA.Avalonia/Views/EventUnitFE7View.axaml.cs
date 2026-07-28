@@ -101,6 +101,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 _hasLoadedList = true;
                 LoadMapList();
             }
+            else
+            {
+                ReloadGroupsForLanguage();
+            }
         }
 
         protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
@@ -111,14 +115,17 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnLanguageChanged()
         {
-            global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            global::Avalonia.Threading.Dispatcher.UIThread.Post(
+                ReloadGroupsForLanguage);
+        }
+
+        void ReloadGroupsForLanguage()
+        {
+            try { ReloadGroupsPreservingSelection(); }
+            catch (Exception ex)
             {
-                try { ReloadGroupsPreservingSelection(); }
-                catch (Exception ex)
-                {
-                    Log.ErrorF("EventUnitFE7View language refresh failed: {0}", ex.Message);
-                }
-            });
+                Log.ErrorF("EventUnitFE7View language refresh failed: {0}", ex.Message);
+            }
         }
 
         void StartXBox_ValueChanged(object? sender, global::Avalonia.Controls.NumericUpDownValueChangedEventArgs e)

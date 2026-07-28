@@ -420,6 +420,19 @@ namespace FEBuilderGBA.Core.Tests
                 8, EventScriptReferenceScanner.EventEntryPolicy.ReferenceScan));
         }
 
+        [Fact]
+        public void FE7Tutorial_ReferenceNamePreservesLegacyExactValue()
+        {
+            var entry = new EventScriptReferenceScanner.EventEntry
+            {
+                OriginName = "Tutorial FE7",
+                IsFE7Tutorial = true,
+            };
+
+            Assert.Equal("Tutorial FE7",
+                EventScriptReferenceScanner.FormatReferenceName(0x2A, entry));
+        }
+
         static void RealRomFindBgNonEmpty(string romName)
         {
             string romPath = FindRom(romName);

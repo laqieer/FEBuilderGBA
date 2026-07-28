@@ -1782,6 +1782,31 @@ namespace FEBuilderGBA
             return true;
         }
 
+        /// <summary>
+        /// Resolve "auto" to the same concrete language used by UI translation
+        /// loading. Japanese is built in; other cultures require a matching
+        /// translation file and otherwise fall back to English.
+        /// </summary>
+        public static string ResolveEffectiveLanguage(
+            string? language,
+            string? baseDirectory,
+            System.Globalization.CultureInfo? culture = null)
+        {
+            string lang = string.IsNullOrWhiteSpace(language) ? "auto" : language;
+            if (lang != "auto") return lang;
+
+            lang = (culture ?? System.Globalization.CultureInfo.CurrentCulture)
+                .TwoLetterISOLanguageName;
+            if (lang == "ja") return lang;
+
+            string root = string.IsNullOrWhiteSpace(baseDirectory)
+                ? AppDomain.CurrentDomain.BaseDirectory
+                : baseDirectory;
+            string translationFile = Path.Combine(
+                root, "config", "translate", lang + ".txt");
+            return File.Exists(translationFile) ? lang : "en";
+        }
+
         public static string ConfigDataFilename(string type)
         {
             return ConfigDataFilename(type, CoreState.ROM, CoreState.BaseDirectory, CoreState.Language);

@@ -518,17 +518,44 @@ public class MapEventUnitCoreNewAllocTests
             CoreState.EventScript = BuildEventScript(loadScript!, endScript!);
 
             // Must NOT throw even though CoreState.ROM != rom / is null.
-            var groups = MapEventUnitCore.GetUnitGroupsForMap(rom, 0);
+            var groups = MapEventUnitCore.GetDetailedUnitGroupsForMap(rom, 0);
 
             // Direct cond-slot list is still returned (no script scan needed).
-            Assert.Contains(groups, g => g.addr == directUnitList);
+            var direct = Assert.Single(groups, g => g.Addr == directUnitList);
+            Assert.False(direct.CanExpand);
             // The script-referenced list is NOT discovered (scan skipped).
-            Assert.DoesNotContain(groups, g => g.addr == scriptUnitList);
+            Assert.DoesNotContain(groups, g => g.Addr == scriptUnitList);
         }
         finally
         {
             CoreState.ROM = prevRom;
             CoreState.EventScript = prevEs;
+        }
+    }
+
+    [Fact]
+    public void DetailedGroups_MissingEventScript_DisablesDirectExpansion()
+    {
+        ROM rom = MakeFe8uRom();
+        BuildMapWithDirectAndScriptUnitLists(
+            rom, mapId: 0, out uint directUnitList, out uint scriptUnitList);
+
+        ROM? previousRom = CoreState.ROM;
+        EventScript? previousScript = CoreState.EventScript;
+        try
+        {
+            CoreState.ROM = rom;
+            CoreState.EventScript = null;
+
+            var groups = MapEventUnitCore.GetDetailedUnitGroupsForMap(rom, 0);
+            var direct = Assert.Single(groups, group => group.Addr == directUnitList);
+            Assert.False(direct.CanExpand);
+            Assert.DoesNotContain(groups, group => group.Addr == scriptUnitList);
+        }
+        finally
+        {
+            CoreState.ROM = previousRom;
+            CoreState.EventScript = previousScript;
         }
     }
 
@@ -559,10 +586,11 @@ public class MapEventUnitCoreNewAllocTests
             CoreState.EventScript = BuildEventScript(loadScript!, endScript!);
             CoreState.CommentCache ??= new HeadlessEtcCache();
 
-            var groups = MapEventUnitCore.GetUnitGroupsForMap(target, 0);
+            var groups = MapEventUnitCore.GetDetailedUnitGroupsForMap(target, 0);
 
-            Assert.Contains(groups, g => g.addr == directUnitList);
-            Assert.DoesNotContain(groups, g => g.addr == scriptUnitList);
+            var direct = Assert.Single(groups, g => g.Addr == directUnitList);
+            Assert.False(direct.CanExpand);
+            Assert.DoesNotContain(groups, g => g.Addr == scriptUnitList);
         }
         finally
         {
@@ -700,7 +728,7 @@ public class MapEventUnitCoreNewAllocTests
             "12000000XXXXXXXX\tLOADUNIT [XXXX:POINTER_UNIT:Units]")!;
         var end = EventScript.ParseScriptLine("0A000000\tENDA [TERM]")!;
         ROM rom = MakeFe8uRom();
-        BuildMapWithDirectAndScriptUnitLists(rom, 0, out _, out uint unitList);
+        BuildMapWithDirectAndScriptUnitLists(rom, 0, out uint directList, out uint unitList);
         uint root = 0x00840000u;
         uint child = 0x00860000u;
 
@@ -724,6 +752,7 @@ public class MapEventUnitCoreNewAllocTests
             CoreState.EventScript = BuildEventScript(call, load, end);
             CoreState.CommentCache ??= new HeadlessEtcCache();
             var groups = MapEventUnitCore.GetDetailedUnitGroupsForMap(rom, 0);
+            Assert.False(Assert.Single(groups, g => g.Addr == directList).CanExpand);
             Assert.Contains(groups, g => g.Addr == unitList
                 && g.OriginKind == MapEventUnitCore.UnitGroupOriginKind.EventScript
                 && g.Incomplete);

@@ -77,8 +77,9 @@ namespace FEBuilderGBA
         /// over every map (plus the FE7-only tutorial table). Returns one
         /// <see cref="AddrResult"/> per event-script entry point:
         /// <c>addr</c> = the event-script start address, <c>name</c> =
-        /// <c>"MAP {mapidHex} {slotName}"</c>, <c>tag</c> = mapid. Strictly
-        /// read-only; every read is guarded and the method never throws.
+        /// <c>"MAP {mapidHex} {slotName}"</c>, except legacy FE7 tutorial
+        /// entries remain exactly <c>"Tutorial FE7"</c>; <c>tag</c> = mapid.
+        /// Strictly read-only; every read is guarded and the method never throws.
         /// </summary>
         public static List<AddrResult> EnumerateEventEntries(ROM rom)
         {
@@ -91,12 +92,18 @@ namespace FEBuilderGBA
                 foreach (EventEntry entry in EnumerateEventEntries(
                     rom, map.tag, EventEntryPolicy.ReferenceScan, stableNames: true))
                 {
-                    string info = "MAP " + U.ToHexString(map.tag) + " " + entry.OriginName;
+                    string info = FormatReferenceName(map.tag, entry);
                     list.Add(new AddrResult(entry.ScriptAddress, info, map.tag));
                 }
             }
 
             return list;
+        }
+
+        internal static string FormatReferenceName(uint mapId, EventEntry entry)
+        {
+            if (entry.IsFE7Tutorial) return entry.OriginName;
+            return "MAP " + U.ToHexString(mapId) + " " + entry.OriginName;
         }
 
         /// <summary>

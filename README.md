@@ -73,8 +73,10 @@ direct condition slots and event scripts. Rows are address-first and retain
 their condition-record/script-command origin, selected map, and
 script-discovered map instead
 of collapsing equal addresses. FE7/FE8 expansion is offered only for a safe
-direct origin and revalidates that exact pointer slot immediately before the
-write; script, manual, shared-address, and stale-slot selections are refused.
+direct origin after active event-script discovery completes, and revalidates
+that exact pointer slot immediately before the write. Missing/incomplete
+discovery and script, manual, shared-address, or stale-slot selections are
+refused.
 FE6 remains read/edit-only with no expansion command.
 
 ### Cloning the Repository
