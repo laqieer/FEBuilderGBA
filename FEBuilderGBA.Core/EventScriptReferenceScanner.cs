@@ -117,11 +117,33 @@ namespace FEBuilderGBA
             EventEntryPolicy policy,
             bool stableNames = false)
         {
+            return EnumerateEventEntries(
+                rom, mapId, policy, out _, stableNames);
+        }
+
+        /// <summary>
+        /// Internal status-bearing condition walk used by mutation callers.
+        /// <paramref name="complete"/> is false when bounds or record caps
+        /// truncate any table before its terminator.
+        /// </summary>
+        internal static List<EventEntry> EnumerateEventEntries(
+            ROM rom,
+            uint mapId,
+            EventEntryPolicy policy,
+            out bool complete,
+            bool stableNames = false)
+        {
             var list = new List<EventEntry>();
+            complete = false;
             if (rom?.RomInfo == null) return list;
 
             uint eventAddr = MapEventUnitCore.GetEventAddrForMap(rom, mapId);
-            if (eventAddr == U.NOT_FOUND) return list;
+            if (eventAddr == U.NOT_FOUND)
+            {
+                complete = true;
+                return list;
+            }
+            complete = true;
             uint romLen = (uint)rom.Data.Length;
             var slots = stableNames
                 ? MapEventUnitCore.GetCondSlots(rom)
@@ -130,7 +152,11 @@ namespace FEBuilderGBA
             for (int i = 0; i < slots.Count; i++)
             {
                 uint slotAddr = eventAddr + (uint)i * 4;
-                if (!HasBytes(slotAddr, 4, romLen)) break;
+                if (!HasBytes(slotAddr, 4, romLen))
+                {
+                    complete = false;
+                    break;
+                }
                 var slot = slots[i];
 
                 if (slot.Type == MapEventUnitCore.CondType.StartEvent
@@ -147,25 +173,31 @@ namespace FEBuilderGBA
                 switch (slot.Type)
                 {
                     case MapEventUnitCore.CondType.Turn:
-                        WalkTurn(rom, addr, mapId, i, slot.Name, policy, list);
+                        if (!WalkTurn(rom, addr, mapId, i, slot.Name, policy, list))
+                            complete = false;
                         break;
                     case MapEventUnitCore.CondType.Talk:
-                        WalkTalk(rom, addr, mapId, i, slot.Name, policy, list);
+                        if (!WalkTalk(rom, addr, mapId, i, slot.Name, policy, list))
+                            complete = false;
                         break;
                     case MapEventUnitCore.CondType.Object:
-                        WalkObject(rom, addr, mapId, i, slot.Name, policy, list);
+                        if (!WalkObject(rom, addr, mapId, i, slot.Name, policy, list))
+                            complete = false;
                         break;
                     case MapEventUnitCore.CondType.Always:
-                        WalkAlways(rom, addr, mapId, i, slot.Name, list);
+                        if (!WalkAlways(rom, addr, mapId, i, slot.Name, list))
+                            complete = false;
                         break;
                     case MapEventUnitCore.CondType.Tutorial:
-                        WalkTutorial(rom, addr, mapId, i, slot.Name, list);
+                        if (!WalkTutorial(rom, addr, mapId, i, slot.Name, list))
+                            complete = false;
                         break;
                 }
             }
 
             if (IncludesFE7Tutorial(rom.RomInfo.version, policy))
-                AppendFE7Tutorial(rom, mapId, list);
+                if (!AppendFE7Tutorial(rom, mapId, list))
+                    complete = false;
             return list;
         }
 
@@ -174,62 +206,65 @@ namespace FEBuilderGBA
 
         // TURN: UnitDiscovery stops at u8==0. ReferenceScan additionally
         // preserves the WF u32 sentinel. FE7 type 1 has a 12-byte stride.
-        static void WalkTurn(
+        static bool WalkTurn(
             ROM rom, uint addr, uint mapId, int slotIndex, string name,
             EventEntryPolicy policy, List<EventEntry> list)
         {
             uint stride = rom.RomInfo.eventcond_tern_size;
-            if (stride == 0) return;
+            if (stride == 0) return false;
             uint romLen = (uint)rom.Data.Length;
             for (int records = 0; records < MaxTutorialRecords; records++)
             {
-                if (!HasBytes(addr, 12, romLen)) break;
-                if (policy == EventEntryPolicy.ReferenceScan && rom.u32(addr) == 0) break;
+                if (!HasBytes(addr, 12, romLen)) return false;
+                if (policy == EventEntryPolicy.ReferenceScan && rom.u32(addr) == 0)
+                    return true;
                 uint type = rom.u8(addr);
-                if (type == 0) break;
+                if (type == 0) return true;
 
                 uint recordSize = rom.RomInfo.version == 7 && type == 1 ? 12 : stride;
-                if (!HasBytes(addr, recordSize, romLen)) break;
+                if (!HasBytes(addr, recordSize, romLen)) return false;
                 AddEntryIfSafe(rom, list, rom.p32(addr + 4), mapId,
                     MapEventUnitCore.CondType.Turn, slotIndex, addr, name,
                     rom.u8(addr + 8), rom.u8(addr + 9), rom.u8(addr + 10));
 
                 addr += recordSize;
             }
+            return false;
         }
 
         // TALK: UnitDiscovery stops u8==0; ReferenceScan stops u32==0.
-        static void WalkTalk(
+        static bool WalkTalk(
             ROM rom, uint addr, uint mapId, int slotIndex, string name,
             EventEntryPolicy policy, List<EventEntry> list)
         {
             uint stride = rom.RomInfo.eventcond_talk_size;
-            if (stride == 0) return;
+            if (stride == 0) return false;
             uint romLen = (uint)rom.Data.Length;
             for (int records = 0; records < MaxTutorialRecords; records++, addr += stride)
             {
-                if (!HasBytes(addr, stride, romLen)) break;
+                if (!HasBytes(addr, stride, romLen)) return false;
                 if (policy == EventEntryPolicy.UnitDiscovery
                     ? rom.u8(addr) == 0
-                    : rom.u32(addr) == 0) break;
+                    : rom.u32(addr) == 0) return true;
                 AddEntryIfSafe(rom, list, rom.p32(addr + 4), mapId,
                     MapEventUnitCore.CondType.Talk, slotIndex, addr, name);
             }
+            return false;
         }
 
         // OBJECT: fixed 12-byte, ptr p32(addr+4), object_type=u8(addr+10),
         // policy-specific terminator, SKIP shop/chest object types.
-        static void WalkObject(
+        static bool WalkObject(
             ROM rom, uint addr, uint mapId, int slotIndex, string name,
             EventEntryPolicy policy, List<EventEntry> list)
         {
             uint romLen = (uint)rom.Data.Length;
             for (int records = 0; records < MaxTutorialRecords; records++, addr += 12)
             {
-                if (!HasBytes(addr, 12, romLen)) break;
+                if (!HasBytes(addr, 12, romLen)) return false;
                 if (policy == EventEntryPolicy.UnitDiscovery
                     ? rom.u8(addr) == 0
-                    : rom.u32(addr) == 0) break;
+                    : rom.u32(addr) == 0) return true;
 
                 uint objectType = rom.u8(addr + 10);
                 if (IsShopObjectType(rom, objectType) || IsChestObjectType(rom, objectType))
@@ -237,69 +272,73 @@ namespace FEBuilderGBA
                 AddEntryIfSafe(rom, list, rom.p32(addr + 4), mapId,
                     MapEventUnitCore.CondType.Object, slotIndex, addr, name);
             }
+            return false;
         }
 
         // ALWAYS: fixed 12-byte, ptr p32(addr+4), stop u32(addr)==0.
-        static void WalkAlways(
+        static bool WalkAlways(
             ROM rom, uint addr, uint mapId, int slotIndex, string name,
             List<EventEntry> list)
         {
             uint romLen = (uint)rom.Data.Length;
             for (int records = 0; records < MaxTutorialRecords; records++, addr += 12)
             {
-                if (!HasBytes(addr, 12, romLen)) break;
-                if (rom.u32(addr) == 0) break;
+                if (!HasBytes(addr, 12, romLen)) return false;
+                if (rom.u32(addr) == 0) return true;
                 AddEntryIfSafe(rom, list, rom.p32(addr + 4), mapId,
                     MapEventUnitCore.CondType.Always, slotIndex, addr, name);
             }
+            return false;
         }
 
         // TUTORIAL: blank value 1 is an intentional Core extension; skip it
         // and continue to the next pointer. Record cap + ROM bounds are both
         // mandatory because a long run of blanks has no pointer terminator.
-        static void WalkTutorial(
+        static bool WalkTutorial(
             ROM rom, uint addr, uint mapId, int slotIndex, string name,
             List<EventEntry> list)
         {
             uint romLen = (uint)rom.Data.Length;
             for (int records = 0; records < MaxTutorialRecords; records++, addr += 4)
             {
-                if (!HasBytes(addr, 4, romLen)) break;
+                if (!HasBytes(addr, 4, romLen)) return false;
                 uint value = rom.u32(addr);
                 if (value == 1) continue;
-                if (!U.isPointer(value)) break;
+                if (!U.isPointer(value)) return true;
                 AddEntryIfSafe(rom, list, rom.p32(addr), mapId,
                     MapEventUnitCore.CondType.Tutorial, slotIndex, addr, name);
             }
+            return false;
         }
 
         // FE7-only tutorial table (WF MakeEventScriptForFE7Tutorial):
         // base p32(event_tutorial_pointer)+mapid*4, mapid<=0x30, 12-byte records,
         // ptr p32(addr+4), stop u32(addr)==0.
-        static void AppendFE7Tutorial(ROM rom, uint mapid, List<EventEntry> list)
+        static bool AppendFE7Tutorial(ROM rom, uint mapid, List<EventEntry> list)
         {
-            if (mapid > 0x30) return;
+            if (mapid > 0x30) return true;
 
             uint tutorialPointer = rom.RomInfo.event_tutorial_pointer;
             uint romLen = (uint)rom.Data.Length;
-            if (!HasBytes(tutorialPointer, 4, romLen)) return;
+            if (!HasBytes(tutorialPointer, 4, romLen)) return false;
 
             uint tutorialAddr = rom.p32(tutorialPointer);
-            if (!U.isSafetyOffset(tutorialAddr, rom)) return;
+            if (!U.isSafetyOffset(tutorialAddr, rom)) return true;
             tutorialAddr += mapid * 4;
-            if (!HasBytes(tutorialAddr, 4, romLen)) return;
+            if (!HasBytes(tutorialAddr, 4, romLen)) return false;
 
             uint addr = rom.p32(tutorialAddr);
-            if (!U.isSafetyOffset(addr, rom)) return;
+            if (!U.isSafetyOffset(addr, rom)) return true;
 
             for (int records = 0; records < MaxTutorialRecords; records++, addr += 12)
             {
-                if (!HasBytes(addr, 12, romLen)) break;
-                if (rom.u32(addr) == 0) break;
+                if (!HasBytes(addr, 12, romLen)) return false;
+                if (rom.u32(addr) == 0) return true;
                 AddEntryIfSafe(rom, list, rom.p32(addr + 4), mapid,
                     MapEventUnitCore.CondType.Tutorial, -1, addr,
                     "Tutorial FE7", isFE7Tutorial: true);
             }
+            return false;
         }
 
         // WF EventCondForm.IsChestObjectType: FE8 chest=0x14, FE6/7 chest=0x12.

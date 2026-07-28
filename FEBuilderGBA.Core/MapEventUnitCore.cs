@@ -496,10 +496,14 @@ namespace FEBuilderGBA
             if (scriptDiscoveryComplete)
             {
                 var context = new TraversalContext(rom, es);
-                foreach (EventScriptReferenceScanner.EventEntry entry
-                    in EventScriptReferenceScanner.EnumerateEventEntries(
+                List<EventScriptReferenceScanner.EventEntry> entries =
+                    EventScriptReferenceScanner.EnumerateEventEntries(
                         rom, mapId,
-                        EventScriptReferenceScanner.EventEntryPolicy.UnitDiscovery))
+                        EventScriptReferenceScanner.EventEntryPolicy.UnitDiscovery,
+                        out bool conditionDiscoveryComplete);
+                if (!conditionDiscoveryComplete)
+                    scriptDiscoveryComplete = false;
+                foreach (EventScriptReferenceScanner.EventEntry entry in entries)
                 {
                     TraversalResult scan = TraverseScript(
                         context, entry.ScriptAddress, mapId, 0);

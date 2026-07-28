@@ -720,6 +720,49 @@ public class MapEventUnitCoreNewAllocTests
     }
 
     [Fact]
+    public void DetailedGroups_TruncatedConditionTable_DisablesDirectExpansion()
+    {
+        var load = EventScript.ParseScriptLine(
+            "12000000XXXXXXXX\tLOADUNIT [XXXX:POINTER_UNIT:Units]")!;
+        var end = EventScript.ParseScriptLine("0A000000\tENDA [TERM]")!;
+        ROM rom = MakeFe8uRom();
+        BuildMapWithDirectAndScriptUnitLists(
+            rom, 0, out uint directList, out _);
+        uint eventAddr = MapEventUnitCore.GetEventAddrForMap(rom, 0);
+        int talk = MapEventUnitCore.GetStableCondSlots(rom)
+            .FindIndex(slot => slot.Type == MapEventUnitCore.CondType.Talk);
+        uint truncatedTable = (uint)rom.Data.Length - 4;
+        Write32(rom, eventAddr + (uint)talk * 4, truncatedTable | 0x08000000u);
+
+        ROM? oldRom = CoreState.ROM;
+        EventScript? oldScript = CoreState.EventScript;
+        IEtcCache? oldComments = CoreState.CommentCache;
+        try
+        {
+            CoreState.ROM = rom;
+            CoreState.EventScript = BuildEventScript(load, end);
+            CoreState.CommentCache ??= new HeadlessEtcCache();
+
+            var entries = EventScriptReferenceScanner.EnumerateEventEntries(
+                rom, 0,
+                EventScriptReferenceScanner.EventEntryPolicy.UnitDiscovery,
+                out bool complete);
+            Assert.False(complete);
+            Assert.NotEmpty(entries);
+
+            var groups = MapEventUnitCore.GetDetailedUnitGroupsForMap(rom, 0);
+            Assert.False(Assert.Single(
+                groups, group => group.Addr == directList).CanExpand);
+        }
+        finally
+        {
+            CoreState.ROM = oldRom;
+            CoreState.EventScript = oldScript;
+            CoreState.CommentCache = oldComments;
+        }
+    }
+
+    [Fact]
     public void DetailedGroups_CyclicEventCalls_ReturnFoundUnitsAsIncomplete()
     {
         var call = EventScript.ParseScriptLine(

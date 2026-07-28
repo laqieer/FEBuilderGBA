@@ -36,8 +36,9 @@ deduplication is by `(origin,address,map,command)`. Script traversal is
 per-call, cycle/depth/step/global-budget
 bounded, restores map state across IF/LABEL, and memoizes only complete
 `(script,start-map)` traversals including their resulting map. FE7/FE8 expansion
-is fail-closed unless active-ROM script discovery completes, accepts only the
-retained exact slot, and revalidates it against the old base before mutation;
+is fail-closed unless both condition-entry discovery and active-ROM script
+traversal complete, accepts only the retained exact slot, and revalidates it
+against the old base before mutation;
 script/manual/shared/stale origins are non-expandable. Public FE7 tutorial
 reference labels retain the legacy exact `Tutorial FE7` value.
 
