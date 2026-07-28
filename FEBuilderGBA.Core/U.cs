@@ -1782,37 +1782,80 @@ namespace FEBuilderGBA
             return true;
         }
 
+        /// <summary>
+        /// Resolve "auto" to the same concrete language used by UI translation
+        /// loading. Japanese is built in; other cultures require a matching
+        /// translation file and otherwise fall back to English.
+        /// </summary>
+        public static string ResolveEffectiveLanguage(
+            string? language,
+            string? baseDirectory,
+            System.Globalization.CultureInfo? culture = null)
+        {
+            string lang = string.IsNullOrWhiteSpace(language) ? "auto" : language;
+            if (lang != "auto") return lang;
+
+            lang = (culture ?? System.Globalization.CultureInfo.CurrentCulture)
+                .TwoLetterISOLanguageName;
+            if (lang == "ja") return lang;
+
+            string root = string.IsNullOrWhiteSpace(baseDirectory)
+                ? AppDomain.CurrentDomain.BaseDirectory
+                : baseDirectory;
+            string translationFile = Path.Combine(
+                root, "config", "translate", lang + ".txt");
+            return File.Exists(translationFile) ? lang : "en";
+        }
+
         public static string ConfigDataFilename(string type)
         {
-            return ConfigDataFilename(type, CoreState.ROM);
+            return ConfigDataFilename(type, CoreState.ROM, CoreState.BaseDirectory, CoreState.Language);
         }
 
         public static string ConfigDataFilename(string type, ROM rom)
         {
-            string lang = CoreState.Language ?? "en";
+            return ConfigDataFilename(type, rom, CoreState.BaseDirectory, CoreState.Language);
+        }
+
+        /// <summary>
+        /// Pure, null-safe config/data path resolver. Unlike the legacy
+        /// overloads this method reads no global state, which makes config
+        /// discovery deterministic for Core, mobile, browser and tests.
+        /// </summary>
+        public static string ConfigDataFilename(
+            string type,
+            ROM? rom,
+            string? baseDirectory,
+            string? language)
+        {
+            type ??= "";
+            string root = string.IsNullOrWhiteSpace(baseDirectory)
+                ? AppContext.BaseDirectory
+                : baseDirectory;
+            string lang = string.IsNullOrWhiteSpace(language) ? "en" : language;
             bool canSecondLanguageEnglish = CanSecondLanguageEnglish(lang);
             string fullfilename;
-            if (rom != null)
+            if (rom?.RomInfo != null)
             {
-                fullfilename = Path.Combine(CoreState.BaseDirectory, "config", "data", type + rom.RomInfo.TitleToFilename + "." + lang + ".txt");
+                fullfilename = Path.Combine(root, "config", "data", type + rom.RomInfo.TitleToFilename + "." + lang + ".txt");
                 if (File.Exists(fullfilename)) return fullfilename;
                 if (canSecondLanguageEnglish)
                 {
-                    fullfilename = Path.Combine(CoreState.BaseDirectory, "config", "data", type + rom.RomInfo.TitleToFilename + ".en.txt");
+                    fullfilename = Path.Combine(root, "config", "data", type + rom.RomInfo.TitleToFilename + ".en.txt");
                     if (File.Exists(fullfilename)) return fullfilename;
                 }
-                fullfilename = Path.Combine(CoreState.BaseDirectory, "config", "data", type + rom.RomInfo.TitleToFilename + ".txt");
+                fullfilename = Path.Combine(root, "config", "data", type + rom.RomInfo.TitleToFilename + ".txt");
                 if (File.Exists(fullfilename)) return fullfilename;
             }
 
-            fullfilename = Path.Combine(CoreState.BaseDirectory, "config", "data", type + "ALL." + lang + ".txt");
+            fullfilename = Path.Combine(root, "config", "data", type + "ALL." + lang + ".txt");
             if (File.Exists(fullfilename)) return fullfilename;
             if (canSecondLanguageEnglish)
             {
-                fullfilename = Path.Combine(CoreState.BaseDirectory, "config", "data", type + "ALL.en.txt");
+                fullfilename = Path.Combine(root, "config", "data", type + "ALL.en.txt");
                 if (File.Exists(fullfilename)) return fullfilename;
             }
-            fullfilename = Path.Combine(CoreState.BaseDirectory, "config", "data", type + "ALL.txt");
+            fullfilename = Path.Combine(root, "config", "data", type + "ALL.txt");
             return fullfilename;
         }
 

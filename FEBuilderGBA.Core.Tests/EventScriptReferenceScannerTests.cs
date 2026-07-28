@@ -404,8 +404,55 @@ namespace FEBuilderGBA.Core.Tests
                 {
                     if (e.name == "Tutorial FE7") { hasTutorial = true; break; }
                 }
+
                 Assert.True(hasTutorial, "FE7U enumeration must include >=1 'Tutorial FE7' entry");
             });
+        }
+
+        [Fact]
+        public void FE7Tutorial_IsReferenceScanOnly()
+        {
+            Assert.True(EventScriptReferenceScanner.IncludesFE7Tutorial(
+                7, EventScriptReferenceScanner.EventEntryPolicy.ReferenceScan));
+            Assert.False(EventScriptReferenceScanner.IncludesFE7Tutorial(
+                7, EventScriptReferenceScanner.EventEntryPolicy.UnitDiscovery));
+            Assert.False(EventScriptReferenceScanner.IncludesFE7Tutorial(
+                8, EventScriptReferenceScanner.EventEntryPolicy.ReferenceScan));
+        }
+
+        [Fact]
+        public void FE7Tutorial_ReferenceNamePreservesLegacyExactValue()
+        {
+            var entry = new EventScriptReferenceScanner.EventEntry
+            {
+                OriginName = "Tutorial FE7",
+                IsFE7Tutorial = true,
+            };
+
+            Assert.Equal("Tutorial FE7",
+                EventScriptReferenceScanner.FormatReferenceName(0x2A, entry));
+        }
+
+        [Fact]
+        public void FE7Tutorial_ZeroPointerSlotIsAbsent()
+        {
+            ROM rom = TestHelper.MakeMinimalRom(7);
+            var setter = typeof(ROMFEINFO)
+                .GetProperty(nameof(ROMFEINFO.event_tutorial_pointer))
+                ?.GetSetMethod(true);
+            Assert.NotNull(setter);
+            setter!.Invoke(rom.RomInfo, new object[] { 0u });
+
+            const uint unrelated = 0x00100000;
+            rom.write_p32(0, unrelated);
+            rom.write_p32(unrelated, unrelated + 0x100);
+            rom.write_u32(unrelated + 0x100, 1);
+            rom.write_p32(unrelated + 0x104, unrelated + 0x200);
+
+            var entries = new List<EventScriptReferenceScanner.EventEntry>();
+            Assert.True(EventScriptReferenceScanner.AppendFE7Tutorial(
+                rom, 0, entries));
+            Assert.Empty(entries);
         }
 
         static void RealRomFindBgNonEmpty(string romName)

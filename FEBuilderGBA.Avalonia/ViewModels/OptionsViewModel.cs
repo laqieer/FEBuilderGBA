@@ -964,27 +964,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         internal static void ReloadTranslations()
         {
-            string lang = CoreState.Language ?? "auto";
-            if (lang == "auto")
-            {
-                lang = System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
-
-                // Check if a translation file exists for the system locale
-                string baseDir = CoreState.BaseDirectory;
-                if (string.IsNullOrEmpty(baseDir))
-                    baseDir = AppDomain.CurrentDomain.BaseDirectory;
-
-                if (lang != "ja")
-                {
-                    string autoFile = Path.Combine(baseDir, "config", "translate", lang + ".txt");
-                    if (!File.Exists(autoFile))
-                        lang = "en"; // default to English if no matching translation
-                }
-            }
-
             string translateBaseDir = CoreState.BaseDirectory;
             if (string.IsNullOrEmpty(translateBaseDir))
                 translateBaseDir = AppDomain.CurrentDomain.BaseDirectory;
+            string lang = U.ResolveEffectiveLanguage(
+                CoreState.Language, translateBaseDir);
 
             string enFilePath = Path.Combine(translateBaseDir, "config", "translate", "en.txt");
             string translateDir = Path.Combine(translateBaseDir, "config", "translate");

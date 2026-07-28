@@ -12,7 +12,13 @@
     <!-- Level 2: Unit Group List -->
     <DockPanel Grid.Column="1" Margin="4">
       <TextBlock DockPanel.Dock="Top" Text="Unit Groups" FontWeight="Bold" Margin="0,0,0,4" />
-      <ListBox AutomationProperties.AutomationId="EventUnitFE6_GroupList_List" Name="GroupListBox" />
+      <ListBox AutomationProperties.AutomationId="EventUnitFE6_GroupList_List" Name="GroupListBox">
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <TextBlock Text="{Binding}" TextWrapping="Wrap" ToolTip.Tip="{Binding}" />
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
     </DockPanel>
 
     <!-- Level 3: Unit List -->

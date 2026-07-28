@@ -14,6 +14,8 @@ using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using Avalonia.Controls;
+using Avalonia.Headless.XUnit;
 using FEBuilderGBA.Avalonia.GapSweep;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
@@ -843,6 +845,164 @@ public class EventUnitParityTests
         Assert.Matches(
             new Regex(@"_pendingNavigateAddr\s+is\s+uint[\s\S]*?SelectAddress\(", RegexOptions.Singleline),
             source);
+    }
+
+    [Fact]
+    public void ExpansionViewModels_RequireExactSlot_AndNeverRederiveByAddress()
+    {
+        string root = FindRepoRoot();
+        foreach (string file in new[] {
+            "EventUnitViewModel.cs", "EventUnitFE7ViewModel.cs" })
+        {
+            string source = File.ReadAllText(Path.Combine(
+                root, "FEBuilderGBA.Avalonia", "ViewModels", file));
+            Assert.Contains(
+                "ExpandUnitListCurrent(uint addRows, uint exactPointerSlot)", source);
+            Assert.DoesNotContain("FindEventPointerSlotForUnitList", source);
+            Assert.Contains("rom.p32(exactPointerSlot) != SelectedUnitListBase", source);
+        }
+    }
+
+    [Fact]
+    public void FE8Expansion_StaleExactSlotRefusesWithoutMutation()
+    {
+        var vm = new EventUnitViewModel();
+        ROM rom = MakeFe8uRom();
+        const uint oldBase = 0x00100000;
+        const uint pointerSlot = 0x00001000;
+        rom.write_u8(oldBase, 1);
+        rom.write_u8(oldBase + rom.RomInfo.eventunit_data_size, 0);
+        rom.write_p32(pointerSlot, oldBase + 0x100);
+        vm.SelectedMapId = 0;
+        vm.SelectedUnitListBase = oldBase;
+        byte[] before = (byte[])rom.Data.Clone();
+
+        ROM? previous = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            Assert.Equal(U.NOT_FOUND, vm.ExpandUnitListCurrent(1, pointerSlot));
+            Assert.Equal(oldBase, vm.SelectedUnitListBase);
+            Assert.Equal(before, rom.Data);
+        }
+        finally
+        {
+            CoreState.ROM = previous;
+        }
+    }
+
+    [Fact]
+    public void FE7ManualAddressLoad_ClearsMapContextAndViewUsesManualPath()
+    {
+        var vm = new EventUnitFE7ViewModel
+        {
+            SelectedMapId = 0x2A,
+        };
+        ROM? previousRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = null;
+            Assert.Empty(vm.LoadUnitListFromAddress(0x00100000));
+            Assert.Equal(uint.MaxValue, vm.SelectedMapId);
+        }
+        finally
+        {
+            CoreState.ROM = previousRom;
+        }
+
+        string source = File.ReadAllText(Path.Combine(
+            FindRepoRoot(), "FEBuilderGBA.Avalonia", "Views",
+            "EventUnitFE7View.axaml.cs"));
+        Assert.Contains("_vm.LoadUnitListFromAddress(addr)", source);
+    }
+
+    [Fact]
+    public void AllEventUnitGroupLists_WrapAndExposeFullTooltip()
+    {
+        string root = FindRepoRoot();
+        foreach (string file in new[] {
+            "EventUnitView.axaml", "EventUnitFE7View.axaml", "EventUnitFE6View.axaml" })
+        {
+            string source = File.ReadAllText(Path.Combine(
+                root, "FEBuilderGBA.Avalonia", "Views", file));
+            Assert.Contains("TextWrapping=\"Wrap\"", source);
+            Assert.Contains("ToolTip.Tip=\"{Binding}\"", source);
+        }
+    }
+
+    [AvaloniaFact]
+    public void EventUnitViews_ReattachRefreshesGroupsChangedWhileDetached()
+    {
+        ROM? previousRom = CoreState.ROM;
+        string previousLanguage = CoreState.Language;
+        var presenter = new ContentControl();
+        var window = new Window { Content = presenter };
+        CoreState.ROM = null;
+        window.Show();
+        try
+        {
+            foreach (Control view in new Control[] {
+                new EventUnitView(), new EventUnitFE7View(), new EventUnitFE6View() })
+            {
+                presenter.Content = view;
+                System.Collections.IList FieldList(string name)
+                {
+                    var field = view.GetType().GetField(
+                        name, BindingFlags.Instance | BindingFlags.NonPublic);
+                    return Assert.IsAssignableFrom<System.Collections.IList>(
+                        field?.GetValue(view));
+                }
+
+                FieldList("_mapItems").Add(new AddrResult(0, "Map 00", 0));
+                FieldList("_mapDisplayItems").Add("Map 00");
+                var mapList = Assert.IsType<ListBox>(
+                    view.FindControl<ListBox>("MapListBox"));
+                mapList.SelectedIndex = 0;
+
+                FieldList("_groupItems").Add(
+                    new MapEventUnitCore.UnitGroupResult
+                    {
+                        Addr = 0x1000,
+                        Name = "stale detached-language label",
+                    });
+                FieldList("_groupDisplayItems").Add(
+                    "stale detached-language label");
+                FieldList("_unitItems").Add(
+                    new AddrResult(0x1000, "stale unit", 0));
+                FieldList("_unitDisplayItems").Add("stale unit");
+                object? vmValue = view.GetType().GetField(
+                    "_vm", BindingFlags.Instance | BindingFlags.NonPublic)
+                    ?.GetValue(view);
+                Assert.NotNull(vmValue);
+                object vm = vmValue!;
+                var currentAddr = vm.GetType().GetProperty("CurrentAddr");
+                var isLoaded = vm.GetType().GetProperty("IsLoaded");
+                Assert.NotNull(currentAddr);
+                Assert.NotNull(isLoaded);
+                currentAddr.SetValue(vm, 0x1000u);
+                isLoaded.SetValue(vm, true);
+
+                presenter.Content = new TextBlock();
+                CoreState.Language =
+                    CoreState.Language == "en" ? "ja" : "en";
+                presenter.Content = view;
+
+                Assert.DoesNotContain(
+                    "stale detached-language label",
+                    FieldList("_groupDisplayItems").Cast<string>());
+                Assert.Empty(FieldList("_unitItems"));
+                Assert.Empty(FieldList("_unitDisplayItems"));
+                Assert.Equal(0u, currentAddr.GetValue(vm));
+                Assert.False(Assert.IsType<bool>(isLoaded.GetValue(vm)));
+                presenter.Content = new TextBlock();
+            }
+        }
+        finally
+        {
+            window.Close();
+            CoreState.ROM = previousRom;
+            CoreState.Language = previousLanguage;
+        }
     }
 
     // -----------------------------------------------------------------

@@ -28464,3 +28464,36 @@ FEMapCreator 是由 bwdyeti 创建的独立实用工具；FEBuilderGBA 不捆绑
 
 :unknown error
 未知错误
+
+:Event Unit: Player
+我军
+
+:Event Unit: Ally
+友军
+
+:Event Unit: Enemy
+敌军
+
+:Event Unit: 4th Allegiance
+第四军
+
+:Event Unit: Unknown allegiance
+阵营未知
+
+:Event Unit: Empty
+空
+
+:Event Unit: Unknown origin
+来源未知
+
+:Event Unit: Turn
+回合
+
+:Event Unit: NEW
+新建
+
+:This unit list cannot be expanded safely. Edit its source at {0}.
+无法安全扩展此单位列表。请编辑位于 {0} 的来源。
+
+:Expansion refused because the source pointer at {0} is stale or no free space is available.
+由于 {0} 的来源指针已过期或没有可用空间，扩展被拒绝。

@@ -14643,3 +14643,36 @@ FEMapCreator は bwdyeti 氏によって作成された独立したユーティ�
 
 :unknown error
 不明なエラー
+
+:Event Unit: Player
+自軍
+
+:Event Unit: Ally
+友軍
+
+:Event Unit: Enemy
+敵軍
+
+:Event Unit: 4th Allegiance
+第四軍
+
+:Event Unit: Unknown allegiance
+所属不明
+
+:Event Unit: Empty
+空
+
+:Event Unit: Unknown origin
+出典不明
+
+:Event Unit: Turn
+ターン
+
+:Event Unit: NEW
+新規
+
+:This unit list cannot be expanded safely. Edit its source at {0}.
+このユニットリストは安全に拡張できません。{0} の参照元を編集してください。
+
+:Expansion refused because the source pointer at {0} is stale or no free space is available.
+{0} の参照ポインタが古いか空き領域がないため、拡張を拒否しました。

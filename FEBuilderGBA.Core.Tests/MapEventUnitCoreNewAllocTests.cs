@@ -14,6 +14,7 @@
 // defensively swap CoreState.ROM in try/finally.
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using FEBuilderGBA;
 using Xunit;
 
@@ -385,6 +386,19 @@ public class MapEventUnitCoreNewAllocTests
 
             Assert.Contains(groups, g => g.addr == directUnitList);   // no regression
             Assert.Contains(groups, g => g.addr == scriptUnitList);   // POINTER_UNIT scan
+
+            var detailed = MapEventUnitCore.GetDetailedUnitGroupsForMap(rom, mapId);
+            Assert.Equal(directUnitList, detailed[0].Addr); // direct-first contract
+            var direct = Assert.Single(detailed, g => g.Addr == directUnitList);
+            Assert.Equal(MapEventUnitCore.UnitGroupOriginKind.DirectPlacement, direct.OriginKind);
+            Assert.NotEqual(0u, direct.ExactPointerSlot);
+            Assert.True(direct.CanExpand);
+            var scripted = Assert.Single(detailed, g => g.Addr == scriptUnitList);
+            Assert.Equal(MapEventUnitCore.UnitGroupOriginKind.EventScript, scripted.OriginKind);
+            Assert.Equal(0u, scripted.ExactPointerSlot);
+            Assert.False(scripted.CanExpand);
+            Assert.StartsWith(U.To0xHexString(scriptUnitList), scripted.Name);
+            Assert.Contains("CMD " + U.To0xHexString(scriptAddr), scripted.Name);
         }
         finally
         {
@@ -504,17 +518,44 @@ public class MapEventUnitCoreNewAllocTests
             CoreState.EventScript = BuildEventScript(loadScript!, endScript!);
 
             // Must NOT throw even though CoreState.ROM != rom / is null.
-            var groups = MapEventUnitCore.GetUnitGroupsForMap(rom, 0);
+            var groups = MapEventUnitCore.GetDetailedUnitGroupsForMap(rom, 0);
 
             // Direct cond-slot list is still returned (no script scan needed).
-            Assert.Contains(groups, g => g.addr == directUnitList);
+            var direct = Assert.Single(groups, g => g.Addr == directUnitList);
+            Assert.False(direct.CanExpand);
             // The script-referenced list is NOT discovered (scan skipped).
-            Assert.DoesNotContain(groups, g => g.addr == scriptUnitList);
+            Assert.DoesNotContain(groups, g => g.Addr == scriptUnitList);
         }
         finally
         {
             CoreState.ROM = prevRom;
             CoreState.EventScript = prevEs;
+        }
+    }
+
+    [Fact]
+    public void DetailedGroups_MissingEventScript_DisablesDirectExpansion()
+    {
+        ROM rom = MakeFe8uRom();
+        BuildMapWithDirectAndScriptUnitLists(
+            rom, mapId: 0, out uint directUnitList, out uint scriptUnitList);
+
+        ROM? previousRom = CoreState.ROM;
+        EventScript? previousScript = CoreState.EventScript;
+        try
+        {
+            CoreState.ROM = rom;
+            CoreState.EventScript = null;
+
+            var groups = MapEventUnitCore.GetDetailedUnitGroupsForMap(rom, 0);
+            var direct = Assert.Single(groups, group => group.Addr == directUnitList);
+            Assert.False(direct.CanExpand);
+            Assert.DoesNotContain(groups, group => group.Addr == scriptUnitList);
+        }
+        finally
+        {
+            CoreState.ROM = previousRom;
+            CoreState.EventScript = previousScript;
         }
     }
 
@@ -545,16 +586,351 @@ public class MapEventUnitCoreNewAllocTests
             CoreState.EventScript = BuildEventScript(loadScript!, endScript!);
             CoreState.CommentCache ??= new HeadlessEtcCache();
 
-            var groups = MapEventUnitCore.GetUnitGroupsForMap(target, 0);
+            var groups = MapEventUnitCore.GetDetailedUnitGroupsForMap(target, 0);
 
-            Assert.Contains(groups, g => g.addr == directUnitList);
-            Assert.DoesNotContain(groups, g => g.addr == scriptUnitList);
+            var direct = Assert.Single(groups, g => g.Addr == directUnitList);
+            Assert.False(direct.CanExpand);
+            Assert.DoesNotContain(groups, g => g.Addr == scriptUnitList);
         }
         finally
         {
             CoreState.ROM = prevRom;
             CoreState.EventScript = prevEs;
             CoreState.CommentCache = prevComment;
+        }
+    }
+
+    [Fact]
+    public void DetailedGroups_SameAddressDirectAndScript_PreservesOriginsAndDisablesExpansion()
+    {
+        var load = EventScript.ParseScriptLine("12000000XXXXXXXX\tLOADUNIT [XXXX:POINTER_UNIT:Units]")!;
+        var end = EventScript.ParseScriptLine("0A000000\tENDA [TERM]")!;
+        ROM rom = MakeFe8uRom();
+        BuildMapWithDirectAndScriptUnitLists(rom, 0, out uint direct, out _);
+        var slots = MapEventUnitCore.GetCondSlots(rom);
+        int start = slots.FindIndex(s => s.Type == MapEventUnitCore.CondType.StartEvent);
+        uint eventAddr = MapEventUnitCore.GetEventAddrForMap(rom, 0);
+        uint script = rom.p32(eventAddr + (uint)start * 4);
+        Write32(rom, script + 4, direct | 0x08000000u);
+
+        ROM? oldRom = CoreState.ROM;
+        EventScript? oldScript = CoreState.EventScript;
+        IEtcCache? oldComments = CoreState.CommentCache;
+        try
+        {
+            CoreState.ROM = rom;
+            CoreState.EventScript = BuildEventScript(load, end);
+            CoreState.CommentCache ??= new HeadlessEtcCache();
+            var groups = MapEventUnitCore.GetDetailedUnitGroupsForMap(rom, 0);
+            Assert.Equal(2, groups.FindAll(g => g.Addr == direct).Count);
+            Assert.Equal(MapEventUnitCore.UnitGroupOriginKind.DirectPlacement,
+                groups.Find(g => g.Addr == direct)!.OriginKind);
+            Assert.All(groups.FindAll(g => g.Addr == direct), g => Assert.False(g.CanExpand));
+        }
+        finally
+        {
+            CoreState.ROM = oldRom;
+            CoreState.EventScript = oldScript;
+            CoreState.CommentCache = oldComments;
+        }
+    }
+
+    [Fact]
+    public void DetailedGroups_SameAddressInTwoDirectSlots_DisablesExpansion()
+    {
+        ROM rom = MakeFe8uRom();
+        BuildMapWithDirectAndScriptUnitLists(rom, 0, out uint direct, out _);
+        uint eventAddr = MapEventUnitCore.GetEventAddrForMap(rom, 0);
+        var slots = MapEventUnitCore.GetCondSlots(rom);
+        var playerSlots = slots
+            .Select((slot, index) => (slot, index))
+            .Where(pair => pair.slot.Type == MapEventUnitCore.CondType.PlayerUnit)
+            .Select(pair => pair.index)
+            .ToList();
+        Assert.True(playerSlots.Count >= 2);
+        Write32(rom, eventAddr + (uint)playerSlots[1] * 4u, direct | 0x08000000u);
+
+        ROM? previous = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = null; // direct-slot discovery does not require script state
+            var groups = MapEventUnitCore.GetDetailedUnitGroupsForMap(rom, 0)
+                .FindAll(group => group.Addr == direct
+                    && group.OriginKind == MapEventUnitCore.UnitGroupOriginKind.DirectPlacement);
+
+            Assert.Equal(2, groups.Count);
+            Assert.All(groups, group => Assert.False(group.CanExpand));
+        }
+        finally
+        {
+            CoreState.ROM = previous;
+        }
+    }
+
+    [Fact]
+    public void ConditionEnumerator_TutorialBlankOne_ContinuesToFollowingPointer()
+    {
+        ROM rom = MakeFe8uRom();
+        BuildMapWithDirectAndScriptUnitLists(rom, 0, out _, out _);
+        uint eventAddr = MapEventUnitCore.GetEventAddrForMap(rom, 0);
+        var slots = MapEventUnitCore.GetStableCondSlots(rom);
+        int tutorial = slots.FindIndex(s => s.Type == MapEventUnitCore.CondType.Tutorial);
+        uint table = 0x00860000u;
+        uint target = 0x00870000u;
+        Write32(rom, eventAddr + (uint)tutorial * 4, table | 0x08000000u);
+        Write32(rom, table, 1);
+        Write32(rom, table + 4, target | 0x08000000u);
+        Write32(rom, table + 8, 0);
+
+        foreach (var policy in new[] {
+            EventScriptReferenceScanner.EventEntryPolicy.UnitDiscovery,
+            EventScriptReferenceScanner.EventEntryPolicy.ReferenceScan })
+        {
+            var entries = EventScriptReferenceScanner.EnumerateEventEntries(
+                rom, 0, policy, stableNames: true);
+            Assert.Contains(entries, e => e.Type == MapEventUnitCore.CondType.Tutorial
+                && e.ScriptAddress == target && e.SourceRecordAddress == table + 4);
+        }
+    }
+
+    [Fact]
+    public void ConditionEnumerator_TalkUsesExplicitPolicyTerminators()
+    {
+        ROM rom = MakeFe8uRom();
+        BuildMapWithDirectAndScriptUnitLists(rom, 0, out _, out _);
+        uint eventAddr = MapEventUnitCore.GetEventAddrForMap(rom, 0);
+        var slots = MapEventUnitCore.GetStableCondSlots(rom);
+        int talk = slots.FindIndex(s => s.Type == MapEventUnitCore.CondType.Talk);
+        uint table = 0x00860000u;
+        uint target = 0x00870000u;
+        Write32(rom, eventAddr + (uint)talk * 4, table | 0x08000000u);
+        // B0 is zero but the full first dword is nonzero. UnitDiscovery must
+        // terminate; ReferenceScan follows the full-u32 WinForms policy.
+        rom.Data[table + 0] = 0;
+        rom.Data[table + 1] = 1;
+        Write32(rom, table + 4, target | 0x08000000u);
+
+        var discovery = EventScriptReferenceScanner.EnumerateEventEntries(
+            rom, 0, EventScriptReferenceScanner.EventEntryPolicy.UnitDiscovery);
+        var references = EventScriptReferenceScanner.EnumerateEventEntries(
+            rom, 0, EventScriptReferenceScanner.EventEntryPolicy.ReferenceScan);
+        Assert.DoesNotContain(discovery, e => e.Type == MapEventUnitCore.CondType.Talk);
+        Assert.Contains(references, e => e.Type == MapEventUnitCore.CondType.Talk
+            && e.ScriptAddress == target);
+    }
+
+    [Fact]
+    public void DetailedGroups_TruncatedConditionTable_DisablesDirectExpansion()
+    {
+        var load = EventScript.ParseScriptLine(
+            "12000000XXXXXXXX\tLOADUNIT [XXXX:POINTER_UNIT:Units]")!;
+        var end = EventScript.ParseScriptLine("0A000000\tENDA [TERM]")!;
+        ROM rom = MakeFe8uRom();
+        BuildMapWithDirectAndScriptUnitLists(
+            rom, 0, out uint directList, out _);
+        uint eventAddr = MapEventUnitCore.GetEventAddrForMap(rom, 0);
+        int talk = MapEventUnitCore.GetStableCondSlots(rom)
+            .FindIndex(slot => slot.Type == MapEventUnitCore.CondType.Talk);
+        uint truncatedTable = (uint)rom.Data.Length - 4;
+        Write32(rom, eventAddr + (uint)talk * 4, truncatedTable | 0x08000000u);
+
+        ROM? oldRom = CoreState.ROM;
+        EventScript? oldScript = CoreState.EventScript;
+        IEtcCache? oldComments = CoreState.CommentCache;
+        try
+        {
+            CoreState.ROM = rom;
+            CoreState.EventScript = BuildEventScript(load, end);
+            CoreState.CommentCache ??= new HeadlessEtcCache();
+
+            var entries = EventScriptReferenceScanner.EnumerateEventEntries(
+                rom, 0,
+                EventScriptReferenceScanner.EventEntryPolicy.UnitDiscovery,
+                out bool complete);
+            Assert.False(complete);
+            Assert.NotEmpty(entries);
+
+            var groups = MapEventUnitCore.GetDetailedUnitGroupsForMap(rom, 0);
+            Assert.False(Assert.Single(
+                groups, group => group.Addr == directList).CanExpand);
+        }
+        finally
+        {
+            CoreState.ROM = oldRom;
+            CoreState.EventScript = oldScript;
+            CoreState.CommentCache = oldComments;
+        }
+    }
+
+    [Fact]
+    public void DetailedGroups_CyclicEventCalls_ReturnFoundUnitsAsIncomplete()
+    {
+        var call = EventScript.ParseScriptLine(
+            "03000000XXXXXXXX\tCALL [X:POINTER_EVENT:Target]")!;
+        var load = EventScript.ParseScriptLine(
+            "12000000XXXXXXXX\tLOADUNIT [XXXX:POINTER_UNIT:Units]")!;
+        var end = EventScript.ParseScriptLine("0A000000\tENDA [TERM]")!;
+        ROM rom = MakeFe8uRom();
+        BuildMapWithDirectAndScriptUnitLists(rom, 0, out uint directList, out uint unitList);
+        uint root = 0x00840000u;
+        uint child = 0x00860000u;
+
+        // root: CALL child; ENDA
+        rom.Data[root] = 0x03;
+        Write32(rom, root + 4, child | 0x08000000u);
+        rom.Data[root + 8] = 0x0A;
+        // child: LOAD unit; CALL root; ENDA
+        rom.Data[child] = 0x12;
+        Write32(rom, child + 4, unitList | 0x08000000u);
+        rom.Data[child + 8] = 0x03;
+        Write32(rom, child + 12, root | 0x08000000u);
+        rom.Data[child + 16] = 0x0A;
+
+        ROM? oldRom = CoreState.ROM;
+        EventScript? oldScript = CoreState.EventScript;
+        IEtcCache? oldComments = CoreState.CommentCache;
+        try
+        {
+            CoreState.ROM = rom;
+            CoreState.EventScript = BuildEventScript(call, load, end);
+            CoreState.CommentCache ??= new HeadlessEtcCache();
+            var groups = MapEventUnitCore.GetDetailedUnitGroupsForMap(rom, 0);
+            Assert.False(Assert.Single(groups, g => g.Addr == directList).CanExpand);
+            Assert.Contains(groups, g => g.Addr == unitList
+                && g.OriginKind == MapEventUnitCore.UnitGroupOriginKind.EventScript
+                && g.Incomplete);
+        }
+        finally
+        {
+            CoreState.ROM = oldRom;
+            CoreState.EventScript = oldScript;
+            CoreState.CommentCache = oldComments;
+        }
+    }
+
+    [Fact]
+    public void DetailedGroups_MapCommand_RecordsSelectedAndDiscoveredMapIds()
+    {
+        var map = EventScript.ParseScriptLine(
+            "2025XXXX\t[XX:MAPCHAPTER:Chapter ID] Map switching (LOMA)\t{MAP}")!;
+        var load = EventScript.ParseScriptLine(
+            "12000000XXXXXXXX\tLOADUNIT [XXXX:POINTER_UNIT:Units]")!;
+        var end = EventScript.ParseScriptLine("0A000000\tENDA [TERM]")!;
+        ROM rom = MakeFe8uRom();
+        BuildMapWithDirectAndScriptUnitLists(rom, 0, out _, out uint unitList);
+        uint root = 0x00840000u;
+        rom.Data[root + 0] = 0x20;
+        rom.Data[root + 1] = 0x25;
+        rom.Data[root + 2] = 0x33;
+        rom.Data[root + 3] = 0;
+        rom.Data[root + 4] = 0x12;
+        rom.Data[root + 5] = 0;
+        rom.Data[root + 6] = 0;
+        rom.Data[root + 7] = 0;
+        Write32(rom, root + 8, unitList | 0x08000000u);
+        rom.Data[root + 12] = 0x0A;
+
+        ROM? oldRom = CoreState.ROM;
+        EventScript? oldScript = CoreState.EventScript;
+        IEtcCache? oldComments = CoreState.CommentCache;
+        try
+        {
+            CoreState.ROM = rom;
+            CoreState.EventScript = BuildEventScript(map, load, end);
+            CoreState.CommentCache ??= new HeadlessEtcCache();
+            var decodedMap = CoreState.EventScript.DisAseemble(rom.Data, root);
+            Assert.Equal(EventScript.ScriptHas.MAP, decodedMap.Script.Has);
+            var mapArg = Assert.Single(decodedMap.Script.Args,
+                arg => arg.Type == EventScript.ArgType.MAPCHAPTER);
+            Assert.Equal(0x33u, EventScript.GetArgValue(decodedMap, mapArg));
+            var decodedLoad = CoreState.EventScript.DisAseemble(rom.Data, root + 4);
+            Assert.Equal(EventScript.ScriptHas.POINTER_UNIT_OR_EVENT, decodedLoad.Script.Has);
+            var groups = MapEventUnitCore.GetDetailedUnitGroupsForMap(rom, 0);
+            var scripted = Assert.Single(groups, g => g.Addr == unitList
+                && g.OriginKind == MapEventUnitCore.UnitGroupOriginKind.EventScript);
+            Assert.Equal(0u, scripted.SelectedMapId);
+            Assert.Equal(0x33u, scripted.DiscoveredMapId);
+            var compatible = Assert.Single(
+                MapEventUnitCore.GetUnitGroupsForMap(rom, 0),
+                group => group.addr == unitList);
+            Assert.Equal(0u, compatible.tag);
+        }
+        finally
+        {
+            CoreState.ROM = oldRom;
+            CoreState.EventScript = oldScript;
+            CoreState.CommentCache = oldComments;
+        }
+    }
+
+    [Fact]
+    public void DetailedGroups_SameUnitFromSameOriginUnderDifferentMapStates_RemainsDistinct()
+    {
+        var map = EventScript.ParseScriptLine(
+            "2025XXXX\t[XX:MAPCHAPTER:Chapter ID] Map switching (LOMA)\t{MAP}")!;
+        var call = EventScript.ParseScriptLine(
+            "03000000XXXXXXXX\tCALL [X:POINTER_EVENT:Target]")!;
+        var load = EventScript.ParseScriptLine(
+            "12000000XXXXXXXX\tLOADUNIT [XXXX:POINTER_UNIT:Units]")!;
+        var end = EventScript.ParseScriptLine("0A000000\tENDA [TERM]")!;
+        ROM rom = MakeFe8uRom();
+        BuildMapWithDirectAndScriptUnitLists(rom, 0, out _, out uint unitList);
+        uint root = 0x00840000u;
+        uint child = 0x00860000u;
+
+        // The same child path is reached twice under MAP 0x33, then once
+        // under MAP 0x44. Identical paths dedup, while the changed map state
+        // remains a distinct semantic discovery.
+        rom.Data[root + 0] = 0x20;
+        rom.Data[root + 1] = 0x25;
+        rom.Data[root + 2] = 0x33;
+        rom.Data[root + 3] = 0;
+        rom.Data[root + 4] = 0x03;
+        rom.Data[root + 5] = 0;
+        rom.Data[root + 6] = 0;
+        rom.Data[root + 7] = 0;
+        Write32(rom, root + 8, child | 0x08000000u);
+        rom.Data[root + 12] = 0x03;
+        Write32(rom, root + 16, child | 0x08000000u);
+        rom.Data[root + 20] = 0x20;
+        rom.Data[root + 21] = 0x25;
+        rom.Data[root + 22] = 0x44;
+        rom.Data[root + 23] = 0;
+        rom.Data[root + 24] = 0x03;
+        Write32(rom, root + 28, child | 0x08000000u);
+        rom.Data[root + 32] = 0x0A;
+
+        rom.Data[child + 0] = 0x12;
+        Write32(rom, child + 4, unitList | 0x08000000u);
+        rom.Data[child + 8] = 0x0A;
+
+        ROM? oldRom = CoreState.ROM;
+        EventScript? oldScript = CoreState.EventScript;
+        IEtcCache? oldComments = CoreState.CommentCache;
+        try
+        {
+            CoreState.ROM = rom;
+            CoreState.EventScript = BuildEventScript(map, call, load, end);
+            CoreState.CommentCache ??= new HeadlessEtcCache();
+            var scripted = MapEventUnitCore.GetDetailedUnitGroupsForMap(rom, 0)
+                .FindAll(g => g.Addr == unitList
+                    && g.OriginKind == MapEventUnitCore.UnitGroupOriginKind.EventScript);
+
+            Assert.Equal(2, scripted.Count);
+            Assert.Contains(scripted, g => g.DiscoveredMapId == 0x33);
+            Assert.Contains(scripted, g => g.DiscoveredMapId == 0x44);
+            Assert.All(scripted, g =>
+            {
+                Assert.Equal(root, g.SourceScriptAddress);
+                Assert.Equal(child, g.SourceCommandAddress);
+            });
+            Assert.NotEqual(scripted[0].OriginKey, scripted[1].OriginKey);
+        }
+        finally
+        {
+            CoreState.ROM = oldRom;
+            CoreState.EventScript = oldScript;
+            CoreState.CommentCache = oldComments;
         }
     }
 

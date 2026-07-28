@@ -374,12 +374,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>Build the unit group list for a map (Level 2 navigation).</summary>
-        public List<AddrResult> LoadUnitGroups(uint mapId)
+        public List<MapEventUnitCore.UnitGroupResult> LoadUnitGroups(uint mapId)
         {
             SelectedMapId = mapId;
             ROM rom = CoreState.ROM;
-            if (rom == null) return new List<AddrResult>();
-            return MapEventUnitCore.GetUnitGroupsForMap(rom, mapId);
+            if (rom == null) return new List<MapEventUnitCore.UnitGroupResult>();
+            return MapEventUnitCore.GetDetailedUnitGroupsForMap(rom, mapId);
         }
 
         /// <summary>Build the unit list from a base address (Level 3 navigation).</summary>
@@ -411,16 +411,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// to the new base. The caller MUST open an ambient undo scope before
         /// invoking this.
         /// </summary>
-        public uint ExpandUnitListCurrent(uint addRows)
+        public uint ExpandUnitListCurrent(uint addRows, uint exactPointerSlot)
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return U.NOT_FOUND;
             if (SelectedUnitListBase == 0) return U.NOT_FOUND;
             if (addRows == 0) return U.NOT_FOUND;
-
-            uint slot = MapEventUnitCore.FindEventPointerSlotForUnitList(
-                rom, SelectedMapId, SelectedUnitListBase);
-            if (slot == 0) return U.NOT_FOUND;
+            if (!U.isSafetyOffset(exactPointerSlot + 3, rom)
+                || rom.p32(exactPointerSlot) != SelectedUnitListBase)
+                return U.NOT_FOUND;
 
             uint oldCount = MapEventUnitCore.CountEventUnitRows(rom, SelectedUnitListBase);
             if (oldCount == 0) return U.NOT_FOUND;
@@ -429,7 +428,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // FE8 starter B1 = 0x02 per WF EventUnitForm.AddressListExpandsEvent
             // (vs FE7's 0x01).
             uint newBase = MapEventUnitCore.ExpandUnitList(
-                rom, slot, SelectedUnitListBase, oldCount, newCount, starterB1: 0x02);
+                rom, exactPointerSlot, SelectedUnitListBase, oldCount, newCount, starterB1: 0x02);
             if (newBase == U.NOT_FOUND) return U.NOT_FOUND;
 
             SelectedUnitListBase = newBase;

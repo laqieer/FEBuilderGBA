@@ -14,7 +14,13 @@
       <TextBlock DockPanel.Dock="Top" Text="Event Names" FontWeight="Bold" Margin="0,0,0,4" />
       <Button AutomationProperties.AutomationId="EventUnitFE7_NewAlloc_Button"
               DockPanel.Dock="Bottom" Content="New Allocation" Name="NewAllocBtn" Click="NewAlloc_Click" Margin="0,4,0,0" />
-      <ListBox AutomationProperties.AutomationId="EventUnitFE7_GroupList_List" Name="GroupListBox" />
+      <ListBox AutomationProperties.AutomationId="EventUnitFE7_GroupList_List" Name="GroupListBox">
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <TextBlock Text="{Binding}" TextWrapping="Wrap" ToolTip.Tip="{Binding}" />
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
     </DockPanel>
 
     <!-- Level 3: Names list (mirrors WF panel12 / label53 / Expand List) -->
