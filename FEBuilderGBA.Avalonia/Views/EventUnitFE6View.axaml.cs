@@ -161,6 +161,13 @@ namespace FEBuilderGBA.Avalonia.Views
             _groupItems = _vm.LoadUnitGroups(_mapItems[mapIndex].tag);
             _groupDisplayItems.Clear();
             foreach (var group in _groupItems) _groupDisplayItems.Add(group.Name);
+            if (_groupItems.Count == 0)
+            {
+                _unitItems.Clear();
+                _unitDisplayItems.Clear();
+                ClearDetail();
+                return;
+            }
             int select = -1;
             for (int i = 0; i < _groupItems.Count; i++)
                 if (_groupItems[i].OriginKey == origin && _groupItems[i].Addr == address)

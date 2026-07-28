@@ -850,6 +850,10 @@ public class MapEventUnitCoreNewAllocTests
                 && g.OriginKind == MapEventUnitCore.UnitGroupOriginKind.EventScript);
             Assert.Equal(0u, scripted.SelectedMapId);
             Assert.Equal(0x33u, scripted.DiscoveredMapId);
+            var compatible = Assert.Single(
+                MapEventUnitCore.GetUnitGroupsForMap(rom, 0),
+                group => group.addr == unitList);
+            Assert.Equal(0u, compatible.tag);
         }
         finally
         {

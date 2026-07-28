@@ -945,12 +945,31 @@ public class EventUnitParityTests
                 new EventUnitView(), new EventUnitFE7View(), new EventUnitFE6View() })
             {
                 presenter.Content = view;
-                var field = view.GetType().GetField(
-                    "_groupDisplayItems",
-                    BindingFlags.Instance | BindingFlags.NonPublic);
-                var groups = Assert.IsAssignableFrom<System.Collections.IList>(
-                    field?.GetValue(view));
-                groups.Add("stale detached-language label");
+                System.Collections.IList FieldList(string name)
+                {
+                    var field = view.GetType().GetField(
+                        name, BindingFlags.Instance | BindingFlags.NonPublic);
+                    return Assert.IsAssignableFrom<System.Collections.IList>(
+                        field?.GetValue(view));
+                }
+
+                FieldList("_mapItems").Add(new AddrResult(0, "Map 00", 0));
+                FieldList("_mapDisplayItems").Add("Map 00");
+                var mapList = Assert.IsType<ListBox>(
+                    view.FindControl<ListBox>("MapListBox"));
+                mapList.SelectedIndex = 0;
+
+                FieldList("_groupItems").Add(
+                    new MapEventUnitCore.UnitGroupResult
+                    {
+                        Addr = 0x1000,
+                        Name = "stale detached-language label",
+                    });
+                FieldList("_groupDisplayItems").Add(
+                    "stale detached-language label");
+                FieldList("_unitItems").Add(
+                    new AddrResult(0x1000, "stale unit", 0));
+                FieldList("_unitDisplayItems").Add("stale unit");
 
                 presenter.Content = new TextBlock();
                 CoreState.Language =
@@ -958,7 +977,10 @@ public class EventUnitParityTests
                 presenter.Content = view;
 
                 Assert.DoesNotContain(
-                    "stale detached-language label", groups.Cast<string>());
+                    "stale detached-language label",
+                    FieldList("_groupDisplayItems").Cast<string>());
+                Assert.Empty(FieldList("_unitItems"));
+                Assert.Empty(FieldList("_unitDisplayItems"));
                 presenter.Content = new TextBlock();
             }
         }

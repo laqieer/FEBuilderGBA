@@ -40,7 +40,8 @@ is fail-closed unless both condition-entry discovery and active-ROM script
 traversal complete, accepts only the retained exact slot, and revalidates it
 against the old base before mutation;
 script/manual/shared/stale origins are non-expandable. Public FE7 tutorial
-reference labels retain the legacy exact `Tutorial FE7` value.
+reference labels retain the legacy exact `Tutorial FE7` value, and the legacy
+unit-group projection keeps its requested-map `AddrResult.tag`.
 
 ## #1978 Review-Hardening Corrections
 

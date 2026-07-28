@@ -404,7 +404,7 @@ namespace FEBuilderGBA
                 + SourceCommandAddress.ToString("X8");
 
             public AddrResult ToAddrResult() =>
-                new AddrResult(Addr, Name, DiscoveredMapId);
+                new AddrResult(Addr, Name, SelectedMapId);
         }
 
         sealed class ScriptUnitResult
@@ -442,6 +442,7 @@ namespace FEBuilderGBA
         /// <summary>
         /// Compatibility projection used by older callers. New UI code should
         /// retain <see cref="UnitGroupResult"/> origin and exact-slot metadata.
+        /// The legacy <see cref="AddrResult.tag"/> remains the requested map id.
         /// </summary>
         public static List<AddrResult> GetUnitGroupsForMap(ROM rom, uint mapId)
         {
