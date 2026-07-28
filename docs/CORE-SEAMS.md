@@ -41,7 +41,9 @@ traversal complete, accepts only the retained exact slot, and revalidates it
 against the old base before mutation;
 script/manual/shared/stale origins are non-expandable. Public FE7 tutorial
 reference labels retain the legacy exact `Tutorial FE7` value, and the legacy
-unit-group projection keeps its requested-map `AddrResult.tag`.
+unit-group projection keeps its requested-map `AddrResult.tag`. Empty group
+refreshes clear the displayed unit rows and writable VM address in all three
+Avalonia Event Unit views.
 
 ## #1978 Review-Hardening Corrections
 

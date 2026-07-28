@@ -236,6 +236,8 @@ namespace FEBuilderGBA.Avalonia.Views
             AI2DescLabel.Text = "";
             AI3DescLabel.Text = "";
             AI4DescLabel.Text = "";
+            _vm.IsLoaded = false;
+            _vm.CurrentAddr = 0;
         }
 
         void UpdateUI()

@@ -283,6 +283,8 @@ namespace FEBuilderGBA.Avalonia.Views
             AI4DescLabel.Text = "";
             ItemDropLabel.Text = "";
             CommentBox.Text = "";
+            _vm.IsLoaded = false;
+            _vm.CurrentAddr = 0;
         }
 
         void UpdateUI()

@@ -970,6 +970,17 @@ public class EventUnitParityTests
                 FieldList("_unitItems").Add(
                     new AddrResult(0x1000, "stale unit", 0));
                 FieldList("_unitDisplayItems").Add("stale unit");
+                object? vmValue = view.GetType().GetField(
+                    "_vm", BindingFlags.Instance | BindingFlags.NonPublic)
+                    ?.GetValue(view);
+                Assert.NotNull(vmValue);
+                object vm = vmValue!;
+                var currentAddr = vm.GetType().GetProperty("CurrentAddr");
+                var isLoaded = vm.GetType().GetProperty("IsLoaded");
+                Assert.NotNull(currentAddr);
+                Assert.NotNull(isLoaded);
+                currentAddr.SetValue(vm, 0x1000u);
+                isLoaded.SetValue(vm, true);
 
                 presenter.Content = new TextBlock();
                 CoreState.Language =
@@ -981,6 +992,8 @@ public class EventUnitParityTests
                     FieldList("_groupDisplayItems").Cast<string>());
                 Assert.Empty(FieldList("_unitItems"));
                 Assert.Empty(FieldList("_unitDisplayItems"));
+                Assert.Equal(0u, currentAddr.GetValue(vm));
+                Assert.False(Assert.IsType<bool>(isLoaded.GetValue(vm)));
                 presenter.Content = new TextBlock();
             }
         }
