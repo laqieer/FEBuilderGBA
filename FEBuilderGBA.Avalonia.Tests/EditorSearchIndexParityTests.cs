@@ -136,7 +136,7 @@ public class EditorSearchIndexParityTests
         const string source = """
             private void Button_Click(object? sender, EventArgs e)
             {
-                OpenThroughHelper();
+                this.OpenThroughHelper();
             }
 
             private void OpenThroughHelper()
@@ -256,11 +256,11 @@ public class EditorSearchIndexParityTests
                 types.Add(match.Groups[1].Value);
 
             // Follow same-class helper calls so moving a version/patch dispatch behind a helper
-            // cannot silently narrow the title mirror. Dotted calls (service.Method()) are
-            // excluded; only method names that resolve in this source are traversed.
+            // cannot silently narrow the title mirror. Explicit this.Helper() calls are local
+            // too; other dotted calls (service.Method()) stay excluded.
             foreach (Match match in Regex.Matches(
                 body!,
-                @"(?<![A-Za-z0-9_.])([A-Za-z_][A-Za-z0-9_]*)\s*\("))
+                @"(?<![A-Za-z0-9_.])(?:this\.)?([A-Za-z_][A-Za-z0-9_]*)\s*\("))
             {
                 string helper = match.Groups[1].Value;
                 if (!visited.Contains(helper)
