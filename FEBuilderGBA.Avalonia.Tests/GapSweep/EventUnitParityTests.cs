@@ -862,6 +862,34 @@ public class EventUnitParityTests
     }
 
     [Fact]
+    public void FE8Expansion_StaleExactSlotRefusesWithoutMutation()
+    {
+        var vm = new EventUnitViewModel();
+        ROM rom = MakeFe8uRom();
+        const uint oldBase = 0x00100000;
+        const uint pointerSlot = 0x00001000;
+        rom.write_u8(oldBase, 1);
+        rom.write_u8(oldBase + rom.RomInfo.eventunit_data_size, 0);
+        rom.write_p32(pointerSlot, oldBase + 0x100);
+        vm.SelectedMapId = 0;
+        vm.SelectedUnitListBase = oldBase;
+        byte[] before = (byte[])rom.Data.Clone();
+
+        ROM? previous = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            Assert.Equal(U.NOT_FOUND, vm.ExpandUnitListCurrent(1, pointerSlot));
+            Assert.Equal(oldBase, vm.SelectedUnitListBase);
+            Assert.Equal(before, rom.Data);
+        }
+        finally
+        {
+            CoreState.ROM = previous;
+        }
+    }
+
+    [Fact]
     public void FE7ManualAddressLoad_ClearsMapContextAndViewUsesManualPath()
     {
         var vm = new EventUnitFE7ViewModel
