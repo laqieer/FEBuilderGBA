@@ -2859,8 +2859,9 @@ namespace FEBuilderGBA.Avalonia.Views
 
         /// <summary>
         /// Show/hide buttons and section expanders based on the filter text.
-        /// Case-insensitive substring match on button Content.
-        /// Also matches against the Expander header (section name).
+        /// Case-insensitive substring match on button Content, on the editor display
+        /// title(s) the button opens (#2019, via EditorSearchIndex keyed by the stable
+        /// Button Name), and on the Expander header (section name).
         /// </summary>
         void ApplyFilter(string filter)
         {
@@ -2891,7 +2892,10 @@ namespace FEBuilderGBA.Avalonia.Views
 
                     if (hasFilter)
                     {
-                        bool match = sectionMatch || content.Contains(filter, StringComparison.OrdinalIgnoreCase);
+                        // An unknown Button Name fails open inside the matcher: it degrades to
+                        // the pre-#2019 label-only match rather than hiding the button.
+                        bool match = sectionMatch
+                            || EditorSearchIndex.MatchesDesktopButton(btn.Name, content, filter);
                         btn.IsVisible = match;
                         if (match) { matchCount++; anyButtonVisible = true; }
                     }
@@ -3859,13 +3863,15 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // FE8-only whole sections (Expanders)
             bool isFE8 = ver == 8;
-            MonstersExpander.IsVisible = isFE8;
-            SummonsExpander.IsVisible = isFE8;
-            SkillsExpander.IsVisible = isFE8;
-            SkillsExtExpander.IsVisible = isFE8;
+            SetVersionGatedSectionVisibility(MonstersExpander, isFE8);
+            SetVersionGatedSectionVisibility(SummonsExpander, isFE8);
+            SetVersionGatedSectionVisibility(SkillsExpander, isFE8);
+            SetVersionGatedSectionVisibility(SkillsExtExpander, isFE8);
 
             // Senseki Comment is FE7-only (no version suffix in its Content)
             SensekiCommentButton.IsVisible = ver == 7;
+            if (ver != 7)
+                SensekiCommentButton.Tag = false;
 
             // #1411 — the generic "Portrait Editor" (ImagePortraitView, 28-byte stride)
             // must be HIDDEN on FE6, whose portrait table is 16 bytes/entry. WinForms
@@ -3882,6 +3888,19 @@ namespace FEBuilderGBA.Avalonia.Views
             }
 
             AutoHideEmptySections(EditorPanel);
+        }
+
+        static void SetVersionGatedSectionVisibility(Expander expander, bool visible)
+        {
+            expander.IsVisible = visible;
+            if (visible || expander.Content is not WrapPanel panel)
+                return;
+
+            foreach (Button button in panel.Children.OfType<Button>())
+            {
+                button.IsVisible = false;
+                button.Tag = false;
+            }
         }
 
         /// <summary>
@@ -4043,6 +4062,5 @@ namespace FEBuilderGBA.Avalonia.Views
         }
     }
 }
-
 
 
