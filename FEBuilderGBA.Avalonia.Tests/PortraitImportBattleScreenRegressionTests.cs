@@ -93,9 +93,9 @@ public class PortraitImportBattleScreenRegressionTests
             Assert.All(pointers, pointer => Assert.True(
                 pointer >= 0x01000000,
                 $"Portrait payload 0x{pointer:X8} must be in expansion space."));
-            Assert.True(LZ77.iscompress(rom.Data, pointers[0]),
-                "A below-floor raw D0 target must not be inspected to preserve raw format.");
-            uint d0Size = U.Padding4(LZ77.getCompressedSize(rom.Data, pointers[0]));
+            Assert.False(LZ77.iscompress(rom.Data, pointers[0]));
+            Assert.Equal(0x00100400u, rom.u32(pointers[0]));
+            const uint d0Size = 4 + (256 * 32 / 2);
             uint d4Size = U.Padding4(LZ77.getCompressedSize(rom.Data, pointers[1]));
             (uint Start, uint End)[] ranges =
             {
@@ -166,6 +166,69 @@ public class PortraitImportBattleScreenRegressionTests
         Assert.True(result.Success, result.Error);
         Assert.Equal(before.Length, rom.Data.Length);
         Assert.Equal(before, rom.Data);
+    }
+
+    [Fact]
+    public void ImageValidation_AppendWriter_RestoresExactBytesAndUnalignedLength()
+    {
+        IImageService? previousImageService = CoreState.ImageService;
+        try
+        {
+            CoreState.ImageService = new SkiaImageService();
+            byte[] data = new byte[0x8001];
+            Array.Fill(data, (byte)0xAA);
+            var rom = new ROM();
+            Assert.True(rom.LoadLow("synthetic-image.gba", data, "NAZO"));
+            const uint pointerAddr = 0x200;
+            const uint paletteAddr = 0x1000;
+            rom.write_p32(pointerAddr, paletteAddr);
+            rom.write_range(
+                paletteAddr,
+                Enumerable.Range(0, 32).Select(i => (byte)i).ToArray());
+            byte[] before = rom.Data.ToArray();
+
+            var descriptor = new ImageImportValidator.EditorDescriptor
+            {
+                Name = "PortraitImageRestore",
+                LoadList = () => new System.Collections.Generic.List<AddrResult>
+                {
+                    new(pointerAddr, "Portrait", 0),
+                },
+                LoadItem = _ => { },
+                GetImage = () =>
+                {
+                    IImage image = CoreState.ImageService.CreateImage(8, 8);
+                    byte[] rgba = new byte[8 * 8 * 4];
+                    for (int i = 0; i < 8 * 8; i++)
+                    {
+                        rgba[i * 4] = 248;
+                        rgba[i * 4 + 3] = 255;
+                    }
+                    image.SetPixelData(rgba);
+                    return image;
+                },
+                Import = (_, _) =>
+                {
+                    uint written = ImageImportCore.WritePortraitPaletteToROM(
+                        rom,
+                        Enumerable.Repeat((byte)0x44, 32).ToArray(),
+                        pointerAddr);
+                    return written == U.NOT_FOUND ? "write failed" : null;
+                },
+            };
+
+            ImageImportValidator.ValidationResult result =
+                ImageImportValidator.ValidateEditor(descriptor, rom);
+
+            Assert.NotNull(result);
+            Assert.True(result.Success, result.Error);
+            Assert.Equal(before.Length, rom.Data.Length);
+            Assert.Equal(before, rom.Data);
+        }
+        finally
+        {
+            CoreState.ImageService = previousImageService;
+        }
     }
 
     [AvaloniaFact]

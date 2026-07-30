@@ -2982,13 +2982,17 @@ namespace FEBuilderGBA.CLI
 
                 bool isFE6 = rom.RomInfo.version == 6;
                 uint currentFaceAddr = 0;
+                uint currentFaceHeader = 0;
                 bool preserveRawFormat = !isFE6
-                    && ImageImportCore.TryGetReusablePortraitTarget(
-                        rom, portraitAddr, out currentFaceAddr)
-                    && !LZ77.iscompress(rom.Data, currentFaceAddr);
+                    && ImageImportCore.TryGetPortraitTargetHeader(
+                        rom,
+                        portraitAddr,
+                        out currentFaceAddr,
+                        out currentFaceHeader)
+                    && (currentFaceHeader & 0xFF) != 0x10;
                 bool preserveHalfbodyPalette = preserveRawFormat
                     && rom.RomInfo.version == 8
-                    && rom.u32(currentFaceAddr) == 0x00200400;
+                    && currentFaceHeader == 0x00200400;
 
                 uint tileAddr;
                 if (!preserveRawFormat)
@@ -3058,8 +3062,9 @@ namespace FEBuilderGBA.CLI
                 return false;
 
             int nullCount = 0;
-            int nullLimit = rom.RomInfo?.version == 6 ? 10 : 1000;
-            for (uint id = 0; id <= portraitId; id++)
+            uint lastNonNullId = U.NOT_FOUND;
+            uint requestedAddr = 0;
+            for (uint id = 0; id < 0x400; id++)
             {
                 ulong start = (ulong)portraitBase
                     + (ulong)id * portraitDataSize;
@@ -3074,27 +3079,35 @@ namespace FEBuilderGBA.CLI
                 if (!U.isPointerOrNULL(d0)
                     || !U.isPointerOrNULL(d4)
                     || !U.isPointerOrNULL(d8))
-                    return false;
+                {
+                    if (id <= portraitId)
+                        return false;
+                    break;
+                }
 
                 if (d0 == 0 && d4 == 0 && d8 == 0)
                 {
                     nullCount++;
-                    if (nullCount >= nullLimit)
-                        return false;
+                    if (nullCount >= 4)
+                        break;
                 }
                 else
                 {
                     nullCount = 0;
+                    lastNonNullId = id;
                 }
 
                 if (id == portraitId)
-                {
-                    portraitAddr = addr;
-                    return true;
-                }
+                    requestedAddr = addr;
             }
 
-            return false;
+            if (requestedAddr == 0
+                || lastNonNullId == U.NOT_FOUND
+                || portraitId > lastNonNullId)
+                return false;
+
+            portraitAddr = requestedAddr;
+            return true;
         }
 
         static int RunImportPortraitAll(Dictionary<string, string> argsDic)

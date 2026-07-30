@@ -240,6 +240,26 @@ namespace FEBuilderGBA.Core.Tests
                 rom, pointerAddr, out _));
         }
 
+        [Fact]
+        public void TargetHeader_BelowFloorRawPointer_PreservesFormatWithoutAllowingReuse()
+        {
+            var rom = CreateRecognizedFe8Rom();
+            const uint pointerAddr = 0x2F4;
+            const uint belowFloorTarget = 0x00800000;
+            rom.write_p32(pointerAddr, belowFloorTarget);
+            rom.write_u32(belowFloorTarget, 0x00100400);
+
+            Assert.True(ImageImportCore.TryGetPortraitTargetHeader(
+                rom,
+                pointerAddr,
+                out uint target,
+                out uint header));
+            Assert.Equal(belowFloorTarget, target);
+            Assert.Equal(0x00100400u, header);
+            Assert.False(ImageImportCore.TryGetReusablePortraitTarget(
+                rom, pointerAddr, out _));
+        }
+
         // ------------------------------------------------------------
         // WriteCompressedPortraitToROM -- below-floor / unknown-metadata
         // append-only branch (never reuses, never scans, never clears).

@@ -49,7 +49,7 @@ public class CliPortraitImportE2ETests
             uint d8 = ReadPointer(after, PortraitTable + 8);
             Assert.True(d0 >= CanonicalFe8Length);
             Assert.True(d8 > d0);
-            Assert.Equal((byte)0x10, after[d0]);
+            Assert.Equal(0x00100400u, BitConverter.ToUInt32(after, (int)d0));
         }
         finally
         {
@@ -70,6 +70,10 @@ public class CliPortraitImportE2ETests
             string pngPath = Path.Combine(dir, "portrait.png");
             byte[] before = BuildSyntheticFe8Rom(
                 CanonicalFe8Length, portraitCount: 1);
+            Array.Clear(
+                before,
+                PortraitTable + PortraitEntrySize,
+                PortraitEntrySize * 4);
             File.WriteAllBytes(romPath, before);
             WritePortraitPng(pngPath);
 
@@ -208,12 +212,7 @@ public class CliPortraitImportE2ETests
             int oldFace = 0x2000 + id * 0x100;
             WritePointer(data, entry, oldFace);
             WritePointer(data, entry + 8, 0x00802238 + id * 0x40);
-            byte[] lz =
-            {
-                0x10, 0x08, 0x00, 0x00, 0x00,
-                0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-            };
-            Array.Copy(lz, 0, data, oldFace, lz.Length);
+            BitConverter.GetBytes(0x00100400u).CopyTo(data, oldFace);
         }
 
         for (int i = 0; i < BattleLength; i++)

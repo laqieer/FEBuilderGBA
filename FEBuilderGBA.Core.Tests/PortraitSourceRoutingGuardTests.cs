@@ -30,7 +30,7 @@ namespace FEBuilderGBA.Core.Tests
         const string PortraitPalette = "ImageImportCore.WritePortraitPaletteToROM(";
         const string PortraitHalfbodyPalette = "ImageImportCore.WriteHalfbodyPortraitPaletteToROM(";
         const string PortraitEntryPalette = "ImageImportCore.WritePortraitEntryPaletteToROM(";
-        const string PortraitReusableTarget = "ImageImportCore.TryGetReusablePortraitTarget(";
+        const string PortraitTargetHeader = "ImageImportCore.TryGetPortraitTargetHeader(";
 
         [Fact]
         public void Cli_ImportPortraitFromFile_UsesPortraitSafeHelpers_AndRealUndoTransaction()
@@ -43,11 +43,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains(PortraitRaw, body, StringComparison.Ordinal);
             Assert.Contains(PortraitPalette, body, StringComparison.Ordinal);
             Assert.Contains(PortraitHalfbodyPalette, body, StringComparison.Ordinal);
-            Assert.Contains(PortraitReusableTarget, body, StringComparison.Ordinal);
-            Assert.True(
-                body.IndexOf(PortraitReusableTarget, StringComparison.Ordinal)
-                < body.IndexOf("LZ77.iscompress(", StringComparison.Ordinal),
-                "CLI must pass the floor-first target gate before reading a D0 header.");
+            Assert.Contains(PortraitTargetHeader, body, StringComparison.Ordinal);
             Assert.True(
                 body.IndexOf("preserveHalfbodyPalette", StringComparison.Ordinal)
                 < body.IndexOf(PortraitCompressed, StringComparison.Ordinal),
@@ -127,7 +123,7 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void Avalonia_PortraitImportHelper_GatesEveryD0HeaderReadByReusableTargetCheck()
+        public void Avalonia_PortraitImportHelper_UsesBoundedHeaderProbeForBothRawFormatDecisions()
         {
             string source = File.ReadAllText(Path.Combine(
                 RepoRoot(), "FEBuilderGBA.Avalonia", "Services", "PortraitImportHelper.cs"));
@@ -135,16 +131,14 @@ namespace FEBuilderGBA.Core.Tests
             int count = 0;
             while (true)
             {
-                int lzCheck = source.IndexOf("LZ77.iscompress(", searchFrom, StringComparison.Ordinal);
-                if (lzCheck < 0) break;
-                int gate = source.LastIndexOf(
-                    PortraitReusableTarget, lzCheck, StringComparison.Ordinal);
-                Assert.True(gate >= 0 && lzCheck - gate < 300,
-                    "Every portrait D0 header read must be immediately guarded by the floor-first target gate.");
+                int probe = source.IndexOf(
+                    PortraitTargetHeader, searchFrom, StringComparison.Ordinal);
+                if (probe < 0) break;
                 count++;
-                searchFrom = lzCheck + 1;
+                searchFrom = probe + PortraitTargetHeader.Length;
             }
             Assert.Equal(2, count);
+            Assert.DoesNotContain("LZ77.iscompress(", source, StringComparison.Ordinal);
         }
 
         [Fact]

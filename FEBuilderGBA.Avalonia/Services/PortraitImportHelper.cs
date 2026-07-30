@@ -623,9 +623,12 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (sheetTiles == null)
                 { undoService.Rollback(); return ImportOutcome.Fail("Failed to encode sprite sheet tiles"); }
 
-                bool preserveRawFormat = ImageImportCore.TryGetReusablePortraitTarget(
-                        rom, entryAddr + OFFSET_D0_TILE_SHEET, out uint currentD0Offset)
-                    && !LZ77.iscompress(rom.Data, currentD0Offset);
+                bool preserveRawFormat = ImageImportCore.TryGetPortraitTargetHeader(
+                        rom,
+                        entryAddr + OFFSET_D0_TILE_SHEET,
+                        out _,
+                        out uint currentD0Header)
+                    && (currentD0Header & 0xFF) != 0x10;
 
                 uint sheetAddr;
                 if (!preserveRawFormat)
@@ -766,9 +769,12 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (sheetTiles == null)
                 { undoService.Rollback(); return ImportOutcome.Fail("Failed to encode sprite sheet tiles"); }
 
-                bool preserveRawFormat = ImageImportCore.TryGetReusablePortraitTarget(
-                        rom, entryAddr + OFFSET_D0_TILE_SHEET, out uint currentD0Offset)
-                    && !LZ77.iscompress(rom.Data, currentD0Offset);
+                bool preserveRawFormat = ImageImportCore.TryGetPortraitTargetHeader(
+                        rom,
+                        entryAddr + OFFSET_D0_TILE_SHEET,
+                        out _,
+                        out uint currentD0Header)
+                    && (currentD0Header & 0xFF) != 0x10;
 
                 uint sheetAddr;
                 if (!preserveRawFormat)

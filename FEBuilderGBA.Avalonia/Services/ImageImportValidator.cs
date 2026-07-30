@@ -99,7 +99,7 @@ namespace FEBuilderGBA.Avalonia.Services
         /// Validate a single editor's roundtrip.
         /// Returns null if the editor can't be tested (no entries, no image).
         /// </summary>
-        static ValidationResult ValidateEditor(EditorDescriptor editor, ROM rom)
+        internal static ValidationResult ValidateEditor(EditorDescriptor editor, ROM rom)
         {
             try
             {
@@ -203,7 +203,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 finally
                 {
                     // Step 7: Restore ROM data
-                    Array.Copy(romBackup, rom.Data, romBackup.Length);
+                    rom.SwapNewROMDataDirect(romBackup);
 
                     // Clean up temp files
                     try { File.Delete(tempFile1); } catch (Exception ex) { Log.ErrorF("ImageImportValidator temp file cleanup: {0}", ex.Message); }

@@ -443,8 +443,10 @@ namespace FEBuilderGBA
         /// Resolves the minimum ROM offset from which an existing portrait
         /// compressed/raw blob may be safely reused, grown, or relocated.
         /// Below this floor sits ROM-native/vanilla data that portrait
-        /// writers must never inspect, share-scan, or clear — including the
-        /// pre-fix battle-screen collision reported in #2032.
+        /// writers must never size-parse, share-scan, reuse, or clear —
+        /// including the pre-fix battle-screen collision reported in #2032.
+        /// A separate bounded four-byte header probe is allowed solely to
+        /// preserve the existing raw-vs-LZ77 storage format.
         ///
         /// Recognized profiles (matching <c>ROMFE6JP</c> / <c>ROMFE7JP</c> /
         /// <c>ROMFE7U</c> / <c>ROMFE8JP</c> / <c>ROMFE8U</c>):
@@ -521,23 +523,47 @@ namespace FEBuilderGBA
             ROM rom, uint pointerAddr, out uint targetAddr)
         {
             targetAddr = 0;
+            if (!TryGetPortraitReuseFloor(rom, out uint floor))
+                return false;
+            if (!TryGetPortraitTargetHeader(
+                rom, pointerAddr, out uint candidate, out _))
+                return false;
+            if (candidate < floor)
+                return false;
+
+            targetAddr = candidate;
+            return true;
+        }
+
+        /// <summary>
+        /// Reads only the complete four-byte header of a valid GBA pointer
+        /// target. This floor-independent probe preserves the ROM's existing
+        /// raw-vs-LZ77 portrait format; it never parses a compressed size,
+        /// scans sharing, reuses, clears, or writes the old target.
+        /// </summary>
+        public static bool TryGetPortraitTargetHeader(
+            ROM rom,
+            uint pointerAddr,
+            out uint targetAddr,
+            out uint header)
+        {
+            targetAddr = 0;
+            header = 0;
             if (rom == null || rom.Data == null || rom.Data.Length < 4)
                 return false;
             if (pointerAddr > (uint)rom.Data.Length - 4)
-                return false;
-            if (!TryGetPortraitReuseFloor(rom, out uint floor))
                 return false;
 
             uint rawPointer = rom.u32(pointerAddr);
             if (!U.isPointer(rawPointer))
                 return false;
             uint candidate = U.toOffset(rawPointer);
-            if (candidate < floor
-                || !U.isSafetyOffset(candidate, rom)
+            if (!U.isSafetyOffset(candidate, rom)
                 || candidate > (uint)rom.Data.Length - 4)
                 return false;
 
             targetAddr = candidate;
+            header = rom.u32(candidate);
             return true;
         }
 
@@ -590,8 +616,9 @@ namespace FEBuilderGBA
         ///     below the floor / outside the ROM (legacy/vanilla or invalid
         ///     data, including the reported battle-screen collision) —
         ///     append-only via
-        ///     <see cref="WriteRawPortraitAppendAndRepoint"/>. The old
-        ///     target is never inspected, scanned, or cleared.
+        ///     <see cref="WriteRawPortraitAppendAndRepoint"/>. No old
+        ///     compressed size is parsed and the target is never sharing-
+        ///     scanned, reused, or cleared.
         ///   - floor resolution succeeds AND the target is at/above the
         ///     floor — delegate to the existing, unchanged
         ///     <see cref="WriteCompressedInPlaceOrRelocate"/> so expansion-

@@ -71,16 +71,18 @@ non-portrait callers of those generic writers is **not** addressed by this fix.
   tile bytes, compresses them internally (mirroring `WriteCompressedToROM`), then resolves
   the floor **before** parsing the old pointer's size or scanning pointer sharing. Below the
   floor, outside the ROM (or floor resolution failed) → append-only via
-  `WriteRawPortraitAppendAndRepoint`, never inspecting/sharing-scanning/clearing the old
-  target. A valid target with a complete header at/above the floor → delegates to the
+  `WriteRawPortraitAppendAndRepoint`, never size-parsing/sharing-scanning/reusing/clearing
+  the old target. A valid target with a complete header at/above the floor → delegates to the
   existing, unchanged `WriteCompressedInPlaceOrRelocate` only after
   `LZ77.getCompressedSizeStrict` accepts every back-reference; malformed or truncated
   expansion streams append and preserve the old bytes. Valid expansion-area blocks keep
   reusing/growing exactly as before this fix.
-- `TryGetReusablePortraitTarget` is the shared floor-first inspection gate used by Core,
-  Avalonia, and CLI. Callers resolve a recognized floor before reading any old D0 target
-  header; a below-floor/unknown/out-of-ROM target therefore defaults to a compressed,
-  append-only replacement rather than being parsed to choose raw/compressed format.
+- `TryGetPortraitTargetHeader` is a floor-independent, read-only format probe: after
+  validating the pointer slot, raw GBA pointer form, target bounds, and a complete four-byte
+  header, Avalonia/CLI use only that header to preserve vanilla raw-vs-LZ77 portrait storage.
+  It never parses a compressed size, scans sharing, reuses, clears, or writes the old target.
+  `TryGetReusablePortraitTarget` separately resolves the recognized floor before permitting
+  any size parsing/reuse/clear decision, so below-floor/unknown targets still append.
 - `WriteRawPortraitAppendAndRepoint(rom, pointerAddr, data)` is the single append-only
   primitive backing every standard-portrait field (D0 raw sheets, D12 mouth frames, D8
   palettes) and the below-floor branch above: computes the padded append end BEFORE any
