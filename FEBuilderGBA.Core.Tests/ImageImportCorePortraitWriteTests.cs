@@ -832,7 +832,7 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void WritePortraitEntryPaletteToROM_BelowFloorRawHalfbodyHeader_UsesThirtyTwoBytesWithoutInspectingTarget()
+        public void WritePortraitEntryPaletteToROM_BelowFloorRawHalfbodyHeader_PreservesBothBanks()
         {
             var rom = CreateRecognizedFe8Rom();
             const uint entryAddr = 0x270;
@@ -845,8 +845,8 @@ namespace FEBuilderGBA.Core.Tests
             uint written = ImageImportCore.WritePortraitEntryPaletteToROM(
                 rom, palette64, entryAddr);
 
-            Assert.False(ImageImportCore.IsHalfbodyPortraitEntry(rom, entryAddr));
-            Assert.Equal(palette64.Take(32).ToArray(), rom.getBinaryData(written, 32));
+            Assert.True(ImageImportCore.IsHalfbodyPortraitEntry(rom, entryAddr));
+            Assert.Equal(palette64, rom.getBinaryData(written, 64));
             Assert.Equal(faceBefore, rom.getBinaryData(faceAddr, 4));
         }
 

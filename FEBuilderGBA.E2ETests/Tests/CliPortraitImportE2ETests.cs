@@ -58,7 +58,7 @@ public class CliPortraitImportE2ETests
     }
 
     [Theory]
-    [InlineData(1u)]
+    [InlineData(4u)]
     [InlineData(1073741824u)]
     public void ImportPortrait_OutOfTableOrWrappingId_IsRejectedWithoutChangingRom(
         uint portraitId)
@@ -86,6 +86,91 @@ public class CliPortraitImportE2ETests
             Assert.Equal(1, result.ExitCode);
             Assert.Contains("out of range", result.Stderr);
             Assert.Equal(before, File.ReadAllBytes(romPath));
+        }
+        finally
+        {
+            TryDelete(dir);
+        }
+    }
+
+    [Fact]
+    public void ImportPortrait_FirstTrailingEmptySlot_IsAccepted()
+    {
+        string dir = NewTempDir();
+        try
+        {
+            string romPath = Path.Combine(dir, "empty-slot.gba");
+            string pngPath = Path.Combine(dir, "portrait.png");
+            byte[] before = BuildSyntheticFe8Rom(
+                CanonicalFe8Length, portraitCount: 1);
+            Array.Clear(
+                before,
+                PortraitTable + PortraitEntrySize,
+                PortraitEntrySize * 4);
+            File.WriteAllBytes(romPath, before);
+            WritePortraitPng(pngPath);
+
+            var result = AppRunner.Run(
+                CliExe,
+                $"--import-portrait --rom=\"{romPath}\" --portrait-id=1 "
+                + $"--in=\"{pngPath}\" --force-version=FE8U",
+                timeoutMs: 60_000);
+
+            Assert.Equal(0, result.ExitCode);
+            byte[] after = File.ReadAllBytes(romPath);
+            Assert.NotEqual(
+                ReadPointer(before, PortraitTable + PortraitEntrySize),
+                ReadPointer(after, PortraitTable + PortraitEntrySize));
+            Assert.Equal(
+                Slice(before, BattleStart, BattleLength),
+                Slice(after, BattleStart, BattleLength));
+        }
+        finally
+        {
+            TryDelete(dir);
+        }
+    }
+
+    [Fact]
+    public void ImportPortrait_CompressedExpansionTarget_SecondImportReusesD0()
+    {
+        string dir = NewTempDir();
+        try
+        {
+            string romPath = Path.Combine(dir, "compressed-reuse.gba");
+            string pngPath = Path.Combine(dir, "portrait.png");
+            File.WriteAllBytes(
+                romPath,
+                BuildSyntheticFe8Rom(
+                    CanonicalFe8Length,
+                    portraitCount: 1,
+                    compressedFaces: true));
+            WritePortraitPng(pngPath);
+            byte[] original = File.ReadAllBytes(romPath);
+
+            var first = AppRunner.Run(
+                CliExe,
+                $"--import-portrait --rom=\"{romPath}\" --portrait-id=0 "
+                + $"--in=\"{pngPath}\" --force-version=FE8U",
+                timeoutMs: 60_000);
+            Assert.Equal(0, first.ExitCode);
+            byte[] afterFirst = File.ReadAllBytes(romPath);
+            uint firstD0 = ReadPointer(afterFirst, PortraitTable);
+            int firstLength = afterFirst.Length;
+
+            var second = AppRunner.Run(
+                CliExe,
+                $"--import-portrait --rom=\"{romPath}\" --portrait-id=0 "
+                + $"--in=\"{pngPath}\" --force-version=FE8U",
+                timeoutMs: 60_000);
+            Assert.Equal(0, second.ExitCode);
+            byte[] afterSecond = File.ReadAllBytes(romPath);
+
+            Assert.Equal(firstD0, ReadPointer(afterSecond, PortraitTable));
+            Assert.Equal(firstLength + 32, afterSecond.Length);
+            Assert.Equal(
+                Slice(original, BattleStart, BattleLength),
+                Slice(afterSecond, BattleStart, BattleLength));
         }
         finally
         {
@@ -193,7 +278,10 @@ public class CliPortraitImportE2ETests
         }
     }
 
-    static byte[] BuildSyntheticFe8Rom(int length, int portraitCount)
+    static byte[] BuildSyntheticFe8Rom(
+        int length,
+        int portraitCount,
+        bool compressedFaces = false)
     {
         byte[] data = new byte[length];
         Array.Fill(data, (byte)0xAA);
@@ -212,7 +300,20 @@ public class CliPortraitImportE2ETests
             int oldFace = 0x2000 + id * 0x100;
             WritePointer(data, entry, oldFace);
             WritePointer(data, entry + 8, 0x00802238 + id * 0x40);
-            BitConverter.GetBytes(0x00100400u).CopyTo(data, oldFace);
+            if (compressedFaces)
+            {
+                byte[] lz =
+                {
+                    0x10, 0x08, 0x00, 0x00, 0x00,
+                    0x01, 0x02, 0x03, 0x04,
+                    0x05, 0x06, 0x07, 0x08,
+                };
+                Array.Copy(lz, 0, data, oldFace, lz.Length);
+            }
+            else
+            {
+                BitConverter.GetBytes(0x00100400u).CopyTo(data, oldFace);
+            }
         }
 
         for (int i = 0; i < BattleLength; i++)

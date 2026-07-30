@@ -94,6 +94,8 @@ non-portrait callers of those generic writers is **not** addressed by this fix.
   A one-bank (≤32-byte) palette supplied for a halfbody portrait is normalized to 32 bytes
   and duplicated into both banks instead of silently zeroing bank two; genuine 64-byte
   two-bank palettes remain byte-exact.
+  `IsHalfbodyPortraitEntry` uses the same bounded four-byte D0 probe regardless of reuse
+  floor, so a legacy/below-floor halfbody keeps both banks while all writes still append.
 - **Quantified raw growth per import** (append-only path, worst case): normal D8+D12 ≈
   1568 bytes (32 palette + 1536 mouth-frame budget, excluding D0, which typically uses the
   compressed path); a from-scratch raw normal import ≈ 5668 bytes (4100 tile + 32 palette +

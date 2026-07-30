@@ -707,18 +707,22 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Returns true only for a recognized FE8 entry whose D0 target is a
-        /// complete raw HALFBODY header in validated expansion space. Legacy,
-        /// unknown, and malformed targets are not inspected and default to a
-        /// standard 32-byte palette.
+        /// Returns true only for a recognized FE8 entry whose valid D0 pointer
+        /// target has a complete raw HALFBODY header. The bounded format probe
+        /// is floor-independent; the reuse floor governs mutation, not format
+        /// identification. Unknown and malformed targets default to a standard
+        /// 32-byte palette.
         /// </summary>
         public static bool IsHalfbodyPortraitEntry(ROM rom, uint portraitEntryAddr)
         {
             if (rom?.RomInfo?.version != 8)
                 return false;
-            return TryGetReusablePortraitTarget(
-                    rom, portraitEntryAddr, out uint faceAddr)
-                && rom.u32(faceAddr) == 0x00200400;
+            return TryGetPortraitTargetHeader(
+                    rom,
+                    portraitEntryAddr,
+                    out _,
+                    out uint header)
+                && header == 0x00200400;
         }
 
         /// <summary>

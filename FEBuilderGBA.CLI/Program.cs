@@ -3062,7 +3062,6 @@ namespace FEBuilderGBA.CLI
                 return false;
 
             int nullCount = 0;
-            uint lastNonNullId = U.NOT_FOUND;
             uint requestedAddr = 0;
             for (uint id = 0; id < 0x400; id++)
             {
@@ -3094,16 +3093,13 @@ namespace FEBuilderGBA.CLI
                 else
                 {
                     nullCount = 0;
-                    lastNonNullId = id;
                 }
 
                 if (id == portraitId)
                     requestedAddr = addr;
             }
 
-            if (requestedAddr == 0
-                || lastNonNullId == U.NOT_FOUND
-                || portraitId > lastNonNullId)
+            if (requestedAddr == 0)
                 return false;
 
             portraitAddr = requestedAddr;
