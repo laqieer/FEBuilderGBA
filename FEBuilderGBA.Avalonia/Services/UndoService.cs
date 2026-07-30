@@ -46,12 +46,18 @@ namespace FEBuilderGBA.Avalonia.Services
             _scope?.Dispose();
             _scope = null;
 
-            if (_currentUndoData != null && CoreState.Undo != null)
+            if (_currentUndoData != null
+                && CoreState.Undo != null
+                && CoreState.ROM != null)
             {
-                if (_currentUndoData.list.Count > 0)
+                ROM rom = CoreState.ROM;
+                if (_currentUndoData.list.Count > 0
+                    || (uint)rom.Data.Length != _currentUndoData.filesize)
                 {
                     CoreState.Undo.Push(_currentUndoData);
                     CoreState.Undo.RunUndo();
+                    ImageImportCore.RestoreExactRomLengthAfterUndo(
+                        rom, _currentUndoData.filesize);
                 }
             }
             _currentUndoData = null;

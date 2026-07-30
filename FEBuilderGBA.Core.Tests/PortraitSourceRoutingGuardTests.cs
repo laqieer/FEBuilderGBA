@@ -55,7 +55,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains("ROM.BeginUndoScope(", body, StringComparison.Ordinal);
             Assert.Contains(".Push(ud)", body, StringComparison.Ordinal);
             Assert.Contains(".RunUndo()", body, StringComparison.Ordinal);
-            Assert.Contains("RestorePortraitRomLengthAfterUndo(", body, StringComparison.Ordinal);
+            Assert.Contains("RestoreExactRomLengthAfterUndo(", body, StringComparison.Ordinal);
         }
 
         [Fact]

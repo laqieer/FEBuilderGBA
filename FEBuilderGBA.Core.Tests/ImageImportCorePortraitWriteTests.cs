@@ -664,7 +664,7 @@ namespace FEBuilderGBA.Core.Tests
             undo.RunUndo();
             Assert.Equal(U.Padding4(beforeLength), (uint)rom.Data.Length);
 
-            ImageImportCore.RestorePortraitRomLengthAfterUndo(rom, beforeLength);
+            ImageImportCore.RestoreExactRomLengthAfterUndo(rom, beforeLength);
 
             Assert.Equal(beforeLength, (uint)rom.Data.Length);
             Assert.Equal(beforeRom, rom.Data);

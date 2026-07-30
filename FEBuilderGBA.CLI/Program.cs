@@ -3041,7 +3041,7 @@ namespace FEBuilderGBA.CLI
                     {
                         undo.Push(ud);
                         undo.RunUndo();
-                        ImageImportCore.RestorePortraitRomLengthAfterUndo(
+                        ImageImportCore.RestoreExactRomLengthAfterUndo(
                             rom, ud.filesize);
                     }
                 }

@@ -117,6 +117,25 @@ public class PortraitImportBattleScreenRegressionTests
                 }
             }
 
+            byte[] afterFirstImport = rom.Data.ToArray();
+            uint firstMiniPointer = pointers[1];
+            var secondOutcome = PortraitImportHelper.ImportSheet(
+                rom,
+                entryAddr,
+                loadResult,
+                new UndoService(),
+                PortraitPaletteMode.CustomPalette,
+                loadResult.GBAPalette,
+                false);
+
+            Assert.True(secondOutcome.Success, secondOutcome.Error);
+            Assert.Equal(firstMiniPointer, rom.p32(entryAddr + 4));
+            Assert.Equal(
+                battleBefore,
+                rom.getBinaryData(battleStart, battleEnd - battleStart));
+
+            CoreState.Undo.RunUndo();
+            Assert.Equal(afterFirstImport, rom.Data);
             CoreState.Undo.RunUndo();
             Assert.Equal(before, rom.Data);
         }
@@ -228,6 +247,43 @@ public class PortraitImportBattleScreenRegressionTests
         finally
         {
             CoreState.ImageService = previousImageService;
+        }
+    }
+
+    [Fact]
+    public void UndoService_Rollback_RestoresExactUnalignedRomLength()
+    {
+        ROM? previousRom = CoreState.ROM;
+        Undo? previousUndo = CoreState.Undo;
+        try
+        {
+            byte[] data = new byte[0x8001];
+            Array.Fill(data, (byte)0xAA);
+            var rom = new ROM();
+            Assert.True(rom.LoadLow("synthetic-undo.gba", data, "NAZO"));
+            CoreState.ROM = rom;
+            CoreState.Undo = new Undo();
+            byte[] before = rom.Data.ToArray();
+            const uint pointerAddr = 0x200;
+
+            var undo = new UndoService();
+            undo.Begin("unaligned portrait rollback");
+            Assert.NotEqual(
+                U.NOT_FOUND,
+                ImageImportCore.WriteRawPortraitAppendAndRepoint(
+                    rom,
+                    pointerAddr,
+                    Enumerable.Repeat((byte)0x55, 32).ToArray()));
+            undo.Rollback();
+
+            Assert.Equal(before.Length, rom.Data.Length);
+            Assert.Equal(before, rom.Data);
+            Assert.Equal(0, CoreState.Undo.Postion);
+        }
+        finally
+        {
+            CoreState.ROM = previousRom;
+            CoreState.Undo = previousUndo;
         }
     }
 

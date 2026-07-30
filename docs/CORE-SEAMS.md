@@ -118,8 +118,10 @@ non-portrait callers of those generic writers is **not** addressed by this fix.
   exception) the `finally` block disposes the scope, then — if the transaction recorded any
   write OR the ROM's length changed — calls `undo.Push(ud)` then `undo.RunUndo()`, restoring
   every byte, pointer, and the undo cursor (`Undo.Postion`) itself, then removes any
-  four-byte padding introduced by `ROM.write_resize_data` so even an originally unaligned
-  ROM regains its exact byte length. This restores the transaction state, not
+  four-byte padding introduced by `ROM.write_resize_data` via
+  `RestoreExactRomLengthAfterUndo`, so even an originally unaligned ROM regains its exact
+  byte length. Avalonia's shared `UndoService.Rollback` uses the same exact-length finalizer.
+  This restores the transaction state, not
   merely leaving a non-empty `UndoBuffer`. On success nothing is pushed; the mutation is left
   in place (this is a CLI batch tool, not an interactive undo/redo session).
   `--import-portrait-all` gets this per-file, for free, because each loop iteration calls

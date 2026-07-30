@@ -727,7 +727,7 @@ namespace FEBuilderGBA
         /// Push + RunUndo so an originally unaligned input regains its exact
         /// byte length rather than retaining rollback padding.
         /// </summary>
-        public static void RestorePortraitRomLengthAfterUndo(
+        public static void RestoreExactRomLengthAfterUndo(
             ROM rom, uint exactLength)
         {
             if (rom == null || rom.Data == null)
