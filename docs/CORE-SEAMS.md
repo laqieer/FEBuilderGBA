@@ -45,6 +45,87 @@ unit-group projection keeps its requested-map `AddrResult.tag`. Empty group
 refreshes clear the displayed unit rows and writable VM address in all three
 Avalonia Event Unit views.
 
+## #2032 Portrait-safe write helpers (ROM-corruption fix)
+
+A canonical 16 MiB FE8U portrait-sheet import placed D4/D8 field bytes at
+`0x00802178`/`0x00802238`, silently corrupting live Battle-Screen-Layout data,
+because the portrait import wrappers routed through the GENERIC
+`FindAndWriteData`/`ROM.FindFreeSpace` mid-ROM 0x00/0xFF-fill scan, which cannot
+distinguish "genuinely free space" from "a live vanilla data run that happens to
+look free". This is fixed by adding **portrait-only** additive helpers to
+`ImageImportCore.cs` — the generic writers (`FindAndWriteData`, `ROM.FindFreeSpace`,
+`WriteCompressedToROM`, `WriteRawToROM`, `WritePaletteToROM`,
+`WriteCompressedInPlaceOrRelocate`) are all UNCHANGED and keep serving every
+non-portrait caller exactly as before; the residual mid-ROM-collision risk for
+non-portrait callers of those generic writers is **not** addressed by this fix.
+
+- `TryGetPortraitReuseFloor(rom, out floor)` resolves the minimum offset from which an
+  existing portrait blob may be safely reused/grown/relocated: FE6 (`version==6`) requires
+  a normalized `extends_address == 0x00800000`; FE7/FE8 (`version==7||8`) require
+  `0x01000000`. Any other version (including the unrecognized `ROMFE0` profile), a
+  mismatched/out-of-range `extends_address`, or `Data.Length` shorter than the floor
+  returns `false` — callers MUST then treat the field as append-only. Every failure path
+  emits one concise `Log.DebugF` diagnostic per failed invocation explaining which check
+  failed.
+- `WriteCompressedPortraitToROM(rom, rawTileData, pointerAddr)` accepts RAW (uncompressed)
+  tile bytes, compresses them internally (mirroring `WriteCompressedToROM`), then resolves
+  the floor **before** parsing the old pointer's size or scanning pointer sharing. Below the
+  floor, outside the ROM (or floor resolution failed) → append-only via
+  `WriteRawPortraitAppendAndRepoint`, never inspecting/sharing-scanning/clearing the old
+  target. A valid target with a complete header at/above the floor → delegates to the
+  existing, unchanged `WriteCompressedInPlaceOrRelocate` only after
+  `LZ77.getCompressedSizeStrict` accepts every back-reference; malformed or truncated
+  expansion streams append and preserve the old bytes. Valid expansion-area blocks keep
+  reusing/growing exactly as before this fix.
+- `TryGetReusablePortraitTarget` is the shared floor-first inspection gate used by Core,
+  Avalonia, and CLI. Callers resolve a recognized floor before reading any old D0 target
+  header; a below-floor/unknown/out-of-ROM target therefore defaults to a compressed,
+  append-only replacement rather than being parsed to choose raw/compressed format.
+- `WriteRawPortraitAppendAndRepoint(rom, pointerAddr, data)` is the single append-only
+  primitive backing every standard-portrait field (D0 raw sheets, D12 mouth frames, D8
+  palettes) and the below-floor branch above: computes the padded append end BEFORE any
+  mutation, fails closed (`U.NOT_FOUND`) under the existing 32 MiB cap, writes the payload
+  with ONE `write_range` call (never per-byte `WriteBytes`) plus an optional `write_fill` for
+  the 0-3 byte alignment tail, and repoints only after the payload write succeeds.
+- `WritePortraitPaletteToROM`/`WriteHalfbodyPortraitPaletteToROM` normalize the palette to
+  exactly 32 bytes (standard) / 64 bytes (halfbody) before delegating to the raw helper above.
+  A one-bank (≤32-byte) palette supplied for a halfbody portrait is normalized to 32 bytes
+  and duplicated into both banks instead of silently zeroing bank two; genuine 64-byte
+  two-bank palettes remain byte-exact.
+- **Quantified raw growth per import** (append-only path, worst case): normal D8+D12 ≈
+  1568 bytes (32 palette + 1536 mouth-frame budget, excluding D0, which typically uses the
+  compressed path); a from-scratch raw normal import ≈ 5668 bytes (4100 tile + 32 palette +
+  1536 mouth); a from-scratch halfbody raw import ≈ 9796 bytes (8196 tile + 64 palette + 1536
+  mouth); a palette-only re-import is 32 (or 64 halfbody) bytes. These are real ROM-size costs
+  traded for eliminating the corruption class.
+- Routed through these helpers: `PortraitImportHelper.cs` (Avalonia — `ImportSimple`,
+  `ImportSheet`, `ImportFaceImage`, `ImportHalfBodyHackbox`), `ImagePortraitView.axaml.cs`,
+  `ImagePortraitFE6View.axaml.cs`, `PortraitViewerView.axaml.cs`, the portrait-scoped
+  `ImportPortrait` method and `PortraitViewer_Palette` descriptor in
+  `ImageImportValidator.cs` (other, non-portrait descriptors in that file — chapter title,
+  battle BG/terrain, CG — are untouched), and the CLI `--import-portrait`/
+  `--import-portrait-all` shared pipeline (`FEBuilderGBA.CLI.Program.ImportPortraitFromFile`).
+  `SharePalette` mode skips the D8 write entirely (dereferences the existing D8 pointer
+  instead). **FE6's `+12` field is coordinates, not a mouth-frame pointer — FE6 import paths
+  never route a D12 write through the portrait palette/raw helpers for that field.**
+- **CLI atomicity**: `ImportPortraitFromFile` owns ONE real undo transaction per portrait —
+  `Undo.NewUndoData` + `ROM.BeginUndoScope` before any write, guarded by
+  `ReferenceEquals(rom, CoreState.ROM)` (required because `Undo.UndoPostion`/`UndoData`
+  snapshot bytes from `CoreState.ROM`, not from a passed-in ROM reference). On any failure
+  (tile write ok, palette write hits the cap, decode/quantize/encode failure, or an
+  exception) the `finally` block disposes the scope, then — if the transaction recorded any
+  write OR the ROM's length changed — calls `undo.Push(ud)` then `undo.RunUndo()`, restoring
+  every byte, pointer, and the undo cursor (`Undo.Postion`) itself, then removes any
+  four-byte padding introduced by `ROM.write_resize_data` so even an originally unaligned
+  ROM regains its exact byte length. This restores the transaction state, not
+  merely leaving a non-empty `UndoBuffer`. On success nothing is pushed; the mutation is left
+  in place (this is a CLI batch tool, not an interactive undo/redo session).
+  `--import-portrait-all` gets this per-file, for free, because each loop iteration calls
+  `ImportPortraitFromFile` independently — one file's failure/rollback never affects a prior
+  or later file's already-committed success. The Avalonia folder-import path
+  (`ImportHalfBodyHackbox`/batch call sites) has the same per-file-atomic semantics, not an
+  all-or-nothing whole-folder transaction.
+
 ## #1978 Review-Hardening Corrections
 
 These corrections supersede the older wording in the detailed random-map entries

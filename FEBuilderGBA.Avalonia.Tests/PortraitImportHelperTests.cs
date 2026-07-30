@@ -785,7 +785,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 rom, entryAddr, lr, new UndoServiceSpy(), "Import sheet test");
             Assert.True(outcome.Success, outcome.Error);
 
-            byte[] tileData = ReadRawD0TileData(rom, entryAddr);
+            byte[] tileData = ReadD0TileData(rom, entryAddr);
             byte bg = GetTilePixel(tileData, 256, 0, 0);
             byte skin = GetTilePixel(tileData, 256, 0, 16);
 
@@ -1408,10 +1408,13 @@ namespace FEBuilderGBA.Avalonia.Tests
             return rom;
         }
 
-        static byte[] ReadRawD0TileData(ROM rom, uint entryAddr)
+        static byte[] ReadD0TileData(ROM rom, uint entryAddr)
         {
             uint d0 = U.toOffset(rom.p32(entryAddr + PortraitImportHelper.OFFSET_D0_TILE_SHEET));
             Assert.True(U.isSafetyOffset(d0, rom));
+            if (LZ77.iscompress(rom.Data, d0))
+                return LZ77.decompress(rom.Data, d0);
+
             Assert.Equal((byte)0x00, rom.u8(d0 + 0));
             Assert.Equal((byte)0x04, rom.u8(d0 + 1));
             Assert.Equal((byte)0x10, rom.u8(d0 + 2));

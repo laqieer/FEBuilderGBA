@@ -293,18 +293,20 @@ namespace FEBuilderGBA.Avalonia.Tests
         static string WriteSynthSourcePng(byte r, byte g, byte b, int width = 16, int height = 16)
         {
             string path = Path.Combine(Path.GetTempPath(), $"wizard_target_preview_{Guid.NewGuid():N}.png");
-            using (IImage synth = CoreState.ImageService.CreateImage(width, height))
+            using (var bitmap = new global::SkiaSharp.SKBitmap(width, height))
             {
-                byte[] rgba = new byte[width * height * 4];
-                for (int i = 0; i < width * height; i++)
-                {
-                    rgba[i * 4 + 0] = r; rgba[i * 4 + 1] = g; rgba[i * 4 + 2] = b; rgba[i * 4 + 3] = 255;
-                }
-                // Portrait import color-keys the top-left pixel. Keep it
-                // distinct so the requested body color remains opaque.
-                rgba[0] = 255; rgba[1] = 0; rgba[2] = 255; rgba[3] = 255;
-                synth.SetPixelData(rgba);
-                synth.Save(path);
+                var body = new global::SkiaSharp.SKColor(r, g, b, 255);
+                for (int y = 0; y < height; y++)
+                    for (int x = 0; x < width; x++)
+                        bitmap.SetPixel(x, y, body);
+                var background = new global::SkiaSharp.SKColor(255, 0, 255, 255);
+                bitmap.SetPixel(width - 1, 0, background);
+                bitmap.SetPixel(width - 1, height - 1, background);
+                bitmap.SetPixel(0, 0, background);
+                using var image = global::SkiaSharp.SKImage.FromBitmap(bitmap);
+                using var encoded = image.Encode(
+                    global::SkiaSharp.SKEncodedImageFormat.Png, 100);
+                File.WriteAllBytes(path, encoded.ToArray());
             }
             return path;
         }
@@ -679,13 +681,19 @@ namespace FEBuilderGBA.Avalonia.Tests
                     InvokeLoadImageFromPath(view, tmpPng);
                     var sourceBefore = GetSourceImageDisplay(view).Source;
                     var target = GetTargetImageDisplay(view);
+                    object targetSourceBefore = Assert.IsType<WriteableBitmap>(
+                        target.Source);
                     byte[] targetPixelsBefore = ReadPixels(
-                        Assert.IsType<WriteableBitmap>(target.Source));
+                        (WriteableBitmap)targetSourceBefore);
                     uint sheetBefore = rom.p32(EntryAddr(1));
+                    uint miniBefore = rom.p32(EntryAddr(1) + 4);
 
                     InvokeImportClick(view);
                     Dispatcher.UIThread.RunJobs();
 
+                    var status = view.FindControl<TextBlock>("StatusLabel");
+                    Assert.NotNull(status);
+                    Assert.StartsWith("Imported into ", status!.Text);
                     var searchBox = list.FindControl<TextBox>("SearchBox");
                     var listBox = list.FindControl<ListBox>("AddressList");
                     Assert.Equal("0x01", searchBox!.Text);
@@ -695,10 +703,35 @@ namespace FEBuilderGBA.Avalonia.Tests
                     Assert.NotSame(iconBefore, iconAfter);
                     using IImage thumbnailAfter = PreviewIconHelper.LoadPortraitMini(1);
                     Assert.NotNull(thumbnailAfter);
-                    Assert.NotEqual(thumbnailPixelsBefore, ReadImageRgba(thumbnailAfter));
+                    Assert.NotEqual(
+                        thumbnailPixelsBefore, ReadImageRgba(thumbnailAfter));
                     AssertBitmapDisposed(iconBefore);
                     Assert.NotEqual(sheetBefore, rom.p32(EntryAddr(1)));
+                    Assert.NotEqual(miniBefore, rom.p32(EntryAddr(1) + 4));
+                    byte[] miniTiles = LZ77.decompress(
+                        rom.Data, rom.p32(EntryAddr(1) + 4));
+                    Assert.NotNull(miniTiles);
+                    Assert.Equal(32 * 32 / 2, miniTiles.Length);
+                    uint paletteAfter = rom.p32(EntryAddr(1) + 8);
+                    bool hasGreen = false;
+                    for (uint i = 0; i < 16; i++)
+                    {
+                        uint color = rom.u16(paletteAfter + i * 2);
+                        uint red = color & 0x1F;
+                        uint green = (color >> 5) & 0x1F;
+                        uint blue = (color >> 10) & 0x1F;
+                        if (green >= 20 && red <= 2 && blue <= 2)
+                        {
+                            hasGreen = true;
+                            break;
+                        }
+                    }
+                    Assert.True(
+                        hasGreen,
+                        "Imported target palette should contain the source's green body color. "
+                        + Convert.ToHexString(rom.getBinaryData(paletteAfter, 32)));
                     var targetAfter = Assert.IsType<WriteableBitmap>(target.Source);
+                    Assert.NotSame(targetSourceBefore, targetAfter);
                     Assert.Equal(96, targetAfter.PixelSize.Width);
                     Assert.Equal(80, targetAfter.PixelSize.Height);
                     Assert.NotEqual(targetPixelsBefore, ReadPixels(targetAfter));

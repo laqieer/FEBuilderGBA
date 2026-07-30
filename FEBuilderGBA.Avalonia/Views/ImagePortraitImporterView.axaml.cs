@@ -12,7 +12,7 @@
 // Batch import wired in #661: the "Pick Folder (batch)..." button enumerates
 // every PNG / BMP in a folder, parses the slot ID from the filename prefix
 // (0xNN.png or NN.png), and delegates to PortraitImportHelper.ImportFolderAsync
-// which wraps the whole batch in a single UndoService scope.
+// which gives every file its own UndoService transaction.
 //
 // Advanced palette options + Fuchidori — implemented in #662:
 //   - Auto-quantize (default), Share with target slot, Custom palette file...
@@ -471,9 +471,9 @@ namespace FEBuilderGBA.Avalonia.Views
 
         // #661: batch folder import — enumerate every .png / .bmp in the
         // chosen folder, parse the slot ID from the filename prefix, and
-        // delegate to PortraitImportHelper.ImportFolderAsync. A single outer
-        // UndoService scope wraps the whole batch (rollback if every file
-        // fails). UI buttons are disabled while the batch runs so the user
+        // delegate to PortraitImportHelper.ImportFolderAsync. Each file owns
+        // an independent transaction, so a failed file rolls back without
+        // disturbing earlier successes. UI buttons are disabled while the batch runs so the user
         // cannot kick off a second import mid-flight.
         async void PickFolder_Click(object? sender, RoutedEventArgs e)
         {

@@ -419,6 +419,318 @@ namespace FEBuilderGBA
             return WriteRawToROM(rom, gbaPalette, pointerAddr);
         }
 
+        // ---------------------------------------------------------------
+        // #2032 portrait-only safe-relocation helpers.
+        //
+        // The generic writers above (WriteCompressedToROM / WriteRawToROM /
+        // WritePaletteToROM / FindAndWriteData / ROM.FindFreeSpace) are
+        // UNCHANGED by this section and keep serving every non-portrait
+        // caller exactly as before.
+        //
+        // Standard portrait D0/D4/D8/D12 fields instead route through the
+        // helpers below because the generic mid-ROM free-space search can
+        // select a 0x00/0xFF fill run that is actually live vanilla data
+        // (e.g. the reported battle-screen-layout collision at
+        // 0x00802178/0x00802238 on a canonical 16 MiB FE8U ROM) rather than
+        // genuinely free space. These helpers never call FindAndWriteData
+        // or ROM.FindFreeSpace; they either delegate to the existing,
+        // already-safe WriteCompressedInPlaceOrRelocate for blocks proven
+        // to live at/above a recognized FE expansion-area floor, or append
+        // at the aligned ROM end and never touch the old target.
+        // ---------------------------------------------------------------
+
+        /// <summary>
+        /// Resolves the minimum ROM offset from which an existing portrait
+        /// compressed/raw blob may be safely reused, grown, or relocated.
+        /// Below this floor sits ROM-native/vanilla data that portrait
+        /// writers must never inspect, share-scan, or clear — including the
+        /// pre-fix battle-screen collision reported in #2032.
+        ///
+        /// Recognized profiles (matching <c>ROMFE6JP</c> / <c>ROMFE7JP</c> /
+        /// <c>ROMFE7U</c> / <c>ROMFE8JP</c> / <c>ROMFE8U</c>):
+        ///   - FE6 (<c>RomInfo.version == 6</c>): normalized
+        ///     <c>extends_address</c> must be exactly <c>0x00800000</c>.
+        ///   - FE7/FE8 (<c>version == 7 || version == 8</c>): normalized
+        ///     <c>extends_address</c> must be exactly <c>0x01000000</c>.
+        ///
+        /// Returns <c>false</c> for a null ROM/RomInfo/Data, an unrecognized
+        /// version (e.g. <c>ROMFE0</c>), zero/mismatched/out-of-range
+        /// metadata, or a ROM whose actual (unpadded) <c>Data.Length</c> is
+        /// shorter than the floor. Callers MUST treat a <c>false</c> result
+        /// as "always append, never reuse" — see
+        /// <see cref="WriteCompressedPortraitToROM"/>.
+        /// </summary>
+        public static bool TryGetPortraitReuseFloor(ROM rom, out uint floor)
+        {
+            floor = 0;
+            if (rom == null || rom.RomInfo == null || rom.Data == null)
+            {
+                Log.DebugF("Portrait reuse floor: null rom/RomInfo/Data -- append-only.");
+                return false;
+            }
+
+            int version = rom.RomInfo.version;
+            uint expected;
+            if (version == 6)
+            {
+                expected = 0x00800000u;
+            }
+            else if (version == 7 || version == 8)
+            {
+                expected = 0x01000000u;
+            }
+            else
+            {
+                Log.DebugF("Portrait reuse floor: unrecognized FE version {0} -- append-only.", version);
+                return false;
+            }
+
+            uint normalized = U.toOffset(rom.RomInfo.extends_address);
+            if (normalized != expected)
+            {
+                Log.DebugF("Portrait reuse floor: extends_address 0x{0} != expected 0x{1} for version {2} -- append-only.",
+                    normalized.ToString("X"), expected.ToString("X"), version);
+                return false;
+            }
+
+            if ((expected % 4) != 0 || expected < 0x200 || expected > 0x02000000)
+            {
+                Log.DebugF("Portrait reuse floor: floor 0x{0} out of the valid alignment/bounds range -- append-only.",
+                    expected.ToString("X"));
+                return false;
+            }
+
+            if ((uint)rom.Data.Length < expected)
+            {
+                Log.DebugF("Portrait reuse floor: ROM length 0x{0} shorter than floor 0x{1} -- append-only.",
+                    ((uint)rom.Data.Length).ToString("X"), expected.ToString("X"));
+                return false;
+            }
+
+            floor = expected;
+            return true;
+        }
+
+        /// <summary>
+        /// Resolves an existing portrait pointer target that may be inspected
+        /// or reused. Floor validation happens before the pointer target is
+        /// read; targets below the recognized expansion floor, outside the
+        /// ROM, or without a complete four-byte header fail closed.
+        /// </summary>
+        public static bool TryGetReusablePortraitTarget(
+            ROM rom, uint pointerAddr, out uint targetAddr)
+        {
+            targetAddr = 0;
+            if (rom == null || rom.Data == null || rom.Data.Length < 4)
+                return false;
+            if (pointerAddr > (uint)rom.Data.Length - 4)
+                return false;
+            if (!TryGetPortraitReuseFloor(rom, out uint floor))
+                return false;
+
+            uint rawPointer = rom.u32(pointerAddr);
+            if (!U.isPointer(rawPointer))
+                return false;
+            uint candidate = U.toOffset(rawPointer);
+            if (candidate < floor
+                || !U.isSafetyOffset(candidate, rom)
+                || candidate > (uint)rom.Data.Length - 4)
+                return false;
+
+            targetAddr = candidate;
+            return true;
+        }
+
+        /// <summary>
+        /// Append-only checked/padded raw writer used by every standard
+        /// portrait field (D0 raw sheets, D12 mouth frames, D8 palettes via
+        /// <see cref="WritePortraitPaletteToROM"/> /
+        /// <see cref="WriteHalfbodyPortraitPaletteToROM"/>) and by the
+        /// below-floor branch of <see cref="WriteCompressedPortraitToROM"/>.
+        ///
+        /// Computes the padded append end BEFORE any mutation, fails closed
+        /// with <see cref="U.NOT_FOUND"/> under the existing 32 MiB cap,
+        /// writes the exact payload with a single <c>rom.write_range</c>
+        /// call (never per-byte <c>WriteBytes</c>), zero-fills the 0-3 byte
+        /// alignment tail with <c>rom.write_fill</c>, and repoints only
+        /// after the payload write succeeds. The pointer's previous target
+        /// is never inspected, overwritten, or cleared — there is no
+        /// old-size/format/ownership assumption to make.
+        /// </summary>
+        public static uint WriteRawPortraitAppendAndRepoint(ROM rom, uint pointerAddr, byte[] data)
+        {
+            if (rom == null || rom.Data == null || data == null || data.Length == 0) return U.NOT_FOUND;
+            if (rom.Data.Length < 4 || pointerAddr > (uint)rom.Data.Length - 4) return U.NOT_FOUND;
+
+            uint addr = U.Padding4((uint)rom.Data.Length);
+            uint padded = U.Padding4((uint)data.Length);
+            const uint maxRomSize = 0x02000000;
+            if (addr > maxRomSize || padded > maxRomSize - addr)
+                return U.NOT_FOUND; // 32 MiB cap, checked before any mutation or uint addition.
+            uint newEnd = addr + padded;
+
+            if (!rom.write_resize_data(newEnd)) return U.NOT_FOUND;
+
+            rom.write_range(addr, data);
+            uint tail = padded - (uint)data.Length;
+            if (tail > 0) rom.write_fill(addr + (uint)data.Length, tail, 0x00);
+
+            rom.write_p32(pointerAddr, addr);
+            return addr;
+        }
+
+        /// <summary>
+        /// Portrait-specific compressed writer (#2032). Accepts raw
+        /// (uncompressed) tile bytes and compresses them internally,
+        /// mirroring <see cref="WriteCompressedToROM"/>, then resolves
+        /// <see cref="TryGetPortraitReuseFloor"/> BEFORE parsing the old
+        /// compressed size or scanning pointer sharing:
+        ///
+        ///   - floor resolution fails, or the current pointer target is
+        ///     below the floor / outside the ROM (legacy/vanilla or invalid
+        ///     data, including the reported battle-screen collision) —
+        ///     append-only via
+        ///     <see cref="WriteRawPortraitAppendAndRepoint"/>. The old
+        ///     target is never inspected, scanned, or cleared.
+        ///   - floor resolution succeeds AND the target is at/above the
+        ///     floor — delegate to the existing, unchanged
+        ///     <see cref="WriteCompressedInPlaceOrRelocate"/> so expansion-
+        ///     area blocks keep reusing/growing exactly as they did before
+        ///     this fix.
+        ///
+        /// Never calls <see cref="FindAndWriteData"/> or
+        /// <see cref="ROM.FindFreeSpace"/>.
+        /// </summary>
+        public static uint WriteCompressedPortraitToROM(ROM rom, byte[] rawTileData, uint pointerAddr)
+        {
+            if (rom == null || rom.Data == null || rawTileData == null) return U.NOT_FOUND;
+            if (rom.Data.Length < 4 || pointerAddr > (uint)rom.Data.Length - 4) return U.NOT_FOUND;
+
+            byte[] compressed = LZ77.compress(rawTileData);
+            if (compressed == null || compressed.Length == 0) return U.NOT_FOUND;
+
+            if (!TryGetReusablePortraitTarget(
+                    rom, pointerAddr, out uint oldAddr)
+                || LZ77.getCompressedSizeStrict(rom.Data, oldAddr) == 0)
+            {
+                return WriteRawPortraitAppendAndRepoint(rom, pointerAddr, compressed);
+            }
+
+            return WriteCompressedInPlaceOrRelocate(rom, pointerAddr, compressed);
+        }
+
+        /// <summary>
+        /// Append-only standard-portrait D8 palette writer (#2032). Always
+        /// normalizes <paramref name="gbaPalette"/> to exactly 32 bytes (16
+        /// GBA colors), padding a short buffer with zero or truncating a
+        /// long one, before delegating to
+        /// <see cref="WriteRawPortraitAppendAndRepoint"/>. Halfbody
+        /// portraits are 64 bytes (32 colors) and must use
+        /// <see cref="WriteHalfbodyPortraitPaletteToROM"/> instead — this
+        /// method never writes 64 bytes.
+        /// </summary>
+        public static uint WritePortraitPaletteToROM(ROM rom, byte[] gbaPalette, uint pointerAddr)
+        {
+            return WritePortraitPaletteInternal(rom, gbaPalette, pointerAddr, 32);
+        }
+
+        /// <summary>
+        /// Append-only halfbody-portrait D8 palette writer (#2032). Always
+        /// normalizes <paramref name="gbaPalette64"/> to exactly 64 bytes
+        /// (32 GBA colors) before delegating to
+        /// <see cref="WriteRawPortraitAppendAndRepoint"/>. Standard (non-
+        /// halfbody) portraits are 32 bytes and must use
+        /// <see cref="WritePortraitPaletteToROM"/> instead.
+        /// </summary>
+        public static uint WriteHalfbodyPortraitPaletteToROM(ROM rom, byte[] gbaPalette64, uint pointerAddr)
+        {
+            if (gbaPalette64 != null && gbaPalette64.Length <= 32)
+            {
+                byte[] duplicatedBanks = new byte[64];
+                int copyLen = Math.Min(gbaPalette64.Length, 32);
+                Array.Copy(gbaPalette64, 0, duplicatedBanks, 0, copyLen);
+                Array.Copy(duplicatedBanks, 0, duplicatedBanks, 32, 32);
+                return WriteRawPortraitAppendAndRepoint(
+                    rom, pointerAddr, duplicatedBanks);
+            }
+            return WritePortraitPaletteInternal(rom, gbaPalette64, pointerAddr, 64);
+        }
+
+        /// <summary>
+        /// Append a palette for the selected standard portrait entry. FE8
+        /// HALFBODY entries are identified by their raw D0 header and retain
+        /// both 16-color banks (64 bytes); all other entries use one 32-byte
+        /// bank. This prevents direct palette imports from silently truncating
+        /// an existing halfbody portrait.
+        /// </summary>
+        public static uint WritePortraitEntryPaletteToROM(
+            ROM rom, byte[] gbaPalette, uint portraitEntryAddr)
+        {
+            if (rom == null || rom.Data == null || gbaPalette == null)
+                return U.NOT_FOUND;
+            if (rom.Data.Length < 12
+                || portraitEntryAddr > (uint)rom.Data.Length - 12)
+                return U.NOT_FOUND;
+
+            return IsHalfbodyPortraitEntry(rom, portraitEntryAddr)
+                ? WriteHalfbodyPortraitPaletteToROM(
+                    rom, gbaPalette, portraitEntryAddr + 8)
+                : WritePortraitPaletteToROM(
+                    rom, gbaPalette, portraitEntryAddr + 8);
+        }
+
+        /// <summary>
+        /// Returns true only for a recognized FE8 entry whose D0 target is a
+        /// complete raw HALFBODY header in validated expansion space. Legacy,
+        /// unknown, and malformed targets are not inspected and default to a
+        /// standard 32-byte palette.
+        /// </summary>
+        public static bool IsHalfbodyPortraitEntry(ROM rom, uint portraitEntryAddr)
+        {
+            if (rom?.RomInfo?.version != 8)
+                return false;
+            return TryGetReusablePortraitTarget(
+                    rom, portraitEntryAddr, out uint faceAddr)
+                && rom.u32(faceAddr) == 0x00200400;
+        }
+
+        /// <summary>
+        /// Undo restores through ROM.write_resize_data, which intentionally
+        /// rounds to four bytes. Portrait CLI transactions call this after
+        /// Push + RunUndo so an originally unaligned input regains its exact
+        /// byte length rather than retaining rollback padding.
+        /// </summary>
+        public static void RestorePortraitRomLengthAfterUndo(
+            ROM rom, uint exactLength)
+        {
+            if (rom == null || rom.Data == null)
+                throw new ArgumentNullException(nameof(rom));
+            if (exactLength > (uint)rom.Data.Length)
+                throw new InvalidOperationException(
+                    "Portrait rollback cannot restore bytes that are no longer present.");
+            if ((uint)rom.Data.Length == exactLength)
+                return;
+
+            byte[] exactData = rom.Data;
+            Array.Resize(ref exactData, checked((int)exactLength));
+            rom.SwapNewROMDataDirect(exactData);
+        }
+
+        static uint WritePortraitPaletteInternal(ROM rom, byte[] gbaPalette, uint pointerAddr, int expectedLength)
+        {
+            if (gbaPalette == null) return U.NOT_FOUND;
+
+            byte[] normalized = gbaPalette;
+            if (gbaPalette.Length != expectedLength)
+            {
+                normalized = new byte[expectedLength];
+                int copyLen = Math.Min(gbaPalette.Length, expectedLength);
+                Array.Copy(gbaPalette, normalized, copyLen);
+            }
+
+            return WriteRawPortraitAppendAndRepoint(rom, pointerAddr, normalized);
+        }
+
         /// <summary>
         /// Find free space in ROM, write data there, and return the offset.
         /// Searches from halfway through the ROM for free space (0x00 or 0xFF fill).
