@@ -2894,14 +2894,16 @@ namespace FEBuilderGBA.CLI
             string inputPath = argsDic["--in"];
 
             if (!uint.TryParse(argsDic[pidKey], out uint portraitId))
-            { Console.Error.WriteLine("Error: --unit-id must be a valid number."); return 1; }
+            { Console.Error.WriteLine("Error: --portrait-id must be a valid number."); return 1; }
             if (!File.Exists(inputPath))
             { Console.Error.WriteLine($"Error: Input file not found: {inputPath}"); return 1; }
 
             RomLoader.InitEnvironment();
             string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
             if (!RomLoader.LoadRom(romPath, forceVersion)) return 1;
-            RomLoader.InitFull();
+            // Portrait import needs only RomInfo, image quantization, and direct
+            // ROM writes. Avoid unrelated text/Huffman/event initialization so
+            // malformed text data cannot abort this independent command.
 
             var rom = CoreState.ROM;
             if (rom?.RomInfo == null)
@@ -2909,8 +2911,8 @@ namespace FEBuilderGBA.CLI
 
             uint portraitBase = rom.p32(U.toOffset(rom.RomInfo.portrait_pointer));
             uint portraitDataSize = rom.RomInfo.portrait_datasize;
-            uint portraitAddr = portraitBase + (portraitId * portraitDataSize);
-            if (!U.isSafetyOffset(portraitAddr + portraitDataSize - 1, rom))
+            if (!TryResolvePortraitEntry(
+                rom, portraitBase, portraitDataSize, portraitId, out uint portraitAddr))
             { Console.Error.WriteLine($"Error: Portrait ID {portraitId} is out of range."); return 1; }
 
             string err = ImportPortraitFromFile(rom, inputPath, portraitAddr);
@@ -2923,67 +2925,181 @@ namespace FEBuilderGBA.CLI
         }
 
         /// <summary>
-        /// Shared portrait import pipeline: load PNG, quantize, encode 4bpp tiles, write to ROM.
+        /// Shared portrait import pipeline: load PNG, quantize, encode 4bpp tiles, write to ROM
+        /// via the portrait-safe Core helpers (#2032). Each call is ONE real undo transaction:
+        /// on any failure partway through (tile write ok, palette write hits the 32MiB cap, etc.)
+        /// every byte, pointer, and the ROM's length are rolled back -- never a half-written
+        /// portrait. On success the mutation is left in place and nothing is pushed onto the
+        /// undo buffer (this is a CLI batch tool, not an interactive session with redo/undo UX).
         /// Returns null on success, error message string on failure.
         /// </summary>
         static string ImportPortraitFromFile(ROM rom, string pngPath, uint portraitAddr)
         {
-            using var skBitmap = global::SkiaSharp.SKBitmap.Decode(pngPath);
-            if (skBitmap == null) return "Failed to decode image.";
+            if (rom == null) return "ROM not loaded.";
 
-            int width = skBitmap.Width;
-            int height = skBitmap.Height;
-            byte[] rgbaPixels = new byte[width * height * 4];
-            using (var converted = skBitmap.Copy(global::SkiaSharp.SKColorType.Rgba8888))
+            // Undo.UndoPostion(addr,size) snapshots bytes from CoreState.ROM (not from the
+            // `rom` parameter) at the moment each write is recorded, and UndoData.filesize is
+            // likewise captured from CoreState.ROM.Data.Length. If `rom` were ever a different
+            // instance than CoreState.ROM the snapshot/rollback would silently operate on the
+            // wrong ROM, so this must hold before any undo bookkeeping is started.
+            if (!ReferenceEquals(rom, CoreState.ROM))
             {
-                var span = converted.GetPixelSpan();
-                for (int y = 0; y < height; y++)
+                return "Internal error: ROM instance mismatch (CoreState.ROM is not the loaded ROM).";
+            }
+
+            Undo undo = CoreState.Undo;
+            if (undo == null)
+            {
+                undo = new Undo();
+                CoreState.Undo = undo;
+            }
+            Undo.UndoData ud = undo.NewUndoData("CLI Import Portrait");
+            IDisposable undoScope = ROM.BeginUndoScope(ud);
+            string error = null;
+            try
+            {
+                using var skBitmap = global::SkiaSharp.SKBitmap.Decode(pngPath);
+                if (skBitmap == null) { error = "Failed to decode image."; return error; }
+
+                int width = skBitmap.Width;
+                int height = skBitmap.Height;
+                byte[] rgbaPixels = new byte[width * height * 4];
+                using (var converted = skBitmap.Copy(global::SkiaSharp.SKColorType.Rgba8888))
                 {
-                    int srcOffset = y * converted.RowBytes;
-                    int dstOffset = y * width * 4;
-                    for (int x = 0; x < width * 4; x++)
-                        rgbaPixels[dstOffset + x] = span[srcOffset + x];
+                    var span = converted.GetPixelSpan();
+                    for (int y = 0; y < height; y++)
+                    {
+                        int srcOffset = y * converted.RowBytes;
+                        int dstOffset = y * width * 4;
+                        for (int x = 0; x < width * 4; x++)
+                            rgbaPixels[dstOffset + x] = span[srcOffset + x];
+                    }
+                }
+
+                var quantResult = DecreaseColorCore.Quantize(rgbaPixels, width, height, 16);
+                if (quantResult == null) { error = "Color quantization failed."; return error; }
+
+                byte[] tileData = ImageImportCore.EncodeDirectTiles4bpp(quantResult.IndexData, width, height);
+                if (tileData == null) { error = "Tile encoding failed."; return error; }
+
+                bool isFE6 = rom.RomInfo.version == 6;
+                uint currentFaceAddr = 0;
+                uint currentFaceHeader = 0;
+                bool preserveRawFormat = !isFE6
+                    && ImageImportCore.TryGetPortraitTargetHeader(
+                        rom,
+                        portraitAddr,
+                        out currentFaceAddr,
+                        out currentFaceHeader)
+                    && (currentFaceHeader & 0xFF) != 0x10;
+                bool preserveHalfbodyPalette = preserveRawFormat
+                    && rom.RomInfo.version == 8
+                    && currentFaceHeader == 0x00200400;
+
+                uint tileAddr;
+                if (!preserveRawFormat)
+                {
+                    tileAddr = ImageImportCore.WriteCompressedPortraitToROM(rom, tileData, portraitAddr + 0);
+                }
+                else
+                {
+                    byte[] withHeader = ImageImportCore.BuildRawPortraitPayload(
+                        tileData, currentFaceHeader);
+                    tileAddr = ImageImportCore.WriteRawPortraitAppendAndRepoint(rom, portraitAddr + 0, withHeader);
+                }
+                if (tileAddr == U.NOT_FOUND) { error = "No free ROM space for tile data."; return error; }
+
+                uint palAddr = preserveHalfbodyPalette
+                    ? ImageImportCore.WriteHalfbodyPortraitPaletteToROM(
+                        rom, quantResult.GBAPalette, portraitAddr + 8)
+                    : ImageImportCore.WritePortraitPaletteToROM(
+                        rom, quantResult.GBAPalette, portraitAddr + 8);
+                if (palAddr == U.NOT_FOUND) { error = "No free ROM space for palette."; return error; }
+
+                return null; // success
+            }
+            catch (Exception ex)
+            {
+                error = $"Portrait import failed: {ex.Message}";
+                return error;
+            }
+            finally
+            {
+                undoScope.Dispose();
+                if (error != null && ReferenceEquals(rom, CoreState.ROM))
+                {
+                    // Roll back whenever this transaction recorded any write OR the ROM's
+                    // length changed from before the transaction started -- not just a
+                    // non-empty list -- so an append that grew the ROM is fully undone
+                    // (bytes, pointer, and length) even in the (currently unreachable but
+                    // defensively guarded) case a resize alone left the list empty.
+                    if (ud.list.Count > 0 || (uint)rom.Data.Length != ud.filesize)
+                    {
+                        undo.Push(ud);
+                        undo.RunUndo();
+                        ImageImportCore.RestoreExactRomLengthAfterUndo(
+                            rom, ud.filesize);
+                    }
                 }
             }
+        }
 
-            var quantResult = DecreaseColorCore.Quantize(rgbaPixels, width, height, 16);
-            if (quantResult == null) return "Color quantization failed.";
+        static bool TryResolvePortraitEntry(
+            ROM rom,
+            uint portraitBase,
+            uint portraitDataSize,
+            uint portraitId,
+            out uint portraitAddr)
+        {
+            portraitAddr = 0;
+            if (rom?.Data == null || portraitDataSize < 12 || portraitId >= 0x400)
+                return false;
+            if (!U.isSafetyOffset(portraitBase, rom))
+                return false;
 
-            byte[] tileData = ImageImportCore.EncodeDirectTiles4bpp(quantResult.IndexData, width, height);
-            if (tileData == null) return "Tile encoding failed.";
-
-            uint currentFacePtr = rom.p32(portraitAddr + 0);
-            bool isFE6 = rom.RomInfo.version == 6;
-            bool isCompressed = isFE6 || (currentFacePtr == 0) ||
-                (U.isSafetyOffset(U.toOffset(currentFacePtr)) && LZ77.iscompress(rom.Data, U.toOffset(currentFacePtr)));
-
-            uint tileAddr;
-            if (isCompressed)
+            int nullCount = 0;
+            uint requestedAddr = 0;
+            for (uint id = 0; id < 0x400; id++)
             {
-                tileAddr = ImageImportCore.WriteCompressedToROM(rom, tileData, portraitAddr + 0);
-            }
-            else
-            {
-                byte[] existingHeader = new byte[] { 0x00, 0x04, 0x10, 0x00 };
-                if (U.isSafetyOffset(U.toOffset(currentFacePtr)))
+                ulong start = (ulong)portraitBase
+                    + (ulong)id * portraitDataSize;
+                ulong end = start + portraitDataSize;
+                if (start > uint.MaxValue || end > (ulong)rom.Data.Length)
+                    return false;
+
+                uint addr = (uint)start;
+                uint d0 = rom.u32(addr);
+                uint d4 = rom.u32(addr + 4);
+                uint d8 = rom.u32(addr + 8);
+                if (!U.isPointerOrNULL(d0)
+                    || !U.isPointerOrNULL(d4)
+                    || !U.isPointerOrNULL(d8))
                 {
-                    uint off = U.toOffset(currentFacePtr);
-                    existingHeader[0] = (byte)rom.u8(off);
-                    existingHeader[1] = (byte)rom.u8(off + 1);
-                    existingHeader[2] = (byte)rom.u8(off + 2);
-                    existingHeader[3] = (byte)rom.u8(off + 3);
+                    if (id <= portraitId)
+                        return false;
+                    break;
                 }
-                byte[] withHeader = new byte[4 + tileData.Length];
-                Array.Copy(existingHeader, 0, withHeader, 0, 4);
-                Array.Copy(tileData, 0, withHeader, 4, tileData.Length);
-                tileAddr = ImageImportCore.WriteRawToROM(rom, withHeader, portraitAddr + 0);
+
+                if (d0 == 0 && d4 == 0 && d8 == 0)
+                {
+                    nullCount++;
+                    if (nullCount >= 4)
+                        break;
+                }
+                else
+                {
+                    nullCount = 0;
+                }
+
+                if (id == portraitId)
+                    requestedAddr = addr;
             }
-            if (tileAddr == U.NOT_FOUND) return "No free ROM space for tile data.";
 
-            uint palAddr = ImageImportCore.WritePaletteToROM(rom, quantResult.GBAPalette, portraitAddr + 8);
-            if (palAddr == U.NOT_FOUND) return "No free ROM space for palette.";
+            if (requestedAddr == 0)
+                return false;
 
-            return null; // success
+            portraitAddr = requestedAddr;
+            return true;
         }
 
         static int RunImportPortraitAll(Dictionary<string, string> argsDic)
@@ -3002,7 +3118,8 @@ namespace FEBuilderGBA.CLI
             RomLoader.InitEnvironment();
             string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
             if (!RomLoader.LoadRom(romPath, forceVersion)) return 1;
-            RomLoader.InitFull();
+            // Each file uses the same minimal portrait-only initialization as
+            // --import-portrait; text/Huffman/event caches are not dependencies.
 
             var rom = CoreState.ROM;
             if (rom?.RomInfo == null)
@@ -3034,8 +3151,8 @@ namespace FEBuilderGBA.CLI
                     { Console.Error.WriteLine($"  Skip {name}.png: cannot parse ID from filename"); failed++; continue; }
                 }
 
-                uint portraitAddr = portraitBase + (portraitId * portraitDataSize);
-                if (!U.isSafetyOffset(portraitAddr + portraitDataSize - 1, rom))
+                if (!TryResolvePortraitEntry(
+                    rom, portraitBase, portraitDataSize, portraitId, out uint portraitAddr))
                 { Console.Error.WriteLine($"  Skip {name}.png: portrait ID {portraitId} out of range"); failed++; continue; }
 
                 string err = ImportPortraitFromFile(rom, pngPath, portraitAddr);

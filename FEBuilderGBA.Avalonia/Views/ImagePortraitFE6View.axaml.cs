@@ -371,10 +371,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 byte[] tileData = ImageImportCore.EncodeDirectTiles4bpp(loadResult.IndexedPixels, loadResult.Width, loadResult.Height);
                 if (tileData == null) { _undoService.Rollback(); CoreState.Services.ShowError("Failed to encode tiles"); return; }
 
-                uint tileAddr = ImageImportCore.WriteCompressedToROM(rom, tileData, addr + 0);
+                uint tileAddr = ImageImportCore.WriteCompressedPortraitToROM(rom, tileData, addr + 0);
                 if (tileAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("No free space for tile data"); return; }
 
-                uint palAddr = ImageImportCore.WritePaletteToROM(rom, loadResult.GBAPalette, addr + 8);
+                uint palAddr = ImageImportCore.WritePortraitPaletteToROM(rom, loadResult.GBAPalette, addr + 8);
                 if (palAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("No free space for palette"); return; }
 
                 _undoService.Commit();
@@ -445,7 +445,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (addr == 0) { CoreState.Services.ShowError("No portrait entry selected"); return; }
                 _undoService.Begin("Import Portrait Palette (FE6)");
                 // FE6 portrait palette is raw at offset +8
-                uint palAddr = ImageImportCore.WritePaletteToROM(rom, palData, addr + 8);
+                uint palAddr = ImageImportCore.WritePortraitPaletteToROM(rom, palData, addr + 8);
                 if (palAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("Failed to write palette"); return; }
                 _undoService.Commit();
                 _vm.LoadEntry(addr);

@@ -197,11 +197,34 @@ namespace FEBuilderGBA.Avalonia.Views
                 byte[] tileData = ImageImportCore.EncodeDirectTiles4bpp(loadResult.IndexedPixels, loadResult.Width, loadResult.Height);
                 if (tileData == null) { _undoService.Rollback(); CoreState.Services.ShowError("Failed to encode tiles"); return; }
 
-                uint tileAddr = ImageImportCore.WriteCompressedToROM(rom, tileData, addr + 0);
+                bool preserveRawFormat = ImageImportCore.TryGetPortraitTargetHeader(
+                    rom, addr, out _, out uint currentHeader)
+                    && (currentHeader & 0xFF) != 0x10;
+                bool preserveHalfbodyPalette =
+                    rom.RomInfo.version == 8
+                    && preserveRawFormat
+                    && currentHeader == 0x00200400;
+                uint tileAddr;
+                if (preserveRawFormat)
+                {
+                    byte[] withHeader = ImageImportCore.BuildRawPortraitPayload(
+                        tileData, currentHeader);
+                    tileAddr = ImageImportCore.WriteRawPortraitAppendAndRepoint(
+                        rom, addr, withHeader);
+                }
+                else
+                {
+                    tileAddr = ImageImportCore.WriteCompressedPortraitToROM(
+                        rom, tileData, addr);
+                }
                 if (tileAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("No free space for tile data"); return; }
 
                 // PalettePointer at offset 8
-                uint palAddr = ImageImportCore.WritePaletteToROM(rom, loadResult.GBAPalette, addr + 8);
+                uint palAddr = preserveHalfbodyPalette
+                    ? ImageImportCore.WriteHalfbodyPortraitPaletteToROM(
+                        rom, loadResult.GBAPalette, addr + 8)
+                    : ImageImportCore.WritePortraitPaletteToROM(
+                        rom, loadResult.GBAPalette, addr + 8);
                 if (palAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("No free space for palette"); return; }
 
                 _undoService.Commit();
@@ -257,7 +280,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (addr == 0) { CoreState.Services.ShowError("No portrait entry selected"); return; }
                 _undoService.Begin("Import Portrait Palette");
                 // Portrait palette is raw at offset +8
-                uint palAddr = ImageImportCore.WritePaletteToROM(rom, palData, addr + 8);
+                uint palAddr = ImageImportCore.WritePortraitEntryPaletteToROM(
+                    rom, palData, addr);
                 if (palAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("Failed to write palette"); return; }
                 _undoService.Commit();
                 _vm.LoadPortrait(addr);

@@ -99,7 +99,7 @@ namespace FEBuilderGBA.Avalonia.Services
         /// Validate a single editor's roundtrip.
         /// Returns null if the editor can't be tested (no entries, no image).
         /// </summary>
-        static ValidationResult ValidateEditor(EditorDescriptor editor, ROM rom)
+        internal static ValidationResult ValidateEditor(EditorDescriptor editor, ROM rom)
         {
             try
             {
@@ -203,7 +203,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 finally
                 {
                     // Step 7: Restore ROM data
-                    Array.Copy(romBackup, rom.Data, romBackup.Length);
+                    rom.SwapNewROMDataDirect(romBackup);
 
                     // Clean up temp files
                     try { File.Delete(tempFile1); } catch (Exception ex) { Log.ErrorF("ImageImportValidator temp file cleanup: {0}", ex.Message); }
@@ -594,10 +594,21 @@ namespace FEBuilderGBA.Avalonia.Services
             byte[] tileData = ImageImportCore.EncodeDirectTiles4bpp(lr.IndexedPixels, lr.Width, lr.Height);
             if (tileData == null) return "Failed to encode tiles";
 
-            uint tileAddr = ImageImportCore.WriteCompressedToROM(rom, tileData, addr + 0);
+            bool preserveHalfbodyPalette =
+                ImageImportCore.IsHalfbodyPortraitEntry(rom, addr);
+
+            // #2032: portrait D0/D8 route through the portrait-safe helpers —
+            // never through the generic mid-ROM FindAndWriteData search that
+            // can select a live vanilla 0x00/0xFF fill run (e.g. the reported
+            // battle-screen-layout collision) instead of genuinely free space.
+            uint tileAddr = ImageImportCore.WriteCompressedPortraitToROM(rom, tileData, addr + 0);
             if (tileAddr == U.NOT_FOUND) return "No free space for tile data";
 
-            uint palAddr = ImageImportCore.WritePaletteToROM(rom, lr.GBAPalette, addr + 8);
+            uint palAddr = preserveHalfbodyPalette
+                ? ImageImportCore.WriteHalfbodyPortraitPaletteToROM(
+                    rom, lr.GBAPalette, addr + 8)
+                : ImageImportCore.WritePortraitPaletteToROM(
+                    rom, lr.GBAPalette, addr + 8);
             if (palAddr == U.NOT_FOUND) return "No free space for palette";
 
             return null;
@@ -778,7 +789,7 @@ namespace FEBuilderGBA.Avalonia.Services
         /// Validate a single palette editor roundtrip: export → import → re-export → binary compare.
         /// Returns null if the editor can't be tested.
         /// </summary>
-        static ValidationResult ValidatePaletteEditor(PaletteEditorDescriptor editor, ROM rom)
+        internal static ValidationResult ValidatePaletteEditor(PaletteEditorDescriptor editor, ROM rom)
         {
             try
             {
@@ -891,7 +902,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 }
                 finally
                 {
-                    Array.Copy(romBackup, rom.Data, romBackup.Length);
+                    rom.SwapNewROMDataDirect(romBackup);
                 }
             }
             catch (Exception ex)
@@ -1078,7 +1089,11 @@ namespace FEBuilderGBA.Avalonia.Services
                 ExportPalette = () => ReadRawPalette(rom, portrait.CurrentAddr + 8),
                 ImportPalette = pal =>
                 {
-                    uint a = ImageImportCore.WritePaletteToROM(rom, pal, portrait.CurrentAddr + 8);
+                    // #2032: PortraitViewer_Palette is a standard-portrait D8
+                    // field — route through the append-only portrait palette
+                    // helper instead of the generic raw writer.
+                    uint a = ImageImportCore.WritePortraitEntryPaletteToROM(
+                        rom, pal, portrait.CurrentAddr);
                     return a == U.NOT_FOUND ? "Failed to write palette" : null;
                 },
             });

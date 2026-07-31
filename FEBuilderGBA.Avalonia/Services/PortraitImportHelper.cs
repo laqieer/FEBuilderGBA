@@ -400,7 +400,7 @@ namespace FEBuilderGBA.Avalonia.Services
                     return ImportOutcome.Fail("Failed to encode tiles");
                 }
 
-                uint tileAddr = ImageImportCore.WriteCompressedToROM(rom, tileData, entryAddr + OFFSET_D0_TILE_SHEET);
+                uint tileAddr = ImageImportCore.WriteCompressedPortraitToROM(rom, tileData, entryAddr + OFFSET_D0_TILE_SHEET);
                 if (tileAddr == U.NOT_FOUND)
                 {
                     undoService.Rollback();
@@ -411,7 +411,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 // existing palette stays in place at the dereferenced offset.
                 if (mode != PortraitPaletteMode.SharePalette)
                 {
-                    uint palAddr = ImageImportCore.WritePaletteToROM(rom, effectivePalette, entryAddr + OFFSET_D8_PALETTE);
+                    uint palAddr = ImageImportCore.WritePortraitPaletteToROM(rom, effectivePalette, entryAddr + OFFSET_D8_PALETTE);
                     if (palAddr == U.NOT_FOUND)
                     {
                         undoService.Rollback();
@@ -623,31 +623,23 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (sheetTiles == null)
                 { undoService.Rollback(); return ImportOutcome.Fail("Failed to encode sprite sheet tiles"); }
 
-                if (!TryReadEntryP32(rom, entryAddr, OFFSET_D0_TILE_SHEET,
-                    "Target slot D0 sprite sheet", out uint currentD0, out string pointerError))
-                {
-                    undoService.Rollback();
-                    return ImportOutcome.Fail(pointerError);
-                }
-                // Use the rom-aware isSafetyOffset overload + reuse the
-                // computed offset (Copilot bot PR #684 inline review:
-                // avoid reaching back through `CoreState.ROM` from helper
-                // code that already has a `rom` parameter).
-                uint currentD0Offset = U.toOffset(currentD0);
-                bool isCompressed = U.isSafetyOffset(currentD0Offset, rom)
-                    && LZ77.iscompress(rom.Data, currentD0Offset);
+                bool preserveRawFormat = ImageImportCore.TryGetPortraitTargetHeader(
+                        rom,
+                        entryAddr + OFFSET_D0_TILE_SHEET,
+                        out _,
+                        out uint currentD0Header)
+                    && (currentD0Header & 0xFF) != 0x10;
 
                 uint sheetAddr;
-                if (isCompressed)
+                if (!preserveRawFormat)
                 {
-                    sheetAddr = ImageImportCore.WriteCompressedToROM(rom, sheetTiles, entryAddr + OFFSET_D0_TILE_SHEET);
+                    sheetAddr = ImageImportCore.WriteCompressedPortraitToROM(rom, sheetTiles, entryAddr + OFFSET_D0_TILE_SHEET);
                 }
                 else
                 {
-                    byte[] withHeader = new byte[4 + sheetTiles.Length];
-                    withHeader[0] = 0x00; withHeader[1] = 0x04; withHeader[2] = 0x10; withHeader[3] = 0x00;
-                    Array.Copy(sheetTiles, 0, withHeader, 4, sheetTiles.Length);
-                    sheetAddr = ImageImportCore.WriteRawToROM(rom, withHeader, entryAddr + OFFSET_D0_TILE_SHEET);
+                    byte[] withHeader = ImageImportCore.BuildRawPortraitPayload(
+                        sheetTiles, 0x00100400);
+                    sheetAddr = ImageImportCore.WriteRawPortraitAppendAndRepoint(rom, entryAddr + OFFSET_D0_TILE_SHEET, withHeader);
                 }
                 if (sheetAddr == U.NOT_FOUND)
                 { undoService.Rollback(); return ImportOutcome.Fail("No free space for sprite sheet"); }
@@ -656,7 +648,7 @@ namespace FEBuilderGBA.Avalonia.Services
                     miniIndexed, parts.MiniW, parts.MiniH);
                 if (miniTiles == null)
                 { undoService.Rollback(); return ImportOutcome.Fail("Failed to encode mini face tiles"); }
-                uint miniAddr = ImageImportCore.WriteCompressedToROM(rom, miniTiles, entryAddr + OFFSET_D4_MINI_FACE);
+                uint miniAddr = ImageImportCore.WriteCompressedPortraitToROM(rom, miniTiles, entryAddr + OFFSET_D4_MINI_FACE);
                 if (miniAddr == U.NOT_FOUND)
                 { undoService.Rollback(); return ImportOutcome.Fail("No free space for mini face"); }
 
@@ -665,7 +657,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 // (#662). Auto / Custom write the effective palette to D8.
                 if (mode != PortraitPaletteMode.SharePalette)
                 {
-                    uint palAddr = ImageImportCore.WritePaletteToROM(rom, effectivePalette, entryAddr + OFFSET_D8_PALETTE);
+                    uint palAddr = ImageImportCore.WritePortraitPaletteToROM(rom, effectivePalette, entryAddr + OFFSET_D8_PALETTE);
                     if (palAddr == U.NOT_FOUND)
                     { undoService.Rollback(); return ImportOutcome.Fail("No free space for palette"); }
                 }
@@ -674,7 +666,7 @@ namespace FEBuilderGBA.Avalonia.Services
                     mouthIndexed, parts.MouthW, parts.MouthH);
                 if (mouthTiles == null)
                 { undoService.Rollback(); return ImportOutcome.Fail("Failed to encode mouth tiles"); }
-                uint mouthAddr = ImageImportCore.WriteRawToROM(rom, mouthTiles, entryAddr + OFFSET_D12_MOUTH_FRAMES);
+                uint mouthAddr = ImageImportCore.WriteRawPortraitAppendAndRepoint(rom, entryAddr + OFFSET_D12_MOUTH_FRAMES, mouthTiles);
                 if (mouthAddr == U.NOT_FOUND)
                 { undoService.Rollback(); return ImportOutcome.Fail("No free space for mouth data"); }
 
@@ -776,34 +768,30 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (sheetTiles == null)
                 { undoService.Rollback(); return ImportOutcome.Fail("Failed to encode sprite sheet tiles"); }
 
-                if (!TryReadEntryP32(rom, entryAddr, OFFSET_D0_TILE_SHEET,
-                    "Target slot D0 sprite sheet", out uint currentD0, out string pointerError))
-                {
-                    undoService.Rollback();
-                    return ImportOutcome.Fail(pointerError);
-                }
-                uint currentD0Offset = U.toOffset(currentD0);
-                bool isCompressed = U.isSafetyOffset(currentD0Offset, rom)
-                    && LZ77.iscompress(rom.Data, currentD0Offset);
+                bool preserveRawFormat = ImageImportCore.TryGetPortraitTargetHeader(
+                        rom,
+                        entryAddr + OFFSET_D0_TILE_SHEET,
+                        out _,
+                        out uint currentD0Header)
+                    && (currentD0Header & 0xFF) != 0x10;
 
                 uint sheetAddr;
-                if (isCompressed)
+                if (!preserveRawFormat)
                 {
-                    sheetAddr = ImageImportCore.WriteCompressedToROM(rom, sheetTiles, entryAddr + OFFSET_D0_TILE_SHEET);
+                    sheetAddr = ImageImportCore.WriteCompressedPortraitToROM(rom, sheetTiles, entryAddr + OFFSET_D0_TILE_SHEET);
                 }
                 else
                 {
-                    byte[] withHeader = new byte[4 + sheetTiles.Length];
-                    withHeader[0] = 0x00; withHeader[1] = 0x04; withHeader[2] = 0x10; withHeader[3] = 0x00;
-                    Array.Copy(sheetTiles, 0, withHeader, 4, sheetTiles.Length);
-                    sheetAddr = ImageImportCore.WriteRawToROM(rom, withHeader, entryAddr + OFFSET_D0_TILE_SHEET);
+                    byte[] withHeader = ImageImportCore.BuildRawPortraitPayload(
+                        sheetTiles, 0x00100400);
+                    sheetAddr = ImageImportCore.WriteRawPortraitAppendAndRepoint(rom, entryAddr + OFFSET_D0_TILE_SHEET, withHeader);
                 }
                 if (sheetAddr == U.NOT_FOUND)
                 { undoService.Rollback(); return ImportOutcome.Fail("No free space for sprite sheet"); }
 
                 if (mode != PortraitPaletteMode.SharePalette)
                 {
-                    uint palAddr = ImageImportCore.WritePaletteToROM(rom, effectivePalette, entryAddr + OFFSET_D8_PALETTE);
+                    uint palAddr = ImageImportCore.WritePortraitPaletteToROM(rom, effectivePalette, entryAddr + OFFSET_D8_PALETTE);
                     if (palAddr == U.NOT_FOUND)
                     { undoService.Rollback(); return ImportOutcome.Fail("No free space for palette"); }
                 }
@@ -913,10 +901,9 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (sheetTiles == null)
                 { undoService.Rollback(); return ImportOutcome.Fail("Failed to encode halfbody sprite sheet tiles"); }
 
-                byte[] withHeader = new byte[4 + sheetTiles.Length];
-                withHeader[0] = 0x00; withHeader[1] = 0x04; withHeader[2] = 0x20; withHeader[3] = 0x00;
-                Array.Copy(sheetTiles, 0, withHeader, 4, sheetTiles.Length);
-                uint sheetAddr = ImageImportCore.WriteRawToROM(rom, withHeader, entryAddr + OFFSET_D0_TILE_SHEET);
+                byte[] withHeader = ImageImportCore.BuildRawPortraitPayload(
+                    sheetTiles, 0x00200400);
+                uint sheetAddr = ImageImportCore.WriteRawPortraitAppendAndRepoint(rom, entryAddr + OFFSET_D0_TILE_SHEET, withHeader);
                 if (sheetAddr == U.NOT_FOUND)
                 { undoService.Rollback(); return ImportOutcome.Fail("No free space for halfbody sprite sheet"); }
 
@@ -924,13 +911,13 @@ namespace FEBuilderGBA.Avalonia.Services
                     miniIndexed, parts.MiniW, parts.MiniH);
                 if (miniTiles == null)
                 { undoService.Rollback(); return ImportOutcome.Fail("Failed to encode mini face tiles"); }
-                uint miniAddr = ImageImportCore.WriteCompressedToROM(rom, miniTiles, entryAddr + OFFSET_D4_MINI_FACE);
+                uint miniAddr = ImageImportCore.WriteCompressedPortraitToROM(rom, miniTiles, entryAddr + OFFSET_D4_MINI_FACE);
                 if (miniAddr == U.NOT_FOUND)
                 { undoService.Rollback(); return ImportOutcome.Fail("No free space for mini face"); }
 
                 if (mode != PortraitPaletteMode.SharePalette)
                 {
-                    uint palAddr = ImageImportCore.WritePaletteToROM(rom, palette64, entryAddr + OFFSET_D8_PALETTE);
+                    uint palAddr = ImageImportCore.WriteHalfbodyPortraitPaletteToROM(rom, palette64, entryAddr + OFFSET_D8_PALETTE);
                     if (palAddr == U.NOT_FOUND)
                     { undoService.Rollback(); return ImportOutcome.Fail("No free space for halfbody palette"); }
                 }
@@ -939,7 +926,7 @@ namespace FEBuilderGBA.Avalonia.Services
                     mouthIndexed, parts.MouthW, parts.MouthH);
                 if (mouthTiles == null)
                 { undoService.Rollback(); return ImportOutcome.Fail("Failed to encode mouth tiles"); }
-                uint mouthAddr = ImageImportCore.WriteRawToROM(rom, mouthTiles, entryAddr + OFFSET_D12_MOUTH_FRAMES);
+                uint mouthAddr = ImageImportCore.WriteRawPortraitAppendAndRepoint(rom, entryAddr + OFFSET_D12_MOUTH_FRAMES, mouthTiles);
                 if (mouthAddr == U.NOT_FOUND)
                 { undoService.Rollback(); return ImportOutcome.Fail("No free space for mouth data"); }
 

@@ -515,7 +515,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint addr = _vm.CurrentAddr;
                 if (addr == 0) { CoreState.Services.ShowError("No portrait entry selected"); return; }
                 _undoService.Begin("Import Portrait Palette");
-                uint palAddr = ImageImportCore.WritePaletteToROM(rom, palData, addr + 8);
+                uint palAddr = ImageImportCore.WritePortraitEntryPaletteToROM(
+                    rom, palData, addr);
                 if (palAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("Failed to write palette"); return; }
                 _undoService.Commit();
                 _vm.LoadEntry(addr);
