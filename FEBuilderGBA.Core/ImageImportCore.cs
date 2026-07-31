@@ -568,6 +568,34 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Builds a header-prefixed raw D0 portrait payload and pads it to the
+        /// fixed sheet size consumed by the renderer: 256x40 standard or
+        /// 256x80 FE8 HALFBODY. Unknown raw headers retain the supplied tile
+        /// length. Padding is zero-filled and never reads the old target.
+        /// </summary>
+        public static byte[] BuildRawPortraitPayload(
+            byte[] rawTileData, uint header)
+        {
+            if (rawTileData == null)
+                return null;
+
+            int minimumTileBytes = header switch
+            {
+                0x00100400 => 256 * 40 / 2,
+                0x00200400 => 256 * 80 / 2,
+                _ => 0,
+            };
+            int tileBytes = Math.Max(rawTileData.Length, minimumTileBytes);
+            byte[] payload = new byte[4 + tileBytes];
+            payload[0] = (byte)header;
+            payload[1] = (byte)(header >> 8);
+            payload[2] = (byte)(header >> 16);
+            payload[3] = (byte)(header >> 24);
+            Array.Copy(rawTileData, 0, payload, 4, rawTileData.Length);
+            return payload;
+        }
+
+        /// <summary>
         /// Append-only checked/padded raw writer used by every standard
         /// portrait field (D0 raw sheets, D12 mouth frames, D8 palettes via
         /// <see cref="WritePortraitPaletteToROM"/> /

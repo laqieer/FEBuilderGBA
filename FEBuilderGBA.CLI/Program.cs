@@ -3001,14 +3001,8 @@ namespace FEBuilderGBA.CLI
                 }
                 else
                 {
-                    byte[] existingHeader = new byte[] { 0x00, 0x04, 0x10, 0x00 };
-                    existingHeader[0] = (byte)rom.u8(currentFaceAddr);
-                    existingHeader[1] = (byte)rom.u8(currentFaceAddr + 1);
-                    existingHeader[2] = (byte)rom.u8(currentFaceAddr + 2);
-                    existingHeader[3] = (byte)rom.u8(currentFaceAddr + 3);
-                    byte[] withHeader = new byte[4 + tileData.Length];
-                    Array.Copy(existingHeader, 0, withHeader, 0, 4);
-                    Array.Copy(tileData, 0, withHeader, 4, tileData.Length);
+                    byte[] withHeader = ImageImportCore.BuildRawPortraitPayload(
+                        tileData, currentFaceHeader);
                     tileAddr = ImageImportCore.WriteRawPortraitAppendAndRepoint(rom, portraitAddr + 0, withHeader);
                 }
                 if (tileAddr == U.NOT_FOUND) { error = "No free ROM space for tile data."; return error; }

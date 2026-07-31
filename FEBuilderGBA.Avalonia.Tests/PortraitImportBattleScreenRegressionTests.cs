@@ -95,7 +95,7 @@ public class PortraitImportBattleScreenRegressionTests
                 $"Portrait payload 0x{pointer:X8} must be in expansion space."));
             Assert.False(LZ77.iscompress(rom.Data, pointers[0]));
             Assert.Equal(0x00100400u, rom.u32(pointers[0]));
-            const uint d0Size = 4 + (256 * 32 / 2);
+            const uint d0Size = 4 + (256 * 40 / 2);
             uint d4Size = U.Padding4(LZ77.getCompressedSize(rom.Data, pointers[1]));
             (uint Start, uint End)[] ranges =
             {

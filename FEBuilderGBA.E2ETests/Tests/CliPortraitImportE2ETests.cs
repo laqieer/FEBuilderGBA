@@ -208,7 +208,9 @@ public class CliPortraitImportE2ETests
 
             string smallBaselinePath = Path.Combine(dir, "small-baseline.gba");
             File.WriteAllBytes(smallBaselinePath, BuildSyntheticFe8Rom(
-                CanonicalFe8Length, portraitCount: 1));
+                CanonicalFe8Length,
+                portraitCount: 1,
+                compressedFaces: true));
             var smallBaselineResult = AppRunner.Run(
                 CliExe,
                 $"--import-portrait --rom=\"{smallBaselinePath}\" --portrait-id=0 "
@@ -227,6 +229,7 @@ public class CliPortraitImportE2ETests
             string batchRom = Path.Combine(dir, "batch.gba");
             byte[] batchBefore = BuildSyntheticFe8Rom(
                 initialLength, portraitCount: 3);
+            SeedCompressedFace(batchBefore, 2);
             File.WriteAllBytes(batchRom, batchBefore);
 
             string batchDir = Path.Combine(dir, "batch");
@@ -301,25 +304,29 @@ public class CliPortraitImportE2ETests
             WritePointer(data, entry, oldFace);
             WritePointer(data, entry + 8, 0x00802238 + id * 0x40);
             if (compressedFaces)
-            {
-                byte[] lz =
-                {
-                    0x10, 0x08, 0x00, 0x00, 0x00,
-                    0x01, 0x02, 0x03, 0x04,
-                    0x05, 0x06, 0x07, 0x08,
-                };
-                Array.Copy(lz, 0, data, oldFace, lz.Length);
-            }
+                SeedCompressedFace(data, id);
             else
-            {
                 BitConverter.GetBytes(0x00100400u).CopyTo(data, oldFace);
-            }
         }
 
         for (int i = 0; i < BattleLength; i++)
             data[BattleStart + i] = (byte)((i * 37 + 11) & 0xFF);
         Array.Fill(data, (byte)0x00, 0x00802178, 0x40);
         return data;
+    }
+
+    static void SeedCompressedFace(byte[] data, int id)
+    {
+        int entry = PortraitTable + id * PortraitEntrySize;
+        int oldFace = 0x2000 + id * 0x100;
+        WritePointer(data, entry, oldFace);
+        byte[] lz =
+        {
+            0x10, 0x08, 0x00, 0x00, 0x00,
+            0x01, 0x02, 0x03, 0x04,
+            0x05, 0x06, 0x07, 0x08,
+        };
+        Array.Copy(lz, 0, data, oldFace, lz.Length);
     }
 
     static void WritePortraitPng(string path, int width = 96, int height = 80)

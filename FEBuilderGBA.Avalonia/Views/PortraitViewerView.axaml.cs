@@ -207,12 +207,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint tileAddr;
                 if (preserveRawFormat)
                 {
-                    byte[] withHeader = new byte[4 + tileData.Length];
-                    withHeader[0] = (byte)currentHeader;
-                    withHeader[1] = (byte)(currentHeader >> 8);
-                    withHeader[2] = (byte)(currentHeader >> 16);
-                    withHeader[3] = (byte)(currentHeader >> 24);
-                    Array.Copy(tileData, 0, withHeader, 4, tileData.Length);
+                    byte[] withHeader = ImageImportCore.BuildRawPortraitPayload(
+                        tileData, currentHeader);
                     tileAddr = ImageImportCore.WriteRawPortraitAppendAndRepoint(
                         rom, addr, withHeader);
                 }

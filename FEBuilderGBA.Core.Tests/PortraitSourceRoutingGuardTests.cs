@@ -31,6 +31,7 @@ namespace FEBuilderGBA.Core.Tests
         const string PortraitHalfbodyPalette = "ImageImportCore.WriteHalfbodyPortraitPaletteToROM(";
         const string PortraitEntryPalette = "ImageImportCore.WritePortraitEntryPaletteToROM(";
         const string PortraitTargetHeader = "ImageImportCore.TryGetPortraitTargetHeader(";
+        const string PortraitRawPayload = "ImageImportCore.BuildRawPortraitPayload(";
 
         [Fact]
         public void Cli_ImportPortraitFromFile_UsesPortraitSafeHelpers_AndRealUndoTransaction()
@@ -44,6 +45,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains(PortraitPalette, body, StringComparison.Ordinal);
             Assert.Contains(PortraitHalfbodyPalette, body, StringComparison.Ordinal);
             Assert.Contains(PortraitTargetHeader, body, StringComparison.Ordinal);
+            Assert.Contains(PortraitRawPayload, body, StringComparison.Ordinal);
             Assert.True(
                 body.IndexOf("preserveHalfbodyPalette", StringComparison.Ordinal)
                 < body.IndexOf(PortraitCompressed, StringComparison.Ordinal),
@@ -120,6 +122,9 @@ namespace FEBuilderGBA.Core.Tests
                 source.Contains(PortraitHalfbodyPalette, StringComparison.Ordinal) ||
                 source.Contains(PortraitEntryPalette, StringComparison.Ordinal);
             Assert.True(usesAnyPortraitHelper, $"{fileName}: expected at least one portrait-safe helper call");
+            if (fileName == "PortraitImportHelper.cs"
+                || fileName == "PortraitViewerView.axaml.cs")
+                Assert.Contains(PortraitRawPayload, source, StringComparison.Ordinal);
         }
 
         [Fact]
@@ -152,6 +157,7 @@ namespace FEBuilderGBA.Core.Tests
             AssertNoGenericWriters(body, "PortraitViewerView.ImportImageFromFile");
             Assert.Contains(PortraitCompressed, body, StringComparison.Ordinal);
             Assert.Contains(PortraitRaw, body, StringComparison.Ordinal);
+            Assert.Contains(PortraitRawPayload, body, StringComparison.Ordinal);
             Assert.Contains(PortraitPalette, body, StringComparison.Ordinal);
             Assert.Contains(PortraitHalfbodyPalette, body, StringComparison.Ordinal);
             Assert.True(

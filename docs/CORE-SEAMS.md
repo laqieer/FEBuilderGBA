@@ -89,6 +89,9 @@ non-portrait callers of those generic writers is **not** addressed by this fix.
   mutation, fails closed (`U.NOT_FOUND`) under the existing 32 MiB cap, writes the payload
   with ONE `write_range` call (never per-byte `WriteBytes`) plus an optional `write_fill` for
   the 0-3 byte alignment tail, and repoints only after the payload write succeeds.
+- `BuildRawPortraitPayload` centralizes D0 header packing and zero-padding to the fixed
+  renderer contract: 256×40 standard (5120 tile bytes) / 256×80 halfbody (10240 tile
+  bytes). Raw imports therefore never report success with an undersized block.
 - `WritePortraitPaletteToROM`/`WriteHalfbodyPortraitPaletteToROM` normalize the palette to
   exactly 32 bytes (standard) / 64 bytes (halfbody) before delegating to the raw helper above.
   A one-bank (≤32-byte) palette supplied for a halfbody portrait is normalized to 32 bytes
@@ -98,8 +101,8 @@ non-portrait callers of those generic writers is **not** addressed by this fix.
   floor, so a legacy/below-floor halfbody keeps both banks while all writes still append.
 - **Quantified raw growth per import** (append-only path, worst case): normal D8+D12 ≈
   1568 bytes (32 palette + 1536 mouth-frame budget, excluding D0, which typically uses the
-  compressed path); a from-scratch raw normal import ≈ 5668 bytes (4100 tile + 32 palette +
-  1536 mouth); a from-scratch halfbody raw import ≈ 9796 bytes (8196 tile + 64 palette + 1536
+  compressed path); a from-scratch raw normal import ≈ 6692 bytes (5124 tile + 32 palette +
+  1536 mouth); a from-scratch halfbody raw import ≈ 11844 bytes (10244 tile + 64 palette + 1536
   mouth); a palette-only re-import is 32 (or 64 halfbody) bytes. These are real ROM-size costs
   traded for eliminating the corruption class.
 - Routed through these helpers: `PortraitImportHelper.cs` (Avalonia — `ImportSimple`,

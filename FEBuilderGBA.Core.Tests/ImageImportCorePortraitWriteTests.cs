@@ -260,6 +260,28 @@ namespace FEBuilderGBA.Core.Tests
                 rom, pointerAddr, out _));
         }
 
+        [Theory]
+        [InlineData(0x00100400u, 4096, 5120)]
+        [InlineData(0x00200400u, 8192, 10240)]
+        public void BuildRawPortraitPayload_PadsToRendererSheetSize(
+            uint header,
+            int sourceLength,
+            int expectedTileLength)
+        {
+            byte[] source = Enumerable.Range(0, sourceLength)
+                .Select(i => (byte)i).ToArray();
+
+            byte[] payload = ImageImportCore.BuildRawPortraitPayload(
+                source, header);
+
+            Assert.Equal(4 + expectedTileLength, payload.Length);
+            Assert.Equal(header, BitConverter.ToUInt32(payload, 0));
+            Assert.Equal(source, payload.Skip(4).Take(sourceLength).ToArray());
+            Assert.All(
+                payload.Skip(4 + sourceLength),
+                value => Assert.Equal((byte)0, value));
+        }
+
         // ------------------------------------------------------------
         // WriteCompressedPortraitToROM -- below-floor / unknown-metadata
         // append-only branch (never reuses, never scans, never clears).

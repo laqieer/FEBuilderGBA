@@ -637,9 +637,8 @@ namespace FEBuilderGBA.Avalonia.Services
                 }
                 else
                 {
-                    byte[] withHeader = new byte[4 + sheetTiles.Length];
-                    withHeader[0] = 0x00; withHeader[1] = 0x04; withHeader[2] = 0x10; withHeader[3] = 0x00;
-                    Array.Copy(sheetTiles, 0, withHeader, 4, sheetTiles.Length);
+                    byte[] withHeader = ImageImportCore.BuildRawPortraitPayload(
+                        sheetTiles, 0x00100400);
                     sheetAddr = ImageImportCore.WriteRawPortraitAppendAndRepoint(rom, entryAddr + OFFSET_D0_TILE_SHEET, withHeader);
                 }
                 if (sheetAddr == U.NOT_FOUND)
@@ -783,9 +782,8 @@ namespace FEBuilderGBA.Avalonia.Services
                 }
                 else
                 {
-                    byte[] withHeader = new byte[4 + sheetTiles.Length];
-                    withHeader[0] = 0x00; withHeader[1] = 0x04; withHeader[2] = 0x10; withHeader[3] = 0x00;
-                    Array.Copy(sheetTiles, 0, withHeader, 4, sheetTiles.Length);
+                    byte[] withHeader = ImageImportCore.BuildRawPortraitPayload(
+                        sheetTiles, 0x00100400);
                     sheetAddr = ImageImportCore.WriteRawPortraitAppendAndRepoint(rom, entryAddr + OFFSET_D0_TILE_SHEET, withHeader);
                 }
                 if (sheetAddr == U.NOT_FOUND)
@@ -903,9 +901,8 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (sheetTiles == null)
                 { undoService.Rollback(); return ImportOutcome.Fail("Failed to encode halfbody sprite sheet tiles"); }
 
-                byte[] withHeader = new byte[4 + sheetTiles.Length];
-                withHeader[0] = 0x00; withHeader[1] = 0x04; withHeader[2] = 0x20; withHeader[3] = 0x00;
-                Array.Copy(sheetTiles, 0, withHeader, 4, sheetTiles.Length);
+                byte[] withHeader = ImageImportCore.BuildRawPortraitPayload(
+                    sheetTiles, 0x00200400);
                 uint sheetAddr = ImageImportCore.WriteRawPortraitAppendAndRepoint(rom, entryAddr + OFFSET_D0_TILE_SHEET, withHeader);
                 if (sheetAddr == U.NOT_FOUND)
                 { undoService.Rollback(); return ImportOutcome.Fail("No free space for halfbody sprite sheet"); }
