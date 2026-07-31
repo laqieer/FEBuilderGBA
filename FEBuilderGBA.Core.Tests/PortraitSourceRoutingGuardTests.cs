@@ -151,12 +151,13 @@ namespace FEBuilderGBA.Core.Tests
 
             AssertNoGenericWriters(body, "PortraitViewerView.ImportImageFromFile");
             Assert.Contains(PortraitCompressed, body, StringComparison.Ordinal);
+            Assert.Contains(PortraitRaw, body, StringComparison.Ordinal);
             Assert.Contains(PortraitPalette, body, StringComparison.Ordinal);
             Assert.Contains(PortraitHalfbodyPalette, body, StringComparison.Ordinal);
             Assert.True(
-                body.IndexOf("ImageImportCore.IsHalfbodyPortraitEntry(", StringComparison.Ordinal)
+                body.IndexOf(PortraitTargetHeader, StringComparison.Ordinal)
                 < body.IndexOf(PortraitCompressed, StringComparison.Ordinal),
-                "PortraitViewer must capture halfbody palette mode before rewriting D0.");
+                "PortraitViewer must capture raw/halfbody format before rewriting D0.");
         }
 
         static void AssertNoGenericWriters(string body, string scopeName)

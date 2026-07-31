@@ -197,9 +197,30 @@ namespace FEBuilderGBA.Avalonia.Views
                 byte[] tileData = ImageImportCore.EncodeDirectTiles4bpp(loadResult.IndexedPixels, loadResult.Width, loadResult.Height);
                 if (tileData == null) { _undoService.Rollback(); CoreState.Services.ShowError("Failed to encode tiles"); return; }
 
+                bool preserveRawFormat = ImageImportCore.TryGetPortraitTargetHeader(
+                    rom, addr, out _, out uint currentHeader)
+                    && (currentHeader & 0xFF) != 0x10;
                 bool preserveHalfbodyPalette =
-                    ImageImportCore.IsHalfbodyPortraitEntry(rom, addr);
-                uint tileAddr = ImageImportCore.WriteCompressedPortraitToROM(rom, tileData, addr + 0);
+                    rom.RomInfo.version == 8
+                    && preserveRawFormat
+                    && currentHeader == 0x00200400;
+                uint tileAddr;
+                if (preserveRawFormat)
+                {
+                    byte[] withHeader = new byte[4 + tileData.Length];
+                    withHeader[0] = (byte)currentHeader;
+                    withHeader[1] = (byte)(currentHeader >> 8);
+                    withHeader[2] = (byte)(currentHeader >> 16);
+                    withHeader[3] = (byte)(currentHeader >> 24);
+                    Array.Copy(tileData, 0, withHeader, 4, tileData.Length);
+                    tileAddr = ImageImportCore.WriteRawPortraitAppendAndRepoint(
+                        rom, addr, withHeader);
+                }
+                else
+                {
+                    tileAddr = ImageImportCore.WriteCompressedPortraitToROM(
+                        rom, tileData, addr);
+                }
                 if (tileAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("No free space for tile data"); return; }
 
                 // PalettePointer at offset 8
