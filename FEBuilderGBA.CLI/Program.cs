@@ -2901,7 +2901,9 @@ namespace FEBuilderGBA.CLI
             RomLoader.InitEnvironment();
             string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
             if (!RomLoader.LoadRom(romPath, forceVersion)) return 1;
-            RomLoader.InitFull();
+            // Portrait import needs only RomInfo, image quantization, and direct
+            // ROM writes. Avoid unrelated text/Huffman/event initialization so
+            // malformed text data cannot abort this independent command.
 
             var rom = CoreState.ROM;
             if (rom?.RomInfo == null)
@@ -3116,7 +3118,8 @@ namespace FEBuilderGBA.CLI
             RomLoader.InitEnvironment();
             string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
             if (!RomLoader.LoadRom(romPath, forceVersion)) return 1;
-            RomLoader.InitFull();
+            // Each file uses the same minimal portrait-only initialization as
+            // --import-portrait; text/Huffman/event caches are not dependencies.
 
             var rom = CoreState.ROM;
             if (rom?.RomInfo == null)

@@ -60,6 +60,21 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains("RestoreExactRomLengthAfterUndo(", body, StringComparison.Ordinal);
         }
 
+        [Theory]
+        [InlineData("static int RunImportPortrait(Dictionary<string, string> argsDic)")]
+        [InlineData("static int RunImportPortraitAll(Dictionary<string, string> argsDic)")]
+        public void Cli_PortraitCommands_DoNotInitializeUnrelatedHuffmanState(
+            string signature)
+        {
+            string source = File.ReadAllText(Path.Combine(
+                RepoRoot(), "FEBuilderGBA.CLI", "Program.cs"));
+            string body = ExtractMethodBody(source, signature);
+
+            Assert.Contains("RomLoader.InitEnvironment();", body, StringComparison.Ordinal);
+            Assert.Contains("RomLoader.LoadRom(", body, StringComparison.Ordinal);
+            Assert.DoesNotContain("RomLoader.InitFull();", body, StringComparison.Ordinal);
+        }
+
         [Fact]
         public void Avalonia_ImageImportValidator_ImportPortraitMethod_UsesPortraitSafeHelpers()
         {
