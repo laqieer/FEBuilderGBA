@@ -28,6 +28,18 @@
          force its 2.88.x restore so the restored-graph guard has assets to read. -->
     <ProjectReference Include="..\FEBuilderGBA.SkiaSharp\FEBuilderGBA.SkiaSharp.csproj" />
   </ItemGroup>
+  <!-- Build the real CLI before Core.Tests without importing the CLI's
+       config/content items into the test output. A ProjectReference with
+       ReferenceOutputAssembly=false still propagated those content items and
+       broke tests that deliberately exercise an empty script/config root. -->
+  <Target Name="BuildFontLibraryCli"
+          BeforeTargets="Build"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <MSBuild Projects="..\FEBuilderGBA.CLI\FEBuilderGBA.CLI.csproj"
+             Targets="Build"
+             Properties="Configuration=$(Configuration)"
+             BuildInParallel="false" />
+  </Target>
   <ItemGroup>
     <!-- #1125: FEBuilderGBA.SkiaSharp pulls only the Win32 + macOS native assets
          transitively (NuGet RID-agnostic restore for a managed lib). Core.Tests
@@ -49,6 +61,10 @@
   <ItemGroup>
     <None Include="..\FEBuilderGBA.Avalonia.Tests\Fonts\Tuffy-Regular.ttf" Link="Fonts\Tuffy-Regular.ttf" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\FEBuilderGBA.Avalonia.Tests\Fonts\OFL.txt" Link="Fonts\OFL.txt" CopyToOutputDirectory="PreserveNewest" />
+    <!-- #2034 reuses (links; does not duplicate) the existing browser CJK
+         fixture and its OFL provenance for strict ZH face/CLI coverage. -->
+    <None Include="..\FEBuilderGBA.Browser\Assets\Fonts\NotoSansCJKsc-Subset.otf" Link="Fonts\NotoSansCJKsc-Subset.otf" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\FEBuilderGBA.Browser\Assets\Fonts\OFL.txt" Link="Fonts\Noto-OFL.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <!-- Include ComboResourceHelper source directly to avoid pulling in Avalonia UI dependencies -->

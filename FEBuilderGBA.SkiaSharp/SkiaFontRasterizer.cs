@@ -37,24 +37,29 @@ namespace FEBuilderGBA.SkiaSharp
         {
             // Render the character black-on-white into a 16x16 base bitmap,
             // matching GDI's DrawString at the top-left corner.
-            using SKBitmap baseBitmap = RenderBase(font, character);
-
-            return isItemFont
-                ? GenerateItemFont(baseBitmap, verticalOffset, out glyphWidth)
-                : GenerateTextFont(baseBitmap, verticalOffset, out glyphWidth);
+            using SKTypeface typeface = ResolveTypeface(font);
+            return RasterizeWithTypeface(
+                typeface,
+                font.Size <= 0 ? 12f : font.Size,
+                character,
+                isItemFont,
+                verticalOffset,
+                out glyphWidth);
         }
 
         // ---------- base render (GDI DrawString equivalent) ----------
 
-        static SKBitmap RenderBase(FontSpec font, string character)
+        internal static SKBitmap RenderBase(
+            SKTypeface typeface,
+            float size,
+            string character)
         {
             var bmp = new SKBitmap(16, 16, SKColorType.Rgba8888, SKAlphaType.Premul);
             using (var canvas = new SKCanvas(bmp))
             {
                 canvas.Clear(SKColors.White);
 
-                using SKTypeface typeface = ResolveTypeface(font);
-                using var skFont = new SKFont(typeface, font.Size <= 0 ? 12f : font.Size)
+                using var skFont = new SKFont(typeface, size)
                 {
                     // Pinned-deterministic settings so the same character renders
                     // identically across Windows / Linux / macOS CI. Hinting=None
@@ -84,6 +89,21 @@ namespace FEBuilderGBA.SkiaSharp
                 canvas.Flush();
             }
             return bmp;
+        }
+
+        internal static byte[] RasterizeWithTypeface(
+            SKTypeface typeface,
+            float size,
+            string character,
+            bool isItemFont,
+            int verticalOffset,
+            out int glyphWidth)
+        {
+            using SKBitmap baseBitmap =
+                RenderBase(typeface, size, character);
+            return isItemFont
+                ? GenerateItemFont(baseBitmap, verticalOffset, out glyphWidth)
+                : GenerateTextFont(baseBitmap, verticalOffset, out glyphWidth);
         }
 
         static SKTypeface ResolveTypeface(FontSpec font)

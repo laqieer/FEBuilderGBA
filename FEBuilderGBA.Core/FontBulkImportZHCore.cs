@@ -67,91 +67,41 @@ namespace FEBuilderGBA.Core
             byte[] snap = (byte[])rom.Data.Clone();
             try
             {
-                string[] lines = manifestText.Replace("\r\n", "\n").Split('\n');
-                foreach (string raw in lines)
+                FontBulkManifestParseResult parsed =
+                    FontBulkManifestCore.ParseRows(
+                        manifestText,
+                        FontBulkManifestMode.LegacyCompatible,
+                        row =>
                 {
-                    string line = raw.TrimEnd('\r');
-                    // Only blank lines + // comments/header are skipped silently —
-                    // every other line is a DATA row and is validated (no silent
-                    // drop / misclassification, so a "successful" import can't omit
-                    // rows).
-                    if (line.Trim().Length == 0) continue;
-                    if (line.StartsWith("//")) continue; // comment / header
-
-                    string[] sp = line.Split('\t');
-                    if (sp.Length < 4)
-                    {
-                        RestoreSnapshot(rom, snap);
-                        return R._("Invalid font manifest row (expected 4 tab-separated columns: char, type, width, filename): {0}", line);
-                    }
-
-                    // Validate the type column (item / text) instead of silently
-                    // defaulting an unknown type to serif.
-                    string type = sp[1].Trim();
-                    if (type != "item" && type != "text")
-                    {
-                        RestoreSnapshot(rom, snap);
-                        return R._("Invalid font type in manifest (expected 'item' or 'text'): {0}", type);
-                    }
-                    bool isItemFont = (type == "item");
-
-                    // Advance width (column 3) must be an integer in 0..16 (the
-                    // glyph is 16px wide). A non-numeric OR out-of-range width is a
-                    // manifest error (reject rather than silently deriving from
-                    // pixels or clamping).
-                    int width = ParseWidth(sp[2]);
-                    if (width < 0 || width > FontGlyphZHCore.GLYPH_W)
-                    {
-                        RestoreSnapshot(rom, snap);
-                        return R._("Invalid font width in manifest (expected an integer 0..{0}): {1}",
-                            FontGlyphZHCore.GLYPH_W, sp[2]);
-                    }
-
-                    string pngName = sp[3].Trim();
-                    if (pngName.Length == 0)
-                    {
-                        RestoreSnapshot(rom, snap);
-                        return R._("Invalid font manifest row (empty filename): {0}", line);
-                    }
-
-                    // Recover the engine char code from the filename hex suffix
-                    // (<type>_<mojiHex>.png). A data row whose filename can't be
-                    // keyed is a real manifest error — FAIL (atomic restore) rather
-                    // than silently omitting the glyph.
-                    if (!FontBulkImportCore.TryParseMojiFromFilename(pngName, out uint moji))
-                    {
-                        RestoreSnapshot(rom, snap);
-                        return R._("Cannot determine the character code from the font filename: {0}", pngName);
-                    }
-
+                    string type = row.Type;
+                    bool isItemFont = type == "item";
+                    string pngName = row.Filename;
                     FontGlyphZHPixels px = loadGlyph(pngName, type);
                     if (px == null || px.Indexed == null)
-                    {
-                        RestoreSnapshot(rom, snap);
                         return R._("Failed to load glyph image: {0}", pngName);
-                    }
 
                     // Un-shift the 16x16 vanilla-size PNG back to a 16x13 buffer
                     // (the inverse of FontBulkExportZHCore's ConvertVanillaFontSize
                     // BitBlt) so ImportGlyphZH sees the native 16x13 glyph again.
                     byte[] indexed13 = UnshiftTo16x13(px.Indexed, px.Width, px.Height, isItemFont);
                     if (indexed13 == null)
-                    {
-                        RestoreSnapshot(rom, snap);
                         return R._("Invalid font glyph image size: {0}", pngName);
-                    }
 
                     // manageSnapshot:false — the per-row import must NOT clone the ROM
                     // (the OUTER snapshot above already covers the atomic rollback). On
                     // a per-row error we restore the whole batch here.
-                    string err = FontGlyphZHCore.ImportGlyphZH(rom, isItemFont, moji,
+                    string err = FontGlyphZHCore.ImportGlyphZH(
+                        rom, isItemFont, row.Moji,
                         indexed13, FontGlyphZHCore.GLYPH_W, FontGlyphZHCore.GLYPH_H,
-                        explicitWidth: width, manageSnapshot: false);
+                        explicitWidth: row.Width, manageSnapshot: false);
                     if (!string.IsNullOrEmpty(err))
-                    {
-                        RestoreSnapshot(rom, snap);
                         return err;
-                    }
+                    return "";
+                });
+                if (!parsed.Success)
+                {
+                    RestoreSnapshot(rom, snap);
+                    return parsed.Error;
                 }
                 return "";
             }
@@ -169,30 +119,8 @@ namespace FEBuilderGBA.Core
         /// Exposed for tests.
         /// </summary>
         public static byte[] UnshiftTo16x13(byte[] indexed16x16, int width, int height, bool isItemFont)
-        {
-            int w = FontGlyphZHCore.GLYPH_W;   // 16
-            int dstH = FontGlyphZHCore.GLYPH_H; // 13
-            if (indexed16x16 == null) return null;
-            if (width != w || height != w) return null;            // must be 16x16
-            if (indexed16x16.Length < w * w) return null;
-
-            int shift = FontBulkExportZHCore.VanillaShift(isItemFont);
-            byte[] dst = new byte[w * dstH]; // 16x13, default index 0 (background)
-            for (int y = 0; y < dstH; y++)
-            {
-                int sy = y + shift;
-                if (sy < 0 || sy >= w) continue; // outside the 16px source (stays bg)
-                Array.Copy(indexed16x16, (sy * w), dst, (y * w), w);
-            }
-            return dst;
-        }
-
-        // Parse the manifest width column; returns -1 on a non-numeric value (the
-        // caller treats -1 as a manifest error and ABORTS).
-        static int ParseWidth(string s)
-        {
-            return int.TryParse(s.Trim(), out int width) && width >= 0 ? width : -1;
-        }
+            => FontGlyphZHIndexCore.UnshiftLegacyTo16x13(
+                indexed16x16, width, height, isItemFont);
 
         static void RestoreSnapshot(ROM rom, byte[] snap)
         {

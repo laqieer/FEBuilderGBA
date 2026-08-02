@@ -67,6 +67,10 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Contains("\ttext\t9\t", manifest);          // serif row with width 9
                 Assert.Contains("text_" + U.ToHexString(MOJI_A) + ".png", manifest);
                 Assert.Contains("text_" + U.ToHexString(MOJI_A) + ".png", savedNames);
+                Assert.Equal(
+                    "//char\ttype\tWidth\tFilename\n"
+                    + "@4100\ttext\t9\ttext_41.png\n",
+                    manifest);
             }
             finally { CoreState.ROM = prevRom; }
         }
@@ -213,6 +217,43 @@ namespace FEBuilderGBA.Core.Tests
                 string err = FontBulkImportCore.ImportAll(rom, manifest, (n, t) =>
                     new FontGlyphPixels { Indexed = idx, Width = 16, Height = 16 });
                 Assert.NotEqual("", err);
+                Assert.Equal(snap, rom.Data);
+            }
+            finally { CoreState.ROM = prevRom; }
+        }
+
+        [Fact]
+        public void ImportAll_PreservesLegacyRowByRowLoaderTiming()
+        {
+            var prevRom = CoreState.ROM;
+            using var svc = new ImageServiceScope();
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+                byte[] snap = (byte[])rom.Data.Clone();
+                byte[] idx = new byte[16 * 16];
+                int calls = 0;
+                string manifest =
+                    "A\ttext\t9\ttext_41.png\n"
+                    + "malformed-second-row\n";
+
+                string err = FontBulkImportCore.ImportAll(
+                    rom,
+                    manifest,
+                    (name, type) =>
+                    {
+                        calls++;
+                        return new FontGlyphPixels
+                        {
+                            Indexed = idx,
+                            Width = 16,
+                            Height = 16,
+                        };
+                    });
+
+                Assert.NotEqual("", err);
+                Assert.Equal(1, calls);
                 Assert.Equal(snap, rom.Data);
             }
             finally { CoreState.ROM = prevRom; }

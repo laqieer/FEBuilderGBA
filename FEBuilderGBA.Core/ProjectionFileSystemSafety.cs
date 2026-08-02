@@ -116,6 +116,63 @@ namespace FEBuilderGBA
             public uint FileIndexLow;
         }
 
+        [StructLayout(LayoutKind.Explicit, Size = 256)]
+        struct LinuxStatx
+        {
+            [FieldOffset(0)] public uint Mask;
+            [FieldOffset(16)] public uint NumberOfLinks;
+        }
+
+        [StructLayout(LayoutKind.Explicit, Size = 144)]
+        struct DarwinStat
+        {
+            [FieldOffset(6)] public ushort NumberOfLinks;
+        }
+
+        internal readonly struct OpenedRegularFileState
+        {
+            internal readonly FileSystemEntryIdentity Identity;
+            internal readonly long Length;
+            internal readonly ulong ChangeTimeA;
+            internal readonly ulong ChangeTimeB;
+            internal readonly ulong ChangeTimeC;
+            internal readonly ulong ChangeTimeD;
+            internal readonly uint LinkCount;
+            internal readonly uint TypeBits;
+
+            internal OpenedRegularFileState(
+                FileSystemEntryIdentity identity,
+                long length,
+                ulong changeTimeA,
+                ulong changeTimeB,
+                ulong changeTimeC,
+                ulong changeTimeD,
+                uint linkCount,
+                uint typeBits)
+            {
+                Identity = identity;
+                Length = length;
+                ChangeTimeA = changeTimeA;
+                ChangeTimeB = changeTimeB;
+                ChangeTimeC = changeTimeC;
+                ChangeTimeD = changeTimeD;
+                LinkCount = linkCount;
+                TypeBits = typeBits;
+            }
+
+            // Unix ctime changes when the pathname is renamed even though this
+            // held descriptor still names the same immutable bytes. Compare the
+            // opened identity, size, mtime, link count and type; this both binds
+            // the read and permits a safe path replacement after open.
+            internal bool SameSnapshot(OpenedRegularFileState other)
+                => Identity.Equals(other.Identity)
+                && Length == other.Length
+                && ChangeTimeA == other.ChangeTimeA
+                && ChangeTimeB == other.ChangeTimeB
+                && LinkCount == other.LinkCount
+                && TypeBits == other.TypeBits;
+        }
+
         [DllImport("libSystem.Native", EntryPoint = "SystemNative_LStat", SetLastError = true,
             CallingConvention = CallingConvention.Cdecl)]
         static extern int GetUnixFileStatus(
@@ -153,6 +210,21 @@ namespace FEBuilderGBA
         static extern bool GetFileInformationByHandle(
             SafeFileHandle handle,
             out WindowsFileInformation information);
+
+        [DllImport("libc", EntryPoint = "statx", SetLastError = true,
+            CallingConvention = CallingConvention.Cdecl)]
+        static extern int GetLinuxStatx(
+            int descriptor,
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string path,
+            int flags,
+            uint mask,
+            out LinuxStatx status);
+
+        [DllImport("libc", EntryPoint = "fstat", SetLastError = true,
+            CallingConvention = CallingConvention.Cdecl)]
+        static extern int GetDarwinStat(
+            int descriptor,
+            out DarwinStat status);
 
         internal static bool IsRegularFileMode(int mode)
             => (mode & FileTypeMask) == RegularFileType;
@@ -299,6 +371,216 @@ namespace FEBuilderGBA
                 "Opened file identity comparison is unavailable on this platform.");
         }
 
+        /// <summary>
+        /// Captures regular-file identity and mutation metadata from the exact
+        /// opened handle. Package/report callers use snapshots before and after
+        /// reading so path validation and content consumption cannot diverge.
+        /// </summary>
+        internal static OpenedRegularFileState InspectOpenedRegularFile(
+            SafeFileHandle handle,
+            string label,
+            bool rejectHardLinks)
+        {
+            if (handle == null || handle.IsInvalid)
+                throw new IOException(label + " has an invalid handle.");
+
+            OpenedRegularFileState state;
+            if (OperatingSystem.IsWindows())
+            {
+                if (GetFileType(handle) != FileTypeDisk
+                    || !GetFileInformationByHandle(
+                        handle, out WindowsFileInformation info))
+                {
+                    throw new IOException(
+                        "Cannot inspect opened regular file '" + label
+                        + "' (Win32 error "
+                        + Marshal.GetLastPInvokeError() + ").");
+                }
+                if ((info.FileAttributes
+                        & (FileAttributes.Directory
+                            | FileAttributes.ReparsePoint)) != 0)
+                {
+                    throw new IOException(
+                        "Opened file is a directory/reparse point: " + label);
+                }
+                ulong fileIndex = ((ulong)info.FileIndexHigh << 32)
+                    | info.FileIndexLow;
+                long length = checked((long)(
+                    ((ulong)info.FileSizeHigh << 32)
+                    | info.FileSizeLow));
+                state = new OpenedRegularFileState(
+                    new FileSystemEntryIdentity(
+                        FileSystemEntryIdentityKind.Windows64,
+                        info.VolumeSerialNumber,
+                        fileIndex,
+                        0),
+                    length,
+                    ((ulong)info.LastWriteTimeHigh << 32)
+                        | info.LastWriteTimeLow,
+                    ((ulong)info.CreationTimeHigh << 32)
+                        | info.CreationTimeLow,
+                    0,
+                    0,
+                    info.NumberOfLinks,
+                    (uint)info.FileAttributes);
+            }
+            else if (OperatingSystem.IsLinux()
+                || OperatingSystem.IsMacOS()
+                || OperatingSystem.IsAndroid()
+                || OperatingSystem.IsIOS()
+                || OperatingSystem.IsMacCatalyst())
+            {
+                if (GetUnixFileStatus(handle, out UnixFileStatus info) != 0)
+                    throw new IOException(
+                        "Cannot inspect opened Unix file '" + label
+                        + "' (native error "
+                        + Marshal.GetLastPInvokeError() + ").");
+                if (!IsRegularFileMode(info.Mode))
+                    throw new IOException(
+                        "Opened entry is not a regular file: " + label);
+                uint links = ReadUnixLinkCount(handle, label);
+                state = new OpenedRegularFileState(
+                    new FileSystemEntryIdentity(
+                        FileSystemEntryIdentityKind.Unix,
+                        unchecked((ulong)info.Dev),
+                        unchecked((ulong)info.Ino),
+                        0),
+                    info.Size,
+                    unchecked((ulong)info.MTime),
+                    unchecked((ulong)info.MTimeNsec),
+                    unchecked((ulong)info.CTime),
+                    unchecked((ulong)info.CTimeNsec),
+                    links,
+                    unchecked((uint)info.Mode));
+            }
+            else
+            {
+                throw new PlatformNotSupportedException(
+                    "Opened-file inspection is unavailable on this platform.");
+            }
+
+            if (rejectHardLinks && state.LinkCount != 1)
+                throw new IOException(
+                    "Hard-linked regular files are forbidden: " + label);
+            return state;
+        }
+
+        internal static void VerifyOpenedRegularFileUnchanged(
+            SafeFileHandle handle,
+            string label,
+            bool rejectHardLinks,
+            OpenedRegularFileState before)
+        {
+            OpenedRegularFileState after = InspectOpenedRegularFile(
+                handle, label, rejectHardLinks);
+            if (!before.SameSnapshot(after))
+                throw new IOException(
+                    "Opened regular file changed while it was read: " + label);
+        }
+
+        internal static byte[] ReadOpenedRegularFileBoundedStable(
+            FileStream stream,
+            int maxBytes,
+            string label,
+            bool rejectHardLinks,
+            out OpenedRegularFileState identity,
+            Action afterInspection = null)
+        {
+            if (stream == null) throw new ArgumentNullException(nameof(stream));
+            if (maxBytes < 0) throw new ArgumentOutOfRangeException(nameof(maxBytes));
+            identity = InspectOpenedRegularFile(
+                stream.SafeFileHandle, label, rejectHardLinks);
+            if (identity.Length > maxBytes)
+                throw new IOException(label + " exceeds its byte cap.");
+            afterInspection?.Invoke();
+            stream.Position = 0;
+            using var buffer = new MemoryStream(
+                checked((int)Math.Min(identity.Length, maxBytes)));
+            var block = new byte[81920];
+            int total = 0;
+            while (true)
+            {
+                int count = stream.Read(block, 0, block.Length);
+                if (count == 0) break;
+                total = checked(total + count);
+                if (total > maxBytes)
+                    throw new IOException(label + " exceeds its byte cap.");
+                buffer.Write(block, 0, count);
+            }
+            VerifyOpenedRegularFileUnchanged(
+                stream.SafeFileHandle,
+                label,
+                rejectHardLinks,
+                identity);
+            return buffer.ToArray();
+        }
+
+        static uint ReadUnixLinkCount(
+            SafeFileHandle handle,
+            string label)
+        {
+            int descriptor = handle.DangerousGetHandle().ToInt32();
+            if (OperatingSystem.IsLinux() || OperatingSystem.IsAndroid())
+            {
+                const int AtEmptyPath = 0x1000;
+                const uint StatxNlink = 0x0004;
+                LinuxStatx status;
+                int result;
+                try
+                {
+                    result = GetLinuxStatx(
+                        descriptor,
+                        "",
+                        AtEmptyPath,
+                        StatxNlink,
+                        out status);
+                }
+                catch (Exception ex) when (IsNativeInteropUnavailable(ex))
+                {
+                    throw new IOException(
+                        "Unix hard-link inspection is unavailable for '"
+                        + label + "'.",
+                        ex);
+                }
+                if (result != 0 || (status.Mask & StatxNlink) == 0)
+                {
+                    throw new IOException(
+                        "Cannot inspect Unix hard-link count for '" + label
+                        + "' (native error "
+                        + Marshal.GetLastPInvokeError() + ").");
+                }
+                return status.NumberOfLinks;
+            }
+            if (OperatingSystem.IsMacOS()
+                || OperatingSystem.IsIOS()
+                || OperatingSystem.IsMacCatalyst())
+            {
+                DarwinStat status;
+                int result;
+                try
+                {
+                    result = GetDarwinStat(descriptor, out status);
+                }
+                catch (Exception ex) when (IsNativeInteropUnavailable(ex))
+                {
+                    throw new IOException(
+                        "Unix hard-link inspection is unavailable for '"
+                        + label + "'.",
+                        ex);
+                }
+                if (result != 0)
+                {
+                    throw new IOException(
+                        "Cannot inspect Unix hard-link count for '" + label
+                        + "' (native error "
+                        + Marshal.GetLastPInvokeError() + ").");
+                }
+                return status.NumberOfLinks;
+            }
+            throw new PlatformNotSupportedException(
+                "Unix hard-link inspection is unavailable.");
+        }
+
         public static FileSystemEntryIdentity CaptureExistingFileSystemEntryIdentity(
             string path)
         {
@@ -325,6 +607,304 @@ namespace FEBuilderGBA
         internal static bool SameExistingFileSystemEntry(string firstPath, string secondPath)
             => CaptureExistingFileSystemEntryIdentity(firstPath)
                 .Equals(CaptureExistingFileSystemEntryIdentity(secondPath));
+
+        /// <summary>
+        /// Removes only the reserved single-link regular-file identity. The
+        /// caller-visible pathname is first moved atomically and without
+        /// replacement to an unguessable sibling quarantine. A replacement at
+        /// either pathname is retained rather than deleted.
+        /// </summary>
+        internal static bool TryDeleteReservedFileIdentityBound(
+            string path,
+            FileSystemEntryIdentity expectedIdentity,
+            Action<string> beforeFinalIdentityCheck,
+            out string error)
+            => TryDeleteReservedFileIdentityBound(
+                path,
+                expectedIdentity,
+                beforeFinalIdentityCheck,
+                null,
+                null,
+                out error);
+
+        internal static bool TryDeleteReservedFileIdentityBound(
+            string path,
+            FileSystemEntryIdentity expectedIdentity,
+            Action<string> beforeFinalIdentityCheck,
+            BuildfileDeletePath deleteQuarantineForTest,
+            out string error)
+            => TryDeleteReservedFileIdentityBound(
+                path,
+                expectedIdentity,
+                beforeFinalIdentityCheck,
+                null,
+                deleteQuarantineForTest,
+                out error);
+
+        internal static bool TryDeleteReservedFileIdentityBound(
+            string path,
+            FileSystemEntryIdentity expectedIdentity,
+            Action<string> beforeFinalIdentityCheck,
+            Action<string> afterFinalIdentityCheck,
+            BuildfileDeletePath deleteQuarantineForTest,
+            out string error)
+        {
+            error = "";
+            string quarantine = null;
+            try
+            {
+                if (string.IsNullOrEmpty(path))
+                    throw new ArgumentException(
+                        "Reserved file path is empty.",
+                        nameof(path));
+                if (!IsPlainRegularFileWithIdentity(
+                    path, expectedIdentity, out error))
+                {
+                    return false;
+                }
+
+                string parent = Path.GetDirectoryName(path);
+                if (string.IsNullOrEmpty(parent))
+                    throw new IOException(
+                        "Reserved file has no containing directory.");
+                quarantine = Path.Combine(
+                    parent,
+                    ".febuild-file-cleanup-"
+                        + Guid.NewGuid().ToString("N"));
+                BuildfileExportCore.PublishDirectoryNoReplace(
+                    path, quarantine);
+
+                if (!IsPlainRegularFileWithIdentity(
+                    quarantine, expectedIdentity, out error))
+                {
+                    return false;
+                }
+                afterFinalIdentityCheck?.Invoke(quarantine);
+                if (!IsPlainRegularFileWithIdentity(
+                    quarantine, expectedIdentity, out error))
+                {
+                    return false;
+                }
+                beforeFinalIdentityCheck?.Invoke(quarantine);
+                if (!IsPlainRegularFileWithIdentity(
+                    quarantine, expectedIdentity, out error))
+                {
+                    return false;
+                }
+
+                if (deleteQuarantineForTest != null)
+                {
+                    if (!deleteQuarantineForTest(
+                        quarantine, out string injectedError))
+                    {
+                        error =
+                            "could not delete reserved file quarantine '"
+                            + quarantine + "': " + injectedError;
+                        return false;
+                    }
+                }
+                else
+                {
+                    File.Delete(quarantine);
+                }
+                if (!BuildfileExportCore.VerifyPathAbsent(
+                    quarantine,
+                    File.GetAttributes,
+                    out error))
+                {
+                    return false;
+                }
+                if (!BuildfileExportCore.VerifyPathAbsent(
+                    path,
+                    File.GetAttributes,
+                    out string originalPathError))
+                {
+                    error =
+                        "reserved staging pathname was recreated; replacement "
+                        + "retained: " + path + " (" + originalPathError + ")";
+                    return false;
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = (quarantine == null
+                    ? "reserved file cleanup failed"
+                    : "reserved file quarantine '" + quarantine
+                        + "' was retained")
+                    + ": " + ex.Message;
+                return false;
+            }
+        }
+
+        static bool IsPlainRegularFileWithIdentity(
+            string path,
+            FileSystemEntryIdentity expectedIdentity,
+            out string error)
+        {
+            error = "";
+            try
+            {
+                using FileStream stream = OpenRegularFileForRead(path);
+                OpenedRegularFileState state = InspectOpenedRegularFile(
+                    stream.SafeFileHandle,
+                    path,
+                    rejectHardLinks: true);
+                if (!state.Identity.Equals(expectedIdentity))
+                {
+                    error =
+                        "reserved file pathname was replaced; cleanup refused: "
+                        + path;
+                    return false;
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error =
+                    "reserved file is missing, uncertain, or no longer a "
+                    + "plain single-link regular file; cleanup refused: "
+                    + path + " (" + ex.Message + ")";
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Removes only the reserved directory identity. The caller-visible
+        /// pathname is first moved, atomically and without replacement, to an
+        /// unguessable sibling quarantine. A new entry appearing at the old
+        /// pathname is therefore never traversed or deleted.
+        /// </summary>
+        internal static bool TryDeleteReservedDirectoryIdentityBound(
+            string path,
+            FileSystemEntryIdentity expectedIdentity,
+            Action<string> beforeFinalIdentityCheck,
+            out string error)
+            => TryDeleteReservedDirectoryIdentityBound(
+                path,
+                expectedIdentity,
+                beforeFinalIdentityCheck,
+                null,
+                out error);
+
+        internal static bool TryDeleteReservedDirectoryIdentityBound(
+            string path,
+            FileSystemEntryIdentity expectedIdentity,
+            Action<string> beforeFinalIdentityCheck,
+            Action<string> afterFinalIdentityCheck,
+            out string error)
+        {
+            error = "";
+            string quarantine = null;
+            try
+            {
+                if (string.IsNullOrEmpty(path))
+                    throw new ArgumentException(
+                        "Reserved directory path is empty.",
+                        nameof(path));
+                if (!IsPlainDirectoryWithIdentity(
+                    path, expectedIdentity, out error))
+                {
+                    return false;
+                }
+
+                string parent = Path.GetDirectoryName(path);
+                if (string.IsNullOrEmpty(parent))
+                    throw new IOException(
+                        "Reserved directory has no containing directory.");
+                quarantine = Path.Combine(
+                    parent,
+                    ".fontlib-cleanup-" + Guid.NewGuid().ToString("N"));
+                BuildfileExportCore.PublishDirectoryNoReplace(
+                    path, quarantine);
+
+                // Validate after the atomic move, then again after the optional
+                // deterministic race seam and immediately before traversal.
+                if (!IsPlainDirectoryWithIdentity(
+                    quarantine, expectedIdentity, out error))
+                {
+                    return false;
+                }
+                beforeFinalIdentityCheck?.Invoke(quarantine);
+                if (!IsPlainDirectoryWithIdentity(
+                    quarantine, expectedIdentity, out error))
+                {
+                    return false;
+                }
+                afterFinalIdentityCheck?.Invoke(quarantine);
+                if (!IsPlainDirectoryWithIdentity(
+                    quarantine, expectedIdentity, out error))
+                {
+                    return false;
+                }
+
+                Directory.Delete(quarantine, recursive: true);
+                if (File.Exists(quarantine)
+                    || Directory.Exists(quarantine))
+                {
+                    error =
+                        "reserved staging quarantine still exists";
+                    return false;
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+        }
+
+        internal static void VerifyPlainDirectoryIdentity(
+            string path,
+            FileSystemEntryIdentity expectedIdentity)
+        {
+            if (!IsPlainDirectoryWithIdentity(
+                path, expectedIdentity, out string error))
+            {
+                throw new IOException(error);
+            }
+        }
+
+        static bool IsPlainDirectoryWithIdentity(
+            string path,
+            FileSystemEntryIdentity expectedIdentity,
+            out string error)
+        {
+            error = "";
+            FileAttributes attributes;
+            try
+            {
+                attributes = File.GetAttributes(path);
+            }
+            catch (FileNotFoundException)
+            {
+                error =
+                    "reserved staging directory disappeared; cleanup refused";
+                return false;
+            }
+            catch (DirectoryNotFoundException)
+            {
+                error =
+                    "reserved staging directory disappeared; cleanup refused";
+                return false;
+            }
+            if ((attributes & FileAttributes.Directory) == 0
+                || (attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                error =
+                    "reserved staging pathname is no longer a plain directory";
+                return false;
+            }
+            if (!CaptureExistingFileSystemEntryIdentity(path)
+                .Equals(expectedIdentity))
+            {
+                error =
+                    "reserved staging pathname was replaced; cleanup refused";
+                return false;
+            }
+            return true;
+        }
 
         static FileStream OpenRegularUnix(string path)
         {

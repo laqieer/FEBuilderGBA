@@ -19,7 +19,6 @@
 // clean round-trip.
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace FEBuilderGBA.Core
 {
@@ -31,13 +30,8 @@ namespace FEBuilderGBA.Core
     /// </summary>
     public static class FontBulkExportZHCore
     {
-        // The WF ConvertVanillaFontSizeBitmap vertical shift: the 13px ZH glyph is
-        // BitBlt'd into a 16px canvas at y = shift (item 2, serif 1). The shift IS
-        // recoverable from the type column, so the import path un-shifts.
-        internal const int ITEM_SHIFT = 2;
-        internal const int SERIF_SHIFT = 1;
-
-        internal static int VanillaShift(bool isItemFont) => isItemFont ? ITEM_SHIFT : SERIF_SHIFT;
+        internal static int VanillaShift(bool isItemFont)
+            => FontGlyphZHIndexCore.VanillaShift(isItemFont);
 
         /// <summary>
         /// Enumerate the item + serif Chinese fonts and build the manifest text.
@@ -60,11 +54,11 @@ namespace FEBuilderGBA.Core
             if (!FontGlyphZHCore.IsZHRom(rom)) return "";
             if (CoreState.ImageService == null) return "";
 
-            var sb = new StringBuilder();
-            sb.Append("//char\ttype\tWidth\tFilename\n");
-            ExportOne(rom, isItemFont: true, userFontOnly, writePng, sb);
-            ExportOne(rom, isItemFont: false, userFontOnly, writePng, sb);
-            return sb.ToString();
+            var rows = new List<FontBulkManifestRow>();
+            ExportOne(rom, isItemFont: true, userFontOnly, writePng, rows);
+            ExportOne(rom, isItemFont: false, userFontOnly, writePng, rows);
+            return FontBulkManifestCore.Format(
+                rows, FontBulkManifestMode.LegacyCompatible);
         }
 
         /// <summary>
@@ -88,7 +82,8 @@ namespace FEBuilderGBA.Core
         }
 
         static void ExportOne(ROM rom, bool isItemFont, bool userFontOnly,
-            Func<IImage, string, bool> writePng, StringBuilder sb)
+            Func<IImage, string, bool> writePng,
+            List<FontBulkManifestRow> rows)
         {
             uint defaultEnd = rom.RomInfo.font_default_end;
             string type = isItemFont ? "item" : "text";
@@ -108,20 +103,21 @@ namespace FEBuilderGBA.Core
                 // Filesystem-safe name: <type>_<mojiHex>.png (the raw char may be
                 // an unrepresentable control code, so we key on the hex code — the
                 // import path recovers the moji from this hex suffix).
-                string pngName = type + "_" + U.ToHexString(g.Moji) + ".png";
+                string pngName =
+                    type + "_" + U.ToHexString(g.Moji) + ".png";
                 bool ok;
                 try { ok = writePng(img, pngName); }
                 finally { img.Dispose(); }
                 if (!ok) continue;
 
-                sb.Append(g.Name);
-                sb.Append('\t');
-                sb.Append(type);
-                sb.Append('\t');
-                sb.Append(g.Width);
-                sb.Append('\t');
-                sb.Append(pngName);
-                sb.Append('\n');
+                rows.Add(new FontBulkManifestRow
+                {
+                    Character = g.Name,
+                    Type = type,
+                    Width = g.Width,
+                    Filename = pngName,
+                    Moji = g.Moji,
+                });
             }
         }
 
@@ -139,17 +135,17 @@ namespace FEBuilderGBA.Core
             using IImage glyph16x13 = FontGlyphZHCore.RenderGlyphZH(rom, addr, isItemFont);
             if (glyph16x13 == null) return null;
 
-            return ShiftInto16x16(glyph16x13, VanillaShift(isItemFont));
+            return ShiftInto16x16(glyph16x13, isItemFont);
         }
 
         /// <summary>
         /// Copy a 16x13 RGBA glyph into a fresh transparent 16x16 canvas, shifted
-        /// down by <paramref name="shift"/> rows (the WF ConvertVanillaFontSizeBitmap
-        /// BitBlt). Exposed for tests + the import un-shift. Returns null on bad
-        /// input. The shift is fully invertible: the 13 source rows land at
-        /// y = shift .. shift+12, all in-bounds for shift in {1,2}.
+        /// down by the centralized item/text geometry (the WF
+        /// ConvertVanillaFontSizeBitmap BitBlt). Returns null on bad input.
         /// </summary>
-        internal static IImage ShiftInto16x16(IImage glyph16x13, int shift)
+        internal static IImage ShiftInto16x16(
+            IImage glyph16x13,
+            bool isItemFont)
         {
             if (CoreState.ImageService == null || glyph16x13 == null) return null;
             int w = FontGlyphZHCore.GLYPH_W;   // 16
@@ -159,12 +155,14 @@ namespace FEBuilderGBA.Core
             if (src == null || src.Length < w * srcH * 4) return null;
 
             var dst = CoreState.ImageService.CreateImage(w, w); // 16x16
-            byte[] outPx = new byte[w * w * 4]; // default transparent
-            for (int y = 0; y < srcH; y++)
+            var exactSource = new byte[w * srcH * 4];
+            Array.Copy(src, exactSource, exactSource.Length);
+            byte[] outPx = FontGlyphZHIndexCore.ShiftRgbaTo16x16(
+                exactSource, isItemFont);
+            if (outPx == null)
             {
-                int dy = y + shift;
-                if (dy < 0 || dy >= w) continue; // clipped off the 16px canvas
-                Array.Copy(src, (y * w) * 4, outPx, (dy * w) * 4, w * 4);
+                dst.Dispose();
+                return null;
             }
             dst.SetPixelData(outPx);
             return dst;

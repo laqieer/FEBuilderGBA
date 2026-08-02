@@ -8,7 +8,7 @@ remaining commands are listed in compact form under
 [Decomp project mode](#decomp-project-mode). The complete option list with inline help is
 always available via `FEBuilderGBA.CLI --help`.
 
-**Source:** `FEBuilderGBA.CLI/Program.cs`,
+**Source:** `FEBuilderGBA.CLI/Program.cs`, `FEBuilderGBA.CLI/Program.FontLibrary.cs`,
 `FEBuilderGBA.CLI/Program.Playtest.cs`, `FEBuilderGBA.CLI/RomLoader.cs`
 
 ## Usage
@@ -68,6 +68,167 @@ License: GPLv3
 ```
 
 **Exit code:** always 0.
+
+---
+
+### `--build-font-library`
+
+Build or inspect a deterministic, ROM-independent font library from verified
+local inputs:
+
+For pinned font/license/corpus bytes and this tool version, the full package
+tree is byte-identical on Windows x64 and Linux x64. The report exposes both
+payload and finalized full-tree hashes. macOS arm64 runs structural
+generate/validate/roundtrip checks only because the repository's existing
+Skia font goldens document AA-threshold drift there; no cross-architecture
+byte-identity claim is made.
+
+```bash
+FEBuilderGBA.CLI --build-font-library --manifest=font-library.json \
+  --out=library --mode=generate --report=generation-report.json
+FEBuilderGBA.CLI --build-font-library --manifest=font-library.json \
+  --out=library --mode=validate --report=generation-report.json
+FEBuilderGBA.CLI --build-font-library --manifest=font-library.json \
+  --out=library --mode=roundtrip --report=generation-report.json
+```
+
+| Option | Required | Description |
+|---|---|---|
+| `--manifest=<path>` | Yes | Strict UTF-8 schema-v1 JSON; local paths are relative to this file and every input is SHA-256 pinned. |
+| `--out=<dir>` | Yes | New destination for `generate`/`dry-run`; existing package for `validate`/`roundtrip`. Dry-run never creates it. |
+| `--mode=<mode>` | No | `generate` (default), `dry-run`, `validate`, or `roundtrip`. Validate and roundtrip never open a font face or rasterize. |
+| `--report=<path>` | No | In `generate`/`dry-run`, persist the deterministic report to a **new**, outside-package, no-replace file instead of stdout. In `validate`/`roundtrip`, load an **existing generation report** as the immutable expected oracle; the outcome report remains stdout. Progress/warnings are stderr. |
+| `--job=<id>` | No | Process exactly one case-sensitive job id. |
+
+The command has an exact option allowlist and does not initialize a ROM.
+Inputs/output/report reject parent traversal, device paths, reparse leaves,
+hard-linked package/report files, cross-role aliases, case collisions, and cap
+violations. Generation builds the complete package in memory, writes an
+exclusively reserved sibling stage, identity-bound re-reads/hashes/validates it,
+then atomically publishes without replacement. After the move it performs two
+identity-bound full-tree validations before releasing success or an external
+report. A mismatch retains the published path and never deletes it;
+pre-publication cleanup quarantines and removes only the verified staging
+identity after repeated identity checks. Dry-run performs only strict
+parsing, bounded input/provenance verification, scalar planning, and
+style-expanded capacity checks. It never opens a font face, rasterizes, creates
+package staging, or writes package files; an optional outside-package dry-run
+report is its only output file.
+
+The cleanup threat boundary excludes a malicious concurrent process running
+under the same OS identity during the final delete syscall. Quarantine names
+are unguessable and identity is checked repeatedly, but Unix has no
+unprivileged delete-by-open-directory-handle primitive; a same-UID actor can
+always rename/replace a pathname between the last check and `unlinkat`.
+Detected or uncertain replacements are retained and surfaced as cleanup
+failures rather than traversed.
+
+#### Schema v1
+
+Every object rejects duplicate and unknown members. A job declares explicit
+locale, format (`main-16x16` or `zh-16x13`), one or both styles, a corpus and/or
+Unicode-scalar ranges, font/license provenance and lowercase SHA-256, render
+size/vertical offset, and an explicit mapping. There is no encoding inference
+or runtime download.
+
+```json
+{
+  "schemaVersion": 1,
+  "jobs": [{
+    "id": "latin",
+    "locale": "en",
+    "format": "main-16x16",
+    "styles": ["item", "text"],
+    "corpus": {
+      "path": "corpus/latin.txt",
+      "sha256": "<64 lowercase hex characters>",
+      "separators": ["U+0020", "U+000A"]
+    },
+    "scalarRanges": [{"start": "U+0041", "end": "U+005A"}],
+    "font": {
+      "path": "fonts/Tuffy-Regular.ttf",
+      "sha256": "<64 lowercase hex characters>",
+      "byteLength": 218708,
+      "family": "Tuffy",
+      "version": "Version 1.272; ttfautohint (v1.6)",
+      "sourceUrl": "https://github.com/google/fonts",
+      "size": 12
+    },
+    "license": {
+      "licenseId": "OFL-1.1",
+      "licenseFile": "fonts/OFL.txt",
+      "sha256": "<64 lowercase hex characters>",
+      "sourceUrl": "https://openfontlicense.org"
+    },
+    "verticalOffset": 0,
+    "mapping": {
+      "mode": "range",
+      "unicodeStart": "U+0041",
+      "unicodeEnd": "U+005A",
+      "mojiStart": 65,
+      "mojiEnd": 90
+    }
+  }]
+}
+```
+
+`mapping.mode` may instead be `fixed`, with
+`"entries":[{"scalar":"U+0041","moji":65}]`. The selected scalar union must be
+covered exactly. A range mapping only bounds the allowed Unicode scalars and
+moji capacity: selected scalars are sorted ascending and assigned compactly
+from `mojiStart` through `mojiEnd`; the Unicode and moji spans need not have
+equal lengths. Corpus separators are ignored only when explicitly listed.
+Other Unicode whitespace in corpus text, and whitespace selected explicitly by
+`scalarRanges` or fixed-map entries, is diagnosed rather than inferred away.
+Missing mappings,
+duplicates/collisions, exhaustion, missing font glyphs, fallback/default faces,
+and all-background rasterizations fail.
+
+Resource limits are deterministic: manifest 1 MiB; 64 jobs; 4,096 scalar
+ranges/job; 65,536 fixed mappings/job; 256 separators/corpus; corpus 16 MiB;
+font 32 MiB; license 16 MiB; 256 MiB combined unique input assets; and 64 MiB
+per report. The selected run has one 65,536 capacity limit, checked on
+**rows after style expansion**, not on scalars, before slot allocation or
+rasterization.
+
+Each output job directory contains `<job>.fontall.txt`, `slots.tsv`, and
+`<type>_<U.ToHexString(moji)>.png`. Manifests have the exact four-column header,
+LF endings, widths 1–16, unique moji/style keys, and item-before-text ordering
+within numeric moji order. PNGs are canonical 16×16 color-type-3, bit-depth-2
+files with exactly `IHDR/PLTE/tRNS/IDAT/IEND`, filter 0, one stored-DEFLATE zlib
+block, and no metadata/trailing bytes. The four main/ZH × item/text palettes
+are distinct where the established engine palettes differ, and `tRNS` is
+exactly four bytes `{0,255,255,255}`. ZH first crops ordinary raster rows 0–12,
+then applies the package shift in index space (+2 item, +1 text); every padding
+row must be index zero.
+ZH PNG pixels are reconstructed from the declared-width 40-byte engine stream,
+so generated images contain no unrepresentable tail/column data; `roundtrip`
+classifies an otherwise valid, hash-consistent lossy ZH tree as exit 2 drift.
+Reports contain manifest/corpus hashes, locale/format, native/PNG dimensions,
+font byte length/family/version/SHA/source URL, license
+identifier/file/SHA/source URL, deterministic per-glyph scalar/character/
+style/moji/width/filename/packed/PNG hashes, structured outcomes, and separate
+packed-stream, PNG-stream, and ordinal `/`-path tree SHA-256 values; they
+contain no timestamps or host paths. Nonzero commands emit canonical failure
+JSON on stdout and a human diagnostic on stderr.
+The embedded `package-report.json` explicitly carries
+`payloadTreeSha256`, which excludes that report. The external generation
+report/stdout additionally carries `fullTreeSha256`, computed from the
+finalized on-disk tree including `package-report.json`; no self-referential
+full-tree field is embedded. A dry-run cannot derive output bytes, so its
+packed, PNG, and tree hash fields are canonically empty.
+With `--report`, validate/roundtrip compare against the immutable external
+`fullTreeSha256` before internal package checks and therefore reject coordinated
+PNG + slots + `package-report.json` edits; use the outside-package report from
+the original generation with the same selected plan and reported provenance.
+The report is opened once without following links, read and alias-checked
+through that same handle. Without it validation explicitly proves internal
+consistency only and cannot detect such coordinated edits. Neither validation
+mode opens a face or rasterizes.
+
+**Exit codes:** `0` success; `1` usage, schema, path, I/O, font, or provenance
+failure; `2` semantic missing-glyph, conflict, exhaustion, tamper, validation,
+or round-trip-mismatch outcome.
 
 ---
 
@@ -903,6 +1064,8 @@ required and optional flags. Each is verified against its `Run*` handler in
   Requires `--out=<path.png>`; optional `--text=<chars>` (default `A`), `--font-file=<path>`
   (`.ttf`/`.otf`; system default if omitted), `--font-size=<float>` (default 12), and
   `--vertical-offset=<int>` (clamped -8..8). **Exit:** 0 on success, 1 on usage/font error.
+- **`--build-font-library`** — Strict hash-pinned multi-job font package builder/validator.
+  See the full command section above. No ROM. **Exit:** 0 success; 1 usage/schema/path/I/O/font/provenance; 2 missing glyph/conflict/exhaustion/tamper/validation/round-trip mismatch.
 - **`--export-palette`** — Export a GBA palette to a file. Requires `--rom`, `--addr=<hex>`,
   and `--out=<path>` whose extension picks the format (`.pal` JASC, `.act` ACT, `.gpl` GIMP,
   `.txt` hex, `.gbapal` raw); optional `--colors=<int>` (1..256, default 16). **Exit:** 0 on
@@ -1555,9 +1718,10 @@ Arguments are parsed into a `Dictionary<string, string>`:
 - Positional arguments (no `--` prefix) are ignored.
 - Duplicate keys: last value wins.
 
-`--playtest` adds a stricter command-local pass over the original ordered argv:
-unknown options, positionals, duplicates, empty values, missing values, and
-values attached to flag-only options are rejected before Python is launched.
+`--playtest` and `--build-font-library` add stricter command-local passes over
+the original ordered argv: unknown options, positionals, duplicates, empty or
+missing values, and values attached to flag-only options are rejected before
+either command performs its substantive work.
 
 ---
 

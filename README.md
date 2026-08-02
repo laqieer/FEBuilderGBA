@@ -26,7 +26,7 @@ README
 |---------|--------|-------------|
 | `FEBuilderGBA.Core` | net10.0 | Cross-platform core library: ROM manipulation, undo, LZ77, Huffman/text encoding, patch detection, translation, caching, git/archive, event ASM/disassembler, struct export, and ~100 other per-class seams. See [docs/CORE-SEAMS.md](docs/CORE-SEAMS.md) for the full catalog. |
 | `FEBuilderGBA` | net10.0-windows | WinForms GUI application — **stable; bug fixes only** (see [GUI strategy](docs/GUI-STRATEGY.md)) |
-| `FEBuilderGBA.CLI` | net10.0 | Cross-platform command-line tool (71 commands<sup>[†](#cli-command-count)</sup> — UPS/patch, lint, rebuild, deterministic headless playtest, buildfile export/build/round-trip, disasm, translate, struct/data export-import, portrait/MIDI/battle-anime/palette, decomp project mode, and more). Full reference: [docs/cli-reference.md](docs/cli-reference.md) · arg table: [docs/cli-args.md](docs/cli-args.md). |
+| `FEBuilderGBA.CLI` | net10.0 | Cross-platform command-line tool (72 commands<sup>[†](#cli-command-count)</sup> — UPS/patch, lint, rebuild, deterministic font-library and headless-playtest tooling, buildfile export/build/round-trip, disasm, translate, struct/data export-import, portrait/MIDI/battle-anime/palette, decomp project mode, and more). Full reference: [docs/cli-reference.md](docs/cli-reference.md) · arg table: [docs/cli-args.md](docs/cli-args.md). |
 | `FEBuilderGBA.SkiaSharp` | net10.0 | SkiaSharp `IImageService` (GBA 4bpp/8bpp tiles, palette conversion) + `SkiaFontRasterizer` (cross-platform GDI-parity glyph rendering for translation-font auto-generation). |
 | `FEBuilderGBA.Avalonia` | net10.0 | Cross-platform Avalonia GUI: 324 editors (unit/item/class/map/event/AI/text/audio/graphics/portrait/world-map/support/arena/monster/summon/menu/credits) with read/write + undo, image PNG import, hex editor, pointer/free-space tools, cross-editor jump/pick navigation, decomp-project mode, and Help → Check for Updates to open the latest release when a newer build exists. Full editor inventory: [docs/avalonia-forms.md](docs/avalonia-forms.md) · gap analysis: [docs/avalonia-gap-analysis.md](docs/avalonia-gap-analysis.md). |
 | `FEBuilderGBA.Tests` | net10.0-windows | WinForms unit and integration tests |
@@ -35,7 +35,41 @@ README
 | `FEBuilderGBA.Android.Tests` | net10.0-android | On-device instrumentation head: reflection-runs the SkiaSharp byte-parity / version-guard suites on an Android emulator (not run by `dotnet test`). |
 | `FEBuilderGBA.E2ETests` | net10.0-windows | End-to-end GUI/CLI tests |
 
-<a id="cli-command-count">†</a> **CLI command count = 71**: distinct top-level command branches in the `FEBuilderGBA.CLI/Program.cs` dispatch table, collapsing the two documented aliases (`--help`/`-h`, `--test`/`--testonly`); `--project` and `--resolve-addr` are counted as separate user-facing commands. The canonical full list is [docs/cli-reference.md](docs/cli-reference.md).
+<a id="cli-command-count">†</a> **CLI command count = 72**: distinct top-level command branches in the `FEBuilderGBA.CLI/Program.cs` dispatch table, collapsing the two documented aliases (`--help`/`-h`, `--test`/`--testonly`); `--project` and `--resolve-addr` are counted as separate user-facing commands. The canonical full list is [docs/cli-reference.md](docs/cli-reference.md).
+
+### Reproducible font libraries
+
+`--build-font-library` turns a strict schema-v1 manifest plus hash-pinned local
+font, license, and UTF-8 corpus files into ROM-independent `.fontall.txt`/PNG
+libraries. It never downloads a font, selects a system fallback, or initializes
+a ROM. Generation is staged beside a new destination and published with an
+atomic no-replace rename; validation and round-trip modes never rasterize.
+Determinism covers repeated runs with the same verified font bytes and native
+Skia build; the report exposes the payload-tree hash for comparing platforms.
+The format contract does not claim byte-identical rasterization across CPU
+architectures or different native Skia builds.
+
+```bash
+FEBuilderGBA.CLI --build-font-library --manifest=font-library.json \
+  --out=font-library --mode=generate --report=generation-report.json
+FEBuilderGBA.CLI --build-font-library --manifest=font-library.json \
+  --out=font-library --mode=roundtrip --report=generation-report.json
+```
+
+Each job contains `<job>.fontall.txt`, `slots.tsv`, and canonical
+`<item|text>_<moji>.png` files. Reports separate packed-byte, PNG-byte, and
+ordinal `/`-path SHA-256 identities: embedded `payloadTreeSha256` excludes the
+report itself, while the external generation report also records
+`fullTreeSha256` for every finalized package file. Reports also carry
+manifest/corpus provenance and deterministic per-glyph mappings, dimensions,
+widths, filenames, packed/PNG hashes, and structured failure outcomes. ZH PNGs depict the exact
+declared-width 40-byte engine stream; non-representable pixel drift is detected
+by non-rasterizing round-trip mode. A generation report saved outside the
+package is an immutable oracle for later validation/round-trip; without one,
+those modes prove internal consistency only. Dry-run verifies provenance,
+planning, and style-expanded capacity without opening a face, rasterizing, or
+creating/writing a package tree. See the
+[CLI reference](docs/cli-reference.md#--build-font-library).
 
 ### Deterministic headless playtest
 
@@ -561,7 +595,7 @@ FEBuilderGBA.sln
 │   ├── NameResolver.cs                    Entity name resolution with caching
 │   ├── SongNameResolverCore.cs            Song name resolution (Sound Room name + SE-list fallback)
 │   └── WriteValidator.cs                  ROM write validation utilities
-├── FEBuilderGBA.CLI/            net10.0    (cross-platform CLI — 71 commands)
+├── FEBuilderGBA.CLI/            net10.0    (cross-platform CLI — 72 commands)
 ├── FEBuilderGBA.SkiaSharp/      net10.0    (image backend)
 ├── FEBuilderGBA.Avalonia/       net10.0    (cross-platform GUI — 324 editors, with ambient undo, dirty tracking, data export/import, full Options dialog with 20+ external tool paths)
 ├── FEBuilderGBA/                net10.0-windows (WinForms GUI)

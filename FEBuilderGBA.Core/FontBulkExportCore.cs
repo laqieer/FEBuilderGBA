@@ -10,7 +10,6 @@
 // delegate). READ-ONLY — never mutates the ROM.
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace FEBuilderGBA.Core
 {
@@ -40,15 +39,16 @@ namespace FEBuilderGBA.Core
         {
             if (rom?.RomInfo == null || writePng == null) return "";
 
-            var sb = new StringBuilder();
-            sb.Append("//char\ttype\tWidth\tFilename\n");
-            ExportOne(rom, isItemFont: true, userFontOnly, writePng, sb);
-            ExportOne(rom, isItemFont: false, userFontOnly, writePng, sb);
-            return sb.ToString();
+            var rows = new List<FontBulkManifestRow>();
+            ExportOne(rom, isItemFont: true, userFontOnly, writePng, rows);
+            ExportOne(rom, isItemFont: false, userFontOnly, writePng, rows);
+            return FontBulkManifestCore.Format(
+                rows, FontBulkManifestMode.LegacyCompatible);
         }
 
         static void ExportOne(ROM rom, bool isItemFont, bool userFontOnly,
-            Func<IImage, string, bool> writePng, StringBuilder sb)
+            Func<IImage, string, bool> writePng,
+            List<FontBulkManifestRow> rows)
         {
             uint defaultEnd = rom.RomInfo.font_default_end;
             string type = isItemFont ? "item" : "text";
@@ -64,20 +64,21 @@ namespace FEBuilderGBA.Core
 
                 // Filesystem-safe name: <type>_<mojiHex>.png (the raw char may be
                 // an unrepresentable control code, so we key on the hex code).
-                string pngName = type + "_" + U.ToHexString(g.Moji) + ".png";
+                string pngName =
+                    type + "_" + U.ToHexString(g.Moji) + ".png";
                 bool ok;
                 try { ok = writePng(img, pngName); }
                 finally { img.Dispose(); }
                 if (!ok) continue;
 
-                sb.Append(g.Name);
-                sb.Append('\t');
-                sb.Append(type);
-                sb.Append('\t');
-                sb.Append(g.Width);
-                sb.Append('\t');
-                sb.Append(pngName);
-                sb.Append('\n');
+                rows.Add(new FontBulkManifestRow
+                {
+                    Character = g.Name,
+                    Type = type,
+                    Width = g.Width,
+                    Filename = pngName,
+                    Moji = g.Moji,
+                });
             }
         }
     }
