@@ -121,7 +121,8 @@ Standalone commands: `lint`, `disasm`, `songexchange`, `names`, `portrait`, `exp
 **`import-midi`**, `disasm-event`, **`compile-event`**, `lint-oam`, `rebuild`, `pointercalc`,
 **`export-map-settings-raw`**, **`lz77`**, **`playtest`**, `check`.
 
-Unwrapped standalone backend commands: `--export-buildfile`, `--build-buildfile`, `--buildfile-roundtrip`.
+Unwrapped standalone backend commands: `--build-font-library`, `--export-buildfile`,
+`--build-buildfile`, `--buildfile-roundtrip`.
 
 ## MCP server (issue #1942)
 
@@ -218,16 +219,17 @@ exactly as before this fix.
 
 ## CLI verb coverage (harness ↔ CLI)
 
-The harness wraps a growing subset of `FEBuilderGBA.CLI`'s 71 verbs (see
+The harness wraps a growing subset of `FEBuilderGBA.CLI`'s 72 verbs (see
 [`docs/cli-reference.md`](../../../docs/cli-reference.md) for the authoritative list). This table
 maps every backend verb to its harness command and coverage status; closing the remaining gap is
 tracked in [#1933](https://github.com/laqieer/FEBuilderGBA/issues/1933).
 
-**Status:** ✅ wrapped · 🆕 wrapped in #1933 · 🆕🔧 wrapped in #1942 (MCP server) · ⬜ not yet wrapped · ➖ n/a (dev/modifier/help). **~35 of 71 wrapped.**
+**Status:** ✅ wrapped · 🆕 wrapped in #1933 · 🆕🔧 wrapped in #1942 (MCP server) · ⬜ not yet wrapped · ➖ n/a (dev/modifier/help). **~35 of 72 wrapped.**
 
 | CLI verb | Harness command | Status |
 |---|---|---|
 | `--version` | `check` (shows version) | ✅ |
+| `--build-font-library` | — | ⬜ |
 | `--playtest` | `playtest` | ✅ (Click only; deliberately not MCP) |
 | `--rom-info` | `rom info` | ✅ |
 | `--checksum` | `rom checksum` | 🆕 |

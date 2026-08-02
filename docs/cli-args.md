@@ -6,7 +6,7 @@ command set — it lists commands exercised by `FEBuilderGBA.E2ETests/Tests/CliA
 and command-specific E2E suites such as `CliExportBuildfileE2ETests.cs` and
 `CliBuildBuildfileE2ETests.cs`.
 
-For the **full command set** (the `Main` dispatcher in `FEBuilderGBA.CLI/Program.cs` routes 71
+For the **full command set** (the `Main` dispatcher in `FEBuilderGBA.CLI/Program.cs` routes 72
 distinct user-facing commands), see [`docs/cli-reference.md`](cli-reference.md) or run:
 
 ```bash
@@ -27,6 +27,7 @@ WinForms CLI counterpart to align against.
 |---|---|---|---|---|
 | `--help`, `-h` | Show help message | — | E2E COVERED | ALIGNED |
 | `--version` | Show version information | — | E2E COVERED | ALIGNED |
+| `--build-font-library` | Generate, dry-run, validate, or non-rasterizing round-trip a deterministic schema-v1 font library | `--manifest`, `--out` (opt: `--mode`, `--report`, `--job`) | CORE + REAL-PROCESS COVERED | CLI-ONLY (N/A) |
 | `--playtest` | Run/check a deterministic source-pinned headless mGBA scenario; exit 0 pass, 1 harness/setup failure, 2 behavioral failure | `--check` or `--rom`, `--scenario` (opt: `--python`, `--out`, `--artifact-dir`, `--timeout`) | E2E COVERED + native CI proof | CLI-ONLY (N/A) |
 | `--makeups=<path>` | Create UPS patch | `--rom` (opt: `--fromrom`) | E2E COVERED | ALIGNED |
 | `--applyups=<path>` | Apply UPS patch | `--rom`, `--patch` | E2E COVERED | ALIGNED |
@@ -70,7 +71,11 @@ WinForms CLI counterpart to align against.
 | `--patch=<path>` | Specify UPS patch file | `--applyups` |
 | `--rom2=<path>` | Second ROM file to compare against | `--diff` |
 | `--in=<path>` | Input file | `--decreasecolor`, `--convertmap1picture`, `--translate`, `--lz77`, `--import-palette`, `--import-battle-anime` |
-| `--out=<path>` | Output file | `--playtest` (result JSON), `--decreasecolor`, `--generate-random-map`, `--translate`, `--translate-roundtrip`, `--translate_batch`, `--export-map-settings`, `--lz77`, `--export-palette`, `--export-battle-anime`, `--diff`, `--export-buildfile` (new project directory, must not exist), `--build-buildfile` (new destination ROM, must not exist) |
+| `--out=<path>` | Output file/directory | `--build-font-library` (new package directory for generate/dry-run; existing package for validate/roundtrip), `--playtest` (result JSON), `--decreasecolor`, `--generate-random-map`, `--translate`, `--translate-roundtrip`, `--translate_batch`, `--export-map-settings`, `--lz77`, `--export-palette`, `--export-battle-anime`, `--diff`, `--export-buildfile` (new project directory, must not exist), `--build-buildfile` (new destination ROM, must not exist) |
+| `--manifest=<path>` | Strict UTF-8 schema-v1 manifest with hash-pinned local inputs | `--build-font-library` |
+| `--mode=<name>` | `generate` (default), `dry-run`, `validate`, or `roundtrip` | `--build-font-library` |
+| `--report=<path>` | Generate/dry-run: new outside-package no-replace report output. Validate/roundtrip: existing immutable generation-report oracle input; outcome remains stdout. Without an oracle, validation is explicitly internal-consistency-only. | `--build-font-library` |
+| `--job=<id>` | Select exactly one manifest job | `--build-font-library` |
 | `--scenario=<path>` | Strict schema-v1 playtest scenario JSON | `--playtest` |
 | `--artifact-dir=<dir>` | Existing directory that persists an optional final-frame PNG; capture/hash evidence does not require it | `--playtest` |
 | `--femapcreator=<path>` | Trusted absolute local Windows `.exe`, managed `.dll`, or executable native file on Unix | `--generate-random-map` |

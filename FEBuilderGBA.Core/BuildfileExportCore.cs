@@ -398,6 +398,22 @@ namespace FEBuilderGBA
             bool try128BitIdentity = true)
         {
             using SafeFileHandle handle = OpenWindowsIdentityHandle(path);
+            return ReadWindowsFileSystemEntryIdentity(
+                handle,
+                path,
+                try128BitIdentity);
+        }
+
+        internal static FileSystemEntryIdentity ReadWindowsFileSystemEntryIdentity(
+            SafeFileHandle handle,
+            string label,
+            bool try128BitIdentity = true)
+        {
+            if (handle == null) throw new ArgumentNullException(nameof(handle));
+            if (handle.IsInvalid)
+                throw new IOException(
+                    "Cannot inspect Windows file identity for "
+                    + (label ?? "opened entry") + ": invalid handle.");
             if (try128BitIdentity)
             {
                 bool hasIdentity128 = TryReadWindowsFileIdentity128(
@@ -415,13 +431,13 @@ namespace FEBuilderGBA
                 if (!IsWindowsFileIdInfoUnavailable(identity128Error))
                 {
                     throw new IOException(
-                        "Cannot inspect Windows FileIdInfo for " + path
+                        "Cannot inspect Windows FileIdInfo for " + label
                         + " (Win32 error " + identity128Error + ").");
                 }
             }
 
             WindowsFileIdentity64 identity64 =
-                ReadWindowsFileIdentity64(handle, path);
+                ReadWindowsFileIdentity64(handle, label);
             ulong fileIndex = ((ulong)identity64.FileIndexHigh << 32)
                 | identity64.FileIndexLow;
             return new FileSystemEntryIdentity(

@@ -13,7 +13,6 @@
 // PNG → 16x16 4-color indexed-pixels decode is delegated to a caller callback
 // so Core stays GUI-free.
 using System;
-using System.Collections.Generic;
 
 namespace FEBuilderGBA.Core
 {
@@ -61,79 +60,31 @@ namespace FEBuilderGBA.Core
             byte[] snap = (byte[])rom.Data.Clone();
             try
             {
-                string[] lines = manifestText.Replace("\r\n", "\n").Split('\n');
-                foreach (string raw in lines)
+                FontBulkManifestParseResult parsed =
+                    FontBulkManifestCore.ParseRows(
+                        manifestText,
+                        FontBulkManifestMode.LegacyCompatible,
+                        row =>
                 {
-                    string line = raw;
-                    // Only blank lines + // comments/header are skipped silently —
-                    // every other line is a DATA row and is validated (no silent
-                    // drop / misclassification, so a "successful" import can't omit
-                    // rows). Trim a trailing \r in case of mixed line endings.
-                    line = line.TrimEnd('\r');
-                    if (line.Trim().Length == 0) continue;
-                    if (line.StartsWith("//")) continue; // comment / header
-
-                    string[] sp = line.Split('\t');
-                    if (sp.Length < 4)
-                    {
-                        RestoreSnapshot(rom, snap);
-                        return R._("Invalid font manifest row (expected 4 tab-separated columns: char, type, width, filename): {0}", line);
-                    }
-
-                    // Validate the type column (item / text) instead of silently
-                    // defaulting an unknown type to serif.
-                    string type = sp[1].Trim();
-                    if (type != "item" && type != "text")
-                    {
-                        RestoreSnapshot(rom, snap);
-                        return R._("Invalid font type in manifest (expected 'item' or 'text'): {0}", type);
-                    }
-                    bool isItemFont = (type == "item");
-
-                    // Advance width (column 3) must be an integer in 0..16 (the
-                    // glyph is 16px wide). A non-numeric OR out-of-range width is a
-                    // manifest error (reject rather than silently deriving from
-                    // pixels or clamping, matching the other columns' strictness so
-                    // a bad manifest can't import "successfully" with wrong spacing).
-                    int width = ParseWidth(sp[2]);
-                    if (width < 0 || width > FontGlyphRenderCore.GLYPH_W)
-                    {
-                        RestoreSnapshot(rom, snap);
-                        return R._("Invalid font width in manifest (expected an integer 0..{0}): {1}",
-                            FontGlyphRenderCore.GLYPH_W, sp[2]);
-                    }
-
-                    string pngName = sp[3].Trim();
-                    if (pngName.Length == 0)
-                    {
-                        RestoreSnapshot(rom, snap);
-                        return R._("Invalid font manifest row (empty filename): {0}", line);
-                    }
-
-                    // Recover the engine char code from the filename hex suffix
-                    // (<type>_<mojiHex>.png). A data row whose filename can't be
-                    // keyed is a real manifest error — FAIL (atomic restore) rather
-                    // than silently omitting the glyph.
-                    if (!TryParseMojiFromFilename(pngName, out uint moji))
-                    {
-                        RestoreSnapshot(rom, snap);
-                        return R._("Cannot determine the character code from the font filename: {0}", pngName);
-                    }
-
+                    string type = row.Type;
+                    bool isItemFont = type == "item";
+                    string pngName = row.Filename;
                     FontGlyphPixels px = loadGlyph(pngName, type);
                     if (px == null)
-                    {
-                        RestoreSnapshot(rom, snap);
                         return R._("Failed to load glyph image: {0}", pngName);
-                    }
 
-                    string err = FontGlyphRenderCore.ImportGlyph(rom, isItemFont, moji,
-                        px.Indexed, px.Width, px.Height, explicitWidth: width, manageSnapshot: false);
+                    string err = FontGlyphRenderCore.ImportGlyph(
+                        rom, isItemFont, row.Moji,
+                        px.Indexed, px.Width, px.Height,
+                        explicitWidth: row.Width, manageSnapshot: false);
                     if (!string.IsNullOrEmpty(err))
-                    {
-                        RestoreSnapshot(rom, snap);
                         return err;
-                    }
+                    return "";
+                });
+                if (!parsed.Success)
+                {
+                    RestoreSnapshot(rom, snap);
+                    return parsed.Error;
                 }
                 return "";
             }
@@ -144,14 +95,6 @@ namespace FEBuilderGBA.Core
             }
         }
 
-        // Parse the manifest width column; returns -1 on a non-numeric value (the
-        // caller treats -1 as a manifest error and ABORTS — it is NOT a
-        // derive-from-pixels signal in the bulk path).
-        static int ParseWidth(string s)
-        {
-            return int.TryParse(s.Trim(), out int w) && w >= 0 ? w : -1;
-        }
-
         /// <summary>
         /// Recover the moji code from a `<type>_<hex>.png` filename. Returns false
         /// when the filename has no `_<hex>` suffix or the suffix isn't valid hex.
@@ -159,19 +102,8 @@ namespace FEBuilderGBA.Core
         /// error and aborts with an atomic restore — it does NOT skip the row.)
         /// </summary>
         public static bool TryParseMojiFromFilename(string pngName, out uint moji)
-        {
-            moji = 0;
-            if (string.IsNullOrEmpty(pngName)) return false;
-
-            int dot = pngName.LastIndexOf('.');
-            string stem = dot >= 0 ? pngName.Substring(0, dot) : pngName;
-            int us = stem.LastIndexOf('_');
-            if (us < 0 || us + 1 >= stem.Length) return false;
-
-            string hex = stem.Substring(us + 1);
-            return uint.TryParse(hex, System.Globalization.NumberStyles.HexNumber,
-                System.Globalization.CultureInfo.InvariantCulture, out moji);
-        }
+            => FontBulkManifestCore.TryParseMojiFromFilename(
+                pngName, out moji);
 
         static void RestoreSnapshot(ROM rom, byte[] snap)
         {

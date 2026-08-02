@@ -770,6 +770,47 @@ namespace FEBuilderGBA
             Action<string, string> beforePublishForTest,
             BuildfileDeletePath deleteStagingForTest,
             out string error)
+            => PublishBytesNoReplace(
+                data,
+                destinationPath,
+                beforePublishForTest,
+                null,
+                null,
+                null,
+                null,
+                deleteStagingForTest,
+                out error);
+
+        internal static bool PublishBytesNoReplace(
+            byte[] data,
+            string destinationPath,
+            Action<string, string> beforePublishForTest,
+            Action<string, string> afterPublishBeforeVerificationForTest,
+            Action<string> beforeCleanupFinalIdentityCheckForTest,
+            BuildfileDeletePath deleteStagingForTest,
+            out string error)
+            => PublishBytesNoReplace(
+                data,
+                destinationPath,
+                beforePublishForTest,
+                afterPublishBeforeVerificationForTest,
+                null,
+                beforeCleanupFinalIdentityCheckForTest,
+                null,
+                deleteStagingForTest,
+                out error);
+
+        internal static bool PublishBytesNoReplace(
+            byte[] data,
+            string destinationPath,
+            Action<string, string> beforePublishForTest,
+            Action<string, string> afterPublishBeforeVerificationForTest,
+            Action<string, string>
+                afterPublishedVerificationBeforeReleaseForTest,
+            Action<string> beforeCleanupFinalIdentityCheckForTest,
+            Action<string> afterCleanupFinalIdentityCheckForTest,
+            BuildfileDeletePath deleteStagingForTest,
+            out string error)
         {
             error = "";
             if (data == null) { error = "No data to publish."; return false; }
@@ -817,38 +858,96 @@ namespace FEBuilderGBA
                 return false;
             }
 
-            string stage = null;
+            StagedPublicationFile stage = null;
+            bool movedToDestination = false;
             try
             {
                 stage = WriteStagingFile(parent, Path.GetFileName(dest), data);
-                // File-level wrapper over the shared native no-replace rename contract
-                // (Windows MoveFileExW without replace, Linux renameat2(RENAME_NOREPLACE),
-                // macOS renamex_np(RENAME_EXCL)); identical semantics for a regular file.
-                beforePublishForTest?.Invoke(stage, dest);
-                BuildfileExportCore.PublishDirectoryNoReplace(stage, dest);
+                beforePublishForTest?.Invoke(stage.Path, dest);
+
+                // Bind the final pre-move decision to the exact durable staging
+                // inode and bytes, not merely to its mutable pathname.
+                VerifyPublicationFile(
+                    stage.Path,
+                    stage.Identity,
+                    stage.Length,
+                    stage.Sha256,
+                    "staging file");
+
+                // File-level wrapper over the shared native no-replace rename
+                // contract. The destination race can never overwrite a path.
+                BuildfileExportCore.PublishDirectoryNoReplace(
+                    stage.Path, dest);
+                movedToDestination = true;
+
+                afterPublishBeforeVerificationForTest?.Invoke(
+                    stage.Path, dest);
+                VerifyPublicationFile(
+                    dest,
+                    stage.Identity,
+                    stage.Length,
+                    stage.Sha256,
+                    "published destination");
+                afterPublishedVerificationBeforeReleaseForTest?.Invoke(
+                    stage.Path, dest);
+                VerifyPublicationFile(
+                    dest,
+                    stage.Identity,
+                    stage.Length,
+                    stage.Sha256,
+                    "published release destination");
                 return true;
             }
             catch (Exception ex)
             {
+                if (movedToDestination)
+                {
+                    // Ownership transferred at the successful rename. A
+                    // mismatch or replacement is evidence of an untrusted
+                    // published pathname; retain it and never roll it back.
+                    error =
+                        "Publish failed after destination move; destination "
+                        + "retained: " + ex.Message;
+                    return false;
+                }
+
                 string cleanupError = "";
                 bool cleanupOk = stage == null
-                    || (deleteStagingForTest != null
-                        ? deleteStagingForTest(stage, out cleanupError)
-                        : DeleteFileAndVerifyGone(stage, out cleanupError));
+                    || ProjectionFileSystemSafety
+                        .TryDeleteReservedFileIdentityBound(
+                            stage.Path,
+                            stage.Identity,
+                            beforeCleanupFinalIdentityCheckForTest,
+                            afterCleanupFinalIdentityCheckForTest,
+                            deleteStagingForTest,
+                            out cleanupError);
                 if (!cleanupOk)
                     error = "Publish failed: " + ex.Message
-                        + " Cleanup incomplete for staging file '" + stage + "': " + cleanupError;
+                        + " Cleanup incomplete for staging file '"
+                        + stage?.Path + "': " + cleanupError;
                 else
                     error = "Publish failed: " + ex.Message;
                 return false;
             }
         }
 
-        static string WriteStagingFile(string parent, string destName, byte[] data)
+        sealed class StagedPublicationFile
+        {
+            internal string Path { get; set; }
+            internal FileSystemEntryIdentity Identity { get; set; }
+            internal int Length { get; set; }
+            internal string Sha256 { get; set; }
+        }
+
+        static StagedPublicationFile WriteStagingFile(
+            string parent,
+            string destName,
+            byte[] data)
         {
             string prefix = BuildfileExportCore.MakeTemporaryDirectoryPrefix(
                 destName,
                 "rom-stage");
+            string requestedSha256 = BuildfileFormat.Sha256Hex(data);
             for (int attempt = 0; attempt < 64; attempt++)
             {
                 string stage = Path.Combine(
@@ -856,7 +955,11 @@ namespace FEBuilderGBA
                 FileStream stream;
                 try
                 {
-                    stream = new FileStream(stage, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                    stream = new FileStream(
+                        stage,
+                        FileMode.CreateNew,
+                        FileAccess.ReadWrite,
+                        FileShare.None);
                 }
                 catch (IOException createEx)
                 {
@@ -882,30 +985,143 @@ namespace FEBuilderGBA
                                 + "': " + faultDetail, createEx);
                     }
                 }
+                FileSystemEntryIdentity createdIdentity = default;
+                bool hasCreatedIdentity = false;
                 try
                 {
                     using (stream)
                     {
+                        ProjectionFileSystemSafety.OpenedRegularFileState
+                            created =
+                                ProjectionFileSystemSafety
+                                    .InspectOpenedRegularFile(
+                                        stream.SafeFileHandle,
+                                        stage,
+                                        rejectHardLinks: true);
+                        createdIdentity = created.Identity;
+                        hasCreatedIdentity = true;
                         stream.Write(data, 0, data.Length);
-                        stream.Flush(flushToDisk: true); // durable flush before dispose + rename
+                        stream.Flush(flushToDisk: true);
+
+                        byte[] durableBytes =
+                            ProjectionFileSystemSafety
+                                .ReadOpenedRegularFileBoundedStable(
+                                    stream,
+                                    data.Length,
+                                    "durable staging file",
+                                    rejectHardLinks: true,
+                                    out ProjectionFileSystemSafety
+                                        .OpenedRegularFileState durable);
+                        if (!durable.Identity.Equals(createdIdentity))
+                            throw new IOException(
+                                "Staging file identity changed during durable write.");
+                        string durableSha256 =
+                            BuildfileFormat.Sha256Hex(durableBytes);
+                        if (durableBytes.Length != data.Length
+                            || !string.Equals(
+                                durableSha256,
+                                requestedSha256,
+                                StringComparison.Ordinal))
+                        {
+                            throw new IOException(
+                                "Durable staging bytes do not match the "
+                                + "requested publication payload.");
+                        }
+                        return new StagedPublicationFile
+                        {
+                            Path = stage,
+                            Identity = durable.Identity,
+                            Length = durableBytes.Length,
+                            Sha256 = durableSha256,
+                        };
                     }
                 }
-                catch
+                catch (Exception writeError)
                 {
-                    // The exclusive staging file was created but not fully written. Never hide
-                    // a cleanup failure: the caller must receive the exact residual path.
-                    if (!DeleteFileAndVerifyGone(stage, out string cleanupError))
+                    // A partially written path is deleted only after proving
+                    // that it is still the exclusively-created inode and
+                    // moving it to an unguessable quarantine. If identity was
+                    // never captured, retain the uncertain pathname.
+                    if (!hasCreatedIdentity)
+                    {
+                        throw new IOException(
+                            "Staging write failed before file identity could "
+                            + "be captured; cleanup refused and path retained: "
+                            + stage,
+                            writeError);
+                    }
+                    if (!ProjectionFileSystemSafety
+                        .TryDeleteReservedFileIdentityBound(
+                            stage,
+                            createdIdentity,
+                            null,
+                            out string cleanupError))
                     {
                         throw new IOException(
                             "Staging write failed and cleanup was incomplete for '"
-                            + stage + "': " + cleanupError);
+                            + stage + "': " + cleanupError,
+                            writeError);
                     }
                     throw;
                 }
-                return stage;
             }
             throw new IOException(
                 "Could not reserve a unique staging file after repeated name collisions.");
+        }
+
+        static void VerifyPublicationFile(
+            string path,
+            FileSystemEntryIdentity expectedIdentity,
+            int expectedLength,
+            string expectedSha256,
+            string label)
+        {
+            using FileStream stream =
+                ProjectionFileSystemSafety.OpenRegularFileForRead(path);
+            byte[] bytes =
+                ProjectionFileSystemSafety
+                    .ReadOpenedRegularFileBoundedStable(
+                        stream,
+                        expectedLength,
+                        label,
+                        rejectHardLinks: true,
+                        out ProjectionFileSystemSafety
+                            .OpenedRegularFileState current);
+            if (!current.Identity.Equals(expectedIdentity))
+                throw new IOException(
+                    label + " identity does not match the durable stage.");
+            if (bytes.Length != expectedLength
+                || !string.Equals(
+                    BuildfileFormat.Sha256Hex(bytes),
+                    expectedSha256,
+                    StringComparison.Ordinal))
+            {
+                throw new IOException(
+                    label + " bytes do not match the durable stage.");
+            }
+
+            // Re-open the pathname while the verified handle remains live.
+            // This catches a Unix unlink/replace that occurred after the
+            // first no-follow open but before success is returned.
+            using FileStream pathProbe =
+                ProjectionFileSystemSafety.OpenRegularFileForRead(path);
+            ProjectionFileSystemSafety.OpenedRegularFileState probe =
+                ProjectionFileSystemSafety.InspectOpenedRegularFile(
+                    pathProbe.SafeFileHandle,
+                    label + " pathname probe",
+                    rejectHardLinks: true);
+            if (!probe.Identity.Equals(expectedIdentity)
+                || !ProjectionFileSystemSafety.SameOpenedFile(
+                    stream, pathProbe))
+            {
+                throw new IOException(
+                    label + " pathname no longer names the verified file.");
+            }
+            ProjectionFileSystemSafety.VerifyOpenedRegularFileUnchanged(
+                stream.SafeFileHandle,
+                label,
+                rejectHardLinks: true,
+                current);
         }
 
         static bool DeleteFileAndVerifyGone(string path, out string error)

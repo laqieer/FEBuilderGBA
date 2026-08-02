@@ -193,6 +193,11 @@ namespace FEBuilderGBA
             internal long TotalBytes { get; set; }
             internal long TotalPathCharacters { get; set; }
             internal Action<string> BeforeFileOpen { get; set; }
+            internal bool BindFileReads { get; set; }
+            internal bool RejectHardLinks { get; set; }
+            internal FileSystemEntryIdentity? ExpectedRootIdentity { get; set; }
+            internal ProjectionFileSystemSafety.OpenedRegularFileState?
+                DisallowedFileIdentity { get; set; }
             internal ProjectionTreeSnapshot Snapshot { get; } =
                 new ProjectionTreeSnapshot();
         }
@@ -288,6 +293,67 @@ namespace FEBuilderGBA
             long maxBytes,
             long maxTextFileBytes,
             Action<string> beforeFileOpen)
+            => Capture(
+                rootPath,
+                maxEntries,
+                maxBytes,
+                maxTextFileBytes,
+                beforeFileOpen,
+                bindFileReads: false,
+                rejectHardLinks: false,
+                disallowedFileIdentity: null,
+                expectedRootIdentity: null);
+
+        internal static ProjectionTreeSnapshot CaptureIdentityBound(
+            string rootPath,
+            int maxEntries,
+            long maxBytes,
+            long maxTextFileBytes,
+            Action<string> beforeFileOpen,
+            ProjectionFileSystemSafety.OpenedRegularFileState?
+                disallowedFileIdentity)
+            => Capture(
+                rootPath,
+                maxEntries,
+                maxBytes,
+                maxTextFileBytes,
+                beforeFileOpen,
+                bindFileReads: true,
+                rejectHardLinks: true,
+                disallowedFileIdentity: disallowedFileIdentity,
+                expectedRootIdentity: null);
+
+        internal static ProjectionTreeSnapshot CaptureIdentityBound(
+            string rootPath,
+            int maxEntries,
+            long maxBytes,
+            long maxTextFileBytes,
+            Action<string> beforeFileOpen,
+            ProjectionFileSystemSafety.OpenedRegularFileState?
+                disallowedFileIdentity,
+            FileSystemEntryIdentity expectedRootIdentity)
+            => Capture(
+                rootPath,
+                maxEntries,
+                maxBytes,
+                maxTextFileBytes,
+                beforeFileOpen,
+                bindFileReads: true,
+                rejectHardLinks: true,
+                disallowedFileIdentity: disallowedFileIdentity,
+                expectedRootIdentity: expectedRootIdentity);
+
+        static ProjectionTreeSnapshot Capture(
+            string rootPath,
+            int maxEntries,
+            long maxBytes,
+            long maxTextFileBytes,
+            Action<string> beforeFileOpen,
+            bool bindFileReads,
+            bool rejectHardLinks,
+            ProjectionFileSystemSafety.OpenedRegularFileState?
+                disallowedFileIdentity,
+            FileSystemEntryIdentity? expectedRootIdentity)
         {
             if (string.IsNullOrEmpty(rootPath))
                 throw new ArgumentException("Projection root is empty.", nameof(rootPath));
@@ -305,6 +371,10 @@ namespace FEBuilderGBA
                 MaxBytes = maxBytes,
                 MaxTextFileBytes = maxTextFileBytes,
                 BeforeFileOpen = beforeFileOpen,
+                BindFileReads = bindFileReads,
+                RejectHardLinks = rejectHardLinks,
+                DisallowedFileIdentity = disallowedFileIdentity,
+                ExpectedRootIdentity = expectedRootIdentity,
             };
 
             try
@@ -334,6 +404,20 @@ namespace FEBuilderGBA
                 throw new PlatformNotSupportedException(
                     "Handle-relative projection capture native support is unavailable.",
                     ex);
+            }
+
+            if (state.ExpectedRootIdentity.HasValue)
+            {
+                FileSystemEntryIdentity currentRoot =
+                    ProjectionFileSystemSafety
+                        .CaptureExistingFileSystemEntryIdentity(
+                            state.RootPath);
+                if (!currentRoot.Equals(
+                    state.ExpectedRootIdentity.Value))
+                {
+                    throw new IOException(
+                        "Projection root pathname was replaced during capture.");
+                }
             }
 
             state.Snapshot.Directories.Sort(StringComparer.Ordinal);
@@ -367,6 +451,11 @@ namespace FEBuilderGBA
                     + Marshal.GetLastPInvokeError() + ").");
             }
             ValidateWindowsDirectory(root, "projection root");
+            VerifyExpectedRootIdentity(
+                state,
+                BuildfilePathSafety.ReadWindowsFileSystemEntryIdentity(
+                    root,
+                    "opened projection root"));
             CaptureWindowsDirectory(root, "", 0, state);
         }
 
@@ -602,7 +691,27 @@ namespace FEBuilderGBA
             UnixFileStatus rootStatus = ReadUnixStatus(root, "projection root");
             if ((rootStatus.Mode & UnixFileTypeMask) != UnixDirectoryType)
                 throw new IOException("Projection root is not a plain directory.");
+            VerifyExpectedRootIdentity(
+                state,
+                new FileSystemEntryIdentity(
+                    FileSystemEntryIdentityKind.Unix,
+                    unchecked((ulong)rootStatus.Dev),
+                    unchecked((ulong)rootStatus.Ino),
+                    0));
             CaptureUnixDirectory(root, "", 0, state);
+        }
+
+        static void VerifyExpectedRootIdentity(
+            CaptureState state,
+            FileSystemEntryIdentity openedIdentity)
+        {
+            if (state.ExpectedRootIdentity.HasValue
+                && !openedIdentity.Equals(
+                    state.ExpectedRootIdentity.Value))
+            {
+                throw new IOException(
+                    "Opened projection root is not the expected directory identity.");
+            }
         }
 
         static void CaptureUnixDirectory(
@@ -786,8 +895,26 @@ namespace FEBuilderGBA
             SafeFileHandle handle)
         {
             CountEntry(state, relativePath);
+            ProjectionFileSystemSafety.OpenedRegularFileState? before = null;
+            if (state.BindFileReads)
+            {
+                before = ProjectionFileSystemSafety.InspectOpenedRegularFile(
+                    handle,
+                    relativePath,
+                    state.RejectHardLinks);
+                if (state.DisallowedFileIdentity.HasValue
+                    && before.Value.Identity.Equals(
+                        state.DisallowedFileIdentity.Value.Identity))
+                {
+                    throw new IOException(
+                        "Projection package file aliases the external report: "
+                        + relativePath);
+                }
+            }
             using var stream = new FileStream(handle, FileAccess.Read);
-            long length = stream.Length;
+            long length = before.HasValue
+                ? before.Value.Length
+                : stream.Length;
             if (length < 0
                 || length > int.MaxValue
                 || length > state.MaxBytes - state.TotalBytes)
@@ -815,7 +942,14 @@ namespace FEBuilderGBA
             }
             if (stream.ReadByte() != -1)
                 throw new IOException("Projection file grew while being captured.");
-
+            if (before.HasValue)
+            {
+                ProjectionFileSystemSafety.VerifyOpenedRegularFileUnchanged(
+                    stream.SafeFileHandle,
+                    relativePath,
+                    state.RejectHardLinks,
+                    before.Value);
+            }
             state.TotalBytes += data.Length;
             state.Snapshot.Files.Add(new ProjectionTreeSnapshotFile
             {

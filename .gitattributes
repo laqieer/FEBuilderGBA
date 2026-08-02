@@ -6,3 +6,7 @@
 # `run:` block with CRLF would inject stray \r on the Linux runner. (#1943)
 /.github/workflows/*.yml text eol=lf
 
+# Font-library provenance pins these two license files byte-for-byte. Keep
+# their established CRLF hashes identical on every checkout platform.
+/FEBuilderGBA.Avalonia.Tests/Fonts/OFL.txt text eol=crlf
+/FEBuilderGBA.Browser/Assets/Fonts/OFL.txt text eol=crlf

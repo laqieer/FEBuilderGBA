@@ -42,7 +42,7 @@ namespace FEBuilderGBA.Core.Tests
 
         // The bulk export enumerates glyphs via the ZH TBL (config/translate/zh_tbl/
         // FE8.tbl), so the export/round-trip tests set CoreState.BaseDirectory to the
-        // repo root and skip cleanly when it (or the .sln / .tbl) is absent.
+        // repo root and fail hard when the linked public fixture is absent.
         static string? FindRepoRoot()
         {
             string thisAssembly = System.Reflection.Assembly.GetExecutingAssembly().Location;
@@ -124,11 +124,16 @@ namespace FEBuilderGBA.Core.Tests
         public void ExportAll_BuildsManifestForPlantedSerifGlyph()
         {
             string? repoRoot = FindRepoRoot();
-            if (repoRoot == null || !ZhTblPresent(repoRoot)) return; // skip without the ZH TBL
+            Assert.False(
+                string.IsNullOrEmpty(repoRoot),
+                "Repository root fixture is required.");
+            Assert.True(
+                ZhTblPresent(repoRoot!),
+                "config/translate/zh_tbl/FE8.tbl is required.");
 
             using var rs = new RomScope();
             using var svc = new ImageServiceScope();
-            using var bd = new BaseDirScope(repoRoot);
+            using var bd = new BaseDirScope(repoRoot!);
 
             ROM rom = MakeRom(width: 9);
             CoreState.ROM = rom;
@@ -147,17 +152,26 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains("\ttext\t9\t", manifest);
             Assert.Contains("text_" + U.ToHexString(MOJI_TEN) + ".png", manifest);
             Assert.Contains("text_" + U.ToHexString(MOJI_TEN) + ".png", savedNames);
+            Assert.Equal(
+                "//char\ttype\tWidth\tFilename\n"
+                + "、\ttext\t9\ttext_8181.png\n",
+                manifest);
         }
 
         [Fact]
         public void ExportThenImportAll_RoundTripsBytesIdentical()
         {
             string? repoRoot = FindRepoRoot();
-            if (repoRoot == null || !ZhTblPresent(repoRoot)) return; // skip without the ZH TBL
+            Assert.False(
+                string.IsNullOrEmpty(repoRoot),
+                "Repository root fixture is required.");
+            Assert.True(
+                ZhTblPresent(repoRoot!),
+                "config/translate/zh_tbl/FE8.tbl is required.");
 
             using var rs = new RomScope();
             using var svc = new ImageServiceScope();
-            using var bd = new BaseDirScope(repoRoot);
+            using var bd = new BaseDirScope(repoRoot!);
 
             ROM rom = MakeRom(width: 16); // full width so render(pack) round-trips
             CoreState.ROM = rom;
@@ -319,6 +333,59 @@ namespace FEBuilderGBA.Core.Tests
         {
             byte[] bad = new byte[16 * 13]; // 16x13, not 16x16
             Assert.Null(FontBulkImportZHCore.UnshiftTo16x13(bad, 16, 13, isItemFont: false));
+        }
+
+        [Theory]
+        [InlineData(false, 1)]
+        [InlineData(true, 2)]
+        public void LegacyUnshift_AcceptsNonzeroPaddingAndOversizedBuffer(
+            bool isItemFont,
+            int shift)
+        {
+            const int width = 16;
+            var oversized = new byte[width * width + 17];
+            oversized[0] = 3; // nonzero package-padding data is ignored here
+            oversized[(shift * width) + 5] = 2;
+            oversized[width * width + 3] = 3;
+
+            byte[] native = FontBulkImportZHCore.UnshiftTo16x13(
+                oversized, width, width, isItemFont);
+
+            Assert.NotNull(native);
+            Assert.Equal((byte)2, native[5]);
+        }
+
+        [Fact]
+        public void ImportAll_PreservesLegacyRowByRowLoaderTiming()
+        {
+            using var rs = new RomScope();
+            using var svc = new ImageServiceScope();
+            ROM rom = MakeRom(width: 16);
+            CoreState.ROM = rom;
+            byte[] snap = (byte[])rom.Data.Clone();
+            int calls = 0;
+            byte[] indices = new byte[16 * 16];
+            string manifest =
+                "、\ttext\t16\ttext_8181.png\n"
+                + "malformed-second-row\n";
+
+            string err = FontBulkImportZHCore.ImportAll(
+                rom,
+                manifest,
+                (name, type) =>
+                {
+                    calls++;
+                    return new FontGlyphZHPixels
+                    {
+                        Indexed = indices,
+                        Width = 16,
+                        Height = 16,
+                    };
+                });
+
+            Assert.NotEqual("", err);
+            Assert.Equal(1, calls);
+            Assert.Equal(snap, rom.Data);
         }
 
         // ---------------- CountManifestDataRows (Copilot #2: empty-export guard) ----------------

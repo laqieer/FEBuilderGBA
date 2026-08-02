@@ -26,6 +26,18 @@ namespace FEBuilderGBA.CLI
             CoreState.BaseDirectory = baseDir;
             CoreState.IsCommandLine = true;
             CoreState.ArgsDic = argsDic;
+
+            // This command owns an exact argument allowlist and must win over
+            // every global/ROM-oriented switch when present (including --help
+            // or --playtest), so mixed-command argv cannot bypass its parser.
+            // Dispatch before creating the general CLI image/service stack:
+            // font-library dry-run must remain schema/provenance/planning-only
+            // and generate uses its explicit strict face rather than globals.
+            if (argsDic.ContainsKey("--build-font-library"))
+            {
+                return RunBuildFontLibrary(argsDic);
+            }
+
             CoreState.Services = new CliAppServices();
             CoreState.ImageService = new SkiaImageService();
 
@@ -559,6 +571,13 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --font-size=<float>    Font size in points (default: 12)");
             Console.WriteLine("    --vertical-offset=<int> Vertical pixel offset (-8 to 8, default: 0)");
             Console.WriteLine("    --item-font            Generate item font style (default: text/serif style)");
+            Console.WriteLine("  --build-font-library     Build/validate a deterministic schema-v1 font library (no ROM)");
+            Console.WriteLine("    --manifest=<path>      Strict manifest and hash-pinned local inputs");
+            Console.WriteLine("    --out=<dir>            New output (generate/dry-run) or existing package");
+            Console.WriteLine("    --mode=<mode>          generate, dry-run, validate, or roundtrip");
+            Console.WriteLine("    --report=<path>        generate/dry-run: new report; validate/roundtrip: existing oracle");
+            Console.WriteLine("    --job=<id>             Process one case-sensitive manifest job");
+            Console.WriteLine("    exits: 0 success; 1 usage/schema/path/I/O/font/provenance; 2 semantic validation");
             Console.WriteLine("  --import-portrait        Import PNG into ROM portrait slot (requires --rom, --portrait-id, --in)");
             Console.WriteLine("    --portrait-id=<id>     Portrait table index number");
             Console.WriteLine("    --in=<path>            Input PNG file path");
