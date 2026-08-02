@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
@@ -11,6 +12,7 @@ using FEBuilderGBA;
 using FEBuilderGBA.Core;
 using FEBuilderGBA.SkiaSharp;
 using FEBuilderGBA.SharedTest;
+using SkiaSharp;
 using Xunit;
 
 namespace FEBuilderGBA.Core.Tests
@@ -343,7 +345,8 @@ namespace FEBuilderGBA.Core.Tests
                         + "\nfull="
                         + generationReport.FullTreeSha256
                         + DescribeReportHashes(
-                            generated, generationReport));
+                            generated, generationReport)
+                        + DescribeAliasCandidate(notoPath));
                 }
 
                 ProcessResult generateNoReplace = Run(
@@ -1303,6 +1306,94 @@ namespace FEBuilderGBA.Core.Tests
                 }
             }
             return builder.ToString();
+        }
+
+        static string DescribeAliasCandidate(string fontPath)
+        {
+            try
+            {
+                byte[] fontBytes = File.ReadAllBytes(fontPath);
+                using var stream =
+                    new MemoryStream(fontBytes, writable: false);
+                using SKTypeface typeface =
+                    SKTypeface.FromStream(stream);
+                if (typeface == null)
+                    return "\nalias=typeface-null";
+                using var bitmap = new SKBitmap(
+                    16, 16,
+                    SKColorType.Rgba8888,
+                    SKAlphaType.Premul);
+                using (var canvas = new SKCanvas(bitmap))
+                {
+                    canvas.Clear(SKColors.White);
+                    using var font = new SKFont(typeface, 12)
+                    {
+                        Edging = SKFontEdging.Alias,
+                        Hinting = SKFontHinting.None,
+                        Subpixel = false,
+                    };
+                    using var paint = new SKPaint
+                    {
+                        IsAntialias = false,
+                        Color = SKColors.Black,
+                    };
+                    font.GetFontMetrics(
+                        out SKFontMetrics metrics);
+                    canvas.DrawText(
+                        "\u4F60", 0, -metrics.Ascent, font, paint);
+                    canvas.Flush();
+                }
+
+                MethodInfo itemMethod =
+                    typeof(SkiaFontRasterizer).GetMethod(
+                        "GenerateItemFont",
+                        BindingFlags.NonPublic
+                            | BindingFlags.Static);
+                MethodInfo textMethod =
+                    typeof(SkiaFontRasterizer).GetMethod(
+                        "GenerateTextFont",
+                        BindingFlags.NonPublic
+                            | BindingFlags.Static);
+                if (itemMethod == null || textMethod == null)
+                    return "\nalias=generator-method-missing";
+                (string itemHash, int itemWidth) =
+                    HashZhCandidate(bitmap, itemMethod);
+                (string textHash, int textWidth) =
+                    HashZhCandidate(bitmap, textMethod);
+                return "\nalias itemWidth="
+                    + itemWidth.ToString(
+                        System.Globalization.CultureInfo.InvariantCulture)
+                    + " item=" + itemHash
+                    + " textWidth="
+                    + textWidth.ToString(
+                        System.Globalization.CultureInfo.InvariantCulture)
+                    + " text=" + textHash;
+            }
+            catch (Exception ex)
+            {
+                return "\nalias=error:" + ex.GetType().Name;
+            }
+        }
+
+        static (string Hash, int Width) HashZhCandidate(
+            SKBitmap bitmap,
+            MethodInfo method)
+        {
+            object[] arguments = { bitmap, 0, 0 };
+            byte[] engineTile = (byte[])method.Invoke(
+                null, arguments);
+            int width = (int)arguments[2];
+            byte[] indices =
+                IndexedPngCore.RemapRasterizerIndices(
+                    IndexedPngCore.UnpackEngineTile(engineTile),
+                    FontLibraryFormat.Zh16x13);
+            byte[] native =
+                FontGlyphZHIndexCore.CropTop16x13(indices);
+            byte[] packed =
+                FontGlyphZHCore.PackGlyphZHBytes(native, width);
+            return (
+                FontLibraryHashCore.ComputeSha256(packed),
+                width);
         }
 
         static void MakeZhRoundTripDrift(string packageRoot)
