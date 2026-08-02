@@ -54,11 +54,8 @@ namespace FEBuilderGBA.Core.Tests
                 return; // macOS arm64 uses the structural Core coverage.
             }
 
-            string root = Path.Combine(
-                Path.GetTempPath(),
-                "febuilder-font-library-cli-"
-                + Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(root);
+            string root = CreatePhysicalTempDirectory(
+                "febuilder-font-library-cli-");
             try
             {
                 string fontSource = Path.Combine(
@@ -344,7 +341,8 @@ namespace FEBuilderGBA.Core.Tests
                         + "\npayload="
                         + generationReport.PayloadTreeSha256
                         + "\nfull="
-                        + generationReport.FullTreeSha256);
+                        + generationReport.FullTreeSha256
+                        + DescribeReportHashes(generationReport));
                 }
 
                 ProcessResult generateNoReplace = Run(
@@ -1221,6 +1219,56 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(
                 packageReport.PayloadTreeSha256,
                 ExtractPayloadTreeHash(stdoutReport));
+        }
+
+        static string CreatePhysicalTempDirectory(string prefix)
+        {
+            string lexicalPath = Path.Combine(
+                Path.GetTempPath(),
+                prefix + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(lexicalPath);
+            try
+            {
+                return BuildfilePathSafety.ResolvePhysicalPath(
+                    lexicalPath);
+            }
+            catch
+            {
+                try
+                {
+                    Directory.Delete(lexicalPath, recursive: true);
+                }
+                catch
+                {
+                }
+                throw;
+            }
+        }
+
+        static string DescribeReportHashes(FontLibraryReport report)
+        {
+            var builder = new StringBuilder();
+            foreach (FontLibraryJobReport job in report.Jobs
+                .OrderBy(job => job.Id, StringComparer.Ordinal))
+            {
+                builder.Append("\njob=").Append(job.Id)
+                    .Append(" packed=").Append(job.PackedSha256)
+                    .Append(" png=").Append(job.PngSha256);
+                foreach (FontLibraryGlyphReport glyph in job.Glyphs
+                    .OrderBy(glyph => glyph.Style, StringComparer.Ordinal)
+                    .ThenBy(glyph => glyph.Moji))
+                {
+                    builder.Append("\n  glyph=")
+                        .Append(glyph.Style)
+                        .Append(':')
+                        .Append(glyph.Moji)
+                        .Append(" packed=")
+                        .Append(glyph.PackedSha256)
+                        .Append(" png=")
+                        .Append(glyph.PngSha256);
+                }
+            }
+            return builder.ToString();
         }
 
         static void MakeZhRoundTripDrift(string packageRoot)
