@@ -668,6 +668,42 @@ namespace FEBuilderGBA.Core.Tests
             Assert.True(ContainsCjk(encZh), "encoding-error dialog should resolve to a CJK translation");
         }
 
+        [Fact]
+        public void ShippedFiles_ChineseSetupWizardTranslationsAreNatural()
+        {
+            string root = FindRepoRoot();
+            if (root == null) return;
+            string zhPath = Path.Combine(
+                root, "config", "translate", "zh.txt");
+            if (!File.Exists(zhPath)) return;
+
+            MyTranslateResource.LoadResource(zhPath);
+
+            Assert.Equal("返回", MyTranslateResource.str("戻る"));
+            Assert.Equal(
+                "（默认）",
+                MyTranslateResource.str("(ディフォルト)"));
+            Assert.Equal("或者", MyTranslateResource.str("または、"));
+            Assert.Equal(
+                "设置并进入下一步",
+                MyTranslateResource.str("設定して次へ"));
+            Assert.Equal(
+                "暂不设置",
+                MyTranslateResource.str("設定しない"));
+            Assert.Equal(
+                "暂不设置 Sappy",
+                MyTranslateResource.str("Sappyを設定しない"));
+            const string sappyKey =
+                "Sappyを指定してください。\r\n"
+                + "Sappyを設定すると、♪ボタンで、音楽を視聴できます。";
+            string sappyValue = MyTranslateResource.str(sappyKey);
+            Assert.Equal(
+                "请指定 Sappy。\r\n设置后，可通过♪按钮试听音乐。",
+                sappyValue);
+            Assert.DoesNotContain("回报", MyTranslateResource.str("戻る"));
+            Assert.DoesNotContain("观看音乐", sappyValue);
+        }
+
         // True if the string contains any CJK Unified Ideograph (proves a real
         // Chinese translation, not English identity-passthrough).
         static bool ContainsCjk(string s)
