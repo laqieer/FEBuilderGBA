@@ -429,19 +429,6 @@ namespace FEBuilderGBA
 
             Program.Config["sappy"] = sappy;
 
-            if (this.Step3 == Step3_Enum.DOWNLOAD_GBA_MUSIC_STDIO)
-            {//GBA MUSIC SUDIOの場合でもsappyをダウンロードしておきます。
-                string dir = Path.Combine(Program.BaseDirectory, "app", "sappy");
-                //                string url = "https://github.com/FEBuilderGBA/FEBuilderGBA/releases/download/ver_20200316.21/SappyInstaller.7z";
-                string url = "https://www.dropbox.com/sh/723s9jdkfkx7pwa/AABrXCMghyx2f74fme6iDoTEa?dl=1";
-                string r = DownloadProgram_Direct(url, dir, "sappy.exe");
-                if (IsErrorResult(r))
-                {
-                    R.ShowStopError(r);
-                    return;
-                }
-                sappy = r;
-            }
             //もしmid2agbがあれば同時に設定する.
             {
                 string r = GrepFile(Path.GetDirectoryName(sappy), "mid2agb.exe");
