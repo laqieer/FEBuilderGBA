@@ -121,7 +121,8 @@ Standalone commands: `lint`, `disasm`, `songexchange`, `names`, `portrait`, `exp
 **`import-midi`**, `disasm-event`, **`compile-event`**, `lint-oam`, `rebuild`, `pointercalc`,
 **`export-map-settings-raw`**, **`lz77`**, **`playtest`**, `check`.
 
-Unwrapped standalone backend commands: `--export-buildfile`, `--build-buildfile`, `--buildfile-roundtrip`.
+Unwrapped standalone backend commands: `--build-font-library`, `--export-buildfile`,
+`--build-buildfile`, `--buildfile-roundtrip`.
 
 ## MCP server (issue #1942)
 
@@ -228,6 +229,7 @@ tracked in [#1933](https://github.com/laqieer/FEBuilderGBA/issues/1933).
 | CLI verb | Harness command | Status |
 |---|---|---|
 | `--version` | `check` (shows version) | ✅ |
+| `--build-font-library` | — | ⬜ |
 | `--playtest` | `playtest` | ✅ (Click only; deliberately not MCP) |
 | `--rom-info` | `rom info` | ✅ |
 | `--checksum` | `rom checksum` | 🆕 |
