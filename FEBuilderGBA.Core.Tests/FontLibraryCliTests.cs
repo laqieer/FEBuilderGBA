@@ -342,7 +342,8 @@ namespace FEBuilderGBA.Core.Tests
                         + generationReport.PayloadTreeSha256
                         + "\nfull="
                         + generationReport.FullTreeSha256
-                        + DescribeReportHashes(generationReport));
+                        + DescribeReportHashes(
+                            generated, generationReport));
                 }
 
                 ProcessResult generateNoReplace = Run(
@@ -1245,7 +1246,9 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
-        static string DescribeReportHashes(FontLibraryReport report)
+        static string DescribeReportHashes(
+            string packageRoot,
+            FontLibraryReport report)
         {
             var builder = new StringBuilder();
             foreach (FontLibraryJobReport job in report.Jobs
@@ -1262,10 +1265,41 @@ namespace FEBuilderGBA.Core.Tests
                         .Append(glyph.Style)
                         .Append(':')
                         .Append(glyph.Moji)
+                        .Append(" width=")
+                        .Append(glyph.Width)
                         .Append(" packed=")
                         .Append(glyph.PackedSha256)
                         .Append(" png=")
                         .Append(glyph.PngSha256);
+                    if (job.Format == "zh-16x13")
+                    {
+                        string pngPath = Path.Combine(
+                            packageRoot,
+                            job.Id,
+                            glyph.Filename);
+                        IndexedPngCoreReadResult read =
+                            IndexedPngCore.Read(
+                                File.ReadAllBytes(pngPath),
+                                FontLibraryFormat.Zh16x13,
+                                glyph.Style == "item"
+                                    ? FontLibraryStyle.Item
+                                    : FontLibraryStyle.Text);
+                        if (read.Success)
+                        {
+                            byte[] native =
+                                FontGlyphZHIndexCore.UnshiftTo16x13(
+                                    read.Indices,
+                                    glyph.Style == "item");
+                            byte[] packed =
+                                FontGlyphZHCore.PackGlyphZHBytes(
+                                    native, glyph.Width);
+                            if (packed != null)
+                            {
+                                builder.Append(" bytes=")
+                                    .Append(Convert.ToHexString(packed));
+                            }
+                        }
+                    }
                 }
             }
             return builder.ToString();
