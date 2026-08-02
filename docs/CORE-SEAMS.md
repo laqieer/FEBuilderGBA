@@ -70,8 +70,11 @@ moved directory identity and complete tree twice before releasing success or
 an external report. External report path/I/O/schema faults remain exit 1;
 only a valid oracle that disagrees with the package is tamper/exit 2. A
 post-move mismatch retains the output and never deletes it. Stable held-file
-reads compare Unix mtime and ctime, and failed staging cleanup verifies both
-the quarantine and original pathname after deletion. It never initializes a
+reads compare Unix mtime and ctime while the original pathname still names the
+opened identity; a pathname replacement may change ctime, so that case keeps
+identity/size/mtime/link/type checks while consuming the held bytes. Failed
+staging cleanup verifies both the quarantine and original pathname after
+deletion. It never initializes a
 ROM and preserves legacy
 `--generate-font`. The cleanup guarantee excludes a malicious same-UID actor
 inside the final check-to-delete syscall window: no unprivileged Unix API can

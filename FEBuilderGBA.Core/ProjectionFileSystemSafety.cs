@@ -160,9 +160,6 @@ namespace FEBuilderGBA
                 TypeBits = typeBits;
             }
 
-            // Compare identity, size, mtime, ctime, link count and type.
-            // A pathname rename does not change the opened file inode's ctime,
-            // while same-length content or metadata mutation does.
             internal bool SameSnapshot(OpenedRegularFileState other)
                 => Identity.Equals(other.Identity)
                 && Length == other.Length
@@ -170,6 +167,15 @@ namespace FEBuilderGBA
                 && ChangeTimeB == other.ChangeTimeB
                 && ChangeTimeC == other.ChangeTimeC
                 && ChangeTimeD == other.ChangeTimeD
+                && LinkCount == other.LinkCount
+                && TypeBits == other.TypeBits;
+
+            internal bool SameSnapshotIgnoringChangeTime(
+                OpenedRegularFileState other)
+                => Identity.Equals(other.Identity)
+                && Length == other.Length
+                && ChangeTimeA == other.ChangeTimeA
+                && ChangeTimeB == other.ChangeTimeB
                 && LinkCount == other.LinkCount
                 && TypeBits == other.TypeBits;
         }
@@ -471,10 +477,26 @@ namespace FEBuilderGBA
             string label,
             bool rejectHardLinks,
             OpenedRegularFileState before)
+            => VerifyOpenedRegularFileUnchanged(
+                handle,
+                label,
+                rejectHardLinks,
+                before,
+                originalPathStillReferencesOpenedFile: true);
+
+        internal static void VerifyOpenedRegularFileUnchanged(
+            SafeFileHandle handle,
+            string label,
+            bool rejectHardLinks,
+            OpenedRegularFileState before,
+            bool originalPathStillReferencesOpenedFile)
         {
             OpenedRegularFileState after = InspectOpenedRegularFile(
                 handle, label, rejectHardLinks);
-            if (!before.SameSnapshot(after))
+            bool unchanged = originalPathStillReferencesOpenedFile
+                ? before.SameSnapshot(after)
+                : before.SameSnapshotIgnoringChangeTime(after);
+            if (!unchanged)
                 throw new IOException(
                     "Opened regular file changed while it was read: " + label);
         }
@@ -512,8 +534,64 @@ namespace FEBuilderGBA
                 stream.SafeFileHandle,
                 label,
                 rejectHardLinks,
-                identity);
+                identity,
+                PathStillReferencesIdentity(
+                    stream.Name, identity.Identity));
             return buffer.ToArray();
+        }
+
+        static bool PathStillReferencesIdentity(
+            string path,
+            FileSystemEntryIdentity expectedIdentity)
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                try
+                {
+                    _ = File.GetAttributes(path);
+                    return CaptureExistingFileSystemEntryIdentity(path)
+                        .Equals(expectedIdentity);
+                }
+                catch (FileNotFoundException)
+                {
+                    return false;
+                }
+                catch (DirectoryNotFoundException)
+                {
+                    return false;
+                }
+                catch (IOException)
+                    when (!File.Exists(path)
+                        && !Directory.Exists(path))
+                {
+                    return false;
+                }
+            }
+            if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()
+                || OperatingSystem.IsAndroid() || OperatingSystem.IsIOS()
+                || OperatingSystem.IsMacCatalyst())
+            {
+                if (!TryGetUnixFileStatus(
+                    path,
+                    out UnixFileStatus status,
+                    out int nativeError,
+                    out string error))
+                {
+                    if (nativeError == UnixErrorNoSuchFileOrDirectory
+                        || nativeError == UnixErrorNotADirectory)
+                    {
+                        return false;
+                    }
+                    throw new IOException(error);
+                }
+                var currentIdentity = new FileSystemEntryIdentity(
+                    FileSystemEntryIdentityKind.Unix,
+                    unchecked((ulong)status.Dev),
+                    unchecked((ulong)status.Ino),
+                    0);
+                return currentIdentity.Equals(expectedIdentity);
+            }
+            return true;
         }
 
         static uint ReadUnixLinkCount(
