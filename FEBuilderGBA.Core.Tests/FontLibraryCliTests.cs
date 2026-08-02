@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
@@ -12,7 +11,6 @@ using FEBuilderGBA;
 using FEBuilderGBA.Core;
 using FEBuilderGBA.SkiaSharp;
 using FEBuilderGBA.SharedTest;
-using SkiaSharp;
 using Xunit;
 
 namespace FEBuilderGBA.Core.Tests
@@ -33,9 +31,15 @@ namespace FEBuilderGBA.Core.Tests
         const string CorpusSha256 =
             "a0c7716669b5ded0d8051abfc232b828d489f7d889b2928eefcf43f0b8f495d6";
         const string MultiJobPayloadTreeSha256 =
-            "2db9c593b6f854bf0519dfa705141f03f6687e608e82583ceae2f58708352021";
+            "ca34bfe7c39a7700bbb79a3f197d49cb2e6af0cd61424b7a6d30bd24a0540b20";
         const string MultiJobFullTreeSha256 =
-            "676177f099de56ee408f0ba7ef854188f9006221670ec8773d7560b72814e837";
+            "5ff183225b948b9ab413c0918eb9317aabaaf5e2d414e1522b591e43095794fd";
+        const string StrictItemAPackedSha256 =
+            "d4d67f7ab38a7351afea0883b5e1ff31644c789936085a5fe8e6acd4a4f482f4";
+        const string StrictTextAPackedSha256 =
+            "e221ddc9b931d9bd0b9bbafbaf3a24d8f1ab75a75be0cd9e5e40f240831f7dfb";
+        const int StrictItemAWidth = 6;
+        const int StrictTextAWidth = 5;
 
         [Fact]
         public void Cli_FourModes_MultiJob_NoReplaceAndDeterministicTree()
@@ -345,8 +349,7 @@ namespace FEBuilderGBA.Core.Tests
                         + "\nfull="
                         + generationReport.FullTreeSha256
                         + DescribeReportHashes(
-                            generated, generationReport)
-                        + DescribeAliasCandidate(notoPath));
+                            generated, generationReport));
                 }
 
                 ProcessResult generateNoReplace = Run(
@@ -1188,17 +1191,17 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(
                 FontBulkManifestCore.Header
                 + "\nA\titem\t"
-                + SkiaFontGoldens.GoldenItemAWidth
+                + StrictItemAWidth
                 + "\titem_41.png\nA\ttext\t"
-                + SkiaFontGoldens.GoldenTextAWidth
+                + StrictTextAWidth
                 + "\ttext_41.png\n",
                 File.ReadAllText(Path.Combine(
                     alpha, "alpha.fontall.txt")));
 
-            foreach ((FontLibraryStyle style, byte[] tile) in new[]
+            foreach ((FontLibraryStyle style, string packedHash) in new[]
             {
-                (FontLibraryStyle.Item, SkiaFontGoldens.GoldenItemA),
-                (FontLibraryStyle.Text, SkiaFontGoldens.GoldenTextA),
+                (FontLibraryStyle.Item, StrictItemAPackedSha256),
+                (FontLibraryStyle.Text, StrictTextAPackedSha256),
             })
             {
                 string name = style == FontLibraryStyle.Item
@@ -1209,8 +1212,10 @@ namespace FEBuilderGBA.Core.Tests
                     style);
                 Assert.True(read.Success, read.Error);
                 Assert.Equal(
-                    IndexedPngCore.UnpackEngineTile(tile),
-                    read.Indices);
+                    packedHash,
+                    FontLibraryHashCore.ComputeSha256(
+                        IndexedPngCore.PackEngineTile(
+                            read.Indices)));
             }
 
             Assert.True(FontLibraryReportFormatter.TryParse(
@@ -1306,94 +1311,6 @@ namespace FEBuilderGBA.Core.Tests
                 }
             }
             return builder.ToString();
-        }
-
-        static string DescribeAliasCandidate(string fontPath)
-        {
-            try
-            {
-                byte[] fontBytes = File.ReadAllBytes(fontPath);
-                using var stream =
-                    new MemoryStream(fontBytes, writable: false);
-                using SKTypeface typeface =
-                    SKTypeface.FromStream(stream);
-                if (typeface == null)
-                    return "\nalias=typeface-null";
-                using var bitmap = new SKBitmap(
-                    16, 16,
-                    SKColorType.Rgba8888,
-                    SKAlphaType.Premul);
-                using (var canvas = new SKCanvas(bitmap))
-                {
-                    canvas.Clear(SKColors.White);
-                    using var font = new SKFont(typeface, 12)
-                    {
-                        Edging = SKFontEdging.Alias,
-                        Hinting = SKFontHinting.None,
-                        Subpixel = false,
-                    };
-                    using var paint = new SKPaint
-                    {
-                        IsAntialias = false,
-                        Color = SKColors.Black,
-                    };
-                    font.GetFontMetrics(
-                        out SKFontMetrics metrics);
-                    canvas.DrawText(
-                        "\u4F60", 0, -metrics.Ascent, font, paint);
-                    canvas.Flush();
-                }
-
-                MethodInfo itemMethod =
-                    typeof(SkiaFontRasterizer).GetMethod(
-                        "GenerateItemFont",
-                        BindingFlags.NonPublic
-                            | BindingFlags.Static);
-                MethodInfo textMethod =
-                    typeof(SkiaFontRasterizer).GetMethod(
-                        "GenerateTextFont",
-                        BindingFlags.NonPublic
-                            | BindingFlags.Static);
-                if (itemMethod == null || textMethod == null)
-                    return "\nalias=generator-method-missing";
-                (string itemHash, int itemWidth) =
-                    HashZhCandidate(bitmap, itemMethod);
-                (string textHash, int textWidth) =
-                    HashZhCandidate(bitmap, textMethod);
-                return "\nalias itemWidth="
-                    + itemWidth.ToString(
-                        System.Globalization.CultureInfo.InvariantCulture)
-                    + " item=" + itemHash
-                    + " textWidth="
-                    + textWidth.ToString(
-                        System.Globalization.CultureInfo.InvariantCulture)
-                    + " text=" + textHash;
-            }
-            catch (Exception ex)
-            {
-                return "\nalias=error:" + ex.GetType().Name;
-            }
-        }
-
-        static (string Hash, int Width) HashZhCandidate(
-            SKBitmap bitmap,
-            MethodInfo method)
-        {
-            object[] arguments = { bitmap, 0, 0 };
-            byte[] engineTile = (byte[])method.Invoke(
-                null, arguments);
-            int width = (int)arguments[2];
-            byte[] indices =
-                IndexedPngCore.RemapRasterizerIndices(
-                    IndexedPngCore.UnpackEngineTile(engineTile),
-                    FontLibraryFormat.Zh16x13);
-            byte[] native =
-                FontGlyphZHIndexCore.CropTop16x13(indices);
-            byte[] packed =
-                FontGlyphZHCore.PackGlyphZHBytes(native, width);
-            return (
-                FontLibraryHashCore.ComputeSha256(packed),
-                width);
         }
 
         static void MakeZhRoundTripDrift(string packageRoot)

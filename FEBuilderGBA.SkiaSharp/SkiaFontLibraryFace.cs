@@ -205,11 +205,12 @@ namespace FEBuilderGBA.SkiaSharp
                         + unicodeScalar.ToString("X4") + ".";
                     return false;
                 }
-                string character = char.ConvertFromUtf32(unicodeScalar);
-                byte[] tile = SkiaFontRasterizer.RasterizeWithTypeface(
+                byte[] tile =
+                    SkiaFontRasterizer
+                        .RasterizeDeterministicWithTypeface(
                     _typeface,
                     _size,
-                    character,
+                    unicodeScalar,
                     isItemFont,
                     verticalOffset,
                     out int width);

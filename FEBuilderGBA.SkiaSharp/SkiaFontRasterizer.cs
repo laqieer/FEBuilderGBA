@@ -106,6 +106,80 @@ namespace FEBuilderGBA.SkiaSharp
                 : GenerateTextFont(baseBitmap, verticalOffset, out glyphWidth);
         }
 
+        /// <summary>
+        /// Strict font-library rasterization. Skia's native antialias coverage
+        /// can straddle the legacy 0xA0 threshold differently on Windows and
+        /// Linux for the same outline. Sampling the scaled glyph path once at
+        /// each pixel center removes that native bitmap-backend variance while
+        /// preserving the established item/text postprocessing below.
+        /// </summary>
+        internal static byte[] RasterizeDeterministicWithTypeface(
+            SKTypeface typeface,
+            float size,
+            int unicodeScalar,
+            bool isItemFont,
+            int verticalOffset,
+            out int glyphWidth)
+        {
+            using SKBitmap baseBitmap =
+                RenderDeterministicOutline(
+                    typeface, size, unicodeScalar);
+            return isItemFont
+                ? GenerateItemFont(
+                    baseBitmap, verticalOffset, out glyphWidth)
+                : GenerateTextFont(
+                    baseBitmap, verticalOffset, out glyphWidth);
+        }
+
+        static SKBitmap RenderDeterministicOutline(
+            SKTypeface typeface,
+            float size,
+            int unicodeScalar)
+        {
+            var bitmap = new SKBitmap(
+                16, 16,
+                SKColorType.Rgba8888,
+                SKAlphaType.Premul);
+            bitmap.Erase(SKColors.White);
+            using var font = new SKFont(typeface, size)
+            {
+                EmbeddedBitmaps = false,
+                ForceAutoHinting = false,
+                Hinting = SKFontHinting.None,
+                LinearMetrics = true,
+                Subpixel = false,
+            };
+            ushort glyph = font.GetGlyph(unicodeScalar);
+            if (glyph == 0)
+            {
+                bitmap.Dispose();
+                throw new InvalidOperationException(
+                    "The verified font has no requested glyph.");
+            }
+            using SKPath path = font.GetGlyphPath(glyph);
+            if (path == null)
+            {
+                bitmap.Dispose();
+                throw new InvalidOperationException(
+                    "The verified glyph has no outline path.");
+            }
+            font.GetFontMetrics(out SKFontMetrics metrics);
+            float baseline = -metrics.Ascent;
+            for (int y = 0; y < 16; y++)
+            {
+                float sampleY = y + 0.5f - baseline;
+                for (int x = 0; x < 16; x++)
+                {
+                    bool inside =
+                        path.Contains(x + 0.5f, sampleY);
+                    bitmap.SetPixel(
+                        x, y,
+                        inside ? SKColors.Black : SKColors.White);
+                }
+            }
+            return bitmap;
+        }
+
         static SKTypeface ResolveTypeface(FontSpec font)
         {
             try

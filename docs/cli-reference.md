@@ -78,10 +78,12 @@ local inputs:
 
 For pinned font/license/corpus bytes and this tool version, the full package
 tree is byte-identical on Windows x64 and Linux x64. The report exposes both
-payload and finalized full-tree hashes. macOS arm64 runs structural
-generate/validate/roundtrip checks only because the repository's existing
-Skia font goldens document AA-threshold drift there; no cross-architecture
-byte-identity claim is made.
+payload and finalized full-tree hashes. Strict generation center-samples each
+scaled glyph outline before applying the existing item/text postprocessing, so
+native antialias coverage cannot change package bytes. Existing
+`--generate-font` rasterization is unchanged. macOS arm64 runs structural
+generate/validate/roundtrip checks only; no cross-architecture byte-identity
+claim is made.
 
 ```bash
 FEBuilderGBA.CLI --build-font-library --manifest=font-library.json \

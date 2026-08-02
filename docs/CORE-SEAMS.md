@@ -32,8 +32,10 @@ collisions/unmapped scalars, compactly assigns ascending selected scalars from
 the selected run after style expansion and before slot allocation.
 `IFontLibraryFaceFactory`/`IFontLibraryFace` are additive strict disposable
 interfaces; `SkiaFontLibraryFace` loads verified bytes once, uses SkiaSharp
-2.88.9 glyph availability, and forbids fallback/missing/all-zero glyphs while
-sharing `SkiaFontRasterizer` render math.
+2.88.9 glyph availability, and forbids fallback/missing/all-zero glyphs. Its
+strict path center-samples the scaled outline to remove native antialias
+coverage drift, then shares `SkiaFontRasterizer` item/text postprocessing and
+packing. The legacy antialiased `SkiaFontRasterizer` entry point is unchanged.
 
 `FontGlyphZHIndexCore` is the single source for the item (+2)/text (+1) shift
 constants and forward/legacy/strict inverse geometry. It crops ordinary raster

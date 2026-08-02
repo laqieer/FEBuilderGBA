@@ -44,10 +44,12 @@ font, license, and UTF-8 corpus files into ROM-independent `.fontall.txt`/PNG
 libraries. It never downloads a font, selects a system fallback, or initializes
 a ROM. Generation is staged beside a new destination and published with an
 atomic no-replace rename; validation and round-trip modes never rasterize.
-Determinism covers repeated runs with the same verified font bytes and native
-Skia build; the report exposes the payload-tree hash for comparing platforms.
-The format contract does not claim byte-identical rasterization across CPU
-architectures or different native Skia builds.
+Strict generation center-samples the scaled glyph outline before applying the
+existing item/text postprocessing, avoiding native antialias coverage drift.
+Pinned Windows x64 and Linux x64 fixtures are therefore byte-identical; the
+report exposes the payload-tree hash for comparison. The contract does not
+claim byte identity across CPU architectures or different Skia versions.
+Existing `--generate-font` behavior retains its legacy antialiased rasterizer.
 
 ```bash
 FEBuilderGBA.CLI --build-font-library --manifest=font-library.json \
