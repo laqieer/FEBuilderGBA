@@ -151,18 +151,10 @@ namespace FEBuilderGBA.SkiaSharp
             };
             ushort glyph = font.GetGlyph(unicodeScalar);
             if (glyph == 0)
-            {
-                bitmap.Dispose();
-                throw new InvalidOperationException(
-                    "The verified font has no requested glyph.");
-            }
+                return bitmap;
             using SKPath path = font.GetGlyphPath(glyph);
             if (path == null)
-            {
-                bitmap.Dispose();
-                throw new InvalidOperationException(
-                    "The verified glyph has no outline path.");
-            }
+                return bitmap;
             font.GetFontMetrics(out SKFontMetrics metrics);
             float baseline = -metrics.Ascent;
             for (int y = 0; y < 16; y++)
