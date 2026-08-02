@@ -469,6 +469,92 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void Planner_ZhValidatesResolvedEngineSlots()
+        {
+            string highBits = ManifestJson(
+                styles: "[\"text\"]",
+                ranges:
+                    "[{\"start\":\"U+0041\",\"end\":\"U+0041\"}]",
+                mapping:
+                    "{\"mode\":\"fixed\",\"entries\":["
+                    + "{\"scalar\":\"U+0041\",\"moji\":16810369}]}",
+                format: FontLibraryFormat.Zh16x13);
+            FontLibraryManifestParseResult highBitsParsed =
+                FontLibraryManifestCore.Parse(highBits);
+            Assert.True(highBitsParsed.Success, highBitsParsed.Error);
+            FontLibraryPlanResult highBitsPlan =
+                FontLibraryPlanner.Plan(
+                    highBitsParsed.Manifest,
+                    new FontLibraryPlannerInput());
+            Assert.False(highBitsPlan.Success);
+            Assert.Equal(
+                FontLibraryFailureKind.Validation,
+                highBitsPlan.FailureKind);
+            Assert.Contains("16-bit", highBitsPlan.Error);
+
+            string alias = ManifestJson(
+                styles: "[\"text\"]",
+                ranges:
+                    "[{\"start\":\"U+0041\",\"end\":\"U+0042\"}]",
+                mapping:
+                    "{\"mode\":\"fixed\",\"entries\":["
+                    + "{\"scalar\":\"U+0041\",\"moji\":65},"
+                    + "{\"scalar\":\"U+0042\",\"moji\":16449}]}",
+                format: FontLibraryFormat.Zh16x13);
+            FontLibraryManifestParseResult aliasParsed =
+                FontLibraryManifestCore.Parse(alias);
+            Assert.True(aliasParsed.Success, aliasParsed.Error);
+            FontLibraryPlanResult aliasPlan = FontLibraryPlanner.Plan(
+                aliasParsed.Manifest,
+                new FontLibraryPlannerInput());
+            Assert.False(aliasPlan.Success);
+            Assert.Equal(
+                FontLibraryFailureKind.Conflict,
+                aliasPlan.FailureKind);
+            Assert.Contains("same ZH engine glyph slot", aliasPlan.Error);
+
+            string missing = ManifestJson(
+                styles: "[\"text\"]",
+                ranges:
+                    "[{\"start\":\"U+0041\",\"end\":\"U+0041\"}]",
+                mapping:
+                    "{\"mode\":\"fixed\",\"entries\":["
+                    + "{\"scalar\":\"U+0041\",\"moji\":256}]}",
+                format: FontLibraryFormat.Zh16x13);
+            FontLibraryManifestParseResult missingParsed =
+                FontLibraryManifestCore.Parse(missing);
+            Assert.True(missingParsed.Success, missingParsed.Error);
+            FontLibraryPlanResult missingPlan =
+                FontLibraryPlanner.Plan(
+                    missingParsed.Manifest,
+                    new FontLibraryPlannerInput());
+            Assert.False(missingPlan.Success);
+            Assert.Equal(
+                FontLibraryFailureKind.Validation,
+                missingPlan.FailureKind);
+            Assert.Contains("no engine glyph slot", missingPlan.Error);
+
+            string valid = ManifestJson(
+                styles: "[\"text\"]",
+                ranges:
+                    "[{\"start\":\"U+4F60\",\"end\":\"U+4F60\"}]",
+                mapping:
+                    "{\"mode\":\"fixed\",\"entries\":["
+                    + "{\"scalar\":\"U+4F60\",\"moji\":33153}]}",
+                format: FontLibraryFormat.Zh16x13);
+            FontLibraryManifestParseResult validParsed =
+                FontLibraryManifestCore.Parse(valid);
+            Assert.True(validParsed.Success, validParsed.Error);
+            FontLibraryPlanResult validPlan = FontLibraryPlanner.Plan(
+                validParsed.Manifest,
+                new FontLibraryPlannerInput());
+            Assert.True(validPlan.Success, validPlan.Error);
+            Assert.Equal(
+                0x8181u,
+                Assert.Single(validPlan.Plan.Jobs[0].Slots).Moji);
+        }
+
+        [Fact]
         public void Planner_ClassifiesDuplicateFixedScalarAsConflict()
         {
             string json = ManifestJson(

@@ -160,15 +160,16 @@ namespace FEBuilderGBA
                 TypeBits = typeBits;
             }
 
-            // Unix ctime changes when the pathname is renamed even though this
-            // held descriptor still names the same immutable bytes. Compare the
-            // opened identity, size, mtime, link count and type; this both binds
-            // the read and permits a safe path replacement after open.
+            // Compare identity, size, mtime, ctime, link count and type.
+            // A pathname rename does not change the opened file inode's ctime,
+            // while same-length content or metadata mutation does.
             internal bool SameSnapshot(OpenedRegularFileState other)
                 => Identity.Equals(other.Identity)
                 && Length == other.Length
                 && ChangeTimeA == other.ChangeTimeA
                 && ChangeTimeB == other.ChangeTimeB
+                && ChangeTimeC == other.ChangeTimeC
+                && ChangeTimeD == other.ChangeTimeD
                 && LinkCount == other.LinkCount
                 && TypeBits == other.TypeBits;
         }
@@ -839,11 +840,22 @@ namespace FEBuilderGBA
                 }
 
                 Directory.Delete(quarantine, recursive: true);
-                if (File.Exists(quarantine)
-                    || Directory.Exists(quarantine))
+                if (!BuildfileExportCore.VerifyPathAbsent(
+                    quarantine,
+                    File.GetAttributes,
+                    out error))
+                {
+                    return false;
+                }
+                if (!BuildfileExportCore.VerifyPathAbsent(
+                    path,
+                    File.GetAttributes,
+                    out string originalPathError))
                 {
                     error =
-                        "reserved staging quarantine still exists";
+                        "reserved staging pathname was recreated; replacement "
+                        + "retained: " + path + " ("
+                        + originalPathError + ")";
                     return false;
                 }
                 return true;

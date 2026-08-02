@@ -435,13 +435,46 @@ namespace FEBuilderGBA.Core.Tests
                         "--out", generated,
                         "--mode", "validate",
                         "--report", reportHardLink);
-                    Assert.Equal(2, linkedReport.ExitCode);
+                    Assert.Equal(1, linkedReport.ExitCode);
                     Assert.Contains("Hard-linked", linkedReport.Stderr);
+                    AssertFailureOutcome(linkedReport, "Io");
                 }
                 finally
                 {
                     File.Delete(reportHardLink);
                 }
+
+                string malformedReport =
+                    Path.Combine(root, "malformed-report.json");
+                File.WriteAllText(
+                    malformedReport,
+                    "{",
+                    new UTF8Encoding(false));
+                ProcessResult malformedOracle = Run(
+                    cli,
+                    "--build-font-library",
+                    "--manifest", manifest,
+                    "--out", generated,
+                    "--mode", "validate",
+                    "--report", malformedReport);
+                Assert.Equal(1, malformedOracle.ExitCode);
+                Assert.Contains(
+                    "generation report is invalid",
+                    malformedOracle.Stderr);
+                AssertFailureOutcome(malformedOracle, "Schema");
+
+                ProcessResult dryRunOracle = Run(
+                    cli,
+                    "--build-font-library",
+                    "--manifest", manifest,
+                    "--out", generated,
+                    "--mode", "validate",
+                    "--report", reportPath);
+                Assert.Equal(1, dryRunOracle.ExitCode);
+                Assert.Contains(
+                    "no fullTreeSha256",
+                    dryRunOracle.Stderr);
+                AssertFailureOutcome(dryRunOracle, "Schema");
 
                 string packageFile = Path.Combine(
                     generated, "alpha", "text_41.png");

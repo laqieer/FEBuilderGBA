@@ -175,11 +175,12 @@ namespace FEBuilderGBA.CLI
                 out ProjectionFileSystemSafety.OpenedRegularFileState?
                     expectedReportIdentity,
                 out FontLibraryReport expectedGenerationReport,
+                out FontLibraryFailureKind expectedReportFailureKind,
                 out string expectedReportError))
             {
                 return FontLibraryResultError(
                     expectedReportError,
-                    FontLibraryFailureKind.Tamper);
+                    expectedReportFailureKind);
             }
             try
             {
@@ -1170,11 +1171,13 @@ namespace FEBuilderGBA.CLI
             out ProjectionFileSystemSafety.OpenedRegularFileState?
                 identity,
             out FontLibraryReport report,
+            out FontLibraryFailureKind failureKind,
             out string error)
         {
             stream = null;
             identity = null;
             report = null;
+            failureKind = FontLibraryFailureKind.None;
             error = "";
             if (reportPhysical == null
                 || (mode != "validate" && mode != "roundtrip"))
@@ -1198,13 +1201,27 @@ namespace FEBuilderGBA.CLI
                     out report,
                     out string parseError))
                 {
-                    throw new FormatException(
+                    failureKind = FontLibraryFailureKind.Schema;
+                    error =
                         "external generation report is invalid: "
-                        + parseError);
+                        + parseError;
+                    stream.Dispose();
+                    stream = null;
+                    identity = null;
+                    report = null;
+                    return false;
                 }
                 if (string.IsNullOrEmpty(report.FullTreeSha256))
-                    throw new FormatException(
-                        "external generation report has no fullTreeSha256.");
+                {
+                    failureKind = FontLibraryFailureKind.Schema;
+                    error =
+                        "external generation report has no fullTreeSha256.";
+                    stream.Dispose();
+                    stream = null;
+                    identity = null;
+                    report = null;
+                    return false;
+                }
                 return true;
             }
             catch (Exception ex)
@@ -1213,6 +1230,7 @@ namespace FEBuilderGBA.CLI
                 stream = null;
                 identity = null;
                 report = null;
+                failureKind = FontLibraryFailureKind.Io;
                 error =
                     "could not read external generation report: "
                     + ex.Message;

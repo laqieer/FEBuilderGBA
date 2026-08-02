@@ -179,7 +179,10 @@ or runtime download.
 covered exactly. A range mapping only bounds the allowed Unicode scalars and
 moji capacity: selected scalars are sorted ascending and assigned compactly
 from `mojiStart` through `mojiEnd`; the Unicode and moji spans need not have
-equal lengths. Corpus separators are ignored only when explicitly listed.
+equal lengths. ZH mappings must fit the 16-bit engine domain, resolve through
+`FontGlyphZHCore.CalcCodeB`, and be unique by that resolved slot (so raw alias
+spellings cannot overwrite one another). Corpus separators are ignored only
+when explicitly listed.
 Other Unicode whitespace in corpus text, and whitespace selected explicitly by
 `scalarRanges` or fixed-map entries, is diagnosed rather than inferred away.
 Missing mappings,
@@ -224,7 +227,9 @@ With `--report`, validate/roundtrip compare against the immutable external
 PNG + slots + `package-report.json` edits; use the outside-package report from
 the original generation with the same selected plan and reported provenance.
 The report is opened once without following links, read and alias-checked
-through that same handle. Without it validation explicitly proves internal
+through that same handle. Open/read/path failures and malformed report grammar
+are exit 1; only a successfully parsed oracle whose identity disagrees with the
+package is tamper/exit 2. Without it validation explicitly proves internal
 consistency only and cannot detect such coordinated edits. Neither validation
 mode opens a face or rasterizes.
 

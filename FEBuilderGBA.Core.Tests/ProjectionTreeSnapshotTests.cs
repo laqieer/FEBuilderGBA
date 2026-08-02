@@ -171,7 +171,7 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void IdentityBoundCleanup_NeverDeletesReplacementAtReservedPath()
+        public void IdentityBoundCleanup_ReportsReplacementAtReservedPath()
         {
             string stage = Path.Combine(tempDirectory, "stage");
             Directory.CreateDirectory(stage);
@@ -181,21 +181,57 @@ namespace FEBuilderGBA.Core.Tests
                     .CaptureExistingFileSystemEntryIdentity(stage);
             string replacement = Path.Combine(stage, "replacement.txt");
 
-            Assert.True(
-                ProjectionFileSystemSafety
-                    .TryDeleteReservedDirectoryIdentityBound(
-                        stage,
-                        identity,
-                        quarantine =>
-                        {
-                            Assert.False(Directory.Exists(stage));
-                            Directory.CreateDirectory(stage);
-                            File.WriteAllText(replacement, "do-not-delete");
-                        },
-                        out string error),
-                error);
+            bool cleaned = ProjectionFileSystemSafety
+                .TryDeleteReservedDirectoryIdentityBound(
+                    stage,
+                    identity,
+                    quarantine =>
+                    {
+                        Assert.False(Directory.Exists(stage));
+                        Directory.CreateDirectory(stage);
+                        File.WriteAllText(replacement, "do-not-delete");
+                    },
+                    out string error);
+
+            Assert.False(cleaned);
+            Assert.Contains("recreated", error);
             Assert.True(File.Exists(replacement));
             Assert.Equal("do-not-delete", File.ReadAllText(replacement));
+        }
+
+        [SkippableFact]
+        public void StableRead_RejectsSameLengthRewriteWithRestoredMtime()
+        {
+            Skip.If(
+                OperatingSystem.IsWindows(),
+                "Unix ctime behavior is covered by this test.");
+            string path = Path.Combine(
+                tempDirectory, "ctime-rewrite.txt");
+            File.WriteAllText(
+                path, "AAAA", new UTF8Encoding(false));
+            DateTime mtime = File.GetLastWriteTimeUtc(path);
+            using FileStream stream =
+                ProjectionFileSystemSafety
+                    .OpenRegularFileForRead(path);
+
+            IOException error = Assert.Throws<IOException>(() =>
+                ProjectionFileSystemSafety
+                    .ReadOpenedRegularFileBoundedStable(
+                        stream,
+                        maxBytes: 1024,
+                        label: "ctime rewrite",
+                        rejectHardLinks: true,
+                        out _,
+                        afterInspection: () =>
+                        {
+                            File.WriteAllText(
+                                path,
+                                "BBBB",
+                                new UTF8Encoding(false));
+                            File.SetLastWriteTimeUtc(path, mtime);
+                        }));
+
+            Assert.Contains("changed while it was read", error.Message);
         }
 
         [Fact]

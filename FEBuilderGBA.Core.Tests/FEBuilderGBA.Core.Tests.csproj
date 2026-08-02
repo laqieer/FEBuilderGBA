@@ -32,6 +32,14 @@
        config/content items into the test output. A ProjectReference with
        ReferenceOutputAssembly=false still propagated those content items and
        broke tests that deliberately exercise an empty script/config root. -->
+  <Target Name="RestoreFontLibraryCli"
+          BeforeTargets="Restore"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <MSBuild Projects="..\FEBuilderGBA.CLI\FEBuilderGBA.CLI.csproj"
+             Targets="Restore"
+             Properties="Configuration=$(Configuration)"
+             BuildInParallel="false" />
+  </Target>
   <Target Name="BuildFontLibraryCli"
           BeforeTargets="Build"
           Condition="'$(DesignTimeBuild)' != 'true'">

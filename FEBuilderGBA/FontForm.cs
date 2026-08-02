@@ -1347,6 +1347,21 @@ namespace FEBuilderGBA
             string a = name.Substring(8);
             return a;
         }
+        static uint ResolveBulkImportMoji(
+            string ch,
+            string fontFilename,
+            PatchUtil.PRIORITY_CODE priorityCode,
+            out bool mappedByFilename)
+        {
+            mappedByFilename =
+                FEBuilderGBA.Core.FontBulkImportCore
+                    .TryParseMojiFromFilename(
+                        Path.GetFileName(fontFilename),
+                        out uint moji);
+            return mappedByFilename
+                ? moji
+                : U.ConvertMojiCharToUnit(ch, priorityCode);
+        }
 
         private void ImportAllButton_Click(object sender, EventArgs e)
         {
@@ -1408,15 +1423,20 @@ namespace FEBuilderGBA
                 string type = sp[1];
                 uint width = U.atoi(sp[2]);
                 string font_filename = sp[3];
-                font_filename = Path.Combine(dir, font_filename);
 
                 bool isItemFont = (type == "item" ? true : false);
 
-                uint moji = U.ConvertMojiCharToUnit(ch, priorityCode);
-                if (moji < 0x20 || moji == 0x80)
+                uint moji = ResolveBulkImportMoji(
+                    ch,
+                    font_filename,
+                    priorityCode,
+                    out bool mappedByFilename);
+                if (!mappedByFilename
+                    && (moji < 0x20 || moji == 0x80))
                 {//制御文字なので無視
                     continue;
                 }
+                font_filename = Path.Combine(dir, font_filename);
 
                 Color bgcolor = GetFontColor(isItemFont);
                 Bitmap paletteHint = ImageUtil.ByteToImage4(16, 16, new byte[64], 0, bgcolor);

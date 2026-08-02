@@ -19,7 +19,9 @@ padded/mixed-case filename hex stay accepted); packages use `StrictLibrary`
 (exact header/four columns, LF,
 item/text, width 1–16, canonical `U.ToHexString(moji)` filename, and unique
 moji/style). `FontBulkImportCore.TryParseMojiFromFilename` remains the public
-compatibility wrapper over the shared helper.
+compatibility wrapper over the shared helper. Core/Avalonia and WinForms bulk
+main-font import treat that suffix as the authoritative mapped moji, falling
+back to legacy character conversion only when no suffix is available.
 
 `FontLibraryManifestCore` strictly parses bounded schema v1 with exact object
 allowlists, explicit Unicode scalar sources and fixed/range moji mapping, and
@@ -29,7 +31,9 @@ URL plus license identifier/file/SHA/source URL; license cap 16 MiB).
 skips only configured corpus separators, rejects other Unicode whitespace,
 collisions/unmapped scalars, compactly assigns ascending selected scalars from
 `mojiStart`, applies no inferred encoding, and enforces one 65,536-row cap for
-the selected run after style expansion and before slot allocation.
+the selected run after style expansion and before slot allocation. ZH jobs
+also require a 16-bit engine code, reject `CalcCodeB` `NOT_FOUND`, and
+deduplicate by the resolved ZH slot rather than raw alias spellings.
 `IFontLibraryFaceFactory`/`IFontLibraryFace` are additive strict disposable
 interfaces; `SkiaFontLibraryFace` loads verified bytes once, uses SkiaSharp
 2.88.9 glyph availability, and forbids fallback/missing/all-zero glyphs. Its
@@ -63,9 +67,12 @@ inputs, containment/reparse/identity/hard-link checks, a single held handle for
 an external report, exclusive sibling staging, and native no-replace directory
 publication. It validates immediately before the move, then validates the
 moved directory identity and complete tree twice before releasing success or
-an external report. A post-move mismatch retains the output and never deletes
-it. Failed staging cleanup is quarantine- and identity-guarded with repeated
-checks before deletion. It never initializes a ROM and preserves legacy
+an external report. External report path/I/O/schema faults remain exit 1;
+only a valid oracle that disagrees with the package is tamper/exit 2. A
+post-move mismatch retains the output and never deletes it. Stable held-file
+reads compare Unix mtime and ctime, and failed staging cleanup verifies both
+the quarantine and original pathname after deletion. It never initializes a
+ROM and preserves legacy
 `--generate-font`. The cleanup guarantee excludes a malicious same-UID actor
 inside the final check-to-delete syscall window: no unprivileged Unix API can
 unlink a directory by held descriptor. Detected/uncertain substitutions are

@@ -162,7 +162,7 @@ namespace FEBuilderGBA.Core
 
                     Dictionary<int, uint> mapping = BuildMapping(job, scalars);
                     var scalarMoji = new List<(int Scalar, uint Moji)>();
-                    var mojis = new HashSet<uint>();
+                    var mojiSlots = new HashSet<uint>();
                     foreach (int scalar in scalars)
                     {
                         if (!mapping.TryGetValue(scalar, out uint moji))
@@ -171,11 +171,17 @@ namespace FEBuilderGBA.Core
                                 "mapping does not cover U+"
                                 + scalar.ToString("X4",
                                     CultureInfo.InvariantCulture));
-                        if (!mojis.Add(moji))
+                        uint mojiSlot =
+                            GetMojiSlotIdentity(job, moji);
+                        if (!mojiSlots.Add(mojiSlot))
                             throw JobError(job,
                                 FontLibraryFailureKind.Conflict,
-                                "two Unicode scalars map to the same moji "
-                                + U.ToHexString(moji));
+                                job.Format == FontLibraryFormat.Zh16x13
+                                    ? "two Unicode scalars map to the same "
+                                        + "ZH engine glyph slot "
+                                        + U.ToHexString(mojiSlot)
+                                    : "two Unicode scalars map to the same "
+                                        + "moji " + U.ToHexString(moji));
                         scalarMoji.Add((scalar, moji));
                     }
                     scalarMoji.Sort((a, b) =>
@@ -382,6 +388,26 @@ namespace FEBuilderGBA.Core
                 }
             }
             return result;
+        }
+
+        static uint GetMojiSlotIdentity(
+            FontLibraryJobManifest job,
+            uint moji)
+        {
+            if (job.Format != FontLibraryFormat.Zh16x13)
+                return moji;
+            if (moji > ushort.MaxValue)
+                throw JobError(job,
+                    FontLibraryFailureKind.Validation,
+                    "ZH moji must fit in the 16-bit engine code domain: "
+                    + U.ToHexString(moji));
+            uint codeB = FontGlyphZHCore.CalcCodeB(moji);
+            if (codeB == U.NOT_FOUND)
+                throw JobError(job,
+                    FontLibraryFailureKind.Validation,
+                    "ZH moji has no engine glyph slot: "
+                    + U.ToHexString(moji));
+            return codeB;
         }
 
         static void RejectWhitespace(

@@ -122,6 +122,44 @@ namespace FEBuilderGBA.Core.Tests
             finally { CoreState.ROM = prevRom; }
         }
 
+        [Fact]
+        public void ImportAll_UsesFilenameMojiForMappedUnicodeScalar()
+        {
+            var prevRom = CoreState.ROM;
+            using var svc = new ImageServiceScope();
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+                byte[] idx = new byte[16 * 16];
+                Array.Fill(idx, (byte)2);
+                byte[] expected =
+                    FontGlyphRenderCore.PackGlyphBytes(idx);
+                string manifest =
+                    "\U0001F642\ttext\t7\ttext_41.png\n";
+
+                string error = FontBulkImportCore.ImportAll(
+                    rom,
+                    manifest,
+                    (pngName, type) => new FontGlyphPixels
+                    {
+                        Indexed = idx,
+                        Width = 16,
+                        Height = 16,
+                    });
+
+                Assert.Equal("", error);
+                Assert.Equal(
+                    expected,
+                    rom.getBinaryData(GLYPH_OFF + 8, 64));
+                Assert.Equal(7u, rom.u8(GLYPH_OFF + 5));
+            }
+            finally
+            {
+                CoreState.ROM = prevRom;
+            }
+        }
+
         [Theory]
         [InlineData("text_41.png", true, 0x41u)]
         [InlineData("item_A8.png", true, 0xA8u)]
