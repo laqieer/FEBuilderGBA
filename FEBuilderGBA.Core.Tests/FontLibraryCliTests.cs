@@ -1088,7 +1088,7 @@ namespace FEBuilderGBA.Core.Tests
             string? corpusHash = null)
             => "{"
                 + "\"id\":\"" + id + "\","
-                + "\"locale\":\"" + locale + "\"," 
+                + "\"locale\":\"" + locale + "\","
                 + "\"format\":\"" + format + "\","
                 + "\"styles\":[\"text\",\"item\"],"
                 + (corpusPath == null
