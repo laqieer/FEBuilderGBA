@@ -19,9 +19,10 @@ padded/mixed-case filename hex stay accepted); packages use `StrictLibrary`
 (exact header/four columns, LF,
 item/text, width 1–16, canonical `U.ToHexString(moji)` filename, and unique
 moji/style). `FontBulkImportCore.TryParseMojiFromFilename` remains the public
-compatibility wrapper over the shared helper. Core/Avalonia and WinForms bulk
-main-font import treat that suffix as the authoritative mapped moji, falling
-back to legacy character conversion only when no suffix is available.
+compatibility wrapper over the shared helper. Core/Avalonia consume that
+canonical suffix directly. WinForms treats it as authoritative only when the
+strict sibling `slots.tsv` validates the filename/style/moji record; legacy
+manifests without slots keep character-derived conversion.
 
 `FontLibraryManifestCore` strictly parses bounded schema v1 with exact object
 allowlists, explicit Unicode scalar sources and fixed/range moji mapping, and

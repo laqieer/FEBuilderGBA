@@ -70,9 +70,10 @@ by non-rasterizing round-trip mode. A generation report saved outside the
 package is an immutable oracle for later validation/round-trip; without one,
 those modes prove internal consistency only. Dry-run verifies provenance,
 planning, and style-expanded capacity without opening a face, rasterizing, or
-creating/writing a package tree. Main-font imports in Core, Avalonia, and
-WinForms treat the canonical filename suffix as the explicit engine moji;
-legacy character-derived filenames retain their fallback behavior. See the
+creating/writing a package tree. Core/Avalonia imports use the canonical
+filename moji; WinForms requires the strict package's validated `slots.tsv`
+record before overriding character conversion, so legacy UTF-8-derived
+filenames retain their fallback behavior. See the
 [CLI reference](docs/cli-reference.md#--build-font-library).
 
 ### Deterministic headless playtest

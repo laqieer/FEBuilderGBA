@@ -1347,20 +1347,55 @@ namespace FEBuilderGBA
             string a = name.Substring(8);
             return a;
         }
-        static uint ResolveBulkImportMoji(
-            string ch,
+        static bool TryResolveMappedBulkImportMoji(
+            string type,
             string fontFilename,
-            PatchUtil.PRIORITY_CODE priorityCode,
-            out bool mappedByFilename)
+            IReadOnlyDictionary<string, uint> mappedSlots,
+            out uint moji)
         {
-            mappedByFilename =
-                FEBuilderGBA.Core.FontBulkImportCore
-                    .TryParseMojiFromFilename(
-                        Path.GetFileName(fontFilename),
-                        out uint moji);
-            return mappedByFilename
-                ? moji
-                : U.ConvertMojiCharToUnit(ch, priorityCode);
+            string key = type + "\n" + Path.GetFileName(fontFilename);
+            moji = 0;
+            return mappedSlots != null
+                && mappedSlots.TryGetValue(key, out moji);
+        }
+        static bool TryLoadBulkImportSlotMappings(
+            string manifestFilename,
+            out Dictionary<string, uint> mappedSlots,
+            out string error)
+        {
+            mappedSlots =
+                new Dictionary<string, uint>(StringComparer.Ordinal);
+            error = "";
+            string directory =
+                Path.GetDirectoryName(manifestFilename);
+            string slotsPath = Path.Combine(directory, "slots.tsv");
+            if (!File.Exists(slotsPath))
+                return true;
+            try
+            {
+                List<FEBuilderGBA.Core.FontLibrarySlotRecord> records =
+                    FEBuilderGBA.Core.FontLibrarySlotTsv.Parse(
+                        File.ReadAllText(slotsPath));
+                foreach (FEBuilderGBA.Core.FontLibrarySlotRecord record
+                    in records)
+                {
+                    string type =
+                        FEBuilderGBA.Core.FontLibraryBuilderCore
+                            .StyleText(record.Style);
+                    string key = type + "\n" + record.Filename;
+                    if (!mappedSlots.TryAdd(key, record.Moji))
+                        throw new InvalidDataException(
+                            "slots.tsv duplicates " + record.Filename);
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = R._(
+                    "Invalid strict font package slots.tsv: {0}",
+                    ex.Message);
+                return false;
+            }
         }
 
         private void ImportAllButton_Click(object sender, EventArgs e)
@@ -1398,6 +1433,13 @@ namespace FEBuilderGBA
         static string ImportAll(InputFormRef.AutoPleaseWait wait, string filename)
         {
             string dir = Path.GetDirectoryName(filename);
+            if (!TryLoadBulkImportSlotMappings(
+                filename,
+                out Dictionary<string, uint> mappedSlots,
+                out string slotsError))
+            {
+                return slotsError;
+            }
             PatchUtil.PRIORITY_CODE priorityCode = PatchUtil.SearchPriorityCode();
             Undo.UndoData undodata = Program.Undo.NewUndoData("FontImportAll");
 
@@ -1426,11 +1468,14 @@ namespace FEBuilderGBA
 
                 bool isItemFont = (type == "item" ? true : false);
 
-                uint moji = ResolveBulkImportMoji(
-                    ch,
+                bool mappedByFilename =
+                    TryResolveMappedBulkImportMoji(
+                    type,
                     font_filename,
-                    priorityCode,
-                    out bool mappedByFilename);
+                    mappedSlots,
+                    out uint moji);
+                if (!mappedByFilename)
+                    moji = U.ConvertMojiCharToUnit(ch, priorityCode);
                 if (!mappedByFilename
                     && (moji < 0x20 || moji == 0x80))
                 {//制御文字なので無視
