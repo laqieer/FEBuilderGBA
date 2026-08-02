@@ -704,6 +704,68 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("观看音乐", sappyValue);
         }
 
+        [Fact]
+        public void ShippedFiles_ChineseSetupWizardStep6TranslationsResolve()
+        {
+            string root = FindRepoRoot();
+            Assert.False(
+                string.IsNullOrEmpty(root),
+                "Repository root with FEBuilderGBA.sln is required.");
+            string zhPath = Path.Combine(
+                root, "config", "translate", "zh.txt");
+            Assert.True(
+                File.Exists(zhPath),
+                "Shipped Chinese translation file is required.");
+
+            string[] lines = File.ReadAllLines(zhPath);
+            string[] rawKeys =
+            {
+                ":設定して完了する",
+                ":最新版のGitを自動でダウンロードしてインストールします。",
+                ":Git（バージョン管理システム）を設定してください。"
+                    + "\\r\\nGitはパッチデータ（config/patch2）の更新に使用されます。"
+                    + "\\r\\nインストールすると、最新のパッチデータを簡単に取得できます。",
+                ":必要なプログラムのダウンロードと、設定をしています。",
+                ":Downloading required programs and configuring settings.",
+            };
+            foreach (string key in rawKeys)
+            {
+                Assert.Equal(
+                    1,
+                    lines.Count(line =>
+                        string.Equals(
+                            line, key, StringComparison.Ordinal)));
+            }
+
+            MyTranslateResource.LoadResource(zhPath);
+            Assert.Equal(
+                "完成设置",
+                MyTranslateResource.str("設定して完了する"));
+            Assert.Equal(
+                "自动下载并安装最新版 Git",
+                MyTranslateResource.str(
+                    "最新版のGitを自動でダウンロードしてインストールします。"));
+            const string gitKey =
+                "Git（バージョン管理システム）を設定してください。\r\n"
+                + "Gitはパッチデータ（config/patch2）の更新に使用されます。\r\n"
+                + "インストールすると、最新のパッチデータを簡単に取得できます。";
+            Assert.Equal(
+                "请配置 Git（版本控制系统）。\r\n"
+                    + "Git 用于更新 config/patch2 补丁数据。\r\n"
+                    + "安装后可便捷拉取最新补丁。",
+                MyTranslateResource.str(gitKey));
+            const string progress =
+                "正在下载所需程序并完成设置。";
+            Assert.Equal(
+                progress,
+                MyTranslateResource.str(
+                    "必要なプログラムのダウンロードと、設定をしています。"));
+            Assert.Equal(
+                progress,
+                MyTranslateResource.str(
+                    "Downloading required programs and configuring settings."));
+        }
+
         // True if the string contains any CJK Unified Ideograph (proves a real
         // Chinese translation, not English identity-passthrough).
         static bool ContainsCjk(string s)
