@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using Xunit;
 
 namespace FEBuilderGBA.Core.Tests
@@ -224,6 +225,11 @@ namespace FEBuilderGBA.Core.Tests
                         out _,
                         afterInspection: () =>
                         {
+                            // Some CI filesystems expose ctime at one-second
+                            // resolution. Cross that boundary so the test
+                            // deterministically isolates ctime from restored
+                            // length/mtime metadata.
+                            Thread.Sleep(1100);
                             File.WriteAllText(
                                 path,
                                 "BBBB",
