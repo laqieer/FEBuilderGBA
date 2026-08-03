@@ -31,6 +31,16 @@ namespace FEBuilderGBA
 
         public bool DeleteDirectory(string path, bool recursive)
         {
+            if (Directory.Exists(path))
+            {
+                FileAttributes attributes = File.GetAttributes(path);
+                if ((attributes & FileAttributes.ReparsePoint) != 0)
+                {
+                    // Delete the link/junction itself. Never enumerate or mutate its external target.
+                    Directory.Delete(path, false);
+                    return true;
+                }
+            }
             ClearReadOnly(path);
             Directory.Delete(path, recursive);
             return true;
@@ -49,6 +59,8 @@ namespace FEBuilderGBA
         static void ClearReadOnly(string path)
         {
             if (!Directory.Exists(path)) return;
+            FileAttributes rootAttributes = File.GetAttributes(path);
+            if ((rootAttributes & FileAttributes.ReparsePoint) != 0) return;
             foreach (string entry in Directory.EnumerateFileSystemEntries(path))
             {
                 FileAttributes attributes = File.GetAttributes(entry);
@@ -57,7 +69,7 @@ namespace FEBuilderGBA
                     ClearReadOnly(entry);
                 File.SetAttributes(entry, attributes & ~FileAttributes.ReadOnly);
             }
-            File.SetAttributes(path, File.GetAttributes(path) & ~FileAttributes.ReadOnly);
+            File.SetAttributes(path, rootAttributes & ~FileAttributes.ReadOnly);
         }
     }
 

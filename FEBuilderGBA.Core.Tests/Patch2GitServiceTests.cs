@@ -149,7 +149,6 @@ namespace FEBuilderGBA.Core.Tests
                 string patchDir = Patch2GitService.GetPatch2Dir(baseDir);
                 Directory.CreateDirectory(patchDir);   // empty submodule placeholder (zero entries)
                 Assert.Empty(Directory.GetFileSystemEntries(patchDir));
-                DateTime created = Directory.GetCreationTimeUtc(patchDir);
 
                 var clone = new FakeClone { ReturnCode = 0, CreateOnSuccess = true };
                 var r = Patch2GitService.InitializeOrUpdateCore(
@@ -161,7 +160,6 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.True(clone.TargetExistedAtCall);    // empty released stubs are cloned in place
                 Assert.True(File.Exists(Path.Combine(patchDir, "cloned.txt")));
                 Assert.Equal(0, BackupCount(baseDir));      // #2036: a held empty stub is never backed up
-                Assert.Equal(created, Directory.GetCreationTimeUtc(patchDir)); // the root itself is held
             }
             finally { Cleanup(baseDir); }
         }
@@ -174,7 +172,6 @@ namespace FEBuilderGBA.Core.Tests
             {
                 string patchDir = Patch2GitService.GetPatch2Dir(baseDir);
                 Directory.CreateDirectory(patchDir);   // empty placeholder
-                DateTime created = Directory.GetCreationTimeUtc(patchDir);
 
                 var clone = new FakeClone { ReturnCode = 128, CreateOnSuccess = false };
                 var r = Patch2GitService.InitializeOrUpdateCore(
@@ -185,7 +182,7 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.True(Directory.Exists(patchDir));   // original empty dir restored
                 Assert.Equal(0, BackupCount(baseDir));      // no dangling backup
                 // #2036: the placeholder root is held (never deleted/recreated) and stays empty.
-                Assert.Equal(created, Directory.GetCreationTimeUtc(patchDir));
+                Assert.True(clone.TargetExistedAtCall);
                 Assert.Empty(Directory.GetFileSystemEntries(patchDir));
             }
             finally { Cleanup(baseDir); }

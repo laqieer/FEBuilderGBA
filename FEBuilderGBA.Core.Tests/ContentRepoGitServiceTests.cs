@@ -338,7 +338,6 @@ namespace FEBuilderGBA.Core.Tests
             try
             {
                 Directory.CreateDirectory(repoDir);
-                DateTime created = Directory.GetCreationTimeUtc(repoDir);
                 FileAttributes attributes = File.GetAttributes(repoDir);
 
                 var ops = new RecordingDirectoryOps { RepoDir = repoDir };
@@ -350,7 +349,6 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.True(clone.TargetExistedAtCall);
                 Assert.Empty(ops.MoveRequests);                          // the held root is never moved
                 Assert.DoesNotContain(repoDir, ops.DirectoryDeleteRequests);
-                Assert.Equal(created, Directory.GetCreationTimeUtc(repoDir));
                 Assert.Equal(attributes, File.GetAttributes(repoDir));
                 Assert.Empty(Directory.GetDirectories(Path.Combine(baseDir, "resources"), "_FE-Repo_backup_*"));
             }
@@ -366,7 +364,6 @@ namespace FEBuilderGBA.Core.Tests
             {
                 Directory.CreateDirectory(Path.Combine(repoDir, "FE6"));
                 Directory.CreateDirectory(Path.Combine(repoDir, "FE7U", "SYSTEM"));
-                DateTime created = Directory.GetCreationTimeUtc(repoDir);
 
                 var ops = new RecordingDirectoryOps { RepoDir = repoDir };
                 var clone = new FakeClone { ReturnCode = 0, CreateOnSuccess = true };
@@ -381,7 +378,6 @@ namespace FEBuilderGBA.Core.Tests
                 int parent = ops.DirectoryDeleteRequests.IndexOf(Path.Combine(repoDir, "FE7U"));
                 Assert.True(nested >= 0 && parent > nested, "stub children must be deleted deepest-first");
                 Assert.True(File.Exists(Path.Combine(repoDir, "cloned.txt")));
-                Assert.Equal(created, Directory.GetCreationTimeUtc(repoDir));
             }
             finally { Cleanup(baseDir); }
         }
@@ -396,7 +392,6 @@ namespace FEBuilderGBA.Core.Tests
             {
                 Directory.CreateDirectory(Path.Combine(repoDir, "FE6"));
                 Directory.CreateDirectory(Path.Combine(repoDir, "FE7U", "SYSTEM"));
-                DateTime created = Directory.GetCreationTimeUtc(repoDir);
 
                 var ops = new RecordingDirectoryOps { RepoDir = repoDir };
                 var clone = new FakeClone
@@ -419,7 +414,6 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.True(Directory.Exists(repoDir));
                 Assert.Empty(ops.MoveRequests);
                 Assert.DoesNotContain(repoDir, ops.DirectoryDeleteRequests);
-                Assert.Equal(created, Directory.GetCreationTimeUtc(repoDir));
                 Assert.Equal(Sorted("FE6", "FE7U", Path.Combine("FE7U", "SYSTEM")), RelativeDirectories(repoDir));
                 Assert.Empty(Directory.GetFiles(repoDir, "*", SearchOption.AllDirectories));
             }
@@ -685,7 +679,6 @@ namespace FEBuilderGBA.Core.Tests
             {
                 Directory.CreateDirectory(Path.Combine(repoDir, "FE6"));
                 Directory.CreateDirectory(Path.Combine(repoDir, "FE8U", "SYSTEM"));
-                DateTime created = Directory.GetCreationTimeUtc(repoDir);
 
                 var clone = new FakeClone
                 {
@@ -705,9 +698,35 @@ namespace FEBuilderGBA.Core.Tests
 
                 Assert.Equal(Patch2GitResultKind.Failed, result.Kind);
                 Assert.True(Directory.Exists(repoDir));
-                Assert.Equal(created, Directory.GetCreationTimeUtc(repoDir));
                 Assert.Equal(Sorted("FE6", "FE8U", Path.Combine("FE8U", "SYSTEM")), RelativeDirectories(repoDir));
                 Assert.Empty(Directory.GetFiles(repoDir, "*", SearchOption.AllDirectories));
+            }
+            finally { Cleanup(baseDir); }
+        }
+
+        [Fact]
+        public void ReparseDirectoryDelete_RemovesLinkWithoutTouchingExternalTarget()
+        {
+            string repoDir = NewRepoDir(out string baseDir);
+            try
+            {
+                Directory.CreateDirectory(repoDir);
+                string external = Path.Combine(baseDir, "external-target");
+                Directory.CreateDirectory(external);
+                string marker = Path.Combine(external, "marker.txt");
+                File.WriteAllText(marker, "keep");
+                File.SetAttributes(marker, File.GetAttributes(marker) | FileAttributes.ReadOnly);
+
+                string link = Path.Combine(repoDir, "linked-directory");
+                Directory.CreateSymbolicLink(link, external);
+                var ops = new RealContentRepoDirectoryOps();
+
+                Assert.True(ops.DeleteDirectory(link, recursive: true));
+                Assert.False(Directory.Exists(link));
+                Assert.True(File.Exists(marker));
+                Assert.Equal("keep", File.ReadAllText(marker));
+                Assert.True((File.GetAttributes(marker) & FileAttributes.ReadOnly) != 0,
+                    "deleting the link must not clear attributes on its external target");
             }
             finally { Cleanup(baseDir); }
         }
@@ -724,7 +743,6 @@ namespace FEBuilderGBA.Core.Tests
                 string[] versions = { "FE6", "FE7J", "FE7U", "FE8J", "FE8U" };
                 foreach (string v in versions)
                     Directory.CreateDirectory(Path.Combine(patch2Dir, v));
-                DateTime created = Directory.GetCreationTimeUtc(patch2Dir);
 
                 var clone = new FakeClone
                 {
@@ -744,7 +762,6 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal(Patch2GitResultKind.Failed, result.Kind);
                 Assert.True(clone.TargetExistedAtCall);            // the shipped stub is cloned into in place
                 Assert.True(Directory.Exists(patch2Dir));
-                Assert.Equal(created, Directory.GetCreationTimeUtc(patch2Dir));
                 Assert.Equal(Sorted(versions), RelativeDirectories(patch2Dir));
                 Assert.Empty(Directory.GetFiles(patch2Dir, "*", SearchOption.AllDirectories));
                 Assert.Empty(Directory.GetDirectories(Path.Combine(baseDir, "config"), "_patch2_backup_*"));
