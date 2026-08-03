@@ -67,6 +67,9 @@ namespace FEBuilderGBA
         /// <summary>Acquire the shared single-flight guard (pass-through to <see cref="ContentRepoGitService"/>).</summary>
         internal static bool TryEnter() => ContentRepoGitService.TryEnter();
 
+        /// <summary>Observe the shared guard without acquiring it (used by legacy UI preconditions).</summary>
+        internal static bool IsRunning() => ContentRepoGitService.IsRunning();
+
         /// <summary>Release the shared single-flight guard (pass-through to <see cref="ContentRepoGitService"/>).</summary>
         internal static void Exit() => ContentRepoGitService.Exit();
     }

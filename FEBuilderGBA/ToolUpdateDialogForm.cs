@@ -144,10 +144,9 @@ namespace FEBuilderGBA
             => AutoUpdatePatch2Git(e);
 
         /// <summary>
-        /// Update patch2 data via git clone (first time) or git fetch+reset (subsequent).
-        /// Git runs on a background Task; the main thread polls every 80 ms so the
-        /// please-wait label shows real-time git progress output.
-        /// No application restart is needed — the data is reloaded on next launch.
+        /// Preserve the legacy Git-install and unsaved-ROM preconditions, then delegate exactly once
+        /// to the shared Patch2 host.  The host owns all git progress and result messages so this
+        /// legacy update dialog cannot drift from the Options/Patch-Manager workflow.
         /// </summary>
         private void AutoUpdatePatch2Git(EventArgs e)
         {
@@ -156,23 +155,18 @@ namespace FEBuilderGBA
                 return;
             }
 
-            // #1812: participate in Patch2GitService's single-flight guard so this legacy inline path and
-            // the new OptionForm/PatchForm buttons (which go through Patch2GitService) never mutate
-            // config/patch2 concurrently. Non-blocking: a concurrent trigger is rejected here.
-            if (!Patch2GitService.TryEnter())
+            // Observe (do not acquire) before any Git-install or save prompt. The shared host will
+            // acquire atomically when it starts the operation.
+            if (Patch2GitService.IsRunning())
             {
-                R.ShowStopError("A patch database operation is already running.");
+                R.ShowStopError("Another content repository operation is already running.");
                 return;
             }
-            try
-            {
 
             // Resolve git executable — auto-install if not found
-            string gitExe = GitUtil.FindGitExecutable();
-            if (gitExe == null)
+            if (GitUtil.FindGitExecutable() == null)
             {
-                gitExe = TryAutoInstallGit();
-                if (gitExe == null)
+                if (TryAutoInstallGit() == null)
                     return;
             }
 
@@ -190,113 +184,17 @@ namespace FEBuilderGBA
                 }
             }
 
-            string patchPath = Path.Combine(Program.BaseDirectory, "config", "patch2");
-
-            using (InputFormRef.AutoPleaseWait pleaseWait = new InputFormRef.AutoPleaseWait(this))
+            Patch2GitResult result = Patch2GitWinForms.RunInitUpdate(this, null);
+            if (result.Kind == Patch2GitResultKind.Success)
             {
-                var gitLog = new System.Text.StringBuilder();
-
-                // lastLine[0] is written by the git output callback (background thread)
-                // and consumed by the polling loop below (main thread) via Interlocked.
-                var lastLine = new string[1];
-                Action<string> progress = line =>
-                {
-                    if (!string.IsNullOrEmpty(line))
-                        System.Threading.Interlocked.Exchange(ref lastLine[0], line);
-                };
-
-                string patch2RemoteUrl = GitUtil.GetPatch2RemoteUrl();
-
-                if (GitUtil.IsGitRepo(patchPath))
-                {
-                    // UPDATE PATH: run git on background task, poll for progress on main thread
-                    pleaseWait.DoEvents("Git: fetch --progress --depth=1 origin ...");
-                    var task = System.Threading.Tasks.Task.Run(
-                        () => GitUtil.Update(gitExe, patchPath, progress, gitLog, patch2RemoteUrl));
-                    PollGitProgress(task, pleaseWait, lastLine);
-
-                    if (task.Result != 0)
-                    {
-                        R.ShowStopError("Gitによる更新に失敗しました。\r\n終了コード: {0}\r\n\r\n{1}",
-                            task.Result, gitLog.ToString().Trim());
-                        this.Close();
-                        return;
-                    }
-                }
-                else
-                {
-                    // FIRST-TIME PATH: back up existing dir, then clone
-                    string backupPath = null;
-                    if (Directory.Exists(patchPath))
-                    {
-                        backupPath = Path.Combine(Program.BaseDirectory, "config",
-                            "_patch2_backup_" + DateTime.Now.Ticks.ToString());
-                        pleaseWait.DoEvents("Backing up existing patch2 data...");
-                        Directory.Move(patchPath, backupPath);
-                    }
-
-                    pleaseWait.DoEvents("Git: clone --progress --depth=1 ...");
-                    var task = System.Threading.Tasks.Task.Run(
-                        () => GitUtil.Clone(gitExe, patch2RemoteUrl, patchPath, progress, gitLog));
-                    PollGitProgress(task, pleaseWait, lastLine);
-
-                    if (task.Result != 0)
-                    {
-                        // Restore backup on failure
-                        if (backupPath != null)
-                        {
-                            if (Directory.Exists(patchPath))
-                                Directory.Delete(patchPath, true);
-                            Directory.Move(backupPath, patchPath);
-                        }
-                        R.ShowStopError("Gitによるクローンに失敗しました。\r\n終了コード: {0}\r\n\r\n{1}",
-                            task.Result, gitLog.ToString().Trim());
-                        this.Close();
-                        return;
-                    }
-
-                    // Success — remove backup
-                    if (backupPath != null)
-                    {
-                        try { Directory.Delete(backupPath, true); }
-                        catch { }
-                    }
-                }
+                this.DialogResult = System.Windows.Forms.DialogResult.OK;
+                this.Close();
             }
-
-            R.ShowOK("パッチデータの更新が完了しました。\r\n変更を反映するには再起動してください。");
-            this.DialogResult = System.Windows.Forms.DialogResult.OK;
-            this.Close();
-
-            }
-            finally
+            else if (result.Kind == Patch2GitResultKind.Failed ||
+                     result.Kind == Patch2GitResultKind.GitNotFound)
             {
-                Patch2GitService.Exit();
+                this.Close();
             }
-        }
-
-        /// <summary>
-        /// Pumps the UI message loop while a background git Task is running,
-        /// showing each new output line in the please-wait label as it arrives.
-        /// lastLine[0] is written atomically by the git output callback and consumed here.
-        /// </summary>
-        private static void PollGitProgress(System.Threading.Tasks.Task task,
-                                            InputFormRef.AutoPleaseWait pleaseWait,
-                                            string[] lastLine)
-        {
-            while (!task.IsCompleted)
-            {
-                string line = System.Threading.Interlocked.Exchange(ref lastLine[0], null);
-                if (!string.IsNullOrEmpty(line))
-                    pleaseWait.DoEvents(line);
-                else
-                    System.Windows.Forms.Application.DoEvents();
-                System.Threading.Thread.Sleep(80);
-            }
-            // Flush any final line that arrived just before the task completed
-            string last = System.Threading.Interlocked.Exchange(ref lastLine[0], null);
-            if (!string.IsNullOrEmpty(last))
-                pleaseWait.DoEvents(last);
         }
 
         /// <summary>

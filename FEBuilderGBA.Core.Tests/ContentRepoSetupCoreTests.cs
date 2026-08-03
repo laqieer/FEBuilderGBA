@@ -36,6 +36,12 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void Patch2Descriptor_UsesRawPatchDatabaseTranslationToken()
+        {
+            Assert.Equal("Patch database", Repo("patch2").DisplayName);
+        }
+
+        [Fact]
         public void ResolveDir_UsesCanonicalHelpers()
         {
             Assert.Equal(Patch2GitService.GetPatch2Dir(_baseDir), ContentRepoSetupCore.ResolveDir(Repo("patch2"), _baseDir));
