@@ -334,7 +334,7 @@ Never work directly on master — always create a feature branch.
   - Verify **control properties and rendering state**, not just ViewModel logic
   - Example: test that `Image.Stretch == Stretch.Fill` (catches rendering bugs), not just that a zoom variable changed
   - Unit tests verify code logic; headless tests verify UI behavior. **Both are required for GUI changes.**
-  - In Avalonia.Headless 11.2.3, re-locking a `WriteableBitmap` cannot prove pixels written through an earlier lock. `Lock()` is permitted only for disposal/liveness checks (and every successful lock must be disposed). For pixel semantics, observe the managed `IImage` boundary when it is consumed and correlate that snapshot with the nested UI `Image.Source` identity and dimensions. Best-effort screenshot encoders that do not assert their output are out of scope.
+  - In Avalonia.Headless 11.2.3, re-locking a `WriteableBitmap` cannot prove pixels written through an earlier lock. `Lock()` is permitted only for disposal/liveness checks or the narrow #2044 simultaneous-live-lock invariant that proves headless locks do not share one backing store; every successful lock must be disposed, and no lock may assert pixel content written through an earlier lock. For pixel semantics, observe the managed `IImage` boundary when it is consumed and correlate that snapshot with the nested UI `Image.Source` identity and dimensions. Best-effort screenshot encoders that do not assert their output are out of scope.
 
 ### 8. Scope Accuracy Check (Before PR)
 Before opening the PR, verify:
