@@ -557,6 +557,30 @@ namespace FEBuilderGBA.Core.Tests
             finally { Cleanup(baseDir); }
         }
 
+        [Fact]
+        public void SuccessfulClone_BackupCleanupExhaustion_ReturnsSuccessAndLogsRetainedBackup()
+        {
+            string repoDir = NewRepoDir(out string baseDir);
+            try
+            {
+                Directory.CreateDirectory(repoDir);
+                File.WriteAllText(Path.Combine(repoDir, "stray.txt"), "old");
+                var ops = new RecordingDirectoryOps { RepoDir = repoDir, ThrowDeleteTimes = 10 };
+                var clone = new FakeClone { ReturnCode = 0, CreateOnSuccess = true };
+
+                var result = ContentRepoGitService.InitializeOrUpdateCore(
+                    repoDir, "git", "url", _ => false, clone.Op, new FakeUpdate().Op, null, ops);
+
+                Assert.Equal(Patch2GitResultKind.Success, result.Kind);
+                Assert.Contains("Retained path:", result.Log);
+                Assert.Equal(4, ops.Delays);
+                Assert.True(File.Exists(Path.Combine(repoDir, "cloned.txt")));
+                Assert.Single(Directory.GetDirectories(
+                    Path.Combine(baseDir, "resources"), "_FE-Repo_backup_*"));
+            }
+            finally { Cleanup(baseDir); }
+        }
+
         // (i) A permanently denied backup move is bounded, never starts a clone, and leaves the original.
         [Fact]
         public void PermanentMoveDenial_IsBounded_NoCloneAndOriginalIntact()
@@ -614,7 +638,7 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // (k) A permanently undeletable clone artifact is bounded and its path is logged as retained,
-        // while the stub shape around it is still restored and the root is still held.
+        // and the root is still held. The shape is not recreated through retained content.
         [Fact]
         public void PermanentCleanupFailure_IsBounded_LogsRetainedPath_RootHeld()
         {
@@ -637,7 +661,7 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Contains("Retained path: " + stray, result.Log);
                 Assert.True(Directory.Exists(repoDir));            // root is still held
                 Assert.DoesNotContain(repoDir, ops.DirectoryDeleteRequests);
-                Assert.True(Directory.Exists(Path.Combine(repoDir, "FE6")));  // shape restored anyway
+                Assert.False(Directory.Exists(Path.Combine(repoDir, "FE6"))); // fail closed: no recreation through retained content
                 Assert.True(File.Exists(stray));                   // retained, not silently lost
             }
             finally { Cleanup(baseDir); }
@@ -729,6 +753,51 @@ namespace FEBuilderGBA.Core.Tests
                     "deleting the link must not clear attributes on its external target");
             }
             finally { Cleanup(baseDir); }
+        }
+
+        [Fact]
+        public void PlaceholderRollback_RootReplacedBySymlink_DoesNotTouchExternalTarget()
+        {
+            string repoDir = NewRepoDir(out string baseDir);
+            string externalBase = Path.Combine(
+                Path.GetTempPath(), "fe_crgit_external_" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                Directory.CreateDirectory(Path.Combine(repoDir, "FE6"));
+                Directory.CreateDirectory(externalBase);
+                string marker = Path.Combine(externalBase, "marker.txt");
+                File.WriteAllText(marker, "keep");
+                File.SetAttributes(marker, File.GetAttributes(marker) | FileAttributes.ReadOnly);
+
+                Patch2GitService.CloneOp clone = (g, u, target, p, l) =>
+                {
+                    Directory.Delete(target);
+                    Directory.CreateSymbolicLink(target, externalBase);
+                    return 1;
+                };
+
+                var result = ContentRepoGitService.InitializeOrUpdateCore(
+                    repoDir, "git", "url", _ => false, clone, new FakeUpdate().Op, null);
+
+                Assert.Equal(Patch2GitResultKind.Failed, result.Kind);
+                Assert.Contains("Rollback root is not a normal directory", result.Log);
+                Assert.Contains("Retained path: " + repoDir, result.Log);
+                Assert.True(File.Exists(marker));
+                Assert.Equal("keep", File.ReadAllText(marker));
+                Assert.True((File.GetAttributes(marker) & FileAttributes.ReadOnly) != 0);
+            }
+            finally
+            {
+                try
+                {
+                    if (Directory.Exists(repoDir)
+                        && (File.GetAttributes(repoDir) & FileAttributes.ReparsePoint) != 0)
+                        Directory.Delete(repoDir);
+                }
+                catch { }
+                Cleanup(baseDir);
+                Cleanup(externalBase);
+            }
         }
 
         // (n) The SHIPPED patch2 stub shape (config/patch2/{FE6,FE7J,FE7U,FE8J,FE8U}, all empty) clones in

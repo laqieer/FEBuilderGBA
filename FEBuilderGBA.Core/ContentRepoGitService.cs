@@ -153,7 +153,11 @@ namespace FEBuilderGBA
 
             if (backupPath != null && Directory.Exists(backupPath) &&
                 !DeleteDirectoryWithRetry(backupPath, true, directoryOps, log))
-                log.AppendLine("Retained path: " + backupPath);
+            {
+                string warning = "Retained path: " + backupPath;
+                log.AppendLine(warning);
+                Log.Error("Content repository clone succeeded, but backup cleanup failed. " + warning);
+            }
 
             return new Patch2GitResult
             {
@@ -334,7 +338,9 @@ namespace FEBuilderGBA
 
             if (placeholder.Kind == PlaceholderKind.Empty)
             {
-                ClearRootChildren(repoDir, ops, log);
+                if (!EnsureSafePlaceholderRoot(repoDir, log)) return;
+                if (!ClearRootChildren(repoDir, ops, log)) return;
+                if (!EnsureSafePlaceholderRoot(repoDir, log)) return;
                 RecreatePlaceholderDirectories(repoDir, placeholder, log);
                 return;
             }
@@ -347,32 +353,60 @@ namespace FEBuilderGBA
         /// directories deepest-first) without ever touching the root itself.  A clone can leave
         /// nested artifacts whose names collide with stub directories (e.g. <c>FE6/file</c>), so the
         /// children are enumerated live rather than assumed from the snapshot.</summary>
-        static void ClearRootChildren(string root, ContentRepoDirectoryOps ops, StringBuilder log)
+        static bool ClearRootChildren(string root, ContentRepoDirectoryOps ops, StringBuilder log)
         {
             var files = new List<string>();
             var dirs = new List<string>();
+            bool allDeleted = true;
             try
             {
-                if (!Directory.Exists(root)) return;
+                if (!EnsureSafePlaceholderRoot(root, log)) return false;
                 CollectEntries(root, files, dirs, ops);
             }
             catch (Exception ex)
             {
                 log.AppendLine(ex.ToString());
                 log.AppendLine("Retained path: " + root);
-                return;
+                return false;
             }
 
             foreach (string file in files)
             {
                 if (File.Exists(file) && !DeleteFileWithRetry(file, ops, log))
+                {
                     log.AppendLine("Retained path: " + file);
+                    allDeleted = false;
+                }
             }
             foreach (string dir in dirs.OrderByDescending(PathDepth))
             {
                 if (Directory.Exists(dir) && !DeleteDirectoryWithRetry(dir, false, ops, log))
+                {
                     log.AppendLine("Retained path: " + dir);
+                    allDeleted = false;
+                }
             }
+            return allDeleted;
+        }
+
+        static bool EnsureSafePlaceholderRoot(string root, StringBuilder log)
+        {
+            try
+            {
+                if (!Directory.Exists(root) && !File.Exists(root))
+                    Directory.CreateDirectory(root);
+                FileAttributes attributes = File.GetAttributes(root);
+                if ((attributes & FileAttributes.Directory) != 0
+                    && (attributes & FileAttributes.ReparsePoint) == 0)
+                    return true;
+                log.AppendLine("Rollback root is not a normal directory: " + root);
+            }
+            catch (Exception ex)
+            {
+                log.AppendLine(ex.ToString());
+            }
+            log.AppendLine("Retained path: " + root);
+            return false;
         }
 
         static void CollectEntries(string dir, List<string> files, List<string> dirs,
@@ -400,6 +434,7 @@ namespace FEBuilderGBA
         /// One unwritable directory must not abort the remaining restores.</summary>
         static void RecreatePlaceholderDirectories(string root, PlaceholderTree placeholder, StringBuilder log)
         {
+            if (!EnsureSafePlaceholderRoot(root, log)) return;
             try { Directory.CreateDirectory(root); }
             catch (Exception ex)
             {
