@@ -22,14 +22,16 @@
 //          gracefully, proving RefreshTargetPreview clears the pane instead
 //          of throwing or showing stale data.
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.InteropServices;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 using Avalonia.Threading;
 using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Services;
@@ -138,22 +140,155 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         static void CloseView(ImagePortraitImporterView view)
         {
+            var target = view.FindControl<IconPreviewControl>("TargetPreviewImage");
+            var targetDisplay = target?.FindControl<Image>("ImageDisplay");
+            var targetBitmap = targetDisplay?.Source as WriteableBitmap;
+            target?.SetImage(null);
+            if (targetBitmap != null)
+                AssertWriteableBitmapDisposed(targetBitmap);
+
+            DetachAndDispose(view.FindControl<GbaImageControl>("PreviewImage"));
+            DetachAndDispose(view.FindControl<GbaImageControl>("FramePreviewImage"));
             view.Close();
             Dispatcher.UIThread.RunJobs();
         }
 
-        static IDisposable EnsureImageService()
+        static void DetachAndDispose(GbaImageControl? control)
         {
+            if (control == null) return;
+            var display = control.FindControl<Image>("ImageDisplay");
+            Assert.NotNull(display);
+            var bitmap = display.Source as WriteableBitmap;
+            control.SetImage(null);
+            if (bitmap != null)
+            {
+                bitmap.Dispose();
+                AssertWriteableBitmapDisposed(bitmap);
+            }
+        }
+
+        static RestoreImageService EnsureImageService()
+        {
+            var recorder = new RecordingImageService(new SkiaImageService());
             var prev = CoreState.ImageService;
-            CoreState.ImageService = new SkiaImageService();
-            return new RestoreImageService(prev);
+            CoreState.ImageService = recorder;
+            return new RestoreImageService(prev, recorder);
         }
 
         sealed class RestoreImageService : IDisposable
         {
             readonly IImageService _prev;
-            public RestoreImageService(IImageService prev) { _prev = prev; }
+            public RecordingImageService Recorder { get; }
+            public RestoreImageService(IImageService prev, RecordingImageService recorder)
+            {
+                _prev = prev;
+                Recorder = recorder;
+            }
             public void Dispose() { CoreState.ImageService = _prev; }
+        }
+
+        sealed class ImageSnapshot
+        {
+            readonly byte[] _rgba;
+
+            public int Width { get; }
+            public int Height { get; }
+            public bool IsIndexed { get; }
+            public byte[] Rgba => (byte[])_rgba.Clone();
+
+            public ImageSnapshot(int width, int height, bool indexed, byte[] rgba)
+            {
+                Width = width;
+                Height = height;
+                IsIndexed = indexed;
+                _rgba = (byte[])rgba.Clone();
+            }
+        }
+
+        sealed class RecordingImage : IImage
+        {
+            readonly IImage _inner;
+            readonly RecordingImageService _recorder;
+
+            public RecordingImage(IImage inner, RecordingImageService recorder)
+            {
+                _inner = inner;
+                _recorder = recorder;
+            }
+
+            public int Width => _inner.Width;
+            public int Height => _inner.Height;
+            public bool IsIndexed => _inner.IsIndexed;
+
+            public byte[] GetPixelData()
+            {
+                byte[] data = _inner.GetPixelData();
+                _recorder.Record(Width, Height, IsIndexed, data, _inner.GetPaletteRGBA());
+                return data;
+            }
+
+            public void SetPixelData(byte[] data) => _inner.SetPixelData(data);
+            public byte[] GetPaletteGBA() => _inner.GetPaletteGBA();
+            public void SetPaletteGBA(byte[] gbaPalette) => _inner.SetPaletteGBA(gbaPalette);
+            public byte[] GetPaletteRGBA() => _inner.GetPaletteRGBA();
+            public void Save(string filePath) => _inner.Save(filePath);
+            public byte[] EncodePng() => _inner.EncodePng();
+            public void Dispose() => _inner.Dispose();
+        }
+
+        sealed class RecordingImageService : IImageService
+        {
+            readonly IImageService _inner;
+            readonly List<ImageSnapshot> _snapshots = new();
+
+            public RecordingImageService(IImageService inner) => _inner = inner;
+            public ImageSnapshot? LatestSnapshot => _snapshots.LastOrDefault();
+
+            public void Reset() => _snapshots.Clear();
+
+            public void Record(int width, int height, bool indexed, byte[] data, byte[] palette)
+            {
+                int pixelCount = width > 0 && height > 0 ? width * height : 0;
+                byte[] rgba = new byte[pixelCount * 4];
+                if (!indexed)
+                {
+                    Array.Copy(data, rgba, Math.Min(data.Length, rgba.Length));
+                }
+                else
+                {
+                    for (int i = 0; i < pixelCount && i < data.Length; i++)
+                    {
+                        int offset = data[i] * 4;
+                        if (offset + 3 >= palette.Length) continue;
+                        Buffer.BlockCopy(palette, offset, rgba, i * 4, 4);
+                        if (data[i] == 0) rgba[i * 4 + 3] = 0;
+                    }
+                }
+                _snapshots.Add(new ImageSnapshot(width, height, indexed, rgba));
+            }
+
+            IImage Wrap(IImage image) => new RecordingImage(image, this);
+
+            public IImage CreateImage(int width, int height) => Wrap(_inner.CreateImage(width, height));
+            public IImage CreateIndexedImage(int width, int height, byte[] gbaPalette, int paletteColorCount)
+                => Wrap(_inner.CreateIndexedImage(width, height, gbaPalette, paletteColorCount));
+            public IImage LoadImage(string filePath) => Wrap(_inner.LoadImage(filePath));
+            public IImage LoadImageFromBytes(byte[] pngData) => Wrap(_inner.LoadImageFromBytes(pngData));
+            public void GBAColorToRGBA(ushort gbaColor, out byte r, out byte g, out byte b)
+                => _inner.GBAColorToRGBA(gbaColor, out r, out g, out b);
+            public ushort RGBAToGBAColor(byte r, byte g, byte b) => _inner.RGBAToGBAColor(r, g, b);
+            public IImage Decode4bppTiles(byte[] tileData, int offset, int width, int height, byte[] gbaPalette)
+                => Wrap(_inner.Decode4bppTiles(tileData, offset, width, height, gbaPalette));
+            public IImage Decode8bppTiles(byte[] tileData, int offset, int width, int height, byte[] gbaPalette)
+                => Wrap(_inner.Decode8bppTiles(tileData, offset, width, height, gbaPalette));
+            public IImage Decode8bppLinear(byte[] data, int offset, int width, int height, byte[] gbaPalette)
+                => Wrap(_inner.Decode8bppLinear(data, offset, width, height, gbaPalette));
+            public byte[] Encode4bppTiles(IImage image) => _inner.Encode4bppTiles(image);
+            public byte[] Encode8bppTiles(IImage image) => _inner.Encode8bppTiles(image);
+            public byte[] GBAPaletteToRGBA(byte[] gbaPalette, int colorCount)
+                => _inner.GBAPaletteToRGBA(gbaPalette, colorCount);
+            public byte[] RGBAPaletteToGBA(byte[] rgbaPalette, int colorCount)
+                => _inner.RGBAPaletteToGBA(rgbaPalette, colorCount);
         }
 
         static IDisposable UseImportState()
@@ -199,33 +334,57 @@ namespace FEBuilderGBA.Avalonia.Tests
             return img!;
         }
 
-        static byte[] ReadPixels(WriteableBitmap bmp)
+        sealed class TargetObservation
         {
-            int w = bmp.PixelSize.Width, h = bmp.PixelSize.Height;
-            int stride = w * 4;
-            byte[] buf = new byte[stride * h];
-            using (var fb = bmp.Lock())
+            public WriteableBitmap Source { get; }
+            public ImageSnapshot? Snapshot { get; }
+            public TargetObservation(WriteableBitmap source, ImageSnapshot? snapshot)
             {
-                for (int y = 0; y < h; y++)
-                    Marshal.Copy(IntPtr.Add(fb.Address, y * fb.RowBytes), buf, y * stride, stride);
+                Source = source;
+                Snapshot = snapshot;
             }
-            return buf;
         }
 
-        static byte[] ReadImageRgba(IImage image)
+        static ImageSnapshot ObserveTargetRefresh(ImagePortraitImporterView view,
+            RecordingImageService recorder, Action action)
         {
-            byte[] pixels = image.GetPixelData();
-            if (!image.IsIndexed) return pixels;
-
-            byte[] palette = image.GetPaletteRGBA();
-            byte[] rgba = new byte[pixels.Length * 4];
-            for (int i = 0; i < pixels.Length; i++)
+            var display = GetTargetImageDisplay(view);
+            var observations = new List<TargetObservation>();
+            EventHandler<AvaloniaPropertyChangedEventArgs> handler = (_, change) =>
             {
-                int paletteOffset = pixels[i] * 4;
-                if (paletteOffset + 3 >= palette.Length) continue;
-                Buffer.BlockCopy(palette, paletteOffset, rgba, i * 4, 4);
+                if (change.Property == Image.SourceProperty
+                    && change.NewValue is WriteableBitmap bitmap)
+                    observations.Add(new TargetObservation(bitmap, recorder.LatestSnapshot));
+            };
+            display.PropertyChanged += handler;
+            try
+            {
+                recorder.Reset();
+                observations.Clear();
+                action();
+                Dispatcher.UIThread.RunJobs();
             }
-            return rgba;
+            finally
+            {
+                display.PropertyChanged -= handler;
+            }
+
+            Assert.NotEmpty(observations);
+            var final = observations.Last();
+            var target = Assert.IsType<WriteableBitmap>(display.Source);
+            Assert.Same(final.Source, target);
+            var snapshot = Assert.IsType<ImageSnapshot>(final.Snapshot);
+            Assert.Equal(snapshot.Width, target.PixelSize.Width);
+            Assert.Equal(snapshot.Height, target.PixelSize.Height);
+            return snapshot;
+        }
+
+        static void AssertWriteableBitmapDisposed(WriteableBitmap bitmap)
+        {
+            Assert.ThrowsAny<Exception>(() =>
+            {
+                using var framebuffer = bitmap.Lock();
+            });
         }
 
         static void AssertBitmapDisposed(Bitmap bitmap)
@@ -237,19 +396,62 @@ namespace FEBuilderGBA.Avalonia.Tests
             });
         }
 
-        static byte[] FirstOpaquePixel(WriteableBitmap bmp)
+        static void AssertFullPortraitRgba(ImageSnapshot snapshot, byte r, byte g, byte b)
         {
-            byte[] pixels = ReadPixels(bmp);
-            for (int i = 0; i + 3 < pixels.Length; i += 4)
+            const int width = 96;
+            const int height = 80;
+            Assert.Equal(width, snapshot.Width);
+            Assert.Equal(height, snapshot.Height);
+            byte[] rgba = snapshot.Rgba;
+            Assert.Equal(width * height * 4, rgba.Length);
+            for (int y = 0; y < height; y++)
             {
-                if (pixels[i + 3] != 0)
-                    return new[] { pixels[i], pixels[i + 1], pixels[i + 2], pixels[i + 3] };
+                for (int x = 0; x < width; x++)
+                {
+                    int i = (y * width + x) * 4;
+                    bool opaque = y >= 48 || (x >= 16 && x < 80);
+                    Assert.Equal(opaque ? r : (byte)0, rgba[i]);
+                    Assert.Equal(opaque ? g : (byte)0, rgba[i + 1]);
+                    Assert.Equal(opaque ? b : (byte)0, rgba[i + 2]);
+                    Assert.Equal(opaque ? (byte)255 : (byte)0, rgba[i + 3]);
+                }
             }
-            Assert.Fail("Expected at least one opaque preview pixel.");
-            return Array.Empty<byte>();
         }
 
-        static System.Collections.Generic.List<AddressListItem> GetDisplayItems(AddressListControl list)
+        static void AssertOpaqueRgba(ImageSnapshot snapshot, int width, int height,
+            byte r, byte g, byte b)
+        {
+            Assert.Equal(width, snapshot.Width);
+            Assert.Equal(height, snapshot.Height);
+            byte[] rgba = snapshot.Rgba;
+            Assert.Equal(width * height * 4, rgba.Length);
+            for (int i = 0; i < rgba.Length; i += 4)
+            {
+                Assert.Equal(r, rgba[i]);
+                Assert.Equal(g, rgba[i + 1]);
+                Assert.Equal(b, rgba[i + 2]);
+                Assert.Equal((byte)255, rgba[i + 3]);
+            }
+        }
+
+        static byte[] ReadImageRgba(IImage image)
+        {
+            byte[] pixels = image.GetPixelData();
+            if (!image.IsIndexed) return pixels;
+
+            byte[] palette = image.GetPaletteRGBA();
+            byte[] rgba = new byte[image.Width * image.Height * 4];
+            for (int i = 0; i < image.Width * image.Height && i < pixels.Length; i++)
+            {
+                int paletteOffset = pixels[i] * 4;
+                if (paletteOffset + 3 >= palette.Length) continue;
+                Buffer.BlockCopy(palette, paletteOffset, rgba, i * 4, 4);
+                if (pixels[i] == 0) rgba[i * 4 + 3] = 0;
+            }
+            return rgba;
+        }
+
+        static List<AddressListItem> GetDisplayItems(AddressListControl list)
         {
             var listBox = list.FindControl<ListBox>("AddressList");
             Assert.NotNull(listBox);
@@ -311,6 +513,22 @@ namespace FEBuilderGBA.Avalonia.Tests
             return path;
         }
 
+        // #2044: Avalonia.Headless 11.2.3 allocates a fresh native buffer for
+        // every Lock(). Holding both locks prevents allocator reuse and proves
+        // that locks do not expose one persistent backing store. Pixel tests
+        // therefore observe the managed IImage conversion boundary instead;
+        // best-effort screenshot encoders use one lock and assert no pixels.
+        [AvaloniaFact]
+        public void HeadlessFramebuffer_RelockAllocatesDistinctLiveBuffers()
+        {
+            using var bitmap = new WriteableBitmap(new PixelSize(1, 1), new Vector(96, 96),
+                PixelFormat.Rgba8888, AlphaFormat.Premul);
+            using var firstLock = bitmap.Lock();
+            using var secondLock = bitmap.Lock();
+
+            Assert.NotEqual(firstLock.Address, secondLock.Address);
+        }
+
         // ------------------------------------------------------------------
         // Distinct portraits render distinct pixels (per-slot palette read,
         // not a shared/cached render).
@@ -320,8 +538,9 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             var rom = BuildRom();
             using (UseRom(rom))
-            using (EnsureImageService())
+            using (var imageService = EnsureImageService())
             {
+                var recorder = imageService.Recorder;
                 var view = new ImagePortraitImporterView();
                 try
                 {
@@ -330,20 +549,19 @@ namespace FEBuilderGBA.Avalonia.Tests
                     var list = view.FindControl<AddressListControl>("EntryList")!;
                     Assert.Equal(6, list.ItemCount);
 
-                    Assert.True(list.SelectAddress(EntryAddr(1)));
-                    Dispatcher.UIThread.RunJobs();
                     var targetImg = GetTargetImageDisplay(view);
+                    ImageSnapshot snapshotA = ObserveTargetRefresh(view, recorder,
+                        () => Assert.True(list.SelectAddress(EntryAddr(1))));
                     var bitmapA = Assert.IsType<WriteableBitmap>(targetImg.Source);
-                    byte[] pixelsA = ReadPixels(bitmapA);
-                    FirstOpaquePixel(bitmapA);
+                    AssertFullPortraitRgba(snapshotA, 248, 0, 0);
 
-                    Assert.True(list.SelectAddress(EntryAddr(2)));
-                    Dispatcher.UIThread.RunJobs();
+                    ImageSnapshot snapshotB = ObserveTargetRefresh(view, recorder,
+                        () => Assert.True(list.SelectAddress(EntryAddr(2))));
                     var bitmapB = Assert.IsType<WriteableBitmap>(targetImg.Source);
-                    byte[] pixelsB = ReadPixels(bitmapB);
-                    FirstOpaquePixel(bitmapB);
-
-                    Assert.NotEqual(pixelsA, pixelsB);
+                    AssertFullPortraitRgba(snapshotB, 0, 0, 248);
+                    Assert.NotEqual(snapshotA.Rgba, snapshotB.Rgba);
+                    Assert.NotSame(bitmapA, bitmapB);
+                    AssertWriteableBitmapDisposed(bitmapA);
                 }
                 finally { CloseView(view); }
             }
@@ -358,24 +576,22 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             var rom = BuildRom();
             using (UseRom(rom))
-            using (EnsureImageService())
+            using (var imageService = EnsureImageService())
             {
+                var recorder = imageService.Recorder;
                 var view = new ImagePortraitImporterView();
                 try
                 {
-                    view.Show();
-                    Dispatcher.UIThread.RunJobs();
+                    ImageSnapshot snapshot = ObserveTargetRefresh(view, recorder, view.Show);
                     var list = view.FindControl<AddressListControl>("EntryList")!;
-
-                    Assert.True(list.SelectAddress(EntryAddr(0)));
-                    Dispatcher.UIThread.RunJobs();
-
+                    Assert.NotNull(list.SelectedItem);
+                    Assert.Equal(EntryAddr(0), list.SelectedItem!.addr);
                     var bmp = Assert.IsType<WriteableBitmap>(GetTargetImageDisplay(view).Source);
                     // Mini portraits are 32x32; the full-render path is
                     // 96x80 — the size alone proves the fallback fired.
                     Assert.Equal(32, bmp.PixelSize.Width);
                     Assert.Equal(32, bmp.PixelSize.Height);
-                    FirstOpaquePixel(bmp);
+                    AssertOpaqueRgba(snapshot, 32, 32, 248, 248, 248);
                 }
                 finally { CloseView(view); }
             }
@@ -390,28 +606,36 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             var rom = BuildRom();
             using (UseRom(rom))
-            using (EnsureImageService())
+            using (var imageService = EnsureImageService())
             {
+                var recorder = imageService.Recorder;
                 var view = new ImagePortraitImporterView();
                 try
                 {
                     view.Show();
                     Dispatcher.UIThread.RunJobs();
                     var list = view.FindControl<AddressListControl>("EntryList")!;
-                    Assert.True(list.SelectAddress(EntryAddr(2)));
-                    Dispatcher.UIThread.RunJobs();
-                    byte[] expected = ReadPixels(
-                        Assert.IsType<WriteableBitmap>(GetTargetImageDisplay(view).Source));
+                    var target = GetTargetImageDisplay(view);
+                    var initial = Assert.IsType<WriteableBitmap>(target.Source);
+                    Assert.Equal(32, initial.PixelSize.Width);
+                    Assert.Equal(32, initial.PixelSize.Height);
+                    using (initial.Lock()) { }
 
-                    list.SetItems(new System.Collections.Generic.List<AddrResult>
-                    {
-                        new AddrResult(EntryAddr(2), "custom row", 2),
-                    });
-                    Dispatcher.UIThread.RunJobs();
-                    var bmp = Assert.IsType<WriteableBitmap>(GetTargetImageDisplay(view).Source);
+                    ImageSnapshot actual = ObserveTargetRefresh(view, recorder, () =>
+                        list.SetItems(new List<AddrResult>
+                        {
+                            new AddrResult(EntryAddr(2), "custom row", 2),
+                        }));
+                    Assert.NotNull(list.SelectedItem);
+                    Assert.Equal((uint)2, list.SelectedItem!.tag);
+                    Assert.Equal(EntryAddr(2), list.SelectedItem.addr);
+
+                    var bmp = Assert.IsType<WriteableBitmap>(target.Source);
+                    Assert.NotSame(initial, bmp);
+                    AssertWriteableBitmapDisposed(initial);
                     Assert.Equal(96, bmp.PixelSize.Width);
                     Assert.Equal(80, bmp.PixelSize.Height);
-                    Assert.Equal(expected, ReadPixels(bmp));
+                    AssertFullPortraitRgba(actual, 0, 0, 248);
                 }
                 finally { CloseView(view); }
             }
@@ -556,8 +780,9 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             var rom = BuildRom();
             using (UseRom(rom))
-            using (EnsureImageService())
+            using (var imageService = EnsureImageService())
             {
+                var recorder = imageService.Recorder;
                 var view = new ImagePortraitImporterView();
                 string tmpPng = WriteSynthSourcePng(40, 50, 60);
                 try
@@ -570,10 +795,11 @@ namespace FEBuilderGBA.Avalonia.Tests
                     Assert.NotNull(sourceRefBefore);
 
                     var list = view.FindControl<AddressListControl>("EntryList")!;
-                    Assert.True(list.SelectAddress(EntryAddr(1)));
-                    Dispatcher.UIThread.RunJobs();
-                    var targetImg = GetTargetImageDisplay(view);
-                    byte[] pixelsBefore = ReadPixels(Assert.IsType<WriteableBitmap>(targetImg.Source));
+                    ImageSnapshot pixelsBefore = ObserveTargetRefresh(view, recorder,
+                        () => Assert.True(list.SelectAddress(EntryAddr(1))));
+                    var target = GetTargetImageDisplay(view);
+                    var targetBefore = Assert.IsType<WriteableBitmap>(target.Source);
+                    AssertFullPortraitRgba(pixelsBefore, 248, 0, 0);
 
                     // Simulate what a successful Import just wrote: slot 1's
                     // palette now points at the "Portrait B" (BLUE) palette
@@ -582,16 +808,19 @@ namespace FEBuilderGBA.Avalonia.Tests
 
                     // Exercise the same one-row refresh seam used by the
                     // successful Import_Click path.
-                    InvokeRefreshImportedEntry(view, EntryAddr(1));
-                    Dispatcher.UIThread.RunJobs();
+                    ImageSnapshot pixelsAfter = ObserveTargetRefresh(view, recorder,
+                        () => InvokeRefreshImportedEntry(view, EntryAddr(1)));
+                    var targetAfter = Assert.IsType<WriteableBitmap>(target.Source);
 
                     // Selection preserved.
                     Assert.NotNull(list.SelectedItem);
                     Assert.Equal(EntryAddr(1), list.SelectedItem!.addr);
 
                     // Target preview picked up the mutated palette (new pixels).
-                    byte[] pixelsAfter = ReadPixels(Assert.IsType<WriteableBitmap>(targetImg.Source));
-                    Assert.NotEqual(pixelsBefore, pixelsAfter);
+                    Assert.NotSame(targetBefore, targetAfter);
+                    AssertWriteableBitmapDisposed(targetBefore);
+                    AssertFullPortraitRgba(pixelsAfter, 0, 0, 248);
+                    Assert.NotEqual(pixelsBefore.Rgba, pixelsAfter.Rgba);
 
                     // Source pane untouched by the refresh.
                     Assert.Same(sourceRefBefore, GetSourceImageDisplay(view).Source);
@@ -609,8 +838,9 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             var rom = BuildRom();
             using (UseRom(rom))
-            using (EnsureImageService())
+            using (var imageService = EnsureImageService())
             {
+                var recorder = imageService.Recorder;
                 var view = new ImagePortraitImporterView();
                 string tmpPng = WriteSynthSourcePng(40, 50, 60);
                 try
@@ -619,24 +849,30 @@ namespace FEBuilderGBA.Avalonia.Tests
                     Dispatcher.UIThread.RunJobs();
 
                     var list = view.FindControl<AddressListControl>("EntryList")!;
-                    Assert.True(list.SelectAddress(EntryAddr(1)));
+                    ImageSnapshot targetBefore = ObserveTargetRefresh(view, recorder,
+                        () => Assert.True(list.SelectAddress(EntryAddr(1))));
+                    var target = GetTargetImageDisplay(view);
+                    var targetBitmapBefore = Assert.IsType<WriteableBitmap>(target.Source);
                     list.ApplySearchFilter("0x01");
                     InvokeLoadImageFromPath(view, tmpPng);
 
                     object sourceBefore = GetSourceImageDisplay(view).Source!;
                     object iconBefore = GetDisplayItems(list).Single().Icon!;
-                    var target = GetTargetImageDisplay(view);
-                    byte[] targetBefore = ReadPixels(Assert.IsType<WriteableBitmap>(target.Source));
 
                     rom.write_p32(EntryAddr(1) + 8, PaletteOffsetB);
-                    InvokeRefreshBatchImportedEntries(view, EntryAddr(1));
-                    Dispatcher.UIThread.RunJobs();
+                    ImageSnapshot targetAfter = ObserveTargetRefresh(view, recorder,
+                        () => InvokeRefreshBatchImportedEntries(view, EntryAddr(1)));
+                    var targetBitmapAfter = Assert.IsType<WriteableBitmap>(target.Source);
 
                     Assert.Equal("0x01", list.FindControl<TextBox>("SearchBox")!.Text);
                     Assert.Single(GetDisplayItems(list));
                     Assert.Equal(EntryAddr(1), list.SelectedItem!.addr);
                     Assert.NotSame(iconBefore, GetDisplayItems(list).Single().Icon);
-                    Assert.NotEqual(targetBefore, ReadPixels(Assert.IsType<WriteableBitmap>(target.Source)));
+                    Assert.NotSame(targetBitmapBefore, targetBitmapAfter);
+                    AssertWriteableBitmapDisposed(targetBitmapBefore);
+                    AssertFullPortraitRgba(targetBefore, 248, 0, 0);
+                    AssertFullPortraitRgba(targetAfter, 0, 0, 248);
+                    Assert.NotEqual(targetBefore.Rgba, targetAfter.Rgba);
                     Assert.Same(sourceBefore, GetSourceImageDisplay(view).Source);
                 }
                 finally
@@ -656,9 +892,10 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             var rom = BuildRom();
             using (UseRom(rom))
-            using (EnsureImageService())
+            using (var imageService = EnsureImageService())
             using (UseImportState())
             {
+                var recorder = imageService.Recorder;
                 var view = new ImagePortraitImporterView();
                 // A full 128x112 sheet rewrites D4 as well as D0/D8, so the
                 // post-import list thumbnail remains mini-renderable.
@@ -668,7 +905,8 @@ namespace FEBuilderGBA.Avalonia.Tests
                     view.Show();
                     Dispatcher.UIThread.RunJobs();
                     var list = view.FindControl<AddressListControl>("EntryList")!;
-                    Assert.True(list.SelectAddress(EntryAddr(1)));
+                    ImageSnapshot targetPixelsBefore = ObserveTargetRefresh(view, recorder,
+                        () => Assert.True(list.SelectAddress(EntryAddr(1))));
                     list.ApplySearchFilter("0x01");
                     Dispatcher.UIThread.RunJobs();
                     Assert.Equal(EntryAddr(1), list.SelectedItem!.addr);
@@ -683,13 +921,11 @@ namespace FEBuilderGBA.Avalonia.Tests
                     var target = GetTargetImageDisplay(view);
                     object targetSourceBefore = Assert.IsType<WriteableBitmap>(
                         target.Source);
-                    byte[] targetPixelsBefore = ReadPixels(
-                        (WriteableBitmap)targetSourceBefore);
                     uint sheetBefore = rom.p32(EntryAddr(1));
                     uint miniBefore = rom.p32(EntryAddr(1) + 4);
 
-                    InvokeImportClick(view);
-                    Dispatcher.UIThread.RunJobs();
+                    ImageSnapshot targetPixelsAfter = ObserveTargetRefresh(view, recorder,
+                        () => InvokeImportClick(view));
 
                     var status = view.FindControl<TextBlock>("StatusLabel");
                     Assert.NotNull(status);
@@ -701,11 +937,11 @@ namespace FEBuilderGBA.Avalonia.Tests
                     Assert.Equal(EntryAddr(1), list.SelectedItem!.addr);
                     var iconAfter = Assert.IsType<Bitmap>(GetDisplayItems(list).Single().Icon);
                     Assert.NotSame(iconBefore, iconAfter);
+                    AssertBitmapDisposed(iconBefore);
                     using IImage thumbnailAfter = PreviewIconHelper.LoadPortraitMini(1);
                     Assert.NotNull(thumbnailAfter);
                     Assert.NotEqual(
                         thumbnailPixelsBefore, ReadImageRgba(thumbnailAfter));
-                    AssertBitmapDisposed(iconBefore);
                     Assert.NotEqual(sheetBefore, rom.p32(EntryAddr(1)));
                     Assert.NotEqual(miniBefore, rom.p32(EntryAddr(1) + 4));
                     byte[] miniTiles = LZ77.decompress(
@@ -734,7 +970,8 @@ namespace FEBuilderGBA.Avalonia.Tests
                     Assert.NotSame(targetSourceBefore, targetAfter);
                     Assert.Equal(96, targetAfter.PixelSize.Width);
                     Assert.Equal(80, targetAfter.PixelSize.Height);
-                    Assert.NotEqual(targetPixelsBefore, ReadPixels(targetAfter));
+                    AssertWriteableBitmapDisposed((WriteableBitmap)targetSourceBefore);
+                    Assert.NotEqual(targetPixelsBefore.Rgba, targetPixelsAfter.Rgba);
                     Assert.Same(sourceBefore, GetSourceImageDisplay(view).Source);
                 }
                 finally
