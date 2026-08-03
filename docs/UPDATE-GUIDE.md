@@ -51,13 +51,22 @@ downloaded yet — use Check for Updates / Initialize Repository to fetch it"* n
    database. **Restart FEBuilderGBA afterwards** to apply the new patch data (patch definitions are
    loaded at startup).
 
-> **Avalonia:** a discoverable in-app initialize/update flow is not available yet
-> ([#1817](https://github.com/laqieer/FEBuilderGBA/issues/1817)); the Options window can set the
-> remote URL, but use a manual method below to fetch patch2 for now.
+> **Avalonia:** open **Tools → Content Repositories…** to review the patch database remote and
+> initialize/update it with Git. When Git is unavailable, the same wizard lists the manual ZIP
+> target folder and URL.
 
 ### Manual (any platform)
 
-Delete the empty stub folders under `config/patch2/` first, then choose one:
+The in-app initializer handles released empty stub folders automatically: it removes the empty
+`FE6/FE7J/FE7U/FE8J/FE8U` stubs and clones **into the existing `config/patch2/` folder itself** —
+that ordinary directory is never deleted, renamed or moved. A reparse-point/symlink root is treated
+conservatively as a non-empty target and is not traversed or cleared in place.
+If the clone fails, everything git wrote (including nested files such as `FE6/…`) is removed and the
+exact empty stub shape is restored. A folder that already contains real content is moved aside to
+`config/_patch2_backup_*` first and moved back if the clone fails; a target that did not exist at all
+stays absent. The same contract applies to `FE-Repo` / `FE-Repo-Music`.
+
+For a manual clone, delete the empty stub folders under `config/patch2/` first, then choose one:
 
 1. **git clone** (recommended — supports incremental updates later):
    ```

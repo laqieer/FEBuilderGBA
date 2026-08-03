@@ -154,7 +154,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             lines.AppendLine(R._("Download each repository ZIP, extract it, and place the extracted contents in the matching folder:"));
             foreach (var d in ContentRepoSetupCore.Repos)
             {
-                lines.Append("- ").Append(d.DisplayName).Append(": ")
+                lines.Append("- ").Append(R._(d.DisplayName)).Append(": ")
                     .Append(ContentRepoSetupCore.ResolveUrl(d, _config)).Append(" -> ")
                     .AppendLine(ContentRepoSetupCore.ResolveDir(d, _baseDir));
             }
@@ -181,7 +181,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         public ContentRepoDescriptor Descriptor { get; }
-        public string DisplayName => Descriptor.DisplayName;
+        public string DisplayName => R._(Descriptor.DisplayName);
 
         public string Url
         {

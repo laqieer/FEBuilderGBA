@@ -14676,3 +14676,24 @@ FEMapCreator は bwdyeti 氏によって作成された独立したユーティ�
 
 :Expansion refused because the source pointer at {0} is stale or no free space is available.
 {0} の参照ポインタが古いか空き領域がないため、拡張を拒否しました。
+
+:Git was not found. Install Git and try again, or set up {0} manually.
+Git が見つかりません。Git をインストールして再試行するか、{0} を手動でセットアップしてください。
+
+:{0} operation failed.{1}
+{0} の操作に失敗しました。{1}
+
+:{0} initialization failed (git exit {1}).{2}
+{0} の初期化に失敗しました (git 終了コード {1})。{2}
+
+:{0} update failed (git exit {1}).{2}
+{0} の更新に失敗しました (git 終了コード {1})。{2}
+
+:{0} updated. Restart recommended for all changes to take full effect.
+{0} を更新しました。すべての変更を反映するには再起動をおすすめします。
+
+:Patch database
+パッチデータベース
+
+:Git: {0} ...
+Git: {0} ...

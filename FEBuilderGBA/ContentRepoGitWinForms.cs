@@ -23,6 +23,9 @@ namespace FEBuilderGBA
         public static Patch2GitResult RunInitUpdate(Form owner, string repoDir, string url, string displayName)
         {
             Patch2GitResult result;
+            // Callers pass a raw descriptor token.  This host is the sole owner of display-name
+            // localization, so text is translated once before banners and result messages.
+            string localizedDisplayName = R._(displayName);
 
             using (InputFormRef.AutoPleaseWait pleaseWait = new InputFormRef.AutoPleaseWait(owner))
             {
@@ -36,11 +39,11 @@ namespace FEBuilderGBA
                         System.Threading.Interlocked.Exchange(ref lastLine[0], line);
                 };
 
-                pleaseWait.DoEvents("Git: " + displayName + " ...");
+                pleaseWait.DoEvents(string.Format(R._("Git: {0} ..."), localizedDisplayName));
                 var task = System.Threading.Tasks.Task.Run(
                     () => ContentRepoGitService.InitializeOrUpdate(repoDir, url, progress));
 
-                // Pump the UI message loop while the background git op runs (mirror PollGitProgress).
+                // Pump the UI message loop while the shared background operation runs.
                 while (!task.IsCompleted)
                 {
                     string line = System.Threading.Interlocked.Exchange(ref lastLine[0], null);
@@ -62,9 +65,10 @@ namespace FEBuilderGBA
                 }
                 catch (Exception ex)
                 {
-                    // ContentRepoGitService is result-based for the git ops themselves, but its backup
-                    // file-move (Directory.Move/Delete) can still throw on a real I/O error — convert a
-                    // faulted Task into a Failed result so reading task.Result never crashes the UI.
+                    // ContentRepoGitService is result-based (its filesystem steps are retried and
+                    // postcondition-checked internally), but a Task can still fault on an unexpected
+                    // error — convert a faulted Task into a Failed result so reading task.Result never
+                    // crashes the UI.
                     result = new Patch2GitResult
                     {
                         Kind = Patch2GitResultKind.Failed,
@@ -78,24 +82,24 @@ namespace FEBuilderGBA
             switch (result.Kind)
             {
                 case Patch2GitResultKind.GitNotFound:
-                    R.ShowStopError("Git was not found. Install Git and try again, or set up {0} manually.", displayName);
+                    R.ShowStopError("Git was not found. Install Git and try again, or set up {0} manually.", localizedDisplayName);
                     break;
                 case Patch2GitResultKind.AlreadyRunning:
-                    R.ShowStopError("A content repository operation is already running.");
+                    R.ShowStopError("Another content repository operation is already running.");
                     break;
                 case Patch2GitResultKind.Failed:
                     string logTail = string.IsNullOrEmpty(result.Log) ? "" : "\r\n\r\n" + result.Log.Trim();
                     if (result.ExitCode < 0)
                         // Exception-synthesized fallback (a rare backup file-move I/O failure) — the
                         // clone/update distinction isn't reliably known here, so use neutral wording.
-                        R.ShowStopError("{0} operation failed.{1}", displayName, logTail);
+                        R.ShowStopError("{0} operation failed.{1}", localizedDisplayName, logTail);
                     else if (result.WasClone)
-                        R.ShowStopError("{0} initialization failed (git exit {1}).{2}", displayName, result.ExitCode, logTail);
+                        R.ShowStopError("{0} initialization failed (git exit {1}).{2}", localizedDisplayName, result.ExitCode, logTail);
                     else
-                        R.ShowStopError("{0} update failed (git exit {1}).{2}", displayName, result.ExitCode, logTail);
+                        R.ShowStopError("{0} update failed (git exit {1}).{2}", localizedDisplayName, result.ExitCode, logTail);
                     break;
                 case Patch2GitResultKind.Success:
-                    R.ShowOK("{0} updated. Restart recommended for all changes to take full effect.", displayName);
+                    R.ShowOK("{0} updated. Restart recommended for all changes to take full effect.", localizedDisplayName);
                     break;
             }
 

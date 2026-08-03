@@ -141,7 +141,7 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void PreExistingEmptyDir_MovedAsideBeforeClone_Success()
+        public void PreExistingEmptyDir_ClonesInPlace_Success()
         {
             string baseDir = NewBaseDir();
             try
@@ -157,9 +157,9 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal(Patch2GitResultKind.Success, r.Kind);
                 Assert.True(r.WasClone);
                 Assert.Equal(1, clone.Called);
-                Assert.False(clone.TargetExistedAtCall);   // the empty dir was moved aside first
+                Assert.True(clone.TargetExistedAtCall);    // empty released stubs are cloned in place
                 Assert.True(File.Exists(Path.Combine(patchDir, "cloned.txt")));
-                Assert.Equal(0, BackupCount(baseDir));      // backup removed on success
+                Assert.Equal(0, BackupCount(baseDir));      // #2036: a held empty stub is never backed up
             }
             finally { Cleanup(baseDir); }
         }
@@ -181,6 +181,9 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.True(r.WasClone);
                 Assert.True(Directory.Exists(patchDir));   // original empty dir restored
                 Assert.Equal(0, BackupCount(baseDir));      // no dangling backup
+                // #2036: the placeholder root is held (never deleted/recreated) and stays empty.
+                Assert.True(clone.TargetExistedAtCall);
+                Assert.Empty(Directory.GetFileSystemEntries(patchDir));
             }
             finally { Cleanup(baseDir); }
         }

@@ -43,7 +43,7 @@ namespace FEBuilderGBA
             foreach (var descriptor in ContentRepoSetupCore.Repos)
             {
                 RowsPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 56));
-                var name = new Label { Text = descriptor.DisplayName, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Font = new Font(Font, FontStyle.Bold) };
+                var name = new Label { Text = R._(descriptor.DisplayName), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Font = new Font(Font, FontStyle.Bold) };
                 var url = new TextBox { Text = ContentRepoSetupCore.ResolveUrl(descriptor, Program.Config), Dock = DockStyle.Fill, Anchor = AnchorStyles.Left | AnchorStyles.Right };
                 var status = new Label { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
                 var button = new Button { Text = R._("Initialize / Update"), Dock = DockStyle.Fill, Tag = descriptor, Visible = _gitAvailable };
@@ -107,7 +107,7 @@ namespace FEBuilderGBA
             sb.AppendLine(R._("Download each repository ZIP, extract it, and place the extracted contents in the matching folder:"));
             foreach (var descriptor in ContentRepoSetupCore.Repos)
             {
-                sb.Append("- ").Append(descriptor.DisplayName).Append(": ")
+                sb.Append("- ").Append(R._(descriptor.DisplayName)).Append(": ")
                     .Append(ContentRepoSetupCore.ResolveUrl(descriptor, Program.Config)).Append(" -> ")
                     .AppendLine(ContentRepoSetupCore.ResolveDir(descriptor, Program.BaseDirectory));
             }

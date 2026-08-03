@@ -192,7 +192,9 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// git clone --progress --depth=1 &lt;url&gt; &lt;targetPath&gt;  (targetPath must not exist yet)
+        /// git clone --progress --depth=1 &lt;url&gt; &lt;targetPath&gt;
+        /// (targetPath must be absent or an existing EMPTY directory — git clones in place into an
+        /// empty directory, which is what keeps a released placeholder root held.)
         /// --progress forces git to emit progress lines even when stderr is redirected.
         /// </summary>
         public static int Clone(string gitExe, string url, string targetPath,

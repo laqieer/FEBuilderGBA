@@ -27,7 +27,8 @@ namespace FEBuilderGBA
             new ContentRepoDescriptor
             {
                 Id = "patch2",
-                DisplayName = "patch2",
+                // Raw translation key. Presentation layers own localization.
+                DisplayName = "Patch database",
                 ConfigKey = "submodule_patch2_url",
                 DefaultUrl = GitUtil.Patch2RemoteUrl,
             },

@@ -140,6 +140,42 @@ namespace FEBuilderGBA.Tests.Unit
             return null;
         }
 
+        // #2036: display-name localization contract, proven from source so it cannot silently drift.
+        // Deliberately a pure text contract: no global translation catalog is loaded here.
+        [Fact]
+        public void ContentRepoWizardWinForms_LocalizesDisplayNameLocally_AndPassesRawTokenToSharedHost()
+        {
+            string root = FindRepoRoot();
+            string form = File.ReadAllText(Path.Combine(root, "FEBuilderGBA", "ContentRepoSetupWizardForm.cs"));
+
+            // Row label + manual-instructions line: every render site localizes locally.
+            Assert.Equal(2, Occurrences(form, "R._(descriptor.DisplayName)"));
+            // The shared host receives the RAW descriptor token (it owns the single localization).
+            Assert.Contains("ContentRepoGitWinForms.RunInitUpdate(this, repoDir, effectiveUrl, descriptor.DisplayName)", form);
+            Assert.DoesNotContain("RunInitUpdate(this, repoDir, effectiveUrl, R._(descriptor.DisplayName))", form);
+            Assert.DoesNotContain("LoadTranslate", form);
+
+            string host = File.ReadAllText(Path.Combine(root, "FEBuilderGBA", "ContentRepoGitWinForms.cs"));
+            Assert.Equal(1, Occurrences(host, "R._(displayName)"));
+            Assert.Contains("string.Format(R._(\"Git: {0} ...\"), localizedDisplayName)", host);
+            Assert.Contains("R.ShowStopError(\"Another content repository operation is already running.\");", host);
+            Assert.DoesNotContain("A content repository operation is already running.", host);
+            Assert.DoesNotContain("LoadTranslate", host);
+
+            string patch2Host = File.ReadAllText(Path.Combine(root, "FEBuilderGBA", "Patch2GitWinForms.cs"));
+            Assert.Contains("ContentRepoGitWinForms.RunInitUpdate(owner, repoDir, url, \"Patch database\")", patch2Host);
+            Assert.DoesNotContain("R._(", patch2Host);
+        }
+
+        static int Occurrences(string haystack, string needle)
+        {
+            int count = 0;
+            for (int i = haystack.IndexOf(needle, StringComparison.Ordinal); i >= 0;
+                 i = haystack.IndexOf(needle, i + needle.Length, StringComparison.Ordinal))
+                count++;
+            return count;
+        }
+
         static string FindRepoRoot()
         {
             string dir = AppContext.BaseDirectory;

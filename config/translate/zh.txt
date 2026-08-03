@@ -28506,3 +28506,24 @@ FEMapCreator 是由 bwdyeti 创建的独立实用工具；FEBuilderGBA 不捆绑
 
 :Expansion refused because the source pointer at {0} is stale or no free space is available.
 由于 {0} 的来源指针已过期或没有可用空间，扩展被拒绝。
+
+:Git was not found. Install Git and try again, or set up {0} manually.
+未找到 Git。请安装 Git 后重试，或手动设置 {0}。
+
+:{0} operation failed.{1}
+{0} 操作失败。{1}
+
+:{0} initialization failed (git exit {1}).{2}
+{0} 初始化失败（git 退出代码 {1}）。{2}
+
+:{0} update failed (git exit {1}).{2}
+{0} 更新失败（git 退出代码 {1}）。{2}
+
+:{0} updated. Restart recommended for all changes to take full effect.
+{0} 已更新。建议重新启动以使所有更改完全生效。
+
+:Patch database
+补丁数据库
+
+:Git: {0} ...
+Git: {0} ...

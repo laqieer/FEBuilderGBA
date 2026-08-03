@@ -91,6 +91,100 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.All(vm.Rows, row => Assert.False(row.CanInitialize));
         }
 
+        [Fact]
+        public async Task InitializeAsync_GitNotFound_ShowsManualInstructions()
+        {
+            var vm = new ContentRepoSetupWizardViewModel(
+                _baseDir, _cfg, true,
+                (dir, url, progress) => new Patch2GitResult
+                {
+                    Kind = Patch2GitResultKind.GitNotFound,
+                },
+                action => action());
+            var row = vm.Rows.Single(r => r.Descriptor.Id == "patch2");
+
+            await vm.InitializeAsync(row);
+
+            Assert.False(vm.IsGitAvailable);
+            Assert.True(vm.IsManualInstructionsVisible);
+            Assert.Equal(R._("Git not found"), row.Status);
+            Assert.Equal(R._("Install Git or use the manual download instructions below."), row.Progress);
+        }
+
+        [Fact]
+        public async Task InitializeAsync_AlreadyRunning_UsesCanonicalMessage()
+        {
+            var vm = new ContentRepoSetupWizardViewModel(
+                _baseDir, _cfg, true,
+                (dir, url, progress) => new Patch2GitResult
+                {
+                    Kind = Patch2GitResultKind.AlreadyRunning,
+                },
+                action => action());
+            var row = vm.Rows.Single(r => r.Descriptor.Id == "patch2");
+
+            await vm.InitializeAsync(row);
+
+            Assert.Equal(R._("Already running"), row.Status);
+            Assert.Equal(R._("Another content repository operation is already running."), row.Progress);
+        }
+
+        [AvaloniaFact]
+        public void PatchDatabaseRow_LocalizesTheRawDescriptorAtPresentation()
+        {
+            var vm = new ContentRepoSetupWizardViewModel(_baseDir, _cfg, isGitAvailable: false);
+            var row = vm.Rows.Single(r => r.Descriptor.Id == "patch2");
+
+            Assert.Equal("Patch database", row.Descriptor.DisplayName);
+            Assert.Equal(R._("Patch database"), row.DisplayName);
+        }
+
+        // #2036: display-name localization contract for the Avalonia surface, proven from source so it
+        // cannot silently drift. Deliberately a pure text contract: no global translation catalog load.
+        [Fact]
+        public void ContentRepoWizardAvalonia_LocalizesDisplayNameAtEveryRenderSite_KeepsDescriptorRaw()
+        {
+            string root = FindRepoRoot();
+            string vm = File.ReadAllText(Path.Combine(root, "FEBuilderGBA.Avalonia", "ViewModels", "ContentRepoSetupWizardViewModel.cs"));
+
+            // Row presentation + manual-instructions line: both localize locally.
+            Assert.Equal(1, Occurrences(vm, "public string DisplayName => R._(Descriptor.DisplayName);"));
+            Assert.Equal(1, Occurrences(vm, "R._(d.DisplayName)"));
+            // The descriptor itself stays raw in the row model.
+            Assert.Contains("public ContentRepoDescriptor Descriptor { get; }", vm);
+            Assert.DoesNotContain("DisplayName = R._(", vm);
+            Assert.DoesNotContain("LoadTranslate", vm);
+            // Canonical guard message shared with the WinForms hosts.
+            Assert.Contains("R._(\"Another content repository operation is already running.\")", vm);
+            Assert.DoesNotContain("R._(\"A content repository operation is already running.\")", vm);
+
+            string core = File.ReadAllText(Path.Combine(root, "FEBuilderGBA.Core", "ContentRepoSetupCore.cs"));
+            Assert.Contains("DisplayName = \"Patch database\"", core);
+            Assert.DoesNotContain("R._(", core);   // the pure policy core never localizes
+        }
+
+        static int Occurrences(string haystack, string needle)
+        {
+            int count = 0;
+            for (int i = haystack.IndexOf(needle, StringComparison.Ordinal); i >= 0;
+                 i = haystack.IndexOf(needle, i + needle.Length, StringComparison.Ordinal))
+                count++;
+            return count;
+        }
+
+        static string FindRepoRoot()
+        {
+            string dir = AppContext.BaseDirectory;
+            while (!string.IsNullOrEmpty(dir))
+            {
+                if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln"))) return dir;
+                string? parent = Directory.GetParent(dir)?.FullName;
+                if (parent == dir) break;
+                dir = parent ?? "";
+            }
+            return Directory.GetCurrentDirectory();
+        }
+
         [AvaloniaFact]
         public void ContentRepoSetupWizardView_Constructs()
         {

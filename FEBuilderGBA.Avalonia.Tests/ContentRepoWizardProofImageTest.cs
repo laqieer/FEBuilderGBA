@@ -33,6 +33,20 @@ namespace FEBuilderGBA.Avalonia.Tests
             }).ToArray();
 
             const int W = 1180, H = 620;
+
+            // #2036: the caption is DERIVED from the live descriptor list (and the backing test count),
+            // so a renamed/added repository can never leave a stale hand-written caption behind.
+            string caption = "Real descriptors: " + string.Join(" / ", repos.Select(r => r.Descriptor.DisplayName))
+                + ", config-resolved URLs, sample readiness";
+            int backingTests =
+                CountFacts(Path.Combine(baseDir, "FEBuilderGBA.Core.Tests", "ContentRepoGitServiceTests.cs")) +
+                CountFacts(Path.Combine(baseDir, "FEBuilderGBA.Core.Tests", "Patch2GitServiceTests.cs"));
+            string testCaption = $"Backing proof: {backingTests} content-repo transaction tests "
+                + $"({repos.Length} descriptors rendered from ContentRepoSetupCore.Repos)";
+
+            Assert.All(repos, r => Assert.Contains(r.Descriptor.DisplayName, caption));
+            Assert.True(backingTests > 0, "the proof image must report a real backing test count");
+
             using var bmp = new SKBitmap(W, H);
             using (var c = new SKCanvas(bmp))
             {
@@ -52,8 +66,8 @@ namespace FEBuilderGBA.Avalonia.Tests
                 using var cardPaint = new SKPaint { Color = card, IsAntialias = true };
                 using var badgePaint = new SKPaint { Color = new SKColor(0x3B, 0x61, 0x54), IsAntialias = true };
 
-                c.DrawText("Content Repository Setup Wizard — #1814 proof", 28, 44, title);
-                c.DrawText("Real descriptors: patch2 / FE-Repo / FE-Repo-Music, config-resolved URLs, sample readiness", 30, 74, label);
+                c.DrawText("Content Repository Setup Wizard — #2036 proof", 28, 44, title);
+                c.DrawText(caption, 30, 74, label);
 
                 float y = 112;
                 foreach (var r in repos)
@@ -72,6 +86,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                     y += 150;
                 }
 
+                c.DrawText(testCaption, 30, H - 54, label);
                 c.DrawText("Git unavailable fallback: manual ZIP download/extract instructions list each URL and target folder.", 30, H - 32, label);
             }
 
@@ -91,7 +106,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             {
                 string outDir = ResolveScreenshotOutputDir();
                 Directory.CreateDirectory(outDir);
-                string outPath = Path.Combine(outDir, "pr1814-content-repo-wizard.png");
+                string outPath = Path.Combine(outDir, "pr2036-content-repo-wizard.png");
                 File.WriteAllBytes(outPath, pngBytes);
                 _output.WriteLine($"Saved proof image to: {outPath} ({pngBytes.Length} bytes)");
             }
@@ -100,6 +115,13 @@ namespace FEBuilderGBA.Avalonia.Tests
                 _output.WriteLine($"Proof image not saved to disk (best-effort): {ex.Message}");
             }
         }
+
+        static int CountFacts(string path)
+            => File.Exists(path)
+                ? System.Text.RegularExpressions.Regex.Matches(
+                    File.ReadAllText(path), @"^\s*\[Fact\]",
+                    System.Text.RegularExpressions.RegexOptions.Multiline).Count
+                : 0;
 
         static string TrimMiddle(string value, int max)
         {
@@ -129,4 +151,3 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
     }
 }
-
