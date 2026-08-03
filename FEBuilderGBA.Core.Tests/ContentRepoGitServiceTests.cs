@@ -52,6 +52,18 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        static bool TryCreateDirectorySymbolicLink(string linkPath, string targetPath)
+        {
+            try
+            {
+                Directory.CreateSymbolicLink(linkPath, targetPath);
+                return true;
+            }
+            catch (UnauthorizedAccessException) { return false; }
+            catch (IOException) { return false; }
+            catch (PlatformNotSupportedException) { return false; }
+        }
+
         // Relative directory shape of a tree, order-independent, so "exact empty stub shape" is an
         // exact set comparison instead of a spot check.
         static string[] RelativeDirectories(string root)
@@ -742,7 +754,7 @@ namespace FEBuilderGBA.Core.Tests
                 File.SetAttributes(marker, File.GetAttributes(marker) | FileAttributes.ReadOnly);
 
                 string link = Path.Combine(repoDir, "linked-directory");
-                Directory.CreateSymbolicLink(link, external);
+                if (!TryCreateDirectorySymbolicLink(link, external)) return;
                 var ops = new RealContentRepoDirectoryOps();
 
                 Assert.True(ops.DeleteDirectory(link, recursive: true));
@@ -768,11 +780,14 @@ namespace FEBuilderGBA.Core.Tests
                 string marker = Path.Combine(externalBase, "marker.txt");
                 File.WriteAllText(marker, "keep");
                 File.SetAttributes(marker, File.GetAttributes(marker) | FileAttributes.ReadOnly);
+                string capabilityLink = Path.Combine(baseDir, "symlink-capability");
+                if (!TryCreateDirectorySymbolicLink(capabilityLink, externalBase)) return;
+                Directory.Delete(capabilityLink);
 
                 Patch2GitService.CloneOp clone = (g, u, target, p, l) =>
                 {
                     Directory.Delete(target);
-                    Directory.CreateSymbolicLink(target, externalBase);
+                    Assert.True(TryCreateDirectorySymbolicLink(target, externalBase));
                     return 1;
                 };
 
