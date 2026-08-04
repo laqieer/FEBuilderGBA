@@ -18,7 +18,7 @@ namespace FEBuilderGBA
             // Check user-configured custom URL first
             string custom = CoreState.Config?.at("submodule_patch2_url", "");
             if (!string.IsNullOrWhiteSpace(custom))
-                return custom;
+                return custom.Trim();
 
             return Patch2RemoteUrl;
         }
@@ -28,7 +28,7 @@ namespace FEBuilderGBA
         {
             string custom = CoreState.Config?.at("submodule_fe_repo_url", "");
             if (!string.IsNullOrWhiteSpace(custom))
-                return custom;
+                return custom.Trim();
             return FERepoDefaultUrl;
         }
 
@@ -37,7 +37,7 @@ namespace FEBuilderGBA
         {
             string custom = CoreState.Config?.at("submodule_fe_repo_music_url", "");
             if (!string.IsNullOrWhiteSpace(custom))
-                return custom;
+                return custom.Trim();
             return FERepoMusicDefaultUrl;
         }
 

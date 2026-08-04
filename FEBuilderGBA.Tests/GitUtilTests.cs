@@ -54,6 +54,26 @@ namespace FEBuilderGBA.Tests
         }
 
         [Fact]
+        public void CustomRemoteGetters_TrimPaddedValues_WithoutMutatingConfig()
+        {
+            const string raw = " \t https://example.invalid/custom.git \r\n ";
+            const string expected = "https://example.invalid/custom.git";
+            CoreState.Config = new Config
+            {
+                ["submodule_patch2_url"] = raw,
+                ["submodule_fe_repo_url"] = raw,
+                ["submodule_fe_repo_music_url"] = raw,
+            };
+
+            Assert.Equal(expected, GitUtil.GetPatch2RemoteUrl());
+            Assert.Equal(expected, GitUtil.GetFERepoRemoteUrl());
+            Assert.Equal(expected, GitUtil.GetFERepoMusicRemoteUrl());
+            Assert.Equal(raw, CoreState.Config.at("submodule_patch2_url", ""));
+            Assert.Equal(raw, CoreState.Config.at("submodule_fe_repo_url", ""));
+            Assert.Equal(raw, CoreState.Config.at("submodule_fe_repo_music_url", ""));
+        }
+
+        [Fact]
         public void Patch2RemoteUrl_PointsToGitHub()
         {
             Assert.Contains("github.com", GitUtil.Patch2RemoteUrl);
