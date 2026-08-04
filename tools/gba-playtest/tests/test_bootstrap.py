@@ -1145,7 +1145,7 @@ def test_workflow_triggers_on_process_runner_changes():
     text = _read(REAL_WORKFLOW)
     assert text.count("- 'FEBuilderGBA.Core/ProcessRunnerCore.cs'") == 2
     assert (
-        text.count("- 'FEBuilderGBA.Core.Tests/ProcessRunnerCoreTests.cs'")
+        text.count("- 'FEBuilderGBA.Core.Tests/ProcessRunner*.cs'")
         == 2
     )
 

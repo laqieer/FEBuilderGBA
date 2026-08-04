@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace FEBuilderGBA.Core.Tests
@@ -442,107 +443,6 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(
                 ProcessRunnerCore.PosixUnobservedTerminationState.NotAttempted,
                 state);
-        }
-
-        [Theory]
-        [InlineData(0)]
-        [InlineData(1)]
-        [InlineData(2)]
-        public void Run_ParentExitStillTerminatesDescendantHoldingPipes(
-            int iteration)
-        {
-            string root = Path.Combine(
-                Path.GetTempPath(),
-                $"febuildergba_process_tree_{iteration}_{Guid.NewGuid():N}");
-            Directory.CreateDirectory(root);
-            string pidPath = Path.Combine(root, "child.pid");
-            string scriptPath;
-            string command;
-            string[] args;
-            if (OperatingSystem.IsWindows())
-            {
-                scriptPath = Path.Combine(root, "spawn-child.ps1");
-                string quotedPid = pidPath.Replace("'", "''");
-                File.WriteAllText(
-                    scriptPath,
-                    "$child = Start-Process -FilePath powershell.exe "
-                    + "-ArgumentList '-NoProfile','-Command',"
-                    + "'Start-Sleep -Seconds 30' -NoNewWindow -PassThru\n"
-                    + $"[IO.File]::WriteAllText('{quotedPid}', [string]$child.Id)\n");
-                command = "powershell.exe";
-                args = new[]
-                {
-                    "-NoProfile",
-                    "-ExecutionPolicy",
-                    "Bypass",
-                    "-File",
-                    scriptPath,
-                };
-            }
-            else
-            {
-                command = "/usr/bin/python3";
-                if (!File.Exists(command))
-                {
-                    Directory.Delete(root, recursive: true);
-                    return;
-                }
-                string pythonPidPath = "'"
-                    + pidPath.Replace("\\", "\\\\").Replace("'", "\\'")
-                    + "'";
-                scriptPath = Path.Combine(root, "process_worker.py");
-                File.WriteAllText(
-                    scriptPath,
-                    "import os,pathlib,subprocess,sys\n"
-                    + "os.setsid()\n"
-                    + "p=subprocess.Popen([sys.executable,'-c',"
-                    + "'import time;time.sleep(30)'])\n"
-                    + $"pathlib.Path({pythonPidPath}).write_text(str(p.pid))\n");
-                args = new[] { scriptPath };
-            }
-
-            var stopwatch = Stopwatch.StartNew();
-            ProcessRunResult result = ProcessRunnerCore.Run(
-                command,
-                args,
-                root,
-                30_000,
-                1024);
-            stopwatch.Stop();
-
-            Assert.True(result.Started, result.ErrorMessage);
-            Assert.False(result.TimedOut, result.ErrorMessage);
-            Assert.False(result.OutputLimitExceeded, result.ErrorMessage);
-            Assert.False(result.TerminationFailed, result.ErrorMessage);
-            Assert.True(
-                result.ExitCode == 0,
-                $"Expected exit 0, got {result.ExitCode}. "
-                + $"ErrorMessage: {result.ErrorMessage}");
-            Assert.Equal("", result.ErrorMessage);
-            Assert.True(File.Exists(pidPath), "Parent did not record child PID.");
-            int childPid = int.Parse(File.ReadAllText(pidPath));
-            bool alive = true;
-            for (int attempt = 0; attempt < 100; attempt++)
-            {
-                try
-                {
-                    using Process child = Process.GetProcessById(childPid);
-                    alive = !child.HasExited;
-                }
-                catch (ArgumentException)
-                {
-                    alive = false;
-                }
-                if (!alive)
-                    break;
-                Thread.Sleep(10);
-            }
-            Assert.False(alive, "Descendant outlived ProcessRunnerCore.");
-            Assert.True(
-                stopwatch.Elapsed < TimeSpan.FromSeconds(10),
-                $"Process tree cleanup took {stopwatch.Elapsed}.");
-
-            Directory.Delete(root, recursive: true);
         }
 
         // #1978 Slice 3 review finding #1: a cancelled Run(...) call must own and terminate its
