@@ -50,6 +50,7 @@ namespace FEBuilderGBA.Core.Tests
             ProcessRunnerScenarioSupport.ScenarioRoot? root = null;
             CancellationTokenSource? cts = null;
             string? leaderPath = null;
+            string? childIdentityPath = null;
             string? childReadyPath = null;
             Task<ProcessRunnerScenarioSupport.RunCompletion>? runTask = null;
             DateTimeOffset scenarioStartUtc = DateTimeOffset.UtcNow;
@@ -65,10 +66,11 @@ namespace FEBuilderGBA.Core.Tests
                 root = new ProcessRunnerScenarioSupport.ScenarioRoot(
                     "febuildergba_process_tree");
                 leaderPath = Path.Combine(root.Path, "leader.pid");
+                childIdentityPath = Path.Combine(root.Path, "child.pid");
                 childReadyPath = Path.Combine(root.Path, "child.ready");
                 (string command, string[] args) =
                     ProcessRunnerScenarioSupport.BuildDescendantScenarioScript(
-                        root.Path, leaderPath, childReadyPath);
+                        root.Path, leaderPath, childIdentityPath, childReadyPath);
 
                 cts = new CancellationTokenSource();
                 scenarioStartUtc = DateTimeOffset.UtcNow;
@@ -108,12 +110,26 @@ namespace FEBuilderGBA.Core.Tests
 
                 var finalLeader = ProcessRunnerScenarioSupport.ReadFinalIdentity(leaderPath);
                 Assert.True(finalLeader != null, "Leader did not record a final atomic identity payload.");
-                var finalChild = ProcessRunnerScenarioSupport.ReadFinalIdentity(childReadyPath);
-                Assert.True(finalChild != null, "Child readiness payload was incomplete after Run() completed.");
+                var finalChildIdentity =
+                    ProcessRunnerScenarioSupport.ReadFinalIdentity(childIdentityPath);
+                Assert.True(
+                    finalChildIdentity != null,
+                    "Child did not record an immediate atomic identity payload.");
+                var finalChildReady =
+                    ProcessRunnerScenarioSupport.ReadFinalIdentity(childReadyPath);
+                Assert.True(
+                    finalChildReady != null,
+                    "Child readiness payload was incomplete after Run() completed.");
+                Assert.Equal(finalChildIdentity.Value.Pid, finalChildReady.Value.Pid);
+                Assert.True(
+                    finalChildReady.Value.RecordedUnixMs
+                        >= finalChildIdentity.Value.RecordedUnixMs,
+                    "Child readiness timestamp preceded its spawn identity.");
 
                 bool died = ProcessRunnerScenarioSupport.DescendantDiedWithinAcceptedWindow(
-                    finalChild.Value,
-                    DateTimeOffset.FromUnixTimeMilliseconds(finalChild.Value.RecordedUnixMs),
+                    finalChildReady.Value,
+                    DateTimeOffset.FromUnixTimeMilliseconds(
+                        finalChildReady.Value.RecordedUnixMs),
                     scenarioStartUtc,
                     out TimeSpan observedAfter);
                 Assert.True(died, $"Descendant outlived containment or died too late ({observedAfter}).");
@@ -131,6 +147,7 @@ namespace FEBuilderGBA.Core.Tests
                             cts,
                             runTask,
                             ProcessRunnerScenarioSupport.ReadFinalIdentity(leaderPath),
+                            childIdentityPath,
                             childIdentity,
                             scenarioStartUtc,
                             msg => _output.WriteLine(msg));

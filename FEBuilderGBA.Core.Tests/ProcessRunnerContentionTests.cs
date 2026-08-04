@@ -135,6 +135,7 @@ namespace FEBuilderGBA.Core.Tests
             private bool _resultCaptured;
             private bool _resultShapeAccepted;
             private bool _finalIdentityCaptured;
+            private bool _identityConsistent;
             private bool _descendantDied;
             private bool _scenarioPassed;
             private TimeSpan _observedAfterReadiness;
@@ -160,6 +161,7 @@ namespace FEBuilderGBA.Core.Tests
                 CancellationTokenSource? cts = null;
                 Task<ProcessRunnerScenarioSupport.RunCompletion>? runTask = null;
                 string? leaderPath = null;
+                string? childIdentityPath = null;
                 ProcessRunnerScenarioSupport.ProcessIdentity? childIdentity = null;
                 DateTimeOffset scenarioStartUtc = DateTimeOffset.UtcNow;
                 try
@@ -167,10 +169,11 @@ namespace FEBuilderGBA.Core.Tests
                     root = new ProcessRunnerScenarioSupport.ScenarioRoot(
                         $"febuildergba_process_contention_{_index}");
                     leaderPath = Path.Combine(root.Path, "leader.pid");
+                    childIdentityPath = Path.Combine(root.Path, "child.pid");
                     string childReadyPath = Path.Combine(root.Path, "child.ready");
                     (string command, string[] args) =
                         ProcessRunnerScenarioSupport.BuildDescendantScenarioScript(
-                            root.Path, leaderPath, childReadyPath);
+                            root.Path, leaderPath, childIdentityPath, childReadyPath);
 
                     cts = new CancellationTokenSource();
 
@@ -224,13 +227,26 @@ namespace FEBuilderGBA.Core.Tests
                         && !_result.Cancelled
                         && (cleanExit || captureRace);
 
-                    var finalChild = ProcessRunnerScenarioSupport.ReadFinalIdentity(childReadyPath);
-                    if (finalChild != null)
+                    var finalChildIdentity =
+                        ProcessRunnerScenarioSupport.ReadFinalIdentity(childIdentityPath);
+                    var finalChildReady =
+                        ProcessRunnerScenarioSupport.ReadFinalIdentity(childReadyPath);
+                    if (finalChildIdentity != null && finalChildReady != null)
                     {
                         _finalIdentityCaptured = true;
+                        _identityConsistent =
+                            finalChildIdentity.Value.Pid == finalChildReady.Value.Pid
+                            && finalChildReady.Value.RecordedUnixMs
+                                >= finalChildIdentity.Value.RecordedUnixMs;
+                        if (!_identityConsistent)
+                        {
+                            _rejectReason =
+                                "Child identity/readiness payloads disagreed.";
+                        }
                         _descendantDied = ProcessRunnerScenarioSupport.DescendantDiedWithinAcceptedWindow(
-                            finalChild.Value,
-                            DateTimeOffset.FromUnixTimeMilliseconds(finalChild.Value.RecordedUnixMs),
+                            finalChildReady.Value,
+                            DateTimeOffset.FromUnixTimeMilliseconds(
+                                finalChildReady.Value.RecordedUnixMs),
                             scenarioStartUtc,
                             out _observedAfterReadiness);
                     }
@@ -242,6 +258,7 @@ namespace FEBuilderGBA.Core.Tests
                     _scenarioPassed =
                         _resultShapeAccepted
                         && _finalIdentityCaptured
+                        && _identityConsistent
                         && _descendantDied;
                 }
                 catch (Exception ex)
@@ -257,6 +274,7 @@ namespace FEBuilderGBA.Core.Tests
                             cts,
                             runTask,
                             ProcessRunnerScenarioSupport.ReadFinalIdentity(leaderPath),
+                            childIdentityPath,
                             childIdentity,
                             scenarioStartUtc,
                             SafeLog);
@@ -326,6 +344,9 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.True(
                     _finalIdentityCaptured,
                     $"Participant {_index}: {_rejectReason ?? "child readiness payload was incomplete after Run() completed."}");
+                Assert.True(
+                    _identityConsistent,
+                    $"Participant {_index}: {_rejectReason ?? "child identity/readiness payloads disagreed."}");
                 Assert.True(_result.Started, $"Participant {_index}: {_result.ErrorMessage}");
                 Assert.False(_result.TimedOut, $"Participant {_index}: {_result.ErrorMessage}");
                 Assert.False(_result.OutputLimitExceeded, $"Participant {_index}: {_result.ErrorMessage}");

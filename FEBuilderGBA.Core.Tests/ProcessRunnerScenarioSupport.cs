@@ -21,10 +21,10 @@ namespace FEBuilderGBA.Core.Tests
     /// Wire contract (see docs/ENGINEERING-NOTES.md #1993 / #2050):
     /// - The leader script writes an atomic `leader.pid` payload, then spawns a detached
     ///   long-running descendant (self-watchdog <see cref="ChildWatchdogSeconds"/> seconds, so a
-    ///   containment bug can never hang a CI host forever), sleeps
-    ///   <see cref="IdentitySettleSeconds"/> seconds to let the descendant's process identity
-    ///   settle in the OS, then captures the readiness timestamp and atomically publishes
-    ///   `child.ready` before exiting. Both payloads are `&lt;pid&gt;|&lt;unixMs&gt;`.
+    ///   containment bug can never hang a CI host forever) and immediately publishes its
+    ///   atomic `child.pid` identity. After <see cref="IdentitySettleSeconds"/> seconds it
+    ///   verifies that child is still alive before publishing a separate atomic `child.ready`
+    ///   readiness payload. Every payload is `&lt;pid&gt;|&lt;unixMs&gt;`.
     /// - Windows (PowerShell 5.1): each payload is written with `[IO.File]::WriteAllText` to a
     ///   `&lt;file&gt;.tmp` sibling, then published via the two-argument `[IO.File]::Move`
     ///   (fails rather than silently overwriting a stale file). If `Move` throws, the helper
@@ -295,6 +295,7 @@ namespace FEBuilderGBA.Core.Tests
         internal static (string Command, string[] Args) BuildDescendantScenarioScript(
             string root,
             string leaderFinalPath,
+            string childIdentityFinalPath,
             string childReadyFinalPath)
         {
             if (OperatingSystem.IsWindows())
@@ -332,12 +333,18 @@ namespace FEBuilderGBA.Core.Tests
                         + "'-NoProfile','-Command','Start-Sleep -Seconds "
                         + ChildWatchdogSeconds.ToString(CultureInfo.InvariantCulture)
                         + "') -NoNewWindow -PassThru",
+                    "$childIdentityNow = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()",
+                    "if (-not (Write-AtomicIdentity "
+                        + PowerShellStringLiteral(childIdentityFinalPath)
+                        + " \"$($child.Id)|$childIdentityNow\")) { exit 98 }",
                     "Start-Sleep -Seconds "
                         + IdentitySettleSeconds.ToString(CultureInfo.InvariantCulture),
+                    "$child.Refresh()",
+                    "if ($child.HasExited) { exit 99 }",
                     "$childNow = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()",
                     "if (-not (Write-AtomicIdentity "
                         + PowerShellStringLiteral(childReadyFinalPath)
-                        + " \"$($child.Id)|$childNow\")) { exit 98 }",
+                        + " \"$($child.Id)|$childNow\")) { exit 100 }",
                     "",
                 });
                 File.WriteAllText(scriptPath, script);
@@ -364,7 +371,13 @@ namespace FEBuilderGBA.Core.Tests
                     + "'import time;time.sleep("
                     + ChildWatchdogSeconds.ToString(CultureInfo.InvariantCulture)
                     + ")'])",
+                "child_identity_now=int(time.time()*1000)",
+                "_atomic_write("
+                    + PythonStringLiteral(childIdentityFinalPath)
+                    + ",'%d|%d'%(child.pid,child_identity_now))",
                 "time.sleep(" + IdentitySettleSeconds.ToString(CultureInfo.InvariantCulture) + ")",
+                "if child.poll() is not None:",
+                "    sys.exit(99)",
                 "child_now=int(time.time()*1000)",
                 "_atomic_write("
                     + PythonStringLiteral(childReadyFinalPath)
@@ -528,10 +541,14 @@ namespace FEBuilderGBA.Core.Tests
         /// On-failure cleanup only: cancel the scenario's own <paramref name="cts"/>, wait
         /// <see cref="CancelGraceMs"/> ms for <paramref name="runTask"/>, best-effort-kill the
         /// recorded leader/child identities, then wait a final <see cref="FinalKillWaitMs"/> ms
-        /// for <paramref name="runTask"/>. Kills are attempted ONLY when the PID still exists,
+        /// for <paramref name="runTask"/>. The child identity is re-read from
+        /// <paramref name="childIdentityPath"/> after cancellation grace so a child spawned just
+        /// before failure is still owned even when readiness was never published. Kills are
+        /// attempted ONLY when the PID still exists,
         /// its process name (OrdinalIgnoreCase) starts with "powershell" or "python", and its
         /// actual live <c>Process.StartTime</c> (UTC, as unix ms) falls inside
-        /// [<paramref name="scenarioStartUtc"/> − tolerance, identity.RecordedUnixMs]. This
+        /// [<paramref name="scenarioStartUtc"/> − tolerance,
+        /// identity.RecordedUnixMs + tolerance]. This
         /// bounded window is what prevents a PID-reuse false-kill of an unrelated process that
         /// happened to be assigned the same PID after ours already exited. Returns true only
         /// when the Run task is quiesced; callers must retain CTS/root/task if false. Never
@@ -542,6 +559,7 @@ namespace FEBuilderGBA.Core.Tests
             CancellationTokenSource cts,
             Task? runTask,
             ProcessIdentity? leaderIdentity,
+            string? childIdentityPath,
             ProcessIdentity? childIdentity,
             DateTimeOffset scenarioStartUtc,
             Action<string> diagnosticsLog)
@@ -563,8 +581,10 @@ namespace FEBuilderGBA.Core.Tests
                     "cancel-grace wait",
                     diagnosticsLog);
 
+                ProcessIdentity? refreshedChildIdentity =
+                    ReadFinalIdentity(childIdentityPath) ?? childIdentity;
                 TryBestEffortKill(leaderIdentity, scenarioStartUtc, diagnosticsLog);
-                TryBestEffortKill(childIdentity, scenarioStartUtc, diagnosticsLog);
+                TryBestEffortKill(refreshedChildIdentity, scenarioStartUtc, diagnosticsLog);
 
                 bool quiescedAfterKill = WaitForRunTaskQuiescence(
                     runTask,
@@ -639,7 +659,7 @@ namespace FEBuilderGBA.Core.Tests
                 ? WindowsStartTimeToleranceMs
                 : PosixStartTimeToleranceMs;
             long windowStartMs = scenarioStartUtc.ToUnixTimeMilliseconds() - toleranceMs;
-            long windowEndMs = id.RecordedUnixMs;
+            long windowEndMs = id.RecordedUnixMs + toleranceMs;
             try
             {
                 using Process process = Process.GetProcessById(id.Pid);
