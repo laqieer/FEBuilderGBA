@@ -164,6 +164,8 @@ On first run, or whenever `config/patch2`, `resources/FE-Repo`, or `resources/FE
 
 **Avalonia launcher search:** the main-menu filter box ("Type to filter editors…") matches your query case-insensitively against the button label **and** the actual display title of the editor window/page that button opens, so typing `Visual` now finds the **Map Editor** button (it opens the *Visual Map Editor*) instead of returning nothing ([#2019](https://github.com/laqieer/FEBuilderGBA/issues/2019)). The desktop launcher also still matches category headers; the single-view (Android / iOS / browser) launcher matches labels and titles only. Trade-off: a button that dispatches to several game variants (e.g. **Map Settings** → FE6 / FE7 / FE7U / generic) is searchable by *any* of those variant titles, so `FE7U` can reveal a shared button on an FE6 ROM. This is additive discoverability only — the existing ROM-version/patch visibility gating stays authoritative about which buttons exist at all, and clicking the button still opens the variant that matches your loaded ROM. The searchable titles are a checked-in mirror (`FEBuilderGBA.Avalonia/Services/EditorSearchIndex.cs`) so filtering never constructs an editor while you type; parity tests fail CI if a title is renamed without updating it.
 
+**Avalonia desktop save shortcut:** on the desktop `MainWindow` only, exact `Ctrl+S` or `⌘S` invokes the existing **Save ROM** action when that menu item is enabled. Separate editor windows keep their own shortcuts, and the single-view Android/iOS/browser shells continue to use their own Save UI.
+
 ### Cross-Platform Build (Linux / macOS / Windows)
 
 The Core library, CLI, SkiaSharp backend, and Avalonia GUI scaffold all target `net10.0` and build on any platform:
