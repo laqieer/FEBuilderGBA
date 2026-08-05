@@ -822,7 +822,7 @@ namespace FEBuilderGBA.Avalonia.Views
             if (storage == null)
                 return null;
             var allFiles = new FilePickerFileType(FEBuilderGBA.R._("All Files")) { Patterns = new[] { "*" } };
-            var exeFiles = new FilePickerFileType(FEBuilderGBA.R._("Executables")) { Patterns = new[] { "*.exe", "*" } };
+            var exeFiles = new FilePickerFileType(FEBuilderGBA.R._("Executables")) { Patterns = new[] { "*.exe", "*.app", "*" } };
             var files = await storage.OpenFilePickerAsync(new FilePickerOpenOptions
             {
                 Title = FEBuilderGBA.R._(title),

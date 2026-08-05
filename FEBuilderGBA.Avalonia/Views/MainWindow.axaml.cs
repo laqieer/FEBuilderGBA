@@ -3917,8 +3917,8 @@ namespace FEBuilderGBA.Avalonia.Views
 
         private async System.Threading.Tasks.Task RunExternalTool(string configKey, string toolName, params string[] fallbackKeys)
         {
-            string path = OptionsViewModel.GetToolPath(CoreState.Config, configKey, fallbackKeys);
-            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+            string configuredPath = OptionsViewModel.GetToolPath(CoreState.Config, configKey, fallbackKeys);
+            if (!TryResolveExternalToolForLaunch(configuredPath, out string path))
             {
                 await MessageBoxWindow.Show(this,
                     R._("No") + $" {toolName} " + R._("configured. Set the path in Options first."),
@@ -3936,6 +3936,26 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 await MessageBoxWindow.Show(this, R._("Failed to run") + $" {toolName}: {ex.Message}", R._("Error"), MessageBoxMode.Ok);
             }
+        }
+
+        internal static bool TryResolveExternalToolForLaunch(
+            string configuredPath,
+            out string executablePath)
+        {
+            return PathUtil.TryResolveExternalToolExecutable(configuredPath, out executablePath);
+        }
+
+        internal static bool TryResolveExternalToolForLaunch(
+            string configuredPath,
+            bool isMacOS,
+            Func<string, bool> executablePredicate,
+            out string executablePath)
+        {
+            return PathUtil.TryResolveExternalToolExecutable(
+                configuredPath,
+                isMacOS,
+                executablePredicate,
+                out executablePath);
         }
         // ==================================================================
         // Editor visibility filtering — hide buttons that don't match the

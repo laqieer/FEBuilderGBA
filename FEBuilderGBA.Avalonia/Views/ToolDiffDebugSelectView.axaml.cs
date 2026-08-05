@@ -78,11 +78,11 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 // Read emulator path from config
-                string emulatorPath = "";
+                string configuredPath = "";
                 var cfg = CoreState.Config;
-                emulatorPath = OptionsViewModel.GetToolPath(cfg, "emulator", "Emulator_Path");
+                configuredPath = OptionsViewModel.GetToolPath(cfg, "emulator", "Emulator_Path");
 
-                if (string.IsNullOrEmpty(emulatorPath) || !System.IO.File.Exists(emulatorPath))
+                if (!TryResolveEmulatorForLaunch(configuredPath, out string emulatorPath))
                 {
                     _ = MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window,
                         "Emulator not configured.\n\nPlease set the emulator path in Options first.",
@@ -103,6 +103,26 @@ namespace FEBuilderGBA.Avalonia.Views
                     $"Failed to launch emulator: {ex.Message}",
                     "Error", MessageBoxMode.Ok);
             }
+        }
+
+        internal static bool TryResolveEmulatorForLaunch(
+            string configuredPath,
+            out string executablePath)
+        {
+            return PathUtil.TryResolveExternalToolExecutable(configuredPath, out executablePath);
+        }
+
+        internal static bool TryResolveEmulatorForLaunch(
+            string configuredPath,
+            bool isMacOS,
+            Func<string, bool> executablePredicate,
+            out string executablePath)
+        {
+            return PathUtil.TryResolveExternalToolExecutable(
+                configuredPath,
+                isMacOS,
+                executablePredicate,
+                out executablePath);
         }
 
         void Close_Click(object? sender, RoutedEventArgs e)

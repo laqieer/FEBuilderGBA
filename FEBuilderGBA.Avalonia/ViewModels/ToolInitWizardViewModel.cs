@@ -7,10 +7,10 @@
 //   - 9 tool-path fields (Emulator, Debugger, ASM, Sappy, EA, gba_mus_riper, sox,
 //     midfix4agb, git)
 //   - Path-mode file validation matches WF exactly:
-//       Step1 -> File.Exists(Emulator)
+//       Step1 -> resolvable external-tool executable (including macOS .app bundles)
 //       Step2 -> File.Exists(EA)
 //       Step3 -> File.Exists(Sappy)
-//       Step4 -> File.Exists(Debugger) AND File.Exists(ASM)
+//       Step4 -> resolvable Debugger AND File.Exists(ASM)
 //       Step5 -> File.Exists(gba_mus_riper) AND File.Exists(sox)  -- midfix4agb optional
 //       Step6 -> GitUtil.ProbeGit(git)
 //
@@ -23,6 +23,7 @@
 //   - DoesNotContain(".SetU*", source)
 //   - DoesNotContain(".write_u*", source)
 // against both this ViewModel and the view code-behind.
+using System;
 using System.IO;
 using FEBuilderGBA;
 
@@ -361,7 +362,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public bool StageStep1()
         {
             if (PendingStep1Mode == Step1Mode_Enum.Path)
-                return File.Exists(PendingEmulatorPath);
+                return IsConfiguredExternalTool(PendingEmulatorPath);
             return true;
         }
 
@@ -384,10 +385,27 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (PendingStep4Mode == Step4Mode_Enum.Path)
             {
                 // Matches WF Step4NextButton_Click which requires BOTH.
-                return File.Exists(PendingDebuggerPath)
+                return IsConfiguredExternalTool(PendingDebuggerPath)
                        && File.Exists(PendingASMPath);
             }
             return true;
+        }
+
+        static bool IsConfiguredExternalTool(string path)
+        {
+            return PathUtil.TryResolveExternalToolExecutable(path, out _);
+        }
+
+        internal static bool IsConfiguredExternalTool(
+            string path,
+            bool isMacOS,
+            Func<string, bool> executablePredicate)
+        {
+            return PathUtil.TryResolveExternalToolExecutable(
+                path,
+                isMacOS,
+                executablePredicate,
+                out _);
         }
 
         public bool StageStep5()
