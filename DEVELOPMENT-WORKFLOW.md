@@ -103,9 +103,11 @@ unless the PR satisfies every screenshot-only helper exemption predicate above.
       model from a different provider than that seat. The substitute must be neither the developer model nor
       already on the board. Prefer the other providers' unused named alternates in this order:
       `gemini-3.1-pro-preview`, then `gpt-5.5`; otherwise choose the lexicographically smallest model id among
-      the remaining available different-provider candidates.
+      the remaining available different-provider candidates (ordinal order on canonical lowercase ids).
    4. The final board must contain exactly three distinct reviewers, none equal to the developer model, from at
       least two providers (OpenAI / xAI / Google). Note every substitution in the consolidated review.
+   Resolve seats top-to-bottom in table order and recompute candidates after every substitution. If no legal
+   candidate set satisfies step 4, fail closed and report that the cross-model board cannot be convened.
 
    Examples: active `gpt-5.6-sol` ⇒ `gpt-5.5`, `grok-4.5`, `gemini-3.6-flash`;
    active `grok-4.5` ⇒ `gpt-5.6-sol`, `gemini-3.1-pro-preview`, `gemini-3.6-flash`.
