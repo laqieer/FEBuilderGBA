@@ -102,7 +102,8 @@ unless the PR satisfies every screenshot-only helper exemption predicate above.
    3. If the seat has no usable same-provider alternate (including the `grok-4.5` seat), substitute an available
       model from a different provider than that seat. The substitute must be neither the developer model nor
       already on the board. Prefer the other providers' unused named alternates in this order:
-      `gemini-3.1-pro-preview`, then `gpt-5.5`; otherwise use another available different-provider model.
+      `gemini-3.1-pro-preview`, then `gpt-5.5`; otherwise choose the lexicographically smallest model id among
+      the remaining available different-provider candidates.
    4. The final board must contain exactly three distinct reviewers, none equal to the developer model, from at
       least two providers (OpenAI / xAI / Google). Note every substitution in the consolidated review.
 
