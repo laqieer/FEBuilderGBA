@@ -92,12 +92,33 @@ unless the PR satisfies every screenshot-only helper exemption predicate above.
    | Provider | Primary | Same-provider alternate |
    |---|---|---|
    | OpenAI | `gpt-5.6-sol` (GPT-5.6 Sol) | `gpt-5.5` (GPT-5.5) |
-   | Anthropic | `claude-opus-5` (Claude Opus 5) | `claude-sonnet-5` (Claude Sonnet 5) |
+   | xAI | `grok-4.5` (Grok 4.5) | — (no xAI alternate exposed; use the fallback below) |
    | Google | `gemini-3.6-flash` (Gemini 3.6 Flash) | `gemini-3.1-pro-preview` (Gemini 3.1 Pro Preview) |
 
-   **Independence:** if your own active model is a primary, swap that member for its named alternate so all
-   three reviewers differ from you; keep ≥2 providers (Anthropic / OpenAI / Google). If a roster/alternate model is
-   unavailable, substitute another available model from a different provider and note the substitution.
+   **Independence (closed deterministic complete-board search):**
+   - The candidate pool is exactly the five ids in this table: `gpt-5.6-sol`, `gpt-5.5`, `grok-4.5`,
+     `gemini-3.6-flash`, and `gemini-3.1-pro-preview`. Do not use unlisted session models or invent an xAI alternate.
+   - Seat order is fixed as OpenAI → xAI → Google. The two GPT ids are OpenAI, Grok is xAI, and the two Gemini ids
+     are Google.
+   - The fixed global id order is: `gemini-3.1-pro-preview`, `gemini-3.6-flash`, `gpt-5.5`, `gpt-5.6-sol`,
+     `grok-4.5`.
+   1. For each provider seat, append each id at most once in this order: its eligible primary; its eligible named
+      same-provider alternate; the other providers' eligible named alternates (`gemini-3.1-pro-preview`, then
+      `gpt-5.5`); then remaining eligible different-provider ids in the fixed global order. Eligible means listed,
+      available, and not the active developer model. Different-provider tiers compare the selected model's actual
+      provider with the seat provider.
+   2. Enumerate complete three-seat tuples in nested seat order and each seat's candidate order. Reject
+      tuples with duplicate model ids or fewer than two distinct selected-model providers.
+   3. Select the first legal tuple and note every non-primary substitution. If no legal tuple exists, do not spawn
+      reviewers or post a partial board; fail closed and report that the cross-model board cannot be convened.
+
+   Examples: active `gpt-5.6-sol` ⇒ `gpt-5.5`, `grok-4.5`, `gemini-3.6-flash`;
+   active `grok-4.5` ⇒ `gpt-5.6-sol`, `gemini-3.1-pro-preview`, `gemini-3.6-flash`.
+   If Grok is unavailable and the developer is `gpt-5.6-sol`, the first legal tuple is `gpt-5.5`,
+   `gemini-3.1-pro-preview`, `gemini-3.6-flash`. If Grok and `gemini-3.6-flash` are unavailable while the developer
+   is outside the three remaining eligible ids, the first legal tuple is `gpt-5.6-sol`,
+   `gemini-3.1-pro-preview`, `gpt-5.5`. With this five-id pool, fewer than three eligible ids means no board:
+   fail closed rather than weakening the reviewer count.
 2. **Pass identifiers, not embedded content — every reviewer fetches its own full source-of-truth context inside
    its own isolated invocation.** Give each reviewer prompt only:
    - **Plan gate (Phase 2):** the issue number and the plan-comment URL/ID.
@@ -135,7 +156,7 @@ unless the PR satisfies every screenshot-only helper exemption predicate above.
    End the posted review with a board-roster line **immediately above** the mandatory 2-line footer (so
    `.github/copilot-instructions.md` stays satisfied):
    ```
-   Review Board: gpt-5.6-sol, claude-opus-5, gemini-3.6-flash
+   Review Board: gpt-5.6-sol, grok-4.5, gemini-3.6-flash
    Copilot CLI: <version>
    Model: <display-name> (<model-id>)
    ```
