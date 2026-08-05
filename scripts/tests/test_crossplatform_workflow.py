@@ -14,11 +14,15 @@ WORKFLOW_PATH = ROOT / ".github" / "workflows" / "crossplatform.yml"
 
 
 def all_job_blocks(text: str) -> dict[str, str]:
-    matches = list(re.finditer(r"(?m)^  (?P<name>[a-zA-Z0-9_-]+):\n", text))
+    jobs_match = re.search(r"(?ms)^jobs:\n(?P<body>.*)\Z", text)
+    if jobs_match is None:
+        raise AssertionError("Missing jobs section")
+    jobs_text = jobs_match.group("body")
+    matches = list(re.finditer(r"(?m)^  (?P<name>[a-zA-Z0-9_-]+):\n", jobs_text))
     jobs: dict[str, str] = {}
     for index, match in enumerate(matches):
-        end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
-        jobs[match.group("name")] = text[match.end() : end]
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(jobs_text)
+        jobs[match.group("name")] = jobs_text[match.end() : end]
     return jobs
 
 
@@ -185,7 +189,7 @@ class CrossPlatformWorkflowContractTests(unittest.TestCase):
             "rid: osx-arm64",
             self.jobs["publish"],
         )
-        for job_name in ("build", "mcp-real-backend-tests", "publish"):
+        for job_name in ("workflow-contract", "build", "mcp-real-backend-tests", "publish"):
             with self.subTest(job=job_name):
                 self.assertNotRegex(
                     self.jobs[job_name],
