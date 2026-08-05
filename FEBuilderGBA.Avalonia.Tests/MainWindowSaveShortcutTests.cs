@@ -399,6 +399,49 @@ public sealed class MainWindowSaveShortcutTests
     }
 
     [AvaloniaFact]
+    public async Task RoutedCtrlS_WhilePending_DoesNotReenter_AndRetriesAfterCompletion()
+    {
+        using var harness = new MainWindowHarness();
+        var window = harness.Window;
+        FocusInertChild(window);
+
+        var saveMenuItem = window.FindControl<MenuItem>("SaveMenuItem");
+        Assert.NotNull(saveMenuItem);
+        saveMenuItem!.IsEnabled = true;
+
+        var entered = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var completed = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        int saveCalls = 0;
+        window.SaveRomOperationOverride = async () =>
+        {
+            saveCalls++;
+            if (saveCalls != 1)
+                return;
+
+            entered.TrySetResult(true);
+            await release.Task;
+            completed.TrySetResult(true);
+        };
+
+        PressKey(window, Key.S, KeyModifiers.Control);
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        PressKey(window, Key.S, KeyModifiers.Control);
+        Assert.Equal(1, saveCalls);
+
+        release.TrySetResult(true);
+        await completed.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        Dispatcher.UIThread.RunJobs();
+
+        PressKey(window, Key.S, KeyModifiers.Control);
+        Assert.Equal(2, saveCalls);
+    }
+
+    [AvaloniaFact]
     public async Task SaveGuard_ResetsAfterFaultAndAllowsRetry()
     {
         using var harness = new MainWindowHarness(show: false);

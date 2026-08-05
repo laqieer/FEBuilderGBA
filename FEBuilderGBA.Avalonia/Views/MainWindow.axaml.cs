@@ -2725,9 +2725,9 @@ namespace FEBuilderGBA.Avalonia.Views
             => RunSaveOperationAsync(SaveAsRomOperationOverride ?? SaveAsRomCoreAsync);
 
         /// <summary>
-        /// Shared UI-thread single-flight guard for desktop Save / Save As. Closes
-        /// any open root/nested main-menu state before dispatch so the desktop
-        /// shortcut has one owner and open menus never linger on success/failure.
+        /// Shared UI-thread single-flight guard for desktop Save / Save As.
+        /// Menu lifecycle belongs to the keyboard routing path; direct menu clicks
+        /// and test calls use only this operation guard.
         /// </summary>
         internal async Task<bool> RunSaveOperationAsync(Func<Task> saveOperation)
         {
@@ -3011,14 +3011,14 @@ namespace FEBuilderGBA.Avalonia.Views
         private async void MainWindow_Closing(object? sender, global::Avalonia.Controls.WindowClosingEventArgs e)
         {
             // In headless/screenshot mode, allow close without prompting
-            if (App.SmokeTestMode) { AutoSaveService.Instance.Stop(); return; }
+            if (App.SmokeTestMode) { CompleteMainWindowClose(); return; }
 
             // Check if ROM has unsaved changes via undo buffer
             var undo = CoreState.Undo;
-            if (undo == null || CoreState.ROM == null) { AutoSaveService.Instance.Stop(); return; }
+            if (undo == null || CoreState.ROM == null) { CompleteMainWindowClose(); return; }
 
             bool hasUnsavedChanges = undo.IsModified;
-            if (!hasUnsavedChanges) { AutoSaveService.Instance.Stop(); return; }
+            if (!hasUnsavedChanges) { CompleteMainWindowClose(); return; }
 
             // Cancel close, show prompt, then re-close if confirmed
             e.Cancel = true;
@@ -3029,12 +3029,17 @@ namespace FEBuilderGBA.Avalonia.Views
 
             if (result == MessageBoxResult.Yes)
             {
-                AutoSaveService.Instance.Stop();
                 // Detach handler to prevent re-entry, then close
                 Closing -= MainWindow_Closing;
-                CoreState.LanguageChanged -= OnLanguageChanged;
+                CompleteMainWindowClose();
                 Close();
             }
+        }
+
+        void CompleteMainWindowClose()
+        {
+            AutoSaveService.Instance.Stop();
+            CoreState.LanguageChanged -= OnLanguageChanged;
         }
 
         // ===== Editor Open Handlers =====
