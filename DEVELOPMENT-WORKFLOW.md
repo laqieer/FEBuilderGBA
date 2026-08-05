@@ -92,12 +92,22 @@ unless the PR satisfies every screenshot-only helper exemption predicate above.
    | Provider | Primary | Same-provider alternate |
    |---|---|---|
    | OpenAI | `gpt-5.6-sol` (GPT-5.6 Sol) | `gpt-5.5` (GPT-5.5) |
-   | Anthropic | `claude-opus-5` (Claude Opus 5) | `claude-sonnet-5` (Claude Sonnet 5) |
+   | xAI | `grok-4.5` (Grok 4.5) | — (no xAI alternate exposed; use the fallback below) |
    | Google | `gemini-3.6-flash` (Gemini 3.6 Flash) | `gemini-3.1-pro-preview` (Gemini 3.1 Pro Preview) |
 
-   **Independence:** if your own active model is a primary, swap that member for its named alternate so all
-   three reviewers differ from you; keep ≥2 providers (Anthropic / OpenAI / Google). If a roster/alternate model is
-   unavailable, substitute another available model from a different provider and note the substitution.
+   **Independence (apply in order):**
+   1. Start with each seat's primary model.
+   2. If that primary is unavailable or equals your active developer model, use its named same-provider alternate
+      when one is exposed, available, distinct, and not the developer model.
+   3. If the seat has no usable same-provider alternate (including the `grok-4.5` seat), substitute an available
+      model from a different provider than that seat. The substitute must be neither the developer model nor
+      already on the board. Prefer the other providers' unused named alternates in this order:
+      `gemini-3.1-pro-preview`, then `gpt-5.5`; otherwise use another available different-provider model.
+   4. The final board must contain exactly three distinct reviewers, none equal to the developer model, from at
+      least two providers (OpenAI / xAI / Google). Note every substitution in the consolidated review.
+
+   Examples: active `gpt-5.6-sol` ⇒ `gpt-5.5`, `grok-4.5`, `gemini-3.6-flash`;
+   active `grok-4.5` ⇒ `gpt-5.6-sol`, `gemini-3.1-pro-preview`, `gemini-3.6-flash`.
 2. **Pass identifiers, not embedded content — every reviewer fetches its own full source-of-truth context inside
    its own isolated invocation.** Give each reviewer prompt only:
    - **Plan gate (Phase 2):** the issue number and the plan-comment URL/ID.
@@ -135,7 +145,7 @@ unless the PR satisfies every screenshot-only helper exemption predicate above.
    End the posted review with a board-roster line **immediately above** the mandatory 2-line footer (so
    `.github/copilot-instructions.md` stays satisfied):
    ```
-   Review Board: gpt-5.6-sol, claude-opus-5, gemini-3.6-flash
+   Review Board: gpt-5.6-sol, grok-4.5, gemini-3.6-flash
    Copilot CLI: <version>
    Model: <display-name> (<model-id>)
    ```
