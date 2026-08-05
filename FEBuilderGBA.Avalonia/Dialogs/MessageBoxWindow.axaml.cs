@@ -20,9 +20,19 @@ namespace FEBuilderGBA.Avalonia.Dialogs
 
         public MessageBoxWindow(string message, string title, MessageBoxMode mode) : this()
         {
+            Configure(message, title, mode, selectable: false);
+        }
+
+        internal MessageBoxWindow(string message, string title, MessageBoxMode mode, bool selectable) : this()
+        {
+            Configure(message, title, mode, selectable);
+        }
+
+        void Configure(string message, string title, MessageBoxMode mode, bool selectable)
+        {
             Title = title;
             _content ??= new MessageBoxContent();
-            _content.Configure(message, title, mode);
+            _content.Configure(message, title, mode, selectable);
             _content.CloseRequested += (_, _) =>
             {
                 Result = _content.Result;
@@ -33,15 +43,24 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         /// <summary>Show the dialog and return the result.</summary>
         public static async System.Threading.Tasks.Task<MessageBoxResult> Show(
             Window? owner, string message, string title, MessageBoxMode mode)
+            => await ShowCore(owner, message, title, mode, selectable: false);
+
+        /// <summary>Show a message whose body can be selected and copied.</summary>
+        public static async System.Threading.Tasks.Task<MessageBoxResult> ShowSelectable(
+            Window? owner, string message, string title, MessageBoxMode mode)
+            => await ShowCore(owner, message, title, mode, selectable: true);
+
+        static async System.Threading.Tasks.Task<MessageBoxResult> ShowCore(
+            Window? owner, string message, string title, MessageBoxMode mode, bool selectable)
         {
             if (WindowManager.Instance.Service is AndroidNavigationService)
             {
                 return await WindowManager.Instance.OpenModal<MessageBoxContent, MessageBoxResult>(
                     owner,
-                    content => content.Configure(message, title, mode));
+                    content => content.Configure(message, title, mode, selectable));
             }
 
-            var dlg = new MessageBoxWindow(message, title, mode);
+            var dlg = new MessageBoxWindow(message, title, mode, selectable);
             if (owner != null)
                 await dlg.ShowDialog(owner);
             else

@@ -169,6 +169,9 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Contains("MessageBoxContent_Yes_Button", idSet);
             Assert.Contains("MessageBoxContent_No_Button", idSet);
             Assert.Contains("MessageBoxContent_Message_Label", idSet);
+            Assert.Contains("MessageBoxContent_SelectableMessage_Input", idSet);
+            Assert.Contains("MessageBoxContent_Copy_Button", idSet);
+            Assert.Contains("MessageBoxContent_CopyStatus_Label", idSet);
         }
 
         // ===================================================================

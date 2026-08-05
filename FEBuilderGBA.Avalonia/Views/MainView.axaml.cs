@@ -292,7 +292,18 @@ namespace FEBuilderGBA.Avalonia.Views
                 flyout.Items.Add(item);
             }
 
+            flyout.Items.Add(new Separator());
+            var aboutItem = new MenuItem { Header = R._("About") };
+            global::Avalonia.Automation.AutomationProperties.SetAutomationId(aboutItem, "Main_AndroidAbout_Button");
+            aboutItem.Click += About_Click;
+            flyout.Items.Add(aboutItem);
+
             return flyout;
+        }
+
+        async void About_Click(object? sender, RoutedEventArgs e)
+        {
+            await MainWindow.ShowAbout(TopLevel.GetTopLevel(this) as Window);
         }
 
         /// <summary>Open a URL with Avalonia's cross-platform launcher (window.open on wasm).</summary>

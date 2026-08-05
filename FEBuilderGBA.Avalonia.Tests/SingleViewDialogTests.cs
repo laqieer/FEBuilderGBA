@@ -36,6 +36,42 @@ public class SingleViewDialogTests
     }
 
     [AvaloniaFact]
+    public async Task MessageBoxWindow_ShowSelectable_StaysOpenAfterCopy_AndUsesSingleViewContent()
+    {
+        var original = WindowManager.Instance.Service;
+        var service = new AndroidNavigationService();
+        try
+        {
+            WindowManager.Instance.SetService(service);
+            var resultTask = MessageBoxWindow.ShowSelectable(
+                null, "Version 1.2.3", "About", MessageBoxMode.Ok);
+
+            var content = Assert.IsType<MessageBoxContent>(service.CurrentContent);
+            var selectable = Assert.IsType<TextBox>(content.FindControl<TextBox>("SelectableMessageText"));
+            Assert.True(selectable.IsVisible);
+
+            string? copied = null;
+            content.ClipboardWriterOverride = text =>
+            {
+                copied = text;
+                return Task.CompletedTask;
+            };
+
+            Click(content, "CopyButton");
+
+            Assert.Equal("Version 1.2.3", copied);
+            Assert.False(resultTask.IsCompleted);
+
+            Click(content, "OkButton");
+            Assert.Equal(MessageBoxResult.Ok, await resultTask);
+        }
+        finally
+        {
+            WindowManager.Instance.SetService(original);
+        }
+    }
+
+    [AvaloniaFact]
     public async Task NumberInputDialog_Show_UsesSingleViewContent_WhenAndroidNavigationIsActive()
     {
         var original = WindowManager.Instance.Service;
@@ -87,6 +123,10 @@ public class SingleViewDialogTests
     {
         var message = new MessageBoxWindow("Saved", "Info", MessageBoxMode.Ok);
         Assert.IsType<MessageBoxContent>(message.Content);
+
+        var selectable = new MessageBoxWindow("Version", "About", MessageBoxMode.Ok, selectable: true);
+        var selectableContent = Assert.IsType<MessageBoxContent>(selectable.Content);
+        Assert.True(selectableContent.FindControl<TextBox>("SelectableMessageText")!.IsVisible);
 
         var number = new NumberInputDialog("Count", "Expand", 3, 1, 10);
         Assert.IsType<NumberInputContent>(number.Content);
