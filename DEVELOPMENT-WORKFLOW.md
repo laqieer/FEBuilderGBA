@@ -98,6 +98,8 @@ unless the PR satisfies every screenshot-only helper exemption predicate above.
    **Independence (closed deterministic complete-board search):**
    - The candidate pool is exactly the five ids in this table: `gpt-5.6-sol`, `gpt-5.5`, `grok-4.5`,
      `gemini-3.6-flash`, and `gemini-3.1-pro-preview`. Do not use unlisted session models or invent an xAI alternate.
+   - Seat order is fixed as OpenAI → xAI → Google. The two GPT ids are OpenAI, Grok is xAI, and the two Gemini ids
+     are Google.
    - The fixed global id order is: `gemini-3.1-pro-preview`, `gemini-3.6-flash`, `gpt-5.5`, `gpt-5.6-sol`,
      `grok-4.5`.
    1. For each provider seat, append each id at most once in this order: its eligible primary; its eligible named
@@ -105,7 +107,7 @@ unless the PR satisfies every screenshot-only helper exemption predicate above.
       `gpt-5.5`); then remaining eligible different-provider ids in the fixed global order. Eligible means listed,
       available, and not the active developer model. Different-provider tiers compare the selected model's actual
       provider with the seat provider.
-   2. Enumerate complete three-seat tuples depth-first in table-seat order and each seat's candidate order. Reject
+   2. Enumerate complete three-seat tuples in nested seat order and each seat's candidate order. Reject
       tuples with duplicate model ids or fewer than two distinct selected-model providers.
    3. Select the first legal tuple and note every non-primary substitution. If no legal tuple exists, do not spawn
       reviewers or post a partial board; fail closed and report that the cross-model board cannot be convened.
