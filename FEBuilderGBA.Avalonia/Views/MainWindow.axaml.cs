@@ -3398,13 +3398,28 @@ namespace FEBuilderGBA.Avalonia.Views
             WindowManager.Instance.Open<VersionView>();
         }
 
+        internal const string HomepageUrl = "https://github.com/laqieer/FEBuilderGBA";
+
+        internal static string BuildAboutText()
+        {
+            return string.Join(Environment.NewLine,
+                R._("FEBuilderGBA"),
+                R._("Avalonia Cross-Platform Preview"),
+                R._("Version") + ": " + U.getAppVersion(),
+                R._("Copyright 2017- GPLv3"),
+                "",
+                HomepageUrl);
+        }
+
+        internal static Task<MessageBoxResult> ShowAbout(Window? owner)
+        {
+            return MessageBoxWindow.ShowSelectable(
+                owner, BuildAboutText(), R._("About"), MessageBoxMode.Ok);
+        }
+
         private async void About_Click(object? sender, RoutedEventArgs e)
         {
-            await MessageBoxWindow.Show(this,
-                R._("FEBuilderGBA") + "\n" + R._("Avalonia Cross-Platform Preview") + "\n"
-                    + R._("Version") + ": " + U.getAppVersion() + "\n"
-                    + R._("Copyright 2017- GPLv3"),
-                R._("About"), MessageBoxMode.Ok);
+            await ShowAbout(this);
         }
 
         // ===================== Image Editors =====================
