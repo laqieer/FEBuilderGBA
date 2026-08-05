@@ -10,12 +10,36 @@ permissions:
   contents: read
 
 jobs:
+  workflow-contract:
+    name: Cross-platform workflow contract
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Validate fail-closed .NET workflow steps
+      run: python -m unittest scripts/tests/test_crossplatform_workflow.py -v
+
   build:
+    name: build (${{ matrix.check_name }})
+    needs: workflow-contract
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - check_name: ubuntu-latest
+            runner: ubuntu-latest
+          - check_name: macos-latest
+            runner: macos-15
+          - check_name: windows-latest
+            runner: windows-latest
       fail-fast: false
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
 
     steps:
     - name: Checkout
@@ -45,37 +69,38 @@ jobs:
       run: python -m unittest discover -s scripts/tests -p "test_copilot_context_guard.py" -v
 
     - name: Build ColorzCore (bundled EA tool)
-      run: dotnet build tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release
+      run: dotnet build tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release --disable-build-servers -p:UseSharedCompilation=false
 
     - name: Build Core library
-      run: dotnet build FEBuilderGBA.Core/FEBuilderGBA.Core.csproj -c Release
+      run: dotnet build FEBuilderGBA.Core/FEBuilderGBA.Core.csproj -c Release --disable-build-servers -p:UseSharedCompilation=false
 
     - name: Build CLI
-      run: dotnet build FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj -c Release
+      run: dotnet build FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj -c Release --disable-build-servers -p:UseSharedCompilation=false
 
     - name: Build SkiaSharp backend
-      run: dotnet build FEBuilderGBA.SkiaSharp/FEBuilderGBA.SkiaSharp.csproj -c Release
+      run: dotnet build FEBuilderGBA.SkiaSharp/FEBuilderGBA.SkiaSharp.csproj -c Release --disable-build-servers -p:UseSharedCompilation=false
 
     - name: Build Avalonia project
-      run: dotnet build FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release
+      timeout-minutes: 15
+      run: dotnet build FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release --disable-build-servers -p:UseSharedCompilation=false
 
     - name: Run Core tests
-      run: dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj -c Release --logger "trx;LogFileName=core-tests.trx"
+      run: dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj -c Release --disable-build-servers -p:UseSharedCompilation=false --logger "trx;LogFileName=core-tests.trx"
 
     - name: Run Avalonia tests (data-verify headless validation)
-      run: dotnet test FEBuilderGBA.Avalonia.Tests/FEBuilderGBA.Avalonia.Tests.csproj -c Release --logger "trx;LogFileName=avalonia-tests.trx"
+      run: dotnet test FEBuilderGBA.Avalonia.Tests/FEBuilderGBA.Avalonia.Tests.csproj -c Release --disable-build-servers -p:UseSharedCompilation=false --logger "trx;LogFileName=avalonia-tests.trx"
 
     - name: CLI smoke test
-      run: dotnet run --project FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj -- --version
+      run: dotnet FEBuilderGBA.CLI/bin/Release/net10.0/FEBuilderGBA.CLI.dll --version
 
     - name: CLI help test
-      run: dotnet run --project FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj -- --help
+      run: dotnet FEBuilderGBA.CLI/bin/Release/net10.0/FEBuilderGBA.CLI.dll --help
 
     - name: Upload test results
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: test-results-${{ matrix.os }}
+        name: test-results-${{ matrix.check_name }}
         path: |
           **/core-tests.trx
           **/avalonia-tests.trx
@@ -119,6 +144,7 @@ jobs:
 
   mcp-real-backend-tests:
     name: MCP real-backend integration (ubuntu)
+    needs: workflow-contract
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -138,7 +164,7 @@ jobs:
         dotnet-version: '10.0.x'
 
     - name: Build CLI
-      run: dotnet build FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj -c Release
+      run: dotnet build FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj -c Release --disable-build-servers -p:UseSharedCompilation=false
 
     - name: Setup Python 3.12
       uses: actions/setup-python@v5
@@ -175,7 +201,7 @@ jobs:
         include:
           - os: ubuntu-latest
             rid: linux-x64
-          - os: macos-latest
+          - os: macos-15
             rid: osx-arm64
           - os: windows-latest
             rid: win-x64
@@ -195,13 +221,14 @@ jobs:
         dotnet-version: '10.0.x'
 
     - name: Publish ColorzCore (self-contained per-RID)
-      run: dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release -r ${{ matrix.rid }} --self-contained true -o publish/tools-${{ matrix.rid }}
+      run: dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release -r ${{ matrix.rid }} --self-contained true --disable-build-servers -p:UseSharedCompilation=false -o publish/tools-${{ matrix.rid }}
 
     - name: Publish CLI
-      run: dotnet publish FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj -c Release -r ${{ matrix.rid }} --self-contained true -o publish/cli-${{ matrix.rid }}
+      run: dotnet publish FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj -c Release -r ${{ matrix.rid }} --self-contained true --disable-build-servers -p:UseSharedCompilation=false -o publish/cli-${{ matrix.rid }}
 
     - name: Publish Avalonia
-      run: dotnet publish FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release -r ${{ matrix.rid }} --self-contained true -o publish/avalonia-${{ matrix.rid }}
+      timeout-minutes: 20
+      run: dotnet publish FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release -r ${{ matrix.rid }} --self-contained true --disable-build-servers -p:UseSharedCompilation=false -o publish/avalonia-${{ matrix.rid }}
 
     - name: Bundle ColorzCore into CLI and Avalonia artifacts
       shell: bash
@@ -319,7 +346,7 @@ jobs:
         trap cleanup EXIT
 
         # macOS /usr/bin/base64 does NOT accept GNU's `--decode`; use `-D`
-        # (the BSD/macOS decode flag). This step only ever runs on macos-latest.
+        # (the BSD/macOS decode flag). This step only runs on the macOS publish runner.
         printf '%s' "$APPLE_CERT_BASE64" | base64 -D > "$CERT_P12"
 
         security create-keychain -p "$KEYCHAIN_PASS" "$KEYCHAIN"
