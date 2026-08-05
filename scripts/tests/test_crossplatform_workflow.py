@@ -59,7 +59,13 @@ class CrossPlatformWorkflowContractTests(unittest.TestCase):
         cls.all_jobs = all_job_blocks(cls.workflow)
         cls.jobs = {
             name: cls.all_jobs[name]
-            for name in ("workflow-contract", "build", "mcp-real-backend-tests", "publish")
+            for name in (
+                "workflow-contract",
+                "build",
+                "mcp-adapter-tests",
+                "mcp-real-backend-tests",
+                "publish",
+            )
         }
 
     def test_contract_job_gates_parallel_dotnet_jobs(self) -> None:
@@ -181,13 +187,52 @@ class CrossPlatformWorkflowContractTests(unittest.TestCase):
                     self.assertNotRegex(run_command(step), r"\bdotnet\s+run\b")
 
     def test_matrix_and_fail_closed_policy_remain_intact(self) -> None:
+        expected_build_matrix = """        include:
+          - check_name: ubuntu-latest
+            runner: ubuntu-latest
+          - check_name: macos-latest
+            runner: macos-15
+          - check_name: windows-latest
+            runner: windows-latest"""
         self.assertIn(
-            "os: [ubuntu-latest, macos-latest, windows-latest]",
+            expected_build_matrix,
             self.jobs["build"],
+        )
+        self.assertRegex(
+            self.jobs["build"],
+            r"(?m)^    name: build \(\$\{\{ matrix\.check_name \}\}\)$",
+        )
+        self.assertRegex(
+            self.jobs["build"],
+            r"(?m)^    runs-on: \$\{\{ matrix\.runner \}\}$",
+        )
+        self.assertNotIn("matrix.os", self.jobs["build"])
+        self.assertIn(
+            "name: test-results-${{ matrix.check_name }}",
+            self.jobs["build"],
+        )
+        self.assertRegex(
+            self.jobs["publish"],
+            r"(?ms)- os: macos-15\s+rid: osx-arm64",
         )
         self.assertIn(
             "rid: osx-arm64",
             self.jobs["publish"],
+        )
+        self.assertNotIn("only ever runs on macos-latest", self.jobs["publish"])
+        self.assertIn(
+            "os: [ubuntu-latest, macos-latest, windows-latest]",
+            self.jobs["mcp-adapter-tests"],
+        )
+        self.assertRegex(
+            self.jobs["mcp-adapter-tests"],
+            r"(?m)^    runs-on: \$\{\{ matrix\.os \}\}$",
+        )
+        self.assertNotIn("actions/setup-dotnet", self.jobs["mcp-adapter-tests"])
+        self.assertNotRegex(self.jobs["mcp-adapter-tests"], r"\bdotnet\b")
+        self.assertIn(
+            "FEBUILDERGBA_CLI_EXE: ${{ runner.temp }}/mcp-contract-no-backend",
+            self.jobs["mcp-adapter-tests"],
         )
         for job_name in ("workflow-contract", "build", "mcp-real-backend-tests", "publish"):
             with self.subTest(job=job_name):

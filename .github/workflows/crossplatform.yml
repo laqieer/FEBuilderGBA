@@ -27,12 +27,19 @@ jobs:
       run: python -m unittest scripts/tests/test_crossplatform_workflow.py -v
 
   build:
+    name: build (${{ matrix.check_name }})
     needs: workflow-contract
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - check_name: ubuntu-latest
+            runner: ubuntu-latest
+          - check_name: macos-latest
+            runner: macos-15
+          - check_name: windows-latest
+            runner: windows-latest
       fail-fast: false
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
 
     steps:
     - name: Checkout
@@ -93,7 +100,7 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: test-results-${{ matrix.os }}
+        name: test-results-${{ matrix.check_name }}
         path: |
           **/core-tests.trx
           **/avalonia-tests.trx
@@ -194,7 +201,7 @@ jobs:
         include:
           - os: ubuntu-latest
             rid: linux-x64
-          - os: macos-latest
+          - os: macos-15
             rid: osx-arm64
           - os: windows-latest
             rid: win-x64
@@ -339,7 +346,7 @@ jobs:
         trap cleanup EXIT
 
         # macOS /usr/bin/base64 does NOT accept GNU's `--decode`; use `-D`
-        # (the BSD/macOS decode flag). This step only ever runs on macos-latest.
+        # (the BSD/macOS decode flag). This step only runs on the macOS publish runner.
         printf '%s' "$APPLE_CERT_BASE64" | base64 -D > "$CERT_P12"
 
         security create-keychain -p "$KEYCHAIN_PASS" "$KEYCHAIN"
