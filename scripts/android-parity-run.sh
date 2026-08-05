@@ -15,12 +15,13 @@
 set -euo pipefail
 
 ARCH="${1:?arch arg required (e.g. x86_64)}"
+TEST_PKG="com.laqieer.febuildergba.tests"
 echo "=== Android Emulator Parity: arch=${ARCH} ==="
 
 # ---------------------------------------------------------------
 # 1. Locate the signed APK
 # ---------------------------------------------------------------
-APK_PATH=$(find FEBuilderGBA.Android.Tests/bin/Release/net10.0-android -name "*-Signed.apk" | head -1)
+APK_PATH=$(find FEBuilderGBA.Android.Tests/bin/Release/net10.0-android -name "*-Signed.apk" -print -quit)
 if [ -z "$APK_PATH" ]; then
   echo "ERROR: No *-Signed.apk found under FEBuilderGBA.Android.Tests/bin/Release/net10.0-android/"
   ls -la FEBuilderGBA.Android.Tests/bin/Release/net10.0-android/ || true
@@ -31,30 +32,74 @@ echo "APK: $APK_PATH"
 RESULTS_DEVICE_PATH="/sdcard/Download"
 
 # ---------------------------------------------------------------
-# 2. Install APK with one retry on transient adb failure
+# 2. Clean cached package state and install as one retryable transaction
 # ---------------------------------------------------------------
-install_apk() {
-  adb install -r "$APK_PATH"
-}
-if ! install_apk; then
-  echo "adb install failed, retrying in 10 seconds..."
-  sleep 10
-  install_apk
-fi
+package_is_installed() {
+  local output
+  if ! output=$(adb shell pm list packages --user 0 "$TEST_PKG" 2>&1); then
+    echo "ERROR: failed to inspect installed package ${TEST_PKG}." >&2
+    if [ -n "$output" ]; then
+      echo "$output" >&2
+    fi
+    return 2
+  fi
 
-# ---------------------------------------------------------------
-# 2b. Delete stale device-side result files BEFORE running am instrument.
-#     The emulator AVD is cached across workflow runs (~/.android/avd/*,
-#     including the emulator sdcard/userdata image).  A prior green
-#     TestResults.xml left on /sdcard/Download could survive across AVD
-#     cache restores.  If the current instrumentation crashes before
-#     writing fresh XML, adb pull would succeed on the OLD file and the
-#     strict parser would see passed=5 failed=0 -- a false green.
-#     Deleting here + requiring the current run to write the file (section 3b)
-#     closes that false-green window completely.
-# ---------------------------------------------------------------
-echo "--- Clearing stale device-side result files before instrument run ---"
-adb shell rm -f "${RESULTS_DEVICE_PATH}/TestResults.xml" "${RESULTS_DEVICE_PATH}/instrumentation-error.txt" || true
+  output=$(printf '%s\n' "$output" | tr -d '\r')
+  printf '%s\n' "$output" | grep -Fxq "package:${TEST_PKG}"
+}
+
+clean_install_transaction() {
+  local package_status
+
+  if package_is_installed; then
+    echo "--- Removing cached ${TEST_PKG} before install ---"
+    if ! adb uninstall "$TEST_PKG"; then
+      echo "ERROR: failed to uninstall cached package ${TEST_PKG}." >&2
+      return 1
+    fi
+
+    if package_is_installed; then
+      echo "ERROR: package ${TEST_PKG} is still installed after adb uninstall." >&2
+      return 1
+    else
+      package_status=$?
+      if [ "$package_status" -eq 2 ]; then
+        return 1
+      fi
+    fi
+  else
+    package_status=$?
+    if [ "$package_status" -eq 2 ]; then
+      return 1
+    fi
+    echo "--- No cached ${TEST_PKG} package is installed ---"
+  fi
+
+  # Package uninstall does not clear shared storage. Remove result files in
+  # every transaction attempt so a failed install/retry can never preserve a
+  # prior green TestResults.xml and manufacture a false pass.
+  echo "--- Clearing stale device-side result files before install ---"
+  if ! adb shell rm -f \
+      "${RESULTS_DEVICE_PATH}/TestResults.xml" \
+      "${RESULTS_DEVICE_PATH}/instrumentation-error.txt"; then
+    echo "ERROR: failed to clear stale Android parity result files." >&2
+    return 1
+  fi
+
+  if ! adb install -r "$APK_PATH"; then
+    echo "ERROR: failed to install Android parity APK." >&2
+    return 1
+  fi
+}
+
+if ! clean_install_transaction; then
+  echo "Android parity APK transaction failed on attempt 1; retrying in 10 seconds..."
+  sleep 10
+  if ! clean_install_transaction; then
+    echo "ERROR: Android parity APK transaction failed after 2 attempts." >&2
+    exit 1
+  fi
+fi
 
 # ---------------------------------------------------------------
 # 3. Run the instrumented tests via am instrument (with retry)
@@ -70,7 +115,7 @@ OUTFILE="instrument-out-${ARCH}.txt"
 run_instrument() {
   adb shell am instrument -w \
     -e results-file-path "${RESULTS_DEVICE_PATH}" \
-    com.laqieer.febuildergba.tests/com.laqieer.febuildergba.tests.TestInstrumentation \
+    "${TEST_PKG}/${TEST_PKG}.TestInstrumentation" \
     2>&1 | tee "${OUTFILE}"
 }
 if ! run_instrument; then
@@ -81,14 +126,15 @@ fi
 
 # ---------------------------------------------------------------
 # 3b. Prove freshness: verify the CURRENT run wrote TestResults.xml
-#     on-device.  We deleted any stale copy in section 2b, so if the file
+#     on-device.  The install transaction in section 2 deleted any stale
+#     copy, so if the file
 #     is absent now the instrumentation crashed or was trimmed before it
 #     could write results -- in either case we MUST NOT parse a stale
 #     file (there is none) and must fail immediately.
 # ---------------------------------------------------------------
 if ! adb shell test -f "${RESULTS_DEVICE_PATH}/TestResults.xml"; then
   echo "FAIL: current run did not write TestResults.xml on device."
-  echo "      Stale copy was cleared before the run (section 2b), so this cannot be a cache hit."
+  echo "      Stale copy was cleared before the run (section 2), so this cannot be a cache hit."
   echo "      The instrumentation likely crashed or was trimmed before writing results."
   exit 1
 fi

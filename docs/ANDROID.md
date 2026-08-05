@@ -166,10 +166,12 @@ in the net10.0 cross-platform suite:
   `SkiaFontGoldens` single source of truth.
 
 These are **desktop-validated** today (image pixels exact; font within the
-documented tolerance). **#1125 now runs these SAME assertions on-device** — the
-advisory emulator CI workflow (`.github/workflows/android-emulator-parity.yml`)
-is **GREEN** (run 27528853303: `executed=5 passed=5 failed=0 skipped=2` on a
-booted API-34 x86_64 Android emulator):
+documented tolerance). **#1125 now runs these SAME assertions on-device**. Run
+27528853303 recorded `executed=5 passed=5 failed=0 skipped=2` on a booted API-34
+x86_64 emulator. #2060 later fixed a CI cache regression where a stale test APK
+in cached AVD userdata could have a different debug signature from the current
+runner's APK: the runner now verifies/removes the exact cached test package
+before installing, while retaining every instrumentation/result failure gate.
 
 - **Test head:** `FEBuilderGBA.Android.Tests.csproj` (net10.0-android, NOT in the
   .sln) links (never copies) `SkiaRenderByteParityTests.cs`,
@@ -571,7 +573,7 @@ steps gate on. **Attaching the signed artifact to a GitHub release is the separa
 tag-triggered release workflow ([#1629](https://github.com/laqieer/FEBuilderGBA/issues/1629));**
 this workflow only produces the signed build.
 
-**On-device byte-parity CI (#1125 — DONE, GREEN):**
+**On-device byte-parity CI (#1125 — DONE, ON-DEVICE PROVEN):**
 `.github/workflows/android-emulator-parity.yml` runs `SkiaRenderByteParityTests`
 + `SkiaSharpVersionGuardTests` on an API-34 Android emulator for `x86_64`
 (the only CI-bootable ABI at API 34 — `x86` was dropped at API 31+) on every push/PR to master. The
@@ -586,8 +588,12 @@ dotnet build FEBuilderGBA.Android.Tests/FEBuilderGBA.Android.Tests.csproj -c Rel
 ```
 
 The workflow is advisory / non-blocking (job context `android-emulator-parity`,
-not `build`); once consistently green it can be flipped to required via a
-branch-ruleset change. `arm64-v8a`, `armeabi-v7a`, and `x86` are covered by
+not `build`). Its cached AVD cleanup/install transaction is exercised first by
+a deterministic fake-ADB harness; the live runner then removes only the exact
+cached test package before installing the current APK. Genuine package-manager,
+instrumentation, and result failures remain red. Once consistently healthy it
+can be flipped to required via a branch-ruleset change. `arm64-v8a`,
+`armeabi-v7a`, and `x86` are covered by
 the same-package argument (same `SkiaSharp.NativeAssets.Android 2.88.9` package
 version / same upstream Skia build, ABI-specific native binaries — not identical `.so`
 bytes) but are not directly emulated on GitHub-hosted runners — `x86` has no
@@ -662,9 +668,10 @@ linked under #1070 as its checklist:
    automation in CI). *(see §4.)*
 5. ~~**Android: `SkiaSharp.NativeAssets.Android` version pinning + render
    byte-parity smoke test** on the Android native.~~ **DONE (#1125)** — the
-   on-device parity run is wired in `android-emulator-parity.yml` and runs
-   GREEN on `x86_64` (the runner-bootable ABI at API 34; `x86` dropped at API
-   31+). The reflection-runner instrumented head (`FEBuilderGBA.Android.Tests/`)
+   on-device parity run is wired in `android-emulator-parity.yml` and has passed
+   on `x86_64` (the runner-bootable ABI at API 34; `x86` dropped at API 31+).
+   Cached AVD package state is verified and cleaned before each APK install
+   (#2060). The reflection-runner instrumented head (`FEBuilderGBA.Android.Tests/`)
    links the same `SkiaRenderByteParityTests` + `SkiaSharpVersionGuardTests`
    as the desktop suite (direct reflection runner, NOT XHarness — .NET 10
    Android embeds assemblies as `.so` files; xUnit's `Guard.FileExists` needs
