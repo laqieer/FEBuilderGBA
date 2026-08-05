@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 using System;
 using System.IO;
+using System.Runtime.Versioning;
 
 namespace FEBuilderGBA.Core.Tests
 {
@@ -171,6 +172,7 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [SkippableFact]
+        [SupportedOSPlatform("macos")]
         public void PublicResolver_OnMac_RequiresAndAcceptsExecutableBit()
         {
             Skip.IfNot(PathUtil.IsMacOS, "macOS-only public resolver proof");
