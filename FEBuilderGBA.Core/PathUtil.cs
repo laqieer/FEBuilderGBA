@@ -96,8 +96,11 @@ namespace FEBuilderGBA
             try
             {
                 string physicalBundle = ResolvePhysicalPath(new DirectoryInfo(bundlePath));
-                string physicalMacOS = Path.Combine(physicalBundle, "Contents", "MacOS");
-                if (!Directory.Exists(physicalMacOS))
+                string physicalContents = Path.Combine(physicalBundle, "Contents");
+                if (!IsNonSymlinkDirectory(physicalContents))
+                    return false;
+                string physicalMacOS = Path.Combine(physicalContents, "MacOS");
+                if (!IsNonSymlinkDirectory(physicalMacOS))
                     return false;
 
                 string bundleName = Path.GetFileNameWithoutExtension(bundlePath);
@@ -184,6 +187,17 @@ namespace FEBuilderGBA
         {
             FileSystemInfo? target = info.ResolveLinkTarget(returnFinalTarget: true);
             return Path.GetFullPath(target?.FullName ?? info.FullName);
+        }
+
+        static bool IsNonSymlinkDirectory(string path)
+        {
+            var info = new DirectoryInfo(path);
+            if (!info.Exists)
+                return false;
+            return string.Equals(
+                Path.GetFullPath(path),
+                ResolvePhysicalPath(info),
+                StringComparison.Ordinal);
         }
 
         static bool IsMacExecutableFile(string path)

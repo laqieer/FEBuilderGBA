@@ -135,6 +135,42 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [SkippableFact]
+        public void EscapingMacOSDirectorySymlink_IsRejected()
+        {
+            string outside = Path.Combine(_root, "outside-macos");
+            Directory.CreateDirectory(outside);
+            File.WriteAllText(Path.Combine(outside, "mGBA"), "not executed");
+            string bundle = Path.Combine(_root, "mGBA.app");
+            Directory.CreateDirectory(Path.Combine(bundle, "Contents"));
+            CreateDirectorySymlinkOrSkip(
+                Path.Combine(bundle, "Contents", "MacOS"),
+                outside);
+
+            bool ok = PathUtil.TryResolveExternalToolExecutable(
+                bundle, isMacOS: true, _ => true, out _);
+
+            Assert.False(ok);
+        }
+
+        [SkippableFact]
+        public void EscapingContentsDirectorySymlink_IsRejected()
+        {
+            string outside = Path.Combine(_root, "outside-contents");
+            Directory.CreateDirectory(Path.Combine(outside, "MacOS"));
+            File.WriteAllText(Path.Combine(outside, "MacOS", "mGBA"), "not executed");
+            string bundle = Path.Combine(_root, "mGBA.app");
+            Directory.CreateDirectory(bundle);
+            CreateDirectorySymlinkOrSkip(
+                Path.Combine(bundle, "Contents"),
+                outside);
+
+            bool ok = PathUtil.TryResolveExternalToolExecutable(
+                bundle, isMacOS: true, _ => true, out _);
+
+            Assert.False(ok);
+        }
+
+        [SkippableFact]
         public void PublicResolver_OnMac_RequiresAndAcceptsExecutableBit()
         {
             Skip.IfNot(PathUtil.IsMacOS, "macOS-only public resolver proof");
@@ -166,6 +202,21 @@ namespace FEBuilderGBA.Core.Tests
             string bundle = Path.Combine(_root, bundleName);
             Directory.CreateDirectory(Path.Combine(bundle, "Contents", "MacOS"));
             return bundle;
+        }
+
+        static void CreateDirectorySymlinkOrSkip(string link, string target)
+        {
+            try
+            {
+                Directory.CreateSymbolicLink(link, target);
+            }
+            catch (Exception ex) when (
+                ex is PlatformNotSupportedException
+                or UnauthorizedAccessException
+                or IOException)
+            {
+                Skip.If(true, "Directory symbolic links are unavailable: " + ex.Message);
+            }
         }
     }
 }
