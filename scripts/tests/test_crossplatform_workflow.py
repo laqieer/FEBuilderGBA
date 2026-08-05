@@ -72,21 +72,41 @@ class CrossPlatformWorkflowContractTests(unittest.TestCase):
         self.assertRegex(self.jobs["publish"], r"(?m)^    needs: build$")
 
     def test_every_build_test_and_publish_is_server_isolated(self) -> None:
-        expected_steps = {
+        expected_steps: dict[str, dict[str, tuple[str, str]]] = {
             "build": {
-                "Build ColorzCore (bundled EA tool)",
-                "Build Core library",
-                "Build CLI",
-                "Build SkiaSharp backend",
-                "Build Avalonia project",
-                "Run Core tests",
-                "Run Avalonia tests (data-verify headless validation)",
+                "Build ColorzCore (bundled EA tool)": (
+                    "build",
+                    "tools/ColorzCore/ColorzCore/ColorzCore.csproj",
+                ),
+                "Build Core library": ("build", "FEBuilderGBA.Core/FEBuilderGBA.Core.csproj"),
+                "Build CLI": ("build", "FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj"),
+                "Build SkiaSharp backend": (
+                    "build",
+                    "FEBuilderGBA.SkiaSharp/FEBuilderGBA.SkiaSharp.csproj",
+                ),
+                "Build Avalonia project": (
+                    "build",
+                    "FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj",
+                ),
+                "Run Core tests": ("test", "FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj"),
+                "Run Avalonia tests (data-verify headless validation)": (
+                    "test",
+                    "FEBuilderGBA.Avalonia.Tests/FEBuilderGBA.Avalonia.Tests.csproj",
+                ),
             },
-            "mcp-real-backend-tests": {"Build CLI"},
+            "mcp-real-backend-tests": {
+                "Build CLI": ("build", "FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj"),
+            },
             "publish": {
-                "Publish ColorzCore (self-contained per-RID)",
-                "Publish CLI",
-                "Publish Avalonia",
+                "Publish ColorzCore (self-contained per-RID)": (
+                    "publish",
+                    "tools/ColorzCore/ColorzCore/ColorzCore.csproj",
+                ),
+                "Publish CLI": ("publish", "FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj"),
+                "Publish Avalonia": (
+                    "publish",
+                    "FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj",
+                ),
             },
         }
 
@@ -101,10 +121,22 @@ class CrossPlatformWorkflowContractTests(unittest.TestCase):
                 discovered[job_name] = dotnet_steps
 
         self.assertEqual(set(expected_steps), set(discovered))
-        for job_name, required_names in expected_steps.items():
-            self.assertEqual(required_names, set(discovered[job_name]), job_name)
+        for job_name, required_steps in expected_steps.items():
+            self.assertEqual(set(required_steps), set(discovered[job_name]), job_name)
             for name, command in discovered[job_name].items():
                 with self.subTest(job=job_name, step=name):
+                    invocations = list(
+                        re.finditer(
+                            r"\bdotnet (?P<verb>build|test|publish) (?P<project>\S+)",
+                            command,
+                        )
+                    )
+                    self.assertEqual(1, len(invocations), command)
+                    invocation = invocations[0]
+                    self.assertEqual(0, invocation.start(), command)
+                    expected_verb, expected_project = required_steps[name]
+                    self.assertEqual(expected_verb, invocation.group("verb"))
+                    self.assertEqual(expected_project, invocation.group("project"))
                     tokens = shlex.split(command)
                     self.assertIn("--disable-build-servers", tokens)
                     self.assertIn("-p:UseSharedCompilation=false", tokens)
@@ -142,7 +174,7 @@ class CrossPlatformWorkflowContractTests(unittest.TestCase):
         for job_name, block in self.all_jobs.items():
             for name, step in named_steps(block):
                 with self.subTest(job=job_name, step=name):
-                    self.assertNotRegex(run_command(step), r"(?m)^\s*dotnet run\b")
+                    self.assertNotRegex(run_command(step), r"\bdotnet\s+run\b")
 
     def test_matrix_and_fail_closed_policy_remain_intact(self) -> None:
         self.assertIn(
