@@ -95,15 +95,20 @@ unless the PR satisfies every screenshot-only helper exemption predicate above.
    | xAI | `grok-4.5` (Grok 4.5) | — (no xAI alternate exposed; use the fallback below) |
    | Google | `gemini-3.6-flash` (Gemini 3.6 Flash) | `gemini-3.1-pro-preview` (Gemini 3.1 Pro Preview) |
 
-   **Independence (deterministic complete-board search):**
-   1. For each provider seat, build an ordered candidate list containing: its eligible primary; its eligible named
-      same-provider alternate; the other providers' eligible named alternates in this order
-      (`gemini-3.1-pro-preview`, then `gpt-5.5`); then all remaining eligible different-provider models in ordinal
-      order by canonical lowercase model id. Eligible means available and not the active developer model.
+   **Independence (closed deterministic complete-board search):**
+   - The candidate pool is exactly the five ids in this table: `gpt-5.6-sol`, `gpt-5.5`, `grok-4.5`,
+     `gemini-3.6-flash`, and `gemini-3.1-pro-preview`. Do not use unlisted session models or invent an xAI alternate.
+   - The fixed global id order is: `gemini-3.1-pro-preview`, `gemini-3.6-flash`, `gpt-5.5`, `gpt-5.6-sol`,
+     `grok-4.5`.
+   1. For each provider seat, append each id at most once in this order: its eligible primary; its eligible named
+      same-provider alternate; the other providers' eligible named alternates (`gemini-3.1-pro-preview`, then
+      `gpt-5.5`); then remaining eligible different-provider ids in the fixed global order. Eligible means listed,
+      available, and not the active developer model. Different-provider tiers compare the selected model's actual
+      provider with the seat provider.
    2. Enumerate complete three-seat tuples depth-first in table-seat order and each seat's candidate order. Reject
-      any tuple with duplicate models or fewer than two providers. The default seats are OpenAI / xAI / Google.
-   3. Select the first legal tuple. Note every seat that did not use its primary in the consolidated review.
-      If no legal tuple exists, fail closed and report that the cross-model board cannot be convened.
+      tuples with duplicate model ids or fewer than two distinct selected-model providers.
+   3. Select the first legal tuple and note every non-primary substitution. If no legal tuple exists, do not spawn
+      reviewers or post a partial board; fail closed and report that the cross-model board cannot be convened.
 
    Examples: active `gpt-5.6-sol` ⇒ `gpt-5.5`, `grok-4.5`, `gemini-3.6-flash`;
    active `grok-4.5` ⇒ `gpt-5.6-sol`, `gemini-3.1-pro-preview`, `gemini-3.6-flash`.
