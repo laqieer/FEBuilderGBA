@@ -112,8 +112,11 @@ unless the PR satisfies every screenshot-only helper exemption predicate above.
 
    Examples: active `gpt-5.6-sol` ⇒ `gpt-5.5`, `grok-4.5`, `gemini-3.6-flash`;
    active `grok-4.5` ⇒ `gpt-5.6-sol`, `gemini-3.1-pro-preview`, `gemini-3.6-flash`.
-   The complete search may backtrack: if Grok and the Google primary are unavailable, it must not consume
-   `gemini-3.1-pro-preview` for the xAI seat when a later Google seat needs it and another legal xAI fallback exists.
+   If Grok is unavailable and the developer is `gpt-5.6-sol`, the first legal tuple is `gpt-5.5`,
+   `gemini-3.1-pro-preview`, `gemini-3.6-flash`. If Grok and `gemini-3.6-flash` are unavailable while the developer
+   is outside the three remaining eligible ids, the first legal tuple is `gpt-5.6-sol`,
+   `gemini-3.1-pro-preview`, `gpt-5.5`. With this five-id pool, fewer than three eligible ids means no board:
+   fail closed rather than weakening the reviewer count.
 2. **Pass identifiers, not embedded content — every reviewer fetches its own full source-of-truth context inside
    its own isolated invocation.** Give each reviewer prompt only:
    - **Plan gate (Phase 2):** the issue number and the plan-comment URL/ID.
