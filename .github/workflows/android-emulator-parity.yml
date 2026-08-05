@@ -46,7 +46,9 @@
 #   direct reflection-based Android.App.Instrumentation runner (NOT XHarness --
 #   see csproj/Instrumentation.cs for rationale). It writes TestResults.xml and
 #   returns a non-zero code on failure.
-# * adb install + am instrument are retried once on transient failure.
+# * A checked-in fake-adb harness verifies cached-package cleanup before any
+#   emulator starts. The real runner treats inspect/uninstall/result-clear/
+#   install as one retryable transaction, then retries am instrument separately.
 # * CI fails the step (exit 1) if instrument output contains a failure marker
 #   OR if TestResults.xml reports failures/errors > 0, OR if the XML is absent.
 # * All parity-run logic lives in scripts/android-parity-run.sh, invoked via a
@@ -98,6 +100,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Test parity runner transaction
+        run: bash scripts/tests/android-parity-run-test.sh
 
       - name: Init build-required submodules
         # Same submodule set as android.yml / check.yml. config/patch2 must
