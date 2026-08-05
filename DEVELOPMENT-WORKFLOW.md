@@ -95,22 +95,20 @@ unless the PR satisfies every screenshot-only helper exemption predicate above.
    | xAI | `grok-4.5` (Grok 4.5) | — (no xAI alternate exposed; use the fallback below) |
    | Google | `gemini-3.6-flash` (Gemini 3.6 Flash) | `gemini-3.1-pro-preview` (Gemini 3.1 Pro Preview) |
 
-   **Independence (apply in order):**
-   1. Start with each seat's primary model.
-   2. If that primary is unavailable or equals your active developer model, use its named same-provider alternate
-      when one is exposed, available, distinct, and not the developer model.
-   3. If the seat has no usable same-provider alternate (including the `grok-4.5` seat), substitute an available
-      model from a different provider than that seat. The substitute must be neither the developer model nor
-      already on the board. Prefer the other providers' unused named alternates in this order:
-      `gemini-3.1-pro-preview`, then `gpt-5.5`; otherwise choose the lexicographically smallest model id among
-      the remaining available different-provider candidates (ordinal order on canonical lowercase ids).
-   4. The final board must contain exactly three distinct reviewers, none equal to the developer model, from at
-      least two providers (OpenAI / xAI / Google). Note every substitution in the consolidated review.
-   Resolve seats top-to-bottom in table order and recompute candidates after every substitution. If no legal
-   candidate set satisfies step 4, fail closed and report that the cross-model board cannot be convened.
+   **Independence (deterministic complete-board search):**
+   1. For each provider seat, build an ordered candidate list containing: its eligible primary; its eligible named
+      same-provider alternate; the other providers' eligible named alternates in this order
+      (`gemini-3.1-pro-preview`, then `gpt-5.5`); then all remaining eligible different-provider models in ordinal
+      order by canonical lowercase model id. Eligible means available and not the active developer model.
+   2. Enumerate complete three-seat tuples depth-first in table-seat order and each seat's candidate order. Reject
+      any tuple with duplicate models or fewer than two providers. The default seats are OpenAI / xAI / Google.
+   3. Select the first legal tuple. Note every seat that did not use its primary in the consolidated review.
+      If no legal tuple exists, fail closed and report that the cross-model board cannot be convened.
 
    Examples: active `gpt-5.6-sol` ⇒ `gpt-5.5`, `grok-4.5`, `gemini-3.6-flash`;
    active `grok-4.5` ⇒ `gpt-5.6-sol`, `gemini-3.1-pro-preview`, `gemini-3.6-flash`.
+   The complete search may backtrack: if Grok and the Google primary are unavailable, it must not consume
+   `gemini-3.1-pro-preview` for the xAI seat when a later Google seat needs it and another legal xAI fallback exists.
 2. **Pass identifiers, not embedded content — every reviewer fetches its own full source-of-truth context inside
    its own isolated invocation.** Give each reviewer prompt only:
    - **Plan gate (Phase 2):** the issue number and the plan-comment URL/ID.
