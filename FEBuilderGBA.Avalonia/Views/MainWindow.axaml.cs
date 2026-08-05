@@ -31,6 +31,19 @@ namespace FEBuilderGBA.Avalonia.Views
         /// Null on desktop and whenever the current ROM has a real local path.
         /// </summary>
         private global::Avalonia.Platform.Storage.IStorageFile? _currentRomStorageFile;
+        private bool _isSaving;
+
+        /// <summary>
+        /// Test seam (via InternalsVisibleTo): replace the desktop Save action
+        /// body while still exercising the shared single-flight guard.
+        /// </summary>
+        internal Func<Task>? SaveRomOperationOverride { get; set; }
+
+        /// <summary>
+        /// Test seam (via InternalsVisibleTo): replace the desktop Save As action
+        /// body while still exercising the shared single-flight guard.
+        /// </summary>
+        internal Func<Task>? SaveAsRomOperationOverride { get; set; }
 
         public MainWindow()
         {
@@ -57,6 +70,16 @@ namespace FEBuilderGBA.Avalonia.Views
 
         protected override void OnKeyDown(KeyEventArgs e)
         {
+            if (!e.Handled
+                && IsExactSaveGesture(e.Key, e.KeyModifiers)
+                && SaveMenuItem?.IsEffectivelyEnabled == true)
+            {
+                e.Handled = true;
+                MainMenu?.Close();
+                SaveRom_Click(this, new RoutedEventArgs());
+                return;
+            }
+
             base.OnKeyDown(e);
             if (e.KeyModifiers == KeyModifiers.Control && e.Key == Key.F)
             {
@@ -79,6 +102,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 SetStatusText(R._("View refreshed."));
                 e.Handled = true;
             }
+        }
+
+        static bool IsExactSaveGesture(Key key, KeyModifiers modifiers)
+        {
+            return key == Key.S
+                && (modifiers == KeyModifiers.Control || modifiers == KeyModifiers.Meta);
         }
 
         void OnLanguageChanged()
@@ -2672,6 +2701,54 @@ namespace FEBuilderGBA.Avalonia.Views
 
         private async void SaveRom_Click(object? sender, RoutedEventArgs e)
         {
+            await SaveRomAsync();
+        }
+
+        private async void SaveAsRom_Click(object? sender, RoutedEventArgs e)
+        {
+            await SaveAsRomAsync();
+        }
+
+        /// <summary>
+        /// Awaitable desktop Save action. Internal test seam so routed keyboard
+        /// coverage can await completion while still using the real single-flight
+        /// guard shared with Save As (#2052).
+        /// </summary>
+        internal Task<bool> SaveRomAsync()
+            => RunSaveOperationAsync(SaveRomOperationOverride ?? SaveRomCoreAsync);
+
+        /// <summary>
+        /// Awaitable desktop Save As action. Internal test seam so overlap tests
+        /// can await completion while still using the real single-flight guard.
+        /// </summary>
+        internal Task<bool> SaveAsRomAsync()
+            => RunSaveOperationAsync(SaveAsRomOperationOverride ?? SaveAsRomCoreAsync);
+
+        /// <summary>
+        /// Shared UI-thread single-flight guard for desktop Save / Save As. Closes
+        /// any open root/nested main-menu state before dispatch so the desktop
+        /// shortcut has one owner and open menus never linger on success/failure.
+        /// </summary>
+        internal async Task<bool> RunSaveOperationAsync(Func<Task> saveOperation)
+        {
+            Dispatcher.UIThread.VerifyAccess();
+            if (_isSaving)
+                return false;
+
+            _isSaving = true;
+            try
+            {
+                await saveOperation();
+                return true;
+            }
+            finally
+            {
+                _isSaving = false;
+            }
+        }
+
+        async Task SaveRomCoreAsync()
+        {
             if (CoreState.ROM == null) return;
             // Amendment 5: decomp preview ROMs are read-only — block save.
             if (CoreState.IsDecompMode)
@@ -2694,7 +2771,7 @@ namespace FEBuilderGBA.Avalonia.Views
             CoreState.Services.ShowInfo(R._("ROM saved."));
         }
 
-        private async void SaveAsRom_Click(object? sender, RoutedEventArgs e)
+        async Task SaveAsRomCoreAsync()
         {
             if (CoreState.ROM == null) return;
             // Amendment 5: block Save As for decomp preview ROMs too.
@@ -4062,5 +4139,3 @@ namespace FEBuilderGBA.Avalonia.Views
         }
     }
 }
-
-

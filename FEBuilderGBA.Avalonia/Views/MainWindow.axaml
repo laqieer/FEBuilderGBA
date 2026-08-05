@@ -7,7 +7,7 @@
         SizeToContent="WidthAndHeight">
   <DockPanel>
     <!-- Menu Bar -->
-    <Menu DockPanel.Dock="Top">
+    <Menu DockPanel.Dock="Top" Name="MainMenu">
       <MenuItem AutomationProperties.AutomationId="Main_FileMenu_Button" Header="_File" Name="FileMenu">
         <MenuItem AutomationProperties.AutomationId="Main_OpenRomMenuItem_Button" Header="_Open ROM..." Click="OpenRom_Click" InputGesture="Ctrl+O" Name="OpenRomMenuItem" />
         <MenuItem AutomationProperties.AutomationId="Main_OpenLastRomMenuItem_Button" Header="Open _Last ROM" Click="OpenLastRom_Click" Name="OpenLastRomMenuItem" />
