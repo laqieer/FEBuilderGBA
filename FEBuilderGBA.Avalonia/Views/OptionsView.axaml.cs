@@ -240,7 +240,7 @@ namespace FEBuilderGBA.Avalonia.Views
             if (target == null) return;
 
             var allFiles = new FilePickerFileType(R._("All Files")) { Patterns = new[] { "*" } };
-            var exeFiles = new FilePickerFileType(R._("Executables")) { Patterns = new[] { "*.exe", "*" } };
+            var exeFiles = new FilePickerFileType(R._("Executables")) { Patterns = new[] { "*.exe", "*.app", "*" } };
             var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
             if (storage == null) return;
             var files = await storage.OpenFilePickerAsync(new FilePickerOpenOptions

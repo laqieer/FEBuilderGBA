@@ -219,6 +219,7 @@ own legally-obtained ROMs in a **git-ignored `roms/`** folder at the repo root:
 | Event Assembler | `Tools/Event Assembler/` | Wine or native port | Wine or native port |
 | 7-Zip | `7-zip32.dll` (bundled) | SharpCompress fallback | SharpCompress fallback |
 | Git | `PortableGit/` or system | System package | System or Homebrew |
+| GBA emulator / external GUI tools | Select the executable file | Select the executable file | Select the `.app` bundle; Avalonia keeps that bundle path in config and resolves a safe direct executable under `Contents/MacOS` when validating or launching (bundle-name match or one unambiguous executable) |
 
 ## Running on Android
 
