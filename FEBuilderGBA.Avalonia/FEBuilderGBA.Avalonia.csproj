@@ -8,6 +8,7 @@
     <EnableAndroidTarget Condition="'$(EnableAndroidTarget)' == ''">false</EnableAndroidTarget>
     <EnableIosTarget Condition="'$(EnableIosTarget)' == ''">false</EnableIosTarget>
     <EnableBrowserTarget Condition="'$(EnableBrowserTarget)' == ''">false</EnableBrowserTarget>
+    <Nullable>annotations</Nullable>
   </PropertyGroup>
   <!-- TFM COMPOSITION (#1859 mutually-exclusive blocks generalized to an ADDITIVE form for the
        3 opt-in heads, #1864). The invariant that MUST hold: <TargetFramework> and

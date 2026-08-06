@@ -1175,17 +1175,19 @@ namespace FEBuilderGBA
                     // (all pixels must be the same sub-palette — validated by caller).
                     int firstPixel = indexedPixels[y * width + x];
                     uint selectpalette = (uint)(firstPixel / 16);
+                    uint paletteByte = palettemap[nn / 2];
 
                     // Write nibble: even nn → low nibble; odd nn → high nibble.
                     // Mirrors WF :2255-2264.
                     if ((nn & 0x01) > 0)
                     {   // odd → high nibble
-                        byte a = palettemap[nn / 2];
-                        palettemap[nn / 2] = (byte)((a & 0x0F) | ((selectpalette & 0xF) << 4));
+                        palettemap[nn / 2] = (byte)(
+                            (paletteByte & 0x0Fu)
+                            | ((selectpalette & 0x0Fu) << 4));
                     }
                     else
                     {   // even → low nibble
-                        palettemap[nn / 2] = (byte)(selectpalette & 0xF);
+                        palettemap[nn / 2] = (byte)(selectpalette & 0x0Fu);
                     }
                     nn++;
                 }
