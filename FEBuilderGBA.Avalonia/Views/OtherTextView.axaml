@@ -21,7 +21,7 @@
         </Grid>
 
         <TextBlock Text="Text:" />
-        <TextBox AutomationProperties.AutomationId="OtherText_Text_Input" Name="TextInput"
+        <TextBox AutomationProperties.AutomationId="OtherText_Text_Input" Name="OtherTextInput"
                  AcceptsReturn="True" TextWrapping="Wrap" MinHeight="120" MaxWidth="600" HorizontalAlignment="Left" />
 
         <TextBlock Text="A literal in-ROM string stored outside the main Huffman text table." TextWrapping="Wrap" Foreground="Gray" Margin="0,8" />

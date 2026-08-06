@@ -448,7 +448,7 @@ namespace FEBuilderGBA
             return false;
         }
 
-        class anime
+        class Anime
         {
             public byte[] tsa;
             public byte[] image;
@@ -463,7 +463,7 @@ namespace FEBuilderGBA
             string basedir = Path.GetDirectoryName(filename);
 
             //同じアニメを何度も入力しないように記録する.
-            List<anime> anime_list = new List<anime>();
+            List<Anime> anime_list = new List<Anime>();
             List<byte> frames = new List<byte>();
             string[] lines = File.ReadAllLines(filename);
 
@@ -528,7 +528,7 @@ namespace FEBuilderGBA
                         bitmap = ImageUtil.Copy(bitmap, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
                     }
 
-                    anime a = new anime();
+                    Anime a = new Anime();
                     string error = ImageUtil.ImageToBytePackedTSA(bitmap, SCREEN_WIDTH, SCREEN_HEIGHT,0, out a.image, out a.tsa);
                     if (error != "")
                     {
@@ -622,7 +622,7 @@ namespace FEBuilderGBA
             Program.Undo.Push(undodata);
             return "";
         }
-        static uint FindImage(List<anime> anime_list,string image)
+        static uint FindImage(List<Anime> anime_list,string image)
         {
             for (int i = 0; i < anime_list.Count; i++)
             {

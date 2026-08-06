@@ -40,7 +40,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        public bool IsLoading { get => _isLoading; set => SetField(ref _isLoading, value); }
+        public new bool IsLoading { get => _isLoading; set => SetField(ref _isLoading, value); }
         /// <summary>Battle BG index (B0 / J_0_BATTLEBG).</summary>
         public uint BattleBG { get => _battleBG; set => SetField(ref _battleBG, value); }
 

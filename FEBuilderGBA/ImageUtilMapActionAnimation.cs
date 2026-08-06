@@ -240,7 +240,7 @@ namespace FEBuilderGBA
             return imagefilename;
         }
 
-        class anime
+        class Anime
         {
             public byte[] image;
             public byte[] pal;
@@ -254,7 +254,7 @@ namespace FEBuilderGBA
             string basedir = Path.GetDirectoryName(filename);
 
             //他のアニメーションとはデータ構造が違うので注意
-            List<anime> poolList = new List<anime>();
+            List<Anime> poolList = new List<Anime>();
             List<byte> frames = new List<byte>();
             string[] lines = File.ReadAllLines(filename);
 
@@ -302,7 +302,7 @@ namespace FEBuilderGBA
                     bitmap = ImageUtil.Copy(bitmap, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
                 }
 
-                anime a = new anime();
+                Anime a = new Anime();
                 a.image = ImageUtil.ImageToByte16Tile(bitmap, SCREEN_WIDTH, SCREEN_HEIGHT);
                 a.image = LZ77.compress(a.image);
 
@@ -387,7 +387,7 @@ namespace FEBuilderGBA
             }
         }
 
-        static uint CheckDupImage(List<anime> poolList, int now)
+        static uint CheckDupImage(List<Anime> poolList, int now)
         {
             byte[] current_image = poolList[now].image;
             for (int i = 0; i < now; i++)
@@ -399,7 +399,7 @@ namespace FEBuilderGBA
             }
             return U.NOT_FOUND;
         }
-        static uint CheckDupPal(List<anime> poolList, int now)
+        static uint CheckDupPal(List<Anime> poolList, int now)
         {
             byte[] current_pal = poolList[now].pal;
             for (int i = 0; i < now; i++)

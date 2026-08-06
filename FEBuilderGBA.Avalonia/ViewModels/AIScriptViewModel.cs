@@ -113,7 +113,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>True while LoadList / LoadEntry are running (suppresses dirty flags).</summary>
-        public bool IsLoading
+        public new bool IsLoading
         {
             get => _isLoading;
             set => SetField(ref _isLoading, value);

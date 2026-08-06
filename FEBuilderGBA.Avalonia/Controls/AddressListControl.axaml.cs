@@ -58,9 +58,6 @@ namespace FEBuilderGBA.Avalonia.Controls
         /// </summary>
         public event Action<AddrResult?>? SelectedItemChanged;
 
-        /// <summary>Fired when user requests a hex editor for the selected address.</summary>
-        public event Action<uint>? HexEditorRequested;
-
         /// <summary>Fired when user confirms a selection (double-click or Enter in pick mode).</summary>
         public event Action<PickResult>? SelectionConfirmed;
 

@@ -10,7 +10,7 @@ namespace FEBuilderGBA.Avalonia.Dialogs
     public partial class MessageBoxContent : UserControl, IEmbeddableEditor
     {
         public string ViewTitle { get; private set; } = "FEBuilderGBA";
-        public bool IsLoaded => true;
+        public new bool IsLoaded => true;
         public EditorDescriptor Descriptor => new(
             ViewTitle,
             400,
