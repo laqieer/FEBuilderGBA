@@ -5176,7 +5176,7 @@ namespace FEBuilderGBA.CLI
 
                 Console.WriteLine($"addr=0x{pointer:X08}");
 
-                IAsmMapFile asmMap = CoreState.AsmMapFileAsmCache?.GetAsmMapFile();
+                var asmMap = CoreState.AsmMapFileAsmCache?.GetAsmMapFile();
                 if (asmMap == null)
                 {
                     Console.WriteLine("symbol=(none)");
@@ -5285,7 +5285,7 @@ namespace FEBuilderGBA.CLI
 
             // Pull the merged resolver (project over shipped) from the wired cache,
             // plus a freshly-loaded resolver for the section / object-path hints.
-            MergedAsmMapFile map = CoreState.AsmMapFileAsmCache?.GetAsmMapFile() as MergedAsmMapFile;
+            var map = CoreState.AsmMapFileAsmCache?.GetAsmMapFile() as MergedAsmMapFile;
             DecompSymbolResolver resolver = null;
             try { resolver = DecompSymbolResolver.Load(CoreState.DecompProject); }
             catch { /* analyzer tolerates a null resolver */ }
@@ -6786,7 +6786,7 @@ namespace FEBuilderGBA.CLI
             }
             else
             {
-                IAsmMapFile map = CoreState.AsmMapFileAsmCache?.GetAsmMapFile();
+                var map = CoreState.AsmMapFileAsmCache?.GetAsmMapFile();
                 DecompShopSourceResolver.TryResolveShopOwner(project, map, shopAddr, out owner, out symbolName);
             }
 

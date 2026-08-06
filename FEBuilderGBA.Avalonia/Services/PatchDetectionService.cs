@@ -419,8 +419,7 @@ namespace FEBuilderGBA.Avalonia.Services
             if (!U.isSafetyOffset(gpSkillInfos + 4, rom)) return null;
             uint baseAddr = rom.p32(gpSkillInfos);
             if (!U.isSafetyOffset(baseAddr, rom)) return null;
-            uint entryAddr = baseAddr + 8 * id;
-            if (!U.isSafetyOffset(entryAddr + 6, rom)) return null;
+            if (!TryGetScaledEntryAddress(rom, baseAddr, id, 8, 6, out uint entryAddr)) return null;
             uint textId = rom.u16(entryAddr + 4);
             if (textId == 0) return null;
             string text = NameResolver.GetTextById(textId);
@@ -437,8 +436,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 _skillSystemTextBase = FindSkillSystemTextBase(rom);
             if (_skillSystemTextBase == 0 || _skillSystemTextBase == U.NOT_FOUND)
                 return null;
-            uint entryAddr = _skillSystemTextBase + id * 2;
-            if (!U.isSafetyOffset(entryAddr + 2, rom)) return null;
+            if (!TryGetScaledEntryAddress(rom, _skillSystemTextBase, id, 2, 2, out uint entryAddr)) return null;
             uint textId = rom.u16(entryAddr);
             if (textId == 0) return null;
             string text = NameResolver.GetTextById(textId);
@@ -463,12 +461,23 @@ namespace FEBuilderGBA.Avalonia.Services
             if (!U.isSafetyOffset(textPtrAddr + 4, rom)) return null;
             uint textBase = rom.p32(textPtrAddr);
             if (!U.isSafetyOffset(textBase, rom)) return null;
-            uint entryAddr = textBase + id * 2;
-            if (!U.isSafetyOffset(entryAddr + 2, rom)) return null;
+            if (!TryGetScaledEntryAddress(rom, textBase, id, 2, 2, out uint entryAddr)) return null;
             uint textId = rom.u16(entryAddr);
             if (textId == 0) return null;
             string text = NameResolver.GetTextById(textId);
             return string.IsNullOrEmpty(text) || text == "???" ? null : text;
+        }
+
+        static bool TryGetScaledEntryAddress(ROM rom, uint baseAddr, uint id, uint entrySize, uint requiredOffset, out uint entryAddr)
+        {
+            entryAddr = 0;
+            ulong entry = (ulong)baseAddr + (ulong)id * entrySize;
+            ulong required = entry + requiredOffset;
+            if (entry > uint.MaxValue || required > uint.MaxValue)
+                return false;
+
+            entryAddr = (uint)entry;
+            return U.isSafetyOffset((uint)required, rom);
         }
 
         /// <summary>
