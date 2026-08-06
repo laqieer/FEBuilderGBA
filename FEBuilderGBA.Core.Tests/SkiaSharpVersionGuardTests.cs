@@ -210,39 +210,64 @@ namespace FEBuilderGBA.Core.Tests
         // ------------------------------------------------------------------
 
         [SkippableFact]
-        public void RestoredAssetsGraph_Resolves_Only_2067_GraphicsStack()
+        public void CoreTestsRestoreGraphs_ResolveOnly_2067_GraphicsStack()
+        {
+            string root = FindRepoRoot();
+            Skip.If(root == null, "source tree / FEBuilderGBA.sln not found (e.g. on-device Android instrumented host) — declared/restored-graph guards are source-tree-only; the runtime-loaded guard still validates the native here");
+            AssertCoreTestsRestoreGraphs_ResolveOnly_2067_GraphicsStack(root);
+        }
+
+        [Fact]
+        public void RestoredAssetsGraph_FailsClosed_WhenCoreTestsRequiredGraphIsMissing()
         {
             string root = FindRepoRoot();
             Skip.If(root == null, "source tree / FEBuilderGBA.sln not found (e.g. on-device Android instrumented host) — declared/restored-graph guards are source-tree-only; the runtime-loaded guard still validates the native here");
 
-            // Only assert on assets files that exist (a clean checkout may not
-            // have restored CLI). SkiaSharp's own assets reliably exist because
-            // Core.Tests references it, forcing its restore. Core.Tests' OWN
-            // assets are scanned too (#1125) — it explicitly pins the
-            // Linux native asset for Skia tests on Linux CI, so this guard now
-            // fails loudly if that native is ever bumped to a mismatched version.
-            string[] assetsCandidates =
+            string scratchRoot = Path.Combine(root, ".scratch", "SkiaSharpVersionGuardTests", Guid.NewGuid().ToString("N"));
+            try
             {
-                Path.Combine(root, "FEBuilderGBA.SkiaSharp", "obj", "project.assets.json"),
-                Path.Combine(root, "FEBuilderGBA.CLI", "obj", "project.assets.json"),
-                Path.Combine(root, "FEBuilderGBA.Core.Tests", "obj", "project.assets.json"),
-                Path.Combine(root, "FEBuilderGBA.Avalonia", "obj", "project.assets.json"),
-                Path.Combine(root, "FEBuilderGBA.Avalonia.Tests", "obj", "project.assets.json"),
-                Path.Combine(root, "FEBuilderGBA.Android", "obj", "project.assets.json"),
-                Path.Combine(root, "FEBuilderGBA.Android.Tests", "obj", "project.assets.json"),
-                Path.Combine(root, "FEBuilderGBA.iOS", "obj", "project.assets.json"),
-                Path.Combine(root, "FEBuilderGBA.Browser", "obj", "project.assets.json"),
+                Directory.CreateDirectory(Path.Combine(scratchRoot, "FEBuilderGBA.SkiaSharp", "obj"));
+                Directory.CreateDirectory(Path.Combine(scratchRoot, "FEBuilderGBA.Core.Tests", "obj"));
+
+                File.Copy(
+                    Path.Combine(root, "FEBuilderGBA.SkiaSharp", "obj", "project.assets.json"),
+                    Path.Combine(scratchRoot, "FEBuilderGBA.SkiaSharp", "obj", "project.assets.json"));
+                File.Copy(
+                    Path.Combine(root, "FEBuilderGBA.Core.Tests", "obj", "project.assets.json"),
+                    Path.Combine(scratchRoot, "FEBuilderGBA.Core.Tests", "obj", "project.assets.json"));
+
+                Assert.ThrowsAny<Exception>(() => AssertCoreTestsRestoreGraphs_ResolveOnly_2067_GraphicsStack(scratchRoot));
+            }
+            finally
+            {
+                if (Directory.Exists(scratchRoot))
+                    Directory.Delete(scratchRoot, true);
+            }
+        }
+
+        static void AssertCoreTestsRestoreGraphs_ResolveOnly_2067_GraphicsStack(string root)
+        {
+            // Core.Tests guarantees these restore graphs: the managed SkiaSharp
+            // project, the CLI (built/restored via RestoreFontLibraryCli /
+            // BuildFontLibraryCli), and Core.Tests itself. Those are the only
+            // graphs this guard validates; Android/iOS/Browser coverage lives in
+            // the repo-wide package-declaration guard and the dedicated builds.
+            (string Name, string AssetsPath)[] requiredAssets =
+            {
+                ("FEBuilderGBA.SkiaSharp", Path.Combine(root, "FEBuilderGBA.SkiaSharp", "obj", "project.assets.json")),
+                ("FEBuilderGBA.CLI", Path.Combine(root, "FEBuilderGBA.CLI", "obj", "project.assets.json")),
+                ("FEBuilderGBA.Core.Tests", Path.Combine(root, "FEBuilderGBA.Core.Tests", "obj", "project.assets.json")),
             };
 
             int filesScanned = 0;
             int skiaLibsChecked = 0;
 
-            foreach (string assetsPath in assetsCandidates)
+            foreach ((string name, string assetsPath) in requiredAssets)
             {
-                if (!File.Exists(assetsPath))
-                    continue;
-                if (IsStaleAssetsFile(assetsPath))
-                    continue;
+                Assert.True(File.Exists(assetsPath),
+                    $"{name} project.assets.json is required for the Core.Tests restore-graph guard (no silent skip for missing required graphs)");
+                Assert.False(IsStaleAssetsFile(assetsPath),
+                    $"{name} project.assets.json is stale relative to its csproj(s); rebuild before running the Core.Tests restore-graph guard");
                 filesScanned++;
 
                 using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(assetsPath));
@@ -266,10 +291,9 @@ namespace FEBuilderGBA.Core.Tests
                 }
             }
 
-            Skip.If(filesScanned == 0,
-                "no project.assets.json found to scan — run `dotnet restore` first (the build that runs these tests normally creates it)");
+            Assert.Equal(requiredAssets.Length, filesScanned);
             Assert.True(skiaLibsChecked > 0,
-                "scanned project.assets.json but matched ZERO SkiaSharp/HarfBuzzSharp libraries — restore graph shape changed unexpectedly");
+                "scanned required Core.Tests project.assets.json files but matched ZERO SkiaSharp/HarfBuzzSharp libraries — restore graph shape changed unexpectedly");
         }
 
         /// <summary>
