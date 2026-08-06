@@ -6,7 +6,7 @@ using SkiaSharp;
 
 namespace FEBuilderGBA.SkiaSharp
 {
-    /// <summary>Strict SkiaSharp 2.88 font-face factory for package builds.</summary>
+    /// <summary>Strict SkiaSharp 3.119 font-face factory for package builds.</summary>
     public sealed class SkiaFontLibraryFaceFactory : IFontLibraryFaceFactory
     {
         public bool TryOpenFace(
@@ -131,7 +131,7 @@ namespace FEBuilderGBA.SkiaSharp
 
     /// <summary>
     /// One native SKTypeface reused for the whole job. Glyph coverage uses
-    /// SKTypeface.GetGlyph(int), the availability API exposed by SkiaSharp 2.88.9.
+    /// SKTypeface.GetGlyph(int), the availability API exposed by SkiaSharp 3.119.4.
     /// </summary>
     public sealed class SkiaFontLibraryFace : IFontLibraryFace
     {

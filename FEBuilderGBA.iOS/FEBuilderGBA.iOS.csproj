@@ -59,14 +59,14 @@
 
   <ItemGroup>
     <!-- Avalonia iOS head. Must match the Avalonia version used by FEBuilderGBA.Avalonia
-         (11.2.3) — mixing Avalonia major/minor versions across heads is unsupported. -->
-    <PackageReference Include="Avalonia.iOS" Version="11.2.3" />
-    <!-- CRITICAL native-version pin (mirrors android #796/#798): the managed SkiaSharp
-         MUST match the native libSkiaSharp Avalonia bundles (2.88.x). A 3.x managed
-         package rejects the 2.88 native and crashes inside the Avalonia process. The iOS
-         native assets package therefore pins 2.88.9 to stay byte-compatible with
-         FEBuilderGBA.SkiaSharp.csproj. -->
-    <PackageReference Include="SkiaSharp.NativeAssets.iOS" Version="2.88.9" />
+         (11.3.18) — mixing Avalonia major/minor versions across heads is unsupported. -->
+    <PackageReference Include="Avalonia.iOS" Version="11.3.18" />
+    <!-- CRITICAL native-version pin (mirrors android #796/#798/#2067): the
+         managed SkiaSharp stack MUST match the native libSkiaSharp used by
+         Avalonia, so the iOS native assets package pins 3.119.4 in lockstep
+         with FEBuilderGBA.SkiaSharp.csproj. -->
+    <PackageReference Include="SkiaSharp.NativeAssets.iOS" Version="3.119.4" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.iOS" Version="8.3.1.5" />
   </ItemGroup>
 
   <ItemGroup>

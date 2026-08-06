@@ -29,11 +29,10 @@ The `IImageService` abstraction in Core lets platform backends swap implementati
 - `FEBuilderGBA.SkiaSharp/` — cross-platform SkiaSharp backend
 - WinForms code continues using `System.Drawing` directly (no migration needed)
 
-> **Version pin:** `FEBuilderGBA.SkiaSharp` references **SkiaSharp 2.88.9**, not the
-> newer 3.x line. A process loads exactly one native `libSkiaSharp`, and Avalonia
-> 11.2.3 bundles the **2.88** native. The managed SkiaSharp 3.116 rejects that native
-> ("88.1") and crashes on Linux/macOS, so the version is deliberately held at 2.88.9
-> to match Avalonia's bundled native.
+> **Version pin:** `FEBuilderGBA.SkiaSharp` references **SkiaSharp 3.119.4** and
+> `SkiaSharp.HarfBuzz` 3.119.4 (with HarfBuzzSharp 8.3.1.5). A process loads
+> exactly one native `libSkiaSharp`, so every desktop/mobile/browser native
+> asset is pinned to the same accepted Avalonia 11.3.18 stack.
 
 ## Project Dependencies
 
@@ -51,13 +50,13 @@ FEBuilderGBA.CLI (net10.0)
 
 FEBuilderGBA.SkiaSharp (net10.0)
 ├── References: FEBuilderGBA.Core
-├── NuGet: SkiaSharp 2.88.9 (pinned to match Avalonia 11.2.3's bundled
-│         native libSkiaSharp; managed 3.x crashes on Linux/macOS)
+├── NuGet: SkiaSharp 3.119.4 + SkiaSharp.HarfBuzz 3.119.4
+│         (HarfBuzzSharp 8.3.1.5), pinned to match Avalonia 11.3.18 natives
 └── Implements: IImageService, IImage
 
 FEBuilderGBA.Avalonia (net10.0)
 ├── References: FEBuilderGBA.Core
-├── NuGet: Avalonia 11.2.3
+├── NuGet: Avalonia 11.3.18
 └── Cross-platform GUI (367 .axaml, 361 ViewModels, 176 write-enabled editors)
 
 FEBuilderGBA (net10.0-windows)
@@ -249,7 +248,7 @@ dotnet build FEBuilderGBA.Android/FEBuilderGBA.Android.csproj -c Release -p:Enab
 
 The `-p:EnableAndroidTarget=true` flag is required: the `ProjectReference`'s `AdditionalProperties` activates the android TFM for the build phase, but NuGet restore ignores per-reference `AdditionalProperties`, so the global property is needed to make restore cross-target the shared project too. The APK is **not yet device-validated**: booting it shows no editor until the single-view navigation rework lands. Desktop-only pieces (`Program.cs`, `Avalonia.Desktop`, `app.manifest`, the `GapSweep` Roslyn dev-tooling) are excluded on the android TFM.
 
-The full, evidence-backed feasibility assessment lives in **[docs/ANDROID.md](ANDROID.md)**: which layers are Android-capable (`Core` + `Avalonia`; WinForms excluded), the **SkiaSharp native-version pin** (`SkiaSharp.NativeAssets.Android` must match Avalonia's bundled `2.88.x`), **scoped-storage / SAF** ROM access (the desktop file dialogs collapse picks to a local path that Android `content://` URIs lack), **`config/` bundling** (ship as `AndroidAsset`, extract to `Context.FilesDir` on first run), the **multi-window → single-activity** navigation gap (the largest item), and the build prerequisites. The head is intentionally **not** in `FEBuilderGBA.sln` so it never affects the desktop CI build.
+The full, evidence-backed feasibility assessment lives in **[docs/ANDROID.md](ANDROID.md)**: which layers are Android-capable (`Core` + `Avalonia`; WinForms excluded), the **SkiaSharp native-version pin** (`SkiaSharp.NativeAssets.Android` must match the managed SkiaSharp 3.119.4 stack), **scoped-storage / SAF** ROM access (the desktop file dialogs collapse picks to a local path that Android `content://` URIs lack), **`config/` bundling** (ship as `AndroidAsset`, extract to `Context.FilesDir` on first run), the **multi-window → single-activity** navigation gap (the largest item), and the build prerequisites. The head is intentionally **not** in `FEBuilderGBA.sln` so it never affects the desktop CI build.
 
 ## Running on iOS
 
@@ -272,4 +271,4 @@ dotnet publish FEBuilderGBA.Browser/FEBuilderGBA.Browser.csproj -c Release \
   -p:EnableBrowserTarget=true -p:WasmEnableThreads=false -p:PublishTrimmed=false -p:CompressionEnabled=false
 ```
 
-`-p:EnableBrowserTarget=true` is required as a **global** property (the same NuGet-restore static-graph reason as android/iOS). The head links `SkiaSharp.NativeAssets.WebAssembly` 2.88.9 + `HarfBuzzSharp.NativeAssets.WebAssembly` 7.3.0.3 (both wasm natives emcc-relinked into `dotnet.wasm`) + `Avalonia.Fonts.Inter` (wasm has no system fonts). `config/**` (excl. `patch2`) is zipped into `wwwroot/config.zip`, fetched over HTTP and extracted into the browser's in-memory filesystem on first run via the pure `FEBuilderGBA.Core/ZipAssetSource`. Runs **single-threaded** (GitHub Pages sends no COOP/COEP → no `SharedArrayBuffer`) and **untrimmed** (reflection-heavy Core). It is a **PREVIEW**: the milestone is builds + deploys + loads/renders the shell. `.github/workflows/pages.yml` deploys it to **<https://laqieer.github.io/FEBuilderGBA/>**. The head is intentionally **not** in `FEBuilderGBA.sln` (the required desktop `build` check has no `wasm-tools`). Full assessment: **[docs/WEBASSEMBLY.md](WEBASSEMBLY.md)**.
+`-p:EnableBrowserTarget=true` is required as a **global** property (the same NuGet-restore static-graph reason as android/iOS). The head links `SkiaSharp.NativeAssets.WebAssembly` 3.119.4 + `HarfBuzzSharp.NativeAssets.WebAssembly` 8.3.1.5 (both wasm natives emcc-relinked into `dotnet.wasm`) + `Avalonia.Fonts.Inter` (wasm has no system fonts). `config/**` (excl. `patch2`) is zipped into `wwwroot/config.zip`, fetched over HTTP and extracted into the browser's in-memory filesystem on first run via the pure `FEBuilderGBA.Core/ZipAssetSource`. Runs **single-threaded** (GitHub Pages sends no COOP/COEP → no `SharedArrayBuffer`) and **untrimmed** (reflection-heavy Core). It is a **PREVIEW**: the milestone is builds + deploys + loads/renders the shell. `.github/workflows/pages.yml` deploys it to **<https://laqieer.github.io/FEBuilderGBA/>**. The head is intentionally **not** in `FEBuilderGBA.sln` (the required desktop `build` check has no `wasm-tools`). Full assessment: **[docs/WEBASSEMBLY.md](WEBASSEMBLY.md)**.

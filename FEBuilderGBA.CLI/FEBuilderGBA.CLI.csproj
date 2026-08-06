@@ -10,8 +10,8 @@
   </ItemGroup>
   <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Linux')) Or $([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('linux-'))">
     <!-- The font-library verb directly exercises Skia text on headless Linux.
-         Pin the already-used native package to the managed 2.88.9 version. -->
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="2.88.9" />
+         Pin the already-used native package to the managed 3.119.4 version. -->
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="3.119.4" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="FEBuilderGBA.Tests" />

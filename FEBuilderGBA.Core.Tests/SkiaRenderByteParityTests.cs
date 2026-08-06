@@ -6,7 +6,7 @@
 // FEBuilderGBA.Core.Tests, the net10.0 suite that runs on Linux/macOS/Windows
 // and conceptually on Android) so that #1126's Android emulator / instrumented
 // CI can run the SAME assertions on EACH of the 4 Android ABIs — arm64-v8a,
-// armeabi-v7a, x86, x86_64 — to prove the pinned 2.88.x native libSkiaSharp
+// armeabi-v7a, x86, x86_64 — to prove the pinned 3.119.x native libSkiaSharp
 // renders byte-identically there too.
 //
 // Two layers, deliberately different strictness:

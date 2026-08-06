@@ -359,16 +359,11 @@ namespace FEBuilderGBA.Avalonia.Tests
             using var _ = EnsureImageService();
             var loadResult = MakeSyntheticLoadResult(16, 16);
 
-            // On Linux CI runners the bundled libSkiaSharp.so may report an
-            // incompatible native-library version (88.x vs the managed
-            // SkiaSharp 3.116.x expected range). When that happens, every
-            // SKBitmap constructor throws TypeInitializationException; the
-            // managed code under test is fine but cannot be exercised without
-            // a usable native runtime. Skip in that case rather than failing
-            // the whole CI matrix — coverage on Windows/macOS still validates
-            // BuildPreviewImage end-to-end. The Linux ubuntu-latest job hits
-            // this; PR #684 CI logs show the underlying
-            // SkiaSharp.SkiaSharpVersion.CheckNativeLibraryCompatible failure.
+            // If a CI host has a stale/incompatible native libSkiaSharp in its
+            // output or package cache, every SKBitmap constructor throws
+            // TypeInitializationException; the managed code under test is fine
+            // but cannot be exercised without a usable native runtime. Skip in
+            // that case rather than failing the whole matrix.
             IImage? preview;
             try
             {
@@ -399,16 +394,11 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.DoesNotContain((byte)0, loadResult.IndexedPixels);
             byte[] keyed = PortraitImportHelper.BuildColorKeyedRgba(loadResult);
 
-            // On Linux CI runners the bundled libSkiaSharp.so may report an
-            // incompatible native-library version (88.x vs the managed
-            // SkiaSharp 3.116.x expected range). When that happens, every
-            // SKBitmap constructor throws TypeInitializationException; the
-            // managed code under test is fine but cannot be exercised without
-            // a usable native runtime. Skip in that case rather than failing
-            // the whole CI matrix — coverage on Windows/macOS still validates
-            // BuildPreviewImage end-to-end. The Linux ubuntu-latest job hits
-            // this; PR #684 CI logs show the underlying
-            // SkiaSharp.SkiaSharpVersion.CheckNativeLibraryCompatible failure.
+            // If a CI host has a stale/incompatible native libSkiaSharp in its
+            // output or package cache, every SKBitmap constructor throws
+            // TypeInitializationException; the managed code under test is fine
+            // but cannot be exercised without a usable native runtime. Skip in
+            // that case rather than failing the whole matrix.
             IImage? preview;
             try
             {

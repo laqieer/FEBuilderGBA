@@ -1,7 +1,7 @@
 ﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // Layout regression tests for the CSkillSys / FE8N skill editors (#1728-#1732).
 //
-// Root cause: Avalonia 11.2.3 NumericUpDown has a ~120px effective minimum
+// Root cause: Avalonia 11.3.18 NumericUpDown has a ~120px effective minimum
 // width (the spinner-button chrome). When a NUD is placed in a fixed <=80px
 // Grid column (or given Width<=80 / Width=50), it renders at its ~120px minimum
 // and overflows into the adjacent label / box / next NUD. Because the columns

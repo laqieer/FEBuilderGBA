@@ -513,7 +513,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             return path;
         }
 
-        // #2044: Avalonia.Headless 11.2.3 allocates a fresh native buffer for
+        // #2044: Avalonia.Headless 11.3.18 allocates a fresh native buffer for
         // every Lock(). Holding both locks prevents allocator reuse and proves
         // that locks do not expose one persistent backing store. Pixel tests
         // therefore observe the managed IImage conversion boundary instead;

@@ -5,9 +5,9 @@
 // the other end (e.g. 10 -> 0 on increase, 0 -> 10 on decrease) instead of
 // clamping and disabling the spin button.
 //
-// Avalonia 11.2.3's NumericUpDown keeps both its "Spinner" template-part
+// Avalonia 11.3.18's NumericUpDown keeps both its "Spinner" template-part
 // property and its SetValidSpinDirection() maintenance method PRIVATE
-// (confirmed via reflection against Avalonia.Controls.dll 11.2.3 and the
+// (confirmed via reflection against Avalonia.Controls.dll 11.3.18 and the
 // upstream source), so a derived class cannot reach either directly. This
 // control instead:
 //   - Overrides OnApplyTemplate to reacquire "PART_Spinner" itself into an

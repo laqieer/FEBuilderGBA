@@ -34,8 +34,8 @@ heads).
 ## How it works
 
 - **UI**: the shared Avalonia single-view shell (`Views/MainView`), same as Android/iOS.
-- **Rendering**: `Avalonia.Browser` + `SkiaSharp.NativeAssets.WebAssembly` 2.88.9 +
-  `HarfBuzzSharp.NativeAssets.WebAssembly` 7.3.0.3 (both emcc-relinked into `dotnet.wasm`) +
+- **Rendering**: `Avalonia.Browser` + `SkiaSharp.NativeAssets.WebAssembly` 3.119.4 +
+  `HarfBuzzSharp.NativeAssets.WebAssembly` 8.3.1.5 (both emcc-relinked into `dotnet.wasm`) +
   `Avalonia.Fonts.Inter` (wasm has no system fonts).
 - **config**: `config/**` (excl. `patch2`) is zipped into `wwwroot/config.zip` at build; `Program.Main`
   fetches it over HTTP and extracts it into a writable MEMFS dir via the pure

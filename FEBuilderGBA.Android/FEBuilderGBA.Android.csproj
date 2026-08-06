@@ -51,15 +51,16 @@
 
   <ItemGroup>
     <!-- Avalonia Android head. Must match the Avalonia version used by
-         FEBuilderGBA.Avalonia (11.2.3) — mixing Avalonia major/minor versions
+         FEBuilderGBA.Avalonia (11.3.18) — mixing Avalonia major/minor versions
          across heads is unsupported. -->
-    <PackageReference Include="Avalonia.Android" Version="11.2.3" />
-    <!-- CRITICAL native-version pin (#796/#798): the managed SkiaSharp MUST
-         match the native libSkiaSharp Avalonia bundles (2.88.x). A 3.x managed
-         package rejects the 2.88 native and crashes inside the Avalonia
-         process. The Android native assets package therefore ALSO pins 2.88.9
-         to stay byte-compatible with FEBuilderGBA.SkiaSharp.csproj. -->
-    <PackageReference Include="SkiaSharp.NativeAssets.Android" Version="2.88.9" />
+    <PackageReference Include="Avalonia.Android" Version="11.3.18" />
+    <!-- CRITICAL native-version pin (#796/#798/#2067): the managed SkiaSharp
+         stack MUST match the native libSkiaSharp used by Avalonia. Android
+         15+/16 KB page-size devices also reject the older pre-#2067 native, so
+         the Android native assets package pins 3.119.4 in lockstep with
+         FEBuilderGBA.SkiaSharp.csproj. -->
+    <PackageReference Include="SkiaSharp.NativeAssets.Android" Version="3.119.4" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Android" Version="8.3.1.5" />
   </ItemGroup>
 
   <ItemGroup>
