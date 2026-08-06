@@ -778,7 +778,7 @@ namespace FEBuilderGBA
             List<ImageUtilOAM.image_data> bgImagesData = new List<ImageUtilOAM.image_data>();
 
             //変換したアニメの記録
-            Dictionary<string, ImageUtilOAM.animedata> animeDic = new Dictionary<string, ImageUtilOAM.animedata>();
+            Dictionary<string, ImageUtilOAM.AnimeData> animeDic = new Dictionary<string, ImageUtilOAM.AnimeData>();
 
             int lineCount = 0;
             string[] lines = File.ReadAllLines(filename);
@@ -849,8 +849,8 @@ namespace FEBuilderGBA
                 //O objblank.png
                 //B bg3.png
                 //1 
-                ImageUtilOAM.animedata objAnimeData = null;
-                ImageUtilOAM.animedata bgAnimeData = null;
+                ImageUtilOAM.AnimeData objAnimeData = null;
+                ImageUtilOAM.AnimeData bgAnimeData = null;
                 uint frameSec = U.NOT_FOUND;
                 for (int n = 1; n <= 3; )
                 {
@@ -1033,9 +1033,9 @@ namespace FEBuilderGBA
             return "";
         }
 
-        static ImageUtilOAM.animedata ImportObjImageToData(string imagefilename
+        static ImageUtilOAM.AnimeData ImportObjImageToData(string imagefilename
             ,string basedir
-            , Dictionary<string, ImageUtilOAM.animedata> animeDic
+            , Dictionary<string, ImageUtilOAM.AnimeData> animeDic
             ,ImageUtilOAM.ImportOAM oam
             , ref uint image_number
             ,out string errormessage
@@ -1043,7 +1043,7 @@ namespace FEBuilderGBA
         {
             string key = "OBJ" + imagefilename;
 
-            ImageUtilOAM.animedata magic_animedata;
+            ImageUtilOAM.AnimeData magic_animedata;
             if (animeDic.ContainsKey(key))
             {
                 errormessage = "";
@@ -1091,16 +1091,16 @@ namespace FEBuilderGBA
             loadbitmap.Dispose();
             return magic_animedata;
         }
-        static ImageUtilOAM.animedata ImportBGImageToData(string imagefilename
+        static ImageUtilOAM.AnimeData ImportBGImageToData(string imagefilename
             , string basedir
-            , Dictionary<string, ImageUtilOAM.animedata> animeDic
+            , Dictionary<string, ImageUtilOAM.AnimeData> animeDic
             , List<ImageUtilOAM.image_data> imagesData
             , out string errormessage
             )
         {
             string key = "BG" + imagefilename;
 
-            ImageUtilOAM.animedata magic_animedata;
+            ImageUtilOAM.AnimeData magic_animedata;
             if (animeDic.ContainsKey(key))
             {
                 errormessage = "";
@@ -1116,7 +1116,7 @@ namespace FEBuilderGBA
                 return magic_animedata;
             }
 
-            magic_animedata = new ImageUtilOAM.animedata();
+            magic_animedata = new ImageUtilOAM.AnimeData();
             string bgfilename = ImageUtilMagicFEditor.GetFullPath(imagefilename, basedir);
             Bitmap loadbitmap = ImageUtil.OpenBitmap(bgfilename,null, out errormessage);
             if (loadbitmap == null)

@@ -17,7 +17,7 @@ namespace FEBuilderGBA.Avalonia.Views
         protected abstract WrapPanel? Buttons { get; }
 
         public abstract string ViewTitle { get; }
-        public bool IsLoaded => true;
+        public new bool IsLoaded => true;
 
         protected void InitTemplate()
         {

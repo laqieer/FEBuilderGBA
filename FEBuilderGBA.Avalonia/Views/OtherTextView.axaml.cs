@@ -67,7 +67,7 @@ namespace FEBuilderGBA.Avalonia.Views
             AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
             PointerLabel.Text = string.Format("0x{0:X08}", _vm.StringAddr);
             LengthLabel.Text = _vm.ByteLength.ToString();
-            TextInput.Text = _vm.Text;
+            OtherTextInput.Text = _vm.Text;
         }
 
         void OnWrite(object? sender, RoutedEventArgs e)
@@ -78,7 +78,7 @@ namespace FEBuilderGBA.Avalonia.Views
             _undoService.Begin(R._("Edit Other Text"));
             try
             {
-                _vm.Text = TextInput.Text ?? "";
+                _vm.Text = OtherTextInput.Text ?? "";
                 if (_vm.Write(_undoService.GetActiveUndoData()))
                     _undoService.Commit();
                 else

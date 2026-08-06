@@ -966,14 +966,14 @@ namespace FEBuilderGBA
             U.WriteAllLinesInError(filename, lines);
         }
 
-        class anime
+        class Anime
         {
             public byte[] tsa;
             public byte[] image;
             public byte[] pal;
             public string filename;
         }
-        static uint FindImage(List<anime> anime_list,string image)
+        static uint FindImage(List<Anime> anime_list,string image)
         {
             for (int i = 0; i < anime_list.Count; i++)
             {
@@ -994,7 +994,7 @@ namespace FEBuilderGBA
             string basedir = Path.GetDirectoryName(filename);
 
             //同じアニメを何度も入力しないように記録する.
-            List<anime> anime_list = new List<anime>();
+            List<Anime> anime_list = new List<Anime>();
             int imageWidth = this.ImageWidth * 8;
             int imageHeight = 8*16;
             List<byte> frames = new List<byte>();
@@ -1044,7 +1044,7 @@ namespace FEBuilderGBA
                         bitmap = ImageUtil.Copy(bitmap, 0, 0, imageWidth, imageHeight);
                     }
 
-                    anime a = new anime();
+                    Anime a = new Anime();
                     string error = ImageUtil.ImageToBytePackedTSA(bitmap, imageWidth, imageHeight, 0, out a.image, out a.tsa);
                     if (error != "")
                     {

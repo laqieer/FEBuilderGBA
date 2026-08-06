@@ -101,7 +101,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>True when there are unsaved structural edits (mirrors the WinForms
         /// "yellow write button" dirty flag).</summary>
-        public bool IsDirty { get => _dirty; set => SetField(ref _dirty, value); }
+        public new bool IsDirty { get => _dirty; set => SetField(ref _dirty, value); }
 
         /// <summary>Full disassembled script text for display in a read-only TextBox.</summary>
         public string DisassembledText { get => _disassembledText; set => SetField(ref _disassembledText, value); }
