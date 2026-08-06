@@ -208,7 +208,7 @@ before installing, while retaining every instrumentation/result failure gate.
   3.119.4` pin, same upstream Skia source build).
 - **What runs on-device:** the image parity tests (EXACT byte equality — the tile
   decode + PNG round-trip golden); the font parity tests (within shared pixel
-  tolerance); and `RuntimeLoadedSkiaSharpAssembly_Is_288` (the runtime-loaded
+  tolerance); and `RuntimeLoadedSkiaSharpAssembly_Is_3119` (the runtime-loaded
   managed SkiaSharp version guard). The declared/restored-graph guards skip on
   the device (no source tree / `.sln` present on an Android host), as documented
   in `SkiaSharpVersionGuardTests.cs`.
