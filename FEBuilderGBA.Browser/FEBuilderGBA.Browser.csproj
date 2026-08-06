@@ -53,18 +53,20 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia.Browser" Version="11.2.3" />
+    <PackageReference Include="Avalonia.Browser" Version="11.3.18" />
     <!-- Avalonia's browser text stack needs an embedded font (wasm has NO system fonts) — Inter
          is the standard Avalonia bundle; HarfBuzz shapes it. -->
-    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.3" />
-    <!-- Avalonia.Browser 11.2.3 ships the MANAGED SkiaSharp 2.88.9 + HarfBuzzSharp 7.3.0.3 deps, but
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.18" />
+    <!-- Avalonia.Browser 11.3.18 ships the MANAGED SkiaSharp 3.119.4 + HarfBuzzSharp 8.3.1.5 deps, but
          the wasm NATIVE archives (libSkiaSharp.a / libHarfBuzzSharp.a) must be added explicitly here,
          and BOTH are required (missing HarfBuzz fails the native link / text shaping). They are only
          actually linked into dotnet.native.wasm when WasmBuildNative=true (set above) — otherwise the
-         SDK just warns and Skia is absent at runtime (#1867). Pinned to Avalonia 11.2.3's managed
-         deps + FEBuilderGBA.SkiaSharp's 2.88.9. -->
-    <PackageReference Include="SkiaSharp.NativeAssets.WebAssembly" Version="2.88.9" />
-    <PackageReference Include="HarfBuzzSharp.NativeAssets.WebAssembly" Version="7.3.0.3" />
+         SDK just warns and Skia is absent at runtime (#1867). Pinned to Avalonia 11.3.18's managed
+         deps + FEBuilderGBA.SkiaSharp's 3.119.4. -->
+    <PackageReference Include="SkiaSharp.NativeAssets.WebAssembly" Version="3.119.4" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.WebAssembly" Version="8.3.1.5" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="3.119.4" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="8.3.1.5" />
   </ItemGroup>
 
   <ItemGroup>

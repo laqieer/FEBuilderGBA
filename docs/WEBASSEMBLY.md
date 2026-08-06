@@ -15,7 +15,7 @@ platform-agnostic seams the mobile heads introduced.
 | Layer | Browser-capable | Notes |
 |---|---|---|
 | `FEBuilderGBA.Core` | ✅ | Pure `net10.0`. |
-| `FEBuilderGBA.SkiaSharp` | ✅ | Managed SkiaSharp 2.88.9; the head adds the matching `SkiaSharp.NativeAssets.WebAssembly` 2.88.9 native. |
+| `FEBuilderGBA.SkiaSharp` | ✅ | Managed SkiaSharp 3.119.4; the head adds the matching `SkiaSharp.NativeAssets.WebAssembly` 3.119.4 native. |
 | `FEBuilderGBA.Avalonia` | ✅ | Multi-targets `net10.0;net10.0-browser` when `EnableBrowserTarget=true` (opt-in, default OFF). Reuses the exact compile surface the mobile heads build. |
 | `FEBuilderGBA` (WinForms) | ❌ | Never referenced — not browser-capable. |
 
@@ -86,15 +86,15 @@ matching the desktop launcher without changing any entry, command, or version ga
 
 ## 3. Rendering (SkiaSharp + HarfBuzz native relink)
 
-Avalonia.Browser 11.2.3 depends on managed `SkiaSharp 2.88.9` **and** `HarfBuzzSharp 7.3.0.3`, and the
+Avalonia.Browser 11.3.18 depends on managed `SkiaSharp 3.119.4` **and** `HarfBuzzSharp 8.3.1.5`, and the
 head adds their static native archives (`libSkiaSharp.a` + `libHarfBuzzSharp.a`) as
 `@(NativeFileReference)` via the `*.NativeAssets.WebAssembly` packages. **Those natives are only
 emcc-relinked into `dotnet.native.wasm` when `WasmBuildNative=true`** (set in the head csproj) —
 otherwise the .NET wasm SDK merely *warns* ("native references won't be linked in") and ships a runtime
 with **no Skia**, so the first Skia call (`SKImageInfo`'s static ctor) throws a `TypeInitialization`
 exception and the app renders nothing but the splash (#1867). The head therefore sets
-`WasmBuildNative=true` and pins **both** native packages — `SkiaSharp.NativeAssets.WebAssembly` 2.88.9 +
-`HarfBuzzSharp.NativeAssets.WebAssembly` 7.3.0.3 (HarfBuzz shapes text) — plus `Avalonia.Fonts.Inter`
+`WasmBuildNative=true` and pins **both** native packages — `SkiaSharp.NativeAssets.WebAssembly` 3.119.4 +
+`HarfBuzzSharp.NativeAssets.WebAssembly` 8.3.1.5 (HarfBuzz shapes text) — plus `Avalonia.Fonts.Inter`
 (wasm has **no system fonts**, so an embedded font is required). We do **not** enable AOT
 (`RunAOTCompilation`); `WasmBuildNative` relinks the natives without AOT-compiling managed code.
 

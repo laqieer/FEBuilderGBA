@@ -68,15 +68,21 @@
   </ItemGroup>
   <ItemGroup>
     <!-- Avalonia + Fluent theme are cross-TFM (desktop + android). -->
-    <PackageReference Include="Avalonia" Version="11.2.3" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.3" />
+    <PackageReference Include="Avalonia" Version="11.3.18" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.18" />
     <!-- Avalonia.Desktop (classic desktop lifetime / StartWithClassicDesktopLifetime)
          and Microsoft.CodeAnalysis.CSharp (Roslyn, used only by the desktop-only
          GapSweep dev-tooling) are excluded on the head TFMs (android #1121, iOS #1859,
          browser #1864). -->
-    <PackageReference Include="Avalonia.Desktop" Version="11.2.3" Condition="'$(IsHeadTfm)' != 'true'" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.18" Condition="'$(IsHeadTfm)' != 'true'" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" Condition="'$(IsHeadTfm)' != 'true'" />
     <PackageReference Include="Tmds.DBus.Protocol" Version="0.21.3" Condition="'$(IsHeadTfm)' != 'true'" />
+    <!-- Override Avalonia's transitive native-asset graph to the accepted #2067
+         Skia/HarfBuzz stack on every restored TFM. -->
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="3.119.4" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="8.3.1.5" />
+    <PackageReference Include="SkiaSharp.NativeAssets.WebAssembly" Version="3.119.4" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.WebAssembly" Version="8.3.1.5" />
   </ItemGroup>
   <ItemGroup Condition="'$(IsHeadTfm)' == 'true'">
     <!-- Desktop-only sources excluded on the head TFMs (android #1121, iOS #1859, browser #1864):

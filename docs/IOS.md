@@ -15,7 +15,7 @@ close mirror of the Android head, because the runtime seams that made Android po
 | Layer | iOS-capable | Notes |
 |---|---|---|
 | `FEBuilderGBA.Core` | ✅ | Pure `net10.0`, no platform deps. |
-| `FEBuilderGBA.SkiaSharp` | ✅ | Managed SkiaSharp 2.88.9; the iOS head adds the matching `SkiaSharp.NativeAssets.iOS` 2.88.9 native. |
+| `FEBuilderGBA.SkiaSharp` | ✅ | Managed SkiaSharp 3.119.4; the iOS head adds the matching `SkiaSharp.NativeAssets.iOS` 3.119.4 native. |
 | `FEBuilderGBA.Avalonia` | ✅ | Multi-targets `net10.0;net10.0-ios` when `EnableIosTarget=true` (opt-in, default OFF). Reuses the exact compile surface the android TFM already builds. |
 | `FEBuilderGBA` (WinForms) | ❌ | Never referenced — not iOS-capable. |
 
@@ -35,10 +35,10 @@ Android `MainActivity` / the desktop `Program.Main`.
 
 ## 3. SkiaSharp native-version constraint (CRITICAL)
 
-The managed SkiaSharp MUST match the native `libSkiaSharp` Avalonia bundles (2.88.x). A 3.x
-managed package rejects the 2.88 native and crashes inside the Avalonia process. The iOS head
-therefore pins `SkiaSharp.NativeAssets.iOS` **2.88.9**, byte-compatible with
-`FEBuilderGBA.SkiaSharp.csproj` (same constraint as android — see [docs/ANDROID.md §3](ANDROID.md#3-skiasharp-native-version-constraint-critical)).
+The managed SkiaSharp stack MUST match the native `libSkiaSharp` Avalonia uses.
+The iOS head therefore pins `SkiaSharp.NativeAssets.iOS` **3.119.4**,
+byte-compatible with `FEBuilderGBA.SkiaSharp.csproj` (same constraint as
+android — see [docs/ANDROID.md §3](ANDROID.md#3-skiasharp-native-version-constraint-critical)).
 
 ## 4. `config/` packaging for an `.app`
 
