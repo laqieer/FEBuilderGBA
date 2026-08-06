@@ -619,7 +619,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// non-hex character (mirrors WF AIScriptForm.LineToEventByte). A lone
         /// trailing nibble is dropped. Whitespace is NOT skipped — like WF, the
         /// scan stops at the first space/tab (the exported hex dump has no
-        /// internal separators), so a "<hex>\t//comment" line yields exactly the
+        /// internal separators), so a <c>&lt;hex&gt;\t//comment</c> line yields exactly the
         /// opcode bytes.
         /// </summary>
         static byte[] ReadLeadingHexBytes(string line)

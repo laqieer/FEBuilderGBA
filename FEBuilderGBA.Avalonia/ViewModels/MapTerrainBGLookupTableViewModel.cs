@@ -104,7 +104,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// button stays in sync with the active filter.
         ///
         /// Phase 4 gap-fix (#442): the Floor view's "Jump to BG" button passes
-        /// the source filterIndex via <see cref="MapTerrainBGLookupTableView.NavigateToFilterAndRow(uint, uint)"/>,
+        /// the source filterIndex via <c>MapTerrainBGLookupTableView.NavigateToFilterAndRow</c>,
         /// which delegates here. Without this overload, non-zero source
         /// filters would map to the WRONG BG list (Copilot CLI review point 2).
         /// </summary>
