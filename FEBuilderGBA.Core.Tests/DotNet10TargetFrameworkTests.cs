@@ -132,6 +132,67 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void NullableContractMatchesWu2Plan()
+        {
+            string root = FindRepositoryRoot();
+
+            AssertNullableMode(
+                root,
+                "FEBuilderGBA.Core/FEBuilderGBA.Core.csproj",
+                "annotations");
+            AssertNullableMode(
+                root,
+                "FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj",
+                "annotations");
+            AssertNullableMode(
+                root,
+                "FEBuilderGBA/FEBuilderGBA.csproj",
+                "annotations");
+
+            AssertNullableMode(
+                root,
+                "FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj",
+                "enable");
+            AssertNullableMode(
+                root,
+                "FEBuilderGBA.Avalonia.Tests/FEBuilderGBA.Avalonia.Tests.csproj",
+                "enable");
+            AssertNullableMode(
+                root,
+                "FEBuilderGBA.Tests/FEBuilderGBA.Tests.csproj",
+                "enable");
+            AssertNullableMode(
+                root,
+                "FEBuilderGBA.E2ETests/FEBuilderGBA.E2ETests.csproj",
+                "enable");
+            AssertNullableMode(
+                root,
+                "FEBuilderGBA.Android/FEBuilderGBA.Android.csproj",
+                "enable");
+            AssertNullableMode(
+                root,
+                "FEBuilderGBA.Android.Tests/FEBuilderGBA.Android.Tests.csproj",
+                "enable");
+            AssertNullableMode(
+                root,
+                "FEBuilderGBA.Browser/FEBuilderGBA.Browser.csproj",
+                "enable");
+            AssertNullableMode(
+                root,
+                "FEBuilderGBA.iOS/FEBuilderGBA.iOS.csproj",
+                "enable");
+
+            AssertNullableMode(
+                root,
+                "FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj",
+                null);
+            AssertNullableMode(
+                root,
+                "FEBuilderGBA.SkiaSharp/FEBuilderGBA.SkiaSharp.csproj",
+                null);
+        }
+
+        [Fact]
         public void AndroidManifestTargetsApi36()
         {
             string root = FindRepositoryRoot();
@@ -204,6 +265,32 @@ namespace FEBuilderGBA.Core.Tests
                     RegexOptions.IgnoreCase)
                 .Select(match => match.Value)
                 .ToArray();
+        }
+
+        static void AssertNullableMode(
+            string root,
+            string relativePath,
+            string? expected)
+        {
+            string fullPath = Path.Combine(
+                root,
+                relativePath.Replace('/', Path.DirectorySeparatorChar));
+            Assert.True(File.Exists(fullPath), "csproj not found: " + fullPath);
+
+            XDocument project = XDocument.Load(fullPath);
+            string[] nullableValues = project.Descendants()
+                .Where(element => element.Name.LocalName == "Nullable")
+                .Select(element => element.Value.Trim())
+                .ToArray();
+
+            if (expected == null)
+            {
+                Assert.Empty(nullableValues);
+                return;
+            }
+
+            Assert.Single(nullableValues);
+            Assert.Equal(expected, nullableValues[0], ignoreCase: true);
         }
 
         static string GetActiveXmlText(XDocument project)
