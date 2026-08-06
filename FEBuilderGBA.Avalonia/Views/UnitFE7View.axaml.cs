@@ -502,7 +502,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         /// <summary>
         /// #428: HardCoding label click — open the Patch Manager filtered to
-        /// HARDCODING_UNIT=<id>. Mirrors WF UnitFE7Form.HardCodingWarningLabel_Click.
+        /// HARDCODING_UNIT=&lt;id&gt;. Mirrors WF UnitFE7Form.HardCodingWarningLabel_Click.
         /// </summary>
         void HardCodingWarning_Click(object? sender, PointerPressedEventArgs e)
         {

@@ -1310,6 +1310,18 @@ namespace FEBuilderGBA.Avalonia.Services
             return U.toOffset(p);
         }
 
+        /// <summary>
+        /// Load a 16x16 skill icon for the CSkillSys 0.9.x patch. Unlike the
+        /// SkillSystems patch (which stripes all icons after one base address),
+        /// CSkillSys 0.9.x stores a per-skill GBA pointer at skill-info entry
+        /// offset +0; we dereference that pointer and decode the 4bpp tile at
+        /// the resolved offset.
+        /// </summary>
+        /// <param name="iconGbaPointer">
+        /// Raw u32 read from the skill-info entry at +0. The GBA pointer
+        /// convention applies (high bit set). We convert via <c>U.toOffset</c>
+        /// before decoding.
+        /// </param>
         public static IImage LoadCSkillSysIcon(uint iconGbaPointer)
         {
             ROM rom = CoreState.ROM;

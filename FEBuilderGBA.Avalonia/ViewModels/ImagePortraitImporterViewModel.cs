@@ -22,7 +22,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
 
         /// <summary>
-        /// The most recently picked & quantized image (or null if no file
+        /// The most recently picked &amp; quantized image (or null if no file
         /// chosen yet). The View builds the preview and the Import handler
         /// reads this when writing to ROM.
         /// </summary>

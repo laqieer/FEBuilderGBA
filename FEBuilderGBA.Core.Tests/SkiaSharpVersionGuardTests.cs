@@ -298,7 +298,7 @@ namespace FEBuilderGBA.Core.Tests
 
         /// <summary>
         /// Scan a top-level object (libraries or targets) for keys of the form
-        /// "SkiaSharp.../<version>" / "HarfBuzzSharp.../<version>"; assert each
+        /// "SkiaSharp.../&lt;version&gt;" / "HarfBuzzSharp.../&lt;version&gt;"; assert each
         /// version matches the #2067 compatibility stack and record it per
         /// package family for the duplicate-major check.
         /// </summary>

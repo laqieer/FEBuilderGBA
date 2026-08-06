@@ -141,7 +141,7 @@ namespace FEBuilderGBA.Avalonia.Views
         /// <summary>
         /// WF-equivalent entry point. Callers (eg.
         /// ImagePortraitView.JumpToPalette_Click) invoke this after
-        /// Open<ImagePalletView>() to carry the palette address +
+        /// Open&lt;ImagePalletView&gt;() to carry the palette address +
         /// multi-palette metadata (Copilot CLI plan review #2).
         /// </summary>
         public void JumpTo(uint paletteAddress, int maxPaletteCount = 1, int defaultSelectPalette = 0, string[]? paletteNames = null,

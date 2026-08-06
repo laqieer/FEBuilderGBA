@@ -245,7 +245,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <remarks>
         /// <paramref name="undodata"/> is accepted for signature parity with
         /// <see cref="NewAlloc"/> and to make the ambient-undo intent explicit;
-        /// <see cref="DataExpansionCore.ExpandTableTo"/> writes through the
+        /// <see cref="DataExpansionCore.ExpandTableTo(FEBuilderGBA.ROM, uint, uint, uint, uint, bool)"/> writes through the
         /// ambient <c>ROM.BeginUndoScope</c> opened by the View's UndoService
         /// (the same shape used by <c>ImageMapActionAnimationViewModel.ExpandList</c>,
         /// which calls ExpandTableTo with no explicit undo arg).

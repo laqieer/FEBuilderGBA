@@ -280,7 +280,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>
         /// Expand the event map-change list for the currently selected map to
         /// <paramref name="newCount"/> rows, using
-        /// <see cref="DataExpansionCore.ExpandTableTo"/> for the single-slot
+        /// <see cref="DataExpansionCore.ExpandTableTo(FEBuilderGBA.ROM, uint, uint, uint, uint, bool)"/> for the single-slot
         /// move + copy + wipe + canonical-pointer repoint, then
         /// <see cref="DataExpansionCore.RepointAllReferences"/> for all other
         /// raw-pointer / ARM LDR references (NV1a all-reference pattern —

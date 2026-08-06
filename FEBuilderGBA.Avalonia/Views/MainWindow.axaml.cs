@@ -1160,7 +1160,7 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         /// <summary>
-        /// Force the <see cref="Control.IsVisible"/> of the first descendant
+        /// Force the <c>IsVisible</c> of the first descendant
         /// <see cref="Control"/> whose <c>AutomationProperties.AutomationId</c>
         /// equals <paramref name="automationId"/> to <c>true</c>, by walking the
         /// logical tree. Returns true when a matching control was found. Used by

@@ -341,7 +341,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// repoints ONLY this unit's pointer slot, and DELIBERATELY LEAVES THE OLD
         /// TABLE BYTES INTACT — so any other unit that shares the same level-up
         /// table keeps its data (it is NOT a move-and-wipe). This is why the grow
-        /// path does NOT use <see cref="DataExpansionCore.ExpandTableTo"/> /
+        /// path does NOT use <see cref="DataExpansionCore.ExpandTableTo(FEBuilderGBA.ROM, uint, uint, uint, uint, bool)"/> /
         /// <see cref="DataExpansionCore.ExpandTable"/>, both of which zero/0xFF-wipe
         /// the old region and would corrupt a sharing sibling
         /// (Copilot PR-review finding #1). The new last row is seeded

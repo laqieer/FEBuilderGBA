@@ -264,7 +264,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// table (table-2) to the fixed <see cref="MagicListExpandCore.NewCount"/>
         /// (254) rows via the all-reference path
         /// (<see cref="MagicListExpandCore.ExpandMagicLists"/> →
-        /// <see cref="DataExpansionCore.ExpandTableTo"/> +
+        /// <see cref="DataExpansionCore.ExpandTableTo(FEBuilderGBA.ROM, uint, uint, uint, uint, bool)"/> +
         /// <see cref="DataExpansionCore.RepointAllReferences"/>). Mirrors WF
         /// <c>ImageMagicCSACreatorForm.MagicListExpandsButton_Click</c> (#837;
         /// byte-identical to the FEditor handler).
