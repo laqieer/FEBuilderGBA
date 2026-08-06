@@ -78,6 +78,20 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void Generate_NullCurrentGrid_IsPartOfPublicContract()
+        {
+            var corpus = MakeStrictCorpus();
+
+#pragma warning error CS8625
+            BuiltInRandomMapGenerationResult result = BuiltInRandomMapGeneratorCore.Generate(
+                corpus, Width, Height, currentGrid: null, seed: 23456, CancellationToken.None);
+#pragma warning restore CS8625
+
+            Assert.True(result.Success, result.ErrorMessage);
+            Assert.NotNull(result.Mars);
+        }
+
+        [Fact]
         public void Generate_SameSeedAndCorpus_IsDeterministic()
         {
             var corpus = MakeStrictCorpus();

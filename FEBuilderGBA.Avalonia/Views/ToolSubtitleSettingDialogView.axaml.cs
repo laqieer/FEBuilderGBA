@@ -60,11 +60,9 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var dlg = new OpenFileDialog();
-                dlg.Title = R._("Select Translation Data File");
-                var result = await dlg.ShowAsync(TopLevel.GetTopLevel(this) as Window);
-                if (result != null && result.Length > 0)
-                    _vm.TranslateDataFilename = result[0];
+                string? path = await FileDialogHelper.OpenSubtitleTranslationDataFile(TopLevel.GetTopLevel(this));
+                if (!string.IsNullOrEmpty(path))
+                    _vm.TranslateDataFilename = path;
             }
             catch (Exception ex)
             {

@@ -345,7 +345,7 @@ namespace FEBuilderGBA
         /// <summary>Bounds-checked frame image accessor. Returns the EXACT stored
         /// IImage reference for the given frame, or null if the result is null/errored
         /// or the index is out of range. Does NOT clone or dispose.</summary>
-        public static IImage GetFrameImage(SkillAnimeExportResult result, int index)
+        public static IImage? GetFrameImage(SkillAnimeExportResult? result, int index)
         {
             if (result == null || result.Frames == null) return null;
             if (!string.IsNullOrEmpty(result.Error)) return null;

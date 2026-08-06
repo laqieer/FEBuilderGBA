@@ -34,17 +34,12 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var dlg = new OpenFileDialog();
-                dlg.Title = R._("Select Backup File");
-                // The backup is a clean / old ROM used as the UPS-delta source
-                // (read as raw bytes), so accept ROM files.
-                dlg.Filters?.Add(new FileDialogFilter { Name = "GBA ROMs", Extensions = { "gba", "bin" } });
-                var result = await dlg.ShowAsync(TopLevel.GetTopLevel(this) as Window);
-                if (result != null && result.Length > 0)
+                string? path = await FileDialogHelper.OpenProblemReportBackupFile(TopLevel.GetTopLevel(this));
+                if (!string.IsNullOrEmpty(path))
                 {
                     // Populate the path; the user still confirms via OK (which
                     // validates). Clear any stale inline error.
-                    _vm.BackupFilename = result[0];
+                    _vm.BackupFilename = path;
                     _vm.ErrorMessage = "";
                 }
             }

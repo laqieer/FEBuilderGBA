@@ -600,53 +600,50 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnDragOver(object? sender, DragEventArgs e)
         {
-            e.DragEffects = e.Data.Contains(DataFormats.Files)
-                ? DragDropEffects.Copy : DragDropEffects.None;
+            e.DragEffects = DragDropFileHelper.HasAcceptedFile(e.DataTransfer, DragDropFileHelper.RomPatchExtensions)
+                ? DragDropEffects.Copy
+                : DragDropEffects.None;
         }
 
         void OnDrop(object? sender, DragEventArgs e)
         {
-            var files = e.Data.GetFiles();
-            if (files == null) return;
+            string? path = DragDropFileHelper.GetFirstAcceptedPath(e.DataTransfer, DragDropFileHelper.RomPatchExtensions);
+            if (path == null) return;
 
-            foreach (var file in files)
+            string ext = Path.GetExtension(path).ToLowerInvariant();
+            if (ext == ".gba")
             {
-                string path = file.Path.LocalPath;
-                string ext = Path.GetExtension(path).ToLowerInvariant();
-                if (ext == ".gba")
+                bool ok = LoadRomFile(path);
+                if (!ok)
+                    CoreState.Services.ShowError(R._("Failed to load ROM:") + $" {path}");
+                return;
+            }
+            if (ext == ".ups")
+            {
+                // Apply UPS patch if a ROM is already loaded
+                if (CoreState.ROM == null)
                 {
-                    bool ok = LoadRomFile(path);
-                    if (!ok)
-                        CoreState.Services.ShowError(R._("Failed to load ROM:") + $" {path}");
+                    CoreState.Services.ShowError(R._("Load a ROM first before applying a UPS patch."));
                     return;
                 }
-                if (ext == ".ups")
+                try
                 {
-                    // Apply UPS patch if a ROM is already loaded
-                    if (CoreState.ROM == null)
+                    byte[] patchData = File.ReadAllBytes(path);
+                    byte[] result = UPSUtilCore.ApplyUPS(CoreState.ROM.Data, patchData, out string errorMessage);
+                    if (result == null || !string.IsNullOrEmpty(errorMessage))
                     {
-                        CoreState.Services.ShowError(R._("Load a ROM first before applying a UPS patch."));
+                        CoreState.Services.ShowError(R._("UPS patch failed:") + $" {errorMessage}");
                         return;
                     }
-                    try
-                    {
-                        byte[] patchData = File.ReadAllBytes(path);
-                        byte[] result = UPSUtilCore.ApplyUPS(CoreState.ROM.Data, patchData, out string errorMessage);
-                        if (result == null || !string.IsNullOrEmpty(errorMessage))
-                        {
-                            CoreState.Services.ShowError(R._("UPS patch failed:") + $" {errorMessage}");
-                            return;
-                        }
-                        // Replace ROM data with patched data
-                        Array.Copy(result, CoreState.ROM.Data, Math.Min(result.Length, CoreState.ROM.Data.Length));
-                        CoreState.Services.ShowInfo(R._("UPS patch applied:") + $" {Path.GetFileName(path)}");
-                    }
-                    catch (Exception ex)
-                    {
-                        CoreState.Services.ShowError(R._("Failed to apply UPS patch:") + $" {ex.Message}");
-                    }
-                    return;
+                    // Replace ROM data with patched data
+                    Array.Copy(result, CoreState.ROM.Data, Math.Min(result.Length, CoreState.ROM.Data.Length));
+                    CoreState.Services.ShowInfo(R._("UPS patch applied:") + $" {Path.GetFileName(path)}");
                 }
+                catch (Exception ex)
+                {
+                    CoreState.Services.ShowError(R._("Failed to apply UPS patch:") + $" {ex.Message}");
+                }
+                return;
             }
         }
 
