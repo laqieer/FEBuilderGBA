@@ -80,7 +80,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// WinForms handler keeps COMMENTED OUT is intentionally NOT ported.
         ///
         /// The list relocation + pointer repoint go through
-        /// <see cref="DataExpansionCore.ExpandTableTo"/> with <c>entrySize=1</c>
+        /// <see cref="DataExpansionCore.ExpandTableTo(FEBuilderGBA.ROM, uint, uint, uint, uint, bool)"/> with <c>entrySize=1</c>
         /// (the count byte — not the terminator dword it appends — is the runtime
         /// source of truth, so the inert terminator is harmless). The count-byte
         /// write rides the SAME ambient undo scope the caller opened, so a fault

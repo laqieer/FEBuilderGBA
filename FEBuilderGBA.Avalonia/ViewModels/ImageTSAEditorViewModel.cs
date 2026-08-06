@@ -412,7 +412,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <c>BattlePreview</c> control and PNG export (#808). Resolves the
         /// pointer slots to data addresses exactly like WinForms
         /// ImageTSAEditorForm, then delegates to
-        /// <see cref="ImageTSAEditorCore.TryRenderMainImage"/>.
+        /// <see cref="ImageTSAEditorCore.TryRenderMainImage(FEBuilderGBA.ROM, uint, uint, uint, bool, bool, uint, uint)"/>.
         ///
         /// Returns null (no throw) when there is no context, when the image or
         /// TSA pointer slots are unset (U.NOT_FOUND), or when the underlying
@@ -584,7 +584,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// Uses 64-bit arithmetic for the base+offset computation so that
         /// pathological inputs (a near-<see cref="uint.MaxValue"/> address
         /// combined with a large palette index) cannot wrap into a "safe"
-        /// in-ROM range and bypass <see cref="U.isSafetyOffset"/>.
+        /// in-ROM range and bypass <see cref="U.isSafetyOffset(uint, FEBuilderGBA.ROM)"/>.
         /// </summary>
         public bool TryLoadPalette(uint paletteAddr, int paletteIndex, out (byte R, byte G, byte B)[] result)
         {

@@ -87,7 +87,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>
         /// Display labels for the 10 array filters, in the order shown
         /// in the FilterComboBox. Each entry is routed through
-        /// <see cref="R._(string)"/> so the FilterComboBox items pick up
+        /// <c>R._(string)</c> so the FilterComboBox items pick up
         /// the active language (English source -> ja/zh forward map via
         /// the translation chain). The Core metadata stores the canonical
         /// English label; consumers requesting a translated string call
@@ -235,7 +235,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>
         /// Expand the current filter's array. Delegates to
-        /// <see cref="ItemUsagePointerCore.Switch2Expands"/> using the
+        /// <see cref="ItemUsagePointerCore.Switch2Expands(FEBuilderGBA.ROM, uint, uint, uint, uint, FEBuilderGBA.Undo.UndoData)"/> using the
         /// undo data supplied by the caller (the View owns the scope).
         /// Returns the new table address, or U.NOT_FOUND on failure.
         /// </summary>

@@ -10,7 +10,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// rebuild address (WF <c>CheckRebuildAddress</c>), and offers two flows:
     /// <list type="bullet">
     ///   <item><b>Rebuild ROM</b> (#1261 primary): the full Core produce→apply pipeline —
-    ///   <see cref="RebuildProducerCore.MakeWithProducer"/> writes a faithful <c>.rebuild</c>
+    ///   <see cref="RebuildProducerCore.MakeWithProducer(FEBuilderGBA.ROM, FEBuilderGBA.ROM, uint, string, bool, bool, System.IProgress<string>, System.Threading.CancellationToken)"/> writes a faithful <c>.rebuild</c>
     ///   manifest, <see cref="RebuildApplyCore.Apply"/> reconstructs a defragmented ROM from
     ///   the vanilla base, and the rebuilt bytes are written to the chosen output path. This is
     ///   the actual end-to-end defragment, no longer a WinForms-only follow-up.</item>
@@ -185,7 +185,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <para>
         /// Flow (all headless/Core — the caller may run it on a background thread):
         /// <list type="number">
-        ///   <item><see cref="RebuildProducerCore.MakeWithProducer"/>(rom, vanilla, rebuildAddress,
+        ///   <item><see cref="RebuildProducerCore.MakeWithProducer(FEBuilderGBA.ROM, FEBuilderGBA.ROM, uint, string, bool, bool, System.IProgress<string>, System.Threading.CancellationToken)"/>(rom, vanilla, rebuildAddress,
         ///   manifestPath, isUseOtherGraphics:true, isUseOAMSP:false, progress, ct).</item>
         ///   <item><see cref="RebuildApplyCore.Apply"/>(vanilla, manifestPath, extendsAddress,
         ///   isReserved:null, progress) → <see cref="RebuildApplyCore.ApplyResult"/>.</item>

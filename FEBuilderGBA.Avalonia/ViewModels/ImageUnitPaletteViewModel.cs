@@ -178,7 +178,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>
         /// Decode the 16-color LZ77 palette referenced by the GBA pointer.
         /// Converts the raw 0x08xxxxxx pointer to a ROM offset via
-        /// <see cref="U.toOffset"/> before passing to <see cref="LZ77.decompress"/>.
+        /// <see cref="U.toOffset(uint)"/> before passing to <see cref="LZ77.decompress"/>.
         /// On invalid/missing pointer, fills the channels with zero.
         /// </summary>
         public void LoadPaletteFromROM(uint palettePointer)
@@ -332,11 +332,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         ///   <item><b>Real count, not the sentinel count.</b> <see cref="GetListCount"/>
         ///         includes the trailing <c>AddrResult(0,"Unit Palette Editor",0)</c>
         ///         sentinel, so the current row count is <c>GetListCount() - 1</c>.</item>
-        ///   <item><b>Full all-zero terminator row.</b> <see cref="LoadList"/>
+        ///   <item><b>Full all-zero terminator row.</b> <see cref="LoadList()"/>
         ///         accepts a row when <c>P12</c> is a valid pointer OR
         ///         (<c>P12==0 &amp;&amp; name!=0</c>), and stops only on a full
         ///         zero row. A bare <c>0xFFFFFFFF</c> dword terminator would be a
-        ///         phantom valid row, so <see cref="DataExpansionCore.ExpandTableTo"/>
+        ///         phantom valid row, so <see cref="DataExpansionCore.ExpandTableTo(FEBuilderGBA.ROM, uint, uint, uint, uint, bool)"/>
         ///         is called with <c>fullZeroTerminatorRow: true</c>.</item>
         ///   <item><b>FIRST-fill + clear P12.</b> New rows copy the 12-byte
         ///         identifier of a non-empty TEMPLATE row and clear their own

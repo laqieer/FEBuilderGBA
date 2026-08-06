@@ -50,8 +50,8 @@ namespace FEBuilderGBA.Avalonia.Dialogs
 
         /// <summary>
         /// Stream-based core of the SAF read bridge (testable without an
-        /// <see cref="IStorageFile"/>): copy <paramref name="openRead"/>'s bytes
-        /// into a temp file whose extension matches <paramref name="name"/>, and
+        /// <see cref="IStorageFile"/>): copy <c>openRead</c>'s bytes
+        /// into a temp file whose extension matches <c>name</c>, and
         /// return that path. #1639.
         /// </summary>
         // Read-temps older than this are eligible for the best-effort sweep. A
@@ -175,7 +175,7 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         /// <summary>
         /// Stream-based core of the SAF write bridge (testable without an
         /// <see cref="IStorageFile"/>): run <paramref name="writer"/> on a temp
-        /// file (extension matched to <paramref name="name"/>), then stream the
+        /// file (extension matched to <c>name</c>), then stream the
         /// temp bytes into <paramref name="openWrite"/>'s stream, truncating it
         /// first so a previously-larger document keeps no stale trailing bytes.
         /// The temp file is always deleted. Returns the file name on success.
@@ -654,7 +654,7 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             return await WriteViaAsync(file, writer);
         }
 
-        /// <summary>Synchronous-writer overload of <see cref="SaveImageFileVia(Window, string, Func{string, Task})"/>.</summary>
+        /// <summary>Synchronous-writer overload of <see cref="SaveImageFileVia(TopLevel?, string, Func{string, Task})"/>.</summary>
         public static Task<string?> SaveImageFileVia(TopLevel? owner, string? suggestedName, Action<string> writer)
             => SaveImageFileVia(owner, suggestedName, p => { writer(p); return Task.CompletedTask; });
 
@@ -690,7 +690,7 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             return await WriteViaAsync(file, writer);
         }
 
-        /// <summary>Synchronous-writer overload of <see cref="SavePaletteFileVia(Window, string, Func{string, Task})"/>.</summary>
+        /// <summary>Synchronous-writer overload of <see cref="SavePaletteFileVia(TopLevel?, string, Func{string, Task})"/>.</summary>
         public static Task<string?> SavePaletteFileVia(TopLevel? owner, string? suggestedName, Action<string> writer)
             => SavePaletteFileVia(owner, suggestedName, p => { writer(p); return Task.CompletedTask; });
 
@@ -709,7 +709,7 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             return await WriteViaAsync(file, writer);
         }
 
-        /// <summary>Synchronous-writer overload of <see cref="SaveFileVia(Window, string, string, string, string, Func{string, Task})"/>.</summary>
+        /// <summary>Synchronous-writer overload of <see cref="SaveFileVia(TopLevel?, string, string, string, string, Func{string, Task})"/>.</summary>
         public static Task<string?> SaveFileVia(TopLevel? owner, string title, string filterName, string pattern, string? suggestedName, Action<string> writer)
             => SaveFileVia(owner, title, filterName, pattern, suggestedName, p => { writer(p); return Task.CompletedTask; });
 

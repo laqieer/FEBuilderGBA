@@ -406,7 +406,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// records) to <paramref name="newCount"/> rows.
         ///
         /// <para>Composition: capture <c>oldBase = rom.p32(ptr)</c> →
-        /// <see cref="DataExpansionCore.ExpandTableTo"/> (moves + copies +
+        /// <see cref="DataExpansionCore.ExpandTableTo(FEBuilderGBA.ROM, uint, uint, uint, uint, bool)"/> (moves + copies +
         /// writes the <c>0xFFFFFFFF</c> terminator + wipes the old region +
         /// single-slot-repoints the canonical pointer) → read <c>newBase</c>
         /// from the result → <see cref="DataExpansionCore.RepointAllReferences"/>
@@ -767,7 +767,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         ///
         /// <para>Used by the Avalonia import path to convert the PNG the user
         /// opened (RGBA from SkiaSharp) into the indexed buffer
-        /// <see cref="ImportMainFieldMap"/> and
+        /// <see cref="ImageWorldMapCore.ImportMainFieldMap(FEBuilderGBA.ROM, byte[], byte[])"/> and
         /// <see cref="ImageWorldMapCore.ValidateTileMonoPalette"/> expect.</para>
         /// </summary>
         public static (byte[] indexedPixels, string error) RgbaToIndexed(

@@ -1308,7 +1308,7 @@ namespace FEBuilderGBA.Avalonia.Services
         ///
         /// **Per-file undo isolation** (Copilot CLI PR review blocking #1):
         /// every file gets its OWN <see cref="UndoService"/> scope via the
-        /// normal (non-external) <see cref="ImportSimple"/> / <see cref="ImportSheet"/>
+        /// normal (non-external) <see cref="PortraitImportHelper.ImportSimple(FEBuilderGBA.ROM, uint, FEBuilderGBA.Avalonia.Services.ImageImportService.LoadResult, FEBuilderGBA.Avalonia.Services.UndoService, string)"/> / <see cref="PortraitImportHelper.ImportSheet(FEBuilderGBA.ROM, uint, FEBuilderGBA.Avalonia.Services.ImageImportService.LoadResult, FEBuilderGBA.Avalonia.Services.UndoService, string)"/>
         /// code path. That means:
         ///   - A file that fails mid-write (e.g. D0 written, palette out of free
         ///     space) rolls back ITS partial ROM bytes — failed files cannot
@@ -1316,15 +1316,15 @@ namespace FEBuilderGBA.Avalonia.Services
         ///   - Each successful file gets its own undo stack entry, so the user
         ///     can selectively undo individual portraits afterwards.
         /// Each file is also pre-validated (load + quantize) before any ROM
-        /// write — bad PNGs are rejected before <see cref="ImportSimple"/> opens
+        /// write — bad PNGs are rejected before <see cref="PortraitImportHelper.ImportSimple(FEBuilderGBA.ROM, uint, FEBuilderGBA.Avalonia.Services.ImageImportService.LoadResult, FEBuilderGBA.Avalonia.Services.UndoService, string)"/> opens
         /// its scope.
         ///
         /// **Sheet routing** (Copilot CLI PR review blocking #2): 128x112
-        /// composite sheets are routed through <see cref="ImportSheet"/> on
+        /// composite sheets are routed through <see cref="PortraitImportHelper.ImportSheet(FEBuilderGBA.ROM, uint, FEBuilderGBA.Avalonia.Services.ImageImportService.LoadResult, FEBuilderGBA.Avalonia.Services.UndoService, string)"/> on
         /// FE7/FE8 ROMs so D4 (mini-face) and D12 (mouth frames) get written
         /// alongside D0 + D8. FE6 ROMs reject sheet-sized inputs because the
         /// 16-byte FE6 layout has no mouth-frame pointer at D12 (the FE6 gate
-        /// in <see cref="ImportSheet"/> handles this — the failure is reported
+        /// in <see cref="PortraitImportHelper.ImportSheet(FEBuilderGBA.ROM, uint, FEBuilderGBA.Avalonia.Services.ImageImportService.LoadResult, FEBuilderGBA.Avalonia.Services.UndoService, string)"/> handles this — the failure is reported
         /// per file and does not abort the batch).
         ///
         /// File-naming convention (issue #661):

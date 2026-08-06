@@ -34,7 +34,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>
         /// Repoint the editor onto a specific block base (parity with WinForms
-        /// JumpToAddr → InputFormRef.ReInit). Normalizes via <see cref="U.toOffset"/>
+        /// JumpToAddr → InputFormRef.ReInit). Normalizes via <see cref="U.toOffset(uint)"/>
         /// so both raw ROM offsets and 0x08...... GBA pointers work. Pass 0 to clear
         /// and re-auto-discover on the next LoadList.
         /// </summary>

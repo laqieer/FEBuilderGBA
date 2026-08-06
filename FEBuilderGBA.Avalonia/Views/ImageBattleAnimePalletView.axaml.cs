@@ -459,7 +459,7 @@ namespace FEBuilderGBA.Avalonia.Views
         /// <summary>
         /// Load, quantize, apply, and write the palette from
         /// <paramref name="filePath"/>. Extracted so tests can inject a path
-        /// without a file dialog (injectable seam — calls <see cref="_vm.DoImport"/>
+        /// without a file dialog (injectable seam — calls <c>_vm.DoImport(gbaPalette)</c>
         /// which is the VM-level seam).
         /// </summary>
         internal void DoImportFromFile(string filePath)

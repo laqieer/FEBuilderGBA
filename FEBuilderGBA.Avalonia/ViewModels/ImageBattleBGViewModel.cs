@@ -219,7 +219,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>
         /// Expand the battle-BG pointer table to the requested count.
-        /// Delegates to <see cref="ImageBattleBGCore.ExpandList"/>; the
+        /// Delegates to <see cref="ImageBattleBGCore.ExpandList(FEBuilderGBA.ROM, uint, uint)"/>; the
         /// caller (the View) owns the undo scope.
         /// </summary>
         /// <returns>New base ROM offset on success, or <see cref="U.NOT_FOUND"/>

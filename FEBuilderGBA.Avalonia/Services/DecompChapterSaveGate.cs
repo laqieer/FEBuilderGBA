@@ -21,8 +21,8 @@ namespace FEBuilderGBA.Avalonia.Services
     /// <summary>
     /// Pure all-or-nothing evaluator for the chapter-settings source save-gate (#1148).
     /// Reasons over LOGICAL fields via alias groups: a logical scalar is "edited" when ANY of
-    /// its alias keys appears in <paramref name="rawChanged"/>, and "source-writable" when AT
-    /// LEAST ONE of its aliases is in <paramref name="declared"/>. If EVERY edited logical
+    /// its alias keys appears in <c>rawChanged</c>, and "source-writable" when AT
+    /// LEAST ONE of its aliases is in <c>declared</c>. If EVERY edited logical
     /// scalar is declared, returns <see cref="ChapterSaveGateResult.Write"/> with the filtered
     /// declared keys (so the writer never sees an undeclared key); if ANY edited logical scalar
     /// has no declared alias, returns <see cref="ChapterSaveGateResult.UndeclaredScalar"/> with

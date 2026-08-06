@@ -67,7 +67,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// True when the palette block is an LZ77-compressed stream (WF
         /// <c>PaletteOption == 1</c>, #1074). Set by <c>Jump(...)</c> from
         /// <c>paletteType == 1</c>. Forwarded to
-        /// <see cref="ImageTSAEditorCore.TryRenderMainImage"/>.
+        /// <see cref="ImageTSAEditorCore.TryRenderMainImage(FEBuilderGBA.ROM, uint, uint, uint, bool, bool, uint, uint)"/>.
         /// </summary>
         public bool IsCompressedPalette { get => _isCompressedPalette; set => SetField(ref _isCompressedPalette, value); }
         /// <summary>Number of tiles horizontally.</summary>
@@ -223,7 +223,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>
         /// Map a WinForms <c>TSAOption.SelectedIndex</c> value to the
         /// <c>(isLZ77TSA, isHeaderTSA)</c> flag pair consumed by
-        /// <see cref="ImageTSAEditorCore.TryRenderMainImage"/>. This is the SAME
+        /// <see cref="ImageTSAEditorCore.TryRenderMainImage(FEBuilderGBA.ROM, uint, uint, uint, bool, bool, uint, uint)"/>. This is the SAME
         /// mapping the TSA Editor button path (<c>GraphicsToolView.TSAEditor_Click</c>)
         /// has always used, extracted here so the preview and the editor button
         /// share ONE source of truth:

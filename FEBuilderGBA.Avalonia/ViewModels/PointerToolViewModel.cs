@@ -612,7 +612,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>
         /// Decode the sparse Avalonia AutoTracking combo index into the WF-hex
-        /// auto-tracking level consumed by <see cref="PointerToolAutoSearchCore.AutoSearch"/>.
+        /// auto-tracking level consumed by <see cref="PointerToolAutoSearchCore.AutoSearch(byte[], byte[], uint, uint, FEBuilderGBA.IAsmMapFile, FEBuilderGBA.IAsmMapFile, int)"/>.
         /// Index 0 = "do not auto-track" (level 0 → single exact pass); any other
         /// index uses the WF default 0x102 (maxDeepSearch 3, maxSkipSearch 3).
         /// The Avalonia combo is not populated with the WF hex strings, so this

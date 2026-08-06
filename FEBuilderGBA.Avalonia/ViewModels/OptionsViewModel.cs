@@ -584,7 +584,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>
         /// Persist a mapping from <see cref="CurrentTilesetFingerprint"/> to
-        /// <see cref="SelectedTileset"/> using <see cref="FEMapCreatorTilesetMappingStoreCore.TryCreateEntry"/>
+        /// <see cref="SelectedTileset"/> using <see cref="FEMapCreatorTilesetMappingStoreCore.TryCreateEntry(FEBuilderGBA.TilesetFingerprint, string, string, string, FEBuilderGBA.FEMapCreatorSetupSnapshot, out FEBuilderGBA.FEMapCreatorTilesetMappingEntry, out string)"/>
         /// + <c>Upsert</c> + <c>SaveAll</c> + <see cref="Config.SaveOrThrow(string, CancellationToken)"/>.
         /// Returns false with
         /// <see cref="TilesetMappingErrorMessage"/> set on validation failure. Authoritative

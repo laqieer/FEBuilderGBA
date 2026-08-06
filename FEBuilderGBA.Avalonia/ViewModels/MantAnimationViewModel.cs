@@ -174,7 +174,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <c>AddressListExpandsEvent</c> count fix-up:
         /// <list type="number">
         ///   <item>Relocate + grow the pointer table via
-        ///         <see cref="DataExpansionCore.ExpandTableTo"/>.</item>
+        ///         <see cref="DataExpansionCore.ExpandTableTo(FEBuilderGBA.ROM, uint, uint, uint, uint, bool)"/>.</item>
         ///   <item>Repoint every raw 32-bit + ARM-Thumb LDR literal-pool
         ///         reference to the old base (#1025 pattern).</item>
         ///   <item>Write <c>(newCount - 1)</c> as a u8 to

@@ -8,7 +8,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// Class OP Demo Editor ViewModel — Avalonia parity for orphan
     /// WinForms `ClassOPDemoForm`. Rebuilt for gap-sweep #405.
     ///
-    /// The WinForms peer `ClassOPDemoForm.cs` is `<Compile Remove>`'d from
+    /// The WinForms peer `ClassOPDemoForm.cs` is `&lt;Compile Remove&gt;`'d from
     /// the build but its `Designer.cs` is parsed by the gap-sweep tooling
     /// — so this ViewModel matches the orphan surface, not the canonical
     /// `OPClassDemoForm` (which lives in `OPClassDemoViewerViewModel`).
