@@ -207,15 +207,14 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         /// <summary>
-        /// Core.csproj must have explicit System.Text.Encoding.CodePages dependency.
+        /// Core.csproj must not carry the redundant System.Text.Encoding.CodePages package.
         /// </summary>
         [Fact]
-        public void CoreCsproj_HasCodePagesReference()
+        public void CoreCsproj_AvoidsRedundantCodePagesPackage()
         {
             var solutionDir = SolutionDir;
             var csproj = File.ReadAllText(Path.Combine(solutionDir, "FEBuilderGBA.Core", "FEBuilderGBA.Core.csproj"));
-            Assert.Contains("System.Text.Encoding.CodePages", csproj);
+            Assert.DoesNotContain("System.Text.Encoding.CodePages", csproj);
         }
     }
 }
-

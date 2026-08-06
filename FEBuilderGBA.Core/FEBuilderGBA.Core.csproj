@@ -12,6 +12,5 @@
   <!-- InternalsVisibleTo is in Properties/AssemblyInfo.cs (GenerateAssemblyInfo=false) -->
   <ItemGroup>
     <PackageReference Include="SharpCompress" Version="0.48.0" />
-    <PackageReference Include="System.Text.Encoding.CodePages" Version="10.0.10" />
   </ItemGroup>
 </Project>
