@@ -888,7 +888,7 @@ namespace FEBuilderGBA.Avalonia.Controls
 
             var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
             if (clipboard == null) return;
-            string? text = await clipboard.GetTextAsync();
+            string? text = await ClipboardTextHelper.TryGetTextAsync(clipboard);
             if (text == null) return;
             PasteFromText(text);
         }

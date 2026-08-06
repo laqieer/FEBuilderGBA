@@ -34,15 +34,12 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var dlg = new OpenFileDialog();
-                dlg.Title = R._("Select SAV File");
-                dlg.Filters?.Add(new FileDialogFilter { Name = "SAV Files", Extensions = { "sav" } });
-                var result = await dlg.ShowAsync(TopLevel.GetTopLevel(this) as Window);
-                if (result != null && result.Length > 0)
+                string? path = await FileDialogHelper.OpenProblemReportSavFile(TopLevel.GetTopLevel(this));
+                if (!string.IsNullOrEmpty(path))
                 {
                     // Populate the path; the user still confirms via OK (which
                     // validates). Clear any stale inline error.
-                    _vm.SavFilename = result[0];
+                    _vm.SavFilename = path;
                     _vm.ErrorMessage = "";
                 }
             }

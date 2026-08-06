@@ -45,7 +45,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 string? clipText = null;
                 if (TopLevel.GetTopLevel(this) is { Clipboard: { } clipboard })
                 {
-                    clipText = await clipboard.GetTextAsync();
+                    clipText = await ClipboardTextHelper.TryGetTextAsync(clipboard);
                 }
                 if (string.IsNullOrWhiteSpace(clipText))
                 {

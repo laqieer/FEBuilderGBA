@@ -220,6 +220,8 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         static readonly string[] UpsPatterns = new[] { "*.ups" };
         static readonly string[] PngPatterns = new[] { "*.png" };
         static readonly string[] ImagePatterns = new[] { "*.png", "*.bmp" };
+        static readonly string[] ProblemReportBackupPatterns = new[] { "*.gba", "*.bin" };
+        static readonly string[] ProblemReportSavPatterns = new[] { "*.sav" };
         static readonly string[] PalPatterns = new[] { "*.pal" };
         static readonly string[] GbapalPatterns = new[] { "*.gbapal" };
         static readonly string[] ActPatterns = new[] { "*.act" };
@@ -236,6 +238,74 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             }
             return provider;
         }
+
+        internal static FilePickerOpenOptions CreateProblemReportBackupOpenOptions()
+            => CreateSingleOpenFileOptions(R._("Select Backup File"), "GBA ROMs", ProblemReportBackupPatterns);
+
+        internal static FilePickerOpenOptions CreateProblemReportSavOpenOptions()
+            => CreateSingleOpenFileOptions(R._("Select SAV File"), "SAV Files", ProblemReportSavPatterns);
+
+        internal static FilePickerOpenOptions CreateSubtitleTranslationDataOpenOptions()
+            => CreateSingleOpenFileOptions(R._("Select Translation Data File"), null, null);
+
+        static FilePickerOpenOptions CreateSingleOpenFileOptions(
+            string title,
+            string? filterName,
+            IReadOnlyList<string>? patterns)
+        {
+            var options = new FilePickerOpenOptions
+            {
+                Title = title,
+                AllowMultiple = false,
+            };
+
+            if (!string.IsNullOrEmpty(filterName) && patterns != null)
+            {
+                options.FileTypeFilter = new[]
+                {
+                    new FilePickerFileType(filterName) { Patterns = patterns },
+                };
+            }
+
+            return options;
+        }
+
+        internal static async Task<string?> ResolveSingleOpenFileResultAsync(
+            IReadOnlyList<IStorageFile>? files,
+            bool requireLocalPath = false)
+        {
+            if (files == null || files.Count == 0)
+                return null;
+
+            if (requireLocalPath)
+            {
+                string? local = files[0].TryGetLocalPath();
+                return string.IsNullOrEmpty(local) ? null : local;
+            }
+
+            return await ResolveReadPathAsync(files[0]);
+        }
+
+        static async Task<string?> OpenSingleFile(
+            TopLevel? owner,
+            string operation,
+            FilePickerOpenOptions options,
+            bool requireLocalPath = false)
+        {
+            var provider = GetStorageProvider(owner, operation);
+            if (provider == null) return null;
+            var files = await provider.OpenFilePickerAsync(options);
+            return await ResolveSingleOpenFileResultAsync(files, requireLocalPath);
+        }
+
+        public static Task<string?> OpenProblemReportBackupFile(TopLevel? owner)
+            => OpenSingleFile(owner, nameof(OpenProblemReportBackupFile), CreateProblemReportBackupOpenOptions());
+
+        public static Task<string?> OpenProblemReportSavFile(TopLevel? owner)
+            => OpenSingleFile(owner, nameof(OpenProblemReportSavFile), CreateProblemReportSavOpenOptions());
+
+        public static Task<string?> OpenSubtitleTranslationDataFile(TopLevel? owner)
+            => OpenSingleFile(owner, nameof(OpenSubtitleTranslationDataFile), CreateSubtitleTranslationDataOpenOptions());
 
         static FilePickerFileType MakeGbaFileType() => new(R._("GBA ROM Files"))
         {

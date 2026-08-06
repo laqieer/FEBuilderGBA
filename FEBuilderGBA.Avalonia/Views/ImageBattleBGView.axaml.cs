@@ -50,34 +50,16 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnDragOver(object? sender, DragEventArgs e)
         {
-            if (!e.Data.Contains(DataFormats.Files)) { e.DragEffects = DragDropEffects.None; return; }
-            var files = e.Data.GetFiles();
-            if (files != null)
-            {
-                foreach (var f in files)
-                {
-                    string ext = Path.GetExtension(f.Path.LocalPath).ToLowerInvariant();
-                    if (ext == ".png" || ext == ".bmp") { e.DragEffects = DragDropEffects.Copy; return; }
-                }
-            }
-            e.DragEffects = DragDropEffects.None;
+            e.DragEffects = DragDropFileHelper.HasAcceptedFile(e.DataTransfer, DragDropFileHelper.ImageExtensions)
+                ? DragDropEffects.Copy
+                : DragDropEffects.None;
         }
 
         void OnDrop(object? sender, DragEventArgs e)
         {
-            var files = e.Data.GetFiles();
-            if (files == null) return;
-
-            foreach (var file in files)
-            {
-                string path = file.Path.LocalPath;
-                string ext = Path.GetExtension(path).ToLowerInvariant();
-                if (ext == ".png" || ext == ".bmp")
-                {
-                    ImportImageFromFile(path);
-                    return;
-                }
-            }
+            string? path = DragDropFileHelper.GetFirstAcceptedPath(e.DataTransfer, DragDropFileHelper.ImageExtensions);
+            if (path != null)
+                ImportImageFromFile(path);
         }
 
         // #1393: the FE-Repo button routes through this SAME FromFile import

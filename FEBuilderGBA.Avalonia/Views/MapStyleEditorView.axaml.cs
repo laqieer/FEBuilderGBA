@@ -1,4 +1,4 @@
-﻿using global::Avalonia;
+using global::Avalonia;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -926,7 +926,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
 
-                string? clipText = await topLevel.Clipboard.GetTextAsync();
+                string? clipText = await ClipboardTextHelper.TryGetTextAsync(topLevel.Clipboard);
                 string? trimmed = clipText?.Trim();
 
                 if (!string.IsNullOrEmpty(trimmed) && HexPalette64.IsMatch(trimmed))

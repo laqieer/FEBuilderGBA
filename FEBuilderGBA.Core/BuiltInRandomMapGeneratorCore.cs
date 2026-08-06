@@ -52,10 +52,10 @@ namespace FEBuilderGBA
             uint mapSettingAddr,
             int width,
             int height,
-            ushort[] currentGrid,
+            ushort[]? currentGrid,
             int seed,
             CancellationToken cancellationToken,
-            out BuiltInRandomMapGenerationResult result,
+            out BuiltInRandomMapGenerationResult? result,
             out string error)
         {
             result = null;
@@ -105,7 +105,7 @@ namespace FEBuilderGBA
             BuiltInRandomMapTilesetCorpus corpus,
             int width,
             int height,
-            ushort[] currentGrid,
+            ushort[]? currentGrid,
             int seed,
             CancellationToken cancellationToken)
         {
@@ -275,7 +275,7 @@ namespace FEBuilderGBA
             Dictionary<ushort, MetatileEdgeSignature> signatures,
             int width,
             int height,
-            ushort[] currentGrid,
+            ushort[]? currentGrid,
             int seed,
             CancellationToken cancellationToken)
         {

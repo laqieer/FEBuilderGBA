@@ -416,7 +416,7 @@ namespace FEBuilderGBA.Avalonia.Services
             {
                 var clipboard = TopLevel.GetTopLevel(owner)?.Clipboard;
                 if (clipboard == null) return null;
-                return await clipboard.GetTextAsync();
+                return await ClipboardTextHelper.TryGetTextAsync(clipboard);
             }
             var sp = TopLevel.GetTopLevel(owner)?.StorageProvider;
             if (sp == null) return null;
