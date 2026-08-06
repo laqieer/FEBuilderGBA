@@ -34,6 +34,14 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(NullabilityState.Nullable, info.ReadState);
         }
 
+        static void AssertNullableProperty(Type type, string name)
+        {
+            PropertyInfo property = type.GetProperty(name)
+                ?? throw new InvalidOperationException($"{type.FullName}.{name} was not found.");
+            NullabilityInfo info = Nullability.Create(property);
+            Assert.Equal(NullabilityState.Nullable, info.ReadState);
+        }
+
         [Fact]
         public void ItemShopVectorBuilders_DeclareNullableReturns()
         {
@@ -51,6 +59,8 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void SourceRouting_AllowsMissingAsmMap()
         {
+            AssertNullableProperty(typeof(CoreState), nameof(CoreState.AsmMapFileAsmCache));
+
             AssertNullableParameter(
                 typeof(DecompShopSourceWriteCore),
                 nameof(DecompShopSourceWriteCore.TryRouteShopSaveToSource),

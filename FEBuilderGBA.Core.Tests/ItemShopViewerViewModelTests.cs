@@ -21,7 +21,7 @@ namespace FEBuilderGBA.Core.Tests
     {
         readonly ROM _savedRom;
         readonly DecompProject _savedProject;
-        readonly IAsmMapCache _savedAsmMapFileAsmCache;
+        readonly IAsmMapCache? _savedAsmMapFileAsmCache;
         const uint ShopAddr = 0x1000;
 
         public ItemShopViewerViewModelTests()
@@ -67,7 +67,7 @@ namespace FEBuilderGBA.Core.Tests
             vm.ItemId = 0x09;
             vm.Quantity = 0x07;
 
-            ushort[] vec = vm.BuildVectorForWrite();
+            ushort[]? vec = vm.BuildVectorForWrite();
             Assert.NotNull(vec);
             Assert.Equal(2, vec.Length);
             Assert.Equal((ushort)((0x01 << 8) | 0x05), vec[0]);   // slot 0 unchanged
@@ -94,7 +94,7 @@ namespace FEBuilderGBA.Core.Tests
         public void BuildVectorForAppend_AddsDefaultEntry()
         {
             var vm = VmWithShopLoaded();
-            ushort[] vec = vm.BuildVectorForAppend();
+            ushort[]? vec = vm.BuildVectorForAppend();
             Assert.NotNull(vec);
             Assert.Equal(3, vec.Length);
             Assert.Equal((ushort)((0x01 << 8) | 0x05), vec[0]);
@@ -106,7 +106,7 @@ namespace FEBuilderGBA.Core.Tests
         public void BuildVectorForRemoveLast_DropsLastEntry()
         {
             var vm = VmWithShopLoaded();
-            ushort[] vec = vm.BuildVectorForRemoveLast();
+            ushort[]? vec = vm.BuildVectorForRemoveLast();
             Assert.NotNull(vec);
             Assert.Single(vec);
             Assert.Equal((ushort)((0x01 << 8) | 0x05), vec[0]);   // only slot 0 remains
@@ -136,7 +136,7 @@ namespace FEBuilderGBA.Core.Tests
         public void TryRouteCurrentShopToSource_MissingAsmMapCache_ReturnsNotRouted()
         {
             CoreState.DecompProject = new DecompProject();
-            CoreState.AsmMapFileAsmCache = null!;
+            CoreState.AsmMapFileAsmCache = null;
             var vm = VmWithShopLoaded();
 
             DecompShopRouteResult result =

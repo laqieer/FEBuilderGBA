@@ -91,7 +91,7 @@ namespace FEBuilderGBA
         /// external implementor keep compiling — callers null-check before use,
         /// falling back to a region-class hint only.</para>
         /// </summary>
-        IAsmMapFile GetAsmMapFile() => null;
+        IAsmMapFile? GetAsmMapFile() => null;
     }
 
     /// <summary>
@@ -142,7 +142,7 @@ namespace FEBuilderGBA
         public static IEtcCache LintCache { get; set; }
         public static IEtcCache WorkSupportCache { get; set; }
         public static ISystemTextEncoder SystemTextEncoder { get; set; }
-        public static IAsmMapCache AsmMapFileAsmCache { get; set; }
+        public static IAsmMapCache? AsmMapFileAsmCache { get; set; }
 
         // ---- Types now in Core (concrete) ----
         public static Config Config { get; set; }

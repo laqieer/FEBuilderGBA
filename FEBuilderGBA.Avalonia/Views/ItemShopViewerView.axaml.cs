@@ -326,7 +326,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
                 // BuildVectorForRemoveLast returns null when the list is already empty.
-                ushort[] desired = _vm.BuildVectorForRemoveLast();
+                ushort[]? desired = _vm.BuildVectorForRemoveLast();
                 if (desired == null)
                 {
                     StatusLabel.Text = R._("Nothing to remove (shop is empty).");
@@ -377,7 +377,7 @@ namespace FEBuilderGBA.Avalonia.Views
         /// </summary>
         /// <param name="desired">The desired item vector; null means a precondition failed.</param>
         /// <param name="nullPreconditionMessage">Status to show when <paramref name="desired"/> is null.</param>
-        void TryRouteShopSaveToSource(ushort[] desired, string nullPreconditionMessage)
+        void TryRouteShopSaveToSource(ushort[]? desired, string nullPreconditionMessage)
         {
             if (desired == null)
             {
