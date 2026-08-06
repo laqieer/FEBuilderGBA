@@ -377,7 +377,7 @@ namespace FEBuilderGBA.Avalonia.Services
         /// Resolve a skill ID to a human-readable name using the detected skill system.
         /// Returns null if resolution fails (caller should use hex fallback).
         /// </summary>
-        public string ResolveSkillName(uint id)
+        public string? ResolveSkillName(uint id)
         {
             if (id == 0) return null;
             ROM rom = CoreState.ROM;
@@ -413,7 +413,7 @@ namespace FEBuilderGBA.Avalonia.Services
         /// CSkillSys09x/300: skill info table at fixed address 0xB2A614.
         /// Each entry is 8 bytes; text ID at offset +4 (u16).
         /// </summary>
-        static string ResolveCSkillSysName(ROM rom, uint id)
+        static string? ResolveCSkillSysName(ROM rom, uint id)
         {
             const uint gpSkillInfos = 0xB2A614;
             if (!U.isSafetyOffset(gpSkillInfos + 4, rom)) return null;
@@ -431,7 +431,7 @@ namespace FEBuilderGBA.Avalonia.Services
         /// SkillSystems (FE8U): find TEXT pointer via byte-pattern scan.
         /// Text table stores u16 text IDs, entry = base + id * 2.
         /// </summary>
-        string ResolveSkillSystemName(ROM rom, uint id)
+        string? ResolveSkillSystemName(ROM rom, uint id)
         {
             if (_skillSystemTextBase == 0)
                 _skillSystemTextBase = FindSkillSystemTextBase(rom);
@@ -453,7 +453,7 @@ namespace FEBuilderGBA.Avalonia.Services
         /// FE8N variants: skill config at 0x89268 area.
         /// The text table pointer is at 0x89274 (ver2/ver3) or found via pattern scan.
         /// </summary>
-        static string ResolveFE8NSkillName(ROM rom, uint id)
+        static string? ResolveFE8NSkillName(ROM rom, uint id)
         {
             // FE8N ver2/3 have skill text pointers at known offsets
             // Ver2: 5 pointers at 0x89274, text pointer is at index 2 (0x8927C)

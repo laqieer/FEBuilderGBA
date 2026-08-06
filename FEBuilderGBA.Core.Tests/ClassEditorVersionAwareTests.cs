@@ -303,5 +303,27 @@ namespace FEBuilderGBA.Core.Tests
             var vm = new ClassEditorViewModel();
             Assert.False(vm.IsFE6);
         }
+
+        [Fact]
+        public void LoadClass_RomWithoutRomInfo_DoesNotThrowAndStaysReadOnly()
+        {
+            ROM savedRom = CoreState.ROM;
+            try
+            {
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x200]);
+                CoreState.ROM = rom;
+                var vm = new ClassEditorViewModel();
+
+                Exception? ex = Record.Exception(() => vm.LoadClass(0));
+
+                Assert.Null(ex);
+                Assert.False(vm.CanWrite);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+            }
+        }
     }
 }

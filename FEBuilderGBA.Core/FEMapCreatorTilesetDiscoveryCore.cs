@@ -55,10 +55,10 @@ namespace FEBuilderGBA
         /// </param>
         public static FEMapCreatorTilesetDiscoveryResult DiscoverTilesets(
             string feMapCreatorPath,
-            string assetsDir = null,
-            ProcessRunnerDelegate runner = null,
+            string? assetsDir = null,
+            ProcessRunnerDelegate? runner = null,
             CancellationToken cancellationToken = default,
-            ProcessRunnerCancellableDelegate cancellableRunner = null)
+            ProcessRunnerCancellableDelegate? cancellableRunner = null)
         {
             return DiscoverTilesetsCore(
                 feMapCreatorPath,
@@ -71,11 +71,11 @@ namespace FEBuilderGBA
 
         internal static FEMapCreatorTilesetDiscoveryResult DiscoverTilesetsWithPreLaunchHook(
             string feMapCreatorPath,
-            string assetsDir,
-            ProcessRunnerDelegate runner,
+            string? assetsDir,
+            ProcessRunnerDelegate? runner,
             CancellationToken cancellationToken,
-            ProcessRunnerCancellableDelegate cancellableRunner,
-            Action beforeProcessLaunch)
+            ProcessRunnerCancellableDelegate? cancellableRunner,
+            Action? beforeProcessLaunch)
         {
             return DiscoverTilesetsCore(
                 feMapCreatorPath,
@@ -88,11 +88,11 @@ namespace FEBuilderGBA
 
         static FEMapCreatorTilesetDiscoveryResult DiscoverTilesetsCore(
             string feMapCreatorPath,
-            string assetsDir,
-            ProcessRunnerDelegate runner,
+            string? assetsDir,
+            ProcessRunnerDelegate? runner,
             CancellationToken cancellationToken,
-            ProcessRunnerCancellableDelegate cancellableRunner,
-            Action beforeProcessLaunch)
+            ProcessRunnerCancellableDelegate? cancellableRunner,
+            Action? beforeProcessLaunch)
         {
             try
             {

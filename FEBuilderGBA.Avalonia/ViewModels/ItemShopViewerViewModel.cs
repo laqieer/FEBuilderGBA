@@ -178,7 +178,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// vector WITHOUT mutating the ROM. Returns null when no shop is selected or the
         /// ROM is unavailable.
         /// </summary>
-        ushort[] ReadCurrentShopVector()
+        ushort[]? ReadCurrentShopVector()
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentShopAddr == 0) return null;
@@ -201,7 +201,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// Returns null when no shop/slot is selected (caller: "select a slot first").
         /// Does NOT mutate the ROM.
         /// </summary>
-        public ushort[] BuildVectorForWrite()
+        public ushort[]? BuildVectorForWrite()
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentShopAddr == 0 || CurrentAddr == 0) return null;
@@ -233,9 +233,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// new entry (id=1, qty=1 — matching the ROM-path default). Returns null when no
         /// shop is selected. Does NOT mutate the ROM.
         /// </summary>
-        public ushort[] BuildVectorForAppend()
+        public ushort[]? BuildVectorForAppend()
         {
-            ushort[] cur = ReadCurrentShopVector();
+            ushort[]? cur = ReadCurrentShopVector();
             if (cur == null) return null;
             var vec = new ushort[cur.Length + 1];
             Array.Copy(cur, vec, cur.Length);
@@ -248,9 +248,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// the last entry. Returns null when no shop is selected OR the list is already
         /// empty (nothing to remove). Does NOT mutate the ROM.
         /// </summary>
-        public ushort[] BuildVectorForRemoveLast()
+        public ushort[]? BuildVectorForRemoveLast()
         {
-            ushort[] cur = ReadCurrentShopVector();
+            ushort[]? cur = ReadCurrentShopVector();
             if (cur == null || cur.Length == 0) return null;
             var vec = new ushort[cur.Length - 1];
             Array.Copy(cur, vec, cur.Length - 1);

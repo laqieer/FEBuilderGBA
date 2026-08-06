@@ -158,7 +158,7 @@ namespace FEBuilderGBA
         /// Never throws.
         /// </summary>
         internal static bool TryNormalizeAssetsDirectory(
-            string assetsDir,
+            string? assetsDir,
             out string normalizedAssetsDir,
             out string error)
         {

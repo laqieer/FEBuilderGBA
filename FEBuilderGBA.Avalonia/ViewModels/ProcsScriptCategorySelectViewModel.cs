@@ -73,7 +73,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             var cats = new List<string>();
 
             // Procs uses the same category file prefix as the Event script category select
-            string fullfilename = null;
+            string? fullfilename = null;
             try
             {
                 if (!string.IsNullOrEmpty(CoreState.BaseDirectory))

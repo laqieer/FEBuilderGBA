@@ -55,6 +55,17 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void ResolveSkillName_UnresolvedIds_ReturnNull()
+        {
+            CoreState.ROM = null;
+            var svc = PatchDetectionService.Instance;
+            svc.Refresh();
+
+            Assert.Null(svc.ResolveSkillName(0));
+            Assert.Null(svc.ResolveSkillName(1));
+        }
+
+        [Fact]
         public void Refresh_CleanFE8U_NoPatches()
         {
             CoreState.ROM = MakeFE8URom();
