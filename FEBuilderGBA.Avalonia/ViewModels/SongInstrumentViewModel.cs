@@ -816,13 +816,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         static string ComputeMd5Hex(byte[] data)
         {
-            using (var md5 = System.Security.Cryptography.MD5.Create())
-            {
-                byte[] bs = md5.ComputeHash(data);
-                var sb = new System.Text.StringBuilder(bs.Length * 2);
-                foreach (var b in bs) sb.Append(b.ToString("x2"));
-                return sb.ToString();
-            }
+            return ManagedMd5.ComputeHex(data);
         }
 
         public int GetListCount()
