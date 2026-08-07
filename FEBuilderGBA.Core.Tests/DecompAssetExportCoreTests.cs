@@ -3009,15 +3009,15 @@ namespace FEBuilderGBA.Core.Tests
     {
         public IImage CreateImage(int w, int h) => new StubIndexedImage(w, h, Array.Empty<byte>());
         public IImage CreateIndexedImage(int w, int h, byte[] p, int c) => new StubIndexedImage(w, h, p);
-        public IImage LoadImage(string f) => TestImageServiceDefaults.CreateImage(1, 1);
-        public IImage LoadImageFromBytes(byte[] d) => TestImageServiceDefaults.CreateImage(1, 1);
+        public IImage LoadImage(string f) => throw new NotSupportedException(nameof(LoadImage));
+        public IImage LoadImageFromBytes(byte[] d) => throw new NotSupportedException(nameof(LoadImageFromBytes));
         public void GBAColorToRGBA(ushort gba, out byte r, out byte g, out byte b)
         {
             r = (byte)((gba & 0x1F) << 3);
             g = (byte)(((gba >> 5) & 0x1F) << 3);
             b = (byte)(((gba >> 10) & 0x1F) << 3);
         }
-        public ushort RGBAToGBAColor(byte r, byte g, byte b) => 0;
+        public ushort RGBAToGBAColor(byte r, byte g, byte b) => throw new NotSupportedException(nameof(RGBAToGBAColor));
         public IImage Decode4bppTiles(byte[] t, int o, int w, int h, byte[] p)
         {
             // Return an indexed image with pixel count = w*h, indices cycling 0..15
@@ -3036,10 +3036,10 @@ namespace FEBuilderGBA.Core.Tests
             return img;
         }
         public IImage Decode8bppLinear(byte[] d, int o, int w, int h, byte[] p) => new StubIndexedImage(w, h, p ?? Array.Empty<byte>());
-        public byte[] Encode4bppTiles(IImage i) => Array.Empty<byte>();
-        public byte[] Encode8bppTiles(IImage i) => Array.Empty<byte>();
-        public byte[] GBAPaletteToRGBA(byte[] p, int c) => TestImageServiceDefaults.GBAPaletteToRGBA(p, c);
-        public byte[] RGBAPaletteToGBA(byte[] p, int c) => TestImageServiceDefaults.RGBAPaletteToGBA(p, c);
+        public byte[] Encode4bppTiles(IImage i) => throw new NotSupportedException(nameof(Encode4bppTiles));
+        public byte[] Encode8bppTiles(IImage i) => throw new NotSupportedException(nameof(Encode8bppTiles));
+        public byte[] GBAPaletteToRGBA(byte[] p, int c) => throw new NotSupportedException(nameof(GBAPaletteToRGBA));
+        public byte[] RGBAPaletteToGBA(byte[] p, int c) => throw new NotSupportedException(nameof(RGBAPaletteToGBA));
     }
 
     /// <summary>Indexed IImage stub that stores pixel data and returns a GBA palette.</summary>

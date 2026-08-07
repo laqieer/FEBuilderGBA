@@ -9,10 +9,10 @@ namespace FEBuilderGBA.Core.Tests
     /// </summary>
     internal class MapConvertImageService : IImageService
     {
-        public IImage CreateImage(int w, int h) => TestImageServiceDefaults.CreateImage(w, h);
-        public IImage CreateIndexedImage(int w, int h, byte[] p, int c) => TestImageServiceDefaults.CreateIndexedImage(w, h, p);
-        public IImage LoadImage(string f) => TestImageServiceDefaults.CreateImage(1, 1);
-        public IImage LoadImageFromBytes(byte[] d) => TestImageServiceDefaults.CreateImage(1, 1);
+        public IImage CreateImage(int w, int h) => throw new NotSupportedException(nameof(CreateImage));
+        public IImage CreateIndexedImage(int w, int h, byte[] p, int c) => throw new NotSupportedException(nameof(CreateIndexedImage));
+        public IImage LoadImage(string f) => throw new NotSupportedException(nameof(LoadImage));
+        public IImage LoadImageFromBytes(byte[] d) => throw new NotSupportedException(nameof(LoadImageFromBytes));
         public void GBAColorToRGBA(ushort gbaColor, out byte r, out byte g, out byte b)
         {
             r = (byte)((gbaColor & 0x1F) << 3);
@@ -23,12 +23,12 @@ namespace FEBuilderGBA.Core.Tests
         {
             return (ushort)(((r >> 3) & 0x1F) | (((g >> 3) & 0x1F) << 5) | (((b >> 3) & 0x1F) << 10));
         }
-        public IImage Decode4bppTiles(byte[] t, int o, int w, int h, byte[] p) => TestImageServiceDefaults.CreateIndexedImage(w, h, p);
-        public IImage Decode8bppTiles(byte[] t, int o, int w, int h, byte[] p) => TestImageServiceDefaults.CreateIndexedImage(w, h, p);
-        public IImage Decode8bppLinear(byte[] d, int o, int w, int h, byte[] p) => TestImageServiceDefaults.CreateIndexedImage(w, h, p);
-        public byte[] Encode4bppTiles(IImage i) => Array.Empty<byte>();
-        public byte[] Encode8bppTiles(IImage i) => Array.Empty<byte>();
-        public byte[] GBAPaletteToRGBA(byte[] p, int c) => TestImageServiceDefaults.GBAPaletteToRGBA(p, c);
+        public IImage Decode4bppTiles(byte[] t, int o, int w, int h, byte[] p) => throw new NotSupportedException(nameof(Decode4bppTiles));
+        public IImage Decode8bppTiles(byte[] t, int o, int w, int h, byte[] p) => throw new NotSupportedException(nameof(Decode8bppTiles));
+        public IImage Decode8bppLinear(byte[] d, int o, int w, int h, byte[] p) => throw new NotSupportedException(nameof(Decode8bppLinear));
+        public byte[] Encode4bppTiles(IImage i) => throw new NotSupportedException(nameof(Encode4bppTiles));
+        public byte[] Encode8bppTiles(IImage i) => throw new NotSupportedException(nameof(Encode8bppTiles));
+        public byte[] GBAPaletteToRGBA(byte[] p, int c) => throw new NotSupportedException(nameof(GBAPaletteToRGBA));
         public byte[] RGBAPaletteToGBA(byte[] rgbaPalette, int colorCount)
         {
             byte[] gba = new byte[colorCount * 2];
