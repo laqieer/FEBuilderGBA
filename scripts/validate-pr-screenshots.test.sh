@@ -169,6 +169,15 @@ if command -v cygpath >/dev/null 2>&1; then
   rm -f "$body_file" "$changed_file"
 fi
 
+TOTAL=$((TOTAL + 1))
+if grep -q 'via a docs PR' "$VALIDATOR"; then
+  echo "  FAIL: validator remediation still recommends a docs PR"
+  FAILED=$((FAILED + 1))
+else
+  echo "  PASS: validator remediation uses direct attachment guidance"
+  PASSED=$((PASSED + 1))
+fi
+
 echo ""
 echo "PASSED: ${PASSED}/${TOTAL}  FAILED: ${FAILED}/${TOTAL}"
 

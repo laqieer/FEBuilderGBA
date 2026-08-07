@@ -37,6 +37,12 @@ class ClassifyReviewRiskTests(unittest.TestCase):
             classify_paths(["FEBuilderGBA.Core/Undo.cs"]),
         )
 
+    def test_rom_allocation_primitive_is_high(self):
+        self.assertEqual(
+            "high",
+            classify_paths(["FEBuilderGBA.Core/RecycleAddress.cs"]),
+        )
+
     def test_build_hook_is_high(self):
         self.assertEqual(
             "high",

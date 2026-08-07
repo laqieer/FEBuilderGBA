@@ -17,6 +17,7 @@ HIGH_EXACT = {
     "DEVELOPMENT-WORKFLOW.md",
     "FEBuilderGBA.Core/CoreState.cs",
     "FEBuilderGBA.Core/DataExpansionCore.cs",
+    "FEBuilderGBA.Core/RecycleAddress.cs",
     "FEBuilderGBA.Core/Rom.cs",
     "FEBuilderGBA.Core/Undo.cs",
     "FEBuilderGBA.sln",
