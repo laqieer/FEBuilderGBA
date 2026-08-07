@@ -34,7 +34,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void FindSongTablePointer_NullRom_ReturnsZero()
         {
-            uint result = SongExchangeCore.FindSongTablePointer(null, 0);
+            uint result = SongExchangeCore.FindSongTablePointer(null!, 0);
             Assert.Equal(0u, result);
         }
 
@@ -90,7 +90,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void SongTableToSongList_NullRom_ReturnsEmpty()
         {
-            var list = SongExchangeCore.SongTableToSongList(null, 0);
+            var list = SongExchangeCore.SongTableToSongList(null!, 0);
             Assert.Empty(list);
         }
 
@@ -98,7 +98,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ConvertSong_NullArgs_ReturnsFailure()
         {
             // New ROM-based API: null args produce a failure ConvertResult, no throw.
-            var result = SongExchangeCore.ConvertSong(null, null, null, null, null);
+            var result = SongExchangeCore.ConvertSong(null!, null!, null!, null!, null!);
             Assert.False(result.Success);
             Assert.NotEqual("", result.ErrorMessage);
         }

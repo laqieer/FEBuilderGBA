@@ -130,7 +130,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void NullRom_ReturnsNull()
         {
-            Assert.Null(ExportFilterCore.BuildFilteredTextIds(null, 1));
+            Assert.Null(ExportFilterCore.BuildFilteredTextIds(null!, 1));
         }
 
         [Fact]
@@ -583,7 +583,7 @@ namespace FEBuilderGBA.Core.Tests
             rom.LoadLow("nulles-fe8u.gba", new byte[0x1000000], "BE8E01");
             var ids = new HashSet<uint>();
             // null EventScript must be a no-op, not an NRE.
-            EventScriptReferenceScanner.ScanScriptForTextIds(rom, null, 0x00800000u, new List<uint>(), ids);
+            EventScriptReferenceScanner.ScanScriptForTextIds(rom, null!, 0x00800000u, new List<uint>(), ids);
             Assert.Empty(ids);
         }
 

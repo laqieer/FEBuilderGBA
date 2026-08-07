@@ -107,7 +107,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void CropImage_NullSource_ReturnsNull()
         {
-            Assert.Null(BattleAnimeRendererCore.CropImage(null, 100, 30, 90, 90));
+            Assert.Null(BattleAnimeRendererCore.CropImage(null!, 100, 30, 90, 90));
         }
 
         [Fact]
@@ -164,7 +164,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void IsBlankImage_Null_ReturnsTrue()
         {
-            Assert.True(BattleAnimeRendererCore.IsBlankImage(null, 10));
+            Assert.True(BattleAnimeRendererCore.IsBlankImage(null!, 10));
         }
 
         // ================================================================
@@ -433,7 +433,7 @@ namespace FEBuilderGBA.Core.Tests
             CoreState.ROM = rom;
 
             using IImage threeArg = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0);
-            using IImage nullBlock = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, null);
+            using IImage nullBlock = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, null!);
             Assert.NotNull(threeArg);
             Assert.NotNull(nullBlock);
             Assert.True(ByteArraysEqual(threeArg.GetPixelData(), nullBlock.GetPixelData()),
@@ -451,7 +451,7 @@ namespace FEBuilderGBA.Core.Tests
             byte[] undersized = new byte[16];           // NOT 32 bytes
             U.write_u16(undersized, 5 * 2, 0x7C1F);     // would be magenta if honored
 
-            using IImage savedPath = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, null);
+            using IImage savedPath = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, null!);
             using IImage withUnder = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, undersized);
             Assert.NotNull(savedPath);
             Assert.NotNull(withUnder);
@@ -471,7 +471,7 @@ namespace FEBuilderGBA.Core.Tests
             byte[] oversized = new byte[64];            // NOT exactly 32 bytes
             U.write_u16(oversized, 5 * 2, 0x7C1F);      // would be magenta if honored
 
-            using IImage savedPath = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, null);
+            using IImage savedPath = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, null!);
             using IImage withOver  = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, oversized);
             Assert.NotNull(savedPath);
             Assert.NotNull(withOver);

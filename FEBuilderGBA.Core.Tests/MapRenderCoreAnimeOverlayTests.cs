@@ -106,7 +106,7 @@ namespace FEBuilderGBA.Core.Tests
 
             using IImage baseImg = MapRenderCore.RenderMapImage(rom, OBJ_OFF, PAL_OFF, CFG_OFF, MAP_OFF);
             using IImage nullOverlayImg = MapRenderCore.RenderMapImage(
-                rom, OBJ_OFF, PAL_OFF, CFG_OFF, MAP_OFF, 0, null, MapRenderCore.ANIME1_OBJ_PATCH_OFFSET);
+                rom, OBJ_OFF, PAL_OFF, CFG_OFF, MAP_OFF, 0, null!, MapRenderCore.ANIME1_OBJ_PATCH_OFFSET);
 
             Assert.NotNull(baseImg);
             Assert.NotNull(nullOverlayImg);

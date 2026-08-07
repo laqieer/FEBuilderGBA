@@ -83,7 +83,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void CountSkillFrames_NullRom_ReturnsZero()
         {
-            Assert.Equal(0, SkillSystemsAnimeExportCore.CountSkillFrames(null, 0x300u));
+            Assert.Equal(0, SkillSystemsAnimeExportCore.CountSkillFrames(null!, 0x300u));
         }
 
         [Fact]

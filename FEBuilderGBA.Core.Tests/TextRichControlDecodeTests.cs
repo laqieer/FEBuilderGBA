@@ -48,7 +48,7 @@ namespace FEBuilderGBA.Core.Tests
         public void FindFirstPortraitFaceId_Empty_ReturnsNull()
         {
             Assert.Null(TextRichControlDecode.FindFirstPortraitFaceId(""));
-            Assert.Null(TextRichControlDecode.FindFirstPortraitFaceId(null));
+            Assert.Null(TextRichControlDecode.FindFirstPortraitFaceId(null!));
         }
 
         [Fact]

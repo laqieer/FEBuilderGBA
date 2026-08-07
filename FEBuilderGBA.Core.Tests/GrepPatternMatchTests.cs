@@ -72,7 +72,7 @@ namespace FEBuilderGBA.Core.Tests
         public void NullData_ReturnsNotFound_NoThrow()
         {
             byte[] need = { 0x01 };
-            uint found = U.GrepPatternMatch(null, need, NoSkip(need.Length), 0, 0x1000, 1);
+            uint found = U.GrepPatternMatch(null!, need, NoSkip(need.Length), 0, 0x1000, 1);
             Assert.Equal(U.NOT_FOUND, found);
         }
 

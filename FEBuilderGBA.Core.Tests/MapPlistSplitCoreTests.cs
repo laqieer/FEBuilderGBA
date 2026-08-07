@@ -45,7 +45,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void CanSplit_NullRom_False()
         {
-            Assert.False(MapPlistSplitCore.CanSplit(null));
+            Assert.False(MapPlistSplitCore.CanSplit(null!));
         }
 
         [Fact]

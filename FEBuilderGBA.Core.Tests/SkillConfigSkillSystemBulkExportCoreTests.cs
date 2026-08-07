@@ -135,7 +135,7 @@ namespace FEBuilderGBA.Core.Tests
             try
             {
                 string err = SkillConfigSkillSystemBulkExportCore.ExportAll(
-                    rom, TEXT_LOC, ANIME_LOC, tsvPath, null);
+                    rom, TEXT_LOC, ANIME_LOC, tsvPath, null!);
                 Assert.Equal("", err);
                 Assert.Equal(before, rom.Data); // READ-ONLY
                 Assert.Equal(SkillConfigSkillSystemBulkExportCore.MAX_COUNT, File.ReadAllLines(tsvPath).Length);

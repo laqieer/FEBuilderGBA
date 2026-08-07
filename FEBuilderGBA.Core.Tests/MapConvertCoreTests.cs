@@ -133,7 +133,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ConvertImage_NullInput_ReturnsNull()
         {
-            Assert.Null(MapConvertCore.ConvertImage(null, 8, 8));
+            Assert.Null(MapConvertCore.ConvertImage(null!, 8, 8));
         }
 
         [Fact]

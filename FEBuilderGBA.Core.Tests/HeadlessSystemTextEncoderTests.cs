@@ -37,7 +37,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var encoder = new HeadlessSystemTextEncoder();
             Assert.Equal("", encoder.Decode(new byte[0]));
-            Assert.Equal("", encoder.Decode(null));
+            Assert.Equal("", encoder.Decode(null!));
         }
 
         [Fact]
@@ -45,7 +45,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var encoder = new HeadlessSystemTextEncoder();
             Assert.Empty(encoder.Encode(""));
-            Assert.Empty(encoder.Encode(null));
+            Assert.Empty(encoder.Encode(null!));
         }
 
         [Fact]

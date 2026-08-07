@@ -210,7 +210,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             string dir = Path.Combine(Path.GetTempPath(), "decomp_missing_" + Guid.NewGuid().ToString("N"));
             Assert.Null(DecompProjectDetector.Detect(dir));
-            Assert.Null(DecompProjectDetector.Detect(null));
+            Assert.Null(DecompProjectDetector.Detect(null!));
             Assert.Null(DecompProjectDetector.Detect(""));
         }
 
@@ -373,7 +373,7 @@ namespace FEBuilderGBA.Core.Tests
             string dir = NewTempDir();
             try
             {
-                var r = DecompProjectDetector.ResolveBuiltRom(dir, null);
+                var r = DecompProjectDetector.ResolveBuiltRom(dir, null!);
                 Assert.Equal(DecompResolveStatus.NotProject, r.Status);
             }
             finally { Directory.Delete(dir, true); }
@@ -462,7 +462,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ParseManifest_Missing_ReturnsNullNoThrow()
         {
-            Assert.Null(DecompProjectDetector.ParseManifest(null));
+            Assert.Null(DecompProjectDetector.ParseManifest(null!));
             Assert.Null(DecompProjectDetector.ParseManifest(""));
             Assert.Null(DecompProjectDetector.ParseManifest(Path.Combine(Path.GetTempPath(), "no_such_" + Guid.NewGuid().ToString("N") + ".json")));
         }

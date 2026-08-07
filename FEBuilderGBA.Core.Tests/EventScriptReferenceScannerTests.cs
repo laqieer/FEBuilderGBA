@@ -305,7 +305,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void EnumerateEventEntries_NullRom_ReturnsEmpty()
         {
-            var list = EventScriptReferenceScanner.EnumerateEventEntries(null);
+            var list = EventScriptReferenceScanner.EnumerateEventEntries(null!);
             Assert.NotNull(list);
             Assert.Empty(list);
         }

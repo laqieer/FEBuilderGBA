@@ -397,7 +397,7 @@ namespace FEBuilderGBA.Core.Tests
                 var oamName = new Dictionary<uint, string> { { Ptr(oamspOff), "TestSprite" } };
 
                 var list = new List<Address>();
-                RebuildProducerCore.EmitOAMSPCore(fe8, list, ldrmap: null, oamName: oamName);
+                RebuildProducerCore.EmitOAMSPCore(fe8, list, ldrmap: null!, oamName: oamName);
 
                 Address main = list.Single(a => a.DataType == Address.DataTypeEnum.OAMSP);
                 Assert.Equal(oamspOff, main.Addr);
@@ -1220,7 +1220,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void BuildLdrMap_NullRom_Throws()
         {
-            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.BuildLdrMap(null));
+            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.BuildLdrMap(null!));
         }
 
         // ====================================================================
@@ -1295,7 +1295,7 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.ROM = fe8;
                 PlantFe8EventFunctionTables(fe8); // a valid table EXISTS, yet the null-ldrmap gate suppresses it.
                 var list = new List<Address>();
-                var res = RebuildProducerCore.AppendAllAsmStructPointers(fe8, list, ldrmap: null);
+                var res = RebuildProducerCore.AppendAllAsmStructPointers(fe8, list, ldrmap: null!);
                 Assert.False(res.Cancelled);
                 Assert.DoesNotContain(list, a => a.Info != null && a.Info.StartsWith("EventFunctionPointer"));
                 Assert.DoesNotContain(list, a => a.Info != null && a.Info.StartsWith("Command85"));
@@ -1390,7 +1390,7 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.ROM = fe8;
                 var other = MakeVersionedRom("BE8E01");
                 Assert.Throws<ArgumentException>(() =>
-                    RebuildProducerCore.AppendAllAsmStructPointers(other, new List<Address>(), null));
+                    RebuildProducerCore.AppendAllAsmStructPointers(other, new List<Address>(), null!));
             }
             finally { CoreState.ROM = saved; }
         }
@@ -1691,7 +1691,7 @@ namespace FEBuilderGBA.Core.Tests
             var procsName = new Dictionary<uint, string> { { slotOff, "MyProc" } };
 
             var list = new List<Address>();
-            RebuildProducerCore.EmitProcsScriptCore(rom, list, ldrmap: null, procsName: procsName);
+            RebuildProducerCore.EmitProcsScriptCore(rom, list, ldrmap: null!, procsName: procsName);
 
             Address procs = list.Single(a => a.DataType == Address.DataTypeEnum.PROCS);
             Assert.Equal(procsOff, procs.Addr);

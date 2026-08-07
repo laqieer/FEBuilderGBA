@@ -38,7 +38,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void IsRework_NullRom_ReturnsFalse()
         {
-            Assert.False(UnitActionPointerCore.IsRework(null));
+            Assert.False(UnitActionPointerCore.IsRework(null!));
         }
 
         [Fact]
@@ -91,7 +91,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ResolveBaseAddress_NullRom_ReturnsZero()
         {
-            Assert.Equal(0u, UnitActionPointerCore.ResolveBaseAddress(null));
+            Assert.Equal(0u, UnitActionPointerCore.ResolveBaseAddress(null!));
         }
 
         [Fact]
@@ -214,8 +214,8 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void IsDataExists_NullRom_ReturnsFalse()
         {
-            Assert.False(UnitActionPointerCore.IsDataExists(null, 0x100, false));
-            Assert.False(UnitActionPointerCore.IsDataExists(null, 0x100, true));
+            Assert.False(UnitActionPointerCore.IsDataExists(null!, 0x100, false));
+            Assert.False(UnitActionPointerCore.IsDataExists(null!, 0x100, true));
         }
 
         [Fact]

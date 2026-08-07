@@ -11,7 +11,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ValidateRoundTrip_NullRom_ThrowsArgumentNullException()
         {
-            Assert.Throws<ArgumentNullException>(() => TranslateCore.ValidateRoundTrip(null));
+            Assert.Throws<ArgumentNullException>(() => TranslateCore.ValidateRoundTrip(null!));
         }
 
         [Fact]
@@ -61,7 +61,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void DumpTexts_NullRom_ReturnsEmpty()
         {
-            var result = TranslateCore.DumpTexts(null);
+            var result = TranslateCore.DumpTexts(null!);
             Assert.Empty(result);
         }
 
@@ -76,7 +76,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetTextCount_NullRom_ReturnsZero()
         {
-            uint count = TranslateCore.GetTextCount(null);
+            uint count = TranslateCore.GetTextCount(null!);
             Assert.Equal(0u, count);
         }
 
@@ -222,7 +222,7 @@ namespace FEBuilderGBA.Core.Tests
         public void WriteTexts_NullRom_ReturnsZero()
         {
             var entries = new List<(uint textId, string text)> { (0, "test") };
-            int count = TranslateCore.WriteTexts(null, entries);
+            int count = TranslateCore.WriteTexts(null!, entries);
             Assert.Equal(0, count);
         }
 

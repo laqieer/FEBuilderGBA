@@ -289,7 +289,7 @@ namespace FEBuilderGBA.Core.Tests
         public void RenderSingleImagePreview_NullRom_ReturnsNull()
         {
             using var _ = EnsureImageService();
-            Assert.Null(ImageBattleScreenCore.RenderSingleImagePreview(null, 0));
+            Assert.Null(ImageBattleScreenCore.RenderSingleImagePreview(null!, 0));
         }
 
         [Theory]

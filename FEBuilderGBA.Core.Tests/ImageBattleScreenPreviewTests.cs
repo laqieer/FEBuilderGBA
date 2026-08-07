@@ -251,7 +251,7 @@ namespace FEBuilderGBA.Core.Tests
         public void RenderBattleScreenPreview_NullRom_ReturnsNull()
         {
             using var _ = EnsureImageService();
-            Assert.Null(ImageBattleScreenCore.RenderBattleScreenPreview(null));
+            Assert.Null(ImageBattleScreenCore.RenderBattleScreenPreview(null!));
         }
 
         // NOTE on the LoadBattleScreen==null guard: LoadBattleScreen only

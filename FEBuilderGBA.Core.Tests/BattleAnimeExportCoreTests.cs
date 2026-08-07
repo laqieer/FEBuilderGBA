@@ -9,7 +9,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ExportBattleAnime_NullRom_ReturnsError()
         {
-            string result = BattleAnimeExportCore.ExportBattleAnime(null, 0x1000, "/tmp/test.txt");
+            string result = BattleAnimeExportCore.ExportBattleAnime(null!, 0x1000, "/tmp/test.txt");
             Assert.Contains("No ROM", result);
         }
 

@@ -128,7 +128,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void BuildPlistList_WithNullRom_ReturnsEmpty()
         {
-            var rows = MapTileAnimation2Core.BuildPlistList(null);
+            var rows = MapTileAnimation2Core.BuildPlistList(null!);
             Assert.NotNull(rows);
             Assert.Empty(rows);
         }

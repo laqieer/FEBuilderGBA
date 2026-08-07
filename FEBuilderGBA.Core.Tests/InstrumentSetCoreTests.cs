@@ -84,7 +84,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void SearchInstrumentSet_NullRom_ReturnsEmpty()
         {
-            var result = InstrumentSetCore.SearchInstrumentSet(null, 0x12345678);
+            var result = InstrumentSetCore.SearchInstrumentSet(null!, 0x12345678);
             Assert.Empty(result);
         }
 

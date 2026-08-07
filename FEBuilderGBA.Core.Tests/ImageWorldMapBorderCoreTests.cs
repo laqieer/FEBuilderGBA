@@ -190,7 +190,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ImageUtilAPCore_Parse_NullData_ReturnsFalse()
         {
             var ap = new ImageUtilAPCore();
-            bool ok = ap.Parse(null, 0x500);
+            bool ok = ap.Parse(null!, 0x500);
             Assert.False(ok);
         }
 
@@ -492,7 +492,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             WithRom((_) =>
             {
-                IImage img = ImageWorldMapCore.TryRenderBorder(null, 0, 0, 0, 0);
+                IImage img = ImageWorldMapCore.TryRenderBorder(null!, 0, 0, 0, 0);
                 Assert.Null(img);
             });
         }

@@ -110,7 +110,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void IsZHRom_NullOrNonMultibyte_False()
         {
-            Assert.False(FontGlyphZHCore.IsZHRom(null));
+            Assert.False(FontGlyphZHCore.IsZHRom(null!));
 
             using var _ = NewStub();
             var rom = new ROM();
@@ -162,7 +162,7 @@ namespace FEBuilderGBA.Core.Tests
         public void RenderGlyphZH_NullRom_ReturnsNull()
         {
             using var svc = new ImageServiceScope();
-            Assert.Null(FontGlyphZHCore.RenderGlyphZH(null, 0x578020 + 0x54, isItemFont: false));
+            Assert.Null(FontGlyphZHCore.RenderGlyphZH(null!, 0x578020 + 0x54, isItemFont: false));
         }
 
         [Fact]
@@ -380,7 +380,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ImportGlyphZH_NullRom_ReturnsError_NoThrow()
         {
             byte[] idx = new byte[FontGlyphZHCore.GLYPH_W * FontGlyphZHCore.GLYPH_H];
-            string err = FontGlyphZHCore.ImportGlyphZH(null, isItemFont: false, MOJI_TEN, idx,
+            string err = FontGlyphZHCore.ImportGlyphZH(null!, isItemFont: false, MOJI_TEN, idx,
                 FontGlyphZHCore.GLYPH_W, FontGlyphZHCore.GLYPH_H);
             Assert.NotEqual("", err);
         }
@@ -536,7 +536,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void EnumerateGlyphsZH_NullRom_ReturnsEmpty()
         {
-            Assert.Empty(FontGlyphZHCore.EnumerateGlyphsZH(null, isItemFont: false));
+            Assert.Empty(FontGlyphZHCore.EnumerateGlyphsZH(null!, isItemFont: false));
         }
 
         // ---------------- Real CN ROM (skipped when absent) ----------------

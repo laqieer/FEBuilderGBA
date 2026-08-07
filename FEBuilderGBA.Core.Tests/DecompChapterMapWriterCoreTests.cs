@@ -455,7 +455,7 @@ namespace FEBuilderGBA.Core.Tests
             // RewriteEntryText is the PURE preview path — a null source is a clean fail.
             var owner = MapSettingsOwner("src/chapters.c");
             var res = DecompSourceWriterCore.RewriteEntryText(
-                null, owner, 0, new Dictionary<string, uint> { { "Weather", 1 } }, out string outText);
+                null!, owner, 0, new Dictionary<string, uint> { { "Weather", 1 } }, out string outText);
             Assert.False(res.Ok);
             Assert.Null(outText);
         }

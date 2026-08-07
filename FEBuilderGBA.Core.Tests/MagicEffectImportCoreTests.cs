@@ -203,7 +203,7 @@ namespace FEBuilderGBA.Core.Tests
         public void Import_NullRom_ReturnsError()
         {
             var cmds = new List<MagicFrameCommand>();
-            var err  = MagicEffectImportCore.ImportMagicScript(null, 0x1000u, cmds, _ => null);
+            var err  = MagicEffectImportCore.ImportMagicScript(null!, 0x1000u, cmds, _ => null);
             Assert.False(string.IsNullOrEmpty(err));
         }
 
@@ -212,7 +212,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var rom  = MakeMinimalRomWithFEGate();
             CoreState.ROM = rom;
-            var err  = MagicEffectImportCore.ImportMagicScript(rom, 0x300u, null, _ => null);
+            var err  = MagicEffectImportCore.ImportMagicScript(rom, 0x300u, null!, _ => null);
             Assert.False(string.IsNullOrEmpty(err));
         }
 
@@ -222,7 +222,7 @@ namespace FEBuilderGBA.Core.Tests
             var rom  = MakeMinimalRomWithFEGate();
             CoreState.ROM = rom;
             var cmds = new List<MagicFrameCommand>();
-            var err  = MagicEffectImportCore.ImportMagicScript(rom, 0x300u, cmds, null);
+            var err  = MagicEffectImportCore.ImportMagicScript(rom, 0x300u, cmds, null!);
             Assert.False(string.IsNullOrEmpty(err));
         }
 

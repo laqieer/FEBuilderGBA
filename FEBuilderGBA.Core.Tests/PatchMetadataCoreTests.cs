@@ -767,7 +767,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ApplyPatch_NullRom_Fails()
         {
-            var result = PatchMetadataCore.ApplyPatch(null, "nonexistent.txt");
+            var result = PatchMetadataCore.ApplyPatch(null!, "nonexistent.txt");
             Assert.False(result.Success);
             Assert.Contains("No ROM", result.Message);
         }
@@ -1034,7 +1034,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void UninstallPatch_NullRom_Fails()
         {
-            var result = PatchMetadataCore.UninstallPatch(null, "anything.txt");
+            var result = PatchMetadataCore.UninstallPatch(null!, "anything.txt");
             Assert.False(result.Success);
             Assert.Contains("No ROM", result.Message);
         }
@@ -1380,7 +1380,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void EvaluateIfCondition_NullRom_ReturnsFalse()
         {
-            Assert.False(PatchMetadataCore.EvaluateIfCondition("0x100=0xAB", null));
+            Assert.False(PatchMetadataCore.EvaluateIfCondition("0x100=0xAB", null!));
         }
 
         [Fact]
@@ -1707,7 +1707,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             string missing = Path.Combine(Path.GetTempPath(), "fe_no_patch2_" + System.Guid.NewGuid().ToString("N"));
             Assert.True(PatchMetadataCore.IsPatchLibraryEmpty(missing));
-            Assert.True(PatchMetadataCore.IsPatchLibraryEmpty(null));
+            Assert.True(PatchMetadataCore.IsPatchLibraryEmpty(null!));
             Assert.True(PatchMetadataCore.IsPatchLibraryEmpty(""));
         }
 
@@ -1981,7 +1981,7 @@ namespace FEBuilderGBA.Core.Tests
                 missingRoot,
                 rom,
                 "en",
-                listPatchFiles: null,
+                listPatchFiles: null!,
                 maxFiles: 16384,
                 maxAggregateBytes: PatchMetadataCore.MaxMetadataAggregateBytes,
                 out var patches,

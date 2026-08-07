@@ -50,7 +50,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void TryResolveMapTileset_NullRom_Fails()
         {
-            bool ok = BuiltInRandomMapTilesetCore.TryResolveMapTileset(null, 0, out MapTilesetSnapshot snapshot, out string error);
+            bool ok = BuiltInRandomMapTilesetCore.TryResolveMapTileset(null!, 0, out MapTilesetSnapshot snapshot, out string error);
             Assert.False(ok);
             Assert.NotEmpty(error);
         }
@@ -455,7 +455,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void IsMarRenderable_NullConfig_ReturnsFalse()
         {
-            Assert.False(BuiltInRandomMapTilesetCore.IsMarRenderable(0, null));
+            Assert.False(BuiltInRandomMapTilesetCore.IsMarRenderable(0, null!));
         }
 
         [Fact]

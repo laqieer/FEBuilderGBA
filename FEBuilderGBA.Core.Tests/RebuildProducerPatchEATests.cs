@@ -501,7 +501,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var patch = MakeEaPatch(NewTempDir(), "N", "main.event");
             Assert.Throws<ArgumentNullException>(() =>
-                RebuildProducerCore.TraceEAPatchedMappingForProducer(null, patch));
+                RebuildProducerCore.TraceEAPatchedMappingForProducer(null!, patch));
         }
 
         [Fact]
@@ -561,7 +561,7 @@ namespace FEBuilderGBA.Core.Tests
             // Null procsHandler (the uninstall path's default) → PROCS recorded as residue,
             // NOT emitted — byte-identical to pre-s2pf-14 behaviour even though the PROCS is
             // perfectly valid and the producer handler WOULD emit it.
-            EventAssemblerUninstallCore.EmitEaDataList(rom, ea, binMappings, untraceable, null);
+            EventAssemblerUninstallCore.EmitEaDataList(rom, ea, binMappings, untraceable, null!);
 
             Assert.DoesNotContain(binMappings, m => m.type == Address.DataTypeEnum.PROCS);
             Assert.Contains(untraceable, s => s.Contains("PROCS"));
@@ -597,7 +597,7 @@ namespace FEBuilderGBA.Core.Tests
             // Uninstall path (the shared walker with null handler).
             var ea = new EAUtilCore(Path.Combine(dir, "main.event"));
             var uninst = new List<EventAssemblerUninstallCore.BinMapping>();
-            EventAssemblerUninstallCore.EmitEaDataList(rom, ea, uninst, new List<string>(), null);
+            EventAssemblerUninstallCore.EmitEaDataList(rom, ea, uninst, new List<string>(), null!);
 
             // Producer has the PROCS; uninstall does not.
             Assert.Contains(prod, m => m.type == Address.DataTypeEnum.PROCS && m.addr == advanced && m.length == expectedLen);

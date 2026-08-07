@@ -2823,7 +2823,7 @@ namespace FEBuilderGBA.Core.Tests
             var options = new BuildfileExportOptions
             {
                 OutputDirectory = Path.GetTempPath(),
-                PatchBaseDirectory = null,
+                PatchBaseDirectory = null!,
             };
 
             Assert.Throws<ArgumentOutOfRangeException>(() =>
@@ -2934,7 +2934,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             // Missing directory → true + empty (NOT a failure).
             string missing = Path.Combine(Path.GetTempPath(), "bfx_pm_missing_" + Guid.NewGuid().ToString("N"));
-            Assert.True(PatchMetadataCore.TryEnumeratePatches(missing, null, "en", out var m, out var mErr));
+            Assert.True(PatchMetadataCore.TryEnumeratePatches(missing, null!, "en", out var m, out var mErr));
             Assert.Empty(m);
             Assert.Equal("", mErr);
 
@@ -2943,11 +2943,11 @@ namespace FEBuilderGBA.Core.Tests
             Directory.CreateDirectory(empty);
             try
             {
-                Assert.True(PatchMetadataCore.TryEnumeratePatches(empty, null, "en", out var e, out var eErr));
+                Assert.True(PatchMetadataCore.TryEnumeratePatches(empty, null!, "en", out var e, out var eErr));
                 Assert.Empty(e);
                 Assert.Equal("", eErr);
                 // The legacy EnumeratePatches API still returns an (empty) list for the same input.
-                Assert.Empty(PatchMetadataCore.EnumeratePatches(empty, null, "en"));
+                Assert.Empty(PatchMetadataCore.EnumeratePatches(empty, null!, "en"));
                 Assert.True(PatchMetadataCore.IsExpectedFileSystemException(new ArgumentException()));
                 Assert.False(PatchMetadataCore.IsExpectedFileSystemException(new ArgumentNullException()));
                 Assert.False(PatchMetadataCore.IsExpectedFileSystemException(new ArgumentOutOfRangeException()));
@@ -2965,7 +2965,7 @@ namespace FEBuilderGBA.Core.Tests
                 File.WriteAllText(Path.Combine(patchBase, "PATCH_Test.txt"), "NAME=Test");
 
                 bool success = PatchMetadataCore.TryEnumeratePatches(
-                    patchBase, null, "en", _ => throw new IOException("injected read failure"),
+                    patchBase, null!, "en", _ => throw new IOException("injected read failure"),
                     out var patches, out string error);
 
                 Assert.False(success);
@@ -2979,7 +2979,7 @@ namespace FEBuilderGBA.Core.Tests
         public void TryEnumeratePatches_ListingFailureDistinguishesMissingFromAccessDenied()
         {
             bool missing = PatchMetadataCore.TryEnumeratePatches(
-                "missing", null, "en", File.ReadAllLines,
+                "missing", null!, "en", File.ReadAllLines,
                 _ => throw new DirectoryNotFoundException("missing"),
                 out var missingPatches, out string missingError);
             Assert.True(missing);
@@ -2987,7 +2987,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal("", missingError);
 
             bool denied = PatchMetadataCore.TryEnumeratePatches(
-                "denied", null, "en", File.ReadAllLines,
+                "denied", null!, "en", File.ReadAllLines,
                 _ => throw new UnauthorizedAccessException("denied"),
                 out var deniedPatches, out string deniedError);
             Assert.False(denied);

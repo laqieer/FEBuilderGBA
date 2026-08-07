@@ -104,7 +104,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void TryParse_NullFilter_ReturnsFalse_NoThrow()
         {
-            bool ok = PatchFilterCore.TryParseHardCodingToken(null, out _, out _);
+            bool ok = PatchFilterCore.TryParseHardCodingToken(null!, out _, out _);
             Assert.False(ok);
         }
 
@@ -136,7 +136,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ScanLang_Null_ReturnsEn()
         {
-            Assert.Equal("en", PatchFilterCore.ScanLang(null));
+            Assert.Equal("en", PatchFilterCore.ScanLang(null!));
         }
 
         // ---- IsHardCodingTokenMatch (UNIT/CLASS/ITEM) ---------------------
@@ -347,8 +347,8 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void NullRom_NoThrow_ReturnsFalse()
         {
-            Assert.False(PatchFilterCore.IsHardCodingTokenMatch(null, "x.txt", "en", 1, "UNIT"));
-            Assert.False(PatchFilterCore.IsInstalledForFilter(null, "x.txt", "en"));
+            Assert.False(PatchFilterCore.IsHardCodingTokenMatch(null!, "x.txt", "en", 1, "UNIT"));
+            Assert.False(PatchFilterCore.IsInstalledForFilter(null!, "x.txt", "en"));
         }
 
         [Fact]

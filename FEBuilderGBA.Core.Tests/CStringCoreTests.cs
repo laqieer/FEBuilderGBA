@@ -48,7 +48,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ReadCString_NullRom_ReturnsEmpty()
         {
-            Assert.Equal(string.Empty, CStringCore.ReadCString(null, 0x08001000));
+            Assert.Equal(string.Empty, CStringCore.ReadCString(null!, 0x08001000));
         }
 
         [Fact]
@@ -118,7 +118,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void OldRegionLength_NullRom_ReturnsZero()
         {
-            Assert.Equal(0u, CStringCore.OldRegionLength(null, 0x1000));
+            Assert.Equal(0u, CStringCore.OldRegionLength(null!, 0x1000));
         }
 
         [Fact]
@@ -206,7 +206,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void WriteCString_NullRom_Refused()
         {
-            var r = CStringCore.WriteCString(null, 0, 0x1000, "Hi");
+            var r = CStringCore.WriteCString(null!, 0, 0x1000, "Hi");
             Assert.Equal(CStringCore.WriteStatus.Refused, r.Status);
         }
 

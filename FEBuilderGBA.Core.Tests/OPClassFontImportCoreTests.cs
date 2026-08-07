@@ -151,7 +151,7 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.ROM = rom;
                 byte[] before = (byte[])rom.Data.Clone();
 
-                string err = OPClassFontImportCore.Import(rom, GLYPH_ADDR, null, 32, 32);
+                string err = OPClassFontImportCore.Import(rom, GLYPH_ADDR, null!, 32, 32);
 
                 Assert.False(string.IsNullOrEmpty(err));
                 Assert.Equal(before, rom.Data); // byte-identical
@@ -162,7 +162,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Import_NullRom_ReturnsError_NoThrow()
         {
-            string err = OPClassFontImportCore.Import(null, GLYPH_ADDR, MakeIndexed(32, 32), 32, 32);
+            string err = OPClassFontImportCore.Import(null!, GLYPH_ADDR, MakeIndexed(32, 32), 32, 32);
             Assert.False(string.IsNullOrEmpty(err));
         }
 

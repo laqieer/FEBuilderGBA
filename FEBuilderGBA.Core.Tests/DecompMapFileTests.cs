@@ -109,7 +109,7 @@ namespace FEBuilderGBA.Core.Tests
 
             // An address inside that final span resolves to LastSym via SearchNear.
             var resolver = ResolverFromMapSnippet(map);
-            var merged = new MergedAsmMapFile(null, resolver);
+            var merged = new MergedAsmMapFile(null!, resolver);
             uint near = merged.SearchNear(0x080001F0u);   // inside [0x100..0x200)
             Assert.True(merged.TryGetValue(near, out var st));
             Assert.Equal("LastSym", st.Name);
@@ -158,7 +158,7 @@ namespace FEBuilderGBA.Core.Tests
             // apply (pointer < key + Length) must reject it — gRamVar's bounded 0x40
             // size means [0x03000000..0x03000040) does not reach ROM.
             var resolver = ResolverFromMapSnippet(map);
-            var merged = new MergedAsmMapFile(null, resolver);
+            var merged = new MergedAsmMapFile(null!, resolver);
             uint near = merged.SearchNear(0x08000100u);
             if (near != U.NOT_FOUND && merged.TryGetValue(near, out var st)
                 && st.Name == "gRamVar")
@@ -172,7 +172,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Map_Null_And_Garbage_NoThrow()
         {
-            Assert.Empty(DecompMapParser.Parse(null));
+            Assert.Empty(DecompMapParser.Parse(null!));
             Assert.Empty(DecompMapParser.Parse(""));
             // Random binary-ish garbage: never throws, returns empty.
             Assert.Empty(DecompMapParser.Parse("\x00\x01\x02 not a map \xff\xfe random"));
@@ -229,7 +229,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Sym_Null_And_Garbage_NoThrow()
         {
-            Assert.Empty(DecompSymParser.Parse(null));
+            Assert.Empty(DecompSymParser.Parse(null!));
             Assert.Empty(DecompSymParser.Parse(""));
             Assert.Empty(DecompSymParser.Parse("\x00\x01\xff garbage"));
         }
@@ -346,7 +346,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Json_Null_And_Garbage_NoThrow()
         {
-            Assert.Empty(DecompSymbolJsonParser.Parse(null));
+            Assert.Empty(DecompSymbolJsonParser.Parse(null!));
             Assert.Empty(DecompSymbolJsonParser.Parse(""));
             Assert.Empty(DecompSymbolJsonParser.Parse("{ not valid json"));
             Assert.Empty(DecompSymbolJsonParser.Parse("\x00\xff garbage bytes"));

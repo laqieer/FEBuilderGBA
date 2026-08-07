@@ -47,7 +47,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void TryLoadRawPalettePublic_NullRom_ReturnsFalse()
         {
-            bool ok = ImageBattleScreenCore.TryLoadRawPalettePublic(null, out byte[] pal);
+            bool ok = ImageBattleScreenCore.TryLoadRawPalettePublic(null!, out byte[] pal);
             Assert.False(ok);
             Assert.Null(pal);
         }
@@ -71,7 +71,7 @@ namespace FEBuilderGBA.Core.Tests
         public void WritePerImageStrip_NullRom_ReturnsFalse()
         {
             byte[] pixels = new byte[8 * 8]; // 8x8 = 1 tile
-            bool ok = ImageBattleScreenCore.WritePerImageStrip(null, 0, pixels, 8, 8);
+            bool ok = ImageBattleScreenCore.WritePerImageStrip(null!, 0, pixels, 8, 8);
             Assert.False(ok);
         }
 
@@ -79,7 +79,7 @@ namespace FEBuilderGBA.Core.Tests
         public void WritePerImageStrip_NullPixels_ReturnsFalse()
         {
             ROM rom = MakeRom();
-            bool ok = ImageBattleScreenCore.WritePerImageStrip(rom, 0, null, 8, 8);
+            bool ok = ImageBattleScreenCore.WritePerImageStrip(rom, 0, null!, 8, 8);
             Assert.False(ok);
         }
 

@@ -224,7 +224,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Render_NullRom_ReturnsNull()
         {
-            Assert.Null(ImageWorldMapCore.TryRenderFE6BigFieldMap(null, 0));
+            Assert.Null(ImageWorldMapCore.TryRenderFE6BigFieldMap(null!, 0));
         }
 
         [Fact]

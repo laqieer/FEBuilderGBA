@@ -103,7 +103,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             CoreState.ROM = MakeRomWithFace(new byte[PaletteCore.PALETTE_BLOCK_SIZE]);
             CoreState.ImageService = new DecodingImageService();
-            Assert.Null(PortraitRendererCore.DrawPortraitMap(U.toPointer(FaceOffset), (byte[])null));
+            Assert.Null(PortraitRendererCore.DrawPortraitMap(U.toPointer(FaceOffset), (byte[])null!));
         }
 
         [Fact]

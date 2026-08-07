@@ -300,7 +300,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.True(resolver.Symbols.TryGetValue(0x08001080u, out var point));
             Assert.Equal(0u, point.Length);
 
-            var merged = new MergedAsmMapFile(null, resolver);
+            var merged = new MergedAsmMapFile(null!, resolver);
 
             // Nearest at/below 0x080010C0 is PointSym (0x1080), which does NOT cover.
             // The project-side covering walk must instead return the covering SizedSym.

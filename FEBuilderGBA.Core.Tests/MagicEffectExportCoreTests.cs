@@ -142,7 +142,7 @@ namespace FEBuilderGBA.Core.Tests
             List<MagicFrameMeta> frames;
             List<MagicCommandMeta> cmds;
             bool ok = MagicEffectExportCore.ScanMagicFrames(
-                null, 0x300u, 0u, 0u, out frames, out cmds);
+                null!, 0x300u, 0u, 0u, out frames, out cmds);
 
             Assert.False(ok);
             Assert.Empty(frames);
@@ -302,7 +302,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 CoreState.ImageService = new StubImageService();
                 var result = MagicEffectExportCore.RenderObjFrameSlot(
-                    MakeMinimalRom(), null, 0, 0u, 0u);
+                    MakeMinimalRom(), null!, 0, 0u, 0u);
                 Assert.Null(result);
             }
             finally { CoreState.ImageService = prevSvc; }
@@ -1323,7 +1323,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 CoreState.ImageService = new StubImageService();
                 var img = MagicEffectExportCore.RenderCsaFramePreview(
-                    null, 0x10000u, 0u, 0u, 0u);
+                    null!, 0x10000u, 0u, 0u, 0u);
                 Assert.Null(img);
             }
             finally { CoreState.ImageService = prevSvc; }

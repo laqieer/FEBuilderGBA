@@ -27,7 +27,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void FindPointers_NullReturnsEmpty()
         {
-            var ptrs = RebuildCore.FindPointers(null);
+            var ptrs = RebuildCore.FindPointers(null!);
             Assert.Empty(ptrs);
         }
 
@@ -56,7 +56,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void FindModifiedRegions_NullReturnsEmpty()
         {
-            var regions = RebuildCore.FindModifiedRegions(null, new byte[64]);
+            var regions = RebuildCore.FindModifiedRegions(null!, new byte[64]);
             Assert.Empty(regions);
         }
 
@@ -114,7 +114,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Rebuild_NullReturnsFailure()
         {
-            var result = RebuildCore.Rebuild(null, new byte[64]);
+            var result = RebuildCore.Rebuild(null!, new byte[64]);
             Assert.False(result.Success);
         }
 
@@ -188,7 +188,7 @@ namespace FEBuilderGBA.Core.Tests
         public void WriteRebuildReport_NullData_ReturnsFailure_NoFile()
         {
             string outPath = Path.Combine(Path.GetTempPath(), "feb_rebuild_null_" + Guid.NewGuid().ToString("N") + ".rebuild");
-            var result = RebuildCore.WriteRebuildReport(null, new byte[64], 0, outPath);
+            var result = RebuildCore.WriteRebuildReport(null!, new byte[64], 0, outPath);
             Assert.False(result.Success);
             Assert.False(File.Exists(outPath));
         }

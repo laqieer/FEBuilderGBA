@@ -125,7 +125,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void MaxOamPaletteBank_NullOrOutOfRange_ReturnsZero()
         {
-            Assert.Equal(0, BattleAnimeRendererCore.MaxOamPaletteBank(null, 0));
+            Assert.Equal(0, BattleAnimeRendererCore.MaxOamPaletteBank(null!, 0));
             Assert.Equal(0, BattleAnimeRendererCore.MaxOamPaletteBank(new byte[12], 100));
         }
 

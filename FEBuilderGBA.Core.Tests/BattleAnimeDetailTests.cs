@@ -210,7 +210,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RenderTileSheet_NullTileData_ReturnsNull()
         {
-            var result = BattleAnimeRendererCore.RenderTileSheet(null, new byte[32], 16);
+            var result = BattleAnimeRendererCore.RenderTileSheet(null!, new byte[32], 16);
             Assert.Null(result);
         }
 
@@ -224,7 +224,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RenderTileSheet_NullPalette_ReturnsNull()
         {
-            var result = BattleAnimeRendererCore.RenderTileSheet(new byte[32], null, 16);
+            var result = BattleAnimeRendererCore.RenderTileSheet(new byte[32], null!, 16);
             Assert.Null(result);
         }
 
@@ -340,7 +340,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void CountFramesInRange_NullData_ReturnsZero()
         {
-            Assert.Equal(0, BattleAnimeRendererCore.CountFramesInRange(null, 0, 100));
+            Assert.Equal(0, BattleAnimeRendererCore.CountFramesInRange(null!, 0, 100));
         }
 
         [Fact]
@@ -384,7 +384,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ParseFramesInRange_NullData_ReturnsEmpty()
         {
-            var frames = BattleAnimeRendererCore.ParseFramesInRange(null, 0, 100);
+            var frames = BattleAnimeRendererCore.ParseFramesInRange(null!, 0, 100);
             Assert.Empty(frames);
         }
 
@@ -465,7 +465,7 @@ namespace FEBuilderGBA.Core.Tests
         public void DrawOAMSprites_NullOamData_DoesNotCrash()
         {
             byte[] dst = new byte[240 * 160 * 4];
-            BattleAnimeRendererCore.DrawOAMSprites(null, 0,
+            BattleAnimeRendererCore.DrawOAMSprites(null!, 0,
                 new byte[256 * 64 * 4], 256, 64,
                 dst, 240, 160);
             // Should not throw; dst should remain unchanged

@@ -169,7 +169,7 @@ namespace FEBuilderGBA.Core.Tests
         public void GitNotFound_WhenGitExeNull()
         {
             var r = ContentRepoGitService.InitializeOrUpdateCore(
-                "any", null, "url", _ => false, new FakeClone().Op, new FakeUpdate().Op, null);
+                "any", null!, "url", _ => false, new FakeClone().Op, new FakeUpdate().Op, null!);
             Assert.Equal(Patch2GitResultKind.GitNotFound, r.Kind);
         }
 
@@ -182,7 +182,7 @@ namespace FEBuilderGBA.Core.Tests
                 Directory.CreateDirectory(repoDir); // empty submodule placeholder
                 var clone = new FakeClone { ReturnCode = 0, CreateOnSuccess = true };
                 var r = ContentRepoGitService.InitializeOrUpdateCore(
-                    repoDir, "git", "url", _ => false, clone.Op, new FakeUpdate().Op, null);
+                    repoDir, "git", "url", _ => false, clone.Op, new FakeUpdate().Op, null!);
 
                 Assert.Equal(Patch2GitResultKind.Success, r.Kind);
                 Assert.True(r.WasClone);
@@ -206,7 +206,7 @@ namespace FEBuilderGBA.Core.Tests
                 var update = new FakeUpdate { ReturnCode = 0 };
                 // isGitRepo => true simulates a valid .git-file submodule link (however large).
                 var r = ContentRepoGitService.InitializeOrUpdateCore(
-                    repoDir, "git", "url", _ => true, clone.Op, update.Op, null);
+                    repoDir, "git", "url", _ => true, clone.Op, update.Op, null!);
 
                 Assert.Equal(Patch2GitResultKind.Success, r.Kind);
                 Assert.False(r.WasClone);
@@ -228,7 +228,7 @@ namespace FEBuilderGBA.Core.Tests
                 Directory.CreateDirectory(Path.Combine(repoDir, "FE7U"));
                 var clone = new FakeClone { ReturnCode = 128 };
                 var result = ContentRepoGitService.InitializeOrUpdateCore(repoDir, "git", "url", _ => false,
-                    clone.Op, new FakeUpdate().Op, null);
+                    clone.Op, new FakeUpdate().Op, null!);
 
                 Assert.Equal(Patch2GitResultKind.Failed, result.Kind);
                 Assert.True(clone.TargetExistedAtCall);
@@ -255,7 +255,7 @@ namespace FEBuilderGBA.Core.Tests
                 };
 
                 var result = ContentRepoGitService.InitializeOrUpdateCore(
-                    repoDir, "git", "url", _ => false, clone, new FakeUpdate().Op, null, ops);
+                    repoDir, "git", "url", _ => false, clone, new FakeUpdate().Op, null!, ops);
 
                 Assert.Equal(Patch2GitResultKind.Failed, result.Kind);
                 Assert.True(Directory.Exists(repoDir));
@@ -278,7 +278,7 @@ namespace FEBuilderGBA.Core.Tests
                 var ops = new RecordingDirectoryOps { ReturnFalseMove = true };
                 var clone = new FakeClone();
                 var result = ContentRepoGitService.InitializeOrUpdateCore(repoDir, "git", "url", _ => false,
-                    clone.Op, new FakeUpdate().Op, null, ops);
+                    clone.Op, new FakeUpdate().Op, null!, ops);
 
                 Assert.Equal(Patch2GitResultKind.Failed, result.Kind);
                 Assert.Equal(4, ops.Delays);
@@ -295,7 +295,7 @@ namespace FEBuilderGBA.Core.Tests
             try
             {
                 var result = ContentRepoGitService.InitializeOrUpdateCore(repoDir, "git", "url", _ => false,
-                    new FakeClone { ReturnCode = 1 }.Op, new FakeUpdate().Op, null);
+                    new FakeClone { ReturnCode = 1 }.Op, new FakeUpdate().Op, null!);
                 Assert.Equal(Patch2GitResultKind.Failed, result.Kind);
                 Assert.False(Directory.Exists(repoDir));
             }
@@ -312,7 +312,7 @@ namespace FEBuilderGBA.Core.Tests
                 var ops = new RecordingDirectoryOps { ThrowDeleteTimes = 1 };
                 var clone = new FakeClone { ReturnCode = 0, CreateOnSuccess = true };
                 var result = ContentRepoGitService.InitializeOrUpdateCore(repoDir, "git", "url", _ => false,
-                    clone.Op, new FakeUpdate().Op, null, ops);
+                    clone.Op, new FakeUpdate().Op, null!, ops);
 
                 Assert.Equal(Patch2GitResultKind.Success, result.Kind);
                 Assert.Equal(1, ops.Delays);
@@ -333,7 +333,7 @@ namespace FEBuilderGBA.Core.Tests
                 var ops = new RecordingDirectoryOps { ThrowMoveAfterSuccess = true };
                 var clone = new FakeClone { ReturnCode = 0, CreateOnSuccess = true };
                 var result = ContentRepoGitService.InitializeOrUpdateCore(repoDir, "git", "url", _ => false,
-                    clone.Op, new FakeUpdate().Op, null, ops);
+                    clone.Op, new FakeUpdate().Op, null!, ops);
 
                 Assert.Equal(Patch2GitResultKind.Success, result.Kind);
                 Assert.True(File.Exists(Path.Combine(repoDir, "cloned.txt")));
@@ -355,7 +355,7 @@ namespace FEBuilderGBA.Core.Tests
                 var ops = new RecordingDirectoryOps { RepoDir = repoDir };
                 var clone = new FakeClone { ReturnCode = 0, CreateOnSuccess = true };
                 var r = ContentRepoGitService.InitializeOrUpdateCore(repoDir, "git", "url", _ => false,
-                    clone.Op, new FakeUpdate().Op, null, ops);
+                    clone.Op, new FakeUpdate().Op, null!, ops);
 
                 Assert.Equal(Patch2GitResultKind.Success, r.Kind);
                 Assert.True(clone.TargetExistedAtCall);
@@ -380,7 +380,7 @@ namespace FEBuilderGBA.Core.Tests
                 var ops = new RecordingDirectoryOps { RepoDir = repoDir };
                 var clone = new FakeClone { ReturnCode = 0, CreateOnSuccess = true };
                 var r = ContentRepoGitService.InitializeOrUpdateCore(repoDir, "git", "url", _ => false,
-                    clone.Op, new FakeUpdate().Op, null, ops);
+                    clone.Op, new FakeUpdate().Op, null!, ops);
 
                 Assert.Equal(Patch2GitResultKind.Success, r.Kind);
                 Assert.True(clone.TargetExistedAtCall);
@@ -420,7 +420,7 @@ namespace FEBuilderGBA.Core.Tests
                 };
 
                 var result = ContentRepoGitService.InitializeOrUpdateCore(repoDir, "git", "url", _ => false,
-                    clone.Op, new FakeUpdate().Op, null, ops);
+                    clone.Op, new FakeUpdate().Op, null!, ops);
 
                 Assert.Equal(Patch2GitResultKind.Failed, result.Kind);
                 Assert.True(Directory.Exists(repoDir));
@@ -450,7 +450,7 @@ namespace FEBuilderGBA.Core.Tests
                     },
                 };
                 var result = ContentRepoGitService.InitializeOrUpdateCore(repoDir, "git", "url", _ => false,
-                    clone.Op, new FakeUpdate().Op, null);
+                    clone.Op, new FakeUpdate().Op, null!);
 
                 Assert.Equal(Patch2GitResultKind.Failed, result.Kind);
                 Assert.False(clone.TargetExistedAtCall);
@@ -485,7 +485,7 @@ namespace FEBuilderGBA.Core.Tests
                     },
                 };
                 var result = ContentRepoGitService.InitializeOrUpdateCore(repoDir, "git", "url", _ => false,
-                    clone.Op, new FakeUpdate().Op, null, ops);
+                    clone.Op, new FakeUpdate().Op, null!, ops);
 
                 Assert.Equal(Patch2GitResultKind.Failed, result.Kind);
                 Assert.Equal(2, ops.Delays);                  // exactly one delay per transient failure
@@ -509,7 +509,7 @@ namespace FEBuilderGBA.Core.Tests
                 var ops = new RecordingDirectoryOps { RepoDir = repoDir, ThrowBackupMoveTimes = 2 };
                 var clone = new FakeClone { ReturnCode = 0, CreateOnSuccess = true };
                 var result = ContentRepoGitService.InitializeOrUpdateCore(repoDir, "git", "url", _ => false,
-                    clone.Op, new FakeUpdate().Op, null, ops);
+                    clone.Op, new FakeUpdate().Op, null!, ops);
 
                 Assert.Equal(Patch2GitResultKind.Success, result.Kind);
                 Assert.Equal(2, ops.Delays);
@@ -535,7 +535,7 @@ namespace FEBuilderGBA.Core.Tests
                 var ops = new RecordingDirectoryOps { RepoDir = repoDir, ThrowMoveAfterSuccess = true };
                 var clone = new FakeClone { ReturnCode = 0, CreateOnSuccess = true };
                 var result = ContentRepoGitService.InitializeOrUpdateCore(repoDir, "git", "url", _ => false,
-                    clone.Op, new FakeUpdate().Op, null, ops);
+                    clone.Op, new FakeUpdate().Op, null!, ops);
 
                 Assert.Equal(Patch2GitResultKind.Success, result.Kind);
                 Assert.Equal(1, ops.MoveCalls);                  // accepted on the first attempt
@@ -558,7 +558,7 @@ namespace FEBuilderGBA.Core.Tests
                 var ops = new RecordingDirectoryOps { RepoDir = repoDir, ThrowDeleteAfterSuccess = true };
                 var clone = new FakeClone { ReturnCode = 0, CreateOnSuccess = true };
                 var result = ContentRepoGitService.InitializeOrUpdateCore(repoDir, "git", "url", _ => false,
-                    clone.Op, new FakeUpdate().Op, null, ops);
+                    clone.Op, new FakeUpdate().Op, null!, ops);
 
                 Assert.Equal(Patch2GitResultKind.Success, result.Kind);
                 Assert.Equal(0, ops.Delays);
@@ -581,7 +581,7 @@ namespace FEBuilderGBA.Core.Tests
                 var clone = new FakeClone { ReturnCode = 0, CreateOnSuccess = true };
 
                 var result = ContentRepoGitService.InitializeOrUpdateCore(
-                    repoDir, "git", "url", _ => false, clone.Op, new FakeUpdate().Op, null, ops);
+                    repoDir, "git", "url", _ => false, clone.Op, new FakeUpdate().Op, null!, ops);
 
                 Assert.Equal(Patch2GitResultKind.Success, result.Kind);
                 Assert.Contains("Retained path:", result.Log);
@@ -605,7 +605,7 @@ namespace FEBuilderGBA.Core.Tests
                 var ops = new RecordingDirectoryOps { RepoDir = repoDir, DenyEveryMove = true };
                 var clone = new FakeClone();
                 var result = ContentRepoGitService.InitializeOrUpdateCore(repoDir, "git", "url", _ => false,
-                    clone.Op, new FakeUpdate().Op, null, ops);
+                    clone.Op, new FakeUpdate().Op, null!, ops);
 
                 Assert.Equal(Patch2GitResultKind.Failed, result.Kind);
                 Assert.Equal(5, ops.MoveCalls);                  // bounded: 1 attempt + 4 retries
@@ -637,7 +637,7 @@ namespace FEBuilderGBA.Core.Tests
                     },
                 };
                 var result = ContentRepoGitService.InitializeOrUpdateCore(repoDir, "git", "url", _ => false,
-                    clone.Op, new FakeUpdate().Op, null, ops);
+                    clone.Op, new FakeUpdate().Op, null!, ops);
 
                 Assert.Equal(Patch2GitResultKind.Failed, result.Kind);
                 Assert.Equal(2, ops.Delays);
@@ -666,7 +666,7 @@ namespace FEBuilderGBA.Core.Tests
                     Artifacts = target => File.WriteAllText(Path.Combine(target, "stray.bin"), "partial"),
                 };
                 var result = ContentRepoGitService.InitializeOrUpdateCore(repoDir, "git", "url", _ => false,
-                    clone.Op, new FakeUpdate().Op, null, ops);
+                    clone.Op, new FakeUpdate().Op, null!, ops);
 
                 Assert.Equal(Patch2GitResultKind.Failed, result.Kind);
                 Assert.Equal(4, ops.Delays);                       // bounded retry, then give up honestly
@@ -692,7 +692,7 @@ namespace FEBuilderGBA.Core.Tests
                 var ops = new RecordingDirectoryOps { RepoDir = repoDir, MoveWithoutEffect = true };
                 var clone = new FakeClone();
                 var result = ContentRepoGitService.InitializeOrUpdateCore(repoDir, "git", "url", _ => false,
-                    clone.Op, new FakeUpdate().Op, null, ops);
+                    clone.Op, new FakeUpdate().Op, null!, ops);
 
                 Assert.Equal(Patch2GitResultKind.Failed, result.Kind);
                 Assert.Equal(5, ops.MoveCalls);                  // bounded: 1 attempt + 4 retries
@@ -730,7 +730,7 @@ namespace FEBuilderGBA.Core.Tests
                 };
 
                 var result = ContentRepoGitService.InitializeOrUpdateCore(repoDir, "git", "url", _ => false,
-                    clone.Op, new FakeUpdate().Op, null);
+                    clone.Op, new FakeUpdate().Op, null!);
 
                 Assert.Equal(Patch2GitResultKind.Failed, result.Kind);
                 Assert.True(Directory.Exists(repoDir));
@@ -792,7 +792,7 @@ namespace FEBuilderGBA.Core.Tests
                 };
 
                 var result = ContentRepoGitService.InitializeOrUpdateCore(
-                    repoDir, "git", "url", _ => false, clone, new FakeUpdate().Op, null);
+                    repoDir, "git", "url", _ => false, clone, new FakeUpdate().Op, null!);
 
                 Assert.Equal(Patch2GitResultKind.Failed, result.Kind);
                 Assert.Contains("Rollback root is not a normal directory", result.Log);
@@ -841,7 +841,7 @@ namespace FEBuilderGBA.Core.Tests
                 };
 
                 var result = Patch2GitService.InitializeOrUpdateCore(baseDir, "git", "url", _ => false,
-                    clone.Op, new FakeUpdate().Op, null);
+                    clone.Op, new FakeUpdate().Op, null!);
 
                 Assert.Equal(Patch2GitResultKind.Failed, result.Kind);
                 Assert.True(clone.TargetExistedAtCall);            // the shipped stub is cloned into in place
@@ -859,7 +859,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.True(ContentRepoGitService.TryEnter());
             try
             {
-                var r = Patch2GitService.InitializeOrUpdate("any", null, null);
+                var r = Patch2GitService.InitializeOrUpdate("any", null!, null!);
                 Assert.Equal(Patch2GitResultKind.AlreadyRunning, r.Kind); // one shared guard across services
             }
             finally { ContentRepoGitService.Exit(); }
@@ -871,7 +871,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.True(Patch2GitService.TryEnter());
             try
             {
-                var r = ContentRepoGitService.InitializeOrUpdate("any-dir", "url", null);
+                var r = ContentRepoGitService.InitializeOrUpdate("any-dir", "url", null!);
                 Assert.Equal(Patch2GitResultKind.AlreadyRunning, r.Kind);
             }
             finally { Patch2GitService.Exit(); }

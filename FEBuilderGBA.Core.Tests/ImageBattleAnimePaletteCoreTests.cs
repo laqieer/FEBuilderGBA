@@ -262,7 +262,7 @@ public class ImageBattleAnimePaletteCoreTests
         }, out uint paletteOffset);
 
         // Null colors.
-        Assert.Equal(U.NOT_FOUND, ImageBattleAnimePaletteCore.WritePalette(rom, paletteOffset, 0, null));
+        Assert.Equal(U.NOT_FOUND, ImageBattleAnimePaletteCore.WritePalette(rom, paletteOffset, 0, null!));
         // Wrong-length colors.
         Assert.Equal(U.NOT_FOUND, ImageBattleAnimePaletteCore.WritePalette(rom, paletteOffset, 0, new ushort[15]));
         // Negative slot.

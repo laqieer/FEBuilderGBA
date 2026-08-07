@@ -221,7 +221,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Null(r1);
             Assert.False(string.IsNullOrEmpty(e1));
 
-            byte[] r2 = SongDirectSoundWavCore.WavToByte(null, out string e2);
+            byte[] r2 = SongDirectSoundWavCore.WavToByte(null!, out string e2);
             Assert.Null(r2);
             Assert.False(string.IsNullOrEmpty(e2));
         }
@@ -442,7 +442,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(SongDirectSoundWavCore.IsDirectSoundData(data, SAMPLE_OFFSET));
 
             // Null / EOF guards never throw.
-            Assert.False(SongDirectSoundWavCore.IsDirectSoundData((byte[])null, 0));
+            Assert.False(SongDirectSoundWavCore.IsDirectSoundData((byte[])null!, 0));
             Assert.False(SongDirectSoundWavCore.IsDirectSoundData(data, ROM_LEN - 4));
         }
 
@@ -457,8 +457,8 @@ namespace FEBuilderGBA.Core.Tests
                 WriteSample(rom.Data, SAMPLE_OFFSET, 8000, MakePcm(80));
                 Assert.Equal(80u, SongDirectSoundWavCore.GetDirectSoundWaveDataLength(rom, SAMPLE_OFFSET));
                 Assert.True(SongDirectSoundWavCore.IsDirectSoundData(rom, SAMPLE_OFFSET));
-                Assert.Equal(0u, SongDirectSoundWavCore.GetDirectSoundWaveDataLength((ROM)null, SAMPLE_OFFSET));
-                Assert.False(SongDirectSoundWavCore.IsDirectSoundData((ROM)null, SAMPLE_OFFSET));
+                Assert.Equal(0u, SongDirectSoundWavCore.GetDirectSoundWaveDataLength((ROM)null!, SAMPLE_OFFSET));
+                Assert.False(SongDirectSoundWavCore.IsDirectSoundData((ROM)null!, SAMPLE_OFFSET));
             }
             finally { CoreState.ROM = savedRom; }
         }

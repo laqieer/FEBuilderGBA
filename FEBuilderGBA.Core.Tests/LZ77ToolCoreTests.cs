@@ -36,7 +36,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void MoveCompressedData_NullRom_Fails()
         {
-            var result = LZ77ToolCore.MoveCompressedData(null, 0x1000, 0x2000, 0x10);
+            var result = LZ77ToolCore.MoveCompressedData(null!, 0x1000, 0x2000, 0x10);
             Assert.False(result.Ok);
             Assert.Contains("ROM is null", result.ErrorMessage);
         }
@@ -353,7 +353,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RecompressAt_NullRom_Fails()
         {
-            var r = LZ77ToolCore.RecompressAt(null, 0x100, 0x100);
+            var r = LZ77ToolCore.RecompressAt(null!, 0x100, 0x100);
             Assert.False(r.Ok);
             Assert.Contains("ROM is null", r.ErrorMessage);
         }

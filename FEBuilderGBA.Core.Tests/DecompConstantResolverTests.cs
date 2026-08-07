@@ -58,7 +58,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var project = ProjectWithDefaultHeader(
                 "enum { ITEM_NONE = 0x00, ITEM_SWORD_IRON = 0x01, ITEM_SWORD_SLIM = 0x02 };");
-            var r = DecompConstantResolver.BuildForProject(project, null);
+            var r = DecompConstantResolver.BuildForProject(project, null!);
 
             Assert.False(r.IsUnavailable, r.Reason);
             Assert.True(r.ItemNoneIsZero);
@@ -83,7 +83,7 @@ namespace FEBuilderGBA.Core.Tests
         public void EnumParse_AutoIncrement_AssignsRunningCounter()
         {
             var project = ProjectWithDefaultHeader("enum { ITEM_A = 0x10, ITEM_B, ITEM_C };");
-            var r = DecompConstantResolver.BuildForProject(project, null);
+            var r = DecompConstantResolver.BuildForProject(project, null!);
 
             Assert.True(r.TryResolveMacroToId("ITEM_A", out ushort a));
             Assert.Equal(0x10, a);
@@ -102,7 +102,7 @@ namespace FEBuilderGBA.Core.Tests
             // ITEM_D=5 re-anchors.
             var project = ProjectWithDefaultHeader(
                 "enum { ITEM_A = 0x01, ITEM_B = (ITEM_A | 0x80), ITEM_C, ITEM_D = 0x05 };");
-            var r = DecompConstantResolver.BuildForProject(project, null);
+            var r = DecompConstantResolver.BuildForProject(project, null!);
 
             Assert.True(r.TryResolveMacroToId("ITEM_A", out ushort a));
             Assert.Equal(0x01, a);
@@ -121,7 +121,7 @@ namespace FEBuilderGBA.Core.Tests
             // After ITEM_D=5 re-anchors, ITEM_E (bare) should be 6.
             var project = ProjectWithDefaultHeader(
                 "enum { ITEM_A = 0x01, ITEM_B = (ITEM_A | 0x80), ITEM_C, ITEM_D = 0x05, ITEM_E };");
-            var r = DecompConstantResolver.BuildForProject(project, null);
+            var r = DecompConstantResolver.BuildForProject(project, null!);
             Assert.True(r.TryResolveMacroToId("ITEM_E", out ushort e));
             Assert.Equal(0x06, e);
         }
@@ -142,7 +142,7 @@ namespace FEBuilderGBA.Core.Tests
                 "};\n" +
                 "#define NULL 0\n" +
                 "#define MAX_CARRY 5\n");
-            var r = DecompConstantResolver.BuildForProject(project, null);
+            var r = DecompConstantResolver.BuildForProject(project, null!);
 
             // No sibling constant claimed an id.
             Assert.False(r.TryResolveMacroToId("FALSE", out _));
@@ -172,7 +172,7 @@ namespace FEBuilderGBA.Core.Tests
             // not be picked as the ITEM_NONE terminator; ITEM_NONE is injected because no
             // ITEM_* maps to 0. Serializing id 0 always yields ITEM_NONE, never FALSE.
             var project = ProjectWithDefaultHeader(headerText);
-            var r = DecompConstantResolver.BuildForProject(project, null);
+            var r = DecompConstantResolver.BuildForProject(project, null!);
 
             Assert.True(r.ItemNoneIsZero);
             Assert.Equal("ITEM_NONE", r.ItemNoneMacro);
@@ -188,7 +188,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var project = ProjectWithDefaultHeader(
                 "#define ITEM_NONE 0\n#define ITEM_SWORD_IRON 0x01\n#define ITEM_LANCE_IRON 5\n");
-            var r = DecompConstantResolver.BuildForProject(project, null);
+            var r = DecompConstantResolver.BuildForProject(project, null!);
 
             Assert.True(r.TryResolveMacroToId("ITEM_SWORD_IRON", out ushort iron));
             Assert.Equal(0x01, iron);
@@ -204,7 +204,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var project = ProjectWithDefaultHeader(
                 "enum { ITEM_NONE = 0, ITEM_A = 0x05, ITEM_A_ALIAS = 0x05 };");
-            var r = DecompConstantResolver.BuildForProject(project, null);
+            var r = DecompConstantResolver.BuildForProject(project, null!);
 
             // Both map to id.
             Assert.True(r.TryResolveMacroToId("ITEM_A", out ushort a));
@@ -222,7 +222,7 @@ namespace FEBuilderGBA.Core.Tests
             // ITEM_X defined to 1 (enum) then redefined to 2 (#define) ⇒ ambiguous.
             var project = ProjectWithDefaultHeader(
                 "enum { ITEM_NONE = 0, ITEM_X = 0x01 };\n#define ITEM_X 0x02\n");
-            var r = DecompConstantResolver.BuildForProject(project, null);
+            var r = DecompConstantResolver.BuildForProject(project, null!);
 
             Assert.False(r.TryResolveMacroToId("ITEM_X", out _));
         }
@@ -234,7 +234,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var project = ProjectWithDefaultHeader(
                 "enum { ITEM_NONE = 0, ITEM_BIG = 0x10000, ITEM_OK = 0x07 };");
-            var r = DecompConstantResolver.BuildForProject(project, null);
+            var r = DecompConstantResolver.BuildForProject(project, null!);
 
             // 0x10000 > 0xFFFF ⇒ ambiguous (skipped); the auto-increment base is now unknown
             // for any implicit member, but ITEM_OK has an explicit literal so it resolves.
@@ -249,7 +249,7 @@ namespace FEBuilderGBA.Core.Tests
         public void MissingHeader_ReturnsUnavailable_NoThrow()
         {
             var project = new DecompProject { ProjectRoot = _dir };   // no header written
-            var r = DecompConstantResolver.BuildForProject(project, null);
+            var r = DecompConstantResolver.BuildForProject(project, null!);
             Assert.True(r.IsUnavailable);
             Assert.NotNull(r.Reason);
         }
@@ -260,14 +260,14 @@ namespace FEBuilderGBA.Core.Tests
             var project = ProjectWithDefaultHeader(
                 "enum { ITEM_NONE = 0, ITEM_A = , broken /* unterminated");
             // Should not throw; returns a (possibly partially-populated) resolver.
-            var r = DecompConstantResolver.BuildForProject(project, null);
+            var r = DecompConstantResolver.BuildForProject(project, null!);
             Assert.NotNull(r);
         }
 
         [Fact]
         public void NullProject_ReturnsUnavailable_NoThrow()
         {
-            var r = DecompConstantResolver.BuildForProject(null, null);
+            var r = DecompConstantResolver.BuildForProject(null!, null!);
             Assert.True(r.IsUnavailable);
         }
 
@@ -299,7 +299,7 @@ namespace FEBuilderGBA.Core.Tests
                 new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             var project = new DecompProject { ProjectRoot = _dir, Manifest = manifest };
 
-            var r = DecompConstantResolver.BuildForProject(project, null);
+            var r = DecompConstantResolver.BuildForProject(project, null!);
             Assert.False(r.IsUnavailable, r.Reason);
             Assert.True(r.ExplicitPathDeclared);
             Assert.True(r.TryResolveMacroToId("ITEM_A", out ushort a));
@@ -353,7 +353,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ItemNone_InjectedWhenAbsent()
         {
             var project = ProjectWithDefaultHeader("enum { ITEM_SWORD_IRON = 0x01 };");  // no ITEM_NONE
-            var r = DecompConstantResolver.BuildForProject(project, null);
+            var r = DecompConstantResolver.BuildForProject(project, null!);
 
             Assert.True(r.ItemNoneIsZero);
             Assert.True(r.TryResolveIdToMacro(0x00, out string m0));
@@ -367,7 +367,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             // ITEM_NONE explicitly nonzero AND nothing else maps to 0.
             var project = ProjectWithDefaultHeader("enum { ITEM_SWORD_IRON = 0x01, ITEM_NONE = 0x02 };");
-            var r = DecompConstantResolver.BuildForProject(project, null);
+            var r = DecompConstantResolver.BuildForProject(project, null!);
 
             Assert.False(r.ItemNoneIsZero);
         }
@@ -380,7 +380,7 @@ namespace FEBuilderGBA.Core.Tests
             // declaration order (PR #1356 review).
             var project = ProjectWithDefaultHeader(
                 "enum { ITEM_SLOT_EMPTY = 0x00, ITEM_NONE = 0x00, ITEM_SWORD_IRON = 0x01 };");
-            var r = DecompConstantResolver.BuildForProject(project, null);
+            var r = DecompConstantResolver.BuildForProject(project, null!);
 
             Assert.True(r.ItemNoneIsZero);
             Assert.Equal("ITEM_NONE", r.ItemNoneMacro);
@@ -397,7 +397,7 @@ namespace FEBuilderGBA.Core.Tests
             // the enum body; ParseEnumBody must operate on the REAL { ITEM_A, ITEM_B }.
             var project = ProjectWithDefaultHeader(
                 "enum /* { fake */ Items { ITEM_NONE = 0, ITEM_A = 0x01, ITEM_B = 0x02 };");
-            var r = DecompConstantResolver.BuildForProject(project, null);
+            var r = DecompConstantResolver.BuildForProject(project, null!);
 
             Assert.False(r.IsUnavailable, r.Reason);
             Assert.True(r.TryResolveMacroToId("ITEM_A", out ushort a));
@@ -413,7 +413,7 @@ namespace FEBuilderGBA.Core.Tests
             var project = ProjectWithDefaultHeader(
                 "enum Items // a { brace in a line comment\n" +
                 "{ ITEM_NONE = 0, ITEM_A = 0x03 };");
-            var r = DecompConstantResolver.BuildForProject(project, null);
+            var r = DecompConstantResolver.BuildForProject(project, null!);
 
             Assert.True(r.TryResolveMacroToId("ITEM_A", out ushort a));
             Assert.Equal(0x03, a);

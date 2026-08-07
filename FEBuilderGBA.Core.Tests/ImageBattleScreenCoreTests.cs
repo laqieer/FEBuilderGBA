@@ -74,7 +74,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void LoadBattleScreen_NullRom_ReturnsNull()
         {
-            ushort[] map = ImageBattleScreenCore.LoadBattleScreen(null);
+            ushort[] map = ImageBattleScreenCore.LoadBattleScreen(null!);
             Assert.Null(map);
         }
 
@@ -180,8 +180,8 @@ namespace FEBuilderGBA.Core.Tests
         public void WriteBattleScreen_NullArgs_ReturnsFalse()
         {
             var rom = MakeRom();
-            Assert.False(ImageBattleScreenCore.WriteBattleScreen(null, new ushort[640]));
-            Assert.False(ImageBattleScreenCore.WriteBattleScreen(rom, null));
+            Assert.False(ImageBattleScreenCore.WriteBattleScreen(null!, new ushort[640]));
+            Assert.False(ImageBattleScreenCore.WriteBattleScreen(rom, null!));
             Assert.False(ImageBattleScreenCore.WriteBattleScreen(rom, new ushort[100])); // wrong size
         }
 

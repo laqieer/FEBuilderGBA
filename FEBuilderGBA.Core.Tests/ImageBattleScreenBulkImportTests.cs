@@ -51,9 +51,9 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void EncodeTSAKeep_NullInputs_ReturnsNull()
         {
-            Assert.Null(ImageBattleScreenCore.EncodeTSAKeep(null, new ushort[MAP_SIZE], new byte[32]));
-            Assert.Null(ImageBattleScreenCore.EncodeTSAKeep(new byte[MAP_SIZE * 32], null, new byte[32]));
-            Assert.Null(ImageBattleScreenCore.EncodeTSAKeep(new byte[MAP_SIZE * 32], new ushort[MAP_SIZE], null));
+            Assert.Null(ImageBattleScreenCore.EncodeTSAKeep(null!, new ushort[MAP_SIZE], new byte[32]));
+            Assert.Null(ImageBattleScreenCore.EncodeTSAKeep(new byte[MAP_SIZE * 32], null!, new byte[32]));
+            Assert.Null(ImageBattleScreenCore.EncodeTSAKeep(new byte[MAP_SIZE * 32], new ushort[MAP_SIZE], null!));
         }
 
         [Fact]

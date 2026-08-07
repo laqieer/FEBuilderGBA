@@ -9,7 +9,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetCondSlots_WithNullRom_ReturnsEmpty()
         {
-            var slots = MapEventUnitCore.GetCondSlots(null);
+            var slots = MapEventUnitCore.GetCondSlots(null!);
             Assert.NotNull(slots);
             Assert.Empty(slots);
         }
@@ -40,7 +40,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ResolvePlistToEventAddr_WithNullRom_ReturnsNotFound()
         {
-            uint result = MapEventUnitCore.ResolvePlistToEventAddr(null, 1);
+            uint result = MapEventUnitCore.ResolvePlistToEventAddr(null!, 1);
             Assert.Equal(U.NOT_FOUND, result);
         }
 
@@ -51,7 +51,7 @@ namespace FEBuilderGBA.Core.Tests
             try
             {
                 CoreState.ROM = null!;
-                uint result = MapEventUnitCore.ResolvePlistToEventAddr(null, 0);
+                uint result = MapEventUnitCore.ResolvePlistToEventAddr(null!, 0);
                 Assert.Equal(U.NOT_FOUND, result);
             }
             finally
@@ -63,14 +63,14 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetEventAddrForMap_WithNoRom_ReturnsNotFound()
         {
-            uint result = MapEventUnitCore.GetEventAddrForMap(null, 0);
+            uint result = MapEventUnitCore.GetEventAddrForMap(null!, 0);
             Assert.Equal(U.NOT_FOUND, result);
         }
 
         [Fact]
         public void GetUnitGroupsForMap_WithNullRom_ReturnsEmpty()
         {
-            var list = MapEventUnitCore.GetUnitGroupsForMap(null, 0);
+            var list = MapEventUnitCore.GetUnitGroupsForMap(null!, 0);
             Assert.NotNull(list);
             Assert.Empty(list);
         }
@@ -78,7 +78,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void EnumerateUnits_WithNullRom_ReturnsEmpty()
         {
-            var list = MapEventUnitCore.EnumerateUnits(null, 0);
+            var list = MapEventUnitCore.EnumerateUnits(null!, 0);
             Assert.NotNull(list);
             Assert.Empty(list);
         }
@@ -90,7 +90,7 @@ namespace FEBuilderGBA.Core.Tests
             try
             {
                 CoreState.ROM = null!;
-                var list = MapEventUnitCore.EnumerateUnits(null, 0xFFFFFFFF);
+                var list = MapEventUnitCore.EnumerateUnits(null!, 0xFFFFFFFF);
                 Assert.NotNull(list);
                 Assert.Empty(list);
             }
@@ -199,7 +199,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ConfigDataFilename_PureOverload_IsNullSafe()
         {
-            string path = U.ConfigDataFilename(null, null, null, null);
+            string path = U.ConfigDataFilename(null!, null, null, null);
             Assert.False(string.IsNullOrWhiteSpace(path));
             Assert.Contains("config", path);
             Assert.Contains("data", path);

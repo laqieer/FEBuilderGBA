@@ -278,7 +278,7 @@ public class SkillAssignmentIndependenceCoreTests
     public void MakeIndependent_NullRom_ReturnsNotFound()
     {
         Assert.Equal(U.NOT_FOUND,
-            SkillAssignmentIndependenceCore.MakeIndependent(null, AssignLevelUpBase, ClassA, null));
+            SkillAssignmentIndependenceCore.MakeIndependent(null!, AssignLevelUpBase, ClassA, null!));
     }
 
     [Fact]

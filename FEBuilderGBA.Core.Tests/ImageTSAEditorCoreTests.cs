@@ -344,7 +344,7 @@ namespace FEBuilderGBA.Core.Tests
             WithImageService(() =>
             {
                 Assert.Null(ImageTSAEditorCore.TryRenderMainImage(
-                    null, 1, 1, IMAGE_OFFSET, false, false, TSA_OFFSET, PALETTE_OFFSET));
+                    null!, 1, 1, IMAGE_OFFSET, false, false, TSA_OFFSET, PALETTE_OFFSET));
             });
         }
 
@@ -651,7 +651,7 @@ namespace FEBuilderGBA.Core.Tests
             WithImageService(() =>
             {
                 Assert.Null(ImageTSAEditorCore.RenderChipList(
-                    null, IMAGE_OFFSET, PALETTE_OFFSET));
+                    null!, IMAGE_OFFSET, PALETTE_OFFSET));
             });
         }
 
@@ -915,7 +915,7 @@ namespace FEBuilderGBA.Core.Tests
             WithImageService(() =>
             {
                 Assert.Null(ImageTSAEditorCore.RenderRawTilesheet(
-                    null, IMAGE_OFFSET, PALETTE_OFFSET));
+                    null!, IMAGE_OFFSET, PALETTE_OFFSET));
             });
         }
 

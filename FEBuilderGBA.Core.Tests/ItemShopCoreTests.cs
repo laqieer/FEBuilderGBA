@@ -98,7 +98,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void MakeShopList_WithNoRom_ReturnsEmpty()
         {
-            var shops = ItemShopCore.MakeShopList(null);
+            var shops = ItemShopCore.MakeShopList(null!);
             Assert.NotNull(shops);
             Assert.Empty(shops);
         }

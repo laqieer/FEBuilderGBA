@@ -77,7 +77,7 @@ namespace FEBuilderGBA.Core.Tests
         public void GitNotFound_WhenGitExeNull()
         {
             var r = Patch2GitService.InitializeOrUpdateCore(
-                "any", null, "url", _ => false, new FakeClone().Op, new FakeUpdate().Op, null);
+                "any", null!, "url", _ => false, new FakeClone().Op, new FakeUpdate().Op, null!);
             Assert.Equal(Patch2GitResultKind.GitNotFound, r.Kind);
         }
 
@@ -90,7 +90,7 @@ namespace FEBuilderGBA.Core.Tests
                 var clone = new FakeClone { ReturnCode = 0, CreateOnSuccess = true };
                 var update = new FakeUpdate { ReturnCode = 0 };
                 var r = Patch2GitService.InitializeOrUpdateCore(
-                    baseDir, "git", "url", _ => true, clone.Op, update.Op, null);
+                    baseDir, "git", "url", _ => true, clone.Op, update.Op, null!);
 
                 Assert.Equal(Patch2GitResultKind.Success, r.Kind);
                 Assert.False(r.WasClone);
@@ -109,7 +109,7 @@ namespace FEBuilderGBA.Core.Tests
                 var clone = new FakeClone();
                 var update = new FakeUpdate { ReturnCode = 128 };
                 var r = Patch2GitService.InitializeOrUpdateCore(
-                    baseDir, "git", "url", _ => true, clone.Op, update.Op, null);
+                    baseDir, "git", "url", _ => true, clone.Op, update.Op, null!);
 
                 Assert.Equal(Patch2GitResultKind.Failed, r.Kind);
                 Assert.Equal(128, r.ExitCode);
@@ -127,7 +127,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 var clone = new FakeClone { ReturnCode = 0, CreateOnSuccess = true };
                 var r = Patch2GitService.InitializeOrUpdateCore(
-                    baseDir, "git", "url", _ => false, clone.Op, new FakeUpdate().Op, null);
+                    baseDir, "git", "url", _ => false, clone.Op, new FakeUpdate().Op, null!);
 
                 Assert.Equal(Patch2GitResultKind.Success, r.Kind);
                 Assert.True(r.WasClone);
@@ -152,7 +152,7 @@ namespace FEBuilderGBA.Core.Tests
 
                 var clone = new FakeClone { ReturnCode = 0, CreateOnSuccess = true };
                 var r = Patch2GitService.InitializeOrUpdateCore(
-                    baseDir, "git", "url", _ => false, clone.Op, new FakeUpdate().Op, null);
+                    baseDir, "git", "url", _ => false, clone.Op, new FakeUpdate().Op, null!);
 
                 Assert.Equal(Patch2GitResultKind.Success, r.Kind);
                 Assert.True(r.WasClone);
@@ -175,7 +175,7 @@ namespace FEBuilderGBA.Core.Tests
 
                 var clone = new FakeClone { ReturnCode = 128, CreateOnSuccess = false };
                 var r = Patch2GitService.InitializeOrUpdateCore(
-                    baseDir, "git", "url", _ => false, clone.Op, new FakeUpdate().Op, null);
+                    baseDir, "git", "url", _ => false, clone.Op, new FakeUpdate().Op, null!);
 
                 Assert.Equal(Patch2GitResultKind.Failed, r.Kind);
                 Assert.True(r.WasClone);
@@ -200,7 +200,7 @@ namespace FEBuilderGBA.Core.Tests
 
                 var clone = new FakeClone { ReturnCode = 0, CreateOnSuccess = true };
                 var r = Patch2GitService.InitializeOrUpdateCore(
-                    baseDir, "git", "url", _ => false, clone.Op, new FakeUpdate().Op, null);
+                    baseDir, "git", "url", _ => false, clone.Op, new FakeUpdate().Op, null!);
 
                 Assert.Equal(Patch2GitResultKind.Success, r.Kind);
                 Assert.False(clone.TargetExistedAtCall);
@@ -223,7 +223,7 @@ namespace FEBuilderGBA.Core.Tests
 
                 var clone = new FakeClone { ReturnCode = 1, CreateOnSuccess = false };
                 var r = Patch2GitService.InitializeOrUpdateCore(
-                    baseDir, "git", "url", _ => false, clone.Op, new FakeUpdate().Op, null);
+                    baseDir, "git", "url", _ => false, clone.Op, new FakeUpdate().Op, null!);
 
                 Assert.Equal(Patch2GitResultKind.Failed, r.Kind);
                 Assert.True(File.Exists(Path.Combine(patchDir, "stray.txt")));  // restored
@@ -247,7 +247,7 @@ namespace FEBuilderGBA.Core.Tests
                     (g, u, t, p, l) => throw new InvalidOperationException("boom");
 
                 var r = Patch2GitService.InitializeOrUpdateCore(
-                    baseDir, "git", "url", _ => false, throwingClone, new FakeUpdate().Op, null);
+                    baseDir, "git", "url", _ => false, throwingClone, new FakeUpdate().Op, null!);
 
                 // The clone threw after the move, but no exception escapes and the original dir is restored.
                 Assert.Equal(Patch2GitResultKind.Failed, r.Kind);
@@ -270,7 +270,7 @@ namespace FEBuilderGBA.Core.Tests
                     (g, r, p, l, u) => throw new InvalidOperationException("kaboom");
 
                 var res = Patch2GitService.InitializeOrUpdateCore(
-                    baseDir, "git", "url", _ => true, new FakeClone().Op, throwingUpdate, null);
+                    baseDir, "git", "url", _ => true, new FakeClone().Op, throwingUpdate, null!);
 
                 Assert.Equal(Patch2GitResultKind.Failed, res.Kind);
                 Assert.False(res.WasClone);
@@ -285,7 +285,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.True(Patch2GitService.TryEnter());   // simulate an in-progress operation
             try
             {
-                var r = Patch2GitService.InitializeOrUpdate("any", null, null);
+                var r = Patch2GitService.InitializeOrUpdate("any", null!, null!);
                 Assert.Equal(Patch2GitResultKind.AlreadyRunning, r.Kind);
             }
             finally

@@ -31,7 +31,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void FindFreeSpace_NullRom_ReturnsNotFound()
         {
-            Assert.Equal(U.NOT_FOUND, DataExpansionCore.FindFreeSpace(null, 16));
+            Assert.Equal(U.NOT_FOUND, DataExpansionCore.FindFreeSpace(null!, 16));
         }
 
         [Fact]
@@ -100,7 +100,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetTableInfo_NullRom_ReturnsNull()
         {
-            Assert.Null(DataExpansionCore.GetTableInfo(null, 0, 4));
+            Assert.Null(DataExpansionCore.GetTableInfo(null!, 0, 4));
         }
 
         [Fact]
@@ -197,7 +197,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ExpandTable_NullRom_Fails()
         {
-            var result = DataExpansionCore.ExpandTable(null, 0, 8, 1);
+            var result = DataExpansionCore.ExpandTable(null!, 0, 8, 1);
             Assert.False(result.Success);
             Assert.Contains("null", result.Error);
         }
@@ -526,7 +526,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ExpandTableTo_NullRom_Fails()
         {
-            var result = DataExpansionCore.ExpandTableTo(null, 0, 8, 1, 5);
+            var result = DataExpansionCore.ExpandTableTo(null!, 0, 8, 1, 5);
             Assert.False(result.Success);
         }
 

@@ -116,7 +116,7 @@ namespace FEBuilderGBA.Core.Tests
                     "PATCHED_IF:0x500=0x99 0x42\n");
 
                 var ids = new HashSet<uint>();
-                PatchTextRefScannerCore.CollectUsedRefs(rom, ids, null);
+                PatchTextRefScannerCore.CollectUsedRefs(rom, ids, null!);
 
                 Assert.Contains(0x1234u, ids);
             });
@@ -149,7 +149,7 @@ namespace FEBuilderGBA.Core.Tests
                     "PATCHED_IF:$GREP1 0x77 0x88 0x99=0x77 0x88 0x99\n");
 
                 var ids = new HashSet<uint>();
-                PatchTextRefScannerCore.CollectUsedRefs(rom, ids, null);
+                PatchTextRefScannerCore.CollectUsedRefs(rom, ids, null!);
 
                 Assert.Contains(0x3456u, ids);
             });
@@ -183,7 +183,7 @@ namespace FEBuilderGBA.Core.Tests
                     "PATCHED_IF:$GREP1 0x77 0x88 0x99=0x77 0x88 0x99\n");
 
                 var ids = new HashSet<uint>();
-                PatchTextRefScannerCore.CollectUsedRefs(rom, ids, null);
+                PatchTextRefScannerCore.CollectUsedRefs(rom, ids, null!);
 
                 Assert.DoesNotContain(0x3457u, ids);
             });
@@ -222,7 +222,7 @@ namespace FEBuilderGBA.Core.Tests
                     new byte[] { 0x01, 0x02, 0x03, 0x04 });
 
                 var ids = new HashSet<uint>();
-                PatchTextRefScannerCore.CollectUsedRefs(rom, ids, null);
+                PatchTextRefScannerCore.CollectUsedRefs(rom, ids, null!);
 
                 Assert.Contains(0x1357u, ids);
             });

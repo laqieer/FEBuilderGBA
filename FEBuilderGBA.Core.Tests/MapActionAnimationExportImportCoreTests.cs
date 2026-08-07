@@ -202,7 +202,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 CoreState.ROM = null!;
                 string error = MapActionAnimationExportImportCore.ImportScript(
-                    null, POINTER_ADDR, "/tmp/nonexistent.txt", _ => null);
+                    null!, POINTER_ADDR, "/tmp/nonexistent.txt", _ => null);
                 Assert.False(string.IsNullOrEmpty(error));
             }
             finally
@@ -549,7 +549,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ReadPaletteFromRom_NullRom_ReturnsNull()
         {
-            byte[] result = MapActionAnimationExportImportCore.ReadPaletteFromRom(null, 0x100, 16);
+            byte[] result = MapActionAnimationExportImportCore.ReadPaletteFromRom(null!, 0x100, 16);
             Assert.Null(result);
         }
 
@@ -583,7 +583,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void PadGBAPaletteTo16_NullInput_ReturnsZeroPalette()
         {
-            byte[] result = MapActionAnimationExportImportCore.PadGBAPaletteTo16(null);
+            byte[] result = MapActionAnimationExportImportCore.PadGBAPaletteTo16(null!);
             Assert.Equal(32, result.Length);
             foreach (byte b in result) Assert.Equal((byte)0, b);
         }
@@ -603,11 +603,11 @@ namespace FEBuilderGBA.Core.Tests
         /// methods the Export path actually touches need to work.</summary>
         class SyntheticImageService : IImageService
         {
-            public IImage CreateImage(int width, int height) => new SyntheticIndexedImage(width, height, null);
+            public IImage CreateImage(int width, int height) => new SyntheticIndexedImage(width, height, null!);
             public IImage CreateIndexedImage(int width, int height, byte[] gbaPalette, int paletteColorCount)
                 => new SyntheticIndexedImage(width, height, gbaPalette);
-            public IImage LoadImage(string filePath) => new SyntheticIndexedImage(64, 64, null);
-            public IImage LoadImageFromBytes(byte[] pngData) => new SyntheticIndexedImage(64, 64, null);
+            public IImage LoadImage(string filePath) => new SyntheticIndexedImage(64, 64, null!);
+            public IImage LoadImageFromBytes(byte[] pngData) => new SyntheticIndexedImage(64, 64, null!);
 
             public void GBAColorToRGBA(ushort gbaColor, out byte r, out byte g, out byte b)
             {

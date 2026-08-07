@@ -21,7 +21,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(0, snapshot.ExecutableLastWriteUtcTicks);
             Assert.Equal("", snapshot.ExecutableSha256);
 
-            FEMapCreatorSetupSnapshot snapshotWhitespace = FEMapCreatorProfileCore.Validate("   ", null);
+            FEMapCreatorSetupSnapshot snapshotWhitespace = FEMapCreatorProfileCore.Validate("   ", null!);
             Assert.Equal(FEMapCreatorSetupStatus.NotConfigured, snapshotWhitespace.Status);
         }
 

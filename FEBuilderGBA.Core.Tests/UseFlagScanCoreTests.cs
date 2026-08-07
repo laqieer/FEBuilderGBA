@@ -349,7 +349,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Scan_NullRom_ReturnsEmpty()
         {
-            var list = UseFlagScanCore.Scan(null, 0u);
+            var list = UseFlagScanCore.Scan(null!, 0u);
             Assert.NotNull(list);
             Assert.Empty(list);
         }

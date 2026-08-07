@@ -217,7 +217,7 @@ namespace FEBuilderGBA.Core.Tests
                 PlantEventStreams(rom);
                 byte[] before = (byte[])rom.Data.Clone();
 
-                bool ok = ImageWorldMapCore.ImportEvent(rom, null, SRC_W, SRC_H, out string err);
+                bool ok = ImageWorldMapCore.ImportEvent(rom, null!, SRC_W, SRC_H, out string err);
 
                 Assert.False(ok);
                 Assert.False(string.IsNullOrEmpty(err));
@@ -263,7 +263,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ImportEvent_NullRom_Fails()
         {
-            bool ok = ImageWorldMapCore.ImportEvent(null, MakeTwoRegionRgba(SRC_W, SRC_H), SRC_W, SRC_H, out string err);
+            bool ok = ImageWorldMapCore.ImportEvent(null!, MakeTwoRegionRgba(SRC_W, SRC_H), SRC_W, SRC_H, out string err);
             Assert.False(ok);
             Assert.False(string.IsNullOrEmpty(err));
         }

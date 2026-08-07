@@ -46,7 +46,7 @@ namespace FEBuilderGBA.Core.Tests
                 maxEntries: 10,
                 maxBytes: 1024,
                 maxTextFileBytes: 1024,
-                beforeFileOpen: null);
+                beforeFileOpen: null!);
 
             Assert.Equal(new[] { "nested" }, snapshot.Directories);
             Assert.Equal(
@@ -74,7 +74,7 @@ namespace FEBuilderGBA.Core.Tests
                         maxEntries: 4,
                         maxBytes: 1024,
                         maxTextFileBytes: 1024,
-                        beforeFileOpen: null,
+                        beforeFileOpen: null!,
                         disallowedFileIdentity: null));
                 Assert.Contains("Hard-linked", error.Message);
 
@@ -84,7 +84,7 @@ namespace FEBuilderGBA.Core.Tests
                     maxEntries: 4,
                     maxBytes: 1024,
                     maxTextFileBytes: 1024,
-                    beforeFileOpen: null).Files);
+                    beforeFileOpen: null!).Files);
             }
             finally
             {
@@ -116,7 +116,7 @@ namespace FEBuilderGBA.Core.Tests
                     maxEntries: 4,
                     maxBytes: 1024,
                     maxTextFileBytes: 1024,
-                    beforeFileOpen: null,
+                    beforeFileOpen: null!,
                     disallowedFileIdentity: reportIdentity));
             Assert.Contains("aliases the external report", error.Message);
         }
@@ -299,7 +299,7 @@ namespace FEBuilderGBA.Core.Tests
                     .TryDeleteReservedDirectoryIdentityBound(
                         stage,
                         identity,
-                        beforeFinalIdentityCheck: null,
+                        beforeFinalIdentityCheck: null!,
                         out string cleanupError));
             Assert.Contains("replaced", cleanupError);
             Assert.True(File.Exists(replacement));
@@ -369,9 +369,9 @@ namespace FEBuilderGBA.Core.Tests
                     foreign = stage;
                     File.WriteAllText(foreign, "foreign");
                 },
-                afterPublishBeforeVerificationForTest: null,
-                beforeCleanupFinalIdentityCheckForTest: null,
-                deleteStagingForTest: null,
+                afterPublishBeforeVerificationForTest: null!,
+                beforeCleanupFinalIdentityCheckForTest: null!,
+                deleteStagingForTest: null!,
                 out string error);
 
             Assert.False(success);
@@ -392,14 +392,14 @@ namespace FEBuilderGBA.Core.Tests
             bool success = BuildfileBuildCore.PublishBytesNoReplace(
                 Encoding.UTF8.GetBytes("expected"),
                 destination,
-                beforePublishForTest: null,
+                beforePublishForTest: null!,
                 afterPublishBeforeVerificationForTest: (_, dest) =>
                 {
                     File.Move(dest, retained);
                     File.WriteAllText(dest, "foreign");
                 },
-                beforeCleanupFinalIdentityCheckForTest: null,
-                deleteStagingForTest: null,
+                beforeCleanupFinalIdentityCheckForTest: null!,
+                deleteStagingForTest: null!,
                 out string error);
 
             Assert.False(success);
@@ -421,14 +421,14 @@ namespace FEBuilderGBA.Core.Tests
                 Encoding.UTF8.GetBytes("expected"),
                 destination,
                 (_, _) => throw new IOException("forced pre-move failure"),
-                afterPublishBeforeVerificationForTest: null,
+                afterPublishBeforeVerificationForTest: null!,
                 beforeCleanupFinalIdentityCheckForTest: quarantine =>
                 {
                     File.Move(quarantine, retained);
                     foreign = quarantine;
                     File.WriteAllText(foreign, "foreign");
                 },
-                deleteStagingForTest: null,
+                deleteStagingForTest: null!,
                 out string error);
 
             Assert.False(success);
@@ -449,16 +449,16 @@ namespace FEBuilderGBA.Core.Tests
             bool success = BuildfileBuildCore.PublishBytesNoReplace(
                 Encoding.UTF8.GetBytes("expected"),
                 destination,
-                beforePublishForTest: null,
-                afterPublishBeforeVerificationForTest: null,
+                beforePublishForTest: null!,
+                afterPublishBeforeVerificationForTest: null!,
                 afterPublishedVerificationBeforeReleaseForTest: (_, dest) =>
                 {
                     File.Move(dest, retained);
                     File.WriteAllText(dest, "foreign");
                 },
-                beforeCleanupFinalIdentityCheckForTest: null,
-                afterCleanupFinalIdentityCheckForTest: null,
-                deleteStagingForTest: null,
+                beforeCleanupFinalIdentityCheckForTest: null!,
+                afterCleanupFinalIdentityCheckForTest: null!,
+                deleteStagingForTest: null!,
                 out string error);
 
             Assert.False(success);
@@ -480,16 +480,16 @@ namespace FEBuilderGBA.Core.Tests
                 Encoding.UTF8.GetBytes("expected"),
                 destination,
                 (_, _) => throw new IOException("forced pre-move failure"),
-                afterPublishBeforeVerificationForTest: null,
-                afterPublishedVerificationBeforeReleaseForTest: null,
-                beforeCleanupFinalIdentityCheckForTest: null,
+                afterPublishBeforeVerificationForTest: null!,
+                afterPublishedVerificationBeforeReleaseForTest: null!,
+                beforeCleanupFinalIdentityCheckForTest: null!,
                 afterCleanupFinalIdentityCheckForTest: quarantine =>
                 {
                     File.Move(quarantine, retained);
                     foreign = quarantine;
                     File.WriteAllText(foreign, "foreign");
                 },
-                deleteStagingForTest: null,
+                deleteStagingForTest: null!,
                 out string error);
 
             Assert.False(success);

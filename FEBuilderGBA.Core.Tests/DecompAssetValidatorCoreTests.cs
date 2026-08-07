@@ -109,7 +109,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void IndexedPngReader_Null_OkFalse_NoThrow()
         {
-            IndexedPngInfo info = IndexedPngReader.Read(null);
+            IndexedPngInfo info = IndexedPngReader.Read(null!);
             Assert.False(info.Ok);
         }
 
@@ -472,7 +472,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ParseKind_Unknown_Null()
         {
             Assert.Null(DecompAssetValidatorCore.ParseKind("widget"));
-            Assert.Null(DecompAssetValidatorCore.ParseKind(null));
+            Assert.Null(DecompAssetValidatorCore.ParseKind(null!));
         }
 
         [SkippableFact]

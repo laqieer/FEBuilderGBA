@@ -61,7 +61,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(0x08002000u, map.SearchName("Bar"));
             Assert.Equal(U.NOT_FOUND, map.SearchName("Nope"));
             Assert.Equal(U.NOT_FOUND, map.SearchName(""));
-            Assert.Equal(U.NOT_FOUND, map.SearchName(null));
+            Assert.Equal(U.NOT_FOUND, map.SearchName(null!));
         }
 
         // ---- 2: GetName ------------------------------------------------------
@@ -439,7 +439,7 @@ namespace FEBuilderGBA.Core.Tests
             for (int i = 0; i < 0x40; i++) sourceData[0x300 + i] = (byte)(0x11 + i);
 
             var r = PointerToolAutoSearchCore.AutoSearch(
-                sourceData, targetData, 0x08000300u, 0x102u, null, null, warningLevel: 1);
+                sourceData, targetData, 0x08000300u, 0x102u, null!, null!, warningLevel: 1);
 
             Assert.False(r.Found);
             Assert.Equal("none", r.Hit);
@@ -466,7 +466,7 @@ namespace FEBuilderGBA.Core.Tests
             WritePtr(targetData, 0x100, 0x08000800u);
 
             var r = PointerToolAutoSearchCore.AutoSearch(
-                sourceData, targetData, 0x08000400u, 0x102u, null, null, warningLevel: 1);
+                sourceData, targetData, 0x08000400u, 0x102u, null!, null!, warningLevel: 1);
 
             Assert.True(r.Found);
             Assert.Equal(U.toPointer(0x800u), r.DirectAddr);
@@ -502,7 +502,7 @@ namespace FEBuilderGBA.Core.Tests
             WritePtr(targetData, 0x100, U.toPointer(targetOffset));
 
             var r = PointerToolAutoSearchCore.AutoSearch(
-                sourceData, targetData, oddAddr, 0x102u, null, null, warningLevel: 1);
+                sourceData, targetData, oddAddr, 0x102u, null!, null!, warningLevel: 1);
 
             // Both ...01 and ...03 mask bit0 to their even base and find the
             // target at 0x800 — proving the bit0 mask is a strict superset of
@@ -518,20 +518,20 @@ namespace FEBuilderGBA.Core.Tests
         {
             var ok = new byte[0x1000];
 
-            Assert.False(PointerToolAutoSearchCore.AutoSearch(null, ok, 0x08000200u, 0x102u, null, null).Found);
-            Assert.False(PointerToolAutoSearchCore.AutoSearch(ok, null, 0x08000200u, 0x102u, null, null).Found);
+            Assert.False(PointerToolAutoSearchCore.AutoSearch(null!, ok, 0x08000200u, 0x102u, null!, null!).Found);
+            Assert.False(PointerToolAutoSearchCore.AutoSearch(ok, null!, 0x08000200u, 0x102u, null!, null!).Found);
             // Buffers below the 0x400 minimum.
-            Assert.False(PointerToolAutoSearchCore.AutoSearch(new byte[0x100], ok, 0x08000200u, 0x102u, null, null).Found);
-            Assert.False(PointerToolAutoSearchCore.AutoSearch(ok, new byte[0x100], 0x08000200u, 0x102u, null, null).Found);
+            Assert.False(PointerToolAutoSearchCore.AutoSearch(new byte[0x100], ok, 0x08000200u, 0x102u, null!, null!).Found);
+            Assert.False(PointerToolAutoSearchCore.AutoSearch(ok, new byte[0x100], 0x08000200u, 0x102u, null!, null!).Found);
             // Zero address.
-            Assert.False(PointerToolAutoSearchCore.AutoSearch(ok, ok, 0u, 0x102u, null, null).Found);
+            Assert.False(PointerToolAutoSearchCore.AutoSearch(ok, ok, 0u, 0x102u, null!, null!).Found);
         }
 
         [Fact]
         public void FindOtherROMData_NullBuffers_False_NoThrow()
         {
-            Assert.False(PointerToolAutoSearchCore.FindOtherROMData(null, new byte[16], 0x08000200u, 0, 16, false, false, out _, out _));
-            Assert.False(PointerToolAutoSearchCore.FindOtherROMData(new byte[16], null, 0x08000200u, 0, 16, false, false, out _, out _));
+            Assert.False(PointerToolAutoSearchCore.FindOtherROMData(null!, new byte[16], 0x08000200u, 0, 16, false, false, out _, out _));
+            Assert.False(PointerToolAutoSearchCore.FindOtherROMData(new byte[16], null!, 0x08000200u, 0, 16, false, false, out _, out _));
             // Non-pointer source.
             Assert.False(PointerToolAutoSearchCore.FindOtherROMData(new byte[0x1000], new byte[0x1000], 0x00000001u, 0, 16, false, false, out _, out _));
         }
@@ -569,7 +569,7 @@ namespace FEBuilderGBA.Core.Tests
 
             var ex = Record.Exception(() =>
             {
-                var r = PointerToolAutoSearchCore.AutoSearch(sourceData, targetData, 0x08000300u, 0x102u, null, null);
+                var r = PointerToolAutoSearchCore.AutoSearch(sourceData, targetData, 0x08000300u, 0x102u, null!, null!);
                 Assert.False(r.Found);
             });
             Assert.Null(ex);

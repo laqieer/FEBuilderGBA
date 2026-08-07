@@ -157,7 +157,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Event_NullRom_ReturnsNull()
         {
-            WithRom((_) => Assert.Null(ImageWorldMapCore.TryRenderEvent(null)));
+            WithRom((_) => Assert.Null(ImageWorldMapCore.TryRenderEvent(null!)));
         }
 
         // =================================================================
@@ -281,7 +281,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void MainFieldMap_NullRom_ReturnsNull()
         {
-            WithRom((_) => Assert.Null(ImageWorldMapCore.TryRenderMainFieldMap(null)));
+            WithRom((_) => Assert.Null(ImageWorldMapCore.TryRenderMainFieldMap(null!)));
         }
 
         [Fact]
@@ -454,7 +454,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Road_NullRom_ReturnsNull()
         {
-            WithRom((_) => Assert.Null(ImageWorldMapCore.TryRenderRoad(null)));
+            WithRom((_) => Assert.Null(ImageWorldMapCore.TryRenderRoad(null!)));
         }
 
         // =================================================================

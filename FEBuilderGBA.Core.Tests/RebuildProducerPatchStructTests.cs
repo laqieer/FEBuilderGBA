@@ -1283,10 +1283,10 @@ namespace FEBuilderGBA.Core.Tests
             var rom = MakeRom();
             var list = new List<Address>();
             var patch = MakePatch("p", ("TYPE", "STRUCT"), ("ADDRESS", "0x3000"), ("DATASIZE", "4"), ("DATACOUNT", "1"));
-            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchStruct(null, list, patch, false));
-            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchStruct(rom, null, patch, false));
-            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchStruct(rom, list, null, false));
-            var noParam = new PatchInstallCore.PatchSt { Name = "p", PatchFileName = "p.txt", Param = null };
+            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchStruct(null!, list, patch, false));
+            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchStruct(rom, null!, patch, false));
+            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchStruct(rom, list, null!, false));
+            var noParam = new PatchInstallCore.PatchSt { Name = "p", PatchFileName = "p.txt", Param = null! };
             Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchStruct(rom, list, noParam, false));
         }
 

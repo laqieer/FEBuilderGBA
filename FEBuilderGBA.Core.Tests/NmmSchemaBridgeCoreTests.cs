@@ -250,14 +250,14 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ParseNmm_Null_NoThrow_OkFalse()
         {
-            NmmParseResult p = NmmSchemaBridgeCore.ParseNmm(null);
+            NmmParseResult p = NmmSchemaBridgeCore.ParseNmm(null!);
             Assert.False(p.Ok);
         }
 
         [Fact]
         public void BuildManifestTablesEntry_NullParsed_NoThrow()
         {
-            string json = NmmSchemaBridgeCore.BuildManifestTablesEntry(null, "t");
+            string json = NmmSchemaBridgeCore.BuildManifestTablesEntry(null!, "t");
             using JsonDocument doc = JsonDocument.Parse(json); // "{}" is valid JSON
             Assert.Equal(JsonValueKind.Object, doc.RootElement.ValueKind);
         }
@@ -265,7 +265,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ExportTableToNmm_NullOwner_NoThrow()
         {
-            string nmm = NmmSchemaBridgeCore.ExportTableToNmm(null, out List<string> warnings);
+            string nmm = NmmSchemaBridgeCore.ExportTableToNmm(null!, out List<string> warnings);
             Assert.False(string.IsNullOrEmpty(nmm));
             Assert.NotEmpty(warnings);
             // A stub still parses as a valid NMM header.

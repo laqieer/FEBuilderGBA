@@ -57,7 +57,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void LineToEventByte_NullOrEmpty_ReturnsEmpty()
         {
-            Assert.Empty(EventTemplateCore.LineToEventByte(null));
+            Assert.Empty(EventTemplateCore.LineToEventByte(null!));
             Assert.Empty(EventTemplateCore.LineToEventByte(""));
             Assert.Empty(EventTemplateCore.LineToEventByte("   "));
         }
@@ -200,7 +200,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetToplevelBlank_NullRom_ReturnsEmpty()
         {
-            Assert.Empty(EventTemplateCore.GetToplevelBlank(null));
+            Assert.Empty(EventTemplateCore.GetToplevelBlank(null!));
         }
 
         // ---- TryGenerateButton — accurate failure reasons --------------------
@@ -209,7 +209,7 @@ namespace FEBuilderGBA.Core.Tests
         public void TryGenerateButton_NoRom_ReturnsNoRom()
         {
             var btn = EventTemplateCore.GetTemplateButtons(1)[0];
-            var r = EventTemplateCore.TryGenerateButton(null, btn, out byte[] bytes);
+            var r = EventTemplateCore.TryGenerateButton(null!, btn, out byte[] bytes);
             Assert.Equal(EventTemplateCore.GenerateResult.NoRom, r);
             Assert.Null(bytes);
         }
@@ -396,7 +396,7 @@ namespace FEBuilderGBA.Core.Tests
         public void TryGenerateButtonCodes_NoRom_ReturnsNoRom_EmptyCodes()
         {
             var btn = EventTemplateCore.GetTemplateButtons(1)[0];
-            var r = EventTemplateCore.TryGenerateButtonCodes(null, btn, out var codes);
+            var r = EventTemplateCore.TryGenerateButtonCodes(null!, btn, out var codes);
             Assert.Equal(EventTemplateCore.GenerateResult.NoRom, r);
             Assert.NotNull(codes);
             Assert.Empty(codes);
@@ -406,9 +406,9 @@ namespace FEBuilderGBA.Core.Tests
         public void DisassembleToCodes_NullOrEmpty_ReturnsEmpty()
         {
             var rom = MakeFE8U();
-            Assert.Empty(EventTemplateCore.DisassembleToCodes(rom, null));
+            Assert.Empty(EventTemplateCore.DisassembleToCodes(rom, null!));
             Assert.Empty(EventTemplateCore.DisassembleToCodes(rom, new byte[0]));
-            Assert.Empty(EventTemplateCore.DisassembleToCodes(null, new byte[] { 0, 0, 0, 0 }));
+            Assert.Empty(EventTemplateCore.DisassembleToCodes(null!, new byte[] { 0, 0, 0, 0 }));
         }
 
         [Fact]
@@ -578,7 +578,7 @@ namespace FEBuilderGBA.Core.Tests
                 var host = new EmptyHost();
 
                 // null host => refuse (gate holds).
-                var rNull = EventTemplateCore.TryGenerateBrowserTemplateCodesWithContext(rom, cond, null, out var noCodes);
+                var rNull = EventTemplateCore.TryGenerateBrowserTemplateCodesWithContext(rom, cond, null!, out var noCodes);
                 Assert.Equal(EventTemplateCore.GenerateResult.RequiresEditorContext, rNull);
                 Assert.Empty(noCodes);
 

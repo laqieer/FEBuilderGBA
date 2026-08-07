@@ -109,7 +109,7 @@ namespace FEBuilderGBA.Core.Tests
             var rom = BuildSongWithTrack(new byte[] { 0xBE, 100, 0xB1 }, out uint off);
             var track = SongMidiCore.ParseSingleTrackFromDataOffset(rom, off);
 
-            Assert.Equal("", SongTrackChangeCore.ApplyTrackChange(rom, track, null, +10, 0, 0, false));
+            Assert.Equal("", SongTrackChangeCore.ApplyTrackChange(rom, track, null!, +10, 0, 0, false));
             Assert.Equal(110, rom.Data[off + 1]); // normal 2-byte command -> value at addr+1
         }
 
@@ -119,7 +119,7 @@ namespace FEBuilderGBA.Core.Tests
             var rom = BuildSongWithTrack(new byte[] { 0xBE, 120, 0xB1 }, out uint off);
             var track = SongMidiCore.ParseSingleTrackFromDataOffset(rom, off);
 
-            Assert.Equal("", SongTrackChangeCore.ApplyTrackChange(rom, track, null, +50, 0, 0, false));
+            Assert.Equal("", SongTrackChangeCore.ApplyTrackChange(rom, track, null!, +50, 0, 0, false));
             Assert.Equal(127, rom.Data[off + 1]); // 120 + 50 = 170 -> clamp 127
         }
 
@@ -129,7 +129,7 @@ namespace FEBuilderGBA.Core.Tests
             var rom = BuildSongWithTrack(new byte[] { 0xBE, 10, 0xB1 }, out uint off);
             var track = SongMidiCore.ParseSingleTrackFromDataOffset(rom, off);
 
-            Assert.Equal("", SongTrackChangeCore.ApplyTrackChange(rom, track, null, -50, 0, 0, false));
+            Assert.Equal("", SongTrackChangeCore.ApplyTrackChange(rom, track, null!, -50, 0, 0, false));
             Assert.Equal(0, rom.Data[off + 1]); // 10 - 50 = -40 -> clamp 0
         }
 
@@ -139,7 +139,7 @@ namespace FEBuilderGBA.Core.Tests
             var rom = BuildSongWithTrack(new byte[] { 0xBF, 100, 0xB1 }, out uint off);
             var track = SongMidiCore.ParseSingleTrackFromDataOffset(rom, off);
 
-            Assert.Equal("", SongTrackChangeCore.ApplyTrackChange(rom, track, null, 0, +50, 0, false));
+            Assert.Equal("", SongTrackChangeCore.ApplyTrackChange(rom, track, null!, 0, +50, 0, false));
             Assert.Equal(127, rom.Data[off + 1]); // 100 + 50 = 150 -> clamp 127
         }
 
@@ -155,7 +155,7 @@ namespace FEBuilderGBA.Core.Tests
             var track = SongMidiCore.ParseSingleTrackFromDataOffset(rom, off);
 
             // 200 + 100 = 300 -> clamp 255 (a 0..127 clamp would WRONGLY give 127).
-            Assert.Equal("", SongTrackChangeCore.ApplyTrackChange(rom, track, null, 0, 0, +100, false));
+            Assert.Equal("", SongTrackChangeCore.ApplyTrackChange(rom, track, null!, 0, 0, +100, false));
             Assert.Equal(255, rom.Data[off + 1]);
         }
 
@@ -166,7 +166,7 @@ namespace FEBuilderGBA.Core.Tests
             var rom = BuildSongWithTrack(new byte[] { 0xBB, 100, 0xB1 }, out uint off);
             var track = SongMidiCore.ParseSingleTrackFromDataOffset(rom, off);
 
-            Assert.Equal("", SongTrackChangeCore.ApplyTrackChange(rom, track, null, 0, 0, +50, false));
+            Assert.Equal("", SongTrackChangeCore.ApplyTrackChange(rom, track, null!, 0, 0, +50, false));
             Assert.Equal(150, rom.Data[off + 1]);
         }
 
@@ -176,7 +176,7 @@ namespace FEBuilderGBA.Core.Tests
             var rom = BuildSongWithTrack(new byte[] { 0xBB, 20, 0xB1 }, out uint off);
             var track = SongMidiCore.ParseSingleTrackFromDataOffset(rom, off);
 
-            Assert.Equal("", SongTrackChangeCore.ApplyTrackChange(rom, track, null, 0, 0, -50, false));
+            Assert.Equal("", SongTrackChangeCore.ApplyTrackChange(rom, track, null!, 0, 0, -50, false));
             Assert.Equal(0, rom.Data[off + 1]);
         }
 
@@ -208,7 +208,7 @@ namespace FEBuilderGBA.Core.Tests
             // VOL +10: the normal VOL(64)->74 at off+1 (addr+1 write); the
             // abbreviated VOL(5)->15 written AT c.addr (off+2), NOT off+3. The FINE
             // byte at off+3 must stay 0xB1 (a wrong addr+1 write would clobber it).
-            Assert.Equal("", SongTrackChangeCore.ApplyTrackChange(rom, track, null, +10, 0, 0, false));
+            Assert.Equal("", SongTrackChangeCore.ApplyTrackChange(rom, track, null!, +10, 0, 0, false));
             Assert.Equal(74, rom.Data[off + 1]);   // normal VOL 64+10=74 at addr+1
             Assert.Equal(15, rom.Data[off + 2]);   // abbreviated VOL 5+10=15 written AT c.addr
             Assert.Equal(0xB1, rom.Data[off + 3]); // FINE untouched
@@ -228,7 +228,7 @@ namespace FEBuilderGBA.Core.Tests
             var rom = BuildSongWithTrack(bytes, out uint off);
             var track = SongMidiCore.ParseSingleTrackFromDataOffset(rom, off);
 
-            Assert.Equal("", SongTrackChangeCore.ApplyTrackChange(rom, track, null, +10, 0, 0, changeVelocity: true));
+            Assert.Equal("", SongTrackChangeCore.ApplyTrackChange(rom, track, null!, +10, 0, 0, changeVelocity: true));
             Assert.Equal(60, rom.Data[off + 1]); // key untouched
             Assert.Equal(90, rom.Data[off + 2]); // velocity 80 + 10 at addr+2
         }
@@ -249,7 +249,7 @@ namespace FEBuilderGBA.Core.Tests
             var note = track.codes.First(c => c.type == 60);
             Assert.Equal(80u, note.value);
 
-            Assert.Equal("", SongTrackChangeCore.ApplyTrackChange(rom, track, null, +5, 0, 0, changeVelocity: true));
+            Assert.Equal("", SongTrackChangeCore.ApplyTrackChange(rom, track, null!, +5, 0, 0, changeVelocity: true));
             Assert.Equal(85, rom.Data[off + 1]); // velocity 80 + 5 at addr+1
         }
 
@@ -263,7 +263,7 @@ namespace FEBuilderGBA.Core.Tests
 
             // dVol != 0 but changeVelocity false -> velocity untouched (no VOL code
             // present, so nothing changes at all).
-            Assert.Equal("", SongTrackChangeCore.ApplyTrackChange(rom, track, null, +10, 0, 0, changeVelocity: false));
+            Assert.Equal("", SongTrackChangeCore.ApplyTrackChange(rom, track, null!, +10, 0, 0, changeVelocity: false));
             Assert.Equal(before, rom.Data);
         }
 
@@ -277,7 +277,7 @@ namespace FEBuilderGBA.Core.Tests
 
             // changeVelocity true but dVol == 0 -> WF gates velocity on changeVol
             // (dVol != 0), so velocity is untouched.
-            Assert.Equal("", SongTrackChangeCore.ApplyTrackChange(rom, track, null, 0, 0, 0, changeVelocity: true));
+            Assert.Equal("", SongTrackChangeCore.ApplyTrackChange(rom, track, null!, 0, 0, 0, changeVelocity: true));
             Assert.Equal(before, rom.Data);
         }
 
@@ -303,7 +303,7 @@ namespace FEBuilderGBA.Core.Tests
             var track = SongMidiCore.ParseSingleTrackFromDataOffset(rom, off);
             byte[] before = (byte[])rom.Data.Clone();
 
-            Assert.Equal("", SongTrackChangeCore.ApplyTrackChange(rom, track, null, 0, 0, 0, false));
+            Assert.Equal("", SongTrackChangeCore.ApplyTrackChange(rom, track, null!, 0, 0, 0, false));
             Assert.Equal(before, rom.Data);
         }
 
@@ -315,7 +315,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ApplyTrackChange_NullRom_ReturnsErrorNoThrow()
         {
             var track = new SongMidiCore.Track();
-            string err = SongTrackChangeCore.ApplyTrackChange(null, track, Voices((5, 9)), 0, 0, 0, false);
+            string err = SongTrackChangeCore.ApplyTrackChange(null!, track, Voices((5, 9)), 0, 0, 0, false);
             Assert.NotEqual("", err);
         }
 
@@ -323,7 +323,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ApplyTrackChange_NullTrack_ReturnsErrorNoThrow()
         {
             var rom = BuildSongWithTrack(new byte[] { 0xB1 }, out _);
-            string err = SongTrackChangeCore.ApplyTrackChange(rom, null, Voices((5, 9)), 0, 0, 0, false);
+            string err = SongTrackChangeCore.ApplyTrackChange(rom, null!, Voices((5, 9)), 0, 0, 0, false);
             Assert.NotEqual("", err);
         }
 
@@ -365,7 +365,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ParseSingleTrackFromDataOffset_NullRom_ReturnsEmptyNoThrow()
         {
-            var track = SongMidiCore.ParseSingleTrackFromDataOffset(null, Track0Data);
+            var track = SongMidiCore.ParseSingleTrackFromDataOffset(null!, Track0Data);
             Assert.Empty(track.codes);
         }
 
@@ -467,7 +467,7 @@ namespace FEBuilderGBA.Core.Tests
             var ud = CoreState.Undo.NewUndoData("test");
             using (ROM.BeginUndoScope(ud))
             {
-                Assert.Equal("", SongTrackChangeCore.ApplyTrackChange(rom, track, null, +10, 0, 0, false));
+                Assert.Equal("", SongTrackChangeCore.ApplyTrackChange(rom, track, null!, +10, 0, 0, false));
             }
             Assert.Equal(60, rom.Data[Track0Data + 1]); // 50 + 10
             Assert.Single(ud.list);                     // exactly 1 undo record
@@ -540,7 +540,7 @@ namespace FEBuilderGBA.Core.Tests
 
             var tracks = SongMidiCore.ParseTracks(rom, SongAddr, 2);
             foreach (var t in tracks)
-                Assert.Equal("", SongTrackChangeCore.ApplyTrackChange(rom, t, null, +10, 0, 0, false));
+                Assert.Equal("", SongTrackChangeCore.ApplyTrackChange(rom, t, null!, +10, 0, 0, false));
 
             Assert.Equal(60, rom.Data[0x401]); // 50 + 10
             Assert.Equal(70, rom.Data[0x441]); // 60 + 10

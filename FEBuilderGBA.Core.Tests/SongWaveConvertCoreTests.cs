@@ -150,8 +150,8 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void CalculateSNR_NullsReturnZero()
         {
-            Assert.Equal(0.0, SongWaveConvertCore.CalculateSNR(null, new byte[10]));
-            Assert.Equal(0.0, SongWaveConvertCore.CalculateSNR(new byte[10], null));
+            Assert.Equal(0.0, SongWaveConvertCore.CalculateSNR(null!, new byte[10]));
+            Assert.Equal(0.0, SongWaveConvertCore.CalculateSNR(new byte[10], null!));
         }
 
         [Fact]
@@ -204,7 +204,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void LoadWavS_NullLinesIsHandled()
         {
-            bool ok = SongWaveConvertCore.LoadWavS((string[])null, out byte[] data, out string err);
+            bool ok = SongWaveConvertCore.LoadWavS((string[])null!, out byte[] data, out string err);
             Assert.False(ok);
             Assert.NotNull(data);
         }
@@ -214,7 +214,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void HasHqMixer_NullRomFalse()
         {
-            Assert.False(SongWaveConvertCore.HasHqMixer(null));
+            Assert.False(SongWaveConvertCore.HasHqMixer(null!));
         }
 
         // ---- SongSoxConvertCore ----------------------------------------------

@@ -140,9 +140,9 @@ namespace FEBuilderGBA.Core.Tests
             try
             {
                 Assert.Null(PortraitImportPreviewCore.RenderFramePreview(
-                    null, W, H, MakePalette(), 0, 0, 0, 8, 0, 0, 32, 16, 0, 0, 32, 16, 0, false));
+                    null!, W, H, MakePalette(), 0, 0, 0, 8, 0, 0, 32, 16, 0, 0, 32, 16, 0, false));
                 Assert.Null(PortraitImportPreviewCore.RenderFramePreview(
-                    MakeSheet(), W, H, null, 0, 0, 0, 8, 0, 0, 32, 16, 0, 0, 32, 16, 0, false));
+                    MakeSheet(), W, H, null!, 0, 0, 0, 8, 0, 0, 32, 16, 0, 0, 32, 16, 0, false));
                 // Too small (below 96x80).
                 Assert.Null(PortraitImportPreviewCore.RenderFramePreview(
                     new byte[80 * 70], 80, 70, MakePalette(), 0, 0, 0, 8, 0, 0, 32, 16, 0, 0, 32, 16, 0, false));

@@ -96,7 +96,7 @@ namespace FEBuilderGBA.Core.Tests
             ROM rom = MakeFE8URom();
             uint expectedSlot = PlantPatch(rom);
 
-            uint resolved = FE8SpellMenuPatchScanner.FindFE8SpellPatchPointer(rom, null);
+            uint resolved = FE8SpellMenuPatchScanner.FindFE8SpellPatchPointer(rom, null!);
             Assert.Equal(expectedSlot, resolved);
             Assert.Equal(UnitTableBase, U.toOffset(rom.u32(resolved)));
         }
@@ -105,13 +105,13 @@ namespace FEBuilderGBA.Core.Tests
         public void FindFE8SpellPatchPointer_NotFoundOnVanillaRom()
         {
             ROM rom = MakeFE8URom();
-            Assert.Equal(U.NOT_FOUND, FE8SpellMenuPatchScanner.FindFE8SpellPatchPointer(rom, null));
+            Assert.Equal(U.NOT_FOUND, FE8SpellMenuPatchScanner.FindFE8SpellPatchPointer(rom, null!));
         }
 
         [Fact]
         public void FindFE8SpellPatchPointer_NullRom_ReturnsNotFound()
         {
-            Assert.Equal(U.NOT_FOUND, FE8SpellMenuPatchScanner.FindFE8SpellPatchPointer(null, null));
+            Assert.Equal(U.NOT_FOUND, FE8SpellMenuPatchScanner.FindFE8SpellPatchPointer(null!, null!));
         }
 
         // -----------------------------------------------------------------
@@ -130,7 +130,7 @@ namespace FEBuilderGBA.Core.Tests
             WriteBytes(rom, SigPos, SpellsGetter202201);
 
             Assert.NotEqual(8, (int)rom.RomInfo.version);
-            Assert.Equal(U.NOT_FOUND, FE8SpellMenuPatchScanner.FindFE8SpellPatchPointer(rom, null));
+            Assert.Equal(U.NOT_FOUND, FE8SpellMenuPatchScanner.FindFE8SpellPatchPointer(rom, null!));
         }
 
         [Fact]
@@ -145,7 +145,7 @@ namespace FEBuilderGBA.Core.Tests
 
             if (rom.RomInfo.is_multibyte)
             {
-                Assert.Equal(U.NOT_FOUND, FE8SpellMenuPatchScanner.FindFE8SpellPatchPointer(rom, null));
+                Assert.Equal(U.NOT_FOUND, FE8SpellMenuPatchScanner.FindFE8SpellPatchPointer(rom, null!));
             }
         }
 
@@ -286,7 +286,7 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.ROM = other;
                 uint otherSlotBefore = other.u32(UnitTableBase + 1 * 4);
 
-                uint newBase = FE8SpellMenuExtendsCore.ExpandSpellList(passed, UnitTableBase, 1, 3, null);
+                uint newBase = FE8SpellMenuExtendsCore.ExpandSpellList(passed, UnitTableBase, 1, 3, null!);
                 Assert.NotEqual(U.NOT_FOUND, newBase);
 
                 // Passed rom changed; CoreState.ROM's same slot is byte-identical.

@@ -233,7 +233,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void NullRom_ReturnsZero()
         {
-            Assert.Equal(0u, UnitPaletteClassResolverCore.ResolveDefaultPreviewClass(null, 0));
+            Assert.Equal(0u, UnitPaletteClassResolverCore.ResolveDefaultPreviewClass(null!, 0));
         }
 
         [Fact]
@@ -259,7 +259,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void FindFirstClassWithAnime_NullRom_ReturnsZero()
         {
-            Assert.Equal(0u, UnitPaletteClassResolverCore.FindFirstClassWithAnime(null));
+            Assert.Equal(0u, UnitPaletteClassResolverCore.FindFirstClassWithAnime(null!));
         }
 
         [Fact]

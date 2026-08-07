@@ -127,7 +127,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void NullRom_ReturnsEmpty()
         {
-            var r = MakeVarsIDArrayCore.BuildAllUsedRefs(null);
+            var r = MakeVarsIDArrayCore.BuildAllUsedRefs(null!);
             Assert.Empty(r.TextIds);
             Assert.Empty(r.SongIds);
         }
@@ -251,7 +251,7 @@ namespace FEBuilderGBA.Core.Tests
         public void CacheEnumeration_DefaultInterface_IsEmpty()
         {
             ITextIDCache cache = new StubCache();
-            Assert.Empty(cache.EnumerateUsedTextIds(null));
+            Assert.Empty(cache.EnumerateUsedTextIds(null!));
         }
 
         [Fact]

@@ -336,9 +336,9 @@ namespace FEBuilderGBA.Core.Tests
         public void WipeJP_NullRom_NoOp_NoThrow()
         {
             var recycle = new RecycleAddress();
-            ToolTranslateROMCore.WipeJPFont(null, recycle, null);
-            ToolTranslateROMCore.WipeJPTitle(null, recycle, null);
-            ToolTranslateROMCore.WipeJPClassReelFont(null, recycle, null);
+            ToolTranslateROMCore.WipeJPFont(null!, recycle, null!);
+            ToolTranslateROMCore.WipeJPTitle(null!, recycle, null!);
+            ToolTranslateROMCore.WipeJPClassReelFont(null!, recycle, null!);
         }
 
         // ============================================================

@@ -335,7 +335,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void NullRom_ReturnsNotFound_NoThrow()
         {
-            uint result = PatchMacroAddressResolverCore.Resolve(null, "$GREP1 0xAA", "", 0x100);
+            uint result = PatchMacroAddressResolverCore.Resolve(null!, "$GREP1 0xAA", "", 0x100);
             Assert.Equal(U.NOT_FOUND, result);
         }
 
@@ -351,7 +351,7 @@ namespace FEBuilderGBA.Core.Tests
         public void NullAddrstring_ReturnsNotFound()
         {
             var rom = MakeRom();
-            uint result = PatchMacroAddressResolverCore.Resolve(rom, null, "", 0x100);
+            uint result = PatchMacroAddressResolverCore.Resolve(rom, null!, "", 0x100);
             Assert.Equal(U.NOT_FOUND, result);
         }
 
@@ -423,7 +423,7 @@ namespace FEBuilderGBA.Core.Tests
         public void GrepPatternMatchEnd_NullData_ReturnsNotFound_NoThrow()
         {
             bool[] mask = new bool[2];
-            uint result = U.GrepPatternMatchEnd(null, new byte[] { 0xAA, 0xBB }, mask, 0, 0, 1, 0, false);
+            uint result = U.GrepPatternMatchEnd(null!, new byte[] { 0xAA, 0xBB }, mask, 0, 0, 1, 0, false);
             Assert.Equal(U.NOT_FOUND, result);
         }
 
@@ -490,7 +490,7 @@ namespace FEBuilderGBA.Core.Tests
         public void GrepPatternMatchBegin_NullData_ReturnsNotFound_NoThrow()
         {
             bool[] mask = new bool[2];
-            uint result = U.GrepPatternMatchBegin(null, new byte[] { 0xAA, 0xBB }, mask, 0, 0, 1, 0, false);
+            uint result = U.GrepPatternMatchBegin(null!, new byte[] { 0xAA, 0xBB }, mask, 0, 0, 1, 0, false);
             Assert.Equal(U.NOT_FOUND, result);
         }
 

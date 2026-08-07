@@ -135,7 +135,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Import_NullRom_ReturnsError_NoThrow()
         {
-            string err = WaitIconImportCore.Import(null, ENTRY_ADDR, MakeIndexed(16, 48), 16, 48);
+            string err = WaitIconImportCore.Import(null!, ENTRY_ADDR, MakeIndexed(16, 48), 16, 48);
             Assert.False(string.IsNullOrEmpty(err));
         }
     }
