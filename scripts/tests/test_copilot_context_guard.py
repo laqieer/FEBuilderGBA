@@ -1096,8 +1096,8 @@ class TestHookConfigLoadability(unittest.TestCase):
     def test_settings_json_ships_and_sets_context_tier_default(self):
         # Installed-runtime evidence shows repo scope overrides user scope
         # in the settings merge order (user -> repo -> local), and official
-        # docs confirm repo-level contextTier takes precedence in trusted
-        # working directories. This file must exist and set exactly this.
+        # docs confirm these repository controls apply in trusted working
+        # directories.
         settings_path = os.path.join(REPO_ROOT, ".github", "copilot", "settings.json")
         self.assertTrue(
             os.path.exists(settings_path),
@@ -1106,7 +1106,22 @@ class TestHookConfigLoadability(unittest.TestCase):
         )
         with open(settings_path, encoding="utf-8") as fh:
             data = json.load(fh)
-        self.assertEqual(data, {"contextTier": "default"})
+        self.assertEqual(data.get("contextTier"), "default")
+        self.assertEqual(
+            data.get("enabledPlugins"),
+            {
+                "superpowers@superpowers-marketplace": False,
+                "copilot-image-gen": False,
+            },
+        )
+        disabled_skills = set(data.get("disabledSkills", []))
+        self.assertIn("pua", disabled_skills)
+        self.assertIn("using-superpowers", disabled_skills)
+        self.assertIn("verification-before-completion", disabled_skills)
+        self.assertEqual(
+            data.get("disabledMcpServers"),
+            ["copilot-image-gen"],
+        )
 
 
 def _find_real_bash():

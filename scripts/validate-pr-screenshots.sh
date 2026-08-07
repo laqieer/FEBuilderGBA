@@ -28,6 +28,9 @@ echo "=== Validating PR #${PR_NUMBER} screenshot URLs ==="
 if [ -n "$BODY_FILE" ] && command -v cygpath &>/dev/null; then
   BODY_FILE=$(cygpath -u "$BODY_FILE" 2>/dev/null || echo "$BODY_FILE")
 fi
+if [ -n "$CHANGED_FILES_FILE" ] && command -v cygpath &>/dev/null; then
+  CHANGED_FILES_FILE=$(cygpath -u "$CHANGED_FILES_FILE" 2>/dev/null || echo "$CHANGED_FILES_FILE")
+fi
 
 # Get PR body — prefer file input (no network dependency), fallback to gh API
 BODY_SOURCE="unknown"
@@ -44,12 +47,6 @@ else
     echo "ERROR: Could not fetch PR body via API — failing closed"
     exit 1
   fi
-fi
-
-# Empty body is valid (no URLs to check) — screenshots are optional for docs/chore PRs
-if [ -z "$BODY" ]; then
-  echo "VALIDATION PASSED: PR body is empty (no URLs to check)"
-  exit 0
 fi
 
 # CHECK 1: feature-branch URLs (blob/ or raw.githubusercontent.com/)

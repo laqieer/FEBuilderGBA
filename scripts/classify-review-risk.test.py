@@ -13,6 +13,12 @@ class ClassifyReviewRiskTests(unittest.TestCase):
             classify_paths(["README.md", "docs/GUI-STRATEGY.md"]),
         )
 
+    def test_blank_lines_are_ignored_when_paths_exist(self):
+        self.assertEqual(
+            "low",
+            classify_paths(["README.md", "", "  "]),
+        )
+
     def test_normal_source_change_is_normal(self):
         self.assertEqual(
             "normal",

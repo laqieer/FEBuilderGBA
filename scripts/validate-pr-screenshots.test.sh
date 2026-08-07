@@ -129,6 +129,34 @@ run_case "feat_with_empty_changed_files" 1 \
   'fix(core): repair parser' \
   ''
 
+# 13. An empty GUI feat/fix body still reaches screenshot enforcement.
+run_case "gui_feat_with_empty_body" 1 \
+  '' \
+  'feat(avalonia): add editor control' \
+  'FEBuilderGBA.Avalonia/Views/UnitEditorView.axaml'
+
+# 14. Windows/MSYS paths are normalized for both body and changed-file inputs.
+if command -v cygpath >/dev/null 2>&1; then
+  TOTAL=$((TOTAL + 1))
+  body_file=$(mktemp)
+  changed_file=$(mktemp)
+  printf 'No screenshot needed.' > "$body_file"
+  printf 'FEBuilderGBA.Core/TextEscape.cs\n' > "$changed_file"
+  windows_body=$(cygpath -w "$body_file")
+  windows_changed=$(cygpath -w "$changed_file")
+  actual_exit=0
+  output=$(PR_TITLE_OVERRIDE='feat(core): add parser' bash "$VALIDATOR" 999 "$windows_body" master "$windows_changed" 2>&1) || actual_exit=$?
+  if [ "$actual_exit" -eq 0 ]; then
+    echo "  PASS: windows_changed_file_path (exit 0)"
+    PASSED=$((PASSED + 1))
+  else
+    echo "  FAIL: windows_changed_file_path (expected exit 0, got $actual_exit)"
+    echo "$output" | sed 's/^/    /'
+    FAILED=$((FAILED + 1))
+  fi
+  rm -f "$body_file" "$changed_file"
+fi
+
 echo ""
 echo "PASSED: ${PASSED}/${TOTAL}  FAILED: ${FAILED}/${TOTAL}"
 

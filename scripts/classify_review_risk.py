@@ -78,7 +78,8 @@ def _is_low(path: str) -> bool:
 
 
 def classify_paths(paths: Iterable[str]) -> str:
-    normalized = [_normalize(path) for path in paths]
+    nonblank = [path for path in paths if path.strip()]
+    normalized = [_normalize(path) for path in nonblank]
     if not normalized or any(path is None for path in normalized):
         return "high"
 
