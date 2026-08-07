@@ -63,6 +63,7 @@ namespace FEBuilderGBA.Core.Tests
             try
             {
                 string asmDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                Assert.NotNull(asmDir);
                 CoreState.BaseDirectory = asmDir;
 
                 var rom = new ROM();
@@ -474,7 +475,7 @@ namespace FEBuilderGBA.Core.Tests
                 var other = new ROM();
                 other.LoadLow("other-fe8u.gba", new byte[0x1000000], "BE8E01");
                 CoreState.ROM = active;
-                CoreState.EventScript = null;
+                CoreState.EventScript = null!;
 
                 var ids = new HashSet<uint>();
                 bool ran = EventScriptReferenceScanner.CollectEventCondTextIds(other, ids);
@@ -599,7 +600,7 @@ namespace FEBuilderGBA.Core.Tests
                 var rom = new ROM();
                 rom.LoadLow("evt-fe8u.gba", new byte[0x1000000], "BE8E01");
                 CoreState.ROM = rom;
-                CoreState.EventScript = null;
+                CoreState.EventScript = null!;
 
                 foreach (int f in new[] { 7, 8, 10 })
                 {

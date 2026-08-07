@@ -77,7 +77,7 @@ namespace FEBuilderGBA.Core.Tests
             var saved = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var encoder = new HeadlessSystemTextEncoder();
                 Assert.Equal("iso-8859-1", encoder.EncodingName);
             }

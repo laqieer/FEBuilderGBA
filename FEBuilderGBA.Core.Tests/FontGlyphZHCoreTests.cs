@@ -174,7 +174,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 ROM rom = MakeRom();
                 CoreState.ROM = rom;
-                CoreState.ImageService = null;
+                CoreState.ImageService = null!;
                 uint addr = FontGlyphZHCore.GetFontPointerZH(8, isItemFont: false) + 0x54;
                 Assert.Null(FontGlyphZHCore.RenderGlyphZH(rom, addr, isItemFont: false));
             }

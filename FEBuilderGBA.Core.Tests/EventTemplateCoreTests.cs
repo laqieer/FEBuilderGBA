@@ -309,6 +309,7 @@ namespace FEBuilderGBA.Core.Tests
             try
             {
                 string asmDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                Assert.NotNull(asmDir);
                 CoreState.BaseDirectory = FindRepoConfigBase() ?? asmDir;
 
                 var rom = new ROM();
@@ -319,7 +320,7 @@ namespace FEBuilderGBA.Core.Tests
                 {
                     CoreState.CommentCache = new HeadlessEtcCache();
                 }
-                CoreState.EventScript = null; // force fresh load
+                CoreState.EventScript = null!; // force fresh load
 
                 // BLANK always works.
                 var blankBtn = EventTemplateCore.GetTemplateButtons(1)[0];
@@ -357,8 +358,10 @@ namespace FEBuilderGBA.Core.Tests
             var savedBaseDir = CoreState.BaseDirectory;
             try
             {
-                CoreState.BaseDirectory = FindRepoConfigBase()
+                string? baseDirectory = FindRepoConfigBase()
                     ?? Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                Assert.NotNull(baseDirectory);
+                CoreState.BaseDirectory = baseDirectory;
                 var rom = new ROM();
                 if (!rom.Load(romPath, out string _)) return;
                 CoreState.ROM = rom;
@@ -462,14 +465,16 @@ namespace FEBuilderGBA.Core.Tests
             var savedBaseDir = CoreState.BaseDirectory;
             try
             {
-                CoreState.BaseDirectory = FindRepoConfigBase()
+                string? baseDirectory = FindRepoConfigBase()
                     ?? Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                Assert.NotNull(baseDirectory);
+                CoreState.BaseDirectory = baseDirectory;
                 var rom = new ROM();
                 if (!rom.Load(romPath, out string _)) return;
                 CoreState.ROM = rom;
                 CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
                 if (CoreState.CommentCache == null) CoreState.CommentCache = new HeadlessEtcCache();
-                CoreState.EventScript = null;
+                CoreState.EventScript = null!;
 
                 // VILLAGE_TALK is placeholder-free → Ok + non-empty disassembled codes.
                 var villageTalk = EventTemplateCore.GetTemplateButtons(1)[1];
@@ -504,8 +509,10 @@ namespace FEBuilderGBA.Core.Tests
             var savedBaseDir = CoreState.BaseDirectory;
             try
             {
-                CoreState.BaseDirectory = FindRepoConfigBase()
+                string? baseDirectory = FindRepoConfigBase()
                     ?? Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                Assert.NotNull(baseDirectory);
+                CoreState.BaseDirectory = baseDirectory;
                 var rom = new ROM();
                 if (!rom.Load(romPath, out string _)) return;
                 CoreState.ROM = rom;
@@ -550,14 +557,16 @@ namespace FEBuilderGBA.Core.Tests
             var savedBaseDir = CoreState.BaseDirectory;
             try
             {
-                CoreState.BaseDirectory = FindRepoConfigBase()
+                string? baseDirectory = FindRepoConfigBase()
                     ?? Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                Assert.NotNull(baseDirectory);
+                CoreState.BaseDirectory = baseDirectory;
                 var rom = new ROM();
                 if (!rom.Load(romPath, out string _)) return;
                 CoreState.ROM = rom;
                 CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
                 if (CoreState.CommentCache == null) CoreState.CommentCache = new HeadlessEtcCache();
-                CoreState.EventScript = null;
+                CoreState.EventScript = null!;
 
                 var templates = EventTemplateCore.LoadBrowserTemplates(rom);
                 // Find a _COND_ template (needs only the label allocator, no map).
@@ -612,14 +621,16 @@ namespace FEBuilderGBA.Core.Tests
             var savedBaseDir = CoreState.BaseDirectory;
             try
             {
-                CoreState.BaseDirectory = FindRepoConfigBase()
+                string? baseDirectory = FindRepoConfigBase()
                     ?? Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                Assert.NotNull(baseDirectory);
+                CoreState.BaseDirectory = baseDirectory;
                 var rom = new ROM();
                 if (!rom.Load(romPath, out string _)) return;
                 CoreState.ROM = rom;
                 CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
                 if (CoreState.CommentCache == null) CoreState.CommentCache = new HeadlessEtcCache();
-                CoreState.EventScript = null;
+                CoreState.EventScript = null!;
                 EventTemplateCore.EnsureEventScriptLoaded(); // wire EventScript for the scanner
 
                 // Take a real event-script entry point and confirm FindMapID resolves it

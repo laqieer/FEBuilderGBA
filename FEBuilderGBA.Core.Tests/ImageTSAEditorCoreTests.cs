@@ -359,7 +359,7 @@ namespace FEBuilderGBA.Core.Tests
             var saved = CoreState.ImageService;
             try
             {
-                CoreState.ImageService = null;
+                CoreState.ImageService = null!;
                 Assert.Null(ImageTSAEditorCore.TryRenderMainImage(
                     rom, 1, 1, IMAGE_OFFSET, false, false, TSA_OFFSET, PALETTE_OFFSET));
             }
@@ -665,7 +665,7 @@ namespace FEBuilderGBA.Core.Tests
             var saved = CoreState.ImageService;
             try
             {
-                CoreState.ImageService = null;
+                CoreState.ImageService = null!;
                 Assert.Null(ImageTSAEditorCore.RenderChipList(
                     rom, IMAGE_OFFSET, PALETTE_OFFSET));
             }
@@ -929,7 +929,7 @@ namespace FEBuilderGBA.Core.Tests
             var saved = CoreState.ImageService;
             try
             {
-                CoreState.ImageService = null;
+                CoreState.ImageService = null!;
                 Assert.Null(ImageTSAEditorCore.RenderRawTilesheet(
                     rom, IMAGE_OFFSET, PALETTE_OFFSET));
             }

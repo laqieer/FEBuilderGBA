@@ -126,7 +126,7 @@ namespace FEBuilderGBA.Core.Tests
             var origRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var result = ImageUtilCore.LoadROMTiles4bpp(0, new byte[32], 1, 1);
                 Assert.Null(result);
             }

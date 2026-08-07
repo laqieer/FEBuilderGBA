@@ -35,7 +35,7 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ROM = _savedRom;
+            CoreState.ROM = _savedRom!;
         }
 
         const uint Fe8Floor = 0x01000000u;

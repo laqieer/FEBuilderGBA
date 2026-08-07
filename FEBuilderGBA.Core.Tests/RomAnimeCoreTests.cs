@@ -208,7 +208,7 @@ namespace FEBuilderGBA.Core.Tests
             var saved = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 bool isFrameTable = e.IsFrameTable; // must NOT throw
                 Assert.False(isFrameTable);          // FramePointer == 1 (fixed count)
             }

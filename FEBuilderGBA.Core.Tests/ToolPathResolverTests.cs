@@ -30,7 +30,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var savedConfig = CoreState.Config;
             var savedBaseDir = CoreState.BaseDirectory;
-            CoreState.Config = null;
+            CoreState.Config = null!;
             CoreState.BaseDirectory = Path.Combine(Path.GetTempPath(), "febuilder-test-empty-" + Path.GetRandomFileName());
             try
             {
@@ -58,7 +58,7 @@ namespace FEBuilderGBA.Core.Tests
 
             var savedConfig = CoreState.Config;
             var savedBaseDir = CoreState.BaseDirectory;
-            CoreState.Config = null;
+            CoreState.Config = null!;
             CoreState.BaseDirectory = tempDir;
             try
             {
@@ -85,7 +85,7 @@ namespace FEBuilderGBA.Core.Tests
 
             var savedConfig = CoreState.Config;
             var savedBaseDir = CoreState.BaseDirectory;
-            CoreState.Config = null;
+            CoreState.Config = null!;
             CoreState.BaseDirectory = tempDir;
             try
             {

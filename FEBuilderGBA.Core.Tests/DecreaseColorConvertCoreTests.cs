@@ -681,7 +681,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ReduceColorFile_NoImageService_ReturnsMinus1()
         {
             var prev = CoreState.ImageService;
-            CoreState.ImageService = null;
+            CoreState.ImageService = null!;
             string input = Path.Combine(Path.GetTempPath(), "dc_in_" + Guid.NewGuid() + ".png");
             File.WriteAllBytes(input, new byte[] { 0x89, 0x50, 0x4E, 0x47 });
             try

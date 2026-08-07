@@ -31,7 +31,7 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ROM = _savedRom;
+            CoreState.ROM = _savedRom!;
             CoreState.Language = _savedLang;
             NameResolver.ClearCache();
         }

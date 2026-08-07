@@ -34,7 +34,7 @@ namespace FEBuilderGBA.Core.Tests
             var saved = CoreState.ImageService;
             try
             {
-                CoreState.ImageService = null;
+                CoreState.ImageService = null!;
                 Assert.Null(ImageUtilCore.ByteToImage256Liner(new byte[4], 0, new byte[512], 0, 2, 2));
             }
             finally { CoreState.ImageService = saved; }
@@ -351,7 +351,7 @@ namespace FEBuilderGBA.Core.Tests
                     CoreState.Undo.RunUndo();
                     Assert.Equal(snapshot, rom.Data);
                 }
-                finally { CoreState.Undo = null; }
+                finally { CoreState.Undo = null!; }
             });
         }
 

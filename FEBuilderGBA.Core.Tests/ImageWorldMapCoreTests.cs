@@ -293,7 +293,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 var rom = MakeRom();
                 CoreState.ROM = rom;
-                CoreState.ImageService = null;
+                CoreState.ImageService = null!;
                 PlantMainFieldGraphic(rom);
                 Assert.Null(ImageWorldMapCore.TryRenderMainFieldMap(rom));
             }
@@ -470,7 +470,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 var rom = MakeRom();
                 CoreState.ROM = rom;
-                CoreState.ImageService = null;
+                CoreState.ImageService = null!;
                 PlantEventGraphic(rom, Cell(1, false, false, 0));
                 PlantIconStrip(rom, MINI_IMAGE_OFFSET, rom.RomInfo.worldmap_mini_image_pointer, 64);
                 PlantIconPalette(rom, MINI_PALETTE_OFFSET, rom.RomInfo.worldmap_mini_palette_pointer);

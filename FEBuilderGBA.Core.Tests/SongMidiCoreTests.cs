@@ -160,7 +160,7 @@ namespace FEBuilderGBA.Core.Tests
                 System.IO.File.WriteAllBytes(tempFile, midiBytes);
 
                 var origRom = CoreState.ROM;
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 try
                 {
                     string result = SongMidiCore.ImportMidiFile(tempFile, 0, 0);

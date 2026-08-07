@@ -24,8 +24,8 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ROM = _savedRom;
-            CoreState.SystemTextEncoder = _savedEncoder;
+            CoreState.ROM = _savedRom!;
+            CoreState.SystemTextEncoder = _savedEncoder!;
             PatchDetection.ClearAllCaches();
         }
 
@@ -167,8 +167,8 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ROM = _savedRom;
-            CoreState.SystemTextEncoder = _savedEncoder;
+            CoreState.ROM = _savedRom!;
+            CoreState.SystemTextEncoder = _savedEncoder!;
             PatchDetection.ClearAllCaches();
         }
 

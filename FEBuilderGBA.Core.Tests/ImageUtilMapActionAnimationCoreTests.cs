@@ -59,7 +59,7 @@ namespace FEBuilderGBA.Core.Tests
             var origRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var result = ImageUtilMapActionAnimationCore.DrawFrame(0x1000, 0);
                 Assert.Null(result);
             }
@@ -75,7 +75,7 @@ namespace FEBuilderGBA.Core.Tests
             var origService = CoreState.ImageService;
             try
             {
-                CoreState.ImageService = null;
+                CoreState.ImageService = null!;
                 var result = ImageUtilMapActionAnimationCore.DrawFrame(0x1000, 0);
                 Assert.Null(result);
             }
@@ -98,7 +98,7 @@ namespace FEBuilderGBA.Core.Tests
             var origRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 int count = ImageUtilMapActionAnimationCore.CountFrames(0x1000);
                 Assert.Equal(0, count);
             }
@@ -330,7 +330,7 @@ namespace FEBuilderGBA.Core.Tests
             var origService = CoreState.ImageService;
             try
             {
-                CoreState.ImageService = null;
+                CoreState.ImageService = null!;
                 var rom = BuildRomWithObjAndPalette(out uint objPtr, out uint palPtr);
                 CoreState.ROM = rom;
 

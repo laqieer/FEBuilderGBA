@@ -37,7 +37,7 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.Config = _origConfig;
+            CoreState.Config = _origConfig!;
             try { if (File.Exists(_configPath)) File.Delete(_configPath); } catch { }
         }
 

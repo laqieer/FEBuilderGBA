@@ -30,7 +30,7 @@ namespace FEBuilderGBA.Core.Tests
             var oldRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var list = ComboResourceHelper.MakeUnitList();
                 Assert.Empty(list);
             }
@@ -46,7 +46,7 @@ namespace FEBuilderGBA.Core.Tests
             var oldRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var list = ComboResourceHelper.MakeClassList();
                 Assert.Empty(list);
             }
@@ -62,7 +62,7 @@ namespace FEBuilderGBA.Core.Tests
             var oldRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var list = ComboResourceHelper.MakeItemList();
                 Assert.Empty(list);
             }
@@ -78,7 +78,7 @@ namespace FEBuilderGBA.Core.Tests
             var oldRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var list = ComboResourceHelper.MakeSongList();
                 Assert.Empty(list);
             }

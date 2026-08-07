@@ -83,7 +83,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void BlockOverload_NullRom_ReturnsNull()
         {
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             CoreState.ImageService = new DecodingImageService();
             byte[] block = new byte[PaletteCore.PALETTE_BLOCK_SIZE];
             Assert.Null(PortraitRendererCore.DrawPortraitMap(U.toPointer(FaceOffset), block));
@@ -93,7 +93,7 @@ namespace FEBuilderGBA.Core.Tests
         public void BlockOverload_NullImageService_ReturnsNull()
         {
             CoreState.ROM = MakeRomWithFace(new byte[PaletteCore.PALETTE_BLOCK_SIZE]);
-            CoreState.ImageService = null;
+            CoreState.ImageService = null!;
             byte[] block = new byte[PaletteCore.PALETTE_BLOCK_SIZE];
             Assert.Null(PortraitRendererCore.DrawPortraitMap(U.toPointer(FaceOffset), block));
         }

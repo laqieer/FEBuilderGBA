@@ -482,8 +482,8 @@ namespace FEBuilderGBA.Core.Tests
             {
                 CoreState.BaseDirectory = prevBase;
                 CoreState.Language = prevLang;
-                CoreState.ROM = null;
-                CoreState.Undo = null;
+                CoreState.ROM = null!;
+                CoreState.Undo = null!;
                 try { Directory.Delete(baseDir, true); } catch { }
             }
         }
@@ -537,8 +537,8 @@ namespace FEBuilderGBA.Core.Tests
             {
                 CoreState.BaseDirectory = prevBase;
                 CoreState.Language = prevLang;
-                CoreState.ROM = null;
-                CoreState.Undo = null;
+                CoreState.ROM = null!;
+                CoreState.Undo = null!;
                 try { Directory.Delete(baseDir, true); } catch { }
             }
         }
@@ -565,8 +565,8 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.BaseDirectory = prevBase;
-                CoreState.ROM = null;
-                CoreState.Undo = null;
+                CoreState.ROM = null!;
+                CoreState.Undo = null!;
                 try { Directory.Delete(baseDir, true); } catch { }
             }
         }
@@ -603,8 +603,8 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.BaseDirectory = prevBase;
-                CoreState.ROM = null;
-                CoreState.Undo = null;
+                CoreState.ROM = null!;
+                CoreState.Undo = null!;
                 try { Directory.Delete(baseDir, true); } catch { }
             }
         }
@@ -644,8 +644,8 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.BaseDirectory = prevBase;
-                CoreState.ROM = null;
-                CoreState.Undo = null;
+                CoreState.ROM = null!;
+                CoreState.Undo = null!;
                 try { Directory.Delete(baseDir, true); } catch { }
             }
         }

@@ -250,7 +250,7 @@ namespace FEBuilderGBA.Core.Tests
             var saved = CoreState.ImageService;
             try
             {
-                CoreState.ImageService = null;
+                CoreState.ImageService = null!;
                 Assert.Null(ImageUtilCore.ByteToImage16TilePaletteMap(
                     new byte[16], new byte[8], Build256Palette(), 16, 8));
             }

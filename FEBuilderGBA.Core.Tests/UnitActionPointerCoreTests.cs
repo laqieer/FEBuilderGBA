@@ -118,7 +118,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 var rom = MakeFE8U();
                 CoreState.ROM = rom;
-                CoreState.BaseDirectory = null; // missing config tree -> WF File.Exists false -> 0
+                CoreState.BaseDirectory = null!; // missing config tree -> WF File.Exists false -> 0
                 PlantReworkGate(rom);
                 Assert.Equal(0u, UnitActionPointerCore.ResolveBaseSlot(rom));
                 // And no config slot -> no table base -> empty editor (WF ReInitPointer(0)).

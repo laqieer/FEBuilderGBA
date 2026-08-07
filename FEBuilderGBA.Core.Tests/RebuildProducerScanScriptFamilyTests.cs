@@ -345,8 +345,8 @@ namespace FEBuilderGBA.Core.Tests
             try
             {
                 CoreState.ROM = rom;
-                CoreState.EventScript = null;   // disasm NOT wired
-                CoreState.CommentCache = null;
+                CoreState.EventScript = null!;   // disasm NOT wired
+                CoreState.CommentCache = null!;
                 var result = RebuildProducerCore.MakeAllStructPointers(rom);
                 // The four ScanScript-family forms (and EventCondForm) are re-reported because
                 // their script trace would otherwise be silently dropped.

@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Core.Tests
             var origRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var scanner = new FELintScanner();
                 var errors = scanner.Scan();
                 Assert.NotNull(errors);

@@ -354,7 +354,7 @@ namespace FEBuilderGBA.Core.Tests
                 TranslateTextUtilCore.ClearCache();
 
                 // 1) Null BaseDirectory → empty, no throw, and must NOT poison the cache.
-                CoreState.BaseDirectory = null;
+                CoreState.BaseDirectory = null!;
                 var empty = TranslateTextUtilCore.LoadFixedDic("ja", "en");
                 Assert.NotNull(empty);
                 Assert.Empty(empty);

@@ -50,7 +50,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ImportBattleAnime_NoRom_ReturnsError()
         {
             var origRom = CoreState.ROM;
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             try
             {
                 // Create a temp script file
@@ -220,7 +220,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ImportFEditorBin_NoRom_ReturnsError()
         {
             var origRom = CoreState.ROM;
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             try
             {
                 string tempFile = System.IO.Path.Combine(

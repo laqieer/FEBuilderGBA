@@ -540,7 +540,7 @@ namespace FEBuilderGBA.Core.Tests
                 var rom = new ROM();
                 if (!rom.Load(romPath, out string _)) return; // skip
                 CoreState.ROM = rom;
-                CoreState.EventScript = null; // disasm unwired -> EventCondForm re-reported at runtime
+                CoreState.EventScript = null!; // disasm unwired -> EventCondForm re-reported at runtime
 
                 RebuildProducerCore.ProducerResult result = RebuildProducerCore.MakeAllStructPointers(rom);
                 // The STATIC data-path list is empty, so the ONLY reason this run is incomplete is the
@@ -857,7 +857,7 @@ namespace FEBuilderGBA.Core.Tests
                 var rom = new ROM();
                 rom.SwapNewROMDataDirect(new byte[0x4000]);
                 CoreState.ROM = rom;
-                CoreState.SystemTextEncoder = null; // the critical condition
+                CoreState.SystemTextEncoder = null!; // the critical condition
 
                 uint table = 0x1000, pointer = 0x0240, block = 16;
                 rom.write_u32(pointer, Ptr(table));
@@ -2287,7 +2287,7 @@ namespace FEBuilderGBA.Core.Tests
             // while the 6 ASM blocks still emit (the wiring slice gates on IsComplete anyway).
             var savedEnc = CoreState.SystemTextEncoder;
             var rom = CreateTestRom(0x1_0000);
-            CoreState.SystemTextEncoder = null; // force the no-encoder path
+            CoreState.SystemTextEncoder = null!; // force the no-encoder path
             try
             {
                 uint pointer = 0x0300;
@@ -3106,7 +3106,7 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.ROM = savedRom;
-                CoreState.SystemTextEncoder = null;
+                CoreState.SystemTextEncoder = null!;
             }
         }
 
@@ -6893,7 +6893,7 @@ namespace FEBuilderGBA.Core.Tests
             // still relocated and the target addr recorded). Avoids the Huffman decode (which needs a
             // valid mask_pointer tree, absent on a bare synthetic ROM).
             var savedEncoder = CoreState.SystemTextEncoder;
-            CoreState.SystemTextEncoder = null;
+            CoreState.SystemTextEncoder = null!;
             try
             {
                 uint pointer = 0x0400;
@@ -6947,7 +6947,7 @@ namespace FEBuilderGBA.Core.Tests
             // exactly: the entry contributes to the main IFR length but produces no BIN.
             var rom = CreateTestRom(0x8000);
             var savedEncoder = CoreState.SystemTextEncoder;
-            CoreState.SystemTextEncoder = null;
+            CoreState.SystemTextEncoder = null!;
             try
             {
                 uint pointer = 0x0400;
@@ -6975,7 +6975,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var rom = CreateTestRom(0x1000);
             var savedEncoder = CoreState.SystemTextEncoder;
-            CoreState.SystemTextEncoder = null;
+            CoreState.SystemTextEncoder = null!;
             try
             {
                 // Slot near EOF: the +3 guard before p32 must prevent any out-of-bounds read.
@@ -8893,7 +8893,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 rom.write_u32(0x1000, Ptr(0x2000));
                 WriteAsciiZ(rom, 0x2000, "X");
-                CoreState.SystemTextEncoder = null; // the critical condition (decode would NRE)
+                CoreState.SystemTextEncoder = null!; // the critical condition (decode would NRE)
 
                 var list = new List<Address>();
                 var ex = Record.Exception(() => RebuildProducerCore.EmitOtherText(rom, list));
@@ -9425,7 +9425,7 @@ namespace FEBuilderGBA.Core.Tests
                 rom.write_u32(table + block * 0 + 12, Ptr(0x300000));
                 rom.write_u32(table + block * 1, 0xFFFFFFFF);
                 WriteAsciiZ(rom, 0x300000, "X");
-                CoreState.SystemTextEncoder = null; // decode would NRE
+                CoreState.SystemTextEncoder = null!; // decode would NRE
 
                 var list = new List<Address>();
                 var ex = Record.Exception(() => RebuildProducerCore.EmitSoundRoom(rom, list));
@@ -10156,7 +10156,7 @@ namespace FEBuilderGBA.Core.Tests
                 if (!rom.Load(romPath, out string _)) return; // skip
                 CoreState.ROM = rom;
                 CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
-                CoreState.EventScript = null; // disasm unwired -> EventCond/EventScript re-reported
+                CoreState.EventScript = null!; // disasm unwired -> EventCond/EventScript re-reported
 
                 ROM vanilla = BuildWireVanilla();
 
@@ -10592,7 +10592,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 var rom = MakeVersionedRom("BE8E01");
                 CoreState.ROM = rom;
-                CoreState.BaseDirectory = null; // no config tree -> rework path returns 0 (no throw)
+                CoreState.BaseDirectory = null!; // no config tree -> rework path returns 0 (no throw)
                 uint expected;
                 uint hackAddr = rom.RomInfo.patch_unitaction_rework_hack(out expected);
                 rom.write_u32(hackAddr, expected);

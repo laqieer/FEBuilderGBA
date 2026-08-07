@@ -30,8 +30,8 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ROM = null;
-            CoreState.Undo = null;
+            CoreState.ROM = null!;
+            CoreState.Undo = null!;
             try { if (Directory.Exists(_tempDir)) Directory.Delete(_tempDir, recursive: true); }
             catch { /* best effort */ }
         }

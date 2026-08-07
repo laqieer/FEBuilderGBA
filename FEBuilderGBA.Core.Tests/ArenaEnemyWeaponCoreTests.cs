@@ -23,7 +23,7 @@ public class ArenaEnemyWeaponCoreTests : IDisposable
     // the SharedState collection and cause order-dependent failures.
     readonly ROM? _savedRom = CoreState.ROM;
 
-    public void Dispose() => CoreState.ROM = _savedRom;
+    public void Dispose() => CoreState.ROM = _savedRom!;
 
     /// <summary>
     /// Build a synthetic FE8U ROM with both arena weapon tables parked at known

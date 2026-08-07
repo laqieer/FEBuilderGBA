@@ -656,7 +656,7 @@ public class ImageBG256ColorCoreTests
 
             // Decode255ColorBG must use only the passed rom — clear CoreState.ROM
             // to prove it does not depend on global state (Copilot review #801).
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             IImage decoded = ImageBG256ColorCore.Decode255ColorBG(rom, rom.u32(p0), rom.u32(p8), is224: false, svc);
             Assert.NotNull(decoded);
             Assert.Equal(W, decoded.Width);
@@ -686,7 +686,7 @@ public class ImageBG256ColorCoreTests
 
             // Decode255ColorBG must use only the passed rom — clear CoreState.ROM
             // to prove it does not depend on global state (Copilot review #801).
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             IImage decoded = ImageBG256ColorCore.Decode255ColorBG(rom, rom.u32(p0), rom.u32(p8), is224: true, svc);
             Assert.NotNull(decoded);
 

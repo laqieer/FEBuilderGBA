@@ -374,7 +374,7 @@ namespace FEBuilderGBA.Core.Tests
             var savedProject = CoreState.DecompProject;
             try
             {
-                CoreState.DecompProject = null;     // classic mode
+                CoreState.DecompProject = null!;     // classic mode
                 var rom = new ROM();
                 var cache = new CoreAsmMapCache(rom);
                 var map = cache.GetAsmMapFile();

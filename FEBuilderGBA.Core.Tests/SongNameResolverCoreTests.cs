@@ -292,7 +292,7 @@ namespace FEBuilderGBA.Core.Tests
                 SongNameResolverCore.ClearCache();
 
                 // 1) Force the load to FAIL (null BaseDirectory → Path.Combine throws).
-                CoreState.BaseDirectory = null;
+                CoreState.BaseDirectory = null!;
                 var failed = SongNameResolverCore.GetSoundEffectList(rom);
                 Assert.Empty(failed); // failure returns an empty dictionary
 

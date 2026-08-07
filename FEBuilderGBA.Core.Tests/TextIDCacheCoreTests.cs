@@ -32,7 +32,7 @@ namespace FEBuilderGBA.Core.Tests
             _tempDir = Path.Combine(Path.GetTempPath(), "fe_textidcache_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_tempDir);
             CoreState.BaseDirectory = _tempDir;
-            CoreState.ROM = null; // ConfigEtcFilename / ConfigDataFilename => romtitle "_"
+            CoreState.ROM = null!; // ConfigEtcFilename / ConfigDataFilename => romtitle "_"
 
             // The ctor loads the shipped SYSTEM names via ConfigDataFilename, which
             // (when no per-ROM file exists) falls back to config/data/textid_ALL.txt

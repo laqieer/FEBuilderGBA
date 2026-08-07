@@ -442,6 +442,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 string asmDir = System.IO.Path.GetDirectoryName(
                     System.Reflection.Assembly.GetExecutingAssembly().Location);
+                Assert.NotNull(asmDir);
                 CoreState.BaseDirectory = asmDir;
 
                 var rom = new ROM();
@@ -508,8 +509,8 @@ namespace FEBuilderGBA.Core.Tests
                 var rom = MakeVersionedRom(version);
                 Assert.Equal(version, rom.RomInfo.version); // guard: the right layout loaded
                 CoreState.ROM = rom;
-                CoreState.EventScript = null;
-                CoreState.CommentCache = null;
+                CoreState.EventScript = null!;
+                CoreState.CommentCache = null!;
                 body(rom);
             }
             finally

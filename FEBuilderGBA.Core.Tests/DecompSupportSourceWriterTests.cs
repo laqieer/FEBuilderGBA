@@ -22,13 +22,13 @@ namespace FEBuilderGBA.Core.Tests
         public DecompSupportSourceWriterTests()
         {
             _savedProject = CoreState.DecompProject;
-            CoreState.DecompProject = null;
+            CoreState.DecompProject = null!;
         }
 
         public void Dispose()
         {
-            CoreState.DecompProject = null;
-            CoreState.DecompProject = _savedProject;
+            CoreState.DecompProject = null!;
+            CoreState.DecompProject = _savedProject!;
         }
 
         // ---- helpers ----
@@ -228,7 +228,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.DecompProject = null;
+                CoreState.DecompProject = null!;
                 Directory.Delete(dir, true);
             }
         }
@@ -291,7 +291,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.DecompProject = null;
+                CoreState.DecompProject = null!;
                 Directory.Delete(dir, true);
             }
         }
@@ -352,7 +352,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.DecompProject = null;
+                CoreState.DecompProject = null!;
                 Directory.Delete(dir, true);
             }
         }
@@ -405,7 +405,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.DecompProject = null;
+                CoreState.DecompProject = null!;
                 Directory.Delete(dir, true);
             }
         }
@@ -425,7 +425,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.DecompProject = null;
+                CoreState.DecompProject = null!;
                 Directory.Delete(dir, true);
             }
         }
@@ -444,7 +444,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.DecompProject = null;
+                CoreState.DecompProject = null!;
                 Directory.Delete(dir, true);
             }
         }
@@ -490,7 +490,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.DecompProject = null;
+                CoreState.DecompProject = null!;
                 Directory.Delete(dir, true);
             }
         }

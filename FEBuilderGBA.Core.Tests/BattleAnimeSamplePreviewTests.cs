@@ -115,7 +115,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             IImage src = MakeRgbaImage(240, 160);
             var prev = CoreState.ImageService;
-            CoreState.ImageService = null;
+            CoreState.ImageService = null!;
             try
             {
                 Assert.Null(BattleAnimeRendererCore.CropImage(src, 100, 30, 90, 90));
@@ -483,7 +483,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RenderSample_NullRom_ReturnsNull()
         {
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             Assert.Null(BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0));
         }
 
@@ -493,7 +493,7 @@ namespace FEBuilderGBA.Core.Tests
             ROM rom = MakeAnimeRom();
             CoreState.ROM = rom;
             var prev = CoreState.ImageService;
-            CoreState.ImageService = null;
+            CoreState.ImageService = null!;
             try
             {
                 Assert.Null(BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0));

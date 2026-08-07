@@ -558,7 +558,7 @@ namespace FEBuilderGBA.Core.Tests
             var prev = CoreState.DecompProject;
             try
             {
-                CoreState.DecompProject = null;
+                CoreState.DecompProject = null!;
                 Assert.False(CoreState.IsDecompMode);
 
                 CoreState.DecompProject = new DecompProject { ProjectRoot = "x", BuiltRomPath = "y.gba" };

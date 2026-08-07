@@ -275,8 +275,8 @@ namespace FEBuilderGBA.Core.Tests
             try
             {
                 CoreState.ROM = rom;
-                CoreState.EventScript = null;     // not wired
-                CoreState.CommentCache = null;
+                CoreState.EventScript = null!;     // not wired
+                CoreState.CommentCache = null!;
                 var list = new List<Address>();
                 Assert.Throws<InvalidOperationException>(() => RebuildProducerCore.EmitEventCond(rom, list));
             }

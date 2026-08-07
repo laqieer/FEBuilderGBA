@@ -43,7 +43,7 @@ namespace FEBuilderGBA.Core.Tests
             _savedRom = CoreState.ROM;
         }
 
-        public void Dispose() => CoreState.ROM = _savedRom;
+        public void Dispose() => CoreState.ROM = _savedRom!;
 
         // The FE6/FE7/FE8 variants we attempt; absent ones are skipped + named.
         static readonly string[] CandidateRoms =

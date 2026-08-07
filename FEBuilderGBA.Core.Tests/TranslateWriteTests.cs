@@ -33,7 +33,7 @@ namespace FEBuilderGBA.Core.Tests
             var origEncoder = CoreState.FETextEncoder;
             try
             {
-                CoreState.FETextEncoder = null;
+                CoreState.FETextEncoder = null!;
                 var rom = new ROM();
                 var entries = new List<(uint textId, string text)> { (0, "test") };
                 int count = TranslateCore.WriteTexts(rom, entries);

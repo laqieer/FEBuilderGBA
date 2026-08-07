@@ -68,7 +68,7 @@ namespace FEBuilderGBA.Core.Tests
             var origRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var rom = MakeFE8UWithHenseiShop();
 
                 var shops = ItemShopCore.MakeShopList(rom);

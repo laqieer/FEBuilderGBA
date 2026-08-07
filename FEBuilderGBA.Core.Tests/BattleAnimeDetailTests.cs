@@ -311,7 +311,7 @@ namespace FEBuilderGBA.Core.Tests
             var saved = CoreState.ImageService;
             try
             {
-                CoreState.ImageService = null;
+                CoreState.ImageService = null!;
                 var result = BattleAnimeRendererCore.RenderTileSheet(new byte[32], new byte[32], 16);
                 Assert.Null(result);
             }
@@ -327,7 +327,7 @@ namespace FEBuilderGBA.Core.Tests
             var savedRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var result = BattleAnimeRendererCore.RenderAnimationTileSheet(0, 16);
                 Assert.Null(result);
             }

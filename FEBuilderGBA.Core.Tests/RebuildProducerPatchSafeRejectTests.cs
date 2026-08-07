@@ -638,7 +638,7 @@ namespace FEBuilderGBA.Core.Tests
             var savedEs = CoreState.EventScript;
             try
             {
-                CoreState.EventScript = null; // disasm unwired -> EventCond/EventScript re-reported
+                CoreState.EventScript = null!; // disasm unwired -> EventCond/EventScript re-reported
                 var fe8 = MakeVersionedRom("BE8E01");
                 CoreState.ROM = fe8;
 

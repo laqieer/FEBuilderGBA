@@ -239,6 +239,7 @@ namespace FEBuilderGBA.Core.Tests
                 // config/data/asmmap_FE8*.txt. romPath = {root}/roms/FE8U.gba.
                 string romsDir = Path.GetDirectoryName(romPath);
                 string repoRoot = Path.GetDirectoryName(romsDir);
+                Assert.NotNull(repoRoot);
                 CoreState.BaseDirectory = repoRoot;
                 CoreState.Language = "en";
 

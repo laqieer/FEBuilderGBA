@@ -17,7 +17,7 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ROM = _savedRom;
+            CoreState.ROM = _savedRom!;
         }
 
         static ROM CreateRom(int size = 0x8000)

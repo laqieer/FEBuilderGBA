@@ -231,7 +231,7 @@ namespace FEBuilderGBA.Core.Tests
                 var rom = new ROM();
                 rom.LoadLow("gate-fe8u.gba", new byte[0x1000000], "BE8E01");
                 CoreState.ROM = rom;
-                CoreState.EventScript = null;
+                CoreState.EventScript = null!;
 
                 var map = EventScriptReferenceScanner.FindAllArgReferences(
                     rom, EventScript.ArgType.BG, keepZeroId: true);
@@ -288,7 +288,7 @@ namespace FEBuilderGBA.Core.Tests
                 rom.LoadLow("nocomment-fe8u.gba", new byte[0x1000000], "BE8E01");
                 CoreState.ROM = rom;
                 CoreState.EventScript = es;
-                CoreState.CommentCache = null;
+                CoreState.CommentCache = null!;
 
                 var map = EventScriptReferenceScanner.FindAllArgReferences(
                     rom, EventScript.ArgType.BG, keepZeroId: true);
@@ -498,6 +498,7 @@ namespace FEBuilderGBA.Core.Tests
                 // copied there) so EventScript.Load resolves the event config.
                 string asmDir = Path.GetDirectoryName(
                     Assembly.GetExecutingAssembly().Location);
+                Assert.NotNull(asmDir);
                 CoreState.BaseDirectory = asmDir;
 
                 var rom = new ROM();

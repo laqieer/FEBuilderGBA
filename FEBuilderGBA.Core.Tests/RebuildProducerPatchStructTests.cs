@@ -1133,8 +1133,8 @@ namespace FEBuilderGBA.Core.Tests
             // token until s2pf-11). The dispatch must NOT throw and must NOT fall back to a MIX placeholder
             // (a length-0 MIX would mis-size the embedded pointer's target on a live rebuild).
             var rom = MakeRom();
-            CoreState.EventScript = null;       // disasm NOT wired
-            CoreState.CommentCache = null;
+            CoreState.EventScript = null!;       // disasm NOT wired
+            CoreState.CommentCache = null!;
             const uint table = 0x2000;
             PlantEvent(rom, table + 0, 0x9000);
 

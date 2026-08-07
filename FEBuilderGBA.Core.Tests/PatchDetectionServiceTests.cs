@@ -18,7 +18,7 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ROM = _savedRom;
+            CoreState.ROM = _savedRom!;
             CoreState.SystemTextEncoder = _savedSystemTextEncoder;
             NameResolver.ClearCache();
             PatchDetection.ClearAllCaches();
@@ -30,7 +30,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Refresh_NullROM_AllDefaults()
         {
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             var svc = PatchDetectionService.Instance;
             svc.Refresh();
 
@@ -49,7 +49,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Refresh_NullROM_ConvenienceHelpers_False()
         {
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             var svc = PatchDetectionService.Instance;
             svc.Refresh();
 
@@ -65,7 +65,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var svc = PatchDetectionService.Instance;
 
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             svc.Refresh();
 
             Assert.Null(svc.ResolveSkillName(0));
@@ -253,7 +253,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.True(svc.HasSkillSystem);
 
             // Now unload ROM and refresh
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             svc.Refresh();
             Assert.False(svc.HasSkillSystem);
         }
