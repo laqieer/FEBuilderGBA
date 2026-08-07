@@ -49,6 +49,18 @@ class ClassifyReviewRiskTests(unittest.TestCase):
             classify_paths(["FEBuilderGBA.Browser/tests/smoke/package.json"]),
         )
 
+    def test_setup_py_is_high(self):
+        self.assertEqual(
+            "high",
+            classify_paths(["agent-harness/setup.py"]),
+        )
+
+    def test_setup_cfg_is_high(self):
+        self.assertEqual(
+            "high",
+            classify_paths(["agent-harness/setup.cfg"]),
+        )
+
     def test_versioned_requirements_file_is_high(self):
         self.assertEqual(
             "high",
@@ -66,6 +78,25 @@ class ClassifyReviewRiskTests(unittest.TestCase):
             "high",
             classify_paths(["docs/SECRET-SCANNING.md"]),
         )
+
+    def test_release_policy_document_name_is_high(self):
+        self.assertEqual(
+            "high",
+            classify_paths(["docs/RELEASE.md"]),
+        )
+
+    def test_all_current_submodule_paths_are_high(self):
+        paths = (
+            "config/patch2",
+            "tools/Event-Assembler",
+            "tools/ColorzCore",
+            "resources/FE-Repo",
+            "resources/FE-Repo-Music-No-Preview",
+            "resources/fe-info",
+        )
+        for path in paths:
+            with self.subTest(path=path):
+                self.assertEqual("high", classify_paths([path]))
 
     def test_cross_repository_pr_is_high(self):
         self.assertEqual(

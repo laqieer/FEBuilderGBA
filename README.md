@@ -851,6 +851,7 @@ python -m venv .venv
 .venv/Scripts/python server.py
 
 # Opt in for this checkout
+cd ../..
 cp .mcp.example.json .mcp.json
 ```
 

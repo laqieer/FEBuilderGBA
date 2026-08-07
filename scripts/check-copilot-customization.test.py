@@ -131,6 +131,20 @@ class CheckCopilotCustomizationTests(unittest.TestCase):
                 validate_repository(root),
             )
 
+    def test_missing_skill_description_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            make_valid_repository(root)
+            skill = root / ".github" / "skills" / "dev-flow" / "SKILL.md"
+            skill.write_text(
+                "---\nname: dev-flow\n---\n\nTest.\n",
+                encoding="utf-8",
+            )
+            self.assertIn(
+                "project skill dev-flow has invalid frontmatter description",
+                validate_repository(root),
+            )
+
     def test_missing_disabled_skill_is_rejected(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

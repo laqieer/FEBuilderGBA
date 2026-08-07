@@ -23,6 +23,7 @@ HIGH_EXACT = {
     "commitlint.config.mjs",
     "docs/DEPLOYMENT.md",
     "docs/ENGINEERING-NOTES.md",
+    "docs/RELEASE.md",
     "docs/SECRET-SCANNING.md",
     "global.json",
     "release.ps1",
@@ -55,10 +56,21 @@ HIGH_MANIFEST_NAMES = {
     "package.json",
     "pnpm-lock.yaml",
     "poetry.lock",
+    "setup.cfg",
+    "setup.py",
     "yarn.lock",
 }
 
 TRUSTED_ASSOCIATIONS = {"OWNER", "MEMBER", "COLLABORATOR"}
+
+SUBMODULE_PATHS = {
+    "config/patch2",
+    "resources/FE-Repo",
+    "resources/FE-Repo-Music-No-Preview",
+    "resources/fe-info",
+    "tools/ColorzCore",
+    "tools/Event-Assembler",
+}
 
 LOW_EXACT = {
     "CHANGELOG.md",
@@ -80,6 +92,8 @@ def _normalize(path: str) -> str | None:
 
 def _is_high(path: str) -> bool:
     if path in HIGH_EXACT:
+        return True
+    if path in SUBMODULE_PATHS:
         return True
     if path.startswith(HIGH_PREFIXES):
         return True

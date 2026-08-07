@@ -45,18 +45,21 @@ STALE_CLAUDE_PATTERN = re.compile(
 )
 
 
-def _skill_name(path: Path) -> str | None:
+def _skill_frontmatter(path: Path) -> dict[str, str]:
     text = path.read_text(encoding="utf-8").replace("\r\n", "\n")
     if not text.startswith("---\n"):
-        return None
+        return {}
     end = text.find("\n---\n", 4)
     if end < 0:
-        return None
-    match = re.search(
-        r"(?m)^name:\s*([a-z0-9-]+)\s*$",
-        text[4:end],
-    )
-    return match.group(1) if match else None
+        return {}
+
+    values: dict[str, str] = {}
+    for line in text[4:end].splitlines():
+        if ":" not in line:
+            continue
+        key, value = line.split(":", 1)
+        values[key.strip()] = value.strip().strip("\"'")
+    return values
 
 
 def validate_repository(root: Path) -> list[str]:
@@ -79,9 +82,13 @@ def validate_repository(root: Path) -> list[str]:
         if not path.is_file():
             errors.append(f"missing project skill {expected}")
             continue
-        name = _skill_name(path)
-        if name != expected:
+        frontmatter = _skill_frontmatter(path)
+        if frontmatter.get("name") != expected:
             errors.append(f"project skill {expected} has invalid frontmatter name")
+        if not frontmatter.get("description", "").strip():
+            errors.append(
+                f"project skill {expected} has invalid frontmatter description"
+            )
         content = path.read_text(encoding="utf-8")
         if "scripts/classify-review-risk.py" in content:
             errors.append(

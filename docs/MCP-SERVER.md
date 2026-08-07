@@ -33,6 +33,7 @@ python3 agent-harness/febuildergba_mcp.py [--session-file PATH]  # Linux/macOS
 py -3 agent-harness/febuildergba_mcp.py [--session-file PATH]    # Windows launcher
 
 # Optional workspace registration
+cd ..
 cp .mcp.example.json .mcp.json
 ```
 
