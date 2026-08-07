@@ -405,22 +405,32 @@ namespace FEBuilderGBA
         public EventHandler CutCallback;
         public EventHandler PasteCallback;
 
-        bool convertClipBoardText()
+        internal static bool HasUsableClipboardText(string text)
         {
-            if (!Clipboard.ContainsText())
+            return !string.IsNullOrEmpty(text);
+        }
+
+        internal static bool TryGetClipboardText(out string text)
+        {
+            text = null;
+            if (!Clipboard.TryGetData<string>(out text))
             {//テキストデータなければダメ
                 return false;
             }
 
-            //ContainsTextが完全に信用できないので、明確にテキストデータに変換してから渡します
-            string text = (string)Clipboard.GetData("Text");
-            if (text == "")
+            //GetData("Text") の代わりに型安全な API で読み込みます。
+            if (!HasUsableClipboardText(text))
             {//空テキストは拒否
                 return false;
             }
             //Remove encoding conversion when copy & paste: https://github.com/laqieer/FEBuilderGBA/discussions/19 & https://github.com/FEBuilderGBA/FEBuilderGBA/issues/42
             //Clipboard.SetText(text, TextDataFormat.Text);
             return true;
+        }
+
+        bool convertClipBoardText()
+        {
+            return TryGetClipboardText(out _);
         }
     }
 }
