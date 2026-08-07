@@ -139,14 +139,15 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void AboutUrl_Click(object? sender, RoutedEventArgs e)
+        async void AboutUrl_Click(object? sender, RoutedEventArgs e)
         {
             try
             {
-                Process.Start(new ProcessStartInfo(ToolProblemReportViewModel.Report7zUrl)
-                {
-                    UseShellExecute = true
-                });
+                var result = await ExternalLauncher.Current.OpenUriAsync(
+                    TopLevel.GetTopLevel(this),
+                    new Uri(ToolProblemReportViewModel.Report7zUrl));
+                if (!result.IsSucceeded)
+                    Log.Error("ToolProblemReportView.AboutUrl_Click failed: " + result.Message);
             }
             catch (Exception ex)
             {

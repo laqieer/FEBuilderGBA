@@ -1,4 +1,4 @@
-// #886 — Export + OpenSource/SelectSource wired.
+﻿// #886 — Export + OpenSource/SelectSource wired.
 // #889 — Import wired (closes #889, completes #500 image-import).
 // Editor remains a stub (follow-up to #500).
 using global::Avalonia;
@@ -228,16 +228,14 @@ namespace FEBuilderGBA.Avalonia.Views
 
         // #1021 — working "Find new resources online" link → MoreData wiki
         // (mirrors ImageMagicFEditorView.LinkInternet_Click / WF GotoMoreData).
-        void LinkInternet_Click(object? sender, PointerPressedEventArgs e)
+        async void LinkInternet_Click(object? sender, PointerPressedEventArgs e)
         {
             try
             {
                 const string url = "https://github.com/laqieer/FEBuilderGBA/wiki/MoreData";
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = url,
-                    UseShellExecute = true,
-                });
+                var result = await ExternalLauncher.Current.OpenUriAsync(TopLevel.GetTopLevel(this), new Uri(url));
+                if (!result.IsSucceeded)
+                    Log.ErrorF("ImageMagicCSACreatorView.LinkInternet: {0}", result.Message);
             }
             catch (Exception ex)
             {
@@ -716,11 +714,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 // Reveal in file manager (best-effort, mirrors FEditor export).
                 try
                 {
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                    {
-                        FileName = basedir,
-                        UseShellExecute = true,
-                    });
+                    var reveal = await ExternalLauncher.Current.OpenPathAsync(basedir);
+                    if (!reveal.IsSucceeded)
+                        Log.ErrorF("CSAExport reveal: {0}", reveal.Message);
                 }
                 catch { /* best-effort */ }
 
@@ -738,7 +734,7 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         // #886 — OpenSource (mirrors FEditor view OpenSource_Click).
-        void OpenSource_Click(object? sender, RoutedEventArgs e)
+        async void OpenSource_Click(object? sender, RoutedEventArgs e)
         {
             int idx = EntryList.SelectedOriginalIndex;
             if (idx < 0) return;
@@ -750,11 +746,9 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 try
                 {
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                    {
-                        FileName = path,
-                        UseShellExecute = true,
-                    });
+                    var result = await ExternalLauncher.Current.OpenPathAsync(path);
+                    if (!result.IsSucceeded)
+                        CoreState.Services?.ShowError(R._("Cannot open file: {0}", result.Message));
                 }
                 catch (Exception ex)
                 {
@@ -769,7 +763,7 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         // #886 — SelectSource: reveal containing folder in file manager.
-        void SelectSource_Click(object? sender, RoutedEventArgs e)
+        async void SelectSource_Click(object? sender, RoutedEventArgs e)
         {
             int idx = EntryList.SelectedOriginalIndex;
             if (idx < 0) return;
@@ -781,15 +775,9 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 try
                 {
-                    string? dir = Path.GetDirectoryName(path);
-                    if (dir != null)
-                    {
-                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                        {
-                            FileName = dir,
-                            UseShellExecute = true,
-                        });
-                    }
+                    var result = await ExternalLauncher.Current.RevealPathAsync(path);
+                    if (!result.IsSucceeded)
+                        CoreState.Services?.ShowError(R._("Cannot open folder: {0}", result.Message));
                 }
                 catch (Exception ex)
                 {

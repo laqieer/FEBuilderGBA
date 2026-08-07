@@ -560,8 +560,8 @@ namespace FEBuilderGBA.Avalonia.Views
 
             try
             {
-                bool launched = await top.Launcher.LaunchUriAsync(FEMapCreatorProjectUri);
-                if (!launched)
+                var result = await ExternalLauncher.Current.OpenUriAsync(top, FEMapCreatorProjectUri);
+                if (!result.IsSucceeded)
                     ShowFEMapCreatorProjectPageError();
             }
             catch (System.ComponentModel.Win32Exception ex)

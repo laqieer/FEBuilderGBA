@@ -319,8 +319,8 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 // Called from the menu-item click (a user gesture), so the browser
                 // won't popup-block window.open.
-                bool ok = await top.Launcher.LaunchUriAsync(new Uri(url));
-                if (!ok)
+                var result = await ExternalLauncher.Current.OpenUriAsync(top, new Uri(url));
+                if (!result.IsSucceeded)
                     SetStatus(R._("Couldn't open link:") + " " + url);
             }
             catch (Exception ex)

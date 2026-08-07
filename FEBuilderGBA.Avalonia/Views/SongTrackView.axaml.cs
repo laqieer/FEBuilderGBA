@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // SongTrackView — Avalonia parity rebuild for #412. Mirrors `SongTrackForm`
 // layout (panel1 read-config + AddressPanel master-write + panel5 detail +
 // 16 per-track columns) and wires three real cross-editor jumps via
@@ -337,7 +337,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void LinkInternet_Click(object? sender, PointerPressedEventArgs e)
+        async void LinkInternet_Click(object? sender, PointerPressedEventArgs e)
         {
             // Opens the "Find new resources on the Internet" wiki page in the
             // browser, mirroring WF MainFormUtil.GotoMoreData() and the other
@@ -348,11 +348,9 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _ = sender; _ = e;
                 const string url = "https://github.com/laqieer/FEBuilderGBA/wiki/MoreData";
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = url,
-                    UseShellExecute = true,
-                });
+                var result = await ExternalLauncher.Current.OpenUriAsync(TopLevel.GetTopLevel(this), new Uri(url));
+                if (!result.IsSucceeded)
+                    Log.Error("SongTrackView.LinkInternet_Click failed:", result.Message);
             }
             catch (Exception ex)
             {
@@ -1009,7 +1007,7 @@ namespace FEBuilderGBA.Avalonia.Views
         // visible only when IsSourceFileAvailable.
         // -----------------------------------------------------------------
 
-        void OpenSource_Click(object? sender, RoutedEventArgs e)
+        async void OpenSource_Click(object? sender, RoutedEventArgs e)
         {
             try
             {
@@ -1026,8 +1024,9 @@ namespace FEBuilderGBA.Avalonia.Views
                     CoreState.Services?.ShowError($"Source file not found: {_vm.SourceFilePath}");
                     return;
                 }
-                var psi = new ProcessStartInfo(_vm.SourceFilePath) { UseShellExecute = true };
-                Process.Start(psi);
+                var result = await ExternalLauncher.Current.OpenPathAsync(_vm.SourceFilePath);
+                if (!result.IsSucceeded)
+                    CoreState.Services?.ShowError($"Failed to open source file: {result.Message}");
             }
             catch (Exception ex)
             {
@@ -1036,7 +1035,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void SelectSource_Click(object? sender, RoutedEventArgs e)
+        async void SelectSource_Click(object? sender, RoutedEventArgs e)
         {
             try
             {
@@ -1051,22 +1050,9 @@ namespace FEBuilderGBA.Avalonia.Views
                     CoreState.Services?.ShowError($"Source file not found: {_vm.SourceFilePath}");
                     return;
                 }
-                if (OperatingSystem.IsWindows())
-                {
-                    var psi = new ProcessStartInfo("explorer.exe",
-                        $"/select,\"{_vm.SourceFilePath}\"")
-                        { UseShellExecute = true };
-                    Process.Start(psi);
-                }
-                else
-                {
-                    string? folder = Path.GetDirectoryName(_vm.SourceFilePath);
-                    if (!string.IsNullOrEmpty(folder))
-                    {
-                        var psi = new ProcessStartInfo(folder) { UseShellExecute = true };
-                        Process.Start(psi);
-                    }
-                }
+                var result = await ExternalLauncher.Current.RevealPathAsync(_vm.SourceFilePath);
+                if (!result.IsSucceeded)
+                    CoreState.Services?.ShowError($"Failed to open source folder: {result.Message}");
             }
             catch (Exception ex)
             {

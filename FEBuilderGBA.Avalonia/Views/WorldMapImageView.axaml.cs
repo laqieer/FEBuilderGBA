@@ -1295,7 +1295,7 @@ namespace FEBuilderGBA.Avalonia.Views
         // visible only when IsSourceFileAvailable.
         // ===================================================================
 
-        void OpenSource_Click(object? sender, RoutedEventArgs e)
+        async void OpenSource_Click(object? sender, RoutedEventArgs e)
         {
             try
             {
@@ -1312,8 +1312,9 @@ namespace FEBuilderGBA.Avalonia.Views
                     CoreState.Services?.ShowError($"Source file not found: {_vm.SourceFilePath}");
                     return;
                 }
-                var psi = new ProcessStartInfo(_vm.SourceFilePath) { UseShellExecute = true };
-                Process.Start(psi);
+                var result = await ExternalLauncher.Current.OpenPathAsync(_vm.SourceFilePath);
+                if (!result.IsSucceeded)
+                    CoreState.Services?.ShowError($"Failed to open source file: {result.Message}");
             }
             catch (Exception ex)
             {
@@ -1322,7 +1323,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void SelectSource_Click(object? sender, RoutedEventArgs e)
+        async void SelectSource_Click(object? sender, RoutedEventArgs e)
         {
             try
             {
@@ -1337,22 +1338,9 @@ namespace FEBuilderGBA.Avalonia.Views
                     CoreState.Services?.ShowError($"Source file not found: {_vm.SourceFilePath}");
                     return;
                 }
-                if (OperatingSystem.IsWindows())
-                {
-                    var psi = new ProcessStartInfo("explorer.exe",
-                        $"/select,\"{_vm.SourceFilePath}\"")
-                        { UseShellExecute = true };
-                    Process.Start(psi);
-                }
-                else
-                {
-                    string? folder = Path.GetDirectoryName(_vm.SourceFilePath);
-                    if (!string.IsNullOrEmpty(folder))
-                    {
-                        var psi = new ProcessStartInfo(folder) { UseShellExecute = true };
-                        Process.Start(psi);
-                    }
-                }
+                var result = await ExternalLauncher.Current.RevealPathAsync(_vm.SourceFilePath);
+                if (!result.IsSucceeded)
+                    CoreState.Services?.ShowError($"Failed to open source folder: {result.Message}");
             }
             catch (Exception ex)
             {

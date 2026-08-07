@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // Avalonia counterpart of WinForms ImageMagicFEditorForm. Gap-sweep
 // fix (#418) - rebuilds this view from a 3-control stub into a full
 // editor surface mirroring the WF panel3 / panel5 / panel8 /
@@ -696,11 +696,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 // Reveal file in explorer (mirrors WF U.SelectFileByExplorer).
                 try
                 {
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    string? exportDir = System.IO.Path.GetDirectoryName(filename);
+                    if (!string.IsNullOrEmpty(exportDir))
                     {
-                        FileName = System.IO.Path.GetDirectoryName(filename),
-                        UseShellExecute = true,
-                    });
+                        var reveal = await ExternalLauncher.Current.OpenPathAsync(exportDir);
+                        if (!reveal.IsSucceeded)
+                            Log.ErrorF("MagicAnimeExport reveal: {0}", reveal.Message);
+                    }
                 }
                 catch { /* best-effort */ }
 
@@ -730,7 +732,7 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         // #878 PR1 — Open Source File (mirrors WF OpenSourceButton_Click).
-        void OpenSource_Click(object? sender, RoutedEventArgs e)
+        async void OpenSource_Click(object? sender, RoutedEventArgs e)
         {
             int idx = EntryList.SelectedOriginalIndex;
             if (idx < 0) return;
@@ -742,11 +744,9 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 try
                 {
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                    {
-                        FileName = path,
-                        UseShellExecute = true,
-                    });
+                    var result = await ExternalLauncher.Current.OpenPathAsync(path);
+                    if (!result.IsSucceeded)
+                        CoreState.Services?.ShowError(R._("Cannot open file: {0}", result.Message));
                 }
                 catch (Exception ex)
                 {
@@ -763,7 +763,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         // #878 PR1 — Open Source Folder / reveal in file manager
         // (mirrors WF SelectSourceButton_Click).
-        void SelectSource_Click(object? sender, RoutedEventArgs e)
+        async void SelectSource_Click(object? sender, RoutedEventArgs e)
         {
             int idx = EntryList.SelectedOriginalIndex;
             if (idx < 0) return;
@@ -775,16 +775,9 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 try
                 {
-                    // Reveal in file manager: open the containing directory.
-                    string? dir = System.IO.Path.GetDirectoryName(path);
-                    if (dir != null)
-                    {
-                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                        {
-                            FileName = dir,
-                            UseShellExecute = true,
-                        });
-                    }
+                    var result = await ExternalLauncher.Current.RevealPathAsync(path);
+                    if (!result.IsSucceeded)
+                        CoreState.Services?.ShowError(R._("Cannot open folder: {0}", result.Message));
                 }
                 catch (Exception ex)
                 {
@@ -845,18 +838,16 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex) { Log.Error($"ImageMagicFEditorView.JumpEditor: {ex}"); }
         }
 
-        void LinkInternet_Click(object? sender, PointerPressedEventArgs e)
+        async void LinkInternet_Click(object? sender, PointerPressedEventArgs e)
         {
             // Opens the "Find new resources on the Internet" wiki page,
             // mirroring WF MainFormUtil.GotoMoreData().
             try
             {
                 const string url = "https://github.com/laqieer/FEBuilderGBA/wiki/MoreData";
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = url,
-                    UseShellExecute = true,
-                });
+                var result = await ExternalLauncher.Current.OpenUriAsync(TopLevel.GetTopLevel(this), new Uri(url));
+                if (!result.IsSucceeded)
+                    Log.ErrorF("ImageMagicFEditorView.LinkInternet: {0}", result.Message);
             }
             catch (Exception ex)
             {

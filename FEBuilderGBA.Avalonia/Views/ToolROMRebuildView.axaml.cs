@@ -187,7 +187,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 };
 
                 if (result == ToolROMRebuildViewModel.RebuildResult.Ok)
-                    RevealInExplorer(output);
+                    await RevealInExplorer(output);
             }
             catch (Exception ex)
             {
@@ -259,7 +259,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 };
 
                 if (result == ToolROMRebuildViewModel.MakeResult.Ok)
-                    RevealInExplorer(output);
+                    await RevealInExplorer(output);
             }
             catch (Exception ex)
             {
@@ -284,20 +284,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 System.Globalization.CultureInfo.InvariantCulture, out value);
         }
 
-        static void RevealInExplorer(string path)
+        static async Task RevealInExplorer(string path)
         {
             try
             {
-                if (OperatingSystem.IsWindows())
-                {
-                    Process.Start(new ProcessStartInfo("explorer.exe", "/select,\"" + path + "\"") { UseShellExecute = true });
-                }
-                else
-                {
-                    string dir = Path.GetDirectoryName(path) ?? "";
-                    if (!string.IsNullOrEmpty(dir))
-                        Process.Start(new ProcessStartInfo(dir) { UseShellExecute = true });
-                }
+                var result = await ExternalLauncher.Current.RevealPathAsync(path);
+                if (!result.IsSucceeded)
+                    Log.Error("ToolROMRebuildView.RevealInExplorer failed: " + result.Message);
             }
             catch { /* reveal is best-effort */ }
         }
