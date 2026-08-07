@@ -2863,39 +2863,47 @@ namespace FEBuilderGBA.CLI
                 }
             }
 
-            using var paint = new global::SkiaSharp.SKPaint
+            try
             {
-                TextSize = fontSize,
-                IsAntialias = true,
-                Color = global::SkiaSharp.SKColors.Black,
-                Typeface = typeface ?? global::SkiaSharp.SKTypeface.Default
-            };
+                using var font = new global::SkiaSharp.SKFont(typeface ?? global::SkiaSharp.SKTypeface.Default, fontSize)
+                {
+                    Edging = global::SkiaSharp.SKFontEdging.Antialias
+                };
+                using var paint = new global::SkiaSharp.SKPaint
+                {
+                    IsAntialias = true,
+                    Color = global::SkiaSharp.SKColors.Black
+                };
 
-            // Render each character to a 16x16 tile
-            int charSize = 16;
-            int totalWidth = text.Length * charSize;
-            using var bitmap = new global::SkiaSharp.SKBitmap(totalWidth, charSize);
-            using var canvas = new global::SkiaSharp.SKCanvas(bitmap);
-            canvas.Clear(global::SkiaSharp.SKColors.White);
+                // Render each character to a 16x16 tile
+                int charSize = 16;
+                int totalWidth = text.Length * charSize;
+                using var bitmap = new global::SkiaSharp.SKBitmap(totalWidth, charSize);
+                using var canvas = new global::SkiaSharp.SKCanvas(bitmap);
+                canvas.Clear(global::SkiaSharp.SKColors.White);
 
-            for (int i = 0; i < text.Length; i++)
-            {
-                string ch = text[i].ToString();
-                float x = i * charSize;
-                float y = charSize - 2 + verticalOffset; // baseline offset
-                canvas.DrawText(ch, x, y, paint);
+                for (int i = 0; i < text.Length; i++)
+                {
+                    string ch = text[i].ToString();
+                    float x = i * charSize;
+                    float y = charSize - 2 + verticalOffset; // baseline offset
+                    canvas.DrawText(ch, x, y, global::SkiaSharp.SKTextAlign.Left, font, paint);
+                }
+
+                // Save as PNG
+                using var image = global::SkiaSharp.SKImage.FromBitmap(bitmap);
+                using var data = image.Encode(global::SkiaSharp.SKEncodedImageFormat.Png, 100);
+                using var stream = File.OpenWrite(outputPath);
+                data.SaveTo(stream);
+
+                var fileInfo = new FileInfo(outputPath);
+                Console.WriteLine($"Font generated: {outputPath} ({text.Length} chars, {totalWidth}x{charSize}, {fileInfo.Length} bytes)");
+                return 0;
             }
-
-            // Save as PNG
-            using var image = global::SkiaSharp.SKImage.FromBitmap(bitmap);
-            using var data = image.Encode(global::SkiaSharp.SKEncodedImageFormat.Png, 100);
-            using var stream = File.OpenWrite(outputPath);
-            data.SaveTo(stream);
-
-            typeface?.Dispose();
-            var fileInfo = new FileInfo(outputPath);
-            Console.WriteLine($"Font generated: {outputPath} ({text.Length} chars, {totalWidth}x{charSize}, {fileInfo.Length} bytes)");
-            return 0;
+            finally
+            {
+                typeface?.Dispose();
+            }
         }
 
         static int RunImportPortrait(Dictionary<string, string> argsDic)
@@ -4188,17 +4196,7 @@ namespace FEBuilderGBA.CLI
 
             // Detect format: check FEditor .bin header first, then fall back to extension
             string error;
-            bool isFEditorBin = false;
-            string ext = Path.GetExtension(scriptPath).ToUpperInvariant();
-            if (ext == ".BIN" || ext == "")
-            {
-                // Check for FEditor serialization header
-                byte[] header = new byte[8];
-                using (var fs = File.OpenRead(scriptPath))
-                    fs.Read(header, 0, Math.Min(8, (int)fs.Length));
-                // FEditor header: 5C 78 78 75 72 or 5C 78 70
-                isFEditorBin = (header[0] == 0x5C && header[1] == 0x78);
-            }
+            bool isFEditorBin = IsFEditorBattleAnimationBin(scriptPath);
             if (isFEditorBin)
             {
                 error = BattleAnimeImportCore.ImportFEditorBin(
