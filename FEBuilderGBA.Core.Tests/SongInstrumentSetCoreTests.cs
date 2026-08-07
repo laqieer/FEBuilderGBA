@@ -829,7 +829,7 @@ namespace FEBuilderGBA.Core.Tests
                     importedBase = SongInstrumentSetCore.ImportAll(
                         rom, "vg.instrument",
                         ReadLinesFrom(export1), ReadFileFrom(export1),
-                        appendBinaryData: null!, out string err);
+                        appendBinaryData: null, out string err);
                     Assert.Equal((string)null, err);
                 }
                 Assert.NotEqual(U.NOT_FOUND, importedBase);

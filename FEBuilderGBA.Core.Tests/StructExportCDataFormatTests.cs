@@ -767,7 +767,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             foreach (string candidate in new[] { "arm-none-eabi-gcc", "gcc" })
             {
-                var probe = ProcessRunnerCore.Run(candidate, new[] { "--version" }, null!, 10_000);
+                var probe = ProcessRunnerCore.Run(candidate, new[] { "--version" }, Environment.CurrentDirectory, 10_000);
                 if (probe.Started && probe.ExitCode == 0) return candidate;
             }
             return null;

@@ -328,7 +328,7 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.NotNull(project);
                 // Start with NO built ROM path so we can prove the success
                 // path SETS it (only after the load seam returns true).
-                project!.BuiltRomPath = null!;
+                project!.BuiltRomPath = "";
                 project.NeedsRebuild = true;
 
                 // Stub loadSeam that always returns true

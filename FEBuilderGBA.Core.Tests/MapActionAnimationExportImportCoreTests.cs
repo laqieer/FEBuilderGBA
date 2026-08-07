@@ -603,11 +603,11 @@ namespace FEBuilderGBA.Core.Tests
         /// methods the Export path actually touches need to work.</summary>
         class SyntheticImageService : IImageService
         {
-            public IImage CreateImage(int width, int height) => new SyntheticIndexedImage(width, height, null!);
+            public IImage CreateImage(int width, int height) => new SyntheticIndexedImage(width, height, new byte[32]);
             public IImage CreateIndexedImage(int width, int height, byte[] gbaPalette, int paletteColorCount)
                 => new SyntheticIndexedImage(width, height, gbaPalette);
-            public IImage LoadImage(string filePath) => new SyntheticIndexedImage(64, 64, null!);
-            public IImage LoadImageFromBytes(byte[] pngData) => new SyntheticIndexedImage(64, 64, null!);
+            public IImage LoadImage(string filePath) => new SyntheticIndexedImage(64, 64, new byte[32]);
+            public IImage LoadImageFromBytes(byte[] pngData) => new SyntheticIndexedImage(64, 64, new byte[32]);
 
             public void GBAColorToRGBA(ushort gbaColor, out byte r, out byte g, out byte b)
             {

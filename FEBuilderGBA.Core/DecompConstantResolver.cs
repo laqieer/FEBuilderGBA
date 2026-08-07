@@ -139,7 +139,7 @@ namespace FEBuilderGBA
         /// not resolvable (absolute / escapes root / missing / unparseable) the resolver
         /// is <see cref="IsUnavailable"/> and (c) is NOT consulted.</para>
         /// </summary>
-        public static DecompConstantResolver BuildForProject(DecompProject project, DecompTableEntry owner)
+        public static DecompConstantResolver BuildForProject(DecompProject? project, DecompTableEntry? owner)
         {
             try
             {

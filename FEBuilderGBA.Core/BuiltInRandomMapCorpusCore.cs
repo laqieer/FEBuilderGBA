@@ -18,9 +18,9 @@ namespace FEBuilderGBA
     /// </summary>
     public sealed class BuiltInRandomMapTilesetCorpus
     {
-        readonly byte[] _objData;
-        readonly byte[] _paletteData;
-        readonly byte[] _configData;
+        readonly byte[]? _objData;
+        readonly byte[]? _paletteData;
+        readonly byte[]? _configData;
 
         internal BuiltInRandomMapTilesetCorpus(
             TilesetFingerprint fingerprint,
@@ -30,9 +30,9 @@ namespace FEBuilderGBA
             IReadOnlyDictionary<ushort, long> borderFrequency,
             IReadOnlyDictionary<ushort, IReadOnlySet<ushort>> horizontalAdjacency,
             IReadOnlyDictionary<ushort, IReadOnlySet<ushort>> verticalAdjacency,
-            byte[] objData,
-            byte[] paletteData,
-            byte[] configData,
+            byte[]? objData,
+            byte[]? paletteData,
+            byte[]? configData,
             long totalCells,
             bool preserveInstrumentedLookups = false)
         {
@@ -84,20 +84,20 @@ namespace FEBuilderGBA
         public IReadOnlyDictionary<ushort, IReadOnlySet<ushort>> VerticalAdjacency { get; }
 
         /// <summary>Decompressed OBJ bytes shared by every contributing map (fingerprint-equal implies byte-identical).</summary>
-        public byte[] ObjData => _objData == null ? null : (byte[])_objData.Clone();
+        public byte[]? ObjData => _objData == null ? null : (byte[])_objData.Clone();
 
         /// <summary>Palette bytes shared by every contributing map.</summary>
-        public byte[] PaletteData => _paletteData == null ? null : (byte[])_paletteData.Clone();
+        public byte[]? PaletteData => _paletteData == null ? null : (byte[])_paletteData.Clone();
 
         /// <summary>Decompressed chipset config bytes shared by every contributing map.</summary>
-        public byte[] ConfigData => _configData == null ? null : (byte[])_configData.Clone();
+        public byte[]? ConfigData => _configData == null ? null : (byte[])_configData.Clone();
 
         /// <summary>Total cell count summed across every contributing map (evidence volume, not output size).</summary>
         public long TotalCells { get; }
 
-        internal byte[] ObjDataBuffer => _objData;
-        internal byte[] PaletteDataBuffer => _paletteData;
-        internal byte[] ConfigDataBuffer => _configData;
+        internal byte[]? ObjDataBuffer => _objData;
+        internal byte[]? PaletteDataBuffer => _paletteData;
+        internal byte[]? ConfigDataBuffer => _configData;
 
         static IReadOnlyDictionary<ushort, long> CloneFrequency(
             IReadOnlyDictionary<ushort, long> source)
@@ -134,9 +134,9 @@ namespace FEBuilderGBA
             IReadOnlyDictionary<ushort, long> borderFrequency,
             IReadOnlyDictionary<ushort, IReadOnlySet<ushort>> horizontalAdjacency,
             IReadOnlyDictionary<ushort, IReadOnlySet<ushort>> verticalAdjacency,
-            byte[] objData,
-            byte[] paletteData,
-            byte[] configData,
+            byte[]? objData,
+            byte[]? paletteData,
+            byte[]? configData,
             long totalCells,
             bool preserveInstrumentedLookups = false) =>
             new BuiltInRandomMapTilesetCorpus(

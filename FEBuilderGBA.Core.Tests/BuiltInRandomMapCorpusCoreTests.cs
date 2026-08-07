@@ -325,9 +325,12 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Throws<NotSupportedException>(() => publicSet.Add(8));
 
             // Public byte-array getters must also return independent defensive copies.
-            corpus.ObjData[0] ^= 0xFF;
-            corpus.PaletteData[0] ^= 0xFF;
-            corpus.ConfigData[0] ^= 0xFF;
+            byte[] publicObjData = corpus.ObjData ?? throw new InvalidOperationException("ObjData missing.");
+            byte[] publicPaletteData = corpus.PaletteData ?? throw new InvalidOperationException("PaletteData missing.");
+            byte[] publicConfigData = corpus.ConfigData ?? throw new InvalidOperationException("ConfigData missing.");
+            publicObjData[0] ^= 0xFF;
+            publicPaletteData[0] ^= 0xFF;
+            publicConfigData[0] ^= 0xFF;
 
             Assert.Equal(new uint[] { 0 }, corpus.ContributingMapIds);
             Assert.Equal(new ushort[] { 0, 4 }, corpus.Candidates);

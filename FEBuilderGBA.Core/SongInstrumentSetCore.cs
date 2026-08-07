@@ -486,7 +486,7 @@ namespace FEBuilderGBA.Core
             string indexName,
             Func<string, string[]> readLines,
             Func<string, byte[]> readFile,
-            Func<byte[], uint> appendBinaryData,
+            Func<byte[], uint>? appendBinaryData,
             out string error)
         {
             error = null;

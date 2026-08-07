@@ -109,7 +109,7 @@ namespace FEBuilderGBA.Core.Tests
 
             // An address inside that final span resolves to LastSym via SearchNear.
             var resolver = ResolverFromMapSnippet(map);
-            var merged = new MergedAsmMapFile(null!, resolver);
+            var merged = new MergedAsmMapFile(null, resolver);
             uint near = merged.SearchNear(0x080001F0u);   // inside [0x100..0x200)
             Assert.True(merged.TryGetValue(near, out var st));
             Assert.Equal("LastSym", st.Name);
@@ -158,7 +158,7 @@ namespace FEBuilderGBA.Core.Tests
             // apply (pointer < key + Length) must reject it — gRamVar's bounded 0x40
             // size means [0x03000000..0x03000040) does not reach ROM.
             var resolver = ResolverFromMapSnippet(map);
-            var merged = new MergedAsmMapFile(null!, resolver);
+            var merged = new MergedAsmMapFile(null, resolver);
             uint near = merged.SearchNear(0x08000100u);
             if (near != U.NOT_FOUND && merged.TryGetValue(near, out var st)
                 && st.Name == "gRamVar")
