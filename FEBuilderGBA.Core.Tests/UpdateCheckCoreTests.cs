@@ -20,9 +20,9 @@ namespace FEBuilderGBA.Core.Tests
         [InlineData("")]
         [InlineData(null)]
         [InlineData("not json")]
-        public void ParseLatestVersionFromReleaseJson_InvalidOrMissingTag_ReturnsEmpty(string json)
+        public void ParseLatestVersionFromReleaseJson_InvalidOrMissingTag_ReturnsEmpty(string? json)
         {
-            Assert.Equal("", UpdateCheckCore.ParseLatestVersionFromReleaseJson(json));
+            Assert.Equal("", UpdateCheckCore.ParseLatestVersionFromReleaseJson(json!));
         }
 
         [Fact]

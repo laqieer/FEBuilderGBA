@@ -208,7 +208,7 @@ namespace FEBuilderGBA.Core.Tests
         [InlineData(FERepoResourceBrowser.FERepoEditorKind.CGImage, "BGs, Interface Elements", "Background CGs")]
         [InlineData(FERepoResourceBrowser.FERepoEditorKind.Tileset, "Tilesets", null)]
         public void GetFERepoFolderForEditor_ReturnsExpectedFolder(
-            FERepoResourceBrowser.FERepoEditorKind kind, string category, string subCategory)
+            FERepoResourceBrowser.FERepoEditorKind kind, string category, string? subCategory)
         {
             var result = FERepoResourceBrowser.GetFERepoFolderForEditor(kind);
             Assert.True(result.Supported);

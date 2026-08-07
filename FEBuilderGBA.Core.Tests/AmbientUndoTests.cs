@@ -46,7 +46,7 @@ namespace FEBuilderGBA.Core.Tests
             // 3 write calls => 3 undo positions
             Assert.Equal(3, ud.list.Count);
             Assert.Equal(0x10u, ud.list[0].addr);
-            Assert.Equal(1, ud.list[0].data.Length); // u8 = 1 byte
+            Assert.Single(ud.list[0].data); // u8 = 1 byte
             Assert.Equal(0x20u, ud.list[1].addr);
             Assert.Equal(2, ud.list[1].data.Length); // u16 = 2 bytes
             Assert.Equal(0x30u, ud.list[2].addr);
@@ -156,7 +156,7 @@ namespace FEBuilderGBA.Core.Tests
 
             Assert.Single(ud.list);
             Assert.Equal(0x70u, ud.list[0].addr);
-            Assert.Equal(1, ud.list[0].data.Length);
+            Assert.Single(ud.list[0].data);
         }
 
         [Fact]

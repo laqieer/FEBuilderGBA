@@ -441,7 +441,7 @@ namespace FEBuilderGBA.Core.Tests
             // snapshot the whole ROM into the scope.
             Assert.Equal(4, ud.list.Count);
             foreach (var pos in ud.list)
-                Assert.Equal(1, pos.data.Length); // each undo record is a single byte, not a ROM-sized blob
+                Assert.Single(pos.data); // each undo record is a single byte, not a ROM-sized blob
 
             // Commit then undo -> byte-identical restore.
             CoreState.Undo.Push(ud);
@@ -471,7 +471,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             Assert.Equal(60, rom.Data[Track0Data + 1]); // 50 + 10
             Assert.Single(ud.list);                     // exactly 1 undo record
-            Assert.Equal(1, ud.list[0].data.Length);    // a single byte, not 16 MB
+            Assert.Single(ud.list[0].data);             // a single byte, not 16 MB
         }
 
         [Fact]

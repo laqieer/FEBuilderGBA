@@ -1,4 +1,4 @@
-﻿// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Tests for RebuildProducerCore slice s2pf-5 (#1261) — the TYPE=STRUCT terminal
 // PatchForm producer arm (option-B epic, sub-slice 5 of 11):
 //   RebuildProducerCore.EmitPatchStruct = WF PatchForm.MakePatchStructDataListForSTRUCT @:6461
@@ -98,7 +98,7 @@ namespace FEBuilderGBA.Core.Tests
             return Assert.Single(list, a => a.Info == info);
         }
 
-        static Address Main(List<Address> list)
+        static Address MainBlock(List<Address> list)
         {
             return Assert.Single(list, a => a.Info != null && a.Info.EndsWith("@STRUCT"));
         }
@@ -181,7 +181,7 @@ namespace FEBuilderGBA.Core.Tests
                 ("DATACOUNT", "4"),
                 ("P0:POINTER", "0")), isPointerOnly: false);
 
-            var main = Main(list);
+            var main = MainBlock(list);
             Assert.Equal(table, main.Addr);
             // datasize*(datacount+1) = 8*5 = 40.
             Assert.Equal(datasize * (datacount + 1), main.Length);
@@ -205,7 +205,7 @@ namespace FEBuilderGBA.Core.Tests
                 ("DATACOUNT", "2"),
                 ("P0:POINTER", "0")), isPointerOnly: false);
 
-            var main = Main(list);
+            var main = MainBlock(list);
             Assert.Equal(table, main.Addr);
             Assert.Equal(datasize * (datacount + 1), main.Length); // 4*3 = 12
             Assert.Equal(U.NOT_FOUND, main.Pointer);               // ADDRESS form -> no pointer slot
@@ -226,7 +226,7 @@ namespace FEBuilderGBA.Core.Tests
                 ("DATACOUNT", "0"),         // explicit 0 -> MAIN emitted, no entry loop
                 ("P0:ASM", "0")), isPointerOnly: false);
 
-            var main = Main(list);
+            var main = MainBlock(list);
             Assert.Equal(table, main.Addr);
             Assert.Equal(8u * 1u, main.Length);   // datasize*(0+1)
             Assert.Equal(Address.DataTypeEnum.InputFormRef_ASM, main.DataType);
@@ -260,7 +260,7 @@ namespace FEBuilderGBA.Core.Tests
                 ("DATACOUNT", "$EndWeaponDebuffTable5 "),
                 ("P0:POINTER", "0")), isPointerOnly: false);
 
-            var main = Main(list);
+            var main = MainBlock(list);
             // found = 0x4010 -> count = 4 -> length = datasize*(4+1) = 20.
             Assert.Equal(datasize * (4u + 1u), main.Length);
         }
@@ -337,7 +337,7 @@ namespace FEBuilderGBA.Core.Tests
                 ("TYPE", "STRUCT"), ("ADDRESS", "0x3000"),
                 ("DATASIZE", "8"), ("DATACOUNT", "0"),
                 ("P0:POINTER", "0")), isPointerOnly: false);
-            var main = Main(list);
+            var main = MainBlock(list);
             Assert.Equal(8u, main.Length);
             Assert.Single(list); // ONLY the main entry (no per-entry pointers)
         }
@@ -1169,7 +1169,7 @@ namespace FEBuilderGBA.Core.Tests
             var list = new List<Address>();
             RebuildProducerCore.EmitPatchStruct(rom, list, MakePatch("Ev2",
                 ("TYPE", "STRUCT"), ("ADDRESS", "0x2000"),
-                ("DATASIZE", "4"), ("DATACOUNT", "2"),
+                ("DATASIZE", "4"), ("DATACOUNT", datacount.ToString()),
                 ("P0:EVENT", "0")), isPointerOnly: false);
 
             var blocks = list.FindAll(a => a.DataType == Address.DataTypeEnum.EVENTSCRIPT);
@@ -1230,12 +1230,12 @@ namespace FEBuilderGBA.Core.Tests
             // entries 0,1 -> images; the sentinel row (i==2) at table+2*4 -> a DIFFERENT target.
             PlantPointer(rom, table + 0 * datasize, 0xB000);
             PlantPointer(rom, table + 1 * datasize, 0xB100);
-            PlantPointer(rom, table + 2 * datasize, 0xBEEF00 & 0xFFFFFF); // sentinel row target
+            PlantPointer(rom, table + datacount * datasize, 0xBEEF00 & 0xFFFFFF); // sentinel row target
 
             var list = new List<Address>();
             RebuildProducerCore.EmitPatchStruct(rom, list, MakePatch("Bound",
                 ("TYPE", "STRUCT"), ("ADDRESS", "0x2000"),
-                ("DATASIZE", "4"), ("DATACOUNT", "2"),
+                ("DATASIZE", "4"), ("DATACOUNT", datacount.ToString()),
                 ("WIDTH", "8"), ("HEIGHT", "8"),
                 ("P0:PatchImage_IMAGE", "0")), isPointerOnly: false);
 

@@ -90,10 +90,9 @@ namespace FEBuilderGBA.Core.Tests
         {
             // #1355: the map-change overlay import/verify row is a SourceTreeExporter row.
             var rows = DecompRoundTripAuditCore.BuildMatrix();
-            var row = rows.SingleOrDefault(r =>
+            var row = Assert.Single(rows, r =>
                 r.Table == "map_change_overlay"
                 && r.Action == "Map-change overlay import/verify");
-            Assert.NotNull(row);
             Assert.Equal(DecompCoverage.SourceTreeExporter, row.Coverage);
             Assert.Contains("--verify-asset", row.Notes);
             Assert.Contains("NOT the .mar layout", row.Notes);
@@ -105,8 +104,7 @@ namespace FEBuilderGBA.Core.Tests
             // #1355: the map-change OVERLAY tile data block is now source-backed, so the
             // map_asset_binaries ManualMigration row must no longer claim "overlay".
             var rows = DecompRoundTripAuditCore.BuildMatrix();
-            var row = rows.SingleOrDefault(r => r.Table == "map_asset_binaries");
-            Assert.NotNull(row);
+            var row = Assert.Single(rows, r => r.Table == "map_asset_binaries");
             Assert.Equal(DecompCoverage.ManualMigration, row.Coverage);
             // The row must EXCLUDE the overlay (it is now source-backed export/import/verify),
             // and must no longer LIST it among the remaining LZ77/pointer binaries.

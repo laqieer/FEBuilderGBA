@@ -307,7 +307,7 @@ namespace FEBuilderGBA.Core.Tests
         [InlineData(DownloadInstallCore.ResourceId.Sox, "sox.exe", "sox")]
         [InlineData(DownloadInstallCore.ResourceId.Midfix4agb, "midfix4agb.exe", "midfix4agb")]
         public void GetSpec_ReturnsExpectedGlobAndUrl(
-            DownloadInstallCore.ResourceId id, string glob, string subDir)
+            DownloadInstallCore.ResourceId id, string glob, string? subDir)
         {
             var spec = DownloadInstallCore.GetSpec(id);
             Assert.Equal(glob, spec.MatchGlob);
