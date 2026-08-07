@@ -33,7 +33,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             public UnitEditorDouble() { Title = "Unit Editor - FE8U"; Content = new TextBlock(); }
             public string ViewTitle => "Unit Editor";
-            public bool IsLoaded => true;
+            public new bool IsLoaded => true;
             public void NavigateTo(uint address) { }
         }
 

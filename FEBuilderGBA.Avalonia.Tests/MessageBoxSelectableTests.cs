@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Headless.XUnit;
 using global::Avalonia.Interactivity;
+using global::Avalonia.Input.Platform;
 using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Views;
 using Xunit;
@@ -145,7 +146,7 @@ public class MessageBoxSelectableTests
             copy.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await Task.Yield();
 
-            Assert.Equal(message, await window.Clipboard!.GetTextAsync());
+            Assert.Equal(message, await ClipboardExtensions.TryGetTextAsync(window.Clipboard!));
             Assert.True(window.IsVisible);
             var status = Assert.IsType<TextBlock>(content.FindControl<TextBlock>("CopyStatus"));
             Assert.Equal(R._("Copied to clipboard"), status.Text);
