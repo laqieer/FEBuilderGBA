@@ -177,7 +177,7 @@ namespace FEBuilderGBA
         /// written to the final tool dir (a prior install is preserved), and the
         /// staging dir is removed.
         /// </summary>
-        public static string Download(ResourceId id, string baseDir, Action<string> progress,
+        public static string Download(ResourceId id, string baseDir, Action<string>? progress,
             out string error, DownloadStep downloadStep = null)
         {
             StagedDownload staged = Stage(id, baseDir, progress, out error, downloadStep);
@@ -193,7 +193,7 @@ namespace FEBuilderGBA
             }
         }
 
-        public static async Task<DownloadResult> DownloadAsync(ResourceId id, string baseDir, Action<string> progress,
+        public static async Task<DownloadResult> DownloadAsync(ResourceId id, string baseDir, Action<string>? progress,
             DownloadStepAsync downloadStep = null, CancellationToken cancellationToken = default)
         {
             StageDownloadResult staged = await StageAsync(
@@ -267,7 +267,7 @@ namespace FEBuilderGBA
         /// disposes), or <c>null</c> + non-empty <paramref name="error"/> on
         /// failure (staging dir already cleaned up). NO final dir is mutated here.
         /// </summary>
-        public static StagedDownload Stage(ResourceId id, string baseDir, Action<string> progress,
+        public static StagedDownload Stage(ResourceId id, string baseDir, Action<string>? progress,
             out string error, DownloadStep downloadStep = null)
         {
             error = "";
@@ -376,7 +376,7 @@ namespace FEBuilderGBA
             }
         }
 
-        public static async Task<StageDownloadResult> StageAsync(ResourceId id, string baseDir, Action<string> progress,
+        public static async Task<StageDownloadResult> StageAsync(ResourceId id, string baseDir, Action<string>? progress,
             DownloadStepAsync downloadStep = null, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -663,13 +663,13 @@ namespace FEBuilderGBA
         ///   <paramref name="runInstaller"/>     defaults to GitInstaller.RunInstallerSilentlyAsync,
         ///   <paramref name="findGit"/>          defaults to GitUtil.FindGitExecutable.
         /// </summary>
-        public static async Task<GitInstallResult> DownloadGitAsync(Action<string> progress,
-            Func<string> getInstallerUrl = null,
-            DownloadStep downloadStep = null,
-            Func<string, Task<bool>> runInstaller = null,
-            Func<string> findGit = null,
-            Func<CancellationToken, Task<string>> getInstallerUrlAsync = null,
-            DownloadStepAsync downloadStepAsync = null,
+        public static async Task<GitInstallResult> DownloadGitAsync(Action<string>? progress,
+            Func<string?>? getInstallerUrl = null,
+            DownloadStep? downloadStep = null,
+            Func<string, Task<bool>>? runInstaller = null,
+            Func<string?>? findGit = null,
+            Func<CancellationToken, Task<string?>>? getInstallerUrlAsync = null,
+            DownloadStepAsync? downloadStepAsync = null,
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -694,7 +694,7 @@ namespace FEBuilderGBA
             findGit ??= GitUtil.FindGitExecutable;
 
             progress?.Invoke(R._("Resolving the Git installer download URL..."));
-            string installerUrl = await getInstallerUrlAsync(cancellationToken).ConfigureAwait(false);
+            string? installerUrl = await getInstallerUrlAsync(cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
             if (string.IsNullOrEmpty(installerUrl))
             {
@@ -724,7 +724,7 @@ namespace FEBuilderGBA
                 }
 
                 progress?.Invoke(R._("Git installation complete."));
-                string gitPath = findGit();
+                string? gitPath = findGit();
                 if (string.IsNullOrEmpty(gitPath))
                 {
                     return GitFail(R.Error(
