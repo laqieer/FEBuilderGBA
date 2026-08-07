@@ -179,13 +179,12 @@ namespace FEBuilderGBA.Core.Tests
                     root?.Dispose();
                 }
 
-                if (cleanupMs == null
-                    && childIdentity != null
-                    && runCompletion != null)
+                if (cleanupMs == null)
                 {
-                    cleanupMs = ProcessRunnerScenarioSupport.ComputeCleanupMs(
-                        childIdentity.Value,
-                        runCompletion.Value.CompletionUtc);
+                    cleanupMs = await ResolveCleanupMsAsync(
+                        runTask,
+                        runCompletion,
+                        childIdentity);
                 }
 
                 ProcessRunnerScenarioSupport.EmitMetric(
@@ -197,6 +196,52 @@ namespace FEBuilderGBA.Core.Tests
                     totalStopwatch.ElapsedMilliseconds,
                     outcome);
             }
+        }
+
+        [Fact]
+        public async Task ResolveCleanupMsAsync_ReturnsCompletedTaskCleanup_WhenCompletionWasNotCaptured()
+        {
+            ProcessRunnerScenarioSupport.ProcessIdentity childIdentity =
+                new ProcessRunnerScenarioSupport.ProcessIdentity(123, 1_000);
+            ProcessRunnerScenarioSupport.RunCompletion completion =
+                new ProcessRunnerScenarioSupport.RunCompletion(
+                    default,
+                    DateTimeOffset.FromUnixTimeMilliseconds(1_250));
+            Task<ProcessRunnerScenarioSupport.RunCompletion> runTask =
+                Task.FromResult(completion);
+
+            long? cleanupMs = await ResolveCleanupMsAsync(
+                runTask,
+                null,
+                childIdentity);
+
+            Assert.Equal(250, cleanupMs);
+        }
+
+        private static async Task<long?> ResolveCleanupMsAsync(
+            Task<ProcessRunnerScenarioSupport.RunCompletion>? runTask,
+            ProcessRunnerScenarioSupport.RunCompletion? runCompletion,
+            ProcessRunnerScenarioSupport.ProcessIdentity? childIdentity)
+        {
+            if (childIdentity == null)
+                return null;
+
+            if (runCompletion != null)
+            {
+                return ProcessRunnerScenarioSupport.ComputeCleanupMs(
+                    childIdentity.Value,
+                    runCompletion.Value.CompletionUtc);
+            }
+
+            if (runTask?.IsCompletedSuccessfully == true)
+            {
+                ProcessRunnerScenarioSupport.RunCompletion completed = await runTask;
+                return ProcessRunnerScenarioSupport.ComputeCleanupMs(
+                    childIdentity.Value,
+                    completed.CompletionUtc);
+            }
+
+            return null;
         }
     }
 }
