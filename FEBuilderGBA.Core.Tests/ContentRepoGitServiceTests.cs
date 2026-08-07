@@ -79,7 +79,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             public int Called; public bool TargetExistedAtCall; public int ReturnCode; public bool CreateOnSuccess;
             /// <summary>Artifacts a real git clone would have written into the target before failing.</summary>
-            public Action<string> Artifacts;
+            public Action<string>? Artifacts;
             public int Op(string g, string u, string t, Action<string> p, StringBuilder l)
             {
                 Called++; TargetExistedAtCall = Directory.Exists(t);

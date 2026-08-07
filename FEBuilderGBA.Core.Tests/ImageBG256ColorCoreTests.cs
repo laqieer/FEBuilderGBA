@@ -60,8 +60,8 @@ public class ImageBG256ColorCoreTests
     {
         public IImage CreateImage(int w, int h) => new Bg8bppImage(w, h, null);
         public IImage CreateIndexedImage(int w, int h, byte[] p, int c) => new Bg8bppImage(w, h, p);
-        public IImage LoadImage(string f) => null;
-        public IImage LoadImageFromBytes(byte[] d) => null;
+        public IImage LoadImage(string f) => TestImageServiceDefaults.CreateImage(1, 1);
+        public IImage LoadImageFromBytes(byte[] d) => TestImageServiceDefaults.CreateImage(1, 1);
 
         public void GBAColorToRGBA(ushort gbaColor, out byte r, out byte g, out byte b)
         {
@@ -72,7 +72,7 @@ public class ImageBG256ColorCoreTests
         public ushort RGBAToGBAColor(byte r, byte g, byte b)
             => (ushort)((r >> 3) | ((g >> 3) << 5) | ((b >> 3) << 10));
 
-        public IImage Decode4bppTiles(byte[] t, int o, int w, int h, byte[] p) => null;
+        public IImage Decode4bppTiles(byte[] t, int o, int w, int h, byte[] p) => TestImageServiceDefaults.CreateIndexedImage(w, h, p);
 
         public IImage Decode8bppTiles(byte[] tileData, int offset, int width, int height, byte[] gbaPalette)
         {
@@ -94,8 +94,8 @@ public class ImageBG256ColorCoreTests
             return image;
         }
 
-        public IImage Decode8bppLinear(byte[] d, int o, int w, int h, byte[] p) => null;
-        public byte[] Encode4bppTiles(IImage i) => null;
+        public IImage Decode8bppLinear(byte[] d, int o, int w, int h, byte[] p) => TestImageServiceDefaults.CreateIndexedImage(w, h, p);
+        public byte[] Encode4bppTiles(IImage i) => Array.Empty<byte>();
 
         public byte[] Encode8bppTiles(IImage image)
         {
@@ -116,8 +116,8 @@ public class ImageBG256ColorCoreTests
             return result;
         }
 
-        public byte[] GBAPaletteToRGBA(byte[] p, int c) => null;
-        public byte[] RGBAPaletteToGBA(byte[] p, int c) => null;
+        public byte[] GBAPaletteToRGBA(byte[] p, int c) => TestImageServiceDefaults.GBAPaletteToRGBA(p, c);
+        public byte[] RGBAPaletteToGBA(byte[] p, int c) => TestImageServiceDefaults.RGBAPaletteToGBA(p, c);
     }
 
     static Undo.UndoData NewUndo(string name = "test") => new Undo.UndoData

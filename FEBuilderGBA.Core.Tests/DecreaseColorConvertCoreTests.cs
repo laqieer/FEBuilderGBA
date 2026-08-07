@@ -727,8 +727,8 @@ namespace FEBuilderGBA.Core.Tests
     {
         private readonly byte[] _srcRgba;
         private readonly int _w, _h;
-        public FakeReduceImage LastSaved { get; private set; }
-        public string LastSavedPath { get; private set; }
+        public FakeReduceImage LastSaved { get; private set; } = new FakeReduceImage(0, 0, Array.Empty<byte>(), false);
+        public string LastSavedPath { get; private set; } = string.Empty;
         /// <summary>When true, Save writes a partial file then throws an IOException.</summary>
         public bool ThrowOnSave { get; set; }
 
@@ -746,7 +746,7 @@ namespace FEBuilderGBA.Core.Tests
         public IImage CreateIndexedImage(int width, int height, byte[] gbaPalette, int paletteColorCount)
             => new SavingFakeImage(width, height, this);
         public IImage LoadImage(string filePath) => new FakeReduceImage(_w, _h, _srcRgba, false);
-        public IImage LoadImageFromBytes(byte[] pngData) => null;
+        public IImage LoadImageFromBytes(byte[] pngData) => TestImageServiceDefaults.CreateImage(1, 1);
         public void GBAColorToRGBA(ushort gbaColor, out byte r, out byte g, out byte b)
         {
             r = (byte)((gbaColor & 0x1F) << 3);

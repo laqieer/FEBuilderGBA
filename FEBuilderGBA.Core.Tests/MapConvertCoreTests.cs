@@ -9,10 +9,10 @@ namespace FEBuilderGBA.Core.Tests
     /// </summary>
     internal class MapConvertImageService : IImageService
     {
-        public IImage CreateImage(int w, int h) => null;
-        public IImage CreateIndexedImage(int w, int h, byte[] p, int c) => null;
-        public IImage LoadImage(string f) => null;
-        public IImage LoadImageFromBytes(byte[] d) => null;
+        public IImage CreateImage(int w, int h) => TestImageServiceDefaults.CreateImage(w, h);
+        public IImage CreateIndexedImage(int w, int h, byte[] p, int c) => TestImageServiceDefaults.CreateIndexedImage(w, h, p);
+        public IImage LoadImage(string f) => TestImageServiceDefaults.CreateImage(1, 1);
+        public IImage LoadImageFromBytes(byte[] d) => TestImageServiceDefaults.CreateImage(1, 1);
         public void GBAColorToRGBA(ushort gbaColor, out byte r, out byte g, out byte b)
         {
             r = (byte)((gbaColor & 0x1F) << 3);
@@ -23,12 +23,12 @@ namespace FEBuilderGBA.Core.Tests
         {
             return (ushort)(((r >> 3) & 0x1F) | (((g >> 3) & 0x1F) << 5) | (((b >> 3) & 0x1F) << 10));
         }
-        public IImage Decode4bppTiles(byte[] t, int o, int w, int h, byte[] p) => null;
-        public IImage Decode8bppTiles(byte[] t, int o, int w, int h, byte[] p) => null;
-        public IImage Decode8bppLinear(byte[] d, int o, int w, int h, byte[] p) => null;
-        public byte[] Encode4bppTiles(IImage i) => null;
-        public byte[] Encode8bppTiles(IImage i) => null;
-        public byte[] GBAPaletteToRGBA(byte[] p, int c) => null;
+        public IImage Decode4bppTiles(byte[] t, int o, int w, int h, byte[] p) => TestImageServiceDefaults.CreateIndexedImage(w, h, p);
+        public IImage Decode8bppTiles(byte[] t, int o, int w, int h, byte[] p) => TestImageServiceDefaults.CreateIndexedImage(w, h, p);
+        public IImage Decode8bppLinear(byte[] d, int o, int w, int h, byte[] p) => TestImageServiceDefaults.CreateIndexedImage(w, h, p);
+        public byte[] Encode4bppTiles(IImage i) => Array.Empty<byte>();
+        public byte[] Encode8bppTiles(IImage i) => Array.Empty<byte>();
+        public byte[] GBAPaletteToRGBA(byte[] p, int c) => TestImageServiceDefaults.GBAPaletteToRGBA(p, c);
         public byte[] RGBAPaletteToGBA(byte[] rgbaPalette, int colorCount)
         {
             byte[] gba = new byte[colorCount * 2];

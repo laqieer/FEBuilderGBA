@@ -241,8 +241,8 @@ namespace FEBuilderGBA.Core.Tests
         {
             public IImage CreateImage(int w, int h) => new MemImage(w, h);
             public IImage CreateIndexedImage(int w, int h, byte[] p, int c) => new MemImage(w, h);
-            public IImage LoadImage(string f) => null;
-            public IImage LoadImageFromBytes(byte[] d) => null;
+            public IImage LoadImage(string f) => TestImageServiceDefaults.CreateImage(1, 1);
+            public IImage LoadImageFromBytes(byte[] d) => TestImageServiceDefaults.CreateImage(1, 1);
 
             public void GBAColorToRGBA(ushort gbaColor, out byte r, out byte g, out byte b)
             {
@@ -301,10 +301,10 @@ namespace FEBuilderGBA.Core.Tests
 
             public IImage Decode8bppTiles(byte[] t, int o, int w, int h, byte[] p) => new MemImage(w, h);
             public IImage Decode8bppLinear(byte[] d, int o, int w, int h, byte[] p) => new MemImage(w, h);
-            public byte[] Encode4bppTiles(IImage i) => null;
-            public byte[] Encode8bppTiles(IImage i) => null;
-            public byte[] GBAPaletteToRGBA(byte[] p, int c) => null;
-            public byte[] RGBAPaletteToGBA(byte[] p, int c) => null;
+            public byte[] Encode4bppTiles(IImage i) => Array.Empty<byte>();
+            public byte[] Encode8bppTiles(IImage i) => Array.Empty<byte>();
+            public byte[] GBAPaletteToRGBA(byte[] p, int c) => TestImageServiceDefaults.GBAPaletteToRGBA(p, c);
+            public byte[] RGBAPaletteToGBA(byte[] p, int c) => TestImageServiceDefaults.RGBAPaletteToGBA(p, c);
         }
 
         sealed class MemImage : IImage

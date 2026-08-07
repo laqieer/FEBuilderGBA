@@ -91,7 +91,7 @@ namespace FEBuilderGBA.Core.Tests
         // UseValsID.AppendVarsID_Low): deref pointer field, walk up to `count`
         // entries (stopping at the first unsafe entry), collect u16 at each
         // offset with the WF 1<=id<0x7FFF guard.
-        static HashSet<uint> RefWalk(ROM rom, uint pointerField, uint entrySize, uint count, uint[] offsets, System.Func<ROM, uint, uint, bool> stop = null)
+        static HashSet<uint> RefWalk(ROM rom, uint pointerField, uint entrySize, uint count, uint[] offsets, System.Func<ROM, uint, uint, bool>? stop = null)
         {
             var ids = new HashSet<uint>();
             if (pointerField == 0 || entrySize == 0) return ids;
