@@ -150,6 +150,8 @@ namespace FEBuilderGBA
         {
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 if (lines == null)
                 {
                     return ResolveResult.Of(ResolveStatus.MissingUpdateRegex);
@@ -190,6 +192,11 @@ namespace FEBuilderGBA
                 try
                 {
                     html = httpGet != null ? await httpGet(url, cancellationToken).ConfigureAwait(false) : "";
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
                 }
                 catch (Exception e)
                 {
@@ -207,6 +214,10 @@ namespace FEBuilderGBA
                 return string.IsNullOrEmpty(download)
                     ? ResolveResult.Of(ResolveStatus.EmptyUrl)
                     : ResolveResult.Of(ResolveStatus.Ok, download);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception e)
             {
@@ -286,6 +297,8 @@ namespace FEBuilderGBA
         {
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 if (string.IsNullOrEmpty(romDir))
                 {
                     return StageResult.Fail(StageStatus.DownloadFailed, "ROM directory is empty.");
@@ -304,6 +317,7 @@ namespace FEBuilderGBA
                     (bool ok, string err) = downloadFile != null
                         ? await downloadFile(downloadUrl, tempfile, cancellationToken).ConfigureAwait(false)
                         : (false, "no downloader");
+                    cancellationToken.ThrowIfCancellationRequested();
                     if (!ok)
                     {
                         return StageResult.Fail(StageStatus.DownloadFailed, err);
@@ -377,6 +391,10 @@ namespace FEBuilderGBA
                 }
 
                 return new StageResult { Status = StageStatus.Ok, UpsFiles = present };
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception e)
             {

@@ -41,12 +41,19 @@ namespace FEBuilderGBA
             string suffix = Environment.Is64BitOperatingSystem ? "64-bit.exe" : "32-bit.exe";
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 httpGet ??= (url, referer, ct) => U.HttpGetAsync(url, referer, cancellationToken: ct);
                 string json = await httpGet(
                     GitReleasesApiUrl,
                     "https://github.com/git-for-windows/git/releases",
                     cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
                 return string.IsNullOrEmpty(json) ? null : ExtractDownloadUrl(json, suffix);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch
             {

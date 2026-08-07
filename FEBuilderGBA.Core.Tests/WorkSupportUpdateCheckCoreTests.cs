@@ -123,6 +123,36 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public async Task CheckAsync_HttpGetCallerCancellation_Throws()
+        {
+            var lines = Lines(("CHECK_URL", "http://example.com/v"), ("CHECK_REGEX", @"ver=(\d{8})"));
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                WorkSupportUpdateCheckCore.CheckAsync(lines, "rom.gba",
+                    httpGet: (_, ct) => Task.FromCanceled<string>(ct),
+                    httpHeadLastModified: (_, _) => Task.FromResult<string?>(null),
+                    romDateTime: _ => new DateTime(2020, 1, 1),
+                    cancellationToken: cts.Token));
+        }
+
+        [Fact]
+        public async Task CheckAsync_HeadCallerCancellation_Throws()
+        {
+            var lines = Lines(("CHECK_URL", "http://example.com/file.ups"), ("CHECK_REGEX", "@DIRECT_URL"));
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                WorkSupportUpdateCheckCore.CheckAsync(lines, "rom.gba",
+                    httpGet: (_, _) => Task.FromResult("must not fetch"),
+                    httpHeadLastModified: (_, ct) => Task.FromCanceled<string?>(ct),
+                    romDateTime: _ => new DateTime(2020, 1, 1),
+                    cancellationToken: cts.Token));
+        }
+
+        [Fact]
         public void Check_ExtractedUrl_HeadProbesExtractedUrl_NotCheckUrl()
         {
             // CHECK_REGEX extracts a DIFFERENT direct-download URL from the page;

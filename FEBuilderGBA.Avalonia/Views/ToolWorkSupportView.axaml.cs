@@ -163,7 +163,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // ---- PHASE 1: apply each staged UPS in memory (NO write yet) ----
             _vm.AutoFeedbackStatus = R._("Applying UPS patch...");
             WorkSupportUpdateDownloadCore.PrepareResult prepared =
-                _vm.PrepareUps(stage.UpsFiles, original, ApplyOneUps);
+                await Task.Run(() => _vm.PrepareUps(stage.UpsFiles, original, ApplyOneUps));
             if (prepared.Status != WorkSupportUpdateDownloadCore.ApplyStatus.Ok)
             {
                 _vm.AutoFeedbackStatus = string.Format(
@@ -187,7 +187,8 @@ namespace FEBuilderGBA.Avalonia.Views
             }
 
             // ---- PHASE 2: atomically write the patched ROMs (rollback on failure) ----
-            WorkSupportUpdateDownloadCore.ApplyResult apply = _vm.CommitUps(prepared);
+            WorkSupportUpdateDownloadCore.ApplyResult apply =
+                await Task.Run(() => _vm.CommitUps(prepared));
             if (apply.Status != WorkSupportUpdateDownloadCore.ApplyStatus.Ok)
             {
                 _vm.AutoFeedbackStatus = string.Format(

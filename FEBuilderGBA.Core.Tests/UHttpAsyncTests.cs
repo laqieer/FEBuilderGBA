@@ -126,7 +126,7 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public async Task HttpHeadLastModifiedAsync_Cancelled_ReturnsNull()
+        public async Task HttpHeadLastModifiedAsync_Timeout_ReturnsNull()
         {
             bool handlerSawCancellation = false;
             var handler = new RecordingHandler(async (_, token) =>
@@ -142,13 +142,46 @@ namespace FEBuilderGBA.Core.Tests
                 }
                 return new HttpResponseMessage(HttpStatusCode.OK);
             });
-            using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(20));
 
             string? value = await U.HttpHeadLastModifiedAsync(
-                "https://example.test/slow", handler, TimeSpan.FromSeconds(5), cts.Token);
+                "https://example.test/slow", handler, TimeSpan.FromMilliseconds(20), CancellationToken.None);
 
             Assert.Null(value);
             Assert.True(handlerSawCancellation);
+        }
+
+        [Fact]
+        public async Task HttpHeadLastModifiedAsync_CallerCancellation_Throws()
+        {
+            var handler = new RecordingHandler(async (_, token) =>
+            {
+                await Task.Delay(TimeSpan.FromSeconds(30), token);
+                return new HttpResponseMessage(HttpStatusCode.OK);
+            });
+            using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(20));
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                U.HttpHeadLastModifiedAsync(
+                    "https://example.test/slow", handler, TimeSpan.FromSeconds(5), cts.Token));
+        }
+
+        [Fact]
+        public async Task HttpGetAsync_CallerCancellation_Throws()
+        {
+            var handler = new RecordingHandler(async (_, token) =>
+            {
+                await Task.Delay(TimeSpan.FromSeconds(30), token);
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("late"),
+                };
+            });
+            using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(20));
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                U.HttpGetAsync(
+                    "https://example.test/slow", "", null,
+                    handler, TimeSpan.FromSeconds(5), cts.Token));
         }
 
         [Fact]
@@ -215,6 +248,25 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(File.Exists(dest));
         }
 
+        [Fact]
+        public async Task HttpDownloadFileAsync_CallerCancellation_ThrowsAndDeletesPartialOutput()
+        {
+            string dest = Path.Combine(_root, "cancelled.bin");
+            using var cts = new CancellationTokenSource();
+            var handler = new RecordingHandler((_, token) => Task.FromResult(
+                new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StreamContent(new DelayedSecondReadStream(new byte[] { 1, 2, 3, 4 }, cts)),
+                }));
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                U.HttpDownloadFileAsync(
+                    "https://example.test/cancelled.bin", dest, "", null,
+                    handler, TimeSpan.FromSeconds(5), cts.Token));
+
+            Assert.False(File.Exists(dest));
+        }
+
         sealed class RecordingHandler : HttpMessageHandler
         {
             readonly Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> _send;
@@ -275,6 +327,48 @@ namespace FEBuilderGBA.Core.Tests
                 if (_returnedFirstChunk)
                 {
                     throw new IOException("copy failed");
+                }
+                int toCopy = Math.Min(buffer.Length, _firstChunk.Length);
+                _firstChunk.AsMemory(0, toCopy).CopyTo(buffer);
+                _returnedFirstChunk = true;
+                return ValueTask.FromResult(toCopy);
+            }
+        }
+
+        sealed class DelayedSecondReadStream : Stream
+        {
+            readonly byte[] _firstChunk;
+            readonly CancellationTokenSource _cancellation;
+            bool _returnedFirstChunk;
+
+            public DelayedSecondReadStream(byte[] firstChunk, CancellationTokenSource cancellation)
+            {
+                _firstChunk = firstChunk;
+                _cancellation = cancellation;
+            }
+
+            public override bool CanRead => true;
+            public override bool CanSeek => false;
+            public override bool CanWrite => false;
+            public override long Length => throw new NotSupportedException();
+            public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+
+            public override void Flush() { }
+            public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+            public override void SetLength(long value) => throw new NotSupportedException();
+            public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+            public override int Read(byte[] buffer, int offset, int count)
+            {
+                throw new NotSupportedException();
+            }
+
+            public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+            {
+                if (_returnedFirstChunk)
+                {
+                    _cancellation.Cancel();
+                    return ValueTask.FromCanceled<int>(_cancellation.Token);
                 }
                 int toCopy = Math.Min(buffer.Length, _firstChunk.Length);
                 _firstChunk.AsMemory(0, toCopy).CopyTo(buffer);

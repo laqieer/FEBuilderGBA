@@ -29,7 +29,11 @@ namespace FEBuilderGBA.Core.Tests
                 "GitInstaller.GetLatestInstallerUrl()",
                 ".Send(",
                 "Task.Run(() => UpdateCheckCore.CheckLatest",
-                "Task.Run(() =>",
+                "Task.Run(() => U.HttpGet(",
+                "Task.Run(() => U.HttpDownloadFile(",
+                "Task.Run(() => DownloadInstallCore.Download(",
+                "Task.Run(() => DownloadInstallCore.Stage(",
+                "Task.Run(() => GitInstaller.GetLatestInstallerUrl()",
             };
 
             var failures = new List<string>();
@@ -46,6 +50,29 @@ namespace FEBuilderGBA.Core.Tests
             }
 
             Assert.Empty(failures);
+        }
+
+        [Fact]
+        public void ToolWorkSupportApplySaveRunsOffUiThreadAfterAsyncDownload()
+        {
+            string root = FindRepositoryRoot();
+            string viewPath = Path.Combine(root, "FEBuilderGBA.Avalonia", "Views", "ToolWorkSupportView.axaml.cs");
+            string text = File.ReadAllText(viewPath);
+
+            Assert.Contains("await _vm.DownloadAndStageAsync(", text, StringComparison.Ordinal);
+            Assert.Contains("Task.Run(() => _vm.PrepareUps(", text, StringComparison.Ordinal);
+            Assert.Contains("Task.Run(() => _vm.CommitUps(", text, StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void InitWizardDownloadHandlersTreatUserCancellationAsCancel()
+        {
+            string root = FindRepositoryRoot();
+            string viewPath = Path.Combine(root, "FEBuilderGBA.Avalonia", "Views", "ToolInitWizardView.axaml.cs");
+            string text = File.ReadAllText(viewPath);
+
+            Assert.Contains("catch (OperationCanceledException)", text, StringComparison.Ordinal);
+            Assert.Contains("Download cancelled.", text, StringComparison.Ordinal);
         }
 
         static string FindRepositoryRoot()

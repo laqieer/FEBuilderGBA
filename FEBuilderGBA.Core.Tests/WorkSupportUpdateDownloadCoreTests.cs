@@ -107,6 +107,19 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public async Task ResolveAsync_CallerCancellation_Throws()
+        {
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                WorkSupportUpdateDownloadCore.ResolveDownloadUrlAsync(
+                    Lines(("UPDATE_URL", "http://list"), ("UPDATE_REGEX", @"href=(\S+)")),
+                    (url, ct) => Task.FromCanceled<string>(ct),
+                    cts.Token));
+        }
+
+        [Fact]
         public void Resolve_RegexNoMatch_ReturnsRegexNoMatch()
         {
             var r = WorkSupportUpdateDownloadCore.ResolveDownloadUrl(
@@ -210,6 +223,22 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(WorkSupportUpdateDownloadCore.StageStatus.Ok, r.Status);
             Assert.Single(r.UpsFiles);
             Assert.Equal("build.ups", Path.GetFileName(r.UpsFiles[0]));
+        }
+
+        [Fact]
+        public async Task StageAsync_CallerCancellation_Throws()
+        {
+            string romDir = Path.Combine(_root, "romdir_async_cancel");
+            Directory.CreateDirectory(romDir);
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                WorkSupportUpdateDownloadCore.DownloadAndStageAsync(
+                    "http://cdn/build.ups", romDir, Path.Combine(romDir, "myrom.gba"),
+                    downloadFile: (url, dest, ct) => Task.FromCanceled<(bool ok, string error)>(ct),
+                    extract: (a, d) => "must-not-extract",
+                    cancellationToken: cts.Token));
         }
 
         [Fact]

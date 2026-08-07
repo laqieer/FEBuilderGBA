@@ -107,6 +107,18 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public async Task CheckLatestAsync_CallerCancellation_Throws()
+        {
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                UpdateCheckCore.CheckLatestAsync(
+                    (_, ct) => Task.FromCanceled<string>(ct),
+                    cts.Token));
+        }
+
+        [Fact]
         public void CheckLatest_HttpGetThrows_ReturnsFailed()
         {
             var r = UpdateCheckCore.CheckLatest(_ => throw new InvalidOperationException("network down"));

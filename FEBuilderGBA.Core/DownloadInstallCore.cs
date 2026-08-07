@@ -198,6 +198,7 @@ namespace FEBuilderGBA
         {
             StageDownloadResult staged = await StageAsync(
                 id, baseDir, progress, downloadStep, cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
             if (!staged.Success)
                 return new DownloadResult(null, staged.Error);
 
@@ -378,6 +379,8 @@ namespace FEBuilderGBA
         public static async Task<StageDownloadResult> StageAsync(ResourceId id, string baseDir, Action<string> progress,
             DownloadStepAsync downloadStep = null, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             string error = "";
             DownloadSpec spec;
             if (!s_specs.TryGetValue(id, out spec))
@@ -407,6 +410,7 @@ namespace FEBuilderGBA
                     string stagedExe = Path.Combine(stagingDir, spec.MatchGlob);
                     (bool downloaded, string downloadError) = await downloadStep(
                         spec.Url, stagedExe, spec.Referer, cancellationToken).ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
                     if (!downloaded)
                     {
                         error = string.IsNullOrEmpty(downloadError)
@@ -432,6 +436,7 @@ namespace FEBuilderGBA
                 string stagedArchive = Path.Combine(stagingDir, "download" + archiveExt);
                 (bool archiveDownloaded, string archiveDownloadError) = await downloadStep(
                     spec.Url, stagedArchive, spec.Referer, cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
                 if (!archiveDownloaded)
                 {
                     error = string.IsNullOrEmpty(archiveDownloadError)
@@ -470,6 +475,10 @@ namespace FEBuilderGBA
                     FinalDir = finalDir, CopyWholeDir = extractDir,
                     PlaceFilename = Path.GetFileName(locatedExe),
                 }, "");
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception e)
             {
@@ -663,6 +672,8 @@ namespace FEBuilderGBA
             DownloadStepAsync downloadStepAsync = null,
             CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (getInstallerUrlAsync == null)
             {
                 getInstallerUrlAsync = getInstallerUrl == null
@@ -684,6 +695,7 @@ namespace FEBuilderGBA
 
             progress?.Invoke(R._("Resolving the Git installer download URL..."));
             string installerUrl = await getInstallerUrlAsync(cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
             if (string.IsNullOrEmpty(installerUrl))
             {
                 return GitFail(R.Error(
@@ -697,6 +709,7 @@ namespace FEBuilderGBA
                 progress?.Invoke(R._("Downloading the Git installer... {0}", installerUrl));
                 (bool downloaded, string dlError) = await downloadStepAsync(
                     installerUrl, tempInstaller, "", cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
                 if (!downloaded || !File.Exists(tempInstaller))
                 {
                     return GitFail(R.Error("Failed to download the Git installer.\r\n{0}",
@@ -718,6 +731,10 @@ namespace FEBuilderGBA
                         "Git was installed but its executable could not be found.\r\nPlease set the path manually via Browse."));
                 }
                 return new GitInstallResult(gitPath, "");
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception e)
             {

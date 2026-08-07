@@ -152,6 +152,8 @@ namespace FEBuilderGBA
         {
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 if (lines == null)
                 {
                     return UpdateResult.Error;
@@ -181,6 +183,11 @@ namespace FEBuilderGBA
                     try
                     {
                         html = httpGet != null ? await httpGet(url, cancellationToken).ConfigureAwait(false) : "";
+                        cancellationToken.ThrowIfCancellationRequested();
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
                     }
                     catch (Exception)
                     {
@@ -203,6 +210,11 @@ namespace FEBuilderGBA
                         lastModified = httpHeadLastModified != null
                             ? await httpHeadLastModified(match, cancellationToken).ConfigureAwait(false)
                             : null;
+                        cancellationToken.ThrowIfCancellationRequested();
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
                     }
                     catch (Exception)
                     {
@@ -237,6 +249,10 @@ namespace FEBuilderGBA
                 }
 
                 return romDt < datetime ? UpdateResult.Updateable : UpdateResult.Latest;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception)
             {
