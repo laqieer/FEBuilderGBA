@@ -426,16 +426,21 @@ namespace FEBuilderGBA.Avalonia.Services
 
         readonly IExternalProcessFactory _processFactory;
         readonly TimeSpan _terminationWait;
+        readonly Func<ProcessStartInfo, Process?> _startDetached;
 
         public DefaultExternalProcessAdapter()
             : this(new ProcessFactory(), DefaultTerminationWait)
         {
         }
 
-        internal DefaultExternalProcessAdapter(IExternalProcessFactory processFactory, TimeSpan terminationWait)
+        internal DefaultExternalProcessAdapter(
+            IExternalProcessFactory processFactory,
+            TimeSpan terminationWait,
+            Func<ProcessStartInfo, Process?>? startDetached = null)
         {
             _processFactory = processFactory ?? throw new ArgumentNullException(nameof(processFactory));
             _terminationWait = terminationWait <= TimeSpan.Zero ? TimeSpan.FromMilliseconds(1) : terminationWait;
+            _startDetached = startDetached ?? (static startInfo => Process.Start(startInfo));
         }
 
         [UnsupportedOSPlatform("browser")]
@@ -516,10 +521,11 @@ namespace FEBuilderGBA.Avalonia.Services
 
             try
             {
-                using Process? process = Process.Start(startInfo);
-                return process != null
-                    ? ExternalLaunchResult.Succeeded()
-                    : ExternalLaunchResult.Failed("Failed to start process: " + startInfo.FileName);
+                using Process? process = _startDetached(startInfo);
+                if (process != null || startInfo.UseShellExecute)
+                    return ExternalLaunchResult.Succeeded();
+
+                return ExternalLaunchResult.Failed("Failed to start process: " + startInfo.FileName);
             }
             catch (Exception ex) when (ex is Win32Exception or FileNotFoundException or InvalidOperationException)
             {

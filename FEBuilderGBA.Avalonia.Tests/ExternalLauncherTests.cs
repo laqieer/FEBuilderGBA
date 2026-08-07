@@ -94,6 +94,39 @@ public sealed class ExternalLauncherTests
     }
 
     [Fact]
+    public void StartDetached_TreatsNullShellLaunchWithoutHandleAsSuccess()
+    {
+        var adapter = new DefaultExternalProcessAdapter(
+            new ThrowingExternalProcessFactory(),
+            TimeSpan.FromMilliseconds(10),
+            static _ => null);
+
+        var result = adapter.StartDetached(new ProcessStartInfo("shell-launch")
+        {
+            UseShellExecute = true,
+        });
+
+        Assert.Equal(ExternalLaunchResultKind.Succeeded, result.Kind);
+    }
+
+    [Fact]
+    public void StartDetached_TreatsNullNonShellLaunchWithoutHandleAsFailure()
+    {
+        var adapter = new DefaultExternalProcessAdapter(
+            new ThrowingExternalProcessFactory(),
+            TimeSpan.FromMilliseconds(10),
+            static _ => null);
+
+        var result = adapter.StartDetached(new ProcessStartInfo("direct-launch")
+        {
+            UseShellExecute = false,
+        });
+
+        Assert.Equal(ExternalLaunchResultKind.Failed, result.Kind);
+        Assert.Contains("direct-launch", result.Message);
+    }
+
+    [Fact]
     public async Task RunCapturedProcessAsync_PreservesArgumentsWorkingDirectoryCaptureAndExit()
     {
         var adapter = new RecordingProcessAdapter
@@ -550,6 +583,12 @@ public sealed class ExternalLauncherTests
             StartInfos.Add(startInfo);
             return ExternalLaunchResult.Succeeded();
         }
+    }
+
+    sealed class ThrowingExternalProcessFactory : IExternalProcessFactory
+    {
+        public IExternalProcess Create(ProcessStartInfo startInfo)
+            => throw new InvalidOperationException("Create should not be called.");
     }
 
     sealed class SingleExternalProcessFactory : IExternalProcessFactory
