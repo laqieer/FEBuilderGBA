@@ -428,7 +428,7 @@ namespace FEBuilderGBA.Core.Tests
             using var cts = new CancellationTokenSource();
             cts.Cancel();
 
-            var list = RebuildProducerCore.MakeAllStructPointersList(rom, null!, cts.Token);
+            var list = RebuildProducerCore.MakeAllStructPointersList(rom, null, cts.Token);
 
             // Cancelled before processing any descriptor -> empty list (no throw).
             Assert.Empty(list);
@@ -516,7 +516,7 @@ namespace FEBuilderGBA.Core.Tests
             var rom = CreateTestRom();
             using var cts = new CancellationTokenSource();
             cts.Cancel();
-            RebuildProducerCore.ProducerResult result = RebuildProducerCore.MakeAllStructPointers(rom, null!, cts.Token);
+            RebuildProducerCore.ProducerResult result = RebuildProducerCore.MakeAllStructPointers(rom, null, cts.Token);
             // Pre-cancel returns before the descriptor walk (no RomInfo needed). As of s2pf-17 the STATIC
             // data-path NotYetPorted list is EMPTY (every form ported), so a pre-cancel result is
             // "complete-by-static-coverage but CANCELLED" — the CANCEL flag (not IsComplete) is what makes
