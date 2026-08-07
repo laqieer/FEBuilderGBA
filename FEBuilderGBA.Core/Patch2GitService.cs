@@ -37,17 +37,17 @@ namespace FEBuilderGBA
             => System.IO.Path.Combine(baseDir ?? "", "config", "patch2");
 
         /// <summary>Delegate matching <see cref="GitUtil.Clone"/> so tests can inject a fake.</summary>
-        public delegate int CloneOp(string gitExe, string url, string targetPath, Action<string> progress, StringBuilder log);
+        public delegate int CloneOp(string gitExe, string url, string targetPath, Action<string>? progress, StringBuilder log);
 
         /// <summary>Delegate matching <see cref="GitUtil.Update"/> so tests can inject a fake.</summary>
-        public delegate int UpdateOp(string gitExe, string repoPath, Action<string> progress, StringBuilder log, string remoteUrl);
+        public delegate int UpdateOp(string gitExe, string repoPath, Action<string>? progress, StringBuilder log, string remoteUrl);
 
         /// <summary>
         /// Resolves the git executable and patch2 remote URL (custom fork override or default), then
         /// delegates to <see cref="ContentRepoGitService.InitializeOrUpdate"/> against
         /// <c>&lt;baseDir&gt;/config/patch2</c>. Guarded by the shared single-flight lock.
         /// </summary>
-        public static Patch2GitResult InitializeOrUpdate(string baseDir, Action<string> progress = null, string urlOverride = null)
+        public static Patch2GitResult InitializeOrUpdate(string baseDir, Action<string>? progress = null, string? urlOverride = null)
         {
             string url = string.IsNullOrWhiteSpace(urlOverride) ? GitUtil.GetPatch2RemoteUrl() : urlOverride;
             return ContentRepoGitService.InitializeOrUpdate(GetPatch2Dir(baseDir), url, progress);
@@ -61,7 +61,7 @@ namespace FEBuilderGBA
         internal static Patch2GitResult InitializeOrUpdateCore(
             string baseDir, string gitExe, string url,
             Func<string, bool> isGitRepo, CloneOp cloneOp, UpdateOp updateOp,
-            Action<string> progress)
+            Action<string>? progress)
             => ContentRepoGitService.InitializeOrUpdateCore(GetPatch2Dir(baseDir), gitExe, url, isGitRepo, cloneOp, updateOp, progress);
 
         /// <summary>Acquire the shared single-flight guard (pass-through to <see cref="ContentRepoGitService"/>).</summary>

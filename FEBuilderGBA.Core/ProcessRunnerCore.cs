@@ -592,7 +592,7 @@ namespace FEBuilderGBA
         public static ProcessRunResult Run(
             string command,
             IEnumerable<string> args,
-            string workingDir,
+            string? workingDir,
             int timeoutMs)
         {
             return Run(command, args, workingDir, timeoutMs, 0);
@@ -610,7 +610,7 @@ namespace FEBuilderGBA
         public static ProcessRunResult Run(
             string command,
             IEnumerable<string> args,
-            string workingDir,
+            string? workingDir,
             int timeoutMs,
             int maximumOutputChars)
         {
@@ -637,7 +637,7 @@ namespace FEBuilderGBA
         public static ProcessRunResult Run(
             string command,
             IEnumerable<string> args,
-            string workingDir,
+            string? workingDir,
             int timeoutMs,
             int maximumOutputChars,
             CancellationToken cancellationToken)

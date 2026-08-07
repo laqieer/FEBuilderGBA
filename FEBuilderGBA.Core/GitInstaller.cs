@@ -19,7 +19,7 @@ namespace FEBuilderGBA
         /// Targets the 64-bit installer on a 64-bit OS, 32-bit otherwise.
         /// Returns null on any failure (network error, parse error, etc.).
         /// </summary>
-        public static string GetLatestInstallerUrl()
+        public static string? GetLatestInstallerUrl()
         {
             string suffix = Environment.Is64BitOperatingSystem ? "64-bit.exe" : "32-bit.exe";
             try
@@ -34,7 +34,7 @@ namespace FEBuilderGBA
             }
         }
 
-        public static async Task<string> GetLatestInstallerUrlAsync(
+        public static async Task<string?> GetLatestInstallerUrlAsync(
             Func<string, string, CancellationToken, Task<string>> httpGet = null,
             CancellationToken cancellationToken = default)
         {

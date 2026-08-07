@@ -435,7 +435,7 @@ namespace FEBuilderGBA
         /// <param name="ct">Cancellation token; on cancel the partial list is returned (was the
         /// <c>DoEvents</c> early-<c>return list</c>).</param>
         /// <returns>The accumulated <see cref="Address"/> list.</returns>
-        public static List<Address> MakeAllStructPointersList(ROM rom, IProgress<string> progress = null, CancellationToken ct = default)
+        public static List<Address> MakeAllStructPointersList(ROM rom, IProgress<string>? progress = null, CancellationToken ct = default)
         {
             return MakeAllStructPointers(rom, progress, ct).List;
         }
@@ -455,7 +455,7 @@ namespace FEBuilderGBA
         /// patch/custom-build cores that require the loaded ROM for their undo). Passing any other
         /// instance throws <see cref="ArgumentException"/>.
         /// </param>
-        public static ProducerResult MakeAllStructPointers(ROM rom, IProgress<string> progress = null, CancellationToken ct = default)
+        public static ProducerResult MakeAllStructPointers(ROM rom, IProgress<string>? progress = null, CancellationToken ct = default)
         {
             if (rom == null) throw new ArgumentNullException(nameof(rom));
             if (!ReferenceEquals(rom, CoreState.ROM))
@@ -12605,9 +12605,9 @@ namespace FEBuilderGBA
         /// <param name="isUseOAMSP">WF <c>isUseOAMSP</c> — gates OAMSPForm (PORTED in slice 2w via
         /// <see cref="EmitOAMSP"/>; emitted only when this flag is true, else intentionally skipped).</param>
         public static AsmProducerResult AppendAllAsmStructPointers(ROM rom, List<Address> list,
-            List<DisassemblerTrumb.LDRPointer> ldrmap,
+            List<DisassemblerTrumb.LDRPointer>? ldrmap,
             bool isUseOtherGraphics = false, bool isUseOAMSP = false,
-            IProgress<string> progress = null, CancellationToken ct = default)
+            IProgress<string>? progress = null, CancellationToken ct = default)
         {
             if (rom == null) throw new ArgumentNullException(nameof(rom));
             if (list == null) throw new ArgumentNullException(nameof(list));
@@ -12983,7 +12983,7 @@ namespace FEBuilderGBA
         /// <param name="ct">Replaces WF's DoEvents stop-flag: on cancel, return the partial list.</param>
         public static void MakePatchStructDataListCore(ROM rom, List<Address> list,
             bool isPointerOnly, bool isInstallOnly, bool isStructOnly,
-            IProgress<string> progress = null, CancellationToken ct = default)
+            IProgress<string>? progress = null, CancellationToken ct = default)
         {
             if (rom == null) throw new ArgumentNullException(nameof(rom));
             if (list == null) throw new ArgumentNullException(nameof(list));
@@ -16013,7 +16013,7 @@ namespace FEBuilderGBA
         /// <param name="ct">Cancellation token (a cancelled producer throws <see cref="OperationCanceledException"/>).</param>
         public static void MakeWithProducer(ROM rom, ROM vanilla, uint rebuildAddress, string manifestPath,
             bool isUseOtherGraphics, bool isUseOAMSP,
-            IProgress<string> progress = null, CancellationToken ct = default)
+            IProgress<string>? progress = null, CancellationToken ct = default)
         {
             if (rom == null) throw new ArgumentNullException(nameof(rom));
             if (vanilla == null) throw new ArgumentNullException(nameof(vanilla));
@@ -17002,7 +17002,7 @@ namespace FEBuilderGBA
         /// a WinForms UI yield).
         /// </summary>
         public static void EmitOAMSPCore(ROM rom, List<Address> list,
-            List<DisassemblerTrumb.LDRPointer> ldrmap, Dictionary<uint, string> oamName)
+            List<DisassemblerTrumb.LDRPointer>? ldrmap, Dictionary<uint, string> oamName)
         {
             if (rom == null) throw new ArgumentNullException(nameof(rom));
             if (list == null) throw new ArgumentNullException(nameof(list));
@@ -17464,7 +17464,7 @@ namespace FEBuilderGBA
         /// on a non-null map; a null map skips loop 1 (loop 2 / the config-dict scan still runs).</param>
         /// <param name="ct">Cancellation (replaces WF <c>AsmMapFileAsmCache.IsStopFlagOn()</c>).</param>
         public static void EmitProcsScript(ROM rom, List<Address> list,
-            List<DisassemblerTrumb.LDRPointer> ldrmap, CancellationToken ct = default)
+            List<DisassemblerTrumb.LDRPointer>? ldrmap, CancellationToken ct = default)
         {
             if (rom == null) throw new ArgumentNullException(nameof(rom));
             if (list == null) throw new ArgumentNullException(nameof(list));
@@ -17500,7 +17500,7 @@ namespace FEBuilderGBA
         /// <c>alreadyMatch</c> (no infinite loop on a self-referential child pointer).
         /// </summary>
         public static void EmitProcsScriptCore(ROM rom, List<Address> list,
-            List<DisassemblerTrumb.LDRPointer> ldrmap, Dictionary<uint, string> procsName,
+            List<DisassemblerTrumb.LDRPointer>? ldrmap, Dictionary<uint, string> procsName,
             CancellationToken ct = default)
         {
             if (rom == null) throw new ArgumentNullException(nameof(rom));
