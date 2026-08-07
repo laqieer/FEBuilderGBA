@@ -1,6 +1,8 @@
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
-from classify_review_risk import classify_paths
+from classify_review_risk import classify_nul_file, classify_paths
 
 
 class ClassifyReviewRiskTests(unittest.TestCase):
@@ -140,6 +142,18 @@ class ClassifyReviewRiskTests(unittest.TestCase):
     def test_windows_drive_absolute_path_fails_closed(self):
         self.assertEqual("high", classify_paths([r"C:\outside.txt"]))
         self.assertEqual("high", classify_paths(["D:/outside.txt"]))
+
+    def test_nul_path_file_preserves_unicode_workflow_path(self):
+        with TemporaryDirectory() as temp:
+            path = Path(temp) / "paths.z"
+            path.write_bytes(".github/workflows/検証.yml\0".encode("utf-8"))
+            self.assertEqual("high", classify_nul_file(path))
+
+    def test_malformed_nul_path_file_fails_closed(self):
+        with TemporaryDirectory() as temp:
+            path = Path(temp) / "paths.z"
+            path.write_bytes(b"README.md")
+            self.assertEqual("high", classify_nul_file(path))
 
 
 if __name__ == "__main__":

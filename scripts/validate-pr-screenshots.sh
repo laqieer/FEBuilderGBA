@@ -85,7 +85,11 @@ if [ -n "$CHANGED_FILES_FILE" ]; then
     echo "ERROR: Changed-files file '$CHANGED_FILES_FILE' not found — failing closed"
     exit 1
   fi
-  CHANGED_FILES=$(cat "$CHANGED_FILES_FILE")
+  if python -c "import pathlib,sys; sys.exit(0 if b'\\0' in pathlib.Path(sys.argv[1]).read_bytes() else 1)" "$CHANGED_FILES_FILE"; then
+    CHANGED_FILES=$(tr '\0' '\n' < "$CHANGED_FILES_FILE")
+  else
+    CHANGED_FILES=$(cat "$CHANGED_FILES_FILE")
+  fi
 elif command -v gh &>/dev/null; then
   CHANGED_FILES=$(gh pr view "$PR_NUMBER" -R "$REPO" --json files --jq '.files[].path' 2>/dev/null || echo "")
 fi

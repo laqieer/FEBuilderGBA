@@ -352,7 +352,8 @@ later in this catalog:
 ## Graphics-System Core Seams
 
 The `ImageUtil*.cs` family plus the LZ77/battle/skill/map/world-map/event/song
-Core seams below back the cross-platform (Avalonia + CLI) editors. read alongside the architecture overview in `.github/copilot-instructions.md`.
+Core seams below back the cross-platform (Avalonia + CLI) editors. Read alongside
+the architecture overview in `.github/copilot-instructions.md`.
 
 - `LZ77ToolCore.cs` (Core) — LZ77 Tool Move + Recompress tabs (WinForms `ToolLZ77Form` + Avalonia
   `ToolLZ77ViewModel`). Ambient undo via `ROM.BeginUndoScope()`; LDR-first / raw-fallback pointer search

@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import PurePosixPath
+from pathlib import Path
 from typing import Iterable
 
 
@@ -153,6 +154,30 @@ def classify_paths(
     return "normal"
 
 
+def _read_nul_paths(path: Path) -> list[str]:
+    try:
+        data = path.read_bytes()
+        if data and not data.endswith(b"\0"):
+            return []
+        records = data[:-1].split(b"\0") if data else []
+        return [record.decode("utf-8", errors="strict") for record in records]
+    except (OSError, UnicodeDecodeError):
+        return []
+
+
+def classify_nul_file(
+    path: Path,
+    *,
+    cross_repository: bool = False,
+    author_association: str | None = None,
+) -> str:
+    return classify_paths(
+        _read_nul_paths(path),
+        cross_repository=cross_repository,
+        author_association=author_association,
+    )
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -161,16 +186,23 @@ def main(argv: list[str]) -> int:
         default="false",
     )
     parser.add_argument("--author-association")
+    parser.add_argument("--paths-z-file", type=Path)
     parser.add_argument("paths", nargs="*")
     args = parser.parse_args(argv[1:])
-    paths = args.paths or [line.rstrip("\n") for line in sys.stdin]
-    print(
-        classify_paths(
-            paths,
+    classification = (
+        classify_nul_file(
+            args.paths_z_file,
+            cross_repository=args.cross_repository == "true",
+            author_association=args.author_association,
+        )
+        if args.paths_z_file is not None
+        else classify_paths(
+            args.paths or [line.rstrip("\n") for line in sys.stdin],
             cross_repository=args.cross_repository == "true",
             author_association=args.author_association,
         )
     )
+    print(classification)
     return 0
 
 

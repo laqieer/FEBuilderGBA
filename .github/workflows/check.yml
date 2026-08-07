@@ -80,8 +80,10 @@ jobs:
         $body = $event.pull_request.body
         if ($null -eq $body) { $body = '' }
         [System.IO.File]::WriteAllText("$env:RUNNER_TEMP/pr-body.txt", $body)
-        git diff --name-only $event.pull_request.base.sha $event.pull_request.head.sha |
-          Out-File -FilePath "$env:RUNNER_TEMP/pr-files.txt" -Encoding utf8
+        python -c "import pathlib,subprocess,sys; pathlib.Path(sys.argv[3]).write_bytes(subprocess.check_output(['git','diff','--name-only','-z',sys.argv[1],sys.argv[2]]))" `
+          $event.pull_request.base.sha `
+          $event.pull_request.head.sha `
+          "$env:RUNNER_TEMP/pr-files.z"
 
     - name: Run screenshot validator self-tests
       shell: bash
@@ -112,10 +114,10 @@ jobs:
       if: github.event_name == 'pull_request'
       shell: pwsh
       run: |
-        $tier = Get-Content "$env:RUNNER_TEMP/pr-files.txt" |
-          python scripts/classify_review_risk.py `
-            --cross-repository '${{ github.event.pull_request.head.repo.full_name != github.repository }}' `
-            --author-association '${{ github.event.pull_request.author_association }}'
+        $tier = python scripts/classify_review_risk.py `
+          --paths-z-file "$env:RUNNER_TEMP/pr-files.z" `
+          --cross-repository '${{ github.event.pull_request.head.repo.full_name != github.repository }}' `
+          --author-association '${{ github.event.pull_request.author_association }}'
         "Review tier: $tier"
 
     - name: Validate PR screenshot URLs
@@ -123,7 +125,7 @@ jobs:
       shell: bash
       env:
         PR_TITLE_OVERRIDE: ${{ github.event.pull_request.title }}
-      run: bash scripts/validate-pr-screenshots.sh "${{ github.event.pull_request.number }}" "$RUNNER_TEMP/pr-body.txt" "${{ github.event.repository.default_branch }}" "$RUNNER_TEMP/pr-files.txt"
+      run: bash scripts/validate-pr-screenshots.sh "${{ github.event.pull_request.number }}" "$RUNNER_TEMP/pr-body.txt" "${{ github.event.repository.default_branch }}" "$RUNNER_TEMP/pr-files.z"
 
     - name: Validate Avalonia AutomationIds
       shell: pwsh

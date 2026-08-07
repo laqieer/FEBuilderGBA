@@ -1123,6 +1123,27 @@ class TestHookConfigLoadability(unittest.TestCase):
             ["copilot-image-gen"],
         )
 
+    def test_review_risk_workflow_uses_unambiguous_paths_and_trust_metadata(self):
+        workflow_path = os.path.join(
+            REPO_ROOT,
+            ".github",
+            "workflows",
+            "check.yml",
+        )
+        with open(workflow_path, encoding="utf-8") as fh:
+            workflow = fh.read()
+        self.assertIn("'git','diff','--name-only','-z'", workflow)
+        self.assertIn("--paths-z-file", workflow)
+        self.assertIn("--cross-repository", workflow)
+        self.assertIn("--author-association", workflow)
+
+        workflow_doc_path = os.path.join(REPO_ROOT, "DEVELOPMENT-WORKFLOW.md")
+        with open(workflow_doc_path, encoding="utf-8") as fh:
+            workflow_doc = fh.read()
+        self.assertIn("--paths-z-file", workflow_doc)
+        self.assertIn("--cross-repository", workflow_doc)
+        self.assertIn("--author-association", workflow_doc)
+
 
 def _find_real_bash():
     """Locate a genuine, runnable bash -- never the disabled WSL PATH stub.

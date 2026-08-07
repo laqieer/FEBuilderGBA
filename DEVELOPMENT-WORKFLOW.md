@@ -31,7 +31,8 @@ python scripts\classify_review_risk.py <paths...>
 For a PR:
 
 ```powershell
-git diff --name-only <base-sha> <head-sha> | python scripts\classify_review_risk.py
+python -c "import pathlib,subprocess,sys; pathlib.Path(sys.argv[3]).write_bytes(subprocess.check_output(['git','diff','--name-only','-z',sys.argv[1],sys.argv[2]]))" <base-sha> <head-sha> .git\review-paths.z
+python scripts\classify_review_risk.py --paths-z-file .git\review-paths.z --cross-repository <true|false> --author-association <OWNER|MEMBER|COLLABORATOR|CONTRIBUTOR|NONE>
 ```
 
 The tested classifier is authoritative:

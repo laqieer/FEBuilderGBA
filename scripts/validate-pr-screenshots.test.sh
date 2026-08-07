@@ -170,6 +170,23 @@ if command -v cygpath >/dev/null 2>&1; then
 fi
 
 TOTAL=$((TOTAL + 1))
+body_file=$(mktemp)
+changed_file=$(mktemp)
+printf 'No screenshot.' > "$body_file"
+printf 'docs/readme.md\0FEBuilderGBA.Avalonia/Views/UnitEditorView.axaml\0' > "$changed_file"
+actual_exit=0
+output=$(PR_TITLE_OVERRIDE='feat(avalonia): add editor' bash "$VALIDATOR" 999 "$body_file" master "$changed_file" 2>&1) || actual_exit=$?
+if [ "$actual_exit" -eq 1 ]; then
+  echo "  PASS: nul_changed_file_preserves_gui_path (exit 1)"
+  PASSED=$((PASSED + 1))
+else
+  echo "  FAIL: nul_changed_file_preserves_gui_path (expected exit 1, got $actual_exit)"
+  echo "$output" | sed 's/^/    /'
+  FAILED=$((FAILED + 1))
+fi
+rm -f "$body_file" "$changed_file"
+
+TOTAL=$((TOTAL + 1))
 if grep -q 'via a docs PR' "$VALIDATOR"; then
   echo "  FAIL: validator remediation still recommends a docs PR"
   FAILED=$((FAILED + 1))
