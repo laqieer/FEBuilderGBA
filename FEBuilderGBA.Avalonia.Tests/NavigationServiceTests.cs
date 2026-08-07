@@ -276,14 +276,14 @@ public class NavigationServiceDelegationTests
 public class FakeEditorWindow : Window, IEditorView
 {
     public string ViewTitle => "Fake";
-    public bool IsLoaded => true;
+    public new bool IsLoaded => true;
     public void NavigateTo(uint address) { }
 }
 
 public class FakePickableWindow : Window, IPickableEditor
 {
     public string ViewTitle => "FakePick";
-    public bool IsLoaded => true;
+    public new bool IsLoaded => true;
     public void NavigateTo(uint address) { }
     public event Action<PickResult>? SelectionConfirmed;
     public void EnablePickMode() { _ = SelectionConfirmed; }

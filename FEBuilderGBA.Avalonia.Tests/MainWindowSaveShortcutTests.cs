@@ -101,11 +101,11 @@ public sealed class MainWindowSaveShortcutTests
         return rawModifiers;
     }
 
-    static void PressKey(Window window, Key key, KeyModifiers modifiers)
+    static void PressQwertyKey(Window window, PhysicalKey physicalKey, KeyModifiers modifiers)
     {
         var rawModifiers = ToRawModifiers(modifiers);
-        window.KeyPress(key, rawModifiers);
-        window.KeyRelease(key, rawModifiers);
+        window.KeyPressQwerty(physicalKey, rawModifiers);
+        window.KeyReleaseQwerty(physicalKey, rawModifiers);
         Dispatcher.UIThread.RunJobs();
     }
 
@@ -136,7 +136,7 @@ public sealed class MainWindowSaveShortcutTests
             return Task.CompletedTask;
         };
 
-        PressKey(window, Key.S, modifiers);
+        PressQwertyKey(window, PhysicalKey.S, modifiers);
 
         var args = getLastArgs();
         Assert.NotNull(args);
@@ -179,7 +179,7 @@ public sealed class MainWindowSaveShortcutTests
             return Task.CompletedTask;
         };
 
-        PressKey(window, Key.S, modifiers);
+        PressQwertyKey(window, PhysicalKey.S, modifiers);
 
         var args = getLastArgs();
         Assert.NotNull(args);
@@ -224,7 +224,7 @@ public sealed class MainWindowSaveShortcutTests
             return Task.CompletedTask;
         };
 
-        PressKey(window, Key.S, KeyModifiers.Control);
+        PressQwertyKey(window, PhysicalKey.S, KeyModifiers.Control);
 
         Assert.Equal(1, saveCalls);
         Assert.False(mainMenu.IsOpen);
@@ -260,7 +260,7 @@ public sealed class MainWindowSaveShortcutTests
             return Task.CompletedTask;
         };
 
-        PressKey(window, Key.S, KeyModifiers.Control);
+        PressQwertyKey(window, PhysicalKey.S, KeyModifiers.Control);
 
         Assert.Equal(1, saveCalls);
         Assert.False(mainMenu.IsOpen);
@@ -286,7 +286,7 @@ public sealed class MainWindowSaveShortcutTests
         };
         child.KeyDown += (_, e) => e.Handled = true;
 
-        PressKey(window, Key.S, KeyModifiers.Control);
+        PressQwertyKey(window, PhysicalKey.S, KeyModifiers.Control);
 
         var args = getLastArgs();
         Assert.NotNull(args);
@@ -313,7 +313,7 @@ public sealed class MainWindowSaveShortcutTests
             return Task.CompletedTask;
         };
 
-        PressKey(window, Key.S, KeyModifiers.Control);
+        PressQwertyKey(window, PhysicalKey.S, KeyModifiers.Control);
 
         var args = getLastArgs();
         Assert.NotNull(args);
@@ -322,16 +322,16 @@ public sealed class MainWindowSaveShortcutTests
     }
 
     [AvaloniaTheory]
-    [InlineData(Key.S, KeyModifiers.None)]
-    [InlineData(Key.S, KeyModifiers.Shift)]
-    [InlineData(Key.S, KeyModifiers.Alt)]
-    [InlineData(Key.S, KeyModifiers.Control | KeyModifiers.Alt)]
-    [InlineData(Key.S, KeyModifiers.Meta | KeyModifiers.Alt)]
-    [InlineData(Key.S, KeyModifiers.Control | KeyModifiers.Shift)]
-    [InlineData(Key.S, KeyModifiers.Meta | KeyModifiers.Shift)]
-    [InlineData(Key.S, KeyModifiers.Control | KeyModifiers.Meta)]
-    [InlineData(Key.D, KeyModifiers.Control)]
-    public void NonPrimarySaveGestures_DoNotInvokeSave(Key key, KeyModifiers modifiers)
+    [InlineData(PhysicalKey.S, KeyModifiers.None)]
+    [InlineData(PhysicalKey.S, KeyModifiers.Shift)]
+    [InlineData(PhysicalKey.S, KeyModifiers.Alt)]
+    [InlineData(PhysicalKey.S, KeyModifiers.Control | KeyModifiers.Alt)]
+    [InlineData(PhysicalKey.S, KeyModifiers.Meta | KeyModifiers.Alt)]
+    [InlineData(PhysicalKey.S, KeyModifiers.Control | KeyModifiers.Shift)]
+    [InlineData(PhysicalKey.S, KeyModifiers.Meta | KeyModifiers.Shift)]
+    [InlineData(PhysicalKey.S, KeyModifiers.Control | KeyModifiers.Meta)]
+    [InlineData(PhysicalKey.D, KeyModifiers.Control)]
+    public void NonPrimarySaveGestures_DoNotInvokeSave(PhysicalKey physicalKey, KeyModifiers modifiers)
     {
         using var harness = new MainWindowHarness();
         var window = harness.Window;
@@ -349,7 +349,7 @@ public sealed class MainWindowSaveShortcutTests
             return Task.CompletedTask;
         };
 
-        PressKey(window, key, modifiers);
+        PressQwertyKey(window, physicalKey, modifiers);
 
         var args = getLastArgs();
         Assert.NotNull(args);
@@ -427,17 +427,17 @@ public sealed class MainWindowSaveShortcutTests
             completed.TrySetResult(true);
         };
 
-        PressKey(window, Key.S, KeyModifiers.Control);
+        PressQwertyKey(window, PhysicalKey.S, KeyModifiers.Control);
         await entered.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
-        PressKey(window, Key.S, KeyModifiers.Control);
+        PressQwertyKey(window, PhysicalKey.S, KeyModifiers.Control);
         Assert.Equal(1, saveCalls);
 
         release.TrySetResult(true);
         await completed.Task.WaitAsync(TimeSpan.FromSeconds(2));
         Dispatcher.UIThread.RunJobs();
 
-        PressKey(window, Key.S, KeyModifiers.Control);
+        PressQwertyKey(window, PhysicalKey.S, KeyModifiers.Control);
         Assert.Equal(2, saveCalls);
     }
 

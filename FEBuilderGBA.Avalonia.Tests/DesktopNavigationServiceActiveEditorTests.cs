@@ -21,7 +21,7 @@ public class DesktopNavigationServiceActiveEditorTests
     {
         public EditorDoubleA() { Title = "Editor A"; Content = new TextBlock { Text = "a" }; }
         public string ViewTitle => "Editor A";
-        public bool IsLoaded => true;
+        public new bool IsLoaded => true;
         public void NavigateTo(uint address) { }
     }
 
@@ -29,7 +29,7 @@ public class DesktopNavigationServiceActiveEditorTests
     {
         public EditorDoubleB() { Title = "Editor B"; Content = new TextBlock { Text = "b" }; }
         public string ViewTitle => "Editor B";
-        public bool IsLoaded => true;
+        public new bool IsLoaded => true;
         public void NavigateTo(uint address) { }
     }
 
