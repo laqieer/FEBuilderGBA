@@ -246,10 +246,10 @@ namespace FEBuilderGBA.Core.Tests
             var rom = MakeRom();
             var list = new List<Address>();
             var patch = MakePatch("p", ("ADDRESS", "0x1000"));
-            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchAddr(null, list, patch, false));
-            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchAddr(rom, null, patch, false));
-            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchAddr(rom, list, null, false));
-            var noParam = new PatchInstallCore.PatchSt { Name = "p", PatchFileName = "p.txt", Param = null };
+            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchAddr(null!, list, patch, false));
+            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchAddr(rom, null!, patch, false));
+            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchAddr(rom, list, null!, false));
+            var noParam = new PatchInstallCore.PatchSt { Name = "p", PatchFileName = "p.txt", Param = null! };
             Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchAddr(rom, list, noParam, false));
         }
 
@@ -263,7 +263,7 @@ namespace FEBuilderGBA.Core.Tests
             var patch = new PatchInstallCore.PatchSt
             {
                 Name = "NoFile",
-                PatchFileName = null,
+                PatchFileName = null!,
                 Param = new Dictionary<string, string> { ["ADDRESS"] = "0x1000" }
             };
             var ex = Record.Exception(() => RebuildProducerCore.EmitPatchAddr(rom, list, patch, false));
@@ -414,10 +414,10 @@ namespace FEBuilderGBA.Core.Tests
             var rom = MakeRom();
             var list = new List<Address>();
             var patch = MakePatch("p", ("ONN:0x1000", "AA"));
-            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchSwitch(null, list, patch, false));
-            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchSwitch(rom, null, patch, false));
-            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchSwitch(rom, list, null, false));
-            var noParam = new PatchInstallCore.PatchSt { Name = "p", PatchFileName = "p.txt", Param = null };
+            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchSwitch(null!, list, patch, false));
+            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchSwitch(rom, null!, patch, false));
+            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchSwitch(rom, list, null!, false));
+            var noParam = new PatchInstallCore.PatchSt { Name = "p", PatchFileName = "p.txt", Param = null! };
             Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchSwitch(rom, list, noParam, false));
         }
 

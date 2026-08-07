@@ -83,7 +83,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void MakeList_NullRom_ReturnsEmpty_NoThrow()
         {
-            Assert.Empty(OPClassFontListCore.MakeList(null));
+            Assert.Empty(OPClassFontListCore.MakeList(null!));
         }
 
         [Fact]

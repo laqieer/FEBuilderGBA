@@ -162,7 +162,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.NotNull(proj.TryGetTableOwner("items"));
             Assert.NotNull(proj.TryGetTableOwner("ITEMS"));
             Assert.Null(proj.TryGetTableOwner("classes"));
-            Assert.Null(proj.TryGetTableOwner(null));
+            Assert.Null(proj.TryGetTableOwner(null!));
         }
 
         [Fact]
@@ -629,7 +629,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Write_NullProject_NotDecompMode_NoThrow()
         {
-            var res = DecompSourceWriterCore.WriteTableEntry(null, "items", 0,
+            var res = DecompSourceWriterCore.WriteTableEntry(null!, "items", 0,
                 new Dictionary<string, uint> { { "might", 10 } });
             Assert.Equal(DecompSourceWriteStatus.NotDecompMode, res.Status);
         }

@@ -127,7 +127,7 @@ namespace FEBuilderGBA.Core.Tests
         public void AssembleBorderAP_NullName_Rejects()
         {
             byte[] sheet = MakeSheetWithTiles(index: 1, tilesToFill: 2, startTile: 0);
-            var asm = ImageUtilBorderAPCore.AssembleBorderAP(sheet, null, MakeBorderPalette(), 0, 0);
+            var asm = ImageUtilBorderAPCore.AssembleBorderAP(sheet, null!, MakeBorderPalette(), 0, 0);
             Assert.False(asm.Success);
             Assert.False(string.IsNullOrEmpty(asm.Error));
         }
@@ -268,7 +268,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ImportBorder_NullRom_Fails()
         {
             bool ok = ImageWorldMapCore.ImportBorder(
-                null, new byte[SRC_W * SRC_H], new byte[SRC_W * SRC_H], MakeBorderPalette(),
+                null!, new byte[SRC_W * SRC_H], new byte[SRC_W * SRC_H], MakeBorderPalette(),
                 0, 0, BORDER_RECORD_ADDR, out string err);
             Assert.False(ok);
             Assert.False(string.IsNullOrEmpty(err));
@@ -288,7 +288,7 @@ namespace FEBuilderGBA.Core.Tests
 
                 byte[] sheet = MakeSheetWithTiles(index: 1, tilesToFill: 2, startTile: 0);
                 bool ok = ImageWorldMapCore.ImportBorder(
-                    rom, sheet, null, MakeBorderPalette(), 0, 0, BORDER_RECORD_ADDR, out string err);
+                    rom, sheet, null!, MakeBorderPalette(), 0, 0, BORDER_RECORD_ADDR, out string err);
 
                 Assert.False(ok);
                 Assert.False(string.IsNullOrEmpty(err));

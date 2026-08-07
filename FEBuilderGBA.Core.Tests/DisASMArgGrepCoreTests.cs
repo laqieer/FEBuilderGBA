@@ -79,7 +79,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void NormalizeSearchFunction_Null_ReturnsEmpty()
         {
-            Assert.Equal(string.Empty, DisASMArgGrepCore.NormalizeSearchFunction(null));
+            Assert.Equal(string.Empty, DisASMArgGrepCore.NormalizeSearchFunction(null!));
         }
 
         // ---- Grep: basic register-set -> call block emission --------------
@@ -273,7 +273,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Grep_NullLines_ReturnsEmpty()
         {
-            Assert.Equal(string.Empty, DisASMArgGrepCore.Grep(null, "myFunc", Reg("r0"), 5, false, false));
+            Assert.Equal(string.Empty, DisASMArgGrepCore.Grep(null!, "myFunc", Reg("r0"), 5, false, false));
         }
 
         static List<string> SplitNonEmpty(string ret)

@@ -314,7 +314,7 @@ namespace FEBuilderGBA.Core.Tests
             try
             {
                 CoreState.ImageService = new StubImageService();
-                var result = ImageUtilMapActionAnimationCore.RenderFrameImage(null, 0x400, 0x900);
+                var result = ImageUtilMapActionAnimationCore.RenderFrameImage(null!, 0x400, 0x900);
                 Assert.Null(result);
             }
             finally

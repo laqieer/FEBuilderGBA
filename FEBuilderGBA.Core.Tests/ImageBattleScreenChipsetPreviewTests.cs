@@ -211,7 +211,7 @@ namespace FEBuilderGBA.Core.Tests
         public void RenderChipsetPreview_NullRom_ReturnsNull()
         {
             using var _ = EnsureImageService();
-            Assert.Null(ImageBattleScreenCore.RenderChipsetPreview(null));
+            Assert.Null(ImageBattleScreenCore.RenderChipsetPreview(null!));
         }
 
         [Fact]

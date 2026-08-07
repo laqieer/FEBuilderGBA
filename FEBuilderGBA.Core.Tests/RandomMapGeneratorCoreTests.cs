@@ -698,7 +698,7 @@ namespace FEBuilderGBA.Core.Tests
                         return new ProcessRunResult { Started = true, ExitCode = 0 };
                     },
                     cts.Token,
-                    cancellableRunner: null,
+                    cancellableRunner: null!,
                     beforeProcessLaunch: cts.Cancel);
 
                 Assert.False(result.Success);
@@ -758,7 +758,7 @@ namespace FEBuilderGBA.Core.Tests
 
                 RandomMapGenerationResult result = RandomMapGeneratorCore.Generate(
                     request,
-                    runner: null,
+                    runner: null!,
                     cancellationToken: default,
                     cancellableRunner: (command, args, workingDir, timeoutMs, maximumOutputChars, token) =>
                     {
@@ -788,7 +788,7 @@ namespace FEBuilderGBA.Core.Tests
 
                 RandomMapGenerationResult result = RandomMapGeneratorCore.Generate(
                     request,
-                    runner: null,
+                    runner: null!,
                     cancellationToken: cts.Token,
                     cancellableRunner: (command, args, workingDir, timeoutMs, maximumOutputChars, token) =>
                     {

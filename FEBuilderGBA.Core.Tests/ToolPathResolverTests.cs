@@ -21,7 +21,7 @@ namespace FEBuilderGBA.Core.Tests
             // Non-ColorzCore
             Assert.False(ToolPathResolver.IsColorzCore(Path.Combine("tools", "Core.exe")));
             Assert.False(ToolPathResolver.IsColorzCore("Core"));
-            Assert.False(ToolPathResolver.IsColorzCore(null));
+            Assert.False(ToolPathResolver.IsColorzCore(null!));
             Assert.False(ToolPathResolver.IsColorzCore(""));
         }
 

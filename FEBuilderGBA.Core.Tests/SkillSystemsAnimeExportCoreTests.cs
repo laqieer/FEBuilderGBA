@@ -140,7 +140,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ExportSkillAnimation_NullRom_ReturnsError()
         {
-            var result = SkillSystemsAnimeExportCore.ExportSkillAnimation(null, 0x300u);
+            var result = SkillSystemsAnimeExportCore.ExportSkillAnimation(null!, 0x300u);
             Assert.NotEqual("", result.Error);
             Assert.Empty(result.Frames);
         }

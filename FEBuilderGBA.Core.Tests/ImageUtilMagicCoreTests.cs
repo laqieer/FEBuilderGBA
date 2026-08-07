@@ -179,7 +179,7 @@ public class ImageUtilMagicCoreTests
     [Fact]
     public void GetSpellDataCount_NullRom_ReturnsZero()
     {
-        Assert.Equal(0u, ImageUtilMagicCore.GetSpellDataCount(null));
+        Assert.Equal(0u, ImageUtilMagicCore.GetSpellDataCount(null!));
     }
 
     // ---------------------------------------------------------------

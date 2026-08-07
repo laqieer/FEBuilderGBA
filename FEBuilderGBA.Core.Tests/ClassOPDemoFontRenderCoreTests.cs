@@ -203,7 +203,7 @@ namespace FEBuilderGBA.Core.Tests
         public void RenderGlyphById_NullRom_ReturnsNull()
         {
             using var svc = new ImageServiceScope();
-            Assert.Null(ClassOPDemoFontRenderCore.RenderGlyphById(null, 0));
+            Assert.Null(ClassOPDemoFontRenderCore.RenderGlyphById(null!, 0));
         }
 
         [Fact]

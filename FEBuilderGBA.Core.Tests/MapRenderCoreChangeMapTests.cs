@@ -155,7 +155,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RenderChangeMap_NullRom_ReturnsNull()
         {
-            IImage img = MapRenderCore.RenderChangeMap(null, 0x200, 0x400, 0x600, 0x800, 4, 3);
+            IImage img = MapRenderCore.RenderChangeMap(null!, 0x200, 0x400, 0x600, 0x800, 4, 3);
             Assert.Null(img);
         }
 
@@ -337,7 +337,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RenderMapImage_NullRom_StillReturnsNull_AfterRefactor()
         {
-            IImage img = MapRenderCore.RenderMapImage(null, 0x200, 0x400, 0x600, 0x800);
+            IImage img = MapRenderCore.RenderMapImage(null!, 0x200, 0x400, 0x600, 0x800);
             Assert.Null(img);
         }
 

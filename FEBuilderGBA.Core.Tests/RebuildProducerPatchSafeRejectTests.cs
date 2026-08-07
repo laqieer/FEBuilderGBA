@@ -197,7 +197,7 @@ namespace FEBuilderGBA.Core.Tests
             // safe (Copilot PR #1326 review). LoadPatch never produces a null Param; this guards a direct
             // caller's contract.
             var rom = MakeVersionedRom("BE8E01");
-            var patch = new PatchInstallCore.PatchSt { Name = "p.txt", PatchFileName = "p.txt", Param = null };
+            var patch = new PatchInstallCore.PatchSt { Name = "p.txt", PatchFileName = "p.txt", Param = null! };
             Assert.Equal(PatchHardCodeScanner.InstallStatusEnum.Unknown,
                 PatchHardCodeScanner.EaBinInstallStatus(rom, patch));
         }
@@ -588,7 +588,7 @@ namespace FEBuilderGBA.Core.Tests
         public void Predicate_NullRom_Throws()
         {
             Assert.Throws<ArgumentNullException>(() =>
-                RebuildProducerCore.PatchFormHasUnportableInstalledPatch(null));
+                RebuildProducerCore.PatchFormHasUnportableInstalledPatch(null!));
         }
 
         // ====================================================================

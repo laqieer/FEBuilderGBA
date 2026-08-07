@@ -352,7 +352,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void SerializeTmx_NullOrUndersized_ReturnsEmpty()
         {
-            Assert.Equal("", MapTmxCore.SerializeTmx(null, "t.tsx"));
+            Assert.Equal("", MapTmxCore.SerializeTmx(null!, "t.tsx"));
             Assert.Equal("", MapTmxCore.SerializeTmx(new byte[] { 2, 2 }, "t.tsx")); // header only, no data
         }
 
@@ -667,7 +667,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void SerializeTmj_NullOrUndersized_ReturnsEmpty()
         {
-            Assert.Equal("", MapTmxCore.SerializeTmj(null, "t.tsx"));
+            Assert.Equal("", MapTmxCore.SerializeTmj(null!, "t.tsx"));
             Assert.Equal("", MapTmxCore.SerializeTmj(new byte[] { 2, 2 }, "t.tsx"));
         }
 

@@ -110,7 +110,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ResolveSourcePath_NoProject_AbsolutePath_Accepted()
         {
             string absPath = Path.Combine(Path.GetTempPath(), "noproject_" + Guid.NewGuid().ToString("N") + ".pal");
-            string result = DecompAssetExportCore.ResolveSourcePath(null, absPath);
+            string result = DecompAssetExportCore.ResolveSourcePath(null!, absPath);
             Assert.NotNull(result);
             Assert.Equal(Path.GetFullPath(absPath), result, StringComparer.OrdinalIgnoreCase);
         }
@@ -118,7 +118,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ResolveSourcePath_NullRelPath_ReturnsNull()
         {
-            string result = DecompAssetExportCore.ResolveSourcePath(null, null);
+            string result = DecompAssetExportCore.ResolveSourcePath(null!, null!);
             Assert.Null(result);
         }
 
@@ -159,7 +159,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ExportPalette_NullRom_ReturnsBadArgs()
         {
-            var result = DecompAssetExportCore.ExportPalette(null, 0, 16, "/tmp/x.pal");
+            var result = DecompAssetExportCore.ExportPalette(null!, 0, 16, "/tmp/x.pal");
             Assert.False(result.Ok);
             Assert.Equal(DecompAssetStatus.BadArgs, result.Status);
         }
@@ -257,7 +257,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ExportMap_NullRom_ReturnsBadArgs()
         {
-            var result = DecompAssetExportCore.ExportMap(null, 0, "/tmp/x.mar");
+            var result = DecompAssetExportCore.ExportMap(null!, 0, "/tmp/x.mar");
             Assert.False(result.Ok);
             Assert.Equal(DecompAssetStatus.BadArgs, result.Status);
         }
@@ -574,11 +574,11 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ImportMap_NullArgs_ReturnBadArgs()
         {
-            var r1 = DecompAssetExportCore.ImportMap(null, "/tmp/x.bin");
+            var r1 = DecompAssetExportCore.ImportMap(null!, "/tmp/x.bin");
             Assert.False(r1.Ok);
             Assert.Equal(DecompAssetStatus.BadArgs, r1.Status);
 
-            var r2 = DecompAssetExportCore.ImportMap("/tmp/x.mar", null);
+            var r2 = DecompAssetExportCore.ImportMap("/tmp/x.mar", null!);
             Assert.False(r2.Ok);
             Assert.Equal(DecompAssetStatus.BadArgs, r2.Status);
         }
@@ -601,7 +601,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RoundTripMarBody_False_ForNull()
         {
-            Assert.False(DecompAssetExportCore.RoundTripMarBody(null));
+            Assert.False(DecompAssetExportCore.RoundTripMarBody(null!));
         }
 
         [Fact]
@@ -649,7 +649,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RoundTripMapChangeBody_False_ForNull()
         {
-            Assert.False(DecompAssetExportCore.RoundTripMapChangeBody(null, 2, 2));
+            Assert.False(DecompAssetExportCore.RoundTripMapChangeBody(null!, 2, 2));
         }
 
         [Fact]
@@ -750,9 +750,9 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ImportMapChange_NullArgs_ReturnBadArgs()
         {
-            var r1 = DecompAssetExportCore.ImportMapChange(null, "/tmp/x.bin");
+            var r1 = DecompAssetExportCore.ImportMapChange(null!, "/tmp/x.bin");
             Assert.Equal(DecompAssetStatus.BadArgs, r1.Status);
-            var r2 = DecompAssetExportCore.ImportMapChange("/tmp/x.change", null);
+            var r2 = DecompAssetExportCore.ImportMapChange("/tmp/x.change", null!);
             Assert.Equal(DecompAssetStatus.BadArgs, r2.Status);
         }
 
@@ -846,7 +846,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ExportMapChange_NullRom_ReturnsBadArgs()
         {
-            var result = DecompAssetExportCore.ExportMapChange(null, 0x200, 2, 2, "/tmp/x.change");
+            var result = DecompAssetExportCore.ExportMapChange(null!, 0x200, 2, 2, "/tmp/x.change");
             Assert.False(result.Ok);
             Assert.Equal(DecompAssetStatus.BadArgs, result.Status);
         }
@@ -1123,7 +1123,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RoundTripMapAnime2PalBody_False_ForNull()
         {
-            Assert.False(DecompAssetExportCore.RoundTripMapAnime2PalBody(null, 4));
+            Assert.False(DecompAssetExportCore.RoundTripMapAnime2PalBody(null!, 4));
         }
 
         [Fact]
@@ -1221,9 +1221,9 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ImportMapAnime2Pal_NullArgs_ReturnBadArgs()
         {
-            var r1 = DecompAssetExportCore.ImportMapAnime2Pal(null, "/tmp/x.bin");
+            var r1 = DecompAssetExportCore.ImportMapAnime2Pal(null!, "/tmp/x.bin");
             Assert.Equal(DecompAssetStatus.BadArgs, r1.Status);
-            var r2 = DecompAssetExportCore.ImportMapAnime2Pal("/tmp/x.mapanime2pal", null);
+            var r2 = DecompAssetExportCore.ImportMapAnime2Pal("/tmp/x.mapanime2pal", null!);
             Assert.Equal(DecompAssetStatus.BadArgs, r2.Status);
         }
 
@@ -1334,7 +1334,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ExportMapAnime2Pal_NullRom_ReturnsBadArgs()
         {
-            var result = DecompAssetExportCore.ExportMapAnime2Pal(null, 0x200, 4, "/tmp/x.mapanime2pal");
+            var result = DecompAssetExportCore.ExportMapAnime2Pal(null!, 0x200, 4, "/tmp/x.mapanime2pal");
             Assert.False(result.Ok);
             Assert.Equal(DecompAssetStatus.BadArgs, result.Status);
         }
@@ -1701,7 +1701,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void FormatTextsJp_NullOrEmpty_ReturnsEmpty()
         {
-            Assert.Equal("", DecompAssetExportCore.FormatTextsJp(null));
+            Assert.Equal("", DecompAssetExportCore.FormatTextsJp(null!));
             Assert.Equal("", DecompAssetExportCore.FormatTextsJp(new System.Collections.Generic.List<(uint, string)>()));
         }
 
@@ -1710,7 +1710,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ExportText_NullRom_ReturnsBadArgs()
         {
-            var result = DecompAssetExportCore.ExportText(null, "/tmp/textdir");
+            var result = DecompAssetExportCore.ExportText(null!, "/tmp/textdir");
             Assert.False(result.Ok);
             Assert.Equal(DecompAssetStatus.BadArgs, result.Status);
         }
@@ -1765,7 +1765,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ExportGraphics_NullRom_ReturnsBadArgs()
         {
-            var result = DecompAssetExportCore.ExportGraphics(null, 0, 8, 8, 4, false, 0, 16, "/tmp/x.png");
+            var result = DecompAssetExportCore.ExportGraphics(null!, 0, 8, 8, 4, false, 0, 16, "/tmp/x.png");
             Assert.False(result.Ok);
             Assert.Equal(DecompAssetStatus.BadArgs, result.Status);
         }
@@ -1853,15 +1853,15 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void AllMethods_NeverThrow_OnNullInputs()
         {
-            var ex1 = Record.Exception(() => DecompAssetExportCore.ExportPalette(null, 0, 0, null));
+            var ex1 = Record.Exception(() => DecompAssetExportCore.ExportPalette(null!, 0, 0, null!));
             Assert.Null(ex1);
-            var ex2 = Record.Exception(() => DecompAssetExportCore.ExportGraphics(null, 0, 0, 0, 0, false, 0, 0, null));
+            var ex2 = Record.Exception(() => DecompAssetExportCore.ExportGraphics(null!, 0, 0, 0, 0, false, 0, 0, null!));
             Assert.Null(ex2);
-            var ex3 = Record.Exception(() => DecompAssetExportCore.ExportMap(null, 0, null));
+            var ex3 = Record.Exception(() => DecompAssetExportCore.ExportMap(null!, 0, null!));
             Assert.Null(ex3);
-            var ex4 = Record.Exception(() => DecompAssetExportCore.ExportText(null, null));
+            var ex4 = Record.Exception(() => DecompAssetExportCore.ExportText(null!, null!));
             Assert.Null(ex4);
-            var ex5 = Record.Exception(() => DecompAssetExportCore.ResolveSourcePath(null, null));
+            var ex5 = Record.Exception(() => DecompAssetExportCore.ResolveSourcePath(null!, null!));
             Assert.Null(ex5);
         }
 
@@ -1886,7 +1886,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void FormatShops_NullList_DoesNotThrow_EmitsHeaderOnly()
         {
-            string body = DecompAssetExportCore.FormatShops(null);
+            string body = DecompAssetExportCore.FormatShops(null!);
             Assert.NotNull(body);
             Assert.Contains("FEBuilderGBA shop-list migration export (#1149)", body);
             Assert.DoesNotContain("ORG 0x", body);
@@ -1981,7 +1981,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void SanitizeLabel_NullOrEmpty_ReturnsEmpty()
         {
-            Assert.Equal("", DecompAssetExportCore.SanitizeLabel(null));
+            Assert.Equal("", DecompAssetExportCore.SanitizeLabel(null!));
             Assert.Equal("", DecompAssetExportCore.SanitizeLabel(""));
         }
 
@@ -2014,7 +2014,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var ex = Record.Exception(() =>
             {
-                var result = DecompAssetExportCore.ExportShops(null, NewTempDir());
+                var result = DecompAssetExportCore.ExportShops(null!, NewTempDir());
                 Assert.False(result.Ok);
                 Assert.Equal(DecompAssetStatus.BadArgs, result.Status);
             });
@@ -2026,7 +2026,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var rom = new ROM();
             rom.SwapNewROMDataDirect(new byte[0x200]);
-            var r1 = DecompAssetExportCore.ExportShops(rom, null);
+            var r1 = DecompAssetExportCore.ExportShops(rom, null!);
             Assert.Equal(DecompAssetStatus.BadArgs, r1.Status);
             var r2 = DecompAssetExportCore.ExportShops(rom, "");
             Assert.Equal(DecompAssetStatus.BadArgs, r2.Status);
@@ -2131,7 +2131,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ExportObjTiles_NullRom_ReturnsBadArgs()
         {
-            var result = DecompAssetExportCore.ExportObjTiles(null, 0x200, "/tmp/obj.objtiles");
+            var result = DecompAssetExportCore.ExportObjTiles(null!, 0x200, "/tmp/obj.objtiles");
             Assert.Equal(DecompAssetStatus.BadArgs, result.Status);
         }
 
@@ -2259,7 +2259,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RoundTripObjTilesBody_Null_False()
         {
-            Assert.False(DecompAssetExportCore.RoundTripObjTilesBody(null, 64));
+            Assert.False(DecompAssetExportCore.RoundTripObjTilesBody(null!, 64));
         }
 
         // ---- VerifyObjTilesAgainstRom ----
@@ -2386,7 +2386,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ExportMapChipConfig_NullRom_ReturnsBadArgs()
         {
-            var result = DecompAssetExportCore.ExportMapChipConfig(null, 0x200, "/tmp/chip.mapchipconfig");
+            var result = DecompAssetExportCore.ExportMapChipConfig(null!, 0x200, "/tmp/chip.mapchipconfig");
             Assert.Equal(DecompAssetStatus.BadArgs, result.Status);
         }
 
@@ -2544,7 +2544,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RoundTripMapChipConfigBody_Null_False()
         {
-            Assert.False(DecompAssetExportCore.RoundTripMapChipConfigBody(null, 64));
+            Assert.False(DecompAssetExportCore.RoundTripMapChipConfigBody(null!, 64));
         }
 
         // ---- VerifyMapChipConfigAgainstRom ----
@@ -2731,7 +2731,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ExportMapAnime1Gfx_NullRom_ReturnsBadArgs()
         {
-            var result = DecompAssetExportCore.ExportMapAnime1Gfx(null, 0x200, 64, "/tmp/x.mapanime1gfx");
+            var result = DecompAssetExportCore.ExportMapAnime1Gfx(null!, 0x200, 64, "/tmp/x.mapanime1gfx");
             Assert.Equal(DecompAssetStatus.BadArgs, result.Status);
         }
 
@@ -2851,9 +2851,9 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ImportMapAnime1Gfx_NullArgs_ReturnBadArgs()
         {
-            var r1 = DecompAssetExportCore.ImportMapAnime1Gfx(null, "/tmp/x.bin");
+            var r1 = DecompAssetExportCore.ImportMapAnime1Gfx(null!, "/tmp/x.bin");
             Assert.Equal(DecompAssetStatus.BadArgs, r1.Status);
-            var r2 = DecompAssetExportCore.ImportMapAnime1Gfx("/tmp/x.mapanime1gfx", null);
+            var r2 = DecompAssetExportCore.ImportMapAnime1Gfx("/tmp/x.mapanime1gfx", null!);
             Assert.Equal(DecompAssetStatus.BadArgs, r2.Status);
         }
 
@@ -2876,7 +2876,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RoundTripMapAnime1GfxBody_Null_False()
         {
-            Assert.False(DecompAssetExportCore.RoundTripMapAnime1GfxBody(null, 64));
+            Assert.False(DecompAssetExportCore.RoundTripMapAnime1GfxBody(null!, 64));
         }
 
         // ---- VerifyMapAnime1GfxAgainstRom ----

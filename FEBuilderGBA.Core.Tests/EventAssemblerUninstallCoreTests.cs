@@ -144,7 +144,7 @@ namespace FEBuilderGBA.Core.Tests
             byte[] beforeRevert = (byte[])rom.Data.Clone();
             Assert.NotEqual(clean[patchAddr], rom.Data[patchAddr]); // guard: they differ
 
-            string eaFile = WriteTinyOrgEvent(patchAddr, null); // ORG only → length-unknown mapping
+            string eaFile = WriteTinyOrgEvent(patchAddr, null!); // ORG only → length-unknown mapping
             var undo = NewUndo(rom);
             try
             {
@@ -315,7 +315,7 @@ namespace FEBuilderGBA.Core.Tests
             rom.write_u8(patchAddr, 0xEE);
             byte[] beforeRevert = (byte[])rom.Data.Clone();
 
-            string eaFile = WriteTinyOrgEvent(patchAddr, null);
+            string eaFile = WriteTinyOrgEvent(patchAddr, null!);
             // Non-empty but far too small to cover patchAddr → must be rejected up front.
             byte[] badClean = new byte[0x1000];
             var undo = NewUndo(rom);
@@ -350,7 +350,7 @@ namespace FEBuilderGBA.Core.Tests
             byte[] biggerClean = new byte[clean.Length + 0x1000];
             Array.Copy(clean, biggerClean, clean.Length);
 
-            string eaFile = WriteTinyOrgEvent(patchAddr, null);
+            string eaFile = WriteTinyOrgEvent(patchAddr, null!);
             var undo = NewUndo(rom);
             try
             {

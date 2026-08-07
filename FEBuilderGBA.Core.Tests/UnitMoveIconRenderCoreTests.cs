@@ -143,13 +143,13 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetPaletteColors_NullRom_ReturnsNull()
         {
-            Assert.Null(UnitMoveIconRenderCore.GetPaletteColors(null, 0));
+            Assert.Null(UnitMoveIconRenderCore.GetPaletteColors(null!, 0));
         }
 
         [Fact]
         public void RenderFrame_NullArgs_ReturnNull_NoThrow()
         {
-            Assert.Null(UnitMoveIconRenderCore.RenderFrame(null, 0, 0, Svc, 0));
+            Assert.Null(UnitMoveIconRenderCore.RenderFrame(null!, 0, 0, Svc, 0));
         }
 
         [Fact]
@@ -223,11 +223,11 @@ namespace FEBuilderGBA.Core.Tests
         // -----------------------------------------------------------------
         sealed class SyntheticImageService : IImageService
         {
-            public IImage CreateImage(int width, int height) => new Img(width, height, null);
+            public IImage CreateImage(int width, int height) => new Img(width, height, null!);
             public IImage CreateIndexedImage(int width, int height, byte[] gbaPalette, int paletteColorCount)
                 => new Img(width, height, gbaPalette);
-            public IImage LoadImage(string filePath) => new Img(16, 16, null);
-            public IImage LoadImageFromBytes(byte[] pngData) => new Img(16, 16, null);
+            public IImage LoadImage(string filePath) => new Img(16, 16, null!);
+            public IImage LoadImageFromBytes(byte[] pngData) => new Img(16, 16, null!);
             public void GBAColorToRGBA(ushort c, out byte r, out byte g, out byte b)
             { r = (byte)((c & 0x1F) << 3); g = (byte)(((c >> 5) & 0x1F) << 3); b = (byte)(((c >> 10) & 0x1F) << 3); }
             public ushort RGBAToGBAColor(byte r, byte g, byte b)

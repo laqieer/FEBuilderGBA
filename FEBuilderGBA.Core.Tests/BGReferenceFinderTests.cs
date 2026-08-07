@@ -17,7 +17,7 @@ namespace FEBuilderGBA.Core.Tests
         public void MakeListByUseBG_NullRom_ReturnsEmpty()
         {
             BGReferenceFinder.ResetCache();
-            var list = BGReferenceFinder.MakeListByUseBG(null, 0);
+            var list = BGReferenceFinder.MakeListByUseBG(null!, 0);
             Assert.NotNull(list);
             Assert.Empty(list);
         }

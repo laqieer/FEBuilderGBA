@@ -454,7 +454,7 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.ROM = rom;
                 Assert.Null(MapTileAnimation1ImageCore.ReadFrameBytes(rom, 0, SHEET_LEN));
                 Assert.Null(MapTileAnimation1ImageCore.ReadFrameBytes(rom, 0x08000800, 0));
-                Assert.Null(MapTileAnimation1ImageCore.ReadFrameBytes(null, 0x08000800, SHEET_LEN));
+                Assert.Null(MapTileAnimation1ImageCore.ReadFrameBytes(null!, 0x08000800, SHEET_LEN));
             }
             finally { CoreState.ROM = savedRom; }
         }
@@ -468,7 +468,7 @@ namespace FEBuilderGBA.Core.Tests
             try
             {
                 // null ROM ⇒ localized error, no file.
-                Assert.NotEqual("", MapTileAnimation1ImageCore.ExportGif(null, 1, gif));
+                Assert.NotEqual("", MapTileAnimation1ImageCore.ExportGif(null!, 1, gif));
                 Assert.False(File.Exists(gif));
 
                 ROM rom = MakeRom();

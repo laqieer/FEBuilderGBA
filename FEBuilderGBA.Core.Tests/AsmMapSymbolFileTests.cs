@@ -173,7 +173,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Ctor_NullRom_EmptyMap_NoThrow()
         {
-            var map = new AsmMapSymbolFile(null);
+            var map = new AsmMapSymbolFile(null!);
             Assert.False(map.TryGetValue(0x08000000u, out _));
             Assert.Equal(U.NOT_FOUND, map.SearchNear(0x08001000u));
         }
@@ -210,7 +210,7 @@ namespace FEBuilderGBA.Core.Tests
         public void FirstKeyForScreenshot_ReturnsSmallestKey_AndNotFoundOnEmpty()
         {
             // Empty map -> NOT_FOUND (screenshot seed falls back).
-            var empty = new AsmMapSymbolFile(null);
+            var empty = new AsmMapSymbolFile(null!);
             Assert.Equal(U.NOT_FOUND, empty.FirstKeyForScreenshot());
 
             // Two-key map (deliberately out of ascending input order) -> the

@@ -149,14 +149,14 @@ namespace FEBuilderGBA.Core.Tests
         public void Export_NullRom_ReturnsFalse()
         {
             Assert.False(SkillAssignmentClassSkillSystemCore.ExportAllData(
-                null, 0, 0, 0, "ignored.tsv"));
+                null!, 0, 0, 0, "ignored.tsv"));
         }
 
         [Fact]
         public void Import_NullRom_ReturnsFalse()
         {
             Assert.False(SkillAssignmentClassSkillSystemCore.ImportAllData(
-                null, 0, 0, 0, "ignored.tsv"));
+                null!, 0, 0, 0, "ignored.tsv"));
         }
 
         [Fact]

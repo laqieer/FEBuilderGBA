@@ -58,7 +58,7 @@ public class ImageBG256ColorCoreTests
 
     sealed class Bg8bppImageService : IImageService
     {
-        public IImage CreateImage(int w, int h) => new Bg8bppImage(w, h, null);
+        public IImage CreateImage(int w, int h) => new Bg8bppImage(w, h, null!);
         public IImage CreateIndexedImage(int w, int h, byte[] p, int c) => new Bg8bppImage(w, h, p);
         public IImage LoadImage(string f) => throw new NotSupportedException(nameof(LoadImage));
         public IImage LoadImageFromBytes(byte[] d) => throw new NotSupportedException(nameof(LoadImageFromBytes));
@@ -253,7 +253,7 @@ public class ImageBG256ColorCoreTests
     [Fact]
     public void PadPaletteTo512_Null_ReturnsZeroed512()
     {
-        byte[] padded = ImageBG256ColorCore.PadPaletteTo512(null);
+        byte[] padded = ImageBG256ColorCore.PadPaletteTo512(null!);
         Assert.Equal(512, padded.Length);
         Assert.All(padded, b => Assert.Equal(0, b));
     }
@@ -584,7 +584,7 @@ public class ImageBG256ColorCoreTests
     {
         var svc = new Bg8bppImageService();
         var result = ImageBG256ColorCore.Import255ColorBG(
-            null, MakeIndexedImage(15), Make512Palette(), W, H, 0x100, 0x104, 0x108, false, svc, NewUndo());
+            null!, MakeIndexedImage(15), Make512Palette(), W, H, 0x100, 0x104, 0x108, false, svc, NewUndo());
         Assert.False(result.Success);
     }
 
@@ -745,7 +745,7 @@ public class ImageBG256ColorCoreTests
     public void Decode255_NullRom_ReturnsNull()
     {
         var svc = new Bg8bppImageService();
-        Assert.Null(ImageBG256ColorCore.Decode255ColorBG(null, 0x08000100, 0x08000200, false, svc));
+        Assert.Null(ImageBG256ColorCore.Decode255ColorBG(null!, 0x08000100, 0x08000200, false, svc));
     }
 
     [Fact]

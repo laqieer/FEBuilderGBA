@@ -28,7 +28,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Fuchidori_NullBuffer_NoOp()
         {
-            ImageUtilCore.Fuchidori(null, 4, 4, 15);
+            ImageUtilCore.Fuchidori(null!, 4, 4, 15);
             // No throw == pass.
         }
 

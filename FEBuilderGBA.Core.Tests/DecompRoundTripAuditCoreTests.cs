@@ -169,7 +169,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var rows = DecompRoundTripAuditCore.BuildMatrix();
             Assert.StartsWith("Editor\tTable\tAction\tCoverage\tNotes",
-                DecompRoundTripAuditCore.FormatMatrix(rows, null));
+                DecompRoundTripAuditCore.FormatMatrix(rows, null!));
             Assert.StartsWith("Editor\tTable\tAction\tCoverage\tNotes",
                 DecompRoundTripAuditCore.FormatMatrix(rows, "xml"));
         }
@@ -177,7 +177,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void FormatMatrix_NullRows_DoesNotThrow()
         {
-            string tsv = DecompRoundTripAuditCore.FormatMatrix(null, "tsv");
+            string tsv = DecompRoundTripAuditCore.FormatMatrix(null!, "tsv");
             Assert.StartsWith("Editor\tTable\tAction\tCoverage\tNotes", tsv);
         }
 
@@ -330,7 +330,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void BuildSummary_NullRows_DoesNotThrow_AndIsZero()
         {
-            DecompCoverageSummary s = DecompRoundTripAuditCore.BuildSummary(null);
+            DecompCoverageSummary s = DecompRoundTripAuditCore.BuildSummary(null!);
             Assert.Equal(0, s.Total);
             Assert.Equal(0, s.Unclassified);
         }

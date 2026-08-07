@@ -221,7 +221,7 @@ namespace FEBuilderGBA.Core.Tests
 
             // Seed width at 4 (less than 6 so the patch should overwrite).
             rom.write_u8(addr, 4);
-            ToolTranslateROMCore.ChangeMainMenuWidth(rom, "ja", null);
+            ToolTranslateROMCore.ChangeMainMenuWidth(rom, "ja", null!);
             Assert.Equal(6u, rom.u8(addr));
         }
 
@@ -233,7 +233,7 @@ namespace FEBuilderGBA.Core.Tests
             if (addr == 0 || addr >= rom.Data.Length) return;
 
             rom.write_u8(addr, 4);
-            ToolTranslateROMCore.ChangeMainMenuWidth(rom, "en", null);
+            ToolTranslateROMCore.ChangeMainMenuWidth(rom, "en", null!);
             Assert.Equal(8u, rom.u8(addr));
         }
 
@@ -245,7 +245,7 @@ namespace FEBuilderGBA.Core.Tests
             if (addr == 0 || addr >= rom.Data.Length) return;
 
             rom.write_u8(addr, 10);
-            ToolTranslateROMCore.ChangeMainMenuWidth(rom, "en", null);
+            ToolTranslateROMCore.ChangeMainMenuWidth(rom, "en", null!);
             Assert.Equal(10u, rom.u8(addr)); // No change since 10 > 8
         }
 
@@ -253,7 +253,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ApplyTranslatePatch_DoesNotThrow()
         {
             ROM rom = MakeRomLoadable("BE8E01");
-            ToolTranslateROMCore.ApplyTranslatePatch(rom, "ja", null);
+            ToolTranslateROMCore.ApplyTranslatePatch(rom, "ja", null!);
             // No exception = pass.
         }
 
@@ -264,7 +264,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void SearchPriorityCode_NullRom_ReturnsSjis()
         {
-            Assert.Equal(PRIORITY_CODE.SJIS, PriorityCodeUtil.SearchPriorityCode(null));
+            Assert.Equal(PRIORITY_CODE.SJIS, PriorityCodeUtil.SearchPriorityCode(null!));
         }
 
         [Fact]
@@ -379,7 +379,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetMenuDefinitionPointers_NullRom_ReturnsEmpty()
         {
-            uint[] pointers = TextSourceListCore.GetMenuDefinitionPointers(null);
+            uint[] pointers = TextSourceListCore.GetMenuDefinitionPointers(null!);
             Assert.NotNull(pointers);
             Assert.Empty(pointers);
         }
@@ -399,7 +399,7 @@ namespace FEBuilderGBA.Core.Tests
                 // Synthetic ROM with no text table set up. Should write an
                 // empty file (or near-empty) without crashing.
                 int written = ToolTranslateROMCore.ExportTextsToFile(rom, outPath,
-                    isOneLiner: false, progressCallback: null);
+                    isOneLiner: false, progressCallback: null!);
                 Assert.True(written >= 0);
                 Assert.True(File.Exists(outPath));
             }
@@ -419,7 +419,7 @@ namespace FEBuilderGBA.Core.Tests
             ROM rom = MakeRomLoadable("BE8E01");
             var recycle = new RecycleAddress();
             int n = ToolTranslateROMCore.ImportTextsFromFile(rom,
-                "/nonexistent/path.txt", recycle, undo: null, progressCallback: null);
+                "/nonexistent/path.txt", recycle, undo: null!, progressCallback: null!);
             Assert.Equal(0, n);
         }
 
@@ -434,7 +434,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 File.WriteAllText(tempFile, "// just a comment\n");
                 int n = ToolTranslateROMCore.ImportTextsFromFile(rom, tempFile,
-                    recycle, undo: null, progressCallback: null);
+                    recycle, undo: null!, progressCallback: null!);
                 Assert.Equal(0, n);
             }
             finally
@@ -544,7 +544,7 @@ namespace FEBuilderGBA.Core.Tests
                 var result = ToolTranslateROMCore.ImportFonts(rom,
                     fontRomPath: string.Empty, extraFontRomPath: string.Empty,
                     rasterizer: fake, autoGenFont: default, autoGenEnabled: true,
-                    recycle: recycle, undo: null, progressCallback: null);
+                    recycle: recycle, undo: null!, progressCallback: null!);
 
                 // 'A' has both a text-font and an item-font variant, both missing
                 // -> exactly 2 generated, 0 ported.
@@ -571,7 +571,7 @@ namespace FEBuilderGBA.Core.Tests
                 var result = ToolTranslateROMCore.ImportFonts(rom,
                     fontRomPath: string.Empty, extraFontRomPath: string.Empty,
                     rasterizer: fake, autoGenFont: default, autoGenEnabled: false,
-                    recycle: recycle, undo: null, progressCallback: null);
+                    recycle: recycle, undo: null!, progressCallback: null!);
 
                 // Narrowed early-exit: no source ROM AND auto-gen off -> default.
                 Assert.Equal(0, result.Ported);
@@ -614,8 +614,8 @@ namespace FEBuilderGBA.Core.Tests
                 var before = ToolTranslateROMCore.ImportFonts(rom,
                     fontRomPath: string.Empty, extraFontRomPath: string.Empty,
                     rasterizer: new FakeFontRasterizer(0x5A), autoGenFont: default,
-                    autoGenEnabled: true, recycle: recycle, undo: null,
-                    progressCallback: null);
+                    autoGenEnabled: true, recycle: recycle, undo: null!,
+                    progressCallback: null!);
                 Assert.Equal(0, before.Generated);
                 Assert.False(FindSentinelTile(rom, 0x5A),
                     "no bytes should land while AppendBinaryData is unwired");
@@ -630,8 +630,8 @@ namespace FEBuilderGBA.Core.Tests
                 var after = ToolTranslateROMCore.ImportFonts(rom,
                     fontRomPath: string.Empty, extraFontRomPath: string.Empty,
                     rasterizer: new FakeFontRasterizer(0x5A), autoGenFont: default,
-                    autoGenEnabled: true, recycle: fresh, undo: null,
-                    progressCallback: null);
+                    autoGenEnabled: true, recycle: fresh, undo: null!,
+                    progressCallback: null!);
 
                 // 'A' has a text + item variant, both missing -> 2 generated.
                 Assert.Equal(0, after.Ported);
@@ -672,7 +672,7 @@ namespace FEBuilderGBA.Core.Tests
                     var result = ToolTranslateROMCore.ImportFonts(rom,
                         fontRomPath: srcPath, extraFontRomPath: string.Empty,
                         rasterizer: fake, autoGenFont: default, autoGenEnabled: true,
-                        recycle: recycle, undo: null, progressCallback: null);
+                        recycle: recycle, undo: null!, progressCallback: null!);
 
                     // 'B': text+item variants ported from source (2). 'C':
                     // text+item variants generated (2).
@@ -703,7 +703,7 @@ namespace FEBuilderGBA.Core.Tests
 
                 int ported = ToolTranslateROMCore.ImportFontFromROMs(rom,
                     fontRomPath: string.Empty, extraFontRomPath: string.Empty,
-                    recycle: recycle, undo: null, progressCallback: null);
+                    recycle: recycle, undo: null!, progressCallback: null!);
 
                 Assert.Equal(0, ported);
                 Assert.Equal(lenBefore, rom.Data.Length);

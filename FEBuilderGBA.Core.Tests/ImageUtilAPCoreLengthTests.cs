@@ -114,7 +114,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void CalcAPLength_NullData_ReturnsZero_NoThrow()
         {
-            Assert.Equal(0u, ImageUtilAPCore.CalcAPLength(null, 0x1000));
+            Assert.Equal(0u, ImageUtilAPCore.CalcAPLength(null!, 0x1000));
         }
     }
 }

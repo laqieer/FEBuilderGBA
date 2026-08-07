@@ -87,7 +87,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void EnumerateGlyphs_NullRom_ReturnsEmpty()
         {
-            Assert.Empty(FontGlyphRenderCore.EnumerateGlyphs(null, isItemFont: false));
+            Assert.Empty(FontGlyphRenderCore.EnumerateGlyphs(null!, isItemFont: false));
         }
 
         // ---------------- Render ----------------
@@ -129,7 +129,7 @@ namespace FEBuilderGBA.Core.Tests
         public void RenderGlyph_NullRom_ReturnsNull()
         {
             using var svc = new ImageServiceScope();
-            Assert.Null(FontGlyphRenderCore.RenderGlyph(null, GLYPH_OFF, isItemFont: false));
+            Assert.Null(FontGlyphRenderCore.RenderGlyph(null!, GLYPH_OFF, isItemFont: false));
         }
 
         [Fact]
@@ -273,7 +273,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ImportGlyph_NullRom_ReturnsError_NoThrow()
         {
             byte[] idx = new byte[16 * 16];
-            string err = FontGlyphRenderCore.ImportGlyph(null, isItemFont: false, MOJI_A, idx, 16, 16);
+            string err = FontGlyphRenderCore.ImportGlyph(null!, isItemFont: false, MOJI_A, idx, 16, 16);
             Assert.NotEqual("", err);
         }
 

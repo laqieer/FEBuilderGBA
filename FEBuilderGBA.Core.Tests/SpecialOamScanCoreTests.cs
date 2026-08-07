@@ -234,7 +234,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ScanSpecialOam_NullRom_ReturnsEmpty()
         {
             var ldrMap = new List<DisassemblerTrumb.LDRPointer>();
-            var entries = SpecialOamScanCore.ScanSpecialOam(null, ldrMap);
+            var entries = SpecialOamScanCore.ScanSpecialOam(null!, ldrMap);
             Assert.Empty(entries);
         }
 
@@ -246,7 +246,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 var rom = MakeOamSpRom();
                 CoreState.ROM = rom;
-                var entries = SpecialOamScanCore.ScanSpecialOam(rom, null);
+                var entries = SpecialOamScanCore.ScanSpecialOam(rom, null!);
                 Assert.Empty(entries);
             }
             finally
@@ -264,8 +264,8 @@ namespace FEBuilderGBA.Core.Tests
                 var rom = MakeOamSpRom();
                 CoreState.ROM = rom;
 
-                Assert.Equal("", SpecialOamScanCore.BuildDetailDump(rom, null));
-                Assert.Equal("", SpecialOamScanCore.BuildDetailDump(null, new SpecialOamScanCore.OamSpEntry()));
+                Assert.Equal("", SpecialOamScanCore.BuildDetailDump(rom, null!));
+                Assert.Equal("", SpecialOamScanCore.BuildDetailDump(null!, new SpecialOamScanCore.OamSpEntry()));
 
                 // An entry pointing past the end of ROM must not throw — the
                 // bounds guards stop the dump and return whatever was built.

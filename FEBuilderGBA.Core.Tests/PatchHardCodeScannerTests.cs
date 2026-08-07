@@ -610,7 +610,7 @@ namespace FEBuilderGBA.Core.Tests
             var unit = new bool[256];
             var cls = new bool[256];
             var item = new bool[256];
-            PatchHardCodeScanner.ScanHardCodes(null, unit, cls, item);
+            PatchHardCodeScanner.ScanHardCodes(null!, unit, cls, item);
             Assert.DoesNotContain(true, unit);
         }
 

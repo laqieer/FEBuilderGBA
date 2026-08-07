@@ -40,7 +40,7 @@ namespace FEBuilderGBA.Core.Tests
             };
             return BuiltInRandomMapTilesetCorpus.CreateForTesting(
                 TilesetFingerprint.Empty, new List<uint> { 0 }, candidates, freq, freq,
-                horizontal, vertical, objData: null, paletteData: null, configData: new byte[64],
+                horizontal, vertical, objData: null!, paletteData: null!, configData: new byte[64],
                 totalCells: Width * Height);
         }
 
@@ -82,10 +82,8 @@ namespace FEBuilderGBA.Core.Tests
         {
             var corpus = MakeStrictCorpus();
 
-#pragma warning disable CS8625
             BuiltInRandomMapGenerationResult result = BuiltInRandomMapGeneratorCore.Generate(
-                corpus, Width, Height, currentGrid: null, seed: 23456, CancellationToken.None);
-#pragma warning restore CS8625
+                corpus, Width, Height, currentGrid: null!, seed: 23456, CancellationToken.None);
 
             Assert.True(result.Success, result.ErrorMessage);
             Assert.NotNull(result.Mars);
@@ -196,7 +194,7 @@ namespace FEBuilderGBA.Core.Tests
 
             var corpus = BuiltInRandomMapTilesetCorpus.CreateForTesting(
                 TilesetFingerprint.Empty, new List<uint> { 0 }, candidates, freq, freq,
-                empty, empty, null, null, null, Width * Height);
+                empty, empty, null!, null!, null!, Width * Height);
 
             var result = BuiltInRandomMapGeneratorCore.Generate(corpus, Width, Height, null, seed: 1, CancellationToken.None);
 
@@ -214,7 +212,7 @@ namespace FEBuilderGBA.Core.Tests
 
             var corpus = BuiltInRandomMapTilesetCorpus.CreateForTesting(
                 TilesetFingerprint.Empty, new List<uint> { 0 }, candidates, freq, freq,
-                empty, empty, objData: null, paletteData: null, configData: null, totalCells: Width * Height);
+                empty, empty, objData: null!, paletteData: null!, configData: null!, totalCells: Width * Height);
 
             var result = BuiltInRandomMapGeneratorCore.Generate(corpus, Width, Height, null, seed: 1, CancellationToken.None);
 
@@ -247,7 +245,7 @@ namespace FEBuilderGBA.Core.Tests
 
             var corpus = BuiltInRandomMapTilesetCorpus.CreateForTesting(
                 TilesetFingerprint.Empty, new List<uint> { 0 }, candidates, freq, freq,
-                horizontal, vertical, objData: null, paletteData: null, configData: configData, totalCells: Width * Height);
+                horizontal, vertical, objData: null!, paletteData: null!, configData: configData, totalCells: Width * Height);
 
             var result = BuiltInRandomMapGeneratorCore.Generate(corpus, Width, Height, null, seed: 1, CancellationToken.None);
 
@@ -269,7 +267,7 @@ namespace FEBuilderGBA.Core.Tests
 
             var corpus = BuiltInRandomMapTilesetCorpus.CreateForTesting(
                 TilesetFingerprint.Empty, new List<uint> { 0 }, candidates, freq, freq,
-                horizontal, vertical, objData: null, paletteData: null, configData: configData, totalCells: Width * Height);
+                horizontal, vertical, objData: null!, paletteData: null!, configData: configData, totalCells: Width * Height);
 
             var result = BuiltInRandomMapGeneratorCore.Generate(corpus, Width, Height, null, seed: 1, CancellationToken.None);
 
@@ -300,7 +298,7 @@ namespace FEBuilderGBA.Core.Tests
 
             var corpus = BuiltInRandomMapTilesetCorpus.CreateForTesting(
                 TilesetFingerprint.Empty, new List<uint> { 0 }, candidates, freq, freq,
-                horizontal, vertical, objData: null, paletteData: null, configData: configData, totalCells: Width * Height);
+                horizontal, vertical, objData: null!, paletteData: null!, configData: configData, totalCells: Width * Height);
 
             var result = BuiltInRandomMapGeneratorCore.Generate(corpus, Width, Height, null, seed: 1, CancellationToken.None);
 
@@ -342,7 +340,7 @@ namespace FEBuilderGBA.Core.Tests
 
             var corpus = BuiltInRandomMapTilesetCorpus.CreateForTesting(
                 TilesetFingerprint.Empty, new List<uint> { 0 }, candidates, freq, freq,
-                horizontal, vertical, objData: null, paletteData: null, configData: configData, totalCells: Width * Height);
+                horizontal, vertical, objData: null!, paletteData: null!, configData: configData, totalCells: Width * Height);
 
             var result = BuiltInRandomMapGeneratorCore.Generate(corpus, Width, Height, null, seed: 1, CancellationToken.None);
 
@@ -375,8 +373,8 @@ namespace FEBuilderGBA.Core.Tests
                 frequency,
                 horizontal,
                 vertical,
-                objData: null,
-                paletteData: null,
+                objData: null!,
+                paletteData: null!,
                 configData: new byte[32],
                 totalCells: Width * Height);
             MethodInfo method = typeof(BuiltInRandomMapGeneratorCore).GetMethod(
@@ -442,7 +440,7 @@ namespace FEBuilderGBA.Core.Tests
 
             var corpus = BuiltInRandomMapTilesetCorpus.CreateForTesting(
                 TilesetFingerprint.Empty, new List<uint> { 0 }, candidates, freq, freq,
-                horizontal, vertical, objData: null, paletteData: null, configData: configData, totalCells: Width * Height);
+                horizontal, vertical, objData: null!, paletteData: null!, configData: configData, totalCells: Width * Height);
 
             var result = BuiltInRandomMapGeneratorCore.Generate(corpus, Width, Height, null, seed: 4242, CancellationToken.None);
 
@@ -478,7 +476,7 @@ namespace FEBuilderGBA.Core.Tests
             };
             var forwardCorpus = BuiltInRandomMapTilesetCorpus.CreateForTesting(
                 TilesetFingerprint.Empty, new List<uint> { 0 }, forwardCandidates, forwardFreq, forwardFreq,
-                forwardAdjacency, forwardAdjacency, objData: null, paletteData: null, configData: new byte[64],
+                forwardAdjacency, forwardAdjacency, objData: null!, paletteData: null!, configData: new byte[64],
                 totalCells: Width * Height);
 
             var reversedCandidates = new List<ushort> { 8, 4, 0 };
@@ -489,7 +487,7 @@ namespace FEBuilderGBA.Core.Tests
             };
             var reversedCorpus = BuiltInRandomMapTilesetCorpus.CreateForTesting(
                 TilesetFingerprint.Empty, new List<uint> { 0 }, reversedCandidates, reversedFreq, reversedFreq,
-                reversedAdjacency, reversedAdjacency, objData: null, paletteData: null, configData: new byte[64],
+                reversedAdjacency, reversedAdjacency, objData: null!, paletteData: null!, configData: new byte[64],
                 totalCells: Width * Height);
 
             var forwardResult = BuiltInRandomMapGeneratorCore.Generate(forwardCorpus, Width, Height, null, seed: 2024, CancellationToken.None);
@@ -541,7 +539,7 @@ namespace FEBuilderGBA.Core.Tests
 
             var corpus = BuiltInRandomMapTilesetCorpus.CreateForTesting(
                 TilesetFingerprint.Empty, new List<uint> { 0 }, candidates, freq, freq,
-                horizontal, vertical, objData: null, paletteData: null, configData: configData, totalCells: Width * Height);
+                horizontal, vertical, objData: null!, paletteData: null!, configData: configData, totalCells: Width * Height);
 
             var result = BuiltInRandomMapGeneratorCore.Generate(corpus, Width, Height, null, seed: 31337, CancellationToken.None);
 
@@ -588,8 +586,8 @@ namespace FEBuilderGBA.Core.Tests
                 countingFrequency,
                 cancellingAdjacency,
                 cancellingAdjacency,
-                objData: null,
-                paletteData: null,
+                objData: null!,
+                paletteData: null!,
                 configData: new byte[64],
                 totalCells: Width * Height,
                 preserveInstrumentedLookups: true);
@@ -646,8 +644,8 @@ namespace FEBuilderGBA.Core.Tests
                 cancellingBorderFrequency,
                 adjacency,
                 adjacency,
-                objData: null,
-                paletteData: null,
+                objData: null!,
+                paletteData: null!,
                 configData: new byte[64],
                 totalCells: Width * Height,
                 preserveInstrumentedLookups: true);
@@ -689,8 +687,8 @@ namespace FEBuilderGBA.Core.Tests
                 frequency,
                 adjacency,
                 adjacency,
-                objData: null,
-                paletteData: null,
+                objData: null!,
+                paletteData: null!,
                 configData: new byte[candidates.Count * 8],
                 totalCells: Width * Height,
                 preserveInstrumentedLookups: true);
@@ -775,7 +773,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Generate_NullCorpus_FailsInvalidInput()
         {
-            var result = BuiltInRandomMapGeneratorCore.Generate(null, Width, Height, null, seed: 1, CancellationToken.None);
+            var result = BuiltInRandomMapGeneratorCore.Generate(null!, Width, Height, null, seed: 1, CancellationToken.None);
 
             Assert.False(result.Success);
             Assert.Equal(BuiltInRandomMapErrorCategory.InvalidInput, result.ErrorCategory);
@@ -858,7 +856,7 @@ namespace FEBuilderGBA.Core.Tests
 
             var corpus = BuiltInRandomMapTilesetCorpus.CreateForTesting(
                 TilesetFingerprint.Empty, new List<uint> { 0 }, candidates, freq, freq,
-                horizontal, vertical, objData: null, paletteData: null, configData: configData, totalCells: Width * Height);
+                horizontal, vertical, objData: null!, paletteData: null!, configData: configData, totalCells: Width * Height);
 
             ushort[] currentGrid = new ushort[Width * Height]; // all-zero: the one otherwise-valid grid.
             ushort[] currentGridCopy = (ushort[])currentGrid.Clone();
@@ -898,7 +896,7 @@ namespace FEBuilderGBA.Core.Tests
 
             var corpus = BuiltInRandomMapTilesetCorpus.CreateForTesting(
                 TilesetFingerprint.Empty, new List<uint> { 0 }, candidates, freq, freq,
-                horizontal, vertical, objData: null, paletteData: null, configData: configData, totalCells: Width * Height);
+                horizontal, vertical, objData: null!, paletteData: null!, configData: configData, totalCells: Width * Height);
 
             var result = BuiltInRandomMapGeneratorCore.Generate(corpus, Width, Height, null, seed: 1234, CancellationToken.None);
 
@@ -926,7 +924,7 @@ namespace FEBuilderGBA.Core.Tests
 
             var corpus = BuiltInRandomMapTilesetCorpus.CreateForTesting(
                 TilesetFingerprint.Empty, new List<uint> { 0 }, candidates, freq, freq,
-                horizontal, vertical, objData: null, paletteData: null, configData: configData, totalCells: Width * Height);
+                horizontal, vertical, objData: null!, paletteData: null!, configData: configData, totalCells: Width * Height);
 
             var result = BuiltInRandomMapGeneratorCore.Generate(corpus, Width, Height, null, seed: 1, CancellationToken.None);
 

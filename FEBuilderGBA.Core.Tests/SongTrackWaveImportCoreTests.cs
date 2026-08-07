@@ -306,7 +306,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ImportWaveAsSong_NullRomAndNullWav_NoThrow()
         {
             uint r1 = SongTrackWaveImportCore.ImportWaveAsSong(
-                null, SONG_TABLE_SLOT, MakeMinimalWav(32), useLoop: true, out string e1);
+                null!, SONG_TABLE_SLOT, MakeMinimalWav(32), useLoop: true, out string e1);
             Assert.Equal(U.NOT_FOUND, r1);
             Assert.False(string.IsNullOrEmpty(e1));
 
@@ -317,7 +317,7 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.ROM = rom;
                 byte[] before = (byte[])rom.Data.Clone();
                 uint r2 = SongTrackWaveImportCore.ImportWaveAsSong(
-                    rom, SONG_TABLE_SLOT, null, useLoop: true, out string e2);
+                    rom, SONG_TABLE_SLOT, null!, useLoop: true, out string e2);
                 Assert.Equal(U.NOT_FOUND, r2);
                 Assert.False(string.IsNullOrEmpty(e2));
                 Assert.Equal(before, rom.Data); // null wav -> no mutation

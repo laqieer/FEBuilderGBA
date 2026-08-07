@@ -46,7 +46,7 @@ namespace FEBuilderGBA.Core.Tests
         public void TryComputeEdgeSignature_NullConfigData_ReturnsFalse()
         {
             bool ok = BuiltInRandomMapEdgeSignatureCore.TryComputeEdgeSignature(
-                0, null, new byte[32], out var sig);
+                0, null!, new byte[32], out var sig);
             Assert.False(ok);
         }
 
@@ -176,8 +176,8 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(BuiltInRandomMapEdgeSignatureCore.HorizontallyCompatible(chipA, chipB));
 
             // Null-safety: neither compatibility check should throw on a null signature.
-            Assert.False(BuiltInRandomMapEdgeSignatureCore.HorizontallyCompatible(null, chipB));
-            Assert.False(BuiltInRandomMapEdgeSignatureCore.VerticallyCompatible(chipA, null));
+            Assert.False(BuiltInRandomMapEdgeSignatureCore.HorizontallyCompatible(null!, chipB));
+            Assert.False(BuiltInRandomMapEdgeSignatureCore.VerticallyCompatible(chipA, null!));
         }
 
         [Fact]

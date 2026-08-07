@@ -489,7 +489,7 @@ namespace FEBuilderGBA.Core.Tests
         public void Convert_NullRgba_Throws()
         {
             Assert.Throws<ArgumentNullException>(() =>
-                DecreaseColorConvertCore.Convert(null, 8, 8, 1, 0, true, false));
+                DecreaseColorConvertCore.Convert(null!, 8, 8, 1, 0, true, false));
         }
 
         [Fact]

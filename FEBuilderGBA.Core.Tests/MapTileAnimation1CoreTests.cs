@@ -66,7 +66,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ScanEntries_NullRom_ReturnsEmpty()
         {
-            var entries = MapTileAnimation1Core.ScanEntries(null, 0x200, 256);
+            var entries = MapTileAnimation1Core.ScanEntries(null!, 0x200, 256);
             Assert.NotNull(entries);
             Assert.Empty(entries);
         }
@@ -78,7 +78,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void BuildPlistList_WithNullRom_ReturnsEmpty()
         {
-            var rows = MapTileAnimation1Core.BuildPlistList(null);
+            var rows = MapTileAnimation1Core.BuildPlistList(null!);
             Assert.NotNull(rows);
             Assert.Empty(rows);
         }

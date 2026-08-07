@@ -90,7 +90,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetDistinctVoices_NullRom_ReturnsEmpty()
         {
-            Assert.Empty(SongVoiceChangeCore.GetDistinctVoices(null, SongAddr));
+            Assert.Empty(SongVoiceChangeCore.GetDistinctVoices(null!, SongAddr));
         }
 
         [Fact]
@@ -255,7 +255,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ApplyVoiceChanges_NullRom_NoThrowReturnsError()
         {
             string err = SongVoiceChangeCore.ApplyVoiceChanges(
-                null, SongAddr, new Dictionary<int, int> { { 5, 9 } });
+                null!, SongAddr, new Dictionary<int, int> { { 5, 9 } });
             Assert.NotEqual("", err);
         }
 

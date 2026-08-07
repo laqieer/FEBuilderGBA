@@ -875,7 +875,7 @@ namespace FEBuilderGBA.Core.Tests
                 uint pal0Region  = rom.p32(pallistOff + 0); // a PER-FRAME region addr.
 
                 // Full pool (no exclude) contains both addresses.
-                var full = SkillSystemsAnimeImportCore.EnumerateOldAnimeRegions(rom, rom.p32(slot), null);
+                var full = SkillSystemsAnimeImportCore.EnumerateOldAnimeRegions(rom, rom.p32(slot), null!);
                 Assert.Contains(full, a => a.Addr == U.toOffset(framesOff));
                 Assert.Contains(full, a => a.Addr == U.toOffset(pal0Region));
 

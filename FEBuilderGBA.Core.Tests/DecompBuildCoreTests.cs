@@ -141,7 +141,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Build_NullProject_ReturnsNotStarted()
         {
-            var result = DecompBuildCore.Build(null, 30_000);
+            var result = DecompBuildCore.Build(null!, 30_000);
             Assert.Equal(DecompBuildStatus.NotStarted, result.Status);
         }
 
@@ -240,7 +240,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void IsStale_NullProject_ReturnsFalse()
         {
-            Assert.False(DecompBuildCore.IsStale(null));
+            Assert.False(DecompBuildCore.IsStale(null!));
         }
 
         [Fact]
@@ -297,7 +297,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ReloadBuiltRom_NullProject_ReturnsNotProject()
         {
-            var status = DecompBuildCore.ReloadBuiltRom(null, (p, fv) => true);
+            var status = DecompBuildCore.ReloadBuiltRom(null!, (p, fv) => true);
             Assert.Equal(DecompResolveStatus.NotProject, status);
         }
 
@@ -310,7 +310,7 @@ namespace FEBuilderGBA.Core.Tests
                 WriteManifest(dir, "{\"schemaVersion\":1,\"builtRom\":\"out.gba\"}");
                 var project = DecompProjectDetector.Detect(dir);
                 Assert.NotNull(project);
-                var status = DecompBuildCore.ReloadBuiltRom(project!, null);
+                var status = DecompBuildCore.ReloadBuiltRom(project!, null!);
                 Assert.Equal(DecompResolveStatus.NotProject, status);
             }
             finally { Directory.Delete(dir, true); }
@@ -328,7 +328,7 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.NotNull(project);
                 // Start with NO built ROM path so we can prove the success
                 // path SETS it (only after the load seam returns true).
-                project!.BuiltRomPath = null;
+                project!.BuiltRomPath = null!;
                 project.NeedsRebuild = true;
 
                 // Stub loadSeam that always returns true

@@ -93,7 +93,7 @@ namespace FEBuilderGBA.Core.Tests
                 Manifest = ManifestFromJson(tablesJson),
             };
             var resolver = DecompSymbolResolver.Load(project);
-            var map = new MergedAsmMapFile(null, resolver);
+            var map = new MergedAsmMapFile(null!, resolver);
             return new Fixture { Dir = dir, Project = project, Map = map, SourceAbs = srcAbs };
         }
 

@@ -208,7 +208,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var undo = new Undo.UndoData { list = new List<Undo.UndoPostion>() };
             var result = AsmCompileCore.CompileAndInsert(
-                null, "x.s", AsmCompileCore.CompileMethod.DumpBinary,
+                null!, "x.s", AsmCompileCore.CompileMethod.DumpBinary,
                 AsmCompileCore.InsertMethod.WriteAtAddress, 0x100, U.NOT_FOUND, 3,
                 SymbolUtil.DebugSymbol.None, checkMissingLabel: false, undo);
 
@@ -707,7 +707,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ShouldUseGoldRoadFromText_Null_ReturnsFalse()
         {
-            Assert.False(AsmCompileCore.ShouldUseGoldRoadFromText(null));
+            Assert.False(AsmCompileCore.ShouldUseGoldRoadFromText(null!));
         }
 
         // ShouldUseGoldRoad: ext gate (.ASM only) + the text predicate, with a real file.
@@ -733,7 +733,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ShouldUseGoldRoad_MissingOrEmptyPath_ReturnsFalse()
         {
-            Assert.False(AsmCompileCore.ShouldUseGoldRoad(null));
+            Assert.False(AsmCompileCore.ShouldUseGoldRoad(null!));
             Assert.False(AsmCompileCore.ShouldUseGoldRoad(""));
             Assert.False(AsmCompileCore.ShouldUseGoldRoad(
                 Path.Combine(Path.GetTempPath(), "no-such-" + Guid.NewGuid() + ".asm")));
@@ -1063,7 +1063,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal("", AsmCompileCore.MakePatchText(
                 "", AsmCompileCore.InsertMethod.WriteAtAddress, 0x08000100, 0, 3));
             Assert.Equal("", AsmCompileCore.MakePatchText(
-                null, AsmCompileCore.InsertMethod.WriteAtAddress, 0x08000100, 0, 3));
+                null!, AsmCompileCore.InsertMethod.WriteAtAddress, 0x08000100, 0, 3));
         }
 
         [Fact]

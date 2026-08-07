@@ -387,7 +387,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void BuildPaletteSidecars_EmptyOrNull_ReturnsEmpty()
         {
-            Assert.Empty(BattleAnimDecompExportCore.BuildPaletteSidecars(null));
+            Assert.Empty(BattleAnimDecompExportCore.BuildPaletteSidecars(null!));
             Assert.Empty(BattleAnimDecompExportCore.BuildPaletteSidecars(new byte[1]));
         }
 
@@ -406,7 +406,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Export_NullRom_ReturnsNotOk_NoThrow()
         {
-            var r = BattleAnimDecompExportCore.Export(null, 0xC00028, "x");
+            var r = BattleAnimDecompExportCore.Export(null!, 0xC00028, "x");
             Assert.False(r.Ok);
             Assert.NotEmpty(r.Diagnostics);
         }
@@ -424,7 +424,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void FormatBanimSource_NullAnime_NoThrow()
         {
-            string s = BattleAnimDecompExportCore.FormatBanimSource(null, out var diags);
+            string s = BattleAnimDecompExportCore.FormatBanimSource(null!, out var diags);
             Assert.Contains("no animation", s);
         }
 

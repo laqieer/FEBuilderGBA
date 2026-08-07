@@ -73,7 +73,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ErrorF_NullArgs_DoesNotThrow_AndStripsPlaceholder()
         {
             // args == null path (explicit null array) — falls back, strips {0}.
-            string line = CaptureLast(() => Log.ErrorF("value {0}", (object[])null));
+            string line = CaptureLast(() => Log.ErrorF("value {0}", (object[])null!));
             Assert.DoesNotContain("{0}", line);
         }
     }

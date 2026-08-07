@@ -211,8 +211,8 @@ namespace FEBuilderGBA.Core.Tests
         public void MakePointerIndexes_NullPatchOrParam_Throws()
         {
             Assert.Throws<ArgumentNullException>(() =>
-                RebuildProducerCore.MakePointerIndexes(null, out _, out _));
-            var noParam = new PatchInstallCore.PatchSt { Name = "p", PatchFileName = "p.txt", Param = null };
+                RebuildProducerCore.MakePointerIndexes(null!, out _, out _));
+            var noParam = new PatchInstallCore.PatchSt { Name = "p", PatchFileName = "p.txt", Param = null! };
             Assert.Throws<ArgumentNullException>(() =>
                 RebuildProducerCore.MakePointerIndexes(noParam, out _, out _));
         }
@@ -385,7 +385,7 @@ namespace FEBuilderGBA.Core.Tests
             var ex = Record.Exception(() =>
                 RebuildProducerCore.MakePatchStructDataListCore(
                     fe8, list, isPointerOnly: false, isInstallOnly: false, isStructOnly: false,
-                    progress: null, ct: cts.Token));
+                    progress: null!, ct: cts.Token));
 
             Assert.Null(ex);       // partial-return, never throws on cancel
             Assert.Empty(list);
@@ -397,9 +397,9 @@ namespace FEBuilderGBA.Core.Tests
             var fe8 = MakeVersionedRom("BE8E01");
             CoreState.ROM = fe8;
             Assert.Throws<ArgumentNullException>(() =>
-                RebuildProducerCore.MakePatchStructDataListCore(null, new List<Address>(), false, false, false));
+                RebuildProducerCore.MakePatchStructDataListCore(null!, new List<Address>(), false, false, false));
             Assert.Throws<ArgumentNullException>(() =>
-                RebuildProducerCore.MakePatchStructDataListCore(fe8, null, false, false, false));
+                RebuildProducerCore.MakePatchStructDataListCore(fe8, null!, false, false, false));
         }
 
         // ====================================================================
@@ -495,7 +495,7 @@ namespace FEBuilderGBA.Core.Tests
             var list = new List<Address>();
             // The wiring uses the WF rebuild flags internally; ldrmap=null skips the gated group (fine —
             // we only assert the PatchForm half ran AND the static list is empty -> complete).
-            var res = RebuildProducerCore.AppendAllAsmStructPointers(fe8, list, ldrmap: null);
+            var res = RebuildProducerCore.AppendAllAsmStructPointers(fe8, list, ldrmap: null!);
 
             // The wiring is LIVE: the installed ADDR patch's entry was emitted by the first unconditional call.
             Assert.Contains(list, a => a.Info != null && a.Info.EndsWith("@ADDRESS", StringComparison.Ordinal));
@@ -533,7 +533,7 @@ namespace FEBuilderGBA.Core.Tests
             var ex = Record.Exception(() =>
             {
                 var r = RebuildProducerCore.AppendAllAsmStructPointers(
-                    fe8, list, ldrmap: null, ct: cts.Token);
+                    fe8, list, ldrmap: null!, ct: cts.Token);
                 res = new AsmProducerResultLike(r.Cancelled, r.IsComplete);
             });
 

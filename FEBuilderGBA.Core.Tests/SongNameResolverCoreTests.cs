@@ -241,13 +241,13 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetSongName_NullRom_ReturnsEmpty()
         {
-            Assert.Equal("", SongNameResolverCore.GetSongName(null, 0x1B));
+            Assert.Equal("", SongNameResolverCore.GetSongName(null!, 0x1B));
         }
 
         [Fact]
         public void GetSoundEffectList_NullRom_ReturnsEmptyDictionary()
         {
-            var dic = SongNameResolverCore.GetSoundEffectList(null);
+            var dic = SongNameResolverCore.GetSoundEffectList(null!);
             Assert.NotNull(dic);
             Assert.Empty(dic);
         }
@@ -255,7 +255,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetSongNameWhereSongID_NullRom_ReturnsEmpty()
         {
-            Assert.Equal("", SongNameResolverCore.GetSongNameWhereSongID(null, 0x1B));
+            Assert.Equal("", SongNameResolverCore.GetSongNameWhereSongID(null!, 0x1B));
         }
 
         // ================================================================

@@ -80,7 +80,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void WalkCommands_NullRom_ReturnsEmpty()
         {
-            Assert.Empty(EventMoveDataFE7Core.WalkCommands(null, 0x100));
+            Assert.Empty(EventMoveDataFE7Core.WalkCommands(null!, 0x100));
         }
 
         [Fact]

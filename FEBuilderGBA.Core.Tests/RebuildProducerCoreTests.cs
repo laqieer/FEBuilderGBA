@@ -428,7 +428,7 @@ namespace FEBuilderGBA.Core.Tests
             using var cts = new CancellationTokenSource();
             cts.Cancel();
 
-            var list = RebuildProducerCore.MakeAllStructPointersList(rom, null, cts.Token);
+            var list = RebuildProducerCore.MakeAllStructPointersList(rom, null!, cts.Token);
 
             // Cancelled before processing any descriptor -> empty list (no throw).
             Assert.Empty(list);
@@ -438,7 +438,7 @@ namespace FEBuilderGBA.Core.Tests
         public void MakeAllStructPointersList_NullRom_Throws()
         {
             Assert.Throws<ArgumentNullException>(
-                () => RebuildProducerCore.MakeAllStructPointersList(null));
+                () => RebuildProducerCore.MakeAllStructPointersList(null!));
         }
 
         [Fact]
@@ -516,7 +516,7 @@ namespace FEBuilderGBA.Core.Tests
             var rom = CreateTestRom();
             using var cts = new CancellationTokenSource();
             cts.Cancel();
-            RebuildProducerCore.ProducerResult result = RebuildProducerCore.MakeAllStructPointers(rom, null, cts.Token);
+            RebuildProducerCore.ProducerResult result = RebuildProducerCore.MakeAllStructPointers(rom, null!, cts.Token);
             // Pre-cancel returns before the descriptor walk (no RomInfo needed). As of s2pf-17 the STATIC
             // data-path NotYetPorted list is EMPTY (every form ported), so a pre-cancel result is
             // "complete-by-static-coverage but CANCELLED" — the CANCEL flag (not IsComplete) is what makes
@@ -3636,7 +3636,7 @@ namespace FEBuilderGBA.Core.Tests
                 new List<AddrResult> { new AddrResult(0x0100, "Shop", 0x0800) });
             Assert.Empty(list);
 
-            RebuildProducerCore.EmitItemShopList(rom, list, null);
+            RebuildProducerCore.EmitItemShopList(rom, list, null!);
             Assert.Empty(list);
         }
 
@@ -5197,7 +5197,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 CoreState.ROM = fe8;
                 var list = new List<Address>();
-                RebuildProducerCore.EmitMapTerrainLookupAt(fe8, list, null, isFloor: false);
+                RebuildProducerCore.EmitMapTerrainLookupAt(fe8, list, null!, isFloor: false);
                 Assert.Empty(list);
             }
             finally { CoreState.ROM = savedRom; }
@@ -7696,7 +7696,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var rom = CreateTestRom();
             var list = new List<Address>();
-            RebuildProducerCore.EmitSkillConfigFE8NAt(rom, list, null);
+            RebuildProducerCore.EmitSkillConfigFE8NAt(rom, list, null!);
             Assert.Empty(list);
         }
 
@@ -8907,7 +8907,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             // No config file written (lines == null) -> MakeOtherTextList File.Exists is false -> empty
             // list -> nothing emitted, no throw (faithful headless behavior).
-            WithConfig("other_text_", null, rom =>
+            WithConfig("other_text_", null!, rom =>
             {
                 var list = new List<Address>();
                 var ex = Record.Exception(() => RebuildProducerCore.EmitOtherText(rom, list));
@@ -8989,7 +8989,7 @@ namespace FEBuilderGBA.Core.Tests
             // A config slot WITHIN 4 bytes of EOF: the `pointer + 4 > Data.Length` guard skips that entry
             // rather than throwing inside p32(pointer). MakeVersionedRom is 32MB, so put the slot 2 bytes
             // before the end (a GBA offset of Data.Length-2 is a safe offset but its 4-byte read overruns).
-            WithConfig("tsaanime_", null, rom =>
+            WithConfig("tsaanime_", null!, rom =>
             {
                 uint nearEof = (uint)rom.Data.Length - 2;
                 // Re-stage the config with the near-EOF slot. (WithConfig wrote no file; write one now.)
@@ -9213,7 +9213,7 @@ namespace FEBuilderGBA.Core.Tests
         public void GetRomAnimePalettePointerListCount_FixedPaletteFallback_OnePerFrame()
         {
             // Direct test of the framePointer<0x100 palette fallback (the per-frame palette layout).
-            WithConfig("romanime_", null, rom =>
+            WithConfig("romanime_", null!, rom =>
             {
                 uint palPtr = 0x1300;
                 uint paletteBase = 0x2600;
@@ -9234,7 +9234,7 @@ namespace FEBuilderGBA.Core.Tests
         public void GetRomAnimePalettePointerListCount_ElseFallback_SingleBase_WhenFramePointerLarge()
         {
             // framePointer >= 0x100 and NOT COMMONPALETTE and empty list -> single resolved base.
-            WithConfig("romanime_", null, rom =>
+            WithConfig("romanime_", null!, rom =>
             {
                 uint palPtr = 0x1300;
                 uint paletteBase = 0x2600;

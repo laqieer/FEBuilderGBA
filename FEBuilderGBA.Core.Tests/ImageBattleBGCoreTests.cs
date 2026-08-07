@@ -413,7 +413,7 @@ public class ImageBattleBGCoreTests
     {
         // The helper must not throw on a ROM without RomInfo or with
         // a 0 pointer slot — return an empty list instead.
-        var result = ImageBattleBGCore.MakeListByUseTerrain(null, terrainId: 0);
+        var result = ImageBattleBGCore.MakeListByUseTerrain(null!, terrainId: 0);
         Assert.NotNull(result);
         Assert.Empty(result);
     }

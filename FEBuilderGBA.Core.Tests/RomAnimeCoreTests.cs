@@ -103,13 +103,13 @@ namespace FEBuilderGBA.Core.Tests
         public void TryRenderFrame_NullRom_ReturnsNull()
         {
             var e = new RomAnimeCore.RomAnimeEntry { ImageWidthTiles = WIDTH_TILES };
-            Assert.Null(RomAnimeCore.TryRenderFrame(null, e, 0));
+            Assert.Null(RomAnimeCore.TryRenderFrame(null!, e, 0));
         }
 
         [Fact]
         public void TryRenderFrame_NullEntry_ReturnsNull()
         {
-            WithRom(rom => Assert.Null(RomAnimeCore.TryRenderFrame(rom, null, 0)));
+            WithRom(rom => Assert.Null(RomAnimeCore.TryRenderFrame(rom, null!, 0)));
         }
 
         [Fact]
@@ -258,7 +258,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ImportFrame_NullRom_Fails()
         {
             var e = new RomAnimeCore.RomAnimeEntry { ImageWidthTiles = WIDTH_TILES };
-            bool ok = RomAnimeCore.ImportFrame(null, e, 0,
+            bool ok = RomAnimeCore.ImportFrame(null!, e, 0,
                 MakeIndexed(64, 16), MakePalette(RED, GREEN), 64, 16, out string err);
             Assert.False(ok);
             Assert.False(string.IsNullOrEmpty(err));

@@ -154,7 +154,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RepointAllReferences_NullRom_ReturnsZero()
         {
-            Assert.Equal(0, DataExpansionCore.RepointAllReferences(null, OldPtr, NewPtr, null));
+            Assert.Equal(0, DataExpansionCore.RepointAllReferences(null!, OldPtr, NewPtr, null));
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -260,7 +260,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GrepPointerAllOnLDR_NullData_ReturnsEmpty()
         {
-            Assert.Empty(U.GrepPointerAllOnLDR(null, OldPtr));
+            Assert.Empty(U.GrepPointerAllOnLDR(null!, OldPtr));
         }
 
         // ─────────────────────────────────────────────────────────────

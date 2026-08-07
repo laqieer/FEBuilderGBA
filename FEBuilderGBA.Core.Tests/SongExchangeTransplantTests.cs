@@ -582,7 +582,7 @@ namespace FEBuilderGBA.Core.Tests
 
             // Signature absent -> 0 (not found), no throw.
             Assert.Equal(0u, SongExchangeCore.FindSongTablePointerByScan(new byte[0x4000]));
-            Assert.Equal(0u, SongExchangeCore.FindSongTablePointerByScan(null));
+            Assert.Equal(0u, SongExchangeCore.FindSongTablePointerByScan(null!));
         }
 
         // ===================================================================

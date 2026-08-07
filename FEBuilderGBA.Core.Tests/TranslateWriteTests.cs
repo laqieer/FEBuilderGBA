@@ -13,7 +13,7 @@ namespace FEBuilderGBA.Core.Tests
         public void WriteTexts_NullRom_ReturnsZero()
         {
             var entries = new List<(uint textId, string text)> { (0, "test") };
-            int count = TranslateCore.WriteTexts(null, entries);
+            int count = TranslateCore.WriteTexts(null!, entries);
             Assert.Equal(0, count);
         }
 
@@ -57,7 +57,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetTextCount_NullRom_ReturnsZero()
         {
-            uint count = TranslateCore.GetTextCount(null);
+            uint count = TranslateCore.GetTextCount(null!);
             Assert.Equal(0u, count);
         }
 

@@ -198,7 +198,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ParseTSVLine_EmptyString_ReturnsEmpty()
         {
             Assert.Empty(StructExportCore.ParseTSVLine(""));
-            Assert.Empty(StructExportCore.ParseTSVLine(null));
+            Assert.Empty(StructExportCore.ParseTSVLine(null!));
         }
 
         [Fact]
@@ -346,7 +346,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var table = StructExportCore.GetTable("units");
             var structDef = CreateTestStructDef();
-            var result = StructExportCore.ExportTable(null, table, structDef);
+            var result = StructExportCore.ExportTable(null!, table, structDef);
             Assert.Empty(result);
         }
 
@@ -758,7 +758,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ResolveTableAt_NullRom_ReturnsNull()
         {
-            Assert.Null(StructExportCore.ResolveTableAt(null, 0x1000));
+            Assert.Null(StructExportCore.ResolveTableAt(null!, 0x1000));
         }
 
         [Theory]

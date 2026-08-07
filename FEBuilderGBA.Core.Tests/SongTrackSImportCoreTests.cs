@@ -74,7 +74,7 @@ namespace FEBuilderGBA.Core.Tests
                 {
                     result = SongTrackSImportCore.ImportS(
                         rom, "song.s", SLOT, instrument,
-                        Lines(lines), appendBinaryData: null, out err);
+                        Lines(lines), appendBinaryData: null!, out err);
                 }
                 error = err;
                 return result;
@@ -450,7 +450,7 @@ namespace FEBuilderGBA.Core.Tests
                 {
                     header = SongTrackSImportCore.ImportS(
                         rom, "song.s", SLOT, INSTRUMENT,
-                        Lines(MinimalSong()), appendBinaryData: null, out _);
+                        Lines(MinimalSong()), appendBinaryData: null!, out _);
                 }
                 Assert.NotEqual(U.NOT_FOUND, header);
                 // The import repointed the slot at the new appended header.
@@ -510,7 +510,7 @@ namespace FEBuilderGBA.Core.Tests
                 using (ROM.BeginUndoScope(undoData))
                 {
                     importedBase = SongInstrumentSetCore.ImportAll(
-                        rom, "vg.instrument", readLines, readFile, null, out string err);
+                        rom, "vg.instrument", readLines, readFile, null!, out string err);
                     Assert.Equal((string)null, err);
                     Assert.NotEqual(U.NOT_FOUND, importedBase);
 

@@ -99,8 +99,8 @@ public class ArenaEnemyWeaponCoreTests : IDisposable
     [Fact]
     public void BuildLists_NullRom_ReturnsEmpty()
     {
-        Assert.Empty(ArenaEnemyWeaponCore.BuildBasicList(null));
-        Assert.Empty(ArenaEnemyWeaponCore.BuildRankupList(null));
+        Assert.Empty(ArenaEnemyWeaponCore.BuildBasicList(null!));
+        Assert.Empty(ArenaEnemyWeaponCore.BuildRankupList(null!));
     }
 
     // -----------------------------------------------------------------

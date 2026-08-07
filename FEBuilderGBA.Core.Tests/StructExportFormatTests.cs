@@ -64,7 +64,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void CsvQuote_NullValue_EmptyQuoted()
         {
-            Assert.Equal("\"\"", StructExportCore.CsvQuote(null));
+            Assert.Equal("\"\"", StructExportCore.CsvQuote(null!));
         }
 
         [Fact]

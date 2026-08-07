@@ -213,7 +213,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void WriteNode_NullRom_ReturnsError()
         {
-            string err = WorldMapPathMoveCore.WriteNode(null, MOVE_OFFSET, 1, 2, 3);
+            string err = WorldMapPathMoveCore.WriteNode(null!, MOVE_OFFSET, 1, 2, 3);
             Assert.False(string.IsNullOrEmpty(err));
         }
 

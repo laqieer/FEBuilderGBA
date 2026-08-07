@@ -143,7 +143,7 @@ namespace FEBuilderGBA.Core.Tests
         public void Build_NullRom_ReturnsError()
         {
             var undo = new Undo.UndoData { list = new List<Undo.UndoPostion>() };
-            var result = CustomBuildCore.Build(null, "t.event", "r.gba", CustomBuildCore.BuildMethod.Auto, undo);
+            var result = CustomBuildCore.Build(null!, "t.event", "r.gba", CustomBuildCore.BuildMethod.Auto, undo);
             Assert.False(result.Success);
             Assert.Equal(R._("No ROM is loaded."), result.ErrorMessage);
         }
@@ -555,7 +555,7 @@ namespace FEBuilderGBA.Core.Tests
                 var rom = MakeCoreRom(new byte[0x200]);
                 var r = CustomBuildCore.MargeAndUpdate(
                     rom, "ignored.gba", "ignored-built.gba", "ignored.cmd",
-                    takeoverSkillAssignment: 1, undo: null);
+                    takeoverSkillAssignment: 1, undo: null!);
 
                 Assert.False(r.Success);
                 // The null-undo message must NOT be the rom==null "No ROM is loaded." string.

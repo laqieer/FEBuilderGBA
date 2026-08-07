@@ -18,7 +18,7 @@ namespace FEBuilderGBA.Core.Tests
         public void SetSimClass_NullRom_LeavesSimZero()
         {
             var sim = new GrowSimulator();
-            ClassFormCore.SetSimClass(ref sim, 1, null);
+            ClassFormCore.SetSimClass(ref sim, 1, null!);
             Assert.Equal(0, sim.class_hp);
             Assert.Equal(0, sim.class_str);
             Assert.Equal(0, sim.class_grow_hp);
@@ -28,7 +28,7 @@ namespace FEBuilderGBA.Core.Tests
         public void SetSimClass_ClassIdZero_LeavesSimZero()
         {
             var sim = new GrowSimulator();
-            ClassFormCore.SetSimClass(ref sim, 0, null);
+            ClassFormCore.SetSimClass(ref sim, 0, null!);
             Assert.Equal(0, sim.class_hp);
             Assert.Equal(0, sim.class_grow_hp);
         }
@@ -221,7 +221,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetClassIdWhereWaitIconId_NullRom_ReturnsNotFound()
         {
-            Assert.Equal(U.NOT_FOUND, ClassFormCore.GetClassIdWhereWaitIconId(null, 1));
+            Assert.Equal(U.NOT_FOUND, ClassFormCore.GetClassIdWhereWaitIconId(null!, 1));
         }
 
         [Fact]
@@ -246,7 +246,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetClassNameWhereWaitIconId_NullRom_ReturnsEmpty()
         {
-            Assert.Equal(string.Empty, ClassFormCore.GetClassNameWhereWaitIconId(null, 1));
+            Assert.Equal(string.Empty, ClassFormCore.GetClassNameWhereWaitIconId(null!, 1));
         }
 
         // Build a tiny synthetic ROM with a 4-class table (each 0x10 bytes). The

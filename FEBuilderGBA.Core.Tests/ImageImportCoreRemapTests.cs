@@ -40,8 +40,8 @@ namespace FEBuilderGBA.Core.Tests
         public void RemapToExistingPalette_NullInputs_ReturnNull()
         {
             using var _ = EnsureImageService();
-            Assert.Null(ImageImportCore.RemapToExistingPalette(null, 4, 4, new byte[32], 16));
-            Assert.Null(ImageImportCore.RemapToExistingPalette(new byte[16 * 4], 4, 4, null, 16));
+            Assert.Null(ImageImportCore.RemapToExistingPalette(null!, 4, 4, new byte[32], 16));
+            Assert.Null(ImageImportCore.RemapToExistingPalette(new byte[16 * 4], 4, 4, null!, 16));
         }
 
         [Fact]

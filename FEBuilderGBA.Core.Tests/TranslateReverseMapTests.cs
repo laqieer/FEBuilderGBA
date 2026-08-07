@@ -512,7 +512,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal("<= 4095", MyTranslateResourceLow.DecodeXmlEntities("&lt;= 4095"));
             // Idempotent / no-op on entity-free strings.
             Assert.Equal("plain text", MyTranslateResourceLow.DecodeXmlEntities("plain text"));
-            Assert.Null(MyTranslateResourceLow.DecodeXmlEntities(null));
+            Assert.Null(MyTranslateResourceLow.DecodeXmlEntities(null!));
         }
 
         [Fact]

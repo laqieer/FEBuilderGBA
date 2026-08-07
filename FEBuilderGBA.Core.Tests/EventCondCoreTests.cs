@@ -45,7 +45,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void AllocNewEventCondBlock_NullRom_ReturnsNotFound()
         {
-            uint result = EventCondCore.AllocNewEventCondBlock(null, 0);
+            uint result = EventCondCore.AllocNewEventCondBlock(null!, 0);
             Assert.Equal(U.NOT_FOUND, result);
         }
 
@@ -123,7 +123,7 @@ namespace FEBuilderGBA.Core.Tests
 
         [Fact]
         public void WriteEventPLIST_NullRom_ReturnsFalse()
-            => Assert.False(EventCondCore.WriteEventPLIST(null, 1, 0x1000));
+            => Assert.False(EventCondCore.WriteEventPLIST(null!, 1, 0x1000));
 
         [Fact]
         public void WriteEventPLIST_Plist0_ReturnsFalse()
@@ -145,7 +145,7 @@ namespace FEBuilderGBA.Core.Tests
 
         [Fact]
         public void ResolveEventPlistSlotAddr_NullRom_ReturnsNotFound()
-            => Assert.Equal(U.NOT_FOUND, EventCondCore.ResolveEventPlistSlotAddr(null, 1));
+            => Assert.Equal(U.NOT_FOUND, EventCondCore.ResolveEventPlistSlotAddr(null!, 1));
 
         [Fact]
         public void ResolveEventPlistSlotAddr_Plist0_ReturnsNotFound()

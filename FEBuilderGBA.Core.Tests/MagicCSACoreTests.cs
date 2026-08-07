@@ -84,7 +84,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void SearchMagicSystem_NullRom_ReturnsNone()
         {
-            var kind = MagicCSACore.SearchMagicSystem(null,
+            var kind = MagicCSACore.SearchMagicSystem(null!,
                 out _, out _, out _, out _, out _);
             Assert.Equal(MagicSystemKind.None, kind);
         }

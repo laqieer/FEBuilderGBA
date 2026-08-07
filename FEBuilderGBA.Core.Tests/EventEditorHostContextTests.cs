@@ -106,7 +106,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetUnuseLabelID_NullHost_ReturnsSentinel()
         {
-            Assert.Equal(0xFFFFu, EventEditorHostContext.GetUnuseLabelID(null, 0x9000));
+            Assert.Equal(0xFFFFu, EventEditorHostContext.GetUnuseLabelID(null!, 0x9000));
         }
 
         // ---- TryGenerateBrowserTemplateWithContext: substitution + gate -----
@@ -173,7 +173,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 CoreState.BaseDirectory = baseDir;
                 ROM rom = MakeFE8U();
-                var r = EventTemplateCore.TryGenerateBrowserTemplateWithContext(rom, et, null, out byte[] bytes);
+                var r = EventTemplateCore.TryGenerateBrowserTemplateWithContext(rom, et, null!, out byte[] bytes);
                 Assert.Equal(EventTemplateCore.GenerateResult.RequiresEditorContext, r);
                 Assert.Null(bytes);
             }
@@ -250,7 +250,7 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.BaseDirectory = baseDir;
                 ROM rom = MakeFE8U();
 
-                var r1 = EventTemplateCore.TryGenerateBrowserTemplateWithContext(rom, et, null, out byte[] b1);
+                var r1 = EventTemplateCore.TryGenerateBrowserTemplateWithContext(rom, et, null!, out byte[] b1);
                 var r2 = EventTemplateCore.TryGenerateBrowserTemplateWithContext(rom, et, new FakeHost(true, 0), out byte[] b2);
                 Assert.Equal(EventTemplateCore.GenerateResult.Ok, r1);
                 Assert.Equal(EventTemplateCore.GenerateResult.Ok, r2);
@@ -285,7 +285,7 @@ namespace FEBuilderGBA.Core.Tests
                 // And it generates WITHOUT a host (the gate must not trip).
                 var et = MakeTemplate("template_event_COND_NOPLACEHOLDER_FE8.txt");
                 et.RequiresContext = false;
-                var r = EventTemplateCore.TryGenerateBrowserTemplateWithContext(rom, et, null, out byte[] bytes);
+                var r = EventTemplateCore.TryGenerateBrowserTemplateWithContext(rom, et, null!, out byte[] bytes);
                 Assert.Equal(EventTemplateCore.GenerateResult.Ok, r);
                 Assert.Equal(new byte[] { 0x21, 0x03, 0x0A, 0x00 }, bytes);
             }
@@ -411,7 +411,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ResolveCallTemplate_NullRom_CallEndEvent_Refuses()
         {
-            var eff = EventEditorHostContext.ResolveCallTemplate(null, 0,
+            var eff = EventEditorHostContext.ResolveCallTemplate(null!, 0,
                 EventEditorHostContext.AllocTemplateChoice.CallEndEvent);
             Assert.False(eff.Resolvable);
         }

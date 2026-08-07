@@ -119,7 +119,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 string err = ProblemReportCore.CreateReport(
                     rom, problem, outPath,
-                    emulatorConfigDir: null, cleanRomPath: null, savFilePath: pickedSave);
+                    emulatorConfigDir: null!, cleanRomPath: null!, savFilePath: pickedSave);
                 Assert.Equal("", err);
 
                 Directory.CreateDirectory(extractDir);
@@ -144,7 +144,7 @@ namespace FEBuilderGBA.Core.Tests
             string outPath = Path.Combine(outDir, "null.report.7z");
             try
             {
-                string err = ProblemReportCore.CreateReport(null, "anything", outPath);
+                string err = ProblemReportCore.CreateReport(null!, "anything", outPath);
                 Assert.False(string.IsNullOrEmpty(err));
                 Assert.False(File.Exists(outPath), "no archive should be written for a null ROM");
             }

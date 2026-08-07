@@ -28,7 +28,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ReadAoeRange_NullRom_ReturnsNull()
         {
-            Assert.Null(AoeRangeCore.ReadAoeRange(null, 0x100));
+            Assert.Null(AoeRangeCore.ReadAoeRange(null!, 0x100));
         }
 
         [Fact]
@@ -202,7 +202,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void WriteAoeRange_NullRom_Refused()
         {
-            var r = AoeRangeCore.WriteAoeRange(null, 0, 0x1000, 2, 2, 0, 0, new byte[4]);
+            var r = AoeRangeCore.WriteAoeRange(null!, 0, 0x1000, 2, 2, 0, 0, new byte[4]);
             Assert.Equal(AoeRangeCore.WriteStatus.Refused, r.Status);
         }
 

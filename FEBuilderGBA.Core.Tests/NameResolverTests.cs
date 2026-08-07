@@ -75,7 +75,7 @@ namespace FEBuilderGBA.Core.Tests
                 NameResolver.ClearCache();
                 // version != 7 → empty, no throw (FE6/FE8 short-circuit).
                 Assert.Equal("", NameResolver.GetCustomBattleAnimeName(rom, 0x05));
-                Assert.Equal("", NameResolver.GetCustomBattleAnimeName(null, 0x05));
+                Assert.Equal("", NameResolver.GetCustomBattleAnimeName(null!, 0x05));
             }
             finally { CoreState.ROM = saved; NameResolver.ClearCache(); }
         }

@@ -132,7 +132,7 @@ public class MapEventUnitCoreNewAllocTests
     [Fact]
     public void AllocNewUnitList_NullRom_ReturnsNotFound()
     {
-        Assert.Equal(U.NOT_FOUND, MapEventUnitCore.AllocNewUnitList(null, 3, null));
+        Assert.Equal(U.NOT_FOUND, MapEventUnitCore.AllocNewUnitList(null!, 3, null));
     }
 
     // -----------------------------------------------------------------

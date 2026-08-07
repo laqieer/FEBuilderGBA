@@ -160,7 +160,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void NullRom_NotFound()
         {
-            Assert.Equal(U.NOT_FOUND, WorldMapEventResolverCore.GetEventByMapID(null, 0));
+            Assert.Equal(U.NOT_FOUND, WorldMapEventResolverCore.GetEventByMapID(null!, 0));
         }
 
         // A non-FE6/7/8 ROM (e.g. the ROMFE0 testing build, version 0) has no

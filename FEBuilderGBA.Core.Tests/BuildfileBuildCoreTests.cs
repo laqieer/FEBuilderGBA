@@ -1091,7 +1091,7 @@ namespace FEBuilderGBA.Core.Tests
                 new byte[] { 1, 2, 3 },
                 dest,
                 (stage, destination) => File.WriteAllText(destination, "racer"),
-                null,
+                null!,
                 out string error);
 
             Assert.False(ok);
@@ -1215,7 +1215,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(parent, Path.GetDirectoryName(scratch)); // exactly one level below parent
             Assert.StartsWith("plain-fragment-", Path.GetFileName(scratch));
 
-            string scratchNull = BuildfileBuildCore.ReserveScratchDirectory(parent, null);
+            string scratchNull = BuildfileBuildCore.ReserveScratchDirectory(parent, null!);
             Assert.True(Directory.Exists(scratchNull));
             Assert.Equal(parent, Path.GetDirectoryName(scratchNull));
         }

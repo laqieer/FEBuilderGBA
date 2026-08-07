@@ -308,7 +308,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void SplitPortraitSheet_NullInput_ReturnsNull()
         {
-            Assert.Null(PortraitRendererCore.SplitPortraitSheet(null, 128, 112));
+            Assert.Null(PortraitRendererCore.SplitPortraitSheet(null!, 128, 112));
         }
 
         [Fact]

@@ -87,7 +87,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void NullRom_PrerequisitesMissing()
         {
-            var r = TextFreeAreaCore.FindUnreferencedTextIds(null, null);
+            var r = TextFreeAreaCore.FindUnreferencedTextIds(null!, null!);
             Assert.Equal(TextFreeAreaCore.ScanStatus.PrerequisitesMissing, r.Status);
             Assert.Empty(r.FreeTextIds);
         }
@@ -114,7 +114,7 @@ namespace FEBuilderGBA.Core.Tests
                 var rom = new ROM();
                 if (!rom.Load(path, out string _)) return;
 
-                var r = TextFreeAreaCore.FindUnreferencedTextIds(rom, null);
+                var r = TextFreeAreaCore.FindUnreferencedTextIds(rom, null!);
                 Assert.Equal(TextFreeAreaCore.ScanStatus.PrerequisitesMissing, r.Status);
                 Assert.Empty(r.FreeTextIds);
                 Assert.False(TextFreeAreaCore.PrerequisitesMet(rom));

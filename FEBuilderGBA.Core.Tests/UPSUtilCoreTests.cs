@@ -21,7 +21,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void IsUPSData_Null()
         {
-            Assert.False(UPSUtilCore.IsUPSData(null));
+            Assert.False(UPSUtilCore.IsUPSData(null!));
         }
 
         [Fact]

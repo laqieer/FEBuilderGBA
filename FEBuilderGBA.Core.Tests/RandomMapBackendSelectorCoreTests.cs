@@ -98,21 +98,21 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Select_NullLookup_Throws()
         {
-            Assert.Throws<System.ArgumentNullException>(() => RandomMapBackendSelectorCore.Select(null));
+            Assert.Throws<System.ArgumentNullException>(() => RandomMapBackendSelectorCore.Select(null!));
         }
 
         [Fact]
         public void LookupResult_NonNoMappingFactoriesRejectNullEntries()
         {
             Assert.Throws<System.ArgumentNullException>(
-                () => FEMapCreatorMappingLookupResult.Current(null));
+                () => FEMapCreatorMappingLookupResult.Current(null!));
             Assert.Throws<System.ArgumentNullException>(
                 () => FEMapCreatorMappingLookupResult.Stale(
-                    null,
+                    null!,
                     FEMapCreatorMappingReason.ImageChanged));
             Assert.Throws<System.ArgumentNullException>(
                 () => FEMapCreatorMappingLookupResult.Invalid(
-                    null,
+                    null!,
                     FEMapCreatorMappingReason.StoredEntryMissingRequiredFields));
         }
     }

@@ -246,7 +246,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void NullRom_ReturnsNull()
         {
-            IImage img = MapRenderCore.RenderMapImage(null, 0x200, 0x400, 0x600, 0x800);
+            IImage img = MapRenderCore.RenderMapImage(null!, 0x200, 0x400, 0x600, 0x800);
             Assert.Null(img);
         }
 

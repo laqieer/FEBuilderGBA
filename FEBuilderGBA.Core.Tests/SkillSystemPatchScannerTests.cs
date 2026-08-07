@@ -130,7 +130,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void IsClassSkillExtends_FalseOnNullRom()
         {
-            Assert.False(SkillSystemPatchScanner.IsClassSkillExtends(null));
+            Assert.False(SkillSystemPatchScanner.IsClassSkillExtends(null!));
         }
 
         [Fact]
@@ -143,13 +143,13 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void FindAssignClassSkillPointerLocation_HandlesNullRomGracefully()
         {
-            Assert.Equal(U.NOT_FOUND, SkillSystemPatchScanner.FindAssignClassSkillPointerLocation(null));
+            Assert.Equal(U.NOT_FOUND, SkillSystemPatchScanner.FindAssignClassSkillPointerLocation(null!));
         }
 
         [Fact]
         public void FindAssignClassLevelUpSkillPointerLocation_HandlesNullRomGracefully()
         {
-            Assert.Equal(U.NOT_FOUND, SkillSystemPatchScanner.FindAssignClassLevelUpSkillPointerLocation(null));
+            Assert.Equal(U.NOT_FOUND, SkillSystemPatchScanner.FindAssignClassLevelUpSkillPointerLocation(null!));
         }
     }
 }

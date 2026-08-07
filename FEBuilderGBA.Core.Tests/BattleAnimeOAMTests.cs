@@ -28,7 +28,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ParseAffineOAM_NullData_ReturnsFalse()
         {
-            bool result = BattleAnimeRendererCore.ParseAffineOAM(null, 0, out _);
+            bool result = BattleAnimeRendererCore.ParseAffineOAM(null!, 0, out _);
             Assert.False(result);
         }
 
@@ -460,9 +460,9 @@ namespace FEBuilderGBA.Core.Tests
         public void DecodeSheetWithPaletteBank_NullInputs_ReturnsNull()
         {
             var svc = new StubImageService();
-            Assert.Null(BattleAnimeRendererCore.DecodeSheetWithPaletteBank(null, new byte[32], 0, 8, 8, svc));
-            Assert.Null(BattleAnimeRendererCore.DecodeSheetWithPaletteBank(new byte[32], null, 0, 8, 8, svc));
-            Assert.Null(BattleAnimeRendererCore.DecodeSheetWithPaletteBank(new byte[32], new byte[32], 0, 8, 8, null));
+            Assert.Null(BattleAnimeRendererCore.DecodeSheetWithPaletteBank(null!, new byte[32], 0, 8, 8, svc));
+            Assert.Null(BattleAnimeRendererCore.DecodeSheetWithPaletteBank(new byte[32], null!, 0, 8, 8, svc));
+            Assert.Null(BattleAnimeRendererCore.DecodeSheetWithPaletteBank(new byte[32], new byte[32], 0, 8, 8, null!));
         }
 
         [Fact]

@@ -577,10 +577,10 @@ namespace FEBuilderGBA.Core.Tests
             var rom = MakeRom();
             var list = new List<Address>();
             var patch = MakePatch("p", ("IMAGE_POINTER", "0x1000"));
-            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchImage(null, list, patch, false));
-            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchImage(rom, null, patch, false));
-            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchImage(rom, list, null, false));
-            var noParam = new PatchInstallCore.PatchSt { Name = "p", PatchFileName = "p.txt", Param = null };
+            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchImage(null!, list, patch, false));
+            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchImage(rom, null!, patch, false));
+            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchImage(rom, list, null!, false));
+            var noParam = new PatchInstallCore.PatchSt { Name = "p", PatchFileName = "p.txt", Param = null! };
             Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchImage(rom, list, noParam, false));
         }
 
@@ -593,7 +593,7 @@ namespace FEBuilderGBA.Core.Tests
             var patch = new PatchInstallCore.PatchSt
             {
                 Name = "NoFile",
-                PatchFileName = null,
+                PatchFileName = null!,
                 Param = new Dictionary<string, string> { ["IMAGE_POINTER"] = "0x1000" }
             };
             var ex = Record.Exception(() => RebuildProducerCore.EmitPatchImage(rom, list, patch, false));

@@ -227,7 +227,7 @@ namespace FEBuilderGBA.Core.Tests
             using var svc = new ImageServiceScope();
             ROM rom = MakeRom();
             CoreState.ROM = rom;
-            string err = FontAutoGenZHCore.AutoGenerateGlyphZH(rom, null,
+            string err = FontAutoGenZHCore.AutoGenerateGlyphZH(rom, null!,
                 new FontSpec { FamilyName = "SimSun", Size = 12f }, "、",
                 MOJI_TEN, isItemFont: false, verticalOffset: 0);
             Assert.NotEqual("", err);

@@ -302,7 +302,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void IsMusicRepoAvailable_False_WhenBaseDirNull()
         {
-            Assert.False(FERepoResourceBrowser.IsMusicRepoAvailable(null));
+            Assert.False(FERepoResourceBrowser.IsMusicRepoAvailable(null!));
         }
 
         // #1393 — integration guard against a wired editor pointing at an EMPTY
@@ -482,7 +482,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ResolveBattleAnimeImportFile_NullOrEmpty_ReturnsNull()
         {
-            Assert.Null(FERepoResourceBrowser.ResolveBattleAnimeImportFile(null));
+            Assert.Null(FERepoResourceBrowser.ResolveBattleAnimeImportFile(null!));
             Assert.Null(FERepoResourceBrowser.ResolveBattleAnimeImportFile(""));
         }
     }

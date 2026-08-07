@@ -221,7 +221,7 @@ namespace FEBuilderGBA.Core.Tests
                 }));
 
             (bool ok, string error) = await U.HttpDownloadFileAsync(
-                "https://example.test/missing.bin", dest, "", null,
+                "https://example.test/missing.bin", dest, "", null!,
                 handler, TimeSpan.FromSeconds(5), CancellationToken.None);
 
             Assert.False(ok);
@@ -240,7 +240,7 @@ namespace FEBuilderGBA.Core.Tests
                 }));
 
             (bool ok, string error) = await U.HttpDownloadFileAsync(
-                "https://example.test/partial.bin", dest, "", null,
+                "https://example.test/partial.bin", dest, "", null!,
                 handler, TimeSpan.FromSeconds(5), CancellationToken.None);
 
             Assert.False(ok);
@@ -261,7 +261,7 @@ namespace FEBuilderGBA.Core.Tests
 
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
                 U.HttpDownloadFileAsync(
-                    "https://example.test/cancelled.bin", dest, "", null,
+                    "https://example.test/cancelled.bin", dest, "", null!,
                     handler, TimeSpan.FromSeconds(5), cts.Token));
 
             Assert.False(File.Exists(dest));

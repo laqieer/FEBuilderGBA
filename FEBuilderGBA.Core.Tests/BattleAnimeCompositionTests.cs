@@ -156,7 +156,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void LintOAM_NullData_ReturnsError()
         {
-            var errors = BattleAnimeCompositionCore.LintOAM(null, 0, 0);
+            var errors = BattleAnimeCompositionCore.LintOAM(null!, 0, 0);
             Assert.Single(errors);
             Assert.Contains("null", errors[0]);
         }
@@ -228,8 +228,8 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ComposeLayerPixels_NullInputs_ReturnsNull()
         {
-            Assert.Null(BattleAnimeCompositionCore.ComposeLayerPixels(null, new byte[8], 2));
-            Assert.Null(BattleAnimeCompositionCore.ComposeLayerPixels(new byte[8], null, 2));
+            Assert.Null(BattleAnimeCompositionCore.ComposeLayerPixels(null!, new byte[8], 2));
+            Assert.Null(BattleAnimeCompositionCore.ComposeLayerPixels(new byte[8], null!, 2));
             Assert.Null(BattleAnimeCompositionCore.ComposeLayerPixels(new byte[8], new byte[8], 0));
         }
 

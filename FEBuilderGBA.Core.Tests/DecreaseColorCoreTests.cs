@@ -72,7 +72,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Quantize_NullInput_ReturnsNull()
         {
-            var result = DecreaseColorCore.Quantize(null, 2, 2, 16);
+            var result = DecreaseColorCore.Quantize(null!, 2, 2, 16);
             Assert.Null(result);
         }
 

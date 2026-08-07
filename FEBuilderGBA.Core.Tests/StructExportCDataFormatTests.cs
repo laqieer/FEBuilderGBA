@@ -738,7 +738,7 @@ namespace FEBuilderGBA.Core.Tests
             };
             var structDef = Def("T", F("A", 0, StructMetadata.FieldType.Byte));
             string path = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid():N}.c");
-            Assert.Throws<ArgumentNullException>(() => StructExportCore.ExportToCData(null, table, structDef, path));
+            Assert.Throws<ArgumentNullException>(() => StructExportCore.ExportToCData(null!, table, structDef, path));
         }
 
         // ====================================================================
@@ -767,7 +767,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             foreach (string candidate in new[] { "arm-none-eabi-gcc", "gcc" })
             {
-                var probe = ProcessRunnerCore.Run(candidate, new[] { "--version" }, null, 10_000);
+                var probe = ProcessRunnerCore.Run(candidate, new[] { "--version" }, null!, 10_000);
                 if (probe.Started && probe.ExitCode == 0) return candidate;
             }
             return null;
@@ -1017,7 +1017,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void TryValidateCSymbol_Null_ReturnsFalse()
         {
-            Assert.False(StructExportCore.TryValidateCSymbol(null, out string error));
+            Assert.False(StructExportCore.TryValidateCSymbol(null!, out string error));
             Assert.NotNull(error);
         }
 

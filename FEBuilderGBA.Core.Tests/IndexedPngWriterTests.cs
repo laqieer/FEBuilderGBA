@@ -231,7 +231,7 @@ namespace FEBuilderGBA.Core.Tests
         public void Write_NullIndices_ReturnsNull()
         {
             byte[] pal = MakeSyntheticPalette16();
-            byte[] result = IndexedPngWriter.Write(null, 16, 16, pal, 16);
+            byte[] result = IndexedPngWriter.Write(null!, 16, 16, pal, 16);
             Assert.Null(result);
         }
 
@@ -274,7 +274,7 @@ namespace FEBuilderGBA.Core.Tests
         public void Write_NullPalette_ReturnsNull()
         {
             byte[] idx = MakeIndices(16, 16);
-            byte[] result = IndexedPngWriter.Write(idx, 16, 16, null, 16);
+            byte[] result = IndexedPngWriter.Write(idx, 16, 16, null!, 16);
             Assert.Null(result);
         }
 
@@ -323,9 +323,9 @@ namespace FEBuilderGBA.Core.Tests
         public void Write_NeverThrows_OnAnyInput()
         {
             // Should not throw regardless of inputs
-            var r1 = Record.Exception(() => IndexedPngWriter.Write(null, 0, 0, null, 0));
+            var r1 = Record.Exception(() => IndexedPngWriter.Write(null!, 0, 0, null!, 0));
             Assert.Null(r1);
-            var r2 = Record.Exception(() => IndexedPngWriter.Write(Array.Empty<byte>(), -1, -1, null, -1));
+            var r2 = Record.Exception(() => IndexedPngWriter.Write(Array.Empty<byte>(), -1, -1, null!, -1));
             Assert.Null(r2);
         }
     }

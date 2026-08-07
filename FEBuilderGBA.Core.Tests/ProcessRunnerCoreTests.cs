@@ -23,7 +23,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var (shell, argPrefix) = GetShell();
             string script = OperatingSystem.IsWindows() ? "echo hello" : "echo hello";
-            var result = ProcessRunnerCore.Run(shell, new[] { argPrefix, script }, null, 30_000);
+            var result = ProcessRunnerCore.Run(shell, new[] { argPrefix, script }, null!, 30_000);
 
             Assert.True(result.Started, $"Process did not start. ErrorMessage: {result.ErrorMessage}");
             Assert.False(result.TimedOut);
@@ -41,7 +41,7 @@ namespace FEBuilderGBA.Core.Tests
             string script = OperatingSystem.IsWindows()
                 ? "echo erronly 1>&2"
                 : "echo erronly >&2";
-            var result = ProcessRunnerCore.Run(shell, new[] { argPrefix, script }, null, 30_000);
+            var result = ProcessRunnerCore.Run(shell, new[] { argPrefix, script }, null!, 30_000);
 
             Assert.True(result.Started, $"Process did not start. ErrorMessage: {result.ErrorMessage}");
             Assert.Contains("erronly", result.Stderr);
@@ -52,7 +52,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var (shell, argPrefix) = GetShell();
             string script = OperatingSystem.IsWindows() ? "exit 42" : "exit 42";
-            var result = ProcessRunnerCore.Run(shell, new[] { argPrefix, script }, null, 30_000);
+            var result = ProcessRunnerCore.Run(shell, new[] { argPrefix, script }, null!, 30_000);
 
             Assert.True(result.Started);
             Assert.NotEqual(0, result.ExitCode);
@@ -63,7 +63,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var result = ProcessRunnerCore.Run(
                 "this_executable_does_not_exist_febuildergba_1134_test",
-                Array.Empty<string>(), null, 30_000);
+                Array.Empty<string>(), null!, 30_000);
 
             Assert.False(result.Started);
             Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
@@ -72,7 +72,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Run_EmptyCommand_DoesNotThrow_ReturnsFalse()
         {
-            var result = ProcessRunnerCore.Run("", Array.Empty<string>(), null, 30_000);
+            var result = ProcessRunnerCore.Run("", Array.Empty<string>(), null!, 30_000);
             Assert.False(result.Started);
             Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
         }
@@ -80,7 +80,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Run_WhitespaceCommand_DoesNotThrow_ReturnsFalse()
         {
-            var result = ProcessRunnerCore.Run("   ", Array.Empty<string>(), null, 30_000);
+            var result = ProcessRunnerCore.Run("   ", Array.Empty<string>(), null!, 30_000);
             Assert.False(result.Started);
         }
 
@@ -90,7 +90,7 @@ namespace FEBuilderGBA.Core.Tests
             var (shell, argPrefix) = GetShell();
             // Sleep for 10 seconds but timeout after 1 second
             string script = OperatingSystem.IsWindows() ? "ping 127.0.0.1 -n 10 >nul" : "sleep 10";
-            var result = ProcessRunnerCore.Run(shell, new[] { argPrefix, script }, null, 1_000);
+            var result = ProcessRunnerCore.Run(shell, new[] { argPrefix, script }, null!, 1_000);
 
             Assert.True(result.Started, $"Process did not start. ErrorMessage: {result.ErrorMessage}");
             Assert.True(result.TimedOut, "Expected TimedOut=true");
@@ -131,7 +131,7 @@ namespace FEBuilderGBA.Core.Tests
             string script = OperatingSystem.IsWindows()
                 ? "for /L %i in (1,1,2000) do @echo XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
                 : "for i in $(seq 1 2000); do echo XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX; done";
-            var result = ProcessRunnerCore.Run(shell, new[] { argPrefix, script }, null, 30_000);
+            var result = ProcessRunnerCore.Run(shell, new[] { argPrefix, script }, null!, 30_000);
 
             Assert.True(result.Started);
             Assert.True(result.Stdout.Length > 64 * 1024,
@@ -154,7 +154,7 @@ namespace FEBuilderGBA.Core.Tests
             var result = ProcessRunnerCore.Run(
                 shell,
                 new[] { argPrefix, script },
-                null,
+                null!,
                 30_000,
                 1024);
 
@@ -471,7 +471,7 @@ namespace FEBuilderGBA.Core.Tests
                 System.Threading.Tasks.Task.Run(() => ProcessRunnerCore.Run(
                     command,
                     args,
-                    null,
+                    null!,
                     120_000,
                     0,
                     cts.Token));
@@ -518,7 +518,7 @@ namespace FEBuilderGBA.Core.Tests
             cts.Cancel();
 
             var stopwatch = Stopwatch.StartNew();
-            ProcessRunResult result = ProcessRunnerCore.Run(command, args, null, 120_000, 0, cts.Token);
+            ProcessRunResult result = ProcessRunnerCore.Run(command, args, null!, 120_000, 0, cts.Token);
             stopwatch.Stop();
 
             Assert.True(result.Cancelled);
