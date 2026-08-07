@@ -131,6 +131,10 @@ class ClassifyReviewRiskTests(unittest.TestCase):
     def test_unsafe_path_fails_closed(self):
         self.assertEqual("high", classify_paths(["../outside.txt"]))
 
+    def test_windows_drive_absolute_path_fails_closed(self):
+        self.assertEqual("high", classify_paths([r"C:\outside.txt"]))
+        self.assertEqual("high", classify_paths(["D:/outside.txt"]))
+
 
 if __name__ == "__main__":
     unittest.main()

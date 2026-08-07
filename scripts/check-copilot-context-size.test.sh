@@ -65,6 +65,17 @@ fi
 rm -rf "$fixture"
 
 fixture="$(make_fixture)"
+rm -f "$fixture/.github/copilot-instructions.md"
+bash "$GATE" "$fixture" >/dev/null 2>&1
+rc=$?
+if [ "$rc" -eq 2 ]; then
+  pass "missing repository instructions return usage error"
+else
+  bad "missing instructions expected exit 2, got $rc"
+fi
+rm -rf "$fixture"
+
+fixture="$(make_fixture)"
 if COPILOT_CONTEXT_ROOT="$fixture" bash "$GATE" >/dev/null 2>&1; then
   pass "COPILOT_CONTEXT_ROOT override is honoured"
 else

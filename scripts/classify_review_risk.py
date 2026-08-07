@@ -82,7 +82,15 @@ LOW_EXACT = {
 
 def _normalize(path: str) -> str | None:
     value = path.strip().replace("\\", "/")
-    if not value or value.startswith("/"):
+    if (
+        not value
+        or value.startswith("/")
+        or (
+            len(value) >= 3
+            and value[0].isalpha()
+            and value[1:3] == ":/"
+        )
+    ):
         return None
     parts = PurePosixPath(value).parts
     if any(part in {"", ".", ".."} for part in parts):
