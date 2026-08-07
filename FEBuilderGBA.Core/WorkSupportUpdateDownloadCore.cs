@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace FEBuilderGBA
 {
@@ -141,6 +143,77 @@ namespace FEBuilderGBA
             }
         }
 
+        public static async Task<ResolveResult> ResolveDownloadUrlAsync(
+            Dictionary<string, string>? lines,
+            Func<string, CancellationToken, Task<string>>? httpGet,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                if (lines == null)
+                {
+                    return ResolveResult.Of(ResolveStatus.MissingUpdateRegex);
+                }
+
+                string url = U.at(lines, "UPDATE_URL");
+                if (url == "")
+                {
+                    url = "@CHECK_URL";
+                }
+
+                string regex = U.at(lines, "UPDATE_REGEX");
+                if (regex == "")
+                {
+                    return ResolveResult.Of(ResolveStatus.MissingUpdateRegex);
+                }
+
+                if (regex == "@DIRECT_URL")
+                {
+                    if (url == "@CHECK_URL")
+                    {
+                        url = U.at(lines, "CHECK_URL");
+                    }
+                    return string.IsNullOrEmpty(url)
+                        ? ResolveResult.Of(ResolveStatus.EmptyUrl)
+                        : ResolveResult.Of(ResolveStatus.Ok, url);
+                }
+
+                if (url == "@CHECK_URL")
+                {
+                    url = U.at(lines, "CHECK_URL");
+                    return string.IsNullOrEmpty(url)
+                        ? ResolveResult.Of(ResolveStatus.EmptyUrl)
+                        : ResolveResult.Of(ResolveStatus.Ok, url);
+                }
+
+                string html;
+                try
+                {
+                    html = httpGet != null ? await httpGet(url, cancellationToken).ConfigureAwait(false) : "";
+                }
+                catch (Exception e)
+                {
+                    return ResolveResult.Of(ResolveStatus.HttpError, "", e.Message);
+                }
+
+                Match m = RegexCache.Match(html, regex);
+                if (m.Groups.Count < 2)
+                {
+                    return ResolveResult.Of(ResolveStatus.RegexNoMatch, "", html);
+                }
+
+                string download = m.Groups[1].ToString();
+                download = EscapeURLToDecode(download);
+                return string.IsNullOrEmpty(download)
+                    ? ResolveResult.Of(ResolveStatus.EmptyUrl)
+                    : ResolveResult.Of(ResolveStatus.Ok, download);
+            }
+            catch (Exception e)
+            {
+                return ResolveResult.Of(ResolveStatus.HttpError, "", e.Message);
+            }
+        }
+
         /// <summary>Ports WF <c>EscapeURLToDecode</c>: un-escape a JSON-escaped <c>:\/\/</c> URL.</summary>
         public static string EscapeURLToDecode(string url)
         {
@@ -192,6 +265,25 @@ namespace FEBuilderGBA
             Func<string, string, (bool ok, string error)> downloadFile,
             Func<string, string, string> extract)
         {
+            return DownloadAndStageAsync(
+                downloadUrl,
+                romDir,
+                recommendUpsName,
+                downloadFile == null
+                    ? null
+                    : (url, dest, _) => Task.FromResult(downloadFile(url, dest)),
+                extract,
+                CancellationToken.None).GetAwaiter().GetResult();
+        }
+
+        public static async Task<StageResult> DownloadAndStageAsync(
+            string downloadUrl,
+            string romDir,
+            string recommendUpsName,
+            Func<string, string, CancellationToken, Task<(bool ok, string error)>>? downloadFile,
+            Func<string, string, string> extract,
+            CancellationToken cancellationToken = default)
+        {
             try
             {
                 if (string.IsNullOrEmpty(romDir))
@@ -210,7 +302,7 @@ namespace FEBuilderGBA
                 {
                     // ---- download ----
                     (bool ok, string err) = downloadFile != null
-                        ? downloadFile(downloadUrl, tempfile)
+                        ? await downloadFile(downloadUrl, tempfile, cancellationToken).ConfigureAwait(false)
                         : (false, "no downloader");
                     if (!ok)
                     {

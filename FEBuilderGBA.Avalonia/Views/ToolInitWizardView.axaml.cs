@@ -450,7 +450,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // Resolve the actual installer URL BEFORE the confirmation so the
             // dialog can name the real source. If it can't be resolved, name the
             // releases API source instead (the Core helper also re-checks).
-            string installerUrl = await Task.Run(() => GitInstaller.GetLatestInstallerUrl());
+            string installerUrl = await GitInstaller.GetLatestInstallerUrlAsync();
             string source = string.IsNullOrEmpty(installerUrl)
                 ? DownloadInstallCore.GitSourceLabel
                 : installerUrl;
@@ -698,12 +698,15 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 await ProgressDialogService.RunWithProgress(this,
                     FEBuilderGBA.R._("Downloading"),
-                    (progress, _) => Task.Run(() =>
+                    async (progress, ct) =>
                     {
-                        resolved = DownloadInstallCore.Download(id, BaseDir,
+                        DownloadInstallCore.DownloadResult result = await DownloadInstallCore.DownloadAsync(
+                            id, BaseDir,
                             msg => progress.Report(new ProgressInfo { Message = msg, PercentComplete = -1 }),
-                            out error);
-                    }));
+                            cancellationToken: ct);
+                        resolved = result.Path;
+                        error = result.Error;
+                    });
             }
             catch (Exception ex)
             {
@@ -757,7 +760,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 await ProgressDialogService.RunWithProgress(this,
                     FEBuilderGBA.R._("Downloading"),
-                    (progress, _) => Task.Run(() =>
+                    async (progress, ct) =>
                     {
                         // True all-or-none (Copilot #1102): STAGE every member to
                         // its own temp dir first (places NOTHING into the app
@@ -770,12 +773,16 @@ namespace FEBuilderGBA.Avalonia.Views
                         {
                             foreach (var id in ids)
                             {
-                                var s = DownloadInstallCore.Stage(id, BaseDir,
+                                DownloadInstallCore.StageDownloadResult stage = await DownloadInstallCore.StageAsync(
+                                    id, BaseDir,
                                     msg => progress.Report(new ProgressInfo { Message = msg, PercentComplete = -1 }),
-                                    out error);
-                                if (s == null)
+                                    cancellationToken: ct);
+                                if (!stage.Success)
+                                {
+                                    error = stage.Error;
                                     return; // results stays null; finally disposes staged
-                                staged.Add(s);
+                                }
+                                staged.Add(stage.Staged);
                             }
 
                             // All staged OK — commit every member atomically.
@@ -786,7 +793,7 @@ namespace FEBuilderGBA.Avalonia.Views
                             foreach (var s in staged)
                                 s.Dispose();
                         }
-                    }));
+                    });
             }
             catch (Exception ex)
             {

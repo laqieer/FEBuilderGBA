@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
@@ -91,6 +93,38 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             catch (Exception ex)
             {
                 Log.Error("ToolAllWorkSupportViewModel.UpdateCheckAll failed: " + ex.ToString());
+            }
+            finally
+            {
+                IsLoading = false;
+                MarkClean();
+            }
+            return updateable;
+        }
+
+        public async Task<int> UpdateCheckAllAsync(
+            Func<string, CancellationToken, Task<string>> httpGet,
+            Func<string, CancellationToken, Task<string?>> httpHeadLastModified,
+            Func<string, DateTime> romDateTime,
+            CancellationToken cancellationToken = default)
+        {
+            IsLoading = true;
+            int updateable = 0;
+            try
+            {
+                foreach (var p in Projects)
+                {
+                    WorkSupportUpdateCheckCore.UpdateResult ur = await WorkSupportUpdateCheckCore.CheckAsync(
+                        p.UpdateinfoLines, p.RomFilename, httpGet, httpHeadLastModified, romDateTime, cancellationToken)
+                        .ConfigureAwait(false);
+                    bool mark = ur == WorkSupportUpdateCheckCore.UpdateResult.Updateable;
+                    p.IsUpdateMark = mark;
+                    if (mark) updateable++;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ToolAllWorkSupportViewModel.UpdateCheckAllAsync failed: " + ex.ToString());
             }
             finally
             {

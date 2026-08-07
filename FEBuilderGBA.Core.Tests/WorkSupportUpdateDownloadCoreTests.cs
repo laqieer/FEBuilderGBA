@@ -2,6 +2,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 using FEBuilderGBA;
 
@@ -93,6 +95,18 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public async Task ResolveAsync_RegexScrape_ExtractsGroupOne()
+        {
+            var r = await WorkSupportUpdateDownloadCore.ResolveDownloadUrlAsync(
+                Lines(("UPDATE_URL", "http://list"), ("UPDATE_REGEX", @"href=""(http://cdn[^""]+)""")),
+                (url, _) => Task.FromResult("<a href=\"http://cdn/build.ups\">dl</a>"),
+                CancellationToken.None);
+
+            Assert.Equal(WorkSupportUpdateDownloadCore.ResolveStatus.Ok, r.Status);
+            Assert.Equal("http://cdn/build.ups", r.Url);
+        }
+
+        [Fact]
         public void Resolve_RegexNoMatch_ReturnsRegexNoMatch()
         {
             var r = WorkSupportUpdateDownloadCore.ResolveDownloadUrl(
@@ -170,6 +184,31 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(WorkSupportUpdateDownloadCore.StageStatus.Ok, r.Status);
             Assert.Single(r.UpsFiles);
             Assert.True(File.Exists(r.UpsFiles[0]));
+            Assert.Equal("build.ups", Path.GetFileName(r.UpsFiles[0]));
+        }
+
+        [Fact]
+        public async Task StageAsync_RawUps_UsesAsyncDownloadDelegate()
+        {
+            byte[] ups = MakeUpsBytes();
+            string romDir = Path.Combine(_root, "romdir_async");
+            Directory.CreateDirectory(romDir);
+            bool usedAsyncDelegate = false;
+
+            var r = await WorkSupportUpdateDownloadCore.DownloadAndStageAsync(
+                "http://cdn/build.ups", romDir, Path.Combine(romDir, "myrom.gba"),
+                downloadFile: (url, dest, _) =>
+                {
+                    usedAsyncDelegate = true;
+                    File.WriteAllBytes(dest, ups);
+                    return Task.FromResult((true, ""));
+                },
+                extract: (a, d) => "must-not-extract-a-ups",
+                cancellationToken: CancellationToken.None);
+
+            Assert.True(usedAsyncDelegate);
+            Assert.Equal(WorkSupportUpdateDownloadCore.StageStatus.Ok, r.Status);
+            Assert.Single(r.UpsFiles);
             Assert.Equal("build.ups", Path.GetFileName(r.UpsFiles[0]));
         }
 

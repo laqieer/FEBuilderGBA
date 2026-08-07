@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 using FEBuilderGBA;
 
@@ -64,6 +66,26 @@ namespace FEBuilderGBA.Tests.Unit
                 Assert.StartsWith("https://", url);
                 Assert.EndsWith(".exe", url);
             }
+        }
+
+        [Fact]
+        public async Task GitInstaller_GetLatestInstallerUrlAsync_UsesAsyncHttpGet()
+        {
+            bool called = false;
+            string json = "{\"browser_download_url\":\"https://example.test/Git-2.0-64-bit.exe\"}";
+
+            string url = await GitInstaller.GetLatestInstallerUrlAsync(
+                (requestUrl, referer, _) =>
+                {
+                    called = true;
+                    Assert.Contains("git-for-windows", requestUrl);
+                    Assert.Equal("https://github.com/git-for-windows/git/releases", referer);
+                    return Task.FromResult(json);
+                },
+                CancellationToken.None);
+
+            Assert.True(called);
+            Assert.Equal("https://example.test/Git-2.0-64-bit.exe", url);
         }
 
         // ---- GitUtil (Core version using CoreState) ----
