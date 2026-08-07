@@ -335,7 +335,7 @@ namespace FEBuilderGBA.Core.Tests
             // Shop list at ROM offset 0x1000 → GBA pointer 0x08001000.
             string json = @"[ { ""name"": ""ItemList_Foo"", ""addr"": ""0x08001000"", ""size"": 6 } ]";
             var resolver = ResolverFromJson(json);
-            var map = new MergedAsmMapFile(null!, resolver);
+            var map = new MergedAsmMapFile(null, resolver);
             Assert.Equal("ItemList_Foo", map.GetName(0x08001000u));   // exact symbol resolves
 
             var project = ProjectFromManifestJson(
@@ -356,7 +356,7 @@ namespace FEBuilderGBA.Core.Tests
             // 0x08001040 (offset 0x1040) has no EXACT symbol but is span-covered.
             string json = @"[ { ""name"": ""ItemList_Big"", ""addr"": ""0x08001000"", ""size"": 256 } ]";
             var resolver = ResolverFromJson(json);
-            var map = new MergedAsmMapFile(null!, resolver);
+            var map = new MergedAsmMapFile(null, resolver);
             var project = ProjectFromManifestJson(
                 "[ { \"table\": \"s\", \"format\": \"u16-list\", \"arrayName\": \"ItemList_Big\"," +
                 "    \"sourceFile\": \"src/shop.c\" } ]");
@@ -372,7 +372,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             string json = @"[ { ""name"": ""ItemList_Foo"", ""addr"": ""0x08001000"", ""size"": 6 } ]";
             var resolver = ResolverFromJson(json);
-            var map = new MergedAsmMapFile(null!, resolver);
+            var map = new MergedAsmMapFile(null, resolver);
             var project = ProjectFromManifestJson(
                 "[ { \"table\": \"s\", \"format\": \"u16-list\", \"arrayName\": \"ItemList_Foo\"," +
                 "    \"sourceFile\": \"src/shop.c\" } ]");
@@ -390,7 +390,7 @@ namespace FEBuilderGBA.Core.Tests
             // Symbol resolves, but the manifest declares NO list-owner for it.
             string json = @"[ { ""name"": ""ItemList_Foo"", ""addr"": ""0x08001000"", ""size"": 6 } ]";
             var resolver = ResolverFromJson(json);
-            var map = new MergedAsmMapFile(null!, resolver);
+            var map = new MergedAsmMapFile(null, resolver);
             var project = ProjectFromManifestJson("[ ]");
 
             bool ok = DecompShopSourceResolver.TryResolveShopOwner(project, map, 0x1000u, out var owner, out var name);

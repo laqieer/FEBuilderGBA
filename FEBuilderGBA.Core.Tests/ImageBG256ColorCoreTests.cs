@@ -58,7 +58,7 @@ public class ImageBG256ColorCoreTests
 
     sealed class Bg8bppImageService : IImageService
     {
-        public IImage CreateImage(int w, int h) => new Bg8bppImage(w, h, null!);
+        public IImage CreateImage(int w, int h) => new Bg8bppImage(w, h, Array.Empty<byte>());
         public IImage CreateIndexedImage(int w, int h, byte[] p, int c) => new Bg8bppImage(w, h, p);
         public IImage LoadImage(string f) => throw new NotSupportedException(nameof(LoadImage));
         public IImage LoadImageFromBytes(byte[] d) => throw new NotSupportedException(nameof(LoadImageFromBytes));

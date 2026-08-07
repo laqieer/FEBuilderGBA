@@ -57,6 +57,15 @@ namespace FEBuilderGBA.Core.Tests
         static Func<string, string[]> Lines(params string[] lines)
             => _ => lines;
 
+        static uint AppendToRomEnd(ROM rom, byte[] blob)
+        {
+            uint appendOffset = U.Padding4((uint)rom.Data.Length);
+            if (!rom.write_resize_data(appendOffset + (uint)blob.Length))
+                return U.NOT_FOUND;
+            rom.write_range(appendOffset, blob);
+            return appendOffset;
+        }
+
         // Run ImportS under an ambient undo scope (built-in ROM-end appender).
         // Undo.NewUndoData reads CoreState.ROM.Data.Length, so wire CoreState.ROM to
         // the synthetic rom for the call (restored by the caller's finally / by the
@@ -74,7 +83,7 @@ namespace FEBuilderGBA.Core.Tests
                 {
                     result = SongTrackSImportCore.ImportS(
                         rom, "song.s", SLOT, instrument,
-                        Lines(lines), appendBinaryData: null!, out err);
+                        Lines(lines), appendBinaryData: blob => AppendToRomEnd(rom, blob), out err);
                 }
                 error = err;
                 return result;
@@ -450,7 +459,7 @@ namespace FEBuilderGBA.Core.Tests
                 {
                     header = SongTrackSImportCore.ImportS(
                         rom, "song.s", SLOT, INSTRUMENT,
-                        Lines(MinimalSong()), appendBinaryData: null!, out _);
+                        Lines(MinimalSong()), appendBinaryData: null, out _);
                 }
                 Assert.NotEqual(U.NOT_FOUND, header);
                 // The import repointed the slot at the new appended header.

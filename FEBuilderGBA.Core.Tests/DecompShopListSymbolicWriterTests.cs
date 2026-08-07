@@ -47,7 +47,7 @@ namespace FEBuilderGBA.Core.Tests
             Directory.CreateDirectory(Path.GetDirectoryName(headerAbs));
             File.WriteAllText(headerAbs, HeaderText);
             var project = new DecompProject { ProjectRoot = _dir };
-            var r = DecompConstantResolver.BuildForProject(project, null!);
+            var r = DecompConstantResolver.BuildForProject(project, new DecompTableEntry());
             Assert.False(r.IsUnavailable, r.Reason);
             return r;
         }
@@ -130,7 +130,7 @@ namespace FEBuilderGBA.Core.Tests
             Directory.CreateDirectory(Path.GetDirectoryName(headerAbs));
             File.WriteAllText(headerAbs,
                 "enum { ITEM_NONE = 0, ITEM_FOO = (1 | 0x80), ITEM_SWORD_IRON = 0x01 };");
-            var constants = DecompConstantResolver.BuildForProject(new DecompProject { ProjectRoot = _dir }, null!);
+            var constants = DecompConstantResolver.BuildForProject(new DecompProject { ProjectRoot = _dir }, new DecompTableEntry());
 
             string src =
                 "const u16 ItemList_X[] = {\n    ITEM_FOO,\n    ITEM_NONE,\n};\n";
@@ -243,7 +243,7 @@ namespace FEBuilderGBA.Core.Tests
             Directory.CreateDirectory(Path.GetDirectoryName(headerAbs));
             File.WriteAllText(headerAbs,
                 "enum { ITEM_SWORD_IRON = 0x01, ITEM_NONE = 0x02 };");
-            var constants = DecompConstantResolver.BuildForProject(new DecompProject { ProjectRoot = _dir }, null!);
+            var constants = DecompConstantResolver.BuildForProject(new DecompProject { ProjectRoot = _dir }, new DecompTableEntry());
             Assert.False(constants.ItemNoneIsZero);
 
             string src =
