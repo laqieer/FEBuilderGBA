@@ -110,6 +110,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             IsLoading = true;
             int updateable = 0;
+            var updateMarks = new List<(WorkSupportScannerCore.WorkProject Project, bool Mark)>();
             try
             {
                 foreach (var p in Projects)
@@ -118,13 +119,32 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                         p.UpdateinfoLines, p.RomFilename, httpGet, httpHeadLastModified, romDateTime, cancellationToken)
                         .ConfigureAwait(false);
                     bool mark = ur == WorkSupportUpdateCheckCore.UpdateResult.Updateable;
-                    p.IsUpdateMark = mark;
+                    updateMarks.Add((p, mark));
                     if (mark) updateable++;
                 }
+
+                // Only commit marks after the whole pass succeeds so failures do not
+                // leave a partially updated list behind.
+                foreach (var (project, mark) in updateMarks)
+                {
+                    project.IsUpdateMark = mark;
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
                 Log.Error("ToolAllWorkSupportViewModel.UpdateCheckAllAsync failed: " + ex.ToString());
+                updateable = 0;
+                foreach (var p in Projects)
+                {
+                    if (p != null)
+                    {
+                        p.IsUpdateMark = false;
+                    }
+                }
             }
             finally
             {

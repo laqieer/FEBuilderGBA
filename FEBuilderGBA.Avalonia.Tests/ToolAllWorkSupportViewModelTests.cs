@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using FEBuilderGBA;
 using FEBuilderGBA.Avalonia.ViewModels;
 using Xunit;
@@ -113,6 +115,53 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             Assert.Equal(0, updateable);
             Assert.False(vm.Projects[0].IsUpdateMark);
+        }
+
+        [Fact]
+        public async Task UpdateCheckAllAsync_CallerCancellation_ThrowsAndCleansUp()
+        {
+            CoreState.BaseDirectory = _root;
+            SeedProject("Epsilon");
+
+            var vm = new ToolAllWorkSupportViewModel();
+            vm.LoadList();
+
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                vm.UpdateCheckAllAsync(
+                    httpGet: (_, ct) => Task.FromCanceled<string>(ct),
+                    httpHeadLastModified: (_, ct) => Task.FromCanceled<string?>(ct),
+                    romDateTime: _ => new DateTime(2010, 1, 1),
+                    cancellationToken: cts.Token));
+
+            Assert.False(vm.IsLoading);
+            Assert.False(vm.IsDirty);
+            Assert.False(vm.Projects[0].IsUpdateMark);
+        }
+
+        [Fact]
+        public async Task UpdateCheckAllAsync_Failure_ReturnsZeroAndClearsMarks()
+        {
+            CoreState.BaseDirectory = _root;
+            SeedProject("Zeta");
+            SeedProject("Eta");
+
+            var vm = new ToolAllWorkSupportViewModel();
+            vm.LoadList();
+            vm.Projects.Add(null!);
+
+            int updateable = await vm.UpdateCheckAllAsync(
+                httpGet: (_, _) => Task.FromResult("ver=20300101"),
+                httpHeadLastModified: (_, _) => Task.FromResult<string?>(null),
+                romDateTime: _ => new DateTime(2010, 1, 1));
+
+            Assert.Equal(0, updateable);
+            Assert.False(vm.IsLoading);
+            Assert.False(vm.IsDirty);
+            Assert.False(vm.Projects[0].IsUpdateMark);
+            Assert.False(vm.Projects[1].IsUpdateMark);
         }
     }
 }
