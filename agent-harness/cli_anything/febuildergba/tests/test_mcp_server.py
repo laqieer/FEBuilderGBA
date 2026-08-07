@@ -2977,12 +2977,12 @@ class TestLauncherSubprocess:
                 proc.kill()
 
 
-# ── .mcp.json registration ────────────────────────────────────────────────
+# ── Optional .mcp.example.json registration ──────────────────────────────
 
-class TestMcpJsonRegistration:
+class TestMcpExampleRegistration:
     def test_febuildergba_cli_registered(self):
         root = _repo_root()
-        mcp_json = root / ".mcp.json"
+        mcp_json = root / ".mcp.example.json"
         data = json.loads(mcp_json.read_text(encoding="utf-8"))
         servers = data["mcpServers"]
         assert "febuildergba-cli" in servers
@@ -2992,11 +2992,17 @@ class TestMcpJsonRegistration:
         assert entry["args"] == []
         # the pre-existing computer-use entry point must be preserved
         assert "febuildergba-computer-use" in servers
+        ignored = subprocess.run(
+            ["git", "check-ignore", "--no-index", "-q", ".mcp.json"],
+            cwd=root,
+            check=False,
+        )
+        assert ignored.returncode == 0
 
     def test_registered_console_script_initialize_roundtrip(self, tmp_path):
         root = _repo_root()
         data = json.loads(
-            (root / ".mcp.json").read_text(encoding="utf-8")
+            (root / ".mcp.example.json").read_text(encoding="utf-8")
         )
         entry = data["mcpServers"]["febuildergba-cli"]
         command = shutil.which(entry["command"])

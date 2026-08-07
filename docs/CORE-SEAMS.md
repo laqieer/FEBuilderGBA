@@ -1,14 +1,14 @@
 # Core-Seam Catalog
 
 This file holds the full per-file **Core-seam catalog** that was relocated out of
-`CLAUDE.md` to keep that file under the ~40,000-char harness truncation limit
+the former always-loaded agent guide to keep routine context small
 (see issue #1645; regression of the earlier #1039 trim). Each entry documents one
 cross-platform `FEBuilderGBA.Core` class (or Avalonia ViewModel seam) ported from
 a WinForms form, with its behavioural contract and the issue that introduced it.
 
-`CLAUDE.md` keeps the high-value architecture overview and a pointer here; this
-file is the exhaustive reference. New seam entries belong **here** (one paragraph
-each), NOT in `CLAUDE.md`.
+`.github/copilot-instructions.md` keeps only a compact architecture overview and
+points here; this file is the exhaustive reference. New seam entries belong
+**here**, not in always-loaded instructions.
 
 ## #2034 Deterministic font-library builder
 
@@ -352,8 +352,7 @@ later in this catalog:
 ## Graphics-System Core Seams
 
 The `ImageUtil*.cs` family plus the LZ77/battle/skill/map/world-map/event/song
-Core seams below back the cross-platform (Avalonia + CLI) editors. Read alongside
-the "### Graphics System" overview in `CLAUDE.md`.
+Core seams below back the cross-platform (Avalonia + CLI) editors. read alongside the architecture overview in `.github/copilot-instructions.md`.
 
 - `LZ77ToolCore.cs` (Core) — LZ77 Tool Move + Recompress tabs (WinForms `ToolLZ77Form` + Avalonia
   `ToolLZ77ViewModel`). Ambient undo via `ROM.BeginUndoScope()`; LDR-first / raw-fallback pointer search

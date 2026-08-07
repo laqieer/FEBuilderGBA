@@ -20,13 +20,15 @@ PASSED=0
 FAILED=0
 TOTAL=0
 
-# run_case <name> <expected_exit> <body-content-or-MISSING>
+# run_case <name> <expected_exit> <body-content-or-MISSING> <title> <changed-files>
 # If body-content is the literal string "MISSING", the body file is NOT created
 # and a bogus path is passed (covers the fail-closed missing-body-file case).
 run_case() {
   local name="$1"
   local expected_exit="$2"
   local body_content="$3"
+  local title="${4:-docs: test}"
+  local changed_files="${5-docs/test.md}"
 
   TOTAL=$((TOTAL + 1))
 
@@ -45,8 +47,11 @@ run_case() {
 
   local actual_exit=0
   local output
+  local changed_file
+  changed_file=$(mktemp)
+  printf '%s\n' "$changed_files" > "$changed_file"
   # Capture both stdout and stderr so we can show it on failure.
-  output=$(bash "$VALIDATOR" 999 "$pass_path" master 2>&1) || actual_exit=$?
+  output=$(PR_TITLE_OVERRIDE="$title" bash "$VALIDATOR" 999 "$pass_path" master "$changed_file" 2>&1) || actual_exit=$?
 
   if [ "$actual_exit" = "$expected_exit" ]; then
     echo "  PASS: $name (exit $actual_exit)"
@@ -62,6 +67,7 @@ run_case() {
   if [ "$body_content" != "MISSING" ] && [ -n "${body_file:-}" ]; then
     rm -f "$body_file"
   fi
+  rm -f "$changed_file"
 }
 
 echo "=== scripts/validate-pr-screenshots.test.sh ==="
@@ -98,6 +104,30 @@ run_case "missing_body_file" 1 'MISSING'
 #    flagged as a violation).
 run_case "bad_raw_nested_master_in_path" 1 \
   '![bad](https://raw.githubusercontent.com/owner/repo/feature/master/pr-screenshots/foo.png)'
+
+# 9. Non-GUI feat/fix PRs rely on tests and CI, not screenshots.
+run_case "non_gui_feat_without_image" 0 \
+  'No screenshot needed.' \
+  'feat(core): add parser' \
+  'FEBuilderGBA.Core/TextEscape.cs'
+
+# 10. GUI feat/fix PRs still require real rendered evidence.
+run_case "gui_feat_without_image" 1 \
+  'No screenshot yet.' \
+  'feat(avalonia): add editor control' \
+  'FEBuilderGBA.Avalonia/Views/UnitEditorView.axaml'
+
+# 11. A GitHub attachment satisfies the GUI screenshot requirement.
+run_case "gui_fix_with_attachment" 0 \
+  '![proof](https://github.com/user-attachments/assets/12345678-1234-1234-1234-123456789abc)' \
+  'fix(avalonia): repair editor layout' \
+  'FEBuilderGBA.Avalonia/Views/UnitEditorView.axaml'
+
+# 12. A feat/fix PR with no usable changed-file list fails closed.
+run_case "feat_with_empty_changed_files" 1 \
+  'No screenshot.' \
+  'fix(core): repair parser' \
+  ''
 
 echo ""
 echo "PASSED: ${PASSED}/${TOTAL}  FAILED: ${FAILED}/${TOTAL}"

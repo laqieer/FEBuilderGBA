@@ -33,6 +33,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
     - name: Setup .NET 10.0
       uses: actions/setup-dotnet@v4
@@ -74,9 +76,12 @@ jobs:
       if: github.event_name == 'pull_request'
       shell: pwsh
       run: |
-        $body = (Get-Content $env:GITHUB_EVENT_PATH -Raw | ConvertFrom-Json).pull_request.body
+        $event = Get-Content $env:GITHUB_EVENT_PATH -Raw | ConvertFrom-Json
+        $body = $event.pull_request.body
         if ($null -eq $body) { $body = '' }
         [System.IO.File]::WriteAllText("$env:RUNNER_TEMP/pr-body.txt", $body)
+        git diff --name-only $event.pull_request.base.sha $event.pull_request.head.sha |
+          Out-File -FilePath "$env:RUNNER_TEMP/pr-files.txt" -Encoding utf8
 
     - name: Run screenshot validator self-tests
       shell: bash
@@ -86,20 +91,37 @@ jobs:
       shell: bash
       run: bash scripts/generate-changelog.test.sh
 
-    - name: Run CLAUDE.md size-gate self-tests
+    - name: Run Copilot context-budget self-tests
       shell: bash
-      run: bash scripts/check-claudemd-size.test.sh
+      run: bash scripts/check-copilot-context-size.test.sh
 
-    - name: Check CLAUDE.md under harness limit
-      # CLAUDE.md is truncated by the Claude Code harness at ~40,000 chars; this
-      # gate fails the build if it regrows past the limit (issue #1645 / #1039).
+    - name: Check always-loaded Copilot context budget
       shell: bash
-      run: bash scripts/check-claudemd-size.sh
+      run: bash scripts/check-copilot-context-size.sh
+
+    - name: Run review-risk classifier tests
+      run: python scripts/classify-review-risk.test.py
+
+    - name: Validate Copilot customization layout
+      shell: pwsh
+      run: |
+        python scripts/check-copilot-customization.test.py
+        python scripts/check_copilot_customization.py
+
+    - name: Classify PR review risk
+      if: github.event_name == 'pull_request'
+      shell: pwsh
+      run: |
+        $tier = Get-Content "$env:RUNNER_TEMP/pr-files.txt" |
+          python scripts/classify_review_risk.py
+        "Review tier: $tier"
 
     - name: Validate PR screenshot URLs
       if: github.event_name == 'pull_request'
       shell: bash
-      run: bash scripts/validate-pr-screenshots.sh "${{ github.event.pull_request.number }}" "$RUNNER_TEMP/pr-body.txt" "${{ github.event.repository.default_branch }}"
+      env:
+        PR_TITLE_OVERRIDE: ${{ github.event.pull_request.title }}
+      run: bash scripts/validate-pr-screenshots.sh "${{ github.event.pull_request.number }}" "$RUNNER_TEMP/pr-body.txt" "${{ github.event.repository.default_branch }}" "$RUNNER_TEMP/pr-files.txt"
 
     - name: Validate Avalonia AutomationIds
       shell: pwsh

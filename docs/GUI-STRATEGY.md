@@ -69,5 +69,5 @@ When triaging an issue or scoping a PR:
 This policy is also recorded across the repository's contributor docs:
 [`README.md`](../README.md), [`CONTRIBUTING.md`](../CONTRIBUTING.md),
 [`DEVELOPMENT-WORKFLOW.md`](../DEVELOPMENT-WORKFLOW.md),
-[`.github/SUPPORT.md`](../.github/SUPPORT.md), `CLAUDE.md`, and
-`.github/copilot-instructions.md`.
+[`.github/SUPPORT.md`](../.github/SUPPORT.md) and
+[`.github/copilot-instructions.md`](../.github/copilot-instructions.md).

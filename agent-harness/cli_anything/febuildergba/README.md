@@ -128,9 +128,10 @@ Unwrapped standalone backend commands: `--build-font-library`, `--export-buildfi
 
 In addition to the Click CLI, this package ships a **dependency-free stdio MCP (Model Context
 Protocol) server** at `agent-harness/cli_anything/febuildergba/mcp_server.py`. An editable install
-places `cli-anything-febuildergba-mcp` on `PATH`; the repo's [`.mcp.json`](../../../.mcp.json)
-registers that platform-neutral console script as `febuildergba-cli`, alongside the existing
-Windows `febuildergba-computer-use` entry. `agent-harness/febuildergba_mcp.py` remains a manual
+places `cli-anything-febuildergba-mcp` on `PATH`; copying the repo's
+[`.mcp.example.json`](../../../.mcp.example.json) to local `.mcp.json` registers that
+platform-neutral console script as `febuildergba-cli`, alongside the Windows
+`febuildergba-computer-use` entry. `agent-harness/febuildergba_mcp.py` remains a manual
 no-install launcher for whichever Python 3 alias the platform provides. It exposes
 21 explicit tools (a closed, non-mutating-beyond-declared-scope subset — no generic command
 runner, no patch/rebuild/repair/event/music tools) and 3 read-only resources over newline-delimited
@@ -302,7 +303,7 @@ pip install -e .[test]   # bounded pytest>=8,<9
 python -m pytest cli_anything/febuildergba/tests/ -v -s
 ```
 
-The editable install is required for the `.mcp.json` console entry and its initialize-roundtrip
+The editable install is required for the optional `.mcp.example.json` console entry and its initialize-roundtrip
 test. The separate real-backend CI job selects only the synthetic LZ77 roundtrip and bounded
 16 MiB FE8U zero-match text-search integration, after a fail-fast apphost availability check.
 

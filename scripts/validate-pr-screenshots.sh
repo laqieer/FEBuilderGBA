@@ -3,7 +3,7 @@
 # (blob/{ref}/ or raw.githubusercontent.com/{owner}/{repo}/{ref}/)
 # that will break after the branch is deleted post-merge.
 #
-# Usage: scripts/validate-pr-screenshots.sh <pr-number> [pr-body-file] [default-branch]
+# Usage: scripts/validate-pr-screenshots.sh <pr-number> [pr-body-file] [default-branch] [changed-files-file]
 # Exit 0 = pass, Exit 1 = blocking violations found
 #
 # Runs in CI (check.yml) on every pull_request event.
@@ -15,6 +15,7 @@ PR_NUMBER="${1:-${GITHUB_PR_NUMBER:-}}"
 BODY_FILE="${2:-}"
 REPO="${GITHUB_REPOSITORY:-laqieer/FEBuilderGBA}"
 DEFAULT_BRANCH="${3:-${DEFAULT_BRANCH:-master}}"
+CHANGED_FILES_FILE="${4:-}"
 
 if [ -z "$PR_NUMBER" ]; then
   echo "Usage: $0 <pr-number> [pr-body-file]"
@@ -76,26 +77,52 @@ echo "CHECK 1 PASSED: No feature-branch URLs found"
 
 # --- CHECK 2: feat/fix PRs must have at least one rendered image ---
 # Get PR title
-PR_TITLE=""
-if command -v gh &>/dev/null; then
+PR_TITLE="${PR_TITLE_OVERRIDE:-}"
+if [ -z "$PR_TITLE" ] && command -v gh &>/dev/null; then
   PR_TITLE=$(gh pr view "$PR_NUMBER" -R "$REPO" --json title --jq .title 2>/dev/null || echo "")
 fi
 
-if echo "$PR_TITLE" | grep -qiE "^(feat|fix):"; then
+CHANGED_FILES=""
+if [ -n "$CHANGED_FILES_FILE" ]; then
+  if [ ! -f "$CHANGED_FILES_FILE" ]; then
+    echo "ERROR: Changed-files file '$CHANGED_FILES_FILE' not found — failing closed"
+    exit 1
+  fi
+  CHANGED_FILES=$(cat "$CHANGED_FILES_FILE")
+elif command -v gh &>/dev/null; then
+  CHANGED_FILES=$(gh pr view "$PR_NUMBER" -R "$REPO" --json files --jq '.files[].path' 2>/dev/null || echo "")
+fi
+
+IS_FEAT_FIX=0
+if echo "$PR_TITLE" | grep -qiE "^(feat|fix)(\([^)]*\))?:"; then
+  IS_FEAT_FIX=1
+fi
+
+if [ "$IS_FEAT_FIX" -eq 1 ] && [ -z "$(echo "$CHANGED_FILES" | grep -v '^[[:space:]]*$' || true)" ]; then
+  echo "ERROR: feat/fix PR has no usable changed-file list — failing closed"
+  exit 1
+fi
+
+GUI_CHANGE=0
+if echo "$CHANGED_FILES" | grep -qE '^(FEBuilderGBA\.Avalonia/|FEBuilderGBA/)'; then
+  GUI_CHANGE=1
+fi
+
+if [ "$IS_FEAT_FIX" -eq 1 ] && [ "$GUI_CHANGE" -eq 1 ]; then
   IMAGE_COUNT=$(echo "$BODY" | grep -cE '!\[.*\]\(https://raw\.githubusercontent\.com/|!\[.*\]\(https://github\.com/.*assets/|<img.*src=' || true)
 
   if [ "$IMAGE_COUNT" -eq 0 ]; then
     echo ""
     echo "ERROR: feat/fix PR #${PR_NUMBER} has NO rendered screenshots!"
     echo ""
-    echo "Every feat/fix PR that modifies FEBuilderGBA.Avalonia/ MUST include"
+    echo "Every GUI feat/fix PR that modifies FEBuilderGBA.Avalonia/ or FEBuilderGBA/ MUST include"
     echo "at least one screenshot of the SPECIFIC affected editor with data."
     echo ""
     echo "Steps:"
     echo "  1. Launch app with ROM"
     echo "  2. Use UIAutomation to navigate to the affected editor"
     echo "  3. Capture via: dotnet run --project tools/WinCapture -c Release -- \"Title\" file.png"
-    echo "  4. Commit to pr-screenshots/ and reference via raw.githubusercontent.com"
+    echo "  4. Upload the capture as a GitHub attachment and embed it in the PR"
     echo ""
     echo "VALIDATION FAILED: Missing screenshots"
     exit 1
@@ -107,9 +134,9 @@ if echo "$PR_TITLE" | grep -qiE "^(feat|fix):"; then
     echo "Ensure screenshots show the SPECIFIC affected editor, not just the main window."
   fi
 
-  echo "CHECK 2 PASSED: Found $IMAGE_COUNT screenshot(s) in feat/fix PR"
+  echo "CHECK 2 PASSED: Found $IMAGE_COUNT screenshot(s) in GUI feat/fix PR"
 else
-  echo "CHECK 2 SKIPPED: Not a feat/fix PR (title: $PR_TITLE)"
+  echo "CHECK 2 SKIPPED: Screenshot not required (title: $PR_TITLE, gui_change: $GUI_CHANGE)"
 fi
 
 echo "VALIDATION PASSED"
