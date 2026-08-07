@@ -502,8 +502,8 @@ namespace FEBuilderGBA.Core.Tests
         static void WithVersionedRom(int version, System.Action<ROM> body)
         {
             var prevRom = CoreState.ROM;
-            var prevEs = CoreState.EventScript;
-            var prevComment = CoreState.CommentCache;
+            EventScript? prevEs = CoreState.EventScript;
+            IEtcCache? prevComment = CoreState.CommentCache;
             try
             {
                 var rom = MakeVersionedRom(version);
@@ -516,8 +516,8 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.ROM = prevRom;
-                CoreState.EventScript = prevEs;
-                CoreState.CommentCache = prevComment;
+                CoreState.EventScript = prevEs!;
+                CoreState.CommentCache = prevComment!;
             }
         }
 

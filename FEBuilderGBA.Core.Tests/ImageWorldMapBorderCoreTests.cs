@@ -148,7 +148,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ByteToImage16Tile_NoImageService_ReturnsNull()
         {
-            var saved = CoreState.ImageService;
+            IImageService? saved = CoreState.ImageService;
             try
             {
                 CoreState.ImageService = null!;
@@ -157,7 +157,7 @@ namespace FEBuilderGBA.Core.Tests
                 IImage img = ImageUtilCore.ByteToImage16Tile(bin, 0, pal, 0, 8, 8);
                 Assert.Null(img);
             }
-            finally { CoreState.ImageService = saved; }
+            finally { CoreState.ImageService = saved!; }
         }
 
         // ====================================================================
@@ -501,7 +501,7 @@ namespace FEBuilderGBA.Core.Tests
         public void TryRenderBorder_NoImageService_ReturnsNull()
         {
             var savedRom = CoreState.ROM;
-            var savedSvc = CoreState.ImageService;
+            IImageService? savedSvc = CoreState.ImageService;
             try
             {
                 ROM rom = MakeRom();
@@ -518,7 +518,7 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.ROM = savedRom;
-                CoreState.ImageService = savedSvc;
+                CoreState.ImageService = savedSvc!;
             }
         }
 

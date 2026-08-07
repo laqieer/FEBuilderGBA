@@ -31,13 +31,13 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ByteToImage256Liner_NullService_ReturnsNull()
         {
-            var saved = CoreState.ImageService;
+            IImageService? saved = CoreState.ImageService;
             try
             {
                 CoreState.ImageService = null!;
                 Assert.Null(ImageUtilCore.ByteToImage256Liner(new byte[4], 0, new byte[512], 0, 2, 2));
             }
-            finally { CoreState.ImageService = saved; }
+            finally { CoreState.ImageService = saved!; }
         }
 
         [Fact]

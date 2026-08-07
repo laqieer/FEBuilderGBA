@@ -21,7 +21,7 @@ namespace FEBuilderGBA.Core.Tests
     [Collection("SharedState")]
     public class DecompSourceWriterCoreTests : IDisposable
     {
-        readonly DecompProject _savedProject;
+        readonly DecompProject? _savedProject;
 
         public DecompSourceWriterCoreTests()
         {
@@ -32,7 +32,7 @@ namespace FEBuilderGBA.Core.Tests
         public void Dispose()
         {
             CoreState.DecompProject = null!; // ensure no leak into the next test
-            CoreState.DecompProject = _savedProject;
+            CoreState.DecompProject = _savedProject!;
         }
 
         // ---- helpers ----

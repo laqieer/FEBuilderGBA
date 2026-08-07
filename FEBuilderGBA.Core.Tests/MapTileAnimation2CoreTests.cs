@@ -498,7 +498,7 @@ namespace FEBuilderGBA.Core.Tests
             // requires a new allocation.
             var rom = MakeRomWithTwoEntries(out uint baseAddr);
             var prevRom = CoreState.ROM;
-            var prevAppend = CoreState.AppendBinaryData;
+            Func<byte[], Undo.UndoData, uint>? prevAppend = CoreState.AppendBinaryData;
             string tmp = Path.GetTempFileName();
             try
             {
@@ -537,7 +537,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.AppendBinaryData = prevAppend;
+                CoreState.AppendBinaryData = prevAppend!;
                 CoreState.ROM = prevRom;
                 if (File.Exists(tmp)) File.Delete(tmp);
             }

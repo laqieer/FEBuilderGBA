@@ -555,7 +555,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void CoreState_IsDecompMode_TogglesWithProject()
         {
-            var prev = CoreState.DecompProject;
+            DecompProject? prev = CoreState.DecompProject;
             try
             {
                 CoreState.DecompProject = null!;
@@ -566,7 +566,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.DecompProject = prev;
+                CoreState.DecompProject = prev!;
             }
         }
 

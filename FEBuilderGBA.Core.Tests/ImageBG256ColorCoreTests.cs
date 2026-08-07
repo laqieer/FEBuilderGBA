@@ -641,7 +641,7 @@ public class ImageBG256ColorCoreTests
     public void Decode255_P4Zero_ReproducesIndexedImage_ExactBytes()
     {
         ROM rom = MakeFreeSpaceRom();
-        var prevRom = CoreState.ROM;
+        ROM? prevRom = CoreState.ROM;
         try
         {
             CoreState.ROM = rom; // only for the import's undo capture
@@ -664,14 +664,14 @@ public class ImageBG256ColorCoreTests
             // 8bpp decode is deterministic — pixel indices match exactly.
             Assert.Equal(indexed, decoded.GetPixelData());
         }
-        finally { CoreState.ROM = prevRom; }
+        finally { CoreState.ROM = prevRom!; }
     }
 
     [Fact]
     public void Decode224_P4One_AppliesInverseRemap_ReproducesForwardMappedImage()
     {
         ROM rom = MakeFreeSpaceRom();
-        var prevRom = CoreState.ROM;
+        ROM? prevRom = CoreState.ROM;
         try
         {
             CoreState.ROM = rom; // only for the import's undo capture
@@ -703,7 +703,7 @@ public class ImageBG256ColorCoreTests
             // image reproduces the ORIGINAL indexed image exactly.
             Assert.Equal(indexed, decoded.GetPixelData());
         }
-        finally { CoreState.ROM = prevRom; }
+        finally { CoreState.ROM = prevRom!; }
     }
 
     [Fact]

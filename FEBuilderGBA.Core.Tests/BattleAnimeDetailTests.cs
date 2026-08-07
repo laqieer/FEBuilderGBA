@@ -308,7 +308,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RenderTileSheet_NoImageService_ReturnsNull()
         {
-            var saved = CoreState.ImageService;
+            IImageService? saved = CoreState.ImageService;
             try
             {
                 CoreState.ImageService = null!;
@@ -317,14 +317,14 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ImageService = saved;
+                CoreState.ImageService = saved!;
             }
         }
 
         [Fact]
         public void RenderAnimationTileSheet_NullRom_ReturnsNull()
         {
-            var savedRom = CoreState.ROM;
+            ROM? savedRom = CoreState.ROM;
             try
             {
                 CoreState.ROM = null!;
@@ -333,7 +333,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = savedRom;
+                CoreState.ROM = savedRom!;
             }
         }
 

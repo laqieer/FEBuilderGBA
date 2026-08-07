@@ -306,14 +306,14 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RenderSingleImagePreview_NoImageService_ReturnsNull()
         {
-            var prev = CoreState.ImageService;
+            IImageService? prev = CoreState.ImageService;
             CoreState.ImageService = null!;
             try
             {
                 var rom = MakeRom();
                 Assert.Null(ImageBattleScreenCore.RenderSingleImagePreview(rom, 0));
             }
-            finally { CoreState.ImageService = prev; }
+            finally { CoreState.ImageService = prev!; }
         }
 
         [Fact]

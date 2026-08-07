@@ -47,7 +47,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ResolvePlistToEventAddr_WithZeroPlist_ReturnsNotFound()
         {
-            var origRom = CoreState.ROM;
+            ROM? origRom = CoreState.ROM;
             try
             {
                 CoreState.ROM = null!;
@@ -56,7 +56,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = origRom;
+                CoreState.ROM = origRom!;
             }
         }
 
@@ -86,7 +86,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void EnumerateUnits_WithInvalidAddr_ReturnsEmpty()
         {
-            var origRom = CoreState.ROM;
+            ROM? origRom = CoreState.ROM;
             try
             {
                 CoreState.ROM = null!;
@@ -96,7 +96,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = origRom;
+                CoreState.ROM = origRom!;
             }
         }
 

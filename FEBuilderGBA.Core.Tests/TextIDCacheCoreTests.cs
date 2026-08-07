@@ -17,7 +17,7 @@ namespace FEBuilderGBA.Core.Tests
     {
         readonly string _tempDir;
         readonly string _prevBaseDir;
-        readonly ROM _prevRom;
+        readonly ROM? _prevRom;
 
         // The TextIDCacheCore ctor + Save use ConfigEtcFilename, which resolves the
         // ROM title from CoreState.ROM (null => "_"). Pass "_" as the rom base
@@ -47,7 +47,7 @@ namespace FEBuilderGBA.Core.Tests
         public void Dispose()
         {
             CoreState.BaseDirectory = _prevBaseDir;
-            CoreState.ROM = _prevRom;
+            CoreState.ROM = _prevRom!;
             try { if (Directory.Exists(_tempDir)) Directory.Delete(_tempDir, true); } catch { }
         }
 

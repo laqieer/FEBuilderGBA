@@ -347,7 +347,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void LoadFixedDic_NullBaseDirectory_ReturnsEmpty_NoPoisonCache()
         {
-            string savedBase = CoreState.BaseDirectory;
+            string? savedBase = CoreState.BaseDirectory;
             string tempRoot = Path.Combine(Path.GetTempPath(), "feb_dic_null_" + Guid.NewGuid().ToString("N"));
             try
             {
@@ -372,7 +372,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.BaseDirectory = savedBase;
+                CoreState.BaseDirectory = savedBase!;
                 TranslateTextUtilCore.ClearCache();
                 try { if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, true); } catch { }
             }

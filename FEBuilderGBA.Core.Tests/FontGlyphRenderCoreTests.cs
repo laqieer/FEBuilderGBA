@@ -136,7 +136,7 @@ namespace FEBuilderGBA.Core.Tests
         public void RenderGlyph_NullImageService_ReturnsNull()
         {
             var prevRom = CoreState.ROM;
-            var prevSvc = CoreState.ImageService;
+            IImageService? prevSvc = CoreState.ImageService;
             try
             {
                 ROM rom = MakeRom();
@@ -144,7 +144,7 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.ImageService = null!;
                 Assert.Null(FontGlyphRenderCore.RenderGlyph(rom, GLYPH_OFF, isItemFont: false));
             }
-            finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc; }
+            finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc!; }
         }
 
         // ---------------- Pack / encode ----------------

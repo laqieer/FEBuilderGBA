@@ -270,8 +270,8 @@ namespace FEBuilderGBA.Core.Tests
         {
             var rom = MakeFe8uRom();
             var prevRom = CoreState.ROM;
-            var prevEs = CoreState.EventScript;
-            var prevComment = CoreState.CommentCache;
+            EventScript? prevEs = CoreState.EventScript;
+            IEtcCache? prevComment = CoreState.CommentCache;
             try
             {
                 CoreState.ROM = rom;
@@ -283,8 +283,8 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.ROM = prevRom;
-                CoreState.EventScript = prevEs;
-                CoreState.CommentCache = prevComment;
+                CoreState.EventScript = prevEs!;
+                CoreState.CommentCache = prevComment!;
             }
         }
 

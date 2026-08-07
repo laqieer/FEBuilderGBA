@@ -28,7 +28,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ResolveEventAssembler_ReturnsNull_WhenNothingConfigured()
         {
-            var savedConfig = CoreState.Config;
+            Config? savedConfig = CoreState.Config;
             var savedBaseDir = CoreState.BaseDirectory;
             CoreState.Config = null!;
             CoreState.BaseDirectory = Path.Combine(Path.GetTempPath(), "febuilder-test-empty-" + Path.GetRandomFileName());
@@ -39,7 +39,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.Config = savedConfig;
+                CoreState.Config = savedConfig!;
                 CoreState.BaseDirectory = savedBaseDir;
             }
         }
@@ -56,7 +56,7 @@ namespace FEBuilderGBA.Core.Tests
             // Create .git dir to make it look like a repo root
             Directory.CreateDirectory(Path.Combine(tempDir, ".git"));
 
-            var savedConfig = CoreState.Config;
+            Config? savedConfig = CoreState.Config;
             var savedBaseDir = CoreState.BaseDirectory;
             CoreState.Config = null!;
             CoreState.BaseDirectory = tempDir;
@@ -68,7 +68,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.Config = savedConfig;
+                CoreState.Config = savedConfig!;
                 CoreState.BaseDirectory = savedBaseDir;
                 Directory.Delete(tempDir, true);
             }
@@ -83,7 +83,7 @@ namespace FEBuilderGBA.Core.Tests
             File.WriteAllText(fallbackPath, "mock");
             Directory.CreateDirectory(Path.Combine(tempDir, ".git"));
 
-            var savedConfig = CoreState.Config;
+            Config? savedConfig = CoreState.Config;
             var savedBaseDir = CoreState.BaseDirectory;
             CoreState.Config = null!;
             CoreState.BaseDirectory = tempDir;
@@ -95,7 +95,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.Config = savedConfig;
+                CoreState.Config = savedConfig!;
                 CoreState.BaseDirectory = savedBaseDir;
                 Directory.Delete(tempDir, true);
             }

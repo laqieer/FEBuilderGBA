@@ -635,7 +635,7 @@ namespace FEBuilderGBA.Core.Tests
             // IsComplete gate STILL refuses — but it now names the DISASM forms, NOT the PatchForm token.
             StageFe8uPatchDir(); // empty -> no installed/unknown EA/BIN -> backstop passes
             CoreState.BaseDirectory = _tempDir;
-            var savedEs = CoreState.EventScript;
+            EventScript? savedEs = CoreState.EventScript;
             try
             {
                 CoreState.EventScript = null!; // disasm unwired -> EventCond/EventScript re-reported
@@ -664,7 +664,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.EventScript = savedEs;
+                CoreState.EventScript = savedEs!;
             }
         }
 

@@ -356,14 +356,14 @@ namespace FEBuilderGBA.Core.Tests
             PlantPalette(rom, StandardPalette());
             PlantRawCells(rom, TSA_OFFSET, new ushort[] { Cell(1, false, false, 0) });
 
-            var saved = CoreState.ImageService;
+            IImageService? saved = CoreState.ImageService;
             try
             {
                 CoreState.ImageService = null!;
                 Assert.Null(ImageTSAEditorCore.TryRenderMainImage(
                     rom, 1, 1, IMAGE_OFFSET, false, false, TSA_OFFSET, PALETTE_OFFSET));
             }
-            finally { CoreState.ImageService = saved; }
+            finally { CoreState.ImageService = saved!; }
         }
 
         [Fact]
@@ -662,14 +662,14 @@ namespace FEBuilderGBA.Core.Tests
             PlantImage(rom, MarkerTiles());
             PlantPalette(rom, StandardPalette());
 
-            var saved = CoreState.ImageService;
+            IImageService? saved = CoreState.ImageService;
             try
             {
                 CoreState.ImageService = null!;
                 Assert.Null(ImageTSAEditorCore.RenderChipList(
                     rom, IMAGE_OFFSET, PALETTE_OFFSET));
             }
-            finally { CoreState.ImageService = saved; }
+            finally { CoreState.ImageService = saved!; }
         }
 
         [Fact]
@@ -926,14 +926,14 @@ namespace FEBuilderGBA.Core.Tests
             PlantImage(rom, MarkerTiles());
             PlantPalette(rom, StandardPalette());
 
-            var saved = CoreState.ImageService;
+            IImageService? saved = CoreState.ImageService;
             try
             {
                 CoreState.ImageService = null!;
                 Assert.Null(ImageTSAEditorCore.RenderRawTilesheet(
                     rom, IMAGE_OFFSET, PALETTE_OFFSET));
             }
-            finally { CoreState.ImageService = saved; }
+            finally { CoreState.ImageService = saved!; }
         }
 
         [Fact]

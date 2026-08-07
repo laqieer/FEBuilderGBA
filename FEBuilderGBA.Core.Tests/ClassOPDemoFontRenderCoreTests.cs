@@ -210,7 +210,7 @@ namespace FEBuilderGBA.Core.Tests
         public void RenderGlyphById_NullImageService_ReturnsNull()
         {
             var prevRom = CoreState.ROM;
-            var prevSvc = CoreState.ImageService;
+            IImageService? prevSvc = CoreState.ImageService;
             try
             {
                 ROM rom = MakeRom();
@@ -218,7 +218,7 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.ImageService = null!;
                 Assert.Null(ClassOPDemoFontRenderCore.RenderGlyphById(rom, 0));
             }
-            finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc; }
+            finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc!; }
         }
 
         [Fact]

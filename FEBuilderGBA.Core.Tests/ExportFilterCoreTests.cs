@@ -594,7 +594,7 @@ namespace FEBuilderGBA.Core.Tests
             // with CoreState.EventScript unwired they must return an empty set,
             // never throw (finding 2).
             var savedRom = CoreState.ROM;
-            var savedEs = CoreState.EventScript;
+            EventScript? savedEs = CoreState.EventScript;
             try
             {
                 var rom = new ROM();
@@ -612,7 +612,7 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.ROM = savedRom;
-                CoreState.EventScript = savedEs;
+                CoreState.EventScript = savedEs!;
             }
         }
     }

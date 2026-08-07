@@ -282,7 +282,7 @@ namespace FEBuilderGBA.Core.Tests
 
             var savedRom = CoreState.ROM;
             var savedEnc = CoreState.SystemTextEncoder;
-            var savedBase = CoreState.BaseDirectory;
+            string? savedBase = CoreState.BaseDirectory;
             try
             {
                 var rom = new ROM();
@@ -316,7 +316,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 CoreState.ROM = savedRom;
                 CoreState.SystemTextEncoder = savedEnc;
-                CoreState.BaseDirectory = savedBase;
+                CoreState.BaseDirectory = savedBase!;
                 SongNameResolverCore.ClearCache();
                 NameResolver.ClearCache();
             }

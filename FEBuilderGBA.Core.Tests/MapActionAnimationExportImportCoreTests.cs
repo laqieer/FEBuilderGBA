@@ -197,7 +197,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ImportScript_NoRom_ReturnsEarly()
         {
-            var origRom = CoreState.ROM;
+            ROM? origRom = CoreState.ROM;
             try
             {
                 CoreState.ROM = null!;
@@ -207,7 +207,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = origRom;
+                CoreState.ROM = origRom!;
             }
         }
 

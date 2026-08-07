@@ -23,7 +23,7 @@ namespace FEBuilderGBA.Core.Tests
     [Collection("SharedState")]
     public class DecompChapterMapWriterCoreTests : IDisposable
     {
-        readonly DecompProject _savedProject;
+        readonly DecompProject? _savedProject;
 
         public DecompChapterMapWriterCoreTests()
         {
@@ -34,7 +34,7 @@ namespace FEBuilderGBA.Core.Tests
         public void Dispose()
         {
             CoreState.DecompProject = null!;
-            CoreState.DecompProject = _savedProject;
+            CoreState.DecompProject = _savedProject!;
         }
 
         // ---- helpers ----

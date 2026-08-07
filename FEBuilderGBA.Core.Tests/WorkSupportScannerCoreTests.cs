@@ -17,7 +17,7 @@ namespace FEBuilderGBA.Core.Tests
         readonly string _root;
         readonly string _etcDir;
         readonly string _projDir;
-        readonly ROM _savedRom;
+        readonly ROM? _savedRom;
 
         public WorkSupportScannerCoreTests()
         {
@@ -35,7 +35,7 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ROM = _savedRom;
+            CoreState.ROM = _savedRom!;
             try { if (Directory.Exists(_root)) Directory.Delete(_root, true); }
             catch { /* best effort */ }
         }

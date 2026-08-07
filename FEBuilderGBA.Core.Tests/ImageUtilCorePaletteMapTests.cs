@@ -247,14 +247,14 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void NoImageService_ReturnsNull()
         {
-            var saved = CoreState.ImageService;
+            IImageService? saved = CoreState.ImageService;
             try
             {
                 CoreState.ImageService = null!;
                 Assert.Null(ImageUtilCore.ByteToImage16TilePaletteMap(
                     new byte[16], new byte[8], Build256Palette(), 16, 8));
             }
-            finally { CoreState.ImageService = saved; }
+            finally { CoreState.ImageService = saved!; }
         }
 
         // =================================================================

@@ -302,7 +302,7 @@ namespace FEBuilderGBA.Core.Tests
             if (romPath == null) return; // skip when no ROM available
 
             var savedRom = CoreState.ROM;
-            var savedEs = CoreState.EventScript;
+            EventScript? savedEs = CoreState.EventScript;
             var savedEnc = CoreState.SystemTextEncoder;
             var savedComment = CoreState.CommentCache;
             var savedBaseDir = CoreState.BaseDirectory;
@@ -341,7 +341,7 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.ROM = savedRom;
-                CoreState.EventScript = savedEs;
+                CoreState.EventScript = savedEs!;
                 CoreState.SystemTextEncoder = savedEnc;
                 CoreState.CommentCache = savedComment;
                 CoreState.BaseDirectory = savedBaseDir;
@@ -459,7 +459,7 @@ namespace FEBuilderGBA.Core.Tests
             if (romPath == null) return; // skip when no ROM available
 
             var savedRom = CoreState.ROM;
-            var savedEs = CoreState.EventScript;
+            EventScript? savedEs = CoreState.EventScript;
             var savedEnc = CoreState.SystemTextEncoder;
             var savedComment = CoreState.CommentCache;
             var savedBaseDir = CoreState.BaseDirectory;
@@ -492,7 +492,7 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.ROM = savedRom;
-                CoreState.EventScript = savedEs;
+                CoreState.EventScript = savedEs!;
                 CoreState.SystemTextEncoder = savedEnc;
                 CoreState.CommentCache = savedComment;
                 CoreState.BaseDirectory = savedBaseDir;
@@ -551,7 +551,7 @@ namespace FEBuilderGBA.Core.Tests
             if (romPath == null) return; // skip when no ROM available
 
             var savedRom = CoreState.ROM;
-            var savedEs = CoreState.EventScript;
+            EventScript? savedEs = CoreState.EventScript;
             var savedEnc = CoreState.SystemTextEncoder;
             var savedComment = CoreState.CommentCache;
             var savedBaseDir = CoreState.BaseDirectory;
@@ -601,7 +601,7 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.ROM = savedRom;
-                CoreState.EventScript = savedEs;
+                CoreState.EventScript = savedEs!;
                 CoreState.SystemTextEncoder = savedEnc;
                 CoreState.CommentCache = savedComment;
                 CoreState.BaseDirectory = savedBaseDir;
@@ -615,7 +615,7 @@ namespace FEBuilderGBA.Core.Tests
             if (romPath == null) return; // skip
 
             var savedRom = CoreState.ROM;
-            var savedEs = CoreState.EventScript;
+            EventScript? savedEs = CoreState.EventScript;
             var savedEnc = CoreState.SystemTextEncoder;
             var savedComment = CoreState.CommentCache;
             var savedBaseDir = CoreState.BaseDirectory;
@@ -650,7 +650,7 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.ROM = savedRom;
-                CoreState.EventScript = savedEs;
+                CoreState.EventScript = savedEs!;
                 CoreState.SystemTextEncoder = savedEnc;
                 CoreState.CommentCache = savedComment;
                 CoreState.BaseDirectory = savedBaseDir;

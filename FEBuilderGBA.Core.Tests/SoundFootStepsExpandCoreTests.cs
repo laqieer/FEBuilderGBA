@@ -147,7 +147,7 @@ public class SoundFootStepsExpandCoreTests
         uint newCount = 20;
 
         var prevAppender = CoreState.AppendBinaryData;
-        var prevServices = CoreState.Services;
+        IAppServices? prevServices = CoreState.Services;
         var prevRom = CoreState.ROM;
         try
         {
@@ -181,7 +181,7 @@ public class SoundFootStepsExpandCoreTests
         finally
         {
             CoreState.AppendBinaryData = prevAppender;
-            CoreState.Services = prevServices;
+            CoreState.Services = prevServices!;
             CoreState.ROM = prevRom;
         }
     }
@@ -191,7 +191,7 @@ public class SoundFootStepsExpandCoreTests
     {
         var rom = MakeFe8WithSwitch2(FE8U_CODE, start: 0, countMinusOne: 9);
         var prevAppender = CoreState.AppendBinaryData;
-        var prevServices = CoreState.Services;
+        IAppServices? prevServices = CoreState.Services;
         var prevRom = CoreState.ROM;
         try
         {
@@ -208,7 +208,7 @@ public class SoundFootStepsExpandCoreTests
         finally
         {
             CoreState.AppendBinaryData = prevAppender;
-            CoreState.Services = prevServices;
+            CoreState.Services = prevServices!;
             CoreState.ROM = prevRom;
         }
     }

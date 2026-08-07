@@ -159,7 +159,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 System.IO.File.WriteAllBytes(tempFile, midiBytes);
 
-                var origRom = CoreState.ROM;
+                ROM? origRom = CoreState.ROM;
                 CoreState.ROM = null!;
                 try
                 {
@@ -168,7 +168,7 @@ namespace FEBuilderGBA.Core.Tests
                 }
                 finally
                 {
-                    CoreState.ROM = origRom;
+                    CoreState.ROM = origRom!;
                 }
             }
             finally

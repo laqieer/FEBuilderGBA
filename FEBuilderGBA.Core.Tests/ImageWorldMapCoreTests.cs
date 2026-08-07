@@ -288,7 +288,7 @@ namespace FEBuilderGBA.Core.Tests
         public void MainFieldMap_NoImageService_ReturnsNull()
         {
             var savedRom = CoreState.ROM;
-            var savedSvc = CoreState.ImageService;
+            IImageService? savedSvc = CoreState.ImageService;
             try
             {
                 var rom = MakeRom();
@@ -300,7 +300,7 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.ROM = savedRom;
-                CoreState.ImageService = savedSvc;
+                CoreState.ImageService = savedSvc!;
             }
         }
 
@@ -465,7 +465,7 @@ namespace FEBuilderGBA.Core.Tests
         public void NoImageService_AllReturnNull()
         {
             var savedRom = CoreState.ROM;
-            var savedSvc = CoreState.ImageService;
+            IImageService? savedSvc = CoreState.ImageService;
             try
             {
                 var rom = MakeRom();
@@ -484,7 +484,7 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.ROM = savedRom;
-                CoreState.ImageService = savedSvc;
+                CoreState.ImageService = savedSvc!;
             }
         }
 

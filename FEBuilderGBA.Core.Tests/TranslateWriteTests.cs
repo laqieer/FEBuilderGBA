@@ -30,7 +30,7 @@ namespace FEBuilderGBA.Core.Tests
         public void WriteTexts_NullEncoder_ReturnsZero()
         {
             // Save and restore state
-            var origEncoder = CoreState.FETextEncoder;
+            FETextEncode? origEncoder = CoreState.FETextEncoder;
             try
             {
                 CoreState.FETextEncoder = null!;
@@ -41,7 +41,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.FETextEncoder = origEncoder;
+                CoreState.FETextEncoder = origEncoder!;
             }
         }
 
