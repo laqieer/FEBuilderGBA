@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using global::Avalonia;
@@ -1048,14 +1047,11 @@ namespace FEBuilderGBA.Avalonia.Views
                         Control editor = UnwrapEditorContent(window);
 
                         // Try to select first item for richer screenshots
-                        try
+                        if (editor is IEditorView editorView)
                         {
-                            var method = editor.GetType().GetMethod("SelectFirstItem");
-                            method?.Invoke(editor, null);
-                            if (method != null)
-                                await Task.Delay(100); // Let selection handler run
+                            editorView.SelectFirstItem();
+                            await Task.Delay(100); // Let selection handler run
                         }
-                        catch { /* Not all editors have SelectFirstItem */ }
 
                         // Optionally select a specific tab (by AutomationId) so a
                         // non-default tab is shown in the PNG. Opt-in via
@@ -1546,16 +1542,15 @@ namespace FEBuilderGBA.Avalonia.Views
 
                                 // Resolve the AddressListControl once for the loop (avoids
                                 // repeated visual-tree scans in --data-verify-full).
-                                var (alcControl, alcMethod) = ResolveAddressListControl(editor);
+                                var alcControl = ResolveAddressListControl(editor);
 
                                 for (int itemIdx = 0; itemIdx < maxItem; itemIdx++)
                                 {
                                     // Select the item by index (for full mode, iterate all)
                                     if (itemIdx > 0 || fullMode)
                                     {
-                                        bool selected = (alcControl != null && alcMethod != null)
-                                            ? SelectItemByIndex(alcControl, alcMethod, itemIdx)
-                                            : false;
+                                        bool selected = alcControl != null
+                                            && SelectItemByIndex(alcControl, itemIdx);
                                         if (!selected)
                                         {
                                             Console.WriteLine($"DATAVERIFY: {name} ... WARN: SelectItemByIndex({itemIdx}) failed, skipping remaining items");
@@ -1821,66 +1816,49 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         /// <summary>
-        /// Select the first item on a view using the known method or reflection.
+        /// Select the first item on an editor view.
         /// </summary>
         static void SelectFirstItemOnView(Control window)
         {
-            if (window is UnitEditorView uev) uev.SelectFirstItem();
-            else if (window is ItemEditorView iev) iev.SelectFirstItem();
-            else if (window is ClassEditorView cev) cev.SelectFirstItem();
-            else
-            {
-                var method = window.GetType().GetMethod("SelectFirstItem");
-                method?.Invoke(window, null);
-            }
+            if (window is IEditorView editorView)
+                editorView.SelectFirstItem();
         }
 
         /// <summary>
-        /// Resolve the AddressListControl and its SelectByIndex method for a window.
-        /// Returns (control, method) or (null, null) if not found.
+        /// Resolve the AddressListControl for a window.
+        /// Returns null if not found.
         /// Cache the result to avoid repeated visual tree scans in loops.
         /// </summary>
-        static (object? control, System.Reflection.MethodInfo? method) ResolveAddressListControl(Control window)
+        static Controls.AddressListControl? ResolveAddressListControl(Control window)
         {
             // Try known named controls first
             string[] knownNames = { "UnitList", "ItemList", "ClassList", "BranchList", "EntryList" };
             foreach (var controlName in knownNames)
             {
-                var control = window.FindControl<global::Avalonia.Controls.UserControl>(controlName);
+                var control = window.FindControl<Controls.AddressListControl>(controlName);
                 if (control != null)
-                {
-                    var selectMethod = control.GetType().GetMethod("SelectByIndex");
-                    if (selectMethod != null)
-                        return (control, selectMethod);
-                }
+                    return control;
             }
 
-            // Fallback: find any AddressListControl in the visual tree via reflection
+            // Fallback: find any AddressListControl in the visual tree
             foreach (var descendant in global::Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window))
             {
-                if (descendant.GetType().Name == "AddressListControl")
-                {
-                    var selectMethod = descendant.GetType().GetMethod("SelectByIndex");
-                    if (selectMethod != null)
-                        return (descendant, selectMethod);
-                }
+                if (descendant is Controls.AddressListControl alc)
+                    return alc;
             }
 
-            return (null, null);
+            return null;
         }
 
         /// <summary>
-        /// Select an item by index using a pre-resolved control and method.
+        /// Select an item by index using a pre-resolved control.
         /// Returns true if selection succeeded, false otherwise.
         /// </summary>
-        static bool SelectItemByIndex(object control, System.Reflection.MethodInfo selectMethod, int index)
-        {
-            var result = selectMethod.Invoke(control, new object[] { index });
-            return result is bool b && b;
-        }
+        static bool SelectItemByIndex(Controls.AddressListControl control, int index)
+            => control.SelectByIndex(index);
 
         /// <summary>
-        /// Select an item by index using reflection on the view's AddressListControl.
+        /// Select an item by index using the view's AddressListControl.
         /// Tries known control names (UnitList, ItemList, ClassList, BranchList, EntryList)
         /// then falls back to finding any AddressListControl in the visual tree.
         /// Returns true if selection succeeded, false if no AddressListControl was found.
@@ -1889,9 +1867,8 @@ namespace FEBuilderGBA.Avalonia.Views
         /// </summary>
         static bool SelectItemByIndex(Control window, int index)
         {
-            var (control, method) = ResolveAddressListControl(window);
-            if (control == null || method == null) return false;
-            return SelectItemByIndex(control, method, index);
+            var control = ResolveAddressListControl(window);
+            return control != null && SelectItemByIndex(control, index);
         }
 
         /// <summary>
