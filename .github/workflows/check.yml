@@ -113,7 +113,9 @@ jobs:
       shell: pwsh
       run: |
         $tier = Get-Content "$env:RUNNER_TEMP/pr-files.txt" |
-          python scripts/classify_review_risk.py
+          python scripts/classify_review_risk.py `
+            --cross-repository '${{ github.event.pull_request.head.repo.full_name != github.repository }}' `
+            --author-association '${{ github.event.pull_request.author_association }}'
         "Review tier: $tier"
 
     - name: Validate PR screenshot URLs

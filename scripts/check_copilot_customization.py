@@ -46,9 +46,15 @@ STALE_CLAUDE_PATTERN = re.compile(
 
 
 def _skill_name(path: Path) -> str | None:
+    text = path.read_text(encoding="utf-8").replace("\r\n", "\n")
+    if not text.startswith("---\n"):
+        return None
+    end = text.find("\n---\n", 4)
+    if end < 0:
+        return None
     match = re.search(
         r"(?m)^name:\s*([a-z0-9-]+)\s*$",
-        path.read_text(encoding="utf-8"),
+        text[4:end],
     )
     return match.group(1) if match else None
 
@@ -61,7 +67,13 @@ def validate_repository(root: Path) -> list[str]:
         errors.append("legacy .claude/skills must be removed")
 
     skill_root = root / ".github" / "skills"
-    found: set[str] = set()
+    actual = {
+        path.parent.name
+        for path in skill_root.glob("*/SKILL.md")
+    }
+    for unexpected in sorted(actual - PROJECT_SKILLS):
+        errors.append(f"unexpected project skill {unexpected}")
+
     for expected in sorted(PROJECT_SKILLS):
         path = skill_root / expected / "SKILL.md"
         if not path.is_file():
@@ -77,7 +89,6 @@ def validate_repository(root: Path) -> list[str]:
             )
         if path.stat().st_size >= 8192:
             errors.append(f"project skill {expected} exceeds 8192 bytes")
-        found.add(expected)
 
     settings_path = root / ".github" / "copilot" / "settings.json"
     try:

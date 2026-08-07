@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import PurePosixPath
 from typing import Iterable
@@ -12,6 +13,7 @@ HIGH_EXACT = {
     ".gitmodules",
     ".mcp.example.json",
     ".pre-commit-config.yaml",
+    "CONTRIBUTING.md",
     "DEVELOPMENT-WORKFLOW.md",
     "FEBuilderGBA.Core/CoreState.cs",
     "FEBuilderGBA.Core/DataExpansionCore.cs",
@@ -19,6 +21,9 @@ HIGH_EXACT = {
     "FEBuilderGBA.Core/Undo.cs",
     "FEBuilderGBA.sln",
     "commitlint.config.mjs",
+    "docs/DEPLOYMENT.md",
+    "docs/ENGINEERING-NOTES.md",
+    "docs/SECRET-SCANNING.md",
     "global.json",
     "release.ps1",
 }
@@ -37,6 +42,23 @@ HIGH_SUFFIXES = (
     "requirements.txt",
     "pyproject.toml",
 )
+
+HIGH_MANIFEST_NAMES = {
+    "Cargo.lock",
+    "Cargo.toml",
+    "Directory.Packages.props",
+    "NuGet.config",
+    "Pipfile",
+    "Pipfile.lock",
+    "go.mod",
+    "go.sum",
+    "package.json",
+    "pnpm-lock.yaml",
+    "poetry.lock",
+    "yarn.lock",
+}
+
+TRUSTED_ASSOCIATIONS = {"OWNER", "MEMBER", "COLLABORATOR"}
 
 LOW_EXACT = {
     "CHANGELOG.md",
@@ -64,6 +86,10 @@ def _is_high(path: str) -> bool:
     if path.endswith(HIGH_SUFFIXES):
         return True
     name = PurePosixPath(path).name
+    if name in HIGH_MANIFEST_NAMES:
+        return True
+    if name.startswith("requirements") and name.endswith(".txt"):
+        return True
     return (
         path.startswith("FEBuilderGBA.Core/")
         and name.startswith("ROMFE")
@@ -77,7 +103,20 @@ def _is_low(path: str) -> bool:
     )
 
 
-def classify_paths(paths: Iterable[str]) -> str:
+def classify_paths(
+    paths: Iterable[str],
+    *,
+    cross_repository: bool = False,
+    author_association: str | None = None,
+) -> str:
+    if cross_repository:
+        return "high"
+    if (
+        author_association is not None
+        and author_association.upper() not in TRUSTED_ASSOCIATIONS
+    ):
+        return "high"
+
     nonblank = [path for path in paths if path.strip()]
     normalized = [_normalize(path) for path in nonblank]
     if not normalized or any(path is None for path in normalized):
@@ -92,8 +131,23 @@ def classify_paths(paths: Iterable[str]) -> str:
 
 
 def main(argv: list[str]) -> int:
-    paths = argv[1:] if len(argv) > 1 else [line.rstrip("\n") for line in sys.stdin]
-    print(classify_paths(paths))
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--cross-repository",
+        choices=("true", "false"),
+        default="false",
+    )
+    parser.add_argument("--author-association")
+    parser.add_argument("paths", nargs="*")
+    args = parser.parse_args(argv[1:])
+    paths = args.paths or [line.rstrip("\n") for line in sys.stdin]
+    print(
+        classify_paths(
+            paths,
+            cross_repository=args.cross_repository == "true",
+            author_association=args.author_association,
+        )
+    )
     return 0
 
 

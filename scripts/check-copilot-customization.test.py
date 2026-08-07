@@ -102,6 +102,35 @@ class CheckCopilotCustomizationTests(unittest.TestCase):
             )
             self.assertIn("legacy .claude/skills must be removed", validate_repository(root))
 
+    def test_extra_project_skill_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            make_valid_repository(root)
+            extra = root / ".github" / "skills" / "extra-skill"
+            extra.mkdir(parents=True)
+            (extra / "SKILL.md").write_text(
+                SKILL.format(name="extra-skill"),
+                encoding="utf-8",
+            )
+            self.assertIn(
+                "unexpected project skill extra-skill",
+                validate_repository(root),
+            )
+
+    def test_body_only_skill_name_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            make_valid_repository(root)
+            skill = root / ".github" / "skills" / "dev-flow" / "SKILL.md"
+            skill.write_text(
+                "No frontmatter.\nname: dev-flow\n",
+                encoding="utf-8",
+            )
+            self.assertIn(
+                "project skill dev-flow has invalid frontmatter name",
+                validate_repository(root),
+            )
+
     def test_missing_disabled_skill_is_rejected(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

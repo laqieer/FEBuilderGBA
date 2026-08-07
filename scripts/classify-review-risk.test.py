@@ -43,6 +43,48 @@ class ClassifyReviewRiskTests(unittest.TestCase):
             classify_paths(["FEBuilderGBA.Core/FEBuilderGBA.Core.csproj"]),
         )
 
+    def test_package_manifest_is_high(self):
+        self.assertEqual(
+            "high",
+            classify_paths(["FEBuilderGBA.Browser/tests/smoke/package.json"]),
+        )
+
+    def test_versioned_requirements_file_is_high(self):
+        self.assertEqual(
+            "high",
+            classify_paths(["tools/gba-playtest/requirements-mgba-bootstrap.txt"]),
+        )
+
+    def test_release_policy_document_is_high(self):
+        self.assertEqual(
+            "high",
+            classify_paths(["docs/DEPLOYMENT.md"]),
+        )
+
+    def test_security_policy_document_is_high(self):
+        self.assertEqual(
+            "high",
+            classify_paths(["docs/SECRET-SCANNING.md"]),
+        )
+
+    def test_cross_repository_pr_is_high(self):
+        self.assertEqual(
+            "high",
+            classify_paths(["README.md"], cross_repository=True),
+        )
+
+    def test_untrusted_author_association_is_high(self):
+        self.assertEqual(
+            "high",
+            classify_paths(["README.md"], author_association="CONTRIBUTOR"),
+        )
+
+    def test_trusted_author_keeps_path_classification(self):
+        self.assertEqual(
+            "low",
+            classify_paths(["README.md"], author_association="MEMBER"),
+        )
+
     def test_repository_script_is_high(self):
         self.assertEqual(
             "high",

@@ -91,7 +91,7 @@ elif command -v gh &>/dev/null; then
 fi
 
 IS_FEAT_FIX=0
-if echo "$PR_TITLE" | grep -qiE "^(feat|fix)(\([^)]*\))?:"; then
+if echo "$PR_TITLE" | grep -qiE "^(feat|fix)(\([^)]*\))?!?:"; then
   IS_FEAT_FIX=1
 fi
 

@@ -135,7 +135,19 @@ run_case "gui_feat_with_empty_body" 1 \
   'feat(avalonia): add editor control' \
   'FEBuilderGBA.Avalonia/Views/UnitEditorView.axaml'
 
-# 14. Windows/MSYS paths are normalized for both body and changed-file inputs.
+# 14. Breaking conventional titles remain subject to GUI proof.
+run_case "breaking_gui_feat_without_image" 1 \
+  'No screenshot.' \
+  'feat!: replace editor' \
+  'FEBuilderGBA.Avalonia/Views/UnitEditorView.axaml'
+
+# 15. Scoped breaking titles remain subject to GUI proof.
+run_case "scoped_breaking_gui_fix_without_image" 1 \
+  'No screenshot.' \
+  'fix(avalonia)!: replace layout' \
+  'FEBuilderGBA.Avalonia/Views/UnitEditorView.axaml'
+
+# 16. Windows/MSYS paths are normalized for both body and changed-file inputs.
 if command -v cygpath >/dev/null 2>&1; then
   TOTAL=$((TOTAL + 1))
   body_file=$(mktemp)
