@@ -62,6 +62,22 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
+        public void DragDropFileHelper_RejectsNonLocalImageFiles()
+        {
+            IStorageFile nonLocal = CreateNonLocalStorageFile("portrait.png");
+            Assert.Null(nonLocal.TryGetLocalPath());
+
+            IDataTransfer transfer = MakeTransfer(nonLocal);
+
+            Assert.Null(DragDropFileHelper.GetFirstAcceptedPath(
+                transfer,
+                DragDropFileHelper.ImageExtensions));
+            Assert.False(DragDropFileHelper.HasAcceptedFile(
+                transfer,
+                DragDropFileHelper.ImageExtensions));
+        }
+
+        [Fact]
         public void DragDropFileHelper_RejectsNoFileData()
         {
             var transfer = new DataTransfer();
@@ -169,6 +185,44 @@ namespace FEBuilderGBA.Avalonia.Tests
                 binder: null,
                 args: new object[] { fileInfo },
                 culture: null)!;
+        }
+
+        static IStorageFile CreateNonLocalStorageFile(string fileName)
+        {
+            var proxy = DispatchProxy.Create<IStorageFile, FakeNonLocalStorageFileProxy>();
+            ((FakeNonLocalStorageFileProxy)(object)proxy).Initialize(fileName);
+            return proxy;
+        }
+
+        class FakeNonLocalStorageFileProxy : DispatchProxy
+        {
+            string? _name;
+            Uri? _path;
+
+            public void Initialize(string fileName)
+            {
+                _name = fileName;
+                _path = new Uri($"content://drag-drop/{fileName}");
+            }
+
+            protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+            {
+                string name = targetMethod?.Name ?? string.Empty;
+                return name switch
+                {
+                    "get_Name" => _name,
+                    "get_Path" => _path,
+                    "get_CanBookmark" => false,
+                    "GetBasicPropertiesAsync" => Task.FromResult(new StorageItemProperties(null, null, null)),
+                    "SaveBookmarkAsync" => Task.FromResult<string?>(string.Empty),
+                    "GetParentAsync" => Task.FromResult<IStorageFolder?>(null),
+                    "DeleteAsync" => Task.CompletedTask,
+                    "MoveAsync" => Task.FromResult<IStorageItem?>(null),
+                    "OpenReadAsync" => Task.FromResult<Stream>(Stream.Null),
+                    "OpenWriteAsync" => Task.FromResult<Stream>(Stream.Null),
+                    _ => null,
+                };
+            }
         }
     }
 }

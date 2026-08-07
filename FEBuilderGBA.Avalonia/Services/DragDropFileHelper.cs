@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using global::Avalonia.Input;
+using global::Avalonia.Platform.Storage;
 
 namespace FEBuilderGBA.Avalonia.Services
 {
@@ -27,7 +28,7 @@ namespace FEBuilderGBA.Avalonia.Services
 
             foreach (var file in files)
             {
-                string path = file.Path.LocalPath;
+                string? path = file.TryGetLocalPath();
                 if (string.IsNullOrEmpty(path))
                     continue;
 
