@@ -70,7 +70,7 @@ namespace FEBuilderGBA.Core.Tests
         // Undo.NewUndoData reads CoreState.ROM.Data.Length, so wire CoreState.ROM to
         // the synthetic rom for the call (restored by the caller's finally / by the
         // SharedState collection isolation).
-        static uint Run(ROM rom, string[] lines, uint instrument, out string error)
+        static uint Run(ROM rom, string[] lines, uint instrument, out string? error)
         {
             var savedRom = CoreState.ROM;
             try
@@ -117,7 +117,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ImportS_MinimalSong_RepointsSlotAndInstrument()
         {
             var rom = MakeRom();
-            uint header = Run(rom, MinimalSong(), INSTRUMENT, out string error);
+            uint header = Run(rom, MinimalSong(), INSTRUMENT, out string? error);
 
             Assert.NotEqual(U.NOT_FOUND, header);
             Assert.Null(error);
@@ -152,7 +152,7 @@ namespace FEBuilderGBA.Core.Tests
                 ".word song_grp_1",
                 ".end",
             };
-            uint header = Run(rom, lines, INSTRUMENT, out string error);
+            uint header = Run(rom, lines, INSTRUMENT, out string? error);
             Assert.NotEqual(U.NOT_FOUND, header);
             Assert.Equal(INSTRUMENT, rom.p32(rom.p32(SLOT) + 4));
         }
@@ -180,7 +180,7 @@ namespace FEBuilderGBA.Core.Tests
                 ".word song_grp_1",
                 ".end",
             };
-            uint header = Run(rom, lines, INSTRUMENT, out string error);
+            uint header = Run(rom, lines, INSTRUMENT, out string? error);
             Assert.NotEqual(U.NOT_FOUND, header);
             Assert.Null(error);
             // The first byte of the new header is 0x33 (ABC), the second 0x11 (AB).
@@ -206,7 +206,7 @@ namespace FEBuilderGBA.Core.Tests
                 ".word song_grp_1",
                 ".end",
             };
-            uint header = Run(rom, lines, INSTRUMENT, out string error);
+            uint header = Run(rom, lines, INSTRUMENT, out string? error);
             Assert.NotEqual(U.NOT_FOUND, header);
             Assert.Null(error);
             Assert.Equal(0xFFu, rom.u8(header + 0));
@@ -230,7 +230,7 @@ namespace FEBuilderGBA.Core.Tests
                 ".word song_grp_1",
                 ".end",
             };
-            uint header = Run(rom, lines, INSTRUMENT, out string error);
+            uint header = Run(rom, lines, INSTRUMENT, out string? error);
             Assert.NotEqual(U.NOT_FOUND, header);
             Assert.Equal(0x15u, rom.u8(header + 0));
         }
@@ -272,7 +272,7 @@ namespace FEBuilderGBA.Core.Tests
                 ".word song_grp_1",       // cross-global back-ref -> global 0 base
                 ".end",
             };
-            uint header = Run(rom, lines, INSTRUMENT, out string error);
+            uint header = Run(rom, lines, INSTRUMENT, out string? error);
             Assert.NotEqual(U.NOT_FOUND, header);
             Assert.Null(error);
 
@@ -311,7 +311,7 @@ namespace FEBuilderGBA.Core.Tests
                 ".word song_grp_1",
                 ".end",
             };
-            uint header = Run(rom, lines, INSTRUMENT, out string error);
+            uint header = Run(rom, lines, INSTRUMENT, out string? error);
             Assert.NotEqual(U.NOT_FOUND, header);
             Assert.Null(error);
             // The first byte is the trackcount=1 — the ignored .align did not inject bytes.
@@ -342,7 +342,7 @@ namespace FEBuilderGBA.Core.Tests
                 ".word badref",               // absolute .equ value, NOT a label
                 ".end",
             };
-            uint header = Run(rom, lines, INSTRUMENT, out string error);
+            uint header = Run(rom, lines, INSTRUMENT, out string? error);
 
             Assert.Equal(U.NOT_FOUND, header);
             Assert.NotNull(error);
@@ -375,7 +375,7 @@ namespace FEBuilderGBA.Core.Tests
                 ".word " + wordToken,         // absolute / numeric / arithmetic -> reject
                 ".end",
             };
-            uint header = Run(rom, lines, INSTRUMENT, out string error);
+            uint header = Run(rom, lines, INSTRUMENT, out string? error);
 
             Assert.Equal(U.NOT_FOUND, header);
             Assert.NotNull(error);
@@ -398,7 +398,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 ".global song_grp",
             };
-            uint header = Run(rom, lines, INSTRUMENT, out string error);
+            uint header = Run(rom, lines, INSTRUMENT, out string? error);
             Assert.Equal(U.NOT_FOUND, header);
             Assert.NotNull(error);
             Assert.True(before.SequenceEqual(rom.Data));
@@ -416,7 +416,7 @@ namespace FEBuilderGBA.Core.Tests
             rom.write_u32(SLOT, 0);
             byte[] before = (byte[])rom.Data.Clone();
 
-            uint header = Run(rom, MinimalSong(), INSTRUMENT, out string error);
+            uint header = Run(rom, MinimalSong(), INSTRUMENT, out string? error);
             Assert.Equal(U.NOT_FOUND, header);
             Assert.NotNull(error);
             Assert.True(before.SequenceEqual(rom.Data));
@@ -428,7 +428,7 @@ namespace FEBuilderGBA.Core.Tests
             var rom = MakeRom();
             byte[] before = (byte[])rom.Data.Clone();
             // An instrument offset past EOF -> isSafetyOffset fails -> ZERO mutation.
-            uint header = Run(rom, MinimalSong(), ROM_LEN + 0x100, out string error);
+            uint header = Run(rom, MinimalSong(), ROM_LEN + 0x100, out string? error);
             Assert.Equal(U.NOT_FOUND, header);
             Assert.NotNull(error);
             Assert.True(before.SequenceEqual(rom.Data));
@@ -510,8 +510,8 @@ namespace FEBuilderGBA.Core.Tests
                 var rom = MakeRom();
                 CoreState.ROM = rom;
                 var (idx, files) = MakeInstrumentIndex();
-                Func<string, string[]> readLines = n => idx.TryGetValue(n, out var l) ? l : null;
-                Func<string, byte[]> readFile = n => files.TryGetValue(n, out var b) ? b : null;
+                Func<string, string[]?> readLines = n => idx.TryGetValue(n, out var l) ? l : null;
+                Func<string, byte[]?> readFile = n => files.TryGetValue(n, out var b) ? b : null;
 
                 var undo = new Undo();
                 var undoData = undo.NewUndoData("inst");
@@ -519,8 +519,8 @@ namespace FEBuilderGBA.Core.Tests
                 using (ROM.BeginUndoScope(undoData))
                 {
                     importedBase = SongInstrumentSetCore.ImportAll(
-                        rom, "vg.instrument", readLines, readFile, null!, out string err);
-                    Assert.Equal((string)null, err);
+                        rom, "vg.instrument", readLines, readFile, null, out string? err);
+                    Assert.Null(err);
                     Assert.NotEqual(U.NOT_FOUND, importedBase);
 
                     // Repoint the selected song header's voicegroup pointer (+4) — the

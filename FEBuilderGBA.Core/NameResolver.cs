@@ -477,7 +477,7 @@ namespace FEBuilderGBA
                 var resolver = CoreState.SkillNameResolver;
                 if (resolver != null)
                 {
-                    string name = resolver(id);
+                    string? name = resolver(id);
                     if (!string.IsNullOrEmpty(name))
                         return name;
                 }

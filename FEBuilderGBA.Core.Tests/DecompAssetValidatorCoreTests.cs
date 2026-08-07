@@ -480,7 +480,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             // Proof the validator path never touches the ROM: its source text contains no
             // reference to CoreState.ROM. (The validator takes a path, not a ROM.)
-            string root = FindRepoRoot();
+            string? root = FindRepoRoot();
             Skip.If(root == null, "repo root not found");
             string src = Path.Combine(root, "FEBuilderGBA.Core", "DecompAssetValidatorCore.cs");
             Skip.If(!File.Exists(src), "validator source not found");
@@ -497,7 +497,7 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
-        static string FindRepoRoot()
+        static string? FindRepoRoot()
         {
             var dir = new DirectoryInfo(AppContext.BaseDirectory);
             while (dir != null)
@@ -596,10 +596,10 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ParseKind_ObjTiles()
         {
-            Assert.Equal(AssetKind.ObjTiles, DecompAssetValidatorCore.ParseKind("objtiles").Value);
-            Assert.Equal(AssetKind.ObjTiles, DecompAssetValidatorCore.ParseKind("obj-tiles").Value);
-            Assert.Equal(AssetKind.ObjTiles, DecompAssetValidatorCore.ParseKind("obj").Value);
-            Assert.Equal(AssetKind.ObjTiles, DecompAssetValidatorCore.ParseKind("OBJ").Value);
+            AssertParsedKind(AssetKind.ObjTiles, "objtiles");
+            AssertParsedKind(AssetKind.ObjTiles, "obj-tiles");
+            AssertParsedKind(AssetKind.ObjTiles, "obj");
+            AssertParsedKind(AssetKind.ObjTiles, "OBJ");
         }
 
         // ---- MapChipConfig validator (#1375) — structural TWIN of ObjTiles ----
@@ -690,10 +690,10 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ParseKind_MapChipConfig()
         {
-            Assert.Equal(AssetKind.MapChipConfig, DecompAssetValidatorCore.ParseKind("mapchipconfig").Value);
-            Assert.Equal(AssetKind.MapChipConfig, DecompAssetValidatorCore.ParseKind("mapchip-config").Value);
-            Assert.Equal(AssetKind.MapChipConfig, DecompAssetValidatorCore.ParseKind("chipconfig").Value);
-            Assert.Equal(AssetKind.MapChipConfig, DecompAssetValidatorCore.ParseKind("MAPCHIPCONFIG").Value);
+            AssertParsedKind(AssetKind.MapChipConfig, "mapchipconfig");
+            AssertParsedKind(AssetKind.MapChipConfig, "mapchip-config");
+            AssertParsedKind(AssetKind.MapChipConfig, "chipconfig");
+            AssertParsedKind(AssetKind.MapChipConfig, "MAPCHIPCONFIG");
         }
 
         // ---- MapTileAnimation1Graphics validator (#1389) — RAW twin of mapchange/mapanime2pal ----
@@ -808,10 +808,15 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ParseKind_MapAnime1Gfx()
         {
-            Assert.Equal(AssetKind.MapTileAnimation1Graphics, DecompAssetValidatorCore.ParseKind("mapanime1gfx").Value);
-            Assert.Equal(AssetKind.MapTileAnimation1Graphics, DecompAssetValidatorCore.ParseKind("map-tileanime1-graphics").Value);
-            Assert.Equal(AssetKind.MapTileAnimation1Graphics, DecompAssetValidatorCore.ParseKind("anime1gfx").Value);
-            Assert.Equal(AssetKind.MapTileAnimation1Graphics, DecompAssetValidatorCore.ParseKind("MAPANIME1GFX").Value);
+            AssertParsedKind(AssetKind.MapTileAnimation1Graphics, "mapanime1gfx");
+            AssertParsedKind(AssetKind.MapTileAnimation1Graphics, "map-tileanime1-graphics");
+            AssertParsedKind(AssetKind.MapTileAnimation1Graphics, "anime1gfx");
+            AssertParsedKind(AssetKind.MapTileAnimation1Graphics, "MAPANIME1GFX");
+        }
+
+        static void AssertParsedKind(AssetKind expected, string text)
+        {
+            Assert.Equal(expected, TestRequire.HasValue(DecompAssetValidatorCore.ParseKind(text), text));
         }
     }
 }

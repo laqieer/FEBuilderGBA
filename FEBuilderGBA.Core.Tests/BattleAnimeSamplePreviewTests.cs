@@ -31,7 +31,7 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ImageService = _prevService;
+            TestRequire.RestoreImageService(_prevService);
             CoreState.ROM = _prevRom;
         }
 
@@ -607,7 +607,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RenderSample_RealRom_ProducesValid360x290Grid()
         {
-            string romPath = FindTestRom();
+            string? romPath = FindTestRom();
             if (romPath == null) return; // skip if no ROM available
 
             var rom = new ROM();
@@ -623,7 +623,7 @@ namespace FEBuilderGBA.Core.Tests
             // Walk the animation table; render the sample grid for the first
             // record that yields a non-null preview (mirrors WF DrawSample).
             const uint recordSize = 32;
-            IImage grid = null;
+            IImage? grid = null;
             int validRecords = 0;
             for (int i = 0; i < 512; i++)
             {
@@ -655,7 +655,7 @@ namespace FEBuilderGBA.Core.Tests
             // anims are single-bank), but the call must succeed for both and the
             // grids must have matching dimensions. (Smoke-tests the paletteIndex
             // slice path against real LZ77 palette blocks.)
-            string romPath = FindTestRom();
+            string? romPath = FindTestRom();
             if (romPath == null) return;
 
             var rom = new ROM();
@@ -691,10 +691,10 @@ namespace FEBuilderGBA.Core.Tests
         /// Locate a test ROM by walking up from the test assembly directory.
         /// Returns the first preferred *.gba found in roms/, or null.
         /// </summary>
-        static string FindTestRom()
+        static string? FindTestRom()
         {
             string thisAssembly = System.Reflection.Assembly.GetExecutingAssembly().Location;
-            string dir = System.IO.Path.GetDirectoryName(thisAssembly);
+            string? dir = System.IO.Path.GetDirectoryName(thisAssembly);
             for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (System.IO.File.Exists(System.IO.Path.Combine(dir, "FEBuilderGBA.sln")))

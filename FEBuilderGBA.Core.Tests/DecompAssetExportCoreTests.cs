@@ -85,7 +85,7 @@ namespace FEBuilderGBA.Core.Tests
                 string result = DecompAssetExportCore.ResolveSourcePath(proj, "../outside.pal");
                 Assert.Null(result);
                 // No file created outside the project root
-                string outside = Path.Combine(Path.GetDirectoryName(dir)!, "outside.pal");
+                string outside = Path.Combine(TestRequire.DirectoryName(dir), "outside.pal");
                 Assert.False(File.Exists(outside));
             }
             finally { Directory.Delete(dir, true); }

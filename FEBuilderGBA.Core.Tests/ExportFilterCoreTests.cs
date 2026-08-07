@@ -28,10 +28,10 @@ namespace FEBuilderGBA.Core.Tests
         // -----------------------------------------------------------------
         // Real-ROM full-init harness (mirrors BGReferenceFinderTests).
         // -----------------------------------------------------------------
-        static string FindRom(string romName)
+        static string? FindRom(string romName)
         {
             string thisAssembly = Assembly.GetExecutingAssembly().Location;
-            string dir = Path.GetDirectoryName(thisAssembly);
+            string? dir = Path.GetDirectoryName(thisAssembly);
             for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
@@ -52,7 +52,7 @@ namespace FEBuilderGBA.Core.Tests
         /// </summary>
         static bool WithRealRom(string romName, System.Action<ROM> body)
         {
-            string romPath = FindRom(romName);
+            string? romPath = FindRom(romName);
             if (romPath == null) return false;
 
             var savedRom = CoreState.ROM;
@@ -62,7 +62,7 @@ namespace FEBuilderGBA.Core.Tests
             var savedBaseDir = CoreState.BaseDirectory;
             try
             {
-                string asmDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                string asmDir = TestRequire.DirectoryName(Assembly.GetExecutingAssembly().Location);
                 Assert.NotNull(asmDir);
                 CoreState.BaseDirectory = asmDir;
 

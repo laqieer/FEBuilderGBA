@@ -520,13 +520,13 @@ namespace FEBuilderGBA.Core.Tests
 
         sealed class ImageServiceScope : System.IDisposable
         {
-            readonly IImageService _prev;
+            readonly IImageService? _prev;
             public ImageServiceScope()
             {
                 _prev = CoreState.ImageService;
                 CoreState.ImageService = new StubImageService();
             }
-            public void Dispose() { CoreState.ImageService = _prev; }
+            public void Dispose() { TestRequire.RestoreImageService(_prev); }
         }
 
         static void AssertPixel(IImage img, int x, int y, int r, int g, int b, int a)
@@ -602,7 +602,7 @@ namespace FEBuilderGBA.Core.Tests
 
         static string FindRepoRoot()
         {
-            string dir = AppContext.BaseDirectory;
+            string? dir = AppContext.BaseDirectory;
             while (dir != null && !System.IO.File.Exists(System.IO.Path.Combine(dir, "FEBuilderGBA.sln")))
                 dir = System.IO.Path.GetDirectoryName(dir);
             if (dir == null)

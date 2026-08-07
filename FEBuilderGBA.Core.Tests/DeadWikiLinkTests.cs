@@ -45,7 +45,7 @@ namespace FEBuilderGBA.Core.Tests
             ".cs", ".md", ".axaml",
         };
 
-        private static string FindRepoRoot()
+        private static string? FindRepoRoot()
         {
             var dir = AppContext.BaseDirectory;
             for (int i = 0; i < 12; i++)

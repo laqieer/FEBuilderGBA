@@ -42,7 +42,8 @@ namespace FEBuilderGBA.Core.Tests
             var rom = new ROM();
             bool ok = rom.LoadLow("synthetic-FE8.gba", data, "BE8E01");
             CoreState.ROM = rom;
-            return ok ? rom : null;
+            if (!ok) throw new InvalidOperationException("Synthetic ROM failed to load.");
+            return rom;
         }
 
         static Undo.UndoData NewUndo(ROM rom) => new Undo.UndoData
@@ -236,9 +237,10 @@ namespace FEBuilderGBA.Core.Tests
         [SkippableFact]
         public void Build_EATarget_RealColorzCore_LoadsBuiltRom_Undoable()
         {
-            string exe = FindBuiltColorzCore();
+            string? exe = FindBuiltColorzCore();
             Skip.If(exe == null,
                 "ColorzCore.exe not built — skipping the real EA-build round-trip (the deterministic resolve/validate/error tests still cover our logic).");
+                exe = TestRequire.NotNull(exe, "ColorzCore path");
 
             var rom = CreateFE8Rom();
             Assert.NotNull(rom);
@@ -284,9 +286,9 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
-        static string FindBuiltColorzCore()
+        static string? FindBuiltColorzCore()
         {
-            string dir = AppContext.BaseDirectory;
+            string? dir = AppContext.BaseDirectory;
             for (int i = 0; i < 12 && dir != null; i++)
             {
                 foreach (string config in new[] { "Release", "Debug" })

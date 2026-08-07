@@ -746,7 +746,7 @@ namespace FEBuilderGBA
         /// production behavior is unchanged). Never affects which authoritative payload
         /// ranges are emitted — only their advisory category/confidence/suggestion.
         /// </summary>
-        internal RangeClassifierOverride ClassifierOverrideForTest { get; set; }
+        internal RangeClassifierOverride? ClassifierOverrideForTest { get; set; }
 
         /// <summary>
         /// Internal patch-directory-listing override for deterministic enumeration-failure

@@ -424,7 +424,7 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.ROM = prevRom;
-                CoreState.ImageService = prevSvc;
+                TestRequire.RestoreImageService(prevSvc);
                 CoreState.Undo = prevUndo;
                 CoreState.BaseDirectory = prevBase;
             }
@@ -667,7 +667,7 @@ namespace FEBuilderGBA.Core.Tests
                     ? CoreState.Undo.NewUndoData("BulkForcedFaultTest")
                     : new Undo.UndoData();
 
-                string fault = null;
+                string? fault = null;
                 try
                 {
                     using (ROM.BeginUndoScope(bulkUndo))
@@ -1125,7 +1125,7 @@ namespace FEBuilderGBA.Core.Tests
         static string FindRepoRoot()
         {
             string asm = Assembly.GetExecutingAssembly().Location;
-            string dir = Path.GetDirectoryName(asm);
+            string? dir = Path.GetDirectoryName(asm);
             for (int i = 0; i < 12 && dir != null; i++)
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))

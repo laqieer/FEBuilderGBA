@@ -298,7 +298,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RealRom_FE8U_GenerateButtons_ProducesDisassemblableBytes()
         {
-            string romPath = FindRom("FE8U.gba");
+            string? romPath = FindRom("FE8U.gba");
             if (romPath == null) return; // skip when no ROM available
 
             var savedRom = CoreState.ROM;
@@ -308,7 +308,7 @@ namespace FEBuilderGBA.Core.Tests
             var savedBaseDir = CoreState.BaseDirectory;
             try
             {
-                string asmDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                string asmDir = TestRequire.DirectoryName(Assembly.GetExecutingAssembly().Location);
                 Assert.NotNull(asmDir);
                 CoreState.BaseDirectory = FindRepoConfigBase() ?? asmDir;
 
@@ -351,7 +351,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RealRom_FE8U_Browser_ContextRequiredTemplates_DoNotEmitPartialBytes()
         {
-            string romPath = FindRom("FE8U.gba");
+            string? romPath = FindRom("FE8U.gba");
             if (romPath == null) return; // skip
 
             var savedRom = CoreState.ROM;
@@ -455,7 +455,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RealRom_FE8U_TryGenerateButtonCodes_ReturnsRoundTrippingCodes()
         {
-            string romPath = FindRom("FE8U.gba");
+            string? romPath = FindRom("FE8U.gba");
             if (romPath == null) return; // skip when no ROM available
 
             var savedRom = CoreState.ROM;
@@ -502,7 +502,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RealRom_FE8U_BrowserCodes_ContextRequired_ReturnsEmptyAndGated()
         {
-            string romPath = FindRom("FE8U.gba");
+            string? romPath = FindRom("FE8U.gba");
             if (romPath == null) return; // skip
 
             var savedRom = CoreState.ROM;
@@ -547,7 +547,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RealRom_FE8U_BrowserWithContext_CondTemplate_SubstitutesAndRoundTrips()
         {
-            string romPath = FindRom("FE8U.gba");
+            string? romPath = FindRom("FE8U.gba");
             if (romPath == null) return; // skip when no ROM available
 
             var savedRom = CoreState.ROM;
@@ -611,7 +611,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RealRom_FE8U_FindMapID_ResolvesAndDrivesEndEvent()
         {
-            string romPath = FindRom("FE8U.gba");
+            string? romPath = FindRom("FE8U.gba");
             if (romPath == null) return; // skip
 
             var savedRom = CoreState.ROM;
@@ -667,9 +667,9 @@ namespace FEBuilderGBA.Core.Tests
 
         // ---- helpers ------------------------------------------------------
 
-        static string FindRom(string romName)
+        static string? FindRom(string romName)
         {
-            string dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            string? dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
@@ -684,9 +684,9 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // Repo root that has config/data (so template_event_* configs resolve).
-        static string FindRepoConfigBase()
+        static string? FindRepoConfigBase()
         {
-            string dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            string? dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")) &&

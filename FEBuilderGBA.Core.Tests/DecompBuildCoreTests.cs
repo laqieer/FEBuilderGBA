@@ -386,7 +386,7 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.NotNull(project);
                 project!.NeedsRebuild = true;
 
-                string seenForceVersion = null;
+                string? seenForceVersion = null;
                 var status = DecompBuildCore.ReloadBuiltRom(project, (p, fv) =>
                 {
                     seenForceVersion = fv;

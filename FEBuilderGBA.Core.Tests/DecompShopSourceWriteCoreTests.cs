@@ -51,13 +51,14 @@ namespace FEBuilderGBA.Core.Tests
         {
             string manifest =
                 "{ \"schemaVersion\": 1, \"builtRom\": \"rom.gba\", \"tables\": " + tablesJson + " }";
-            return System.Text.Json.JsonSerializer.Deserialize<DecompManifest>(
+            DecompManifest? parsed = System.Text.Json.JsonSerializer.Deserialize<DecompManifest>(
                 manifest, new System.Text.Json.JsonSerializerOptions
                 {
                     PropertyNameCaseInsensitive = true,
                     ReadCommentHandling = System.Text.Json.JsonCommentHandling.Skip,
                     AllowTrailingCommas = true,
                 });
+            return TestRequire.NotNull(parsed, "manifest");
         }
 
         sealed class Fixture : IDisposable
@@ -83,7 +84,7 @@ namespace FEBuilderGBA.Core.Tests
                 "[ { \"name\": \"" + symbolName + "\", \"addr\": \"0x08001000\", \"size\": 6 } ]");
             // Source file under src/.
             string srcAbs = Path.Combine(dir, "src", "shop.c");
-            Directory.CreateDirectory(Path.GetDirectoryName(srcAbs));
+            Directory.CreateDirectory(TestRequire.DirectoryName(srcAbs));
             File.WriteAllText(srcAbs, srcBody);
 
             var project = new DecompProject
@@ -155,7 +156,7 @@ namespace FEBuilderGBA.Core.Tests
         static void WriteDefaultHeader(Fixture fx, string headerText)
         {
             string headerAbs = Path.Combine(fx.Dir, "include", "constants", "items.h");
-            Directory.CreateDirectory(Path.GetDirectoryName(headerAbs));
+            Directory.CreateDirectory(TestRequire.DirectoryName(headerAbs));
             File.WriteAllText(headerAbs, headerText);
         }
 

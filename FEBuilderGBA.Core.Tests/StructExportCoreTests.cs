@@ -9,11 +9,11 @@ namespace FEBuilderGBA.Core.Tests
     [Collection("SharedState")]
     public class StructExportCoreTests
     {
-        static string FindRepoRoot()
+        static string? FindRepoRoot()
         {
             // Walk up from test assembly to find the repo root (where config/ exists)
-            string dir = AppContext.BaseDirectory;
-            for (int i = 0; i < 10; i++)
+            string? dir = AppContext.BaseDirectory;
+            for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (Directory.Exists(Path.Combine(dir, "config", "data")))
                     return dir;
@@ -26,14 +26,14 @@ namespace FEBuilderGBA.Core.Tests
         static void EnsureBaseDirectory()
         {
             if (CoreState.BaseDirectory != null) return;
-            string root = FindRepoRoot();
+            string? root = FindRepoRoot();
             if (root != null)
                 CoreState.BaseDirectory = root;
         }
 
         static StructMetadata.StructDef LoadMetadataStruct(string fileName, string structName)
         {
-            string root = FindRepoRoot();
+            string? root = FindRepoRoot();
             Assert.False(string.IsNullOrEmpty(root), "Repository root with config/data must be available.");
 
             string path = Path.Combine(root, "config", "data", fileName);
@@ -615,9 +615,9 @@ namespace FEBuilderGBA.Core.Tests
         // ====================================================================
 
         /// <summary>Locate a preferred test ROM by walking up to the repo root.</summary>
-        static string FindTestRom()
+        static string? FindTestRom()
         {
-            string dir = AppContext.BaseDirectory;
+            string? dir = AppContext.BaseDirectory;
             for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
@@ -648,7 +648,7 @@ namespace FEBuilderGBA.Core.Tests
         /// </summary>
         static void WithRealRom(Action<ROM> action)
         {
-            string romPath = FindTestRom();
+            string? romPath = FindTestRom();
             if (romPath == null) return; // skip — no ROM
 
             EnsureBaseDirectory();

@@ -41,7 +41,7 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ImageService = _prevService;
+            TestRequire.RestoreImageService(_prevService);
             CoreState.ROM = _prevRom;
         }
 
@@ -49,10 +49,10 @@ namespace FEBuilderGBA.Core.Tests
         // Helper: find a named ROM file by walking up from the test assembly.
         // Returns null when not found — all callers skip gracefully on null.
         // ====================================================================
-        static string FindRom(string romName)
+        static string? FindRom(string romName)
         {
             string thisAssembly = Assembly.GetExecutingAssembly().Location;
-            string dir = Path.GetDirectoryName(thisAssembly);
+            string? dir = Path.GetDirectoryName(thisAssembly);
             for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
@@ -129,7 +129,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RealRom_FE6_Map0_NonNullAndCorrectDimensions()
         {
-            string romPath = FindRom("FE6.gba");
+            string? romPath = FindRom("FE6.gba");
             if (romPath == null) return; // skip
 
             var rom = new ROM();
@@ -155,7 +155,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RealRom_FE7U_Map0_NonNullAndCorrectDimensions()
         {
-            string romPath = FindRom("FE7U.gba");
+            string? romPath = FindRom("FE7U.gba");
             if (romPath == null) return;
 
             var rom = new ROM();
@@ -180,7 +180,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RealRom_FE8U_Map0_NonNullAndCorrectDimensions()
         {
-            string romPath = FindRom("FE8U.gba");
+            string? romPath = FindRom("FE8U.gba");
             if (romPath == null) return;
 
             var rom = new ROM();
@@ -355,7 +355,7 @@ namespace FEBuilderGBA.Core.Tests
             CoreState.ROM = rom;
 
             // Pass ROM-end offsets — must return null, never throw.
-            IImage img = null;
+            IImage? img = null;
             var ex = Record.Exception(() =>
             {
                 img = MapRenderCore.RenderMapImage(rom,
@@ -400,7 +400,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             PlantBytes(rom, 0x800, LZ77.compress(marData));
 
-            IImage img = null;
+            IImage? img = null;
             var ex = Record.Exception(() =>
             {
                 img = MapRenderCore.RenderMapImage(rom, 0x200, 0x400, 0x600, 0x800);

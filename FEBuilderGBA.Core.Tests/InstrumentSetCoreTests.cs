@@ -38,11 +38,11 @@ namespace FEBuilderGBA.Core.Tests
         // has config/data (git-tracked) but no roms/ (gitignored) — so we keep
         // walking and prefer the first ancestor that ALSO has roms/, falling
         // back to the nearest config/data root for config-file resolution.
-        static string FindRepoRoot()
+        static string? FindRepoRoot()
         {
-            string dir = AppContext.BaseDirectory;
-            string firstConfigRoot = null;
-            for (int i = 0; i < 12; i++)
+            string? dir = AppContext.BaseDirectory;
+            string? firstConfigRoot = null;
+            for (int i = 0; i < 12 && dir != null; i++)
             {
                 if (Directory.Exists(Path.Combine(dir, "config", "data")))
                 {
@@ -50,7 +50,7 @@ namespace FEBuilderGBA.Core.Tests
                     if (Directory.Exists(Path.Combine(dir, "roms")))
                         return dir;
                 }
-                string parent = Path.GetDirectoryName(dir);
+                string? parent = Path.GetDirectoryName(dir);
                 if (parent == null) break;
                 dir = parent;
             }
@@ -60,14 +60,14 @@ namespace FEBuilderGBA.Core.Tests
         // Resolve a ROM file. config-data files come from FindRepoRoot()'s
         // config dir; the ROM itself may live in a parent (main) checkout's
         // roms/ when running from a worktree.
-        static string FindRom(string romName)
+        static string? FindRom(string romName)
         {
-            string dir = AppContext.BaseDirectory;
-            for (int i = 0; i < 12; i++)
+            string? dir = AppContext.BaseDirectory;
+            for (int i = 0; i < 12 && dir != null; i++)
             {
                 string path = Path.Combine(dir, "roms", romName);
                 if (File.Exists(path)) return path;
-                string parent = Path.GetDirectoryName(dir);
+                string? parent = Path.GetDirectoryName(dir);
                 if (parent == null) break;
                 dir = parent;
             }
@@ -97,7 +97,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void SearchInstrumentSet_VanillaFE8U_ReturnsSeedOnly()
         {
-            string romPath = FindRom("FE8U.gba");
+            string? romPath = FindRom("FE8U.gba");
             if (romPath == null)
             {
                 _output.WriteLine("SKIP: FE8U.gba not found");
@@ -108,7 +108,7 @@ namespace FEBuilderGBA.Core.Tests
             var savedBase = CoreState.BaseDirectory;
             try
             {
-                CoreState.BaseDirectory = FindRepoRoot();
+                CoreState.BaseDirectory = TestRequire.NotNull(FindRepoRoot(), "repo root");
                 var rom = new ROM();
                 rom.Load(romPath, out _);
                 CoreState.ROM = rom;
@@ -149,7 +149,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void SearchInstrumentSet_InjectedSignatures_DiscoversSetsAndAppliesRules()
         {
-            string romPath = FindRom("FE8U.gba");
+            string? romPath = FindRom("FE8U.gba");
             if (romPath == null)
             {
                 _output.WriteLine("SKIP: FE8U.gba not found");
@@ -160,7 +160,7 @@ namespace FEBuilderGBA.Core.Tests
             var savedBase = CoreState.BaseDirectory;
             try
             {
-                CoreState.BaseDirectory = FindRepoRoot();
+                CoreState.BaseDirectory = TestRequire.NotNull(FindRepoRoot(), "repo root");
                 var rom = new ROM();
                 rom.Load(romPath, out _);
 
@@ -226,7 +226,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void SearchInstrumentSet_FE8U_IsMemoised()
         {
-            string romPath = FindRom("FE8U.gba");
+            string? romPath = FindRom("FE8U.gba");
             if (romPath == null)
             {
                 _output.WriteLine("SKIP: FE8U.gba not found");
@@ -237,7 +237,7 @@ namespace FEBuilderGBA.Core.Tests
             var savedBase = CoreState.BaseDirectory;
             try
             {
-                CoreState.BaseDirectory = FindRepoRoot();
+                CoreState.BaseDirectory = TestRequire.NotNull(FindRepoRoot(), "repo root");
                 var rom = new ROM();
                 rom.Load(romPath, out _);
                 CoreState.ROM = rom;

@@ -739,7 +739,7 @@ namespace FEBuilderGBA.Core.Tests
                 source,
                 seed: 123,
                 cts.Token,
-                out BuiltInRandomMapGenerationResult result,
+                out BuiltInRandomMapGenerationResult? result,
                 out string error);
 
             Assert.True(resolved);

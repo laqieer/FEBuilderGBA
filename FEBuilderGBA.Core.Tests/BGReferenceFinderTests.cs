@@ -50,7 +50,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RealRom_FE8U_MakeListByUseBG_FindsReferencedBg_HighIdEmpty_CacheReuse()
         {
-            string romPath = FindRom("FE8U.gba");
+            string? romPath = FindRom("FE8U.gba");
             if (romPath == null) return; // skip
 
             var savedRom = CoreState.ROM;
@@ -60,7 +60,7 @@ namespace FEBuilderGBA.Core.Tests
             var savedBaseDir = CoreState.BaseDirectory;
             try
             {
-                string asmDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                string asmDir = TestRequire.DirectoryName(Assembly.GetExecutingAssembly().Location);
                 Assert.NotNull(asmDir);
                 CoreState.BaseDirectory = asmDir;
 
@@ -130,7 +130,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RealRom_FE8U_NotReadyThenReady_RebuildsAndPopulates()
         {
-            string romPath = FindRom("FE8U.gba");
+            string? romPath = FindRom("FE8U.gba");
             if (romPath == null) return; // skip
 
             ROM? savedRom = CoreState.ROM;
@@ -140,7 +140,7 @@ namespace FEBuilderGBA.Core.Tests
             var savedBaseDir = CoreState.BaseDirectory;
             try
             {
-                string asmDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                string asmDir = TestRequire.DirectoryName(Assembly.GetExecutingAssembly().Location);
                 Assert.NotNull(asmDir);
                 CoreState.BaseDirectory = asmDir;
 
@@ -218,10 +218,10 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
-        static string FindRom(string romName)
+        static string? FindRom(string romName)
         {
             string thisAssembly = Assembly.GetExecutingAssembly().Location;
-            string dir = Path.GetDirectoryName(thisAssembly);
+            string? dir = Path.GetDirectoryName(thisAssembly);
             for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))

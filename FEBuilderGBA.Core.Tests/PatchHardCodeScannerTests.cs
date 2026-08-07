@@ -638,10 +638,10 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RealRom_FE8U_FlagsAtLeastOneUnit()
         {
-            string romPath = FindRom("FE8U.gba");
+            string? romPath = FindRom("FE8U.gba");
             if (romPath == null) return; // skip when ROM fixture absent
 
-            string patchDir = FindRepoPatch2("FE8U");
+            string? patchDir = FindRepoPatch2("FE8U");
             if (patchDir == null) return; // skip when config/patch2 submodule absent
 
             string savedBase = CoreState.BaseDirectory;
@@ -650,7 +650,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 // point BaseDirectory at the repo root so the resolver finds the
                 // real config/patch2/FE8U.
-                CoreState.BaseDirectory = RepoRoot();
+                CoreState.BaseDirectory = TestRequire.NotNull(RepoRoot(), "repo root");
                 CoreState.Language = "en";
 
                 var rom = new ROM();
@@ -684,9 +684,9 @@ namespace FEBuilderGBA.Core.Tests
             try { if (Directory.Exists(dir)) Directory.Delete(dir, true); } catch { }
         }
 
-        static string RepoRoot()
+        static string? RepoRoot()
         {
-            string dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            string? dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
@@ -696,17 +696,17 @@ namespace FEBuilderGBA.Core.Tests
             return null;
         }
 
-        static string FindRom(string romName)
+        static string? FindRom(string romName)
         {
-            string root = RepoRoot();
+            string? root = RepoRoot();
             if (root == null) return null;
             string path = Path.Combine(root, "roms", romName);
             return File.Exists(path) ? path : null;
         }
 
-        static string FindRepoPatch2(string version)
+        static string? FindRepoPatch2(string version)
         {
-            string root = RepoRoot();
+            string? root = RepoRoot();
             if (root == null) return null;
             string path = Path.Combine(root, "config", "patch2", version);
             return Directory.Exists(path) ? path : null;

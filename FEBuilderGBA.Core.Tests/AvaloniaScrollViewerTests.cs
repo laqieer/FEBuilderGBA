@@ -12,12 +12,13 @@ namespace FEBuilderGBA.Core.Tests
     /// </summary>
     public class AvaloniaScrollViewerTests
     {
-        private static string GetViewsDirectory()
+        private static string? GetViewsDirectory()
         {
             // Walk up from bin/Debug/net10.0 to find the repo root
-            var dir = AppContext.BaseDirectory;
+            string? dir = AppContext.BaseDirectory;
             for (int i = 0; i < 10; i++)
             {
+                if (dir == null) break;
                 var candidate = Path.Combine(dir, "FEBuilderGBA.Avalonia", "Views");
                 if (Directory.Exists(candidate))
                     return candidate;

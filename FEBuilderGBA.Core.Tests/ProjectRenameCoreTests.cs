@@ -379,9 +379,9 @@ namespace FEBuilderGBA.Core.Tests
                 var rom = MakeRom(romPath);
 
                 // The etc dir is config/etc/<firstPeriodTitle>/ under BaseDirectory.
-                string oldEtc = Path.GetDirectoryName(
+                string oldEtc = TestRequire.DirectoryName(
                     U.ConfigEtcFilename("flag", rom));
-                string newEtc = Path.GetDirectoryName(
+                string newEtc = TestRequire.DirectoryName(
                     U.ConfigEtcFilename("flag",
                         Path.Combine(dir, "newrom.gba")));
 

@@ -48,7 +48,7 @@ namespace FEBuilderGBA.Core
         /// mutation on any failure — ONE snapshot for the whole transaction).
         /// </summary>
         public static string ImportAll(ROM rom, string manifestText,
-            Func<string, string, FontGlyphPixels> loadGlyph)
+            Func<string, string, FontGlyphPixels?> loadGlyph)
         {
             if (rom?.RomInfo == null) return R._("ROM is not loaded.");
             if (manifestText == null) return R._("No manifest data.");
@@ -69,7 +69,7 @@ namespace FEBuilderGBA.Core
                     string type = row.Type;
                     bool isItemFont = type == "item";
                     string pngName = row.Filename;
-                    FontGlyphPixels px = loadGlyph(pngName, type);
+                    FontGlyphPixels? px = loadGlyph(pngName, type);
                     if (px == null)
                         return R._("Failed to load glyph image: {0}", pngName);
 

@@ -64,7 +64,7 @@ namespace FEBuilderGBA.Core.Tests
         public void Dispose()
         {
             CoreState.ROM = _prevRom;
-            CoreState.ImageService = _prevSvc;
+            TestRequire.RestoreImageService(_prevSvc);
             CoreState.Undo = _prevUndo;
             CoreState.BaseDirectory = _prevBase;
             foreach (string d in _tempDirs)
@@ -851,7 +851,7 @@ namespace FEBuilderGBA.Core.Tests
         static string FindRepoRoot()
         {
             string asm = Assembly.GetExecutingAssembly().Location;
-            string dir = Path.GetDirectoryName(asm);
+            string? dir = Path.GetDirectoryName(asm);
             for (int i = 0; i < 12 && dir != null; i++)
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))

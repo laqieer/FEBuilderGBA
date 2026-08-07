@@ -21,7 +21,7 @@ namespace FEBuilderGBA.Core.Tests
             "iOS / iPadOS", "Web (WebAssembly)", "Other"
         };
 
-        static string FindRepoRoot()
+        static string? FindRepoRoot()
         {
             // Walk parents until the solution file is found or we reach the filesystem root — more
             // robust than a fixed depth cap for nested worktrees / deeper build output (#1868 review).
@@ -85,7 +85,7 @@ namespace FEBuilderGBA.Core.Tests
         [InlineData("bug_report.yml")]
         public void PlatformDropdown_HasWeb_AndMatchesExpected(string template)
         {
-            string root = FindRepoRoot();
+            string? root = FindRepoRoot();
             if (root == null)
             {
                 // Skip only when genuinely outside the repo tree (e.g. a packaged/nuget run) — the

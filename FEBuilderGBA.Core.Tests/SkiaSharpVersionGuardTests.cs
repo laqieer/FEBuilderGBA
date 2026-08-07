@@ -47,7 +47,7 @@ namespace FEBuilderGBA.Core.Tests
         /// (declared + restored-graph) SKIP in that case; the
         /// source-tree-independent runtime-loaded guard still runs.
         /// </summary>
-        static string FindRepoRoot()
+        static string? FindRepoRoot()
         {
             var dir = new DirectoryInfo(AppContext.BaseDirectory);
             while (dir != null)
@@ -140,7 +140,7 @@ namespace FEBuilderGBA.Core.Tests
         [SkippableFact]
         public void DeclaredGraphicsPackageRefs_Pin_2067_CompatibilityStack()
         {
-            string root = FindRepoRoot();
+            string? root = FindRepoRoot();
             Skip.If(root == null, "source tree / FEBuilderGBA.sln not found (e.g. on-device Android instrumented host) — declared/restored-graph guards are source-tree-only; the runtime-loaded guard still validates the native here");
             int found = 0;
             var foundPins = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -199,8 +199,7 @@ namespace FEBuilderGBA.Core.Tests
             // typeof(SKBitmap) forces the managed SkiaSharp assembly that this
             // process actually binds to load; its assembly version tracks the
             // 3.119.x package family.
-            Version v = typeof(global::SkiaSharp.SKBitmap).Assembly.GetName().Version;
-            Assert.NotNull(v);
+            Version v = TestRequire.NotNull(typeof(global::SkiaSharp.SKBitmap).Assembly.GetName().Version, "SkiaSharp assembly version");
             Assert.True(v.Major == 3 && v.Minor == 119,
                 $"runtime-loaded managed SkiaSharp is {v} — expected 3.119.x for #2067's Avalonia/Skia compatibility stack");
         }
@@ -212,7 +211,7 @@ namespace FEBuilderGBA.Core.Tests
         [SkippableFact]
         public void CoreTestsRestoreGraphs_ResolveOnly_2067_GraphicsStack()
         {
-            string root = FindRepoRoot();
+            string? root = FindRepoRoot();
             Skip.If(root == null, "source tree / FEBuilderGBA.sln not found (e.g. on-device Android instrumented host) — declared/restored-graph guards are source-tree-only; the runtime-loaded guard still validates the native here");
             AssertCoreTestsRestoreGraphs_ResolveOnly_2067_GraphicsStack(root);
         }
@@ -220,7 +219,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RestoredAssetsGraph_FailsClosed_WhenCoreTestsRequiredGraphIsMissing()
         {
-            string root = FindRepoRoot();
+            string? root = FindRepoRoot();
             Skip.If(root == null, "source tree / FEBuilderGBA.sln not found (e.g. on-device Android instrumented host) — declared/restored-graph guards are source-tree-only; the runtime-loaded guard still validates the native here");
 
             string scratchRoot = Path.Combine(root, ".scratch", "SkiaSharpVersionGuardTests", Guid.NewGuid().ToString("N"));

@@ -385,7 +385,7 @@ namespace FEBuilderGBA.Core.Tests
                     request,
                     (command, args, workingDir, timeoutMs, maximumOutputChars) =>
                     {
-                        observedWorkingDirectory = workingDir;
+                        observedWorkingDirectory = TestRequire.NotNull(workingDir, "workingDir");
                         Assert.StartsWith("FEBuilderGBA-mapgen-", Path.GetFileName(workingDir), StringComparison.Ordinal);
                         Assert.True(Directory.Exists(workingDir));
                         File.WriteAllText(Path.Combine(workingDir, "marker.txt"), "marker");
@@ -423,9 +423,9 @@ namespace FEBuilderGBA.Core.Tests
                     request,
                     (command, args, workingDir, timeoutMs, maximumOutputChars) =>
                     {
-                        observedWorkingDirectory = workingDir;
-                        Assert.StartsWith("FEBuilderGBA-mapgen-", Path.GetFileName(workingDir), StringComparison.Ordinal);
-                        File.WriteAllText(Path.Combine(workingDir, "marker.txt"), "marker");
+                        observedWorkingDirectory = TestRequire.NotNull(workingDir, "workingDir");
+                        Assert.StartsWith("FEBuilderGBA-mapgen-", Path.GetFileName(observedWorkingDirectory), StringComparison.Ordinal);
+                        File.WriteAllText(Path.Combine(observedWorkingDirectory, "marker.txt"), "marker");
                         return ProcessRunResult.NotStarted("boom");
                     });
 
@@ -821,14 +821,14 @@ namespace FEBuilderGBA.Core.Tests
         static RecordedCall Record(
             string command,
             IEnumerable<string> args,
-            string workingDir,
+            string? workingDir,
             int timeoutMs,
             int maximumOutputChars)
         {
             var call = new RecordedCall
             {
                 Command = command,
-                WorkingDirectory = workingDir,
+                WorkingDirectory = TestRequire.NotNull(workingDir, "workingDir"),
                 TimeoutMs = timeoutMs,
                 MaximumOutputChars = maximumOutputChars,
             };

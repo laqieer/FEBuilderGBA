@@ -39,7 +39,7 @@ namespace FEBuilderGBA
         /// <param name="noScale">If true, do not scale RGB values to GBA 5-bit range during palette conversion.</param>
         /// <param name="noReserve1stColor">If true, do not reserve palette slot 0 for transparency.</param>
         /// <param name="ignoreTSA">If true, ignore TSA 8x8 tile deduplication constraints.</param>
-        public static QuantizeResult Quantize(byte[] rgbaPixels, int width, int height, int maxColors = 16,
+        public static QuantizeResult? Quantize(byte[]? rgbaPixels, int width, int height, int maxColors = 16,
             bool noScale = false, bool noReserve1stColor = false, bool ignoreTSA = false)
         {
             if (rgbaPixels == null || rgbaPixels.Length < width * height * 4)
@@ -83,32 +83,21 @@ namespace FEBuilderGBA
             }
 
             // Convert to GBA palette
-            byte[] gbaPalette = new byte[colorCount * 2];
+            byte[] gbaPalette;
             if (CoreState.ImageService != null && !noScale)
             {
-                gbaPalette = CoreState.ImageService.RGBAPaletteToGBA(rgbaPalette, colorCount);
+                try
+                {
+                    gbaPalette = CoreState.ImageService.RGBAPaletteToGBA(rgbaPalette, colorCount);
+                }
+                catch (NotSupportedException)
+                {
+                    gbaPalette = ConvertRgbaPaletteToGba(rgbaPalette, colorCount);
+                }
             }
             else
             {
-                // Manual conversion — when noScale is true, use raw 8-bit values truncated
-                for (int i = 0; i < colorCount; i++)
-                {
-                    byte rv = rgbaPalette[i * 4 + 0];
-                    byte gv = rgbaPalette[i * 4 + 1];
-                    byte bv = rgbaPalette[i * 4 + 2];
-                    ushort gba;
-                    if (noScale)
-                    {
-                        // No scaling: keep raw 5 most-significant bits
-                        gba = (ushort)((rv >> 3) | ((gv >> 3) << 5) | ((bv >> 3) << 10));
-                    }
-                    else
-                    {
-                        gba = (ushort)((rv >> 3) | ((gv >> 3) << 5) | ((bv >> 3) << 10));
-                    }
-                    gbaPalette[i * 2 + 0] = (byte)(gba & 0xFF);
-                    gbaPalette[i * 2 + 1] = (byte)((gba >> 8) & 0xFF);
-                }
+                gbaPalette = ConvertRgbaPaletteToGba(rgbaPalette, colorCount);
             }
 
             // Map pixels to palette indices
@@ -138,6 +127,21 @@ namespace FEBuilderGBA
                 Width = width,
                 Height = height,
             };
+        }
+
+        static byte[] ConvertRgbaPaletteToGba(byte[] rgbaPalette, int colorCount)
+        {
+            byte[] gbaPalette = new byte[colorCount * 2];
+            for (int i = 0; i < colorCount; i++)
+            {
+                byte rv = rgbaPalette[i * 4 + 0];
+                byte gv = rgbaPalette[i * 4 + 1];
+                byte bv = rgbaPalette[i * 4 + 2];
+                ushort gba = (ushort)((rv >> 3) | ((gv >> 3) << 5) | ((bv >> 3) << 10));
+                gbaPalette[i * 2 + 0] = (byte)(gba & 0xFF);
+                gbaPalette[i * 2 + 1] = (byte)((gba >> 8) & 0xFF);
+            }
+            return gbaPalette;
         }
 
         /// <summary>
@@ -175,6 +179,7 @@ namespace FEBuilderGBA
                             bestIdx = i;
                             bestChannel = ch;
                         }
+
                     }
                 }
 

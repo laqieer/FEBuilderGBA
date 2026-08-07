@@ -458,7 +458,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RealRom_FE6_ResolvesMapPlistForMap0()
         {
-            string romPath = FindRom("FE6.gba");
+            string? romPath = FindRom("FE6.gba");
             if (romPath == null) return; // skip
 
             var saved = CoreState.ROM;
@@ -510,7 +510,7 @@ namespace FEBuilderGBA.Core.Tests
         // -----------------------------------------------------------------
         static void RealRomConfigOracle(string romName)
         {
-            string romPath = FindRom(romName);
+            string? romPath = FindRom(romName);
             if (romPath == null) return; // skip
 
             var saved = CoreState.ROM;
@@ -698,10 +698,10 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // Walk up from the test assembly to find roms/<name>.
-        static string FindRom(string romName)
+        static string? FindRom(string romName)
         {
             string thisAssembly = Assembly.GetExecutingAssembly().Location;
-            string dir = Path.GetDirectoryName(thisAssembly);
+            string? dir = Path.GetDirectoryName(thisAssembly);
             for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))

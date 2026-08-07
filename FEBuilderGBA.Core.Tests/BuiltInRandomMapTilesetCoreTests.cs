@@ -381,7 +381,8 @@ namespace FEBuilderGBA.Core.Tests
             {
                 [defaultFingerprint] = "empty",
             };
-            Assert.True(values.TryGetValue(emptyFingerprint, out string value));
+            Assert.True(values.TryGetValue(emptyFingerprint, out string? value));
+            value = TestRequire.NotNull(value, "empty fingerprint value");
             Assert.Equal("empty", value);
         }
 

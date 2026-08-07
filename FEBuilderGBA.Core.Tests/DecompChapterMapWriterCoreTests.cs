@@ -105,7 +105,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 string srcRel = "src/data/chapters.c";
                 string srcAbs = Path.Combine(dir, "src", "data", "chapters.c");
-                Directory.CreateDirectory(Path.GetDirectoryName(srcAbs));
+                Directory.CreateDirectory(TestRequire.DirectoryName(srcAbs));
                 string content =
                     "struct ChapterData gMapChapterData[] = {\n" +
                     "    [0] = { .Weather = 0, .FogLevel = 0, .ChapterNumber = 0 },\n" +
@@ -142,7 +142,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 string srcRel = "src/chapters.c";
                 string srcAbs = Path.Combine(dir, "src", "chapters.c");
-                Directory.CreateDirectory(Path.GetDirectoryName(srcAbs));
+                Directory.CreateDirectory(TestRequire.DirectoryName(srcAbs));
                 string content =
                     "struct ChapterData gMapChapterData[] = {\n" +
                     "    [0] = { .Weather = 2, .FogLevel = 0 },\n" +
@@ -176,7 +176,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 string srcRel = "src/data/map_settings.json";
                 string srcAbs = Path.Combine(dir, "src", "data", "map_settings.json");
-                Directory.CreateDirectory(Path.GetDirectoryName(srcAbs));
+                Directory.CreateDirectory(TestRequire.DirectoryName(srcAbs));
                 string content =
                     "[\n" +
                     "  { \"Weather\": 0, \"FogLevel\": 0, \"ChapterNumber\": 0 },\n" +
@@ -208,7 +208,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 string srcRel = "src/chapters.c";
                 string srcAbs = Path.Combine(dir, "src", "chapters.c");
-                Directory.CreateDirectory(Path.GetDirectoryName(srcAbs));
+                Directory.CreateDirectory(TestRequire.DirectoryName(srcAbs));
                 string content =
                     "struct ChapterData gMapChapterData[] = {\n" +
                     "    [0] = { .Weather = 0 },\n" +
@@ -244,7 +244,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 string srcRel = "src/chapters.c";
                 string srcAbs = Path.Combine(dir, "src", "chapters.c");
-                Directory.CreateDirectory(Path.GetDirectoryName(srcAbs));
+                Directory.CreateDirectory(TestRequire.DirectoryName(srcAbs));
                 string content =
                     "struct ChapterData gMapChapterData[] = {\n" +
                     "    [0] = { .Weather = 0, .FogLevel = 0 },\n" +
@@ -285,7 +285,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 string srcRel = "src/chapters.c";
                 string srcAbs = Path.Combine(dir, "src", "chapters.c");
-                Directory.CreateDirectory(Path.GetDirectoryName(srcAbs));
+                Directory.CreateDirectory(TestRequire.DirectoryName(srcAbs));
                 string content =
                     "struct ChapterData gMapChapterData[] = {\n" +
                     "    [0] = { .Weather = 0, .ChapterNumber = 0 },\n" +
@@ -325,7 +325,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 string srcRel = "src/chapters.c";
                 string srcAbs = Path.Combine(dir, "src", "chapters.c");
-                Directory.CreateDirectory(Path.GetDirectoryName(srcAbs));
+                Directory.CreateDirectory(TestRequire.DirectoryName(srcAbs));
                 string content = "struct ChapterData gMapChapterData[] = { [0] = { .Weather = 1 } };\n";
                 File.WriteAllText(srcAbs, content);
 
@@ -354,7 +354,7 @@ namespace FEBuilderGBA.Core.Tests
                 // The REAL chapter_settings.json shape: nested objects, bools, enum strings.
                 string srcRel = "src/data/chapter_settings.json";
                 string srcAbs = Path.Combine(dir, "src", "data", "chapter_settings.json");
-                Directory.CreateDirectory(Path.GetDirectoryName(srcAbs));
+                Directory.CreateDirectory(TestRequire.DirectoryName(srcAbs));
                 string content =
                     "[\n" +
                     "  {\n" +
@@ -411,7 +411,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 string srcRel = "src/chapters.c";
                 string srcAbs = Path.Combine(dir, "src", "chapters.c");
-                Directory.CreateDirectory(Path.GetDirectoryName(srcAbs));
+                Directory.CreateDirectory(TestRequire.DirectoryName(srcAbs));
                 File.WriteAllText(srcAbs, "struct ChapterData gMapChapterData[] = { [0] = { .Weather = 1 } };\n");
 
                 // Build a project but do NOT make it the active CoreState.DecompProject.
@@ -436,7 +436,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 string srcRel = "src/chapters.c";
                 string srcAbs = Path.Combine(dir, "src", "chapters.c");
-                Directory.CreateDirectory(Path.GetDirectoryName(srcAbs));
+                Directory.CreateDirectory(TestRequire.DirectoryName(srcAbs));
                 // No array body the symbol can match → ParseFailed, no throw.
                 File.WriteAllText(srcAbs, "this is not a c array at all {{{ \n");
 

@@ -241,7 +241,7 @@ namespace FEBuilderGBA.Core.Tests
             // toPointer(dataPtr); its ldr_data_address is the slot offset.
             var map = DisassemblerTrumb.MakeLDRMap(buf, 0x100, 0);
             uint needPtr = U.toPointer(dataPtr);
-            DisassemblerTrumb.LDRPointer mapHit = null;
+            DisassemblerTrumb.LDRPointer? mapHit = null;
             foreach (var p in map)
             {
                 if (p != null && p.ldr_data == needPtr) { mapHit = p; break; }

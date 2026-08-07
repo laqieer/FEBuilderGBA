@@ -24,9 +24,9 @@ namespace FEBuilderGBA.Core.Tests
         // ROM / repo-root discovery (mirrors the other Core real-ROM tests)
         // ----------------------------------------------------------------
 
-        static string FindRepoRoot()
+        static string? FindRepoRoot()
         {
-            string dir = AppContext.BaseDirectory;
+            string? dir = AppContext.BaseDirectory;
             for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
@@ -36,9 +36,9 @@ namespace FEBuilderGBA.Core.Tests
             return null;
         }
 
-        static string FindRom(string romName)
+        static string? FindRom(string romName)
         {
-            string root = FindRepoRoot();
+            string? root = FindRepoRoot();
             if (root == null) return null;
             string path = Path.Combine(root, "roms", romName);
             return File.Exists(path) ? path : null;
@@ -52,10 +52,10 @@ namespace FEBuilderGBA.Core.Tests
         /// </summary>
         static void WithRealRom(string romName, Action<ROM> action)
         {
-            string romPath = FindRom(romName);
+            string? romPath = FindRom(romName);
             if (romPath == null) return; // skip
 
-            string root = FindRepoRoot();
+            string? root = FindRepoRoot();
             var savedRom = CoreState.ROM;
             var savedEnc = CoreState.SystemTextEncoder;
             var savedBase = CoreState.BaseDirectory;
@@ -274,10 +274,10 @@ namespace FEBuilderGBA.Core.Tests
         [InlineData("FE8U.gba")]
         public void GetSoundEffectList_LoadFailure_DoesNotPoisonCache_RetriesLater(string romName)
         {
-            string romPath = FindRom(romName);
+            string? romPath = FindRom(romName);
             if (romPath == null) return; // skip — no ROM
 
-            string root = FindRepoRoot();
+            string? root = FindRepoRoot();
             if (root == null) return; // skip — need the repo root for the real load
 
             var savedRom = CoreState.ROM;

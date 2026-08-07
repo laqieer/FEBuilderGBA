@@ -204,7 +204,7 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ImageService = _prevService;
+            TestRequire.RestoreImageService(_prevService);
         }
 
         [Fact]
@@ -741,7 +741,7 @@ namespace FEBuilderGBA.Core.Tests
         public void RenderAnimationTileSheet_RealRom_ProducesValidImage()
         {
             // Try to find a ROM in roms/ directory (walk up from test assembly)
-            string romPath = FindTestRom();
+            string? romPath = FindTestRom();
             if (romPath == null) return; // skip if no ROM available
 
             var savedRom = CoreState.ROM;
@@ -762,7 +762,7 @@ namespace FEBuilderGBA.Core.Tests
 
                 // Walk the animation table looking for a valid 32-byte record
                 const uint recordSize = 32;
-                IImage result = null;
+                IImage? result = null;
                 int validRecordCount = 0;
                 for (int i = 0; i < 512; i++)
                 {
@@ -798,10 +798,10 @@ namespace FEBuilderGBA.Core.Tests
         /// Locate a test ROM by walking up from the test assembly directory.
         /// Returns the first *.gba found in the roms/ directory, or null.
         /// </summary>
-        static string FindTestRom()
+        static string? FindTestRom()
         {
             string thisAssembly = System.Reflection.Assembly.GetExecutingAssembly().Location;
-            string dir = System.IO.Path.GetDirectoryName(thisAssembly);
+            string? dir = System.IO.Path.GetDirectoryName(thisAssembly);
             for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (System.IO.File.Exists(System.IO.Path.Combine(dir, "FEBuilderGBA.sln")))

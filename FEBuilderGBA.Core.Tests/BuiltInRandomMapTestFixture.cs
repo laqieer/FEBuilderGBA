@@ -52,7 +52,7 @@ namespace FEBuilderGBA.Core.Tests
             int height,
             ushort[] mars,
             int? secondaryObjSlot = null,
-            byte[] secondaryObjRaw = null)
+            byte[]? secondaryObjRaw = null)
         {
             uint dataSize = rom.RomInfo.map_setting_datasize;
             uint entryAddr = MapSettingTableAddr + (uint)mapIndex * dataSize;
@@ -74,7 +74,8 @@ namespace FEBuilderGBA.Core.Tests
             ushort objPlistWord = (ushort)(tilesetSlot & 0xFF);
             if (secondaryObjSlot.HasValue)
             {
-                EnsureBlob(rom, ObjTableAddr, secondaryObjSlot.Value, () => LZ77.compress(secondaryObjRaw), (uint)secondaryObjSlot.Value * BlobStride);
+                byte[] secondaryRaw = TestRequire.NotNull(secondaryObjRaw, "secondary OBJ raw data");
+                EnsureBlob(rom, ObjTableAddr, secondaryObjSlot.Value, () => LZ77.compress(secondaryRaw), (uint)secondaryObjSlot.Value * BlobStride);
                 objPlistWord |= (ushort)((secondaryObjSlot.Value & 0xFF) << 8);
             }
             WriteU16(rom, entryAddr + 4, objPlistWord);

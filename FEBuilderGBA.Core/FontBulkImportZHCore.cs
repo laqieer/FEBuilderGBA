@@ -52,7 +52,7 @@ namespace FEBuilderGBA.Core
         /// whole transaction).
         /// </summary>
         public static string ImportAll(ROM rom, string manifestText,
-            Func<string, string, FontGlyphZHPixels> loadGlyph)
+            Func<string, string, FontGlyphZHPixels?> loadGlyph)
         {
             if (rom?.RomInfo == null) return R._("ROM is not loaded.");
             if (!FontGlyphZHCore.IsZHRom(rom)) return R._("This is not a Chinese ROM.");
@@ -76,7 +76,7 @@ namespace FEBuilderGBA.Core
                     string type = row.Type;
                     bool isItemFont = type == "item";
                     string pngName = row.Filename;
-                    FontGlyphZHPixels px = loadGlyph(pngName, type);
+                    FontGlyphZHPixels? px = loadGlyph(pngName, type);
                     if (px == null || px.Indexed == null)
                         return R._("Failed to load glyph image: {0}", pngName);
 

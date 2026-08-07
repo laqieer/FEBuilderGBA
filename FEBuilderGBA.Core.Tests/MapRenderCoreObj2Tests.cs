@@ -39,7 +39,7 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ImageService = _prevService;
+            TestRequire.RestoreImageService(_prevService);
             CoreState.ROM = _prevRom;
         }
 
@@ -224,7 +224,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RealRom_FE7J_RenderChangeMap_WithObj2HighByte_DoesNotThrow()
         {
-            string romPath = FindRom("FE7J.gba");
+            string? romPath = FindRom("FE7J.gba");
             if (romPath == null) return; // skip
 
             var rom = new ROM();
@@ -268,7 +268,7 @@ namespace FEBuilderGBA.Core.Tests
                 // Must not throw; the obj2-concatenated render either succeeds
                 // (non-null) or fails gracefully (null) — both are acceptable for
                 // this integration smoke test.
-                IImage img = null;
+                IImage? img = null;
                 var ex = Record.Exception(() =>
                 {
                     img = MapRenderCore.RenderChangeMap(
@@ -303,10 +303,10 @@ namespace FEBuilderGBA.Core.Tests
             Array.Copy(bytes, 0, rom.Data, (int)offset, bytes.Length);
         }
 
-        static string FindRom(string romName)
+        static string? FindRom(string romName)
         {
             string thisAssembly = Assembly.GetExecutingAssembly().Location;
-            string dir = Path.GetDirectoryName(thisAssembly);
+            string? dir = Path.GetDirectoryName(thisAssembly);
             for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))

@@ -62,7 +62,7 @@ namespace FEBuilderGBA.Core.Tests
             RebuildProducerCore.EmitUnitCustomBattleAnimeAt(rom, list, n2Pointer);
 
             // N2 main IFR: addr = n2Table, pointer = n2Pointer slot, block 4, PI {0}, count 2 -> length 4*3.
-            Address main = list.Single(a => a.Addr == n2Table);
+            Address? main = list.Single(a => a.Addr == n2Table);
             Assert.Equal(n2Pointer, main.Pointer);
             Assert.Equal(4u, main.BlockSize);
             Assert.Equal(new uint[] { 0 }, main.PointerIndexes);
@@ -136,7 +136,7 @@ namespace FEBuilderGBA.Core.Tests
             var list = new List<Address>();
             RebuildProducerCore.EmitUnitCustomBattleAnimeAt(rom, list, n2Pointer);
 
-            Address main = list.Single(a => a.Addr == n2Table);
+            Address? main = list.Single(a => a.Addr == n2Table);
             Assert.Equal(4u * (1 + 1), main.Length); // count 1
         }
     }

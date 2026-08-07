@@ -187,7 +187,7 @@ namespace FEBuilderGBA.Core.Tests
             ReadChunk(png, ref pos); // IHDR
             ReadChunk(png, ref pos); // PLTE
             // Might have tRNS between PLTE and IDAT
-            byte[] idatData = null;
+            byte[]? idatData = null;
             while (pos < png.Length)
             {
                 var (length, type, data, _) = ReadChunk(png, ref pos);

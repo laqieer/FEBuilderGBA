@@ -28,13 +28,13 @@ namespace FEBuilderGBA.Core.Tests
         // glyph back to RGBA for the pixel-for-pixel round-trip assertion.
         sealed class ImageServiceScope : IDisposable
         {
-            readonly IImageService _prev;
+            readonly IImageService? _prev;
             public ImageServiceScope()
             {
                 _prev = CoreState.ImageService;
                 CoreState.ImageService = new StubImageService();
             }
-            public void Dispose() { CoreState.ImageService = _prev; }
+            public void Dispose() { TestRequire.RestoreImageService(_prev); }
         }
 
         // A stub rasterizer that returns a caller-supplied packed 64-byte tile and

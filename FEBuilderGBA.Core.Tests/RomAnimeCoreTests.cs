@@ -197,7 +197,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             // Resolve an entry, then null CoreState.ROM and read IsFrameTable: the
             // property must be self-contained (precomputed) and never throw (review #2).
-            RomAnimeCore.RomAnimeEntry e = null;
+            RomAnimeCore.RomAnimeEntry? e = null;
             WithRom(rom =>
             {
                 PlantFixedCountEntry(rom);
@@ -208,11 +208,12 @@ namespace FEBuilderGBA.Core.Tests
             ROM? saved = CoreState.ROM;
             try
             {
-                CoreState.ROM = null!;
-                bool isFrameTable = e.IsFrameTable; // must NOT throw
+                TestRequire.RestoreRom(null);
+                RomAnimeCore.RomAnimeEntry entry = TestRequire.NotNull(e, "resolved anime entry");
+                bool isFrameTable = entry.IsFrameTable; // must NOT throw
                 Assert.False(isFrameTable);          // FramePointer == 1 (fixed count)
             }
-            finally { CoreState.ROM = saved!; }
+            finally { TestRequire.RestoreRom(saved); }
         }
 
         [Fact]

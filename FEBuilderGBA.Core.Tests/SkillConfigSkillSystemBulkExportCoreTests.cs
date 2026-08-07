@@ -44,7 +44,7 @@ namespace FEBuilderGBA.Core.Tests
         public void Dispose()
         {
             CoreState.ROM = _prevRom;
-            CoreState.ImageService = _prevSvc;
+            TestRequire.RestoreImageService(_prevSvc);
         }
 
         // ROM length: 0x1100000 (> extends offset 0x01000000) so we can plant an

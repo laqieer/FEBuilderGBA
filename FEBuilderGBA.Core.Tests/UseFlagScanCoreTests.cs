@@ -414,7 +414,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RealRom_FE8U_Chapter0_NoDuplicateFlagPerType()
         {
-            string romPath = FindRom("FE8U.gba");
+            string? romPath = FindRom("FE8U.gba");
             if (romPath == null) return; // skip when ROM absent
 
             WithRealRomEnv(romPath, rom =>
@@ -440,7 +440,7 @@ namespace FEBuilderGBA.Core.Tests
             var savedBaseDir = CoreState.BaseDirectory;
             try
             {
-                string asmDir = System.IO.Path.GetDirectoryName(
+                string asmDir = TestRequire.DirectoryName(
                     System.Reflection.Assembly.GetExecutingAssembly().Location);
                 Assert.NotNull(asmDir);
                 CoreState.BaseDirectory = asmDir;
@@ -630,10 +630,10 @@ namespace FEBuilderGBA.Core.Tests
             });
         }
 
-        static string FindRom(string romName)
+        static string? FindRom(string romName)
         {
             string thisAssembly = System.Reflection.Assembly.GetExecutingAssembly().Location;
-            string dir = System.IO.Path.GetDirectoryName(thisAssembly);
+            string? dir = System.IO.Path.GetDirectoryName(thisAssembly);
             for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (System.IO.File.Exists(System.IO.Path.Combine(dir, "FEBuilderGBA.sln")))

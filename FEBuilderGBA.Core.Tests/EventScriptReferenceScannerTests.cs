@@ -393,7 +393,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RealRom_FE7U_Enumeration_IncludesTutorialFE7()
         {
-            string romPath = FindRom("FE7U.gba");
+            string? romPath = FindRom("FE7U.gba");
             if (romPath == null) return; // skip
 
             WithRealRomEnv(romPath, rom =>
@@ -457,7 +457,7 @@ namespace FEBuilderGBA.Core.Tests
 
         static void RealRomFindBgNonEmpty(string romName)
         {
-            string romPath = FindRom(romName);
+            string? romPath = FindRom(romName);
             if (romPath == null) return; // skip
 
             WithRealRomEnv(romPath, rom =>
@@ -496,7 +496,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 // BaseDirectory must point at the test output dir (config/ is
                 // copied there) so EventScript.Load resolves the event config.
-                string asmDir = Path.GetDirectoryName(
+                string asmDir = TestRequire.DirectoryName(
                     Assembly.GetExecutingAssembly().Location);
                 Assert.NotNull(asmDir);
                 CoreState.BaseDirectory = asmDir;
@@ -526,10 +526,10 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // Walk up from the test assembly to find roms/<name>.
-        static string FindRom(string romName)
+        static string? FindRom(string romName)
         {
             string thisAssembly = Assembly.GetExecutingAssembly().Location;
-            string dir = Path.GetDirectoryName(thisAssembly);
+            string? dir = Path.GetDirectoryName(thisAssembly);
             for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))

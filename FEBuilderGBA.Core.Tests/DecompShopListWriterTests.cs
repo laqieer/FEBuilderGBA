@@ -266,7 +266,7 @@ namespace FEBuilderGBA.Core.Tests
                     ReadCommentHandling = System.Text.Json.JsonCommentHandling.Skip,
                     AllowTrailingCommas = true,
                 });
-            return new DecompProject { ProjectRoot = "X", Manifest = parsed };
+            return new DecompProject { ProjectRoot = "X", Manifest = TestRequire.NotNull(parsed, "manifest") };
         }
 
         [Fact]

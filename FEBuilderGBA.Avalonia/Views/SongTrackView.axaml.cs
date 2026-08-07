@@ -641,7 +641,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Begin("Import MIDI");
                 try
                 {
-                    string? error = _vm.ImportMidi(path, out string summary);
+                    string? error = _vm.ImportMidi(path, out string? summary);
                     if (error != null)
                     {
                         _undoService.Rollback();
@@ -730,7 +730,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 // useLoop:false for WF parity (no-loop is the WF default).
                 uint headerPtr = SongTrackWaveImportCore.ImportWaveAsSong(
-                    CoreState.ROM, slot, bytes, useLoop: false, out string err);
+                    CoreState.ROM, slot, bytes, useLoop: false, out string? err);
                 if (headerPtr == U.NOT_FOUND)
                 {
                     _undoService.Rollback();
@@ -830,7 +830,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // the ambient undo scope just opened.
                 Func<byte[], uint> appender = buf => AppendBinaryDataHeadless(rom, buf);
                 uint importedBase = SongInstrumentSetCore.ImportAll(
-                    rom, indexName, readLines!, readFile!, appender, out string err);
+                    rom, indexName, readLines!, readFile!, appender, out string? err);
                 if (importedBase == U.NOT_FOUND)
                 {
                     _undoService.Rollback();
@@ -939,7 +939,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint headerBase = SongTrackSImportCore.ImportS(
                     rom, path, slot, instrumentOffset,
                     File.ReadAllLines, buf => AppendBinaryDataHeadless(rom, buf),
-                    out string err);
+                    out string? err);
                 if (headerBase == U.NOT_FOUND)
                 {
                     _undoService.Rollback();

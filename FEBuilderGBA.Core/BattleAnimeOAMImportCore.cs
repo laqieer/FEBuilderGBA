@@ -137,13 +137,13 @@ namespace FEBuilderGBA
         ///   true on success, or <see cref="OAMAssembleResult.Error"/> set on failure.
         /// </returns>
         public static OAMAssembleResult AssembleOAM(
-            byte[] indexedPixels,
+            byte[]? indexedPixels,
             int    width,
             int    height,
-            byte[] gbaPalette,
+            byte[]? gbaPalette,
             bool   isMagic        = false,
             bool   isMultiPalette = false,
-            Seat   existingSeat   = null)
+            Seat?  existingSeat   = null)
         {
             // ---- Input validation ----
             if (indexedPixels == null)

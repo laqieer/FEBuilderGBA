@@ -26,7 +26,7 @@ namespace FEBuilderGBA.Core.Tests
         static void Write(string root, string rel, string content)
         {
             string p = Path.Combine(root, rel.Replace('/', Path.DirectorySeparatorChar));
-            Directory.CreateDirectory(Path.GetDirectoryName(p)!);
+            Directory.CreateDirectory(TestRequire.DirectoryName(p));
             File.WriteAllText(p, content);
         }
 

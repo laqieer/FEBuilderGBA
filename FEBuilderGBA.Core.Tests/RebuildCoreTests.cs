@@ -609,7 +609,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             using (var tmp = new TempDir())
             {
-                string outsidePath = Path.Combine(Path.GetDirectoryName(tmp.Path), "outside-" + Guid.NewGuid().ToString("N") + ".bin");
+                string outsidePath = Path.Combine(TestRequire.DirectoryName(tmp.Path), "outside-" + Guid.NewGuid().ToString("N") + ".bin");
                 try
                 {
                     File.WriteAllBytes(outsidePath, new byte[] { 1 });
