@@ -3,7 +3,7 @@
 # dependencies = ["mss>=9.0.0", "pyautogui>=0.9.54", "Pillow>=10.0.0"]
 # requires-python = ">=3.10"
 # ///
-"""MCP server for computer use — gives Claude Code screenshot + mouse/keyboard control.
+"""Optional MCP server giving Copilot CLI screenshot and mouse/keyboard control.
 
 Uses a minimal JSON-RPC implementation (no heavy mcp SDK) so startup takes < 1 s.
 Heavy deps (pyautogui, mss, Pillow, win32gui) are lazy-imported on first tool call.

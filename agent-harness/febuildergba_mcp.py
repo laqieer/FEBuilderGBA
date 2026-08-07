@@ -11,9 +11,9 @@ Usage:
     python3 agent-harness/febuildergba_mcp.py [--session-file PATH]
     py -3 agent-harness/febuildergba_mcp.py [--session-file PATH]
 
-The repo's ``.mcp.json`` uses the installed
-``cli-anything-febuildergba-mcp`` console script instead, avoiding any
-assumption about the platform's Python executable alias.
+The repo's optional ``.mcp.example.json`` uses the installed
+``cli-anything-febuildergba-mcp`` console script, avoiding any assumption about
+the platform's Python executable alias.
 """
 
 import os

@@ -25,7 +25,7 @@ Python CLI Harness (cli-anything-febuildergba)
     ├── MCP stdio server (cli-anything-febuildergba-mcp / mcp_server.py, #1942)
     │     — dependency-free JSON-RPC 2.0 adapter reusing the same Session +
     │       core wrappers, exposing 21 tools + 3 resources (see
-    │       docs/MCP-SERVER.md); registered in .mcp.json as "febuildergba-cli"
+    │       docs/MCP-SERVER.md); available through optional .mcp.example.json
     │
     └── Backend: FEBuilderGBA.CLI (dotnet run / published exe)
          │
@@ -45,10 +45,10 @@ cli-anything-febuildergba-mcp [--session-file PATH]
 python3 agent-harness/febuildergba_mcp.py [--session-file PATH]
 ```
 
-After the editable install, the repo's [`.mcp.json`](../.mcp.json) registers option 1 as
-`febuildergba-cli` (`command: "cli-anything-febuildergba-mcp"`, `args: []`), alongside the
-pre-existing Windows `febuildergba-computer-use` entry. The installation's scripts directory
-must be on the MCP host's `PATH`; option 2 remains the no-install fallback. The server speaks
+After the editable install, copy [`.mcp.example.json`](../.mcp.example.json) to ignored local
+`.mcp.json` to register option 1 as `febuildergba-cli` alongside the Windows
+`febuildergba-computer-use` entry. The installation's scripts directory must be on the MCP
+host's `PATH`; option 2 remains the no-install fallback. The server speaks
 newline-delimited JSON-RPC 2.0 on stdin/stdout only (protocol versions `2025-03-26` and
 `2024-11-05`); it never shells out to Click and never imports an MCP SDK — see
 [`docs/MCP-SERVER.md`](../docs/MCP-SERVER.md) for the full tool/resource reference.

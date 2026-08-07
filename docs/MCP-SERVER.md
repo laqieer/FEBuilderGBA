@@ -20,7 +20,7 @@ No extra runtime dependencies are required beyond the CLI harness itself (Python
 called — protocol-only calls like `initialize`/`ping`/`tools/list` need nothing but the stdlib).
 
 ```bash
-# Required for the repo's automatic .mcp.json registration
+# Required before opting in through local .mcp.json
 cd agent-harness
 pip install -e .
 
@@ -31,6 +31,10 @@ cli-anything-febuildergba-mcp [--session-file PATH]
 python agent-harness/febuildergba_mcp.py [--session-file PATH]   # Windows/common
 python3 agent-harness/febuildergba_mcp.py [--session-file PATH]  # Linux/macOS
 py -3 agent-harness/febuildergba_mcp.py [--session-file PATH]    # Windows launcher
+
+# Optional workspace registration
+cd ..
+cp .mcp.example.json .mcp.json
 ```
 
 `--session-file PATH` pins the server to a specific session JSON file (same format/location
@@ -40,10 +44,12 @@ option in `--session-file PATH` or `--session-file=PATH` form. Missing, empty, d
 abbreviated, unknown, or positional arguments exit with status 2 before the server loop starts,
 so malformed configuration cannot silently fall back to the default session.
 
-## `.mcp.json` registration
+## Optional `.mcp.json` registration
 
-The repo's [`.mcp.json`](../.mcp.json) registers this server as `febuildergba-cli`, alongside the
-pre-existing Windows-only `febuildergba-computer-use` entry (both are preserved side by side):
+The tracked [`.mcp.example.json`](../.mcp.example.json) documents this server as
+`febuildergba-cli` alongside the Windows-only `febuildergba-computer-use` entry.
+No workspace MCP starts by default. Copy the example to ignored local `.mcp.json`
+for a session that needs these tools:
 
 ```json
 {
@@ -508,7 +514,7 @@ per-item text-search/lint-array truncation metadata and recursive resource-strin
 and deeply nested persisted history is discarded without stopping later lines, checksum-path
 rejection before backend invocation, unknown methods/tools/resources, real subprocess
 framing/flushing round-trips through both the no-install launcher and the registered console
-entry point, and `.mcp.json` registration. All of it is private-ROM-free.
+entry point, and optional `.mcp.example.json` registration. All of it is private-ROM-free.
 
 `agent-harness/cli_anything/febuildergba/tests/test_core.py` — shared backend, project, session,
 and Click-adapter behavior. Its lint parser regressions prove that the clean summary is not an

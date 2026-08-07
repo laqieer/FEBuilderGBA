@@ -1,0 +1,160 @@
+import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
+from classify_review_risk import classify_nul_file, classify_paths
+
+
+class ClassifyReviewRiskTests(unittest.TestCase):
+    def test_empty_input_fails_closed(self):
+        self.assertEqual("high", classify_paths([]))
+
+    def test_docs_only_is_low(self):
+        self.assertEqual(
+            "low",
+            classify_paths(["README.md", "docs/GUI-STRATEGY.md"]),
+        )
+
+    def test_blank_lines_are_ignored_when_paths_exist(self):
+        self.assertEqual(
+            "low",
+            classify_paths(["README.md", "", "  "]),
+        )
+
+    def test_normal_source_change_is_normal(self):
+        self.assertEqual(
+            "normal",
+            classify_paths(["FEBuilderGBA.Core/TextEscape.cs"]),
+        )
+
+    def test_workflow_change_is_high(self):
+        self.assertEqual(
+            "high",
+            classify_paths([".github/workflows/check.yml"]),
+        )
+
+    def test_rom_mutation_primitive_is_high(self):
+        self.assertEqual(
+            "high",
+            classify_paths(["FEBuilderGBA.Core/Undo.cs"]),
+        )
+
+    def test_rom_allocation_primitive_is_high(self):
+        self.assertEqual(
+            "high",
+            classify_paths(["FEBuilderGBA.Core/RecycleAddress.cs"]),
+        )
+
+    def test_build_hook_is_high(self):
+        self.assertEqual(
+            "high",
+            classify_paths(["FEBuilderGBA.Core/FEBuilderGBA.Core.csproj"]),
+        )
+
+    def test_package_manifest_is_high(self):
+        self.assertEqual(
+            "high",
+            classify_paths(["FEBuilderGBA.Browser/tests/smoke/package.json"]),
+        )
+
+    def test_setup_py_is_high(self):
+        self.assertEqual(
+            "high",
+            classify_paths(["agent-harness/setup.py"]),
+        )
+
+    def test_setup_cfg_is_high(self):
+        self.assertEqual(
+            "high",
+            classify_paths(["agent-harness/setup.cfg"]),
+        )
+
+    def test_versioned_requirements_file_is_high(self):
+        self.assertEqual(
+            "high",
+            classify_paths(["tools/gba-playtest/requirements-mgba-bootstrap.txt"]),
+        )
+
+    def test_release_policy_document_is_high(self):
+        self.assertEqual(
+            "high",
+            classify_paths(["docs/DEPLOYMENT.md"]),
+        )
+
+    def test_security_policy_document_is_high(self):
+        self.assertEqual(
+            "high",
+            classify_paths(["docs/SECRET-SCANNING.md"]),
+        )
+
+    def test_release_policy_document_name_is_high(self):
+        self.assertEqual(
+            "high",
+            classify_paths(["docs/RELEASE.md"]),
+        )
+
+    def test_all_current_submodule_paths_are_high(self):
+        paths = (
+            "config/patch2",
+            "tools/Event-Assembler",
+            "tools/ColorzCore",
+            "resources/FE-Repo",
+            "resources/FE-Repo-Music-No-Preview",
+            "resources/fe-info",
+        )
+        for path in paths:
+            with self.subTest(path=path):
+                self.assertEqual("high", classify_paths([path]))
+
+    def test_cross_repository_pr_is_high(self):
+        self.assertEqual(
+            "high",
+            classify_paths(["README.md"], cross_repository=True),
+        )
+
+    def test_untrusted_author_association_is_high(self):
+        self.assertEqual(
+            "high",
+            classify_paths(["README.md"], author_association="CONTRIBUTOR"),
+        )
+
+    def test_trusted_author_keeps_path_classification(self):
+        self.assertEqual(
+            "low",
+            classify_paths(["README.md"], author_association="MEMBER"),
+        )
+
+    def test_repository_script_is_high(self):
+        self.assertEqual(
+            "high",
+            classify_paths(["scripts/validate-something.sh"]),
+        )
+
+    def test_higher_tier_wins_for_mixed_changes(self):
+        self.assertEqual(
+            "high",
+            classify_paths(["docs/GUI-STRATEGY.md", "FEBuilderGBA.Core/Rom.cs"]),
+        )
+
+    def test_unsafe_path_fails_closed(self):
+        self.assertEqual("high", classify_paths(["../outside.txt"]))
+
+    def test_windows_drive_absolute_path_fails_closed(self):
+        self.assertEqual("high", classify_paths([r"C:\outside.txt"]))
+        self.assertEqual("high", classify_paths(["D:/outside.txt"]))
+
+    def test_nul_path_file_preserves_unicode_workflow_path(self):
+        with TemporaryDirectory() as temp:
+            path = Path(temp) / "paths.z"
+            path.write_bytes(".github/workflows/検証.yml\0".encode("utf-8"))
+            self.assertEqual("high", classify_nul_file(path))
+
+    def test_malformed_nul_path_file_fails_closed(self):
+        with TemporaryDirectory() as temp:
+            path = Path(temp) / "paths.z"
+            path.write_bytes(b"README.md")
+            self.assertEqual("high", classify_nul_file(path))
+
+
+if __name__ == "__main__":
+    unittest.main()

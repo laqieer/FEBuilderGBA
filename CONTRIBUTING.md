@@ -8,17 +8,18 @@ Documentation is a first-class deliverable. Every code change should include cor
 
 | Change Type | Required Doc Updates |
 |------------|---------------------|
-| New CLI command | CLAUDE.md (Command-Line Tools section), --help text |
-| New Avalonia feature | CLAUDE.md (Architecture Overview if structural) |
-| New Core API | CLAUDE.md (Core Data Access Pattern) |
-| Bug fix | None required unless it changes behavior |
-| New config key | CLAUDE.md (Configuration Files section) |
-| Build/CI change | CLAUDE.md (Build & Development Commands) |
-| Submodule change | CLAUDE.md (Dependencies section), wiki if applicable |
+| New CLI command | `docs/cli-reference.md`, `docs/cli-args.md`, and `--help` text |
+| New Avalonia feature | README/user docs; architecture docs only when structural |
+| New Core API | XML docs and `docs/CORE-SEAMS.md` when it introduces a shared seam |
+| Bug fix | User docs only when observable behavior changes |
+| New config key | README or the focused setup/configuration document |
+| Build/CI change | `DEVELOPMENT-WORKFLOW.md` or the relevant deployment document |
+| Submodule change | README/setup docs and wiki when user-facing |
 
 ### Where Documentation Lives
 
-- **CLAUDE.md** — Primary project reference (architecture, commands, patterns)
+- **`.github/copilot-instructions.md`** — Concise always-loaded repository invariants
+- **`.github/skills/`** — On-demand development and maintenance workflows
 - **DEVELOPMENT-WORKFLOW.md** — Development process and PR workflow
 - **README.md** — User-facing overview and quick start
 - **docs/** — Detailed specs and reports
@@ -49,7 +50,7 @@ The [project wiki](https://github.com/laqieer/FEBuilderGBA/wiki) hosts user guid
 ### Doc Review in PRs
 
 Every PR reviewer (human or automated) should verify:
-1. New features have corresponding CLAUDE.md updates
+1. New features update the focused user or architecture documentation
 2. Changed CLI commands have updated --help text
 3. README reflects any user-facing changes
 4. No stale documentation references removed features
@@ -144,4 +145,4 @@ details and the link to the auto-changelog work (#1632).
 
 ## Commit Identity
 
-When using Claude Code automation, commit as `laqieer <laqieer@126.com>`. Human contributors use their own identity.
+When using Copilot CLI automation, commit as `laqieer <laqieer@126.com>`. Human contributors use their own identity.

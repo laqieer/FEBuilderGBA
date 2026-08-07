@@ -835,9 +835,9 @@ first-time setup and troubleshooting guide.
 
 [This fork](https://github.com/laqieer/FEBuilderGBA/) is an integration of several forks of FEBuilderGBA and continues development based on it.
 
-## MCP Computer Use (Windows)
+## Optional MCP Computer Use (Windows)
 
-An MCP (Model Context Protocol) server that gives Claude Code screenshot, mouse, and keyboard control for GUI testing. Windows-only, requires Python 3.10+.
+An optional MCP (Model Context Protocol) server gives Copilot CLI screenshot, mouse, and keyboard control for GUI testing. Windows-only, requires Python 3.10+.
 
 ### Setup
 
@@ -849,9 +849,13 @@ python -m venv .venv
 
 # Verify server starts (Ctrl+C to stop)
 .venv/Scripts/python server.py
+
+# Opt in for this checkout
+cd ../..
+cp .mcp.example.json .mcp.json
 ```
 
-The `.mcp.json` at the repo root auto-configures Claude Code to use the server as `febuildergba-computer-use`. After setup, its tools (screenshot, click, type_text, key_press, mouse_move, scroll, drag, get_screen_size, wait, find_window, focus_window) appear in Claude Code sessions opened from this repo.
+The tracked `.mcp.example.json` documents both optional FEBuilder servers. Local `.mcp.json` is ignored, so no workspace MCP starts by default. After copying the example, the computer-use tools (screenshot, click, type_text, key_press, mouse_move, scroll, drag, get_screen_size, wait, find_window, focus_window) appear in a fresh trusted Copilot CLI session. Remove local `.mcp.json` when the GUI session is finished.
 
 ## MCP CLI Server (cross-platform)
 
@@ -947,8 +951,8 @@ of these commands exactly as before. MCP only accepts an explicit backend, prebu
 prebuilt DLL (`dotnet <dll>`); it never invokes `dotnet run`, build, restore, or NuGet. Click alone
 retains the development `dotnet run --project ... --` fallback.
 
-After `pip install -e .` in `agent-harness/`, the `.mcp.json` at the repo root auto-configures
-Claude Code to use the platform-neutral `cli-anything-febuildergba-mcp` console script as
+After `pip install -e .` in `agent-harness/`, copy `.mcp.example.json` to local `.mcp.json`
+to expose the platform-neutral `cli-anything-febuildergba-mcp` console script as
 `febuildergba-cli`; the installation's scripts directory must be on the host `PATH`.
 `agent-harness/febuildergba_mcp.py` remains the manual no-install launcher for `python`,
 `python3`, or `py -3`. CI preserves the three-OS missing-backend contract and separately runs
@@ -957,9 +961,9 @@ See
 [docs/MCP-SERVER.md](docs/MCP-SERVER.md) for the full tool/resource reference, protocol details,
 and setup instructions.
 
-## Context safety (Copilot CLI / Claude Code sessions)
+## Context safety (Copilot CLI sessions)
 
-AI coding sessions in this repo (Copilot CLI, Claude Code) manage their context window by **token**
+Copilot CLI sessions in this repo manage their context window by **token**
 count, but the underlying CAPI backend that serializes a request to the model rejects any payload
 above a fixed **byte** ceiling. Those are different quantities: a handful of screenshots or a large
 `gh pr diff`/CI log can add megabytes of bytes while barely moving the token count, so a session can
@@ -969,6 +973,9 @@ upstream discussions [github/copilot-cli#3767](https://github.com/github/copilot
 and [github/copilot-cli#1688](https://github.com/github/copilot-cli/issues/1688).
 
 **Safeguards in this repo:**
+- `scripts/check-copilot-context-size.sh` keeps unconditionally loaded repository instructions below
+  12,288 UTF-8 bytes and rejects legacy root agent-instruction files. Detailed process guidance lives
+  in the on-demand `.github/skills/` entries and focused docs instead.
 - `DEVELOPMENT-WORKFLOW.md`'s "Context Hygiene" section and `.github/copilot-instructions.md`'s
   "Context safety" section require every review/reviewer step to pass identifiers (issue/PR number,
   plan-comment URL, head SHA) rather than embedding full diffs, logs, or images, to spawn a fresh
@@ -983,13 +990,14 @@ and [github/copilot-cli#1688](https://github.com/github/copilot-cli/issues/1688)
   (`{}`, exit 0) rather than blocking unrelated work, and only a definitive cumulative overflow denies
   (JSON `permissionDecision: "deny"` + a reason, exit 2). Repository hooks only execute when the
   session has repo-hook execution enabled: for any external `copilot -p ...` launch (a fresh session,
-  not an already-running interactive one — see the `copilot -p` examples in
-  `DEVELOPMENT-WORKFLOW.md` / `.claude/skills/dev-flow/SKILL.md`), explicitly **set**
+  not an already-running interactive one), explicitly **set**
   `GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS=true` (the literal string `"true"`, not `1` or unset) in the
   environment *before* launch — e.g. `GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS=true copilot -p ...` on
   bash, or `$env:GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS = "true"` before the call on PowerShell — and
   then, once inside an interactive session, confirm it took effect with `/env`.
-- `.github/copilot/settings.json` ships `{"contextTier": "default"}`. Per official Copilot CLI docs,
+- `.github/copilot/settings.json` pins `contextTier: default`, disables the unrelated
+  Superpowers/image-generation plugins and skills for this repository, and keeps image generation's
+  MCP server disabled. Per official Copilot CLI docs,
   a repository-level `contextTier` setting takes precedence over a user-level setting **only when
   the working directory is trusted** (untrusted directories fall back to the user-level setting).
   Repo scope generally outranks user scope in the settings merge order (`user` → `repo` → `local`),

@@ -20,13 +20,15 @@ PASSED=0
 FAILED=0
 TOTAL=0
 
-# run_case <name> <expected_exit> <body-content-or-MISSING>
+# run_case <name> <expected_exit> <body-content-or-MISSING> <title> <changed-files>
 # If body-content is the literal string "MISSING", the body file is NOT created
 # and a bogus path is passed (covers the fail-closed missing-body-file case).
 run_case() {
   local name="$1"
   local expected_exit="$2"
   local body_content="$3"
+  local title="${4:-docs: test}"
+  local changed_files="${5-docs/test.md}"
 
   TOTAL=$((TOTAL + 1))
 
@@ -45,8 +47,11 @@ run_case() {
 
   local actual_exit=0
   local output
+  local changed_file
+  changed_file=$(mktemp)
+  printf '%s\n' "$changed_files" > "$changed_file"
   # Capture both stdout and stderr so we can show it on failure.
-  output=$(bash "$VALIDATOR" 999 "$pass_path" master 2>&1) || actual_exit=$?
+  output=$(PR_TITLE_OVERRIDE="$title" bash "$VALIDATOR" 999 "$pass_path" master "$changed_file" 2>&1) || actual_exit=$?
 
   if [ "$actual_exit" = "$expected_exit" ]; then
     echo "  PASS: $name (exit $actual_exit)"
@@ -62,6 +67,7 @@ run_case() {
   if [ "$body_content" != "MISSING" ] && [ -n "${body_file:-}" ]; then
     rm -f "$body_file"
   fi
+  rm -f "$changed_file"
 }
 
 echo "=== scripts/validate-pr-screenshots.test.sh ==="
@@ -98,6 +104,96 @@ run_case "missing_body_file" 1 'MISSING'
 #    flagged as a violation).
 run_case "bad_raw_nested_master_in_path" 1 \
   '![bad](https://raw.githubusercontent.com/owner/repo/feature/master/pr-screenshots/foo.png)'
+
+# 9. Non-GUI feat/fix PRs rely on tests and CI, not screenshots.
+run_case "non_gui_feat_without_image" 0 \
+  'No screenshot needed.' \
+  'feat(core): add parser' \
+  'FEBuilderGBA.Core/TextEscape.cs'
+
+# 10. GUI feat/fix PRs still require real rendered evidence.
+run_case "gui_feat_without_image" 1 \
+  'No screenshot yet.' \
+  'feat(avalonia): add editor control' \
+  'FEBuilderGBA.Avalonia/Views/UnitEditorView.axaml'
+
+# 11. A GitHub attachment satisfies the GUI screenshot requirement.
+run_case "gui_fix_with_attachment" 0 \
+  '![proof](https://github.com/user-attachments/assets/12345678-1234-1234-1234-123456789abc)' \
+  'fix(avalonia): repair editor layout' \
+  'FEBuilderGBA.Avalonia/Views/UnitEditorView.axaml'
+
+# 12. A feat/fix PR with no usable changed-file list fails closed.
+run_case "feat_with_empty_changed_files" 1 \
+  'No screenshot.' \
+  'fix(core): repair parser' \
+  ''
+
+# 13. An empty GUI feat/fix body still reaches screenshot enforcement.
+run_case "gui_feat_with_empty_body" 1 \
+  '' \
+  'feat(avalonia): add editor control' \
+  'FEBuilderGBA.Avalonia/Views/UnitEditorView.axaml'
+
+# 14. Breaking conventional titles remain subject to GUI proof.
+run_case "breaking_gui_feat_without_image" 1 \
+  'No screenshot.' \
+  'feat!: replace editor' \
+  'FEBuilderGBA.Avalonia/Views/UnitEditorView.axaml'
+
+# 15. Scoped breaking titles remain subject to GUI proof.
+run_case "scoped_breaking_gui_fix_without_image" 1 \
+  'No screenshot.' \
+  'fix(avalonia)!: replace layout' \
+  'FEBuilderGBA.Avalonia/Views/UnitEditorView.axaml'
+
+# 16. Windows/MSYS paths are normalized for both body and changed-file inputs.
+if command -v cygpath >/dev/null 2>&1; then
+  TOTAL=$((TOTAL + 1))
+  body_file=$(mktemp)
+  changed_file=$(mktemp)
+  printf 'No screenshot needed.' > "$body_file"
+  printf 'FEBuilderGBA.Core/TextEscape.cs\n' > "$changed_file"
+  windows_body=$(cygpath -w "$body_file")
+  windows_changed=$(cygpath -w "$changed_file")
+  actual_exit=0
+  output=$(PR_TITLE_OVERRIDE='feat(core): add parser' bash "$VALIDATOR" 999 "$windows_body" master "$windows_changed" 2>&1) || actual_exit=$?
+  if [ "$actual_exit" -eq 0 ]; then
+    echo "  PASS: windows_changed_file_path (exit 0)"
+    PASSED=$((PASSED + 1))
+  else
+    echo "  FAIL: windows_changed_file_path (expected exit 0, got $actual_exit)"
+    echo "$output" | sed 's/^/    /'
+    FAILED=$((FAILED + 1))
+  fi
+  rm -f "$body_file" "$changed_file"
+fi
+
+TOTAL=$((TOTAL + 1))
+body_file=$(mktemp)
+changed_file=$(mktemp)
+printf 'No screenshot.' > "$body_file"
+printf 'docs/readme.md\0FEBuilderGBA.Avalonia/Views/UnitEditorView.axaml\0' > "$changed_file"
+actual_exit=0
+output=$(PR_TITLE_OVERRIDE='feat(avalonia): add editor' bash "$VALIDATOR" 999 "$body_file" master "$changed_file" 2>&1) || actual_exit=$?
+if [ "$actual_exit" -eq 1 ]; then
+  echo "  PASS: nul_changed_file_preserves_gui_path (exit 1)"
+  PASSED=$((PASSED + 1))
+else
+  echo "  FAIL: nul_changed_file_preserves_gui_path (expected exit 1, got $actual_exit)"
+  echo "$output" | sed 's/^/    /'
+  FAILED=$((FAILED + 1))
+fi
+rm -f "$body_file" "$changed_file"
+
+TOTAL=$((TOTAL + 1))
+if grep -q 'via a docs PR' "$VALIDATOR"; then
+  echo "  FAIL: validator remediation still recommends a docs PR"
+  FAILED=$((FAILED + 1))
+else
+  echo "  PASS: validator remediation uses direct attachment guidance"
+  PASSED=$((PASSED + 1))
+fi
 
 echo ""
 echo "PASSED: ${PASSED}/${TOTAL}  FAILED: ${FAILED}/${TOTAL}"

@@ -14,8 +14,8 @@ namespace FEBuilderGBA.Avalonia.Views
     /// re-serializes the resized script and writes it back under one undo scope. It is
     /// backed by the shared cross-platform <c>EventScriptEditorCore</c> engine via
     /// <see cref="EventScriptViewModel"/> with <see cref="EventScript.EventScriptType.Procs"/>,
-    /// so the Procs editor and the Event editor share one engine (CLAUDE.md
-    /// "Script-type agnostic" seam).
+    /// so the Procs editor and the Event editor share one engine (see the
+    /// "Shared event-editor host" entry in docs/ENGINEERING-NOTES.md).
     /// </summary>
     public partial class ProcsScriptView : TranslatedUserControl, IEmbeddableEditor
     {

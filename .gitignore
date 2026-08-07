@@ -92,7 +92,7 @@ docs/avalonia-gaps/*-screenshots/**/av/
 .vs/
 .claude/*
 .claude.json
-!.claude/skills/
+/.mcp.json
 FEBuilderGBA/FEBuilderGBA.csproj.user
 
 # tools/ subprojects (WinCapture, etc.) — build artifacts only
