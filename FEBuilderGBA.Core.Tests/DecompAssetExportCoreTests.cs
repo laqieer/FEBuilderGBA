@@ -431,7 +431,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ImportMap_NoRomLoaded_StillWorks()
         {
             // Explicitly assert the import never depends on the ambient ROM.
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             string dir = NewTempDir();
             try
             {
@@ -1749,7 +1749,7 @@ namespace FEBuilderGBA.Core.Tests
             var savedSvc = CoreState.ImageService;
             try
             {
-                CoreState.ImageService = null;
+                CoreState.ImageService = null!;
                 var rom = new ROM();
                 rom.SwapNewROMDataDirect(new byte[0x200]);
                 var result = DecompAssetExportCore.ExportGraphics(rom, 0, 8, 8, 4, false, 0, 16, "/tmp/x.png");
@@ -1954,7 +1954,7 @@ namespace FEBuilderGBA.Core.Tests
             var savedRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var shops = new System.Collections.Generic.List<DecompAssetExportCore.ShopExportRecord>
                 {
                     MakeShop("Shop", 0x800100, 0x800010, 0x0001),

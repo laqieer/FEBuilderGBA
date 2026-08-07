@@ -26,12 +26,12 @@ namespace FEBuilderGBA.Core.Tests
         public DecompSourceWriterCoreTests()
         {
             _savedProject = CoreState.DecompProject;
-            CoreState.DecompProject = null;
+            CoreState.DecompProject = null!;
         }
 
         public void Dispose()
         {
-            CoreState.DecompProject = null; // ensure no leak into the next test
+            CoreState.DecompProject = null!; // ensure no leak into the next test
             CoreState.DecompProject = _savedProject;
         }
 
@@ -595,7 +595,7 @@ namespace FEBuilderGBA.Core.Tests
                 File.WriteAllText(srcAbs, content);
                 var proj = ProjectWith(dir, ItemsOwner("item.c"));
                 // CoreState.DecompProject is null (classic mode) — write must be a no-op.
-                CoreState.DecompProject = null;
+                CoreState.DecompProject = null!;
 
                 var res = DecompSourceWriterCore.WriteTableEntry(proj, "items", 0,
                     new Dictionary<string, uint> { { "might", 10 } });

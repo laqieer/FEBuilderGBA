@@ -200,7 +200,7 @@ namespace FEBuilderGBA.Core.Tests
             var origRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 string error = MapActionAnimationExportImportCore.ImportScript(
                     null, POINTER_ADDR, "/tmp/nonexistent.txt", _ => null);
                 Assert.False(string.IsNullOrEmpty(error));

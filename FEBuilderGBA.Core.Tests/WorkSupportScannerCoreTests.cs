@@ -24,7 +24,7 @@ namespace FEBuilderGBA.Core.Tests
             // OtherLangLine (used by the update-info parser) reads CoreState.ROM;
             // null is a safe no-op for the parser, so isolate it.
             _savedRom = CoreState.ROM;
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
 
             _root = Path.Combine(Path.GetTempPath(), "fe_worksupport_" + Guid.NewGuid().ToString("N"));
             _etcDir = Path.Combine(_root, "config", "etc", "FE8");

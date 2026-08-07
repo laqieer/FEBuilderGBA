@@ -27,7 +27,7 @@ namespace FEBuilderGBA.Core.Tests
             var origRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var core = new DisassemblerCore();
                 Assert.Throws<InvalidOperationException>(() =>
                     core.DisassembleRange(0, 0x10));

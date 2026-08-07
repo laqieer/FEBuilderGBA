@@ -253,7 +253,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void MissingImageService_ReturnsNull()
         {
-            CoreState.ImageService = null;
+            CoreState.ImageService = null!;
             var rom = BuildMinimalRom();
 
             // Even with a valid ROM, no ImageService → null.

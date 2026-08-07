@@ -28,12 +28,12 @@ namespace FEBuilderGBA.Core.Tests
         public DecompChapterMapWriterCoreTests()
         {
             _savedProject = CoreState.DecompProject;
-            CoreState.DecompProject = null;
+            CoreState.DecompProject = null!;
         }
 
         public void Dispose()
         {
-            CoreState.DecompProject = null;
+            CoreState.DecompProject = null!;
             CoreState.DecompProject = _savedProject;
         }
 

@@ -162,7 +162,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RenderChangeMap_MissingImageService_ReturnsNull()
         {
-            CoreState.ImageService = null;
+            CoreState.ImageService = null!;
             var rom = MakeMinimalRom();
             IImage img = MapRenderCore.RenderChangeMap(rom, 0x200, 0x400, 0x600, 0x800, 4, 3);
             Assert.Null(img);

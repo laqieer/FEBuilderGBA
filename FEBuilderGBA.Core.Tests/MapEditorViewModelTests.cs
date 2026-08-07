@@ -17,7 +17,7 @@ namespace FEBuilderGBA.Core.Tests
             var origRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var list = MapSettingCore.MakeMapIDList();
                 Assert.NotNull(list);
                 Assert.Empty(list);
@@ -34,7 +34,7 @@ namespace FEBuilderGBA.Core.Tests
             var origRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 int count = MapSettingCore.GetMapCount();
                 Assert.Equal(0, count);
             }
@@ -50,7 +50,7 @@ namespace FEBuilderGBA.Core.Tests
             var origRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 uint addr = MapSettingCore.GetMapAddr(0);
                 Assert.Equal(U.NOT_FOUND, addr);
             }

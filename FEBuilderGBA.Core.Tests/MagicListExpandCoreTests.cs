@@ -73,8 +73,8 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ROM = _savedRom;
-            CoreState.Undo = _savedUndo;
+            CoreState.ROM = _savedRom!;
+            CoreState.Undo = _savedUndo!;
         }
 
         // ==================================================================

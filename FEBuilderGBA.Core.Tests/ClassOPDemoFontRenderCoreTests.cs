@@ -215,7 +215,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 ROM rom = MakeRom();
                 CoreState.ROM = rom;
-                CoreState.ImageService = null;
+                CoreState.ImageService = null!;
                 Assert.Null(ClassOPDemoFontRenderCore.RenderGlyphById(rom, 0));
             }
             finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc; }

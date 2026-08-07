@@ -593,7 +593,7 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.SystemTextEncoder);
             CoreState.ROM = rom;
             CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder();
-            CoreState.AppendBinaryData = null; // <-- the unwired runtime
+            CoreState.AppendBinaryData = null!; // <-- the unwired runtime
             return prev;
         }
 

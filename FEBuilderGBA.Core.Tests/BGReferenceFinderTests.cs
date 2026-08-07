@@ -30,8 +30,8 @@ namespace FEBuilderGBA.Core.Tests
             var prevEs = CoreState.EventScript;
             try
             {
-                CoreState.ROM = null; // no active ROM -> gating returns empty
-                CoreState.EventScript = null;
+                CoreState.ROM = null!; // no active ROM -> gating returns empty
+                CoreState.EventScript = null!;
 
                 var rom = new ROM();
                 rom.LoadLow("bg-fe8u.gba", new byte[0x1000000], "BE8E01");
@@ -61,6 +61,7 @@ namespace FEBuilderGBA.Core.Tests
             try
             {
                 string asmDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                Assert.NotNull(asmDir);
                 CoreState.BaseDirectory = asmDir;
 
                 var rom = new ROM();
@@ -140,6 +141,7 @@ namespace FEBuilderGBA.Core.Tests
             try
             {
                 string asmDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                Assert.NotNull(asmDir);
                 CoreState.BaseDirectory = asmDir;
 
                 var rom = new ROM();
@@ -149,9 +151,9 @@ namespace FEBuilderGBA.Core.Tests
 
                 // PHASE 1 — prerequisites NOT ready: ROM is not the active
                 // CoreState.ROM, no EventScript, no CommentCache.
-                CoreState.ROM = null;
-                CoreState.EventScript = null;
-                CoreState.CommentCache = null;
+                CoreState.ROM = null!;
+                CoreState.EventScript = null!;
+                CoreState.CommentCache = null!;
 
                 // Discover a referenced BG id up-front (needs a wired scan), so
                 // we do a temporary full init just to find the id, then tear it
@@ -182,9 +184,9 @@ namespace FEBuilderGBA.Core.Tests
                 }
 
                 // Tear back down to NOT-READY and reset the finder cache.
-                CoreState.ROM = null;
-                CoreState.EventScript = null;
-                CoreState.CommentCache = null;
+                CoreState.ROM = null!;
+                CoreState.EventScript = null!;
+                CoreState.CommentCache = null!;
                 BGReferenceFinder.ResetCache();
 
                 // PHASE 1 call (prereqs unsatisfied) → empty AND must not cache.

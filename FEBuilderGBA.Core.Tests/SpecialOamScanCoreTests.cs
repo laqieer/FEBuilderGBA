@@ -300,6 +300,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 string romsDir = Path.GetDirectoryName(romPath);
                 string repoRoot = Path.GetDirectoryName(romsDir);
+                Assert.NotNull(repoRoot);
                 CoreState.BaseDirectory = repoRoot;
                 CoreState.Language = "en";
 

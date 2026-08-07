@@ -26,8 +26,8 @@ namespace FEBuilderGBA.Core.Tests
         {
             _savedRom = CoreState.ROM;
             _savedProject = CoreState.DecompProject;
-            CoreState.ROM = null;
-            CoreState.DecompProject = null;
+            CoreState.ROM = null!;
+            CoreState.DecompProject = null!;
         }
 
         public void Dispose()
@@ -315,7 +315,7 @@ namespace FEBuilderGBA.Core.Tests
             var rom = MakeRom();
             byte[] romBefore = (byte[])rom.Data.Clone();
             CoreState.ROM = rom;
-            CoreState.DecompProject = null;   // classic mode
+            CoreState.DecompProject = null!;   // classic mode
 
             var r = DecompShopSourceWriteCore.TryRouteShopSaveToSource(
                 rom, fx.Project, fx.Map, 0x1000u, new ushort[] { 0x0102 });

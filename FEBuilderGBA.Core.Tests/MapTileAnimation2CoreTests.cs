@@ -503,7 +503,7 @@ namespace FEBuilderGBA.Core.Tests
             try
             {
                 CoreState.ROM = rom;
-                CoreState.AppendBinaryData = null; // global callback unset
+                CoreState.AppendBinaryData = null!; // global callback unset
 
                 // Zero the area around baseAddr so RecycleAddress has no
                 // reusable blocks for the new palette data.

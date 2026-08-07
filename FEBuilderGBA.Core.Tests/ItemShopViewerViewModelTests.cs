@@ -136,7 +136,7 @@ namespace FEBuilderGBA.Core.Tests
         public void TryRouteCurrentShopToSource_MissingAsmMapCache_ReturnsNotRouted()
         {
             CoreState.DecompProject = new DecompProject();
-            CoreState.AsmMapFileAsmCache = null;
+            CoreState.AsmMapFileAsmCache = null!;
             var vm = VmWithShopLoaded();
 
             DecompShopRouteResult result =

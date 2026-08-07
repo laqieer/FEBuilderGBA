@@ -185,7 +185,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void CountAnimationPaletteBanks_NullRom_ReturnsOne()
         {
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             Assert.Equal(1, BattleAnimeRendererCore.CountAnimationPaletteBanks(RECORD_OFFSET));
         }
 

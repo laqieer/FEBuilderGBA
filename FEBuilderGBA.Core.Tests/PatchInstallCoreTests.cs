@@ -32,8 +32,8 @@ namespace FEBuilderGBA.Core.Tests
         public void Dispose()
         {
             CoreState.Language = _prevLanguage;
-            CoreState.ROM = null;
-            CoreState.Undo = null;
+            CoreState.ROM = null!;
+            CoreState.Undo = null!;
             try
             {
                 if (Directory.Exists(_tempDir))

@@ -9,7 +9,7 @@ namespace FEBuilderGBA.Core.Tests
         public void DrawPortraitUnit_NullROM_ReturnsNull()
         {
             var saved = CoreState.ROM;
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             try
             {
                 var result = PortraitRendererCore.DrawPortraitUnit(0x08000000, 0x08000100, 0, 0, 0);
@@ -25,7 +25,7 @@ namespace FEBuilderGBA.Core.Tests
         public void DrawPortraitMap_NullROM_ReturnsNull()
         {
             var saved = CoreState.ROM;
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             try
             {
                 var result = PortraitRendererCore.DrawPortraitMap(0x08000000, 0x08000100);
@@ -41,7 +41,7 @@ namespace FEBuilderGBA.Core.Tests
         public void DrawPortraitClass_NullROM_ReturnsNull()
         {
             var saved = CoreState.ROM;
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             try
             {
                 var result = PortraitRendererCore.DrawPortraitClass(0x08000000, 0x08000100);
@@ -57,7 +57,7 @@ namespace FEBuilderGBA.Core.Tests
         public void DrawPortraitAutoById_NullROM_ReturnsNull()
         {
             var saved = CoreState.ROM;
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             try
             {
                 var result = PortraitRendererCore.DrawPortraitAutoById(1);
@@ -74,7 +74,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             // Portrait id 0 is the empty / no-portrait slot.
             var saved = CoreState.ROM;
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             try
             {
                 var result = PortraitRendererCore.DrawPortraitAutoById(0);
@@ -90,7 +90,7 @@ namespace FEBuilderGBA.Core.Tests
         public void DrawPortraitUnit_InvalidPointer_ReturnsNull()
         {
             var saved = CoreState.ROM;
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             try
             {
                 // Zero pointer should return null
@@ -107,7 +107,7 @@ namespace FEBuilderGBA.Core.Tests
         public void DrawPortraitMap_ZeroPointer_ReturnsNull()
         {
             var saved = CoreState.ROM;
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             try
             {
                 var result = PortraitRendererCore.DrawPortraitMap(0, 0);
@@ -123,7 +123,7 @@ namespace FEBuilderGBA.Core.Tests
         public void DrawPortraitClass_ZeroPointer_ReturnsNull()
         {
             var saved = CoreState.ROM;
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             try
             {
                 var result = PortraitRendererCore.DrawPortraitClass(0, 0);
@@ -192,7 +192,7 @@ namespace FEBuilderGBA.Core.Tests
         public void DrawPortraitUnitWithFrame_NullROM_ReturnsNull()
         {
             var saved = CoreState.ROM;
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             try
             {
                 var result = PortraitRendererCore.DrawPortraitUnitWithFrame(
@@ -209,7 +209,7 @@ namespace FEBuilderGBA.Core.Tests
         public void DrawPortraitUnitWithFrame_ZeroPointer_ReturnsNull()
         {
             var saved = CoreState.ROM;
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             try
             {
                 var result = PortraitRendererCore.DrawPortraitUnitWithFrame(0, 0, 0, 0, 0, 0, 0, 0, 0);
@@ -225,7 +225,7 @@ namespace FEBuilderGBA.Core.Tests
         public void DrawMouthFrameStrip_NullROM_ReturnsNull()
         {
             var saved = CoreState.ROM;
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             try
             {
                 var result = PortraitRendererCore.DrawMouthFrameStrip(0x08000200, 0x08000100);
@@ -241,7 +241,7 @@ namespace FEBuilderGBA.Core.Tests
         public void DrawEyeFrameStrip_NullROM_ReturnsNull()
         {
             var saved = CoreState.ROM;
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             try
             {
                 var result = PortraitRendererCore.DrawEyeFrameStrip(0x08000000, 0x08000100);
@@ -257,7 +257,7 @@ namespace FEBuilderGBA.Core.Tests
         public void DrawMouthFrameStrip_ZeroPointer_ReturnsNull()
         {
             var saved = CoreState.ROM;
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             try
             {
                 var result = PortraitRendererCore.DrawMouthFrameStrip(0, 0);
@@ -273,7 +273,7 @@ namespace FEBuilderGBA.Core.Tests
         public void DrawEyeFrameStrip_ZeroPointer_ReturnsNull()
         {
             var saved = CoreState.ROM;
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             try
             {
                 var result = PortraitRendererCore.DrawEyeFrameStrip(0, 0);
@@ -477,7 +477,7 @@ namespace FEBuilderGBA.Core.Tests
         public void DrawPortraitUnitFE6_NullROM_ReturnsNull()
         {
             var saved = CoreState.ROM;
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             try
             {
                 var result = PortraitRendererCoreFE6.DrawPortraitUnitFE6(0x08000000, 0x08000100, 2, 3, 0);
@@ -495,7 +495,7 @@ namespace FEBuilderGBA.Core.Tests
             // Zero face pointer with non-null ROM should still return null
             // (toOffset(0) == 0, which triggers the unitFace == 0 guard)
             var saved = CoreState.ROM;
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             try
             {
                 var result = PortraitRendererCoreFE6.DrawPortraitUnitFE6(0, 0x08000100, 0, 0, 0);

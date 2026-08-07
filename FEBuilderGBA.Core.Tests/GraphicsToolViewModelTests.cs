@@ -60,7 +60,7 @@ namespace FEBuilderGBA.Core.Tests
             var origRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 byte[]? result = ImageUtilCore.GetCompressedPalette(0);
                 Assert.Null(result);
             }

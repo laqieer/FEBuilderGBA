@@ -271,7 +271,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             // No ImageService scope -> RenderChipsetPreview must return null.
             var prev = CoreState.ImageService;
-            CoreState.ImageService = null;
+            CoreState.ImageService = null!;
             try
             {
                 var rom = MakeRom();

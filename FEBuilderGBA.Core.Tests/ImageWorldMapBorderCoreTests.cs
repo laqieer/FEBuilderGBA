@@ -151,7 +151,7 @@ namespace FEBuilderGBA.Core.Tests
             var saved = CoreState.ImageService;
             try
             {
-                CoreState.ImageService = null;
+                CoreState.ImageService = null!;
                 byte[] bin = new byte[32];
                 byte[] pal = MakeSimplePalette();
                 IImage img = ImageUtilCore.ByteToImage16Tile(bin, 0, pal, 0, 8, 8);
@@ -506,7 +506,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 ROM rom = MakeRom();
                 CoreState.ROM = rom;
-                CoreState.ImageService = null;
+                CoreState.ImageService = null!;
                 PlantBorderGraphic(rom);
                 IImage img = ImageWorldMapCore.TryRenderBorder(
                     rom,

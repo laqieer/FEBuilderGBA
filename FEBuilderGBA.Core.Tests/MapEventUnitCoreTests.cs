@@ -50,7 +50,7 @@ namespace FEBuilderGBA.Core.Tests
             var origRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 uint result = MapEventUnitCore.ResolvePlistToEventAddr(null, 0);
                 Assert.Equal(U.NOT_FOUND, result);
             }
@@ -89,7 +89,7 @@ namespace FEBuilderGBA.Core.Tests
             var origRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var list = MapEventUnitCore.EnumerateUnits(null, 0xFFFFFFFF);
                 Assert.NotNull(list);
                 Assert.Empty(list);

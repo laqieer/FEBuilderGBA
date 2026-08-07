@@ -24,7 +24,7 @@ namespace FEBuilderGBA.Core.Tests
             var saved = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 string result = NameResolver.GetTextById(1);
                 Assert.Equal("???", result);
             }
@@ -40,7 +40,7 @@ namespace FEBuilderGBA.Core.Tests
             var saved = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 NameResolver.ClearCache();
                 string result = NameResolver.GetUnitName(0);
                 Assert.Equal("???", result);
@@ -58,7 +58,7 @@ namespace FEBuilderGBA.Core.Tests
             var saved = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 NameResolver.ClearCache();
                 string result = NameResolver.GetClassName(0);
                 Assert.Equal("???", result);
@@ -76,7 +76,7 @@ namespace FEBuilderGBA.Core.Tests
             var saved = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 NameResolver.ClearCache();
                 string result = NameResolver.GetItemName(0);
                 Assert.Equal("???", result);

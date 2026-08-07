@@ -106,9 +106,9 @@ namespace FEBuilderGBA.Core.Tests
             var savedBaseDir = CoreState.BaseDirectory;
             try
             {
-                CoreState.ROM = null;
-                CoreState.EventScript = null;
-                CoreState.CommentCache = null;
+                CoreState.ROM = null!;
+                CoreState.EventScript = null!;
+                CoreState.CommentCache = null!;
 
                 CoreState.BaseDirectory = FindConfigBaseDir();
                 var rom = new ROM();

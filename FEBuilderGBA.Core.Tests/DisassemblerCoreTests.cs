@@ -42,7 +42,7 @@ namespace FEBuilderGBA.Core.Tests
             var origRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var core = new DisassemblerCore();
                 Assert.Throws<System.InvalidOperationException>(() =>
                     core.DisassembleToFile(Path.GetTempFileName()));
@@ -59,7 +59,7 @@ namespace FEBuilderGBA.Core.Tests
             var origRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var core = new DisassemblerCore();
                 Assert.Throws<System.InvalidOperationException>(() => core.DisassembleToLines());
             }
@@ -75,7 +75,7 @@ namespace FEBuilderGBA.Core.Tests
             var origRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var core = new DisassemblerCore();
                 Assert.Throws<System.InvalidOperationException>(() => core.ExportIDAMapLines());
             }
@@ -91,7 +91,7 @@ namespace FEBuilderGBA.Core.Tests
             var origRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var core = new DisassemblerCore();
                 Assert.Throws<System.InvalidOperationException>(() => core.ExportNoCashSymLines());
             }

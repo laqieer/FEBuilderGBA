@@ -324,7 +324,7 @@ public class ItemAllocCoreTests
         {
             // Force-wire the headless production allocator (clear first so the
             // "only if not already set" guard re-wires onto THIS rom).
-            CoreState.AppendBinaryData = null;
+            CoreState.AppendBinaryData = null!;
             CoreState.WireHeadlessAppendBinaryData();
             Assert.NotNull(CoreState.AppendBinaryData);
 

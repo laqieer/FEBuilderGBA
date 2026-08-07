@@ -204,7 +204,7 @@ namespace FEBuilderGBA.Core.Tests
             var origRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var vm = new MapSettingDifficultyViewModel();
                 var list = vm.LoadList();
                 Assert.NotNull(list);

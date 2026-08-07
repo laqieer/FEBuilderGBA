@@ -1,4 +1,4 @@
-﻿// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Tests for MagicEffectImportCore (#881).
 //
 // Coverage:
@@ -45,8 +45,8 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ROM  = _prevRom;
-            CoreState.ImageService = _prevSvc;
+            CoreState.ROM  = _prevRom!;
+            CoreState.ImageService = _prevSvc!;
         }
 
         // ================================================================

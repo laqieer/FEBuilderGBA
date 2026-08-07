@@ -1339,7 +1339,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 var rom = MakeMinimalRomSize(0x1100000);
                 CoreState.ROM = rom;
-                CoreState.ImageService = null;
+                CoreState.ImageService = null!;
 
                 uint baseOff = 0x14000u;
                 PlantTwoFrameCsaStream(rom, baseOff);

@@ -59,7 +59,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Uninstall_NoRomLoaded_ReturnsError_NoThrow()
         {
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             var result = EventAssemblerUninstallCore.Uninstall("whatever.event", new byte[16], NewUnboundUndo());
             Assert.False(result.Success);
             Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
@@ -167,7 +167,7 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.Undo.RunUndo();
                 Assert.Equal(beforeRevert, rom.Data);
             }
-            finally { TryDelete(eaFile); CoreState.Undo = null; }
+            finally { TryDelete(eaFile); CoreState.Undo = null!; }
         }
 
         // ---- Untraceable blocks are SIGNALLED, never silently dropped --------------

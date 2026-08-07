@@ -21,8 +21,8 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ROM = _savedRom;
-            CoreState.Language = _savedLang;
+            CoreState.ROM = _savedRom!;
+            CoreState.Language = _savedLang!;
         }
 
         [Fact]
@@ -568,7 +568,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetLanguageSuffix_Null_DefaultsToEn()
         {
-            CoreState.Language = null;
+            CoreState.Language = null!;
             Assert.Equal("en", PatchMetadataCore.GetLanguageSuffix());
         }
 
@@ -1550,7 +1550,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 Directory.Delete(tempDir, true);
             }
         }
@@ -1619,7 +1619,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 Directory.Delete(tempDir, true);
             }
         }

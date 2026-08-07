@@ -222,7 +222,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 ROM rom = MakeFE8JRom();
                 CoreState.ROM = rom;
-                CoreState.ImageService = null; // explicitly none
+                CoreState.ImageService = null!; // explicitly none
 
                 uint animeOffset = BuildSyntheticAnime(rom.Data,
                     waits: new uint[] { 2, 2, 2 }, soundId: 0);

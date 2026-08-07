@@ -162,7 +162,7 @@ public class SoundFootStepsExpandCoreTests
                 // matches the ItemUsagePointerCore test contract.
                 return appendAddr;
             };
-            CoreState.Services = null;
+            CoreState.Services = null!;
 
             var undoData = new Undo().NewUndoData("test", "expand");
             uint newAddr = SoundFootStepsExpandCore.Expand(rom, newCount, defAddr, undoData);
@@ -197,7 +197,7 @@ public class SoundFootStepsExpandCoreTests
         {
             CoreState.ROM = rom;
             CoreState.AppendBinaryData = (data, undo) => 0x08900000u;
-            CoreState.Services = null;
+            CoreState.Services = null!;
 
             var undoData = new Undo().NewUndoData("test", "expand-toosmall");
             uint result = SoundFootStepsExpandCore.Expand(rom, 3, 0x08001234u, undoData);

@@ -488,7 +488,7 @@ namespace FEBuilderGBA.Core.Tests
             var savedResolver = CoreState.SkillNameResolver;
             try
             {
-                CoreState.SkillNameResolver = null;
+                CoreState.SkillNameResolver = null!;
                 NameResolver.ClearCache();
                 string result = NameResolver.GetSkillName(0x1A);
                 Assert.Equal("Skill 0x1A", result);
@@ -559,7 +559,7 @@ namespace FEBuilderGBA.Core.Tests
             var savedRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 string name = NameResolver.GetPortraitName(0);
                 Assert.Equal("", name);
 

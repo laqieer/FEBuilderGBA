@@ -319,7 +319,7 @@ public class ItemUsagePointerCoreTests
             // CoreState.ROM must be set BEFORE creating UndoData, because
             // Undo.NewUndoDataLow reads CoreState.ROM.Data.Length.
             CoreState.ROM = rom;
-            CoreState.Services = null; // Skip user confirmation.
+            CoreState.Services = null!; // Skip user confirmation.
 
             // Use a simple appender that puts the new table at a free
             // region of the synthetic ROM bytes.
@@ -478,7 +478,7 @@ public class ItemUsagePointerCoreTests
         try
         {
             CoreState.ROM = rom;
-            CoreState.Services = null;
+            CoreState.Services = null!;
             CoreState.AppendBinaryData = (data, undo) => 0x900000u;
 
             var undoBuf2 = new Undo();
@@ -515,7 +515,7 @@ public class ItemUsagePointerCoreTests
         var prevRom = CoreState.ROM;
         try
         {
-            CoreState.ROM = null; // Simulate headless caller.
+            CoreState.ROM = null!; // Simulate headless caller.
             var rows = ItemUsagePointerCore.MakeRows(rom, ItemUsagePointerCore.FilterKind.Usability);
             Assert.NotEmpty(rows);
         }

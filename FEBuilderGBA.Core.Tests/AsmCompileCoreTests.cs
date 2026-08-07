@@ -145,7 +145,7 @@ namespace FEBuilderGBA.Core.Tests
         public void Compile_DevkitNotConfigured_ReturnsLocalizedError()
         {
             var savedConfig = CoreState.Config;
-            CoreState.Config = null; // no devkitpro_eabi
+            CoreState.Config = null!; // no devkitpro_eabi
             string src = Path.Combine(Path.GetTempPath(), "asm-" + Path.GetRandomFileName() + ".s");
             File.WriteAllText(src, ".thumb\r\nnop\r\n");
             try
@@ -180,7 +180,7 @@ namespace FEBuilderGBA.Core.Tests
             byte[] before = (byte[])rom.Data.Clone();
 
             var savedConfig = CoreState.Config;
-            CoreState.Config = null;
+            CoreState.Config = null!;
             string src = Path.Combine(Path.GetTempPath(), "asm-" + Path.GetRandomFileName() + ".s");
             File.WriteAllText(src, ".thumb\r\nnop\r\n");
             try
@@ -499,7 +499,7 @@ namespace FEBuilderGBA.Core.Tests
             var rom = CreateTestRom(0x400);
             byte[] before = (byte[])rom.Data.Clone();
             var savedConfig = CoreState.Config;
-            CoreState.Config = null; // devkit not configured → compile fails cleanly first
+            CoreState.Config = null!; // devkit not configured → compile fails cleanly first
             string src = Path.Combine(Path.GetTempPath(), "asm-" + Path.GetRandomFileName() + ".s");
             File.WriteAllText(src, ".thumb\r\nnop\r\n");
             try
@@ -586,7 +586,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ResolveDevkitArmTools_NotConfigured_ReturnNull()
         {
             var savedConfig = CoreState.Config;
-            CoreState.Config = null; // no devkitpro_eabi
+            CoreState.Config = null!; // no devkitpro_eabi
             try
             {
                 Assert.Null(ToolPathResolver.ResolveDevkitArmDir());
@@ -667,7 +667,7 @@ namespace FEBuilderGBA.Core.Tests
             // (which keys off the EA tree) returns null.
             var savedConfig = CoreState.Config;
             var savedBaseDir = CoreState.BaseDirectory;
-            CoreState.Config = null;
+            CoreState.Config = null!;
             CoreState.BaseDirectory = Path.Combine(Path.GetTempPath(),
                 "fbg-no-ea-" + Path.GetRandomFileName());
             try
@@ -756,7 +756,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ResolveGoldRoad_NotConfigured_ReturnsNull()
         {
             var savedConfig = CoreState.Config;
-            CoreState.Config = null;
+            CoreState.Config = null!;
             try
             {
                 Assert.Null(ToolPathResolver.ResolveGoldRoad());

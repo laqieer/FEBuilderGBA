@@ -213,7 +213,7 @@ namespace FEBuilderGBA.Core.Tests
             try
             {
                 CoreState.BaseDirectory = repoRoot;
-                CoreState.ROM = null; // headless: ConfigDataFilename falls back to *_ALL.txt
+                CoreState.ROM = null!; // headless: ConfigDataFilename falls back to *_ALL.txt
 
                 var detail = TextRichControlDecode.LoadEscapeEntries(true);
                 Assert.NotEmpty(detail);
@@ -247,7 +247,7 @@ namespace FEBuilderGBA.Core.Tests
             try
             {
                 CoreState.BaseDirectory = repoRoot;
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
 
                 var detail = TextRichControlDecode.LoadEscapeCategories(true);
                 Assert.NotEmpty(detail);

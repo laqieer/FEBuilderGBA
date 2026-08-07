@@ -307,7 +307,7 @@ namespace FEBuilderGBA.Core.Tests
         public void RenderSingleImagePreview_NoImageService_ReturnsNull()
         {
             var prev = CoreState.ImageService;
-            CoreState.ImageService = null;
+            CoreState.ImageService = null!;
             try
             {
                 var rom = MakeRom();

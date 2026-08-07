@@ -683,7 +683,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 var fe8 = MakeVersionedRom("BE8E01");
                 CoreState.ROM = fe8;
-                CoreState.BaseDirectory = null; // unconfigured / headless
+                CoreState.BaseDirectory = null!; // unconfigured / headless
 
                 uint oamspOff = 0x00E0000;
                 PlantOamspTable(fe8, oamspOff, 0x00E1000, ptrCount: 2);
@@ -1270,7 +1270,7 @@ namespace FEBuilderGBA.Core.Tests
             try
             {
                 var rom = CreateTestRom(0x8000);
-                CoreState.EventScript = null;
+                CoreState.EventScript = null!;
                 Assert.Throws<InvalidOperationException>(() =>
                     RebuildProducerCore.EmitEventAsmMapList(rom, new List<Address>()));
             }
@@ -1430,7 +1430,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 var fe8 = MakeVersionedRom("BE8E01");
                 CoreState.ROM = fe8;
-                CoreState.EventScript = null; // disasm unwired
+                CoreState.EventScript = null!; // disasm unwired
                 var list = new List<Address>();
                 var ldrmap = RebuildProducerCore.BuildLdrMap(fe8);
                 var res = RebuildProducerCore.AppendAllAsmStructPointers(fe8, list, ldrmap);
@@ -1849,7 +1849,7 @@ namespace FEBuilderGBA.Core.Tests
             try
             {
                 var rom = CreateTestRom(0x8000);
-                CoreState.BaseDirectory = null; // unconfigured / headless
+                CoreState.BaseDirectory = null!; // unconfigured / headless
                 CoreState.Services = spy;
 
                 uint procsOff = 0x1000;

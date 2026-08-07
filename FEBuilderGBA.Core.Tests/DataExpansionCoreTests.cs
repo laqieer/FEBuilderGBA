@@ -369,7 +369,7 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ROM = _savedRom;
+            CoreState.ROM = _savedRom!;
         }
 
         /// <summary>Helper: build a minimal ROM with LoadLow using ROMFE0 ("NAZO").</summary>
@@ -497,10 +497,10 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ROM = _savedRom;
-            CoreState.CommentCache = _savedComment;
-            CoreState.LintCache = _savedLint;
-            CoreState.Undo = _savedUndo;
+            CoreState.ROM = _savedRom!;
+            CoreState.CommentCache = _savedComment!;
+            CoreState.LintCache = _savedLint!;
+            CoreState.Undo = _savedUndo!;
         }
 
         /// <summary>Helper: build a minimal ROM with LoadLow using ROMFE0 ("NAZO").</summary>

@@ -170,7 +170,7 @@ namespace FEBuilderGBA.Core.Tests
             // Point the resolver at an empty tree with no EA exe.
             var savedConfig = CoreState.Config;
             var savedBaseDir = CoreState.BaseDirectory;
-            CoreState.Config = null;
+            CoreState.Config = null!;
             CoreState.BaseDirectory = Path.Combine(Path.GetTempPath(),
                 "febuilder-ea-empty-" + Path.GetRandomFileName());
 
