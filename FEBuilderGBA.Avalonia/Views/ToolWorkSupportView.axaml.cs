@@ -245,13 +245,21 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void Community_Click(object? sender, RoutedEventArgs e)
         {
+            await OpenCommunityAsync();
+        }
+
+        async Task OpenCommunityAsync()
+        {
             try
             {
                 if (!string.IsNullOrEmpty(_vm.CommunityUrl))
                 {
                     var result = await ExternalLauncher.Current.OpenUriAsync(TopLevel.GetTopLevel(this), new Uri(_vm.CommunityUrl));
                     if (!result.IsSucceeded)
+                    {
+                        _vm.AutoFeedbackStatus = result.Message;
                         Log.Error("ToolWorkSupportView.Community", result.Message);
+                    }
                 }
             }
             catch (Exception ex)
@@ -262,13 +270,21 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void OpenInfo_Click(object? sender, RoutedEventArgs e)
         {
+            await OpenInfoAsync();
+        }
+
+        async Task OpenInfoAsync()
+        {
             try
             {
                 if (!string.IsNullOrEmpty(_vm.InfoText) && System.IO.File.Exists(_vm.InfoText))
                 {
                     var result = await ExternalLauncher.Current.OpenPathAsync(_vm.InfoText);
                     if (!result.IsSucceeded)
+                    {
+                        _vm.AutoFeedbackStatus = result.Message;
                         Log.Error("ToolWorkSupportView.OpenInfo", result.Message);
+                    }
                 }
             }
             catch (Exception ex)
@@ -276,6 +292,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 Log.Error("ToolWorkSupportView.OpenInfo", ex.ToString());
             }
         }
+
+        internal Task OpenInfoForTestsAsync() => OpenInfoAsync();
+        internal Task OpenCommunityForTestsAsync() => OpenCommunityAsync();
+        internal string AutoFeedbackStatusForTests => _vm.AutoFeedbackStatus;
 
         void ShowAllWorks_Click(object? sender, RoutedEventArgs e)
         {

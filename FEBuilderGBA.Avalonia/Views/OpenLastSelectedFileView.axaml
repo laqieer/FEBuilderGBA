@@ -13,6 +13,8 @@
         <Button AutomationProperties.AutomationId="OpenLastSelectedFile_Folder_Button" Name="FolderButton"
                 Content="Open containing folder" Click="Folder_Click" IsEnabled="False" />
       </StackPanel>
+      <TextBlock AutomationProperties.AutomationId="OpenLastSelectedFile_Status_Label"
+                 Name="StatusText" TextWrapping="Wrap" Foreground="Gray" />
     </StackPanel>
   </ScrollViewer>
 </UserControl>

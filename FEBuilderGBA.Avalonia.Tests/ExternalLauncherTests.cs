@@ -5,9 +5,11 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using FEBuilderGBA.Avalonia.Services;
+using global::Avalonia.Controls;
 using Xunit;
 
 namespace FEBuilderGBA.Avalonia.Tests;
@@ -201,6 +203,68 @@ public sealed class ExternalLauncherTests
     }
 
     [Fact]
+    public async Task RunCapturedProcessAsync_TimeoutSurfacesTerminationFailureWithoutUnboundedWait()
+    {
+        var process = new HangingExternalProcess(killException: new Win32Exception(5, "kill denied"));
+        var launcher = new ExternalLauncher(
+            new FakePlatformCapabilities(unsupported: false),
+            new DefaultExternalProcessAdapter(
+                new SingleExternalProcessFactory(process),
+                TimeSpan.FromMilliseconds(10)));
+
+        var result = await launcher.RunCapturedProcessAsync(new ExternalProcessRequest("tool")
+        {
+            Timeout = TimeSpan.FromMilliseconds(1),
+        });
+
+        Assert.Equal(ExternalProcessResultKind.TimedOut, result.Kind);
+        Assert.True(result.TimedOut);
+        Assert.Equal(ExternalProcessTerminationKind.Failed, result.TerminationKind);
+        Assert.Contains("Failed to terminate", result.TerminationMessage);
+        Assert.Contains("Failed to terminate", result.Message);
+        Assert.Equal(1, process.KillCalls);
+        Assert.True(process.ObservedBoundedWaitAfterKill, "The post-kill wait must use a bounded cancellation token.");
+    }
+
+    [Fact]
+    public async Task RunCapturedProcessAsync_CancellationSurfacesTerminationFailureWithoutUnboundedWait()
+    {
+        var process = new HangingExternalProcess(killException: new Win32Exception(5, "kill denied"));
+        var launcher = new ExternalLauncher(
+            new FakePlatformCapabilities(unsupported: false),
+            new DefaultExternalProcessAdapter(
+                new SingleExternalProcessFactory(process),
+                TimeSpan.FromMilliseconds(10)));
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(1));
+
+        var result = await launcher.RunCapturedProcessAsync(new ExternalProcessRequest("tool")
+        {
+            Timeout = TimeSpan.FromSeconds(10),
+        }, cts.Token);
+
+        Assert.Equal(ExternalProcessResultKind.StartFailure, result.Kind);
+        Assert.Equal(ExternalProcessTerminationKind.Failed, result.TerminationKind);
+        Assert.Contains("Launch cancelled", result.Message);
+        Assert.Contains("Failed to terminate", result.TerminationMessage);
+        Assert.Equal(1, process.KillCalls);
+        Assert.True(process.ObservedBoundedWaitAfterKill, "The post-kill wait must use a bounded cancellation token.");
+    }
+
+    [Fact]
+    public void OverrideCurrentForTests_RestoresPreviousLauncher()
+    {
+        IExternalLauncher original = ExternalLauncher.Current;
+        var replacement = new StubLauncher();
+
+        using (ExternalLauncher.OverrideCurrentForTests(replacement))
+        {
+            Assert.Same(replacement, ExternalLauncher.Current);
+        }
+
+        Assert.Same(original, ExternalLauncher.Current);
+    }
+
+    [Fact]
     public void ToolAsmEditCompileClickHasReentrancyGuardAroundAwaitedLauncherCalls()
     {
         string source = File.ReadAllText(Path.Combine(
@@ -221,17 +285,10 @@ public sealed class ExternalLauncherTests
         string root = FindRepositoryRoot();
         string avaloniaRoot = Path.Combine(root, "FEBuilderGBA.Avalonia");
         string launcherFile = Path.Combine(avaloniaRoot, "Services", "ExternalLauncher.cs");
-        string[] forbidden =
-        {
-            "System.Diagnostics.Process",
-            "ProcessStartInfo",
-            "Process.Start",
-            "new Process",
-            ".WaitForExit(",
-            ".StandardOutput.Read",
-            ".StandardError.Read",
-            "RedirectStandard",
-        };
+
+        Assert.False(IsExcludedHeadSource(Path.Combine(avaloniaRoot, "Program.cs"), avaloniaRoot));
+        Assert.False(IsExcludedHeadSource(Path.Combine(avaloniaRoot, "App.GapSweep.cs"), avaloniaRoot));
+        Assert.True(IsExcludedHeadSource(Path.Combine(avaloniaRoot, "GapSweep", "ReportWriter.cs"), avaloniaRoot));
 
         var violations = new List<string>();
         foreach (string file in Directory.EnumerateFiles(avaloniaRoot, "*.cs", SearchOption.AllDirectories))
@@ -241,12 +298,8 @@ public sealed class ExternalLauncherTests
                 continue;
 
             string text = File.ReadAllText(file);
-            foreach (string token in forbidden)
-            {
-                int line = LineOf(text, token);
-                if (line > 0)
-                    violations.Add($"{Path.GetRelativePath(root, file)}:{line}: {token}");
-            }
+            violations.AddRange(FindRawProcessApiViolations(text)
+                .Select(v => $"{Path.GetRelativePath(root, file)}:{v.Line}: {v.Token}"));
         }
 
         Assert.True(violations.Count == 0,
@@ -254,19 +307,160 @@ public sealed class ExternalLauncherTests
             string.Join(Environment.NewLine, violations));
     }
 
+    [Fact]
+    public void RawProcessApiScannerDetectsInstanceExecutionAndCaptureMembers()
+    {
+        const string source = """
+            using System.Diagnostics;
+            var startInfo = new ProcessStartInfo("tool") { RedirectStandardOutput = true };
+            using var process = new Process { StartInfo = startInfo };
+            process.Start();
+            process.BeginOutputReadLine();
+            _ = process.StandardOutput.ReadToEnd();
+            process.WaitForExit();
+            process.WaitForExitAsync(CancellationToken.None);
+            process.Kill(entireProcessTree: true);
+            """;
+
+        string[] tokens = FindRawProcessApiViolations(source)
+            .Select(v => v.Token)
+            .ToArray();
+
+        Assert.Contains("ProcessStartInfo", tokens);
+        Assert.Contains("new Process", tokens);
+        Assert.Contains("process.Start()", tokens);
+        Assert.Contains("process.BeginOutputReadLine()", tokens);
+        Assert.Contains("process.StandardOutput", tokens);
+        Assert.Contains("process.WaitForExit()", tokens);
+        Assert.Contains("process.WaitForExitAsync()", tokens);
+        Assert.Contains("process.Kill()", tokens);
+    }
+
+    [Fact]
+    public void RawProcessApiScannerDetectsProcessParametersFieldsAndAssignments()
+    {
+        const string source = """
+            using System.Diagnostics;
+            sealed class Example
+            {
+                Process _field = new();
+                void Parameter(Process p)
+                {
+                    p.WaitForExit();
+                    p.Kill();
+                }
+
+                void Field()
+                {
+                    _field.Start();
+                    _field.StandardError.ReadToEnd();
+                }
+
+                void Assignment()
+                {
+                    Process assigned;
+                    assigned = new Process();
+                    assigned.BeginErrorReadLine();
+                }
+            }
+            """;
+
+        string[] tokens = FindRawProcessApiViolations(source)
+            .Select(v => v.Token)
+            .ToArray();
+
+        Assert.Contains("p.WaitForExit()", tokens);
+        Assert.Contains("p.Kill()", tokens);
+        Assert.Contains("_field.Start()", tokens);
+        Assert.Contains("_field.StandardError", tokens);
+        Assert.Contains("assigned.BeginErrorReadLine()", tokens);
+    }
+
     static bool IsExcludedHeadSource(string file, string avaloniaRoot)
     {
         string relative = Path.GetRelativePath(avaloniaRoot, file)
             .Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
-        if (relative.Equals("Program.cs", StringComparison.OrdinalIgnoreCase)) return true;
-        if (relative.Equals("App.GapSweep.cs", StringComparison.OrdinalIgnoreCase)) return true;
         return relative.StartsWith("GapSweep" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
     }
+
+    static IReadOnlyList<RawProcessApiViolation> FindRawProcessApiViolations(string text)
+    {
+        var violations = new List<RawProcessApiViolation>();
+
+        AddRegex(violations, text, @"\bSystem\.Diagnostics\.Process\b", "System.Diagnostics.Process");
+        AddRegex(violations, text, @"\bProcessStartInfo\b", "ProcessStartInfo");
+        AddRegex(violations, text, @"\bProcess\.Start\s*\(", "Process.Start");
+        AddRegex(violations, text, @"\bnew\s+Process\b", "new Process");
+        AddRegex(violations, text, @"\bProcess\s+[A-Za-z_][A-Za-z0-9_]*\s*=\s*new\s*\(", "Process target-typed construction");
+
+        var processVariables = new HashSet<string>(StringComparer.Ordinal);
+        foreach (Match match in Regex.Matches(
+            text,
+            @"\b(?:using\s+)?(?:var|Process)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(?:new\s+Process\b|Process\.Start\s*\(|new\s*\()",
+            RegexOptions.CultureInvariant))
+        {
+            processVariables.Add(match.Groups[1].Value);
+        }
+        foreach (Match match in Regex.Matches(
+            text,
+            @"\bProcess\??\s+([A-Za-z_][A-Za-z0-9_]*)\b",
+            RegexOptions.CultureInvariant))
+        {
+            processVariables.Add(match.Groups[1].Value);
+        }
+        foreach (Match match in Regex.Matches(
+            text,
+            @"\b([A-Za-z_][A-Za-z0-9_]*)\s*=\s*new\s+Process\b",
+            RegexOptions.CultureInvariant))
+        {
+            processVariables.Add(match.Groups[1].Value);
+        }
+        foreach (Match match in Regex.Matches(
+            text,
+            @"\b([A-Za-z_][A-Za-z0-9_]*)\s*=\s*new\s*\(\s*\)",
+            RegexOptions.CultureInvariant))
+        {
+            if (processVariables.Contains(match.Groups[1].Value))
+                processVariables.Add(match.Groups[1].Value);
+        }
+
+        foreach (string variable in processVariables)
+        {
+            string escaped = Regex.Escape(variable);
+            AddRegex(violations, text, $@"\b{escaped}\.Start\s*\(", variable + ".Start()");
+            AddRegex(violations, text, $@"\b{escaped}\.WaitForExit\s*\(", variable + ".WaitForExit()");
+            AddRegex(violations, text, $@"\b{escaped}\.WaitForExitAsync\s*\(", variable + ".WaitForExitAsync()");
+            AddRegex(violations, text, $@"\b{escaped}\.Kill\s*\(", variable + ".Kill()");
+            AddRegex(violations, text, $@"\b{escaped}\.BeginOutputReadLine\s*\(", variable + ".BeginOutputReadLine()");
+            AddRegex(violations, text, $@"\b{escaped}\.BeginErrorReadLine\s*\(", variable + ".BeginErrorReadLine()");
+            AddRegex(violations, text, $@"\b{escaped}\.StandardOutput\b", variable + ".StandardOutput");
+            AddRegex(violations, text, $@"\b{escaped}\.StandardError\b", variable + ".StandardError");
+        }
+
+        return violations
+            .Distinct()
+            .OrderBy(v => v.Line)
+            .ThenBy(v => v.Token, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    static void AddRegex(List<RawProcessApiViolation> violations, string text, string pattern, string token)
+    {
+        foreach (Match match in Regex.Matches(text, pattern, RegexOptions.CultureInvariant))
+            violations.Add(new RawProcessApiViolation(LineOf(text, match.Index), token));
+    }
+
+    readonly record struct RawProcessApiViolation(int Line, string Token);
 
     static int LineOf(string text, string token)
     {
         int index = text.IndexOf(token, StringComparison.Ordinal);
         if (index < 0) return 0;
+        return LineOf(text, index);
+    }
+
+    static int LineOf(string text, int index)
+    {
         int line = 1;
         for (int i = 0; i < index; i++)
             if (text[i] == '\n') line++;
@@ -356,5 +550,85 @@ public sealed class ExternalLauncherTests
             StartInfos.Add(startInfo);
             return ExternalLaunchResult.Succeeded();
         }
+    }
+
+    sealed class SingleExternalProcessFactory : IExternalProcessFactory
+    {
+        readonly IExternalProcess _process;
+
+        public SingleExternalProcessFactory(IExternalProcess process) => _process = process;
+
+        public IExternalProcess Create(ProcessStartInfo startInfo)
+        {
+            _process.StartInfo = startInfo;
+            return _process;
+        }
+    }
+
+    sealed class HangingExternalProcess : IExternalProcess
+    {
+        readonly Exception _killException;
+        int _waitCalls;
+
+        public HangingExternalProcess(Exception killException) => _killException = killException;
+
+        public ProcessStartInfo StartInfo { get; set; } = new("tool");
+        public TextReader StandardOutput { get; } = new StringReader("");
+        public TextReader StandardError { get; } = new StringReader("");
+        public bool HasExited => false;
+        public int ExitCode => throw new InvalidOperationException("The fake process never exits.");
+        public int KillCalls { get; private set; }
+        public bool ObservedBoundedWaitAfterKill { get; private set; }
+
+        public bool Start() => true;
+
+        public void Kill(bool entireProcessTree)
+        {
+            KillCalls++;
+            throw _killException;
+        }
+
+        public async Task WaitForExitAsync(CancellationToken cancellationToken)
+        {
+            int call = Interlocked.Increment(ref _waitCalls);
+            if (call > 1 && cancellationToken.CanBeCanceled)
+                ObservedBoundedWaitAfterKill = true;
+
+            var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            using CancellationTokenRegistration registration =
+                cancellationToken.Register(static state => ((TaskCompletionSource)state!).TrySetCanceled(), tcs);
+            await tcs.Task;
+        }
+
+        public void Dispose()
+        {
+        }
+    }
+
+    sealed class StubLauncher : IExternalLauncher
+    {
+        public Task<ExternalLaunchResult> OpenUriAsync(
+            TopLevel? topLevel,
+            Uri uri,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(ExternalLaunchResult.Succeeded());
+
+        public Task<ExternalLaunchResult> OpenPathAsync(
+            string path,
+            string? arguments = null,
+            string? workingDirectory = null,
+            bool useShellExecute = true,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(ExternalLaunchResult.Succeeded());
+
+        public Task<ExternalLaunchResult> RevealPathAsync(
+            string path,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(ExternalLaunchResult.Succeeded());
+
+        public Task<ExternalProcessResult> RunCapturedProcessAsync(
+            ExternalProcessRequest request,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(ExternalProcessResult.Exited(0, "", ""));
     }
 }

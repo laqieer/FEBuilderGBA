@@ -1,7 +1,7 @@
 using System;
 using global::Avalonia;
-using System.Diagnostics;
 using System.IO;
+using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -44,6 +44,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 bool has = _vm.HasFile;
                 OpenButton.IsEnabled = has;
                 FolderButton.IsEnabled = has;
+                StatusText.Text = "";
             }
             catch (Exception ex)
             {
@@ -54,12 +55,24 @@ namespace FEBuilderGBA.Avalonia.Views
         // Open the last-selected file with its default application (WF U.OpenURLOrFile).
         async void Open_Click(object? sender, RoutedEventArgs e)
         {
+            await OpenLastFileAsync();
+        }
+
+        // Reveal the file in the system file manager (WF U.SelectFileByExplorer).
+        async void Folder_Click(object? sender, RoutedEventArgs e)
+        {
+            await RevealLastFileAsync();
+        }
+
+        async Task OpenLastFileAsync()
+        {
             try
             {
                 if (!_vm.HasFile) return;
+                StatusText.Text = "";
                 var result = await ExternalLauncher.Current.OpenPathAsync(_vm.LastFile);
                 if (!result.IsSucceeded)
-                    Log.Error("OpenLastSelectedFileView.Open_Click launch failed: " + result.Message);
+                    ShowLaunchFailure("OpenLastSelectedFileView.Open_Click", result);
             }
             catch (Exception ex)
             {
@@ -67,21 +80,32 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        // Reveal the file in the system file manager (WF U.SelectFileByExplorer).
-        async void Folder_Click(object? sender, RoutedEventArgs e)
+        async Task RevealLastFileAsync()
         {
             try
             {
                 if (!_vm.HasFile) return;
+                StatusText.Text = "";
                 var result = await ExternalLauncher.Current.RevealPathAsync(_vm.LastFile);
                 if (!result.IsSucceeded)
-                    Log.Error("OpenLastSelectedFileView.Folder_Click launch failed: " + result.Message);
+                    ShowLaunchFailure("OpenLastSelectedFileView.Folder_Click", result);
             }
             catch (Exception ex)
             {
                 Log.Error("OpenLastSelectedFileView.Folder_Click failed: " + ex);
             }
         }
+
+        void ShowLaunchFailure(string source, ExternalLaunchResult result)
+        {
+            StatusText.Text = result.Message;
+            Log.Error(source + " launch failed: " + result.Message);
+        }
+
+        internal void LoadLastFileForTests() => Refresh();
+        internal Task OpenLastFileForTestsAsync() => OpenLastFileAsync();
+        internal Task RevealLastFileForTestsAsync() => RevealLastFileAsync();
+        internal string StatusMessageForTests => StatusText.Text ?? "";
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }
