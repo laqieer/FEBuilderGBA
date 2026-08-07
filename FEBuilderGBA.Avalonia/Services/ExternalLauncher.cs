@@ -426,7 +426,7 @@ namespace FEBuilderGBA.Avalonia.Services
 
         readonly IExternalProcessFactory _processFactory;
         readonly TimeSpan _terminationWait;
-        readonly Func<ProcessStartInfo, Process?> _startDetached;
+        readonly Func<ProcessStartInfo, Process?>? _startDetached;
 
         public DefaultExternalProcessAdapter()
             : this(new ProcessFactory(), DefaultTerminationWait)
@@ -440,7 +440,7 @@ namespace FEBuilderGBA.Avalonia.Services
         {
             _processFactory = processFactory ?? throw new ArgumentNullException(nameof(processFactory));
             _terminationWait = terminationWait <= TimeSpan.Zero ? TimeSpan.FromMilliseconds(1) : terminationWait;
-            _startDetached = startDetached ?? (static startInfo => Process.Start(startInfo));
+            _startDetached = startDetached;
         }
 
         [UnsupportedOSPlatform("browser")]
@@ -521,7 +521,7 @@ namespace FEBuilderGBA.Avalonia.Services
 
             try
             {
-                using Process? process = _startDetached(startInfo);
+                using Process? process = StartDetachedProcess(startInfo, _startDetached);
                 if (process != null || startInfo.UseShellExecute)
                     return ExternalLaunchResult.Succeeded();
 
@@ -534,6 +534,13 @@ namespace FEBuilderGBA.Avalonia.Services
                     ex);
             }
         }
+
+        [UnsupportedOSPlatform("browser")]
+        [UnsupportedOSPlatform("ios")]
+        static Process? StartDetachedProcess(
+            ProcessStartInfo startInfo,
+            Func<ProcessStartInfo, Process?>? startDetached)
+            => startDetached != null ? startDetached(startInfo) : Process.Start(startInfo);
 
         async Task<ExternalProcessTerminationResult> TerminateAsync(IExternalProcess process, string fileName)
         {
