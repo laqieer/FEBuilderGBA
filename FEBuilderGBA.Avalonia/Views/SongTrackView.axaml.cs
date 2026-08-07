@@ -830,7 +830,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // the ambient undo scope just opened.
                 Func<byte[], uint> appender = buf => AppendBinaryDataHeadless(rom, buf);
                 uint importedBase = SongInstrumentSetCore.ImportAll(
-                    rom, indexName, readLines!, readFile!, appender, out string? err);
+                    rom, indexName, readLines, readFile, appender, out string? err);
                 if (importedBase == U.NOT_FOUND)
                 {
                     _undoService.Rollback();
