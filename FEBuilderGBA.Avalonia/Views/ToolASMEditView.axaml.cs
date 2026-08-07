@@ -15,6 +15,7 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly ToolASMEditViewViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _isCompiling;
         public string ViewTitle => "ASM Edit";
         public new bool IsLoaded => _vm.IsLoaded;
         public EditorDescriptor Descriptor => new("ASM Edit", 1016, 510, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
@@ -74,8 +75,10 @@ namespace FEBuilderGBA.Avalonia.Views
             return null;
         }
 
-        void Compile_Click(object? sender, RoutedEventArgs e)
+        async void Compile_Click(object? sender, RoutedEventArgs e)
         {
+            if (_isCompiling) return;
+
             var rom = CoreState.ROM;
             if (rom == null)
             {
@@ -128,6 +131,10 @@ namespace FEBuilderGBA.Avalonia.Views
             string tempObj = Path.ChangeExtension(tempAsm, ".o");
             string tempBin = Path.ChangeExtension(tempAsm, ".bin");
 
+            _isCompiling = true;
+            if (sender is Control compileButton)
+                compileButton.IsEnabled = false;
+
             _undoService.Begin("ASM Compile");
             try
             {
@@ -135,36 +142,38 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 // Step 1: Assemble
                 string objcopyExe = assemblerPath.Replace("arm-none-eabi-as", "arm-none-eabi-objcopy");
-                var psi = new ProcessStartInfo(assemblerPath, $"-o \"{tempObj}\" \"{tempAsm}\"")
+                var assemble = await ExternalLauncher.Current.RunCapturedProcessAsync(new ExternalProcessRequest(assemblerPath)
                 {
-                    UseShellExecute = false,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true
-                };
-                using (var proc = Process.Start(psi))
-                {
-                    if (proc == null) throw new Exception("Failed to start assembler process.");
-                    string stderr = proc.StandardError.ReadToEnd();
-                    proc.WaitForExit(30000);
-                    if (proc.ExitCode != 0)
-                        throw new Exception($"Assembly failed:\n{stderr}");
-                }
+                    Arguments = $"-o \"{tempObj}\" \"{tempAsm}\"",
+                    Timeout = TimeSpan.FromSeconds(30),
+                    CaptureStandardOutput = false,
+                    CaptureStandardError = true,
+                });
+                if (assemble.Kind == ExternalProcessResultKind.Unsupported)
+                    throw new Exception(assemble.Message);
+                if (assemble.Kind == ExternalProcessResultKind.StartFailure)
+                    throw new Exception(assemble.Message);
+                if (assemble.Kind == ExternalProcessResultKind.TimedOut)
+                    throw new Exception("Assembly timed out.");
+                if (assemble.ExitCode != 0)
+                    throw new Exception($"Assembly failed:\n{assemble.StandardError}");
 
                 // Step 2: Extract binary with objcopy
-                var psi2 = new ProcessStartInfo(objcopyExe, $"-O binary \"{tempObj}\" \"{tempBin}\"")
+                var objcopy = await ExternalLauncher.Current.RunCapturedProcessAsync(new ExternalProcessRequest(objcopyExe)
                 {
-                    UseShellExecute = false,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true
-                };
-                using (var proc2 = Process.Start(psi2))
-                {
-                    if (proc2 == null) throw new Exception("Failed to start objcopy process.");
-                    string stderr2 = proc2.StandardError.ReadToEnd();
-                    proc2.WaitForExit(30000);
-                    if (proc2.ExitCode != 0)
-                        throw new Exception($"objcopy failed:\n{stderr2}");
-                }
+                    Arguments = $"-O binary \"{tempObj}\" \"{tempBin}\"",
+                    Timeout = TimeSpan.FromSeconds(30),
+                    CaptureStandardOutput = false,
+                    CaptureStandardError = true,
+                });
+                if (objcopy.Kind == ExternalProcessResultKind.Unsupported)
+                    throw new Exception(objcopy.Message);
+                if (objcopy.Kind == ExternalProcessResultKind.StartFailure)
+                    throw new Exception(objcopy.Message);
+                if (objcopy.Kind == ExternalProcessResultKind.TimedOut)
+                    throw new Exception("objcopy timed out.");
+                if (objcopy.ExitCode != 0)
+                    throw new Exception($"objcopy failed:\n{objcopy.StandardError}");
 
                 if (!File.Exists(tempBin))
                     throw new Exception("Binary output file not produced.");
@@ -189,6 +198,9 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             finally
             {
+                _isCompiling = false;
+                if (sender is Control button)
+                    button.IsEnabled = true;
                 try { if (File.Exists(tempAsm)) File.Delete(tempAsm); } catch (Exception ex) { Log.ErrorF("ToolASMEditView temp asm cleanup: {0}", ex.Message); }
                 try { if (File.Exists(tempObj)) File.Delete(tempObj); } catch (Exception ex) { Log.ErrorF("ToolASMEditView temp obj cleanup: {0}", ex.Message); }
                 try { if (File.Exists(tempBin)) File.Delete(tempBin); } catch (Exception ex) { Log.ErrorF("ToolASMEditView temp bin cleanup: {0}", ex.Message); }

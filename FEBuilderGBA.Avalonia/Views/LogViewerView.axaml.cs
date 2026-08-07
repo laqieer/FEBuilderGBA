@@ -159,30 +159,23 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void OnOpenDir(object? sender, RoutedEventArgs e)
+        async void OnOpenDir(object? sender, RoutedEventArgs e)
         {
             try
             {
                 string logFile = _vm.LogFilePath;
                 string dir = _vm.LogDirectory;
 
-                // Cross-platform: only Windows supports `explorer.exe /select,<file>`.
-                // Elsewhere open the containing folder via the shell. Never throw.
-                if (OperatingSystem.IsWindows() && File.Exists(logFile))
-                {
-                    var psi = new ProcessStartInfo("explorer.exe", $"/select,\"{logFile}\"")
-                    { UseShellExecute = true };
-                    Process.Start(psi);
-                }
-                else if (Directory.Exists(dir))
-                {
-                    var psi = new ProcessStartInfo(dir) { UseShellExecute = true };
-                    Process.Start(psi);
-                }
-                else
+                if (!File.Exists(logFile) && !Directory.Exists(dir))
                 {
                     StatusLabel.Text = R._("Log folder not found") + ": " + dir;
+                    return;
                 }
+                var result = File.Exists(logFile)
+                    ? await ExternalLauncher.Current.RevealPathAsync(logFile)
+                    : await ExternalLauncher.Current.OpenPathAsync(dir);
+                if (!result.IsSucceeded)
+                    StatusLabel.Text = result.Message;
             }
             catch (Exception ex)
             {

@@ -52,12 +52,14 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         // Open the last-selected file with its default application (WF U.OpenURLOrFile).
-        void Open_Click(object? sender, RoutedEventArgs e)
+        async void Open_Click(object? sender, RoutedEventArgs e)
         {
             try
             {
                 if (!_vm.HasFile) return;
-                Process.Start(new ProcessStartInfo(_vm.LastFile) { UseShellExecute = true });
+                var result = await ExternalLauncher.Current.OpenPathAsync(_vm.LastFile);
+                if (!result.IsSucceeded)
+                    Log.Error("OpenLastSelectedFileView.Open_Click launch failed: " + result.Message);
             }
             catch (Exception ex)
             {
@@ -66,32 +68,18 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         // Reveal the file in the system file manager (WF U.SelectFileByExplorer).
-        void Folder_Click(object? sender, RoutedEventArgs e)
+        async void Folder_Click(object? sender, RoutedEventArgs e)
         {
             try
             {
                 if (!_vm.HasFile) return;
-                RevealInExplorer(_vm.LastFile);
+                var result = await ExternalLauncher.Current.RevealPathAsync(_vm.LastFile);
+                if (!result.IsSucceeded)
+                    Log.Error("OpenLastSelectedFileView.Folder_Click launch failed: " + result.Message);
             }
             catch (Exception ex)
             {
                 Log.Error("OpenLastSelectedFileView.Folder_Click failed: " + ex);
-            }
-        }
-
-        // No try/catch here — Folder_Click's handler catches + LOGS any failure (a silent
-        // swallow here would hide platform-specific errors and make the caller's catch moot).
-        static void RevealInExplorer(string path)
-        {
-            if (OperatingSystem.IsWindows())
-            {
-                Process.Start(new ProcessStartInfo("explorer.exe", "/select,\"" + path + "\"") { UseShellExecute = true });
-            }
-            else
-            {
-                string dir = Path.GetDirectoryName(path) ?? "";
-                if (!string.IsNullOrEmpty(dir))
-                    Process.Start(new ProcessStartInfo(dir) { UseShellExecute = true });
             }
         }
 

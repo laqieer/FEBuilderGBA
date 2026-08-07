@@ -3659,15 +3659,23 @@ namespace FEBuilderGBA.Avalonia.Views
         private void OpenMenuExtendSplitMenu_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<MenuExtendSplitMenuView>();
 
         // ===================== WU19: Help & External Tools =====================
-        private void OnlineManual_Click(object? sender, RoutedEventArgs e)
+        private async void OnlineManual_Click(object? sender, RoutedEventArgs e)
         {
-            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://github.com/laqieer/FEBuilderGBA/wiki") { UseShellExecute = true }); }
+            try
+            {
+                var result = await ExternalLauncher.Current.OpenUriAsync(TopLevel.GetTopLevel(this), new Uri("https://github.com/laqieer/FEBuilderGBA/wiki"));
+                if (!result.IsSucceeded) Log.ErrorF("MainWindow.OnlineManual_Click launch browser: {0}", result.Message);
+            }
             catch (Exception ex) { Log.ErrorF("MainWindow.OnlineManual_Click launch browser: {0}", ex.Message); }
         }
 
-        private void Discussions_Click(object? sender, RoutedEventArgs e)
+        private async void Discussions_Click(object? sender, RoutedEventArgs e)
         {
-            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://github.com/laqieer/FEBuilderGBA/discussions") { UseShellExecute = true }); }
+            try
+            {
+                var result = await ExternalLauncher.Current.OpenUriAsync(TopLevel.GetTopLevel(this), new Uri("https://github.com/laqieer/FEBuilderGBA/discussions"));
+                if (!result.IsSucceeded) Log.ErrorF("MainWindow.Discussions_Click launch browser: {0}", result.Message);
+            }
             catch (Exception ex) { Log.ErrorF("MainWindow.Discussions_Click launch browser: {0}", ex.Message); }
         }
 
@@ -3761,12 +3769,16 @@ namespace FEBuilderGBA.Avalonia.Views
                     result.LatestVersion, result.CurrentVersion),
                 R._("FEBuilderGBA"), MessageBoxMode.YesNo);
             if (answer == MessageBoxResult.Yes)
-                OpenUrlInBrowser(result.ReleasePageUrl);
+                await OpenUrlInBrowser(result.ReleasePageUrl);
         }
 
-        static void OpenUrlInBrowser(string url)
+        static async Task OpenUrlInBrowser(string url)
         {
-            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true }); }
+            try
+            {
+                var result = await ExternalLauncher.Current.OpenUriAsync(WindowManager.Instance.MainWindow, new Uri(url));
+                if (!result.IsSucceeded) Log.ErrorF("MainWindow.OpenUrlInBrowser: {0}", result.Message);
+            }
             catch (Exception ex) { Log.ErrorF("MainWindow.OpenUrlInBrowser: {0}", ex.Message); }
         }
 
@@ -3817,22 +3829,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 {
                     try
                     {
-                        if (OperatingSystem.IsWindows())
-                        {
-                            // Match the codebase-wide explorer-select convention (LogViewerView): a single
-                            // quoted "/select,\"<path>\"" argument string, which Explorer parses reliably.
-                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"/select,\"{pngPath}\"") { UseShellExecute = true });
-                        }
-                        else if (OperatingSystem.IsMacOS())
-                        {
-                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("open") { UseShellExecute = false, ArgumentList = { "-R", pngPath } });
-                        }
-                        else
-                        {
-                            var dir = Path.GetDirectoryName(pngPath);
-                            if (!string.IsNullOrEmpty(dir))
-                                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("xdg-open") { UseShellExecute = false, ArgumentList = { dir } });
-                        }
+                        var reveal = await ExternalLauncher.Current.RevealPathAsync(pngPath);
+                        if (!reveal.IsSucceeded)
+                            Log.ErrorF("MainWindow.ReportBug_Click reveal: {0}", reveal.Message);
                     }
                     catch (Exception ex) { Log.ErrorF("MainWindow.ReportBug_Click reveal: {0}", ex.Message); }
 
@@ -3848,8 +3847,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 bool browserOpened = false;
                 try
                 {
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
-                    browserOpened = true;
+                    var launch = await ExternalLauncher.Current.OpenUriAsync(TopLevel.GetTopLevel(this), new Uri(url));
+                    browserOpened = launch.IsSucceeded;
+                    if (!launch.IsSucceeded)
+                        Log.ErrorF("MainWindow.ReportBug_Click open browser: {0}", launch.Message);
                 }
                 catch (Exception ex) { Log.ErrorF("MainWindow.ReportBug_Click open browser: {0}", ex.Message); }
 
@@ -3924,10 +3925,18 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             try
             {
-                var psi = new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true };
                 if (CoreState.ROM != null && !string.IsNullOrEmpty(CoreState.ROM.Filename))
-                    psi.Arguments = $"\"{CoreState.ROM.Filename}\"";
-                System.Diagnostics.Process.Start(psi);
+                {
+                    var result = await ExternalLauncher.Current.OpenPathAsync(path, $"\"{CoreState.ROM.Filename}\"");
+                    if (!result.IsSucceeded)
+                        await MessageBoxWindow.Show(this, R._("Failed to run") + $" {toolName}: {result.Message}", R._("Error"), MessageBoxMode.Ok);
+                }
+                else
+                {
+                    var result = await ExternalLauncher.Current.OpenPathAsync(path);
+                    if (!result.IsSucceeded)
+                        await MessageBoxWindow.Show(this, R._("Failed to run") + $" {toolName}: {result.Message}", R._("Error"), MessageBoxMode.Ok);
+                }
             }
             catch (Exception ex)
             {

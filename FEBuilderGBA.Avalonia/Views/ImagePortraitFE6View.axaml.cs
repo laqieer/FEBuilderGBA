@@ -274,7 +274,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void OpenSource_Click(object? sender, RoutedEventArgs e)
+        async void OpenSource_Click(object? sender, RoutedEventArgs e)
         {
             try
             {
@@ -286,9 +286,9 @@ namespace FEBuilderGBA.Avalonia.Views
                     && !string.IsNullOrEmpty(path))
                 {
                     if (!File.Exists(path)) { CoreState.Services.ShowError("Source file not found."); return; }
-                    // Cross-platform "open file" — defer to OS default handler.
-                    var psi = new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true };
-                    System.Diagnostics.Process.Start(psi);
+                    var result = await ExternalLauncher.Current.OpenPathAsync(path);
+                    if (!result.IsSucceeded)
+                        CoreState.Services.ShowError($"Open source failed: {result.Message}");
                 }
                 else
                 {
@@ -298,7 +298,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex) { CoreState.Services.ShowError($"Open source failed: {ex.Message}"); }
         }
 
-        void SelectSource_Click(object? sender, RoutedEventArgs e)
+        async void SelectSource_Click(object? sender, RoutedEventArgs e)
         {
             try
             {
@@ -310,19 +310,9 @@ namespace FEBuilderGBA.Avalonia.Views
                     && !string.IsNullOrEmpty(path))
                 {
                     if (!File.Exists(path)) { CoreState.Services.ShowError("Source file not found."); return; }
-                    // Reveal the file in the OS file explorer. Windows: explorer /select,
-                    string? dir = Path.GetDirectoryName(path);
-                    if (string.IsNullOrEmpty(dir)) return;
-                    if (OperatingSystem.IsWindows())
-                    {
-                        System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{path}\"");
-                    }
-                    else
-                    {
-                        // Cross-platform fallback: open the parent directory.
-                        var psi = new System.Diagnostics.ProcessStartInfo(dir) { UseShellExecute = true };
-                        System.Diagnostics.Process.Start(psi);
-                    }
+                    var result = await ExternalLauncher.Current.RevealPathAsync(path);
+                    if (!result.IsSucceeded)
+                        CoreState.Services.ShowError($"Select source failed: {result.Message}");
                 }
                 else
                 {

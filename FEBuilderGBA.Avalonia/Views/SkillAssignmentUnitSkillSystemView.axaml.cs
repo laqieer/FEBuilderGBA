@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
@@ -470,16 +470,15 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void LearnInfo_Click(object sender, RoutedEventArgs e)
+        async void LearnInfo_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                var psi = new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = "https://laqieer.github.io/dw.ngmansion.xyz/wiki/en/guide_febuildergba_learnskillinfo.html",
-                    UseShellExecute = true,
-                };
-                System.Diagnostics.Process.Start(psi);
+                var result = await ExternalLauncher.Current.OpenUriAsync(
+                    TopLevel.GetTopLevel(this),
+                    new Uri("https://laqieer.github.io/dw.ngmansion.xyz/wiki/en/guide_febuildergba_learnskillinfo.html"));
+                if (!result.IsSucceeded)
+                    Log.ErrorF("SkillAssignmentUnitSkillSystemView.LearnInfo_Click launch failed: {0}", result.Message);
             }
             catch (Exception ex)
             {

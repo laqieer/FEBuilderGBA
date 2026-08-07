@@ -243,14 +243,15 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void Community_Click(object? sender, RoutedEventArgs e)
+        async void Community_Click(object? sender, RoutedEventArgs e)
         {
             try
             {
                 if (!string.IsNullOrEmpty(_vm.CommunityUrl))
                 {
-                    var psi = new System.Diagnostics.ProcessStartInfo(_vm.CommunityUrl) { UseShellExecute = true };
-                    System.Diagnostics.Process.Start(psi);
+                    var result = await ExternalLauncher.Current.OpenUriAsync(TopLevel.GetTopLevel(this), new Uri(_vm.CommunityUrl));
+                    if (!result.IsSucceeded)
+                        Log.Error("ToolWorkSupportView.Community", result.Message);
                 }
             }
             catch (Exception ex)
@@ -259,14 +260,15 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void OpenInfo_Click(object? sender, RoutedEventArgs e)
+        async void OpenInfo_Click(object? sender, RoutedEventArgs e)
         {
             try
             {
                 if (!string.IsNullOrEmpty(_vm.InfoText) && System.IO.File.Exists(_vm.InfoText))
                 {
-                    var psi = new System.Diagnostics.ProcessStartInfo(_vm.InfoText) { UseShellExecute = true };
-                    System.Diagnostics.Process.Start(psi);
+                    var result = await ExternalLauncher.Current.OpenPathAsync(_vm.InfoText);
+                    if (!result.IsSucceeded)
+                        Log.Error("ToolWorkSupportView.OpenInfo", result.Message);
                 }
             }
             catch (Exception ex)
