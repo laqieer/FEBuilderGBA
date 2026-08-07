@@ -49,7 +49,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ImportBattleAnime_NoRom_ReturnsError()
         {
-            var origRom = CoreState.ROM;
+            ROM? origRom = CoreState.ROM;
             CoreState.ROM = null!;
             try
             {
@@ -71,7 +71,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = origRom;
+                CoreState.ROM = origRom!;
             }
         }
 
@@ -219,7 +219,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ImportFEditorBin_NoRom_ReturnsError()
         {
-            var origRom = CoreState.ROM;
+            ROM? origRom = CoreState.ROM;
             CoreState.ROM = null!;
             try
             {
@@ -239,7 +239,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = origRom;
+                CoreState.ROM = origRom!;
             }
         }
 

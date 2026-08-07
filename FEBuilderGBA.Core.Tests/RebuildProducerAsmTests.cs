@@ -678,7 +678,7 @@ namespace FEBuilderGBA.Core.Tests
             // file. The producer must degrade to an EMPTY name dict (loop 2 contributes nothing; the ldrmap
             // loop still emits, falling back to the hex name) instead of throwing/asserting headless.
             var saved = CoreState.ROM;
-            var savedBaseDir = CoreState.BaseDirectory;
+            string? savedBaseDir = CoreState.BaseDirectory;
             try
             {
                 var fe8 = MakeVersionedRom("BE8E01");
@@ -705,7 +705,7 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.ROM = saved;
-                CoreState.BaseDirectory = savedBaseDir;
+                CoreState.BaseDirectory = savedBaseDir!;
             }
         }
 
@@ -1265,7 +1265,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void EmitEventAsmMapList_DisasmUnwired_Throws()
         {
-            var savedEs = CoreState.EventScript;
+            EventScript? savedEs = CoreState.EventScript;
             var savedRom = CoreState.ROM;
             try
             {
@@ -1276,7 +1276,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.EventScript = savedEs;
+                CoreState.EventScript = savedEs!;
                 CoreState.ROM = savedRom;
             }
         }
@@ -1425,7 +1425,7 @@ namespace FEBuilderGBA.Core.Tests
         public void AppendAllAsmStructPointers_DisasmUnwired_ReReportsEventScript()
         {
             var savedRom = CoreState.ROM;
-            var savedEs = CoreState.EventScript;
+            EventScript? savedEs = CoreState.EventScript;
             try
             {
                 var fe8 = MakeVersionedRom("BE8E01");
@@ -1439,7 +1439,7 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.ROM = savedRom;
-                CoreState.EventScript = savedEs;
+                CoreState.EventScript = savedEs!;
             }
         }
 
@@ -1843,7 +1843,7 @@ namespace FEBuilderGBA.Core.Tests
             // shows a dialog + Debug.Assert on a missing file. Load6cNameDicSafe must degrade to an EMPTY
             // dict (loop 2 contributes nothing; loop 1 still emits) instead of throwing/asserting headless.
             var savedRom = CoreState.ROM;
-            var savedBaseDir = CoreState.BaseDirectory;
+            string? savedBaseDir = CoreState.BaseDirectory;
             var savedServices = CoreState.Services;
             var spy = new ThrowOnDialogServices();
             try
@@ -1871,7 +1871,7 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.ROM = savedRom;
-                CoreState.BaseDirectory = savedBaseDir;
+                CoreState.BaseDirectory = savedBaseDir!;
                 CoreState.Services = savedServices;
             }
         }

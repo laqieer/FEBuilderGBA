@@ -113,7 +113,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ResolveBaseSlot_Rework_NoConfig_ReturnsZero()
         {
             var savedRom = CoreState.ROM;
-            var savedBase = CoreState.BaseDirectory;
+            string? savedBase = CoreState.BaseDirectory;
             try
             {
                 var rom = MakeFE8U();
@@ -124,7 +124,7 @@ namespace FEBuilderGBA.Core.Tests
                 // And no config slot -> no table base -> empty editor (WF ReInitPointer(0)).
                 Assert.Equal(0u, UnitActionPointerCore.ResolveBaseAddress(rom));
             }
-            finally { CoreState.ROM = savedRom; CoreState.BaseDirectory = savedBase; }
+            finally { CoreState.ROM = savedRom; CoreState.BaseDirectory = savedBase!; }
         }
 
         /// <summary>

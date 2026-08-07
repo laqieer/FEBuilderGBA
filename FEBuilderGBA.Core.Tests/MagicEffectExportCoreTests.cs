@@ -1334,7 +1334,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             // guards: no ImageService → null (no throw).
             var prevRom = CoreState.ROM;
-            var prevSvc = CoreState.ImageService;
+            IImageService? prevSvc = CoreState.ImageService;
             try
             {
                 var rom = MakeMinimalRomSize(0x1100000);
@@ -1348,7 +1348,7 @@ namespace FEBuilderGBA.Core.Tests
                     rom, baseOff, 0u, 0u, 0u);
                 Assert.Null(img);
             }
-            finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc; }
+            finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc!; }
         }
 
         [Fact]

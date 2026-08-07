@@ -168,7 +168,7 @@ namespace FEBuilderGBA.Core.Tests
             byte[] before = (byte[])rom.Data.Clone();
 
             // Point the resolver at an empty tree with no EA exe.
-            var savedConfig = CoreState.Config;
+            Config? savedConfig = CoreState.Config;
             var savedBaseDir = CoreState.BaseDirectory;
             CoreState.Config = null!;
             CoreState.BaseDirectory = Path.Combine(Path.GetTempPath(),
@@ -193,7 +193,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.Config = savedConfig;
+                CoreState.Config = savedConfig!;
                 CoreState.BaseDirectory = savedBaseDir;
                 try { File.Delete(eaFile); } catch { }
             }

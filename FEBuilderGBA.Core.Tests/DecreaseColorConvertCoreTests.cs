@@ -680,7 +680,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ReduceColorFile_NoImageService_ReturnsMinus1()
         {
-            var prev = CoreState.ImageService;
+            IImageService? prev = CoreState.ImageService;
             CoreState.ImageService = null!;
             string input = Path.Combine(Path.GetTempPath(), "dc_in_" + Guid.NewGuid() + ".png");
             File.WriteAllBytes(input, new byte[] { 0x89, 0x50, 0x4E, 0x47 });
@@ -691,7 +691,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ImageService = prev;
+                CoreState.ImageService = prev!;
                 File.Delete(input);
             }
         }

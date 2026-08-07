@@ -74,7 +74,7 @@ namespace FEBuilderGBA.Core.Tests
         public void Default_Constructor_WithoutRom_UsesISO8859()
         {
             // Without a ROM loaded, defaults to ISO-8859-1
-            var saved = CoreState.ROM;
+            ROM? saved = CoreState.ROM;
             try
             {
                 CoreState.ROM = null!;
@@ -83,7 +83,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = saved;
+                CoreState.ROM = saved!;
             }
         }
 

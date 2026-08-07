@@ -169,7 +169,7 @@ namespace FEBuilderGBA.Core.Tests
         public void RenderGlyphZH_NullImageService_ReturnsNull()
         {
             using var _ = NewStub();
-            var prevSvc = CoreState.ImageService;
+            IImageService? prevSvc = CoreState.ImageService;
             try
             {
                 ROM rom = MakeRom();
@@ -178,7 +178,7 @@ namespace FEBuilderGBA.Core.Tests
                 uint addr = FontGlyphZHCore.GetFontPointerZH(8, isItemFont: false) + 0x54;
                 Assert.Null(FontGlyphZHCore.RenderGlyphZH(rom, addr, isItemFont: false));
             }
-            finally { CoreState.ImageService = prevSvc; }
+            finally { CoreState.ImageService = prevSvc!; }
         }
 
         // ---------------- Pack / encode ----------------

@@ -42,7 +42,7 @@ public class MapEventUnitCoreNewAllocTests
     {
         ROM rom = MakeFe8uRom();
         var prevRom = CoreState.ROM;
-        var prevDelegate = CoreState.AppendBinaryData;
+        Func<byte[], Undo.UndoData, uint>? prevDelegate = CoreState.AppendBinaryData;
         try
         {
             CoreState.ROM = rom;
@@ -70,7 +70,7 @@ public class MapEventUnitCoreNewAllocTests
         finally
         {
             CoreState.ROM = prevRom;
-            CoreState.AppendBinaryData = prevDelegate;
+            CoreState.AppendBinaryData = prevDelegate!;
         }
     }
 
@@ -79,7 +79,7 @@ public class MapEventUnitCoreNewAllocTests
     {
         ROM rom = MakeFe8uRom();
         var prevRom = CoreState.ROM;
-        var prevDelegate = CoreState.AppendBinaryData;
+        Func<byte[], Undo.UndoData, uint>? prevDelegate = CoreState.AppendBinaryData;
         try
         {
             CoreState.ROM = rom;
@@ -97,7 +97,7 @@ public class MapEventUnitCoreNewAllocTests
         finally
         {
             CoreState.ROM = prevRom;
-            CoreState.AppendBinaryData = prevDelegate;
+            CoreState.AppendBinaryData = prevDelegate!;
         }
     }
 
@@ -106,7 +106,7 @@ public class MapEventUnitCoreNewAllocTests
     {
         ROM rom = MakeFe8uRom();
         var prevRom = CoreState.ROM;
-        var prevDelegate = CoreState.AppendBinaryData;
+        Func<byte[], Undo.UndoData, uint>? prevDelegate = CoreState.AppendBinaryData;
         try
         {
             CoreState.ROM = rom;
@@ -125,7 +125,7 @@ public class MapEventUnitCoreNewAllocTests
         finally
         {
             CoreState.ROM = prevRom;
-            CoreState.AppendBinaryData = prevDelegate;
+            CoreState.AppendBinaryData = prevDelegate!;
         }
     }
 
@@ -144,7 +144,7 @@ public class MapEventUnitCoreNewAllocTests
     {
         ROM rom = MakeFe8uRom();
         var prevRom = CoreState.ROM;
-        var prevDelegate = CoreState.AppendBinaryData;
+        Func<byte[], Undo.UndoData, uint>? prevDelegate = CoreState.AppendBinaryData;
         try
         {
             CoreState.ROM = rom;
@@ -160,7 +160,7 @@ public class MapEventUnitCoreNewAllocTests
         finally
         {
             CoreState.ROM = prevRom;
-            CoreState.AppendBinaryData = prevDelegate;
+            CoreState.AppendBinaryData = prevDelegate!;
         }
     }
 
@@ -259,7 +259,7 @@ public class MapEventUnitCoreNewAllocTests
         ROM rom = MakeFe8uRom();
         var prevRom = CoreState.ROM;
         var prevUndo = CoreState.Undo;
-        var prevDelegate = CoreState.AppendBinaryData;
+        Func<byte[], Undo.UndoData, uint>? prevDelegate = CoreState.AppendBinaryData;
         try
         {
             CoreState.ROM = rom;
@@ -289,7 +289,7 @@ public class MapEventUnitCoreNewAllocTests
         {
             CoreState.ROM = prevRom;
             CoreState.Undo = prevUndo;
-            CoreState.AppendBinaryData = prevDelegate;
+            CoreState.AppendBinaryData = prevDelegate!;
         }
     }
 
@@ -423,7 +423,7 @@ public class MapEventUnitCoreNewAllocTests
         ROM rom = MakeFe8uRom();
         var prevRom = CoreState.ROM;
         var prevEs = CoreState.EventScript;
-        var prevDelegate = CoreState.AppendBinaryData;
+        Func<byte[], Undo.UndoData, uint>? prevDelegate = CoreState.AppendBinaryData;
         var prevComment = CoreState.CommentCache;
         try
         {
@@ -481,7 +481,7 @@ public class MapEventUnitCoreNewAllocTests
         {
             CoreState.ROM = prevRom;
             CoreState.EventScript = prevEs;
-            CoreState.AppendBinaryData = prevDelegate;
+            CoreState.AppendBinaryData = prevDelegate!;
             CoreState.CommentCache = prevComment;
         }
     }
@@ -508,7 +508,7 @@ public class MapEventUnitCoreNewAllocTests
         uint scriptUnitList;
         BuildMapWithDirectAndScriptUnitLists(rom, mapId: 0, out directUnitList, out scriptUnitList);
 
-        var prevRom = CoreState.ROM;
+        ROM? prevRom = CoreState.ROM;
         var prevEs = CoreState.EventScript;
         try
         {
@@ -528,7 +528,7 @@ public class MapEventUnitCoreNewAllocTests
         }
         finally
         {
-            CoreState.ROM = prevRom;
+            CoreState.ROM = prevRom!;
             CoreState.EventScript = prevEs;
         }
     }
@@ -555,7 +555,7 @@ public class MapEventUnitCoreNewAllocTests
         finally
         {
             CoreState.ROM = previousRom;
-            CoreState.EventScript = previousScript;
+            CoreState.EventScript = previousScript!;
         }
     }
 
@@ -663,7 +663,7 @@ public class MapEventUnitCoreNewAllocTests
         }
         finally
         {
-            CoreState.ROM = previous;
+            CoreState.ROM = previous!;
         }
     }
 

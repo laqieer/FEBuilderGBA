@@ -90,7 +90,7 @@ namespace FEBuilderGBA.Core.Tests
         public void GetTextById_NullRom_ReturnsFallback()
         {
             // FETextDecode.Direct will fail if no ROM is loaded
-            var saved = CoreState.ROM;
+            ROM? saved = CoreState.ROM;
             try
             {
                 CoreState.ROM = null!;
@@ -99,14 +99,14 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = saved;
+                CoreState.ROM = saved!;
             }
         }
 
         [Fact]
         public void GetUnitName_NullRom_ReturnsFallback()
         {
-            var saved = CoreState.ROM;
+            ROM? saved = CoreState.ROM;
             try
             {
                 CoreState.ROM = null!;
@@ -116,7 +116,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = saved;
+                CoreState.ROM = saved!;
             }
         }
 
@@ -142,7 +142,7 @@ namespace FEBuilderGBA.Core.Tests
             // that the 1-based helper never throws on null ROM, and that the
             // uid=1 path on a null ROM produces "???" rather than rebinding into
             // the 0-based table.
-            var saved = CoreState.ROM;
+            ROM? saved = CoreState.ROM;
             try
             {
                 CoreState.ROM = null!;
@@ -153,7 +153,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = saved;
+                CoreState.ROM = saved!;
                 NameResolver.ClearCache();
             }
         }
@@ -161,7 +161,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetUnitNameByOneBasedId_NullRom_ReturnsFallbackForNonZero()
         {
-            var saved = CoreState.ROM;
+            ROM? saved = CoreState.ROM;
             try
             {
                 CoreState.ROM = null!;
@@ -170,7 +170,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = saved;
+                CoreState.ROM = saved!;
                 NameResolver.ClearCache();
             }
         }
@@ -402,7 +402,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetClassName_NullRom_ReturnsFallback()
         {
-            var saved = CoreState.ROM;
+            ROM? saved = CoreState.ROM;
             try
             {
                 CoreState.ROM = null!;
@@ -412,14 +412,14 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = saved;
+                CoreState.ROM = saved!;
             }
         }
 
         [Fact]
         public void GetItemName_NullRom_ReturnsFallback()
         {
-            var saved = CoreState.ROM;
+            ROM? saved = CoreState.ROM;
             try
             {
                 CoreState.ROM = null!;
@@ -429,7 +429,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = saved;
+                CoreState.ROM = saved!;
             }
         }
 
@@ -438,7 +438,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             // With no ROM loaded, GetSongName must fall back to the safe
             // "Song 0x{id:X}" placeholder (the real-name resolver needs a ROM).
-            var saved = CoreState.ROM;
+            ROM? saved = CoreState.ROM;
             try
             {
                 CoreState.ROM = null!;
@@ -448,7 +448,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = saved;
+                CoreState.ROM = saved!;
                 NameResolver.ClearCache();
             }
         }
@@ -485,7 +485,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetSkillName_NoResolver_ReturnsHexFallback()
         {
-            var savedResolver = CoreState.SkillNameResolver;
+            Func<uint, string>? savedResolver = CoreState.SkillNameResolver;
             try
             {
                 CoreState.SkillNameResolver = null!;
@@ -495,7 +495,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.SkillNameResolver = savedResolver;
+                CoreState.SkillNameResolver = savedResolver!;
             }
         }
 
@@ -556,7 +556,7 @@ namespace FEBuilderGBA.Core.Tests
         public void GetPortraitName_ReturnsEmptyWhenNoRom()
         {
             NameResolver.ClearCache();
-            var savedRom = CoreState.ROM;
+            ROM? savedRom = CoreState.ROM;
             try
             {
                 CoreState.ROM = null!;
@@ -568,7 +568,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = savedRom;
+                CoreState.ROM = savedRom!;
                 NameResolver.ClearCache();
             }
         }

@@ -100,9 +100,9 @@ namespace FEBuilderGBA.Core.Tests
             string path = FindRom("FE8U.gba");
             if (path == null) return;
 
-            var savedRom = CoreState.ROM;
-            var savedEs = CoreState.EventScript;
-            var savedComment = CoreState.CommentCache;
+            ROM? savedRom = CoreState.ROM;
+            EventScript? savedEs = CoreState.EventScript;
+            IEtcCache? savedComment = CoreState.CommentCache;
             var savedBaseDir = CoreState.BaseDirectory;
             try
             {
@@ -121,9 +121,9 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = savedRom;
-                CoreState.EventScript = savedEs;
-                CoreState.CommentCache = savedComment;
+                CoreState.ROM = savedRom!;
+                CoreState.EventScript = savedEs!;
+                CoreState.CommentCache = savedComment!;
                 if (savedBaseDir != null) CoreState.BaseDirectory = savedBaseDir;
             }
         }

@@ -144,7 +144,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Compile_DevkitNotConfigured_ReturnsLocalizedError()
         {
-            var savedConfig = CoreState.Config;
+            Config? savedConfig = CoreState.Config;
             CoreState.Config = null!; // no devkitpro_eabi
             string src = Path.Combine(Path.GetTempPath(), "asm-" + Path.GetRandomFileName() + ".s");
             File.WriteAllText(src, ".thumb\r\nnop\r\n");
@@ -157,7 +157,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.Config = savedConfig;
+                CoreState.Config = savedConfig!;
                 try { File.Delete(src); } catch { }
             }
         }
@@ -179,7 +179,7 @@ namespace FEBuilderGBA.Core.Tests
             var rom = CreateTestRom();
             byte[] before = (byte[])rom.Data.Clone();
 
-            var savedConfig = CoreState.Config;
+            Config? savedConfig = CoreState.Config;
             CoreState.Config = null!;
             string src = Path.Combine(Path.GetTempPath(), "asm-" + Path.GetRandomFileName() + ".s");
             File.WriteAllText(src, ".thumb\r\nnop\r\n");
@@ -198,7 +198,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.Config = savedConfig;
+                CoreState.Config = savedConfig!;
                 try { File.Delete(src); } catch { }
             }
         }
@@ -498,7 +498,7 @@ namespace FEBuilderGBA.Core.Tests
             // never mutates with a zero address even when the compile can't run.)
             var rom = CreateTestRom(0x400);
             byte[] before = (byte[])rom.Data.Clone();
-            var savedConfig = CoreState.Config;
+            Config? savedConfig = CoreState.Config;
             CoreState.Config = null!; // devkit not configured → compile fails cleanly first
             string src = Path.Combine(Path.GetTempPath(), "asm-" + Path.GetRandomFileName() + ".s");
             File.WriteAllText(src, ".thumb\r\nnop\r\n");
@@ -516,7 +516,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.Config = savedConfig;
+                CoreState.Config = savedConfig!;
                 try { File.Delete(src); } catch { }
             }
         }
@@ -585,7 +585,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ResolveDevkitArmTools_NotConfigured_ReturnNull()
         {
-            var savedConfig = CoreState.Config;
+            Config? savedConfig = CoreState.Config;
             CoreState.Config = null!; // no devkitpro_eabi
             try
             {
@@ -596,7 +596,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.Config = savedConfig;
+                CoreState.Config = savedConfig!;
             }
         }
 
@@ -665,7 +665,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             // With no EA exe resolvable (null config + empty base dir), lyn resolution
             // (which keys off the EA tree) returns null.
-            var savedConfig = CoreState.Config;
+            Config? savedConfig = CoreState.Config;
             var savedBaseDir = CoreState.BaseDirectory;
             CoreState.Config = null!;
             CoreState.BaseDirectory = Path.Combine(Path.GetTempPath(),
@@ -676,7 +676,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.Config = savedConfig;
+                CoreState.Config = savedConfig!;
                 CoreState.BaseDirectory = savedBaseDir;
             }
         }
@@ -755,7 +755,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ResolveGoldRoad_NotConfigured_ReturnsNull()
         {
-            var savedConfig = CoreState.Config;
+            Config? savedConfig = CoreState.Config;
             CoreState.Config = null!;
             try
             {
@@ -765,7 +765,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.Config = savedConfig;
+                CoreState.Config = savedConfig!;
             }
         }
 

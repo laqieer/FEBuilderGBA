@@ -21,7 +21,7 @@ namespace FEBuilderGBA.Core.Tests
         public void NameResolver_GetTextById_ReturnsQuestionMarks_WhenNoROM()
         {
             // With no ROM loaded, non-zero ID should return "???"
-            var saved = CoreState.ROM;
+            ROM? saved = CoreState.ROM;
             try
             {
                 CoreState.ROM = null!;
@@ -30,14 +30,14 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = saved;
+                CoreState.ROM = saved!;
             }
         }
 
         [Fact]
         public void NameResolver_GetUnitName_ReturnsQuestionMarks_WhenNoROM()
         {
-            var saved = CoreState.ROM;
+            ROM? saved = CoreState.ROM;
             try
             {
                 CoreState.ROM = null!;
@@ -47,7 +47,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = saved;
+                CoreState.ROM = saved!;
                 NameResolver.ClearCache();
             }
         }
@@ -55,7 +55,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void NameResolver_GetClassName_ReturnsQuestionMarks_WhenNoROM()
         {
-            var saved = CoreState.ROM;
+            ROM? saved = CoreState.ROM;
             try
             {
                 CoreState.ROM = null!;
@@ -65,7 +65,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = saved;
+                CoreState.ROM = saved!;
                 NameResolver.ClearCache();
             }
         }
@@ -73,7 +73,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void NameResolver_GetItemName_ReturnsQuestionMarks_WhenNoROM()
         {
-            var saved = CoreState.ROM;
+            ROM? saved = CoreState.ROM;
             try
             {
                 CoreState.ROM = null!;
@@ -83,7 +83,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = saved;
+                CoreState.ROM = saved!;
                 NameResolver.ClearCache();
             }
         }

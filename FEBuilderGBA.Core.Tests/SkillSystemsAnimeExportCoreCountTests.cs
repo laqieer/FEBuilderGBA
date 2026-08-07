@@ -217,7 +217,7 @@ namespace FEBuilderGBA.Core.Tests
             // CountSkillFrames must work even with NO image service — it renders
             // nothing (unlike ExportSkillAnimation which errors without it).
             var prevRom = CoreState.ROM;
-            var prevSvc = CoreState.ImageService;
+            IImageService? prevSvc = CoreState.ImageService;
             try
             {
                 ROM rom = MakeFE8JRom();
@@ -229,7 +229,7 @@ namespace FEBuilderGBA.Core.Tests
 
                 Assert.Equal(3, SkillSystemsAnimeExportCore.CountSkillFrames(rom, animeOffset));
             }
-            finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc; }
+            finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc!; }
         }
 
         // ===============================================================

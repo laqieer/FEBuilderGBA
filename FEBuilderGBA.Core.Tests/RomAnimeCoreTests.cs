@@ -205,14 +205,14 @@ namespace FEBuilderGBA.Core.Tests
             });
             // CoreState.ROM is restored (non-test) here; force it null to prove the
             // property does not depend on it.
-            var saved = CoreState.ROM;
+            ROM? saved = CoreState.ROM;
             try
             {
                 CoreState.ROM = null!;
                 bool isFrameTable = e.IsFrameTable; // must NOT throw
                 Assert.False(isFrameTable);          // FramePointer == 1 (fixed count)
             }
-            finally { CoreState.ROM = saved; }
+            finally { CoreState.ROM = saved!; }
         }
 
         [Fact]

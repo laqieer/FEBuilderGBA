@@ -26,8 +26,8 @@ namespace FEBuilderGBA.Core.Tests
         public void MakeListByUseBG_Gating_NonActiveRom_ReturnsEmpty()
         {
             BGReferenceFinder.ResetCache();
-            var prevRom = CoreState.ROM;
-            var prevEs = CoreState.EventScript;
+            ROM? prevRom = CoreState.ROM;
+            EventScript? prevEs = CoreState.EventScript;
             try
             {
                 CoreState.ROM = null!; // no active ROM -> gating returns empty
@@ -41,8 +41,8 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = prevRom;
-                CoreState.EventScript = prevEs;
+                CoreState.ROM = prevRom!;
+                CoreState.EventScript = prevEs!;
                 BGReferenceFinder.ResetCache();
             }
         }
@@ -133,10 +133,10 @@ namespace FEBuilderGBA.Core.Tests
             string romPath = FindRom("FE8U.gba");
             if (romPath == null) return; // skip
 
-            var savedRom = CoreState.ROM;
-            var savedEs = CoreState.EventScript;
+            ROM? savedRom = CoreState.ROM;
+            EventScript? savedEs = CoreState.EventScript;
             var savedEnc = CoreState.SystemTextEncoder;
-            var savedComment = CoreState.CommentCache;
+            IEtcCache? savedComment = CoreState.CommentCache;
             var savedBaseDir = CoreState.BaseDirectory;
             try
             {
@@ -208,10 +208,10 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = savedRom;
-                CoreState.EventScript = savedEs;
+                CoreState.ROM = savedRom!;
+                CoreState.EventScript = savedEs!;
                 CoreState.SystemTextEncoder = savedEnc;
-                CoreState.CommentCache = savedComment;
+                CoreState.CommentCache = savedComment!;
                 if (savedBaseDir != null)
                     CoreState.BaseDirectory = savedBaseDir;
                 BGReferenceFinder.ResetCache();

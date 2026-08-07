@@ -56,7 +56,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void DrawFrame_WithNoRom_ReturnsNull()
         {
-            var origRom = CoreState.ROM;
+            ROM? origRom = CoreState.ROM;
             try
             {
                 CoreState.ROM = null!;
@@ -65,14 +65,14 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = origRom;
+                CoreState.ROM = origRom!;
             }
         }
 
         [Fact]
         public void DrawFrame_WithNoImageService_ReturnsNull()
         {
-            var origService = CoreState.ImageService;
+            IImageService? origService = CoreState.ImageService;
             try
             {
                 CoreState.ImageService = null!;
@@ -81,7 +81,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ImageService = origService;
+                CoreState.ImageService = origService!;
             }
         }
 
@@ -95,7 +95,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void CountFrames_WithNoRom_ReturnsZero()
         {
-            var origRom = CoreState.ROM;
+            ROM? origRom = CoreState.ROM;
             try
             {
                 CoreState.ROM = null!;
@@ -104,7 +104,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = origRom;
+                CoreState.ROM = origRom!;
             }
         }
 
@@ -327,7 +327,7 @@ namespace FEBuilderGBA.Core.Tests
         public void RenderFrameImage_NullImageService_ReturnsNull()
         {
             var origRom = CoreState.ROM;
-            var origService = CoreState.ImageService;
+            IImageService? origService = CoreState.ImageService;
             try
             {
                 CoreState.ImageService = null!;
@@ -340,7 +340,7 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.ROM = origRom;
-                CoreState.ImageService = origService;
+                CoreState.ImageService = origService!;
             }
         }
 

@@ -534,7 +534,7 @@ namespace FEBuilderGBA.Core.Tests
             if (romPath == null) return; // skip when no ROM available (env-only)
 
             var savedRom = CoreState.ROM;
-            var savedEs = CoreState.EventScript;
+            EventScript? savedEs = CoreState.EventScript;
             try
             {
                 var rom = new ROM();
@@ -573,7 +573,7 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.ROM = savedRom;
-                CoreState.EventScript = savedEs;
+                CoreState.EventScript = savedEs!;
             }
         }
 
@@ -851,7 +851,7 @@ namespace FEBuilderGBA.Core.Tests
             // which needs CoreState.SystemTextEncoder. With no encoder the producer must SKIP them
             // (never NRE). BinFixed does not decode strings, so it still runs.
             var savedRom = CoreState.ROM;
-            var savedEnc = CoreState.SystemTextEncoder;
+            ISystemTextEncoder? savedEnc = CoreState.SystemTextEncoder;
             try
             {
                 var rom = new ROM();
@@ -894,7 +894,7 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.ROM = savedRom;
-                CoreState.SystemTextEncoder = savedEnc;
+                CoreState.SystemTextEncoder = savedEnc!;
             }
         }
 
@@ -2285,7 +2285,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             // The +0 CString needs a SystemTextEncoder; without one it is gracefully skipped (no NRE)
             // while the 6 ASM blocks still emit (the wiring slice gates on IsComplete anyway).
-            var savedEnc = CoreState.SystemTextEncoder;
+            ISystemTextEncoder? savedEnc = CoreState.SystemTextEncoder;
             var rom = CreateTestRom(0x1_0000);
             CoreState.SystemTextEncoder = null!; // force the no-encoder path
             try
@@ -2309,7 +2309,7 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal(6, list.Count(a => a.DataType == Address.DataTypeEnum.ASM));
                 Assert.Contains(list, a => a.Info == "MENU"); // main table still emitted
             }
-            finally { CoreState.SystemTextEncoder = savedEnc; }
+            finally { CoreState.SystemTextEncoder = savedEnc!; }
         }
 
         [Fact]
@@ -6892,7 +6892,7 @@ namespace FEBuilderGBA.Core.Tests
             // No encoder -> the WF isPointerOnly path: per-entry BIN emits with size 0 (the slot is
             // still relocated and the target addr recorded). Avoids the Huffman decode (which needs a
             // valid mask_pointer tree, absent on a bare synthetic ROM).
-            var savedEncoder = CoreState.SystemTextEncoder;
+            ISystemTextEncoder? savedEncoder = CoreState.SystemTextEncoder;
             CoreState.SystemTextEncoder = null!;
             try
             {
@@ -6935,7 +6935,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.SystemTextEncoder = savedEncoder;
+                CoreState.SystemTextEncoder = savedEncoder!;
             }
         }
 
@@ -6946,7 +6946,7 @@ namespace FEBuilderGBA.Core.Tests
             // the per-entry loop emits NO AddAddress for it (the target lives in RAM, not ROM). Reproduce
             // exactly: the entry contributes to the main IFR length but produces no BIN.
             var rom = CreateTestRom(0x8000);
-            var savedEncoder = CoreState.SystemTextEncoder;
+            ISystemTextEncoder? savedEncoder = CoreState.SystemTextEncoder;
             CoreState.SystemTextEncoder = null!;
             try
             {
@@ -6966,7 +6966,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.SystemTextEncoder = savedEncoder;
+                CoreState.SystemTextEncoder = savedEncoder!;
             }
         }
 
@@ -6974,7 +6974,7 @@ namespace FEBuilderGBA.Core.Tests
         public void EmitTextAt_NearEof_NoThrow()
         {
             var rom = CreateTestRom(0x1000);
-            var savedEncoder = CoreState.SystemTextEncoder;
+            ISystemTextEncoder? savedEncoder = CoreState.SystemTextEncoder;
             CoreState.SystemTextEncoder = null!;
             try
             {
@@ -6987,7 +6987,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.SystemTextEncoder = savedEncoder;
+                CoreState.SystemTextEncoder = savedEncoder!;
             }
         }
 
@@ -10149,7 +10149,7 @@ namespace FEBuilderGBA.Core.Tests
 
             var savedRom = CoreState.ROM;
             var savedEnc = CoreState.SystemTextEncoder;
-            var savedEs = CoreState.EventScript;
+            EventScript? savedEs = CoreState.EventScript;
             try
             {
                 var rom = new ROM();
@@ -10183,7 +10183,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 CoreState.ROM = savedRom;
                 CoreState.SystemTextEncoder = savedEnc;
-                CoreState.EventScript = savedEs;
+                CoreState.EventScript = savedEs!;
             }
         }
 
@@ -10587,7 +10587,7 @@ namespace FEBuilderGBA.Core.Tests
         public void SearchActionPointer_Rework_NoConfigFile_ReturnsZero()
         {
             var savedRom = CoreState.ROM;
-            var savedBase = CoreState.BaseDirectory;
+            string? savedBase = CoreState.BaseDirectory;
             try
             {
                 var rom = MakeVersionedRom("BE8E01");
@@ -10603,7 +10603,7 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.ROM = savedRom;
-                CoreState.BaseDirectory = savedBase;
+                CoreState.BaseDirectory = savedBase!;
             }
         }
 

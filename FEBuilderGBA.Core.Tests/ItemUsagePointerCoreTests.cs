@@ -313,7 +313,7 @@ public class ItemUsagePointerCoreTests
         // Save the previous wiring so the test cleans up.
         var prevAppender = CoreState.AppendBinaryData;
         var prevRom = CoreState.ROM;
-        var prevServices = CoreState.Services;
+        IAppServices? prevServices = CoreState.Services;
         try
         {
             // CoreState.ROM must be set BEFORE creating UndoData, because
@@ -358,7 +358,7 @@ public class ItemUsagePointerCoreTests
         {
             CoreState.AppendBinaryData = prevAppender;
             CoreState.ROM = prevRom;
-            CoreState.Services = prevServices;
+            CoreState.Services = prevServices!;
         }
     }
 
@@ -474,7 +474,7 @@ public class ItemUsagePointerCoreTests
 
         var prevAppender = CoreState.AppendBinaryData;
         var prevRom = CoreState.ROM;
-        var prevServices = CoreState.Services;
+        IAppServices? prevServices = CoreState.Services;
         try
         {
             CoreState.ROM = rom;
@@ -497,7 +497,7 @@ public class ItemUsagePointerCoreTests
         {
             CoreState.AppendBinaryData = prevAppender;
             CoreState.ROM = prevRom;
-            CoreState.Services = prevServices;
+            CoreState.Services = prevServices!;
         }
     }
 
@@ -512,13 +512,13 @@ public class ItemUsagePointerCoreTests
         BitConverter.GetBytes(0x08100000u).CopyTo(table, 0);
         var rom = MakeFe8uWithSwitch2(table, start: 0, countMinusOne: 2);
 
-        var prevRom = CoreState.ROM;
+        ROM? prevRom = CoreState.ROM;
         try
         {
             CoreState.ROM = null!; // Simulate headless caller.
             var rows = ItemUsagePointerCore.MakeRows(rom, ItemUsagePointerCore.FilterKind.Usability);
             Assert.NotEmpty(rows);
         }
-        finally { CoreState.ROM = prevRom; }
+        finally { CoreState.ROM = prevRom!; }
     }
 }

@@ -9,7 +9,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetPalette_WithNoRom_ReturnsNull()
         {
-            var origRom = CoreState.ROM;
+            ROM? origRom = CoreState.ROM;
             try
             {
                 CoreState.ROM = null!;
@@ -18,14 +18,14 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = origRom;
+                CoreState.ROM = origRom!;
             }
         }
 
         [Fact]
         public void LoadROMTiles4bpp_WithNoImageService_ReturnsNull()
         {
-            var origService = CoreState.ImageService;
+            IImageService? origService = CoreState.ImageService;
             try
             {
                 CoreState.ImageService = null!;
@@ -34,14 +34,14 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ImageService = origService;
+                CoreState.ImageService = origService!;
             }
         }
 
         [Fact]
         public void DecodeHeaderTSA_WithNoImageService_ReturnsNull()
         {
-            var origService = CoreState.ImageService;
+            IImageService? origService = CoreState.ImageService;
             try
             {
                 CoreState.ImageService = null!;
@@ -51,7 +51,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ImageService = origService;
+                CoreState.ImageService = origService!;
             }
         }
 
@@ -59,7 +59,7 @@ namespace FEBuilderGBA.Core.Tests
         public void DecodeHeaderTSA_InvalidHeader_FallsBackToLinearTSA()
         {
             // Header values > 32 should be treated as invalid
-            var origService = CoreState.ImageService;
+            IImageService? origService = CoreState.ImageService;
             try
             {
                 CoreState.ImageService = null!;
@@ -71,7 +71,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ImageService = origService;
+                CoreState.ImageService = origService!;
             }
         }
 
@@ -79,7 +79,7 @@ namespace FEBuilderGBA.Core.Tests
         public void DecodeHeaderTSA_SmallData_DoesNotCrash()
         {
             // TSA data too small for header should not crash
-            var origService = CoreState.ImageService;
+            IImageService? origService = CoreState.ImageService;
             try
             {
                 CoreState.ImageService = null!;
@@ -89,7 +89,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ImageService = origService;
+                CoreState.ImageService = origService!;
             }
         }
     }

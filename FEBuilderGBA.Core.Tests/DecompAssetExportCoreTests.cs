@@ -1746,7 +1746,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ExportGraphics_NullImageService_ReturnsFaulted()
         {
-            var savedSvc = CoreState.ImageService;
+            IImageService? savedSvc = CoreState.ImageService;
             try
             {
                 CoreState.ImageService = null!;
@@ -1758,7 +1758,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ImageService = savedSvc;
+                CoreState.ImageService = savedSvc!;
             }
         }
 
@@ -1951,7 +1951,7 @@ namespace FEBuilderGBA.Core.Tests
             // FINDING B/D: FormatShops must be genuinely PURE — formatting must NOT read the
             // ROM. With CoreState.ROM cleared, formatting the pre-resolved record still works
             // and emits the stored names verbatim.
-            var savedRom = CoreState.ROM;
+            ROM? savedRom = CoreState.ROM;
             try
             {
                 CoreState.ROM = null!;
@@ -1962,7 +1962,7 @@ namespace FEBuilderGBA.Core.Tests
                 string body = DecompAssetExportCore.FormatShops(shops);
                 Assert.Contains("SHORT 0x0001   // Item1", body);   // stored name, no ROM read
             }
-            finally { CoreState.ROM = savedRom; }
+            finally { CoreState.ROM = savedRom!; }
         }
 
         [Fact]

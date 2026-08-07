@@ -114,13 +114,13 @@ namespace FEBuilderGBA.Core.Tests
         public void CropImage_NoImageService_ReturnsNull()
         {
             IImage src = MakeRgbaImage(240, 160);
-            var prev = CoreState.ImageService;
+            IImageService? prev = CoreState.ImageService;
             CoreState.ImageService = null!;
             try
             {
                 Assert.Null(BattleAnimeRendererCore.CropImage(src, 100, 30, 90, 90));
             }
-            finally { CoreState.ImageService = prev; }
+            finally { CoreState.ImageService = prev!; }
         }
 
         // ================================================================
@@ -492,13 +492,13 @@ namespace FEBuilderGBA.Core.Tests
         {
             ROM rom = MakeAnimeRom();
             CoreState.ROM = rom;
-            var prev = CoreState.ImageService;
+            IImageService? prev = CoreState.ImageService;
             CoreState.ImageService = null!;
             try
             {
                 Assert.Null(BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0));
             }
-            finally { CoreState.ImageService = prev; }
+            finally { CoreState.ImageService = prev!; }
         }
 
         [Fact]

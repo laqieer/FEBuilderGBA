@@ -126,10 +126,10 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Render_NullImageService_ReturnsNull()
         {
-            var saved = CoreState.ImageService;
+            IImageService? saved = CoreState.ImageService;
             CoreState.ImageService = null!;
             try { Assert.Null(Render(MakeSheet(), 0)); }
-            finally { CoreState.ImageService = saved; }
+            finally { CoreState.ImageService = saved!; }
         }
 
         [Fact]

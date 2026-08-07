@@ -209,7 +209,7 @@ namespace FEBuilderGBA.Core.Tests
             if (repoRoot == null) return; // config not reachable — skip the real-config assertion.
 
             string savedBase = CoreState.BaseDirectory;
-            var savedRom = CoreState.ROM;
+            ROM? savedRom = CoreState.ROM;
             try
             {
                 CoreState.BaseDirectory = repoRoot;
@@ -231,7 +231,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = savedRom;
+                CoreState.ROM = savedRom!;
                 CoreState.BaseDirectory = savedBase;
             }
         }
@@ -243,7 +243,7 @@ namespace FEBuilderGBA.Core.Tests
             if (repoRoot == null) return;
 
             string savedBase = CoreState.BaseDirectory;
-            var savedRom = CoreState.ROM;
+            ROM? savedRom = CoreState.ROM;
             try
             {
                 CoreState.BaseDirectory = repoRoot;
@@ -263,7 +263,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = savedRom;
+                CoreState.ROM = savedRom!;
                 CoreState.BaseDirectory = savedBase;
             }
         }

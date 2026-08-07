@@ -225,7 +225,7 @@ namespace FEBuilderGBA.Core.Tests
         public void FindAllArgReferences_Gating_NullEventScript_ReturnsEmpty()
         {
             var prevRom = CoreState.ROM;
-            var prevEs = CoreState.EventScript;
+            EventScript? prevEs = CoreState.EventScript;
             try
             {
                 var rom = new ROM();
@@ -240,7 +240,7 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.ROM = prevRom;
-                CoreState.EventScript = prevEs;
+                CoreState.EventScript = prevEs!;
             }
         }
 
@@ -281,7 +281,7 @@ namespace FEBuilderGBA.Core.Tests
             var es = BuildEventScript(BgCommand(), TermCommand());
             var prevRom = CoreState.ROM;
             var prevEs = CoreState.EventScript;
-            var prevComment = CoreState.CommentCache;
+            IEtcCache? prevComment = CoreState.CommentCache;
             try
             {
                 var rom = new ROM();
@@ -298,7 +298,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 CoreState.ROM = prevRom;
                 CoreState.EventScript = prevEs;
-                CoreState.CommentCache = prevComment;
+                CoreState.CommentCache = prevComment!;
             }
         }
 

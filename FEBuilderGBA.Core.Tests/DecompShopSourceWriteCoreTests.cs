@@ -19,8 +19,8 @@ namespace FEBuilderGBA.Core.Tests
     [Collection("SharedState")]
     public class DecompShopSourceWriteCoreTests : IDisposable
     {
-        readonly ROM _savedRom;
-        readonly DecompProject _savedProject;
+        readonly ROM? _savedRom;
+        readonly DecompProject? _savedProject;
 
         public DecompShopSourceWriteCoreTests()
         {
@@ -32,8 +32,8 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ROM = _savedRom;
-            CoreState.DecompProject = _savedProject;
+            CoreState.ROM = _savedRom!;
+            CoreState.DecompProject = _savedProject!;
         }
 
         // ----------------------------------------------------------------- helpers

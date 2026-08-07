@@ -201,7 +201,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Batch_LoadList_EmptyWhenNoRom()
         {
-            var origRom = CoreState.ROM;
+            ROM? origRom = CoreState.ROM;
             try
             {
                 CoreState.ROM = null!;
@@ -210,7 +210,7 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.NotNull(list);
                 Assert.Empty(list);
             }
-            finally { CoreState.ROM = origRom; }
+            finally { CoreState.ROM = origRom!; }
         }
 
         [Fact]

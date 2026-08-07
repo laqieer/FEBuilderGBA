@@ -8,7 +8,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void DrawPortraitUnit_NullROM_ReturnsNull()
         {
-            var saved = CoreState.ROM;
+            ROM? saved = CoreState.ROM;
             CoreState.ROM = null!;
             try
             {
@@ -17,14 +17,14 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = saved;
+                CoreState.ROM = saved!;
             }
         }
 
         [Fact]
         public void DrawPortraitMap_NullROM_ReturnsNull()
         {
-            var saved = CoreState.ROM;
+            ROM? saved = CoreState.ROM;
             CoreState.ROM = null!;
             try
             {
@@ -33,14 +33,14 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = saved;
+                CoreState.ROM = saved!;
             }
         }
 
         [Fact]
         public void DrawPortraitClass_NullROM_ReturnsNull()
         {
-            var saved = CoreState.ROM;
+            ROM? saved = CoreState.ROM;
             CoreState.ROM = null!;
             try
             {
@@ -49,14 +49,14 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = saved;
+                CoreState.ROM = saved!;
             }
         }
 
         [Fact]
         public void DrawPortraitAutoById_NullROM_ReturnsNull()
         {
-            var saved = CoreState.ROM;
+            ROM? saved = CoreState.ROM;
             CoreState.ROM = null!;
             try
             {
@@ -65,7 +65,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = saved;
+                CoreState.ROM = saved!;
             }
         }
 
@@ -73,7 +73,7 @@ namespace FEBuilderGBA.Core.Tests
         public void DrawPortraitAutoById_ZeroId_ReturnsNull()
         {
             // Portrait id 0 is the empty / no-portrait slot.
-            var saved = CoreState.ROM;
+            ROM? saved = CoreState.ROM;
             CoreState.ROM = null!;
             try
             {
@@ -82,14 +82,14 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = saved;
+                CoreState.ROM = saved!;
             }
         }
 
         [Fact]
         public void DrawPortraitUnit_InvalidPointer_ReturnsNull()
         {
-            var saved = CoreState.ROM;
+            ROM? saved = CoreState.ROM;
             CoreState.ROM = null!;
             try
             {
@@ -99,14 +99,14 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = saved;
+                CoreState.ROM = saved!;
             }
         }
 
         [Fact]
         public void DrawPortraitMap_ZeroPointer_ReturnsNull()
         {
-            var saved = CoreState.ROM;
+            ROM? saved = CoreState.ROM;
             CoreState.ROM = null!;
             try
             {
@@ -115,14 +115,14 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = saved;
+                CoreState.ROM = saved!;
             }
         }
 
         [Fact]
         public void DrawPortraitClass_ZeroPointer_ReturnsNull()
         {
-            var saved = CoreState.ROM;
+            ROM? saved = CoreState.ROM;
             CoreState.ROM = null!;
             try
             {
@@ -131,7 +131,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = saved;
+                CoreState.ROM = saved!;
             }
         }
 
@@ -191,7 +191,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void DrawPortraitUnitWithFrame_NullROM_ReturnsNull()
         {
-            var saved = CoreState.ROM;
+            ROM? saved = CoreState.ROM;
             CoreState.ROM = null!;
             try
             {
@@ -201,14 +201,14 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = saved;
+                CoreState.ROM = saved!;
             }
         }
 
         [Fact]
         public void DrawPortraitUnitWithFrame_ZeroPointer_ReturnsNull()
         {
-            var saved = CoreState.ROM;
+            ROM? saved = CoreState.ROM;
             CoreState.ROM = null!;
             try
             {
@@ -217,14 +217,14 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = saved;
+                CoreState.ROM = saved!;
             }
         }
 
         [Fact]
         public void DrawMouthFrameStrip_NullROM_ReturnsNull()
         {
-            var saved = CoreState.ROM;
+            ROM? saved = CoreState.ROM;
             CoreState.ROM = null!;
             try
             {
@@ -233,14 +233,14 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = saved;
+                CoreState.ROM = saved!;
             }
         }
 
         [Fact]
         public void DrawEyeFrameStrip_NullROM_ReturnsNull()
         {
-            var saved = CoreState.ROM;
+            ROM? saved = CoreState.ROM;
             CoreState.ROM = null!;
             try
             {
@@ -249,14 +249,14 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = saved;
+                CoreState.ROM = saved!;
             }
         }
 
         [Fact]
         public void DrawMouthFrameStrip_ZeroPointer_ReturnsNull()
         {
-            var saved = CoreState.ROM;
+            ROM? saved = CoreState.ROM;
             CoreState.ROM = null!;
             try
             {
@@ -265,14 +265,14 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = saved;
+                CoreState.ROM = saved!;
             }
         }
 
         [Fact]
         public void DrawEyeFrameStrip_ZeroPointer_ReturnsNull()
         {
-            var saved = CoreState.ROM;
+            ROM? saved = CoreState.ROM;
             CoreState.ROM = null!;
             try
             {
@@ -281,7 +281,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = saved;
+                CoreState.ROM = saved!;
             }
         }
 
@@ -476,7 +476,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void DrawPortraitUnitFE6_NullROM_ReturnsNull()
         {
-            var saved = CoreState.ROM;
+            ROM? saved = CoreState.ROM;
             CoreState.ROM = null!;
             try
             {
@@ -485,7 +485,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = saved;
+                CoreState.ROM = saved!;
             }
         }
 
@@ -494,7 +494,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             // Zero face pointer with non-null ROM should still return null
             // (toOffset(0) == 0, which triggers the unitFace == 0 guard)
-            var saved = CoreState.ROM;
+            ROM? saved = CoreState.ROM;
             CoreState.ROM = null!;
             try
             {
@@ -503,7 +503,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = saved;
+                CoreState.ROM = saved!;
             }
         }
 

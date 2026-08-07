@@ -57,7 +57,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetCompressedPalette_WithNoRom_ReturnsNull()
         {
-            var origRom = CoreState.ROM;
+            ROM? origRom = CoreState.ROM;
             try
             {
                 CoreState.ROM = null!;
@@ -66,7 +66,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = origRom;
+                CoreState.ROM = origRom!;
             }
         }
 
