@@ -425,9 +425,9 @@ namespace FEBuilderGBA.Core.Tests
             var parsed = MagicEffectImportCore.ParseMagicScript(textLines);
 
             // Must find exactly one ObjImage, one BgImage, one Wait.
-            Assert.Single(parsed.Where(c => c.Kind == MagicImportCmdKind.ObjImage));
-            Assert.Single(parsed.Where(c => c.Kind == MagicImportCmdKind.BgImage));
-            Assert.Single(parsed.Where(c => c.Kind == MagicImportCmdKind.Wait));
+            Assert.Single(parsed, c => c.Kind == MagicImportCmdKind.ObjImage);
+            Assert.Single(parsed, c => c.Kind == MagicImportCmdKind.BgImage);
+            Assert.Single(parsed, c => c.Kind == MagicImportCmdKind.Wait);
 
             var wait = parsed.First(c => c.Kind == MagicImportCmdKind.Wait);
             Assert.Equal(4u, wait.WaitValue);

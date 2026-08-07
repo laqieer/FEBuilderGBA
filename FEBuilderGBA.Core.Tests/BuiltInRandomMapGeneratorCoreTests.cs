@@ -82,7 +82,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var corpus = MakeStrictCorpus();
 
-#pragma warning error CS8625
+#pragma warning disable CS8625
             BuiltInRandomMapGenerationResult result = BuiltInRandomMapGeneratorCore.Generate(
                 corpus, Width, Height, currentGrid: null, seed: 23456, CancellationToken.None);
 #pragma warning restore CS8625

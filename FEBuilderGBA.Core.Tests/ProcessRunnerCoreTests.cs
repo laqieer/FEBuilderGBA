@@ -448,7 +448,7 @@ namespace FEBuilderGBA.Core.Tests
         // #1978 Slice 3 review finding #1: a cancelled Run(...) call must own and terminate its
         // own long-running process rather than merely abandoning an awaited Task.
         [Fact]
-        public void Run_CancellationTokenOwnsAndTerminatesLongRunningProcess()
+        public async Task Run_CancellationTokenOwnsAndTerminatesLongRunningProcess()
         {
             string command;
             string[] args;
@@ -477,14 +477,16 @@ namespace FEBuilderGBA.Core.Tests
                     cts.Token));
 
             // Give the process a moment to actually start before cancelling mid-flight.
-            Thread.Sleep(500);
+            await Task.Delay(500);
             cts.Cancel();
 
-            bool completed = runTask.Wait(TimeSpan.FromSeconds(15));
+            Task completedTask = await Task.WhenAny(runTask, Task.Delay(TimeSpan.FromSeconds(15)));
             stopwatch.Stop();
 
-            Assert.True(completed, "Run(...) did not return after cancellation was requested.");
-            ProcessRunResult result = runTask.Result;
+            Assert.True(
+                ReferenceEquals(runTask, completedTask),
+                "Run(...) did not return after cancellation was requested.");
+            ProcessRunResult result = await runTask;
             Assert.True(result.Started, result.ErrorMessage);
             Assert.True(result.Cancelled, "Cancelled flag was not set.");
             Assert.False(result.TimedOut);

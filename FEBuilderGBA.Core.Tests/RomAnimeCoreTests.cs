@@ -339,9 +339,9 @@ namespace FEBuilderGBA.Core.Tests
         // =================================================================
 
         [Theory]
-        [InlineData(64, 8 * 2 * 8, 8)]    // 8 tiles wide, 8 TSA entries -> 1 row -> aligned to 8 px -> 8? (see WF formula)
-        [InlineData(64, 0, 0)]            // empty TSA -> 0 rows -> aligned -> 0/align*align... see body
-        public void CalcHeightbyTSA_MatchesWf(int width, int tsaSize, int _expectedSentinel)
+        [InlineData(64, 8 * 2 * 8)]    // 8 tiles wide, 8 TSA entries -> 1 row -> aligned to 8 px -> 8? (see WF formula)
+        [InlineData(64, 0)]            // empty TSA -> 0 rows -> aligned -> 0/align*align... see body
+        public void CalcHeightbyTSA_MatchesWf(int width, int tsaSize)
         {
             // Compare against the WF formula computed inline (parity oracle).
             int expected = WfCalcHeightbyTSA(width, tsaSize, 8);

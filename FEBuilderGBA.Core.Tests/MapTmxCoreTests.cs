@@ -714,9 +714,9 @@ namespace FEBuilderGBA.Core.Tests
         [InlineData("", "\uFEFF{ }", true)]          // UTF-8 BOM then '{'
         [InlineData("", "<map/>", false)]            // XML content, no name
         [InlineData(null, null, false)]              // null-safe
-        public void LooksLikeTmj_DetectsJson(string fileName, string text, bool expected)
+        public void LooksLikeTmj_DetectsJson(string? fileName, string? text, bool expected)
         {
-            Assert.Equal(expected, MapTmxCore.LooksLikeTmj(fileName, text));
+            Assert.Equal(expected, MapTmxCore.LooksLikeTmj(fileName!, text!));
         }
     }
 }

@@ -2,6 +2,7 @@ using Xunit;
 using FEBuilderGBA;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using BoundedPatchReadFailureKind = FEBuilderGBA.PatchMetadataCore.BoundedPatchReadFailureKind;
 
 namespace FEBuilderGBA.Core.Tests
@@ -457,7 +458,7 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void CheckPatchInstalled_GrepZeroAlignment_NoHang_NotInstalled()
+        public async Task CheckPatchInstalled_GrepZeroAlignment_NoHang_NotInstalled()
         {
             // $GREP0 (zero alignment) must NOT infinite-loop U.Grep (blocksize step 0);
             // the resolver rejects it -> NotInstalled. Run under a 5s timeout so a
@@ -469,9 +470,11 @@ namespace FEBuilderGBA.Core.Tests
 
             var task = System.Threading.Tasks.Task.Run(() =>
                 PatchMetadataCore.CheckPatchInstalled("$GREP0 0xAB=0xAB", rom));
-            Assert.True(task.Wait(System.TimeSpan.FromSeconds(5)),
+            Task completedTask = await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(5)));
+            Assert.True(
+                ReferenceEquals(task, completedTask),
                 "CheckPatchInstalled($GREP0) hung — zero-alignment guard missing");
-            Assert.Equal(PatchMetadataCore.PatchStatus.NotInstalled, task.Result);
+            Assert.Equal(PatchMetadataCore.PatchStatus.NotInstalled, await task);
         }
 
         [Fact]

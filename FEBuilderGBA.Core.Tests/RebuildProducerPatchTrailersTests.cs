@@ -415,7 +415,7 @@ namespace FEBuilderGBA.Core.Tests
 
             var map = RebuildProducerCore.TraceBINPatchedMappingForProducer(rom, patch);
 
-            Assert.Single(map.Where(m => m.key == "DATA"));
+            Assert.Single(map, m => m.key == "DATA");
             var data = map.First(m => m.key == "DATA");
             Assert.Equal(structAddr, data.addr);
             Assert.Equal(0x10u, data.length);          // 1 * 0x10.

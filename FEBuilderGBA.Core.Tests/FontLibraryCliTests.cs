@@ -1396,10 +1396,11 @@ namespace FEBuilderGBA.Core.Tests
                 out string reportError),
                 reportError);
             FontLibraryJobReport zeta = Assert.Single(
-                packageReport.Jobs.Where(job => job.Id == "zeta"));
+                packageReport.Jobs,
+                job => job.Id == "zeta");
             FontLibraryGlyphReport changedGlyph = Assert.Single(
-                zeta.Glyphs.Where(glyph =>
-                    glyph.Filename == columns[4]));
+                zeta.Glyphs,
+                glyph => glyph.Filename == columns[4]);
             changedGlyph.PngSha256 = columns[6];
             using (IncrementalHash pngAggregate =
                 IncrementalHash.CreateHash(HashAlgorithmName.SHA256))

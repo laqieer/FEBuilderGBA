@@ -389,7 +389,6 @@ namespace FEBuilderGBA.Core.Tests
             // Walk maps looking for the first one that has a change-data entry
             // with non-zero width/height and a resolvable overlay.
             var maps = MapSettingCore.MakeMapIDList(rom);
-            bool found = false;
             foreach (var m in maps)
             {
                 uint changeAddr = MapChangeCore.GetMapChangeAddrWhereMapID(rom, m.tag, out _);
@@ -424,14 +423,12 @@ namespace FEBuilderGBA.Core.Tests
                 {
                     Assert.Equal(w * 16, img.Width);
                     Assert.Equal(h * 16, img.Height);
-                    found = true;
                     break;
                 }
             }
             // If no renderable change was found in the ROM, the test still passes
             // (the loop exhausted gracefully — this is a real-ROM integration
             // test that reports findings, not a failure).
-            // Uncomment to assert found: Assert.True(found, "Expected at least one renderable change entry in FE8U");
         }
 
         // ====================================================================

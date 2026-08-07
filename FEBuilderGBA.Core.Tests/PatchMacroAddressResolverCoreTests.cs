@@ -18,6 +18,7 @@
 
 using System;
 using System.IO;
+using System.Threading.Tasks;
 using Xunit;
 using FEBuilderGBA;
 
@@ -121,7 +122,7 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void Grep0_ZeroAlignment_ReturnsNotFound_WithoutHanging()
+        public async Task Grep0_ZeroAlignment_ReturnsNotFound_WithoutHanging()
         {
             // $GREP0 has alignment 0 — U.Grep's `i += blocksize` step would never advance
             // and hang. The resolver must reject it up front and return NOT_FOUND. The
@@ -129,8 +130,11 @@ namespace FEBuilderGBA.Core.Tests
             var rom = MakeRom();
             var task = System.Threading.Tasks.Task.Run(() =>
                 PatchMacroAddressResolverCore.Resolve(rom, "$GREP0 0xAB", "", 0x100));
-            Assert.True(task.Wait(System.TimeSpan.FromSeconds(5)), "Resolve($GREP0) hung — zero-alignment guard missing");
-            Assert.Equal(U.NOT_FOUND, task.Result);
+            Task completedTask = await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(5)));
+            Assert.True(
+                ReferenceEquals(task, completedTask),
+                "Resolve($GREP0) hung — zero-alignment guard missing");
+            Assert.Equal(U.NOT_FOUND, await task);
         }
 
         // ---- 5. $GREP ENDA (returns address AFTER the match, no pointer check) ---

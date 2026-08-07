@@ -10,8 +10,8 @@ namespace FEBuilderGBA.Core.Tests
         {
             var regex = RegexCache.Regex(@"\d+");
             Assert.NotNull(regex);
-            Assert.True(regex.IsMatch("123"));
-            Assert.False(regex.IsMatch("abc"));
+            Assert.Matches(regex, "123");
+            Assert.DoesNotMatch(regex, "abc");
         }
 
         [Fact]

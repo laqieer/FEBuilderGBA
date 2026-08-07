@@ -127,8 +127,7 @@ namespace FEBuilderGBA.Core.Tests
         // bounds check uses ulong math (Copilot CLI round-1 review on
         // PR #586).
         [Theory]
-        [InlineData(uint.MaxValue)]
-        [InlineData(0xFFFFFFFFu)]            // alias for U.NOT_FOUND
+        [InlineData(uint.MaxValue)]          // alias for U.NOT_FOUND
         [InlineData(0xFFFFFFE0u)]            // near MaxValue, edge case
         public void ReadPalette_InvalidAddress_ReturnsZerosWithoutCrash(uint addr)
         {
@@ -138,10 +137,8 @@ namespace FEBuilderGBA.Core.Tests
             foreach (var c in rgb)
                 Assert.Equal((0, 0, 0), c);
         }
-
         [Theory]
-        [InlineData(uint.MaxValue)]
-        [InlineData(0xFFFFFFFFu)]
+        [InlineData(uint.MaxValue)]          // alias for U.NOT_FOUND
         [InlineData(0xFFFFFFE0u)]
         public void WritePalette_InvalidAddress_NoOpWithoutCrash(uint addr)
         {

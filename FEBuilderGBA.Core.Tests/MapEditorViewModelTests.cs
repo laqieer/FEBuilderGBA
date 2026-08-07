@@ -298,6 +298,7 @@ namespace FEBuilderGBA.Core.Tests
 
             // Out-of-bounds coordinates should be caught
             Assert.True(3 >= width);  // x=3 is OOB for width=2
+            Assert.True(3 >= height); // y=3 is OOB for height=2
             Assert.True(-1 < 0);     // negative is OOB
         }
 
