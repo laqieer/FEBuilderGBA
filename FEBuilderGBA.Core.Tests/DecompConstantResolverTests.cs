@@ -34,7 +34,7 @@ namespace FEBuilderGBA.Core.Tests
         DecompProject ProjectWithDefaultHeader(string headerText)
         {
             string headerAbs = Path.Combine(_dir, "include", "constants", "items.h");
-            Directory.CreateDirectory(Path.GetDirectoryName(headerAbs));
+            Directory.CreateDirectory(TestRequire.DirectoryName(headerAbs));
             File.WriteAllText(headerAbs, headerText);
             return new DecompProject { ProjectRoot = _dir };
         }
@@ -43,7 +43,7 @@ namespace FEBuilderGBA.Core.Tests
         DecompProject ProjectWithHeaderAt(string relPath, string headerText)
         {
             string headerAbs = Path.Combine(_dir, relPath.Replace('/', Path.DirectorySeparatorChar));
-            Directory.CreateDirectory(Path.GetDirectoryName(headerAbs));
+            Directory.CreateDirectory(TestRequire.DirectoryName(headerAbs));
             File.WriteAllText(headerAbs, headerText);
             return new DecompProject { ProjectRoot = _dir };
         }
@@ -297,7 +297,7 @@ namespace FEBuilderGBA.Core.Tests
             var manifest = System.Text.Json.JsonSerializer.Deserialize<DecompManifest>(
                 "{ \"schemaVersion\": 1, \"artifacts\": { \"itemConstants\": \"src/art_items.h\" } }",
                 new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-            var project = new DecompProject { ProjectRoot = _dir, Manifest = manifest };
+            var project = new DecompProject { ProjectRoot = _dir, Manifest = TestRequire.NotNull(manifest, "manifest") };
 
             var r = DecompConstantResolver.BuildForProject(project, null);
             Assert.False(r.IsUnavailable, r.Reason);

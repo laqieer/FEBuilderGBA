@@ -339,7 +339,7 @@ namespace FEBuilderGBA.Core.Tests
 
         static string FindRepositoryRoot()
         {
-            string directory = AppContext.BaseDirectory;
+            string? directory = AppContext.BaseDirectory;
             while (directory != null)
             {
                 if (File.Exists(Path.Combine(directory, "FEBuilderGBA.sln")))

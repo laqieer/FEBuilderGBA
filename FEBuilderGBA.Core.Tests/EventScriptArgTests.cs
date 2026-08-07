@@ -11,7 +11,7 @@ namespace FEBuilderGBA.Core.Tests
     public class EventScriptArgTests
     {
         /// <summary>Find the first non-FIXED arg with the given symbol.</summary>
-        static EventScript.Arg FindVariableArg(EventScript.Script script, char symbol)
+        static EventScript.Arg? FindVariableArg(EventScript.Script script, char symbol)
         {
             foreach (var a in script.Args)
             {
@@ -79,8 +79,7 @@ namespace FEBuilderGBA.Core.Tests
             };
 
             // The variable arg 'X' is at position 1, size 1
-            var arg = FindVariableArg(script, 'X');
-            Assert.NotNull(arg);
+            EventScript.Arg arg = TestRequire.NotNull(FindVariableArg(script, 'X'), "variable arg X");
             uint val = EventScript.GetArgValue(code, arg);
             Assert.Equal(0x42u, val);
         }
@@ -115,8 +114,7 @@ namespace FEBuilderGBA.Core.Tests
                 Script = script,
             };
 
-            var arg = FindVariableArg(script, 'X');
-            Assert.NotNull(arg);
+            EventScript.Arg arg = TestRequire.NotNull(FindVariableArg(script, 'X'), "variable arg X");
             uint val = EventScript.GetArgValue(code, arg);
             Assert.Equal(0x08345678u, val);
         }

@@ -97,8 +97,8 @@ namespace FEBuilderGBA.Core.Tests
             {
                 string fe6Path = Path.Combine(root, "resources", "fe-info", "json", "fe6", "code.json");
                 string fe8Path = Path.Combine(root, "resources", "fe-info", "json", "fe8", "code.json");
-                Directory.CreateDirectory(Path.GetDirectoryName(fe6Path)!);
-                Directory.CreateDirectory(Path.GetDirectoryName(fe8Path)!);
+                Directory.CreateDirectory(TestRequire.DirectoryName(fe6Path));
+                Directory.CreateDirectory(TestRequire.DirectoryName(fe8Path));
                 File.WriteAllText(fe6Path, "[]");
                 File.WriteAllText(fe8Path, "[]");
 
@@ -134,7 +134,7 @@ namespace FEBuilderGBA.Core.Tests
                     "08000234\tShippedOverlap\tRET=shipped" + Environment.NewLine);
 
                 string feInfoPath = Path.Combine(root, "resources", "fe-info", "json", "fe8", "code.json");
-                Directory.CreateDirectory(Path.GetDirectoryName(feInfoPath)!);
+                Directory.CreateDirectory(TestRequire.DirectoryName(feInfoPath));
                 File.WriteAllText(feInfoPath, """
 [
   {"label":"FeInfoOverlap","addr":"8000234","params":[{"type":"u8"}],"return":{"type":"int"}},

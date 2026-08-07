@@ -656,7 +656,7 @@ namespace FEBuilderGBA.Core.Tests
 
             var (dest, slot) = BuildDest();
 
-            SongExchangeCore.ConvertResult r = null;
+            SongExchangeCore.ConvertResult? r = null;
             var ex = Record.Exception(() => { r = Convert(dest, slot, src); });
             Assert.Null(ex);                 // no IndexOutOfRangeException escapes.
             Assert.NotNull(r);
@@ -680,7 +680,7 @@ namespace FEBuilderGBA.Core.Tests
             var src = BuildSource(new[] { track }, voiceTable);
 
             var (dest, slot) = BuildDest();
-            SongExchangeCore.ConvertResult r = null;
+            SongExchangeCore.ConvertResult? r = null;
             var ex = Record.Exception(() => { r = Convert(dest, slot, src); });
             Assert.Null(ex);
             Assert.NotNull(r);
@@ -703,7 +703,7 @@ namespace FEBuilderGBA.Core.Tests
             var src = BuildSource(new[] { track }, voiceTable);
 
             var (dest, slot) = BuildDest();
-            SongExchangeCore.ConvertResult r = null;
+            SongExchangeCore.ConvertResult? r = null;
             var ex = Record.Exception(() => { r = Convert(dest, slot, src); });
             Assert.Null(ex);
             Assert.NotNull(r);
@@ -762,7 +762,7 @@ namespace FEBuilderGBA.Core.Tests
             // SKIPPED outcome via xunit.SkippableFact's Skip.If, never a green pass with
             // zero coverage. The deterministic byte-golden fixtures above are the primary
             // automated coverage; this is the real-ROM confidence check on top.
-            string romPath = FindTestRom();
+            string? romPath = FindTestRom();
             Skip.If(romPath == null, "No test ROM available in roms/.");
 
             var savedRom = CoreState.ROM;
@@ -831,10 +831,10 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         /// <summary>Locate a test ROM by walking up from the test assembly dir.</summary>
-        static string FindTestRom()
+        static string? FindTestRom()
         {
             string thisAssembly = System.Reflection.Assembly.GetExecutingAssembly().Location;
-            string dir = System.IO.Path.GetDirectoryName(thisAssembly);
+            string? dir = System.IO.Path.GetDirectoryName(thisAssembly);
             for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (System.IO.File.Exists(System.IO.Path.Combine(dir, "FEBuilderGBA.sln")))

@@ -485,10 +485,10 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetSkillName_NoResolver_ReturnsHexFallback()
         {
-            Func<uint, string>? savedResolver = CoreState.SkillNameResolver;
+            Func<uint, string?>? savedResolver = CoreState.SkillNameResolver;
             try
             {
-                CoreState.SkillNameResolver = null!;
+                CoreState.SkillNameResolver = null;
                 NameResolver.ClearCache();
                 string result = NameResolver.GetSkillName(0x1A);
                 Assert.Equal("Skill 0x1A", result);

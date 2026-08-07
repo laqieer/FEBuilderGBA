@@ -2628,7 +2628,10 @@ namespace FEBuilderGBA.Core.Tests
             {
                 string path = Path.Combine(tempDir, "PATCH_Fault.txt");
                 Func<string, FileStream> throwingOpener = p =>
-                    throw (Exception)Activator.CreateInstance(exceptionType, "simulated fault (test double)");
+                {
+                    object? exception = Activator.CreateInstance(exceptionType, "simulated fault (test double)");
+                    throw TestRequire.NotNull(exception as Exception, exceptionType.Name);
+                };
 
                 Assert.Throws(exceptionType, () =>
                     PatchMetadataCore.TryParsePatchParamsBounded(
@@ -2788,7 +2791,7 @@ namespace FEBuilderGBA.Core.Tests
             try
             {
                 string path = WriteBytes(tempDir, "PATCH_Tiny.txt", System.Text.Encoding.ASCII.GetBytes("NAME=Tiny\n"));
-                RecordingMaxRequestFileStream captured = null;
+                RecordingMaxRequestFileStream? captured = null;
 
                 bool ok = PatchMetadataCore.TryReadBoundedFileLines(
                     path,
@@ -2911,7 +2914,7 @@ namespace FEBuilderGBA.Core.Tests
                 byte[] data = System.Text.Encoding.ASCII.GetBytes(new string('a', 50));
                 string path = WriteBytes(tempDir, "PATCH_Fault.txt", data);
 
-                IOException caught = null;
+                IOException? caught = null;
                 long bytesRead = 0;
                 try
                 {
@@ -2965,7 +2968,7 @@ namespace FEBuilderGBA.Core.Tests
                     return;
                 }
 
-                List<string> lines = null;
+                List<string>? lines = null;
                 long bytesRead = 0;
                 BoundedPatchReadFailureKind failureKind = default;
                 Exception caught = Record.Exception(() =>
@@ -3013,7 +3016,7 @@ namespace FEBuilderGBA.Core.Tests
                     return;
                 }
 
-                List<PatchMetadataCore.PatchParam> result = null;
+                List<PatchMetadataCore.PatchParam>? result = null;
                 long bytesRead = 0;
                 BoundedPatchReadFailureKind failureKind = default;
                 Exception caught = Record.Exception(() =>

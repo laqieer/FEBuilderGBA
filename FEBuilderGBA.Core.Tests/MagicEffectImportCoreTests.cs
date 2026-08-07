@@ -280,7 +280,7 @@ namespace FEBuilderGBA.Core.Tests
             string err = MagicEffectImportCore.ImportMagicScript(
                 rom, 0x300u, cmds,
                 fn => fn.Contains("_o_")
-                    ? ((byte[] indexedPixels, int w, int h, byte[] gbaPalette)?)(MakeObjPixels(480, 160), 480, 160, null)
+                    ? ((byte[] indexedPixels, int w, int h, byte[]? gbaPalette)?)(MakeObjPixels(480, 160), 480, 160, null)
                     : (MakeBgPixels(256, 64), 256, 64, MakePalette16()));
 
             Assert.False(string.IsNullOrEmpty(err));

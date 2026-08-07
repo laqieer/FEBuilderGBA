@@ -38,7 +38,7 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ImageService = _prevService;
+            TestRequire.RestoreImageService(_prevService);
             CoreState.ROM = _prevRom;
         }
 
@@ -259,7 +259,7 @@ namespace FEBuilderGBA.Core.Tests
 
             // changeDataOffset = ROM end - 1 → bounds check fails → null, no throw.
             uint nearEof = (uint)rom.Data.Length - 1;
-            IImage img = null;
+            IImage? img = null;
             var ex = Record.Exception(() =>
             {
                 img = MapRenderCore.RenderChangeMap(rom, nearEof, nearEof, nearEof, nearEof, 1, 1);
@@ -316,7 +316,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             Array.Copy(chgData, 0, rom.Data, 0x800, chgData.Length);
 
-            IImage img = null;
+            IImage? img = null;
             var ex = Record.Exception(() =>
             {
                 img = MapRenderCore.RenderChangeMap(rom, 0x200u, 0x400u, 0x600u, 0x800u, W, H);
@@ -379,7 +379,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RealRom_FE8U_RenderChangeMap_NonNullForFirstChangeEntry()
         {
-            string romPath = FindRom("FE8U.gba");
+            string? romPath = FindRom("FE8U.gba");
             if (romPath == null) return; // skip
 
             var rom = new ROM();
@@ -510,10 +510,10 @@ namespace FEBuilderGBA.Core.Tests
             data[offset + 3] = (byte)((value >> 24) & 0xFF);
         }
 
-        static string FindRom(string romName)
+        static string? FindRom(string romName)
         {
             string thisAssembly = Assembly.GetExecutingAssembly().Location;
-            string dir = System.IO.Path.GetDirectoryName(thisAssembly);
+            string? dir = System.IO.Path.GetDirectoryName(thisAssembly);
             for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (System.IO.File.Exists(System.IO.Path.Combine(dir, "FEBuilderGBA.sln")))

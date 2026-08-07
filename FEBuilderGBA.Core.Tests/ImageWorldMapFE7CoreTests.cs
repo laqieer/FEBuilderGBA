@@ -260,7 +260,7 @@ namespace FEBuilderGBA.Core.Tests
 
         static void WithRealRom(string romName, Action<ROM> body)
         {
-            string romPath = FindTestRom(romName);
+            string? romPath = FindTestRom(romName);
             if (romPath == null) return; // skip if the ROM is unavailable
 
             var savedRom = CoreState.ROM;
@@ -287,10 +287,10 @@ namespace FEBuilderGBA.Core.Tests
 
         /// <summary>Locate a specific test ROM by name, walking up to the solution
         /// dir's roms/ folder. Returns null when unavailable (test skips).</summary>
-        static string FindTestRom(string romName)
+        static string? FindTestRom(string romName)
         {
             string thisAssembly = System.Reflection.Assembly.GetExecutingAssembly().Location;
-            string dir = System.IO.Path.GetDirectoryName(thisAssembly);
+            string? dir = System.IO.Path.GetDirectoryName(thisAssembly);
             for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (System.IO.File.Exists(System.IO.Path.Combine(dir, "FEBuilderGBA.sln")))

@@ -9,7 +9,7 @@ namespace FEBuilderGBA.Core.Tests
 {
     public class Fe8jManifestTemplateTests
     {
-        static string FindRepoRoot()
+        static string? FindRepoRoot()
         {
             var dir = System.AppContext.BaseDirectory;
             for (int i = 0; i < 12; i++)
@@ -25,7 +25,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Fe8jTemplate_ParsesToBuildEnabledFE8JProject()
         {
-            string root = FindRepoRoot();
+            string? root = FindRepoRoot();
             if (root == null) return; // packaged CI without the repo checkout
 
             string templatePath = Path.Combine(root, "docs", "decomp", "febuilder.project.fe8j.json");

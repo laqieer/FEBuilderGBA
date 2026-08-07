@@ -39,7 +39,7 @@ namespace FEBuilderGBA.Core.Tests
             return (string url, string dest, out string error, string referer) =>
             {
                 error = "";
-                Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+                Directory.CreateDirectory(TestRequire.DirectoryName(dest));
                 File.WriteAllBytes(dest, content);
                 return true;
             };
@@ -52,7 +52,7 @@ namespace FEBuilderGBA.Core.Tests
             return (string url, string dest, out string error, string referer) =>
             {
                 error = "";
-                Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+                Directory.CreateDirectory(TestRequire.DirectoryName(dest));
                 using (var fs = new FileStream(dest, FileMode.Create, FileAccess.Write))
                 using (var zip = new ZipArchive(fs, ZipArchiveMode.Create))
                 {
@@ -81,7 +81,7 @@ namespace FEBuilderGBA.Core.Tests
             return (string url, string dest, out string error, string referer) =>
             {
                 error = "";
-                Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+                Directory.CreateDirectory(TestRequire.DirectoryName(dest));
                 File.WriteAllBytes(dest, new byte[] { 0x00, 0x01, 0x02, 0x03, 0x04 });
                 return true;
             };
@@ -174,7 +174,7 @@ namespace FEBuilderGBA.Core.Tests
                 async (url, dest, referer, _) =>
                 {
                     usedAsyncStep = true;
-                    Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+                    Directory.CreateDirectory(TestRequire.DirectoryName(dest));
                     using (var fs = new FileStream(dest, FileMode.Create, FileAccess.Write))
                     using (var zip = new ZipArchive(fs, ZipArchiveMode.Create))
                     {
@@ -520,7 +520,7 @@ namespace FEBuilderGBA.Core.Tests
                     downloadCalls++;
                     installerSeen = url;
                     error = "";
-                    Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+                    Directory.CreateDirectory(TestRequire.DirectoryName(dest));
                     File.WriteAllBytes(dest, new byte[] { 1 });
                     return true;
                 },
@@ -599,7 +599,7 @@ namespace FEBuilderGBA.Core.Tests
                 downloadStep: (string url, string dest, out string error, string referer) =>
                 {
                     error = "";
-                    Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+                    Directory.CreateDirectory(TestRequire.DirectoryName(dest));
                     File.WriteAllBytes(dest, new byte[] { 1 });
                     return true;
                 },
@@ -620,7 +620,7 @@ namespace FEBuilderGBA.Core.Tests
                 downloadStep: (string url, string dest, out string error, string referer) =>
                 {
                     error = "";
-                    Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+                    Directory.CreateDirectory(TestRequire.DirectoryName(dest));
                     File.WriteAllBytes(dest, new byte[] { 1 });
                     return true;
                 },
@@ -647,7 +647,7 @@ namespace FEBuilderGBA.Core.Tests
                 downloadStepAsync: (string url, string dest, string referer, CancellationToken _) =>
                 {
                     downloadedAsync = true;
-                    Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+                    Directory.CreateDirectory(TestRequire.DirectoryName(dest));
                     File.WriteAllBytes(dest, new byte[] { 1 });
                     return Task.FromResult((true, ""));
                 },

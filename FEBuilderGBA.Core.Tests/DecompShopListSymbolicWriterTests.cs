@@ -44,7 +44,7 @@ namespace FEBuilderGBA.Core.Tests
         DecompConstantResolver Resolver()
         {
             string headerAbs = Path.Combine(_dir, "include", "constants", "items.h");
-            Directory.CreateDirectory(Path.GetDirectoryName(headerAbs));
+            Directory.CreateDirectory(TestRequire.DirectoryName(headerAbs));
             File.WriteAllText(headerAbs, HeaderText);
             var project = new DecompProject { ProjectRoot = _dir };
             var r = DecompConstantResolver.BuildForProject(project, new DecompTableEntry());
@@ -127,7 +127,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             // Header where ITEM_FOO is ambiguous (non-literal value).
             string headerAbs = Path.Combine(_dir, "include", "constants", "items.h");
-            Directory.CreateDirectory(Path.GetDirectoryName(headerAbs));
+            Directory.CreateDirectory(TestRequire.DirectoryName(headerAbs));
             File.WriteAllText(headerAbs,
                 "enum { ITEM_NONE = 0, ITEM_FOO = (1 | 0x80), ITEM_SWORD_IRON = 0x01 };");
             var constants = DecompConstantResolver.BuildForProject(new DecompProject { ProjectRoot = _dir }, new DecompTableEntry());
@@ -240,7 +240,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             // Header where ITEM_NONE is nonzero ⇒ symbolic rewrite refused.
             string headerAbs = Path.Combine(_dir, "include", "constants", "items.h");
-            Directory.CreateDirectory(Path.GetDirectoryName(headerAbs));
+            Directory.CreateDirectory(TestRequire.DirectoryName(headerAbs));
             File.WriteAllText(headerAbs,
                 "enum { ITEM_SWORD_IRON = 0x01, ITEM_NONE = 0x02 };");
             var constants = DecompConstantResolver.BuildForProject(new DecompProject { ProjectRoot = _dir }, new DecompTableEntry());

@@ -488,7 +488,7 @@ namespace FEBuilderGBA.Core.Tests
             // The package validation path (in DecompAssetValidatorCore.cs) must contain no
             // real CODE reference to CoreState.ROM. Strip comment lines so XML docs that
             // mention CoreState.ROM (to explain it is never read) do not trip the guard.
-            string root = FindRepoRoot();
+            string? root = FindRepoRoot();
             Skip.If(root == null, "repo root not found");
             string src = Path.Combine(root, "FEBuilderGBA.Core", "DecompAssetValidatorCore.cs");
             Skip.If(!File.Exists(src), "validator source not found");
@@ -502,7 +502,7 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
-        static string FindRepoRoot()
+        static string? FindRepoRoot()
         {
             var dir = new DirectoryInfo(AppContext.BaseDirectory);
             while (dir != null)

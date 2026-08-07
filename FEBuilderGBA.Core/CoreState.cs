@@ -276,6 +276,6 @@ namespace FEBuilderGBA
         /// Set by the UI layer (Avalonia/WinForms) which knows the installed skill system.
         /// Returns null if the name cannot be resolved (NameResolver will use hex fallback).
         /// </summary>
-        public static Func<uint, string> SkillNameResolver { get; set; }
+        public static Func<uint, string?>? SkillNameResolver { get; set; }
     }
 }

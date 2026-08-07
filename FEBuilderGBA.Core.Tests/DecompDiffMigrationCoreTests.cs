@@ -20,7 +20,7 @@ namespace FEBuilderGBA.Core.Tests
     {
         // ---------------------------------------------------------------- fixtures
 
-        static ROM MakeFe8uRom(byte[] data = null)
+        static ROM MakeFe8uRom(byte[]? data = null)
         {
             data ??= new byte[0x1000000];
             var rom = new ROM();

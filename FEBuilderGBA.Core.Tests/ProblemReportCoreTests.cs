@@ -77,9 +77,8 @@ namespace FEBuilderGBA.Core.Tests
                 string[] files = Directory.GetFiles(extractDir, "*", SearchOption.AllDirectories);
 
                 // log.txt is present.
-                string log = files.FirstOrDefault(f =>
-                    string.Equals(Path.GetFileName(f), "log.txt", StringComparison.OrdinalIgnoreCase));
-                Assert.NotNull(log);
+                string log = TestRequire.NotNull(files.FirstOrDefault(f =>
+                    string.Equals(Path.GetFileName(f), "log.txt", StringComparison.OrdinalIgnoreCase)), "log.txt");
 
                 string logText = File.ReadAllText(log);
                 Assert.Contains("UNIQUE_MARKER_42", logText);     // user problem text

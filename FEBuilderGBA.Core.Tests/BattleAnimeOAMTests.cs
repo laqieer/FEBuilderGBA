@@ -20,7 +20,7 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ImageService = _prevService;
+            TestRequire.RestoreImageService(_prevService);
         }
 
         // ---- ParseAffineOAM tests ----

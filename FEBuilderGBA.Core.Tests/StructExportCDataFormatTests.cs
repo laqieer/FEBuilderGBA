@@ -41,9 +41,9 @@ namespace FEBuilderGBA.Core.Tests
             return (index, d, raw);
         }
 
-        static string FindRepoRoot()
+        static string? FindRepoRoot()
         {
-            string dir = AppContext.BaseDirectory;
+            string? dir = AppContext.BaseDirectory;
             for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (Directory.Exists(Path.Combine(dir, "config", "data")))
@@ -55,7 +55,7 @@ namespace FEBuilderGBA.Core.Tests
 
         static StructMetadata.StructDef LoadMetadataStruct(string fileName, string structName)
         {
-            string root = FindRepoRoot();
+            string? root = FindRepoRoot();
             Assert.False(string.IsNullOrEmpty(root), "Repository root with config/data must be available.");
             string path = Path.Combine(root, "config", "data", fileName);
             Assert.True(File.Exists(path), $"Metadata file not found: {path}");
@@ -80,7 +80,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 if (line.Contains("[" + ordinalMarker + "]")) return line;
             }
-            return null;
+            throw new InvalidOperationException($"Row marker '{ordinalMarker}' was not found.");
         }
 
         static byte[] ExtractFieldLiteralBytes(string line, string memberName, int width)
@@ -476,8 +476,7 @@ namespace FEBuilderGBA.Core.Tests
             string c = StructExportCore.FormatCData(rows, structDef, "hazard_table", 1);
 
             string[] lines = c.Split('\n');
-            string rowLine = Array.Find(lines, l => l.Contains("[0x000]"));
-            Assert.NotNull(rowLine);
+            string rowLine = TestRequire.NotNull(Array.Find(lines, l => l.Contains("[0x000]")), "row line");
             string trimmed = rowLine.TrimEnd('\r');
 
             // The comment + initializer must stay on ONE physical line despite the
@@ -763,7 +762,7 @@ namespace FEBuilderGBA.Core.Tests
         /// authoritative compile gate per the accepted plan). Returns null when
         /// neither is found.
         /// </summary>
-        static string DetectCCompiler()
+        static string? DetectCCompiler()
         {
             foreach (string candidate in new[] { "arm-none-eabi-gcc", "gcc" })
             {
@@ -812,11 +811,12 @@ namespace FEBuilderGBA.Core.Tests
         [SkippableFact]
         public void FormatCData_CompilerSmoke_FiveRepresentativeShapesCompileCleanly()
         {
-            string compiler = DetectCCompiler();
+            string? compiler = DetectCCompiler();
             Skip.If(compiler == null,
                 "Neither arm-none-eabi-gcc nor host gcc is installed in this environment — " +
                 "skipping the GNU11 compiler smoke (downloads/installs nothing; Ubuntu CI is " +
                 "the authoritative compile gate per the accepted plan).");
+            compiler = TestRequire.NotNull(compiler, "C compiler");
 
             string tempDir = Path.Combine(Path.GetTempPath(), "febuilder-cdata-smoke-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(tempDir);

@@ -34,7 +34,7 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ImageService = _prevService;
+            TestRequire.RestoreImageService(_prevService);
             CoreState.ROM = _prevRom;
         }
 
@@ -149,7 +149,7 @@ namespace FEBuilderGBA.Core.Tests
             byte[] overlay = new byte[32];
             Array.Fill(overlay, (byte)0x33);
 
-            IImage img = null;
+            IImage? img = null;
             var ex = Record.Exception(() =>
             {
                 // dest offset far past the OBJ buffer end → bounded copy is a no-op.

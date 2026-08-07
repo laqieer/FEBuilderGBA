@@ -28,7 +28,7 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ImageService = _prevService;
+            TestRequire.RestoreImageService(_prevService);
         }
 
         // ============================================================
@@ -39,7 +39,7 @@ namespace FEBuilderGBA.Core.Tests
         public void AssembleOAM_NullPixels_ReturnsError()
         {
             var pal = MakeMonoPalette();
-            var r = BattleAnimeOAMImportCore.AssembleOAM(null!, 8, 8, pal);
+            var r = BattleAnimeOAMImportCore.AssembleOAM(null, 8, 8, pal);
             Assert.False(r.Success);
             Assert.NotNull(r.Error);
         }
@@ -49,7 +49,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var pixels = new byte[8 * 8];
             pixels[0] = 1;
-            var r = BattleAnimeOAMImportCore.AssembleOAM(pixels, 8, 8, null!);
+            var r = BattleAnimeOAMImportCore.AssembleOAM(pixels, 8, 8, null);
             Assert.False(r.Success);
             Assert.NotNull(r.Error);
         }

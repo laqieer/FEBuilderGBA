@@ -32,7 +32,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             baseDir = Path.Combine(Path.GetTempPath(), "fe_crgit_" + Guid.NewGuid().ToString("N"));
             string repoDir = Path.Combine(baseDir, "resources", "FE-Repo");
-            Directory.CreateDirectory(Path.GetDirectoryName(repoDir));
+            Directory.CreateDirectory(TestRequire.DirectoryName(repoDir));
             return repoDir;
         }
 

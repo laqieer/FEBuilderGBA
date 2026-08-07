@@ -62,8 +62,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ParseNmm_PointerField_IsUnsupported_AndNotDropped()
         {
             NmmParseResult p = NmmSchemaBridgeCore.ParseNmm(SampleNmm());
-            NmmField ptr = p.Fields.Find(f => f.Name == "UsePointer");
-            Assert.NotNull(ptr);
+            NmmField ptr = TestRequire.NotNull(p.Fields.Find(f => f.Name == "UsePointer"), "UsePointer field");
             Assert.True(ptr.Unsupported);
             Assert.False(string.IsNullOrEmpty(ptr.UnsupportedReason));
         }
@@ -72,8 +71,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ParseNmm_OddSizeField_IsUnsupported_AndNotDropped()
         {
             NmmParseResult p = NmmSchemaBridgeCore.ParseNmm(SampleNmm());
-            NmmField weird = p.Fields.Find(f => f.Name == "WeirdSize");
-            Assert.NotNull(weird);
+            NmmField weird = TestRequire.NotNull(p.Fields.Find(f => f.Name == "WeirdSize"), "WeirdSize field");
             Assert.True(weird.Unsupported);
             Assert.Contains("3", weird.UnsupportedReason);
         }
@@ -89,8 +87,7 @@ namespace FEBuilderGBA.Core.Tests
                 "Data\n0\n4\nNEPU\nNULL\n\n";
             NmmParseResult p = NmmSchemaBridgeCore.ParseNmm(nmm);
 
-            NmmField data = p.Fields.Find(f => f.Name == "Data");
-            Assert.NotNull(data);
+            NmmField data = TestRequire.NotNull(p.Fields.Find(f => f.Name == "Data"), "Data field");
             Assert.Equal(4, data.Size);
             Assert.True(data.Unsupported, "a NEPU (pointer) type code must flag the field unsupported");
             Assert.Contains("ointer", data.UnsupportedReason); // "Pointer field ..."
@@ -116,8 +113,7 @@ namespace FEBuilderGBA.Core.Tests
                 "1\nOk by FEBuilderGBA\n0x0\n1\n4\nNULL\nNULL\n\n" +
                 $"Value\n0\n2\n{typeCode}\nNULL\n\n";
             NmmParseResult p = NmmSchemaBridgeCore.ParseNmm(nmm);
-            NmmField v = p.Fields.Find(f => f.Name == "Value");
-            Assert.NotNull(v);
+            NmmField v = TestRequire.NotNull(p.Fields.Find(f => f.Name == "Value"), "Value field");
             Assert.False(v.Unsupported, $"type code '{typeCode}' (no pointer marker) must not flag unsupported");
         }
 

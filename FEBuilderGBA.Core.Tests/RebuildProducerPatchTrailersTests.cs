@@ -115,7 +115,7 @@ namespace FEBuilderGBA.Core.Tests
             return p;
         }
 
-        static EventAssemblerUninstallCore.BinMapping ByKey(
+        static EventAssemblerUninstallCore.BinMapping? ByKey(
             List<EventAssemblerUninstallCore.BinMapping> map, string key)
         {
             return map.FirstOrDefault(m => m.key == key);
@@ -154,8 +154,7 @@ namespace FEBuilderGBA.Core.Tests
 
             var map = RebuildProducerCore.TraceBINPatchedMappingForProducer(rom, patch);
 
-            var b = ByKey(map, "NEW_TARGET_SELECTION_STRUCT");
-            Assert.NotNull(b);
+            var b = TestRequire.NotNull(ByKey(map, "NEW_TARGET_SELECTION_STRUCT"), "NEW_TARGET_SELECTION_STRUCT");
             Assert.Equal(target, b.addr);                       // WF :5560/:5565 — deref'd target.
             Assert.Equal(32u, b.length);                        // WF :5567 — 8*4.
             Assert.Equal(Address.DataTypeEnum.NEW_TARGET_SELECTION_STRUCT, b.type);
@@ -188,8 +187,7 @@ namespace FEBuilderGBA.Core.Tests
 
             var map = RebuildProducerCore.TraceEAPatchedMappingForProducer(rom, patch);
 
-            var b = ByKey(map, "NEW_TARGET_SELECTION_STRUCT");
-            Assert.NotNull(b);
+            var b = TestRequire.NotNull(ByKey(map, "NEW_TARGET_SELECTION_STRUCT"), "NEW_TARGET_SELECTION_STRUCT");
             Assert.Equal(target, b.addr);
             Assert.Equal(32u, b.length);
             Assert.Equal(Address.DataTypeEnum.NEW_TARGET_SELECTION_STRUCT, b.type);

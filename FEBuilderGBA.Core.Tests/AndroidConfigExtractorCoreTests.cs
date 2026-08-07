@@ -58,7 +58,7 @@ namespace FEBuilderGBA.Core.Tests
         static void WriteAsset(string root, string rel, string content)
         {
             string p = Path.Combine(root, rel.Replace('/', Path.DirectorySeparatorChar));
-            Directory.CreateDirectory(Path.GetDirectoryName(p)!);
+            Directory.CreateDirectory(TestRequire.DirectoryName(p));
             File.WriteAllText(p, content);
         }
 
@@ -263,7 +263,7 @@ namespace FEBuilderGBA.Core.Tests
                 // The safe file landed.
                 Assert.True(File.Exists(Path.Combine(target, "config", "data", "ok.txt")));
                 // No file escaped the target root.
-                Assert.False(File.Exists(Path.Combine(Path.GetDirectoryName(target)!, "escape.txt")));
+                Assert.False(File.Exists(Path.Combine(TestRequire.DirectoryName(target), "escape.txt")));
                 Assert.False(File.Exists(Path.Combine(target, "..", "escape.txt")));
 
                 // Manifest count reflects only the safe file.
@@ -412,7 +412,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 // Unrelated app-private state that must survive.
                 string unrelated = Path.Combine(target, "user_data", "rom.gba");
-                Directory.CreateDirectory(Path.GetDirectoryName(unrelated)!);
+                Directory.CreateDirectory(TestRequire.DirectoryName(unrelated));
                 File.WriteAllText(unrelated, "ROM");
 
                 var files = new Dictionary<string, byte[]>

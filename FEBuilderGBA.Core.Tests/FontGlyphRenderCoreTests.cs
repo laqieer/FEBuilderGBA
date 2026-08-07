@@ -23,13 +23,13 @@ namespace FEBuilderGBA.Core.Tests
 
         sealed class ImageServiceScope : IDisposable
         {
-            readonly IImageService _prev;
+            readonly IImageService? _prev;
             public ImageServiceScope()
             {
                 _prev = CoreState.ImageService;
                 CoreState.ImageService = new StubImageService();
             }
-            public void Dispose() { CoreState.ImageService = _prev; }
+            public void Dispose() { TestRequire.RestoreImageService(_prev); }
         }
 
         // Synthetic FE8U ROM with one serif glyph for 'A'.

@@ -458,7 +458,7 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.ROM = rom;
 
                 // animeAddress = ROM_SIZE - 4 → frame at ROM_SIZE-4, +12 overflows EOF.
-                IImage img = null;
+                IImage? img = null;
                 var ex = Record.Exception(() =>
                 {
                     img = ImageUtilMapActionAnimationCore.DrawFrame((uint)(ROM_SIZE - 4), 0);

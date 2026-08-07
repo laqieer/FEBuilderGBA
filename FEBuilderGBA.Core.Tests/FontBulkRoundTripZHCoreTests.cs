@@ -24,13 +24,13 @@ namespace FEBuilderGBA.Core.Tests
 
         sealed class ImageServiceScope : IDisposable
         {
-            readonly IImageService _prev;
+            readonly IImageService? _prev;
             public ImageServiceScope()
             {
                 _prev = CoreState.ImageService;
                 CoreState.ImageService = new StubImageService();
             }
-            public void Dispose() { CoreState.ImageService = _prev; }
+            public void Dispose() { TestRequire.RestoreImageService(_prev); }
         }
 
         sealed class RomScope : IDisposable
@@ -195,7 +195,8 @@ namespace FEBuilderGBA.Core.Tests
             // Import: feed back the captured RGBA (RGBA -> indexed 16x16).
             string err = FontBulkImportZHCore.ImportAll(rom, manifest, (pngName, type) =>
             {
-                if (!pngs.TryGetValue(pngName, out byte[] rgba)) return null;
+                if (!pngs.TryGetValue(pngName, out byte[]? rgba)) return null;
+                rgba = TestRequire.NotNull(rgba, pngName);
                 return new FontGlyphZHPixels
                 {
                     Indexed = RgbaToIndexed16x16(rgba),

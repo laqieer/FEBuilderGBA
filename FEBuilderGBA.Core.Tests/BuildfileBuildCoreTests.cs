@@ -260,7 +260,7 @@ namespace FEBuilderGBA.Core.Tests
             // Corrupt ONLY the declared target sha256 to a different but canonically-spelled
             // hash: reconstruction still succeeds structurally, but the declared identity drifts.
             string otherSha = Sha256Hex(new byte[] { 1, 2, 3, 4 });
-            MutateManifest(projectDir, root => root["target"]["sha256"] = otherSha);
+            MutateManifest(projectDir, root => Obj(root["target"], "target")["sha256"] = otherSha);
 
             BuildfileBuildResult result =
                 BuildfileBuildCore.Build(MakeRom(SharedClean), projectDir, new BuildfileBuildOptions());
@@ -337,16 +337,16 @@ namespace FEBuilderGBA.Core.Tests
                         targetObject = root;
                         break;
                     case "clean":
-                        targetObject = root["clean"].AsObject();
+                        targetObject = Obj(root["clean"], "clean");
                         break;
                     case "target":
-                        targetObject = root["target"].AsObject();
+                        targetObject = Obj(root["target"], "target");
                         break;
                     case "extension":
-                        targetObject = root["extension"].AsObject();
+                        targetObject = Obj(root["extension"], "extension");
                         break;
                     default:
-                        targetObject = root["ranges"].AsArray()[0].AsObject();
+                        targetObject = Obj(Arr(root["ranges"], "ranges")[0], "ranges[0]");
                         break;
                 }
                 targetObject["unexpectedMember"] = true;
@@ -358,7 +358,7 @@ namespace FEBuilderGBA.Core.Tests
         public void Build_RangeOptionalStringWrongType_Fails()
         {
             string projectDir = ExportValidProject(TargetEqualSize());
-            MutateManifest(projectDir, root => root["ranges"][0]["category"] = 7);
+            MutateManifest(projectDir, root => Obj(Arr(root["ranges"], "ranges")[0], "ranges[0]")["category"] = 7);
             AssertBuildFails(projectDir, "category");
         }
 
@@ -367,7 +367,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             string projectDir = ExportValidProject(TargetEqualSize());
             MutateManifest(projectDir, root =>
-                root["target"]["isCanonicalOriginal"] = "false");
+                Obj(root["target"], "target")["isCanonicalOriginal"] = "false");
             AssertBuildFails(projectDir, "isCanonicalOriginal");
         }
 
@@ -378,7 +378,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             string projectDir = ExportValidProject(TargetEqualSize());
             MutateManifest(projectDir, root =>
-                root[objectName].AsObject()["unexpectedMember"] = true);
+                Obj(root[objectName], objectName)["unexpectedMember"] = true);
             AssertBuildFails(projectDir, "unknown property");
         }
 
@@ -403,7 +403,7 @@ namespace FEBuilderGBA.Core.Tests
                 };
                 var installed = new JsonArray();
                 installed.Add(record);
-                root["patches"].AsObject()["installed"] = installed;
+                Obj(root["patches"], "patches")["installed"] = installed;
 
                 JsonObject targetObject = objectName == "record" ? record : parameter;
                 targetObject["unexpectedMember"] = true;
@@ -417,7 +417,7 @@ namespace FEBuilderGBA.Core.Tests
             byte[] target = TargetEqualSize();
             string projectDir = ExportValidProject(target);
             MutateManifest(projectDir, root =>
-                root["projection"].AsObject()["directory"] = null);
+                Obj(root["projection"], "projection")["directory"] = null);
 
             BuildfileBuildResult result =
                 BuildfileBuildCore.Build(MakeRom(SharedClean), projectDir, new BuildfileBuildOptions());
@@ -437,7 +437,7 @@ namespace FEBuilderGBA.Core.Tests
                 root["tool"] = "distinctive-tool-9f3a";
                 root["game"] = "distinctive-game-2b71";
                 root["entryEvent"] = "distinctive-entry-c04d.event";
-                root["target"].AsObject()["isCanonicalOriginal"] = true;
+                Obj(root["target"], "target")["isCanonicalOriginal"] = true;
 
                 var parameter = new JsonObject
                 {
@@ -534,8 +534,23 @@ namespace FEBuilderGBA.Core.Tests
         static JsonArray NullArray(int count)
         {
             var arr = new JsonArray();
-            for (int i = 0; i < count; i++) arr.Add((JsonNode)null);
+            for (int i = 0; i < count; i++) arr.Add((JsonNode?)null);
             return arr;
+        }
+
+        static JsonObject Obj(JsonNode? node, string name)
+        {
+            return TestRequire.Object(node, name);
+        }
+
+        static JsonArray Arr(JsonNode? node, string name)
+        {
+            return TestRequire.Array(node, name);
+        }
+
+        static T Val<T>(JsonNode? node, string name)
+        {
+            return TestRequire.JsonValue<T>(node, name);
         }
 
         [Fact]
@@ -579,7 +594,7 @@ namespace FEBuilderGBA.Core.Tests
             string projectDir = ExportValidProject(TargetEqualSize());
             MutateManifest(projectDir, root =>
             {
-                root["patches"].AsObject()["installed"] =
+                Obj(root["patches"], "patches")["installed"] =
                     NullArray(BuildfileBuildOptions.MaxAdvisoryItems + 1);
             });
             AssertBuildFails(projectDir, "advisory item");
@@ -605,7 +620,7 @@ namespace FEBuilderGBA.Core.Tests
                     ["reason"] = "r",
                     ["params"] = NullArray(BuildfileBuildOptions.MaxAdvisoryItems),
                 };
-                root["patches"].AsObject()["installed"] = new JsonArray { record };
+                Obj(root["patches"], "patches")["installed"] = new JsonArray { record };
             });
             AssertBuildFails(projectDir, "advisory item");
         }
@@ -670,7 +685,7 @@ namespace FEBuilderGBA.Core.Tests
         public void Build_ExtensionWrongStart_Fails()
         {
             string projectDir = ExportValidProject(TargetExtended());
-            MutateManifest(projectDir, root => root["extension"]["start"] = 123u);
+            MutateManifest(projectDir, root => Obj(root["extension"], "extension")["start"] = 123u);
             AssertBuildFails(projectDir, "start");
         }
 
@@ -678,7 +693,7 @@ namespace FEBuilderGBA.Core.Tests
         public void Build_ExtensionWrongLength_Fails()
         {
             string projectDir = ExportValidProject(TargetExtended());
-            MutateManifest(projectDir, root => root["extension"]["length"] = 7u);
+            MutateManifest(projectDir, root => Obj(root["extension"], "extension")["length"] = 7u);
             AssertBuildFails(projectDir, "length");
         }
 
@@ -686,7 +701,7 @@ namespace FEBuilderGBA.Core.Tests
         public void Build_ExtensionNonCanonicalFillByte_Fails()
         {
             string projectDir = ExportValidProject(TargetExtended());
-            MutateManifest(projectDir, root => root["extension"]["fillByte"] = "0xZZ");
+            MutateManifest(projectDir, root => Obj(root["extension"], "extension")["fillByte"] = "0xZZ");
             AssertBuildFails(projectDir, "fillByte");
         }
 
@@ -726,7 +741,7 @@ namespace FEBuilderGBA.Core.Tests
         public void Build_NonContiguousIndex_Fails()
         {
             string projectDir = ExportValidProject(TargetEqualSize());
-            MutateManifest(projectDir, root => root["ranges"][0]["index"] = 9);
+            MutateManifest(projectDir, root => Obj(Arr(root["ranges"], "ranges")[0], "ranges[0]")["index"] = 9);
             AssertBuildFails(projectDir, "index");
         }
 
@@ -734,7 +749,7 @@ namespace FEBuilderGBA.Core.Tests
         public void Build_RangeOutOfBounds_Fails()
         {
             string projectDir = ExportValidProject(TargetEqualSize());
-            MutateManifest(projectDir, root => root["ranges"][0]["offset"] = (uint)RomSize);
+            MutateManifest(projectDir, root => Obj(Arr(root["ranges"], "ranges")[0], "ranges[0]")["offset"] = (uint)RomSize);
             AssertBuildFails(projectDir, "exceeds");
         }
 
@@ -745,8 +760,9 @@ namespace FEBuilderGBA.Core.Tests
             // Force range[1] to start at range[0]'s offset → overlap / not strictly ordered.
             MutateManifest(projectDir, root =>
             {
-                uint firstOffset = (uint)(int)root["ranges"][0]["offset"];
-                root["ranges"][1]["offset"] = firstOffset;
+                JsonArray ranges = Arr(root["ranges"], "ranges");
+                uint firstOffset = (uint)Val<int>(Obj(ranges[0], "ranges[0]")["offset"], "ranges[0].offset");
+                Obj(ranges[1], "ranges[1]")["offset"] = firstOffset;
             });
             AssertBuildFails(projectDir, "overlap");
         }
@@ -758,11 +774,11 @@ namespace FEBuilderGBA.Core.Tests
             string projectDir = ExportValidProject(target);
             MutateManifest(projectDir, root =>
             {
-                JsonArray ranges = root["ranges"].AsArray();
-                JsonObject first = ranges[0].AsObject();
-                JsonObject second = ranges[1].AsObject();
-                second["offset"] = first["offset"].GetValue<uint>()
-                    + first["length"].GetValue<uint>();
+                JsonArray ranges = Arr(root["ranges"], "ranges");
+                JsonObject first = Obj(ranges[0], "ranges[0]");
+                JsonObject second = Obj(ranges[1], "ranges[1]");
+                second["offset"] = Val<uint>(first["offset"], "ranges[0].offset")
+                    + Val<uint>(first["length"], "ranges[0].length");
             });
             AssertBuildFails(projectDir, "touches");
         }
@@ -773,8 +789,9 @@ namespace FEBuilderGBA.Core.Tests
             string projectDir = ExportValidProject(TargetEqualSize());
             MutateManifest(projectDir, root =>
             {
-                uint len = (uint)(int)root["ranges"][0]["length"];
-                root["ranges"][0]["changedBytes"] = len + 1;
+                JsonObject first = Obj(Arr(root["ranges"], "ranges")[0], "ranges[0]");
+                uint len = (uint)Val<int>(first["length"], "ranges[0].length");
+                first["changedBytes"] = len + 1;
             });
             AssertBuildFails(projectDir, "changedBytes");
         }
@@ -783,7 +800,7 @@ namespace FEBuilderGBA.Core.Tests
         public void Build_WrongGbaAddress_Fails()
         {
             string projectDir = ExportValidProject(TargetEqualSize());
-            MutateManifest(projectDir, root => root["ranges"][0]["gbaAddress"] = "0x00000000");
+            MutateManifest(projectDir, root => Obj(Arr(root["ranges"], "ranges")[0], "ranges[0]")["gbaAddress"] = "0x00000000");
             AssertBuildFails(projectDir, "gbaAddress");
         }
 
@@ -791,7 +808,7 @@ namespace FEBuilderGBA.Core.Tests
         public void Build_WrongPayloadPath_Fails()
         {
             string projectDir = ExportValidProject(TargetEqualSize());
-            MutateManifest(projectDir, root => root["ranges"][0]["payload"] = "data/tampered.bin");
+            MutateManifest(projectDir, root => Obj(Arr(root["ranges"], "ranges")[0], "ranges[0]")["payload"] = "data/tampered.bin");
             AssertBuildFails(projectDir, "payload");
         }
 
@@ -877,7 +894,7 @@ namespace FEBuilderGBA.Core.Tests
             File.WriteAllBytes(payload, bytes);
             string sha = Sha256Hex(bytes);
             MutateManifest(projectDir, root =>
-                root["ranges"].AsArray()[0].AsObject()["payloadSha256"] = sha);
+                Obj(Arr(root["ranges"], "ranges")[0], "ranges[0]")["payloadSha256"] = sha);
             AssertBuildFails(projectDir, "unchanged byte");
         }
 
@@ -886,7 +903,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             string projectDir = ExportValidProject(TargetEqualSize());
             string otherSha = Sha256Hex(new byte[] { 9, 9, 9 });
-            MutateManifest(projectDir, root => root["ranges"][0]["payloadSha256"] = otherSha);
+            MutateManifest(projectDir, root => Obj(Arr(root["ranges"], "ranges")[0], "ranges[0]")["payloadSha256"] = otherSha);
             AssertBuildFails(projectDir, "sha256");
         }
 
@@ -1018,7 +1035,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(BuildfilePathSafety.IsSameOrDescendantPath(sibling, data));
             Assert.True(BuildfilePathSafety.IsSameOrDescendantPath(
                 nested,
-                Path.GetPathRoot(parent)));
+                TestRequire.PathRoot(parent)));
         }
 
         [Fact]
@@ -1105,7 +1122,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             string parent = FreshParent();
             string dest = Path.Combine(parent, "rebuilt.gba");
-            string residual = null;
+            string? residual = null;
 
             bool ok = BuildfileBuildCore.PublishBytesNoReplace(
                 new byte[] { 1, 2, 3 },

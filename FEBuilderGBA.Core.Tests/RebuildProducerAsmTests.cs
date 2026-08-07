@@ -111,7 +111,7 @@ namespace FEBuilderGBA.Core.Tests
             RebuildProducerCore.EmitAsmPointerTable(rom, list, pointer, 4, Command85Predicate(rom),
                 "Command85Pointer", Address.DataTypeEnum.InputFormRef_ASM);
 
-            Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef_ASM);
+            Address? main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef_ASM);
             Assert.Equal(table, main.Addr);
             Assert.Equal(pointer, main.Pointer);    // BasePointer IS the (safe) slot.
             Assert.Equal(4u, main.BlockSize);
@@ -141,7 +141,7 @@ namespace FEBuilderGBA.Core.Tests
             RebuildProducerCore.EmitAsmPointerTable(rom, list, pointer, 4, Command85Predicate(rom),
                 "Command85Pointer", Address.DataTypeEnum.InputFormRef_ASM);
 
-            Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef_ASM);
+            Address? main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef_ASM);
             Assert.Equal(4u * (3 + 1), main.Length); // 3 entries incl. the NULL slot.
             // AddFunction over the NULL slot is a no-op (u32==0 -> !isSafetyPointer), so only 2 ASM.
             Assert.Equal(2, list.Count(a => a.DataType == Address.DataTypeEnum.ASM));
@@ -210,7 +210,7 @@ namespace FEBuilderGBA.Core.Tests
             var list = new List<Address>();
             RebuildProducerCore.EmitMapMiniMapTerrainAt(rom, list, pointer, terrainCount: 5);
 
-            Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef_ASM);
+            Address? main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef_ASM);
             Assert.Equal(table, main.Addr);
             Assert.Equal(pointer, main.Pointer);
             Assert.Equal(4u * (5 + 1), main.Length);
@@ -246,7 +246,7 @@ namespace FEBuilderGBA.Core.Tests
             RebuildProducerCore.EmitSwitch2GatedAsmTable(rom, list, switch2Addr, pointer,
                 "UnitIncreaseHeight");
 
-            Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef_ASM);
+            Address? main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef_ASM);
             Assert.Equal(table, main.Addr);
             // CRITICAL: BasePointer is 0 after ReInit -> AddAddress emits NOT_FOUND, not the slot.
             Assert.Equal(U.NOT_FOUND, main.Pointer);
@@ -368,7 +368,7 @@ namespace FEBuilderGBA.Core.Tests
                 var list = new List<Address>();
                 RebuildProducerCore.EmitOAMSPCore(fe8, list, ldrmap, new Dictionary<uint, string>());
 
-                Address main = list.Single(a => a.DataType == Address.DataTypeEnum.OAMSP);
+                Address? main = list.Single(a => a.DataType == Address.DataTypeEnum.OAMSP);
                 Assert.Equal(oamspOff, main.Addr);
                 Assert.Equal(expectMainLen, main.Length);
                 Assert.Equal(0x00E5000u, main.Pointer); // ldr_data_address
@@ -399,7 +399,7 @@ namespace FEBuilderGBA.Core.Tests
                 var list = new List<Address>();
                 RebuildProducerCore.EmitOAMSPCore(fe8, list, ldrmap: null, oamName: oamName);
 
-                Address main = list.Single(a => a.DataType == Address.DataTypeEnum.OAMSP);
+                Address? main = list.Single(a => a.DataType == Address.DataTypeEnum.OAMSP);
                 Assert.Equal(oamspOff, main.Addr);
                 Assert.Equal(8u, main.Length);
                 Assert.Equal(U.NOT_FOUND, main.Pointer); // loop-2 pointer is NOT_FOUND
@@ -629,8 +629,8 @@ namespace FEBuilderGBA.Core.Tests
             var savedRom = CoreState.ROM;
             var savedBaseDir = CoreState.BaseDirectory;
             var savedServices = CoreState.Services;
-            string baseDir = null;
-            FileStream exclusiveLock = null;
+            string? baseDir = null;
+            FileStream? exclusiveLock = null;
             var spy = new ThrowOnDialogServices();
             try
             {
@@ -698,7 +698,7 @@ namespace FEBuilderGBA.Core.Tests
                 var ex = Record.Exception(() => RebuildProducerCore.EmitOAMSP(fe8, list, ldrmap));
                 Assert.Null(ex); // no ArgumentNullException, no Debug.Assert dialog/throw.
                 // The ldrmap loop still emits (name falls back to the hex ToHexString8(ldr_data)).
-                Address main = list.Single(a => a.DataType == Address.DataTypeEnum.OAMSP);
+                Address? main = list.Single(a => a.DataType == Address.DataTypeEnum.OAMSP);
                 Assert.Equal(oamspOff, main.Addr);
                 Assert.Contains("OAMSP ", main.Info); // "OAMSP <hex>" — empty config -> hex name fallback.
             }
@@ -714,7 +714,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var saved = CoreState.ROM;
             var savedBaseDir = CoreState.BaseDirectory;
-            string baseDir = null;
+            string? baseDir = null;
             try
             {
                 var fe8 = MakeVersionedRom("BE8E01");
@@ -775,7 +775,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var saved = CoreState.ROM;
             var savedBaseDir = CoreState.BaseDirectory;
-            string baseDir = null;
+            string? baseDir = null;
             try
             {
                 var fe8 = MakeVersionedRom("BE8E01");
@@ -832,7 +832,7 @@ namespace FEBuilderGBA.Core.Tests
             // magic count = 3 -> only first 3 entries become ASM, but table length reflects all 5.
             RebuildProducerCore.EmitItemEffectPointerAt(rom, list, pointer, magicOriginalCount: 3);
 
-            Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef_MIX);
+            Address? main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef_MIX);
             Assert.Equal(table, main.Addr);
             Assert.Equal(pointer, main.Pointer);
             Assert.Equal(4u * (5 + 1), main.Length);
@@ -1814,7 +1814,8 @@ namespace FEBuilderGBA.Core.Tests
                 {
                     if (prop.PropertyType != typeof(uint)) continue;
                     if (prop.Name.IndexOf("_pointer") < 0) continue;
-                    uint off = U.toOffset((uint)prop.GetValue(fe8.RomInfo, null));
+                    uint pointer = Assert.IsType<uint>(prop.GetValue(fe8.RomInfo, null));
+                    uint off = U.toOffset(pointer);
                     if (off >= 0x200 && off < (uint)fe8.Data.Length && off < smallest) smallest = off;
                 }
                 Assert.NotEqual(uint.MaxValue, smallest); // a versioned ROM has at least one _pointer.
@@ -1887,8 +1888,8 @@ namespace FEBuilderGBA.Core.Tests
             var savedRom = CoreState.ROM;
             var savedBaseDir = CoreState.BaseDirectory;
             var savedServices = CoreState.Services;
-            string baseDir = null;
-            FileStream exclusiveLock = null;
+            string? baseDir = null;
+            FileStream? exclusiveLock = null;
             var spy = new ThrowOnDialogServices();
             try
             {

@@ -529,7 +529,7 @@ namespace FEBuilderGBA.Core.Tests
             cts.Cancel();
 
             var list = new List<Address>();
-            AsmProducerResultLike res = null;
+            AsmProducerResultLike? res = null;
             var ex = Record.Exception(() =>
             {
                 var r = RebuildProducerCore.AppendAllAsmStructPointers(

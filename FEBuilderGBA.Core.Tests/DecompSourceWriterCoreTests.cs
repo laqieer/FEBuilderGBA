@@ -52,7 +52,8 @@ namespace FEBuilderGBA.Core.Tests
                 ReadCommentHandling = JsonCommentHandling.Skip,
                 AllowTrailingCommas = true,
             };
-            return JsonSerializer.Deserialize<DecompManifest>(json, opts);
+            DecompManifest? manifest = JsonSerializer.Deserialize<DecompManifest>(json, opts);
+            return TestRequire.NotNull(manifest, "manifest");
         }
 
         static DecompTableEntry ItemsOwner(string sourceFile, string policy = "source", string format = "cstruct")
@@ -362,7 +363,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 string srcRel = "src/item.c";
                 string srcAbs = Path.Combine(dir, "src", "item.c");
-                Directory.CreateDirectory(Path.GetDirectoryName(srcAbs));
+                Directory.CreateDirectory(TestRequire.DirectoryName(srcAbs));
                 string content =
                     "Item gItemData[] = {\n" +
                     "    [0] = { .might = 5 },\n" +
@@ -397,7 +398,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 string srcRel = "src/item.c";
                 string srcAbs = Path.Combine(dir, "src", "item.c");
-                Directory.CreateDirectory(Path.GetDirectoryName(srcAbs));
+                Directory.CreateDirectory(TestRequire.DirectoryName(srcAbs));
 
                 // Valid C text + a lone 0xFF byte (an invalid UTF-8 sequence).
                 byte[] validCBytes = new UTF8Encoding(false)
@@ -994,7 +995,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 string srcRel = "data/items.json";
                 string srcAbs = Path.Combine(dir, "data", "items.json");
-                Directory.CreateDirectory(Path.GetDirectoryName(srcAbs));
+                Directory.CreateDirectory(TestRequire.DirectoryName(srcAbs));
                 string content = "[ { \"might\": 5 }, { \"might\": 8 } ]\n";
                 File.WriteAllText(srcAbs, content);
 
@@ -1228,7 +1229,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 string srcRel = "data/items.json";
                 string srcAbs = Path.Combine(dir, "data", "items.json");
-                Directory.CreateDirectory(Path.GetDirectoryName(srcAbs));
+                Directory.CreateDirectory(TestRequire.DirectoryName(srcAbs));
                 string content = "[ { \"might\": 5 }, { \"might\": 9 } ";   // no closing ']'
                 File.WriteAllText(srcAbs, content);
 
