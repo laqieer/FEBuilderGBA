@@ -2252,6 +2252,10 @@ namespace FEBuilderGBA
                 }
                 return null;
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch
             {
                 return null;
@@ -2298,6 +2302,10 @@ namespace FEBuilderGBA
                 using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
                 using var reader = new StreamReader(stream, Encoding.UTF8);
                 return await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch
             {
@@ -2367,6 +2375,11 @@ namespace FEBuilderGBA
                     await CopyToAsync(src, dst, progress, cancellationToken).ConfigureAwait(false);
                 }
                 return (true, "");
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                try { if (File.Exists(destPath)) File.Delete(destPath); } catch { /* best-effort cleanup */ }
+                throw;
             }
             catch (Exception e)
             {

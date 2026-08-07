@@ -109,9 +109,12 @@ namespace FEBuilderGBA
         {
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 if (httpGet == null)
                     httpGet = (url, ct) => U.HttpGetAsync(url, cancellationToken: ct);
                 string body = await httpGet(ReleasesLatestApiUrl, cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
                 if (string.IsNullOrWhiteSpace(body))
                 {
                     return new UpdateCheckResult
@@ -125,6 +128,10 @@ namespace FEBuilderGBA
 
                 string latest = ParseLatestVersionFromReleaseJson(body);
                 return BuildResult(U.getAppVersion(), latest, ReleasesLatestPageUrl);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {

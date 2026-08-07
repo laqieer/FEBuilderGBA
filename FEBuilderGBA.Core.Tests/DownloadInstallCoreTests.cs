@@ -130,6 +130,19 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(fakeExe, File.ReadAllBytes(result.Path));
         }
 
+        [Fact]
+        public async Task DownloadAsync_CallerCancellation_Throws()
+        {
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                DownloadInstallCore.DownloadAsync(
+                    DownloadInstallCore.ResourceId.ArmAs, _baseDir, null,
+                    (url, dest, referer, ct) => Task.FromCanceled<(bool ok, string error)>(ct),
+                    cts.Token));
+        }
+
         // ---- 2) Archive extract + nested-exe discovery --------------------
 
         [Fact]
@@ -183,6 +196,19 @@ namespace FEBuilderGBA.Core.Tests
             {
                 result.Staged?.Dispose();
             }
+        }
+
+        [Fact]
+        public async Task StageAsync_CallerCancellation_Throws()
+        {
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                DownloadInstallCore.StageAsync(
+                    DownloadInstallCore.ResourceId.MGba, _baseDir, null,
+                    (url, dest, referer, ct) => Task.FromCanceled<(bool ok, string error)>(ct),
+                    cts.Token));
         }
 
         // ---- 3) Download-failure cleanup ----------------------------------
@@ -509,6 +535,19 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(1, runCalls);
             Assert.Equal(1, findCalls);
             Assert.Equal("https://example/git-64-bit.exe", installerSeen);
+        }
+
+        [Fact]
+        public async Task DownloadGit_CallerCancellation_Throws()
+        {
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                DownloadInstallCore.DownloadGitAsync(
+                    progress: null,
+                    getInstallerUrlAsync: ct => Task.FromCanceled<string>(ct),
+                    cancellationToken: cts.Token));
         }
 
         [Fact]

@@ -88,6 +88,18 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Equal("https://example.test/Git-2.0-64-bit.exe", url);
         }
 
+        [Fact]
+        public async Task GitInstaller_GetLatestInstallerUrlAsync_CallerCancellation_Throws()
+        {
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                GitInstaller.GetLatestInstallerUrlAsync(
+                    (requestUrl, referer, ct) => Task.FromCanceled<string>(ct),
+                    cts.Token));
+        }
+
         // ---- GitUtil (Core version using CoreState) ----
 
         [Fact]
