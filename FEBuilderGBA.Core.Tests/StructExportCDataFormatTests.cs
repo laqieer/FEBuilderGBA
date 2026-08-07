@@ -27,8 +27,8 @@ namespace FEBuilderGBA.Core.Tests
         // Fixture helpers
         // ====================================================================
 
-        static StructMetadata.FieldDef F(string name, uint offset, StructMetadata.FieldType type, string comment = null)
-            => new StructMetadata.FieldDef { Name = name, Offset = offset, Type = type, Comment = comment };
+        static StructMetadata.FieldDef F(string name, uint offset, StructMetadata.FieldType type, string? comment = null)
+            => new StructMetadata.FieldDef { Name = name, Offset = offset, Type = type, Comment = comment ?? string.Empty };
 
         static StructMetadata.StructDef Def(string name, params StructMetadata.FieldDef[] fields)
             => new StructMetadata.StructDef { Name = name, DataSize = 0, Fields = new List<StructMetadata.FieldDef>(fields) };

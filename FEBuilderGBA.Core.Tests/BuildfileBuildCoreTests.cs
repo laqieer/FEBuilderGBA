@@ -60,7 +60,7 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // Export a KNOWN-GOOD project for the given target and return its directory.
-        string ExportValidProject(byte[] target, byte[] clean = null)
+        string ExportValidProject(byte[] target, byte[]? clean = null)
         {
             clean ??= SharedClean;
             string parent = FreshParent();
@@ -75,7 +75,8 @@ namespace FEBuilderGBA.Core.Tests
         static void MutateManifest(string projectDir, Action<JsonObject> mutate)
         {
             string path = Path.Combine(projectDir, "buildfile.json");
-            JsonNode root = JsonNode.Parse(File.ReadAllText(path));
+            JsonNode? root = JsonNode.Parse(File.ReadAllText(path));
+            if (root is null) throw new InvalidOperationException("buildfile.json did not contain a JSON root.");
             mutate(root.AsObject());
             File.WriteAllText(path, root.ToJsonString());
         }

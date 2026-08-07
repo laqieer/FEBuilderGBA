@@ -62,10 +62,10 @@ namespace FEBuilderGBA.Core.Tests
 
         sealed class Fixture : IDisposable
         {
-            public string Dir;
-            public DecompProject Project;
-            public IAsmMapFile Map;
-            public string SourceAbs;
+            public required string Dir;
+            public required DecompProject Project;
+            public required IAsmMapFile Map;
+            public required string SourceAbs;
             public void Dispose() { try { Directory.Delete(Dir, true); } catch { } }
         }
 

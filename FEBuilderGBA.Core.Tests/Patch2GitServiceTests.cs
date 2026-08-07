@@ -37,7 +37,7 @@ namespace FEBuilderGBA.Core.Tests
         sealed class FakeClone
         {
             public int Called;
-            public string LastTarget;
+            public string LastTarget = string.Empty;
             public bool TargetExistedAtCall;
             public int ReturnCode;
             public bool CreateOnSuccess;

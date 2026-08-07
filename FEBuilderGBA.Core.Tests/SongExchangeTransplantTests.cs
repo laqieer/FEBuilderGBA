@@ -68,8 +68,8 @@ namespace FEBuilderGBA.Core.Tests
 
         class SrcBuild
         {
-            public byte[] Data;
-            public SongExchangeCore.SongSt Song;
+            public required byte[] Data;
+            public required SongExchangeCore.SongSt Song;
         }
 
         /// <summary>Build a source ROM with the given tracks + voice table bytes.</summary>

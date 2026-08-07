@@ -511,7 +511,7 @@ namespace FEBuilderGBA.Core.Tests
 
         // ---- ObjTiles validator (#1371) ----
 
-        static void WriteObjTilesForValidator(string path, byte[] body = null, string format = "febuilder-objtiles-lz77", bool writeSidecar = true)
+        static void WriteObjTilesForValidator(string path, byte[]? body = null, string format = "febuilder-objtiles-lz77", bool writeSidecar = true)
         {
             if (body == null) body = new byte[64];
             File.WriteAllBytes(path, body);
@@ -604,7 +604,7 @@ namespace FEBuilderGBA.Core.Tests
 
         // ---- MapChipConfig validator (#1375) — structural TWIN of ObjTiles ----
 
-        static void WriteMapChipConfigForValidator(string path, byte[] body = null, string format = "febuilder-mapchipconfig-lz77", bool writeSidecar = true)
+        static void WriteMapChipConfigForValidator(string path, byte[]? body = null, string format = "febuilder-mapchipconfig-lz77", bool writeSidecar = true)
         {
             if (body == null) body = new byte[64];
             File.WriteAllBytes(path, body);
@@ -698,7 +698,7 @@ namespace FEBuilderGBA.Core.Tests
 
         // ---- MapTileAnimation1Graphics validator (#1389) — RAW twin of mapchange/mapanime2pal ----
 
-        static void WriteMapAnime1GfxForValidator(string path, byte[] body = null, string format = "febuilder-mapanime1gfx-raw4bpp", bool writeSidecar = true)
+        static void WriteMapAnime1GfxForValidator(string path, byte[]? body = null, string format = "febuilder-mapanime1gfx-raw4bpp", bool writeSidecar = true)
         {
             if (body == null) body = new byte[64];
             File.WriteAllBytes(path, body);
