@@ -6411,22 +6411,12 @@ namespace FEBuilderGBA
 
         public static string md5(string filename)
         {
-            return md5(File.ReadAllBytes(filename));
+            return global::FEBuilderGBA.Core.ManagedMd5.ComputeFileHex(filename);
         }
 
         public static string md5(byte[] bin)
         {
-            using (var md5 = System.Security.Cryptography.MD5.Create())
-            {
-                byte[] bs = md5.ComputeHash(bin);
-
-                System.Text.StringBuilder result = new System.Text.StringBuilder();
-                foreach (byte b in bs)
-                {
-                    result.Append(b.ToString("x2"));
-                }
-                return result.ToString();
-            }
+            return global::FEBuilderGBA.Core.ManagedMd5.ComputeHex(bin);
         }
 
         public static void AllowDropFilename(Form self
@@ -8035,4 +8025,3 @@ namespace FEBuilderGBA
 
     }
 }
-

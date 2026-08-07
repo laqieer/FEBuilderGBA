@@ -462,17 +462,7 @@ namespace FEBuilderGBA
             byte[] wavedata = Program.ROM.getBinaryData(songdata_addr + 12, length);
             data.AddRange(wavedata);
 
-            using (var md5 = System.Security.Cryptography.MD5.Create())
-            {
-                byte[] bs = md5.ComputeHash(data.ToArray());
-
-                System.Text.StringBuilder result = new System.Text.StringBuilder();
-                foreach (byte b in bs)
-                {
-                    result.Append(b.ToString("x2"));
-                }
-                return result.ToString();
-            }
+            return global::FEBuilderGBA.Core.ManagedMd5.ComputeHex(data.ToArray());
         }
 
         //WaveMemory +P4 のソングデータを使って比較用のフィンガプリントを作ります.
@@ -509,17 +499,7 @@ namespace FEBuilderGBA
             byte[] fixeddata = Program.ROM.getBinaryData(songdata_addr + 0, 12);
             data.AddRange(fixeddata);
 
-            using (var md5 = System.Security.Cryptography.MD5.Create())
-            {
-                byte[] bs = md5.ComputeHash(data.ToArray());
-
-                System.Text.StringBuilder result = new System.Text.StringBuilder();
-                foreach (byte b in bs)
-                {
-                    result.Append(b.ToString("x2"));
-                }
-                return result.ToString();
-            }
+            return global::FEBuilderGBA.Core.ManagedMd5.ComputeHex(data.ToArray());
         }
 
         //SquareWaveのデータ使って比較用のフィンガプリントを作ります.
@@ -529,17 +509,7 @@ namespace FEBuilderGBA
 
             byte[] data = Program.ROM.getBinaryData(vocaaddr + 1, 11);
 
-            using (var md5 = System.Security.Cryptography.MD5.Create())
-            {
-                byte[] bs = md5.ComputeHash(data);
-
-                System.Text.StringBuilder result = new System.Text.StringBuilder();
-                foreach (byte b in bs)
-                {
-                    result.Append(b.ToString("x2"));
-                }
-                return result.ToString();
-            }
+            return global::FEBuilderGBA.Core.ManagedMd5.ComputeHex(data);
         }
 
         private void AddressList_SelectedIndexChanged(object sender, EventArgs e)
