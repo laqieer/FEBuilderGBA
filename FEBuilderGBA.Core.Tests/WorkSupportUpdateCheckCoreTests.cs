@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 using FEBuilderGBA;
 
@@ -97,6 +99,26 @@ namespace FEBuilderGBA.Core.Tests
                 httpGet: _ => "",
                 httpHeadLastModified: _ => "Thu, 01 Jan 2099 00:00:00 GMT",
                 romDateTime: _ => new DateTime(2020, 1, 1));
+            Assert.Equal(WorkSupportUpdateCheckCore.UpdateResult.Updateable, r);
+        }
+
+        [Fact]
+        public async Task CheckAsync_DirectUrlRegex_UsesAsyncHeadLastModified()
+        {
+            var lines = Lines(("CHECK_URL", "http://example.com/file.ups"), ("CHECK_REGEX", "@DIRECT_URL"));
+            string probed = "";
+
+            var r = await WorkSupportUpdateCheckCore.CheckAsync(lines, "rom.gba",
+                httpGet: (_, _) => Task.FromResult("must not fetch"),
+                httpHeadLastModified: (url, _) =>
+                {
+                    probed = url;
+                    return Task.FromResult<string?>("Thu, 01 Jan 2099 00:00:00 GMT");
+                },
+                romDateTime: _ => new DateTime(2020, 1, 1),
+                cancellationToken: CancellationToken.None);
+
+            Assert.Equal("http://example.com/file.ups", probed);
             Assert.Equal(WorkSupportUpdateCheckCore.UpdateResult.Updateable, r);
         }
 

@@ -180,9 +180,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 UpdateCheckButton.IsEnabled = false;
                 StatusLabel.Text = R._("Checking for updates...");
 
-                // The check is network-bound; run it off the UI thread.
-                int updateable = await System.Threading.Tasks.Task.Run(() =>
-                    _vm.UpdateCheckAll(url => U.HttpGet(url), HttpHeadLastModified, GetRomDateTime));
+                int updateable = await _vm.UpdateCheckAllAsync(
+                    (url, ct) => U.HttpGetAsync(url, cancellationToken: ct),
+                    (url, ct) => U.HttpHeadLastModifiedAsync(url, ct),
+                    GetRomDateTime);
 
                 // Re-render so the marks reflect the refreshed IsUpdateMark state.
                 foreach (var p in _vm.Projects)
@@ -208,33 +209,6 @@ namespace FEBuilderGBA.Avalonia.Views
             finally
             {
                 UpdateCheckButton.IsEnabled = true;
-            }
-        }
-
-        // One shared HttpClient for all HEAD probes (per .NET guidance — do NOT
-        // new-up an HttpClient per request) with a bounded timeout so a slow or
-        // unreachable host cannot hang the update check.
-        static readonly System.Net.Http.HttpClient s_httpClient = new System.Net.Http.HttpClient
-        {
-            Timeout = TimeSpan.FromSeconds(8),
-        };
-
-        /// <summary>HTTP HEAD probe for a URL's Last-Modified header (null when absent/unreachable/timed out).</summary>
-        static string? HttpHeadLastModified(string url)
-        {
-            try
-            {
-                using var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Head, url);
-                using var resp = s_httpClient.Send(req);
-                if (resp.Content.Headers.LastModified.HasValue)
-                {
-                    return resp.Content.Headers.LastModified.Value.ToString();
-                }
-                return null;
-            }
-            catch (Exception)
-            {
-                return null;
             }
         }
 

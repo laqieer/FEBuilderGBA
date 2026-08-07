@@ -1,4 +1,6 @@
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using FEBuilderGBA;
 using Xunit;
 
@@ -90,6 +92,16 @@ namespace FEBuilderGBA.Core.Tests
         public void CheckLatest_ValidNewerTag_ReturnsUpdateAvailable()
         {
             var r = UpdateCheckCore.CheckLatest(_ => "{\"tag_name\":\"ver_20991231.99\"}");
+            Assert.True(r.CheckSucceeded);
+            Assert.True(r.IsUpdateAvailable);
+        }
+
+        [Fact]
+        public async Task CheckLatestAsync_ValidNewerTag_ReturnsUpdateAvailable()
+        {
+            var r = await UpdateCheckCore.CheckLatestAsync(
+                (_, _) => Task.FromResult("{\"tag_name\":\"ver_20991231.99\"}"),
+                CancellationToken.None);
             Assert.True(r.CheckSucceeded);
             Assert.True(r.IsUpdateAvailable);
         }

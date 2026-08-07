@@ -3681,8 +3681,8 @@ namespace FEBuilderGBA.Avalonia.Views
 
         private async void CheckUpdates_Click(object? sender, RoutedEventArgs e)
         {
-            UpdateCheckCore.UpdateCheckResult result = await Task.Run(() => UpdateCheckCore.CheckLatest());
-            await Dispatcher.UIThread.InvokeAsync(async () => await ShowUpdateCheckResultAsync(result, manual: true));
+            UpdateCheckCore.UpdateCheckResult result = await UpdateCheckCore.CheckLatestAsync();
+            await ShowUpdateCheckResultAsync(result, manual: true);
         }
 
         void StartAutoUpdateCheckIfDue()
@@ -3696,37 +3696,42 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (!UpdateCheckCore.ShouldAutoCheck(interval, last, today))
                     return;
 
-                _ = Task.Run(() =>
-                {
-                    UpdateCheckCore.UpdateCheckResult result = UpdateCheckCore.CheckLatest();
-                    // Marshal back to the UI thread: the config write (MarkAutoUpdateChecked ->
-                    // CoreState.Config.Save) and any dialog must NOT run on the background thread.
-                    Dispatcher.UIThread.Post(async () =>
-                    {
-                        try
-                        {
-                            // Only consume the interval on a SUCCESSFUL check — a failed (offline/
-                            // rate-limited) check retries on the next launch instead of being suppressed
-                            // for a full interval, matching WinForms IsAutoUpdateTime semantics. (#1804)
-                            if (!result.CheckSucceeded)
-                                return;
-                            MarkAutoUpdateChecked(today);
-                            if (!result.IsUpdateAvailable)
-                                return;
-                            await ShowUpdateCheckResultAsync(result, manual: false);
-                        }
-                        catch (Exception ex)
-                        {
-                            // async-void fire-and-forget: swallow+log so an exception (e.g. the window
-                            // closing during startup) can never become an unobserved crash.
-                            Log.ErrorF("MainWindow auto-update dialog: {0}", ex.Message);
-                        }
-                    });
-                });
+                _ = RunAutoUpdateCheckAsync(today);
             }
             catch (Exception ex)
             {
                 Log.ErrorF("MainWindow.StartAutoUpdateCheckIfDue: {0}", ex.Message);
+            }
+        }
+
+        async Task RunAutoUpdateCheckAsync(string today)
+        {
+            try
+            {
+                UpdateCheckCore.UpdateCheckResult result = await UpdateCheckCore.CheckLatestAsync();
+                await Dispatcher.UIThread.InvokeAsync(async () =>
+                {
+                    try
+                    {
+                        // Only consume the interval on a SUCCESSFUL check — a failed (offline/
+                        // rate-limited) check retries on the next launch instead of being suppressed
+                        // for a full interval, matching WinForms IsAutoUpdateTime semantics. (#1804)
+                        if (!result.CheckSucceeded)
+                            return;
+                        MarkAutoUpdateChecked(today);
+                        if (!result.IsUpdateAvailable)
+                            return;
+                        await ShowUpdateCheckResultAsync(result, manual: false);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.ErrorF("MainWindow auto-update dialog: {0}", ex.Message);
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorF("MainWindow.RunAutoUpdateCheckAsync: {0}", ex.Message);
             }
         }
 

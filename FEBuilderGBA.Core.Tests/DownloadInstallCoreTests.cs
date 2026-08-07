@@ -7,6 +7,7 @@
 using System;
 using System.IO;
 using System.IO.Compression;
+using System.Threading;
 using System.Threading.Tasks;
 using FEBuilderGBA;
 using Xunit;
@@ -106,6 +107,29 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(fakeExe, File.ReadAllBytes(resolved));
         }
 
+        [Fact]
+        public async Task DownloadAsync_SingleExe_UsesAsyncDownloadStep()
+        {
+            byte[] fakeExe = new byte[] { (byte)'M', (byte)'Z', 0x90, 0x00 };
+            bool usedAsyncStep = false;
+
+            DownloadInstallCore.DownloadResult result = await DownloadInstallCore.DownloadAsync(
+                DownloadInstallCore.ResourceId.ArmAs, _baseDir, null,
+                async (url, dest, referer, _) =>
+                {
+                    await File.WriteAllBytesAsync(dest, fakeExe);
+                    usedAsyncStep = true;
+                    return (true, "");
+                });
+
+            Assert.True(usedAsyncStep);
+            Assert.True(result.Success, result.Error);
+            Assert.Equal("", result.Error);
+            Assert.True(File.Exists(result.Path));
+            Assert.EndsWith("arm-none-eabi-as.exe", result.Path, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(fakeExe, File.ReadAllBytes(result.Path));
+        }
+
         // ---- 2) Archive extract + nested-exe discovery --------------------
 
         [Fact]
@@ -124,6 +148,41 @@ namespace FEBuilderGBA.Core.Tests
             Assert.EndsWith("mGBA.exe", resolved, StringComparison.OrdinalIgnoreCase);
             Assert.Contains(Path.Combine("app", "mVBA"), resolved);
             Assert.Equal(nested, File.ReadAllBytes(resolved));
+        }
+
+        [Fact]
+        public async Task StageAsync_Archive_UsesAsyncDownloadStepAndDiscoversNestedExe()
+        {
+            byte[] nested = new byte[] { 1, 2, 3, 4, 5 };
+            bool usedAsyncStep = false;
+
+            DownloadInstallCore.StageDownloadResult result = await DownloadInstallCore.StageAsync(
+                DownloadInstallCore.ResourceId.MGba, _baseDir, null,
+                async (url, dest, referer, _) =>
+                {
+                    usedAsyncStep = true;
+                    Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+                    using (var fs = new FileStream(dest, FileMode.Create, FileAccess.Write))
+                    using (var zip = new ZipArchive(fs, ZipArchiveMode.Create))
+                    {
+                        var entry = zip.CreateEntry("mGBA-0.6.1/mGBA.exe");
+                        await using var es = entry.Open();
+                        await es.WriteAsync(nested);
+                    }
+                    return (true, "");
+                });
+
+            Assert.True(usedAsyncStep);
+            Assert.True(result.Success, result.Error);
+            try
+            {
+                Assert.EndsWith("mGBA.exe", result.Staged.StagedExe, StringComparison.OrdinalIgnoreCase);
+                Assert.Equal(nested, File.ReadAllBytes(result.Staged.StagedExe));
+            }
+            finally
+            {
+                result.Staged?.Dispose();
+            }
         }
 
         // ---- 3) Download-failure cleanup ----------------------------------
@@ -531,6 +590,35 @@ namespace FEBuilderGBA.Core.Tests
 
             Assert.Null(git.Path);
             Assert.False(string.IsNullOrEmpty(git.Error));
+        }
+
+        [Fact]
+        public async Task DownloadGit_UsesAsyncUrlResolverAndAsyncDownloadStep()
+        {
+            bool resolvedAsync = false;
+            bool downloadedAsync = false;
+
+            var git = await DownloadInstallCore.DownloadGitAsync(
+                progress: null,
+                getInstallerUrlAsync: _ =>
+                {
+                    resolvedAsync = true;
+                    return Task.FromResult("https://example/git.exe");
+                },
+                downloadStepAsync: (string url, string dest, string referer, CancellationToken _) =>
+                {
+                    downloadedAsync = true;
+                    Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+                    File.WriteAllBytes(dest, new byte[] { 1 });
+                    return Task.FromResult((true, ""));
+                },
+                runInstaller: _ => Task.FromResult(true),
+                findGit: () => "git.exe");
+
+            Assert.True(resolvedAsync);
+            Assert.True(downloadedAsync);
+            Assert.Equal("git.exe", git.Path);
+            Assert.Equal("", git.Error);
         }
 
         // ---- U.HttpDownloadFile failure contract (no live network) --------

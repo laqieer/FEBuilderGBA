@@ -2,6 +2,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
@@ -140,6 +142,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 UpdateinfoLines, RomFilename, httpGet, httpHeadLastModified, romDateTime);
         }
 
+        public Task<WorkSupportUpdateCheckCore.UpdateResult> CheckUpdateAsync(
+            Func<string, CancellationToken, Task<string>> httpGet,
+            Func<string, CancellationToken, Task<string?>> httpHeadLastModified,
+            Func<string, DateTime> romDateTime,
+            CancellationToken cancellationToken = default)
+        {
+            return WorkSupportUpdateCheckCore.CheckAsync(
+                UpdateinfoLines, RomFilename, httpGet, httpHeadLastModified, romDateTime, cancellationToken);
+        }
+
         /// <summary>
         /// Resolve the package download URL from UPDATE_URL/UPDATE_REGEX. Mirrors WF
         /// <c>RunDownloadAndExtract</c> URL-resolution head.
@@ -147,6 +159,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public WorkSupportUpdateDownloadCore.ResolveResult ResolveDownloadUrl(Func<string, string> httpGet)
         {
             return WorkSupportUpdateDownloadCore.ResolveDownloadUrl(UpdateinfoLines, httpGet);
+        }
+
+        public Task<WorkSupportUpdateDownloadCore.ResolveResult> ResolveDownloadUrlAsync(
+            Func<string, CancellationToken, Task<string>> httpGet,
+            CancellationToken cancellationToken = default)
+        {
+            return WorkSupportUpdateDownloadCore.ResolveDownloadUrlAsync(UpdateinfoLines, httpGet, cancellationToken);
         }
 
         /// <summary>
@@ -161,6 +180,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             string romDir = Path.GetDirectoryName(RomFilename) ?? "";
             return WorkSupportUpdateDownloadCore.DownloadAndStage(
                 downloadUrl, romDir, RomFilename, downloadFile, extract);
+        }
+
+        public Task<WorkSupportUpdateDownloadCore.StageResult> DownloadAndStageAsync(
+            string downloadUrl,
+            Func<string, string, CancellationToken, Task<(bool ok, string error)>> downloadFile,
+            Func<string, string, string> extract,
+            CancellationToken cancellationToken = default)
+        {
+            string romDir = Path.GetDirectoryName(RomFilename) ?? "";
+            return WorkSupportUpdateDownloadCore.DownloadAndStageAsync(
+                downloadUrl, romDir, RomFilename, downloadFile, extract, cancellationToken);
         }
 
         /// <summary>
