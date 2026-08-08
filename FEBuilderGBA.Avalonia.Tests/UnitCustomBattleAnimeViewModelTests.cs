@@ -117,7 +117,7 @@ public class UnitCustomBattleAnimeViewModelTests
             CoreState.ROM = rom;
 
             var vm = new UnitCustomBattleAnimeViewModel();
-            Assert.Equal(1, vm.LoadPointerTable().Count);
+            Assert.Single(vm.LoadPointerTable());
         }
         finally { CoreState.ROM = prev; }
     }

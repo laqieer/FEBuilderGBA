@@ -61,7 +61,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         [Fact]
         public void ViewModel_LoadCurrentSongs_PopulatesDisplay()
         {
-            string romPath = FindTestRom();
+            string? romPath = FindTestRom();
             if (romPath == null) return; // skip if no ROM.
 
             var prev = CoreState.ROM;
@@ -88,7 +88,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         [Fact]
         public void ViewModel_ConvertWithoutOtherRom_ReturnsError()
         {
-            string romPath = FindTestRom();
+            string? romPath = FindTestRom();
             if (romPath == null) return;
 
             var prev = CoreState.ROM;
@@ -116,7 +116,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         [Fact]
         public void ViewModel_ConvertToDestZero_IsBlocked()
         {
-            string romPath = FindTestRom();
+            string? romPath = FindTestRom();
             if (romPath == null) return;
 
             var prev = CoreState.ROM;
@@ -268,7 +268,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         [AvaloniaFact]
         public void View_OnOpen_PopulatesCurrentSongListBox()
         {
-            string romPath = FindTestRom();
+            string? romPath = FindTestRom();
             if (romPath == null) return;
 
             var prev = CoreState.ROM;
@@ -305,8 +305,8 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         static string FindProjectRoot()
         {
-            string dir = AppContext.BaseDirectory;
-            for (int i = 0; i < 12; i++)
+            string? dir = AppContext.BaseDirectory;
+            for (int i = 0; i < 12 && dir != null; i++)
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln"))) return dir;
                 string? parent = Path.GetDirectoryName(dir);
@@ -316,7 +316,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             throw new InvalidOperationException("Could not find project root (FEBuilderGBA.sln)");
         }
 
-        static string FindTestRom()
+        static string? FindTestRom()
         {
             string root;
             try { root = FindProjectRoot(); } catch { return null; }

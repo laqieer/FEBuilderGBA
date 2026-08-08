@@ -248,7 +248,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// WinForms <c>ImageUtil.CalcByteLengthForHeaderTSAData</c>). Returns null
         /// when the header is out of range.
         /// </summary>
-        internal static byte[] ReadHeaderTSABytes(byte[] data, uint offset)
+        internal static byte[]? ReadHeaderTSABytes(byte[]? data, uint offset)
         {
             if (data == null || offset + 2 > (uint)data.Length) return null;
             int mhx = data[offset];

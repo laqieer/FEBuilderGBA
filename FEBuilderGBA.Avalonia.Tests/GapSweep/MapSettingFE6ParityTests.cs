@@ -246,7 +246,7 @@ public class MapSettingFE6ParityTests
         // TextBlock literal matches the expected WF label.
         var doc = XDocument.Load(AxamlPath());
         // Avalonia XAML namespace
-        var avNs = doc.Root.GetDefaultNamespace();
+        var avNs = doc.Root?.GetDefaultNamespace() ?? XNamespace.None;
 
         // Find the NumericUpDown whose Name attribute matches inputName
         var input = doc.Descendants(avNs + "NumericUpDown")

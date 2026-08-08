@@ -642,7 +642,7 @@ public class ImageMagicFEditorParityTests
         public bool CheckFast(uint num) => _map.ContainsKey(num);
         public string At(uint num, string def = "")
         {
-            return _map.TryGetValue(num, out string v) ? v : def;
+            return _map.TryGetValue(num, out string? v) ? v : def;
         }
         public string S_At(uint num) => At(num);
         public bool TryGetValue(uint num, out string out_data)

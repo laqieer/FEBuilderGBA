@@ -16,7 +16,7 @@ namespace FEBuilderGBA.Avalonia.Tests
     [Collection("SharedState")]
     public class PatchManagerUndoTests
     {
-        static ROM MakeFe8uRom(Action<byte[]> seed)
+        static ROM MakeFe8uRom(Action<byte[]>? seed)
         {
             var data = new byte[0x1000000];
             seed?.Invoke(data);

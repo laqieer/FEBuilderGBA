@@ -434,7 +434,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                     // write_range + the table-slot write_u32 — must compose into
                     // a single record at position 1).
                     Assert.True(CoreState.Undo!.IsModified);
-                    Assert.Equal(1, CoreState.Undo.UndoBuffer.Count);
+                    Assert.Single(CoreState.Undo.UndoBuffer);
                     Assert.Equal(1, CoreState.Undo.Postion);
 
                     // Undo: the table entry pointer AND the whole ROM restore
@@ -642,7 +642,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                         undoSvc.Rollback();
                         // A MIDI with a real note MUST import — anything else is a
                         // hard failure (do NOT silently skip the header+4 assertion).
-                        Assert.True(false, "ImportMidi must succeed for a MIDI with a note: " + error);
+                        Assert.Fail("ImportMidi must succeed for a MIDI with a note: " + error);
                         return;
                     }
 
@@ -730,7 +730,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                         undoSvc.Rollback();
                         // A MIDI with a real note MUST import — anything else is a
                         // hard failure (do NOT silently skip the header+4 assertion).
-                        Assert.True(false, "ImportMidi must succeed for a MIDI with a note: " + error);
+                        Assert.Fail("ImportMidi must succeed for a MIDI with a note: " + error);
                         return;
                     }
 

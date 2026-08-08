@@ -89,7 +89,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// without unsigned underflow), or the resolved row would fall outside the
         /// ROM. Never throws.
         /// </summary>
-        public static uint IdToAddress(ROM rom, uint portraitId)
+        public static uint IdToAddress(ROM? rom, uint portraitId)
         {
             if (rom?.RomInfo == null) return 0;
 

@@ -94,7 +94,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 }
             }
 
-            _output.WriteLine($"OK {vmType.Name}.{listMethod}: {list.Count} entries");
+            _output.WriteLine($"OK {vmType.Name}.{listMethod} (entry loader {loadMethod}): {list.Count} entries");
         }
 
         /// <summary>

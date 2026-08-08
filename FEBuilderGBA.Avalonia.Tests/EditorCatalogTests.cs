@@ -42,7 +42,7 @@ public class EditorCatalogTests
     [Fact]
     public void Map_editors_catalog_keeps_exact_entry_metadata_order()
     {
-        var category = Assert.Single(EditorCatalog.Categories.Where(g => g.Key == "Map Editors"));
+        var category = Assert.Single(EditorCatalog.Categories, g => g.Key == "Map Editors");
         var actual = category
             .Select(e => (e.Key, e.Label, View: Assert.Single(e.Views).Name))
             .ToArray();

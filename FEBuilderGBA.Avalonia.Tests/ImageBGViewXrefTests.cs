@@ -29,7 +29,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         [AvaloniaFact]
         public void XRefList_PopulatedForReferencedBg()
         {
-            string romPath = FindRom("FE8U.gba") ?? FindRom("FE7U.gba") ?? FindRom("FE6.gba");
+            string? romPath = FindRom("FE8U.gba") ?? FindRom("FE7U.gba") ?? FindRom("FE6.gba");
             if (romPath == null) return; // skip when no ROM present
 
             var savedRom = CoreState.ROM;
@@ -40,7 +40,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             var savedSvc = CoreState.ImageService;
             try
             {
-                string asmDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                string asmDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? ".";
                 CoreState.BaseDirectory = asmDir;
 
                 var rom = new ROM();
@@ -136,17 +136,17 @@ namespace FEBuilderGBA.Avalonia.Tests
             return n;
         }
 
-        static object GetViewModel(ImageBGView view)
+        static object? GetViewModel(ImageBGView view)
         {
             var f = typeof(ImageBGView).GetField("_vm",
                 BindingFlags.Instance | BindingFlags.NonPublic);
             return f?.GetValue(view);
         }
 
-        static string FindRom(string romName)
+        static string? FindRom(string romName)
         {
             // Reuse TestRomLocator's resolved roms/ dir.
-            string dir = TestRomLocator.RomsDir;
+            string? dir = TestRomLocator.RomsDir;
             if (dir == null) return null;
             string path = Path.Combine(dir, romName);
             return File.Exists(path) ? path : null;

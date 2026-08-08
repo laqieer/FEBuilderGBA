@@ -16,10 +16,9 @@ namespace FEBuilderGBA.Avalonia.Tests
         [Fact]
         public void ImportIconFromPath_IsPublicStatic()
         {
-            MethodInfo m = typeof(SkillConfigIconIoHelper).GetMethod(
+            MethodInfo m = Assert.IsAssignableFrom<MethodInfo>(typeof(SkillConfigIconIoHelper).GetMethod(
                 "ImportIconFromPath",
-                BindingFlags.Public | BindingFlags.Static);
-            Assert.NotNull(m);
+                BindingFlags.Public | BindingFlags.Static));
             // Contract: returns string? (null = cancel, "" = success, else error).
             Assert.Equal(typeof(string), m.ReturnType);
         }

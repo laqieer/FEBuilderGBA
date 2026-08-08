@@ -94,7 +94,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
 
             _output.WriteLine(
-                $"OK {vmType.Name}: {loaded}/{list.Count} entries loaded, {errors} errors");
+                $"OK {vmType.Name}.{loadMethod} (write method {writeMethod}): {loaded}/{list.Count} entries loaded, {errors} errors");
 
             // All entries should load without throwing
             Assert.Equal(0, errors);

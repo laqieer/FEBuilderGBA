@@ -526,7 +526,7 @@ public class EventMapChangePointerImportTests : IDisposable
 
     static string FindRepoRoot()
     {
-        string dir = AppContext.BaseDirectory;
+        string? dir = AppContext.BaseDirectory;
         for (int i = 0; i < 12 && dir != null; i++)
         {
             if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln"))) return dir;

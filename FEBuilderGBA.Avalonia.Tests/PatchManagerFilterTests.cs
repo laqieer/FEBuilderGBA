@@ -21,7 +21,7 @@ namespace FEBuilderGBA.Avalonia.Tests
     [Collection("SharedState")]
     public class PatchManagerFilterTests
     {
-        static ROM MakeFe8uRom(Action<byte[]> seed)
+        static ROM MakeFe8uRom(Action<byte[]>? seed)
         {
             var data = new byte[0x1000000];
             seed?.Invoke(data);
@@ -49,9 +49,13 @@ namespace FEBuilderGBA.Avalonia.Tests
         static void SeedAllPatches(PatchManagerViewModel vm, IEnumerable<(string name, string file)> entries)
         {
             var field = typeof(PatchManagerViewModel)
-                .GetField("_allPatches", BindingFlags.NonPublic | BindingFlags.Instance);
-            Assert.NotNull(field);
-            var list = (List<PatchEntry>)field.GetValue(vm);
+                .GetField("_allPatches", BindingFlags.NonPublic | BindingFlags.Instance)
+                ?? throw new InvalidOperationException("Patch list field was not found.");
+            if (field.GetValue(vm) is not List<PatchEntry> list)
+            {
+                Assert.Fail("Patch list field had an unexpected value.");
+                return;
+            }
             list.Clear();
             foreach (var (name, file) in entries)
                 list.Add(new PatchEntry { Name = name, PatchFilePath = file });

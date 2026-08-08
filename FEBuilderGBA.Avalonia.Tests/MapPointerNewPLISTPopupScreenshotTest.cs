@@ -42,7 +42,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             // Load the shipped English translation so the rendered info text is
             // readable English (Consolas has no CJK glyphs). Falls back to the
             // raw key if the repo's config/ isn't found.
-            string en = FindRepoFile("config/translate/en.txt");
+            string? en = FindRepoFile("config/translate/en.txt");
             if (en != null)
             {
                 MyTranslateResource.LoadResource(en);
@@ -57,9 +57,9 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         // Walk up from the test assembly to find a repo-relative file.
-        static string FindRepoFile(string rel)
+        static string? FindRepoFile(string rel)
         {
-            string dir = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+            string? dir = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
             for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))

@@ -78,8 +78,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             for (uint i = 0; i < 20; i++)
             {
                 uint want = FRAME_BASE + i * SIZE;
-                AddrResult found = rows.Find(r => r.addr == want);
-                Assert.NotNull(found); // every frame 0..19 must be present
+                AddrResult found = Assert.Single(rows, r => r.addr == want);
                 mine.Add(found);
             }
 

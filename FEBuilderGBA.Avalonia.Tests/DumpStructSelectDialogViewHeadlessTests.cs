@@ -25,7 +25,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             var result = new List<(Control, string)>();
             foreach (var child in root.GetLogicalDescendants().OfType<Control>())
             {
-                string id = AutomationProperties.GetAutomationId(child);
+                string? id = AutomationProperties.GetAutomationId(child);
                 if (!string.IsNullOrEmpty(id))
                     result.Add((child, id));
             }
