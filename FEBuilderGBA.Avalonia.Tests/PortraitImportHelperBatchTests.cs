@@ -30,6 +30,13 @@ namespace FEBuilderGBA.Avalonia.Tests
             _output = output;
         }
 
+        ROM RequireRom()
+        {
+            ROM? rom = _fixture.ROM;
+            Assert.NotNull(rom);
+            return rom;
+        }
+
         // ------------------------------------------------------------------
         // ParseSlotIdFromFilename — pure parsing tests, no ROM/Image services
         // needed. Uses reflection to reach the internal helper.
@@ -82,9 +89,9 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         sealed class RestoreImageService : IDisposable
         {
-            readonly IImageService _prev;
-            public RestoreImageService(IImageService prev) { _prev = prev; }
-            public void Dispose() { CoreState.ImageService = _prev; }
+            readonly IImageService? _prev;
+            public RestoreImageService(IImageService? prev) { _prev = prev; }
+            public void Dispose() { CoreState.ImageService = _prev!; }
         }
 
         static void WriteTinyPng(string path, int width, int height)
@@ -121,7 +128,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 WriteTinyPng(Path.Combine(folder, "0x20.png"), 16, 16);
                 WriteTinyPng(Path.Combine(folder, "33.png"), 16, 16);
 
-                var rom = _fixture.ROM;
+                var rom = RequireRom();
                 uint baseAddr = rom.p32(rom.RomInfo.portrait_pointer);
                 uint slot32 = baseAddr + (uint)(0x20 * rom.RomInfo.portrait_datasize);
                 uint slot33 = baseAddr + (uint)(33 * rom.RomInfo.portrait_datasize);
@@ -164,7 +171,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 WriteTinyPng(Path.Combine(folder, "eirika.png"), 16, 16);
                 WriteTinyPng(Path.Combine(folder, "random_name.bmp"), 16, 16);
 
-                var rom = _fixture.ROM;
+                var rom = RequireRom();
                 var undo = new UndoService();
                 var result = await PortraitImportHelper.ImportFolderAsync(folder, null, undo, rom);
 
@@ -206,7 +213,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 WriteTinyPng(Path.Combine(folder, "no_prefix_one.png"), 16, 16);
                 WriteTinyPng(Path.Combine(folder, "no_prefix_two.bmp"), 16, 16);
 
-                var rom = _fixture.ROM;
+                var rom = RequireRom();
                 // Snapshot a few well-known portrait entry headers to prove
                 // nothing was written.
                 uint baseAddr = rom.p32(rom.RomInfo.portrait_pointer);
@@ -267,7 +274,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 File.WriteAllBytes(Path.Combine(folder, "0x26.png"),
                     new byte[] { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07 });
 
-                var rom = _fixture.ROM;
+                var rom = RequireRom();
                 uint baseAddr = rom.p32(rom.RomInfo.portrait_pointer);
                 uint slot25 = baseAddr + (uint)(0x25 * rom.RomInfo.portrait_datasize);
                 uint slot26 = baseAddr + (uint)(0x26 * rom.RomInfo.portrait_datasize);
@@ -327,7 +334,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 // Composite-sheet sized PNG: 128x112.
                 WriteTinyPng(Path.Combine(folder, "0x28.png"), 128, 112);
 
-                var rom = _fixture.ROM;
+                var rom = RequireRom();
                 uint baseAddr = rom.p32(rom.RomInfo.portrait_pointer);
                 uint slot28 = baseAddr + (uint)(0x28 * rom.RomInfo.portrait_datasize);
 
@@ -388,7 +395,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 // table size, but still inside the ROM byte length.
                 WriteTinyPng(Path.Combine(folder, "0xFFFF.png"), 16, 16);
 
-                var rom = _fixture.ROM;
+                var rom = RequireRom();
                 // Sanity check: the portrait table is much smaller than 0xFFFF.
                 int portraitCount = PortraitImportHelper.CountPortraitTableEntries(rom);
                 Assert.True(portraitCount > 0 && portraitCount < 0xFFFF,
@@ -457,7 +464,7 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         static string FindRepoRoot()
         {
-            string dir = AppContext.BaseDirectory;
+            string? dir = AppContext.BaseDirectory;
             while (dir != null && !File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
             {
                 dir = Path.GetDirectoryName(dir);
