@@ -214,8 +214,8 @@ public class ToolInitWizardParityTests
         Assert.Contains("https://github.com/laqieer/FEMapCreator", source);
         Assert.Contains("async void OnOpenFEMapCreatorProjectPage_Click", source);
         Assert.Contains("TopLevel.GetTopLevel(this)", handlers);
-        Assert.Contains("await top.Launcher.LaunchUriAsync(FEMapCreatorProjectUri)", handlers);
-        Assert.Contains("if (!launched)", handlers);
+        Assert.Contains("ExternalLauncher.Current.OpenUriAsync(top, FEMapCreatorProjectUri)", handlers);
+        Assert.Contains("if (!result.IsSucceeded)", handlers);
         Assert.Contains("ShowFEMapCreatorProjectPageError()", handlers);
         Assert.Contains("catch (System.ComponentModel.Win32Exception ex)", handlers);
         Assert.Contains("catch (System.IO.IOException ex)", handlers);

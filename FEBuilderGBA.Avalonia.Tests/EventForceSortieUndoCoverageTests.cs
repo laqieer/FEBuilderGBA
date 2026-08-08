@@ -72,16 +72,20 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             var vm = new EventForceSortieViewModel();
             var list = vm.LoadList();
-            Skip.If(list == null || list.Count < 2,
-                $"Force-sortie list has {list?.Count ?? 0} entries (need >= 2).");
+            if (list == null || list.Count < 2)
+            {
+                Skip.If(true, $"Force-sortie list has {list?.Count ?? 0} entries (need >= 2).");
+                return;
+            }
 
             uint addr = list[1].addr;
             vm.LoadEntry(addr);
             Assert.Equal(addr, vm.CurrentAddr);
 
+            var rom = CoreState.ROM ?? throw new InvalidOperationException("ROM fixture reported available but CoreState.ROM is null.");
             const uint size = 4; // W0 (u16) + B2 (u8) + B3 (u8)
             byte[] snapshot = new byte[size];
-            Array.Copy(CoreState.ROM.Data, (int)addr, snapshot, 0, (int)size);
+            Array.Copy(rom.Data, (int)addr, snapshot, 0, (int)size);
 
             try
             {

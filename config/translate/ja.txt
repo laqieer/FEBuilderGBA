@@ -8287,6 +8287,9 @@ Git（バージョン管理システム）を設定してください。\r\nGit�
 ダウンロード完了: {0}
 :Downloaded {0} tool(s).
 {0}個のツールをダウンロードしました。
+:Download cancelled.
+ダウンロードをキャンセルしました。
+
 :Download failed. Use Browse to set the path manually.
 ダウンロードに失敗しました。参照ボタンでパスを手動設定してください。
 :This will download an executable from:
@@ -14328,6 +14331,12 @@ ROMが読み込まれていません。上部の「ROMを開く」をタップ�
 
 :Issue Report
 問題を報告
+
+:External process launching is not available on this device.
+このデバイスでは外部プロセスの起動は利用できません。
+
+:Folder not found
+フォルダが見つかりません
 
 :Couldn't open link:
 リンクを開けませんでした:

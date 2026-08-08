@@ -103,6 +103,12 @@ namespace FEBuilderGBA.Avalonia.Tests
                 return;
             }
 
+            if (view == null)
+            {
+                Assert.Fail($"{name} constructor returned null.");
+                return;
+            }
+
             if (view is ContentControl cc)
             {
                 // Content may be null for some views before data loading -- just verify no throw

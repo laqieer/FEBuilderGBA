@@ -15,7 +15,7 @@ namespace FEBuilderGBA.Avalonia.Services
         public static readonly AutoSaveService Instance = new();
 
         DispatcherTimer _timer;
-        string _romFilename;
+        string? _romFilename;
         int _lastSavedUndoPosition = -1;
         bool _writing;
 
@@ -24,7 +24,7 @@ namespace FEBuilderGBA.Avalonia.Services
         /// <summary>
         /// The current ROM filename tracked by the service (updated on Save As).
         /// </summary>
-        public string CurrentRomFilename => _romFilename;
+        public string? CurrentRomFilename => _romFilename;
 
         /// <summary>
         /// Compute the auto-save sidecar file path from the primary ROM filename.
@@ -33,13 +33,13 @@ namespace FEBuilderGBA.Avalonia.Services
         /// into app-private storage {CoreState.BaseDirectory}/autosave/{base}.autosave.gba
         /// (Android #1124, iOS #1859).
         /// </summary>
-        public static string ComputeSidecarPath(string romFilename)
+        public static string? ComputeSidecarPath(string? romFilename)
             => ComputeSidecarPath(romFilename, OperatingSystem.IsAndroid() || OperatingSystem.IsIOS(), CoreState.BaseDirectory);
 
-        /// <summary>Testable core of <see cref="ComputeSidecarPath(string)"/> — the
+        /// <summary>Testable core of <see cref="ComputeSidecarPath(string?)"/> — the
         /// mobile flag + base dir are injected so desktop unit tests can exercise the
         /// mobile branch (#1124).</summary>
-        internal static string ComputeSidecarPath(string romFilename, bool isMobile, string baseDir)
+        internal static string? ComputeSidecarPath(string? romFilename, bool isMobile, string? baseDir)
         {
             if (string.IsNullOrEmpty(romFilename)) return null;
             string baseName = Path.GetFileNameWithoutExtension(romFilename);
@@ -76,7 +76,7 @@ namespace FEBuilderGBA.Avalonia.Services
 
         public bool IsRunning => _timer != null;
 
-        public void UpdateRomFilename(string newFilename)
+        public void UpdateRomFilename(string? newFilename)
         {
             _romFilename = newFilename;
             // Reset position so we don't skip the first save after rename
@@ -109,7 +109,7 @@ namespace FEBuilderGBA.Avalonia.Services
             int currentPos = CoreState.Undo?.Postion ?? -1;
             if (currentPos == _lastSavedUndoPosition) return;
 
-            string sidecar = ComputeSidecarPath(_romFilename);
+            string? sidecar = ComputeSidecarPath(_romFilename);
             if (string.IsNullOrEmpty(sidecar)) return;
 
             // Belt-and-suspenders: never overwrite the primary ROM

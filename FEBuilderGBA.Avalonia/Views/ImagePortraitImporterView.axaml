@@ -1,4 +1,4 @@
-﻿<UserControl
+<UserControl
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
@@ -154,7 +154,7 @@
                      Mouth W min 1 max 32 default 14  (WF line 454-473)
                      Mouth H min 1 max 16 default 8   (WF line 486-505) -->
               <TextBlock Text="Eye crop" FontWeight="SemiBold" Margin="0,8,0,0" />
-              <Grid ColumnDefinitions="Auto,120,Auto,120" RowDefinitions="Auto,Auto" Margin="8,0,0,0">
+              <Grid ColumnDefinitions="Auto,130,Auto,130" RowDefinitions="Auto,Auto" Margin="8,0,0,0">
                 <TextBlock Grid.Row="0" Grid.Column="0" Text="X:" VerticalAlignment="Center" />
                 <NumericUpDown Grid.Row="0" Grid.Column="1"
                                AutomationProperties.AutomationId="ImagePortraitImporter_EyeCropX_Input"
@@ -174,7 +174,7 @@
               </Grid>
 
               <TextBlock Text="Mouth crop" FontWeight="SemiBold" Margin="0,8,0,0" />
-              <Grid ColumnDefinitions="Auto,120,Auto,120" RowDefinitions="Auto,Auto" Margin="8,0,0,0">
+              <Grid ColumnDefinitions="Auto,130,Auto,130" RowDefinitions="Auto,Auto" Margin="8,0,0,0">
                 <TextBlock Grid.Row="0" Grid.Column="0" Text="X:" VerticalAlignment="Center" />
                 <NumericUpDown Grid.Row="0" Grid.Column="1"
                                AutomationProperties.AutomationId="ImagePortraitImporter_MouthCropX_Input"

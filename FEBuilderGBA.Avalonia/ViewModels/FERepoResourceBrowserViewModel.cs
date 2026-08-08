@@ -125,7 +125,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// category/subcategory (#1380 Part B). Seed is navigation only; full
         /// browsing remains available.
         /// </summary>
-        public FERepoResourceBrowserViewModel(bool musicMode, string seedCategory, string seedSubCategory)
+        public FERepoResourceBrowserViewModel(bool musicMode, string? seedCategory, string? seedSubCategory)
         {
             _musicMode = musicMode;
             string baseDir = CoreState.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory;

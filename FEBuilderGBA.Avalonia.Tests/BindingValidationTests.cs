@@ -314,7 +314,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 broken.Add(path);
             }
 
-            _output.WriteLine($"{viewName}: VM={vmType.Name}, checked={checkedCount}, skipped={skippedCount}, broken={broken.Count}");
+            _output.WriteLine($"{viewName} ({axamlPath}): VM={vmType.Name}, checked={checkedCount}, skipped={skippedCount}, broken={broken.Count}");
             if (broken.Count > 0)
             {
                 _output.WriteLine($"  BROKEN bindings:");

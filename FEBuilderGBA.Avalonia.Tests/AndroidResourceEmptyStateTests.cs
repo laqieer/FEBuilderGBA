@@ -27,19 +27,28 @@ namespace FEBuilderGBA.Avalonia.Tests
         static void ClearAllPatches(PatchManagerViewModel vm)
         {
             var field = typeof(PatchManagerViewModel)
-                .GetField("_allPatches", BindingFlags.NonPublic | BindingFlags.Instance);
-            Assert.NotNull(field);
-            ((List<PatchEntry>)field.GetValue(vm)).Clear();
+                .GetField("_allPatches", BindingFlags.NonPublic | BindingFlags.Instance)
+                ?? throw new InvalidOperationException("Patch list field was not found.");
+            if (field.GetValue(vm) is not List<PatchEntry> patches)
+            {
+                Assert.Fail("Patch list field had an unexpected value.");
+                return;
+            }
+            patches.Clear();
         }
 
         // Add one dummy patch so the "list populated" clear-path can be exercised deterministically.
         static void AddDummyPatch(PatchManagerViewModel vm)
         {
             var field = typeof(PatchManagerViewModel)
-                .GetField("_allPatches", BindingFlags.NonPublic | BindingFlags.Instance);
-            Assert.NotNull(field);
-            ((List<PatchEntry>)field.GetValue(vm))
-                .Add(PatchEntry.FromPatchInfo(new PatchMetadataCore.PatchInfo { Name = "dummy" }));
+                .GetField("_allPatches", BindingFlags.NonPublic | BindingFlags.Instance)
+                ?? throw new InvalidOperationException("Patch list field was not found.");
+            if (field.GetValue(vm) is not List<PatchEntry> patches)
+            {
+                Assert.Fail("Patch list field had an unexpected value.");
+                return;
+            }
+            patches.Add(PatchEntry.FromPatchInfo(new PatchMetadataCore.PatchInfo { Name = "dummy" }));
         }
 
         // A guaranteed-nonexistent patch dir so PatchMetadataCore.IsPatchLibraryEmpty() returns true

@@ -16,7 +16,8 @@ public class AutoSaveSidecarPathTests
     public void Desktop_KeepsSidecarBesideRom()
     {
         string rom = Path.Combine("roms", "FE8U.gba");
-        string result = AutoSaveService.ComputeSidecarPath(rom, isMobile: false, baseDir: "/ignored");
+        string result = AutoSaveService.ComputeSidecarPath(rom, isMobile: false, baseDir: "/ignored")
+            ?? throw new InvalidOperationException("Desktop sidecar path unexpectedly resolved to null.");
 
         string expectedDir = Path.GetDirectoryName(rom)!;
         string expected = Path.Combine(expectedDir, "FE8U.autosave.gba");
@@ -30,7 +31,8 @@ public class AutoSaveSidecarPathTests
         // SAF content:// / iOS security-scoped URIs have no meaningful local parent
         // dir; only the file name matters for the redirected sidecar.
         string rom = "content://com.android.providers/document/FE8U.gba";
-        string result = AutoSaveService.ComputeSidecarPath(rom, isMobile: true, baseDir: baseDir);
+        string result = AutoSaveService.ComputeSidecarPath(rom, isMobile: true, baseDir: baseDir)
+            ?? throw new InvalidOperationException("Mobile sidecar path unexpectedly resolved to null.");
 
         string expected = Path.Combine(baseDir, "autosave", "FE8U.autosave.gba");
         Assert.Equal(expected, result);
@@ -51,8 +53,10 @@ public class AutoSaveSidecarPathTests
         // The desktop test host has OperatingSystem.IsAndroid()/IsIOS() == false, so
         // the public single-arg overload must equal the explicit desktop branch.
         string rom = Path.Combine("roms", "FE8U.gba");
-        string viaPublic = AutoSaveService.ComputeSidecarPath(rom);
-        string viaDesktopBranch = AutoSaveService.ComputeSidecarPath(rom, isMobile: false, baseDir: CoreState.BaseDirectory);
+        string viaPublic = AutoSaveService.ComputeSidecarPath(rom)
+            ?? throw new InvalidOperationException("Public sidecar path unexpectedly resolved to null.");
+        string viaDesktopBranch = AutoSaveService.ComputeSidecarPath(rom, isMobile: false, baseDir: CoreState.BaseDirectory)
+            ?? throw new InvalidOperationException("Desktop sidecar path unexpectedly resolved to null.");
         Assert.Equal(viaDesktopBranch, viaPublic);
     }
 }
