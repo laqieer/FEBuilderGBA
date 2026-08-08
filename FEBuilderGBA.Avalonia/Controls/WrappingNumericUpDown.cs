@@ -90,12 +90,19 @@ namespace FEBuilderGBA.Avalonia.Controls
         // event on it, so reacquiring it on every OnApplyTemplate call
         // cannot leak or duplicate handlers.
         private Spinner _spinner;
+        private TextBox _textBox;
         private bool _hasInvalidText;
+
+        public WrappingNumericUpDown()
+        {
+            AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
+        }
 
         protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
         {
             base.OnApplyTemplate(e);
             _spinner = e.NameScope.Find<Spinner>("PART_Spinner");
+            _textBox = e.NameScope.Find<TextBox>("PART_TextBox");
             _hasInvalidText = IsCurrentTextInvalid();
             ApplyValidSpinDirection();
         }
@@ -192,6 +199,38 @@ namespace FEBuilderGBA.Avalonia.Controls
                 _hasInvalidText = IsCurrentTextInvalid();
                 ApplyValidSpinDirectionAfterTextSync(_hasInvalidText);
             }
+        }
+
+        private void OnPreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (_textBox == null || !_textBox.IsKeyboardFocusWithin)
+            {
+                return;
+            }
+
+            SpinDirection direction;
+            ValidSpinDirections validDirection;
+            switch (e.Key)
+            {
+                case Key.Up:
+                    direction = SpinDirection.Increase;
+                    validDirection = ValidSpinDirections.Increase;
+                    break;
+                case Key.Down:
+                    direction = SpinDirection.Decrease;
+                    validDirection = ValidSpinDirections.Decrease;
+                    break;
+                default:
+                    return;
+            }
+
+            if (_spinner == null || (_spinner.ValidSpinDirection & validDirection) != validDirection)
+            {
+                return;
+            }
+
+            OnSpin(new SpinEventArgs(direction));
+            e.Handled = true;
         }
 
         private bool IsCurrentTextInvalid()

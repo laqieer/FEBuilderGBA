@@ -86,8 +86,16 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         private static void PressKey(Window window, Key key)
         {
-            window.KeyPress(key, RawInputModifiers.None, PhysicalKey.None, null);
-            window.KeyRelease(key, RawInputModifiers.None, PhysicalKey.None, null);
+            var (physicalKey, keySymbol) = key switch
+            {
+                Key.Up => (PhysicalKey.ArrowUp, "ArrowUp"),
+                Key.Down => (PhysicalKey.ArrowDown, "ArrowDown"),
+                Key.Enter => (PhysicalKey.Enter, "Enter"),
+                _ => throw new ArgumentOutOfRangeException(nameof(key), key, "No headless key mapping."),
+            };
+
+            window.KeyPress(key, RawInputModifiers.None, physicalKey, keySymbol);
+            window.KeyRelease(key, RawInputModifiers.None, physicalKey, keySymbol);
             Dispatcher.UIThread.RunJobs();
         }
 
@@ -161,6 +169,24 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [AvaloniaFact]
+        public void KeyboardDownAtMinimum_WrapsToMaximum_WithTextBoxFocused()
+        {
+            var (window, control) = CreateShownControl(
+                minimum: 0, maximum: 10, value: 0, increment: 1);
+            try
+            {
+                Assert.True(GetTextBox(control).Focus());
+                PressKey(window, Key.Down);
+
+                Assert.Equal(10m, control.Value);
+            }
+            finally
+            {
+                window.Close();
+            }
+        }
+
+        [AvaloniaFact]
         public void KeyboardDownAtMinimum_WrapsToMaximum_WithSpinnerFocused()
         {
             var (window, control) = CreateShownControl(
@@ -169,7 +195,6 @@ namespace FEBuilderGBA.Avalonia.Tests
             {
                 Assert.True(control.Focus());
                 Dispatcher.UIThread.RunJobs();
-                // TextBox consumes Down when it has focus; move focus to the Spinner.
                 Assert.True(GetSpinner(control).Focus());
                 Dispatcher.UIThread.RunJobs();
                 PressKey(window, Key.Down);
