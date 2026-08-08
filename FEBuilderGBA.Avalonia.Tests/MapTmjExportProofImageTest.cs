@@ -58,11 +58,11 @@ namespace FEBuilderGBA.Avalonia.Tests
                 var dim = new SKColor(0x9A, 0xA0, 0xA6);
                 c.Clear(bg);
 
-                using var title = new SKPaint { Color = accent, IsAntialias = true, TextSize = 26, FakeBoldText = true };
-                using var hdr = new SKPaint { Color = fg, IsAntialias = true, TextSize = 18, FakeBoldText = true };
-                using var lbl = new SKPaint { Color = dim, IsAntialias = true, TextSize = 15 };
-                using var mono = new SKPaint { Color = fg, IsAntialias = true, TextSize = 14, Typeface = SKTypeface.FromFamilyName("Consolas") };
-                using var okP = new SKPaint { Color = accent, IsAntialias = true, TextSize = 16, FakeBoldText = true };
+                using var title = SkiaTestTextStyle.Create(accent, 26, bold: true);
+                using var hdr = SkiaTestTextStyle.Create(fg, 18, bold: true);
+                using var lbl = SkiaTestTextStyle.Create(dim, 15);
+                using var mono = SkiaTestTextStyle.Create(fg, 14, familyName: "Consolas");
+                using var okP = SkiaTestTextStyle.Create(accent, 16, bold: true);
                 using var panelP = new SKPaint { Color = panel, IsAntialias = true };
                 using var btnP = new SKPaint { Color = new SKColor(0x3A, 0x55, 0x4F), IsAntialias = true };
 
@@ -94,7 +94,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                         byte shade = (byte)(60 + (gid * 37) % 160);
                         using var cellP = new SKPaint { Color = new SKColor(shade, (byte)(0x60 + (gid * 13) % 120), 0xB0), IsAntialias = true };
                         c.DrawRoundRect(ox + x * (cell + 4), oy + y * (cell + 4), cell, cell, 4, 4, cellP);
-                        using var num = new SKPaint { Color = SKColors.Black, IsAntialias = true, TextSize = 15, FakeBoldText = true };
+                        using var num = SkiaTestTextStyle.Create(SKColors.Black, 15, bold: true);
                         c.DrawText(gid.ToString(), ox + x * (cell + 4) + 8, oy + y * (cell + 4) + 26, num);
                     }
                 c.DrawText("gid = (MAR>>2)+1 ; gid 0 (empty) ↔ MAR 0", 40, 592, lbl);

@@ -46,10 +46,10 @@ namespace FEBuilderGBA.Avalonia.Tests
                 var fg = new SKColor(0xF2, 0xF4, 0xF8);
                 c.Clear(bg);
 
-                using var title = new SKPaint { Color = accent, IsAntialias = true, TextSize = 30, FakeBoldText = true };
-                using var hdr = new SKPaint { Color = fg, IsAntialias = true, TextSize = 20, FakeBoldText = true };
-                using var text = new SKPaint { Color = fg, IsAntialias = true, TextSize = 17, Typeface = SKTypeface.FromFamilyName("Consolas") };
-                using var label = new SKPaint { Color = muted, IsAntialias = true, TextSize = 15 };
+                using var title = SkiaTestTextStyle.Create(accent, 30, bold: true);
+                using var hdr = SkiaTestTextStyle.Create(fg, 20, bold: true);
+                using var text = SkiaTestTextStyle.Create(fg, 17, familyName: "Consolas");
+                using var label = SkiaTestTextStyle.Create(muted, 15);
                 using var panelPaint = new SKPaint { Color = panel, IsAntialias = true };
 
                 c.DrawText("Avalonia Check for Updates — #1804", 32, 48, title);
@@ -96,9 +96,9 @@ namespace FEBuilderGBA.Avalonia.Tests
         static void DrawOutcome(SKCanvas c, int x, int y, string title, UpdateCheckCore.UpdateCheckResult result, string message, SKColor color)
         {
             using var panelPaint = new SKPaint { Color = new SKColor(0x2F, 0x35, 0x3D), IsAntialias = true };
-            using var hdr = new SKPaint { Color = color, IsAntialias = true, TextSize = 20, FakeBoldText = true };
-            using var text = new SKPaint { Color = new SKColor(0xF2, 0xF4, 0xF8), IsAntialias = true, TextSize = 15 };
-            using var mono = new SKPaint { Color = new SKColor(0xD7, 0xDB, 0xE0), IsAntialias = true, TextSize = 15, Typeface = SKTypeface.FromFamilyName("Consolas") };
+            using var hdr = SkiaTestTextStyle.Create(color, 20, bold: true);
+            using var text = SkiaTestTextStyle.Create(new SKColor(0xF2, 0xF4, 0xF8), 15);
+            using var mono = SkiaTestTextStyle.Create(new SKColor(0xD7, 0xDB, 0xE0), 15, familyName: "Consolas");
 
             c.DrawRoundRect(x, y, 1036, 106, 10, 10, panelPaint);
             c.DrawText(title, x + 24, y + 32, hdr);

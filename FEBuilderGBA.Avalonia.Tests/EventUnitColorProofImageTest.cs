@@ -57,11 +57,11 @@ namespace FEBuilderGBA.Avalonia.Tests
                 var combo = new SKColor(0x3A, 0x40, 0x47);
                 c.Clear(bg);
 
-                using var title = new SKPaint { Color = accent, IsAntialias = true, TextSize = 24, FakeBoldText = true };
-                using var hdr = new SKPaint { Color = fg, IsAntialias = true, TextSize = 17, FakeBoldText = true };
-                using var lbl = new SKPaint { Color = dim, IsAntialias = true, TextSize = 16 };
-                using var val = new SKPaint { Color = fg, IsAntialias = true, TextSize = 16, Typeface = SKTypeface.FromFamilyName("Consolas") };
-                using var note = new SKPaint { Color = accent, IsAntialias = true, TextSize = 15 };
+                using var title = SkiaTestTextStyle.Create(accent, 24, bold: true);
+                using var hdr = SkiaTestTextStyle.Create(fg, 17, bold: true);
+                using var lbl = SkiaTestTextStyle.Create(dim, 16);
+                using var val = SkiaTestTextStyle.Create(fg, 16, familyName: "Consolas");
+                using var note = SkiaTestTextStyle.Create(accent, 15);
                 using var panelP = new SKPaint { Color = panel, IsAntialias = true };
                 using var comboP = new SKPaint { Color = combo, IsAntialias = true };
 
@@ -84,8 +84,9 @@ namespace FEBuilderGBA.Avalonia.Tests
 
                 // Live friendly-label summary.
                 c.DrawRoundRect(24, y + 6, 712, 44, 6, 6, panelP);
+                using var friendlyText = SkiaTestTextStyle.Create(new SKColor(0x50, 0x8C, 0xC8), 16);
                 c.DrawText(string.IsNullOrEmpty(friendly) ? "(no change)" : friendly, 40, y + 34,
-                    new SKPaint { Color = new SKColor(0x50, 0x8C, 0xC8), IsAntialias = true, TextSize = 16 });
+                    friendlyText);
 
                 // Apply note: the packed value returned to the event editor.
                 c.DrawText($"Apply -> packed value 0x{packed:X04}  (a | b<<4 | c<<8 | d<<12)", 24, y + 78, note);

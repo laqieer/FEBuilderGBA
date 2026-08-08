@@ -161,13 +161,13 @@ namespace FEBuilderGBA.Avalonia.Tests
                     var ok = new SKColor(0x6F, 0xC2, 0x76);
                     c.Clear(bg);
 
-                    using var title = new SKPaint { Color = accent, IsAntialias = true, TextSize = 22, FakeBoldText = true };
-                    using var hdr = new SKPaint { Color = fg, IsAntialias = true, TextSize = 17, FakeBoldText = true };
-                    using var lbl = new SKPaint { Color = dim, IsAntialias = true, TextSize = 14 };
-                    using var mono = new SKPaint { Color = fg, IsAntialias = true, TextSize = 14, Typeface = SKTypeface.FromFamilyName("Consolas") };
-                    using var note = new SKPaint { Color = accent, IsAntialias = true, TextSize = 14 };
-                    using var okP = new SKPaint { Color = ok, IsAntialias = true, TextSize = 14, Typeface = SKTypeface.FromFamilyName("Consolas") };
-                    using var warnP = new SKPaint { Color = warn, IsAntialias = true, TextSize = 14, Typeface = SKTypeface.FromFamilyName("Consolas") };
+                    using var title = SkiaTestTextStyle.Create(accent, 22, bold: true);
+                    using var hdr = SkiaTestTextStyle.Create(fg, 17, bold: true);
+                    using var lbl = SkiaTestTextStyle.Create(dim, 14);
+                    using var mono = SkiaTestTextStyle.Create(fg, 14, familyName: "Consolas");
+                    using var note = SkiaTestTextStyle.Create(accent, 14);
+                    using var okP = SkiaTestTextStyle.Create(ok, 14, familyName: "Consolas");
+                    using var warnP = SkiaTestTextStyle.Create(warn, 14, familyName: "Consolas");
                     using var panelP = new SKPaint { Color = panel, IsAntialias = true };
 
                     c.DrawText("Event Template — context-required insert with Alloc-Event host substitution — FE8U   [#1591]", 24, 38, title);
