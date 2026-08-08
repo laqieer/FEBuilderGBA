@@ -87,7 +87,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 var vm = new MainWindowViewModel();
 
                 // No project → plain badge (the base text only).
-                CoreState.DecompProject = null;
+                CoreStateTestState.ClearDecompProject();
                 vm.RefreshDecompMode();
                 Assert.DoesNotContain("needs rebuild", vm.DecompBadgeText);
 
@@ -100,7 +100,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
             finally
             {
-                CoreState.DecompProject = saved;
+                CoreStateTestState.RestoreDecompProject(saved);
             }
         }
 
@@ -193,7 +193,8 @@ namespace FEBuilderGBA.Avalonia.Tests
                 @"{ ""tables"": [ { ""table"": ""items"", ""format"": ""cstruct"",
                      ""writePolicy"": ""source"", ""arrayName"": ""gItemData"",
                      ""sourceFile"": ""src/item.c"" } ] }",
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                ?? throw new System.InvalidOperationException("Test manifest must deserialize.");
             var proj = new DecompProject { ProjectRoot = ".", Manifest = man };
 
             var owner = proj.TryGetTableOwner("items");

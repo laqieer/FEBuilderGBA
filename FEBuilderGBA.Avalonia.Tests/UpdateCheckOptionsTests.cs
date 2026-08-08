@@ -24,8 +24,8 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         public void Dispose()
         {
-            CoreState.Config = _savedConfig;
-            CoreState.BaseDirectory = _savedBaseDir;
+            CoreStateTestState.RestoreConfig(_savedConfig);
+            CoreStateTestState.RestoreBaseDirectory(_savedBaseDir);
             try { if (Directory.Exists(_baseDir)) Directory.Delete(_baseDir, true); } catch { }
         }
 

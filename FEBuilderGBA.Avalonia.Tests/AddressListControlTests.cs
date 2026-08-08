@@ -329,7 +329,7 @@ public class AddressListControlTests
         var items = MakeItems(5);
         control.SetItems(items);
 
-        AddrResult firedItem = null;
+        AddrResult? firedItem = null;
         control.SelectedItemChanged += item => firedItem = item;
 
         var listBox = control.FindControl<ListBox>("AddressList");
@@ -347,7 +347,7 @@ public class AddressListControlTests
         var items = MakeItems(3);
         control.SetItems(items);
 
-        var fired = new List<AddrResult>();
+        var fired = new List<AddrResult?>();
         control.SelectedItemChanged += item => fired.Add(item);
 
         control.Deselect();
@@ -366,7 +366,7 @@ public class AddressListControlTests
         control.SetItems(items);
 
         uint? addrFired = null;
-        AddrResult itemFired = null;
+        AddrResult? itemFired = null;
         control.SelectedAddressChanged += addr => addrFired = addr;
         control.SelectedItemChanged += item => itemFired = item;
 
@@ -389,7 +389,7 @@ public class AddressListControlTests
         control.SetItems(items);
         control.SelectAddress(items[1].addr);
 
-        var fired = new List<AddrResult>();
+        var fired = new List<AddrResult?>();
         control.SelectedItemChanged += item => fired.Add(item);
 
         control.ApplySearchFilter("no such row zzz");

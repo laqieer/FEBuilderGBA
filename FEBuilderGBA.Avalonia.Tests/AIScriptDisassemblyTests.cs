@@ -356,7 +356,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         readonly string? _prevBaseDir;
 
         readonly ROM _rom;
-        EventScript? _ai;
+        readonly EventScript _ai;
 
         /// <summary>The synthetic FE8U ROM backing this environment (#760
         /// edit/write tests inspect rom.Data directly to verify in-place
@@ -367,7 +367,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         /// realloc tests re-assert it as CoreState.AIScript before decoding so
         /// a cross-test stale-but-populated script in the shared collection
         /// cannot break DisassembleScript's lazy-load guard).</summary>
-        public EventScript? AiScript => _ai;
+        public EventScript AiScript => _ai;
 
         /// <summary>Copy a [addr, addr+length) slice of the ROM, for
         /// before/after byte comparisons in the #760 write tests.</summary>
@@ -453,12 +453,12 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         public void Dispose()
         {
-            CoreState.ROM = _prevRom;
-            CoreState.AIScript = _prevAi;
-            CoreState.CommentCache = _prevComment;
+            CoreStateTestState.RestoreRom(_prevRom);
+            CoreStateTestState.RestoreAIScript(_prevAi);
+            CoreStateTestState.RestoreCommentCache(_prevComment);
             // Restore unconditionally (including null) so a null prior value is
             // not leaked as the overridden test dir into later tests.
-            CoreState.BaseDirectory = _prevBaseDir;
+            CoreStateTestState.RestoreBaseDirectory(_prevBaseDir);
         }
     }
 }

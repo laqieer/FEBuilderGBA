@@ -37,8 +37,8 @@ public class EventForceSortieFE7InnerListTests : IDisposable
 
     public void Dispose()
     {
-        CoreState.ROM = _savedRom;
-        CoreState.Undo = _savedUndo;
+        CoreStateTestState.RestoreRom(_savedRom);
+        CoreStateTestState.RestoreUndo(_savedUndo);
     }
 
     static ROM MakeRom(int size = 0x40000)

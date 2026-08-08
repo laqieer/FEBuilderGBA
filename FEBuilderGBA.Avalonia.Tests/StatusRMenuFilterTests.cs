@@ -30,7 +30,7 @@ public class StatusRMenuFilterTests : IDisposable
     readonly ROM? _savedRom;
 
     public StatusRMenuFilterTests() => _savedRom = CoreState.ROM;
-    public void Dispose() => CoreState.ROM = _savedRom;
+    public void Dispose() => CoreStateTestState.RestoreRom(_savedRom);
 
     // ================================================================
     // Version-gated table count

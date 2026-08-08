@@ -1,4 +1,4 @@
-﻿// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Event Script category-picker parity tests (#1443).
 //
 // Proves the Avalonia "Event Script Category Select" dialog is no longer a
@@ -255,9 +255,9 @@ namespace FEBuilderGBA.Avalonia.Tests
             var prevEs = CoreState.EventScript;
             try
             {
-                CoreState.BaseDirectory = null;
-                CoreState.ROM = null;
-                CoreState.EventScript = null;
+                CoreStateTestState.ClearBaseDirectory();
+                CoreStateTestState.ClearRom();
+                CoreStateTestState.ClearEventScript();
 
                 var vm = new EventScriptCategorySelectViewModel();
                 vm.Load();
@@ -405,10 +405,10 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             public void Dispose()
             {
-                CoreState.ROM = _prevRom;
-                CoreState.EventScript = _prevEvent;
-                CoreState.CommentCache = _prevComment;
-                CoreState.BaseDirectory = _prevBaseDir;
+                CoreStateTestState.RestoreRom(_prevRom);
+                CoreStateTestState.RestoreEventScript(_prevEvent);
+                CoreStateTestState.RestoreCommentCache(_prevComment);
+                CoreStateTestState.RestoreBaseDirectory(_prevBaseDir);
             }
         }
     }

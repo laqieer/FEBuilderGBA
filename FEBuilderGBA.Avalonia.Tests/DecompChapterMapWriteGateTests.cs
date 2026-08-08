@@ -31,7 +31,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             try
             {
                 // Classic ROM mode (no active project) → guard returns false (proceed).
-                CoreState.DecompProject = null;
+                CoreStateTestState.ClearDecompProject();
                 Assert.False(CoreState.IsDecompMode);
                 Assert.False(DecompMapAssetGuard.BlockIfDecomp("map tile layout"));
 

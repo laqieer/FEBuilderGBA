@@ -143,13 +143,12 @@ namespace FEBuilderGBA.Avalonia.Tests
         public void Dispose()
         {
             // Restore previous CoreState to avoid leaking between test collections
-            CoreState.ROM = _prevRom;
-            CoreState.CommentCache = _prevCommentCache;
-            CoreState.LintCache = _prevLintCache;
-            CoreState.WorkSupportCache = _prevWorkSupportCache;
-            CoreState.SystemTextEncoder = _prevSystemTextEncoder;
-            if (_prevBaseDirectory != null)
-                CoreState.BaseDirectory = _prevBaseDirectory;
+            CoreStateTestState.RestoreRom(_prevRom);
+            CoreStateTestState.RestoreCommentCache(_prevCommentCache);
+            CoreStateTestState.RestoreLintCache(_prevLintCache);
+            CoreStateTestState.RestoreWorkSupportCache(_prevWorkSupportCache);
+            CoreStateTestState.RestoreSystemTextEncoder(_prevSystemTextEncoder);
+            CoreStateTestState.RestoreBaseDirectory(_prevBaseDirectory);
         }
     }
 }

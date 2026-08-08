@@ -37,7 +37,7 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         readonly ROM? _prevRom;
         readonly Undo? _prevUndo;
-        readonly object? _prevComment;
+        readonly IEtcCache? _prevComment;
         readonly ROM _rom;
 
         public EventScriptPopupAliasTests()
@@ -55,9 +55,9 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         public void Dispose()
         {
-            CoreState.ROM = _prevRom;
-            CoreState.Undo = _prevUndo;
-            CoreState.CommentCache = (IEtcCache?)_prevComment;
+            CoreStateTestState.RestoreRom(_prevRom);
+            CoreStateTestState.RestoreUndo(_prevUndo);
+            CoreStateTestState.RestoreCommentCache(_prevComment);
         }
 
         // Inject a synthetic disassembled command into the VM's private state and
