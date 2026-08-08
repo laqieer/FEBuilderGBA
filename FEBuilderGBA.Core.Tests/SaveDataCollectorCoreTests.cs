@@ -202,7 +202,7 @@ namespace FEBuilderGBA.Core.Tests
 
                 // Apply the delta to the clean ROM => must equal the current ROM.
                 byte[] patch = File.ReadAllBytes(upsPath);
-                byte[] applied = UPSUtilCore.ApplyUPS(clean, patch, out string err);
+                byte[]? applied = UPSUtilCore.ApplyUPS(clean, patch, out string? err);
                 Assert.True(string.IsNullOrEmpty(err), "apply error: " + err);
                 Assert.NotNull(applied);
                 Assert.Equal(current, applied);

@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text;
 using FEBuilderGBA;
@@ -17,6 +18,7 @@ namespace FEBuilderGBA.Avalonia.Tests
     public class RomFixture : IDisposable
     {
         /// <summary>Whether a ROM was successfully loaded.</summary>
+        [MemberNotNullWhen(true, nameof(ROM), nameof(Version), nameof(RomPath))]
         public bool IsAvailable { get; }
 
         /// <summary>The loaded ROM instance, or null if unavailable.</summary>

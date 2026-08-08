@@ -628,7 +628,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 try
                 {
                     byte[] patchData = File.ReadAllBytes(path);
-                    byte[] result = UPSUtilCore.ApplyUPS(CoreState.ROM.Data, patchData, out string errorMessage);
+                    byte[]? result = UPSUtilCore.ApplyUPS(CoreState.ROM.Data, patchData, out string? errorMessage);
                     if (result == null || !string.IsNullOrEmpty(errorMessage))
                     {
                         CoreState.Services.ShowError(R._("UPS patch failed:") + $" {errorMessage}");

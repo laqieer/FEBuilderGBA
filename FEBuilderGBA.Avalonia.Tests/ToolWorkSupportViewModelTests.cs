@@ -190,8 +190,8 @@ namespace FEBuilderGBA.Avalonia.Tests
                 applyOne: (orig, ups) =>
                 {
                     byte[] patch = File.ReadAllBytes(ups);
-                    byte[] outb = UPSUtilCore.ApplyUPS(orig, patch, out string msg);
-                    return (outb, outb == null ? msg : "", outb != null ? msg : "");
+                    byte[]? outb = UPSUtilCore.ApplyUPS(orig, patch, out string? msg);
+                    return (outb, outb == null ? msg ?? "" : "", outb != null ? msg ?? "" : "");
                 });
 
             Assert.Equal(WorkSupportUpdateDownloadCore.ApplyStatus.Ok, r.Status);

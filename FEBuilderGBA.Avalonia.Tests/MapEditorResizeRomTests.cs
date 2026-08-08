@@ -23,7 +23,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         // Load the first FE8U map that renders with positive dimensions, returning the
         // loaded VM plus the list entry it came from (so a fresh reload can prove the
         // pointer was repointed after a resize).
-        static MapEditorViewModel LoadFirstRenderableMap(out uint entryAddr, out uint entryTag)
+        static MapEditorViewModel? LoadFirstRenderableMap(out uint entryAddr, out uint entryTag)
         {
             entryAddr = 0;
             entryTag = 0;

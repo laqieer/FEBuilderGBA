@@ -718,7 +718,7 @@ namespace FEBuilderGBA
         /// exactly as <see cref="TryGenerateBrowserTemplate"/>.</para>
         /// </summary>
         public static GenerateResult TryGenerateBrowserTemplateWithContext(
-            ROM rom, BrowserTemplate et, IEventEditorHostContext host, out byte[] bytes)
+            ROM rom, BrowserTemplate et, IEventEditorHostContext? host, out byte[] bytes)
         {
             bytes = null;
             if (rom?.RomInfo == null)
@@ -810,7 +810,7 @@ namespace FEBuilderGBA
         /// returned for every refusal (never partial bytes).
         /// </summary>
         public static GenerateResult TryGenerateBrowserTemplateCodesWithContext(
-            ROM rom, BrowserTemplate et, IEventEditorHostContext host, out List<EventScript.OneCode> codes)
+            ROM rom, BrowserTemplate et, IEventEditorHostContext? host, out List<EventScript.OneCode> codes)
         {
             codes = new List<EventScript.OneCode>();
             GenerateResult result = TryGenerateBrowserTemplateWithContext(rom, et, host, out byte[] bin);

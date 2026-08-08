@@ -157,7 +157,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // recorded when an ambient scope is NOT active.
         // ===================================================================
 
-        public void WritePointers(Undo.UndoData undoData)
+        public void WritePointers(Undo.UndoData? undoData)
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return;
@@ -180,7 +180,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>Write one edited pointer OFFSET to its slot, bounds-checked.
         /// Uses the undoData overload when provided, else the ambient overload
         /// (the UndoService scope captures it either way).</summary>
-        static void WriteOnePointer(ROM rom, uint slot, uint editedOffset, Undo.UndoData undoData)
+        static void WriteOnePointer(ROM rom, uint slot, uint editedOffset, Undo.UndoData? undoData)
         {
             if (rom?.Data == null) return;
             if ((long)slot + 4 > rom.Data.Length) return;

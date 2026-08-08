@@ -33,7 +33,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Assert.NotNull(list);
                 Assert.NotEmpty(list);
 
-                MapEditorViewModel loaded = null;
+                MapEditorViewModel? loaded = null;
                 foreach (var entry in list)
                 {
                     var candidate = new MapEditorViewModel();
@@ -91,7 +91,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Assert.NotNull(list);
                 Assert.NotEmpty(list);
 
-                MapEditorViewModel loaded = null;
+                MapEditorViewModel? loaded = null;
                 foreach (var entry in list)
                 {
                     var candidate = new MapEditorViewModel();

@@ -13,7 +13,7 @@ namespace FEBuilderGBA.Avalonia.Views
     /// <summary>
     /// Apply-UPS dialog (#1460) — Avalonia port of WinForms <c>ToolUPSOpenSimpleForm</c>.
     /// Pick a distributed <c>.ups</c> patch + a clean original ROM (auto-detected by the
-    /// UPS's recorded source CRC32), Apply via Core <see cref="UPSUtilCore.ApplyUPS(byte[],byte[],out string)"/>,
+    /// UPS's recorded source CRC32), Apply via Core <see cref="UPSUtilCore.ApplyUPS(byte[],byte[],out string?)"/>,
     /// then load the patched ROM into the main window (optionally saving it as <c>.gba</c>).
     /// </summary>
     public partial class ToolUPSOpenSimpleView : TranslatedUserControl, IEmbeddableEditor
@@ -98,7 +98,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
 
-                var result = _vm.ApplyUps(ups, original, out byte[] patched, out string warning);
+                var result = _vm.ApplyUps(ups, original, out byte[]? patched, out string warning);
                 bool applied = result == ToolUPSOpenSimpleViewModel.ApplyResult.Ok
                             || result == ToolUPSOpenSimpleViewModel.ApplyResult.OkWithWarning;
                 if (!applied || patched == null)

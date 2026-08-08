@@ -23,7 +23,7 @@ namespace FEBuilderGBA.Avalonia.Services
         /// entry 0 (offset by one record). Returns 0 when the id is 0, the ROM /
         /// pointer is unavailable, or the entry would fall out of bounds.
         /// </summary>
-        public static uint UnitAddrFor(ROM rom, uint oneBasedId)
+        public static uint UnitAddrFor(ROM? rom, uint oneBasedId)
         {
             if (rom?.RomInfo == null) return 0;
             if (oneBasedId == 0) return 0; // 1-based: 0 = ANY/no unit
@@ -47,7 +47,7 @@ namespace FEBuilderGBA.Avalonia.Services
         /// Returns 0 when the ROM / pointer is unavailable or the row would fall
         /// out of bounds.
         /// </summary>
-        public static uint TextRowAddrFor(ROM rom, uint textId)
+        public static uint TextRowAddrFor(ROM? rom, uint textId)
         {
             if (rom?.RomInfo == null) return 0;
             uint ptr = rom.RomInfo.text_pointer;

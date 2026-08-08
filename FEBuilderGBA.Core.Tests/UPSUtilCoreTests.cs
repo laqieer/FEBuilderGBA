@@ -37,7 +37,7 @@ namespace FEBuilderGBA.Core.Tests
             byte[] upsData = UPSUtilCore.MakeUPSData(src, dst);
             Assert.True(UPSUtilCore.IsUPSData(upsData));
 
-            byte[] result = UPSUtilCore.ApplyUPS(src, upsData, out string error);
+            byte[]? result = UPSUtilCore.ApplyUPS(src, upsData, out string? error);
             Assert.NotNull(result);
             Assert.Equal(dst, result);
         }
