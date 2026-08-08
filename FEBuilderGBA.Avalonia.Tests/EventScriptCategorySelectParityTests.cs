@@ -268,9 +268,9 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
             finally
             {
-                CoreState.BaseDirectory = prevBase;
-                CoreState.ROM = prevRom;
-                CoreState.EventScript = prevEs;
+                CoreStateTestState.RestoreBaseDirectory(prevBase);
+                CoreStateTestState.RestoreRom(prevRom);
+                CoreStateTestState.RestoreEventScript(prevEs);
             }
         }
 

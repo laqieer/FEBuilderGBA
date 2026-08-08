@@ -165,7 +165,7 @@ public class EventTalkGroupFE7UndoTests : IDisposable
         }
         finally
         {
-            CoreState.AppendBinaryData = savedAppend;
+            CoreStateTestState.RestoreAppendBinaryData(savedAppend);
         }
     }
 
