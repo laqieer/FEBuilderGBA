@@ -230,7 +230,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 byte[] patch = File.ReadAllBytes(upsPath);
-                byte[] result = UPSUtilCore.ApplyUPS(original, patch, out string msg);
+                byte[]? result = UPSUtilCore.ApplyUPS(original, patch, out string? msg);
                 if (result == null)
                 {
                     return (null, string.IsNullOrEmpty(msg) ? ("apply failed: " + upsPath) : msg, "");

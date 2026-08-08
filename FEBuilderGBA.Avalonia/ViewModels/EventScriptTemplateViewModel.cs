@@ -194,7 +194,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// as <see cref="GetGeneratedCodes"/>. A placeholder-free template generates
         /// identically with or without a host. GUI-free apart from CoreState.ROM.
         /// </summary>
-        public List<EventScript.OneCode> GetGeneratedCodesWithContext(IEventEditorHostContext host)
+        public List<EventScript.OneCode> GetGeneratedCodesWithContext(IEventEditorHostContext? host)
         {
             var empty = new List<EventScript.OneCode>();
             if (_selectedIndex < 0 || _selectedIndex >= _templates.Count)

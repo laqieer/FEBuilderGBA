@@ -47,7 +47,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 // Scan for the first map that actually loads with positive dimensions.
                 // (FE8U map ID 0 / some entries are empty placeholders that resolve to
                 // no data — those legitimately render 0x0; we want a real chapter map.)
-                MapEditorViewModel loaded = null;
+                MapEditorViewModel? loaded = null;
                 foreach (var entry in list)
                 {
                     var candidate = new MapEditorViewModel();
@@ -117,7 +117,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Assert.NotEmpty(list);
 
                 // Scan for the first renderable map (placeholder maps render 0x0).
-                MapEditorViewModel loaded = null;
+                MapEditorViewModel? loaded = null;
                 foreach (var entry in list)
                 {
                     var candidate = new MapEditorViewModel();

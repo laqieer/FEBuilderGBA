@@ -6,7 +6,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// <summary>
     /// Apply-UPS tool — parity with WinForms <c>ToolUPSOpenSimpleForm</c> (#1460).
     /// Applies a distributed <c>.ups</c> patch to a clean (unmodified) original ROM,
-    /// producing the patched ROM, via Core <see cref="UPSUtilCore.ApplyUPS(byte[],byte[],out string)"/>
+    /// producing the patched ROM, via Core <see cref="UPSUtilCore.ApplyUPS(byte[],byte[],out string?)"/>
     /// — the same pipeline as CLI <c>--applyups</c> and the main-window drag-drop path.
     ///
     /// All methods here are pure / headless (validate → apply, never throw, no ROM
@@ -114,13 +114,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// Apply the UPS patch at <paramref name="upsPath"/> to the clean original ROM at
         /// <paramref name="originalPath"/>, returning the patched ROM bytes in
         /// <paramref name="patched"/>. Validate-then-apply; never throws; no ROM mutation.
-        /// The patched bytes are produced by Core <see cref="UPSUtilCore.ApplyUPS(byte[],byte[],out string)"/>.
+        /// The patched bytes are produced by Core <see cref="UPSUtilCore.ApplyUPS(byte[],byte[],out string?)"/>.
         ///
         /// On a non-fatal CRC warning (e.g. result-CRC mismatch) returns
         /// <see cref="ApplyResult.OkWithWarning"/> with the patched bytes and a populated
         /// <paramref name="warning"/> so the View can prompt before committing (WF parity).
         /// </summary>
-        public ApplyResult ApplyUps(string upsPath, string originalPath, out byte[] patched, out string warning)
+        public ApplyResult ApplyUps(string upsPath, string originalPath, out byte[]? patched, out string warning)
         {
             patched = null;
             warning = "";
@@ -146,7 +146,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 try { patch = File.ReadAllBytes(upsPath); }
                 catch { return ApplyResult.ApplyFailed; }
 
-                byte[] result = UPSUtilCore.ApplyUPS(src, patch, out string errorMessage);
+                byte[]? result = UPSUtilCore.ApplyUPS(src, patch, out string? errorMessage);
                 if (result == null)
                 {
                     // Core ApplyUPS returns null for two distinct hard failures: a corrupt UPS

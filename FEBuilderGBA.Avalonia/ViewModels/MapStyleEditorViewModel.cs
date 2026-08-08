@@ -935,7 +935,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <paramref name="error"/> carries a short human-readable
         /// reason.</para>
         /// </summary>
-        public bool TryImportObjImage(byte[] sourceRgba, int width, int height, out string error)
+        public bool TryImportObjImage(byte[]? sourceRgba, int width, int height, out string error)
         {
             error = "";
 

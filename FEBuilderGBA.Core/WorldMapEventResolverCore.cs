@@ -38,7 +38,7 @@ namespace FEBuilderGBA
         /// The dereferenced event script offset, or <see cref="U.NOT_FOUND"/> on
         /// any failure / missing path (matches the WinForms early-returns).
         /// </returns>
-        public static uint GetEventByMapID(ROM rom, uint mapid, bool isSelect = false)
+        public static uint GetEventByMapID(ROM? rom, uint mapid, bool isSelect = false)
         {
             if (rom?.RomInfo == null) return U.NOT_FOUND;
 

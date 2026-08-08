@@ -1,3 +1,4 @@
+#nullable enable annotations
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -958,7 +959,7 @@ namespace FEBuilderGBA.CLI
             byte[] sourceData = File.ReadAllBytes(romPath);
             byte[] patchData = File.ReadAllBytes(patchPath);
 
-            byte[] result = UPSUtilCore.ApplyUPS(sourceData, patchData, out string errorMessage);
+            byte[]? result = UPSUtilCore.ApplyUPS(sourceData, patchData, out string? errorMessage);
             if (result == null)
             {
                 Console.Error.WriteLine($"Error applying UPS patch: {errorMessage}");

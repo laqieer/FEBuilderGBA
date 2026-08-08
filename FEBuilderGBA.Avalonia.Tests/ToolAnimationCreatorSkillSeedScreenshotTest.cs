@@ -83,7 +83,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Assert.True(framesList!.ItemCount >= 2,
                     "skill seed should populate >= 2 frames from the planted stream");
                 framesList.SelectedIndex = 0;
-                IImage frame = SkillSystemsAnimeExportCore.GetFrameImage(export, 0);
+                IImage? frame = SkillSystemsAnimeExportCore.GetFrameImage(export, 0);
                 Assert.NotNull(frame);
                 Assert.Equal(240, frame!.Width);
                 Assert.True(frame.Height >= 160);

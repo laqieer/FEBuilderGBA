@@ -55,7 +55,7 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal((byte)'1', patchData[3]);
 
                 // Apply UPS patch
-                byte[] result = UPSUtilCore.ApplyUPS(original, patchData, out string errorMessage);
+                byte[]? result = UPSUtilCore.ApplyUPS(original, patchData, out string? errorMessage);
                 Assert.NotNull(result);
 
                 // Verify result matches modified
@@ -88,7 +88,7 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.True(File.Exists(patchPath));
 
                 byte[] patchData = File.ReadAllBytes(patchPath);
-                byte[] result = UPSUtilCore.ApplyUPS(data, patchData, out string errorMessage);
+                byte[]? result = UPSUtilCore.ApplyUPS(data, patchData, out string? errorMessage);
                 Assert.NotNull(result);
                 Assert.Equal(data.Length, result.Length);
 

@@ -68,7 +68,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 // The SHIPPED base name — NOT vm.FlagName, which may already hold an on-disk
                 // customization (EtcCacheFLag merges config/etc into Flag). Delete() reverts
                 // to this shipped base, so the assertion must compare against it.
-                EtcCacheFLag.LoadBaseFlagNames().TryGetValue(flag, out string shippedBase);
+                EtcCacheFLag.LoadBaseFlagNames().TryGetValue(flag, out string? shippedBase);
                 shippedBase ??= "";
 
                 vm.LoadEntry(addr);

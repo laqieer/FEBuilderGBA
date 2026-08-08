@@ -135,7 +135,7 @@ public class EditorCatalogParityTests
         XElement editorPanel = LoadDesktopEditorPanel();
         XNamespace ns = editorPanel.Name.Namespace;
         var desktopCategories = editorPanel.Elements(ns + "Expander")
-            .Select(e => (string?)e.Attribute("Header"))
+            .Select(e => (string?)e.Attribute("Header") ?? string.Empty)
             .ToList();
         var catalogCategories = EditorCatalog.Categories.Select(g => g.Key).ToList();
 

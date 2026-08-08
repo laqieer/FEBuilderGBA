@@ -35,6 +35,21 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void Language_AllowsTemporaryNullForLegacyStateReset()
+        {
+            string? original = CoreState.Language;
+            try
+            {
+                CoreState.Language = null;
+                Assert.Null(CoreState.Language);
+            }
+            finally
+            {
+                CoreState.Language = original!;
+            }
+        }
+
+        [Fact]
         public void RaiseLanguageChanged_InvokesSubscribers()
         {
             int callCount = 0;

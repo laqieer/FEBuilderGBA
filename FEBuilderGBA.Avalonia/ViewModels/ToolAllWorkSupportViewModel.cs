@@ -74,9 +74,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// </summary>
         public int UpdateCheckAll(
             Func<string, string> httpGet,
-            Func<string, string> httpHeadLastModified,
+            Func<string, string?> httpHeadLastModified,
             Func<string, DateTime> romDateTime)
         {
+            ArgumentNullException.ThrowIfNull(httpGet);
+            ArgumentNullException.ThrowIfNull(httpHeadLastModified);
+            ArgumentNullException.ThrowIfNull(romDateTime);
+
             IsLoading = true;
             int updateable = 0;
             try
@@ -108,6 +112,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             Func<string, DateTime> romDateTime,
             CancellationToken cancellationToken = default)
         {
+            ArgumentNullException.ThrowIfNull(httpGet);
+            ArgumentNullException.ThrowIfNull(httpHeadLastModified);
+            ArgumentNullException.ThrowIfNull(romDateTime);
+
             IsLoading = true;
             int updateable = 0;
             var updateMarks = new List<(WorkSupportScannerCore.WorkProject Project, bool Mark)>();
