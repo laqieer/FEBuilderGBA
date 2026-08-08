@@ -98,10 +98,10 @@ namespace FEBuilderGBA.Avalonia.Tests
                 var fg = new SKColor(0xEC, 0xEC, 0xEC);
                 c.Clear(bg);
 
-                using var title = new SKPaint { Color = accent, IsAntialias = true, TextSize = 24, FakeBoldText = true };
-                using var hdr = new SKPaint { Color = fg, IsAntialias = true, TextSize = 18, FakeBoldText = true };
-                using var mono = new SKPaint { Color = fg, IsAntialias = true, TextSize = 15, Typeface = SKTypeface.FromFamilyName("Consolas") };
-                using var note = new SKPaint { Color = accent, IsAntialias = true, TextSize = 14 };
+                using var title = SkiaTestTextStyle.Create(accent, 24, bold: true);
+                using var hdr = SkiaTestTextStyle.Create(fg, 18, bold: true);
+                using var mono = SkiaTestTextStyle.Create(fg, 15, familyName: "Consolas");
+                using var note = SkiaTestTextStyle.Create(accent, 14);
                 using var panelP = new SKPaint { Color = panel, IsAntialias = true };
 
                 c.DrawText($"World Map Road (Path) editor — {ver}   Path 0 @ 0x{0x08000000u | addr:X08}   [#1458 .road.bin Save/Load]", 24, 40, title);

@@ -61,12 +61,12 @@ namespace FEBuilderGBA.Avalonia.Tests
                 var dim = new SKColor(0xA8, 0xB0, 0xBA);
                 c.Clear(bg);
 
-                using var title = new SKPaint { Color = accent, IsAntialias = true, TextSize = 30, FakeBoldText = true };
-                using var hdr = new SKPaint { Color = fg, IsAntialias = true, TextSize = 20, FakeBoldText = true };
-                using var txt = new SKPaint { Color = fg, IsAntialias = true, TextSize = 17, Typeface = SKTypeface.FromFamilyName("Consolas") };
-                using var dimTxt = new SKPaint { Color = dim, IsAntialias = true, TextSize = 16 };
-                using var okTxt = new SKPaint { Color = green, IsAntialias = true, TextSize = 17, Typeface = SKTypeface.FromFamilyName("Consolas") };
-                using var warnTxt = new SKPaint { Color = yellow, IsAntialias = true, TextSize = 17, Typeface = SKTypeface.FromFamilyName("Consolas") };
+                using var title = SkiaTestTextStyle.Create(accent, 30, bold: true);
+                using var hdr = SkiaTestTextStyle.Create(fg, 20, bold: true);
+                using var txt = SkiaTestTextStyle.Create(fg, 17, familyName: "Consolas");
+                using var dimTxt = SkiaTestTextStyle.Create(dim, 16);
+                using var okTxt = SkiaTestTextStyle.Create(green, 17, familyName: "Consolas");
+                using var warnTxt = SkiaTestTextStyle.Create(yellow, 17, familyName: "Consolas");
                 using var panelP = new SKPaint { Color = panel, IsAntialias = true };
 
                 c.DrawText("fe-info code.json → Avalonia Disassembler symbols  (#1824 Slice 1)", 28, 44, title);

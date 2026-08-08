@@ -102,11 +102,11 @@ namespace FEBuilderGBA.Avalonia.Tests
                 var sel = new SKColor(0x33, 0x4E, 0x4A);
                 c.Clear(bg);
 
-                using var title = new SKPaint { Color = accent, IsAntialias = true, TextSize = 24, FakeBoldText = true };
-                using var hdr = new SKPaint { Color = fg, IsAntialias = true, TextSize = 17, FakeBoldText = true };
-                using var lbl = new SKPaint { Color = dim, IsAntialias = true, TextSize = 14 };
-                using var mono = new SKPaint { Color = fg, IsAntialias = true, TextSize = 14, Typeface = SKTypeface.FromFamilyName("Consolas") };
-                using var note = new SKPaint { Color = accent, IsAntialias = true, TextSize = 14 };
+                using var title = SkiaTestTextStyle.Create(accent, 24, bold: true);
+                using var hdr = SkiaTestTextStyle.Create(fg, 17, bold: true);
+                using var lbl = SkiaTestTextStyle.Create(dim, 14);
+                using var mono = SkiaTestTextStyle.Create(fg, 14, familyName: "Consolas");
+                using var note = SkiaTestTextStyle.Create(accent, 14);
                 using var panelP = new SKPaint { Color = panel, IsAntialias = true };
                 using var selP = new SKPaint { Color = sel, IsAntialias = true };
 

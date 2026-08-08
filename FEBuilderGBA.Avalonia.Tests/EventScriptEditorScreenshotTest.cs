@@ -116,12 +116,12 @@ namespace FEBuilderGBA.Avalonia.Tests
                 var warn = new SKColor(0xE6, 0x8A, 0x4E);
                 c.Clear(bg);
 
-                using var title = new SKPaint { Color = accent, IsAntialias = true, TextSize = 23, FakeBoldText = true };
-                using var hdr = new SKPaint { Color = fg, IsAntialias = true, TextSize = 17, FakeBoldText = true };
-                using var lbl = new SKPaint { Color = dim, IsAntialias = true, TextSize = 14 };
-                using var mono = new SKPaint { Color = fg, IsAntialias = true, TextSize = 14, Typeface = SKTypeface.FromFamilyName("Consolas") };
-                using var note = new SKPaint { Color = accent, IsAntialias = true, TextSize = 14 };
-                using var warnP = new SKPaint { Color = warn, IsAntialias = true, TextSize = 14, Typeface = SKTypeface.FromFamilyName("Consolas") };
+                using var title = SkiaTestTextStyle.Create(accent, 23, bold: true);
+                using var hdr = SkiaTestTextStyle.Create(fg, 17, bold: true);
+                using var lbl = SkiaTestTextStyle.Create(dim, 14);
+                using var mono = SkiaTestTextStyle.Create(fg, 14, familyName: "Consolas");
+                using var note = SkiaTestTextStyle.Create(accent, 14);
+                using var warnP = SkiaTestTextStyle.Create(warn, 14, familyName: "Consolas");
                 using var panelP = new SKPaint { Color = panel, IsAntialias = true };
                 using var btn = new SKPaint { Color = new SKColor(0x3C, 0x44, 0x4C), IsAntialias = true };
                 using var btnWrite = new SKPaint { Color = new SKColor(0xD2, 0x7A, 0x3A), IsAntialias = true };

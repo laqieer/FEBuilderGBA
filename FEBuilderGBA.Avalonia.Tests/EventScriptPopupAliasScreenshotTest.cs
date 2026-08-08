@@ -112,12 +112,12 @@ namespace FEBuilderGBA.Avalonia.Tests
                 var warn = new SKColor(0xE6, 0x8A, 0x4E);
                 c.Clear(bg);
 
-                using var title = new SKPaint { Color = accent, IsAntialias = true, TextSize = 24, FakeBoldText = true };
-                using var hdr = new SKPaint { Color = fg, IsAntialias = true, TextSize = 18, FakeBoldText = true };
-                using var lbl = new SKPaint { Color = dim, IsAntialias = true, TextSize = 15 };
-                using var mono = new SKPaint { Color = fg, IsAntialias = true, TextSize = 15, Typeface = SKTypeface.FromFamilyName("Consolas") };
-                using var note = new SKPaint { Color = accent, IsAntialias = true, TextSize = 14 };
-                using var warnP = new SKPaint { Color = warn, IsAntialias = true, TextSize = 14, Typeface = SKTypeface.FromFamilyName("Consolas") };
+                using var title = SkiaTestTextStyle.Create(accent, 24, bold: true);
+                using var hdr = SkiaTestTextStyle.Create(fg, 18, bold: true);
+                using var lbl = SkiaTestTextStyle.Create(dim, 15);
+                using var mono = SkiaTestTextStyle.Create(fg, 15, familyName: "Consolas");
+                using var note = SkiaTestTextStyle.Create(accent, 14);
+                using var warnP = SkiaTestTextStyle.Create(warn, 14, familyName: "Consolas");
                 using var panelP = new SKPaint { Color = panel, IsAntialias = true };
 
                 c.DrawText("Event Script popup — alias command — FE8U   [#1422 fixed]", 24, 40, title);
@@ -168,7 +168,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             _output.WriteLine($"Saved proof image to: {outPath} ({new FileInfo(outPath).Length} bytes)");
         }
 
-        static void DrawBytes(SKCanvas c, float x, float y, byte[] data, SKPaint mono, SKPaint? offsetPaint, int[]? highlight = null)
+        static void DrawBytes(SKCanvas c, float x, float y, byte[] data, SkiaTestTextStyle mono, SkiaTestTextStyle? offsetPaint, int[]? highlight = null)
         {
             const float step = 26;
             for (int i = 0; i < data.Length && i < 16; i++)
@@ -182,7 +182,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 {
                     bool hi = highlight != null && Array.IndexOf(highlight, i) >= 0;
                     using var p = hi
-                        ? new SKPaint { Color = new SKColor(0x4E, 0xC9, 0xB0), IsAntialias = true, TextSize = mono.TextSize, FakeBoldText = true, Typeface = mono.Typeface }
+                        ? SkiaTestTextStyle.Create(new SKColor(0x4E, 0xC9, 0xB0), mono.TextSize, bold: true, typeface: mono.Typeface)
                         : null;
                     c.DrawText($"{data[i]:X2}", bx, y, p ?? mono);
                 }

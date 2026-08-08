@@ -72,11 +72,11 @@ namespace FEBuilderGBA.Avalonia.Tests
                 var dim = new SKColor(0x9A, 0xA0, 0xA6);
                 c.Clear(bg);
 
-                using var title = new SKPaint { Color = accent, IsAntialias = true, TextSize = 26, FakeBoldText = true };
-                using var hdr = new SKPaint { Color = fg, IsAntialias = true, TextSize = 18, FakeBoldText = true };
-                using var lbl = new SKPaint { Color = dim, IsAntialias = true, TextSize = 16 };
-                using var val = new SKPaint { Color = fg, IsAntialias = true, TextSize = 16, Typeface = SKTypeface.FromFamilyName("Consolas") };
-                using var note = new SKPaint { Color = accent, IsAntialias = true, TextSize = 14 };
+                using var title = SkiaTestTextStyle.Create(accent, 26, bold: true);
+                using var hdr = SkiaTestTextStyle.Create(fg, 18, bold: true);
+                using var lbl = SkiaTestTextStyle.Create(dim, 16);
+                using var val = SkiaTestTextStyle.Create(fg, 16, familyName: "Consolas");
+                using var note = SkiaTestTextStyle.Create(accent, 14);
                 using var panelP = new SKPaint { Color = panel, IsAntialias = true };
 
                 c.DrawText($"Split Menu (Menu Extend Split) — {ver}   [#1413 fixed]", 24, 40, title);
@@ -96,7 +96,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 // Right: header + dereferenced command-array text ids.
                 float x0 = 330, y = 88, dy = 30;
                 c.DrawRoundRect(x0 - 16, 60, 678, 480, 8, 8, panelP);
-                void Row(string label, string value, SKPaint vp)
+                void Row(string label, string value, SkiaTestTextStyle vp)
                 {
                     c.DrawText(label, x0, y, lbl);
                     c.DrawText(value, x0 + 230, y, vp);

@@ -35,12 +35,12 @@ namespace FEBuilderGBA.Avalonia.Tests
                 var dim = new SKColor(0xA8, 0xB3, 0xC2);
                 c.Clear(bg);
 
-                using var title = new SKPaint { Color = accent, IsAntialias = true, TextSize = 30, FakeBoldText = true };
-                using var h = new SKPaint { Color = fg, IsAntialias = true, TextSize = 19, FakeBoldText = true };
-                using var text = new SKPaint { Color = fg, IsAntialias = true, TextSize = 17, Typeface = SKTypeface.FromFamilyName("Consolas") };
-                using var label = new SKPaint { Color = dim, IsAntialias = true, TextSize = 15 };
-                using var pass = new SKPaint { Color = accent, IsAntialias = true, TextSize = 18, FakeBoldText = true };
-                using var fail = new SKPaint { Color = warn, IsAntialias = true, TextSize = 18, FakeBoldText = true };
+                using var title = SkiaTestTextStyle.Create(accent, 30, bold: true);
+                using var h = SkiaTestTextStyle.Create(fg, 19, bold: true);
+                using var text = SkiaTestTextStyle.Create(fg, 17, familyName: "Consolas");
+                using var label = SkiaTestTextStyle.Create(dim, 15);
+                using var pass = SkiaTestTextStyle.Create(accent, 18, bold: true);
+                using var fail = SkiaTestTextStyle.Create(warn, 18, bold: true);
                 using var cardPaint = new SKPaint { Color = card, IsAntialias = true };
 
                 c.DrawText("Map paint compressed-write hardening — #1846 proof", 28, 44, title);
