@@ -38,7 +38,7 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         public void Dispose()
         {
-            CoreState.ROM = _savedRom;
+            CoreStateTestState.RestoreRom(_savedRom);
         }
 
         static ROM MakeFe8U(byte countByte = 11)

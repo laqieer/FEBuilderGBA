@@ -21,8 +21,8 @@ public class AutoSaveMarkSavedDirtyTests : System.IDisposable
 
     public void Dispose()
     {
-        CoreState.ROM = _prevRom;
-        CoreState.Undo = _prevUndo;
+        CoreStateTestState.RestoreRom(_prevRom);
+        CoreStateTestState.RestoreUndo(_prevUndo);
         AutoSaveService.Instance.UpdateRomFilename(_prevAutoSaveRomFilename);
     }
 

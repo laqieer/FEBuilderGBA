@@ -34,9 +34,9 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         public void Dispose()
         {
-            CoreState.ROM = _savedRom;
-            CoreState.Undo = _savedUndo;
-            CoreState.DecompProject = _savedDecompProject;
+            CoreStateTestState.RestoreRom(_savedRom);
+            CoreStateTestState.RestoreUndo(_savedUndo);
+            CoreStateTestState.RestoreDecompProject(_savedDecompProject);
         }
 
         [Fact]

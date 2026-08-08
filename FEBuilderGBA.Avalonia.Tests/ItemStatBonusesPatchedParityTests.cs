@@ -34,7 +34,7 @@ public class ItemStatBonusesPatchedParityTests : System.IDisposable
 
     public void Dispose()
     {
-        CoreState.ROM = _prevRom;
+        CoreStateTestState.RestoreRom(_prevRom);
     }
 
     static void WriteU32(byte[] data, int offset, uint value)

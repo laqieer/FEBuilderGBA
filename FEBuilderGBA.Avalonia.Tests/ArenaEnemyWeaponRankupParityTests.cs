@@ -40,8 +40,8 @@ public class ArenaEnemyWeaponRankupParityTests : IDisposable
 
     public void Dispose()
     {
-        CoreState.ROM = _savedRom;
-        CoreState.Undo = _savedUndo;
+        CoreStateTestState.RestoreRom(_savedRom);
+        CoreStateTestState.RestoreUndo(_savedUndo);
     }
 
     static ROM MakeFe8uWithArenaTables()
@@ -214,7 +214,7 @@ public class ArenaEnemyWeaponRankupParityTests : IDisposable
     static string AxamlPath()
     {
         // Walk up from the test bin dir to the repo root, then into the view.
-        string dir = AppContext.BaseDirectory;
+        string? dir = AppContext.BaseDirectory;
         for (int i = 0; i < 8 && dir != null; i++)
         {
             string candidate = Path.Combine(dir, "FEBuilderGBA.Avalonia", "Views", "ArenaEnemyWeaponViewerView.axaml");

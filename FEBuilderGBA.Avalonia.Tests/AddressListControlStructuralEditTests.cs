@@ -42,9 +42,9 @@ public class AddressListControlStructuralEditTests : System.IDisposable
 
     public void Dispose()
     {
-        CoreState.ROM = _prevRom;
-        CoreState.Undo = _prevUndo;
-        CoreState.Services = _prevServices;
+        CoreStateTestState.RestoreRom(_prevRom);
+        CoreStateTestState.RestoreUndo(_prevUndo);
+        CoreStateTestState.RestoreServices(_prevServices);
     }
 
     /// <summary>A Yes-returning IAppServices so confirmation dialogs proceed in headless tests.</summary>
@@ -52,21 +52,21 @@ public class AddressListControlStructuralEditTests : System.IDisposable
     {
         public bool LastWasError;
         public void ShowError(string message) { LastWasError = true; }
-        public void ShowInfo(string message) { }
-        public bool ShowQuestion(string message) => true;
+        public void ShowInfo(string message) => throw new System.NotSupportedException();
+        public bool ShowQuestion(string message) => throw new System.NotSupportedException();
         public bool ShowYesNo(string message) => true;
-        public void RunOnUIThread(System.Action action) => action();
-        public bool IsMainThread() => true;
+        public void RunOnUIThread(System.Action action) => throw new System.NotSupportedException();
+        public bool IsMainThread() => throw new System.NotSupportedException();
     }
 
     sealed class NoServices : IAppServices
     {
-        public void ShowError(string message) { }
-        public void ShowInfo(string message) { }
-        public bool ShowQuestion(string message) => false;
+        public void ShowError(string message) => throw new System.NotSupportedException();
+        public void ShowInfo(string message) => throw new System.NotSupportedException();
+        public bool ShowQuestion(string message) => throw new System.NotSupportedException();
         public bool ShowYesNo(string message) => false;
-        public void RunOnUIThread(System.Action action) => action();
-        public bool IsMainThread() => true;
+        public void RunOnUIThread(System.Action action) => throw new System.NotSupportedException();
+        public bool IsMainThread() => throw new System.NotSupportedException();
     }
 
     /// <summary>Build a 4 KB ROM with N BlockSize rows starting at Base, each row's

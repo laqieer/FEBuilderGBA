@@ -51,8 +51,8 @@ public class EventFunctionPointerWorldmapFilterTests : IDisposable
 
     public void Dispose()
     {
-        CoreState.ROM = _savedRom;
-        CoreState.Undo = _savedUndo;
+        CoreStateTestState.RestoreRom(_savedRom);
+        CoreStateTestState.RestoreUndo(_savedUndo);
     }
 
     // ================================================================

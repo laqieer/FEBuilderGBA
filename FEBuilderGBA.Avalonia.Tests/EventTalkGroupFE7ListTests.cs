@@ -33,8 +33,8 @@ public class EventTalkGroupFE7ListTests : IDisposable
 
     public void Dispose()
     {
-        CoreState.ROM = _savedRom;
-        CoreState.Undo = _savedUndo;
+        CoreStateTestState.RestoreRom(_savedRom);
+        CoreStateTestState.RestoreUndo(_savedUndo);
     }
 
     [Fact]
@@ -121,7 +121,7 @@ public class EventTalkGroupFE7ListTests : IDisposable
         var savedAppend = CoreState.AppendBinaryData;
         try
         {
-            CoreState.AppendBinaryData = null; // headless free-space fallback
+            CoreStateTestState.ClearAppendBinaryData(); // headless free-space fallback
 
             ROM rom = MakeRom();
             CoreState.ROM = rom;

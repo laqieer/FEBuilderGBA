@@ -38,9 +38,9 @@ public class HomePageLanguageApplyTests : IDisposable
 
     public void Dispose()
     {
-        CoreState.Config = _savedConfig;
-        CoreState.BaseDirectory = _savedBaseDir;
-        CoreState.Language = _savedLanguage;
+        CoreStateTestState.RestoreConfig(_savedConfig);
+        CoreStateTestState.RestoreBaseDirectory(_savedBaseDir);
+        CoreStateTestState.RestoreLanguage(_savedLanguage);
         CoreState.GitPath = _savedGitPath;
         try { if (Directory.Exists(_baseDir)) Directory.Delete(_baseDir, true); } catch { /* best effort */ }
     }

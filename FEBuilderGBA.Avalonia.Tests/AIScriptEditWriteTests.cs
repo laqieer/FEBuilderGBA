@@ -1030,7 +1030,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 _prev = CoreState.Undo;
                 CoreState.Undo = new Undo();
             }
-            public void Dispose() => CoreState.Undo = _prev;
+            public void Dispose() => CoreStateTestState.RestoreUndo(_prev);
         }
     }
 }

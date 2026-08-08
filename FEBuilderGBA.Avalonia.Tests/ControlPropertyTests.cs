@@ -46,13 +46,13 @@ namespace FEBuilderGBA.Avalonia.Tests
         /// Find a named control on a view using Avalonia's built-in FindControl.
         /// This uses the NameScope that is populated during InitializeComponent().
         /// </summary>
-        private static T FindCtrl<T>(Control view, string name) where T : Control
+        private static T? FindCtrl<T>(Control view, string name) where T : Control
         {
             return view.FindControl<T>(name);
         }
 
         /// <summary>Find any named control on a view.</summary>
-        private static Control FindNamedControl(Control view, string name)
+        private static Control? FindNamedControl(Control view, string name)
         {
             return view.FindControl<Control>(name);
         }
@@ -107,7 +107,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         /// <summary>Recursively find a Button with specific text content via logical tree.</summary>
-        private static Button FindButtonWithContent(ILogical parent, string content)
+        private static Button? FindButtonWithContent(ILogical parent, string content)
         {
             if (parent is Button btn && btn.Content?.ToString() == content)
                 return btn;
