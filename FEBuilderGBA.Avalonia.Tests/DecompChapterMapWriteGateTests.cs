@@ -44,7 +44,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
             finally
             {
-                CoreState.DecompProject = saved;
+                CoreStateTestState.RestoreDecompProject(saved);
             }
         }
 
