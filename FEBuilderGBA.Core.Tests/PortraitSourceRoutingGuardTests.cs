@@ -80,7 +80,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             string source = File.ReadAllText(Path.Combine(
                 RepoRoot(), "FEBuilderGBA.Avalonia", "Services", "ImageImportValidator.cs"));
-            string body = ExtractMethodBody(source, "static string ImportPortrait(string file, byte[] pal, uint addr)");
+            string body = ExtractMethodBody(source, "static string? ImportPortrait(string file, byte[] pal, uint addr)");
 
             AssertNoGenericWriters(body, "ImageImportValidator.ImportPortrait");
             Assert.Contains(PortraitCompressed, body, StringComparison.Ordinal);

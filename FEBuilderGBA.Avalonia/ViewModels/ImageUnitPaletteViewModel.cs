@@ -239,7 +239,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// class (<see cref="ClassID"/>). Convenience wrapper over the explicit
         /// overload that reads the VM's current state.
         /// </summary>
-        public IImage RenderClassSamplePreview()
+        public IImage? RenderClassSamplePreview()
             => RenderClassSamplePreview((int)ClassID, SelectedPaletteSlot, PaletteTypeIndex);
 
         /// <summary>
@@ -281,8 +281,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <param name="editedPaletteBlock">Optional EXACT 32-byte live-edited
         /// palette block (#1022). Forwarded to the renderer's 4th param; null =
         /// render the saved on-ROM palette.</param>
-        public IImage RenderClassSamplePreview(int classID, int paletteno, int paletteIndex,
-            byte[] editedPaletteBlock = null)
+        public IImage? RenderClassSamplePreview(int classID, int paletteno, int paletteIndex,
+            byte[]? editedPaletteBlock = null)
         {
             ROM rom = CoreState.ROM;
             if (rom == null || rom.RomInfo == null || CoreState.ImageService == null) return null;

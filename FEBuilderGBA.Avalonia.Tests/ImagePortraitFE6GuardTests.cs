@@ -329,11 +329,11 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         public void Dispose()
         {
-            CoreState.ROM = _prevRom;
-            CoreState.CommentCache = _prevCommentCache;
-            CoreState.LintCache = _prevLintCache;
-            CoreState.WorkSupportCache = _prevWorkSupportCache;
-            CoreState.SystemTextEncoder = _prevSystemTextEncoder;
+            CoreStateTestState.RestoreRom(_prevRom);
+            CoreStateTestState.RestoreCommentCache(_prevCommentCache);
+            CoreStateTestState.RestoreLintCache(_prevLintCache);
+            CoreStateTestState.RestoreWorkSupportCache(_prevWorkSupportCache);
+            CoreStateTestState.RestoreSystemTextEncoder(_prevSystemTextEncoder);
             if (_prevBaseDirectory != null)
                 CoreState.BaseDirectory = _prevBaseDirectory;
         }

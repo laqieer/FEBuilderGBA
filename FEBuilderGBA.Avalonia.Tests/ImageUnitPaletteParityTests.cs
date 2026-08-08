@@ -522,12 +522,11 @@ namespace FEBuilderGBA.Avalonia.Tests
                     SelectedPaletteSlot = 1, // unit-palette slot 1
                     PaletteTypeIndex = 0,
                 };
-                using IImage grid = vm.RenderClassSamplePreview();
-                Assert.NotNull(grid);
+                using IImage grid = Assert.IsAssignableFrom<IImage>(vm.RenderClassSamplePreview());
                 Assert.Equal(BattleAnimeRendererCore.SampleGridWidth, grid!.Width);   // 360
                 Assert.Equal(BattleAnimeRendererCore.SampleGridHeight, grid.Height);  // 290
             }
-            finally { CoreState.ROM = prevRom; }
+            finally { CoreStateTestState.RestoreRom(prevRom); }
         }
 
         [Fact]
@@ -549,8 +548,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                     SelectedPaletteSlot = 1,
                     PaletteTypeIndex = 0,
                 };
-                using IImage grid = vm.RenderClassSamplePreview();
-                Assert.NotNull(grid);
+                using IImage grid = Assert.IsAssignableFrom<IImage>(vm.RenderClassSamplePreview());
                 byte[] px = grid!.GetPixelData();
                 // grid (0,0) RGBA. Magenta (0x7C1F) -> R=248, G=0, B=248.
                 Assert.Equal(248, px[0]); // R
@@ -558,7 +556,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Assert.Equal(248, px[2]); // B
                 Assert.Equal(255, px[3]); // A
             }
-            finally { CoreState.ROM = prevRom; }
+            finally { CoreStateTestState.RestoreRom(prevRom); }
         }
 
         [Fact]
@@ -568,11 +566,11 @@ namespace FEBuilderGBA.Avalonia.Tests
             var prevRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreStateTestState.ClearRom();
                 var vm = new ImageUnitPaletteViewModel { ClassID = 5, SelectedPaletteSlot = 1 };
                 Assert.Null(vm.RenderClassSamplePreview());
             }
-            finally { CoreState.ROM = prevRom; }
+            finally { CoreStateTestState.RestoreRom(prevRom); }
         }
 
         [Fact]
@@ -587,7 +585,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 var vm = new ImageUnitPaletteViewModel { ClassID = 0, SelectedPaletteSlot = 1 };
                 Assert.Null(vm.RenderClassSamplePreview());
             }
-            finally { CoreState.ROM = prevRom; }
+            finally { CoreStateTestState.RestoreRom(prevRom); }
         }
 
         [Fact]
@@ -602,7 +600,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 var vm = new ImageUnitPaletteViewModel { ClassID = PREVIEW_CLASS_ID, SelectedPaletteSlot = 0 };
                 Assert.Null(vm.RenderClassSamplePreview());
             }
-            finally { CoreState.ROM = prevRom; }
+            finally { CoreStateTestState.RestoreRom(prevRom); }
         }
 
         [Fact]
@@ -620,7 +618,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 var vm = new ImageUnitPaletteViewModel { ClassID = PREVIEW_CLASS_ID, SelectedPaletteSlot = 1 };
                 Assert.Null(vm.RenderClassSamplePreview());
             }
-            finally { CoreState.ROM = prevRom; }
+            finally { CoreStateTestState.RestoreRom(prevRom); }
         }
 
         // ===== #1022: live-recolor — editedPaletteBlock overload =====
@@ -646,16 +644,15 @@ namespace FEBuilderGBA.Avalonia.Tests
                 byte[] edited = new byte[32];
                 U.write_u16(edited, 5 * 2, 0x03FF); // block idx5 = yellow (R31 G31)
 
-                using IImage grid = vm.RenderClassSamplePreview(
-                    (int)PREVIEW_CLASS_ID, 1, 0, edited);
-                Assert.NotNull(grid);
+                using IImage grid = Assert.IsAssignableFrom<IImage>(vm.RenderClassSamplePreview(
+                    (int)PREVIEW_CLASS_ID, 1, 0, edited));
                 byte[] px = grid!.GetPixelData();
                 Assert.Equal(248, px[0]); // R (yellow)
                 Assert.Equal(248, px[1]); // G (yellow)
                 Assert.Equal(0, px[2]);   // B
                 Assert.Equal(255, px[3]); // A
             }
-            finally { CoreState.ROM = prevRom; }
+            finally { CoreStateTestState.RestoreRom(prevRom); }
         }
 
         [Fact]
@@ -675,15 +672,14 @@ namespace FEBuilderGBA.Avalonia.Tests
                     SelectedPaletteSlot = 1,
                     PaletteTypeIndex = 0,
                 };
-                using IImage grid = vm.RenderClassSamplePreview(
-                    (int)PREVIEW_CLASS_ID, 1, 0, null);
-                Assert.NotNull(grid);
+                using IImage grid = Assert.IsAssignableFrom<IImage>(vm.RenderClassSamplePreview(
+                    (int)PREVIEW_CLASS_ID, 1, 0, null));
                 byte[] px = grid!.GetPixelData();
                 Assert.Equal(248, px[0]); // R (magenta = saved unit palette)
                 Assert.Equal(0, px[1]);   // G
                 Assert.Equal(248, px[2]); // B
             }
-            finally { CoreState.ROM = prevRom; }
+            finally { CoreStateTestState.RestoreRom(prevRom); }
         }
 
         // ===== #1022: View source-text parity (the live-recolor wiring) =====

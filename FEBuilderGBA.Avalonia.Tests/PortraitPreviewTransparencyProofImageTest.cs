@@ -26,10 +26,9 @@ namespace FEBuilderGBA.Avalonia.Tests
             {
                 restore = EnsureImageService();
                 var loadResult = MakeSyntheticPortraitLoadResult(96, 80);
-                byte[] oldRgba = PortraitImportHelper.ReconstructRgbaWithPaletteZeroTransparent(loadResult);
+                byte[] oldRgba = Assert.IsType<byte[]>(PortraitImportHelper.ReconstructRgbaWithPaletteZeroTransparent(loadResult));
 
-                using IImage newPreview = PortraitImportHelper.BuildPreviewImage(loadResult);
-                Assert.NotNull(newPreview);
+                using IImage newPreview = Assert.IsAssignableFrom<IImage>(PortraitImportHelper.BuildPreviewImage(loadResult));
                 byte[] newRgba = newPreview.GetPixelData();
 
                 byte[] pngBytes = RenderProofPng(oldRgba, newRgba, loadResult.Width, loadResult.Height);
@@ -74,7 +73,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             readonly IImageService? _prev;
             public RestoreImageService(IImageService? prev) { _prev = prev; }
-            public void Dispose() { CoreState.ImageService = _prev; }
+            public void Dispose() { CoreState.ImageService = _prev!; }
         }
 
         static ImageImportService.LoadResult MakeSyntheticPortraitLoadResult(int w, int h)

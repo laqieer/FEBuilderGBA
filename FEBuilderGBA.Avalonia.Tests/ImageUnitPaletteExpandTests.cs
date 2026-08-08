@@ -35,8 +35,8 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         public void Dispose()
         {
-            CoreState.ROM = _savedRom;
-            CoreState.Undo = _savedUndo;
+            CoreStateTestState.RestoreRom(_savedRom);
+            CoreStateTestState.RestoreUndo(_savedUndo);
         }
 
         const uint SIZE = 16;

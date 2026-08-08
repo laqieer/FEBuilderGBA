@@ -135,7 +135,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             // pixels even when the test harness uses the no-op headless drawing.
             try
             {
-                IImage grid = vm.RenderClassSamplePreview();
+                IImage? grid = vm.RenderClassSamplePreview();
                 if (grid != null)
                 {
                     byte[] png = grid.EncodePng();

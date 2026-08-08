@@ -28,6 +28,13 @@ namespace FEBuilderGBA.Avalonia.Tests
             _output = output;
         }
 
+        ROM RequireRom()
+        {
+            ROM? rom = _fixture.ROM;
+            Assert.NotNull(rom);
+            return rom;
+        }
+
         static IDisposable EnsureImageService()
         {
             var prev = CoreState.ImageService;
@@ -37,9 +44,9 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         sealed class RestoreImageService : IDisposable
         {
-            readonly IImageService _prev;
-            public RestoreImageService(IImageService prev) { _prev = prev; }
-            public void Dispose() { CoreState.ImageService = _prev; }
+            readonly IImageService? _prev;
+            public RestoreImageService(IImageService? prev) { _prev = prev; }
+            public void Dispose() { CoreState.ImageService = _prev!; }
         }
 
         static byte[] BuildSimplePalette(int colors)
@@ -115,7 +122,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
 
             using var _ = EnsureImageService();
-            var rom = _fixture.ROM;
+            var rom = RequireRom();
             uint entryAddr = GetEntryAddr(rom, TestEntryIndex);
 
             var loadResult = MakeSimpleLoadResult();
@@ -148,7 +155,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
 
             using var _ = EnsureImageService();
-            var rom = _fixture.ROM;
+            var rom = RequireRom();
             uint entryAddr = GetEntryAddr(rom, TestEntryIndex);
 
             // Snapshot bytes that *would* be B20-B23 on an FE7/FE8 entry.
@@ -195,7 +202,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
 
             using var _ = EnsureImageService();
-            var rom = _fixture.ROM;
+            var rom = RequireRom();
             uint entryAddr = GetEntryAddr(rom, TestEntryIndex);
 
             byte before20 = (byte)rom.u8(entryAddr + 20);
@@ -239,7 +246,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
 
             using var _ = EnsureImageService();
-            var rom = _fixture.ROM;
+            var rom = RequireRom();
             uint entryAddr = GetEntryAddr(rom, TestEntryIndex);
 
             var loadResult = MakeSimpleLoadResult();
@@ -273,7 +280,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
 
             using var _ = EnsureImageService();
-            var rom = _fixture.ROM;
+            var rom = RequireRom();
             // Use a distinct entry so this test does not collide with the
             // ImportSimple test if they run in the same process.
             uint entryAddr = GetEntryAddr(rom, TestEntryIndex + 1);
@@ -310,7 +317,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
 
             using var _ = EnsureImageService();
-            var rom = _fixture.ROM;
+            var rom = RequireRom();
             uint entryAddr = GetEntryAddr(rom, TestEntryIndex);
 
             // Seed D4 and D12 with non-zero sentinel pointers so the test
