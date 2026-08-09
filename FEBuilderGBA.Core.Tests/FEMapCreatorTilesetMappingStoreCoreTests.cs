@@ -13,7 +13,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void LoadAll_NullConfig_ReturnsEmptyList()
         {
-            IReadOnlyList<FEMapCreatorTilesetMappingEntry> loaded = FEMapCreatorTilesetMappingStoreCore.LoadAll(null);
+            IReadOnlyList<FEMapCreatorTilesetMappingEntry> loaded = FEMapCreatorTilesetMappingStoreCore.LoadAll(null!);
             Assert.Empty(loaded);
         }
 
@@ -80,7 +80,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(entry.IsStructurallyValid);
 
             FEMapCreatorMappingLookupResult lookup =
-                FEMapCreatorTilesetMappingStoreCore.Lookup(loaded, fingerprint, null);
+                FEMapCreatorTilesetMappingStoreCore.Lookup(loaded, fingerprint, null!);
             Assert.Equal(FEMapCreatorMappingStatus.Invalid, lookup.Status);
             Assert.Same(entry, lookup.Entry);
         }
@@ -261,7 +261,7 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.NotEqual("", error);
 
                 bool okNull = FEMapCreatorTilesetMappingStoreCore.TryCreateEntry(
-                    fingerprint, "Plains", imagePath, genPath, null,
+                    fingerprint, "Plains", imagePath, genPath, null!,
                     out FEMapCreatorTilesetMappingEntry entryNull, out string errorNull);
                 Assert.False(okNull);
                 Assert.Null(entryNull);
@@ -397,7 +397,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var fingerprint = TilesetFingerprint.Compute(6, new byte[] { 1 }, new byte[] { 1 }, new byte[] { 1 });
             FEMapCreatorMappingLookupResult result = FEMapCreatorTilesetMappingStoreCore.Lookup(
-                Array.Empty<FEMapCreatorTilesetMappingEntry>(), fingerprint, null);
+                Array.Empty<FEMapCreatorTilesetMappingEntry>(), fingerprint, null!);
 
             Assert.Equal(FEMapCreatorMappingStatus.NoMapping, result.Status);
             Assert.Null(result.Entry);
@@ -408,7 +408,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var entry = MakeEntry("fp-a", "TilesetA");
             FEMapCreatorMappingLookupResult result = FEMapCreatorTilesetMappingStoreCore.Lookup(
-                new[] { entry }, TilesetFingerprint.Empty, null);
+                new[] { entry }, TilesetFingerprint.Empty, null!);
 
             Assert.Equal(FEMapCreatorMappingStatus.NoMapping, result.Status);
         }
@@ -761,7 +761,7 @@ namespace FEBuilderGBA.Core.Tests
                     out FEMapCreatorTilesetMappingEntry entry, out _));
 
                 FEMapCreatorMappingLookupResult resultNull = FEMapCreatorTilesetMappingStoreCore.Lookup(
-                    new[] { entry }, fingerprint, null);
+                    new[] { entry }, fingerprint, null!);
                 Assert.Equal(FEMapCreatorMappingStatus.Stale, resultNull.Status);
                 Assert.Equal(FEMapCreatorMappingReason.ProfileUnavailable, resultNull.Reason);
                 Assert.Equal("", resultNull.Detail);
@@ -832,7 +832,7 @@ namespace FEBuilderGBA.Core.Tests
                 "exe", 1, 1, "exehash", "assets");
 
             FEMapCreatorMappingLookupResult result = FEMapCreatorTilesetMappingStoreCore.Lookup(
-                new[] { malformed }, fingerprint, null);
+                new[] { malformed }, fingerprint, null!);
 
             Assert.Equal(FEMapCreatorMappingStatus.Invalid, result.Status);
             Assert.Equal(FEMapCreatorMappingReason.StoredEntryMissingRequiredFields, result.Reason);

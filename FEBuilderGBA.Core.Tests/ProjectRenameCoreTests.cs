@@ -112,7 +112,7 @@ namespace FEBuilderGBA.Core.Tests
         public void Validate_NullRom_NoRomFilename()
         {
             Assert.Equal(ProjectRenameCore.ValidateResult.NoRomFilename,
-                ProjectRenameCore.Validate(null, "a", "b"));
+                ProjectRenameCore.Validate(null!, "a", "b"));
         }
 
         [Fact]
@@ -379,9 +379,9 @@ namespace FEBuilderGBA.Core.Tests
                 var rom = MakeRom(romPath);
 
                 // The etc dir is config/etc/<firstPeriodTitle>/ under BaseDirectory.
-                string oldEtc = Path.GetDirectoryName(
+                string oldEtc = TestRequire.DirectoryName(
                     U.ConfigEtcFilename("flag", rom));
-                string newEtc = Path.GetDirectoryName(
+                string newEtc = TestRequire.DirectoryName(
                     U.ConfigEtcFilename("flag",
                         Path.Combine(dir, "newrom.gba")));
 
@@ -499,10 +499,10 @@ namespace FEBuilderGBA.Core.Tests
         {
             var fs = new FakeFs();
             Assert.Throws<ArgumentNullException>(
-                () => ProjectRenameCore.ExecutePlan(null, fs));
+                () => ProjectRenameCore.ExecutePlan(null!, fs));
             var plan = new ProjectRenameCore.RenamePlan();
             Assert.Throws<ArgumentNullException>(
-                () => ProjectRenameCore.ExecutePlan(plan, null));
+                () => ProjectRenameCore.ExecutePlan(plan, null!));
         }
     }
 }

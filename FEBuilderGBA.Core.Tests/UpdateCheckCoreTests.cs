@@ -1,4 +1,6 @@
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using FEBuilderGBA;
 using Xunit;
 
@@ -18,9 +20,9 @@ namespace FEBuilderGBA.Core.Tests
         [InlineData("")]
         [InlineData(null)]
         [InlineData("not json")]
-        public void ParseLatestVersionFromReleaseJson_InvalidOrMissingTag_ReturnsEmpty(string json)
+        public void ParseLatestVersionFromReleaseJson_InvalidOrMissingTag_ReturnsEmpty(string? json)
         {
-            Assert.Equal("", UpdateCheckCore.ParseLatestVersionFromReleaseJson(json));
+            Assert.Equal("", UpdateCheckCore.ParseLatestVersionFromReleaseJson(json!));
         }
 
         [Fact]
@@ -92,6 +94,28 @@ namespace FEBuilderGBA.Core.Tests
             var r = UpdateCheckCore.CheckLatest(_ => "{\"tag_name\":\"ver_20991231.99\"}");
             Assert.True(r.CheckSucceeded);
             Assert.True(r.IsUpdateAvailable);
+        }
+
+        [Fact]
+        public async Task CheckLatestAsync_ValidNewerTag_ReturnsUpdateAvailable()
+        {
+            var r = await UpdateCheckCore.CheckLatestAsync(
+                (_, _) => Task.FromResult("{\"tag_name\":\"ver_20991231.99\"}"),
+                CancellationToken.None);
+            Assert.True(r.CheckSucceeded);
+            Assert.True(r.IsUpdateAvailable);
+        }
+
+        [Fact]
+        public async Task CheckLatestAsync_CallerCancellation_Throws()
+        {
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                UpdateCheckCore.CheckLatestAsync(
+                    (_, ct) => Task.FromCanceled<string>(ct),
+                    cts.Token));
         }
 
         [Fact]

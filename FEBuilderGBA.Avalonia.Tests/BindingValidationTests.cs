@@ -70,7 +70,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
                     return dir;
-                string parent = Path.GetDirectoryName(dir);
+                string? parent = Path.GetDirectoryName(dir);
                 if (parent == null || parent == dir) break;
                 dir = parent;
             }
@@ -80,7 +80,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             {
                 if (File.Exists(Path.Combine(cwd, "FEBuilderGBA.sln")))
                     return cwd;
-                string parent = Path.GetDirectoryName(cwd);
+                string? parent = Path.GetDirectoryName(cwd);
                 if (parent == null || parent == cwd) break;
                 cwd = parent;
             }
@@ -124,7 +124,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 }
 
                 // Determine the ViewModel type
-                Type vmType = ResolveViewModelType(axamlContent, codeBehind, avaloniaAsm);
+                Type? vmType = ResolveViewModelType(axamlContent, codeBehind, avaloniaAsm);
                 if (vmType == null) continue;
 
                 // Collect DataTemplate types in scope (for DataTemplate-scoped bindings)
@@ -136,7 +136,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 var dtTypeMap = new Dictionary<string, Type>(StringComparer.OrdinalIgnoreCase);
                 foreach (string dtName in dataTemplateTypes)
                 {
-                    Type dtType = FindTypeByName(avaloniaAsm, dtName);
+                    Type? dtType = FindTypeByName(avaloniaAsm, dtName);
                     if (dtType != null)
                         dtTypeMap[dtName] = dtType;
                 }
@@ -170,7 +170,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         /// <summary>
         /// Resolve the ViewModel type from AXAML content and code-behind.
         /// </summary>
-        private static Type ResolveViewModelType(string axamlContent, string codeBehind, Assembly avaloniaAsm)
+        private static Type? ResolveViewModelType(string axamlContent, string codeBehind, Assembly avaloniaAsm)
         {
             // Strategy 1: Look for "readonly XxxViewModel _vm" in code-behind
             if (!string.IsNullOrEmpty(codeBehind))
@@ -179,7 +179,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 if (vmMatch.Success)
                 {
                     string vmName = vmMatch.Groups[1].Value;
-                    Type t = FindTypeByName(avaloniaAsm, vmName);
+                    Type? t = FindTypeByName(avaloniaAsm, vmName);
                     if (t != null) return t;
                 }
             }
@@ -190,7 +190,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             if (designMatch.Success)
             {
                 string vmName = designMatch.Groups[1].Value;
-                Type t = FindTypeByName(avaloniaAsm, vmName);
+                Type? t = FindTypeByName(avaloniaAsm, vmName);
                 if (t != null) return t;
             }
 
@@ -207,7 +207,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                     baseName = baseName[..^6]; // remove "Window"
 
                 // Try XxxViewModel
-                Type t = FindTypeByName(avaloniaAsm, baseName + "ViewModel");
+                Type? t = FindTypeByName(avaloniaAsm, baseName + "ViewModel");
                 if (t != null) return t;
 
                 // Try with "View" suffix kept: XxxViewViewModel
@@ -225,7 +225,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         /// <summary>
         /// Find a type by simple name in the given assembly.
         /// </summary>
-        private static Type FindTypeByName(Assembly asm, string simpleName)
+        private static Type? FindTypeByName(Assembly asm, string simpleName)
         {
             return asm.GetTypes().FirstOrDefault(t =>
                 string.Equals(t.Name, simpleName, StringComparison.OrdinalIgnoreCase));
@@ -314,7 +314,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 broken.Add(path);
             }
 
-            _output.WriteLine($"{viewName}: VM={vmType.Name}, checked={checkedCount}, skipped={skippedCount}, broken={broken.Count}");
+            _output.WriteLine($"{viewName} ({axamlPath}): VM={vmType.Name}, checked={checkedCount}, skipped={skippedCount}, broken={broken.Count}");
             if (broken.Count > 0)
             {
                 _output.WriteLine($"  BROKEN bindings:");

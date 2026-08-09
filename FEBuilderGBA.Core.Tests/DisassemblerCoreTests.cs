@@ -39,65 +39,65 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void DisassemblerCore_ThrowsWithNoRom()
         {
-            var origRom = CoreState.ROM;
+            ROM? origRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var core = new DisassemblerCore();
                 Assert.Throws<System.InvalidOperationException>(() =>
                     core.DisassembleToFile(Path.GetTempFileName()));
             }
             finally
             {
-                CoreState.ROM = origRom;
+                CoreState.ROM = origRom!;
             }
         }
 
         [Fact]
         public void DisassembleToLines_ThrowsWithNoRom()
         {
-            var origRom = CoreState.ROM;
+            ROM? origRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var core = new DisassemblerCore();
                 Assert.Throws<System.InvalidOperationException>(() => core.DisassembleToLines());
             }
             finally
             {
-                CoreState.ROM = origRom;
+                CoreState.ROM = origRom!;
             }
         }
 
         [Fact]
         public void ExportIDAMapLines_ThrowsWithNoRom()
         {
-            var origRom = CoreState.ROM;
+            ROM? origRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var core = new DisassemblerCore();
                 Assert.Throws<System.InvalidOperationException>(() => core.ExportIDAMapLines());
             }
             finally
             {
-                CoreState.ROM = origRom;
+                CoreState.ROM = origRom!;
             }
         }
 
         [Fact]
         public void ExportNoCashSymLines_ThrowsWithNoRom()
         {
-            var origRom = CoreState.ROM;
+            ROM? origRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var core = new DisassemblerCore();
                 Assert.Throws<System.InvalidOperationException>(() => core.ExportNoCashSymLines());
             }
             finally
             {
-                CoreState.ROM = origRom;
+                CoreState.ROM = origRom!;
             }
         }
 

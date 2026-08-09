@@ -90,7 +90,7 @@ namespace FEBuilderGBA.Core.Tests
             // Empty configUZ → OOR
             Assert.Equal(U.NOT_FOUND, MapEditorTilesetCore.GetTerrainDataFromMar(0, new byte[0]));
             // null configUZ → NOT_FOUND
-            Assert.Equal(U.NOT_FOUND, MapEditorTilesetCore.GetTerrainDataFromMar(0, null));
+            Assert.Equal(U.NOT_FOUND, MapEditorTilesetCore.GetTerrainDataFromMar(0, null!));
         }
 
         [Fact]
@@ -135,7 +135,7 @@ namespace FEBuilderGBA.Core.Tests
             mapData[0] = 1; mapData[1] = 1;
             Assert.False(MapEditorTilesetCore.TryReadMar(mapData, 1, 1, 5, 5, out _));
             Assert.False(MapEditorTilesetCore.TryReadMar(mapData, 1, 1, -1, 0, out _));
-            Assert.False(MapEditorTilesetCore.TryReadMar(null, 1, 1, 0, 0, out _));
+            Assert.False(MapEditorTilesetCore.TryReadMar(null!, 1, 1, 0, 0, out _));
         }
 
         // --------- TryStageMarEdit — staged-clone semantics --------------------
@@ -205,7 +205,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(MapEditorTilesetCore.TryStageMarEdit(map, 3, 2, 0, -1, 0,
                 out byte[] s2, out _));
             Assert.Null(s2);
-            Assert.False(MapEditorTilesetCore.TryStageMarEdit(null, 3, 2, 0, 0, 0,
+            Assert.False(MapEditorTilesetCore.TryStageMarEdit(null!, 3, 2, 0, 0, 0,
                 out byte[] s3, out _));
             Assert.Null(s3);
             // Width/height invalid
@@ -282,7 +282,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RenderTileSheet4bpp_NullForEmptyTileData()
         {
-            var result = MapEditorTilesetCore.RenderTileSheet4bpp(null, new byte[32], 0, 32, out int w, out int h);
+            var result = MapEditorTilesetCore.RenderTileSheet4bpp(null!, new byte[32], 0, 32, out int w, out int h);
             Assert.Null(result);
             Assert.Equal(0, w);
             Assert.Equal(0, h);
@@ -296,7 +296,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RenderTileSheet4bpp_NullForNullPalette()
         {
-            var result = MapEditorTilesetCore.RenderTileSheet4bpp(new byte[32], null, 0, 32, out int w, out int h);
+            var result = MapEditorTilesetCore.RenderTileSheet4bpp(new byte[32], null!, 0, 32, out int w, out int h);
             Assert.Null(result);
             Assert.Equal(0, w);
             Assert.Equal(0, h);
@@ -495,7 +495,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void TryStageGridEdit_NullInput_ReturnsError()
         {
-            bool ok = MapEditorTilesetCore.TryStageGridEdit(null, 2, 2, new ushort[4], out byte[] staged, out string err);
+            bool ok = MapEditorTilesetCore.TryStageGridEdit(null!, 2, 2, new ushort[4], out byte[] staged, out string err);
 
             Assert.False(ok);
             Assert.Null(staged);
@@ -507,7 +507,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             byte[] buf = Make2x2Buffer();
 
-            bool ok = MapEditorTilesetCore.TryStageGridEdit(buf, 2, 2, null, out byte[] staged, out string err);
+            bool ok = MapEditorTilesetCore.TryStageGridEdit(buf, 2, 2, null!, out byte[] staged, out string err);
 
             Assert.False(ok);
             Assert.Null(staged);

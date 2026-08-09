@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using global::Avalonia;
@@ -600,53 +599,50 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnDragOver(object? sender, DragEventArgs e)
         {
-            e.DragEffects = e.Data.Contains(DataFormats.Files)
-                ? DragDropEffects.Copy : DragDropEffects.None;
+            e.DragEffects = DragDropFileHelper.HasAcceptedFile(e.DataTransfer, DragDropFileHelper.RomPatchExtensions)
+                ? DragDropEffects.Copy
+                : DragDropEffects.None;
         }
 
         void OnDrop(object? sender, DragEventArgs e)
         {
-            var files = e.Data.GetFiles();
-            if (files == null) return;
+            string? path = DragDropFileHelper.GetFirstAcceptedPath(e.DataTransfer, DragDropFileHelper.RomPatchExtensions);
+            if (path == null) return;
 
-            foreach (var file in files)
+            string ext = Path.GetExtension(path).ToLowerInvariant();
+            if (ext == ".gba")
             {
-                string path = file.Path.LocalPath;
-                string ext = Path.GetExtension(path).ToLowerInvariant();
-                if (ext == ".gba")
+                bool ok = LoadRomFile(path);
+                if (!ok)
+                    CoreState.Services.ShowError(R._("Failed to load ROM:") + $" {path}");
+                return;
+            }
+            if (ext == ".ups")
+            {
+                // Apply UPS patch if a ROM is already loaded
+                if (CoreState.ROM == null)
                 {
-                    bool ok = LoadRomFile(path);
-                    if (!ok)
-                        CoreState.Services.ShowError(R._("Failed to load ROM:") + $" {path}");
+                    CoreState.Services.ShowError(R._("Load a ROM first before applying a UPS patch."));
                     return;
                 }
-                if (ext == ".ups")
+                try
                 {
-                    // Apply UPS patch if a ROM is already loaded
-                    if (CoreState.ROM == null)
+                    byte[] patchData = File.ReadAllBytes(path);
+                    byte[]? result = UPSUtilCore.ApplyUPS(CoreState.ROM.Data, patchData, out string? errorMessage);
+                    if (result == null || !string.IsNullOrEmpty(errorMessage))
                     {
-                        CoreState.Services.ShowError(R._("Load a ROM first before applying a UPS patch."));
+                        CoreState.Services.ShowError(R._("UPS patch failed:") + $" {errorMessage}");
                         return;
                     }
-                    try
-                    {
-                        byte[] patchData = File.ReadAllBytes(path);
-                        byte[] result = UPSUtilCore.ApplyUPS(CoreState.ROM.Data, patchData, out string errorMessage);
-                        if (result == null || !string.IsNullOrEmpty(errorMessage))
-                        {
-                            CoreState.Services.ShowError(R._("UPS patch failed:") + $" {errorMessage}");
-                            return;
-                        }
-                        // Replace ROM data with patched data
-                        Array.Copy(result, CoreState.ROM.Data, Math.Min(result.Length, CoreState.ROM.Data.Length));
-                        CoreState.Services.ShowInfo(R._("UPS patch applied:") + $" {Path.GetFileName(path)}");
-                    }
-                    catch (Exception ex)
-                    {
-                        CoreState.Services.ShowError(R._("Failed to apply UPS patch:") + $" {ex.Message}");
-                    }
-                    return;
+                    // Replace ROM data with patched data
+                    Array.Copy(result, CoreState.ROM.Data, Math.Min(result.Length, CoreState.ROM.Data.Length));
+                    CoreState.Services.ShowInfo(R._("UPS patch applied:") + $" {Path.GetFileName(path)}");
                 }
+                catch (Exception ex)
+                {
+                    CoreState.Services.ShowError(R._("Failed to apply UPS patch:") + $" {ex.Message}");
+                }
+                return;
             }
         }
 
@@ -1051,14 +1047,11 @@ namespace FEBuilderGBA.Avalonia.Views
                         Control editor = UnwrapEditorContent(window);
 
                         // Try to select first item for richer screenshots
-                        try
+                        if (editor is IEditorView editorView)
                         {
-                            var method = editor.GetType().GetMethod("SelectFirstItem");
-                            method?.Invoke(editor, null);
-                            if (method != null)
-                                await Task.Delay(100); // Let selection handler run
+                            editorView.SelectFirstItem();
+                            await Task.Delay(100); // Let selection handler run
                         }
-                        catch { /* Not all editors have SelectFirstItem */ }
 
                         // Optionally select a specific tab (by AutomationId) so a
                         // non-default tab is shown in the PNG. Opt-in via
@@ -1160,7 +1153,7 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         /// <summary>
-        /// Force the <see cref="Control.IsVisible"/> of the first descendant
+        /// Force the <c>IsVisible</c> of the first descendant
         /// <see cref="Control"/> whose <c>AutomationProperties.AutomationId</c>
         /// equals <paramref name="automationId"/> to <c>true</c>, by walking the
         /// logical tree. Returns true when a matching control was found. Used by
@@ -1549,16 +1542,15 @@ namespace FEBuilderGBA.Avalonia.Views
 
                                 // Resolve the AddressListControl once for the loop (avoids
                                 // repeated visual-tree scans in --data-verify-full).
-                                var (alcControl, alcMethod) = ResolveAddressListControl(editor);
+                                var alcControl = ResolveAddressListControl(editor);
 
                                 for (int itemIdx = 0; itemIdx < maxItem; itemIdx++)
                                 {
                                     // Select the item by index (for full mode, iterate all)
                                     if (itemIdx > 0 || fullMode)
                                     {
-                                        bool selected = (alcControl != null && alcMethod != null)
-                                            ? SelectItemByIndex(alcControl, alcMethod, itemIdx)
-                                            : false;
+                                        bool selected = alcControl != null
+                                            && SelectItemByIndex(alcControl, itemIdx);
                                         if (!selected)
                                         {
                                             Console.WriteLine($"DATAVERIFY: {name} ... WARN: SelectItemByIndex({itemIdx}) failed, skipping remaining items");
@@ -1824,66 +1816,49 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         /// <summary>
-        /// Select the first item on a view using the known method or reflection.
+        /// Select the first item on an editor view.
         /// </summary>
         static void SelectFirstItemOnView(Control window)
         {
-            if (window is UnitEditorView uev) uev.SelectFirstItem();
-            else if (window is ItemEditorView iev) iev.SelectFirstItem();
-            else if (window is ClassEditorView cev) cev.SelectFirstItem();
-            else
-            {
-                var method = window.GetType().GetMethod("SelectFirstItem");
-                method?.Invoke(window, null);
-            }
+            if (window is IEditorView editorView)
+                editorView.SelectFirstItem();
         }
 
         /// <summary>
-        /// Resolve the AddressListControl and its SelectByIndex method for a window.
-        /// Returns (control, method) or (null, null) if not found.
+        /// Resolve the AddressListControl for a window.
+        /// Returns null if not found.
         /// Cache the result to avoid repeated visual tree scans in loops.
         /// </summary>
-        static (object? control, System.Reflection.MethodInfo? method) ResolveAddressListControl(Control window)
+        static Controls.AddressListControl? ResolveAddressListControl(Control window)
         {
             // Try known named controls first
             string[] knownNames = { "UnitList", "ItemList", "ClassList", "BranchList", "EntryList" };
             foreach (var controlName in knownNames)
             {
-                var control = window.FindControl<global::Avalonia.Controls.UserControl>(controlName);
+                var control = window.FindControl<Controls.AddressListControl>(controlName);
                 if (control != null)
-                {
-                    var selectMethod = control.GetType().GetMethod("SelectByIndex");
-                    if (selectMethod != null)
-                        return (control, selectMethod);
-                }
+                    return control;
             }
 
-            // Fallback: find any AddressListControl in the visual tree via reflection
+            // Fallback: find any AddressListControl in the visual tree
             foreach (var descendant in global::Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window))
             {
-                if (descendant.GetType().Name == "AddressListControl")
-                {
-                    var selectMethod = descendant.GetType().GetMethod("SelectByIndex");
-                    if (selectMethod != null)
-                        return (descendant, selectMethod);
-                }
+                if (descendant is Controls.AddressListControl alc)
+                    return alc;
             }
 
-            return (null, null);
+            return null;
         }
 
         /// <summary>
-        /// Select an item by index using a pre-resolved control and method.
+        /// Select an item by index using a pre-resolved control.
         /// Returns true if selection succeeded, false otherwise.
         /// </summary>
-        static bool SelectItemByIndex(object control, System.Reflection.MethodInfo selectMethod, int index)
-        {
-            var result = selectMethod.Invoke(control, new object[] { index });
-            return result is bool b && b;
-        }
+        static bool SelectItemByIndex(Controls.AddressListControl control, int index)
+            => control.SelectByIndex(index);
 
         /// <summary>
-        /// Select an item by index using reflection on the view's AddressListControl.
+        /// Select an item by index using the view's AddressListControl.
         /// Tries known control names (UnitList, ItemList, ClassList, BranchList, EntryList)
         /// then falls back to finding any AddressListControl in the visual tree.
         /// Returns true if selection succeeded, false if no AddressListControl was found.
@@ -1892,9 +1867,8 @@ namespace FEBuilderGBA.Avalonia.Views
         /// </summary>
         static bool SelectItemByIndex(Control window, int index)
         {
-            var (control, method) = ResolveAddressListControl(window);
-            if (control == null || method == null) return false;
-            return SelectItemByIndex(control, method, index);
+            var control = ResolveAddressListControl(window);
+            return control != null && SelectItemByIndex(control, index);
         }
 
         /// <summary>
@@ -3662,22 +3636,30 @@ namespace FEBuilderGBA.Avalonia.Views
         private void OpenMenuExtendSplitMenu_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<MenuExtendSplitMenuView>();
 
         // ===================== WU19: Help & External Tools =====================
-        private void OnlineManual_Click(object? sender, RoutedEventArgs e)
+        private async void OnlineManual_Click(object? sender, RoutedEventArgs e)
         {
-            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://github.com/laqieer/FEBuilderGBA/wiki") { UseShellExecute = true }); }
+            try
+            {
+                var result = await ExternalLauncher.Current.OpenUriAsync(TopLevel.GetTopLevel(this), new Uri("https://github.com/laqieer/FEBuilderGBA/wiki"));
+                if (!result.IsSucceeded) Log.ErrorF("MainWindow.OnlineManual_Click launch browser: {0}", result.Message);
+            }
             catch (Exception ex) { Log.ErrorF("MainWindow.OnlineManual_Click launch browser: {0}", ex.Message); }
         }
 
-        private void Discussions_Click(object? sender, RoutedEventArgs e)
+        private async void Discussions_Click(object? sender, RoutedEventArgs e)
         {
-            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://github.com/laqieer/FEBuilderGBA/discussions") { UseShellExecute = true }); }
+            try
+            {
+                var result = await ExternalLauncher.Current.OpenUriAsync(TopLevel.GetTopLevel(this), new Uri("https://github.com/laqieer/FEBuilderGBA/discussions"));
+                if (!result.IsSucceeded) Log.ErrorF("MainWindow.Discussions_Click launch browser: {0}", result.Message);
+            }
             catch (Exception ex) { Log.ErrorF("MainWindow.Discussions_Click launch browser: {0}", ex.Message); }
         }
 
         private async void CheckUpdates_Click(object? sender, RoutedEventArgs e)
         {
-            UpdateCheckCore.UpdateCheckResult result = await Task.Run(() => UpdateCheckCore.CheckLatest());
-            await Dispatcher.UIThread.InvokeAsync(async () => await ShowUpdateCheckResultAsync(result, manual: true));
+            UpdateCheckCore.UpdateCheckResult result = await UpdateCheckCore.CheckLatestAsync();
+            await ShowUpdateCheckResultAsync(result, manual: true);
         }
 
         void StartAutoUpdateCheckIfDue()
@@ -3691,37 +3673,42 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (!UpdateCheckCore.ShouldAutoCheck(interval, last, today))
                     return;
 
-                _ = Task.Run(() =>
-                {
-                    UpdateCheckCore.UpdateCheckResult result = UpdateCheckCore.CheckLatest();
-                    // Marshal back to the UI thread: the config write (MarkAutoUpdateChecked ->
-                    // CoreState.Config.Save) and any dialog must NOT run on the background thread.
-                    Dispatcher.UIThread.Post(async () =>
-                    {
-                        try
-                        {
-                            // Only consume the interval on a SUCCESSFUL check — a failed (offline/
-                            // rate-limited) check retries on the next launch instead of being suppressed
-                            // for a full interval, matching WinForms IsAutoUpdateTime semantics. (#1804)
-                            if (!result.CheckSucceeded)
-                                return;
-                            MarkAutoUpdateChecked(today);
-                            if (!result.IsUpdateAvailable)
-                                return;
-                            await ShowUpdateCheckResultAsync(result, manual: false);
-                        }
-                        catch (Exception ex)
-                        {
-                            // async-void fire-and-forget: swallow+log so an exception (e.g. the window
-                            // closing during startup) can never become an unobserved crash.
-                            Log.ErrorF("MainWindow auto-update dialog: {0}", ex.Message);
-                        }
-                    });
-                });
+                _ = RunAutoUpdateCheckAsync(today);
             }
             catch (Exception ex)
             {
                 Log.ErrorF("MainWindow.StartAutoUpdateCheckIfDue: {0}", ex.Message);
+            }
+        }
+
+        async Task RunAutoUpdateCheckAsync(string today)
+        {
+            try
+            {
+                UpdateCheckCore.UpdateCheckResult result = await UpdateCheckCore.CheckLatestAsync();
+                await Dispatcher.UIThread.InvokeAsync(async () =>
+                {
+                    try
+                    {
+                        // Only consume the interval on a SUCCESSFUL check — a failed (offline/
+                        // rate-limited) check retries on the next launch instead of being suppressed
+                        // for a full interval, matching WinForms IsAutoUpdateTime semantics. (#1804)
+                        if (!result.CheckSucceeded)
+                            return;
+                        MarkAutoUpdateChecked(today);
+                        if (!result.IsUpdateAvailable)
+                            return;
+                        await ShowUpdateCheckResultAsync(result, manual: false);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.ErrorF("MainWindow auto-update dialog: {0}", ex.Message);
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorF("MainWindow.RunAutoUpdateCheckAsync: {0}", ex.Message);
             }
         }
 
@@ -3764,12 +3751,16 @@ namespace FEBuilderGBA.Avalonia.Views
                     result.LatestVersion, result.CurrentVersion),
                 R._("FEBuilderGBA"), MessageBoxMode.YesNo);
             if (answer == MessageBoxResult.Yes)
-                OpenUrlInBrowser(result.ReleasePageUrl);
+                await OpenUrlInBrowser(result.ReleasePageUrl);
         }
 
-        static void OpenUrlInBrowser(string url)
+        static async Task OpenUrlInBrowser(string url)
         {
-            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true }); }
+            try
+            {
+                var result = await ExternalLauncher.Current.OpenUriAsync(WindowManager.Instance.MainWindow, new Uri(url));
+                if (!result.IsSucceeded) Log.ErrorF("MainWindow.OpenUrlInBrowser: {0}", result.Message);
+            }
             catch (Exception ex) { Log.ErrorF("MainWindow.OpenUrlInBrowser: {0}", ex.Message); }
         }
 
@@ -3820,22 +3811,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 {
                     try
                     {
-                        if (OperatingSystem.IsWindows())
-                        {
-                            // Match the codebase-wide explorer-select convention (LogViewerView): a single
-                            // quoted "/select,\"<path>\"" argument string, which Explorer parses reliably.
-                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"/select,\"{pngPath}\"") { UseShellExecute = true });
-                        }
-                        else if (OperatingSystem.IsMacOS())
-                        {
-                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("open") { UseShellExecute = false, ArgumentList = { "-R", pngPath } });
-                        }
-                        else
-                        {
-                            var dir = Path.GetDirectoryName(pngPath);
-                            if (!string.IsNullOrEmpty(dir))
-                                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("xdg-open") { UseShellExecute = false, ArgumentList = { dir } });
-                        }
+                        var reveal = await ExternalLauncher.Current.RevealPathAsync(pngPath);
+                        if (!reveal.IsSucceeded)
+                            Log.ErrorF("MainWindow.ReportBug_Click reveal: {0}", reveal.Message);
                     }
                     catch (Exception ex) { Log.ErrorF("MainWindow.ReportBug_Click reveal: {0}", ex.Message); }
 
@@ -3851,8 +3829,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 bool browserOpened = false;
                 try
                 {
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
-                    browserOpened = true;
+                    var launch = await ExternalLauncher.Current.OpenUriAsync(TopLevel.GetTopLevel(this), new Uri(url));
+                    browserOpened = launch.IsSucceeded;
+                    if (!launch.IsSucceeded)
+                        Log.ErrorF("MainWindow.ReportBug_Click open browser: {0}", launch.Message);
                 }
                 catch (Exception ex) { Log.ErrorF("MainWindow.ReportBug_Click open browser: {0}", ex.Message); }
 
@@ -3927,10 +3907,18 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             try
             {
-                var psi = new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true };
                 if (CoreState.ROM != null && !string.IsNullOrEmpty(CoreState.ROM.Filename))
-                    psi.Arguments = $"\"{CoreState.ROM.Filename}\"";
-                System.Diagnostics.Process.Start(psi);
+                {
+                    var result = await ExternalLauncher.Current.OpenPathAsync(path, $"\"{CoreState.ROM.Filename}\"");
+                    if (!result.IsSucceeded)
+                        await MessageBoxWindow.Show(this, R._("Failed to run") + $" {toolName}: {result.Message}", R._("Error"), MessageBoxMode.Ok);
+                }
+                else
+                {
+                    var result = await ExternalLauncher.Current.OpenPathAsync(path);
+                    if (!result.IsSucceeded)
+                        await MessageBoxWindow.Show(this, R._("Failed to run") + $" {toolName}: {result.Message}", R._("Error"), MessageBoxMode.Ok);
+                }
             }
             catch (Exception ex)
             {

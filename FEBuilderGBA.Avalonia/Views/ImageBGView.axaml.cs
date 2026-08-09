@@ -50,34 +50,16 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnDragOver(object? sender, DragEventArgs e)
         {
-            if (!e.Data.Contains(DataFormats.Files)) { e.DragEffects = DragDropEffects.None; return; }
-            var files = e.Data.GetFiles();
-            if (files != null)
-            {
-                foreach (var f in files)
-                {
-                    string ext = Path.GetExtension(f.Path.LocalPath).ToLowerInvariant();
-                    if (ext == ".png" || ext == ".bmp") { e.DragEffects = DragDropEffects.Copy; return; }
-                }
-            }
-            e.DragEffects = DragDropEffects.None;
+            e.DragEffects = DragDropFileHelper.HasAcceptedFile(e.DataTransfer, DragDropFileHelper.ImageExtensions)
+                ? DragDropEffects.Copy
+                : DragDropEffects.None;
         }
 
         void OnDrop(object? sender, DragEventArgs e)
         {
-            var files = e.Data.GetFiles();
-            if (files == null) return;
-
-            foreach (var file in files)
-            {
-                string path = file.Path.LocalPath;
-                string ext = Path.GetExtension(path).ToLowerInvariant();
-                if (ext == ".png" || ext == ".bmp")
-                {
-                    ImportImageFromFile(path);
-                    return;
-                }
-            }
+            string? path = DragDropFileHelper.GetFirstAcceptedPath(e.DataTransfer, DragDropFileHelper.ImageExtensions);
+            if (path != null)
+                ImportImageFromFile(path);
         }
 
         /// <summary>
@@ -605,7 +587,7 @@ namespace FEBuilderGBA.Avalonia.Views
             view.InitMethod(1);
         }
 
-        void OpenSource_Click(object? sender, RoutedEventArgs e)
+        async void OpenSource_Click(object? sender, RoutedEventArgs e)
         {
             try
             {
@@ -614,8 +596,9 @@ namespace FEBuilderGBA.Avalonia.Views
                     CoreState.Services?.ShowError("Source file is not recorded.");
                     return;
                 }
-                var psi = new ProcessStartInfo(_vm.SourceFilePath) { UseShellExecute = true };
-                Process.Start(psi);
+                var result = await ExternalLauncher.Current.OpenPathAsync(_vm.SourceFilePath);
+                if (!result.IsSucceeded)
+                    CoreState.Services?.ShowError($"Failed to open source file: {result.Message}");
             }
             catch (Exception ex)
             {
@@ -624,7 +607,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void SelectSource_Click(object? sender, RoutedEventArgs e)
+        async void SelectSource_Click(object? sender, RoutedEventArgs e)
         {
             try
             {
@@ -633,22 +616,9 @@ namespace FEBuilderGBA.Avalonia.Views
                     CoreState.Services?.ShowError("Source file is not recorded.");
                     return;
                 }
-                if (OperatingSystem.IsWindows())
-                {
-                    var psi = new ProcessStartInfo("explorer.exe",
-                        $"/select,\"{_vm.SourceFilePath}\"")
-                        { UseShellExecute = true };
-                    Process.Start(psi);
-                }
-                else
-                {
-                    string? folder = Path.GetDirectoryName(_vm.SourceFilePath);
-                    if (!string.IsNullOrEmpty(folder))
-                    {
-                        var psi = new ProcessStartInfo(folder) { UseShellExecute = true };
-                        Process.Start(psi);
-                    }
-                }
+                var result = await ExternalLauncher.Current.RevealPathAsync(_vm.SourceFilePath);
+                if (!result.IsSucceeded)
+                    CoreState.Services?.ShowError($"Failed to open source folder: {result.Message}");
             }
             catch (Exception ex)
             {

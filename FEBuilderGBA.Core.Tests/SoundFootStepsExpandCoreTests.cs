@@ -147,7 +147,7 @@ public class SoundFootStepsExpandCoreTests
         uint newCount = 20;
 
         var prevAppender = CoreState.AppendBinaryData;
-        var prevServices = CoreState.Services;
+        IAppServices? prevServices = CoreState.Services;
         var prevRom = CoreState.ROM;
         try
         {
@@ -162,7 +162,7 @@ public class SoundFootStepsExpandCoreTests
                 // matches the ItemUsagePointerCore test contract.
                 return appendAddr;
             };
-            CoreState.Services = null;
+            CoreState.Services = null!;
 
             var undoData = new Undo().NewUndoData("test", "expand");
             uint newAddr = SoundFootStepsExpandCore.Expand(rom, newCount, defAddr, undoData);
@@ -181,7 +181,7 @@ public class SoundFootStepsExpandCoreTests
         finally
         {
             CoreState.AppendBinaryData = prevAppender;
-            CoreState.Services = prevServices;
+            CoreState.Services = prevServices!;
             CoreState.ROM = prevRom;
         }
     }
@@ -191,13 +191,13 @@ public class SoundFootStepsExpandCoreTests
     {
         var rom = MakeFe8WithSwitch2(FE8U_CODE, start: 0, countMinusOne: 9);
         var prevAppender = CoreState.AppendBinaryData;
-        var prevServices = CoreState.Services;
+        IAppServices? prevServices = CoreState.Services;
         var prevRom = CoreState.ROM;
         try
         {
             CoreState.ROM = rom;
             CoreState.AppendBinaryData = (data, undo) => 0x08900000u;
-            CoreState.Services = null;
+            CoreState.Services = null!;
 
             var undoData = new Undo().NewUndoData("test", "expand-toosmall");
             uint result = SoundFootStepsExpandCore.Expand(rom, 3, 0x08001234u, undoData);
@@ -208,7 +208,7 @@ public class SoundFootStepsExpandCoreTests
         finally
         {
             CoreState.AppendBinaryData = prevAppender;
-            CoreState.Services = prevServices;
+            CoreState.Services = prevServices!;
             CoreState.ROM = prevRom;
         }
     }

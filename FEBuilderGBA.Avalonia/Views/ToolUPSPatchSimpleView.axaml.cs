@@ -2,6 +2,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Dialogs;
@@ -85,7 +86,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     _ => R._("Failed to create the UPS patch."),
                 };
                 if (result == ToolUPSPatchSimpleViewModel.MakeResult.Ok)
-                    RevealInExplorer(output);
+                    await RevealInExplorer(output);
             }
             catch (Exception ex)
             {
@@ -93,20 +94,13 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        static void RevealInExplorer(string path)
+        static async Task RevealInExplorer(string path)
         {
             try
             {
-                if (OperatingSystem.IsWindows())
-                {
-                    Process.Start(new ProcessStartInfo("explorer.exe", "/select,\"" + path + "\"") { UseShellExecute = true });
-                }
-                else
-                {
-                    string dir = Path.GetDirectoryName(path) ?? "";
-                    if (!string.IsNullOrEmpty(dir))
-                        Process.Start(new ProcessStartInfo(dir) { UseShellExecute = true });
-                }
+                var result = await ExternalLauncher.Current.RevealPathAsync(path);
+                if (!result.IsSucceeded)
+                    Log.Error("ToolUPSPatchSimpleView.RevealInExplorer failed: " + result.Message);
             }
             catch { /* reveal is best-effort */ }
         }

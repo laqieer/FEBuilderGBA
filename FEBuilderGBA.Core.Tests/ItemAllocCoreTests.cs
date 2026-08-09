@@ -319,12 +319,12 @@ public class ItemAllocCoreTests
     public void AllocStatBonuses_ViaWiredAppendBinaryData_WritesTemplate()
     {
         var (rom, prevRom, prevUndo) = Enter();
-        var prevAlloc = CoreState.AppendBinaryData;
+        Func<byte[], Undo.UndoData, uint>? prevAlloc = CoreState.AppendBinaryData;
         try
         {
             // Force-wire the headless production allocator (clear first so the
             // "only if not already set" guard re-wires onto THIS rom).
-            CoreState.AppendBinaryData = null;
+            CoreState.AppendBinaryData = null!;
             CoreState.WireHeadlessAppendBinaryData();
             Assert.NotNull(CoreState.AppendBinaryData);
 
@@ -339,7 +339,7 @@ public class ItemAllocCoreTests
         }
         finally
         {
-            CoreState.AppendBinaryData = prevAlloc;
+            CoreState.AppendBinaryData = prevAlloc!;
             Exit(prevRom, prevUndo);
         }
     }

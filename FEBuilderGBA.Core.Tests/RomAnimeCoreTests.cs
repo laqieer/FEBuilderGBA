@@ -103,13 +103,13 @@ namespace FEBuilderGBA.Core.Tests
         public void TryRenderFrame_NullRom_ReturnsNull()
         {
             var e = new RomAnimeCore.RomAnimeEntry { ImageWidthTiles = WIDTH_TILES };
-            Assert.Null(RomAnimeCore.TryRenderFrame(null, e, 0));
+            Assert.Null(RomAnimeCore.TryRenderFrame(null!, e, 0));
         }
 
         [Fact]
         public void TryRenderFrame_NullEntry_ReturnsNull()
         {
-            WithRom(rom => Assert.Null(RomAnimeCore.TryRenderFrame(rom, null, 0)));
+            WithRom(rom => Assert.Null(RomAnimeCore.TryRenderFrame(rom, null!, 0)));
         }
 
         [Fact]
@@ -197,7 +197,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             // Resolve an entry, then null CoreState.ROM and read IsFrameTable: the
             // property must be self-contained (precomputed) and never throw (review #2).
-            RomAnimeCore.RomAnimeEntry e = null;
+            RomAnimeCore.RomAnimeEntry? e = null;
             WithRom(rom =>
             {
                 PlantFixedCountEntry(rom);
@@ -205,14 +205,15 @@ namespace FEBuilderGBA.Core.Tests
             });
             // CoreState.ROM is restored (non-test) here; force it null to prove the
             // property does not depend on it.
-            var saved = CoreState.ROM;
+            ROM? saved = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
-                bool isFrameTable = e.IsFrameTable; // must NOT throw
+                TestRequire.RestoreRom(null);
+                RomAnimeCore.RomAnimeEntry entry = TestRequire.NotNull(e, "resolved anime entry");
+                bool isFrameTable = entry.IsFrameTable; // must NOT throw
                 Assert.False(isFrameTable);          // FramePointer == 1 (fixed count)
             }
-            finally { CoreState.ROM = saved; }
+            finally { TestRequire.RestoreRom(saved); }
         }
 
         [Fact]
@@ -258,7 +259,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ImportFrame_NullRom_Fails()
         {
             var e = new RomAnimeCore.RomAnimeEntry { ImageWidthTiles = WIDTH_TILES };
-            bool ok = RomAnimeCore.ImportFrame(null, e, 0,
+            bool ok = RomAnimeCore.ImportFrame(null!, e, 0,
                 MakeIndexed(64, 16), MakePalette(RED, GREEN), 64, 16, out string err);
             Assert.False(ok);
             Assert.False(string.IsNullOrEmpty(err));
@@ -339,9 +340,9 @@ namespace FEBuilderGBA.Core.Tests
         // =================================================================
 
         [Theory]
-        [InlineData(64, 8 * 2 * 8, 8)]    // 8 tiles wide, 8 TSA entries -> 1 row -> aligned to 8 px -> 8? (see WF formula)
-        [InlineData(64, 0, 0)]            // empty TSA -> 0 rows -> aligned -> 0/align*align... see body
-        public void CalcHeightbyTSA_MatchesWf(int width, int tsaSize, int _expectedSentinel)
+        [InlineData(64, 8 * 2 * 8)]    // 8 tiles wide, 8 TSA entries -> 1 row -> aligned to 8 px -> 8? (see WF formula)
+        [InlineData(64, 0)]            // empty TSA -> 0 rows -> aligned -> 0/align*align... see body
+        public void CalcHeightbyTSA_MatchesWf(int width, int tsaSize)
         {
             // Compare against the WF formula computed inline (parity oracle).
             int expected = WfCalcHeightbyTSA(width, tsaSize, 8);

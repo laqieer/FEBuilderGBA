@@ -27,64 +27,64 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void MakeUnitList_NoRom_ReturnsEmpty()
         {
-            var oldRom = CoreState.ROM;
+            ROM? oldRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var list = ComboResourceHelper.MakeUnitList();
                 Assert.Empty(list);
             }
             finally
             {
-                CoreState.ROM = oldRom;
+                CoreState.ROM = oldRom!;
             }
         }
 
         [Fact]
         public void MakeClassList_NoRom_ReturnsEmpty()
         {
-            var oldRom = CoreState.ROM;
+            ROM? oldRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var list = ComboResourceHelper.MakeClassList();
                 Assert.Empty(list);
             }
             finally
             {
-                CoreState.ROM = oldRom;
+                CoreState.ROM = oldRom!;
             }
         }
 
         [Fact]
         public void MakeItemList_NoRom_ReturnsEmpty()
         {
-            var oldRom = CoreState.ROM;
+            ROM? oldRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var list = ComboResourceHelper.MakeItemList();
                 Assert.Empty(list);
             }
             finally
             {
-                CoreState.ROM = oldRom;
+                CoreState.ROM = oldRom!;
             }
         }
 
         [Fact]
         public void MakeSongList_NoRom_ReturnsEmpty()
         {
-            var oldRom = CoreState.ROM;
+            ROM? oldRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var list = ComboResourceHelper.MakeSongList();
                 Assert.Empty(list);
             }
             finally
             {
-                CoreState.ROM = oldRom;
+                CoreState.ROM = oldRom!;
             }
         }
     }

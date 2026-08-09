@@ -125,7 +125,7 @@ namespace FEBuilderGBA.Core.Tests
             var stub = new RecordingTranslator();
 
             string result = TranslateTextUtilCore.TranslateText(
-                input, "ja", "en", dic: null, useGoogle: true, translator: stub.Translate);
+                input, "ja", "en", dic: null!, useGoogle: true, translator: stub.Translate);
 
             // The whole literal (with its '@') reaches the translator as ONE call,
             // not fragmented into "email" + "@exam" + "ple.com" etc.
@@ -139,7 +139,7 @@ namespace FEBuilderGBA.Core.Tests
             var stub = new RecordingTranslator();
 
             string result = TranslateTextUtilCore.TranslateText(
-                "名前@0001は@example", "ja", "en", dic: null, useGoogle: true, translator: stub.Translate);
+                "名前@0001は@example", "ja", "en", dic: null!, useGoogle: true, translator: stub.Translate);
 
             // @0001 is protected (never translated); the literal "@example" stays
             // glued to "は" and is translated as a single segment.
@@ -168,7 +168,7 @@ namespace FEBuilderGBA.Core.Tests
             string input = "hello@0001world@0003\r\nmore";
 
             string result = TranslateTextUtilCore.TranslateText(
-                input, "ja", "en", dic: null, useGoogle: true, translator: stub.Translate);
+                input, "ja", "en", dic: null!, useGoogle: true, translator: stub.Translate);
 
             // Only the three literal text segments were translated; codes never were.
             Assert.Equal(new[] { "hello", "world", "more" }, stub.Calls);
@@ -226,7 +226,7 @@ namespace FEBuilderGBA.Core.Tests
             var stub = new RecordingTranslator();
 
             string result = TranslateTextUtilCore.TranslateText(
-                "keep@0001me", "ja", "en", dic: null, useGoogle: false, translator: stub.Translate);
+                "keep@0001me", "ja", "en", dic: null!, useGoogle: false, translator: stub.Translate);
 
             Assert.Empty(stub.Calls);
             Assert.Equal("keep@0001me", result);
@@ -237,9 +237,9 @@ namespace FEBuilderGBA.Core.Tests
         {
             var stub = new RecordingTranslator();
             Assert.Equal("abc", TranslateTextUtilCore.TranslateText(
-                "abc", "ja", "ja", dic: null, useGoogle: true, translator: stub.Translate));
+                "abc", "ja", "ja", dic: null!, useGoogle: true, translator: stub.Translate));
             Assert.Equal("", TranslateTextUtilCore.TranslateText(
-                "", "ja", "en", dic: null, useGoogle: true, translator: stub.Translate));
+                "", "ja", "en", dic: null!, useGoogle: true, translator: stub.Translate));
             Assert.Empty(stub.Calls);
         }
 
@@ -347,14 +347,14 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void LoadFixedDic_NullBaseDirectory_ReturnsEmpty_NoPoisonCache()
         {
-            string savedBase = CoreState.BaseDirectory;
+            string? savedBase = CoreState.BaseDirectory;
             string tempRoot = Path.Combine(Path.GetTempPath(), "feb_dic_null_" + Guid.NewGuid().ToString("N"));
             try
             {
                 TranslateTextUtilCore.ClearCache();
 
                 // 1) Null BaseDirectory → empty, no throw, and must NOT poison the cache.
-                CoreState.BaseDirectory = null;
+                CoreState.BaseDirectory = null!;
                 var empty = TranslateTextUtilCore.LoadFixedDic("ja", "en");
                 Assert.NotNull(empty);
                 Assert.Empty(empty);
@@ -372,7 +372,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.BaseDirectory = savedBase;
+                CoreState.BaseDirectory = savedBase!;
                 TranslateTextUtilCore.ClearCache();
                 try { if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, true); } catch { }
             }

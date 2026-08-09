@@ -24,7 +24,7 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ROM = _savedRom;
+            CoreState.ROM = _savedRom!;
             PatchDetection.ClearAllCaches();
             MagicSplitUtil.ClearCache();
             // Reset the PatchDetectionService singleton so a patched scan result
@@ -116,7 +116,7 @@ namespace FEBuilderGBA.Core.Tests
             svc.Refresh();
             Assert.True(svc.HasSkillSystem);
 
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             svc.Refresh();
             Assert.False(svc.HasSkillSystem);
         }

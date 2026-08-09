@@ -125,7 +125,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void MaxOamPaletteBank_NullOrOutOfRange_ReturnsZero()
         {
-            Assert.Equal(0, BattleAnimeRendererCore.MaxOamPaletteBank(null, 0));
+            Assert.Equal(0, BattleAnimeRendererCore.MaxOamPaletteBank(null!, 0));
             Assert.Equal(0, BattleAnimeRendererCore.MaxOamPaletteBank(new byte[12], 100));
         }
 
@@ -185,7 +185,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void CountAnimationPaletteBanks_NullRom_ReturnsOne()
         {
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             Assert.Equal(1, BattleAnimeRendererCore.CountAnimationPaletteBanks(RECORD_OFFSET));
         }
 

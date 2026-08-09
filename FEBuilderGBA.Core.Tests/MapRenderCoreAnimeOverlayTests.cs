@@ -34,7 +34,7 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ImageService = _prevService;
+            TestRequire.RestoreImageService(_prevService);
             CoreState.ROM = _prevRom;
         }
 
@@ -106,7 +106,7 @@ namespace FEBuilderGBA.Core.Tests
 
             using IImage baseImg = MapRenderCore.RenderMapImage(rom, OBJ_OFF, PAL_OFF, CFG_OFF, MAP_OFF);
             using IImage nullOverlayImg = MapRenderCore.RenderMapImage(
-                rom, OBJ_OFF, PAL_OFF, CFG_OFF, MAP_OFF, 0, null, MapRenderCore.ANIME1_OBJ_PATCH_OFFSET);
+                rom, OBJ_OFF, PAL_OFF, CFG_OFF, MAP_OFF, 0, null!, MapRenderCore.ANIME1_OBJ_PATCH_OFFSET);
 
             Assert.NotNull(baseImg);
             Assert.NotNull(nullOverlayImg);
@@ -149,7 +149,7 @@ namespace FEBuilderGBA.Core.Tests
             byte[] overlay = new byte[32];
             Array.Fill(overlay, (byte)0x33);
 
-            IImage img = null;
+            IImage? img = null;
             var ex = Record.Exception(() =>
             {
                 // dest offset far past the OBJ buffer end → bounded copy is a no-op.

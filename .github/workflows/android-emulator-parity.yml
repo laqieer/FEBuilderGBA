@@ -6,7 +6,7 @@
 # This workflow runs the SAME SkiaRenderByteParityTests and
 # SkiaSharpVersionGuardTests that pass on the desktop (Linux/macOS/Windows) in
 # the Core.Tests suite, but ON AN ANDROID EMULATOR, to prove that the pinned
-# libSkiaSharp 2.88.9 Android native renders the GBA 4bpp-tile decode and PNG
+# libSkiaSharp 3.119.4 Android native renders the GBA 4bpp-tile decode and PNG
 # round-trip byte-identically, and the Tuffy glyph within the shared pixel
 # tolerance, on the CI-bootable Android ABIs.
 #
@@ -15,14 +15,14 @@
 # x86_64 is the ONLY GitHub-hosted-runner-bootable ABI for API 34. Google
 # dropped 32-bit x86 system images at API 31+; API 34 ships only x86_64.
 # arm64-v8a and armeabi-v7a ship in the same pinned
-# SkiaSharp.NativeAssets.Android 2.88.9 package (same package version / same
+# SkiaSharp.NativeAssets.Android 3.119.4 package (same package version / same
 # upstream Skia build, ABI-specific native binaries -- not identical .so bytes),
 # but Android arm64/arm AVDs are NOT bootable on GitHub-hosted (x86_64) runners
 # without KVM — they require a self-hosted ARM runner or a paid ARM-emulator
 # service. The x86 (32-bit) ABI has no API-34 system image at all. This
 # workflow provides direct on-device parity proof for x86_64; the other three
 # ABIs (arm64-v8a, armeabi-v7a, x86) are covered by the same-native-package
-# argument (identical 2.88.9 .so origin) and are honestly noted as not
+# argument (identical 3.119.4 .so origin) and are honestly noted as not
 # runner-bootable (or unavailable) here.
 #
 # ADVISORY / NON-BLOCKING by construction
@@ -140,7 +140,7 @@ jobs:
       - name: Build test APK
         # No -p:EnableAndroidTarget needed — the test project only references
         # FEBuilderGBA.Core and FEBuilderGBA.SkiaSharp, both plain net10.0.
-        run: dotnet build FEBuilderGBA.Android.Tests/FEBuilderGBA.Android.Tests.csproj -c Release
+        run: dotnet build FEBuilderGBA.Android.Tests/FEBuilderGBA.Android.Tests.csproj -c Release -warnaserror
 
       - name: Cache AVD snapshot
         id: avd-cache
@@ -255,7 +255,7 @@ jobs:
         # static graph ignores the per-reference AdditionalProperties that
         # activates the net10.0-android TFM on the shared FEBuilderGBA.Avalonia
         # project. See docs/ANDROID.md §7.
-        run: dotnet build FEBuilderGBA.Android/FEBuilderGBA.Android.csproj -c Release -p:EnableAndroidTarget=true
+        run: dotnet build FEBuilderGBA.Android/FEBuilderGBA.Android.csproj -c Release -warnaserror -p:EnableAndroidTarget=true
 
       - name: Cache AVD snapshot
         id: avd-cache-boot

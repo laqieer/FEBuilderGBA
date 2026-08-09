@@ -31,7 +31,7 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ImageService = _prevService;
+            TestRequire.RestoreImageService(_prevService);
             CoreState.ROM = _prevRom;
         }
 
@@ -107,20 +107,20 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void CropImage_NullSource_ReturnsNull()
         {
-            Assert.Null(BattleAnimeRendererCore.CropImage(null, 100, 30, 90, 90));
+            Assert.Null(BattleAnimeRendererCore.CropImage(null!, 100, 30, 90, 90));
         }
 
         [Fact]
         public void CropImage_NoImageService_ReturnsNull()
         {
             IImage src = MakeRgbaImage(240, 160);
-            var prev = CoreState.ImageService;
-            CoreState.ImageService = null;
+            IImageService? prev = CoreState.ImageService;
+            CoreState.ImageService = null!;
             try
             {
                 Assert.Null(BattleAnimeRendererCore.CropImage(src, 100, 30, 90, 90));
             }
-            finally { CoreState.ImageService = prev; }
+            finally { CoreState.ImageService = prev!; }
         }
 
         // ================================================================
@@ -164,7 +164,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void IsBlankImage_Null_ReturnsTrue()
         {
-            Assert.True(BattleAnimeRendererCore.IsBlankImage(null, 10));
+            Assert.True(BattleAnimeRendererCore.IsBlankImage(null!, 10));
         }
 
         // ================================================================
@@ -433,7 +433,7 @@ namespace FEBuilderGBA.Core.Tests
             CoreState.ROM = rom;
 
             using IImage threeArg = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0);
-            using IImage nullBlock = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, null);
+            using IImage nullBlock = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, null!);
             Assert.NotNull(threeArg);
             Assert.NotNull(nullBlock);
             Assert.True(ByteArraysEqual(threeArg.GetPixelData(), nullBlock.GetPixelData()),
@@ -451,7 +451,7 @@ namespace FEBuilderGBA.Core.Tests
             byte[] undersized = new byte[16];           // NOT 32 bytes
             U.write_u16(undersized, 5 * 2, 0x7C1F);     // would be magenta if honored
 
-            using IImage savedPath = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, null);
+            using IImage savedPath = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, null!);
             using IImage withUnder = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, undersized);
             Assert.NotNull(savedPath);
             Assert.NotNull(withUnder);
@@ -471,7 +471,7 @@ namespace FEBuilderGBA.Core.Tests
             byte[] oversized = new byte[64];            // NOT exactly 32 bytes
             U.write_u16(oversized, 5 * 2, 0x7C1F);      // would be magenta if honored
 
-            using IImage savedPath = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, null);
+            using IImage savedPath = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, null!);
             using IImage withOver  = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, oversized);
             Assert.NotNull(savedPath);
             Assert.NotNull(withOver);
@@ -483,7 +483,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RenderSample_NullRom_ReturnsNull()
         {
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             Assert.Null(BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0));
         }
 
@@ -492,13 +492,13 @@ namespace FEBuilderGBA.Core.Tests
         {
             ROM rom = MakeAnimeRom();
             CoreState.ROM = rom;
-            var prev = CoreState.ImageService;
-            CoreState.ImageService = null;
+            IImageService? prev = CoreState.ImageService;
+            CoreState.ImageService = null!;
             try
             {
                 Assert.Null(BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0));
             }
-            finally { CoreState.ImageService = prev; }
+            finally { CoreState.ImageService = prev!; }
         }
 
         [Fact]
@@ -607,7 +607,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RenderSample_RealRom_ProducesValid360x290Grid()
         {
-            string romPath = FindTestRom();
+            string? romPath = FindTestRom();
             if (romPath == null) return; // skip if no ROM available
 
             var rom = new ROM();
@@ -623,7 +623,7 @@ namespace FEBuilderGBA.Core.Tests
             // Walk the animation table; render the sample grid for the first
             // record that yields a non-null preview (mirrors WF DrawSample).
             const uint recordSize = 32;
-            IImage grid = null;
+            IImage? grid = null;
             int validRecords = 0;
             for (int i = 0; i < 512; i++)
             {
@@ -655,7 +655,7 @@ namespace FEBuilderGBA.Core.Tests
             // anims are single-bank), but the call must succeed for both and the
             // grids must have matching dimensions. (Smoke-tests the paletteIndex
             // slice path against real LZ77 palette blocks.)
-            string romPath = FindTestRom();
+            string? romPath = FindTestRom();
             if (romPath == null) return;
 
             var rom = new ROM();
@@ -691,10 +691,10 @@ namespace FEBuilderGBA.Core.Tests
         /// Locate a test ROM by walking up from the test assembly directory.
         /// Returns the first preferred *.gba found in roms/, or null.
         /// </summary>
-        static string FindTestRom()
+        static string? FindTestRom()
         {
             string thisAssembly = System.Reflection.Assembly.GetExecutingAssembly().Location;
-            string dir = System.IO.Path.GetDirectoryName(thisAssembly);
+            string? dir = System.IO.Path.GetDirectoryName(thisAssembly);
             for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (System.IO.File.Exists(System.IO.Path.Combine(dir, "FEBuilderGBA.sln")))
@@ -945,22 +945,22 @@ namespace FEBuilderGBA.Core.Tests
                 return img;
             }
             public IImage CreateIndexedImage(int w, int h, byte[] p, int c) => CreateImage(w, h);
-            public IImage LoadImage(string f) => null;
-            public IImage LoadImageFromBytes(byte[] d) => null;
+            public IImage LoadImage(string f) => throw new NotSupportedException(nameof(LoadImage));
+            public IImage LoadImageFromBytes(byte[] d) => throw new NotSupportedException(nameof(LoadImageFromBytes));
             public void GBAColorToRGBA(ushort gbaColor, out byte r, out byte g, out byte b)
             {
                 r = (byte)((gbaColor & 0x1F) << 3);
                 g = (byte)(((gbaColor >> 5) & 0x1F) << 3);
                 b = (byte)(((gbaColor >> 10) & 0x1F) << 3);
             }
-            public ushort RGBAToGBAColor(byte r, byte g, byte b) => 0;
+            public ushort RGBAToGBAColor(byte r, byte g, byte b) => throw new NotSupportedException(nameof(RGBAToGBAColor));
             public IImage Decode4bppTiles(byte[] t, int o, int w, int h, byte[] p) => CreateImage(w, h);
             public IImage Decode8bppTiles(byte[] t, int o, int w, int h, byte[] p) => CreateImage(w, h);
             public IImage Decode8bppLinear(byte[] d, int o, int w, int h, byte[] p) => CreateImage(w, h);
-            public byte[] Encode4bppTiles(IImage i) => null;
-            public byte[] Encode8bppTiles(IImage i) => null;
-            public byte[] GBAPaletteToRGBA(byte[] p, int c) => null;
-            public byte[] RGBAPaletteToGBA(byte[] p, int c) => null;
+            public byte[] Encode4bppTiles(IImage i) => throw new NotSupportedException(nameof(Encode4bppTiles));
+            public byte[] Encode8bppTiles(IImage i) => throw new NotSupportedException(nameof(Encode8bppTiles));
+            public byte[] GBAPaletteToRGBA(byte[] p, int c) => throw new NotSupportedException(nameof(GBAPaletteToRGBA));
+            public byte[] RGBAPaletteToGBA(byte[] p, int c) => throw new NotSupportedException(nameof(RGBAPaletteToGBA));
         }
 
         /// <summary>

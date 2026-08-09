@@ -489,7 +489,7 @@ namespace FEBuilderGBA.Core.Tests
         public void Convert_NullRgba_Throws()
         {
             Assert.Throws<ArgumentNullException>(() =>
-                DecreaseColorConvertCore.Convert(null, 8, 8, 1, 0, true, false));
+                DecreaseColorConvertCore.Convert(null!, 8, 8, 1, 0, true, false));
         }
 
         [Fact]
@@ -567,13 +567,13 @@ namespace FEBuilderGBA.Core.Tests
             {
                 int rc = DecreaseColorConvertCore.ReduceColorFile(input, output, 0, 0, 0, 1, true, true, false);
                 Assert.Equal(0, rc);
-                Assert.NotNull(fake.LastSaved);
+                var saved = Assert.IsType<FakeReduceImage>(fake.LastSaved);
                 Assert.Equal(output, fake.LastSavedPath);
-                Assert.Equal(8, fake.LastSaved.Width);
-                Assert.Equal(8, fake.LastSaved.Height);
+                Assert.Equal(8, saved.Width);
+                Assert.Equal(8, saved.Height);
 
                 // Output RGBA: opaque red everywhere (index 1 → (248,0,0), opaque).
-                byte[] px = fake.LastSaved.GetPixelData();
+                byte[] px = saved.GetPixelData();
                 Assert.Equal(248, px[0]);
                 Assert.Equal(0, px[1]);
                 Assert.Equal(0, px[2]);
@@ -602,7 +602,8 @@ namespace FEBuilderGBA.Core.Tests
             {
                 int rc = DecreaseColorConvertCore.ReduceColorFile(input, output, 0, 0, 0, 16, isScalable: true, reserve1st: false, ignoreTSA: true);
                 Assert.Equal(0, rc);
-                byte[] px = fake.LastSaved.GetPixelData();
+                var saved = Assert.IsType<FakeReduceImage>(fake.LastSaved);
+                byte[] px = saved.GetPixelData();
                 // Index 0 must be the real green color, fully opaque (NOT transparent).
                 Assert.Equal(0, px[0]);
                 Assert.Equal(248, px[1]);
@@ -634,7 +635,8 @@ namespace FEBuilderGBA.Core.Tests
             {
                 int rc = DecreaseColorConvertCore.ReduceColorFile(input, output, 0, 0, 0, paletteNo: 16, isScalable: true, reserve1st: false, ignoreTSA: false);
                 Assert.Equal(0, rc);
-                byte[] px = fake.LastSaved.GetPixelData();
+                var saved = Assert.IsType<FakeReduceImage>(fake.LastSaved);
+                byte[] px = saved.GetPixelData();
                 // Pixel (0,0) is bank-slot-0 green; must be the real opaque color, NOT transparent.
                 Assert.Equal(0, px[0]);
                 Assert.Equal(248, px[1]);
@@ -678,8 +680,8 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ReduceColorFile_NoImageService_ReturnsMinus1()
         {
-            var prev = CoreState.ImageService;
-            CoreState.ImageService = null;
+            IImageService? prev = CoreState.ImageService;
+            CoreState.ImageService = null!;
             string input = Path.Combine(Path.GetTempPath(), "dc_in_" + Guid.NewGuid() + ".png");
             File.WriteAllBytes(input, new byte[] { 0x89, 0x50, 0x4E, 0x47 });
             try
@@ -689,7 +691,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ImageService = prev;
+                CoreState.ImageService = prev!;
                 File.Delete(input);
             }
         }
@@ -727,8 +729,8 @@ namespace FEBuilderGBA.Core.Tests
     {
         private readonly byte[] _srcRgba;
         private readonly int _w, _h;
-        public FakeReduceImage LastSaved { get; private set; }
-        public string LastSavedPath { get; private set; }
+        public FakeReduceImage? LastSaved { get; private set; }
+        public string? LastSavedPath { get; private set; }
         /// <summary>When true, Save writes a partial file then throws an IOException.</summary>
         public bool ThrowOnSave { get; set; }
 
@@ -746,7 +748,7 @@ namespace FEBuilderGBA.Core.Tests
         public IImage CreateIndexedImage(int width, int height, byte[] gbaPalette, int paletteColorCount)
             => new SavingFakeImage(width, height, this);
         public IImage LoadImage(string filePath) => new FakeReduceImage(_w, _h, _srcRgba, false);
-        public IImage LoadImageFromBytes(byte[] pngData) => null;
+        public IImage LoadImageFromBytes(byte[] pngData) => throw new NotSupportedException(nameof(LoadImageFromBytes));
         public void GBAColorToRGBA(ushort gbaColor, out byte r, out byte g, out byte b)
         {
             r = (byte)((gbaColor & 0x1F) << 3);
@@ -755,13 +757,13 @@ namespace FEBuilderGBA.Core.Tests
         }
         public ushort RGBAToGBAColor(byte r, byte g, byte b)
             => (ushort)(((r >> 3) & 0x1F) | (((g >> 3) & 0x1F) << 5) | (((b >> 3) & 0x1F) << 10));
-        public IImage Decode4bppTiles(byte[] t, int o, int w, int h, byte[] p) => new FakeReduceImage(w, h, null, true);
-        public IImage Decode8bppTiles(byte[] t, int o, int w, int h, byte[] p) => new FakeReduceImage(w, h, null, true);
-        public IImage Decode8bppLinear(byte[] d, int o, int w, int h, byte[] p) => new FakeReduceImage(w, h, null, true);
-        public byte[] Encode4bppTiles(IImage i) => Array.Empty<byte>();
-        public byte[] Encode8bppTiles(IImage i) => Array.Empty<byte>();
-        public byte[] GBAPaletteToRGBA(byte[] p, int c) => Array.Empty<byte>();
-        public byte[] RGBAPaletteToGBA(byte[] p, int c) => Array.Empty<byte>();
+        public IImage Decode4bppTiles(byte[] t, int o, int w, int h, byte[] p) => throw new NotSupportedException(nameof(Decode4bppTiles));
+        public IImage Decode8bppTiles(byte[] t, int o, int w, int h, byte[] p) => throw new NotSupportedException(nameof(Decode8bppTiles));
+        public IImage Decode8bppLinear(byte[] d, int o, int w, int h, byte[] p) => throw new NotSupportedException(nameof(Decode8bppLinear));
+        public byte[] Encode4bppTiles(IImage i) => throw new NotSupportedException(nameof(Encode4bppTiles));
+        public byte[] Encode8bppTiles(IImage i) => throw new NotSupportedException(nameof(Encode8bppTiles));
+        public byte[] GBAPaletteToRGBA(byte[] p, int c) => throw new NotSupportedException(nameof(GBAPaletteToRGBA));
+        public byte[] RGBAPaletteToGBA(byte[] p, int c) => throw new NotSupportedException(nameof(RGBAPaletteToGBA));
 
         internal void RecordSave(SavingFakeImage img, string path)
         {

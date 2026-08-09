@@ -20,17 +20,23 @@ namespace FEBuilderGBA.Core.Tests
     public class ItemShopViewerViewModelTests : IDisposable
     {
         readonly ROM _savedRom;
+        readonly DecompProject _savedProject;
+        readonly IAsmMapCache? _savedAsmMapFileAsmCache;
         const uint ShopAddr = 0x1000;
 
         public ItemShopViewerViewModelTests()
         {
             _savedRom = CoreState.ROM;
+            _savedProject = CoreState.DecompProject;
+            _savedAsmMapFileAsmCache = CoreState.AsmMapFileAsmCache;
             CoreState.ROM = MakeRomWithShop();
         }
 
         public void Dispose()
         {
             CoreState.ROM = _savedRom;
+            CoreState.DecompProject = _savedProject;
+            CoreState.AsmMapFileAsmCache = _savedAsmMapFileAsmCache;
         }
 
         // Shop at 0x1000: (id=0x05,qty=0x01), (id=0x02,qty=0x03), terminator id=0x00.
@@ -61,7 +67,7 @@ namespace FEBuilderGBA.Core.Tests
             vm.ItemId = 0x09;
             vm.Quantity = 0x07;
 
-            ushort[] vec = vm.BuildVectorForWrite();
+            ushort[]? vec = vm.BuildVectorForWrite();
             Assert.NotNull(vec);
             Assert.Equal(2, vec.Length);
             Assert.Equal((ushort)((0x01 << 8) | 0x05), vec[0]);   // slot 0 unchanged
@@ -77,10 +83,18 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void BuildVectorForWrite_SelectedSlotOutsideCurrentShop_ReturnsNull()
+        {
+            var vm = VmWithShopLoaded();
+            vm.LoadItemShop(0x1100);
+            Assert.Null(vm.BuildVectorForWrite());
+        }
+
+        [Fact]
         public void BuildVectorForAppend_AddsDefaultEntry()
         {
             var vm = VmWithShopLoaded();
-            ushort[] vec = vm.BuildVectorForAppend();
+            ushort[]? vec = vm.BuildVectorForAppend();
             Assert.NotNull(vec);
             Assert.Equal(3, vec.Length);
             Assert.Equal((ushort)((0x01 << 8) | 0x05), vec[0]);
@@ -92,7 +106,7 @@ namespace FEBuilderGBA.Core.Tests
         public void BuildVectorForRemoveLast_DropsLastEntry()
         {
             var vm = VmWithShopLoaded();
-            ushort[] vec = vm.BuildVectorForRemoveLast();
+            ushort[]? vec = vm.BuildVectorForRemoveLast();
             Assert.NotNull(vec);
             Assert.Single(vec);
             Assert.Equal((ushort)((0x01 << 8) | 0x05), vec[0]);   // only slot 0 remains
@@ -116,6 +130,21 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Null(vm.BuildVectorForWrite());
             Assert.Null(vm.BuildVectorForAppend());
             Assert.Null(vm.BuildVectorForRemoveLast());
+        }
+
+        [Fact]
+        public void TryRouteCurrentShopToSource_MissingAsmMapCache_ReturnsNotRouted()
+        {
+            CoreState.DecompProject = new DecompProject();
+            CoreState.AsmMapFileAsmCache = null!;
+            var vm = VmWithShopLoaded();
+
+            DecompShopRouteResult result =
+                vm.TryRouteCurrentShopToSource(new ushort[] { (ushort)((1 << 8) | 1) });
+
+            Assert.False(result.Routed);
+            Assert.Equal(DecompShopRouteOutcome.NotRouted, result.Outcome);
+            Assert.Contains("No ASM/MAP", result.Message);
         }
     }
 }

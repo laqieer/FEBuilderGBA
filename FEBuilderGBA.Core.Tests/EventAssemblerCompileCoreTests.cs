@@ -42,7 +42,8 @@ namespace FEBuilderGBA.Core.Tests
             var rom = new ROM();
             bool ok = rom.LoadLow("synthetic-FE8.gba", data, "BE8E01");
             CoreState.ROM = rom;
-            return ok ? rom : null;
+            if (!ok) throw new InvalidOperationException("Synthetic ROM failed to load.");
+            return rom;
         }
 
         static Undo.UndoData NewUndo(ROM rom) => new Undo.UndoData
@@ -168,9 +169,9 @@ namespace FEBuilderGBA.Core.Tests
             byte[] before = (byte[])rom.Data.Clone();
 
             // Point the resolver at an empty tree with no EA exe.
-            var savedConfig = CoreState.Config;
+            Config? savedConfig = CoreState.Config;
             var savedBaseDir = CoreState.BaseDirectory;
-            CoreState.Config = null;
+            CoreState.Config = null!;
             CoreState.BaseDirectory = Path.Combine(Path.GetTempPath(),
                 "febuilder-ea-empty-" + Path.GetRandomFileName());
 
@@ -193,7 +194,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.Config = savedConfig;
+                CoreState.Config = savedConfig!;
                 CoreState.BaseDirectory = savedBaseDir;
                 try { File.Delete(eaFile); } catch { }
             }
@@ -307,8 +308,9 @@ namespace FEBuilderGBA.Core.Tests
             // return a structured localized error instead of throwing when the temp
             // location is unwritable (never-throws contract). We can only reach the
             // write step once the EA exe resolves, so gate on ColorzCore being built.
-            string exe = FindBuiltColorzCore();
+            string? exe = FindBuiltColorzCore();
             Skip.If(exe == null, "ColorzCore.exe not built — can't reach the temp-write step (not-found check returns first).");
+            exe = TestRequire.NotNull(exe, "ColorzCore path");
 
             var rom = CreateFE8Rom();
             Assert.NotNull(rom);
@@ -322,8 +324,8 @@ namespace FEBuilderGBA.Core.Tests
             // and the temp-ROM write throw (IOException/DirectoryNotFound), which the
             // helper must catch and convert to a clean result.
             string badTemp = Path.Combine(Path.GetTempPath(), "fbg-nonexistent-" + Guid.NewGuid());
-            string savedTmp = Environment.GetEnvironmentVariable("TMP");
-            string savedTemp = Environment.GetEnvironmentVariable("TEMP");
+            string? savedTmp = Environment.GetEnvironmentVariable("TMP");
+            string? savedTemp = Environment.GetEnvironmentVariable("TEMP");
             var savedConfig = CoreState.Config;
             var savedUndo = CoreState.Undo;
             CoreState.Config = new Config { ["event_assembler"] = exe };
@@ -369,9 +371,10 @@ namespace FEBuilderGBA.Core.Tests
         [SkippableFact]
         public void CompileAndInsert_RealColorzCore_InsertsBytes_Undoable()
         {
-            string exe = FindBuiltColorzCore();
+            string? exe = FindBuiltColorzCore();
             Skip.If(exe == null,
                 "ColorzCore.exe not built in this environment — skipping the real-compile round-trip (deterministic arg/wrapper/free-area/not-found tests still cover our logic).");
+                exe = TestRequire.NotNull(exe, "ColorzCore path");
 
             // Use an FE8-headed ROM so ColorzCore gets a valid game code ("A FE8"),
             // not the unknown "NAZO" that EA rejects. A bare ROM has null/NAZO RomInfo.
@@ -427,9 +430,9 @@ namespace FEBuilderGBA.Core.Tests
         /// Walk up from the test assembly to the repo/worktree root and return the
         /// built ColorzCore.exe path, or null if the submodule was not built.
         /// </summary>
-        static string FindBuiltColorzCore()
+        static string? FindBuiltColorzCore()
         {
-            string dir = AppContext.BaseDirectory;
+            string? dir = AppContext.BaseDirectory;
             for (int i = 0; i < 12 && dir != null; i++)
             {
                 foreach (string config in new[] { "Release", "Debug" })

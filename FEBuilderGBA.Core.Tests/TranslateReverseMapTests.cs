@@ -512,7 +512,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal("<= 4095", MyTranslateResourceLow.DecodeXmlEntities("&lt;= 4095"));
             // Idempotent / no-op on entity-free strings.
             Assert.Equal("plain text", MyTranslateResourceLow.DecodeXmlEntities("plain text"));
-            Assert.Null(MyTranslateResourceLow.DecodeXmlEntities(null));
+            Assert.Null(MyTranslateResourceLow.DecodeXmlEntities(null!));
         }
 
         [Fact]
@@ -634,7 +634,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ShippedFiles_ChineseMode_AcceptanceStringsResolve()
         {
-            string root = FindRepoRoot();
+            string? root = FindRepoRoot();
             if (root == null) return; // not in a repo checkout \u2014 skip
             string enPath = Path.Combine(root, "config", "translate", "en.txt");
             string zhPath = Path.Combine(root, "config", "translate", "zh.txt");
@@ -671,7 +671,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ShippedFiles_ChineseSetupWizardTranslationsAreNatural()
         {
-            string root = FindRepoRoot();
+            string? root = FindRepoRoot();
             if (root == null) return;
             string zhPath = Path.Combine(
                 root, "config", "translate", "zh.txt");
@@ -707,7 +707,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ShippedFiles_ChineseSetupWizardStep6TranslationsResolve()
         {
-            string root = FindRepoRoot();
+            string? root = FindRepoRoot();
             Assert.False(
                 string.IsNullOrEmpty(root),
                 "Repository root with FEBuilderGBA.sln is required.");
@@ -781,7 +781,7 @@ namespace FEBuilderGBA.Core.Tests
             // Parity assert: the shipped en.txt must contain zero scoped XML
             // entities (`&#10;`, `&#x0a;`, `&amp;`) after normalization, matching
             // ja.txt / zh.txt. Guards against a re-extraction reintroducing them.
-            string root = FindRepoRoot();
+            string? root = FindRepoRoot();
             if (root == null) return;
             string enPath = Path.Combine(root, "config", "translate", "en.txt");
             if (!File.Exists(enPath)) return;
@@ -793,7 +793,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("&amp;", text);
         }
 
-        static string FindRepoRoot()
+        static string? FindRepoRoot()
         {
             var dir = new DirectoryInfo(AppContext.BaseDirectory);
             while (dir != null)

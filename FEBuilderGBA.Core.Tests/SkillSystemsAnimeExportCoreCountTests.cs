@@ -83,7 +83,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void CountSkillFrames_NullRom_ReturnsZero()
         {
-            Assert.Equal(0, SkillSystemsAnimeExportCore.CountSkillFrames(null, 0x300u));
+            Assert.Equal(0, SkillSystemsAnimeExportCore.CountSkillFrames(null!, 0x300u));
         }
 
         [Fact]
@@ -217,19 +217,19 @@ namespace FEBuilderGBA.Core.Tests
             // CountSkillFrames must work even with NO image service — it renders
             // nothing (unlike ExportSkillAnimation which errors without it).
             var prevRom = CoreState.ROM;
-            var prevSvc = CoreState.ImageService;
+            IImageService? prevSvc = CoreState.ImageService;
             try
             {
                 ROM rom = MakeFE8JRom();
                 CoreState.ROM = rom;
-                CoreState.ImageService = null; // explicitly none
+                CoreState.ImageService = null!; // explicitly none
 
                 uint animeOffset = BuildSyntheticAnime(rom.Data,
                     waits: new uint[] { 2, 2, 2 }, soundId: 0);
 
                 Assert.Equal(3, SkillSystemsAnimeExportCore.CountSkillFrames(rom, animeOffset));
             }
-            finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc; }
+            finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc!; }
         }
 
         // ===============================================================

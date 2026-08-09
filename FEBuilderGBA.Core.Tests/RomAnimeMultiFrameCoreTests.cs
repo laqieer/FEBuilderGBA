@@ -351,7 +351,7 @@ namespace FEBuilderGBA.Core.Tests
 
         [Fact]
         public void ExportTxt_NullEntry_ReturnsError()
-            => Assert.False(string.IsNullOrEmpty(RomAnimeMultiFrameCore.ExportTxt(null, null, "x.txt")));
+            => Assert.False(string.IsNullOrEmpty(RomAnimeMultiFrameCore.ExportTxt(null!, null!, "x.txt")));
 
         [Fact]
         public void ImportTxt_MissingScript_ReturnsErrorNoThrow()

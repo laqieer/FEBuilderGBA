@@ -10,7 +10,7 @@ namespace FEBuilderGBA.Tests.Unit
     /// upstream wiki URL.
     ///
     /// Assertions are scoped to the LinkInternet_Click method body so a sibling
-    /// handler's unrelated Process.Start cannot false-pass the test.
+    /// handler's unrelated launch code cannot false-pass the test.
     /// </summary>
     public class AvaloniaSongTrackLinkTests
     {
@@ -79,11 +79,11 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
-        public void LinkInternetClick_LaunchesBrowserViaProcessStart()
+        public void LinkInternetClick_LaunchesBrowserViaExternalLauncher()
         {
             var body = LinkInternetClickBody;
-            Assert.Contains("Process.Start", body);
-            Assert.Contains("UseShellExecute = true", body);
+            Assert.Contains("ExternalLauncher.Current.OpenUriAsync", body);
+            Assert.Contains("TopLevel.GetTopLevel(this)", body);
         }
 
         [Fact]

@@ -33,7 +33,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             public UnitEditorDouble() { Title = "Unit Editor - FE8U"; Content = new TextBlock(); }
             public string ViewTitle => "Unit Editor";
-            public bool IsLoaded => true;
+            public new bool IsLoaded => true;
             public void NavigateTo(uint address) { }
         }
 
@@ -87,11 +87,11 @@ namespace FEBuilderGBA.Avalonia.Tests
                 var dim = new SKColor(0x9A, 0xA0, 0xA6);
                 c.Clear(bg);
 
-                using var title = new SKPaint { Color = good, IsAntialias = true, TextSize = 22, FakeBoldText = true };
-                using var hdr = new SKPaint { Color = fg, IsAntialias = true, TextSize = 16, FakeBoldText = true };
-                using var goodP = new SKPaint { Color = good, IsAntialias = true, TextSize = 15 };
-                using var badP = new SKPaint { Color = bad, IsAntialias = true, TextSize = 15 };
-                using var note = new SKPaint { Color = dim, IsAntialias = true, TextSize = 13 };
+                using var title = SkiaTestTextStyle.Create(good, 22, bold: true);
+                using var hdr = SkiaTestTextStyle.Create(fg, 16, bold: true);
+                using var goodP = SkiaTestTextStyle.Create(good, 15);
+                using var badP = SkiaTestTextStyle.Create(bad, 15);
+                using var note = SkiaTestTextStyle.Create(dim, 13);
                 using var cardP = new SKPaint { Color = card, IsAntialias = true };
 
                 c.DrawText("FEBuilderGBA — Help > Report a Bug   [#1747]", 24, 40, title);

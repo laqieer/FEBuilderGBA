@@ -37,7 +37,7 @@ also require a 16-bit engine code, reject `CalcCodeB` `NOT_FOUND`, and
 deduplicate by the resolved ZH slot rather than raw alias spellings.
 `IFontLibraryFaceFactory`/`IFontLibraryFace` are additive strict disposable
 interfaces; `SkiaFontLibraryFace` loads verified bytes once, uses SkiaSharp
-2.88.9 glyph availability, and forbids fallback/missing/all-zero glyphs. Its
+3.119.4 glyph availability, and forbids fallback/missing/all-zero glyphs. Its
 strict path center-samples the scaled outline to remove native antialias
 coverage drift, then shares `SkiaFontRasterizer` item/text postprocessing and
 packing. The legacy antialiased `SkiaFontRasterizer` entry point is unchanged.

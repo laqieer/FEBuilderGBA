@@ -340,13 +340,13 @@ namespace FEBuilderGBA.Core.Tests
         {
             var rom = MakeFe8uRom();
             var prevRom = CoreState.ROM;
-            var prevEs = CoreState.EventScript;
-            var prevComment = CoreState.CommentCache;
+            EventScript? prevEs = CoreState.EventScript;
+            IEtcCache? prevComment = CoreState.CommentCache;
             try
             {
                 CoreState.ROM = rom;
-                CoreState.EventScript = null;   // disasm NOT wired
-                CoreState.CommentCache = null;
+                CoreState.EventScript = null!;   // disasm NOT wired
+                CoreState.CommentCache = null!;
                 var result = RebuildProducerCore.MakeAllStructPointers(rom);
                 // The four ScanScript-family forms (and EventCondForm) are re-reported because
                 // their script trace would otherwise be silently dropped.
@@ -359,8 +359,8 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.ROM = prevRom;
-                CoreState.EventScript = prevEs;
-                CoreState.CommentCache = prevComment;
+                CoreState.EventScript = prevEs!;
+                CoreState.CommentCache = prevComment!;
             }
         }
     }

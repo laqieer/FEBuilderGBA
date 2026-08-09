@@ -17,7 +17,7 @@ namespace FEBuilderGBA.Tests.Unit
         [Fact]
         public void AddBrowseButton_GrowsPanel_SoButtonIsNotClipped()
         {
-            ExceptionDispatchInfo edi = null;
+            ExceptionDispatchInfo? edi = null;
             var thread = new Thread(() =>
             {
                 try

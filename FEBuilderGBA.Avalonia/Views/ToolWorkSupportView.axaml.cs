@@ -70,9 +70,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 _vm.AutoFeedbackStatus = R._("Checking for updates...");
 
-                // ---- CheckUpdate (Core) — off the UI thread (network-bound) ----
-                WorkSupportUpdateCheckCore.UpdateResult ur = await Task.Run(() =>
-                    _vm.CheckUpdate(url => U.HttpGet(url), HttpHeadLastModified, GetRomDateTime));
+                // ---- CheckUpdate (Core) ----
+                WorkSupportUpdateCheckCore.UpdateResult ur = await _vm.CheckUpdateAsync(
+                    (url, ct) => U.HttpGetAsync(url, cancellationToken: ct),
+                    (url, ct) => U.HttpHeadLastModifiedAsync(url, ct),
+                    GetRomDateTime);
 
                 if (ur == WorkSupportUpdateCheckCore.UpdateResult.Error)
                 {
@@ -106,8 +108,8 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             // ---- resolve the download URL from UPDATE_URL/UPDATE_REGEX ----
             _vm.AutoFeedbackStatus = R._("Resolving download URL...");
-            WorkSupportUpdateDownloadCore.ResolveResult resolve = await Task.Run(() =>
-                _vm.ResolveDownloadUrl(url => U.HttpGet(url)));
+            WorkSupportUpdateDownloadCore.ResolveResult resolve = await _vm.ResolveDownloadUrlAsync(
+                (url, ct) => U.HttpGetAsync(url, cancellationToken: ct));
             if (resolve.Status != WorkSupportUpdateDownloadCore.ResolveStatus.Ok
                 || string.IsNullOrEmpty(resolve.Url))
             {
@@ -123,8 +125,8 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // ---- download + stage (download/extract) ----
             _vm.AutoFeedbackStatus = R._("Downloading and extracting...");
-            WorkSupportUpdateDownloadCore.StageResult stage = await Task.Run(() =>
-                _vm.DownloadAndStage(resolve.Url, DownloadFile, ExtractArchive));
+            WorkSupportUpdateDownloadCore.StageResult stage = await _vm.DownloadAndStageAsync(
+                resolve.Url, DownloadFileAsync, ExtractArchive);
             if (stage.Status != WorkSupportUpdateDownloadCore.StageStatus.Ok)
             {
                 _vm.AutoFeedbackStatus = string.Format(
@@ -160,8 +162,8 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // ---- PHASE 1: apply each staged UPS in memory (NO write yet) ----
             _vm.AutoFeedbackStatus = R._("Applying UPS patch...");
-            WorkSupportUpdateDownloadCore.PrepareResult prepared = await Task.Run(() =>
-                _vm.PrepareUps(stage.UpsFiles, original, ApplyOneUps));
+            WorkSupportUpdateDownloadCore.PrepareResult prepared =
+                await Task.Run(() => _vm.PrepareUps(stage.UpsFiles, original, ApplyOneUps));
             if (prepared.Status != WorkSupportUpdateDownloadCore.ApplyStatus.Ok)
             {
                 _vm.AutoFeedbackStatus = string.Format(
@@ -185,8 +187,8 @@ namespace FEBuilderGBA.Avalonia.Views
             }
 
             // ---- PHASE 2: atomically write the patched ROMs (rollback on failure) ----
-            WorkSupportUpdateDownloadCore.ApplyResult apply = await Task.Run(() =>
-                _vm.CommitUps(prepared));
+            WorkSupportUpdateDownloadCore.ApplyResult apply =
+                await Task.Run(() => _vm.CommitUps(prepared));
             if (apply.Status != WorkSupportUpdateDownloadCore.ApplyStatus.Ok)
             {
                 _vm.AutoFeedbackStatus = string.Format(
@@ -206,11 +208,10 @@ namespace FEBuilderGBA.Avalonia.Views
 
         // ---- host delegates (network / archive / ROM) -------------------------
 
-        /// <summary>Download a URL to a local file. Wraps Core <c>U.HttpDownloadFile</c>.</summary>
-        static (bool ok, string error) DownloadFile(string url, string destPath)
+        /// <summary>Download a URL to a local file. Wraps Core <c>U.HttpDownloadFileAsync</c>.</summary>
+        static Task<(bool ok, string error)> DownloadFileAsync(string url, string destPath, System.Threading.CancellationToken cancellationToken)
         {
-            bool ok = U.HttpDownloadFile(url, destPath, out string error);
-            return (ok, error);
+            return U.HttpDownloadFileAsync(url, destPath, cancellationToken: cancellationToken);
         }
 
         /// <summary>Extract an archive. Wraps Core <c>ArchSevenZip.Extract</c> (returns errorOrEmpty).</summary>
@@ -229,7 +230,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 byte[] patch = File.ReadAllBytes(upsPath);
-                byte[] result = UPSUtilCore.ApplyUPS(original, patch, out string msg);
+                byte[]? result = UPSUtilCore.ApplyUPS(original, patch, out string? msg);
                 if (result == null)
                 {
                     return (null, string.IsNullOrEmpty(msg) ? ("apply failed: " + upsPath) : msg, "");
@@ -243,14 +244,23 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void Community_Click(object? sender, RoutedEventArgs e)
+        async void Community_Click(object? sender, RoutedEventArgs e)
+        {
+            await OpenCommunityAsync();
+        }
+
+        async Task OpenCommunityAsync()
         {
             try
             {
                 if (!string.IsNullOrEmpty(_vm.CommunityUrl))
                 {
-                    var psi = new System.Diagnostics.ProcessStartInfo(_vm.CommunityUrl) { UseShellExecute = true };
-                    System.Diagnostics.Process.Start(psi);
+                    var result = await ExternalLauncher.Current.OpenUriAsync(TopLevel.GetTopLevel(this), new Uri(_vm.CommunityUrl));
+                    if (!result.IsSucceeded)
+                    {
+                        _vm.AutoFeedbackStatus = result.Message;
+                        Log.Error("ToolWorkSupportView.Community", result.Message);
+                    }
                 }
             }
             catch (Exception ex)
@@ -259,14 +269,23 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void OpenInfo_Click(object? sender, RoutedEventArgs e)
+        async void OpenInfo_Click(object? sender, RoutedEventArgs e)
+        {
+            await OpenInfoAsync();
+        }
+
+        async Task OpenInfoAsync()
         {
             try
             {
                 if (!string.IsNullOrEmpty(_vm.InfoText) && System.IO.File.Exists(_vm.InfoText))
                 {
-                    var psi = new System.Diagnostics.ProcessStartInfo(_vm.InfoText) { UseShellExecute = true };
-                    System.Diagnostics.Process.Start(psi);
+                    var result = await ExternalLauncher.Current.OpenPathAsync(_vm.InfoText);
+                    if (!result.IsSucceeded)
+                    {
+                        _vm.AutoFeedbackStatus = result.Message;
+                        Log.Error("ToolWorkSupportView.OpenInfo", result.Message);
+                    }
                 }
             }
             catch (Exception ex)
@@ -274,6 +293,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 Log.Error("ToolWorkSupportView.OpenInfo", ex.ToString());
             }
         }
+
+        internal Task OpenInfoForTestsAsync() => OpenInfoAsync();
+        internal Task OpenCommunityForTestsAsync() => OpenCommunityAsync();
+        internal string AutoFeedbackStatusForTests => _vm.AutoFeedbackStatus;
 
         void ShowAllWorks_Click(object? sender, RoutedEventArgs e)
         {
@@ -291,39 +314,6 @@ namespace FEBuilderGBA.Avalonia.Views
         void Close_Click(object? sender, RoutedEventArgs e)
         {
             RequestClose();
-        }
-
-        // One shared HttpClient for all HEAD probes (per .NET guidance) with a
-        // bounded timeout so a slow/unreachable host cannot hang the update check.
-        // A User-Agent consistent with Core's U.CreateHttpClient ("FEBuilderGBA/1.0")
-        // is set so hosts that reject/throttle UA-less requests don't make the
-        // freshness HEAD fail and report "Latest" incorrectly (inline review).
-        static readonly System.Net.Http.HttpClient s_httpClient = CreateHeadClient();
-
-        static System.Net.Http.HttpClient CreateHeadClient()
-        {
-            var client = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(8) };
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("FEBuilderGBA/1.0");
-            return client;
-        }
-
-        /// <summary>HTTP HEAD probe for a URL's Last-Modified header (null when absent/unreachable/timed out).</summary>
-        static string? HttpHeadLastModified(string url)
-        {
-            try
-            {
-                using var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Head, url);
-                using var resp = s_httpClient.Send(req);
-                if (resp.Content.Headers.LastModified.HasValue)
-                {
-                    return resp.Content.Headers.LastModified.Value.ToString();
-                }
-                return null;
-            }
-            catch (Exception)
-            {
-                return null;
-            }
         }
 
         /// <summary>

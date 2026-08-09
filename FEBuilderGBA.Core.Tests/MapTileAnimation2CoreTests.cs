@@ -128,7 +128,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void BuildPlistList_WithNullRom_ReturnsEmpty()
         {
-            var rows = MapTileAnimation2Core.BuildPlistList(null);
+            var rows = MapTileAnimation2Core.BuildPlistList(null!);
             Assert.NotNull(rows);
             Assert.Empty(rows);
         }
@@ -498,12 +498,12 @@ namespace FEBuilderGBA.Core.Tests
             // requires a new allocation.
             var rom = MakeRomWithTwoEntries(out uint baseAddr);
             var prevRom = CoreState.ROM;
-            var prevAppend = CoreState.AppendBinaryData;
+            Func<byte[], Undo.UndoData, uint>? prevAppend = CoreState.AppendBinaryData;
             string tmp = Path.GetTempFileName();
             try
             {
                 CoreState.ROM = rom;
-                CoreState.AppendBinaryData = null; // global callback unset
+                CoreState.AppendBinaryData = null!; // global callback unset
 
                 // Zero the area around baseAddr so RecycleAddress has no
                 // reusable blocks for the new palette data.
@@ -537,7 +537,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.AppendBinaryData = prevAppend;
+                CoreState.AppendBinaryData = prevAppend!;
                 CoreState.ROM = prevRom;
                 if (File.Exists(tmp)) File.Delete(tmp);
             }

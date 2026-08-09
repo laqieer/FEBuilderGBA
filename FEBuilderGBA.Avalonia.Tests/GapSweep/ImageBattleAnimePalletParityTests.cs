@@ -368,7 +368,7 @@ public class ImageBattleAnimePalletParityTests
                 "an unresolvable (palette-only) record must default to no banner (#1033)");
             Assert.False(vm.Is32ColorMode);
         }
-        finally { CoreState.ROM = prevRom; }
+        finally { CoreStateTestState.RestoreRom(prevRom); }
     }
 
     // -----------------------------------------------------------------
@@ -391,7 +391,7 @@ public class ImageBattleAnimePalletParityTests
             Assert.False(vm.WarningVisible);
             Assert.False(vm.Is32ColorMode);
         }
-        finally { CoreState.ROM = prevRom; }
+        finally { CoreStateTestState.RestoreRom(prevRom); }
     }
 
     [Fact]
@@ -411,7 +411,7 @@ public class ImageBattleAnimePalletParityTests
             Assert.True(vm.WarningVisible);
             Assert.True(vm.Is32ColorMode);
         }
-        finally { CoreState.ROM = prevRom; }
+        finally { CoreStateTestState.RestoreRom(prevRom); }
     }
 
     [Fact]
@@ -438,7 +438,7 @@ public class ImageBattleAnimePalletParityTests
             Assert.False(vm.WarningVisible);
             Assert.False(vm.Is32ColorMode);
         }
-        finally { CoreState.ROM = prevRom; }
+        finally { CoreStateTestState.RestoreRom(prevRom); }
     }
 
     [Fact]
@@ -455,7 +455,7 @@ public class ImageBattleAnimePalletParityTests
             var vm = new ImageBattleAnimePalletViewModel();
 
             var raised = new HashSet<string>();
-            vm.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+            vm.PropertyChanged += (_, e) => { if (e.PropertyName != null) raised.Add(e.PropertyName); };
 
             vm.LoadEntry(paletteOffset, sourceSlot, paletteIndex: 0);
 
@@ -463,7 +463,7 @@ public class ImageBattleAnimePalletParityTests
             Assert.Contains(nameof(ImageBattleAnimePalletViewModel.WarningVisible), raised);
             Assert.Contains(nameof(ImageBattleAnimePalletViewModel.Is32ColorMode), raised);
         }
-        finally { CoreState.ROM = prevRom; }
+        finally { CoreStateTestState.RestoreRom(prevRom); }
     }
 
     [Fact]
@@ -497,7 +497,7 @@ public class ImageBattleAnimePalletParityTests
             Assert.Equal(0, vm.GetG(2));
             Assert.Equal(31 << 3, vm.GetB(2));
         }
-        finally { CoreState.ROM = prevRom; }
+        finally { CoreStateTestState.RestoreRom(prevRom); }
     }
 
     [Fact]
@@ -727,7 +727,7 @@ public class ImageBattleAnimePalletParityTests
             Assert.True(list[0].tag != 0,
                 "AddrResult.tag must carry the source pointer slot (Plan v6 Finding #3)");
         }
-        finally { CoreState.ROM = prevRom; }
+        finally { CoreStateTestState.RestoreRom(prevRom); }
     }
 
     // -----------------------------------------------------------------
@@ -747,7 +747,7 @@ public class ImageBattleAnimePalletParityTests
             // No LoadEntry => _sourcePointerSlot is 0 => null, no crash.
             Assert.Null(vm.RenderSampleBattleAnime());
         }
-        finally { CoreState.ROM = prevRom; }
+        finally { CoreStateTestState.RestoreRom(prevRom); }
     }
 
     [Fact]
@@ -757,11 +757,11 @@ public class ImageBattleAnimePalletParityTests
         var prevRom = CoreState.ROM;
         try
         {
-            CoreState.ROM = null;
+            CoreStateTestState.ClearRom();
             var vm = new ImageBattleAnimePalletViewModel();
             Assert.Null(vm.RenderSampleBattleAnime());
         }
-        finally { CoreState.ROM = prevRom; }
+        finally { CoreStateTestState.RestoreRom(prevRom); }
     }
 
     [Fact]
@@ -781,7 +781,7 @@ public class ImageBattleAnimePalletParityTests
             vm.LoadEntry(paletteOffset, sourceSlot, paletteIndex: 0);
             Assert.Null(vm.RenderSampleBattleAnime());
         }
-        finally { CoreState.ROM = prevRom; }
+        finally { CoreStateTestState.RestoreRom(prevRom); }
     }
 
     [Fact]
@@ -800,12 +800,11 @@ public class ImageBattleAnimePalletParityTests
             var vm = new ImageBattleAnimePalletViewModel();
             vm.LoadEntry(paletteOffset, sourceSlot, paletteIndex: 0);
 
-            IImage grid = vm.RenderSampleBattleAnime();
-            Assert.NotNull(grid);
+            IImage grid = Assert.IsAssignableFrom<IImage>(vm.RenderSampleBattleAnime());
             Assert.Equal(360, grid.Width);
             Assert.Equal(290, grid.Height);
         }
-        finally { CoreState.ROM = prevRom; }
+        finally { CoreStateTestState.RestoreRom(prevRom); }
     }
 
     // -----------------------------------------------------------------
@@ -834,14 +833,12 @@ public class ImageBattleAnimePalletParityTests
             var vm = new ImageBattleAnimePalletViewModel();
             vm.LoadEntry(paletteOffset, sourceSlot, paletteIndex: 0);
 
-            using IImage grid = vm.RenderSampleBattleAnime();
-            Assert.NotNull(grid);
+            using IImage grid = Assert.IsAssignableFrom<IImage>(vm.RenderSampleBattleAnime());
             Assert.Equal(360, grid.Width);
             Assert.Equal(290, grid.Height);
 
             // (a) The SetImage pixel-copy step builds a 360x290 WriteableBitmap.
-            using WriteableBitmap bmp = IconBitmapBuilder.FromImage(grid);
-            Assert.NotNull(bmp);
+            using WriteableBitmap bmp = Assert.IsType<WriteableBitmap>(IconBitmapBuilder.FromImage(grid));
             Assert.Equal(360, bmp.PixelSize.Width);
             Assert.Equal(290, bmp.PixelSize.Height);
 
@@ -853,7 +850,7 @@ public class ImageBattleAnimePalletParityTests
             Assert.Equal(360, w);
             Assert.Equal(290, h);
         }
-        finally { CoreState.ROM = prevRom; }
+        finally { CoreStateTestState.RestoreRom(prevRom); }
     }
 
     [AvaloniaFact]
@@ -873,14 +870,14 @@ public class ImageBattleAnimePalletParityTests
             var vm = new ImageBattleAnimePalletViewModel();
             vm.LoadEntry(paletteOffset, sourceSlot, paletteIndex: 0);
 
-            IImage grid = vm.RenderSampleBattleAnime();
+            IImage? grid = vm.RenderSampleBattleAnime();
             Assert.Null(grid);
 
             // The builder is null-safe on a null image (no throw, no bitmap).
-            WriteableBitmap bmp = IconBitmapBuilder.FromImage(grid);
+            WriteableBitmap? bmp = IconBitmapBuilder.FromImage(grid);
             Assert.Null(bmp);
         }
-        finally { CoreState.ROM = prevRom; }
+        finally { CoreStateTestState.RestoreRom(prevRom); }
     }
 
     /// <summary>True if the byte buffer starts with the 8-byte PNG signature.</summary>
@@ -1176,7 +1173,7 @@ public class ImageBattleAnimePalletParityTests
 
     static string FindRepoRoot()
     {
-        string dir = AppContext.BaseDirectory;
+        string? dir = AppContext.BaseDirectory;
         while (dir != null && !File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
         {
             dir = Path.GetDirectoryName(dir);
@@ -1432,7 +1429,7 @@ public class ImageBattleAnimePalletParityTests
         Assert.NotNull(method);
         byte[] input = new byte[64];
         for (int i = 0; i < 64; i++) input[i] = (byte)((i + 1) % 256);
-        byte[] result = (byte[])method.Invoke(null, new object[] { input });
+        byte[] result = Assert.IsType<byte[]>(method.Invoke(null, new object[] { input }));
         Assert.Equal(32, result.Length);
         for (int i = 0; i < 32; i++) Assert.Equal(input[i], result[i]);
     }
@@ -1445,7 +1442,7 @@ public class ImageBattleAnimePalletParityTests
         Assert.NotNull(method);
         byte[] input = new byte[10];
         input[0] = 0x1F;
-        byte[] result = (byte[])method.Invoke(null, new object[] { input });
+        byte[] result = Assert.IsType<byte[]>(method.Invoke(null, new object[] { input }));
         Assert.Equal(32, result.Length);
         Assert.Equal(0x1F, result[0]);
         for (int i = 10; i < 32; i++) Assert.Equal(0, result[i]);

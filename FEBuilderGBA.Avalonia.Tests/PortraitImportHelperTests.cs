@@ -43,6 +43,13 @@ namespace FEBuilderGBA.Avalonia.Tests
             _output = output;
         }
 
+        ROM RequireRom()
+        {
+            ROM? rom = _fixture.ROM;
+            Assert.NotNull(rom);
+            return rom;
+        }
+
         static IDisposable EnsureImageService()
         {
             var prev = CoreState.ImageService;
@@ -53,9 +60,9 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         sealed class RestoreImageService : IDisposable
         {
-            readonly IImageService _prev;
-            public RestoreImageService(IImageService prev) { _prev = prev; }
-            public void Dispose() { CoreState.ImageService = _prev; }
+            readonly IImageService? _prev;
+            public RestoreImageService(IImageService? prev) { _prev = prev; }
+            public void Dispose() { CoreState.ImageService = _prev!; }
         }
 
         sealed class UndoServiceSpy : UndoService
@@ -78,7 +85,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 _output.WriteLine($"SKIP: needs FE6 ROM (have {_fixture.Version})");
                 return;
             }
-            Assert.False(PortraitImportHelper.IsFe7Or8EntryLayout(_fixture.ROM));
+            Assert.False(PortraitImportHelper.IsFe7Or8EntryLayout(RequireRom()));
         }
 
         [Fact]
@@ -94,7 +101,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 _output.WriteLine("SKIP: this test needs FE7 or FE8");
                 return;
             }
-            Assert.True(PortraitImportHelper.IsFe7Or8EntryLayout(_fixture.ROM));
+            Assert.True(PortraitImportHelper.IsFe7Or8EntryLayout(RequireRom()));
         }
 
         [Fact]
@@ -117,7 +124,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
 
             using var _ = EnsureImageService();
-            var rom = _fixture.ROM;
+            var rom = RequireRom();
 
             // Build a synthetic 128x112 LoadResult (sheet-shaped).
             var loadResult = MakeSyntheticLoadResult(128, 112);
@@ -157,7 +164,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
 
             using var _ = EnsureImageService();
-            var rom = _fixture.ROM;
+            var rom = RequireRom();
 
             // 16x16 quantized image (smallest legal multiple-of-8 size).
             var loadResult = MakeSyntheticLoadResult(16, 16);
@@ -203,7 +210,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
 
             using var _ = EnsureImageService();
-            var rom = _fixture.ROM;
+            var rom = RequireRom();
 
             var loadResult = MakeSyntheticLoadResult(16, 16);
 
@@ -245,7 +252,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
 
             using var _ = EnsureImageService();
-            var rom = _fixture.ROM;
+            var rom = RequireRom();
 
             var loadResult = MakeSyntheticLoadResult(16, 16);
 
@@ -289,7 +296,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             using var _ = EnsureImageService();
             var loadResult = MakeSyntheticLoadResult(16, 16);
             var outcome = PortraitImportHelper.ImportSimple(
-                _fixture.ROM, entryAddr: 0, loadResult: loadResult,
+                RequireRom(), entryAddr: 0, loadResult: loadResult,
                 undoService: new UndoService());
             Assert.False(outcome.Success);
             Assert.Contains("entry", outcome.Error.ToLowerInvariant());
@@ -313,8 +320,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 GBAPalette = BuildSimplePalette(16),
             };
 
-            byte[] rgba = PortraitImportHelper.ReconstructRgbaWithPaletteZeroTransparent(loadResult);
-            Assert.NotNull(rgba);
+            byte[] rgba = Assert.IsType<byte[]>(PortraitImportHelper.ReconstructRgbaWithPaletteZeroTransparent(loadResult));
             Assert.Equal(8 * 8 * 4, rgba.Length);
 
             // All pixels are palette index 0 -> alpha must be 0.
@@ -341,8 +347,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 GBAPalette = BuildSimplePalette(16),
             };
 
-            byte[] rgba = PortraitImportHelper.ReconstructRgbaWithPaletteZeroTransparent(loadResult);
-            Assert.NotNull(rgba);
+            byte[] rgba = Assert.IsType<byte[]>(PortraitImportHelper.ReconstructRgbaWithPaletteZeroTransparent(loadResult));
             for (int i = 0; i < 64; i++)
             {
                 Assert.Equal(255, rgba[i * 4 + 3]);
@@ -359,16 +364,11 @@ namespace FEBuilderGBA.Avalonia.Tests
             using var _ = EnsureImageService();
             var loadResult = MakeSyntheticLoadResult(16, 16);
 
-            // On Linux CI runners the bundled libSkiaSharp.so may report an
-            // incompatible native-library version (88.x vs the managed
-            // SkiaSharp 3.116.x expected range). When that happens, every
-            // SKBitmap constructor throws TypeInitializationException; the
-            // managed code under test is fine but cannot be exercised without
-            // a usable native runtime. Skip in that case rather than failing
-            // the whole CI matrix — coverage on Windows/macOS still validates
-            // BuildPreviewImage end-to-end. The Linux ubuntu-latest job hits
-            // this; PR #684 CI logs show the underlying
-            // SkiaSharp.SkiaSharpVersion.CheckNativeLibraryCompatible failure.
+            // If a CI host has a stale/incompatible native libSkiaSharp in its
+            // output or package cache, every SKBitmap constructor throws
+            // TypeInitializationException; the managed code under test is fine
+            // but cannot be exercised without a usable native runtime. Skip in
+            // that case rather than failing the whole matrix.
             IImage? preview;
             try
             {
@@ -397,18 +397,13 @@ namespace FEBuilderGBA.Avalonia.Tests
             var loadResult = MakeOpaqueBackgroundLoadResult(96, 80);
 
             Assert.DoesNotContain((byte)0, loadResult.IndexedPixels);
-            byte[] keyed = PortraitImportHelper.BuildColorKeyedRgba(loadResult);
+            byte[] keyed = Assert.IsType<byte[]>(PortraitImportHelper.BuildColorKeyedRgba(loadResult));
 
-            // On Linux CI runners the bundled libSkiaSharp.so may report an
-            // incompatible native-library version (88.x vs the managed
-            // SkiaSharp 3.116.x expected range). When that happens, every
-            // SKBitmap constructor throws TypeInitializationException; the
-            // managed code under test is fine but cannot be exercised without
-            // a usable native runtime. Skip in that case rather than failing
-            // the whole CI matrix — coverage on Windows/macOS still validates
-            // BuildPreviewImage end-to-end. The Linux ubuntu-latest job hits
-            // this; PR #684 CI logs show the underlying
-            // SkiaSharp.SkiaSharpVersion.CheckNativeLibraryCompatible failure.
+            // If a CI host has a stale/incompatible native libSkiaSharp in its
+            // output or package cache, every SKBitmap constructor throws
+            // TypeInitializationException; the managed code under test is fine
+            // but cannot be exercised without a usable native runtime. Skip in
+            // that case rather than failing the whole matrix.
             IImage? preview;
             try
             {
@@ -484,8 +479,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             // un-keyed IndexedPixels/GBAPalette do NOT have this property.
             Assert.Equal(0, prepared.IndexedPixels[0]);
 
-            byte[] rgba = PortraitImportHelper.ReconstructRgbaWithPaletteZeroTransparent(prepared);
-            Assert.NotNull(rgba);
+            byte[] rgba = Assert.IsType<byte[]>(PortraitImportHelper.ReconstructRgbaWithPaletteZeroTransparent(prepared));
             Assert.Equal(0, GetAlpha(rgba, prepared.Width, 0, 0));
             Assert.Equal(0, GetAlpha(rgba, prepared.Width, prepared.Width - 1, 0));
             Assert.Equal(0, GetAlpha(rgba, prepared.Width, prepared.Width - 1, prepared.Height - 1));
@@ -611,7 +605,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
             finally
             {
-                CoreState.ResourceCache = prev;
+                CoreStateTestState.RestoreResourceCache(prev);
             }
         }
 
@@ -624,13 +618,13 @@ namespace FEBuilderGBA.Avalonia.Tests
             var prev = CoreState.ResourceCache;
             try
             {
-                CoreState.ResourceCache = null;
+                CoreStateTestState.ClearResourceCache();
                 // Should not throw despite the null cache.
                 PortraitImportHelper.RecordSourceFile(-1, "C:\\bogus.png");
             }
             finally
             {
-                CoreState.ResourceCache = prev;
+                CoreStateTestState.RestoreResourceCache(prev);
             }
         }
 
@@ -642,13 +636,13 @@ namespace FEBuilderGBA.Avalonia.Tests
             var prev = CoreState.ResourceCache;
             try
             {
-                CoreState.ResourceCache = null;
+                CoreStateTestState.ClearResourceCache();
                 PortraitImportHelper.RecordSourceFile(5, "");
                 PortraitImportHelper.RecordSourceFile(5, null);
             }
             finally
             {
-                CoreState.ResourceCache = prev;
+                CoreStateTestState.RestoreResourceCache(prev);
             }
         }
 
@@ -723,7 +717,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             using var _ = EnsureImageService();
             var lr = MakeOpaqueBackgroundLoadResult(128, 112);
 
-            byte[] keyed = PortraitImportHelper.BuildColorKeyedRgba(lr);
+            byte[] keyed = Assert.IsType<byte[]>(PortraitImportHelper.BuildColorKeyedRgba(lr));
             var qr = DecreaseColorCore.Quantize(keyed, lr.Width, lr.Height, 16);
 
             Assert.NotNull(qr);
@@ -799,7 +793,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             using var _ = EnsureImageService();
             var lr = MakeOpaqueBackgroundLoadResult(96, 80);
 
-            byte[] keyed = PortraitImportHelper.BuildColorKeyedRgba(lr);
+            byte[] keyed = Assert.IsType<byte[]>(PortraitImportHelper.BuildColorKeyedRgba(lr));
             byte[] sheet = PortraitRendererCore.PromoteFaceToPortraitSheet(keyed, 96, 80);
             var parts = PortraitRendererCore.SplitPortraitSheet(sheet, 128, 112);
 
@@ -975,7 +969,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             var prev = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreStateTestState.ClearRom();
                 var vm = new ImagePortraitImporterViewModel();
                 var list = vm.LoadList();
                 Assert.NotNull(list);
@@ -983,7 +977,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
             finally
             {
-                CoreState.ROM = prev;
+                CoreStateTestState.RestoreRom(prev);
             }
         }
 
@@ -1001,7 +995,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.NotNull(list);
             Assert.NotEmpty(list);
             // At least the first slot's address should be a valid offset.
-            Assert.True(U.isSafetyOffset(list[0].addr, _fixture.ROM));
+            Assert.True(U.isSafetyOffset(list[0].addr, RequireRom()));
         }
 
         [Fact]
@@ -1107,7 +1101,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Assert.Equal(16, loadResult.Height);
 
                 // Step 3: pick a target slot.
-                ROM rom = _fixture.ROM;
+                ROM rom = RequireRom();
                 uint baseAddr = rom.p32(rom.RomInfo.portrait_pointer);
                 uint entryAddr = baseAddr + (uint)(6 * rom.RomInfo.portrait_datasize);
 
@@ -1139,7 +1133,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             using var _ = EnsureImageService();
             var lr = MakeOpaqueBackgroundLoadResult(96, 80);
-            byte[] keyed = PortraitImportHelper.BuildColorKeyedRgba(lr);
+            byte[] keyed = Assert.IsType<byte[]>(PortraitImportHelper.BuildColorKeyedRgba(lr));
             byte[] sheet = PortraitRendererCore.PromoteFaceToPortraitSheet(keyed, 96, 80);
             var parts = PortraitRendererCore.SplitPortraitSheet(sheet, 128, 112);
 
@@ -1183,7 +1177,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             using var _ = EnsureImageService();
             var lr = MakeHalfBodyLoadResult();
-            byte[] keyed = PortraitImportHelper.BuildColorKeyedRgba(lr);
+            byte[] keyed = Assert.IsType<byte[]>(PortraitImportHelper.BuildColorKeyedRgba(lr));
             var parts = PortraitRendererCore.SplitHalfBodyPortraitSheet(keyed, 160, 160);
             Assert.NotNull(parts);
 
@@ -1289,14 +1283,18 @@ namespace FEBuilderGBA.Avalonia.Tests
                     SetPixel(rgba, w, x, y, 200, 80, 40, 255);
                 }
             }
-            var qr = DecreaseColorCore.Quantize(rgba, w, h, 16);
+            var qr = Assert.IsType<DecreaseColorCore.QuantizeResult>(DecreaseColorCore.Quantize(rgba, w, h, 16));
+            byte[]? indexedPixels = qr.IndexData;
+            byte[]? gbaPalette = qr.GBAPalette;
+            Assert.NotNull(indexedPixels);
+            Assert.NotNull(gbaPalette);
             return new ImageImportService.LoadResult
             {
                 Success = true,
                 Width = w,
                 Height = h,
-                IndexedPixels = qr.IndexData,
-                GBAPalette = qr.GBAPalette,
+                IndexedPixels = indexedPixels,
+                GBAPalette = gbaPalette,
                 RGBAPixels = rgba,
                 SourcePath = "C:\\tmp\\opaque.png",
             };
@@ -1371,14 +1369,18 @@ namespace FEBuilderGBA.Avalonia.Tests
             SetRect(rgba, 160, 128, 64, 32, 32, 40, 220, 40, 255);
             SetRect(rgba, 160, 128, 96, 32, 16, 220, 220, 40, 255);
             SetRect(rgba, 160, 0, 128, 96, 32, 220, 40, 220, 255);
-            var qr = DecreaseColorCore.Quantize(rgba, 160, 160, 16);
+            var qr = Assert.IsType<DecreaseColorCore.QuantizeResult>(DecreaseColorCore.Quantize(rgba, 160, 160, 16));
+            byte[]? indexedPixels = qr.IndexData;
+            byte[]? gbaPalette = qr.GBAPalette;
+            Assert.NotNull(indexedPixels);
+            Assert.NotNull(gbaPalette);
             return new ImageImportService.LoadResult
             {
                 Success = true,
                 Width = 160,
                 Height = 160,
-                IndexedPixels = qr.IndexData,
-                GBAPalette = qr.GBAPalette,
+                IndexedPixels = indexedPixels,
+                GBAPalette = gbaPalette,
                 RGBAPixels = rgba,
                 SourcePath = "C:\\repo\\halfbody.png",
             };
@@ -1434,7 +1436,7 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         static string FindRepoRoot()
         {
-            string dir = AppContext.BaseDirectory;
+            string? dir = AppContext.BaseDirectory;
             while (dir != null && !File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
             {
                 dir = Path.GetDirectoryName(dir);

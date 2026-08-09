@@ -35,7 +35,7 @@ static class MoveCostEditorViewTestHostExtensions
             Hosts.Add(view, host);
             host.Show();
         }
-        return host.CaptureRenderedFrame();
+        return Assert.IsType<WriteableBitmap>(host.CaptureRenderedFrame());
     }
 
     public static EditorHostWindow GetHeadlessHost(this IEmbeddableEditor view)

@@ -211,8 +211,7 @@ namespace FEBuilderGBA.Tests
 
         static string ReadWinFormsSource(string fileName)
         {
-            string root = FindRepoRoot();
-            Assert.NotNull(root);
+            string root = Assert.IsType<string>(FindRepoRoot());
             string path = Path.Combine(root, "FEBuilderGBA", fileName);
             Assert.True(File.Exists(path), $"{fileName} not found at {path}");
             return File.ReadAllText(path);
@@ -220,8 +219,7 @@ namespace FEBuilderGBA.Tests
 
         static string ReadAvaloniaSource(string fileName)
         {
-            string root = FindRepoRoot();
-            Assert.NotNull(root);
+            string root = Assert.IsType<string>(FindRepoRoot());
             string path = Path.Combine(root, "FEBuilderGBA.Avalonia", "Views", fileName);
             if (!File.Exists(path))
                 path = Path.Combine(root, "FEBuilderGBA.Avalonia", "Services", fileName);
@@ -229,7 +227,7 @@ namespace FEBuilderGBA.Tests
             return File.ReadAllText(path);
         }
 
-        static string FindRepoRoot()
+        static string? FindRepoRoot()
         {
             var dir = new DirectoryInfo(AppContext.BaseDirectory);
             while (dir != null)

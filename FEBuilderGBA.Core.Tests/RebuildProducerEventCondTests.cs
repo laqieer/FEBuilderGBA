@@ -270,21 +270,21 @@ namespace FEBuilderGBA.Core.Tests
         {
             var rom = MakeFe8uRom();
             var prevRom = CoreState.ROM;
-            var prevEs = CoreState.EventScript;
-            var prevComment = CoreState.CommentCache;
+            EventScript? prevEs = CoreState.EventScript;
+            IEtcCache? prevComment = CoreState.CommentCache;
             try
             {
                 CoreState.ROM = rom;
-                CoreState.EventScript = null;     // not wired
-                CoreState.CommentCache = null;
+                CoreState.EventScript = null!;     // not wired
+                CoreState.CommentCache = null!;
                 var list = new List<Address>();
                 Assert.Throws<InvalidOperationException>(() => RebuildProducerCore.EmitEventCond(rom, list));
             }
             finally
             {
                 CoreState.ROM = prevRom;
-                CoreState.EventScript = prevEs;
-                CoreState.CommentCache = prevComment;
+                CoreState.EventScript = prevEs!;
+                CoreState.CommentCache = prevComment!;
             }
         }
 

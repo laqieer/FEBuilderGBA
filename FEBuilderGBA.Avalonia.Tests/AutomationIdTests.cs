@@ -48,7 +48,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         /// <summary>
         /// Helper: get the AutomationId from a control.
         /// </summary>
-        private static string GetAutomationId(Control control)
+        private static string? GetAutomationId(Control control)
         {
             return AutomationProperties.GetAutomationId(control);
         }
@@ -73,11 +73,11 @@ namespace FEBuilderGBA.Avalonia.Tests
         /// <summary>
         /// Helper: instantiate a View type safely.
         /// </summary>
-        private static Control TryCreateView(Type viewType)
+        private static Control? TryCreateView(Type viewType)
         {
             try
             {
-                return (Control)Activator.CreateInstance(viewType);
+                return Activator.CreateInstance(viewType) as Control;
             }
             catch
             {

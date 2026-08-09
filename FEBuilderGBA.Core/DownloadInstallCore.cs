@@ -27,6 +27,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace FEBuilderGBA
@@ -160,6 +161,9 @@ namespace FEBuilderGBA
         /// </summary>
         public delegate bool DownloadStep(string url, string destPath, out string error, string referer);
 
+        public delegate Task<(bool ok, string error)> DownloadStepAsync(
+            string url, string destPath, string referer, CancellationToken cancellationToken);
+
         /// <summary>
         /// Download (and, if an archive, extract) the resource identified by
         /// <paramref name="id"/>, locate its executable by match-glob, and place
@@ -173,7 +177,7 @@ namespace FEBuilderGBA
         /// written to the final tool dir (a prior install is preserved), and the
         /// staging dir is removed.
         /// </summary>
-        public static string Download(ResourceId id, string baseDir, Action<string> progress,
+        public static string Download(ResourceId id, string baseDir, Action<string>? progress,
             out string error, DownloadStep downloadStep = null)
         {
             StagedDownload staged = Stage(id, baseDir, progress, out error, downloadStep);
@@ -186,6 +190,32 @@ namespace FEBuilderGBA
             finally
             {
                 staged.Dispose();
+            }
+        }
+
+        public static async Task<DownloadResult> DownloadAsync(ResourceId id, string baseDir, Action<string>? progress,
+            DownloadStepAsync downloadStep = null, CancellationToken cancellationToken = default)
+        {
+            StageDownloadResult staged = await StageAsync(
+                id, baseDir, progress, downloadStep, cancellationToken).ConfigureAwait(false);
+            if (!staged.Success)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return new DownloadResult(null, staged.Error);
+            }
+
+            string error = staged.Error;
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                string path = Commit(staged.Staged, ref error);
+                return path == null
+                    ? new DownloadResult(null, error)
+                    : new DownloadResult(path, error);
+            }
+            finally
+            {
+                staged.Staged.Dispose();
             }
         }
 
@@ -217,6 +247,22 @@ namespace FEBuilderGBA
             }
         }
 
+        public readonly struct DownloadResult
+        {
+            public string Path { get; }
+            public string Error { get; }
+            public bool Success => Path != null;
+            public DownloadResult(string path, string error) { Path = path; Error = error ?? ""; }
+        }
+
+        public readonly struct StageDownloadResult
+        {
+            public StagedDownload Staged { get; }
+            public string Error { get; }
+            public bool Success => Staged != null;
+            public StageDownloadResult(StagedDownload staged, string error) { Staged = staged; Error = error ?? ""; }
+        }
+
         /// <summary>
         /// Phase 1: download + (extract) + locate + validate <paramref name="id"/>'s
         /// exe into a fresh staging dir, WITHOUT touching the final tool dir.
@@ -224,7 +270,7 @@ namespace FEBuilderGBA
         /// disposes), or <c>null</c> + non-empty <paramref name="error"/> on
         /// failure (staging dir already cleaned up). NO final dir is mutated here.
         /// </summary>
-        public static StagedDownload Stage(ResourceId id, string baseDir, Action<string> progress,
+        public static StagedDownload Stage(ResourceId id, string baseDir, Action<string>? progress,
             out string error, DownloadStep downloadStep = null)
         {
             error = "";
@@ -325,6 +371,126 @@ namespace FEBuilderGBA
             {
                 // On failure, remove the staging dir now (the caller never sees a
                 // StagedDownload to dispose). On success the caller owns disposal.
+                if (!ok)
+                {
+                    try { if (Directory.Exists(stagingDir)) Directory.Delete(stagingDir, recursive: true); }
+                    catch { /* best-effort cleanup */ }
+                }
+            }
+        }
+
+        public static async Task<StageDownloadResult> StageAsync(ResourceId id, string baseDir, Action<string>? progress,
+            DownloadStepAsync downloadStep = null, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            string error = "";
+            DownloadSpec spec;
+            if (!s_specs.TryGetValue(id, out spec))
+            {
+                error = R.Error("Unknown download resource: {0}", id);
+                return new StageDownloadResult(null, error);
+            }
+
+            downloadStep ??= (url, dest, referer, ct) =>
+                U.HttpDownloadFileAsync(url, dest, referer, cancellationToken: ct);
+
+            string finalDir = Path.Combine(baseDir, "app", spec.AppSubDir);
+            string stagingDir = Path.Combine(Path.GetTempPath(),
+                "febgba_dl_" + Guid.NewGuid().ToString("N"));
+            bool ok = false;
+            try
+            {
+                Directory.CreateDirectory(stagingDir);
+
+                progress?.Invoke(R._("Downloading... {0}", spec.Url));
+
+                string urlFilename = GetUrlFilename(spec.Url);
+                string ext = Path.GetExtension(urlFilename);
+
+                if (spec.IsSingleFile || IsExeExtension(ext))
+                {
+                    string stagedExe = Path.Combine(stagingDir, spec.MatchGlob);
+                    (bool downloaded, string downloadError) = await downloadStep(
+                        spec.Url, stagedExe, spec.Referer, cancellationToken).ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (!downloaded)
+                    {
+                        error = string.IsNullOrEmpty(downloadError)
+                            ? R.Error("Download failed.\r\nURL:{0}", spec.Url)
+                            : downloadError;
+                        return new StageDownloadResult(null, error);
+                    }
+                    if (!File.Exists(stagedExe))
+                    {
+                        error = R.Error("Download did not produce the expected file.\r\nURL:{0}\r\nfile:{1}",
+                            spec.Url, spec.MatchGlob);
+                        return new StageDownloadResult(null, error);
+                    }
+                    ok = true;
+                    return new StageDownloadResult(new StagedDownload
+                    {
+                        Spec = spec, StagingDir = stagingDir, StagedExe = stagedExe,
+                        FinalDir = finalDir, CopyWholeDir = null, PlaceFilename = spec.MatchGlob,
+                    }, "");
+                }
+
+                string archiveExt = string.IsNullOrEmpty(ext) ? ".zip" : ext;
+                string stagedArchive = Path.Combine(stagingDir, "download" + archiveExt);
+                (bool archiveDownloaded, string archiveDownloadError) = await downloadStep(
+                    spec.Url, stagedArchive, spec.Referer, cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!archiveDownloaded)
+                {
+                    error = string.IsNullOrEmpty(archiveDownloadError)
+                        ? R.Error("Download failed.\r\nURL:{0}", spec.Url)
+                        : archiveDownloadError;
+                    return new StageDownloadResult(null, error);
+                }
+                if (!File.Exists(stagedArchive))
+                {
+                    error = R.Error("Download failed.\r\nURL:{0}", spec.Url);
+                    return new StageDownloadResult(null, error);
+                }
+
+                progress?.Invoke(R._("Extracting..."));
+                string extractDir = Path.Combine(stagingDir, "extract");
+                Directory.CreateDirectory(extractDir);
+                string extractError = ArchSevenZip.Extract(stagedArchive, extractDir, isHide: true);
+                if (!string.IsNullOrEmpty(extractError))
+                {
+                    error = R.Error("Could not extract the downloaded file.\r\nURL:{0}\r\nfindEXE:{1}\r\n{2}",
+                        spec.Url, spec.MatchGlob, extractError);
+                    return new StageDownloadResult(null, error);
+                }
+
+                progress?.Invoke(R._("Locating {0}...", spec.MatchGlob));
+                string locatedExe = GrepFile(extractDir, spec.MatchGlob, ref error);
+                if (locatedExe == null)
+                {
+                    return new StageDownloadResult(null, error);
+                }
+
+                ok = true;
+                return new StageDownloadResult(new StagedDownload
+                {
+                    Spec = spec, StagingDir = stagingDir, StagedExe = locatedExe,
+                    FinalDir = finalDir, CopyWholeDir = extractDir,
+                    PlaceFilename = Path.GetFileName(locatedExe),
+                }, "");
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception e)
+            {
+                error = R.Error("Could not open the downloaded file.\r\nURL:{0}\r\nfindEXE:{1}\r\n{2}",
+                    spec.Url, spec.MatchGlob, e.Message);
+                return new StageDownloadResult(null, error);
+            }
+            finally
+            {
                 if (!ok)
                 {
                     try { if (Directory.Exists(stagingDir)) Directory.Delete(stagingDir, recursive: true); }
@@ -500,19 +666,39 @@ namespace FEBuilderGBA
         ///   <paramref name="runInstaller"/>     defaults to GitInstaller.RunInstallerSilentlyAsync,
         ///   <paramref name="findGit"/>          defaults to GitUtil.FindGitExecutable.
         /// </summary>
-        public static async Task<GitInstallResult> DownloadGitAsync(Action<string> progress,
-            Func<string> getInstallerUrl = null,
-            DownloadStep downloadStep = null,
-            Func<string, Task<bool>> runInstaller = null,
-            Func<string> findGit = null)
+        public static async Task<GitInstallResult> DownloadGitAsync(Action<string>? progress,
+            Func<string?>? getInstallerUrl = null,
+            DownloadStep? downloadStep = null,
+            Func<string, Task<bool>>? runInstaller = null,
+            Func<string?>? findGit = null,
+            Func<CancellationToken, Task<string?>>? getInstallerUrlAsync = null,
+            DownloadStepAsync? downloadStepAsync = null,
+            CancellationToken cancellationToken = default)
         {
-            getInstallerUrl ??= GitInstaller.GetLatestInstallerUrl;
-            if (downloadStep == null) downloadStep = U.HttpDownloadFile;
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (getInstallerUrlAsync == null)
+            {
+                getInstallerUrlAsync = getInstallerUrl == null
+                    ? ct => GitInstaller.GetLatestInstallerUrlAsync(cancellationToken: ct)
+                    : _ => Task.FromResult(getInstallerUrl());
+            }
+            if (downloadStepAsync == null)
+            {
+                downloadStepAsync = downloadStep == null
+                    ? (url, dest, referer, ct) => U.HttpDownloadFileAsync(url, dest, referer, cancellationToken: ct)
+                    : (url, dest, referer, _) =>
+                    {
+                        bool ok = downloadStep(url, dest, out string error, referer);
+                        return Task.FromResult((ok, error));
+                    };
+            }
             runInstaller ??= GitInstaller.RunInstallerSilentlyAsync;
             findGit ??= GitUtil.FindGitExecutable;
 
             progress?.Invoke(R._("Resolving the Git installer download URL..."));
-            string installerUrl = getInstallerUrl();
+            string? installerUrl = await getInstallerUrlAsync(cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
             if (string.IsNullOrEmpty(installerUrl))
             {
                 return GitFail(R.Error(
@@ -524,8 +710,10 @@ namespace FEBuilderGBA
             try
             {
                 progress?.Invoke(R._("Downloading the Git installer... {0}", installerUrl));
-                string dlError;
-                if (!downloadStep(installerUrl, tempInstaller, out dlError, "") || !File.Exists(tempInstaller))
+                (bool downloaded, string dlError) = await downloadStepAsync(
+                    installerUrl, tempInstaller, "", cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!downloaded || !File.Exists(tempInstaller))
                 {
                     return GitFail(R.Error("Failed to download the Git installer.\r\n{0}",
                         string.IsNullOrEmpty(dlError) ? installerUrl : dlError));
@@ -539,13 +727,17 @@ namespace FEBuilderGBA
                 }
 
                 progress?.Invoke(R._("Git installation complete."));
-                string gitPath = findGit();
+                string? gitPath = findGit();
                 if (string.IsNullOrEmpty(gitPath))
                 {
                     return GitFail(R.Error(
                         "Git was installed but its executable could not be found.\r\nPlease set the path manually via Browse."));
                 }
                 return new GitInstallResult(gitPath, "");
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception e)
             {

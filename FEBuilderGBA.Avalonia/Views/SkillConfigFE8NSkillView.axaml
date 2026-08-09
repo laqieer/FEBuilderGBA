@@ -332,7 +332,7 @@
                  (Class/Item/Other) decorations + icons are deferred. -->
             <Label AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtByteHeader_Label"
                    Content="Ext Bytes" FontWeight="SemiBold" Margin="0,8,0,0" />
-            <!-- NOTE: Avalonia 11.2.3 Grid has no ColumnSpacing/RowSpacing —
+            <!-- NOTE: Avalonia 11.3.18 Grid has no ColumnSpacing/RowSpacing —
                  gaps are applied via per-cell Margin instead. -->
             <Grid ColumnDefinitions="Auto,80,160,Auto,80,160"
                   RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">

@@ -62,7 +62,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             private readonly IImageService? _prev;
             public RestoreImageService(IImageService? prev) { _prev = prev; }
-            public void Dispose() { CoreState.ImageService = _prev; }
+            public void Dispose() { CoreState.ImageService = _prev!; }
         }
 
         [Fact]

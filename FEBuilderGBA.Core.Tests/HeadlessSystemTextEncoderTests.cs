@@ -37,7 +37,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var encoder = new HeadlessSystemTextEncoder();
             Assert.Equal("", encoder.Decode(new byte[0]));
-            Assert.Equal("", encoder.Decode(null));
+            Assert.Equal("", encoder.Decode(null!));
         }
 
         [Fact]
@@ -45,7 +45,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var encoder = new HeadlessSystemTextEncoder();
             Assert.Empty(encoder.Encode(""));
-            Assert.Empty(encoder.Encode(null));
+            Assert.Empty(encoder.Encode(null!));
         }
 
         [Fact]
@@ -74,16 +74,16 @@ namespace FEBuilderGBA.Core.Tests
         public void Default_Constructor_WithoutRom_UsesISO8859()
         {
             // Without a ROM loaded, defaults to ISO-8859-1
-            var saved = CoreState.ROM;
+            ROM? saved = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var encoder = new HeadlessSystemTextEncoder();
                 Assert.Equal("iso-8859-1", encoder.EncodingName);
             }
             finally
             {
-                CoreState.ROM = saved;
+                CoreState.ROM = saved!;
             }
         }
 

@@ -172,7 +172,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Map_Null_And_Garbage_NoThrow()
         {
-            Assert.Empty(DecompMapParser.Parse(null));
+            Assert.Empty(DecompMapParser.Parse(null!));
             Assert.Empty(DecompMapParser.Parse(""));
             // Random binary-ish garbage: never throws, returns empty.
             Assert.Empty(DecompMapParser.Parse("\x00\x01\x02 not a map \xff\xfe random"));
@@ -229,7 +229,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Sym_Null_And_Garbage_NoThrow()
         {
-            Assert.Empty(DecompSymParser.Parse(null));
+            Assert.Empty(DecompSymParser.Parse(null!));
             Assert.Empty(DecompSymParser.Parse(""));
             Assert.Empty(DecompSymParser.Parse("\x00\x01\xff garbage"));
         }
@@ -346,7 +346,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Json_Null_And_Garbage_NoThrow()
         {
-            Assert.Empty(DecompSymbolJsonParser.Parse(null));
+            Assert.Empty(DecompSymbolJsonParser.Parse(null!));
             Assert.Empty(DecompSymbolJsonParser.Parse(""));
             Assert.Empty(DecompSymbolJsonParser.Parse("{ not valid json"));
             Assert.Empty(DecompSymbolJsonParser.Parse("\x00\xff garbage bytes"));

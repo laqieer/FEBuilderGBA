@@ -614,7 +614,7 @@ namespace FEBuilderGBA.Tests.Unit
             }
 
             // Strict: fail if any forms with ROM fields are unmapped
-            Assert.Equal(0, unmappedWithFields.Count);
+            Assert.Empty(unmappedWithFields);
         }
 
         /// <summary>
@@ -724,7 +724,7 @@ namespace FEBuilderGBA.Tests.Unit
                     if (!int.TryParse(field.Substring(1), out int offset))
                         continue;
 
-                    string expectedType = prefix switch
+                    string? expectedType = prefix switch
                     {
                         'B' or 'b' => "u8",
                         'W' => "u16",
@@ -828,7 +828,7 @@ namespace FEBuilderGBA.Tests.Unit
                 // Verify each data key has a matching raw entry
                 foreach (var (key, (prefix, offset)) in dataKeys)
                 {
-                    string expectedType = prefix switch
+                    string? expectedType = prefix switch
                     {
                         'B' => "u8",
                         'b' => "s8", // signed byte

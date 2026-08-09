@@ -32,7 +32,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             baseDir = Path.Combine(Path.GetTempPath(), "fe_crgit_" + Guid.NewGuid().ToString("N"));
             string repoDir = Path.Combine(baseDir, "resources", "FE-Repo");
-            Directory.CreateDirectory(Path.GetDirectoryName(repoDir));
+            Directory.CreateDirectory(TestRequire.DirectoryName(repoDir));
             return repoDir;
         }
 
@@ -79,8 +79,8 @@ namespace FEBuilderGBA.Core.Tests
         {
             public int Called; public bool TargetExistedAtCall; public int ReturnCode; public bool CreateOnSuccess;
             /// <summary>Artifacts a real git clone would have written into the target before failing.</summary>
-            public Action<string> Artifacts;
-            public int Op(string g, string u, string t, Action<string> p, StringBuilder l)
+            public Action<string>? Artifacts;
+            public int Op(string g, string u, string t, Action<string>? p, StringBuilder l)
             {
                 Called++; TargetExistedAtCall = Directory.Exists(t);
                 Artifacts?.Invoke(t);
@@ -88,7 +88,7 @@ namespace FEBuilderGBA.Core.Tests
                 return ReturnCode;
             }
         }
-        sealed class FakeUpdate { public int Called; public int ReturnCode; public int Op(string g, string r, Action<string> p, StringBuilder l, string u) { Called++; return ReturnCode; } }
+        sealed class FakeUpdate { public int Called; public int ReturnCode; public int Op(string g, string r, Action<string>? p, StringBuilder l, string u) { Called++; return ReturnCode; } }
 
         sealed class RecordingDirectoryOps : ContentRepoDirectoryOps
         {
@@ -169,7 +169,7 @@ namespace FEBuilderGBA.Core.Tests
         public void GitNotFound_WhenGitExeNull()
         {
             var r = ContentRepoGitService.InitializeOrUpdateCore(
-                "any", null, "url", _ => false, new FakeClone().Op, new FakeUpdate().Op, null);
+                "any", null!, "url", _ => false, new FakeClone().Op, new FakeUpdate().Op, null);
             Assert.Equal(Patch2GitResultKind.GitNotFound, r.Kind);
         }
 

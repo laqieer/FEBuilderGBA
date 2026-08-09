@@ -719,14 +719,14 @@ namespace FEBuilderGBA.Core.Tests
             ed.SetCodes(new EventScript.OneCode[]
             {
                 Code(es, 0x01, 0x00, 0x01, 0x00),
-                null,
+                null!,
                 Code(es, 0x0A, 0x00, 0x00, 0x00),
             });
             Assert.Equal(2, ed.Count);
 
             int lastSel = ed.InsertRange(0, new List<EventScript.OneCode>
             {
-                null,
+                null!,
                 Code(es, 0x02, 0x00, 0x02, 0x00),
             });
             Assert.Equal(3, ed.Count);          // only the non-null was inserted
@@ -742,7 +742,7 @@ namespace FEBuilderGBA.Core.Tests
 
             // Inserting at the end (index 1) with an all-null list inserts nothing; the
             // returned index must be a valid selection (not point past the unchanged list).
-            int sel = ed.InsertRange(1, new List<EventScript.OneCode> { null, null });
+            int sel = ed.InsertRange(1, new List<EventScript.OneCode> { null!, null! });
             Assert.Equal(1, ed.Count);                 // nothing inserted
             Assert.InRange(sel, -1, ed.Count - 1);     // valid selection index
         }

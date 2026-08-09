@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace FEBuilderGBA
 {
@@ -133,6 +135,124 @@ namespace FEBuilderGBA
                 }
 
                 return romDt < datetime ? UpdateResult.Updateable : UpdateResult.Latest;
+            }
+            catch (Exception)
+            {
+                return UpdateResult.Error;
+            }
+        }
+
+        public static async Task<UpdateResult> CheckAsync(
+            Dictionary<string, string>? lines,
+            string romFilename,
+            Func<string, CancellationToken, Task<string>>? httpGet,
+            Func<string, CancellationToken, Task<string?>>? httpHeadLastModified,
+            Func<string, DateTime>? romDateTime,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (lines == null)
+                {
+                    return UpdateResult.Error;
+                }
+
+                string url = U.at(lines, "CHECK_URL");
+                if (url == "")
+                {
+                    return UpdateResult.Error;
+                }
+
+                string regex = U.at(lines, "CHECK_REGEX");
+                if (regex == "")
+                {
+                    return UpdateResult.Error;
+                }
+
+                string dateString;
+                string match;
+                if (regex == "@DIRECT_URL")
+                {
+                    match = url;
+                }
+                else
+                {
+                    string html;
+                    try
+                    {
+                        html = httpGet != null ? await httpGet(url, cancellationToken).ConfigureAwait(false) : "";
+                        cancellationToken.ThrowIfCancellationRequested();
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (Exception)
+                    {
+                        return UpdateResult.Latest;
+                    }
+
+                    Match m = RegexCache.Match(html, regex);
+                    if (m.Groups.Count < 2)
+                    {
+                        return UpdateResult.Error;
+                    }
+                    match = m.Groups[1].ToString();
+                }
+
+                if (IsUrl(match))
+                {
+                    string? lastModified;
+                    try
+                    {
+                        lastModified = httpHeadLastModified != null
+                            ? await httpHeadLastModified(match, cancellationToken).ConfigureAwait(false)
+                            : null;
+                        cancellationToken.ThrowIfCancellationRequested();
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (Exception)
+                    {
+                        return UpdateResult.Latest;
+                    }
+
+                    dateString = lastModified ?? DateTime.Now.ToString();
+                }
+                else
+                {
+                    dateString = match;
+                }
+
+                DateTime datetime;
+                try
+                {
+                    datetime = ConvertDateTime(url, dateString);
+                }
+                catch (Exception)
+                {
+                    datetime = DateTime.Now;
+                }
+
+                DateTime romDt;
+                try
+                {
+                    romDt = romDateTime != null ? romDateTime(romFilename) : DateTime.Now;
+                }
+                catch (Exception)
+                {
+                    return UpdateResult.Error;
+                }
+
+                return romDt < datetime ? UpdateResult.Updateable : UpdateResult.Latest;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception)
             {

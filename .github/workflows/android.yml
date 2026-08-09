@@ -168,6 +168,7 @@ jobs:
         run: |
           dotnet publish FEBuilderGBA.Android/FEBuilderGBA.Android.csproj \
             -c Release \
+            -warnaserror \
             -p:EnableAndroidTarget=true \
             -p:AndroidPackageFormats='apk;aab' \
             -p:AndroidKeyStore=true \
@@ -181,7 +182,7 @@ jobs:
         # what runs on the fork's CI today, so the existing (non-required) check
         # is unchanged. Produces the debug-keystore *-Signed.apk.
         if: steps.haskeystore.outputs.present != 'true'
-        run: dotnet build FEBuilderGBA.Android/FEBuilderGBA.Android.csproj -c Release -p:EnableAndroidTarget=true
+        run: dotnet build FEBuilderGBA.Android/FEBuilderGBA.Android.csproj -c Release -warnaserror -p:EnableAndroidTarget=true
 
       - name: Upload APK / AAB artifact
         uses: actions/upload-artifact@v4

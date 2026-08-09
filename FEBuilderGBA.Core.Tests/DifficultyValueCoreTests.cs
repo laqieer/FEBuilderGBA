@@ -114,7 +114,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void IsSupported_NullRom_ReturnsFalse()
         {
-            Assert.False(DifficultyValueCore.IsSupported(null));
+            Assert.False(DifficultyValueCore.IsSupported(null!));
         }
 
         [Fact]

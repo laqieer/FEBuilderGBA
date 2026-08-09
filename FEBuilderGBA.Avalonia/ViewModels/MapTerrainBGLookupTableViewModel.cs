@@ -40,7 +40,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        public bool IsLoading { get => _isLoading; set => SetField(ref _isLoading, value); }
+        public new bool IsLoading { get => _isLoading; set => SetField(ref _isLoading, value); }
         /// <summary>Battle BG index (B0 / J_0_BATTLEBG).</summary>
         public uint BattleBG { get => _battleBG; set => SetField(ref _battleBG, value); }
 
@@ -104,7 +104,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// button stays in sync with the active filter.
         ///
         /// Phase 4 gap-fix (#442): the Floor view's "Jump to BG" button passes
-        /// the source filterIndex via <see cref="MapTerrainBGLookupTableView.NavigateToFilterAndRow"/>,
+        /// the source filterIndex via <c>MapTerrainBGLookupTableView.NavigateToFilterAndRow</c>,
         /// which delegates here. Without this overload, non-zero source
         /// filters would map to the WRONG BG list (Copilot CLI review point 2).
         /// </summary>

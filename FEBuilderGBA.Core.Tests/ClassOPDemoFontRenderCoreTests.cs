@@ -31,13 +31,13 @@ namespace FEBuilderGBA.Core.Tests
 
         sealed class ImageServiceScope : IDisposable
         {
-            readonly IImageService _prev;
+            readonly IImageService? _prev;
             public ImageServiceScope()
             {
                 _prev = CoreState.ImageService;
                 CoreState.ImageService = new StubImageService();
             }
-            public void Dispose() { CoreState.ImageService = _prev; }
+            public void Dispose() { TestRequire.RestoreImageService(_prev); }
         }
 
         // Build a synthetic FE8U ROM with a 2-glyph OP-class-font table.
@@ -203,22 +203,22 @@ namespace FEBuilderGBA.Core.Tests
         public void RenderGlyphById_NullRom_ReturnsNull()
         {
             using var svc = new ImageServiceScope();
-            Assert.Null(ClassOPDemoFontRenderCore.RenderGlyphById(null, 0));
+            Assert.Null(ClassOPDemoFontRenderCore.RenderGlyphById(null!, 0));
         }
 
         [Fact]
         public void RenderGlyphById_NullImageService_ReturnsNull()
         {
             var prevRom = CoreState.ROM;
-            var prevSvc = CoreState.ImageService;
+            IImageService? prevSvc = CoreState.ImageService;
             try
             {
                 ROM rom = MakeRom();
                 CoreState.ROM = rom;
-                CoreState.ImageService = null;
+                CoreState.ImageService = null!;
                 Assert.Null(ClassOPDemoFontRenderCore.RenderGlyphById(rom, 0));
             }
-            finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc; }
+            finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc!; }
         }
 
         [Fact]

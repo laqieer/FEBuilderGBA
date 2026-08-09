@@ -113,7 +113,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>True while LoadList / LoadEntry are running (suppresses dirty flags).</summary>
-        public bool IsLoading
+        public new bool IsLoading
         {
             get => _isLoading;
             set => SetField(ref _isLoading, value);
@@ -619,7 +619,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// non-hex character (mirrors WF AIScriptForm.LineToEventByte). A lone
         /// trailing nibble is dropped. Whitespace is NOT skipped — like WF, the
         /// scan stops at the first space/tab (the exported hex dump has no
-        /// internal separators), so a "<hex>\t//comment" line yields exactly the
+        /// internal separators), so a <c>&lt;hex&gt;\t//comment</c> line yields exactly the
         /// opcode bytes.
         /// </summary>
         static byte[] ReadLeadingHexBytes(string line)
@@ -1082,7 +1082,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// Expand the active AI pointer table (ai1 when FilterIndex==0, ai2 when 1)
         /// to <paramref name="newCount"/> 4-byte pointer slots. Mirrors WF
         /// <c>AIScriptForm.AddressListExpandsEventNoCopyPointer</c>:
-        /// <see cref="DataExpansionCore.ExpandTableTo"/> copies the old slots,
+        /// <see cref="DataExpansionCore.ExpandTableTo(FEBuilderGBA.ROM, uint, uint, uint, uint, bool)"/> copies the old slots,
         /// zero-fills the new ones, writes the 0xFFFFFFFF terminator, wipes the old
         /// region and repoints the canonical slot ai*[0]; this then repoints the two
         /// additional consecutive base-pointer slots ai*[1]/ai*[2] that WF also

@@ -225,13 +225,13 @@ namespace FEBuilderGBA.Core.Tests
         public void FindAllArgReferences_Gating_NullEventScript_ReturnsEmpty()
         {
             var prevRom = CoreState.ROM;
-            var prevEs = CoreState.EventScript;
+            EventScript? prevEs = CoreState.EventScript;
             try
             {
                 var rom = new ROM();
                 rom.LoadLow("gate-fe8u.gba", new byte[0x1000000], "BE8E01");
                 CoreState.ROM = rom;
-                CoreState.EventScript = null;
+                CoreState.EventScript = null!;
 
                 var map = EventScriptReferenceScanner.FindAllArgReferences(
                     rom, EventScript.ArgType.BG, keepZeroId: true);
@@ -240,7 +240,7 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.ROM = prevRom;
-                CoreState.EventScript = prevEs;
+                CoreState.EventScript = prevEs!;
             }
         }
 
@@ -281,14 +281,14 @@ namespace FEBuilderGBA.Core.Tests
             var es = BuildEventScript(BgCommand(), TermCommand());
             var prevRom = CoreState.ROM;
             var prevEs = CoreState.EventScript;
-            var prevComment = CoreState.CommentCache;
+            IEtcCache? prevComment = CoreState.CommentCache;
             try
             {
                 var rom = new ROM();
                 rom.LoadLow("nocomment-fe8u.gba", new byte[0x1000000], "BE8E01");
                 CoreState.ROM = rom;
                 CoreState.EventScript = es;
-                CoreState.CommentCache = null;
+                CoreState.CommentCache = null!;
 
                 var map = EventScriptReferenceScanner.FindAllArgReferences(
                     rom, EventScript.ArgType.BG, keepZeroId: true);
@@ -298,14 +298,14 @@ namespace FEBuilderGBA.Core.Tests
             {
                 CoreState.ROM = prevRom;
                 CoreState.EventScript = prevEs;
-                CoreState.CommentCache = prevComment;
+                CoreState.CommentCache = prevComment!;
             }
         }
 
         [Fact]
         public void EnumerateEventEntries_NullRom_ReturnsEmpty()
         {
-            var list = EventScriptReferenceScanner.EnumerateEventEntries(null);
+            var list = EventScriptReferenceScanner.EnumerateEventEntries(null!);
             Assert.NotNull(list);
             Assert.Empty(list);
         }
@@ -393,7 +393,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RealRom_FE7U_Enumeration_IncludesTutorialFE7()
         {
-            string romPath = FindRom("FE7U.gba");
+            string? romPath = FindRom("FE7U.gba");
             if (romPath == null) return; // skip
 
             WithRealRomEnv(romPath, rom =>
@@ -457,7 +457,7 @@ namespace FEBuilderGBA.Core.Tests
 
         static void RealRomFindBgNonEmpty(string romName)
         {
-            string romPath = FindRom(romName);
+            string? romPath = FindRom(romName);
             if (romPath == null) return; // skip
 
             WithRealRomEnv(romPath, rom =>
@@ -496,8 +496,9 @@ namespace FEBuilderGBA.Core.Tests
             {
                 // BaseDirectory must point at the test output dir (config/ is
                 // copied there) so EventScript.Load resolves the event config.
-                string asmDir = Path.GetDirectoryName(
+                string asmDir = TestRequire.DirectoryName(
                     Assembly.GetExecutingAssembly().Location);
+                Assert.NotNull(asmDir);
                 CoreState.BaseDirectory = asmDir;
 
                 var rom = new ROM();
@@ -525,10 +526,10 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // Walk up from the test assembly to find roms/<name>.
-        static string FindRom(string romName)
+        static string? FindRom(string romName)
         {
             string thisAssembly = Assembly.GetExecutingAssembly().Location;
-            string dir = Path.GetDirectoryName(thisAssembly);
+            string? dir = Path.GetDirectoryName(thisAssembly);
             for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))

@@ -201,7 +201,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Format_NullVoices_DoesNotThrow()
         {
-            string s = VoicegroupAsmExportCore.FormatVoicegroup(null, 0, 0x500, out var diags);
+            string s = VoicegroupAsmExportCore.FormatVoicegroup(null!, 0, 0x500, out var diags);
             Assert.Contains(".include", s);
             Assert.NotNull(diags);
         }
@@ -276,7 +276,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Export_NullRom_DoesNotThrow_ReturnsDiagnostic()
         {
-            var r = VoicegroupAsmExportCore.Export(null, 0x1000, 0);
+            var r = VoicegroupAsmExportCore.Export(null!, 0x1000, 0);
             Assert.False(r.Ok);
             Assert.NotEmpty(r.Diagnostics);
         }

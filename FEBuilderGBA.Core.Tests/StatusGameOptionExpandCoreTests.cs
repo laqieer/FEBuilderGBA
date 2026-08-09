@@ -80,7 +80,7 @@ namespace FEBuilderGBA.Core.Tests
             DataExpansionCore.ExpandResult result;
             using (ROM.BeginUndoScope(undo.NewUndoData("expand")))
             {
-                result = StatusGameOptionCore.ExpandGameOptionTable(rom, addCount, null, out string err);
+                result = StatusGameOptionCore.ExpandGameOptionTable(rom, addCount, null!, out string err);
                 Assert.True(result.Success, err);
             }
 
@@ -113,7 +113,7 @@ namespace FEBuilderGBA.Core.Tests
             DataExpansionCore.ExpandResult result;
             using (ROM.BeginUndoScope(undo.NewUndoData("expand1")))
             {
-                result = StatusGameOptionCore.ExpandGameOptionTable(rom, 1, null, out string err);
+                result = StatusGameOptionCore.ExpandGameOptionTable(rom, 1, null!, out string err);
                 Assert.True(result.Success, err);
             }
 
@@ -140,7 +140,7 @@ namespace FEBuilderGBA.Core.Tests
             DataExpansionCore.ExpandResult result;
             using (ROM.BeginUndoScope(undo.NewUndoData("expand-past64")))
             {
-                result = StatusGameOptionCore.ExpandGameOptionTable(rom, addCount, null, out string err);
+                result = StatusGameOptionCore.ExpandGameOptionTable(rom, addCount, null!, out string err);
                 Assert.True(result.Success, err);
             }
 
@@ -174,7 +174,7 @@ namespace FEBuilderGBA.Core.Tests
             DataExpansionCore.ExpandResult result;
             using (ROM.BeginUndoScope(undo.NewUndoData("expand-refs")))
             {
-                result = StatusGameOptionCore.ExpandGameOptionTable(rom, 2, null, out string err);
+                result = StatusGameOptionCore.ExpandGameOptionTable(rom, 2, null!, out string err);
                 Assert.True(result.Success, err);
             }
 
@@ -214,7 +214,7 @@ namespace FEBuilderGBA.Core.Tests
             var ud = undo.NewUndoData("expand-rollback");
             using (ROM.BeginUndoScope(ud))
             {
-                var result = StatusGameOptionCore.ExpandGameOptionTable(rom, 2, null, out string err);
+                var result = StatusGameOptionCore.ExpandGameOptionTable(rom, 2, null!, out string err);
                 Assert.True(result.Success, err);
                 Assert.NotEqual(OptBase, rom.p32(pointerAddr));
             }
@@ -253,7 +253,7 @@ namespace FEBuilderGBA.Core.Tests
             DataExpansionCore.ExpandResult result;
             using (ROM.BeginUndoScope(undo.NewUndoData("expand-flood")))
             {
-                result = StatusGameOptionCore.ExpandGameOptionTable(rom, 1, null, out string err);
+                result = StatusGameOptionCore.ExpandGameOptionTable(rom, 1, null!, out string err);
                 Assert.False(result.Success);
                 Assert.False(string.IsNullOrEmpty(err));
             }
@@ -271,7 +271,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(0u, StatusGameOptionCore.CountGameOptions(rom));
 
             byte[] before = (byte[])rom.Data.Clone();
-            var result = StatusGameOptionCore.ExpandGameOptionTable(rom, 1, null, out string err);
+            var result = StatusGameOptionCore.ExpandGameOptionTable(rom, 1, null!, out string err);
             Assert.False(result.Success);
             Assert.False(string.IsNullOrEmpty(err));
             Assert.Equal(before, rom.Data);
@@ -315,7 +315,7 @@ namespace FEBuilderGBA.Core.Tests
             ROM rom = MakeFe8uRom();
             PlantValidRows(rom, 3);
             byte[] before = (byte[])rom.Data.Clone();
-            var result = StatusGameOptionCore.ExpandGameOptionTable(rom, 0, null, out string err);
+            var result = StatusGameOptionCore.ExpandGameOptionTable(rom, 0, null!, out string err);
             Assert.False(result.Success);
             Assert.Equal(before, rom.Data);
         }
@@ -341,7 +341,7 @@ namespace FEBuilderGBA.Core.Tests
             DataExpansionCore.ExpandResult result;
             using (ROM.BeginUndoScope(undo.NewUndoData("expand-overcap")))
             {
-                result = StatusGameOptionCore.ExpandGameOptionTable(rom, 2, null, out string err);
+                result = StatusGameOptionCore.ExpandGameOptionTable(rom, 2, null!, out string err);
                 Assert.False(result.Success);
                 Assert.False(string.IsNullOrEmpty(err));
             }
@@ -363,7 +363,7 @@ namespace FEBuilderGBA.Core.Tests
             DataExpansionCore.ExpandResult result;
             using (ROM.BeginUndoScope(undo.NewUndoData("expand-tocap")))
             {
-                result = StatusGameOptionCore.ExpandGameOptionTable(rom, 4, null, out string err);
+                result = StatusGameOptionCore.ExpandGameOptionTable(rom, 4, null!, out string err);
                 Assert.True(result.Success, err);
             }
             Assert.Equal((uint)StatusGameOptionCore.MaxRows, result.NewCount);
@@ -394,7 +394,7 @@ namespace FEBuilderGBA.Core.Tests
             DataExpansionCore.ExpandResult result;
             using (ROM.BeginUndoScope(undo.NewUndoData("expand-fault")))
             {
-                result = StatusGameOptionCore.ExpandGameOptionTable(rom, 2, null, out string err);
+                result = StatusGameOptionCore.ExpandGameOptionTable(rom, 2, null!, out string err);
                 Assert.False(result.Success);
                 Assert.False(string.IsNullOrEmpty(err));
             }

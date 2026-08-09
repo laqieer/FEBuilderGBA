@@ -197,7 +197,7 @@ namespace FEBuilderGBA.Core.Tests
             // safe (Copilot PR #1326 review). LoadPatch never produces a null Param; this guards a direct
             // caller's contract.
             var rom = MakeVersionedRom("BE8E01");
-            var patch = new PatchInstallCore.PatchSt { Name = "p.txt", PatchFileName = "p.txt", Param = null };
+            var patch = new PatchInstallCore.PatchSt { Name = "p.txt", PatchFileName = "p.txt", Param = null! };
             Assert.Equal(PatchHardCodeScanner.InstallStatusEnum.Unknown,
                 PatchHardCodeScanner.EaBinInstallStatus(rom, patch));
         }
@@ -588,7 +588,7 @@ namespace FEBuilderGBA.Core.Tests
         public void Predicate_NullRom_Throws()
         {
             Assert.Throws<ArgumentNullException>(() =>
-                RebuildProducerCore.PatchFormHasUnportableInstalledPatch(null));
+                RebuildProducerCore.PatchFormHasUnportableInstalledPatch(null!));
         }
 
         // ====================================================================
@@ -635,10 +635,10 @@ namespace FEBuilderGBA.Core.Tests
             // IsComplete gate STILL refuses — but it now names the DISASM forms, NOT the PatchForm token.
             StageFe8uPatchDir(); // empty -> no installed/unknown EA/BIN -> backstop passes
             CoreState.BaseDirectory = _tempDir;
-            var savedEs = CoreState.EventScript;
+            EventScript? savedEs = CoreState.EventScript;
             try
             {
-                CoreState.EventScript = null; // disasm unwired -> EventCond/EventScript re-reported
+                CoreState.EventScript = null!; // disasm unwired -> EventCond/EventScript re-reported
                 var fe8 = MakeVersionedRom("BE8E01");
                 CoreState.ROM = fe8;
 
@@ -664,7 +664,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.EventScript = savedEs;
+                CoreState.EventScript = savedEs!;
             }
         }
 

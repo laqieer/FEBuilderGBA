@@ -20,7 +20,7 @@ namespace FEBuilderGBA.Core.Tests
         static string RepoRoot()
         {
             string thisAssembly = Assembly.GetExecutingAssembly().Location;
-            string dir = Path.GetDirectoryName(thisAssembly);
+            string? dir = Path.GetDirectoryName(thisAssembly);
             for (int i = 0; i < 12 && dir != null; i++)
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
@@ -44,13 +44,13 @@ namespace FEBuilderGBA.Core.Tests
         /// or null if absent. Namespace-agnostic (SDK-style projects have no default namespace,
         /// but be defensive).
         /// </summary>
-        static XElement FindConfigContentInclude(XDocument doc)
+        static XElement? FindConfigContentInclude(XDocument doc)
         {
             return doc.Descendants()
                 .Where(e => e.Name.LocalName == "Content")
                 .FirstOrDefault(e =>
                 {
-                    string inc = (string)e.Attribute("Include");
+                    string? inc = (string?)e.Attribute("Include");
                     return inc != null
                         && inc.Replace('/', '\\').Contains(@"config\**");
                 });
@@ -81,10 +81,9 @@ namespace FEBuilderGBA.Core.Tests
         public void Cli_Csproj_Bundles_Patch2_And_Excludes_Only_Git()
         {
             XDocument doc = LoadCsproj("FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj");
-            XElement content = FindConfigContentInclude(doc);
-            Assert.NotNull(content);
+            XElement content = TestRequire.NotNull(FindConfigContentInclude(doc), "config Content include");
 
-            string exclude = ((string)content.Attribute("Exclude") ?? string.Empty).Replace('/', '\\');
+            string exclude = ((string?)content.Attribute("Exclude") ?? string.Empty).Replace('/', '\\');
 
             // #1630: the patch2 directory MUST NOT be excluded wholesale any more.
             Assert.DoesNotContain(@"config\patch2\**", exclude);
@@ -95,17 +94,16 @@ namespace FEBuilderGBA.Core.Tests
             AssertExcludesGitPlumbing(exclude);
 
             // Sanity: content is actually copied to output.
-            Assert.Equal("PreserveNewest", (string)content.Attribute("CopyToOutputDirectory"));
+            Assert.Equal("PreserveNewest", TestRequire.NotNull((string?)content.Attribute("CopyToOutputDirectory"), "CopyToOutputDirectory"));
         }
 
         [Fact]
         public void Avalonia_Csproj_Bundles_Patch2_On_Desktop_Excludes_Only_Git()
         {
             XDocument doc = LoadCsproj("FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj");
-            XElement content = FindConfigContentInclude(doc);
-            Assert.NotNull(content);
+            XElement content = TestRequire.NotNull(FindConfigContentInclude(doc), "config Content include");
 
-            string exclude = ((string)content.Attribute("Exclude") ?? string.Empty).Replace('/', '\\');
+            string exclude = ((string?)content.Attribute("Exclude") ?? string.Empty).Replace('/', '\\');
 
             // #1630: patch2 ships on the desktop TFM.
             Assert.DoesNotContain(@"config\patch2\**", exclude);
@@ -114,7 +112,7 @@ namespace FEBuilderGBA.Core.Tests
             // AND the recursive .git tree are excluded.
             AssertExcludesGitPlumbing(exclude);
 
-            Assert.Equal("PreserveNewest", (string)content.Attribute("CopyToOutputDirectory"));
+            Assert.Equal("PreserveNewest", TestRequire.NotNull((string?)content.Attribute("CopyToOutputDirectory"), "CopyToOutputDirectory"));
         }
 
         [Fact]
@@ -126,14 +124,12 @@ namespace FEBuilderGBA.Core.Tests
             // IsHeadTfm — #1864), so the whole config tree (incl. patch2) is never a loose
             // Content item in the APK / .app / web bundle.
             XDocument doc = LoadCsproj("FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj");
-            XElement content = FindConfigContentInclude(doc);
-            Assert.NotNull(content);
+            XElement content = TestRequire.NotNull(FindConfigContentInclude(doc), "config Content include");
 
-            XElement itemGroup = content.Parent;
-            Assert.NotNull(itemGroup);
+            XElement itemGroup = TestRequire.NotNull(content.Parent, "config Content parent");
             Assert.Equal("ItemGroup", itemGroup.Name.LocalName);
 
-            string condition = ((string)itemGroup.Attribute("Condition") ?? string.Empty)
+            string condition = ((string?)itemGroup.Attribute("Condition") ?? string.Empty)
                 .Replace(" ", string.Empty);
             Assert.Contains("'$(IsHeadTfm)'!='true'", condition);
         }

@@ -137,7 +137,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         // DecompSupportSourceWriterTests.WriteTableEntry_SupportUnits_MacroField_ReportedInSkippedFields
         // (the View MarkClean-skip needs a loaded ROM for CurrentEntryId, out of scope here).
         // This test documents + locks the View's Ok-case decision rule at the dict level.
-        static bool ViewMarksCleanOnOk(System.Collections.Generic.IReadOnlyList<string> skippedFields)
+        static bool ViewMarksCleanOnOk(System.Collections.Generic.IReadOnlyList<string>? skippedFields)
         {
             // Mirrors the View Ok-case: skip MarkClean when ANY field was skipped (partial).
             return skippedFields == null || skippedFields.Count == 0;

@@ -251,7 +251,7 @@ namespace FEBuilderGBA.Core.Tests
         public void RenderBattleScreenPreview_NullRom_ReturnsNull()
         {
             using var _ = EnsureImageService();
-            Assert.Null(ImageBattleScreenCore.RenderBattleScreenPreview(null));
+            Assert.Null(ImageBattleScreenCore.RenderBattleScreenPreview(null!));
         }
 
         // NOTE on the LoadBattleScreen==null guard: LoadBattleScreen only
@@ -393,13 +393,13 @@ namespace FEBuilderGBA.Core.Tests
 
         sealed class ImageServiceScope : System.IDisposable
         {
-            readonly IImageService _prev;
+            readonly IImageService? _prev;
             public ImageServiceScope()
             {
                 _prev = CoreState.ImageService;
                 CoreState.ImageService = new StubImageService();
             }
-            public void Dispose() { CoreState.ImageService = _prev; }
+            public void Dispose() { TestRequire.RestoreImageService(_prev); }
         }
 
         /// <summary>Pack a raw WF battle-screen TSA cell.</summary>

@@ -159,7 +159,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 UPSUtilCore.MakeUPS(src, dst, upsPath);
 
                 var vm = new ToolUPSOpenSimpleViewModel();
-                var r = vm.ApplyUps(upsPath, cleanPath, out byte[] patched, out _);
+                var r = vm.ApplyUps(upsPath, cleanPath, out byte[]? patched, out _);
 
                 Assert.Equal(ToolUPSOpenSimpleViewModel.ApplyResult.Ok, r);
                 Assert.NotNull(patched);
@@ -190,7 +190,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 UPSUtilCore.MakeUPS(otherSrc, otherDst, upsPath); // records CRC32(otherSrc)
 
                 var vm = new ToolUPSOpenSimpleViewModel();
-                var r = vm.ApplyUps(upsPath, cleanPath, out byte[] patched, out _);
+                var r = vm.ApplyUps(upsPath, cleanPath, out byte[]? patched, out _);
 
                 Assert.Equal(ToolUPSOpenSimpleViewModel.ApplyResult.SourceCrcMismatch, r);
                 Assert.Null(patched);
@@ -223,7 +223,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 File.WriteAllBytes(upsPath, ups);
 
                 var vm = new ToolUPSOpenSimpleViewModel();
-                var r = vm.ApplyUps(upsPath, cleanPath, out byte[] patched, out string warning);
+                var r = vm.ApplyUps(upsPath, cleanPath, out byte[]? patched, out string warning);
 
                 Assert.Equal(ToolUPSOpenSimpleViewModel.ApplyResult.OkWithWarning, r);
                 Assert.NotNull(patched);
@@ -250,7 +250,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             {
                 File.WriteAllBytes(upsPath, new byte[] { (byte)'U', (byte)'P', (byte)'S', (byte)'1', 0x00, 0x00 });
                 var vm = new ToolUPSOpenSimpleViewModel();
-                var r = vm.ApplyUps(upsPath, cleanPath, out byte[] patched, out _);
+                var r = vm.ApplyUps(upsPath, cleanPath, out byte[]? patched, out _);
                 Assert.Equal(ToolUPSOpenSimpleViewModel.ApplyResult.UpsInvalid, r);
                 Assert.Null(patched);
             }

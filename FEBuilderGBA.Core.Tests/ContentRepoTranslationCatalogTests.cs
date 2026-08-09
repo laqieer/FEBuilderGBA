@@ -33,7 +33,8 @@ namespace FEBuilderGBA.Core.Tests
                 Dictionary<string, List<string>> rows = Parse(Path.Combine(root, "config", "translate", language));
                 foreach (string key in keys)
                 {
-                    Assert.True(rows.TryGetValue(key, out List<string> values), language + " is missing " + key);
+                    Assert.True(rows.TryGetValue(key, out List<string>? values), language + " is missing " + key);
+                    values = TestRequire.NotNull(values, key);
                     // Exactly one row per key: a duplicate row silently shadows the other translation.
                     Assert.Single(values);
                     Assert.False(string.IsNullOrWhiteSpace(values[0]));
@@ -107,7 +108,7 @@ namespace FEBuilderGBA.Core.Tests
         static Dictionary<string, List<string>> Parse(string path)
         {
             var rows = new Dictionary<string, List<string>>(StringComparer.Ordinal);
-            string key = null;
+            string? key = null;
             foreach (string line in File.ReadLines(path))
             {
                 if (line.Length == 0) { key = null; continue; }
@@ -116,7 +117,7 @@ namespace FEBuilderGBA.Core.Tests
                     if (line[0] == ':') key = line.Substring(1);
                     continue;
                 }
-                if (!rows.TryGetValue(key, out List<string> values))
+                if (!rows.TryGetValue(key, out List<string>? values))
                     rows[key] = values = new List<string>();
                 values.Add(line);
                 key = null;
@@ -135,11 +136,11 @@ namespace FEBuilderGBA.Core.Tests
 
         static string FindRepoRoot()
         {
-            string dir = AppContext.BaseDirectory;
+            string? dir = AppContext.BaseDirectory;
             while (!string.IsNullOrEmpty(dir))
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln"))) return dir;
-                string parent = Directory.GetParent(dir)?.FullName;
+                string parent = TestRequire.NotNull(Directory.GetParent(dir)?.FullName, "parent directory");
                 if (parent == dir) break;
                 dir = parent ?? "";
             }

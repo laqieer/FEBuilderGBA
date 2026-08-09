@@ -58,10 +58,10 @@ dotnet publish FEBuilderGBA.iOS/FEBuilderGBA.iOS.csproj -c Release \
   compile surface the android head already builds (same `Program.cs`/`GapSweep` excludes).
 - ✅ **config asset bundling + first-run extraction** reuses the desktop-unit-tested
   `AndroidConfigExtractorCore` via `DirectoryAssetSource` (covered by `DirectoryAssetSourceTests`).
-- ⚠️ **Not device/emulator-validated.** iOS Release is full AOT + trimmed and the Core/ROM
-  pipeline is reflection-heavy, so the head enables the Mono interpreter + `MtouchLink=SdkOnly`
-  to maximize runtime viability, but the interactive UX (touch, file pickers, editors) is
-  unproven. See [docs/IOS.md](../docs/IOS.md).
+- ⚠️ **Not device/emulator-validated.** iOS Release is full AOT and the Core/ROM pipeline is
+  reflection-heavy, so the preview head enables the Mono interpreter + `MtouchLink=None`
+  (no linking/trimming) to maximize runtime viability. The larger artifact and interactive UX
+  (touch, file pickers, editors) remain unproven. See [docs/IOS.md](../docs/IOS.md).
 
 ## Known preview limitations
 

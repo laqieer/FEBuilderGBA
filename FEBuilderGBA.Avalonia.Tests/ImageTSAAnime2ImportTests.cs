@@ -79,8 +79,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             data[0] = (byte)mhx;
             data[1] = (byte)mhy;
 
-            byte[] tsa = ImageTSAAnime2ViewModel.ReadHeaderTSABytes(data, 0);
-            Assert.NotNull(tsa);
+            byte[] tsa = Assert.IsType<byte[]>(ImageTSAAnime2ViewModel.ReadHeaderTSABytes(data, 0));
             Assert.Equal(len, tsa.Length);
             Assert.Equal(1202, tsa.Length);
         }

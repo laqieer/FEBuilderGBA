@@ -210,9 +210,11 @@ namespace FEBuilderGBA.Core.Tests
                         return;
                     }
 
+                    ProcessRunnerScenarioSupport.ProcessIdentity readyIdentity =
+                        TestRequire.HasValue(childIdentity, "child identity");
                     ProcessRunnerScenarioSupport.RunCompletion runCompletion = localRunTask.Result;
                     _cleanupMs = ProcessRunnerScenarioSupport.ComputeCleanupMs(
-                        childIdentity.Value,
+                        readyIdentity,
                         runCompletion.CompletionUtc);
                     _result = runCompletion.Result;
                     _resultCaptured = true;

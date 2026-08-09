@@ -7,6 +7,7 @@
 using System;
 using System.IO;
 using System.IO.Compression;
+using System.Threading;
 using System.Threading.Tasks;
 using FEBuilderGBA;
 using Xunit;
@@ -38,7 +39,7 @@ namespace FEBuilderGBA.Core.Tests
             return (string url, string dest, out string error, string referer) =>
             {
                 error = "";
-                Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+                Directory.CreateDirectory(TestRequire.DirectoryName(dest));
                 File.WriteAllBytes(dest, content);
                 return true;
             };
@@ -51,7 +52,7 @@ namespace FEBuilderGBA.Core.Tests
             return (string url, string dest, out string error, string referer) =>
             {
                 error = "";
-                Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+                Directory.CreateDirectory(TestRequire.DirectoryName(dest));
                 using (var fs = new FileStream(dest, FileMode.Create, FileAccess.Write))
                 using (var zip = new ZipArchive(fs, ZipArchiveMode.Create))
                 {
@@ -80,7 +81,7 @@ namespace FEBuilderGBA.Core.Tests
             return (string url, string dest, out string error, string referer) =>
             {
                 error = "";
-                Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+                Directory.CreateDirectory(TestRequire.DirectoryName(dest));
                 File.WriteAllBytes(dest, new byte[] { 0x00, 0x01, 0x02, 0x03, 0x04 });
                 return true;
             };
@@ -106,6 +107,74 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(fakeExe, File.ReadAllBytes(resolved));
         }
 
+        [Fact]
+        public async Task DownloadAsync_SingleExe_UsesAsyncDownloadStep()
+        {
+            byte[] fakeExe = new byte[] { (byte)'M', (byte)'Z', 0x90, 0x00 };
+            bool usedAsyncStep = false;
+
+            DownloadInstallCore.DownloadResult result = await DownloadInstallCore.DownloadAsync(
+                DownloadInstallCore.ResourceId.ArmAs, _baseDir, null,
+                async (url, dest, referer, _) =>
+                {
+                    await File.WriteAllBytesAsync(dest, fakeExe);
+                    usedAsyncStep = true;
+                    return (true, "");
+                });
+
+            Assert.True(usedAsyncStep);
+            Assert.True(result.Success, result.Error);
+            Assert.Equal("", result.Error);
+            Assert.True(File.Exists(result.Path));
+            Assert.EndsWith("arm-none-eabi-as.exe", result.Path, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(fakeExe, File.ReadAllBytes(result.Path));
+        }
+
+        [Fact]
+        public async Task DownloadAsync_CallerCancellation_Throws()
+        {
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                DownloadInstallCore.DownloadAsync(
+                    DownloadInstallCore.ResourceId.ArmAs, _baseDir, null,
+                    (url, dest, referer, ct) => Task.FromCanceled<(bool ok, string error)>(ct),
+                    cts.Token));
+        }
+
+        [Fact]
+        public async Task DownloadAsync_CancelledAfterStaging_DeletesStagingDirectory()
+        {
+            using var cts = new CancellationTokenSource();
+            int progressCalls = 0;
+            string? stagingDirectory = null;
+            DownloadInstallCore.DownloadStep zipWriter =
+                FakeZipWriter("nested/mGBA.exe", new byte[] { 1, 2, 3, 4 });
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                DownloadInstallCore.DownloadAsync(
+                    DownloadInstallCore.ResourceId.MGba,
+                    _baseDir,
+                    _ =>
+                    {
+                        progressCalls++;
+                        if (progressCalls == 3)
+                            cts.Cancel();
+                    },
+                    async (url, dest, referer, _) =>
+                    {
+                        stagingDirectory = Path.GetDirectoryName(dest);
+                        bool ok = zipWriter(url, dest, out string error, referer);
+                        await Task.CompletedTask;
+                        return (ok, error);
+                    },
+                    cts.Token));
+
+            Assert.NotNull(stagingDirectory);
+            Assert.False(Directory.Exists(stagingDirectory));
+        }
+
         // ---- 2) Archive extract + nested-exe discovery --------------------
 
         [Fact]
@@ -124,6 +193,54 @@ namespace FEBuilderGBA.Core.Tests
             Assert.EndsWith("mGBA.exe", resolved, StringComparison.OrdinalIgnoreCase);
             Assert.Contains(Path.Combine("app", "mVBA"), resolved);
             Assert.Equal(nested, File.ReadAllBytes(resolved));
+        }
+
+        [Fact]
+        public async Task StageAsync_Archive_UsesAsyncDownloadStepAndDiscoversNestedExe()
+        {
+            byte[] nested = new byte[] { 1, 2, 3, 4, 5 };
+            bool usedAsyncStep = false;
+
+            DownloadInstallCore.StageDownloadResult result = await DownloadInstallCore.StageAsync(
+                DownloadInstallCore.ResourceId.MGba, _baseDir, null,
+                async (url, dest, referer, _) =>
+                {
+                    usedAsyncStep = true;
+                    Directory.CreateDirectory(TestRequire.DirectoryName(dest));
+                    using (var fs = new FileStream(dest, FileMode.Create, FileAccess.Write))
+                    using (var zip = new ZipArchive(fs, ZipArchiveMode.Create))
+                    {
+                        var entry = zip.CreateEntry("mGBA-0.6.1/mGBA.exe");
+                        await using var es = entry.Open();
+                        await es.WriteAsync(nested);
+                    }
+                    return (true, "");
+                });
+
+            Assert.True(usedAsyncStep);
+            Assert.True(result.Success, result.Error);
+            try
+            {
+                Assert.EndsWith("mGBA.exe", result.Staged.StagedExe, StringComparison.OrdinalIgnoreCase);
+                Assert.Equal(nested, File.ReadAllBytes(result.Staged.StagedExe));
+            }
+            finally
+            {
+                result.Staged?.Dispose();
+            }
+        }
+
+        [Fact]
+        public async Task StageAsync_CallerCancellation_Throws()
+        {
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                DownloadInstallCore.StageAsync(
+                    DownloadInstallCore.ResourceId.MGba, _baseDir, null,
+                    (url, dest, referer, ct) => Task.FromCanceled<(bool ok, string error)>(ct),
+                    cts.Token));
         }
 
         // ---- 3) Download-failure cleanup ----------------------------------
@@ -222,7 +339,7 @@ namespace FEBuilderGBA.Core.Tests
         [InlineData(DownloadInstallCore.ResourceId.Sox, "sox.exe", "sox")]
         [InlineData(DownloadInstallCore.ResourceId.Midfix4agb, "midfix4agb.exe", "midfix4agb")]
         public void GetSpec_ReturnsExpectedGlobAndUrl(
-            DownloadInstallCore.ResourceId id, string glob, string subDir)
+            DownloadInstallCore.ResourceId id, string glob, string? subDir)
         {
             var spec = DownloadInstallCore.GetSpec(id);
             Assert.Equal(glob, spec.MatchGlob);
@@ -425,7 +542,7 @@ namespace FEBuilderGBA.Core.Tests
         public async Task DownloadGit_HappyPath_CallsAllStepsAndReturnsPath()
         {
             int getUrlCalls = 0, downloadCalls = 0, runCalls = 0, findCalls = 0;
-            string installerSeen = null;
+            string? installerSeen = null;
 
             var git = await DownloadInstallCore.DownloadGitAsync(
                 progress: null,
@@ -435,7 +552,7 @@ namespace FEBuilderGBA.Core.Tests
                     downloadCalls++;
                     installerSeen = url;
                     error = "";
-                    Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+                    Directory.CreateDirectory(TestRequire.DirectoryName(dest));
                     File.WriteAllBytes(dest, new byte[] { 1 });
                     return true;
                 },
@@ -450,6 +567,19 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(1, runCalls);
             Assert.Equal(1, findCalls);
             Assert.Equal("https://example/git-64-bit.exe", installerSeen);
+        }
+
+        [Fact]
+        public async Task DownloadGit_CallerCancellation_Throws()
+        {
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                DownloadInstallCore.DownloadGitAsync(
+                    progress: null,
+                    getInstallerUrlAsync: ct => Task.FromCanceled<string?>(ct),
+                    cancellationToken: cts.Token));
         }
 
         [Fact]
@@ -501,7 +631,7 @@ namespace FEBuilderGBA.Core.Tests
                 downloadStep: (string url, string dest, out string error, string referer) =>
                 {
                     error = "";
-                    Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+                    Directory.CreateDirectory(TestRequire.DirectoryName(dest));
                     File.WriteAllBytes(dest, new byte[] { 1 });
                     return true;
                 },
@@ -522,7 +652,7 @@ namespace FEBuilderGBA.Core.Tests
                 downloadStep: (string url, string dest, out string error, string referer) =>
                 {
                     error = "";
-                    Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+                    Directory.CreateDirectory(TestRequire.DirectoryName(dest));
                     File.WriteAllBytes(dest, new byte[] { 1 });
                     return true;
                 },
@@ -531,6 +661,35 @@ namespace FEBuilderGBA.Core.Tests
 
             Assert.Null(git.Path);
             Assert.False(string.IsNullOrEmpty(git.Error));
+        }
+
+        [Fact]
+        public async Task DownloadGit_UsesAsyncUrlResolverAndAsyncDownloadStep()
+        {
+            bool resolvedAsync = false;
+            bool downloadedAsync = false;
+
+            var git = await DownloadInstallCore.DownloadGitAsync(
+                progress: null,
+                getInstallerUrlAsync: _ =>
+                {
+                    resolvedAsync = true;
+                    return Task.FromResult<string?>("https://example/git.exe");
+                },
+                downloadStepAsync: (string url, string dest, string referer, CancellationToken _) =>
+                {
+                    downloadedAsync = true;
+                    Directory.CreateDirectory(TestRequire.DirectoryName(dest));
+                    File.WriteAllBytes(dest, new byte[] { 1 });
+                    return Task.FromResult((true, ""));
+                },
+                runInstaller: _ => Task.FromResult(true),
+                findGit: () => "git.exe");
+
+            Assert.True(resolvedAsync);
+            Assert.True(downloadedAsync);
+            Assert.Equal("git.exe", git.Path);
+            Assert.Equal("", git.Error);
         }
 
         // ---- U.HttpDownloadFile failure contract (no live network) --------

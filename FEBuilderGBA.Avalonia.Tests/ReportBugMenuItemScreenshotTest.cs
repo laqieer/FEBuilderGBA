@@ -103,11 +103,11 @@ namespace FEBuilderGBA.Avalonia.Tests
                 var hi = new SKColor(0x35, 0x55, 0x4C);
                 c.Clear(bg);
 
-                using var title = new SKPaint { Color = accent, IsAntialias = true, TextSize = 22, FakeBoldText = true };
-                using var menuFg = new SKPaint { Color = fg, IsAntialias = true, TextSize = 16 };
-                using var menuHdr = new SKPaint { Color = fg, IsAntialias = true, TextSize = 16, FakeBoldText = true };
-                using var newFg = new SKPaint { Color = accent, IsAntialias = true, TextSize = 16, FakeBoldText = true };
-                using var note = new SKPaint { Color = dim, IsAntialias = true, TextSize = 13 };
+                using var title = SkiaTestTextStyle.Create(accent, 22, bold: true);
+                using var menuFg = SkiaTestTextStyle.Create(fg, 16);
+                using var menuHdr = SkiaTestTextStyle.Create(fg, 16, bold: true);
+                using var newFg = SkiaTestTextStyle.Create(accent, 16, bold: true);
+                using var note = SkiaTestTextStyle.Create(dim, 13);
                 using var barP = new SKPaint { Color = menubar, IsAntialias = true };
                 using var menuP = new SKPaint { Color = menubg, IsAntialias = true };
                 using var sepP = new SKPaint { Color = sep, IsAntialias = true };

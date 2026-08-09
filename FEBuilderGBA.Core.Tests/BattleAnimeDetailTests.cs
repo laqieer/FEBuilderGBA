@@ -37,22 +37,22 @@ namespace FEBuilderGBA.Core.Tests
     {
         public IImage CreateImage(int w, int h) => new StubImage(w, h);
         public IImage CreateIndexedImage(int w, int h, byte[] p, int c) => new StubImage(w, h);
-        public IImage LoadImage(string f) => null;
-        public IImage LoadImageFromBytes(byte[] d) => null;
+        public IImage LoadImage(string f) => throw new NotSupportedException(nameof(LoadImage));
+        public IImage LoadImageFromBytes(byte[] d) => throw new NotSupportedException(nameof(LoadImageFromBytes));
         public void GBAColorToRGBA(ushort gbaColor, out byte r, out byte g, out byte b)
         {
             r = (byte)((gbaColor & 0x1F) << 3);
             g = (byte)(((gbaColor >> 5) & 0x1F) << 3);
             b = (byte)(((gbaColor >> 10) & 0x1F) << 3);
         }
-        public ushort RGBAToGBAColor(byte r, byte g, byte b) => 0;
+        public ushort RGBAToGBAColor(byte r, byte g, byte b) => throw new NotSupportedException(nameof(RGBAToGBAColor));
         public IImage Decode4bppTiles(byte[] t, int o, int w, int h, byte[] p) => new StubImage(w, h);
         public IImage Decode8bppTiles(byte[] t, int o, int w, int h, byte[] p) => new StubImage(w, h);
         public IImage Decode8bppLinear(byte[] d, int o, int w, int h, byte[] p) => new StubImage(w, h);
-        public byte[] Encode4bppTiles(IImage i) => null;
-        public byte[] Encode8bppTiles(IImage i) => null;
-        public byte[] GBAPaletteToRGBA(byte[] p, int c) => null;
-        public byte[] RGBAPaletteToGBA(byte[] p, int c) => null;
+        public byte[] Encode4bppTiles(IImage i) => throw new NotSupportedException(nameof(Encode4bppTiles));
+        public byte[] Encode8bppTiles(IImage i) => throw new NotSupportedException(nameof(Encode8bppTiles));
+        public byte[] GBAPaletteToRGBA(byte[] p, int c) => throw new NotSupportedException(nameof(GBAPaletteToRGBA));
+        public byte[] RGBAPaletteToGBA(byte[] p, int c) => throw new NotSupportedException(nameof(RGBAPaletteToGBA));
     }
 
     /// <summary>
@@ -204,13 +204,13 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ImageService = _prevService;
+            TestRequire.RestoreImageService(_prevService);
         }
 
         [Fact]
         public void RenderTileSheet_NullTileData_ReturnsNull()
         {
-            var result = BattleAnimeRendererCore.RenderTileSheet(null, new byte[32], 16);
+            var result = BattleAnimeRendererCore.RenderTileSheet(null!, new byte[32], 16);
             Assert.Null(result);
         }
 
@@ -224,7 +224,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RenderTileSheet_NullPalette_ReturnsNull()
         {
-            var result = BattleAnimeRendererCore.RenderTileSheet(new byte[32], null, 16);
+            var result = BattleAnimeRendererCore.RenderTileSheet(new byte[32], null!, 16);
             Assert.Null(result);
         }
 
@@ -308,39 +308,39 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RenderTileSheet_NoImageService_ReturnsNull()
         {
-            var saved = CoreState.ImageService;
+            IImageService? saved = CoreState.ImageService;
             try
             {
-                CoreState.ImageService = null;
+                CoreState.ImageService = null!;
                 var result = BattleAnimeRendererCore.RenderTileSheet(new byte[32], new byte[32], 16);
                 Assert.Null(result);
             }
             finally
             {
-                CoreState.ImageService = saved;
+                CoreState.ImageService = saved!;
             }
         }
 
         [Fact]
         public void RenderAnimationTileSheet_NullRom_ReturnsNull()
         {
-            var savedRom = CoreState.ROM;
+            ROM? savedRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var result = BattleAnimeRendererCore.RenderAnimationTileSheet(0, 16);
                 Assert.Null(result);
             }
             finally
             {
-                CoreState.ROM = savedRom;
+                CoreState.ROM = savedRom!;
             }
         }
 
         [Fact]
         public void CountFramesInRange_NullData_ReturnsZero()
         {
-            Assert.Equal(0, BattleAnimeRendererCore.CountFramesInRange(null, 0, 100));
+            Assert.Equal(0, BattleAnimeRendererCore.CountFramesInRange(null!, 0, 100));
         }
 
         [Fact]
@@ -384,7 +384,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ParseFramesInRange_NullData_ReturnsEmpty()
         {
-            var frames = BattleAnimeRendererCore.ParseFramesInRange(null, 0, 100);
+            var frames = BattleAnimeRendererCore.ParseFramesInRange(null!, 0, 100);
             Assert.Empty(frames);
         }
 
@@ -465,7 +465,7 @@ namespace FEBuilderGBA.Core.Tests
         public void DrawOAMSprites_NullOamData_DoesNotCrash()
         {
             byte[] dst = new byte[240 * 160 * 4];
-            BattleAnimeRendererCore.DrawOAMSprites(null, 0,
+            BattleAnimeRendererCore.DrawOAMSprites(null!, 0,
                 new byte[256 * 64 * 4], 256, 64,
                 dst, 240, 160);
             // Should not throw; dst should remain unchanged
@@ -741,7 +741,7 @@ namespace FEBuilderGBA.Core.Tests
         public void RenderAnimationTileSheet_RealRom_ProducesValidImage()
         {
             // Try to find a ROM in roms/ directory (walk up from test assembly)
-            string romPath = FindTestRom();
+            string? romPath = FindTestRom();
             if (romPath == null) return; // skip if no ROM available
 
             var savedRom = CoreState.ROM;
@@ -762,7 +762,7 @@ namespace FEBuilderGBA.Core.Tests
 
                 // Walk the animation table looking for a valid 32-byte record
                 const uint recordSize = 32;
-                IImage result = null;
+                IImage? result = null;
                 int validRecordCount = 0;
                 for (int i = 0; i < 512; i++)
                 {
@@ -798,10 +798,10 @@ namespace FEBuilderGBA.Core.Tests
         /// Locate a test ROM by walking up from the test assembly directory.
         /// Returns the first *.gba found in the roms/ directory, or null.
         /// </summary>
-        static string FindTestRom()
+        static string? FindTestRom()
         {
             string thisAssembly = System.Reflection.Assembly.GetExecutingAssembly().Location;
-            string dir = System.IO.Path.GetDirectoryName(thisAssembly);
+            string? dir = System.IO.Path.GetDirectoryName(thisAssembly);
             for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (System.IO.File.Exists(System.IO.Path.Combine(dir, "FEBuilderGBA.sln")))

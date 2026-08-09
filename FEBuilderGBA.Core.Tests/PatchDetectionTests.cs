@@ -15,14 +15,14 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ROM = _savedRom;
+            CoreState.ROM = _savedRom!;
             PatchDetection.ClearAllCaches();
         }
 
         [Fact]
         public void SearchPriorityCode_NullROM_ReturnsLAT1()
         {
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             var result = PatchDetection.SearchPriorityCode();
             Assert.Equal(PatchDetection.PRIORITY_CODE.LAT1, result);
         }
@@ -30,7 +30,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void SearchDrawFontPatch_NullROM_ReturnsNO()
         {
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             PatchDetection.ClearCacheDrawFont();
             var result = PatchDetection.SearchDrawFontPatch();
             Assert.Equal(PatchDetection.draw_font_enum.NO, result);
@@ -39,7 +39,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void SearchPatchBool_NullROM_ReturnsFalse()
         {
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             var table = new PatchDetection.PatchTableSt[]
             {
                 new PatchDetection.PatchTableSt
@@ -54,7 +54,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void SearchPatch_NullROM_ReturnsDefault()
         {
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             var table = new PatchDetection.PatchTableSt[]
             {
                 new PatchDetection.PatchTableSt
@@ -71,7 +71,7 @@ namespace FEBuilderGBA.Core.Tests
         public void SearchPriorityCode_WithRomParam_NullROM_ReturnsSJIS()
         {
             // The ROM-parameter overload returns SJIS for null
-            var result = PatchDetection.SearchPriorityCode(null);
+            var result = PatchDetection.SearchPriorityCode(null!);
             Assert.Equal(PatchDetection.PRIORITY_CODE.SJIS, result);
         }
 
@@ -81,7 +81,7 @@ namespace FEBuilderGBA.Core.Tests
             PatchDetection.ClearAllCaches();
             // After clearing, no-arg overloads should re-evaluate
             // With null ROM, they return safe defaults
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             Assert.Equal(PatchDetection.draw_font_enum.NO, PatchDetection.SearchDrawFontPatch());
         }
 
@@ -135,7 +135,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void OPClassReelAnimationIDOver255Detect_NullRom_ReturnsFalse()
         {
-            Assert.False(PatchDetection.OPClassReelAnimationIDOver255Detect(null));
+            Assert.False(PatchDetection.OPClassReelAnimationIDOver255Detect(null!));
         }
 
         [Fact]
@@ -167,7 +167,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void OPClassReelSortPatchDetect_NullRom_ReturnsFalse()
         {
-            Assert.False(PatchDetection.OPClassReelSortPatchDetect(null));
+            Assert.False(PatchDetection.OPClassReelSortPatchDetect(null!));
         }
 
         [Fact]
@@ -243,7 +243,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void SearchAntiHuffmanPatch_NullRom_ReturnsFalse()
         {
-            Assert.False(PatchDetection.SearchAntiHuffmanPatch((ROM?)null));
+            Assert.False(PatchDetection.SearchAntiHuffmanPatch((ROM?)null!));
         }
 
         [Theory]
@@ -344,7 +344,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void SearchUnitActionReworkPatch_NullRom_ReturnsFalse()
         {
-            Assert.False(PatchDetection.SearchUnitActionReworkPatch((ROM?)null));
+            Assert.False(PatchDetection.SearchUnitActionReworkPatch((ROM?)null!));
         }
 
         [Fact]
@@ -400,7 +400,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ItemUsingExtendsPatch_NullRom_ReturnsNO()
         {
             Assert.Equal(PatchDetection.ItemUsingExtends_extends.NO,
-                PatchDetection.ItemUsingExtendsPatch((ROM?)null));
+                PatchDetection.ItemUsingExtendsPatch((ROM?)null!));
         }
 
         [Fact]
@@ -442,7 +442,7 @@ namespace FEBuilderGBA.Core.Tests
         public void SearchClassType_NullRom_ReturnsNO()
         {
             Assert.Equal(PatchDetection.class_type_extends.NO,
-                PatchDetection.SearchClassType((ROM?)null));
+                PatchDetection.SearchClassType((ROM?)null!));
         }
 
         [Fact]
@@ -507,7 +507,7 @@ namespace FEBuilderGBA.Core.Tests
         public void SearchGrowsMod_NullRom_ReturnsNO()
         {
             Assert.Equal(PatchDetection.growth_mod_extends.NO,
-                PatchDetection.SearchGrowsMod((ROM?)null));
+                PatchDetection.SearchGrowsMod((ROM?)null!));
         }
 
         [Fact]

@@ -42,11 +42,11 @@ public class MapEventUnitCoreNewAllocTests
     {
         ROM rom = MakeFe8uRom();
         var prevRom = CoreState.ROM;
-        var prevDelegate = CoreState.AppendBinaryData;
+        Func<byte[], Undo.UndoData, uint>? prevDelegate = CoreState.AppendBinaryData;
         try
         {
             CoreState.ROM = rom;
-            CoreState.AppendBinaryData = null; // force the freespace fallback
+            CoreState.AppendBinaryData = null!; // force the freespace fallback
 
             const uint count = 5;
             uint newBase = MapEventUnitCore.AllocNewUnitList(rom, count, null);
@@ -70,7 +70,7 @@ public class MapEventUnitCoreNewAllocTests
         finally
         {
             CoreState.ROM = prevRom;
-            CoreState.AppendBinaryData = prevDelegate;
+            CoreState.AppendBinaryData = prevDelegate!;
         }
     }
 
@@ -79,11 +79,11 @@ public class MapEventUnitCoreNewAllocTests
     {
         ROM rom = MakeFe8uRom();
         var prevRom = CoreState.ROM;
-        var prevDelegate = CoreState.AppendBinaryData;
+        Func<byte[], Undo.UndoData, uint>? prevDelegate = CoreState.AppendBinaryData;
         try
         {
             CoreState.ROM = rom;
-            CoreState.AppendBinaryData = null;
+            CoreState.AppendBinaryData = null!;
 
             // count == 1 (min) succeeds.
             Assert.NotEqual(U.NOT_FOUND, MapEventUnitCore.AllocNewUnitList(rom, 1, null));
@@ -97,7 +97,7 @@ public class MapEventUnitCoreNewAllocTests
         finally
         {
             CoreState.ROM = prevRom;
-            CoreState.AppendBinaryData = prevDelegate;
+            CoreState.AppendBinaryData = prevDelegate!;
         }
     }
 
@@ -106,11 +106,11 @@ public class MapEventUnitCoreNewAllocTests
     {
         ROM rom = MakeFe8uRom();
         var prevRom = CoreState.ROM;
-        var prevDelegate = CoreState.AppendBinaryData;
+        Func<byte[], Undo.UndoData, uint>? prevDelegate = CoreState.AppendBinaryData;
         try
         {
             CoreState.ROM = rom;
-            CoreState.AppendBinaryData = null;
+            CoreState.AppendBinaryData = null!;
 
             // Snapshot the freespace region that a real alloc would touch.
             uint searchStart = (uint)(rom.Data.Length / 2);
@@ -125,14 +125,14 @@ public class MapEventUnitCoreNewAllocTests
         finally
         {
             CoreState.ROM = prevRom;
-            CoreState.AppendBinaryData = prevDelegate;
+            CoreState.AppendBinaryData = prevDelegate!;
         }
     }
 
     [Fact]
     public void AllocNewUnitList_NullRom_ReturnsNotFound()
     {
-        Assert.Equal(U.NOT_FOUND, MapEventUnitCore.AllocNewUnitList(null, 3, null));
+        Assert.Equal(U.NOT_FOUND, MapEventUnitCore.AllocNewUnitList(null!, 3, null));
     }
 
     // -----------------------------------------------------------------
@@ -144,11 +144,11 @@ public class MapEventUnitCoreNewAllocTests
     {
         ROM rom = MakeFe8uRom();
         var prevRom = CoreState.ROM;
-        var prevDelegate = CoreState.AppendBinaryData;
+        Func<byte[], Undo.UndoData, uint>? prevDelegate = CoreState.AppendBinaryData;
         try
         {
             CoreState.ROM = rom;
-            CoreState.AppendBinaryData = null; // no delegate
+            CoreState.AppendBinaryData = null!; // no delegate
 
             byte[] buffer = new byte[FE8_UNIT_SIZE + 1];
             buffer[0] = 1;
@@ -160,7 +160,7 @@ public class MapEventUnitCoreNewAllocTests
         finally
         {
             CoreState.ROM = prevRom;
-            CoreState.AppendBinaryData = prevDelegate;
+            CoreState.AppendBinaryData = prevDelegate!;
         }
     }
 
@@ -259,12 +259,12 @@ public class MapEventUnitCoreNewAllocTests
         ROM rom = MakeFe8uRom();
         var prevRom = CoreState.ROM;
         var prevUndo = CoreState.Undo;
-        var prevDelegate = CoreState.AppendBinaryData;
+        Func<byte[], Undo.UndoData, uint>? prevDelegate = CoreState.AppendBinaryData;
         try
         {
             CoreState.ROM = rom;
             CoreState.Undo = new Undo();
-            CoreState.AppendBinaryData = null; // freespace fallback captures undo via ambient scope
+            CoreState.AppendBinaryData = null!; // freespace fallback captures undo via ambient scope
 
             uint searchStart = (uint)(rom.Data.Length / 2);
             byte[] before = rom.getBinaryData(searchStart, 512);
@@ -289,7 +289,7 @@ public class MapEventUnitCoreNewAllocTests
         {
             CoreState.ROM = prevRom;
             CoreState.Undo = prevUndo;
-            CoreState.AppendBinaryData = prevDelegate;
+            CoreState.AppendBinaryData = prevDelegate!;
         }
     }
 
@@ -423,13 +423,13 @@ public class MapEventUnitCoreNewAllocTests
         ROM rom = MakeFe8uRom();
         var prevRom = CoreState.ROM;
         var prevEs = CoreState.EventScript;
-        var prevDelegate = CoreState.AppendBinaryData;
+        Func<byte[], Undo.UndoData, uint>? prevDelegate = CoreState.AppendBinaryData;
         var prevComment = CoreState.CommentCache;
         try
         {
             CoreState.ROM = rom;
             CoreState.EventScript = BuildEventScript(loadScript!, endScript!);
-            CoreState.AppendBinaryData = null; // freespace fallback
+            CoreState.AppendBinaryData = null!; // freespace fallback
             CoreState.CommentCache ??= new HeadlessEtcCache();
 
             const uint mapId = 0;
@@ -481,7 +481,7 @@ public class MapEventUnitCoreNewAllocTests
         {
             CoreState.ROM = prevRom;
             CoreState.EventScript = prevEs;
-            CoreState.AppendBinaryData = prevDelegate;
+            CoreState.AppendBinaryData = prevDelegate!;
             CoreState.CommentCache = prevComment;
         }
     }
@@ -508,12 +508,12 @@ public class MapEventUnitCoreNewAllocTests
         uint scriptUnitList;
         BuildMapWithDirectAndScriptUnitLists(rom, mapId: 0, out directUnitList, out scriptUnitList);
 
-        var prevRom = CoreState.ROM;
+        ROM? prevRom = CoreState.ROM;
         var prevEs = CoreState.EventScript;
         try
         {
             // CoreState.ROM is null (a different instance would behave the same).
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             // EventScript loaded but the script scan must still be skipped.
             CoreState.EventScript = BuildEventScript(loadScript!, endScript!);
 
@@ -528,7 +528,7 @@ public class MapEventUnitCoreNewAllocTests
         }
         finally
         {
-            CoreState.ROM = prevRom;
+            CoreState.ROM = prevRom!;
             CoreState.EventScript = prevEs;
         }
     }
@@ -545,7 +545,7 @@ public class MapEventUnitCoreNewAllocTests
         try
         {
             CoreState.ROM = rom;
-            CoreState.EventScript = null;
+            CoreState.EventScript = null!;
 
             var groups = MapEventUnitCore.GetDetailedUnitGroupsForMap(rom, 0);
             var direct = Assert.Single(groups, group => group.Addr == directUnitList);
@@ -555,7 +555,7 @@ public class MapEventUnitCoreNewAllocTests
         finally
         {
             CoreState.ROM = previousRom;
-            CoreState.EventScript = previousScript;
+            CoreState.EventScript = previousScript!;
         }
     }
 
@@ -653,7 +653,7 @@ public class MapEventUnitCoreNewAllocTests
         ROM? previous = CoreState.ROM;
         try
         {
-            CoreState.ROM = null; // direct-slot discovery does not require script state
+            CoreState.ROM = null!; // direct-slot discovery does not require script state
             var groups = MapEventUnitCore.GetDetailedUnitGroupsForMap(rom, 0)
                 .FindAll(group => group.Addr == direct
                     && group.OriginKind == MapEventUnitCore.UnitGroupOriginKind.DirectPlacement);
@@ -663,7 +663,7 @@ public class MapEventUnitCoreNewAllocTests
         }
         finally
         {
-            CoreState.ROM = previous;
+            CoreState.ROM = previous!;
         }
     }
 

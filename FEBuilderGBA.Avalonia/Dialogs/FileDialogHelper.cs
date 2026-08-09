@@ -50,8 +50,8 @@ namespace FEBuilderGBA.Avalonia.Dialogs
 
         /// <summary>
         /// Stream-based core of the SAF read bridge (testable without an
-        /// <see cref="IStorageFile"/>): copy <paramref name="openRead"/>'s bytes
-        /// into a temp file whose extension matches <paramref name="name"/>, and
+        /// <see cref="IStorageFile"/>): copy <c>openRead</c>'s bytes
+        /// into a temp file whose extension matches <c>name</c>, and
         /// return that path. #1639.
         /// </summary>
         // Read-temps older than this are eligible for the best-effort sweep. A
@@ -175,7 +175,7 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         /// <summary>
         /// Stream-based core of the SAF write bridge (testable without an
         /// <see cref="IStorageFile"/>): run <paramref name="writer"/> on a temp
-        /// file (extension matched to <paramref name="name"/>), then stream the
+        /// file (extension matched to <c>name</c>), then stream the
         /// temp bytes into <paramref name="openWrite"/>'s stream, truncating it
         /// first so a previously-larger document keeps no stale trailing bytes.
         /// The temp file is always deleted. Returns the file name on success.
@@ -220,6 +220,8 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         static readonly string[] UpsPatterns = new[] { "*.ups" };
         static readonly string[] PngPatterns = new[] { "*.png" };
         static readonly string[] ImagePatterns = new[] { "*.png", "*.bmp" };
+        static readonly string[] ProblemReportBackupPatterns = new[] { "*.gba", "*.bin" };
+        static readonly string[] ProblemReportSavPatterns = new[] { "*.sav" };
         static readonly string[] PalPatterns = new[] { "*.pal" };
         static readonly string[] GbapalPatterns = new[] { "*.gbapal" };
         static readonly string[] ActPatterns = new[] { "*.act" };
@@ -236,6 +238,74 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             }
             return provider;
         }
+
+        internal static FilePickerOpenOptions CreateProblemReportBackupOpenOptions()
+            => CreateSingleOpenFileOptions(R._("Select Backup File"), "GBA ROMs", ProblemReportBackupPatterns);
+
+        internal static FilePickerOpenOptions CreateProblemReportSavOpenOptions()
+            => CreateSingleOpenFileOptions(R._("Select SAV File"), "SAV Files", ProblemReportSavPatterns);
+
+        internal static FilePickerOpenOptions CreateSubtitleTranslationDataOpenOptions()
+            => CreateSingleOpenFileOptions(R._("Select Translation Data File"), null, null);
+
+        static FilePickerOpenOptions CreateSingleOpenFileOptions(
+            string title,
+            string? filterName,
+            IReadOnlyList<string>? patterns)
+        {
+            var options = new FilePickerOpenOptions
+            {
+                Title = title,
+                AllowMultiple = false,
+            };
+
+            if (!string.IsNullOrEmpty(filterName) && patterns != null)
+            {
+                options.FileTypeFilter = new[]
+                {
+                    new FilePickerFileType(filterName) { Patterns = patterns },
+                };
+            }
+
+            return options;
+        }
+
+        internal static async Task<string?> ResolveSingleOpenFileResultAsync(
+            IReadOnlyList<IStorageFile>? files,
+            bool requireLocalPath = false)
+        {
+            if (files == null || files.Count == 0)
+                return null;
+
+            if (requireLocalPath)
+            {
+                string? local = files[0].TryGetLocalPath();
+                return string.IsNullOrEmpty(local) ? null : local;
+            }
+
+            return await ResolveReadPathAsync(files[0]);
+        }
+
+        static async Task<string?> OpenSingleFile(
+            TopLevel? owner,
+            string operation,
+            FilePickerOpenOptions options,
+            bool requireLocalPath = false)
+        {
+            var provider = GetStorageProvider(owner, operation);
+            if (provider == null) return null;
+            var files = await provider.OpenFilePickerAsync(options);
+            return await ResolveSingleOpenFileResultAsync(files, requireLocalPath);
+        }
+
+        public static Task<string?> OpenProblemReportBackupFile(TopLevel? owner)
+            => OpenSingleFile(owner, nameof(OpenProblemReportBackupFile), CreateProblemReportBackupOpenOptions());
+
+        public static Task<string?> OpenProblemReportSavFile(TopLevel? owner)
+            => OpenSingleFile(owner, nameof(OpenProblemReportSavFile), CreateProblemReportSavOpenOptions());
+
+        public static Task<string?> OpenSubtitleTranslationDataFile(TopLevel? owner)
+            => OpenSingleFile(owner, nameof(OpenSubtitleTranslationDataFile), CreateSubtitleTranslationDataOpenOptions());
 
         static FilePickerFileType MakeGbaFileType() => new(R._("GBA ROM Files"))
         {
@@ -654,7 +724,7 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             return await WriteViaAsync(file, writer);
         }
 
-        /// <summary>Synchronous-writer overload of <see cref="SaveImageFileVia(Window, string, Func{string, Task})"/>.</summary>
+        /// <summary>Synchronous-writer overload of <see cref="SaveImageFileVia(TopLevel?, string, Func{string, Task})"/>.</summary>
         public static Task<string?> SaveImageFileVia(TopLevel? owner, string? suggestedName, Action<string> writer)
             => SaveImageFileVia(owner, suggestedName, p => { writer(p); return Task.CompletedTask; });
 
@@ -690,7 +760,7 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             return await WriteViaAsync(file, writer);
         }
 
-        /// <summary>Synchronous-writer overload of <see cref="SavePaletteFileVia(Window, string, Func{string, Task})"/>.</summary>
+        /// <summary>Synchronous-writer overload of <see cref="SavePaletteFileVia(TopLevel?, string, Func{string, Task})"/>.</summary>
         public static Task<string?> SavePaletteFileVia(TopLevel? owner, string? suggestedName, Action<string> writer)
             => SavePaletteFileVia(owner, suggestedName, p => { writer(p); return Task.CompletedTask; });
 
@@ -709,7 +779,7 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             return await WriteViaAsync(file, writer);
         }
 
-        /// <summary>Synchronous-writer overload of <see cref="SaveFileVia(Window, string, string, string, string, Func{string, Task})"/>.</summary>
+        /// <summary>Synchronous-writer overload of <see cref="SaveFileVia(TopLevel?, string, string, string, string, Func{string, Task})"/>.</summary>
         public static Task<string?> SaveFileVia(TopLevel? owner, string title, string filterName, string pattern, string? suggestedName, Action<string> writer)
             => SaveFileVia(owner, title, filterName, pattern, suggestedName, p => { writer(p); return Task.CompletedTask; });
 

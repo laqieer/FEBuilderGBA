@@ -371,10 +371,10 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ClassicMode_NoDecompProject_GetAsmMapFile_ReturnsPlainSymbolFile()
         {
-            var savedProject = CoreState.DecompProject;
+            DecompProject? savedProject = CoreState.DecompProject;
             try
             {
-                CoreState.DecompProject = null;     // classic mode
+                CoreState.DecompProject = null!;     // classic mode
                 var rom = new ROM();
                 var cache = new CoreAsmMapCache(rom);
                 var map = cache.GetAsmMapFile();
@@ -382,7 +382,7 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.IsType<AsmMapSymbolFile>(map);          // NOT a MergedAsmMapFile
                 Assert.IsNotType<MergedAsmMapFile>(map);
             }
-            finally { CoreState.DecompProject = savedProject; }
+            finally { CoreState.DecompProject = savedProject!; }
         }
 
         // ---------------------------------------------------------------- helper

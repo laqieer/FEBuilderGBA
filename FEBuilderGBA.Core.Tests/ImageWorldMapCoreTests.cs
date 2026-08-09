@@ -157,7 +157,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Event_NullRom_ReturnsNull()
         {
-            WithRom((_) => Assert.Null(ImageWorldMapCore.TryRenderEvent(null)));
+            WithRom((_) => Assert.Null(ImageWorldMapCore.TryRenderEvent(null!)));
         }
 
         // =================================================================
@@ -281,26 +281,26 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void MainFieldMap_NullRom_ReturnsNull()
         {
-            WithRom((_) => Assert.Null(ImageWorldMapCore.TryRenderMainFieldMap(null)));
+            WithRom((_) => Assert.Null(ImageWorldMapCore.TryRenderMainFieldMap(null!)));
         }
 
         [Fact]
         public void MainFieldMap_NoImageService_ReturnsNull()
         {
             var savedRom = CoreState.ROM;
-            var savedSvc = CoreState.ImageService;
+            IImageService? savedSvc = CoreState.ImageService;
             try
             {
                 var rom = MakeRom();
                 CoreState.ROM = rom;
-                CoreState.ImageService = null;
+                CoreState.ImageService = null!;
                 PlantMainFieldGraphic(rom);
                 Assert.Null(ImageWorldMapCore.TryRenderMainFieldMap(rom));
             }
             finally
             {
                 CoreState.ROM = savedRom;
-                CoreState.ImageService = savedSvc;
+                CoreState.ImageService = savedSvc!;
             }
         }
 
@@ -454,7 +454,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Road_NullRom_ReturnsNull()
         {
-            WithRom((_) => Assert.Null(ImageWorldMapCore.TryRenderRoad(null)));
+            WithRom((_) => Assert.Null(ImageWorldMapCore.TryRenderRoad(null!)));
         }
 
         // =================================================================
@@ -465,12 +465,12 @@ namespace FEBuilderGBA.Core.Tests
         public void NoImageService_AllReturnNull()
         {
             var savedRom = CoreState.ROM;
-            var savedSvc = CoreState.ImageService;
+            IImageService? savedSvc = CoreState.ImageService;
             try
             {
                 var rom = MakeRom();
                 CoreState.ROM = rom;
-                CoreState.ImageService = null;
+                CoreState.ImageService = null!;
                 PlantEventGraphic(rom, Cell(1, false, false, 0));
                 PlantIconStrip(rom, MINI_IMAGE_OFFSET, rom.RomInfo.worldmap_mini_image_pointer, 64);
                 PlantIconPalette(rom, MINI_PALETTE_OFFSET, rom.RomInfo.worldmap_mini_palette_pointer);
@@ -484,7 +484,7 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.ROM = savedRom;
-                CoreState.ImageService = savedSvc;
+                CoreState.ImageService = savedSvc!;
             }
         }
 

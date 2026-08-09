@@ -139,7 +139,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void DecodeTsaCells_NullRom_ReturnsNull()
         {
-            Assert.Null(ImageTSAEditorCore.DecodeTsaCells(null, 2, 2, false, TSA_RAW_OFFSET));
+            Assert.Null(ImageTSAEditorCore.DecodeTsaCells(null!, 2, 2, false, TSA_RAW_OFFSET));
         }
 
         [Fact]
@@ -353,7 +353,7 @@ namespace FEBuilderGBA.Core.Tests
                 PlantImage(rom, MarkerTiles());
                 PlantPalette(rom, StandardPalette());
                 Assert.Null(ImageTSAEditorCore.RenderMainImageFromCells(
-                    rom, 1, 1, IMAGE_OFFSET, null, PALETTE_OFFSET));
+                    rom, 1, 1, IMAGE_OFFSET, null!, PALETTE_OFFSET));
             });
         }
 
@@ -410,7 +410,7 @@ namespace FEBuilderGBA.Core.Tests
                 var rom = MakeRom();
                 byte[] snap = (byte[])rom.Data.Clone();
                 string err = ImageTSAEditorCore.WriteTsaCells(
-                    rom, 2, 1, false, TSA_RAW_SLOT, TSA_RAW_OFFSET, null);
+                    rom, 2, 1, false, TSA_RAW_SLOT, TSA_RAW_OFFSET, null!);
                 Assert.False(string.IsNullOrEmpty(err));
                 Assert.Equal(snap, rom.Data);
             });
@@ -438,7 +438,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 var rom = MakeRom();
                 Assert.Equal(0, ImageTSAEditorCore.GetTilesheetTileCount(rom, 0));
-                Assert.Equal(0, ImageTSAEditorCore.GetTilesheetTileCount(null, IMAGE_OFFSET));
+                Assert.Equal(0, ImageTSAEditorCore.GetTilesheetTileCount(null!, IMAGE_OFFSET));
             });
         }
 
@@ -717,7 +717,7 @@ namespace FEBuilderGBA.Core.Tests
                 var rom = MakeRom();
                 byte[] snap = (byte[])rom.Data.Clone();
                 string err = ImageTSAEditorCore.WriteHeaderTsaCells(
-                    rom, null, 3, 2, false, TSA_RAW_SLOT, TSA_RAW_OFFSET);
+                    rom, null!, 3, 2, false, TSA_RAW_SLOT, TSA_RAW_OFFSET);
                 Assert.False(string.IsNullOrEmpty(err));
                 Assert.Equal(snap, rom.Data);
             });

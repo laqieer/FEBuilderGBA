@@ -122,14 +122,14 @@ namespace FEBuilderGBA.Avalonia.Services
         /// The 128x112 composite-sheet path writes D4 + D12 pointers and
         /// would corrupt FE6 layouts — gate it here.
         /// </summary>
-        public static bool IsFe7Or8EntryLayout(ROM rom)
+        public static bool IsFe7Or8EntryLayout(ROM? rom)
         {
             if (rom?.RomInfo == null) return false;
             int v = rom.RomInfo.version;
             return v == 7 || v == 8;
         }
 
-        static bool CanReadRomRange(ROM rom, uint offset, uint length)
+        static bool CanReadRomRange(ROM? rom, uint offset, uint length)
         {
             if (rom?.Data == null) return false;
             return (ulong)offset + (ulong)length <= (ulong)rom.Data.Length;
@@ -269,10 +269,10 @@ namespace FEBuilderGBA.Avalonia.Services
         /// simple-path branch.
         /// </summary>
         public static ImportOutcome ImportSimple(
-            ROM rom,
+            ROM? rom,
             uint entryAddr,
-            ImageImportService.LoadResult loadResult,
-            UndoService undoService,
+            ImageImportService.LoadResult? loadResult,
+            UndoService? undoService,
             string undoLabel = "Import Portrait Image")
             => ImportSimple(rom, entryAddr, loadResult, undoService,
                 PortraitPaletteMode.AutoQuantize, null, false, undoLabel);
@@ -307,12 +307,12 @@ namespace FEBuilderGBA.Avalonia.Services
         /// fields, so the writes are skipped silently.
         /// </summary>
         public static ImportOutcome ImportSimple(
-            ROM rom,
+            ROM? rom,
             uint entryAddr,
-            ImageImportService.LoadResult loadResult,
-            UndoService undoService,
+            ImageImportService.LoadResult? loadResult,
+            UndoService? undoService,
             PortraitPaletteMode mode,
-            byte[] customPaletteBytes,
+            byte[]? customPaletteBytes,
             bool fuchidori,
             string undoLabel = "Import Portrait Image",
             byte? mouthBlockX = null,
@@ -326,7 +326,7 @@ namespace FEBuilderGBA.Avalonia.Services
             if (entryAddr == 0) return ImportOutcome.Fail("No portrait entry selected");
             if (undoService == null) return ImportOutcome.Fail("Undo service not initialized");
 
-            byte[] keyedRgba = BuildColorKeyedRgba(loadResult);
+            byte[]? keyedRgba = BuildColorKeyedRgba(loadResult);
             if (keyedRgba == null)
                 return ImportOutcome.Fail("Failed to prepare portrait pixels.");
 
@@ -475,10 +475,10 @@ namespace FEBuilderGBA.Avalonia.Services
         /// Mirrors the original <c>ImagePortraitView.ImportPortraitSheet</c>.
         /// </summary>
         public static ImportOutcome ImportSheet(
-            ROM rom,
+            ROM? rom,
             uint entryAddr,
-            ImageImportService.LoadResult loadResult,
-            UndoService undoService,
+            ImageImportService.LoadResult? loadResult,
+            UndoService? undoService,
             string undoLabel = "Import Portrait Sheet (128x112)")
             => ImportSheet(rom, entryAddr, loadResult, undoService,
                 PortraitPaletteMode.AutoQuantize, null, false, undoLabel);
@@ -495,12 +495,12 @@ namespace FEBuilderGBA.Avalonia.Services
         /// non-null values are always written here when supplied).
         /// </summary>
         public static ImportOutcome ImportSheet(
-            ROM rom,
+            ROM? rom,
             uint entryAddr,
-            ImageImportService.LoadResult loadResult,
-            UndoService undoService,
+            ImageImportService.LoadResult? loadResult,
+            UndoService? undoService,
             PortraitPaletteMode mode,
-            byte[] customPaletteBytes,
+            byte[]? customPaletteBytes,
             bool fuchidori,
             string undoLabel = "Import Portrait Sheet (128x112)",
             byte? mouthBlockX = null,
@@ -529,7 +529,7 @@ namespace FEBuilderGBA.Avalonia.Services
             // portrait color key before any split/remap step. The older
             // palette-index-0 reconstruction is intentionally not used here:
             // opaque backgrounds are still non-zero before this fix.
-            byte[] rgbaPixels = BuildColorKeyedRgba(loadResult);
+            byte[]? rgbaPixels = BuildColorKeyedRgba(loadResult);
             if (rgbaPixels == null)
                 return ImportOutcome.Fail("Failed to reconstruct RGBA pixels");
 
@@ -707,7 +707,7 @@ namespace FEBuilderGBA.Avalonia.Services
             if (!IsFe7Or8EntryLayout(rom))
                 return ImportOutcome.Fail("96x80 face imports are FE7/FE8 only in the Avalonia portrait importer.");
 
-            byte[] keyedFace = BuildColorKeyedRgba(loadResult);
+            byte[]? keyedFace = BuildColorKeyedRgba(loadResult);
             if (keyedFace == null) return ImportOutcome.Fail("Failed to prepare portrait pixels.");
 
             byte[] sheetRgba = PortraitRendererCore.PromoteFaceToPortraitSheet(
@@ -841,7 +841,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 || !CanAccessEntryRange(rom, entryAddr, OFFSET_B23_EYE_BLOCK_Y, 1))
                 return ImportOutcome.Fail("Target portrait entry is outside ROM bounds.");
 
-            byte[] rgbaPixels = BuildColorKeyedRgba(loadResult);
+            byte[]? rgbaPixels = BuildColorKeyedRgba(loadResult);
             if (rgbaPixels == null)
                 return ImportOutcome.Fail("Failed to reconstruct halfbody pixels.");
 
@@ -1106,7 +1106,7 @@ namespace FEBuilderGBA.Avalonia.Services
         /// Matches WF <c>ImagePortraitForm.ImportButton_Click</c> behavior of
         /// <c>Program.ResourceCache.Update("Portrait_" + ToHexString(idx), filename)</c>.
         /// </summary>
-        public static void RecordSourceFile(int portraitIndex, string sourcePath)
+        public static void RecordSourceFile(int portraitIndex, string? sourcePath)
         {
             if (portraitIndex < 0) return;
             if (string.IsNullOrEmpty(sourcePath)) return;
@@ -1124,8 +1124,8 @@ namespace FEBuilderGBA.Avalonia.Services
         /// existing ImagePortraitView behavior). Returns null on failure.
         /// (Copilot CLI plan v1 review important point 3.)
         /// </summary>
-        public static byte[] ReconstructRgbaWithPaletteZeroTransparent(
-            ImageImportService.LoadResult loadResult)
+        public static byte[]? ReconstructRgbaWithPaletteZeroTransparent(
+            ImageImportService.LoadResult? loadResult)
         {
             if (loadResult == null || loadResult.IndexedPixels == null
                 || loadResult.GBAPalette == null) return null;
@@ -1154,15 +1154,17 @@ namespace FEBuilderGBA.Avalonia.Services
             return rgba;
         }
 
-        public static byte[] BuildColorKeyedRgba(ImageImportService.LoadResult loadResult)
+        public static byte[]? BuildColorKeyedRgba(ImageImportService.LoadResult? loadResult)
         {
-            byte[] rgba = GetSourceRgba(loadResult);
+            if (loadResult == null) return null;
+
+            byte[]? rgba = GetSourceRgba(loadResult);
             if (rgba == null) return null;
             ApplyPortraitBackgroundColorKey(rgba, loadResult.Width, loadResult.Height);
             return rgba;
         }
 
-        static byte[] GetSourceRgba(ImageImportService.LoadResult loadResult)
+        static byte[]? GetSourceRgba(ImageImportService.LoadResult? loadResult)
         {
             if (loadResult == null
                 || !TryGetRgbaByteCount(
@@ -1179,7 +1181,7 @@ namespace FEBuilderGBA.Avalonia.Services
             return ReconstructRgbaIndexAgnostic(loadResult);
         }
 
-        static byte[] ReconstructRgbaIndexAgnostic(ImageImportService.LoadResult loadResult)
+        static byte[]? ReconstructRgbaIndexAgnostic(ImageImportService.LoadResult? loadResult)
         {
             if (loadResult == null || loadResult.IndexedPixels == null
                 || loadResult.GBAPalette == null) return null;
@@ -1232,7 +1234,7 @@ namespace FEBuilderGBA.Avalonia.Services
         ///   - Decimal prefix:     "31.png",  "31_anything.bmp"   → 31
         /// Returns -1 when no recognisable numeric prefix is present.
         /// </summary>
-        internal static int ParseSlotIdFromFilename(string fileName)
+        internal static int ParseSlotIdFromFilename(string? fileName)
         {
             if (string.IsNullOrEmpty(fileName)) return -1;
             string name = Path.GetFileNameWithoutExtension(fileName);
@@ -1308,7 +1310,7 @@ namespace FEBuilderGBA.Avalonia.Services
         ///
         /// **Per-file undo isolation** (Copilot CLI PR review blocking #1):
         /// every file gets its OWN <see cref="UndoService"/> scope via the
-        /// normal (non-external) <see cref="ImportSimple"/> / <see cref="ImportSheet"/>
+        /// normal (non-external) <see cref="PortraitImportHelper.ImportSimple(FEBuilderGBA.ROM, uint, FEBuilderGBA.Avalonia.Services.ImageImportService.LoadResult, FEBuilderGBA.Avalonia.Services.UndoService, string)"/> / <see cref="PortraitImportHelper.ImportSheet(FEBuilderGBA.ROM, uint, FEBuilderGBA.Avalonia.Services.ImageImportService.LoadResult, FEBuilderGBA.Avalonia.Services.UndoService, string)"/>
         /// code path. That means:
         ///   - A file that fails mid-write (e.g. D0 written, palette out of free
         ///     space) rolls back ITS partial ROM bytes — failed files cannot
@@ -1316,15 +1318,15 @@ namespace FEBuilderGBA.Avalonia.Services
         ///   - Each successful file gets its own undo stack entry, so the user
         ///     can selectively undo individual portraits afterwards.
         /// Each file is also pre-validated (load + quantize) before any ROM
-        /// write — bad PNGs are rejected before <see cref="ImportSimple"/> opens
+        /// write — bad PNGs are rejected before <see cref="PortraitImportHelper.ImportSimple(FEBuilderGBA.ROM, uint, FEBuilderGBA.Avalonia.Services.ImageImportService.LoadResult, FEBuilderGBA.Avalonia.Services.UndoService, string)"/> opens
         /// its scope.
         ///
         /// **Sheet routing** (Copilot CLI PR review blocking #2): 128x112
-        /// composite sheets are routed through <see cref="ImportSheet"/> on
+        /// composite sheets are routed through <see cref="PortraitImportHelper.ImportSheet(FEBuilderGBA.ROM, uint, FEBuilderGBA.Avalonia.Services.ImageImportService.LoadResult, FEBuilderGBA.Avalonia.Services.UndoService, string)"/> on
         /// FE7/FE8 ROMs so D4 (mini-face) and D12 (mouth frames) get written
         /// alongside D0 + D8. FE6 ROMs reject sheet-sized inputs because the
         /// 16-byte FE6 layout has no mouth-frame pointer at D12 (the FE6 gate
-        /// in <see cref="ImportSheet"/> handles this — the failure is reported
+        /// in <see cref="PortraitImportHelper.ImportSheet(FEBuilderGBA.ROM, uint, FEBuilderGBA.Avalonia.Services.ImageImportService.LoadResult, FEBuilderGBA.Avalonia.Services.UndoService, string)"/> handles this — the failure is reported
         /// per file and does not abort the batch).
         ///
         /// File-naming convention (issue #661):
@@ -1341,9 +1343,9 @@ namespace FEBuilderGBA.Avalonia.Services
         /// <param name="rom">Target ROM.</param>
         public static async Task<FolderImportResult> ImportFolderAsync(
             string folderPath,
-            IProgress<string> progress,
-            UndoService undo,
-            ROM rom)
+            IProgress<string>? progress,
+            UndoService? undo,
+            ROM? rom)
         {
             var lines = new List<string>();
             if (rom == null)
@@ -1560,12 +1562,12 @@ namespace FEBuilderGBA.Avalonia.Services
         /// reconstructed because no RGBA source buffer is available) so
         /// callers can safely clear their cache.
         /// </summary>
-        public static ImageImportService.LoadResult BuildPreparedPreviewLoadResult(
-            ImageImportService.LoadResult loadResult)
+        public static ImageImportService.LoadResult? BuildPreparedPreviewLoadResult(
+            ImageImportService.LoadResult? loadResult)
         {
             if (loadResult == null || !loadResult.Success) return null;
 
-            byte[] keyed = BuildColorKeyedRgba(loadResult);
+            byte[]? keyed = BuildColorKeyedRgba(loadResult);
             if (keyed == null) return null;
 
             var qr = DecreaseColorCore.Quantize(keyed, loadResult.Width, loadResult.Height, 16);
@@ -1596,13 +1598,13 @@ namespace FEBuilderGBA.Avalonia.Services
         /// <see cref="BuildPreparedPreviewLoadResult"/>. Ready to drop into a
         /// <c>GbaImageControl</c>. Returns null on failure.
         /// </summary>
-        public static IImage BuildPreviewImageFromPrepared(ImageImportService.LoadResult preparedLoadResult)
+        public static IImage? BuildPreviewImageFromPrepared(ImageImportService.LoadResult? preparedLoadResult)
         {
             if (preparedLoadResult == null || !preparedLoadResult.Success) return null;
             IImageService svc = CoreState.ImageService;
             if (svc == null) return null;
 
-            byte[] rgba = ReconstructRgbaWithPaletteZeroTransparent(preparedLoadResult);
+            byte[]? rgba = ReconstructRgbaWithPaletteZeroTransparent(preparedLoadResult);
             if (rgba == null) return null;
 
             IImage img = svc.CreateImage(preparedLoadResult.Width, preparedLoadResult.Height);
@@ -1619,7 +1621,7 @@ namespace FEBuilderGBA.Avalonia.Services
         /// wizard's cached per-load preview share one preparation pipeline
         /// (#1980).
         /// </summary>
-        public static IImage BuildPreviewImage(ImageImportService.LoadResult loadResult)
+        public static IImage? BuildPreviewImage(ImageImportService.LoadResult? loadResult)
             => BuildPreviewImageFromPrepared(BuildPreparedPreviewLoadResult(loadResult));
     }
 }

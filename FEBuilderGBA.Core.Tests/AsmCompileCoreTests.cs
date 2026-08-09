@@ -144,8 +144,8 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Compile_DevkitNotConfigured_ReturnsLocalizedError()
         {
-            var savedConfig = CoreState.Config;
-            CoreState.Config = null; // no devkitpro_eabi
+            Config? savedConfig = CoreState.Config;
+            CoreState.Config = null!; // no devkitpro_eabi
             string src = Path.Combine(Path.GetTempPath(), "asm-" + Path.GetRandomFileName() + ".s");
             File.WriteAllText(src, ".thumb\r\nnop\r\n");
             try
@@ -157,7 +157,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.Config = savedConfig;
+                CoreState.Config = savedConfig!;
                 try { File.Delete(src); } catch { }
             }
         }
@@ -179,8 +179,8 @@ namespace FEBuilderGBA.Core.Tests
             var rom = CreateTestRom();
             byte[] before = (byte[])rom.Data.Clone();
 
-            var savedConfig = CoreState.Config;
-            CoreState.Config = null;
+            Config? savedConfig = CoreState.Config;
+            CoreState.Config = null!;
             string src = Path.Combine(Path.GetTempPath(), "asm-" + Path.GetRandomFileName() + ".s");
             File.WriteAllText(src, ".thumb\r\nnop\r\n");
             try
@@ -198,7 +198,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.Config = savedConfig;
+                CoreState.Config = savedConfig!;
                 try { File.Delete(src); } catch { }
             }
         }
@@ -208,7 +208,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var undo = new Undo.UndoData { list = new List<Undo.UndoPostion>() };
             var result = AsmCompileCore.CompileAndInsert(
-                null, "x.s", AsmCompileCore.CompileMethod.DumpBinary,
+                null!, "x.s", AsmCompileCore.CompileMethod.DumpBinary,
                 AsmCompileCore.InsertMethod.WriteAtAddress, 0x100, U.NOT_FOUND, 3,
                 SymbolUtil.DebugSymbol.None, checkMissingLabel: false, undo);
 
@@ -498,8 +498,8 @@ namespace FEBuilderGBA.Core.Tests
             // never mutates with a zero address even when the compile can't run.)
             var rom = CreateTestRom(0x400);
             byte[] before = (byte[])rom.Data.Clone();
-            var savedConfig = CoreState.Config;
-            CoreState.Config = null; // devkit not configured → compile fails cleanly first
+            Config? savedConfig = CoreState.Config;
+            CoreState.Config = null!; // devkit not configured → compile fails cleanly first
             string src = Path.Combine(Path.GetTempPath(), "asm-" + Path.GetRandomFileName() + ".s");
             File.WriteAllText(src, ".thumb\r\nnop\r\n");
             try
@@ -516,7 +516,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.Config = savedConfig;
+                CoreState.Config = savedConfig!;
                 try { File.Delete(src); } catch { }
             }
         }
@@ -585,8 +585,8 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ResolveDevkitArmTools_NotConfigured_ReturnNull()
         {
-            var savedConfig = CoreState.Config;
-            CoreState.Config = null; // no devkitpro_eabi
+            Config? savedConfig = CoreState.Config;
+            CoreState.Config = null!; // no devkitpro_eabi
             try
             {
                 Assert.Null(ToolPathResolver.ResolveDevkitArmDir());
@@ -596,7 +596,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.Config = savedConfig;
+                CoreState.Config = savedConfig!;
             }
         }
 
@@ -665,9 +665,9 @@ namespace FEBuilderGBA.Core.Tests
         {
             // With no EA exe resolvable (null config + empty base dir), lyn resolution
             // (which keys off the EA tree) returns null.
-            var savedConfig = CoreState.Config;
+            Config? savedConfig = CoreState.Config;
             var savedBaseDir = CoreState.BaseDirectory;
-            CoreState.Config = null;
+            CoreState.Config = null!;
             CoreState.BaseDirectory = Path.Combine(Path.GetTempPath(),
                 "fbg-no-ea-" + Path.GetRandomFileName());
             try
@@ -676,7 +676,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.Config = savedConfig;
+                CoreState.Config = savedConfig!;
                 CoreState.BaseDirectory = savedBaseDir;
             }
         }
@@ -707,7 +707,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ShouldUseGoldRoadFromText_Null_ReturnsFalse()
         {
-            Assert.False(AsmCompileCore.ShouldUseGoldRoadFromText(null));
+            Assert.False(AsmCompileCore.ShouldUseGoldRoadFromText(null!));
         }
 
         // ShouldUseGoldRoad: ext gate (.ASM only) + the text predicate, with a real file.
@@ -733,7 +733,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ShouldUseGoldRoad_MissingOrEmptyPath_ReturnsFalse()
         {
-            Assert.False(AsmCompileCore.ShouldUseGoldRoad(null));
+            Assert.False(AsmCompileCore.ShouldUseGoldRoad(null!));
             Assert.False(AsmCompileCore.ShouldUseGoldRoad(""));
             Assert.False(AsmCompileCore.ShouldUseGoldRoad(
                 Path.Combine(Path.GetTempPath(), "no-such-" + Guid.NewGuid() + ".asm")));
@@ -755,8 +755,8 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ResolveGoldRoad_NotConfigured_ReturnsNull()
         {
-            var savedConfig = CoreState.Config;
-            CoreState.Config = null;
+            Config? savedConfig = CoreState.Config;
+            CoreState.Config = null!;
             try
             {
                 Assert.Null(ToolPathResolver.ResolveGoldRoad());
@@ -765,7 +765,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.Config = savedConfig;
+                CoreState.Config = savedConfig!;
             }
         }
 
@@ -1063,7 +1063,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal("", AsmCompileCore.MakePatchText(
                 "", AsmCompileCore.InsertMethod.WriteAtAddress, 0x08000100, 0, 3));
             Assert.Equal("", AsmCompileCore.MakePatchText(
-                null, AsmCompileCore.InsertMethod.WriteAtAddress, 0x08000100, 0, 3));
+                null!, AsmCompileCore.InsertMethod.WriteAtAddress, 0x08000100, 0, 3));
         }
 
         [Fact]

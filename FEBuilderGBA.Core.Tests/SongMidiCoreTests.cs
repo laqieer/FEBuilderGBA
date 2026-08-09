@@ -89,7 +89,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ParseTracks_NullRom_ReturnsEmptyList()
         {
-            var result = SongMidiCore.ParseTracks(null, 0, 1);
+            var result = SongMidiCore.ParseTracks(null!, 0, 1);
             Assert.Empty(result);
         }
 
@@ -159,8 +159,8 @@ namespace FEBuilderGBA.Core.Tests
             {
                 System.IO.File.WriteAllBytes(tempFile, midiBytes);
 
-                var origRom = CoreState.ROM;
-                CoreState.ROM = null;
+                ROM? origRom = CoreState.ROM;
+                CoreState.ROM = null!;
                 try
                 {
                     string result = SongMidiCore.ImportMidiFile(tempFile, 0, 0);
@@ -168,7 +168,7 @@ namespace FEBuilderGBA.Core.Tests
                 }
                 finally
                 {
-                    CoreState.ROM = origRom;
+                    CoreState.ROM = origRom!;
                 }
             }
             finally
@@ -292,7 +292,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ParseMidiBytes_NullData_ReturnsNull()
         {
-            Assert.Null(SongMidiCore.ParseMidiBytes(null));
+            Assert.Null(SongMidiCore.ParseMidiBytes(null!));
         }
 
         [Fact]
@@ -543,7 +543,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ExtractMidiEvents_NullData_ReturnsEmpty()
         {
-            var result = SongMidiCore.ExtractMidiEvents(null);
+            var result = SongMidiCore.ExtractMidiEvents(null!);
             Assert.Empty(result);
         }
 
@@ -707,7 +707,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ConvertMidiToGBA_NullInput_ReturnsNull()
         {
-            Assert.Null(SongMidiCore.ConvertMidiToGBA(null, null, 0));
+            Assert.Null(SongMidiCore.ConvertMidiToGBA(null!, null!, 0));
         }
 
         [Fact]

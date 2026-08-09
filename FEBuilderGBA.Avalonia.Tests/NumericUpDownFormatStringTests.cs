@@ -41,7 +41,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         public void AppAndTestApp_NumericUpDown_GlobalMinWidth_IsAtLeast120()
         {
             // Verify both App.axaml and TestApp.axaml define MinWidth >= 120 for NumericUpDown (#315).
-            string dir = AppContext.BaseDirectory;
+            string? dir = AppContext.BaseDirectory;
             while (dir != null && !System.IO.File.Exists(System.IO.Path.Combine(dir, "FEBuilderGBA.Avalonia", "App.axaml")))
                 dir = System.IO.Path.GetDirectoryName(dir);
             Assert.NotNull(dir);
@@ -49,7 +49,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             // Check both files
             var files = new[]
             {
-                System.IO.Path.Combine(dir!, "FEBuilderGBA.Avalonia", "App.axaml"),
+                System.IO.Path.Combine(dir, "FEBuilderGBA.Avalonia", "App.axaml"),
                 System.IO.Path.Combine(dir!, "FEBuilderGBA.Avalonia.Tests", "TestApp.axaml"),
             };
             // Regex scoped to NumericUpDown style block (Singleline: . matches \n)

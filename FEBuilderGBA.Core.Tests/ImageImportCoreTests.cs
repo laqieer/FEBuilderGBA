@@ -9,24 +9,24 @@ namespace FEBuilderGBA.Core.Tests
     /// </summary>
     internal class MinimalImageService : IImageService
     {
-        public IImage CreateImage(int w, int h) => null;
-        public IImage CreateIndexedImage(int w, int h, byte[] p, int c) => null;
-        public IImage LoadImage(string f) => null;
-        public IImage LoadImageFromBytes(byte[] d) => null;
+        public IImage CreateImage(int w, int h) => throw new NotSupportedException(nameof(CreateImage));
+        public IImage CreateIndexedImage(int w, int h, byte[] p, int c) => throw new NotSupportedException(nameof(CreateIndexedImage));
+        public IImage LoadImage(string f) => throw new NotSupportedException(nameof(LoadImage));
+        public IImage LoadImageFromBytes(byte[] d) => throw new NotSupportedException(nameof(LoadImageFromBytes));
         public void GBAColorToRGBA(ushort gbaColor, out byte r, out byte g, out byte b)
         {
             r = (byte)((gbaColor & 0x1F) << 3);
             g = (byte)(((gbaColor >> 5) & 0x1F) << 3);
             b = (byte)(((gbaColor >> 10) & 0x1F) << 3);
         }
-        public ushort RGBAToGBAColor(byte r, byte g, byte b) => 0;
-        public IImage Decode4bppTiles(byte[] t, int o, int w, int h, byte[] p) => null;
-        public IImage Decode8bppTiles(byte[] t, int o, int w, int h, byte[] p) => null;
-        public IImage Decode8bppLinear(byte[] d, int o, int w, int h, byte[] p) => null;
-        public byte[] Encode4bppTiles(IImage i) => null;
-        public byte[] Encode8bppTiles(IImage i) => null;
-        public byte[] GBAPaletteToRGBA(byte[] p, int c) => null;
-        public byte[] RGBAPaletteToGBA(byte[] p, int c) => null;
+        public ushort RGBAToGBAColor(byte r, byte g, byte b) => throw new NotSupportedException(nameof(RGBAToGBAColor));
+        public IImage Decode4bppTiles(byte[] t, int o, int w, int h, byte[] p) => throw new NotSupportedException(nameof(Decode4bppTiles));
+        public IImage Decode8bppTiles(byte[] t, int o, int w, int h, byte[] p) => throw new NotSupportedException(nameof(Decode8bppTiles));
+        public IImage Decode8bppLinear(byte[] d, int o, int w, int h, byte[] p) => throw new NotSupportedException(nameof(Decode8bppLinear));
+        public byte[] Encode4bppTiles(IImage i) => throw new NotSupportedException(nameof(Encode4bppTiles));
+        public byte[] Encode8bppTiles(IImage i) => throw new NotSupportedException(nameof(Encode8bppTiles));
+        public byte[] GBAPaletteToRGBA(byte[] p, int c) => throw new NotSupportedException(nameof(GBAPaletteToRGBA));
+        public byte[] RGBAPaletteToGBA(byte[] p, int c) => throw new NotSupportedException(nameof(RGBAPaletteToGBA));
     }
 
     [Collection("SharedState")]
@@ -101,7 +101,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void EncodeTSA_NullInput_ReturnsNull()
         {
-            Assert.Null(ImageImportCore.EncodeTSA(null, 8, 8));
+            Assert.Null(ImageImportCore.EncodeTSA(null!, 8, 8));
         }
 
         [Fact]
@@ -237,7 +237,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void EncodeDirectTiles4bpp_NullInput_ReturnsNull()
         {
-            Assert.Null(ImageImportCore.EncodeDirectTiles4bpp(null, 8, 8));
+            Assert.Null(ImageImportCore.EncodeDirectTiles4bpp(null!, 8, 8));
         }
 
         [Fact]
@@ -445,14 +445,14 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void FindAndWriteData_NullRom_ReturnsNotFound()
         {
-            Assert.Equal(U.NOT_FOUND, ImageImportCore.FindAndWriteData(null, new byte[] { 1 }));
+            Assert.Equal(U.NOT_FOUND, ImageImportCore.FindAndWriteData(null!, new byte[] { 1 }));
         }
 
         [Fact]
         public void FindAndWriteData_NullData_ReturnsNotFound()
         {
             var rom = CreateTestRom();
-            Assert.Equal(U.NOT_FOUND, ImageImportCore.FindAndWriteData(rom, null));
+            Assert.Equal(U.NOT_FOUND, ImageImportCore.FindAndWriteData(rom, null!));
         }
 
         [Fact]
@@ -493,7 +493,7 @@ namespace FEBuilderGBA.Core.Tests
         public void WriteBytes_NullRom_DoesNotThrow()
         {
             // Should silently return
-            ImageImportCore.WriteBytes(null, 0, new byte[] { 1 });
+            ImageImportCore.WriteBytes(null!, 0, new byte[] { 1 });
         }
 
         [Fact]
@@ -531,7 +531,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ImportFixedIcon_NullPixels_ReturnsFalse()
         {
             var rom = CreateTestRom();
-            Assert.False(ImageImportCore.ImportFixedIcon(rom, null, 16, 16, 0x1000));
+            Assert.False(ImageImportCore.ImportFixedIcon(rom, null!, 16, 16, 0x1000));
         }
 
         [Fact]
@@ -645,7 +645,7 @@ namespace FEBuilderGBA.Core.Tests
         public void Import3Pointer_NullPixels_ReturnsError()
         {
             var rom = CreateTestRom();
-            var result = ImageImportCore.Import3Pointer(rom, null, new byte[32], 8, 8, 0, 4, 8);
+            var result = ImageImportCore.Import3Pointer(rom, null!, new byte[32], 8, 8, 0, 4, 8);
 
             Assert.False(result.Success);
             Assert.NotNull(result.Error);
@@ -698,7 +698,7 @@ namespace FEBuilderGBA.Core.Tests
         public void Import2Pointer_NullPixels_ReturnsError()
         {
             var rom = CreateTestRom();
-            var result = ImageImportCore.Import2Pointer(rom, null, new byte[32], 8, 8, 0, 4);
+            var result = ImageImportCore.Import2Pointer(rom, null!, new byte[32], 8, 8, 0, 4);
 
             Assert.False(result.Success);
             Assert.NotNull(result.Error);
@@ -732,14 +732,14 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void WriteCompressedToROM_NullRom_ReturnsNotFound()
         {
-            Assert.Equal(U.NOT_FOUND, ImageImportCore.WriteCompressedToROM(null, new byte[4], 0));
+            Assert.Equal(U.NOT_FOUND, ImageImportCore.WriteCompressedToROM(null!, new byte[4], 0));
         }
 
         [Fact]
         public void WriteCompressedToROM_NullData_ReturnsNotFound()
         {
             var rom = CreateTestRom();
-            Assert.Equal(U.NOT_FOUND, ImageImportCore.WriteCompressedToROM(rom, null, 0));
+            Assert.Equal(U.NOT_FOUND, ImageImportCore.WriteCompressedToROM(rom, null!, 0));
         }
 
         [Fact]
@@ -997,8 +997,8 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RemapToMultiPalette_NullInput_ReturnsNull()
         {
-            Assert.Null(ImageImportCore.RemapToMultiPalette(null, 8, 8, new byte[32], 1));
-            Assert.Null(ImageImportCore.RemapToMultiPalette(new byte[256], 8, 8, null, 1));
+            Assert.Null(ImageImportCore.RemapToMultiPalette(null!, 8, 8, new byte[32], 1));
+            Assert.Null(ImageImportCore.RemapToMultiPalette(new byte[256], 8, 8, null!, 1));
         }
 
         [Fact]
@@ -1065,8 +1065,8 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void EncodeTSAMultiPalette_NullInput_ReturnsNull()
         {
-            Assert.Null(ImageImportCore.EncodeTSAMultiPalette(null, 8, 8, new int[] { 0 }));
-            Assert.Null(ImageImportCore.EncodeTSAMultiPalette(new byte[64], 8, 8, null));
+            Assert.Null(ImageImportCore.EncodeTSAMultiPalette(null!, 8, 8, new int[] { 0 }));
+            Assert.Null(ImageImportCore.EncodeTSAMultiPalette(new byte[64], 8, 8, null!));
         }
 
         // ---- Import3PointerMultiPalette ----
@@ -1133,8 +1133,8 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RemapToExistingPalette_NullInputReturnsNull()
         {
-            Assert.Null(ImageImportCore.RemapToExistingPalette(null, 8, 8, new byte[4], 2));
-            Assert.Null(ImageImportCore.RemapToExistingPalette(new byte[256], 8, 8, null, 2));
+            Assert.Null(ImageImportCore.RemapToExistingPalette(null!, 8, 8, new byte[4], 2));
+            Assert.Null(ImageImportCore.RemapToExistingPalette(new byte[256], 8, 8, null!, 2));
         }
 
         [Fact]
@@ -1268,8 +1268,8 @@ namespace FEBuilderGBA.Core.Tests
         public void FindAndWriteData_NullOrEmpty_ReturnsNotFound()
         {
             var rom = CreateTestRom();
-            Assert.Equal(U.NOT_FOUND, ImageImportCore.FindAndWriteData(null, new byte[1]));
-            Assert.Equal(U.NOT_FOUND, ImageImportCore.FindAndWriteData(rom, null));
+            Assert.Equal(U.NOT_FOUND, ImageImportCore.FindAndWriteData(null!, new byte[1]));
+            Assert.Equal(U.NOT_FOUND, ImageImportCore.FindAndWriteData(rom, null!));
             Assert.Equal(U.NOT_FOUND, ImageImportCore.FindAndWriteData(rom, new byte[0]));
         }
 
@@ -1360,7 +1360,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void IsPointerShared_NullRom_ReturnsFalse()
         {
-            Assert.False(ImageImportCore.IsPointerShared(null, 0x100));
+            Assert.False(ImageImportCore.IsPointerShared(null!, 0x100));
         }
 
         // ---- ReadPaletteFromROM tests ----
@@ -1386,7 +1386,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ReadPaletteFromROM_NullRom_ReturnsNull()
         {
-            Assert.Null(ImageImportCore.ReadPaletteFromROM(null, 0x100));
+            Assert.Null(ImageImportCore.ReadPaletteFromROM(null!, 0x100));
         }
 
         // ---- RemapPaletteIndices tests ----
@@ -1452,9 +1452,9 @@ namespace FEBuilderGBA.Core.Tests
         {
             byte[] pal = new byte[32];
             byte[] pix = new byte[] { 1 };
-            Assert.Null(ImageImportCore.RemapPaletteIndices(null, pal, pal));
-            Assert.Null(ImageImportCore.RemapPaletteIndices(pix, null, pal));
-            Assert.Null(ImageImportCore.RemapPaletteIndices(pix, pal, null));
+            Assert.Null(ImageImportCore.RemapPaletteIndices(null!, pal, pal));
+            Assert.Null(ImageImportCore.RemapPaletteIndices(pix, null!, pal));
+            Assert.Null(ImageImportCore.RemapPaletteIndices(pix, pal, null!));
         }
 
         [Fact]
@@ -1718,7 +1718,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void WritePaletteToROM_NullRom_ReturnsNotFound()
         {
-            uint result = ImageImportCore.WritePaletteToROM(null, new byte[32], 0x100);
+            uint result = ImageImportCore.WritePaletteToROM(null!, new byte[32], 0x100);
             Assert.Equal(U.NOT_FOUND, result);
         }
 
@@ -1726,7 +1726,7 @@ namespace FEBuilderGBA.Core.Tests
         public void WritePaletteToROM_NullPalette_ReturnsNotFound()
         {
             var rom = CreateTestRom();
-            uint result = ImageImportCore.WritePaletteToROM(rom, null, 0x100);
+            uint result = ImageImportCore.WritePaletteToROM(rom, null!, 0x100);
             Assert.Equal(U.NOT_FOUND, result);
         }
 

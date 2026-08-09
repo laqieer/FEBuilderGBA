@@ -1281,6 +1281,52 @@ class TestBashWrapper(unittest.TestCase):
         decision = json.loads(result.stdout)
         self.assertEqual(decision["permissionDecision"], "deny")
 
+    def test_broken_python3_falls_through_to_working_python(self):
+        bin_dir = os.path.join(self._tmp, "bin")
+        os.makedirs(bin_dir)
+        broken_python3 = os.path.join(bin_dir, "python3")
+        working_python = os.path.join(bin_dir, "python")
+        marker = os.path.join(self._tmp, "working-python-used")
+        with open(broken_python3, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write("#!/bin/sh\nexit 49\n")
+        with open(working_python, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(
+                "#!/bin/sh\n"
+                f"printf used > '{marker.replace(os.sep, '/')}'\n"
+                f"exec '{sys.executable.replace(os.sep, '/')}' \"$@\"\n"
+            )
+        os.chmod(broken_python3, 0o755)
+        os.chmod(working_python, 0o755)
+
+        denying_guard = os.path.join(self._tmp, "denying_guard.py")
+        with open(denying_guard, "w", encoding="utf-8") as fh:
+            fh.write(
+                "import sys\n"
+                "sys.stdout.write('{\"permissionDecision\": \"deny\", "
+                "\"permissionDecisionReason\": \"test\"}')\n"
+                "sys.exit(2)\n"
+            )
+        wrapper_copy = os.path.join(self._tmp, "wrapper.sh")
+        with open(BASH_WRAPPER_PATH, encoding="utf-8") as fh:
+            content = fh.read()
+        content = content.replace(
+            'guard="$hook_dir/copilot_context_guard.py"',
+            'guard="{0}"'.format(denying_guard.replace("\\", "/")),
+        )
+        with open(wrapper_copy, "w", encoding="utf-8") as fh:
+            fh.write(content)
+
+        run_env = dict(os.environ)
+        run_env["PATH"] = bin_dir
+        result = subprocess.run(
+            [BASH_EXECUTABLE, wrapper_copy], input="{}", capture_output=True, text=True,
+            env=run_env, timeout=30,
+        )
+
+        self.assertEqual(result.returncode, 2)
+        self.assertTrue(os.path.exists(marker))
+        self.assertEqual(json.loads(result.stdout)["permissionDecision"], "deny")
+
     def _run_with_stand_in_guard(self, guard_path):
         wrapper_copy = os.path.join(self._tmp, "wrapper.sh")
         with open(BASH_WRAPPER_PATH, encoding="utf-8") as fh:

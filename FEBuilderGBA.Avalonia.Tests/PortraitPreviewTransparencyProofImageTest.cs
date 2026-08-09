@@ -26,10 +26,9 @@ namespace FEBuilderGBA.Avalonia.Tests
             {
                 restore = EnsureImageService();
                 var loadResult = MakeSyntheticPortraitLoadResult(96, 80);
-                byte[] oldRgba = PortraitImportHelper.ReconstructRgbaWithPaletteZeroTransparent(loadResult);
+                byte[] oldRgba = Assert.IsType<byte[]>(PortraitImportHelper.ReconstructRgbaWithPaletteZeroTransparent(loadResult));
 
-                using IImage newPreview = PortraitImportHelper.BuildPreviewImage(loadResult);
-                Assert.NotNull(newPreview);
+                using IImage newPreview = Assert.IsAssignableFrom<IImage>(PortraitImportHelper.BuildPreviewImage(loadResult));
                 byte[] newRgba = newPreview.GetPixelData();
 
                 byte[] pngBytes = RenderProofPng(oldRgba, newRgba, loadResult.Width, loadResult.Height);
@@ -74,7 +73,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             readonly IImageService? _prev;
             public RestoreImageService(IImageService? prev) { _prev = prev; }
-            public void Dispose() { CoreState.ImageService = _prev; }
+            public void Dispose() { CoreState.ImageService = _prev!; }
         }
 
         static ImageImportService.LoadResult MakeSyntheticPortraitLoadResult(int w, int h)
@@ -127,8 +126,8 @@ namespace FEBuilderGBA.Avalonia.Tests
             using var canvas = new SKCanvas(bmp);
             canvas.Clear(new SKColor(0x24, 0x26, 0x2B));
 
-            using var title = new SKPaint { Color = SKColors.White, TextSize = 22, IsAntialias = true, FakeBoldText = true };
-            using var label = new SKPaint { Color = new SKColor(0xD8, 0xDE, 0xE9), TextSize = 16, IsAntialias = true };
+            using var title = SkiaTestTextStyle.Create(SKColors.White, 22, bold: true);
+            using var label = SkiaTestTextStyle.Create(new SKColor(0xD8, 0xDE, 0xE9), 16);
             canvas.DrawText("Portrait Import Wizard quantized preview transparency (#1847)", 24, 34, title);
             canvas.DrawText("Before: raw-quantized index 0 rule", 24, 66, label);
             canvas.DrawText("After: import color-key -> quantize -> index 0 transparent", panelW + 72, 66, label);

@@ -211,7 +211,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             WithImageService(() =>
                 Assert.Null(ImageUtilCore.ByteToImage16TilePaletteMap(
-                    null, new byte[8], Build256Palette())));
+                    null!, new byte[8], Build256Palette())));
         }
 
         [Fact]
@@ -219,7 +219,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             WithImageService(() =>
                 Assert.Null(ImageUtilCore.ByteToImage16TilePaletteMap(
-                    new byte[16], null, Build256Palette())));
+                    new byte[16], null!, Build256Palette())));
         }
 
         [Fact]
@@ -227,7 +227,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             WithImageService(() =>
                 Assert.Null(ImageUtilCore.ByteToImage16TilePaletteMap(
-                    new byte[16], new byte[8], null)));
+                    new byte[16], new byte[8], null!)));
         }
 
         [Fact]
@@ -247,14 +247,14 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void NoImageService_ReturnsNull()
         {
-            var saved = CoreState.ImageService;
+            IImageService? saved = CoreState.ImageService;
             try
             {
-                CoreState.ImageService = null;
+                CoreState.ImageService = null!;
                 Assert.Null(ImageUtilCore.ByteToImage16TilePaletteMap(
                     new byte[16], new byte[8], Build256Palette(), 16, 8));
             }
-            finally { CoreState.ImageService = saved; }
+            finally { CoreState.ImageService = saved!; }
         }
 
         // =================================================================

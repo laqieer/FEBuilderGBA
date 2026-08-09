@@ -438,7 +438,7 @@ namespace FEBuilderGBA.Core.Tests
         public void MakeAllStructPointersList_NullRom_Throws()
         {
             Assert.Throws<ArgumentNullException>(
-                () => RebuildProducerCore.MakeAllStructPointersList(null));
+                () => RebuildProducerCore.MakeAllStructPointersList(null!));
         }
 
         [Fact]
@@ -530,17 +530,17 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void MakeAllStructPointers_FE8U_DisasmUnwired_IncompleteViaRuntimeGatedForms()
         {
-            string romPath = FindTestRom();
+            string? romPath = FindTestRom();
             if (romPath == null) return; // skip when no ROM available (env-only)
 
             var savedRom = CoreState.ROM;
-            var savedEs = CoreState.EventScript;
+            EventScript? savedEs = CoreState.EventScript;
             try
             {
                 var rom = new ROM();
                 if (!rom.Load(romPath, out string _)) return; // skip
                 CoreState.ROM = rom;
-                CoreState.EventScript = null; // disasm unwired -> EventCondForm re-reported at runtime
+                CoreState.EventScript = null!; // disasm unwired -> EventCondForm re-reported at runtime
 
                 RebuildProducerCore.ProducerResult result = RebuildProducerCore.MakeAllStructPointers(rom);
                 // The STATIC data-path list is empty, so the ONLY reason this run is incomplete is the
@@ -573,7 +573,7 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.ROM = savedRom;
-                CoreState.EventScript = savedEs;
+                CoreState.EventScript = savedEs!;
             }
         }
 
@@ -582,7 +582,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void MakeAllStructPointersList_FE8U_FindsBatchTables_AndItem()
         {
-            string romPath = FindTestRom();
+            string? romPath = FindTestRom();
             if (romPath == null) return; // skip when no ROM available (env-only)
 
             var savedRom = CoreState.ROM;
@@ -606,7 +606,7 @@ namespace FEBuilderGBA.Core.Tests
                 // SupportAttribute table (a clean single-walk batch form) must be present
                 // with the correct block size and a terminator-bounded count.
                 uint saBase = rom.p32(rom.RomInfo.support_attribute_pointer);
-                Address sa = list.FirstOrDefault(a => a.Addr == saBase && a.Info == "SupportAttribute");
+                Address? sa = list.FirstOrDefault(a => a.Addr == saBase && a.Info == "SupportAttribute");
                 Assert.NotNull(sa);
                 Assert.Equal(8u, sa.BlockSize);
                 uint saCount = sa.Length / sa.BlockSize - 1; // length = block*(count+1)
@@ -614,7 +614,7 @@ namespace FEBuilderGBA.Core.Tests
 
                 // AI3 (fixed-8) table must be present with the expected 9-block length.
                 uint ai3Base = rom.p32(rom.RomInfo.ai3_pointer);
-                Address ai3 = list.FirstOrDefault(a => a.Addr == ai3Base && a.Info == "AI3");
+                Address? ai3 = list.FirstOrDefault(a => a.Addr == ai3Base && a.Info == "AI3");
                 Assert.NotNull(ai3);
                 Assert.Equal(20u, ai3.BlockSize);
                 Assert.Equal(20u * (8 + 1), ai3.Length); // fixed 8 -> length = 20*(8+1)
@@ -634,25 +634,25 @@ namespace FEBuilderGBA.Core.Tests
 
                 // SoundBossBGMForm -> "BossBGM" (block 8, called unconditionally in WF).
                 uint bossBgmBase = rom.p32(rom.RomInfo.sound_boss_bgm_pointer);
-                Address bossBgm = list.FirstOrDefault(a => a.Addr == bossBgmBase && a.Info == "BossBGM");
+                Address? bossBgm = list.FirstOrDefault(a => a.Addr == bossBgmBase && a.Info == "BossBGM");
                 Assert.NotNull(bossBgm);
                 Assert.Equal(8u, bossBgm.BlockSize);
 
                 // StatusUnitsMenuForm -> "UnitsMenu" (block 16, u32<0xFF, FE8-only).
                 uint unitsMenuBase = rom.p32(rom.RomInfo.status_units_menu_pointer);
-                Address unitsMenu = list.FirstOrDefault(a => a.Addr == unitsMenuBase && a.Info == "UnitsMenu");
+                Address? unitsMenu = list.FirstOrDefault(a => a.Addr == unitsMenuBase && a.Info == "UnitsMenu");
                 Assert.NotNull(unitsMenu);
                 Assert.Equal(16u, unitsMenu.BlockSize);
 
                 // LinkArenaDenyUnitForm -> "LinkAreaDenyUnitForm" (WF typo, block 2, FE8-only).
                 uint linkDenyBase = rom.p32(rom.RomInfo.link_arena_deny_unit_pointer);
-                Address linkDeny = list.FirstOrDefault(a => a.Addr == linkDenyBase && a.Info == "LinkAreaDenyUnitForm");
+                Address? linkDeny = list.FirstOrDefault(a => a.Addr == linkDenyBase && a.Info == "LinkAreaDenyUnitForm");
                 Assert.NotNull(linkDeny);
                 Assert.Equal(2u, linkDeny.BlockSize);
 
                 // MonsterItemForm -> three distinct tables with WF Info strings and block sizes.
                 uint monItemBase = rom.p32(rom.RomInfo.monster_item_item_pointer);
-                Address monItem = list.FirstOrDefault(a => a.Addr == monItemBase && a.Info == "MonsterItemForm");
+                Address? monItem = list.FirstOrDefault(a => a.Addr == monItemBase && a.Info == "MonsterItemForm");
                 Assert.NotNull(monItem);
                 Assert.Equal(5u, monItem.BlockSize);
                 uint monItemProbBase = rom.p32(rom.RomInfo.monster_item_probability_pointer);
@@ -691,7 +691,7 @@ namespace FEBuilderGBA.Core.Tests
                 // detectors). The earlier "Item deferred" assertion was STALE (it predated slice 2ad).
                 // Verify the main "Item" IFR is present at the real item_pointer base, block item_datasize.
                 uint itemBase = rom.p32(rom.RomInfo.item_pointer);
-                Address item = list.FirstOrDefault(a => a.Addr == itemBase && a.Info == "Item");
+                Address? item = list.FirstOrDefault(a => a.Addr == itemBase && a.Info == "Item");
                 Assert.NotNull(item);
                 Assert.Equal(rom.RomInfo.item_datasize, item.BlockSize);
                 Assert.Equal(new uint[] { 12, 16 }, item.PointerIndexes);
@@ -851,13 +851,13 @@ namespace FEBuilderGBA.Core.Tests
             // which needs CoreState.SystemTextEncoder. With no encoder the producer must SKIP them
             // (never NRE). BinFixed does not decode strings, so it still runs.
             var savedRom = CoreState.ROM;
-            var savedEnc = CoreState.SystemTextEncoder;
+            ISystemTextEncoder? savedEnc = CoreState.SystemTextEncoder;
             try
             {
                 var rom = new ROM();
                 rom.SwapNewROMDataDirect(new byte[0x4000]);
                 CoreState.ROM = rom;
-                CoreState.SystemTextEncoder = null; // the critical condition
+                CoreState.SystemTextEncoder = null!; // the critical condition
 
                 uint table = 0x1000, pointer = 0x0240, block = 16;
                 rom.write_u32(pointer, Ptr(table));
@@ -894,7 +894,7 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.ROM = savedRom;
-                CoreState.SystemTextEncoder = savedEnc;
+                CoreState.SystemTextEncoder = savedEnc!;
             }
         }
 
@@ -1077,7 +1077,7 @@ namespace FEBuilderGBA.Core.Tests
 
             // main IFR (dataCount == 1) + 1 CString sub-block
             Assert.Equal(2, list.Count);
-            Address main = list[0];
+            Address? main = list[0];
             Assert.Equal(table, main.Addr);
             Assert.Equal(16u * (1 + 1), main.Length); // count 1 -> length block*(1+1)
             Address cstr = list.First(a => a.DataType == Address.DataTypeEnum.CSTRING);
@@ -1204,7 +1204,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void MakeAllStructPointersList_FE8U_FindsClassMoveCostSubBlocks_AndItem()
         {
-            string romPath = FindTestRom();
+            string? romPath = FindTestRom();
             if (romPath == null) return; // skip when no ROM available (env-only)
 
             var savedRom = CoreState.ROM;
@@ -1224,7 +1224,7 @@ namespace FEBuilderGBA.Core.Tests
 
                 // ClassForm main IFR must now be present (it was DEFERRED before slice 2c).
                 uint classBase = rom.p32(rom.RomInfo.class_pointer);
-                Address main = list.FirstOrDefault(a => a.Addr == classBase && a.Info == "Class");
+                Address? main = list.FirstOrDefault(a => a.Addr == classBase && a.Info == "Class");
                 Assert.NotNull(main);
                 Assert.Equal(rom.RomInfo.class_datasize, main.BlockSize);
                 Assert.Equal(new uint[] { 52, 56, 60, 64, 68, 72, 76 }, main.PointerIndexes);
@@ -1260,12 +1260,12 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
-        static string FindTestRom() => FindTestRomNamed("FE8U.gba");
+        static string? FindTestRom() => FindTestRomNamed("FE8U.gba");
 
-        static string FindTestRomNamed(string romFile)
+        static string? FindTestRomNamed(string romFile)
         {
             string thisAssembly = System.Reflection.Assembly.GetExecutingAssembly().Location;
-            string dir = System.IO.Path.GetDirectoryName(thisAssembly);
+            string? dir = System.IO.Path.GetDirectoryName(thisAssembly);
             for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (System.IO.File.Exists(System.IO.Path.Combine(dir, "FEBuilderGBA.sln")))
@@ -1289,7 +1289,7 @@ namespace FEBuilderGBA.Core.Tests
             // CORRECTNESS (FE6 version bug) end-to-end on a real FE6 ROM: the Class descriptor must
             // emit 52-byte MoveCost BIN sub-blocks (NOT 66) and the FE6 pointerIndexes, proving the
             // version gate picks ClassFE6Form's layout. Env-gated on roms/FE6.gba.
-            string romPath = FindTestRomNamed("FE6.gba");
+            string? romPath = FindTestRomNamed("FE6.gba");
             if (romPath == null) return; // skip when no FE6 ROM available (env-only)
 
             var savedRom = CoreState.ROM;
@@ -1307,7 +1307,7 @@ namespace FEBuilderGBA.Core.Tests
 
                 // Class main IFR present with FE6 pointerIndexes {48,52,56,60,64}.
                 uint classBase = rom.p32(rom.RomInfo.class_pointer);
-                Address main = list.FirstOrDefault(a => a.Addr == classBase && a.Info == "Class");
+                Address? main = list.FirstOrDefault(a => a.Addr == classBase && a.Info == "Class");
                 Assert.NotNull(main);
                 Assert.Equal(new uint[] { 48, 52, 56, 60, 64 }, main.PointerIndexes);
 
@@ -1793,7 +1793,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void MakeAllStructPointersList_FE8U_FindsSweepTables()
         {
-            string romPath = FindTestRom();
+            string? romPath = FindTestRom();
             if (romPath == null) return; // env-only
 
             var savedRom = CoreState.ROM;
@@ -1815,7 +1815,7 @@ namespace FEBuilderGBA.Core.Tests
 
                 // WorldMapPoint present, block 32, with the 12/16/20 pointer columns relocated.
                 uint wmpBase = rom.p32(rom.RomInfo.worldmap_point_pointer);
-                Address wmp = list.FirstOrDefault(a => a.Addr == wmpBase && a.Info == "WorldMapPoint");
+                Address? wmp = list.FirstOrDefault(a => a.Addr == wmpBase && a.Info == "WorldMapPoint");
                 Assert.NotNull(wmp);
                 Assert.Equal(32u, wmp.BlockSize);
 
@@ -1825,7 +1825,7 @@ namespace FEBuilderGBA.Core.Tests
 
                 // UnitForm present with block unit_datasize and the {44} support pointer column.
                 uint unitBase = rom.p32(rom.RomInfo.unit_pointer);
-                Address unit = list.FirstOrDefault(a => a.Addr == unitBase && a.Info == "UnitForm");
+                Address? unit = list.FirstOrDefault(a => a.Addr == unitBase && a.Info == "UnitForm");
                 Assert.NotNull(unit);
                 Assert.Equal(rom.RomInfo.unit_datasize, unit.BlockSize);
 
@@ -1850,7 +1850,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void MakeAllStructPointersList_FE6_FindsSweepTables()
         {
-            string romPath = FindTestRomNamed("FE6.gba");
+            string? romPath = FindTestRomNamed("FE6.gba");
             if (romPath == null) return; // env-only
 
             var savedRom = CoreState.ROM;
@@ -1933,7 +1933,7 @@ namespace FEBuilderGBA.Core.Tests
             RebuildProducerCore.WalkAndAdd(rom, list, d);
 
             // main IFR Address + 2 ASM functions.
-            Address main = list.Single(a => a.Info == "GameOption" && a.BlockSize == block);
+            Address? main = list.Single(a => a.Info == "GameOption" && a.BlockSize == block);
             Assert.Equal(table, main.Addr);
             Assert.Equal(2u * block, main.Length - block); // length = block*(count+1), count=2
 
@@ -2017,7 +2017,7 @@ namespace FEBuilderGBA.Core.Tests
             RebuildProducerCore.EmitSoundFootStepsAt(rom, list, switch2Addr, pointer);
 
             // main IFR Address: type InputFormRef_ASM, length = 4*(3+1)=16, pointerIndexes {0}.
-            Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef_ASM);
+            Address? main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef_ASM);
             Assert.Equal(table, main.Addr);
             // BasePointer is NOT_FOUND: WF's IFR BasePointer is 0 (Init's 3rd arg), so AddAddress
             // sets pointer = NOT_FOUND. The base is reached via the Switch2 LDR, not a RomInfo slot.
@@ -2285,9 +2285,9 @@ namespace FEBuilderGBA.Core.Tests
         {
             // The +0 CString needs a SystemTextEncoder; without one it is gracefully skipped (no NRE)
             // while the 6 ASM blocks still emit (the wiring slice gates on IsComplete anyway).
-            var savedEnc = CoreState.SystemTextEncoder;
+            ISystemTextEncoder? savedEnc = CoreState.SystemTextEncoder;
             var rom = CreateTestRom(0x1_0000);
-            CoreState.SystemTextEncoder = null; // force the no-encoder path
+            CoreState.SystemTextEncoder = null!; // force the no-encoder path
             try
             {
                 uint pointer = 0x0300;
@@ -2309,7 +2309,7 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal(6, list.Count(a => a.DataType == Address.DataTypeEnum.ASM));
                 Assert.Contains(list, a => a.Info == "MENU"); // main table still emitted
             }
-            finally { CoreState.SystemTextEncoder = savedEnc; }
+            finally { CoreState.SystemTextEncoder = savedEnc!; }
         }
 
         [Fact]
@@ -2376,7 +2376,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void MakeAllStructPointersList_FE8U_FindsStatusRMenuMenuDefAndStatusOption()
         {
-            string romPath = FindTestRomNamed("FE8U.gba");
+            string? romPath = FindTestRomNamed("FE8U.gba");
             if (romPath == null) return; // env-only
 
             var savedRom = CoreState.ROM;
@@ -2416,7 +2416,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void MakeAllStructPointersList_FE7_FindsStatusOptionAndMenuDef()
         {
-            string romPath = FindTestRomNamed("FE7U.gba");
+            string? romPath = FindTestRomNamed("FE7U.gba");
             if (romPath == null) return; // env-only
 
             var savedRom = CoreState.ROM;
@@ -2450,7 +2450,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void MakeAllStructPointersList_FE6_FindsMenuDefAndStatusRMenu_ButNoStatusOption()
         {
-            string romPath = FindTestRomNamed("FE6.gba");
+            string? romPath = FindTestRomNamed("FE6.gba");
             if (romPath == null) return; // env-only
 
             var savedRom = CoreState.ROM;
@@ -3106,7 +3106,7 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.ROM = savedRom;
-                CoreState.SystemTextEncoder = null;
+                CoreState.SystemTextEncoder = null!;
             }
         }
 
@@ -3284,7 +3284,7 @@ namespace FEBuilderGBA.Core.Tests
             var list = new List<Address>();
             RebuildProducerCore.WalkAndAdd(rom, list, d);
 
-            Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef);
+            Address? main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef);
             Assert.Equal(table, main.Addr);
             Assert.Equal(24u, main.Length); // 8*(2+1)
             Assert.Equal(new uint[] { 4 }, main.PointerIndexes);
@@ -3374,7 +3374,7 @@ namespace FEBuilderGBA.Core.Tests
             var list = new List<Address>();
             RebuildProducerCore.EmitItemUsagePointerTables(rom, list, OneUsageTable(pointer, switch2Addr, "ItemUsageP0"));
 
-            Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef_ASM);
+            Address? main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef_ASM);
             Assert.Equal(table, main.Addr);
             // BasePointer IS the RomInfo slot here (safe offset), unlike SoundFootSteps (NOT_FOUND).
             Assert.Equal(pointer, main.Pointer);
@@ -3486,7 +3486,7 @@ namespace FEBuilderGBA.Core.Tests
             var list = new List<Address>();
             RebuildProducerCore.EmitUnitFE6At(rom, list, unitPointerSlot, block, maxcount);
 
-            Address main = list.Single();
+            Address? main = list.Single();
             // base = tableStart + block (one block past), pointer = NOT_FOUND.
             Assert.Equal(tableStart + block, main.Addr);
             Assert.Equal(U.NOT_FOUND, main.Pointer);
@@ -3636,7 +3636,7 @@ namespace FEBuilderGBA.Core.Tests
                 new List<AddrResult> { new AddrResult(0x0100, "Shop", 0x0800) });
             Assert.Empty(list);
 
-            RebuildProducerCore.EmitItemShopList(rom, list, null);
+            RebuildProducerCore.EmitItemShopList(rom, list, null!);
             Assert.Empty(list);
         }
 
@@ -3687,7 +3687,7 @@ namespace FEBuilderGBA.Core.Tests
             RebuildProducerCore.EmitMapChangeAt(rom, list, mapid: 0x05, pointer: slot);
 
             // Main IFR: base = changeBase, length = 12*(2+1) = 36, pointer = slot, block 12, {8}.
-            Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef);
+            Address? main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef);
             Assert.Equal(changeBase, main.Addr);
             Assert.Equal(36u, main.Length);
             Assert.Equal(slot, main.Pointer);
@@ -3881,7 +3881,7 @@ namespace FEBuilderGBA.Core.Tests
             var list = new List<Address>();
             RebuildProducerCore.EmitMapTileAnimationFor(rom, list, baseAddr, plist: 0x07, imgAtPlus4: true);
 
-            Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef);
+            Address? main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef);
             Assert.Equal(baseAddr, main.Addr);
             Assert.Equal(8u * (2 + 1), main.Length); // 24
             Assert.Equal(U.NOT_FOUND, main.Pointer); // BasePointer 0 -> NOT_FOUND
@@ -3909,7 +3909,7 @@ namespace FEBuilderGBA.Core.Tests
             var list = new List<Address>();
             RebuildProducerCore.EmitMapTileAnimationFor(rom, list, baseAddr, plist: 0x03, imgAtPlus4: false);
 
-            Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef);
+            Address? main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef);
             Assert.Equal(baseAddr, main.Addr);
             Assert.Equal(8u * (1 + 1), main.Length); // 16
             Assert.Equal(new uint[] { 0 }, main.PointerIndexes);
@@ -4160,7 +4160,7 @@ namespace FEBuilderGBA.Core.Tests
             RebuildProducerCore.WalkAndAdd(rom, list, d);
 
             // main IFR: DataCount = 1 (entry 0 valid, entry 1 +0 NULL terminates) -> length 12*(1+1)=24.
-            Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef && a.Info == "OPPrologue");
+            Address? main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef && a.Info == "OPPrologue");
             Assert.Equal(table, main.Addr);
             Assert.Equal(pointer, main.Pointer);
             Assert.Equal(24u, main.Length);
@@ -4200,7 +4200,7 @@ namespace FEBuilderGBA.Core.Tests
             var list = new List<Address>();
             RebuildProducerCore.EmitSupportUnitAt(rom, list, pointer, block, firstFieldWidth: 2, name: "SupportUnit");
 
-            Address main = list.Single();
+            Address? main = list.Single();
             Assert.Equal(table, main.Addr);
             Assert.Equal(pointer, main.Pointer);
             Assert.Equal(block, main.BlockSize);
@@ -4316,7 +4316,7 @@ namespace FEBuilderGBA.Core.Tests
             RebuildProducerCore.EmitWorldMapPathAt(rom, list, pointer);
 
             // main IFR: DataCount = 1 -> length 12*(1+1)=24, pointerIndexes {0,8}.
-            Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef && a.Info == "WorldMapPath");
+            Address? main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef && a.Info == "WorldMapPath");
             Assert.Equal(table, main.Addr);
             Assert.Equal(pointer, main.Pointer);
             Assert.Equal(24u, main.Length);
@@ -4582,7 +4582,7 @@ namespace FEBuilderGBA.Core.Tests
             RebuildProducerCore.EmitOPClassDemoAt(rom, list, pointer);
 
             // Main IFR: block 28, DataCount 1 -> length 28*(1+1)=56, pointerIndexes {0,8,24}.
-            Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef && a.Info == "OPClassDemo");
+            Address? main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef && a.Info == "OPClassDemo");
             Assert.Equal(table, main.Addr);
             Assert.Equal(pointer, main.Pointer);
             Assert.Equal(28u, main.BlockSize);
@@ -4714,7 +4714,7 @@ namespace FEBuilderGBA.Core.Tests
             RebuildProducerCore.EmitOPClassDemoFE7At(rom, list, pointer);
 
             // Main IFR: block 32, DataCount = 0x42 (i<=0x41) -> length 32*(0x42+1).
-            Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef && a.Info == "OPClassDemo");
+            Address? main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef && a.Info == "OPClassDemo");
             Assert.Equal(table, main.Addr);
             Assert.Equal(pointer, main.Pointer);
             Assert.Equal(32u, main.BlockSize);
@@ -4805,7 +4805,7 @@ namespace FEBuilderGBA.Core.Tests
             // Main IFR: block 4, name "OPClassFont", PI {0}, length = 4*(DataCount+1). On a 0x6000 ROM the
             // i<=0x7a rule keeps walking (0x7a=122) until addr+4>Length, so DataCount is large; assert the
             // shape (block/PI/name/addr/pointer) rather than an exact length.
-            Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef && a.Info == "OPClassFont");
+            Address? main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef && a.Info == "OPClassFont");
             Assert.Equal(table, main.Addr);
             Assert.Equal(pointer, main.Pointer);
             Assert.Equal(4u, main.BlockSize);
@@ -4840,7 +4840,7 @@ namespace FEBuilderGBA.Core.Tests
             var list = new List<Address>();
             RebuildProducerCore.EmitOPClassFontFE8UAt(rom, list, pointer);
 
-            Address main = list.Single(a => a.Info == "OPClassFont");
+            Address? main = list.Single(a => a.Info == "OPClassFont");
             // DataCount = 0x7b (the rule returns false at i=0x7b) -> length = 4*(0x7b+1).
             Assert.Equal(4u * (0x7bu + 1u), main.Length);
             // All-NULL table -> no per-record LZ77 emitted.
@@ -4902,7 +4902,7 @@ namespace FEBuilderGBA.Core.Tests
             RebuildProducerCore.EmitOPClassDemoFE8UAt(rom, list, pointer);
 
             // Main IFR: block 20, DataCount 1 -> length 20*(1+1)=40, pointerIndexes {16}.
-            Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef && a.Info == "OPClassDemo");
+            Address? main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef && a.Info == "OPClassDemo");
             Assert.Equal(table, main.Addr);
             Assert.Equal(pointer, main.Pointer);
             Assert.Equal(20u, main.BlockSize);
@@ -4965,7 +4965,7 @@ namespace FEBuilderGBA.Core.Tests
             var list = new List<Address>();
             RebuildProducerCore.EmitOPClassDemoFE8UAt(rom, list, pointer);
 
-            Address main = list.Single(a => a.Info == "OPClassDemo");
+            Address? main = list.Single(a => a.Info == "OPClassDemo");
             Assert.Equal(20u * (7u + 1u), main.Length);
         }
 
@@ -5197,7 +5197,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 CoreState.ROM = fe8;
                 var list = new List<Address>();
-                RebuildProducerCore.EmitMapTerrainLookupAt(fe8, list, null, isFloor: false);
+                RebuildProducerCore.EmitMapTerrainLookupAt(fe8, list, null!, isFloor: false);
                 Assert.Empty(list);
             }
             finally { CoreState.ROM = savedRom; }
@@ -5318,7 +5318,7 @@ namespace FEBuilderGBA.Core.Tests
                 RebuildProducerCore.EmitExtraUnitAt(fe8, list, baseAddr);
 
                 // Main IFR: addr = baseAddr, pointer = NOT_FOUND, block 4, length 4*(2+1)=12, PI {}.
-                Address main = Assert.Single(list, a => a.Info == "ExtraUnit");
+                Address? main = Assert.Single(list, a => a.Info == "ExtraUnit");
                 Assert.Equal(baseAddr, main.Addr);
                 Assert.Equal(U.NOT_FOUND, main.Pointer);
                 Assert.Equal(4u, main.BlockSize);
@@ -5393,7 +5393,7 @@ namespace FEBuilderGBA.Core.Tests
                 RebuildProducerCore.EmitExtraUnitFE8UAt(fe8, list, slot);
 
                 // Main IFR: addr = tableBase, pointer = slot (safe), block 8, length 8*(2+1)=24, PI {}.
-                Address main = Assert.Single(list, a => a.Info == "ExtraUnit");
+                Address? main = Assert.Single(list, a => a.Info == "ExtraUnit");
                 Assert.Equal(tableBase, main.Addr);
                 Assert.Equal(U.toOffset(slot), main.Pointer);
                 Assert.Equal(block8, main.BlockSize);
@@ -5465,7 +5465,7 @@ namespace FEBuilderGBA.Core.Tests
                 RebuildProducerCore.EmitRecycleOldUnits(fe8, list, "ExtraUnit", scriptPointer);
 
                 // Main EVENT UNIT IFR: addr = unitBase, pointer = scriptPointer, block 20, length 20*(2+1)=60, {8}.
-                Address main = Assert.Single(list, a => a.Info == "ExtraUnit EVENT UNIT");
+                Address? main = Assert.Single(list, a => a.Info == "ExtraUnit EVENT UNIT");
                 Assert.Equal(unitBase, main.Addr);
                 Assert.Equal(U.toOffset(scriptPointer), main.Pointer);
                 Assert.Equal(block, main.BlockSize);
@@ -5504,7 +5504,7 @@ namespace FEBuilderGBA.Core.Tests
                 var list = new List<Address>();
                 RebuildProducerCore.EmitRecycleOldUnits(fe7, list, "ExtraUnit", scriptPointer);
 
-                Address main = Assert.Single(list); // ONLY the main IFR (no COORD walk on v<=7).
+                Address? main = Assert.Single(list); // ONLY the main IFR (no COORD walk on v<=7).
                 Assert.Equal("ExtraUnit EVENT UNIT", main.Info);
                 Assert.Equal(unitBase, main.Addr);
                 Assert.Equal(block, main.BlockSize);
@@ -5901,7 +5901,7 @@ namespace FEBuilderGBA.Core.Tests
             RebuildProducerCore.EmitImageBGAt(rom, list, pointer);
 
             // Main IFR: base=table, block 12, count 1 -> length 12*(1+1)=24, PI {0,4,8}.
-            Address main = list.FirstOrDefault(a => a.Addr == table && a.Info == "BG");
+            Address? main = list.FirstOrDefault(a => a.Addr == table && a.Info == "BG");
             Assert.NotNull(main);
             Assert.Equal(24u, main.Length);
             Assert.Equal(12u, main.BlockSize);
@@ -5947,7 +5947,7 @@ namespace FEBuilderGBA.Core.Tests
             var list = new List<Address>();
             RebuildProducerCore.EmitImageCGAt(rom, list, pointer);
 
-            Address main = list.FirstOrDefault(a => a.Addr == table && a.Info == "CG");
+            Address? main = list.FirstOrDefault(a => a.Addr == table && a.Info == "CG");
             Assert.NotNull(main);
             Assert.Equal(24u, main.Length); // block 12 * (1 + 1)
             Assert.Equal(12u, main.BlockSize);
@@ -6004,7 +6004,7 @@ namespace FEBuilderGBA.Core.Tests
             var list = new List<Address>();
             RebuildProducerCore.EmitImageCGFE7UAt(rom, list, pointer);
 
-            Address main = list.FirstOrDefault(a => a.Addr == table && a.Info == "CG");
+            Address? main = list.FirstOrDefault(a => a.Addr == table && a.Info == "CG");
             Assert.NotNull(main);
             Assert.Equal(16u * (2u + 1u), main.Length); // block 16 * (count 2 + 1) = 48
             Assert.Equal(16u, main.BlockSize);
@@ -6057,7 +6057,7 @@ namespace FEBuilderGBA.Core.Tests
             var list = new List<Address>();
             RebuildProducerCore.EmitWorldMapCountyBorder(rom, list, pointer);
 
-            Address main = list.FirstOrDefault(a => a.Addr == table && a.Info == "WorldmapCountyBorder");
+            Address? main = list.FirstOrDefault(a => a.Addr == table && a.Info == "WorldmapCountyBorder");
             Assert.NotNull(main);
             Assert.Equal(12u * (1u + 1u), main.Length);
             Assert.Equal(12u, main.BlockSize);
@@ -6087,7 +6087,7 @@ namespace FEBuilderGBA.Core.Tests
             var list = new List<Address>();
             RebuildProducerCore.EmitWorldMapIconData(rom, list, pointer);
 
-            Address main = list.FirstOrDefault(a => a.Addr == table && a.Info == "WorldMapIconData");
+            Address? main = list.FirstOrDefault(a => a.Addr == table && a.Info == "WorldMapIconData");
             Assert.NotNull(main);
             Assert.Equal(16u * (2u + 1u), main.Length);
             Assert.Equal(16u, main.BlockSize);
@@ -6229,7 +6229,7 @@ namespace FEBuilderGBA.Core.Tests
             RebuildProducerCore.EmitItemWeaponEffectAt(rom, list, pointer);
 
             // main IFR: DataCount 2 -> length 16*(2+1)=48, pointerIndexes {8}.
-            Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef && a.Info == "ItemWeaponEffect");
+            Address? main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef && a.Info == "ItemWeaponEffect");
             Assert.Equal(table, main.Addr);
             Assert.Equal(pointer, main.Pointer);
             Assert.Equal(48u, main.Length);
@@ -6518,7 +6518,7 @@ namespace FEBuilderGBA.Core.Tests
                 RebuildProducerCore.EmitAIScript(rom, list);
 
                 // Main AI1 IFR: DataCount 2 -> length 4*(2+1) = 12, pointerIndexes {0}.
-                Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef && a.Info == "AI1");
+                Address? main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef && a.Info == "AI1");
                 Assert.Equal(table, main.Addr);
                 Assert.Equal(ai1ptr, main.Pointer);
                 Assert.Equal(4u, main.BlockSize);
@@ -6645,7 +6645,7 @@ namespace FEBuilderGBA.Core.Tests
                 var list = new List<Address>();
                 RebuildProducerCore.EmitAIScript(rom, list);
 
-                Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef && a.Info == "AI1");
+                Address? main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef && a.Info == "AI1");
                 Assert.Equal(12u, main.Length); // 4*(2+1) -> DataCount 2 despite cap 1
             });
         }
@@ -6892,8 +6892,8 @@ namespace FEBuilderGBA.Core.Tests
             // No encoder -> the WF isPointerOnly path: per-entry BIN emits with size 0 (the slot is
             // still relocated and the target addr recorded). Avoids the Huffman decode (which needs a
             // valid mask_pointer tree, absent on a bare synthetic ROM).
-            var savedEncoder = CoreState.SystemTextEncoder;
-            CoreState.SystemTextEncoder = null;
+            ISystemTextEncoder? savedEncoder = CoreState.SystemTextEncoder;
+            CoreState.SystemTextEncoder = null!;
             try
             {
                 uint pointer = 0x0400;
@@ -6913,7 +6913,7 @@ namespace FEBuilderGBA.Core.Tests
                 RebuildProducerCore.EmitTextAt(rom, list, pointer);
 
                 // Main IFR: TEXTPOINTERS, block 4, count 2 -> length 4*(2+1)=12, pointer = slot, PI {0}.
-                Address main = list.Single(a => a.DataType == Address.DataTypeEnum.TEXTPOINTERS);
+                Address? main = list.Single(a => a.DataType == Address.DataTypeEnum.TEXTPOINTERS);
                 Assert.Equal(table, main.Addr);
                 Assert.Equal(pointer, main.Pointer);
                 Assert.Equal(4u, main.BlockSize);
@@ -6935,7 +6935,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.SystemTextEncoder = savedEncoder;
+                CoreState.SystemTextEncoder = savedEncoder!;
             }
         }
 
@@ -6946,8 +6946,8 @@ namespace FEBuilderGBA.Core.Tests
             // the per-entry loop emits NO AddAddress for it (the target lives in RAM, not ROM). Reproduce
             // exactly: the entry contributes to the main IFR length but produces no BIN.
             var rom = CreateTestRom(0x8000);
-            var savedEncoder = CoreState.SystemTextEncoder;
-            CoreState.SystemTextEncoder = null;
+            ISystemTextEncoder? savedEncoder = CoreState.SystemTextEncoder;
+            CoreState.SystemTextEncoder = null!;
             try
             {
                 uint pointer = 0x0400;
@@ -6959,14 +6959,14 @@ namespace FEBuilderGBA.Core.Tests
                 var list = new List<Address>();
                 RebuildProducerCore.EmitTextAt(rom, list, pointer);
 
-                Address main = list.Single(a => a.DataType == Address.DataTypeEnum.TEXTPOINTERS);
+                Address? main = list.Single(a => a.DataType == Address.DataTypeEnum.TEXTPOINTERS);
                 Assert.Equal(4u * (1 + 1), main.Length);    // count 1 -> length 8
                 // No BIN sub-block emitted for the RAM-pointer entry.
                 Assert.DoesNotContain(list, a => a.DataType == Address.DataTypeEnum.BIN);
             }
             finally
             {
-                CoreState.SystemTextEncoder = savedEncoder;
+                CoreState.SystemTextEncoder = savedEncoder!;
             }
         }
 
@@ -6974,8 +6974,8 @@ namespace FEBuilderGBA.Core.Tests
         public void EmitTextAt_NearEof_NoThrow()
         {
             var rom = CreateTestRom(0x1000);
-            var savedEncoder = CoreState.SystemTextEncoder;
-            CoreState.SystemTextEncoder = null;
+            ISystemTextEncoder? savedEncoder = CoreState.SystemTextEncoder;
+            CoreState.SystemTextEncoder = null!;
             try
             {
                 // Slot near EOF: the +3 guard before p32 must prevent any out-of-bounds read.
@@ -6987,7 +6987,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.SystemTextEncoder = savedEncoder;
+                CoreState.SystemTextEncoder = savedEncoder!;
             }
         }
 
@@ -7057,7 +7057,7 @@ namespace FEBuilderGBA.Core.Tests
             RebuildProducerCore.EmitFE8SpellMenuExtendsAt(rom, list, assignLevelUpP);
 
             // Main IFR: base = table, block 4, pointer = slot, PI {}, type InputFormRef.
-            Address main = list.Single(a => a.Info == "SkillAssignmentUnitSkillSystem");
+            Address? main = list.Single(a => a.Info == "SkillAssignmentUnitSkillSystem");
             Assert.Equal(table, main.Addr);
             Assert.Equal(assignLevelUpP, main.Pointer);
             Assert.Equal(4u, main.BlockSize);
@@ -7158,7 +7158,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void EmitText_FE8U_DecodesRealHuffmanTextSizes()
         {
-            string romPath = FindTestRom();
+            string? romPath = FindTestRom();
             if (romPath == null) return; // skip when no ROM available (env-only)
 
             var savedRom = CoreState.ROM;
@@ -7177,7 +7177,7 @@ namespace FEBuilderGBA.Core.Tests
 
                 // Main TEXTPOINTERS IFR present at p32(text_pointer), block 4, PI {0}.
                 uint textBase = rom.p32(rom.RomInfo.text_pointer);
-                Address main = list.Single(a => a.DataType == Address.DataTypeEnum.TEXTPOINTERS);
+                Address? main = list.Single(a => a.DataType == Address.DataTypeEnum.TEXTPOINTERS);
                 Assert.Equal(textBase, main.Addr);
                 Assert.Equal(4u, main.BlockSize);
                 Assert.Equal(new uint[] { 0 }, main.PointerIndexes);
@@ -7443,7 +7443,7 @@ namespace FEBuilderGBA.Core.Tests
                 RebuildProducerCore.WalkAndAdd(fe8, list, d);
 
                 // Main IFR present with the move-icon base.
-                Address main = Assert.Single(list, a => a.Info == "MoveUnitIcon");
+                Address? main = Assert.Single(list, a => a.Info == "MoveUnitIcon");
                 Assert.Equal(muiTable, main.Addr);
                 // DataCount = 2 (entries 0,1) -> length = 8*(2+1) = 24.
                 Assert.Equal(8u * (2u + 1u), main.Length);
@@ -7515,7 +7515,7 @@ namespace FEBuilderGBA.Core.Tests
                 "SkillAssignmentClassSkillSystem", (i, addr) => rom.u8(addr) != 0);
 
             Assert.Equal(5u, count);
-            Address main = list.Single(a => a.Info == "SkillAssignmentClassSkillSystem");
+            Address? main = list.Single(a => a.Info == "SkillAssignmentClassSkillSystem");
             Assert.Equal(table, main.Addr);
             Assert.Equal(assignP, main.Pointer);          // BasePointer = the slot
             Assert.Equal(1u, main.BlockSize);
@@ -7696,7 +7696,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var rom = CreateTestRom();
             var list = new List<Address>();
-            RebuildProducerCore.EmitSkillConfigFE8NAt(rom, list, null);
+            RebuildProducerCore.EmitSkillConfigFE8NAt(rom, list, null!);
             Assert.Empty(list);
         }
 
@@ -8071,7 +8071,7 @@ namespace FEBuilderGBA.Core.Tests
             var list = new List<Address>();
             RebuildProducerCore.EmitSkillConfigSkillSystemAt(rom, list, basetextP, baseanimeP);
 
-            Address main = list.Single(a => a.Info == "SkillConfigSkillSystem");
+            Address? main = list.Single(a => a.Info == "SkillConfigSkillSystem");
             Assert.Equal(textTable, main.Addr);
             Assert.Equal(basetextP, main.Pointer);
             Assert.Equal(2u, main.BlockSize);
@@ -8204,7 +8204,7 @@ namespace FEBuilderGBA.Core.Tests
                 RebuildProducerCore.EmitSkillConfigFE8NVer2At(rom, list, skillBaseP, animeBaseP, iconListSize);
 
                 // Main IFR.
-                Address main = list.Single(a => a.Info == "SkillConfigFE8NVer2");
+                Address? main = list.Single(a => a.Info == "SkillConfigFE8NVer2");
                 Assert.Equal(skillTable, main.Addr);
                 Assert.Equal(skillBaseP, main.Pointer);
                 Assert.Equal(16u, main.BlockSize);
@@ -8253,7 +8253,7 @@ namespace FEBuilderGBA.Core.Tests
             // animeBase 0 -> no anime walk.
             RebuildProducerCore.EmitSkillConfigFE8NVer2At(rom, list, skillBaseP, 0, iconListSize);
 
-            Address main = list.Single(a => a.Info == "SkillConfigFE8NVer2");
+            Address? main = list.Single(a => a.Info == "SkillConfigFE8NVer2");
             Assert.Equal(new uint[] { 4, 8, 12, 16 }, main.PointerIndexes);
             Assert.Contains(list, a => a.Info == "SkillItem2:0x00"); // N4 present at block 20.
         }
@@ -8354,7 +8354,7 @@ namespace FEBuilderGBA.Core.Tests
             var list = new List<Address>();
             RebuildProducerCore.EmitSkillConfigFE8NVer2At(rom, list, skillBaseP, 0, iconListSize);
 
-            Address main = list.Single(a => a.Info == "SkillConfigFE8NVer2");
+            Address? main = list.Single(a => a.Info == "SkillConfigFE8NVer2");
             Assert.Equal(new uint[] { 4, 8, 12 }, main.PointerIndexes);   // block != 20 -> {4,8,12}.
             Assert.Contains(list, a => a.Info == "SkillItem2:0x00");      // iconListSize >= 20 -> N4 emitted.
         }
@@ -8454,7 +8454,7 @@ namespace FEBuilderGBA.Core.Tests
                 var list = new List<Address>();
                 RebuildProducerCore.EmitSkillConfigFE8NVer3At(rom, list, skillBaseP, animeBaseP, iconListSize);
 
-                Address main = list.Single(a => a.Info == "SkillConfigFE8NVer3");
+                Address? main = list.Single(a => a.Info == "SkillConfigFE8NVer3");
                 Assert.Equal(new uint[] { 4, 8, 12, 16, 20 }, main.PointerIndexes);
                 Assert.Equal(24u, main.BlockSize);
 
@@ -8893,7 +8893,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 rom.write_u32(0x1000, Ptr(0x2000));
                 WriteAsciiZ(rom, 0x2000, "X");
-                CoreState.SystemTextEncoder = null; // the critical condition (decode would NRE)
+                CoreState.SystemTextEncoder = null!; // the critical condition (decode would NRE)
 
                 var list = new List<Address>();
                 var ex = Record.Exception(() => RebuildProducerCore.EmitOtherText(rom, list));
@@ -8907,7 +8907,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             // No config file written (lines == null) -> MakeOtherTextList File.Exists is false -> empty
             // list -> nothing emitted, no throw (faithful headless behavior).
-            WithConfig("other_text_", null, rom =>
+            WithConfig("other_text_", null!, rom =>
             {
                 var list = new List<Address>();
                 var ex = Record.Exception(() => RebuildProducerCore.EmitOtherText(rom, list));
@@ -8989,7 +8989,7 @@ namespace FEBuilderGBA.Core.Tests
             // A config slot WITHIN 4 bytes of EOF: the `pointer + 4 > Data.Length` guard skips that entry
             // rather than throwing inside p32(pointer). MakeVersionedRom is 32MB, so put the slot 2 bytes
             // before the end (a GBA offset of Data.Length-2 is a safe offset but its 4-byte read overruns).
-            WithConfig("tsaanime_", null, rom =>
+            WithConfig("tsaanime_", null!, rom =>
             {
                 uint nearEof = (uint)rom.Data.Length - 2;
                 // Re-stage the config with the near-EOF slot. (WithConfig wrote no file; write one now.)
@@ -9213,7 +9213,7 @@ namespace FEBuilderGBA.Core.Tests
         public void GetRomAnimePalettePointerListCount_FixedPaletteFallback_OnePerFrame()
         {
             // Direct test of the framePointer<0x100 palette fallback (the per-frame palette layout).
-            WithConfig("romanime_", null, rom =>
+            WithConfig("romanime_", null!, rom =>
             {
                 uint palPtr = 0x1300;
                 uint paletteBase = 0x2600;
@@ -9234,7 +9234,7 @@ namespace FEBuilderGBA.Core.Tests
         public void GetRomAnimePalettePointerListCount_ElseFallback_SingleBase_WhenFramePointerLarge()
         {
             // framePointer >= 0x100 and NOT COMMONPALETTE and empty list -> single resolved base.
-            WithConfig("romanime_", null, rom =>
+            WithConfig("romanime_", null!, rom =>
             {
                 uint palPtr = 0x1300;
                 uint paletteBase = 0x2600;
@@ -9425,7 +9425,7 @@ namespace FEBuilderGBA.Core.Tests
                 rom.write_u32(table + block * 0 + 12, Ptr(0x300000));
                 rom.write_u32(table + block * 1, 0xFFFFFFFF);
                 WriteAsciiZ(rom, 0x300000, "X");
-                CoreState.SystemTextEncoder = null; // decode would NRE
+                CoreState.SystemTextEncoder = null!; // decode would NRE
 
                 var list = new List<Address>();
                 var ex = Record.Exception(() => RebuildProducerCore.EmitSoundRoom(rom, list));
@@ -9783,7 +9783,7 @@ namespace FEBuilderGBA.Core.Tests
                 RebuildProducerCore.EmitImagePortrait(rom, list);
 
                 // Main IFR: count = 1 (entry 0), length = block*(1+1).
-                Address main = Assert.Single(list, a => a.Info == "Portrait");
+                Address? main = Assert.Single(list, a => a.Info == "Portrait");
                 Assert.Equal(table, main.Addr);
                 Assert.Equal(block * 2u, main.Length);
                 Assert.Equal(Address.DataTypeEnum.InputFormRef, main.DataType);
@@ -9857,7 +9857,7 @@ namespace FEBuilderGBA.Core.Tests
                 var list = new List<Address>();
                 RebuildProducerCore.EmitImagePortraitFE6(rom, list);
 
-                Address main = Assert.Single(list, a => a.Info == "PortraitFE6");
+                Address? main = Assert.Single(list, a => a.Info == "PortraitFE6");
                 Assert.Equal(table, main.Addr);
                 Assert.Equal(block * 2u, main.Length);
 
@@ -10144,19 +10144,19 @@ namespace FEBuilderGBA.Core.Tests
             // MakeWithProducer_BothComplete_DelegatesToMake_WritesManifest above; the empirical real-FE8U
             // proceed-vs-over-refuse result is documented in the FEBuilderGBA.Tests WF-parity harness.)
             // Skips cleanly when no ROM is present (CI / most worktrees).
-            string romPath = FindTestRom();
+            string? romPath = FindTestRom();
             if (romPath == null) return; // skip when no ROM available (env-only)
 
             var savedRom = CoreState.ROM;
             var savedEnc = CoreState.SystemTextEncoder;
-            var savedEs = CoreState.EventScript;
+            EventScript? savedEs = CoreState.EventScript;
             try
             {
                 var rom = new ROM();
                 if (!rom.Load(romPath, out string _)) return; // skip
                 CoreState.ROM = rom;
                 CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
-                CoreState.EventScript = null; // disasm unwired -> EventCond/EventScript re-reported
+                CoreState.EventScript = null!; // disasm unwired -> EventCond/EventScript re-reported
 
                 ROM vanilla = BuildWireVanilla();
 
@@ -10183,7 +10183,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 CoreState.ROM = savedRom;
                 CoreState.SystemTextEncoder = savedEnc;
-                CoreState.EventScript = savedEs;
+                CoreState.EventScript = savedEs!;
             }
         }
 
@@ -10193,7 +10193,7 @@ namespace FEBuilderGBA.Core.Tests
             // The rebuild-specific LDR map MUST match WF ToolROMRebuildMake.cs:818 — bounded to the
             // compress borderline + pointer-only — NOT the whole-ROM cache map (BuildLdrMap). Prove the
             // construction differs from the cache builder so the ASM producers get WF-faithful input.
-            string romPath = FindTestRom();
+            string? romPath = FindTestRom();
             if (romPath == null) return; // skip when no ROM available (env-only)
 
             var savedRom = CoreState.ROM;
@@ -10311,7 +10311,7 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal(p.table + 12, sb.Pointer);
 
                 // Main IFR present: base = table, block 36, type InputFormRef, count 1 -> 36*2.
-                Address main = list.Single(a => a.Addr == p.table && a.DataType == Address.DataTypeEnum.InputFormRef);
+                Address? main = list.Single(a => a.Addr == p.table && a.DataType == Address.DataTypeEnum.InputFormRef);
                 Assert.Equal(36u * 2, main.Length);
                 Assert.Equal(p.slot, main.Pointer);
             }
@@ -10507,7 +10507,7 @@ namespace FEBuilderGBA.Core.Tests
                 var list = new List<Address>();
                 RebuildProducerCore.EmitUnitActionPointerAt(rom, list, slot);
 
-                Address main = list.Single(a => a.Addr == table
+                Address? main = list.Single(a => a.Addr == table
                     && a.DataType == Address.DataTypeEnum.InputFormRef_ASM);
                 Assert.Equal(4u * (2 + 1), main.Length); // count 2 -> 4*(2+1)
                 Assert.Equal(slot, main.Pointer);
@@ -10545,7 +10545,7 @@ namespace FEBuilderGBA.Core.Tests
                 var list = new List<Address>();
                 RebuildProducerCore.EmitUnitActionPointerAt(rom, list, slot);
 
-                Address main = list.Single(a => a.Addr == table
+                Address? main = list.Single(a => a.Addr == table
                     && a.DataType == Address.DataTypeEnum.InputFormRef_ASM);
                 Assert.Equal(4u * (2 + 1), main.Length); // count 2 (the 0 entry counts)
             }
@@ -10587,12 +10587,12 @@ namespace FEBuilderGBA.Core.Tests
         public void SearchActionPointer_Rework_NoConfigFile_ReturnsZero()
         {
             var savedRom = CoreState.ROM;
-            var savedBase = CoreState.BaseDirectory;
+            string? savedBase = CoreState.BaseDirectory;
             try
             {
                 var rom = MakeVersionedRom("BE8E01");
                 CoreState.ROM = rom;
-                CoreState.BaseDirectory = null; // no config tree -> rework path returns 0 (no throw)
+                CoreState.BaseDirectory = null!; // no config tree -> rework path returns 0 (no throw)
                 uint expected;
                 uint hackAddr = rom.RomInfo.patch_unitaction_rework_hack(out expected);
                 rom.write_u32(hackAddr, expected);
@@ -10603,7 +10603,7 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.ROM = savedRom;
-                CoreState.BaseDirectory = savedBase;
+                CoreState.BaseDirectory = savedBase!;
             }
         }
 

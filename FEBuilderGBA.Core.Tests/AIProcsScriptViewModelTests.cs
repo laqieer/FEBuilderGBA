@@ -24,8 +24,8 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.AIScript = _savedAI;
-            CoreState.ProcsScript = _savedProcs;
+            CoreState.AIScript = _savedAI!;
+            CoreState.ProcsScript = _savedProcs!;
         }
 
         [Fact]
@@ -106,7 +106,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void AIScriptCategorySelect_Load_WithNullScript_LoadsGracefully()
         {
-            CoreState.AIScript = null;
+            CoreState.AIScript = null!;
             var vm = new AIScriptCategorySelectViewModel();
             vm.Load();
             Assert.True(vm.IsLoaded);
@@ -116,7 +116,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ProcsScriptCategorySelect_Load_WithNullScript_LoadsGracefully()
         {
-            CoreState.ProcsScript = null;
+            CoreState.ProcsScript = null!;
             var vm = new ProcsScriptCategorySelectViewModel();
             vm.Load();
             Assert.True(vm.IsLoaded);
@@ -126,7 +126,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void AIScriptCategorySelect_ConfirmSelection_NoSelection_ReturnsFalse()
         {
-            CoreState.AIScript = null;
+            CoreState.AIScript = null!;
             var vm = new AIScriptCategorySelectViewModel();
             vm.Load();
             Assert.False(vm.ConfirmSelection());
@@ -135,7 +135,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ProcsScriptCategorySelect_ConfirmSelection_NoSelection_ReturnsFalse()
         {
-            CoreState.ProcsScript = null;
+            CoreState.ProcsScript = null!;
             var vm = new ProcsScriptCategorySelectViewModel();
             vm.Load();
             Assert.False(vm.ConfirmSelection());
@@ -144,7 +144,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void AIScriptCategorySelect_FilterText_DoesNotThrow()
         {
-            CoreState.AIScript = null;
+            CoreState.AIScript = null!;
             var vm = new AIScriptCategorySelectViewModel();
             vm.Load();
             vm.FilterText = "MOVE";
@@ -155,7 +155,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ProcsScriptCategorySelect_FilterText_DoesNotThrow()
         {
-            CoreState.ProcsScript = null;
+            CoreState.ProcsScript = null!;
             var vm = new ProcsScriptCategorySelectViewModel();
             vm.Load();
             vm.FilterText = "PROC";
@@ -166,7 +166,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void AIScriptCategorySelect_SelectedScriptIndex_NegativeOne_ClearsInfo()
         {
-            CoreState.AIScript = null;
+            CoreState.AIScript = null!;
             var vm = new AIScriptCategorySelectViewModel();
             vm.Load();
             vm.SelectedScriptIndex = -1;
@@ -177,7 +177,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ProcsScriptCategorySelect_SelectedScriptIndex_NegativeOne_ClearsInfo()
         {
-            CoreState.ProcsScript = null;
+            CoreState.ProcsScript = null!;
             var vm = new ProcsScriptCategorySelectViewModel();
             vm.Load();
             vm.SelectedScriptIndex = -1;
@@ -188,7 +188,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void AIScriptCategorySelect_SelectedCategory_RefreshesScriptList()
         {
-            CoreState.AIScript = null;
+            CoreState.AIScript = null!;
             var vm = new AIScriptCategorySelectViewModel();
             vm.Load();
 
@@ -203,7 +203,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ProcsScriptCategorySelect_SelectedCategory_RefreshesScriptList()
         {
-            CoreState.ProcsScript = null;
+            CoreState.ProcsScript = null!;
             var vm = new ProcsScriptCategorySelectViewModel();
             vm.Load();
 
@@ -217,7 +217,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void AIScriptCategorySelect_ScriptNames_EmptyWhenNoScripts()
         {
-            CoreState.AIScript = null;
+            CoreState.AIScript = null!;
             var vm = new AIScriptCategorySelectViewModel();
             vm.Load();
             Assert.Empty(vm.ScriptNames);
@@ -226,7 +226,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ProcsScriptCategorySelect_ScriptNames_EmptyWhenNoScripts()
         {
-            CoreState.ProcsScript = null;
+            CoreState.ProcsScript = null!;
             var vm = new ProcsScriptCategorySelectViewModel();
             vm.Load();
             Assert.Empty(vm.ScriptNames);
@@ -235,7 +235,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void AIScriptCategorySelect_OutOfBoundsIndex_ClearsInfo()
         {
-            CoreState.AIScript = null;
+            CoreState.AIScript = null!;
             var vm = new AIScriptCategorySelectViewModel();
             vm.Load();
             vm.SelectedScriptIndex = 999;
@@ -246,7 +246,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ProcsScriptCategorySelect_OutOfBoundsIndex_ClearsInfo()
         {
-            CoreState.ProcsScript = null;
+            CoreState.ProcsScript = null!;
             var vm = new ProcsScriptCategorySelectViewModel();
             vm.Load();
             vm.SelectedScriptIndex = 999;

@@ -72,7 +72,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void CalcAPMD5_NullData_ReturnsEmptyArrayMd5_NoThrow()
         {
-            Assert.Equal(EmptyMd5, ImageUtilAPCore.CalcAPMD5(null, 0x1000));
+            Assert.Equal(EmptyMd5, ImageUtilAPCore.CalcAPMD5(null!, 0x1000));
         }
 
         [Fact]
@@ -119,7 +119,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void MakeAPAddressDic_NullData_ReturnsEmpty_NoThrow()
         {
-            var dic = ImageUtilAPCore.MakeAPAddressDic(null, 0x100, 4);
+            var dic = ImageUtilAPCore.MakeAPAddressDic(null!, 0x100, 4);
             Assert.Empty(dic);
         }
 
@@ -159,8 +159,8 @@ namespace FEBuilderGBA.Core.Tests
         public void ResolveApOffsetByMd5_NullOrEmptyTarget_ReturnsNotFound()
         {
             byte[] rom = NewRom();
-            Assert.Equal(U.NOT_FOUND, ImageUtilAPCore.ResolveApOffsetByMd5(rom, null, null, null));
-            Assert.Equal(U.NOT_FOUND, ImageUtilAPCore.ResolveApOffsetByMd5(rom, "", null, null));
+            Assert.Equal(U.NOT_FOUND, ImageUtilAPCore.ResolveApOffsetByMd5(rom, null!, null!, null!));
+            Assert.Equal(U.NOT_FOUND, ImageUtilAPCore.ResolveApOffsetByMd5(rom, "", null!, null!));
         }
 
         [Fact]
@@ -176,7 +176,7 @@ namespace FEBuilderGBA.Core.Tests
             // Entry match takes priority — returns the entry offset, no vanilla
             // search needed.
             Assert.Equal(apOff,
-                ImageUtilAPCore.ResolveApOffsetByMd5(rom, md5, entryDic, null));
+                ImageUtilAPCore.ResolveApOffsetByMd5(rom, md5, entryDic, null!));
         }
 
         [Fact]

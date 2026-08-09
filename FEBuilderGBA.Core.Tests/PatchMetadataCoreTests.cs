@@ -2,6 +2,7 @@ using Xunit;
 using FEBuilderGBA;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using BoundedPatchReadFailureKind = FEBuilderGBA.PatchMetadataCore.BoundedPatchReadFailureKind;
 
 namespace FEBuilderGBA.Core.Tests
@@ -20,8 +21,8 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ROM = _savedRom;
-            CoreState.Language = _savedLang;
+            CoreState.ROM = _savedRom!;
+            CoreState.Language = _savedLang!;
         }
 
         [Fact]
@@ -457,7 +458,7 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void CheckPatchInstalled_GrepZeroAlignment_NoHang_NotInstalled()
+        public async Task CheckPatchInstalled_GrepZeroAlignment_NoHang_NotInstalled()
         {
             // $GREP0 (zero alignment) must NOT infinite-loop U.Grep (blocksize step 0);
             // the resolver rejects it -> NotInstalled. Run under a 5s timeout so a
@@ -469,9 +470,11 @@ namespace FEBuilderGBA.Core.Tests
 
             var task = System.Threading.Tasks.Task.Run(() =>
                 PatchMetadataCore.CheckPatchInstalled("$GREP0 0xAB=0xAB", rom));
-            Assert.True(task.Wait(System.TimeSpan.FromSeconds(5)),
+            Task completedTask = await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(5)));
+            Assert.True(
+                ReferenceEquals(task, completedTask),
                 "CheckPatchInstalled($GREP0) hung — zero-alignment guard missing");
-            Assert.Equal(PatchMetadataCore.PatchStatus.NotInstalled, task.Result);
+            Assert.Equal(PatchMetadataCore.PatchStatus.NotInstalled, await task);
         }
 
         [Fact]
@@ -565,7 +568,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetLanguageSuffix_Null_DefaultsToEn()
         {
-            CoreState.Language = null;
+            CoreState.Language = null!;
             Assert.Equal("en", PatchMetadataCore.GetLanguageSuffix());
         }
 
@@ -764,7 +767,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ApplyPatch_NullRom_Fails()
         {
-            var result = PatchMetadataCore.ApplyPatch(null, "nonexistent.txt");
+            var result = PatchMetadataCore.ApplyPatch(null!, "nonexistent.txt");
             Assert.False(result.Success);
             Assert.Contains("No ROM", result.Message);
         }
@@ -1031,7 +1034,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void UninstallPatch_NullRom_Fails()
         {
-            var result = PatchMetadataCore.UninstallPatch(null, "anything.txt");
+            var result = PatchMetadataCore.UninstallPatch(null!, "anything.txt");
             Assert.False(result.Success);
             Assert.Contains("No ROM", result.Message);
         }
@@ -1377,7 +1380,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void EvaluateIfCondition_NullRom_ReturnsFalse()
         {
-            Assert.False(PatchMetadataCore.EvaluateIfCondition("0x100=0xAB", null));
+            Assert.False(PatchMetadataCore.EvaluateIfCondition("0x100=0xAB", null!));
         }
 
         [Fact]
@@ -1547,7 +1550,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 Directory.Delete(tempDir, true);
             }
         }
@@ -1616,7 +1619,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 Directory.Delete(tempDir, true);
             }
         }
@@ -1704,7 +1707,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             string missing = Path.Combine(Path.GetTempPath(), "fe_no_patch2_" + System.Guid.NewGuid().ToString("N"));
             Assert.True(PatchMetadataCore.IsPatchLibraryEmpty(missing));
-            Assert.True(PatchMetadataCore.IsPatchLibraryEmpty(null));
+            Assert.True(PatchMetadataCore.IsPatchLibraryEmpty(null!));
             Assert.True(PatchMetadataCore.IsPatchLibraryEmpty(""));
         }
 
@@ -1978,7 +1981,7 @@ namespace FEBuilderGBA.Core.Tests
                 missingRoot,
                 rom,
                 "en",
-                listPatchFiles: null,
+                listPatchFiles: null!,
                 maxFiles: 16384,
                 maxAggregateBytes: PatchMetadataCore.MaxMetadataAggregateBytes,
                 out var patches,
@@ -2625,7 +2628,10 @@ namespace FEBuilderGBA.Core.Tests
             {
                 string path = Path.Combine(tempDir, "PATCH_Fault.txt");
                 Func<string, FileStream> throwingOpener = p =>
-                    throw (Exception)Activator.CreateInstance(exceptionType, "simulated fault (test double)");
+                {
+                    object? exception = Activator.CreateInstance(exceptionType, "simulated fault (test double)");
+                    throw TestRequire.NotNull(exception as Exception, exceptionType.Name);
+                };
 
                 Assert.Throws(exceptionType, () =>
                     PatchMetadataCore.TryParsePatchParamsBounded(
@@ -2785,7 +2791,7 @@ namespace FEBuilderGBA.Core.Tests
             try
             {
                 string path = WriteBytes(tempDir, "PATCH_Tiny.txt", System.Text.Encoding.ASCII.GetBytes("NAME=Tiny\n"));
-                RecordingMaxRequestFileStream captured = null;
+                RecordingMaxRequestFileStream? captured = null;
 
                 bool ok = PatchMetadataCore.TryReadBoundedFileLines(
                     path,
@@ -2908,7 +2914,7 @@ namespace FEBuilderGBA.Core.Tests
                 byte[] data = System.Text.Encoding.ASCII.GetBytes(new string('a', 50));
                 string path = WriteBytes(tempDir, "PATCH_Fault.txt", data);
 
-                IOException caught = null;
+                IOException? caught = null;
                 long bytesRead = 0;
                 try
                 {
@@ -2962,7 +2968,7 @@ namespace FEBuilderGBA.Core.Tests
                     return;
                 }
 
-                List<string> lines = null;
+                List<string>? lines = null;
                 long bytesRead = 0;
                 BoundedPatchReadFailureKind failureKind = default;
                 Exception caught = Record.Exception(() =>
@@ -3010,7 +3016,7 @@ namespace FEBuilderGBA.Core.Tests
                     return;
                 }
 
-                List<PatchMetadataCore.PatchParam> result = null;
+                List<PatchMetadataCore.PatchParam>? result = null;
                 long bytesRead = 0;
                 BoundedPatchReadFailureKind failureKind = default;
                 Exception caught = Record.Exception(() =>

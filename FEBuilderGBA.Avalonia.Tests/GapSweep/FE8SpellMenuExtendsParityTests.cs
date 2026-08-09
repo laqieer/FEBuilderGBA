@@ -410,7 +410,7 @@ public class FE8SpellMenuExtendsParityTests
 
     static string FindRepoRoot()
     {
-        string dir = AppContext.BaseDirectory;
+        string? dir = AppContext.BaseDirectory;
         while (dir != null && !File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
         {
             dir = Path.GetDirectoryName(dir);

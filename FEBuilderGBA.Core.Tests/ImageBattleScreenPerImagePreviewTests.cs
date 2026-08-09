@@ -289,7 +289,7 @@ namespace FEBuilderGBA.Core.Tests
         public void RenderSingleImagePreview_NullRom_ReturnsNull()
         {
             using var _ = EnsureImageService();
-            Assert.Null(ImageBattleScreenCore.RenderSingleImagePreview(null, 0));
+            Assert.Null(ImageBattleScreenCore.RenderSingleImagePreview(null!, 0));
         }
 
         [Theory]
@@ -306,14 +306,14 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RenderSingleImagePreview_NoImageService_ReturnsNull()
         {
-            var prev = CoreState.ImageService;
-            CoreState.ImageService = null;
+            IImageService? prev = CoreState.ImageService;
+            CoreState.ImageService = null!;
             try
             {
                 var rom = MakeRom();
                 Assert.Null(ImageBattleScreenCore.RenderSingleImagePreview(rom, 0));
             }
-            finally { CoreState.ImageService = prev; }
+            finally { CoreState.ImageService = prev!; }
         }
 
         [Fact]
@@ -469,13 +469,13 @@ namespace FEBuilderGBA.Core.Tests
 
         sealed class ImageServiceScope : System.IDisposable
         {
-            readonly IImageService _prev;
+            readonly IImageService? _prev;
             public ImageServiceScope()
             {
                 _prev = CoreState.ImageService;
                 CoreState.ImageService = new StubImageService();
             }
-            public void Dispose() { CoreState.ImageService = _prev; }
+            public void Dispose() { TestRequire.RestoreImageService(_prev); }
         }
 
         static ushort MakeCell(uint tile, uint flip, uint pal)

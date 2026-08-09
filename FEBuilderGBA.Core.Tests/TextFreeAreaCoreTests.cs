@@ -19,10 +19,10 @@ namespace FEBuilderGBA.Core.Tests
     [Collection("SharedState")]
     public class TextFreeAreaCoreTests
     {
-        static string FindRom(string romName)
+        static string? FindRom(string romName)
         {
             string thisAssembly = Assembly.GetExecutingAssembly().Location;
-            string dir = Path.GetDirectoryName(thisAssembly);
+            string? dir = Path.GetDirectoryName(thisAssembly);
             for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
@@ -38,19 +38,19 @@ namespace FEBuilderGBA.Core.Tests
 
         static string FindConfigBaseDir()
         {
-            string dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            string? dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             for (int i = 0; i < 12 && dir != null; i++)
             {
                 if (Directory.Exists(Path.Combine(dir, "config", "data")))
                     return dir;
                 dir = Path.GetDirectoryName(dir);
             }
-            return Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            return TestRequire.DirectoryName(Assembly.GetExecutingAssembly().Location);
         }
 
         static bool WithRealRom(string romName, System.Action<ROM> body)
         {
-            string romPath = FindRom(romName);
+            string? romPath = FindRom(romName);
             if (romPath == null) return false;
             var savedRom = CoreState.ROM;
             var savedEs = CoreState.EventScript;
@@ -87,7 +87,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void NullRom_PrerequisitesMissing()
         {
-            var r = TextFreeAreaCore.FindUnreferencedTextIds(null, null);
+            var r = TextFreeAreaCore.FindUnreferencedTextIds(null!, null!);
             Assert.Equal(TextFreeAreaCore.ScanStatus.PrerequisitesMissing, r.Status);
             Assert.Empty(r.FreeTextIds);
         }
@@ -97,33 +97,33 @@ namespace FEBuilderGBA.Core.Tests
         {
             // Load FE8U but DON'T set it as CoreState.ROM -> prerequisites unmet ->
             // must NOT produce a silent incomplete (false-positive) list.
-            string path = FindRom("FE8U.gba");
+            string? path = FindRom("FE8U.gba");
             if (path == null) return;
 
-            var savedRom = CoreState.ROM;
-            var savedEs = CoreState.EventScript;
-            var savedComment = CoreState.CommentCache;
+            ROM? savedRom = CoreState.ROM;
+            EventScript? savedEs = CoreState.EventScript;
+            IEtcCache? savedComment = CoreState.CommentCache;
             var savedBaseDir = CoreState.BaseDirectory;
             try
             {
-                CoreState.ROM = null;
-                CoreState.EventScript = null;
-                CoreState.CommentCache = null;
+                CoreState.ROM = null!;
+                CoreState.EventScript = null!;
+                CoreState.CommentCache = null!;
 
                 CoreState.BaseDirectory = FindConfigBaseDir();
                 var rom = new ROM();
                 if (!rom.Load(path, out string _)) return;
 
-                var r = TextFreeAreaCore.FindUnreferencedTextIds(rom, null);
+                var r = TextFreeAreaCore.FindUnreferencedTextIds(rom, null!);
                 Assert.Equal(TextFreeAreaCore.ScanStatus.PrerequisitesMissing, r.Status);
                 Assert.Empty(r.FreeTextIds);
                 Assert.False(TextFreeAreaCore.PrerequisitesMet(rom));
             }
             finally
             {
-                CoreState.ROM = savedRom;
-                CoreState.EventScript = savedEs;
-                CoreState.CommentCache = savedComment;
+                CoreState.ROM = savedRom!;
+                CoreState.EventScript = savedEs!;
+                CoreState.CommentCache = savedComment!;
                 if (savedBaseDir != null) CoreState.BaseDirectory = savedBaseDir;
             }
         }

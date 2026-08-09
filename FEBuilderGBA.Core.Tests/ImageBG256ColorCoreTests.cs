@@ -58,10 +58,10 @@ public class ImageBG256ColorCoreTests
 
     sealed class Bg8bppImageService : IImageService
     {
-        public IImage CreateImage(int w, int h) => new Bg8bppImage(w, h, null);
+        public IImage CreateImage(int w, int h) => new Bg8bppImage(w, h, Array.Empty<byte>());
         public IImage CreateIndexedImage(int w, int h, byte[] p, int c) => new Bg8bppImage(w, h, p);
-        public IImage LoadImage(string f) => null;
-        public IImage LoadImageFromBytes(byte[] d) => null;
+        public IImage LoadImage(string f) => throw new NotSupportedException(nameof(LoadImage));
+        public IImage LoadImageFromBytes(byte[] d) => throw new NotSupportedException(nameof(LoadImageFromBytes));
 
         public void GBAColorToRGBA(ushort gbaColor, out byte r, out byte g, out byte b)
         {
@@ -72,7 +72,7 @@ public class ImageBG256ColorCoreTests
         public ushort RGBAToGBAColor(byte r, byte g, byte b)
             => (ushort)((r >> 3) | ((g >> 3) << 5) | ((b >> 3) << 10));
 
-        public IImage Decode4bppTiles(byte[] t, int o, int w, int h, byte[] p) => null;
+        public IImage Decode4bppTiles(byte[] t, int o, int w, int h, byte[] p) => throw new NotSupportedException(nameof(Decode4bppTiles));
 
         public IImage Decode8bppTiles(byte[] tileData, int offset, int width, int height, byte[] gbaPalette)
         {
@@ -94,8 +94,8 @@ public class ImageBG256ColorCoreTests
             return image;
         }
 
-        public IImage Decode8bppLinear(byte[] d, int o, int w, int h, byte[] p) => null;
-        public byte[] Encode4bppTiles(IImage i) => null;
+        public IImage Decode8bppLinear(byte[] d, int o, int w, int h, byte[] p) => throw new NotSupportedException(nameof(Decode8bppLinear));
+        public byte[] Encode4bppTiles(IImage i) => throw new NotSupportedException(nameof(Encode4bppTiles));
 
         public byte[] Encode8bppTiles(IImage image)
         {
@@ -116,8 +116,8 @@ public class ImageBG256ColorCoreTests
             return result;
         }
 
-        public byte[] GBAPaletteToRGBA(byte[] p, int c) => null;
-        public byte[] RGBAPaletteToGBA(byte[] p, int c) => null;
+        public byte[] GBAPaletteToRGBA(byte[] p, int c) => throw new NotSupportedException(nameof(GBAPaletteToRGBA));
+        public byte[] RGBAPaletteToGBA(byte[] p, int c) => throw new NotSupportedException(nameof(RGBAPaletteToGBA));
     }
 
     static Undo.UndoData NewUndo(string name = "test") => new Undo.UndoData
@@ -253,7 +253,7 @@ public class ImageBG256ColorCoreTests
     [Fact]
     public void PadPaletteTo512_Null_ReturnsZeroed512()
     {
-        byte[] padded = ImageBG256ColorCore.PadPaletteTo512(null);
+        byte[] padded = ImageBG256ColorCore.PadPaletteTo512(null!);
         Assert.Equal(512, padded.Length);
         Assert.All(padded, b => Assert.Equal(0, b));
     }
@@ -584,7 +584,7 @@ public class ImageBG256ColorCoreTests
     {
         var svc = new Bg8bppImageService();
         var result = ImageBG256ColorCore.Import255ColorBG(
-            null, MakeIndexedImage(15), Make512Palette(), W, H, 0x100, 0x104, 0x108, false, svc, NewUndo());
+            null!, MakeIndexedImage(15), Make512Palette(), W, H, 0x100, 0x104, 0x108, false, svc, NewUndo());
         Assert.False(result.Success);
     }
 
@@ -641,7 +641,7 @@ public class ImageBG256ColorCoreTests
     public void Decode255_P4Zero_ReproducesIndexedImage_ExactBytes()
     {
         ROM rom = MakeFreeSpaceRom();
-        var prevRom = CoreState.ROM;
+        ROM? prevRom = CoreState.ROM;
         try
         {
             CoreState.ROM = rom; // only for the import's undo capture
@@ -656,7 +656,7 @@ public class ImageBG256ColorCoreTests
 
             // Decode255ColorBG must use only the passed rom — clear CoreState.ROM
             // to prove it does not depend on global state (Copilot review #801).
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             IImage decoded = ImageBG256ColorCore.Decode255ColorBG(rom, rom.u32(p0), rom.u32(p8), is224: false, svc);
             Assert.NotNull(decoded);
             Assert.Equal(W, decoded.Width);
@@ -664,14 +664,14 @@ public class ImageBG256ColorCoreTests
             // 8bpp decode is deterministic — pixel indices match exactly.
             Assert.Equal(indexed, decoded.GetPixelData());
         }
-        finally { CoreState.ROM = prevRom; }
+        finally { CoreState.ROM = prevRom!; }
     }
 
     [Fact]
     public void Decode224_P4One_AppliesInverseRemap_ReproducesForwardMappedImage()
     {
         ROM rom = MakeFreeSpaceRom();
-        var prevRom = CoreState.ROM;
+        ROM? prevRom = CoreState.ROM;
         try
         {
             CoreState.ROM = rom; // only for the import's undo capture
@@ -686,7 +686,7 @@ public class ImageBG256ColorCoreTests
 
             // Decode255ColorBG must use only the passed rom — clear CoreState.ROM
             // to prove it does not depend on global state (Copilot review #801).
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             IImage decoded = ImageBG256ColorCore.Decode255ColorBG(rom, rom.u32(p0), rom.u32(p8), is224: true, svc);
             Assert.NotNull(decoded);
 
@@ -703,7 +703,7 @@ public class ImageBG256ColorCoreTests
             // image reproduces the ORIGINAL indexed image exactly.
             Assert.Equal(indexed, decoded.GetPixelData());
         }
-        finally { CoreState.ROM = prevRom; }
+        finally { CoreState.ROM = prevRom!; }
     }
 
     [Fact]
@@ -745,7 +745,7 @@ public class ImageBG256ColorCoreTests
     public void Decode255_NullRom_ReturnsNull()
     {
         var svc = new Bg8bppImageService();
-        Assert.Null(ImageBG256ColorCore.Decode255ColorBG(null, 0x08000100, 0x08000200, false, svc));
+        Assert.Null(ImageBG256ColorCore.Decode255ColorBG(null!, 0x08000100, 0x08000200, false, svc));
     }
 
     [Fact]

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace FEBuilderGBA
 {
@@ -91,7 +92,7 @@ namespace FEBuilderGBA
         /// external implementor keep compiling — callers null-check before use,
         /// falling back to a region-class hint only.</para>
         /// </summary>
-        IAsmMapFile GetAsmMapFile() => null;
+        IAsmMapFile? GetAsmMapFile() => null;
     }
 
     /// <summary>
@@ -121,7 +122,9 @@ namespace FEBuilderGBA
     public static class CoreState
     {
         // ---- Types already in Core (concrete) ----
+        [AllowNull]
         public static ROM ROM { get; set; }
+        [AllowNull]
         public static Undo Undo { get; set; }
 
         // ---- Decomp project open-mode (#1129 slice 1) ----
@@ -129,6 +132,7 @@ namespace FEBuilderGBA
         /// Active decomp project, or null in classic ROM mode. When set, the loaded
         /// ROM is a build PREVIEW of a source tree and is treated as read-only.
         /// </summary>
+        [AllowNull]
         public static DecompProject DecompProject { get; set; }
 
         /// <summary>
@@ -138,26 +142,41 @@ namespace FEBuilderGBA
         public static bool IsDecompMode => DecompProject != null;
 
         // ---- Types used by Core code via interfaces ----
+        [AllowNull]
         public static IEtcCache CommentCache { get; set; }
+        [AllowNull]
         public static IEtcCache LintCache { get; set; }
+        [AllowNull]
         public static IEtcCache WorkSupportCache { get; set; }
+        [AllowNull]
         public static ISystemTextEncoder SystemTextEncoder { get; set; }
-        public static IAsmMapCache AsmMapFileAsmCache { get; set; }
+        public static IAsmMapCache? AsmMapFileAsmCache { get; set; }
 
         // ---- Types now in Core (concrete) ----
+        [AllowNull]
         public static Config Config { get; set; }
+        [AllowNull]
         public static EventScript EventScript { get; set; }
+        [AllowNull]
         public static EventScript ProcsScript { get; set; }
+        [AllowNull]
         public static EventScript AIScript { get; set; }
+        [AllowNull]
         public static FETextEncode FETextEncoder { get; set; }
+        [AllowNull]
         public static TextEscape TextEscape { get; set; }
+        [AllowNull]
         public static ITextIDCache UseTextIDCache { get; set; }
+        [AllowNull]
         public static EtcCacheFLag FlagCache { get; set; }
+        [AllowNull]
         public static object ResourceCache { get; set; }
+        [AllowNull]
         public static ExportFunction ExportFunction { get; set; }
         public static Mod Mod { get; set; }
 
         // ---- Simple value types ----
+        [AllowNull]
         public static string BaseDirectory { get; set; }
         public static bool IsCommandLine { get; set; }
         public static Dictionary<string, string> ArgsDic { get; set; }
@@ -175,6 +194,7 @@ namespace FEBuilderGBA
         /// Current UI language code (e.g. "en", "ja", "zh").
         /// Set by OptionForm at startup. Used by ConfigDataFilename for lang-specific resources.
         /// </summary>
+        [AllowNull]
         public static string Language { get; set; } = "en";
 
         /// <summary>
@@ -187,12 +207,14 @@ namespace FEBuilderGBA
         /// Platform-specific service provider (dialogs, clipboard, etc.).
         /// Must be set before any Core code that shows messages.
         /// </summary>
+        [AllowNull]
         public static IAppServices Services { get; set; } = new HeadlessAppServices();
 
         /// <summary>
         /// Cross-platform image service for GBA graphics operations.
         /// Set by the host application (WinForms, Avalonia, CLI).
         /// </summary>
+        [AllowNull]
         public static IImageService ImageService { get; set; }
 
         // ---- Text encoding ----
@@ -207,6 +229,7 @@ namespace FEBuilderGBA
         /// Callback to append binary data to ROM free space (wraps InputFormRef.AppendBinaryData).
         /// Used by RecycleAddress when no recycled region fits.
         /// </summary>
+        [AllowNull]
         public static Func<byte[], Undo.UndoData, uint> AppendBinaryData { get; set; }
 
         /// <summary>
@@ -276,6 +299,6 @@ namespace FEBuilderGBA
         /// Set by the UI layer (Avalonia/WinForms) which knows the installed skill system.
         /// Returns null if the name cannot be resolved (NameResolver will use hex fallback).
         /// </summary>
-        public static Func<uint, string> SkillNameResolver { get; set; }
+        public static Func<uint, string?>? SkillNameResolver { get; set; }
     }
 }

@@ -193,7 +193,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void FindMagicFrame_NullRom_ReturnsNotFound()
         {
-            uint result = MagicEffectRendererCore.FindMagicFrame(null, 0x100u, 0);
+            uint result = MagicEffectRendererCore.FindMagicFrame(null!, 0x100u, 0);
             Assert.Equal(U.NOT_FOUND, result);
         }
 
@@ -345,7 +345,7 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.ImageService = new StubImageService();
                 string log;
                 var img = MagicEffectRendererCore.RenderMagicFrame(
-                    null, 0x100u, 0u, 0x200u, 0x300u, out log);
+                    null!, 0x100u, 0u, 0x200u, 0x300u, out log);
                 Assert.Null(img);
             }
             finally { CoreState.ImageService = prevSvc; }

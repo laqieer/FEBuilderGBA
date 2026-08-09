@@ -484,10 +484,10 @@ namespace FEBuilderGBA.Core
         public static uint ImportAll(
             ROM rom,
             string indexName,
-            Func<string, string[]> readLines,
-            Func<string, byte[]> readFile,
-            Func<byte[], uint> appendBinaryData,
-            out string error)
+            Func<string, string[]?> readLines,
+            Func<string, byte[]?> readFile,
+            Func<byte[], uint>? appendBinaryData,
+            out string? error)
         {
             error = null;
             if (rom == null)
@@ -505,7 +505,7 @@ namespace FEBuilderGBA.Core
             // Guard against a self-referential nesting cycle (a malformed file set
             // whose nested index transitively re-references itself) blowing the stack.
             var visiting = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            ParsedVoicegroup root;
+            ParsedVoicegroup? root;
             try
             {
                 root = ParseVoicegroup(indexName, readLines, readFile, visiting, out error);
@@ -594,12 +594,12 @@ namespace FEBuilderGBA.Core
         /// NO ROM is touched here. Recurses through nested .Drum.instrument /
         /// .Multi.instrument indexes via the same delegates (same transaction).
         /// </summary>
-        static ParsedVoicegroup ParseVoicegroup(
+        static ParsedVoicegroup? ParseVoicegroup(
             string indexName,
-            Func<string, string[]> readLines,
-            Func<string, byte[]> readFile,
+            Func<string, string[]?> readLines,
+            Func<string, byte[]?> readFile,
             HashSet<string> visiting,
-            out string error)
+            out string? error)
         {
             error = null;
 
@@ -610,7 +610,7 @@ namespace FEBuilderGBA.Core
             }
             try
             {
-                string[] lines = readLines(indexName);
+                string[]? lines = readLines(indexName);
                 if (lines == null)
                 {
                     error = R._("The instrument set index file is missing: {0}", indexName);
@@ -676,10 +676,10 @@ namespace FEBuilderGBA.Core
             int index,
             List<byte> bin,
             List<Fixup> fixups,
-            Func<string, string[]> readLines,
-            Func<string, byte[]> readFile,
+            Func<string, string[]?> readLines,
+            Func<string, byte[]?> readFile,
             HashSet<string> visiting,
-            out string error)
+            out string? error)
         {
             error = null;
 
@@ -719,7 +719,7 @@ namespace FEBuilderGBA.Core
                 bool isWaveMemory = (type == 0x03 || type == 0x0B);
                 int exactLen = isWaveMemory ? 16 : 0;   // 0 = no exact requirement
                 int minLen = isWaveMemory ? 16 : 16;    // both need >= 16
-                byte[] wav = ReadSideFile(sp[4], readFile, exactLen, minLen, out error);
+                byte[]? wav = ReadSideFile(sp[4], readFile, exactLen, minLen, out error);
                 if (wav == null)
                 {
                     if (string.IsNullOrEmpty(error))
@@ -783,7 +783,7 @@ namespace FEBuilderGBA.Core
                 }
                 // The keymap is a FIXED 128-byte blob — ExportAll always emits exactly
                 // 128, so REJECT any other length (Copilot review).
-                byte[] multi = ReadSideFile(sp[5], readFile, exactLen: 128, minLen: 128, out error);
+                byte[]? multi = ReadSideFile(sp[5], readFile, exactLen: 128, minLen: 128, out error);
                 if (multi == null)
                 {
                     if (string.IsNullOrEmpty(error))
@@ -825,10 +825,10 @@ namespace FEBuilderGBA.Core
             int index,
             List<byte> bin,
             List<Fixup> fixups,
-            Func<string, string[]> readLines,
-            Func<string, byte[]> readFile,
+            Func<string, string[]?> readLines,
+            Func<string, byte[]?> readFile,
             HashSet<string> visiting,
-            out string error)
+            out string? error)
         {
             error = null;
             if (token == null) token = "";
@@ -858,7 +858,7 @@ namespace FEBuilderGBA.Core
             }
 
             // Otherwise it is a nested index filename — recurse (same transaction).
-            ParsedVoicegroup child = ParseVoicegroup(token, readLines, readFile, visiting, out error);
+            ParsedVoicegroup? child = ParseVoicegroup(token, readLines, readFile, visiting, out error);
             if (child == null)
             {
                 if (string.IsNullOrEmpty(error))
@@ -889,11 +889,11 @@ namespace FEBuilderGBA.Core
         /// variable blob is never spuriously rejected. Returns <c>null</c> (with
         /// <paramref name="error"/> set when the cause is a bad length) when the file is
         /// missing or insane.</summary>
-        static byte[] ReadSideFile(string name, Func<string, byte[]> readFile, int exactLen, int minLen, out string error)
+        static byte[]? ReadSideFile(string name, Func<string, byte[]?> readFile, int exactLen, int minLen, out string? error)
         {
             error = null;
             if (string.IsNullOrEmpty(name)) return null;
-            byte[] data = readFile(name);
+            byte[]? data = readFile(name);
             if (data == null) return null;       // missing — caller reports
             if (data.Length == 0)
             {
@@ -931,7 +931,7 @@ namespace FEBuilderGBA.Core
         /// slots are resolved (the two-phase guarantee). On any alloc failure returns
         /// false; the caller restores the snapshot.
         /// </summary>
-        static bool AllocateGraph(ParsedVoicegroup vg, Func<byte[], uint> appender, out string error)
+        static bool AllocateGraph(ParsedVoicegroup vg, Func<byte[], uint> appender, out string? error)
         {
             error = null;
 

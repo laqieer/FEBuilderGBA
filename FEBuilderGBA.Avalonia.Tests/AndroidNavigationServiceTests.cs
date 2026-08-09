@@ -37,7 +37,7 @@ public class AndroidNavigationServiceTests
         }
 
         public string ViewTitle => "NavTest";
-        public bool IsLoaded => true;
+        public new bool IsLoaded => true;
         public void NavigateTo(uint address) { LastNavigated = address; NavigateCalls++; }
     }
 
@@ -53,7 +53,7 @@ public class AndroidNavigationServiceTests
         }
 
         public string ViewTitle => "PickTest";
-        public bool IsLoaded => true;
+        public new bool IsLoaded => true;
         public void NavigateTo(uint address) { }
         public event Action<PickResult>? SelectionConfirmed;
         public void EnablePickMode() => PickModeEnabled = true;
@@ -218,7 +218,7 @@ public class AndroidNavigationServiceTests
         protected override void OnClosed(System.EventArgs e) { ClosedCount++; base.OnClosed(e); }
 
         public string ViewTitle => "Lifecycle";
-        public bool IsLoaded => true;
+        public new bool IsLoaded => true;
         public void NavigateTo(uint address) { }
     }
 
@@ -361,7 +361,7 @@ public class AndroidNavigationServiceTests
     {
         public PickTestView2() { Content = new TextBlock { Text = "view2" }; }
         public string ViewTitle => "View2";
-        public bool IsLoaded => true;
+        public new bool IsLoaded => true;
         public void NavigateTo(uint address) { }
     }
 

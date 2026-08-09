@@ -28,7 +28,7 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ImageService = _prevService;
+            TestRequire.RestoreImageService(_prevService);
         }
 
         // ============================================================
@@ -488,7 +488,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ConvertToLeftToRightOAM_NullInput_ReturnsNull()
         {
-            var result = BattleAnimeOAMImportCore.ConvertToLeftToRightOAM(null);
+            var result = BattleAnimeOAMImportCore.ConvertToLeftToRightOAM(null!);
             Assert.Null(result);
         }
 

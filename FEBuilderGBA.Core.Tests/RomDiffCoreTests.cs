@@ -88,7 +88,7 @@ namespace FEBuilderGBA.Core.Tests
         public void Compare_NullRom1_ThrowsArgumentNull()
         {
             Assert.Throws<ArgumentNullException>(() =>
-                RomDiffCore.Compare(null, new byte[1]));
+                RomDiffCore.Compare(null!, new byte[1]));
         }
 
         [Fact]

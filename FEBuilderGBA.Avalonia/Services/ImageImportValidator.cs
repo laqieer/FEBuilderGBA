@@ -39,7 +39,7 @@ namespace FEBuilderGBA.Avalonia.Services
             /// Second parameter is the GBA palette from the original exported image (for remap-based roundtrip).
             /// Returns null on success, error string on failure.
             /// </summary>
-            public Func<string, byte[], string> Import { get; set; }
+            public Func<string, byte[], string?> Import { get; set; }
             /// <summary>Entry index to test (default 1 to skip first which may be blank).</summary>
             public int TestIndex { get; set; } = 1;
             /// <summary>Max allowed pixel diff %. Default 10%. Multi-palette TSA editors need higher tolerance.</summary>
@@ -440,7 +440,7 @@ namespace FEBuilderGBA.Avalonia.Services
             return ImageImportService.LoadAndQuantizeFromFile(file, expectedW, expectedH, colorCount);
         }
 
-        static string Import3Ptr(string file, byte[] pal, uint addr, uint imgOff, uint tsaOff, uint palOff,
+        static string? Import3Ptr(string file, byte[] pal, uint addr, uint imgOff, uint tsaOff, uint palOff,
             int expectedW, int expectedH)
         {
             ROM rom = CoreState.ROM;
@@ -459,7 +459,7 @@ namespace FEBuilderGBA.Avalonia.Services
         /// Multi-palette 3-pointer import. Reads the full compressed palette from ROM,
         /// determines sub-palette count, and remaps each tile to its best sub-palette.
         /// </summary>
-        static string Import3PtrMultiPal(string file, byte[] pal, uint addr, uint imgOff, uint tsaOff, uint palOff,
+        static string? Import3PtrMultiPal(string file, byte[] pal, uint addr, uint imgOff, uint tsaOff, uint palOff,
             int expectedW, int expectedH)
         {
             ROM rom = CoreState.ROM;
@@ -530,7 +530,7 @@ namespace FEBuilderGBA.Avalonia.Services
             return ir.Success ? null : ir.Error;
         }
 
-        static string Import3PtrCompressPal(string file, byte[] pal, uint addr, uint imgOff, uint tsaOff, uint palOff,
+        static string? Import3PtrCompressPal(string file, byte[] pal, uint addr, uint imgOff, uint tsaOff, uint palOff,
             int expectedW, int expectedH)
         {
             ROM rom = CoreState.ROM;
@@ -546,7 +546,7 @@ namespace FEBuilderGBA.Avalonia.Services
             return ir.Success ? null : ir.Error;
         }
 
-        static string ImportChapterTitle(string file, byte[] pal, uint addr, uint tileOff)
+        static string? ImportChapterTitle(string file, byte[] pal, uint addr, uint tileOff)
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return "No ROM";
@@ -569,7 +569,7 @@ namespace FEBuilderGBA.Avalonia.Services
             return null;
         }
 
-        static string Import2Ptr(string file, byte[] pal, uint addr, uint imgOff, uint palOff)
+        static string? Import2Ptr(string file, byte[] pal, uint addr, uint imgOff, uint palOff)
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return "No ROM";
@@ -583,7 +583,7 @@ namespace FEBuilderGBA.Avalonia.Services
             return ir.Success ? null : ir.Error;
         }
 
-        static string ImportPortrait(string file, byte[] pal, uint addr)
+        static string? ImportPortrait(string file, byte[] pal, uint addr)
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return "No ROM";
@@ -614,7 +614,7 @@ namespace FEBuilderGBA.Avalonia.Services
             return null;
         }
 
-        static string ImportItemIcon(string file, byte[] pal, ItemIconViewerViewModel vm)
+        static string? ImportItemIcon(string file, byte[] pal, ItemIconViewerViewModel vm)
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return "No ROM";
@@ -628,7 +628,7 @@ namespace FEBuilderGBA.Avalonia.Services
             return ok ? null : "Failed to write icon data";
         }
 
-        static string ImportSystemIcon(string file, byte[] ignoredPal, SystemIconViewerViewModel vm)
+        static string? ImportSystemIcon(string file, byte[] ignoredPal, SystemIconViewerViewModel vm)
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return "No ROM";
@@ -680,7 +680,7 @@ namespace FEBuilderGBA.Avalonia.Services
             return null;
         }
 
-        static string ImportBigCG(string file, byte[] pal, BigCGViewerViewModel vm)
+        static string? ImportBigCG(string file, byte[] pal, BigCGViewerViewModel vm)
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return "No ROM";
@@ -732,7 +732,7 @@ namespace FEBuilderGBA.Avalonia.Services
             /// <summary>Read palette bytes from ROM for the currently loaded entry.</summary>
             public Func<byte[]> ExportPalette { get; set; }
             /// <summary>Write palette bytes to ROM for the currently loaded entry. Returns null on success, error on failure.</summary>
-            public Func<byte[], string> ImportPalette { get; set; }
+            public Func<byte[], string?> ImportPalette { get; set; }
             public int TestIndex { get; set; } = 1;
         }
 
@@ -812,7 +812,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 try
                 {
                     // Step 3: Import the exported palette back
-                    string importError = editor.ImportPalette(pal1);
+                    string? importError = editor.ImportPalette(pal1);
                     if (importError != null)
                     {
                         return new ValidationResult

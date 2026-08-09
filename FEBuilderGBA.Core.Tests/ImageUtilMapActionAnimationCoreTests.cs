@@ -56,32 +56,32 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void DrawFrame_WithNoRom_ReturnsNull()
         {
-            var origRom = CoreState.ROM;
+            ROM? origRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var result = ImageUtilMapActionAnimationCore.DrawFrame(0x1000, 0);
                 Assert.Null(result);
             }
             finally
             {
-                CoreState.ROM = origRom;
+                CoreState.ROM = origRom!;
             }
         }
 
         [Fact]
         public void DrawFrame_WithNoImageService_ReturnsNull()
         {
-            var origService = CoreState.ImageService;
+            IImageService? origService = CoreState.ImageService;
             try
             {
-                CoreState.ImageService = null;
+                CoreState.ImageService = null!;
                 var result = ImageUtilMapActionAnimationCore.DrawFrame(0x1000, 0);
                 Assert.Null(result);
             }
             finally
             {
-                CoreState.ImageService = origService;
+                CoreState.ImageService = origService!;
             }
         }
 
@@ -95,16 +95,16 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void CountFrames_WithNoRom_ReturnsZero()
         {
-            var origRom = CoreState.ROM;
+            ROM? origRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 int count = ImageUtilMapActionAnimationCore.CountFrames(0x1000);
                 Assert.Equal(0, count);
             }
             finally
             {
-                CoreState.ROM = origRom;
+                CoreState.ROM = origRom!;
             }
         }
 
@@ -314,7 +314,7 @@ namespace FEBuilderGBA.Core.Tests
             try
             {
                 CoreState.ImageService = new StubImageService();
-                var result = ImageUtilMapActionAnimationCore.RenderFrameImage(null, 0x400, 0x900);
+                var result = ImageUtilMapActionAnimationCore.RenderFrameImage(null!, 0x400, 0x900);
                 Assert.Null(result);
             }
             finally
@@ -327,10 +327,10 @@ namespace FEBuilderGBA.Core.Tests
         public void RenderFrameImage_NullImageService_ReturnsNull()
         {
             var origRom = CoreState.ROM;
-            var origService = CoreState.ImageService;
+            IImageService? origService = CoreState.ImageService;
             try
             {
-                CoreState.ImageService = null;
+                CoreState.ImageService = null!;
                 var rom = BuildRomWithObjAndPalette(out uint objPtr, out uint palPtr);
                 CoreState.ROM = rom;
 
@@ -340,7 +340,7 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.ROM = origRom;
-                CoreState.ImageService = origService;
+                CoreState.ImageService = origService!;
             }
         }
 
@@ -458,7 +458,7 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.ROM = rom;
 
                 // animeAddress = ROM_SIZE - 4 → frame at ROM_SIZE-4, +12 overflows EOF.
-                IImage img = null;
+                IImage? img = null;
                 var ex = Record.Exception(() =>
                 {
                     img = ImageUtilMapActionAnimationCore.DrawFrame((uint)(ROM_SIZE - 4), 0);

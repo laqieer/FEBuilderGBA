@@ -31,13 +31,13 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ByteToImage256Liner_NullService_ReturnsNull()
         {
-            var saved = CoreState.ImageService;
+            IImageService? saved = CoreState.ImageService;
             try
             {
-                CoreState.ImageService = null;
+                CoreState.ImageService = null!;
                 Assert.Null(ImageUtilCore.ByteToImage256Liner(new byte[4], 0, new byte[512], 0, 2, 2));
             }
-            finally { CoreState.ImageService = saved; }
+            finally { CoreState.ImageService = saved!; }
         }
 
         [Fact]
@@ -224,7 +224,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Render_NullRom_ReturnsNull()
         {
-            Assert.Null(ImageWorldMapCore.TryRenderFE6BigFieldMap(null, 0));
+            Assert.Null(ImageWorldMapCore.TryRenderFE6BigFieldMap(null!, 0));
         }
 
         [Fact]
@@ -351,7 +351,7 @@ namespace FEBuilderGBA.Core.Tests
                     CoreState.Undo.RunUndo();
                     Assert.Equal(snapshot, rom.Data);
                 }
-                finally { CoreState.Undo = null; }
+                finally { CoreState.Undo = null!; }
             });
         }
 
@@ -453,8 +453,8 @@ namespace FEBuilderGBA.Core.Tests
     {
         public IImage CreateImage(int w, int h) => new RtImage(w, h);
         public IImage CreateIndexedImage(int w, int h, byte[] p, int c) => new RtImage(w, h);
-        public IImage LoadImage(string f) => null;
-        public IImage LoadImageFromBytes(byte[] d) => null;
+        public IImage LoadImage(string f) => throw new NotSupportedException(nameof(LoadImage));
+        public IImage LoadImageFromBytes(byte[] d) => throw new NotSupportedException(nameof(LoadImageFromBytes));
         public void GBAColorToRGBA(ushort gbaColor, out byte r, out byte g, out byte b)
         {
             r = (byte)((gbaColor & 0x1F) << 3);
@@ -466,10 +466,10 @@ namespace FEBuilderGBA.Core.Tests
         public IImage Decode4bppTiles(byte[] t, int o, int w, int h, byte[] p) => new RtImage(w, h);
         public IImage Decode8bppTiles(byte[] t, int o, int w, int h, byte[] p) => new RtImage(w, h);
         public IImage Decode8bppLinear(byte[] d, int o, int w, int h, byte[] p) => new RtImage(w, h);
-        public byte[] Encode4bppTiles(IImage i) => null;
-        public byte[] Encode8bppTiles(IImage i) => null;
-        public byte[] GBAPaletteToRGBA(byte[] p, int c) => null;
-        public byte[] RGBAPaletteToGBA(byte[] p, int c) => null;
+        public byte[] Encode4bppTiles(IImage i) => throw new NotSupportedException(nameof(Encode4bppTiles));
+        public byte[] Encode8bppTiles(IImage i) => throw new NotSupportedException(nameof(Encode8bppTiles));
+        public byte[] GBAPaletteToRGBA(byte[] p, int c) => throw new NotSupportedException(nameof(GBAPaletteToRGBA));
+        public byte[] RGBAPaletteToGBA(byte[] p, int c) => throw new NotSupportedException(nameof(RGBAPaletteToGBA));
     }
 
     internal sealed class RtImage : IImage

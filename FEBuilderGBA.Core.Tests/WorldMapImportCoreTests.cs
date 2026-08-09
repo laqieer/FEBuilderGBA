@@ -136,7 +136,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void EncodePaletteMap16Tile_DegenerateArgs_ReturnsEmpty()
         {
-            Assert.Empty(ImageUtilCore.EncodePaletteMap16Tile(null, 480, 320));
+            Assert.Empty(ImageUtilCore.EncodePaletteMap16Tile(null!, 480, 320));
             Assert.Empty(ImageUtilCore.EncodePaletteMap16Tile(new byte[480 * 320], 0, 320));
             Assert.Empty(ImageUtilCore.EncodePaletteMap16Tile(new byte[480 * 320], 480, 0));
             // Non-multiple-of-8 dimensions.
@@ -177,7 +177,7 @@ namespace FEBuilderGBA.Core.Tests
                 byte[] expectedPalMap = ImageUtilCore.EncodePaletteMap16Tile(indexedPixels, MAIN_W, MAIN_H);
 
                 // Import under ambient undo scope.
-                using var scope = ROM.BeginUndoScope(null);
+                using var scope = ROM.BeginUndoScope(NewUndoData("MainFieldImport"));
                 var result = ImageWorldMapCore.ImportMainFieldMap(rom, indexedPixels, gbaPalette128);
 
                 Assert.True(result.Success, result.Error ?? "");
@@ -232,7 +232,7 @@ namespace FEBuilderGBA.Core.Tests
                 newPalette[(1 * 16 + 1) * 2]     = (byte)(BLUE & 0xFF);
                 newPalette[(1 * 16 + 1) * 2 + 1] = (byte)(BLUE >> 8);
 
-                using var scope = ROM.BeginUndoScope(null);
+                using var scope = ROM.BeginUndoScope(NewUndoData("MainFieldPaletteImport"));
                 var result = ImageWorldMapCore.ImportMainFieldMap(rom, indexedPixels, newPalette);
                 Assert.True(result.Success, result.Error ?? "");
 
@@ -353,7 +353,7 @@ namespace FEBuilderGBA.Core.Tests
                 darkPal[1 * 2]     = (byte)(GREEN & 0xFF);
                 darkPal[1 * 2 + 1] = (byte)(GREEN >> 8);
 
-                using var scope = ROM.BeginUndoScope(null);
+                using var scope = ROM.BeginUndoScope(NewUndoData("DarkPaletteImport"));
                 var result = ImageWorldMapCore.ImportDarkPalette(rom, darkPal);
                 Assert.True(result.Success, result.Error ?? "");
 
@@ -550,6 +550,8 @@ namespace FEBuilderGBA.Core.Tests
             rom.LoadLow("synth.gba", data, "BE8E01");
             return rom;
         }
+
+        static Undo.UndoData NewUndoData(string name) => new Undo().NewUndoData(name);
 
         static ROM MakeFE7Rom()
         {

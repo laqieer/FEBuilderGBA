@@ -31,7 +31,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetFrameImage_FramesNullResult_ReturnsNull()
         {
-            var r = new SkillAnimeExportResult { Frames = null };
+            var r = new SkillAnimeExportResult { Frames = null! };
             Assert.Null(SkillSystemsAnimeExportCore.GetFrameImage(r, 0));
         }
 
@@ -81,7 +81,7 @@ namespace FEBuilderGBA.Core.Tests
             // range) and returns that null reference — the routing, not a
             // bounds rejection.
             var r = new SkillAnimeExportResult();
-            r.Frames.Add(new SkillAnimeFrame { Id = 1, Wait = 3, Image = null });
+            r.Frames.Add(new SkillAnimeFrame { Id = 1, Wait = 3, Image = null! });
             Assert.Null(SkillSystemsAnimeExportCore.GetFrameImage(r, 0));
         }
     }

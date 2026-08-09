@@ -12,11 +12,11 @@ namespace FEBuilderGBA.Tests
         [Fact]
         public void TryResolveMappedBulkImportMoji_UsesValidatedSlotMapping()
         {
-            MethodInfo method = typeof(FontForm).GetMethod(
+            MethodInfo? method = typeof(FontForm).GetMethod(
                 "TryResolveMappedBulkImportMoji",
                 BindingFlags.NonPublic | BindingFlags.Static);
             Assert.NotNull(method);
-            object[] arguments =
+            object?[] arguments =
             {
                 "text",
                 @"nested\text_1234.png",
@@ -27,20 +27,20 @@ namespace FEBuilderGBA.Tests
                 0u,
             };
 
-            bool mapped = (bool)method.Invoke(null, arguments);
+            bool mapped = Assert.IsType<bool>(method.Invoke(null, arguments));
 
             Assert.True(mapped);
-            Assert.Equal(0x1234u, (uint)arguments[3]);
+            Assert.Equal(0x1234u, Assert.IsType<uint>(arguments[3]));
         }
 
         [Fact]
         public void TryResolveMappedBulkImportMoji_LegacyFilenameFallsBack()
         {
-            MethodInfo method = typeof(FontForm).GetMethod(
+            MethodInfo? method = typeof(FontForm).GetMethod(
                 "TryResolveMappedBulkImportMoji",
                 BindingFlags.NonPublic | BindingFlags.Static);
             Assert.NotNull(method);
-            object[] arguments =
+            object?[] arguments =
             {
                 "text",
                 "text_E38182.png",
@@ -48,10 +48,10 @@ namespace FEBuilderGBA.Tests
                 0u,
             };
 
-            bool mapped = (bool)method.Invoke(null, arguments);
+            bool mapped = Assert.IsType<bool>(method.Invoke(null, arguments));
 
             Assert.False(mapped);
-            Assert.Equal(0u, (uint)arguments[3]);
+            Assert.Equal(0u, Assert.IsType<uint>(arguments[3]));
         }
 
         [Fact]
@@ -73,20 +73,20 @@ namespace FEBuilderGBA.Tests
                     + "\tpackedSha256\tpngSha256\n"
                     + "1234\tU+0041\ttext\t7\ttext_1234.png\t"
                     + zeroHash + "\t" + zeroHash + "\n");
-                MethodInfo method = typeof(FontForm).GetMethod(
+                MethodInfo? method = typeof(FontForm).GetMethod(
                     "TryLoadBulkImportSlotMappings",
                     BindingFlags.NonPublic | BindingFlags.Static);
                 Assert.NotNull(method);
-                object[] arguments =
+                object?[] arguments =
                 {
                     manifest,
                     null,
                     "",
                 };
 
-                bool loaded = (bool)method.Invoke(null, arguments);
+                bool loaded = Assert.IsType<bool>(method.Invoke(null, arguments));
 
-                Assert.True(loaded, (string)arguments[2]);
+                Assert.True(loaded, Assert.IsType<string>(arguments[2]));
                 var mappings =
                     Assert.IsType<Dictionary<string, uint>>(
                         arguments[1]);

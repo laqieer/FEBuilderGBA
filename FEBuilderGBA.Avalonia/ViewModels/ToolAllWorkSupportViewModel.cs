@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
@@ -72,9 +74,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// </summary>
         public int UpdateCheckAll(
             Func<string, string> httpGet,
-            Func<string, string> httpHeadLastModified,
+            Func<string, string?> httpHeadLastModified,
             Func<string, DateTime> romDateTime)
         {
+            ArgumentNullException.ThrowIfNull(httpGet);
+            ArgumentNullException.ThrowIfNull(httpHeadLastModified);
+            ArgumentNullException.ThrowIfNull(romDateTime);
+
             IsLoading = true;
             int updateable = 0;
             try
@@ -91,6 +97,62 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             catch (Exception ex)
             {
                 Log.Error("ToolAllWorkSupportViewModel.UpdateCheckAll failed: " + ex.ToString());
+            }
+            finally
+            {
+                IsLoading = false;
+                MarkClean();
+            }
+            return updateable;
+        }
+
+        public async Task<int> UpdateCheckAllAsync(
+            Func<string, CancellationToken, Task<string>> httpGet,
+            Func<string, CancellationToken, Task<string?>> httpHeadLastModified,
+            Func<string, DateTime> romDateTime,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(httpGet);
+            ArgumentNullException.ThrowIfNull(httpHeadLastModified);
+            ArgumentNullException.ThrowIfNull(romDateTime);
+
+            IsLoading = true;
+            int updateable = 0;
+            var updateMarks = new List<(WorkSupportScannerCore.WorkProject Project, bool Mark)>();
+            try
+            {
+                foreach (var p in Projects)
+                {
+                    WorkSupportUpdateCheckCore.UpdateResult ur = await WorkSupportUpdateCheckCore.CheckAsync(
+                        p.UpdateinfoLines, p.RomFilename, httpGet, httpHeadLastModified, romDateTime, cancellationToken)
+                        .ConfigureAwait(false);
+                    bool mark = ur == WorkSupportUpdateCheckCore.UpdateResult.Updateable;
+                    updateMarks.Add((p, mark));
+                    if (mark) updateable++;
+                }
+
+                // Only commit marks after the whole pass succeeds so failures do not
+                // leave a partially updated list behind.
+                foreach (var (project, mark) in updateMarks)
+                {
+                    project.IsUpdateMark = mark;
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ToolAllWorkSupportViewModel.UpdateCheckAllAsync failed: " + ex.ToString());
+                updateable = 0;
+                foreach (var p in Projects)
+                {
+                    if (p != null)
+                    {
+                        p.IsUpdateMark = false;
+                    }
+                }
             }
             finally
             {

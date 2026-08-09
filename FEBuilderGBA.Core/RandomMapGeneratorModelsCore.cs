@@ -12,7 +12,7 @@ namespace FEBuilderGBA
     public delegate ProcessRunResult ProcessRunnerDelegate(
         string command,
         IEnumerable<string> args,
-        string workingDir,
+        string? workingDir,
         int timeoutMs,
         int maximumOutputChars);
 
@@ -26,7 +26,7 @@ namespace FEBuilderGBA
     public delegate ProcessRunResult ProcessRunnerCancellableDelegate(
         string command,
         IEnumerable<string> args,
-        string workingDir,
+        string? workingDir,
         int timeoutMs,
         int maximumOutputChars,
         CancellationToken cancellationToken);

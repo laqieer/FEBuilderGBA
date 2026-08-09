@@ -456,7 +456,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         ///
         /// Auto-download (#1031): a successful Download button click stages the
         /// resolved exe into the relevant Pending*Path AND forces the step mode
-        /// back to <c>Path</c> (via <see cref="StageResolvedDownloadPath"/>), so
+        /// back to <c>Path</c> (via <c>StageResolvedDownloadPath</c>), so
         /// the normal Path-mode write below persists the downloaded tool — no
         /// special Download-mode branch is needed here.
         /// </summary>

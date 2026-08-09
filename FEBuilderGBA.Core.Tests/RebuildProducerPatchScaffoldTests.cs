@@ -211,8 +211,8 @@ namespace FEBuilderGBA.Core.Tests
         public void MakePointerIndexes_NullPatchOrParam_Throws()
         {
             Assert.Throws<ArgumentNullException>(() =>
-                RebuildProducerCore.MakePointerIndexes(null, out _, out _));
-            var noParam = new PatchInstallCore.PatchSt { Name = "p", PatchFileName = "p.txt", Param = null };
+                RebuildProducerCore.MakePointerIndexes(null!, out _, out _));
+            var noParam = new PatchInstallCore.PatchSt { Name = "p", PatchFileName = "p.txt", Param = null! };
             Assert.Throws<ArgumentNullException>(() =>
                 RebuildProducerCore.MakePointerIndexes(noParam, out _, out _));
         }
@@ -397,9 +397,9 @@ namespace FEBuilderGBA.Core.Tests
             var fe8 = MakeVersionedRom("BE8E01");
             CoreState.ROM = fe8;
             Assert.Throws<ArgumentNullException>(() =>
-                RebuildProducerCore.MakePatchStructDataListCore(null, new List<Address>(), false, false, false));
+                RebuildProducerCore.MakePatchStructDataListCore(null!, new List<Address>(), false, false, false));
             Assert.Throws<ArgumentNullException>(() =>
-                RebuildProducerCore.MakePatchStructDataListCore(fe8, null, false, false, false));
+                RebuildProducerCore.MakePatchStructDataListCore(fe8, null!, false, false, false));
         }
 
         // ====================================================================
@@ -529,7 +529,7 @@ namespace FEBuilderGBA.Core.Tests
             cts.Cancel();
 
             var list = new List<Address>();
-            AsmProducerResultLike res = null;
+            AsmProducerResultLike? res = null;
             var ex = Record.Exception(() =>
             {
                 var r = RebuildProducerCore.AppendAllAsmStructPointers(

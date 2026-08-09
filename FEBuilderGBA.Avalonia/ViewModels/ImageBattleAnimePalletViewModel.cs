@@ -301,7 +301,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// service is unavailable / the record is unresolvable / there is no
         /// non-blank frame — the caller (view) treats null as "clear preview".</para>
         /// </summary>
-        public IImage RenderSampleBattleAnime()
+        public IImage? RenderSampleBattleAnime()
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CoreState.ImageService == null) return null;
@@ -329,7 +329,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <returns>
         /// <c>true</c> on success; <c>false</c> if null or shorter than 32 bytes.
         /// </returns>
-        public bool DoImport(byte[] gbaPalette16)
+        public bool DoImport(byte[]? gbaPalette16)
         {
             if (gbaPalette16 == null || gbaPalette16.Length < ImageBattleAnimePaletteCore.SlotByteSize)
             {

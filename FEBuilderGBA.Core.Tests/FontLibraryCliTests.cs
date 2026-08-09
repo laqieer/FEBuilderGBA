@@ -31,9 +31,9 @@ namespace FEBuilderGBA.Core.Tests
         const string CorpusSha256 =
             "a0c7716669b5ded0d8051abfc232b828d489f7d889b2928eefcf43f0b8f495d6";
         const string MultiJobPayloadTreeSha256 =
-            "ca34bfe7c39a7700bbb79a3f197d49cb2e6af0cd61424b7a6d30bd24a0540b20";
+            "ac9362c474f2e5a405fc9c541413fa3a15c3edaaea762fd82e78ba589d45d753";
         const string MultiJobFullTreeSha256 =
-            "5ff183225b948b9ab413c0918eb9317aabaaf5e2d414e1522b591e43095794fd";
+            "23c92ab3b08517c34cc99e56e332a07f36f4f517842a37e0e78d455835152adf";
         const string StrictItemAPackedSha256 =
             "d4d67f7ab38a7351afea0883b5e1ff31644c789936085a5fe8e6acd4a4f482f4";
         const string StrictTextAPackedSha256 =
@@ -1396,10 +1396,11 @@ namespace FEBuilderGBA.Core.Tests
                 out string reportError),
                 reportError);
             FontLibraryJobReport zeta = Assert.Single(
-                packageReport.Jobs.Where(job => job.Id == "zeta"));
+                packageReport.Jobs,
+                job => job.Id == "zeta");
             FontLibraryGlyphReport changedGlyph = Assert.Single(
-                zeta.Glyphs.Where(glyph =>
-                    glyph.Filename == columns[4]));
+                zeta.Glyphs,
+                glyph => glyph.Filename == columns[4]);
             changedGlyph.PngSha256 = columns[6];
             using (IncrementalHash pngAggregate =
                 IncrementalHash.CreateHash(HashAlgorithmName.SHA256))

@@ -84,7 +84,7 @@ namespace FEBuilderGBA
         static bool _running;
         static readonly int[] RetryDelays = { 100, 200, 400, 800 };
 
-        public static Patch2GitResult InitializeOrUpdate(string repoDir, string url, Action<string> progress = null)
+        public static Patch2GitResult InitializeOrUpdate(string repoDir, string url, Action<string>? progress = null)
         {
             if (!TryEnter())
                 return new Patch2GitResult { Kind = Patch2GitResultKind.AlreadyRunning };
@@ -99,14 +99,14 @@ namespace FEBuilderGBA
         internal static Patch2GitResult InitializeOrUpdateCore(
             string repoDir, string gitExe, string url,
             Func<string, bool> isGitRepo, Patch2GitService.CloneOp cloneOp,
-            Patch2GitService.UpdateOp updateOp, Action<string> progress)
+            Patch2GitService.UpdateOp updateOp, Action<string>? progress)
             => InitializeOrUpdateCore(repoDir, gitExe, url, isGitRepo, cloneOp, updateOp, progress,
                 new RealContentRepoDirectoryOps());
 
         internal static Patch2GitResult InitializeOrUpdateCore(
             string repoDir, string gitExe, string url,
             Func<string, bool> isGitRepo, Patch2GitService.CloneOp cloneOp,
-            Patch2GitService.UpdateOp updateOp, Action<string> progress, ContentRepoDirectoryOps directoryOps)
+            Patch2GitService.UpdateOp updateOp, Action<string>? progress, ContentRepoDirectoryOps? directoryOps)
         {
             if (string.IsNullOrEmpty(gitExe))
                 return new Patch2GitResult { Kind = Patch2GitResultKind.GitNotFound };
@@ -166,7 +166,7 @@ namespace FEBuilderGBA
         }
 
         static Patch2GitResult RunUpdate(string repoDir, string gitExe, string url,
-            Patch2GitService.UpdateOp updateOp, Action<string> progress, StringBuilder log)
+            Patch2GitService.UpdateOp updateOp, Action<string>? progress, StringBuilder log)
         {
             try
             {

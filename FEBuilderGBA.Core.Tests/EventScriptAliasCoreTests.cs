@@ -189,11 +189,11 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Helpers_NullSafe_NoThrow()
         {
-            var emptyCode = new EventScript.OneCode { Script = null, ByteData = null };
+            var emptyCode = new EventScript.OneCode { Script = null!, ByteData = null! };
             Assert.Empty(EventScriptAliasCore.EnumerateEditableArgIndices(emptyCode));
             Assert.Equal(0, EventScriptAliasCore.CountEditableArgs(emptyCode));
             Assert.Empty(EventScriptAliasCore.EnumerateAliasWriteTargets(emptyCode, 0));
-            Assert.Empty(EventScriptAliasCore.EnumerateAliasWriteTargets(null, 0));
+            Assert.Empty(EventScriptAliasCore.EnumerateAliasWriteTargets(null!, 0));
         }
     }
 }

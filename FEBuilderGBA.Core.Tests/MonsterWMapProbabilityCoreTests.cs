@@ -46,7 +46,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void IsSupported_NullRom_False()
         {
-            Assert.False(MonsterWMapProbabilityCore.IsSupported(null));
+            Assert.False(MonsterWMapProbabilityCore.IsSupported(null!));
         }
 
         [Fact]
@@ -150,7 +150,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Sum_EmptyAndNull_Zero()
         {
-            Assert.Equal(0u, MonsterWMapProbabilityCore.Sum(null));
+            Assert.Equal(0u, MonsterWMapProbabilityCore.Sum(null!));
             Assert.Equal(0u, MonsterWMapProbabilityCore.Sum(new byte[0]));
             Assert.Equal(255u + 1u, MonsterWMapProbabilityCore.Sum(new byte[] { 255, 1 }));
         }
@@ -212,9 +212,9 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void SkirmishEvents_NullRom_NoThrow()
         {
-            Assert.Equal(0u, MonsterWMapProbabilityCore.ReadSkirmishStartEvent(null));
-            Assert.Equal(0u, MonsterWMapProbabilityCore.ReadSkirmishEndEvent(null));
-            MonsterWMapProbabilityCore.WriteSkirmishEvents(null, 1, 2); // no throw
+            Assert.Equal(0u, MonsterWMapProbabilityCore.ReadSkirmishStartEvent(null!));
+            Assert.Equal(0u, MonsterWMapProbabilityCore.ReadSkirmishEndEvent(null!));
+            MonsterWMapProbabilityCore.WriteSkirmishEvents(null!, 1, 2); // no throw
         }
 
         // ================================================================
@@ -224,8 +224,8 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void LoadStageList_NullRom_Empty()
         {
-            Assert.Empty(MonsterWMapProbabilityCore.LoadStageList(null, false));
-            Assert.Empty(MonsterWMapProbabilityCore.LoadProbabilityList(null, false));
+            Assert.Empty(MonsterWMapProbabilityCore.LoadStageList(null!, false));
+            Assert.Empty(MonsterWMapProbabilityCore.LoadProbabilityList(null!, false));
         }
 
         [Fact]

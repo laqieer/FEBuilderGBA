@@ -84,6 +84,21 @@ namespace FEBuilderGBA.Avalonia.Tests
         private static void Click(RepeatButton button) =>
             button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
 
+        private static void PressKey(Window window, Key key)
+        {
+            var (physicalKey, keySymbol) = key switch
+            {
+                Key.Up => (PhysicalKey.ArrowUp, "ArrowUp"),
+                Key.Down => (PhysicalKey.ArrowDown, "ArrowDown"),
+                Key.Enter => (PhysicalKey.Enter, "Enter"),
+                _ => throw new ArgumentOutOfRangeException(nameof(key), key, "No headless key mapping."),
+            };
+
+            window.KeyPress(key, RawInputModifiers.None, physicalKey, keySymbol);
+            window.KeyRelease(key, RawInputModifiers.None, physicalKey, keySymbol);
+            Dispatcher.UIThread.RunJobs();
+        }
+
         private static PointerWheelEventArgs MakeWheelArgs(
             Visual source, Visual root, double deltaY)
         {
@@ -143,8 +158,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             try
             {
                 Assert.True(GetTextBox(control).Focus());
-                window.KeyPress(Key.Up, RawInputModifiers.None);
-                window.KeyRelease(Key.Up, RawInputModifiers.None);
+                PressKey(window, Key.Up);
 
                 Assert.Equal(0m, control.Value);
             }
@@ -162,8 +176,28 @@ namespace FEBuilderGBA.Avalonia.Tests
             try
             {
                 Assert.True(GetTextBox(control).Focus());
-                window.KeyPress(Key.Down, RawInputModifiers.None);
-                window.KeyRelease(Key.Down, RawInputModifiers.None);
+                PressKey(window, Key.Down);
+
+                Assert.Equal(10m, control.Value);
+            }
+            finally
+            {
+                window.Close();
+            }
+        }
+
+        [AvaloniaFact]
+        public void KeyboardDownAtMinimum_WrapsToMaximum_WithSpinnerFocused()
+        {
+            var (window, control) = CreateShownControl(
+                minimum: 0, maximum: 10, value: 0, increment: 1);
+            try
+            {
+                Assert.True(control.Focus());
+                Dispatcher.UIThread.RunJobs();
+                Assert.True(GetSpinner(control).Focus());
+                Dispatcher.UIThread.RunJobs();
+                PressKey(window, Key.Down);
 
                 Assert.Equal(10m, control.Value);
             }
@@ -490,8 +524,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 textBox.Focus();
                 textBox.SelectAll();
                 window.KeyTextInput("10");
-                window.KeyPress(Key.Enter, RawInputModifiers.None);
-                window.KeyRelease(Key.Enter, RawInputModifiers.None);
+                PressKey(window, Key.Enter);
 
                 Assert.Equal(10m, control.Value);
                 var spinner = GetSpinner(control);
@@ -593,8 +626,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 textBox.SelectAll();
                 window.KeyTextInput("x");
 
-                window.KeyPress(Key.Enter, RawInputModifiers.None);
-                window.KeyRelease(Key.Enter, RawInputModifiers.None);
+                PressKey(window, Key.Enter);
 
                 Assert.Equal("x", control.Text);
                 Assert.Equal(5m, control.Value);

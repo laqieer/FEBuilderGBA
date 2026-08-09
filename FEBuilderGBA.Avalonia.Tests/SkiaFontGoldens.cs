@@ -18,8 +18,8 @@
 //
 // The baseline golden bytes are the Windows/Linux (x64) SkiaSharp render of
 // Tuffy 'A' at 12pt, loaded via FontSpec.FontFileData with Hinting=None (Skia
-// geometric rasterizer, no OS hinting) under native libSkiaSharp 2.88 (aligned
-// to Avalonia 11.2.3). Identical on win + ubuntu (x64); arm64 (macOS) drifts a
+// geometric rasterizer, no OS hinting) under native libSkiaSharp 3.119 (aligned
+// to Avalonia 11.3.18). Identical on win + ubuntu (x64); arm64 (macOS) drifts a
 // few px via AA-threshold rounding, absorbed by the tolerances below.
 using System;
 

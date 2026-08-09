@@ -79,7 +79,7 @@ namespace FEBuilderGBA.Avalonia.Services
 
         /// <summary>
         /// Build the CSV text anchoring the UID column to <paramref name="startingUid"/>
-        /// instead of 0. Used by <see cref="ExportSelectedAsync"/> so an exported
+        /// instead of 0. Used by <see cref="ExportSelectedAsync(Window,ROM,uint,uint)"/> so an exported
         /// single row carries the SELECTED class's UID (matches WF
         /// <c>CsvManager.ExportSingle(InputFormRef, index)</c>).
         /// </summary>
@@ -101,7 +101,7 @@ namespace FEBuilderGBA.Avalonia.Services
         /// ambient-undo write methods - caller is expected to wrap in
         /// <c>UndoService.Begin/Commit</c>.
         ///
-        /// UID routing matches <see cref="ClassCsvManager.ApplyImportCsv"/>:
+        /// UID routing matches <see cref="ClassCsvManager.ApplyImportCsv(ROM,string,IReadOnlyList{uint})"/>:
         /// embedded UIDs route multi-row imports to the correct class even if
         /// the CSV is reordered; unparseable UIDs throw <see cref="FormatException"/>
         /// (no silent positional fallback when the user opted into UID routing).
@@ -416,7 +416,7 @@ namespace FEBuilderGBA.Avalonia.Services
             {
                 var clipboard = TopLevel.GetTopLevel(owner)?.Clipboard;
                 if (clipboard == null) return null;
-                return await clipboard.GetTextAsync();
+                return await ClipboardTextHelper.TryGetTextAsync(clipboard);
             }
             var sp = TopLevel.GetTopLevel(owner)?.StorageProvider;
             if (sp == null) return null;

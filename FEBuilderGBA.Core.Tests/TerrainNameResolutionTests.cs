@@ -21,8 +21,8 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ROM = _savedRom;
-            CoreState.SystemTextEncoder = _savedEncoder;
+            CoreState.ROM = _savedRom!;
+            CoreState.SystemTextEncoder = _savedEncoder!;
             PatchDetection.ClearAllCaches();
         }
 
@@ -149,7 +149,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void LoadTerrainNames_NullRom_DoesNotThrow()
         {
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             var vm = new MoveCostEditorViewModel();
             // Should not throw when ROM is null
             vm.LoadTerrainNames();
@@ -217,7 +217,7 @@ namespace FEBuilderGBA.Core.Tests
         public void FETextDecode_Direct_ReturnsQuestionMarks_WhenRomNull()
         {
             // FETextDecode.Direct should handle gracefully when ROM is null
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder();
             string result = FETextDecode.Direct(0);
             // Returns "???" when ROM is null (exception path)

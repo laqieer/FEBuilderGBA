@@ -43,7 +43,7 @@ namespace FEBuilderGBA.Core.Tests
             _savedRom = CoreState.ROM;
         }
 
-        public void Dispose() => CoreState.ROM = _savedRom;
+        public void Dispose() => CoreState.ROM = _savedRom!;
 
         // The FE6/FE7/FE8 variants we attempt; absent ones are skipped + named.
         static readonly string[] CandidateRoms =
@@ -52,7 +52,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void MapSettingBase_AllReferencesAreRawOrLdr_OnAvailableRealRoms()
         {
-            string romsDir = FindRomsDir();
+            string? romsDir = FindRomsDir();
             if (romsDir == null)
             {
                 _out.WriteLine("SKIP: no roms/ directory found (gitignored / not present in this checkout).");
@@ -148,9 +148,9 @@ namespace FEBuilderGBA.Core.Tests
         /// contains a <c>roms/</c> folder — keeps going PAST a worktree's own
         /// <c>.sln</c> (whose sibling <c>roms/</c> is gitignored / absent) up to
         /// the main repo root which has the real ROMs.</summary>
-        static string FindRomsDir()
+        static string? FindRomsDir()
         {
-            string dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            string? dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             for (int i = 0; i < 12 && dir != null; i++)
             {
                 string romsDir = Path.Combine(dir, "roms");

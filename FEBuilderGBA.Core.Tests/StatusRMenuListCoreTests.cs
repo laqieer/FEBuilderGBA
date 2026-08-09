@@ -92,7 +92,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void TableCount_NullRom_IsZero()
         {
-            Assert.Equal(0, StatusRMenuListCore.TableCount(null));
+            Assert.Equal(0, StatusRMenuListCore.TableCount(null!));
         }
 
         [Fact]
@@ -255,7 +255,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void BuildTableList_NullRom_ReturnsEmpty()
         {
-            Assert.Empty(StatusRMenuListCore.BuildTableList(null, 0));
+            Assert.Empty(StatusRMenuListCore.BuildTableList(null!, 0));
         }
 
         // -----------------------------------------------------------------

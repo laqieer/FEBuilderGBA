@@ -2,8 +2,14 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using FEBuilderGBA;
+using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
+using FEBuilderGBA.Avalonia.Views;
+using global::Avalonia.Controls;
+using global::Avalonia.Headless.XUnit;
 using Xunit;
 
 namespace FEBuilderGBA.Avalonia.Tests
@@ -24,7 +30,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             _savedRom = CoreState.ROM;
             CoreState.ROM = null;
-            _root = Path.Combine(Path.GetTempPath(), "fe_ws_vm_" + Guid.NewGuid().ToString("N"));
+            _root = Path.Combine(AppContext.BaseDirectory, "tool-work-support-tests", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_root);
         }
 
@@ -184,8 +190,8 @@ namespace FEBuilderGBA.Avalonia.Tests
                 applyOne: (orig, ups) =>
                 {
                     byte[] patch = File.ReadAllBytes(ups);
-                    byte[] outb = UPSUtilCore.ApplyUPS(orig, patch, out string msg);
-                    return (outb, outb == null ? msg : "", outb != null ? msg : "");
+                    byte[]? outb = UPSUtilCore.ApplyUPS(orig, patch, out string? msg);
+                    return (outb, outb == null ? msg ?? "" : "", outb != null ? msg ?? "" : "");
                 });
 
             Assert.Equal(WorkSupportUpdateDownloadCore.ApplyStatus.Ok, r.Status);
@@ -199,6 +205,69 @@ namespace FEBuilderGBA.Avalonia.Tests
             File.WriteAllBytes(rom, new byte[16]);
             string s = ToolWorkSupportViewModel.GetUpsDateTimeString(rom);
             Assert.Contains("(ROM)", s);
+        }
+
+        [AvaloniaFact]
+        public async Task OpenInfoUnsupportedLauncherWritesAutoFeedbackStatus()
+        {
+            string rom = SeedRomWithUpdateInfo(
+                "NAME=My Hack\nCHECK_URL=http://example.com/v\nCHECK_REGEX=@DIRECT_URL\n");
+            CoreState.ROM = StubRom(rom);
+
+            using var launcherOverride = ExternalLauncher.OverrideCurrentForTests(
+                new UnsupportedLauncher("External process launching is not available on this device."));
+            var view = new ToolWorkSupportView();
+
+            await view.OpenInfoForTestsAsync();
+
+            Assert.Contains("not available", view.AutoFeedbackStatusForTests, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [AvaloniaFact]
+        public async Task CommunityLaunchFailureWritesAutoFeedbackStatus()
+        {
+            string rom = SeedRomWithUpdateInfo(
+                "NAME=My Hack\nCOMMUNITY_URL=https://example.invalid/community\nCHECK_URL=http://example.com/v\nCHECK_REGEX=@DIRECT_URL\n");
+            CoreState.ROM = StubRom(rom);
+
+            using var launcherOverride = ExternalLauncher.OverrideCurrentForTests(
+                new UnsupportedLauncher("Couldn't open link."));
+            var view = new ToolWorkSupportView();
+
+            await view.OpenCommunityForTestsAsync();
+
+            Assert.Contains("Couldn't open link", view.AutoFeedbackStatusForTests, StringComparison.OrdinalIgnoreCase);
+        }
+
+        sealed class UnsupportedLauncher : IExternalLauncher
+        {
+            readonly string _message;
+
+            public UnsupportedLauncher(string message) => _message = message;
+
+            public Task<ExternalLaunchResult> OpenUriAsync(
+                TopLevel? topLevel,
+                Uri uri,
+                CancellationToken cancellationToken = default)
+                => Task.FromResult(ExternalLaunchResult.Unsupported(_message));
+
+            public Task<ExternalLaunchResult> OpenPathAsync(
+                string path,
+                string? arguments = null,
+                string? workingDirectory = null,
+                bool useShellExecute = true,
+                CancellationToken cancellationToken = default)
+                => Task.FromResult(ExternalLaunchResult.Unsupported(_message));
+
+            public Task<ExternalLaunchResult> RevealPathAsync(
+                string path,
+                CancellationToken cancellationToken = default)
+                => Task.FromResult(ExternalLaunchResult.Unsupported(_message));
+
+            public Task<ExternalProcessResult> RunCapturedProcessAsync(
+                ExternalProcessRequest request,
+                CancellationToken cancellationToken = default)
+                => Task.FromResult(ExternalProcessResult.Unsupported(_message));
         }
     }
 }

@@ -285,7 +285,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 {
                     try
                     {
-                        string decoded = null;
+                        string? decoded = null;
                         if (rom.RomInfo.is_multibyte)
                         {
                             // JP ROMs: 4-byte entries, each a pointer to a raw string

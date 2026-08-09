@@ -272,7 +272,7 @@ namespace FEBuilderGBA
             ROM rom,
             uint magicBaseAddr,
             List<MagicFrameCommand> cmds,
-            Func<string, (byte[] indexedPixels, int w, int h, byte[] gbaPalette)?> imageProvider)
+            Func<string, (byte[] indexedPixels, int w, int h, byte[]? gbaPalette)?> imageProvider)
         {
             if (rom == null)   return "ROM is null";
             if (cmds == null)  return "Command list is null";
@@ -304,7 +304,7 @@ namespace FEBuilderGBA
             // First pass: collect unique filenames so we can fail fast before any writes.
 
             // Image cache key → (indexedPixels, w, h, gbaPalette) — deduplicated by filename.
-            var imageCache = new Dictionary<string, (byte[] idx, int w, int h, byte[] pal)>(StringComparer.Ordinal);
+            var imageCache = new Dictionary<string, (byte[] idx, int w, int h, byte[]? pal)>(StringComparer.Ordinal);
 
             string validateErr = ValidateScript(cmds, imageProvider, imageCache);
             if (!string.IsNullOrEmpty(validateErr))
@@ -593,8 +593,8 @@ namespace FEBuilderGBA
         /// </summary>
         static string ValidateScript(
             List<MagicFrameCommand> cmds,
-            Func<string, (byte[] indexedPixels, int w, int h, byte[] gbaPalette)?> imageProvider,
-            Dictionary<string, (byte[] idx, int w, int h, byte[] pal)> imageCache)
+            Func<string, (byte[] indexedPixels, int w, int h, byte[]? gbaPalette)?> imageProvider,
+            Dictionary<string, (byte[] idx, int w, int h, byte[]? pal)> imageCache)
         {
             bool hasFrame = false;
             int cmdIdx = 0;
@@ -689,7 +689,7 @@ namespace FEBuilderGBA
         /// </summary>
         static string AssembleAllImages(
             List<MagicFrameCommand> cmds,
-            Dictionary<string, (byte[] idx, int w, int h, byte[] pal)> imageCache,
+            Dictionary<string, (byte[] idx, int w, int h, byte[]? pal)> imageCache,
             Dictionary<string, OAMAssembleResult2> objAssembled,
             Dictionary<string, (byte[] lz77Tiles, byte[] palette)> bgAssembled)
         {

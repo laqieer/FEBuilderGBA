@@ -104,7 +104,7 @@ namespace FEBuilderGBA.Core.Tests
         static EventAssemblerUninstallCore.BinMapping ByKey(
             List<EventAssemblerUninstallCore.BinMapping> map, string key)
         {
-            return map.FirstOrDefault(m => m.key == key);
+            return TestRequire.NotNull(map.FirstOrDefault(m => m.key == key), key);
         }
 
         // ====================================================================

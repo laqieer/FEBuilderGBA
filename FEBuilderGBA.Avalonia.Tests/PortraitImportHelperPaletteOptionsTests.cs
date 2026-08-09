@@ -29,6 +29,13 @@ namespace FEBuilderGBA.Avalonia.Tests
             _output = output;
         }
 
+        ROM RequireRom()
+        {
+            ROM? rom = _fixture.ROM;
+            Assert.NotNull(rom);
+            return rom;
+        }
+
         static IDisposable EnsureImageService()
         {
             var prev = CoreState.ImageService;
@@ -38,9 +45,9 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         sealed class RestoreImageService : IDisposable
         {
-            readonly IImageService _prev;
-            public RestoreImageService(IImageService prev) { _prev = prev; }
-            public void Dispose() { CoreState.ImageService = _prev; }
+            readonly IImageService? _prev;
+            public RestoreImageService(IImageService? prev) { _prev = prev; }
+            public void Dispose() { CoreState.ImageService = _prev!; }
         }
 
         static byte[] BuildSimplePalette(int colors)
@@ -90,7 +97,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
 
             using var _ = EnsureImageService();
-            var rom = _fixture.ROM;
+            var rom = RequireRom();
 
             // Pick entry 7 (avoid commonly tested 0-5).
             uint baseAddr = rom.p32(rom.RomInfo.portrait_pointer);
@@ -145,7 +152,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
 
             using var _ = EnsureImageService();
-            var rom = _fixture.ROM;
+            var rom = RequireRom();
 
             uint baseAddr = rom.p32(rom.RomInfo.portrait_pointer);
             uint entryAddr = baseAddr + (uint)(8 * rom.RomInfo.portrait_datasize);
@@ -200,7 +207,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
 
             using var _ = EnsureImageService();
-            var rom = _fixture.ROM;
+            var rom = RequireRom();
 
             uint baseAddr = rom.p32(rom.RomInfo.portrait_pointer);
             uint entryAddr = baseAddr + (uint)(9 * rom.RomInfo.portrait_datasize);
@@ -231,7 +238,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
 
             using var _ = EnsureImageService();
-            var rom = _fixture.ROM;
+            var rom = RequireRom();
 
             uint baseAddr = rom.p32(rom.RomInfo.portrait_pointer);
             uint entryAddr = baseAddr + (uint)(10 * rom.RomInfo.portrait_datasize);
@@ -262,7 +269,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
 
             using var _ = EnsureImageService();
-            var rom = _fixture.ROM;
+            var rom = RequireRom();
 
             uint baseAddr = rom.p32(rom.RomInfo.portrait_pointer);
             uint entryAddr = baseAddr + (uint)(11 * rom.RomInfo.portrait_datasize);
@@ -288,7 +295,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 return;
             }
             using var _ = EnsureImageService();
-            var rom = _fixture.ROM;
+            var rom = RequireRom();
             uint baseAddr = rom.p32(rom.RomInfo.portrait_pointer);
             uint entryAddr = baseAddr + (uint)(12 * rom.RomInfo.portrait_datasize);
             var loadResult = MakeSyntheticLoadResult(16, 16);
@@ -313,7 +320,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
 
             using var _ = EnsureImageService();
-            var rom = _fixture.ROM;
+            var rom = RequireRom();
 
             uint baseAddr = rom.p32(rom.RomInfo.portrait_pointer);
             uint entryAddr = baseAddr + (uint)(13 * rom.RomInfo.portrait_datasize);
@@ -349,7 +356,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
 
             using var _ = EnsureImageService();
-            var rom = _fixture.ROM;
+            var rom = RequireRom();
 
             uint baseAddr = rom.p32(rom.RomInfo.portrait_pointer);
             uint entryAddr = baseAddr + (uint)(14 * rom.RomInfo.portrait_datasize);
@@ -382,7 +389,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
 
             using var _ = EnsureImageService();
-            var rom = _fixture.ROM;
+            var rom = RequireRom();
 
             // Pick a region of the ROM that is definitely not portrait data —
             // entry 0xFF * datasize starting from portrait base is well past

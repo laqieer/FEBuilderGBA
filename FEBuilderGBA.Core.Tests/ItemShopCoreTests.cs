@@ -65,10 +65,10 @@ namespace FEBuilderGBA.Core.Tests
             // Populate one ROM with a hensei shop; leave CoreState.ROM null.
             // MakeShopList(populated) must return the populated ROM's shops, not
             // silently fall back through delegated helpers to CoreState.ROM.
-            var origRom = CoreState.ROM;
+            ROM? origRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var rom = MakeFE8UWithHenseiShop();
 
                 var shops = ItemShopCore.MakeShopList(rom);
@@ -78,7 +78,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = origRom;
+                CoreState.ROM = origRom!;
             }
         }
 
@@ -98,7 +98,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void MakeShopList_WithNoRom_ReturnsEmpty()
         {
-            var shops = ItemShopCore.MakeShopList(null);
+            var shops = ItemShopCore.MakeShopList(null!);
             Assert.NotNull(shops);
             Assert.Empty(shops);
         }

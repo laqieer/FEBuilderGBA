@@ -20,7 +20,7 @@ namespace FEBuilderGBA.Core.Tests
     {
         // ---------------------------------------------------------------- fixtures
 
-        static ROM MakeFe8uRom(byte[] data = null)
+        static ROM MakeFe8uRom(byte[]? data = null)
         {
             data ??= new byte[0x1000000];
             var rom = new ROM();
@@ -105,7 +105,7 @@ namespace FEBuilderGBA.Core.Tests
             var (built, edited) = MakePair(0x1000000, off, 4);
             var rom = MakeFe8uRom(built);
 
-            var report = DecompDiffMigrationCore.Analyze(rom, edited, null, null);
+            var report = DecompDiffMigrationCore.Analyze(rom, edited, null!, null!);
             Assert.Single(report.Ranges);
             Assert.Equal(MigrationCategory.Text, report.Ranges[0].Category);
             // No symbol/covering → Medium (range inferred), never High.
@@ -272,7 +272,7 @@ namespace FEBuilderGBA.Core.Tests
             var (built, edited) = MakePair(0x1000000, off, 4);
             var rom = MakeFe8uRom(built);
 
-            var report = DecompDiffMigrationCore.Analyze(rom, edited, null, null);
+            var report = DecompDiffMigrationCore.Analyze(rom, edited, null!, null!);
             Assert.Single(report.Ranges);
             var r = report.Ranges[0];
             Assert.Equal(MigrationCategory.Unknown, r.Category);
@@ -290,7 +290,7 @@ namespace FEBuilderGBA.Core.Tests
             var (built, edited) = MakePair(0x1000000, off, 4);
             var rom = MakeFe8uRom(built);
 
-            var report = DecompDiffMigrationCore.Analyze(rom, edited, null, null);
+            var report = DecompDiffMigrationCore.Analyze(rom, edited, null!, null!);
             Assert.Single(report.Ranges);
             Assert.NotEqual(MigrationCategory.Text, report.Ranges[0].Category);
         }
@@ -306,7 +306,7 @@ namespace FEBuilderGBA.Core.Tests
             var (built, edited) = MakePair(0x1000000, off, 4);
             var rom = MakeFe8uRom(built);
 
-            var report = DecompDiffMigrationCore.Analyze(rom, edited, null, null);
+            var report = DecompDiffMigrationCore.Analyze(rom, edited, null!, null!);
             Assert.Single(report.Ranges);
             Assert.NotEqual(MigrationCategory.StructTable, report.Ranges[0].Category);
         }
@@ -349,7 +349,7 @@ namespace FEBuilderGBA.Core.Tests
             var rom = MakeFe8uRom(new byte[0x1000000]);
             // Compare the built ROM bytes against an identical copy → no diffs.
             byte[] edited = (byte[])rom.Data.Clone();
-            var report = DecompDiffMigrationCore.Analyze(rom, edited, null, null);
+            var report = DecompDiffMigrationCore.Analyze(rom, edited, null!, null!);
             Assert.Equal(0, report.RangeCount);
             Assert.False(report.BuiltMissing);
         }
@@ -368,7 +368,7 @@ namespace FEBuilderGBA.Core.Tests
 
             MigrationRange result = DecompDiffMigrationCore.ClassifyRangeSafe(
                 rom, rom.Data, offset: 0x1234, spanLength: 8, changedBytes: 8,
-                map: null, resolver: null, overrideClassifier: faulty);
+                map: null!, resolver: null!, overrideClassifier: faulty);
 
             Assert.Equal(0x1234u, result.Offset);
             Assert.Equal(8u, result.SpanLength);
@@ -388,7 +388,7 @@ namespace FEBuilderGBA.Core.Tests
 
             MigrationRange result = DecompDiffMigrationCore.ClassifyRangeSafe(
                 rom, rom.Data, offset: 0x5678, spanLength: 3, changedBytes: 3,
-                map: null, resolver: null, overrideClassifier: returnsNull);
+                map: null!, resolver: null!, overrideClassifier: returnsNull);
 
             Assert.Equal(0x5678u, result.Offset);
             Assert.Equal(3u, result.SpanLength);
@@ -407,11 +407,11 @@ namespace FEBuilderGBA.Core.Tests
             var (built, edited) = MakePair(0x1000000, off, 4);
             var rom = MakeFe8uRom(built);
 
-            var report = DecompDiffMigrationCore.Analyze(rom, edited, null, null);
+            var report = DecompDiffMigrationCore.Analyze(rom, edited, null!, null!);
             Assert.Single(report.Ranges);
 
             MigrationRange direct = DecompDiffMigrationCore.ClassifyRangeSafe(
-                rom, built, off, spanLength: 4, changedBytes: 4, map: null, resolver: null);
+                rom, built, off, spanLength: 4, changedBytes: 4, map: null!, resolver: null!);
 
             Assert.Equal(report.Ranges[0].Category, direct.Category);
             Assert.Equal(report.Ranges[0].Confidence, direct.Confidence);
@@ -423,14 +423,14 @@ namespace FEBuilderGBA.Core.Tests
         public void Analyze_NullEdited_NoThrow_EmptyReport()
         {
             var rom = MakeFe8uRom(new byte[0x1000000]);
-            var report = DecompDiffMigrationCore.Analyze(rom, null, null, null);
+            var report = DecompDiffMigrationCore.Analyze(rom, null!, null!, null!);
             Assert.Equal(0, report.RangeCount);
         }
 
         [Fact]
         public void Analyze_NullBuiltRom_FlagsBuiltMissing_NoThrow()
         {
-            var report = DecompDiffMigrationCore.Analyze(null, new byte[16], null, null);
+            var report = DecompDiffMigrationCore.Analyze(null!, new byte[16], null!, null!);
             Assert.True(report.BuiltMissing);
             Assert.Equal(0, report.RangeCount);
         }
@@ -441,7 +441,7 @@ namespace FEBuilderGBA.Core.Tests
             uint off = 0x800000;
             var (built, edited) = MakePair(0x1000000, off, 4);
             var rom = MakeFe8uRom(built);
-            var report = DecompDiffMigrationCore.Analyze(rom, edited, null, null);
+            var report = DecompDiffMigrationCore.Analyze(rom, edited, null!, null!);
             Assert.Single(report.Ranges);
             Assert.Equal("", report.Ranges[0].Symbol);   // no symbol resolved
         }
@@ -473,7 +473,7 @@ namespace FEBuilderGBA.Core.Tests
             uint off = 0xE8500;
             var (built, edited) = MakePair(0x1000000, off, 4);
             var rom = MakeFe8uRom(built);
-            var report = DecompDiffMigrationCore.Analyze(rom, edited, null, null);
+            var report = DecompDiffMigrationCore.Analyze(rom, edited, null!, null!);
 
             string tsv = DecompDiffMigrationCore.FormatTSV(report);
             Assert.StartsWith("StartAddr\tSpanLength\tChangedBytes", tsv);
@@ -482,8 +482,8 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains("changed", summary, StringComparison.OrdinalIgnoreCase);
 
             // Null-safety.
-            Assert.NotNull(DecompDiffMigrationCore.FormatTSV(null));
-            Assert.NotNull(DecompDiffMigrationCore.FormatSummary(null));
+            Assert.NotNull(DecompDiffMigrationCore.FormatTSV(null!));
+            Assert.NotNull(DecompDiffMigrationCore.FormatSummary(null!));
         }
 
         [Fact]
@@ -492,7 +492,7 @@ namespace FEBuilderGBA.Core.Tests
             // The Ranges list is publicly mutable; a null element must not crash
             // either formatter (Copilot PR #1139 review).
             var report = new MigrationReport();
-            report.Ranges.Add(null);
+            report.Ranges.Add(null!);
             report.Ranges.Add(new MigrationRange { Offset = 0x10, SpanLength = 2, ChangedBytes = 2, Symbol = "Sym" });
 
             string tsv = DecompDiffMigrationCore.FormatTSV(report);

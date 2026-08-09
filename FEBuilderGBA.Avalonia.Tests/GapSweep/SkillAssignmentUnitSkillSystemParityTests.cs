@@ -417,7 +417,7 @@ public class SkillAssignmentUnitSkillSystemParityTests
             var vm = new SkillAssignmentUnitSkillSystemViewModel();
             vm.LoadList();
             vm.LoadEntry(PlantedUnitBase + unitA);
-            Assert.Equal(1, vm.LevelUpEntries.Count);
+            Assert.Single(vm.LevelUpEntries);
 
             uint slotA = PlantedLevelUpBase + unitA * 4;
             uint slotB = PlantedLevelUpBase + unitB * 4;
@@ -540,7 +540,7 @@ public class SkillAssignmentUnitSkillSystemParityTests
             Assert.NotEqual(0u, result.NewBaseAddress);
             // Pointer now non-null and the list has exactly 1 row.
             Assert.NotEqual(0u, rom.u32(PlantedLevelUpBase + unitId * 4));
-            Assert.Equal(1, vm.LevelUpEntries.Count);
+            Assert.Single(vm.LevelUpEntries);
         }
         finally { CoreState.ROM = prevRom; CoreState.Undo = prevUndo; }
     }
@@ -844,7 +844,7 @@ public class SkillAssignmentUnitSkillSystemParityTests
 
     static string FindRepoRoot()
     {
-        string dir = AppContext.BaseDirectory;
+        string? dir = AppContext.BaseDirectory;
         while (dir != null && !File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
         {
             dir = Path.GetDirectoryName(dir);

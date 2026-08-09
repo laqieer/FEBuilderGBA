@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.InteropServices;
 
@@ -23,7 +24,8 @@ namespace FEBuilderGBA
         /// Normalize path separators for the current platform.
         /// On Windows: no change. On Unix: convert backslashes to forward slashes.
         /// </summary>
-        public static string Normalize(string path)
+        [return: NotNullIfNotNull(nameof(path))]
+        public static string? Normalize(string? path)
         {
             if (string.IsNullOrEmpty(path))
                 return path;

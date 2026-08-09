@@ -123,9 +123,9 @@ public class ImageTSAAnimeFrameEnumTests
             var rom = MakeRom();
             CoreState.ROM = rom;
 
-            Assert.Empty(ImageTSAAnimeFrameEnumCore.EnumerateFrames(rom, null));
+            Assert.Empty(ImageTSAAnimeFrameEnumCore.EnumerateFrames(rom, null!));
             Assert.Empty(ImageTSAAnimeFrameEnumCore.EnumerateFrames(rom, new Dictionary<uint, string[]>()));
-            Assert.Empty(ImageTSAAnimeFrameEnumCore.EnumerateFrames(null, OneCategory("014", "x")));
+            Assert.Empty(ImageTSAAnimeFrameEnumCore.EnumerateFrames(null!, OneCategory("014", "x")));
         }
         finally { CoreState.ROM = prev; }
     }

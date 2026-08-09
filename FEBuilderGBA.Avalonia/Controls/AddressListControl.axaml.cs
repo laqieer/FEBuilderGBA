@@ -58,9 +58,6 @@ namespace FEBuilderGBA.Avalonia.Controls
         /// </summary>
         public event Action<AddrResult?>? SelectedItemChanged;
 
-        /// <summary>Fired when user requests a hex editor for the selected address.</summary>
-        public event Action<uint>? HexEditorRequested;
-
         /// <summary>Fired when user confirms a selection (double-click or Enter in pick mode).</summary>
         public event Action<PickResult>? SelectionConfirmed;
 
@@ -891,7 +888,7 @@ namespace FEBuilderGBA.Avalonia.Controls
 
             var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
             if (clipboard == null) return;
-            string? text = await clipboard.GetTextAsync();
+            string? text = await ClipboardTextHelper.TryGetTextAsync(clipboard);
             if (text == null) return;
             PasteFromText(text);
         }

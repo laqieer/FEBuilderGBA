@@ -91,7 +91,7 @@ namespace FEBuilderGBA.Avalonia.Services
         /// <summary>
         /// Build the CSV text anchoring the UID column to
         /// <paramref name="startingUid"/> rather than 0. Used by
-        /// <see cref="ExportSelectedAsync"/> so an exported single row carries
+        /// <see cref="ExportSelectedAsync(Window,ROM,uint,uint)"/> so an exported single row carries
         /// the SELECTED class's UID (matches WF
         /// <c>CsvManager.ExportSingle(InputFormRef, index)</c> which passes
         /// the selected index, not 0). Without this overload, single-row
@@ -632,7 +632,7 @@ namespace FEBuilderGBA.Avalonia.Services
             {
                 var clipboard = TopLevel.GetTopLevel(owner)?.Clipboard;
                 if (clipboard == null) return null;
-                return await clipboard.GetTextAsync();
+                return await ClipboardTextHelper.TryGetTextAsync(clipboard);
             }
             var sp = TopLevel.GetTopLevel(owner)?.StorageProvider;
             if (sp == null) return null;

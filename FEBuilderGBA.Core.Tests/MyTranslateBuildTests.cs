@@ -99,7 +99,7 @@ namespace FEBuilderGBA.Core.Tests
                 File.WriteAllText(Path.Combine(sourceDir, "AsciiOnly.cs"),
                     "public class AsciiOnly { string F() { return \"plain ascii\"; } }\r\n");
 
-                var t = new MyTranslateBuild("en", false, null);
+                var t = new MyTranslateBuild("en", false, null!);
                 t.ScanCS(sourceDir);
 
                 string output = File.ReadAllText(langFile);

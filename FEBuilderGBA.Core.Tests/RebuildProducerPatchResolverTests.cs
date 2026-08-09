@@ -345,7 +345,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ResolvePatchAddress_NullRom_ReturnsNotFound_NoThrow()
         {
-            uint result = RebuildProducerCore.ResolvePatchAddress(null, "$GREP1 0xAA", 0, 0x100, "");
+            uint result = RebuildProducerCore.ResolvePatchAddress(null!, "$GREP1 0xAA", 0, 0x100, "");
             Assert.Equal(U.NOT_FOUND, result);
         }
 
@@ -411,8 +411,8 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void CalcAddrLength_NullPatchOrParam_Throws()
         {
-            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.CalcAddrLength(null));
-            var noParam = new PatchInstallCore.PatchSt { Name = "p", PatchFileName = "p.txt", Param = null };
+            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.CalcAddrLength(null!));
+            var noParam = new PatchInstallCore.PatchSt { Name = "p", PatchFileName = "p.txt", Param = null! };
             Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.CalcAddrLength(noParam));
         }
     }

@@ -42,7 +42,8 @@ namespace FEBuilderGBA.Core.Tests
             var rom = new ROM();
             bool ok = rom.LoadLow("synthetic-FE8.gba", data, "BE8E01");
             CoreState.ROM = rom;
-            return ok ? rom : null;
+            if (!ok) throw new InvalidOperationException("Synthetic ROM failed to load.");
+            return rom;
         }
 
         static Undo.UndoData NewUndo(ROM rom) => new Undo.UndoData
@@ -143,7 +144,7 @@ namespace FEBuilderGBA.Core.Tests
         public void Build_NullRom_ReturnsError()
         {
             var undo = new Undo.UndoData { list = new List<Undo.UndoPostion>() };
-            var result = CustomBuildCore.Build(null, "t.event", "r.gba", CustomBuildCore.BuildMethod.Auto, undo);
+            var result = CustomBuildCore.Build(null!, "t.event", "r.gba", CustomBuildCore.BuildMethod.Auto, undo);
             Assert.False(result.Success);
             Assert.Equal(R._("No ROM is loaded."), result.ErrorMessage);
         }
@@ -236,9 +237,10 @@ namespace FEBuilderGBA.Core.Tests
         [SkippableFact]
         public void Build_EATarget_RealColorzCore_LoadsBuiltRom_Undoable()
         {
-            string exe = FindBuiltColorzCore();
+            string? exe = FindBuiltColorzCore();
             Skip.If(exe == null,
                 "ColorzCore.exe not built — skipping the real EA-build round-trip (the deterministic resolve/validate/error tests still cover our logic).");
+                exe = TestRequire.NotNull(exe, "ColorzCore path");
 
             var rom = CreateFE8Rom();
             Assert.NotNull(rom);
@@ -284,9 +286,9 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
-        static string FindBuiltColorzCore()
+        static string? FindBuiltColorzCore()
         {
-            string dir = AppContext.BaseDirectory;
+            string? dir = AppContext.BaseDirectory;
             for (int i = 0; i < 12 && dir != null; i++)
             {
                 foreach (string config in new[] { "Release", "Debug" })
@@ -482,8 +484,8 @@ namespace FEBuilderGBA.Core.Tests
             {
                 CoreState.BaseDirectory = prevBase;
                 CoreState.Language = prevLang;
-                CoreState.ROM = null;
-                CoreState.Undo = null;
+                CoreState.ROM = null!;
+                CoreState.Undo = null!;
                 try { Directory.Delete(baseDir, true); } catch { }
             }
         }
@@ -537,8 +539,8 @@ namespace FEBuilderGBA.Core.Tests
             {
                 CoreState.BaseDirectory = prevBase;
                 CoreState.Language = prevLang;
-                CoreState.ROM = null;
-                CoreState.Undo = null;
+                CoreState.ROM = null!;
+                CoreState.Undo = null!;
                 try { Directory.Delete(baseDir, true); } catch { }
             }
         }
@@ -555,7 +557,7 @@ namespace FEBuilderGBA.Core.Tests
                 var rom = MakeCoreRom(new byte[0x200]);
                 var r = CustomBuildCore.MargeAndUpdate(
                     rom, "ignored.gba", "ignored-built.gba", "ignored.cmd",
-                    takeoverSkillAssignment: 1, undo: null);
+                    takeoverSkillAssignment: 1, undo: null!);
 
                 Assert.False(r.Success);
                 // The null-undo message must NOT be the rom==null "No ROM is loaded." string.
@@ -565,8 +567,8 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.BaseDirectory = prevBase;
-                CoreState.ROM = null;
-                CoreState.Undo = null;
+                CoreState.ROM = null!;
+                CoreState.Undo = null!;
                 try { Directory.Delete(baseDir, true); } catch { }
             }
         }
@@ -603,8 +605,8 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.BaseDirectory = prevBase;
-                CoreState.ROM = null;
-                CoreState.Undo = null;
+                CoreState.ROM = null!;
+                CoreState.Undo = null!;
                 try { Directory.Delete(baseDir, true); } catch { }
             }
         }
@@ -644,8 +646,8 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.BaseDirectory = prevBase;
-                CoreState.ROM = null;
-                CoreState.Undo = null;
+                CoreState.ROM = null!;
+                CoreState.Undo = null!;
                 try { Directory.Delete(baseDir, true); } catch { }
             }
         }

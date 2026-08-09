@@ -83,7 +83,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void BlockOverload_NullRom_ReturnsNull()
         {
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             CoreState.ImageService = new DecodingImageService();
             byte[] block = new byte[PaletteCore.PALETTE_BLOCK_SIZE];
             Assert.Null(PortraitRendererCore.DrawPortraitMap(U.toPointer(FaceOffset), block));
@@ -93,7 +93,7 @@ namespace FEBuilderGBA.Core.Tests
         public void BlockOverload_NullImageService_ReturnsNull()
         {
             CoreState.ROM = MakeRomWithFace(new byte[PaletteCore.PALETTE_BLOCK_SIZE]);
-            CoreState.ImageService = null;
+            CoreState.ImageService = null!;
             byte[] block = new byte[PaletteCore.PALETTE_BLOCK_SIZE];
             Assert.Null(PortraitRendererCore.DrawPortraitMap(U.toPointer(FaceOffset), block));
         }
@@ -103,7 +103,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             CoreState.ROM = MakeRomWithFace(new byte[PaletteCore.PALETTE_BLOCK_SIZE]);
             CoreState.ImageService = new DecodingImageService();
-            Assert.Null(PortraitRendererCore.DrawPortraitMap(U.toPointer(FaceOffset), (byte[])null));
+            Assert.Null(PortraitRendererCore.DrawPortraitMap(U.toPointer(FaceOffset), (byte[])null!));
         }
 
         [Fact]
@@ -241,8 +241,8 @@ namespace FEBuilderGBA.Core.Tests
         {
             public IImage CreateImage(int w, int h) => new MemImage(w, h);
             public IImage CreateIndexedImage(int w, int h, byte[] p, int c) => new MemImage(w, h);
-            public IImage LoadImage(string f) => null;
-            public IImage LoadImageFromBytes(byte[] d) => null;
+            public IImage LoadImage(string f) => throw new NotSupportedException(nameof(LoadImage));
+            public IImage LoadImageFromBytes(byte[] d) => throw new NotSupportedException(nameof(LoadImageFromBytes));
 
             public void GBAColorToRGBA(ushort gbaColor, out byte r, out byte g, out byte b)
             {
@@ -251,7 +251,7 @@ namespace FEBuilderGBA.Core.Tests
                 b = (byte)(((gbaColor >> 10) & 0x1F) << 3);
             }
 
-            public ushort RGBAToGBAColor(byte r, byte g, byte b) => 0;
+            public ushort RGBAToGBAColor(byte r, byte g, byte b) => throw new NotSupportedException(nameof(RGBAToGBAColor));
 
             // Real 4bpp tile decode: walk 8x8 tiles row-major, look each 4-bit
             // index up in the supplied 32-byte palette block. Index 0 -> alpha 0.
@@ -301,10 +301,10 @@ namespace FEBuilderGBA.Core.Tests
 
             public IImage Decode8bppTiles(byte[] t, int o, int w, int h, byte[] p) => new MemImage(w, h);
             public IImage Decode8bppLinear(byte[] d, int o, int w, int h, byte[] p) => new MemImage(w, h);
-            public byte[] Encode4bppTiles(IImage i) => null;
-            public byte[] Encode8bppTiles(IImage i) => null;
-            public byte[] GBAPaletteToRGBA(byte[] p, int c) => null;
-            public byte[] RGBAPaletteToGBA(byte[] p, int c) => null;
+            public byte[] Encode4bppTiles(IImage i) => throw new NotSupportedException(nameof(Encode4bppTiles));
+            public byte[] Encode8bppTiles(IImage i) => throw new NotSupportedException(nameof(Encode8bppTiles));
+            public byte[] GBAPaletteToRGBA(byte[] p, int c) => throw new NotSupportedException(nameof(GBAPaletteToRGBA));
+            public byte[] RGBAPaletteToGBA(byte[] p, int c) => throw new NotSupportedException(nameof(RGBAPaletteToGBA));
         }
 
         sealed class MemImage : IImage

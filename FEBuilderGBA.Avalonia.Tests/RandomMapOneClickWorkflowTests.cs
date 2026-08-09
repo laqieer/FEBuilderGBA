@@ -34,9 +34,9 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         public void Dispose()
         {
-            CoreState.ROM = _savedRom;
-            CoreState.Undo = _savedUndo;
-            CoreState.DecompProject = _savedDecompProject;
+            CoreStateTestState.RestoreRom(_savedRom);
+            CoreStateTestState.RestoreUndo(_savedUndo);
+            CoreStateTestState.RestoreDecompProject(_savedDecompProject);
         }
 
         [Fact]
@@ -509,10 +509,10 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             string repoRoot = RandomMapOneClickTestSupport.FindRepoRoot();
             L10nFinding seedFinding = Assert.Single(
-                L10nScanner.Scan(repoRoot, new[] { "ja", "zh" })
-                    .Where(f =>
-                        f.AxamlPath.EndsWith("FEBuilderGBA.Avalonia/Views/MapEditorView.axaml", StringComparison.Ordinal) &&
-                        f.Literal == "Seed:"));
+                L10nScanner.Scan(repoRoot, new[] { "ja", "zh" }),
+                f =>
+                    f.AxamlPath.EndsWith("FEBuilderGBA.Avalonia/Views/MapEditorView.axaml", StringComparison.Ordinal) &&
+                    f.Literal == "Seed:");
             Assert.Equal(L10nVerdict.Translated, seedFinding.Verdict);
 
             IReadOnlyList<L10nScanner.CodeLiteralFinding> codeFindings =

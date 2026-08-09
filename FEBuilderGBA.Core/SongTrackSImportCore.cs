@@ -171,7 +171,7 @@ namespace FEBuilderGBA.Core
             uint songTableSlotAddr,
             uint selectedInstrumentAddr,
             Func<string, string[]> readLines,
-            Func<byte[], uint> appendBinaryData,
+            Func<byte[], uint>? appendBinaryData,
             out string error)
         {
             error = null;

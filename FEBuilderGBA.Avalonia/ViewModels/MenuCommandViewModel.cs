@@ -42,7 +42,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// be written to — writing 36 bytes there would overwrite ROM code (#1404).
         /// Surfaced read-only in the view (a port of WinForms MenuCommandForm.Explain12).
         /// </summary>
-        public static bool IsUsabilityFunctionAddress(ROM rom, uint addr)
+        public static bool IsUsabilityFunctionAddress(ROM? rom, uint addr)
         {
             if (rom?.RomInfo == null) return false;
             uint always = rom.RomInfo.MenuCommand_UsabilityAlways;

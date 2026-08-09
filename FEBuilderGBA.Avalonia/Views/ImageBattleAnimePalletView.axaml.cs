@@ -1,4 +1,4 @@
-﻿// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-or-later
 // ImageBattleAnimePalletView — Avalonia parity rebuild for #399. Mirrors
 // `ImageBattleAnimePalletForm` (panel1: 16 R/G/B + swatches + write +
 // zoom + clipboard + import/export + undo/redo). Uses the
@@ -337,7 +337,10 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Zoom_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            _vm.ZoomIndex = ZoomCombo.SelectedIndex;
+            if (sender is ComboBox combo)
+                _vm.ZoomIndex = combo.SelectedIndex;
+            else if (ZoomCombo != null)
+                _vm.ZoomIndex = ZoomCombo.SelectedIndex;
             // The sample preview now renders (#822). It is hosted in a
             // ScrollViewer at native size; zoom-scaling the GbaImageControl
             // is not part of the Phase-1 parity render (WF's zoom combo only
@@ -459,7 +462,7 @@ namespace FEBuilderGBA.Avalonia.Views
         /// <summary>
         /// Load, quantize, apply, and write the palette from
         /// <paramref name="filePath"/>. Extracted so tests can inject a path
-        /// without a file dialog (injectable seam — calls <see cref="_vm.DoImport"/>
+        /// without a file dialog (injectable seam — calls <c>_vm.DoImport(gbaPalette)</c>
         /// which is the VM-level seam).
         /// </summary>
         internal void DoImportFromFile(string filePath)

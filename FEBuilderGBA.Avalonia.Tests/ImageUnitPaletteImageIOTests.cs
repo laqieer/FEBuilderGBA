@@ -89,7 +89,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 // independently of the headless render pipeline. SetRgbaData is
                 // the proven headless path (see GbaImageControlTests).
                 vm.ClassID = PREVIEW_CLASS_ID;
-                using (IImage rendered = vm.RenderClassSamplePreview())
+                using (IImage? rendered = vm.RenderClassSamplePreview())
                 {
                     if (rendered != null) preview.SetImage(rendered);
                 }

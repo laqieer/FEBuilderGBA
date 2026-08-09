@@ -92,7 +92,7 @@ namespace FEBuilderGBA
         /// <param name="isReserved">Optional: returns true (and may advance the ref addr) when an offset falls in a reserved/SkillSystems region during share-search. Default = never reserved.</param>
         /// <param name="progress">Optional progress reporter.</param>
         public static ApplyResult Apply(ROM vanilla, string manifestPath, uint extendsAddress,
-            Func<uint, bool> isReserved = null, IProgress<string> progress = null)
+            Func<uint, bool>? isReserved = null, IProgress<string>? progress = null)
         {
             if (vanilla == null || vanilla.Data == null)
             {

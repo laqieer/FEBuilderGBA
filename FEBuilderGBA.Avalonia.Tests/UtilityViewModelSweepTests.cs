@@ -151,8 +151,10 @@ namespace FEBuilderGBA.Avalonia.Tests
                 return;
             }
 
+            Assert.NotNull(vm);
+
             // All discovered types are ViewModelBase subclasses which implement INPC.
-            var npc = (INotifyPropertyChanged)vm;
+            var npc = Assert.IsAssignableFrom<INotifyPropertyChanged>(vm);
 
             // Find first settable string or uint property, excluding infrastructure
             var excludedNames = new HashSet<string>(StringComparer.Ordinal)
@@ -210,8 +212,10 @@ namespace FEBuilderGBA.Avalonia.Tests
                 return;
             }
 
+            Assert.NotNull(vm);
+
             // All discovered types are ViewModelBase subclasses — direct cast is safe.
-            var vmBase = (ViewModelBase)vm;
+            var vmBase = Assert.IsAssignableFrom<ViewModelBase>(vm);
 
             // Some constructors set properties that trigger dirty (e.g., DataExportViewModel).
             // Call MarkClean() to reset, then verify IsDirty is false.

@@ -86,7 +86,7 @@ public class MapTerrainLookupCoreTests
     [Fact]
     public void SearchExtendsBattleBG_NullRom_ReturnsNo()
     {
-        var result = PatchDetection.SearchExtendsBattleBG((ROM?)null);
+        var result = PatchDetection.SearchExtendsBattleBG((ROM?)null!);
         Assert.Equal(PatchDetection.ExtendsBattleBG_extends.NO, result);
     }
 

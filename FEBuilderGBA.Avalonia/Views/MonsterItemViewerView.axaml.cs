@@ -524,7 +524,7 @@ namespace FEBuilderGBA.Avalonia.Views
         ///   - value 0 -> deselect (the WF UI shows "no selection" when the
         ///     holding slot is empty).
         ///   - value N (N > 0) -> select 0-based index (N - 1) — the WF
-        ///     stored value is 1-based with `<= 0` meaning "empty slot",
+        ///     stored value is 1-based with `&lt;= 0` meaning "empty slot",
         ///     so subtract 1 to land on the matching row.
         /// </summary>
         void JumpToItemRow(uint value)

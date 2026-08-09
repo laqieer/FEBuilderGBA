@@ -24,9 +24,9 @@ namespace FEBuilderGBA.Core.Tests
         // ROM / repo-root discovery (mirrors the other Core real-ROM tests)
         // ----------------------------------------------------------------
 
-        static string FindRepoRoot()
+        static string? FindRepoRoot()
         {
-            string dir = AppContext.BaseDirectory;
+            string? dir = AppContext.BaseDirectory;
             for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
@@ -36,9 +36,9 @@ namespace FEBuilderGBA.Core.Tests
             return null;
         }
 
-        static string FindRom(string romName)
+        static string? FindRom(string romName)
         {
-            string root = FindRepoRoot();
+            string? root = FindRepoRoot();
             if (root == null) return null;
             string path = Path.Combine(root, "roms", romName);
             return File.Exists(path) ? path : null;
@@ -52,10 +52,10 @@ namespace FEBuilderGBA.Core.Tests
         /// </summary>
         static void WithRealRom(string romName, Action<ROM> action)
         {
-            string romPath = FindRom(romName);
+            string? romPath = FindRom(romName);
             if (romPath == null) return; // skip
 
-            string root = FindRepoRoot();
+            string? root = FindRepoRoot();
             var savedRom = CoreState.ROM;
             var savedEnc = CoreState.SystemTextEncoder;
             var savedBase = CoreState.BaseDirectory;
@@ -241,13 +241,13 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetSongName_NullRom_ReturnsEmpty()
         {
-            Assert.Equal("", SongNameResolverCore.GetSongName(null, 0x1B));
+            Assert.Equal("", SongNameResolverCore.GetSongName(null!, 0x1B));
         }
 
         [Fact]
         public void GetSoundEffectList_NullRom_ReturnsEmptyDictionary()
         {
-            var dic = SongNameResolverCore.GetSoundEffectList(null);
+            var dic = SongNameResolverCore.GetSoundEffectList(null!);
             Assert.NotNull(dic);
             Assert.Empty(dic);
         }
@@ -255,7 +255,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetSongNameWhereSongID_NullRom_ReturnsEmpty()
         {
-            Assert.Equal("", SongNameResolverCore.GetSongNameWhereSongID(null, 0x1B));
+            Assert.Equal("", SongNameResolverCore.GetSongNameWhereSongID(null!, 0x1B));
         }
 
         // ================================================================
@@ -274,15 +274,15 @@ namespace FEBuilderGBA.Core.Tests
         [InlineData("FE8U.gba")]
         public void GetSoundEffectList_LoadFailure_DoesNotPoisonCache_RetriesLater(string romName)
         {
-            string romPath = FindRom(romName);
+            string? romPath = FindRom(romName);
             if (romPath == null) return; // skip — no ROM
 
-            string root = FindRepoRoot();
+            string? root = FindRepoRoot();
             if (root == null) return; // skip — need the repo root for the real load
 
             var savedRom = CoreState.ROM;
             var savedEnc = CoreState.SystemTextEncoder;
-            var savedBase = CoreState.BaseDirectory;
+            string? savedBase = CoreState.BaseDirectory;
             try
             {
                 var rom = new ROM();
@@ -292,7 +292,7 @@ namespace FEBuilderGBA.Core.Tests
                 SongNameResolverCore.ClearCache();
 
                 // 1) Force the load to FAIL (null BaseDirectory → Path.Combine throws).
-                CoreState.BaseDirectory = null;
+                CoreState.BaseDirectory = null!;
                 var failed = SongNameResolverCore.GetSoundEffectList(rom);
                 Assert.Empty(failed); // failure returns an empty dictionary
 
@@ -316,7 +316,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 CoreState.ROM = savedRom;
                 CoreState.SystemTextEncoder = savedEnc;
-                CoreState.BaseDirectory = savedBase;
+                CoreState.BaseDirectory = savedBase!;
                 SongNameResolverCore.ClearCache();
                 NameResolver.ClearCache();
             }

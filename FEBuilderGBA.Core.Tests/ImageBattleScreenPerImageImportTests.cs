@@ -47,7 +47,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void TryLoadRawPalettePublic_NullRom_ReturnsFalse()
         {
-            bool ok = ImageBattleScreenCore.TryLoadRawPalettePublic(null, out byte[] pal);
+            bool ok = ImageBattleScreenCore.TryLoadRawPalettePublic(null!, out byte[] pal);
             Assert.False(ok);
             Assert.Null(pal);
         }
@@ -71,7 +71,7 @@ namespace FEBuilderGBA.Core.Tests
         public void WritePerImageStrip_NullRom_ReturnsFalse()
         {
             byte[] pixels = new byte[8 * 8]; // 8x8 = 1 tile
-            bool ok = ImageBattleScreenCore.WritePerImageStrip(null, 0, pixels, 8, 8);
+            bool ok = ImageBattleScreenCore.WritePerImageStrip(null!, 0, pixels, 8, 8);
             Assert.False(ok);
         }
 
@@ -79,7 +79,7 @@ namespace FEBuilderGBA.Core.Tests
         public void WritePerImageStrip_NullPixels_ReturnsFalse()
         {
             ROM rom = MakeRom();
-            bool ok = ImageBattleScreenCore.WritePerImageStrip(rom, 0, null, 8, 8);
+            bool ok = ImageBattleScreenCore.WritePerImageStrip(rom, 0, null!, 8, 8);
             Assert.False(ok);
         }
 
@@ -520,13 +520,13 @@ namespace FEBuilderGBA.Core.Tests
 
         sealed class ImageServiceScope : System.IDisposable
         {
-            readonly IImageService _prev;
+            readonly IImageService? _prev;
             public ImageServiceScope()
             {
                 _prev = CoreState.ImageService;
                 CoreState.ImageService = new StubImageService();
             }
-            public void Dispose() { CoreState.ImageService = _prev; }
+            public void Dispose() { TestRequire.RestoreImageService(_prev); }
         }
 
         static void AssertPixel(IImage img, int x, int y, int r, int g, int b, int a)
@@ -602,7 +602,7 @@ namespace FEBuilderGBA.Core.Tests
 
         static string FindRepoRoot()
         {
-            string dir = AppContext.BaseDirectory;
+            string? dir = AppContext.BaseDirectory;
             while (dir != null && !System.IO.File.Exists(System.IO.Path.Combine(dir, "FEBuilderGBA.sln")))
                 dir = System.IO.Path.GetDirectoryName(dir);
             if (dir == null)

@@ -35,7 +35,7 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ROM = _savedRom;
+            CoreState.ROM = _savedRom!;
         }
 
         const uint Fe8Floor = 0x01000000u;
@@ -183,7 +183,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ReuseFloor_NullRom_FailsClosed()
         {
-            Assert.False(ImageImportCore.TryGetPortraitReuseFloor(null, out uint floor));
+            Assert.False(ImageImportCore.TryGetPortraitReuseFloor(null!, out uint floor));
             Assert.Equal(0u, floor);
         }
 

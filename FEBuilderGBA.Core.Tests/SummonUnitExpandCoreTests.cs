@@ -84,7 +84,7 @@ namespace FEBuilderGBA.Core.Tests
             DataExpansionCore.ExpandResult result;
             using (ROM.BeginUndoScope(undo.NewUndoData("expand")))
             {
-                result = SummonUnitExpandCore.ExpandSummonUnitTable(rom, addCount, null, out string err);
+                result = SummonUnitExpandCore.ExpandSummonUnitTable(rom, addCount, null!, out string err);
                 Assert.True(result.Success, err);
             }
 
@@ -133,7 +133,7 @@ namespace FEBuilderGBA.Core.Tests
             DataExpansionCore.ExpandResult result;
             using (ROM.BeginUndoScope(undo.NewUndoData("expand-j")))
             {
-                result = SummonUnitExpandCore.ExpandSummonUnitTable(rom, addCount, null, out string err);
+                result = SummonUnitExpandCore.ExpandSummonUnitTable(rom, addCount, null!, out string err);
                 Assert.True(result.Success, err);
             }
 
@@ -171,7 +171,7 @@ namespace FEBuilderGBA.Core.Tests
             DataExpansionCore.ExpandResult result;
             using (ROM.BeginUndoScope(undo.NewUndoData("expand-reload")))
             {
-                result = SummonUnitExpandCore.ExpandSummonUnitTable(rom, addCount, null, out string err);
+                result = SummonUnitExpandCore.ExpandSummonUnitTable(rom, addCount, null!, out string err);
                 Assert.True(result.Success, err);
             }
 
@@ -196,7 +196,7 @@ namespace FEBuilderGBA.Core.Tests
             byte[] before = (byte[])rom.Data.Clone();
             int lenBefore = rom.Data.Length;
 
-            var result = SummonUnitExpandCore.ExpandSummonUnitTable(rom, 1, null, out string err);
+            var result = SummonUnitExpandCore.ExpandSummonUnitTable(rom, 1, null!, out string err);
             Assert.False(result.Success);
             Assert.False(string.IsNullOrEmpty(err));
             Assert.Equal(lenBefore, rom.Data.Length);
@@ -211,7 +211,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(0u, rom.RomInfo.summon_unit_pointer);
 
             byte[] before = (byte[])rom.Data.Clone();
-            var result = SummonUnitExpandCore.ExpandSummonUnitTable(rom, 1, null, out string err);
+            var result = SummonUnitExpandCore.ExpandSummonUnitTable(rom, 1, null!, out string err);
             Assert.False(result.Success);
             Assert.False(string.IsNullOrEmpty(err));
             Assert.Equal(before, rom.Data);
@@ -239,7 +239,7 @@ namespace FEBuilderGBA.Core.Tests
             DataExpansionCore.ExpandResult result;
             using (ROM.BeginUndoScope(undo.NewUndoData("expand-overcap")))
             {
-                result = SummonUnitExpandCore.ExpandSummonUnitTable(rom, 2, null, out string err);
+                result = SummonUnitExpandCore.ExpandSummonUnitTable(rom, 2, null!, out string err);
                 Assert.False(result.Success);
                 Assert.False(string.IsNullOrEmpty(err));
             }
@@ -260,7 +260,7 @@ namespace FEBuilderGBA.Core.Tests
             DataExpansionCore.ExpandResult result;
             using (ROM.BeginUndoScope(undo.NewUndoData("expand-tocap")))
             {
-                result = SummonUnitExpandCore.ExpandSummonUnitTable(rom, 4, null, out string err);
+                result = SummonUnitExpandCore.ExpandSummonUnitTable(rom, 4, null!, out string err);
                 Assert.True(result.Success, err);
             }
             Assert.Equal((uint)SummonUnitExpandCore.MaxRows, result.NewCount);
@@ -274,7 +274,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(0u, SummonUnitExpandCore.CountSummonUnits(rom));
 
             byte[] before = (byte[])rom.Data.Clone();
-            var result = SummonUnitExpandCore.ExpandSummonUnitTable(rom, 1, null, out string err);
+            var result = SummonUnitExpandCore.ExpandSummonUnitTable(rom, 1, null!, out string err);
             Assert.False(result.Success);
             Assert.False(string.IsNullOrEmpty(err));
             Assert.Equal(before, rom.Data);
@@ -286,7 +286,7 @@ namespace FEBuilderGBA.Core.Tests
             ROM rom = MakeFe8uRom();
             PlantSummonRows(rom, 3);
             byte[] before = (byte[])rom.Data.Clone();
-            var result = SummonUnitExpandCore.ExpandSummonUnitTable(rom, 0, null, out string err);
+            var result = SummonUnitExpandCore.ExpandSummonUnitTable(rom, 0, null!, out string err);
             Assert.False(result.Success);
             Assert.Equal(before, rom.Data);
         }
@@ -316,7 +316,7 @@ namespace FEBuilderGBA.Core.Tests
             DataExpansionCore.ExpandResult result;
             using (ROM.BeginUndoScope(undo.NewUndoData("expand-fault")))
             {
-                result = SummonUnitExpandCore.ExpandSummonUnitTable(rom, 2, null, out string err);
+                result = SummonUnitExpandCore.ExpandSummonUnitTable(rom, 2, null!, out string err);
                 Assert.False(result.Success);
                 Assert.False(string.IsNullOrEmpty(err));
             }
@@ -341,7 +341,7 @@ namespace FEBuilderGBA.Core.Tests
             var ud = undo.NewUndoData("expand-rollback");
             using (ROM.BeginUndoScope(ud))
             {
-                var result = SummonUnitExpandCore.ExpandSummonUnitTable(rom, 2, null, out string err);
+                var result = SummonUnitExpandCore.ExpandSummonUnitTable(rom, 2, null!, out string err);
                 Assert.True(result.Success, err);
                 Assert.NotEqual(SummonBase, rom.p32(pointerAddr));
             }

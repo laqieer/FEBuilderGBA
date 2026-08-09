@@ -1,4 +1,4 @@
-﻿// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Tests for MagicEffectImportCore (#881).
 //
 // Coverage:
@@ -45,8 +45,8 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ROM  = _prevRom;
-            CoreState.ImageService = _prevSvc;
+            CoreState.ROM  = _prevRom!;
+            CoreState.ImageService = _prevSvc!;
         }
 
         // ================================================================
@@ -203,7 +203,7 @@ namespace FEBuilderGBA.Core.Tests
         public void Import_NullRom_ReturnsError()
         {
             var cmds = new List<MagicFrameCommand>();
-            var err  = MagicEffectImportCore.ImportMagicScript(null, 0x1000u, cmds, _ => null);
+            var err  = MagicEffectImportCore.ImportMagicScript(null!, 0x1000u, cmds, _ => null);
             Assert.False(string.IsNullOrEmpty(err));
         }
 
@@ -212,7 +212,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var rom  = MakeMinimalRomWithFEGate();
             CoreState.ROM = rom;
-            var err  = MagicEffectImportCore.ImportMagicScript(rom, 0x300u, null, _ => null);
+            var err  = MagicEffectImportCore.ImportMagicScript(rom, 0x300u, null!, _ => null);
             Assert.False(string.IsNullOrEmpty(err));
         }
 
@@ -222,7 +222,7 @@ namespace FEBuilderGBA.Core.Tests
             var rom  = MakeMinimalRomWithFEGate();
             CoreState.ROM = rom;
             var cmds = new List<MagicFrameCommand>();
-            var err  = MagicEffectImportCore.ImportMagicScript(rom, 0x300u, cmds, null);
+            var err  = MagicEffectImportCore.ImportMagicScript(rom, 0x300u, cmds, null!);
             Assert.False(string.IsNullOrEmpty(err));
         }
 
@@ -280,7 +280,7 @@ namespace FEBuilderGBA.Core.Tests
             string err = MagicEffectImportCore.ImportMagicScript(
                 rom, 0x300u, cmds,
                 fn => fn.Contains("_o_")
-                    ? ((byte[] indexedPixels, int w, int h, byte[] gbaPalette)?)(MakeObjPixels(480, 160), 480, 160, null)
+                    ? ((byte[] indexedPixels, int w, int h, byte[]? gbaPalette)?)(MakeObjPixels(480, 160), 480, 160, null)
                     : (MakeBgPixels(256, 64), 256, 64, MakePalette16()));
 
             Assert.False(string.IsNullOrEmpty(err));
@@ -425,9 +425,9 @@ namespace FEBuilderGBA.Core.Tests
             var parsed = MagicEffectImportCore.ParseMagicScript(textLines);
 
             // Must find exactly one ObjImage, one BgImage, one Wait.
-            Assert.Single(parsed.Where(c => c.Kind == MagicImportCmdKind.ObjImage));
-            Assert.Single(parsed.Where(c => c.Kind == MagicImportCmdKind.BgImage));
-            Assert.Single(parsed.Where(c => c.Kind == MagicImportCmdKind.Wait));
+            Assert.Single(parsed, c => c.Kind == MagicImportCmdKind.ObjImage);
+            Assert.Single(parsed, c => c.Kind == MagicImportCmdKind.BgImage);
+            Assert.Single(parsed, c => c.Kind == MagicImportCmdKind.Wait);
 
             var wait = parsed.First(c => c.Kind == MagicImportCmdKind.Wait);
             Assert.Equal(4u, wait.WaitValue);

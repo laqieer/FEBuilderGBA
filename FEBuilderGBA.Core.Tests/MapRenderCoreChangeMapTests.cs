@@ -38,7 +38,7 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ImageService = _prevService;
+            TestRequire.RestoreImageService(_prevService);
             CoreState.ROM = _prevRom;
         }
 
@@ -155,14 +155,14 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RenderChangeMap_NullRom_ReturnsNull()
         {
-            IImage img = MapRenderCore.RenderChangeMap(null, 0x200, 0x400, 0x600, 0x800, 4, 3);
+            IImage img = MapRenderCore.RenderChangeMap(null!, 0x200, 0x400, 0x600, 0x800, 4, 3);
             Assert.Null(img);
         }
 
         [Fact]
         public void RenderChangeMap_MissingImageService_ReturnsNull()
         {
-            CoreState.ImageService = null;
+            CoreState.ImageService = null!;
             var rom = MakeMinimalRom();
             IImage img = MapRenderCore.RenderChangeMap(rom, 0x200, 0x400, 0x600, 0x800, 4, 3);
             Assert.Null(img);
@@ -259,7 +259,7 @@ namespace FEBuilderGBA.Core.Tests
 
             // changeDataOffset = ROM end - 1 → bounds check fails → null, no throw.
             uint nearEof = (uint)rom.Data.Length - 1;
-            IImage img = null;
+            IImage? img = null;
             var ex = Record.Exception(() =>
             {
                 img = MapRenderCore.RenderChangeMap(rom, nearEof, nearEof, nearEof, nearEof, 1, 1);
@@ -316,7 +316,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             Array.Copy(chgData, 0, rom.Data, 0x800, chgData.Length);
 
-            IImage img = null;
+            IImage? img = null;
             var ex = Record.Exception(() =>
             {
                 img = MapRenderCore.RenderChangeMap(rom, 0x200u, 0x400u, 0x600u, 0x800u, W, H);
@@ -337,7 +337,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RenderMapImage_NullRom_StillReturnsNull_AfterRefactor()
         {
-            IImage img = MapRenderCore.RenderMapImage(null, 0x200, 0x400, 0x600, 0x800);
+            IImage img = MapRenderCore.RenderMapImage(null!, 0x200, 0x400, 0x600, 0x800);
             Assert.Null(img);
         }
 
@@ -379,7 +379,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RealRom_FE8U_RenderChangeMap_NonNullForFirstChangeEntry()
         {
-            string romPath = FindRom("FE8U.gba");
+            string? romPath = FindRom("FE8U.gba");
             if (romPath == null) return; // skip
 
             var rom = new ROM();
@@ -389,7 +389,6 @@ namespace FEBuilderGBA.Core.Tests
             // Walk maps looking for the first one that has a change-data entry
             // with non-zero width/height and a resolvable overlay.
             var maps = MapSettingCore.MakeMapIDList(rom);
-            bool found = false;
             foreach (var m in maps)
             {
                 uint changeAddr = MapChangeCore.GetMapChangeAddrWhereMapID(rom, m.tag, out _);
@@ -424,14 +423,12 @@ namespace FEBuilderGBA.Core.Tests
                 {
                     Assert.Equal(w * 16, img.Width);
                     Assert.Equal(h * 16, img.Height);
-                    found = true;
                     break;
                 }
             }
             // If no renderable change was found in the ROM, the test still passes
             // (the loop exhausted gracefully — this is a real-ROM integration
             // test that reports findings, not a failure).
-            // Uncomment to assert found: Assert.True(found, "Expected at least one renderable change entry in FE8U");
         }
 
         // ====================================================================
@@ -513,10 +510,10 @@ namespace FEBuilderGBA.Core.Tests
             data[offset + 3] = (byte)((value >> 24) & 0xFF);
         }
 
-        static string FindRom(string romName)
+        static string? FindRom(string romName)
         {
             string thisAssembly = Assembly.GetExecutingAssembly().Location;
-            string dir = System.IO.Path.GetDirectoryName(thisAssembly);
+            string? dir = System.IO.Path.GetDirectoryName(thisAssembly);
             for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (System.IO.File.Exists(System.IO.Path.Combine(dir, "FEBuilderGBA.sln")))

@@ -1,10 +1,23 @@
 using Xunit;
 using System;
+using System.IO;
+using System.Reflection;
 
 namespace FEBuilderGBA.Tests
 {
     public class UpdateInfoTests
     {
+        private static void SetVersionCore(UpdateInfo updateInfo, string version)
+        {
+            PropertyInfo? versionCoreProperty = typeof(UpdateInfo).GetProperty(nameof(UpdateInfo.VERSION_CORE));
+            Assert.True(versionCoreProperty is not null, $"{nameof(UpdateInfo.VERSION_CORE)} property should exist.");
+            if (versionCoreProperty is null)
+                throw new InvalidOperationException($"{nameof(UpdateInfo.VERSION_CORE)} property should exist.");
+
+            Assert.True(typeof(string).IsAssignableFrom(versionCoreProperty.PropertyType), $"{nameof(UpdateInfo.VERSION_CORE)} should accept string values.");
+            versionCoreProperty.SetValue(updateInfo, version);
+        }
+
         [Fact]
         public void Constructor_InitializesVersionCore()
         {
@@ -37,6 +50,22 @@ namespace FEBuilderGBA.Tests
         }
 
         [Theory]
+        [InlineData(null, null, 0)]
+        [InlineData(null, "20260226.00", -1)]
+        [InlineData("20260226.00", null, 1)]
+        public void CompareVersions_NullInputs_TreatedAsZero(string? v1, string? v2, int expected)
+        {
+            int result = UpdateInfo.CompareVersions(v1, v2);
+
+            if (expected < 0)
+                Assert.True(result < 0, $"Expected {v1 ?? "<null>"} < {v2 ?? "<null>"}");
+            else if (expected > 0)
+                Assert.True(result > 0, $"Expected {v1 ?? "<null>"} > {v2 ?? "<null>"}");
+            else
+                Assert.Equal(0, result);
+        }
+
+        [Theory]
         [InlineData("20260226.00", true)]
         [InlineData("20250101.23", true)]
         [InlineData("00000000.00", true)]
@@ -47,7 +76,7 @@ namespace FEBuilderGBA.Tests
         [InlineData("abcd1234.00", false)]   // Invalid characters
         [InlineData("", false)]              // Empty
         [InlineData(null, false)]            // Null
-        public void IsValidVersion_ValidatesFormat(string version, bool expected)
+        public void IsValidVersion_ValidatesFormat(string? version, bool expected)
         {
             // Act
             bool result = UpdateInfo.IsValidVersion(version);
@@ -65,13 +94,32 @@ namespace FEBuilderGBA.Tests
         {
             // Arrange
             var updateInfo = new UpdateInfo();
-            typeof(UpdateInfo).GetProperty("VERSION_CORE").SetValue(updateInfo, localCore);
+            SetVersionCore(updateInfo, localCore);
 
             // Act
             var result = updateInfo.DetermineUpdateType(remoteCore);
 
             // Assert
             Assert.Equal(expected, result);
+        }
+
+        [Fact]
+        public void DetermineUpdateType_NullRemoteVersion_DoesNotThrowAndReturnsNone()
+        {
+            var updateInfo = new UpdateInfo();
+            SetVersionCore(updateInfo, "20260226.00");
+
+            Assert.Equal(UpdateInfo.PackageType.None, updateInfo.DetermineUpdateType(null));
+        }
+
+        [Fact]
+        public void UpdateInfo_WinFormsSourceCopy_MatchesCoreSource()
+        {
+            string root = FindRepoRoot();
+            string core = File.ReadAllText(Path.Combine(root, "FEBuilderGBA.Core", "UpdateInfo.cs"));
+            string winForms = File.ReadAllText(Path.Combine(root, "FEBuilderGBA", "UpdateInfo.cs"));
+
+            Assert.Equal(core, winForms);
         }
 
         [Fact]
@@ -108,7 +156,7 @@ namespace FEBuilderGBA.Tests
         {
             // Arrange
             var updateInfo = new UpdateInfo();
-            typeof(UpdateInfo).GetProperty("VERSION_CORE").SetValue(updateInfo, "20260226.00");
+            SetVersionCore(updateInfo, "20260226.00");
 
             // Act
             string display = updateInfo.GetVersionDisplay();
@@ -142,7 +190,7 @@ namespace FEBuilderGBA.Tests
         [InlineData("  ver_20260704.04  ", 20260704.04)]
         [InlineData("", 0)]
         [InlineData(null, 0)]
-        public void ParseVersion_StripsVerPrefix(string version, double expected)
+        public void ParseVersion_StripsVerPrefix(string? version, double expected)
         {
             Assert.Equal(expected, UpdateInfo.ParseVersion(version), 3);
         }
@@ -152,7 +200,7 @@ namespace FEBuilderGBA.Tests
         [InlineData("20260226.00", true)]
         [InlineData("ver_20260226.0", false)]   // missing hour digit even with prefix
         [InlineData("ver_2026.00", false)]       // wrong width
-        public void IsValidVersion_AcceptsOptionalVerPrefix(string version, bool expected)
+        public void IsValidVersion_AcceptsOptionalVerPrefix(string? version, bool expected)
         {
             Assert.Equal(expected, UpdateInfo.IsValidVersion(version));
         }
@@ -163,10 +211,27 @@ namespace FEBuilderGBA.Tests
             // #1805: the installed WinForms build is stamped with the release tag; the
             // latest GitHub release exposes the numeric version. Must NOT claim an update.
             var updateInfo = new UpdateInfo();
-            typeof(UpdateInfo).GetProperty("VERSION_CORE").SetValue(updateInfo, "ver_20260704.04");
+            SetVersionCore(updateInfo, "ver_20260704.04");
             Assert.Equal(UpdateInfo.PackageType.None, updateInfo.DetermineUpdateType("20260704.04"));
             // A genuinely newer remote is still detected.
             Assert.Equal(UpdateInfo.PackageType.CoreOnly, updateInfo.DetermineUpdateType("20260704.05"));
+        }
+
+        private static string FindRepoRoot()
+        {
+            string dir = AppContext.BaseDirectory;
+            while (!string.IsNullOrEmpty(dir))
+            {
+                if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
+                    return dir;
+
+                string? parent = Directory.GetParent(dir)?.FullName;
+                if (parent == dir)
+                    break;
+                dir = parent ?? "";
+            }
+
+            return Directory.GetCurrentDirectory();
         }
     }
 }

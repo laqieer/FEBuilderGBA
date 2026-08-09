@@ -8,7 +8,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// Class OP Demo Editor ViewModel — Avalonia parity for orphan
     /// WinForms `ClassOPDemoForm`. Rebuilt for gap-sweep #405.
     ///
-    /// The WinForms peer `ClassOPDemoForm.cs` is `<Compile Remove>`'d from
+    /// The WinForms peer `ClassOPDemoForm.cs` is `&lt;Compile Remove&gt;`'d from
     /// the build but its `Designer.cs` is parsed by the gap-sweep tooling
     /// — so this ViewModel matches the orphan surface, not the canonical
     /// `OPClassDemoForm` (which lives in `OPClassDemoViewerViewModel`).
@@ -17,7 +17,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     ///   - N1 (JP-name font glyphs) has NO 16-entry cap — orphan validator
     ///     stops only at the 0xFF terminator.
     ///   - N2 (anime spec tuple) is a SINGLE 6-byte tuple, not a repeating
-    ///     (Cmd, Arg) command stream. The orphan validator is `i < 1`.
+    ///     (Cmd, Arg) command stream. The orphan validator is <c>i &lt; 1</c>.
     ///   - No patch-aware UI (orphan constructor has no PatchUtil calls).
     ///   - The orphan's `N1_AddressListExpandsButton` expands the N1
     ///     sub-block (not the main table).

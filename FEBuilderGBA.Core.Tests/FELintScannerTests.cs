@@ -9,10 +9,10 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Scan_WithNoRom_ReturnsEmptyList()
         {
-            var origRom = CoreState.ROM;
+            ROM? origRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var scanner = new FELintScanner();
                 var errors = scanner.Scan();
                 Assert.NotNull(errors);
@@ -20,7 +20,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = origRom;
+                CoreState.ROM = origRom!;
             }
         }
 

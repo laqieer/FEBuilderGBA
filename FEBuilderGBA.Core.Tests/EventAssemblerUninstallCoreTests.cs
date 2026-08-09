@@ -43,7 +43,8 @@ namespace FEBuilderGBA.Core.Tests
             var rom = new ROM();
             bool ok = rom.LoadLow("synthetic-FE8.gba", data, "BE8E01");
             CoreState.ROM = rom;
-            return ok ? rom : null;
+            if (!ok) throw new InvalidOperationException("Synthetic ROM failed to load.");
+            return rom;
         }
 
         static Undo.UndoData NewUndo(ROM rom) => new Undo.UndoData
@@ -59,7 +60,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Uninstall_NoRomLoaded_ReturnsError_NoThrow()
         {
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             var result = EventAssemblerUninstallCore.Uninstall("whatever.event", new byte[16], NewUnboundUndo());
             Assert.False(result.Success);
             Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
@@ -144,7 +145,7 @@ namespace FEBuilderGBA.Core.Tests
             byte[] beforeRevert = (byte[])rom.Data.Clone();
             Assert.NotEqual(clean[patchAddr], rom.Data[patchAddr]); // guard: they differ
 
-            string eaFile = WriteTinyOrgEvent(patchAddr, null); // ORG only → length-unknown mapping
+            string eaFile = WriteTinyOrgEvent(patchAddr, null!); // ORG only → length-unknown mapping
             var undo = NewUndo(rom);
             try
             {
@@ -167,7 +168,7 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.Undo.RunUndo();
                 Assert.Equal(beforeRevert, rom.Data);
             }
-            finally { TryDelete(eaFile); CoreState.Undo = null; }
+            finally { TryDelete(eaFile); CoreState.Undo = null!; }
         }
 
         // ---- Untraceable blocks are SIGNALLED, never silently dropped --------------
@@ -315,7 +316,7 @@ namespace FEBuilderGBA.Core.Tests
             rom.write_u8(patchAddr, 0xEE);
             byte[] beforeRevert = (byte[])rom.Data.Clone();
 
-            string eaFile = WriteTinyOrgEvent(patchAddr, null);
+            string eaFile = WriteTinyOrgEvent(patchAddr, null!);
             // Non-empty but far too small to cover patchAddr → must be rejected up front.
             byte[] badClean = new byte[0x1000];
             var undo = NewUndo(rom);
@@ -350,7 +351,7 @@ namespace FEBuilderGBA.Core.Tests
             byte[] biggerClean = new byte[clean.Length + 0x1000];
             Array.Copy(clean, biggerClean, clean.Length);
 
-            string eaFile = WriteTinyOrgEvent(patchAddr, null);
+            string eaFile = WriteTinyOrgEvent(patchAddr, null!);
             var undo = NewUndo(rom);
             try
             {
@@ -373,9 +374,10 @@ namespace FEBuilderGBA.Core.Tests
         [SkippableFact]
         public void Uninstall_RealColorzCoreRoundTrip_RestoresInsertedBytes()
         {
-            string exe = FindBuiltColorzCore();
+            string? exe = FindBuiltColorzCore();
             Skip.If(exe == null,
                 "ColorzCore.exe not built — skipping the real compile+uninstall round-trip (the deterministic synthetic revert + validation tests still cover the uninstall logic).");
+                exe = TestRequire.NotNull(exe, "ColorzCore path");
 
             var rom = CreateFE8Rom();
             Assert.NotNull(rom);
@@ -596,9 +598,9 @@ namespace FEBuilderGBA.Core.Tests
             catch { }
         }
 
-        static string FindBuiltColorzCore()
+        static string? FindBuiltColorzCore()
         {
-            string dir = AppContext.BaseDirectory;
+            string? dir = AppContext.BaseDirectory;
             for (int i = 0; i < 12 && dir != null; i++)
             {
                 // ColorzCore.csproj sets BaseOutputPath=bin/Core, so a `-c Core` build

@@ -38,7 +38,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void IsRework_NullRom_ReturnsFalse()
         {
-            Assert.False(UnitActionPointerCore.IsRework(null));
+            Assert.False(UnitActionPointerCore.IsRework(null!));
         }
 
         [Fact]
@@ -91,7 +91,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ResolveBaseAddress_NullRom_ReturnsZero()
         {
-            Assert.Equal(0u, UnitActionPointerCore.ResolveBaseAddress(null));
+            Assert.Equal(0u, UnitActionPointerCore.ResolveBaseAddress(null!));
         }
 
         [Fact]
@@ -113,18 +113,18 @@ namespace FEBuilderGBA.Core.Tests
         public void ResolveBaseSlot_Rework_NoConfig_ReturnsZero()
         {
             var savedRom = CoreState.ROM;
-            var savedBase = CoreState.BaseDirectory;
+            string? savedBase = CoreState.BaseDirectory;
             try
             {
                 var rom = MakeFE8U();
                 CoreState.ROM = rom;
-                CoreState.BaseDirectory = null; // missing config tree -> WF File.Exists false -> 0
+                CoreState.BaseDirectory = null!; // missing config tree -> WF File.Exists false -> 0
                 PlantReworkGate(rom);
                 Assert.Equal(0u, UnitActionPointerCore.ResolveBaseSlot(rom));
                 // And no config slot -> no table base -> empty editor (WF ReInitPointer(0)).
                 Assert.Equal(0u, UnitActionPointerCore.ResolveBaseAddress(rom));
             }
-            finally { CoreState.ROM = savedRom; CoreState.BaseDirectory = savedBase; }
+            finally { CoreState.ROM = savedRom; CoreState.BaseDirectory = savedBase!; }
         }
 
         /// <summary>
@@ -214,8 +214,8 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void IsDataExists_NullRom_ReturnsFalse()
         {
-            Assert.False(UnitActionPointerCore.IsDataExists(null, 0x100, false));
-            Assert.False(UnitActionPointerCore.IsDataExists(null, 0x100, true));
+            Assert.False(UnitActionPointerCore.IsDataExists(null!, 0x100, false));
+            Assert.False(UnitActionPointerCore.IsDataExists(null!, 0x100, true));
         }
 
         [Fact]

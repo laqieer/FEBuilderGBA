@@ -21,16 +21,16 @@ namespace FEBuilderGBA.Core.Tests
             // Non-ColorzCore
             Assert.False(ToolPathResolver.IsColorzCore(Path.Combine("tools", "Core.exe")));
             Assert.False(ToolPathResolver.IsColorzCore("Core"));
-            Assert.False(ToolPathResolver.IsColorzCore(null));
+            Assert.False(ToolPathResolver.IsColorzCore(null!));
             Assert.False(ToolPathResolver.IsColorzCore(""));
         }
 
         [Fact]
         public void ResolveEventAssembler_ReturnsNull_WhenNothingConfigured()
         {
-            var savedConfig = CoreState.Config;
+            Config? savedConfig = CoreState.Config;
             var savedBaseDir = CoreState.BaseDirectory;
-            CoreState.Config = null;
+            CoreState.Config = null!;
             CoreState.BaseDirectory = Path.Combine(Path.GetTempPath(), "febuilder-test-empty-" + Path.GetRandomFileName());
             try
             {
@@ -39,7 +39,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.Config = savedConfig;
+                CoreState.Config = savedConfig!;
                 CoreState.BaseDirectory = savedBaseDir;
             }
         }
@@ -51,14 +51,14 @@ namespace FEBuilderGBA.Core.Tests
             string tempDir = Path.Combine(Path.GetTempPath(), "febuilder-test-" + Path.GetRandomFileName());
             string colorzCorePath = Path.Combine(tempDir, "tools", "ColorzCore", "ColorzCore",
                 "bin", "Core", "Release", "net6.0", "ColorzCore.exe");
-            Directory.CreateDirectory(Path.GetDirectoryName(colorzCorePath));
+            Directory.CreateDirectory(TestRequire.DirectoryName(colorzCorePath));
             File.WriteAllText(colorzCorePath, "mock");
             // Create .git dir to make it look like a repo root
             Directory.CreateDirectory(Path.Combine(tempDir, ".git"));
 
-            var savedConfig = CoreState.Config;
+            Config? savedConfig = CoreState.Config;
             var savedBaseDir = CoreState.BaseDirectory;
-            CoreState.Config = null;
+            CoreState.Config = null!;
             CoreState.BaseDirectory = tempDir;
             try
             {
@@ -68,7 +68,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.Config = savedConfig;
+                CoreState.Config = savedConfig!;
                 CoreState.BaseDirectory = savedBaseDir;
                 Directory.Delete(tempDir, true);
             }
@@ -79,13 +79,13 @@ namespace FEBuilderGBA.Core.Tests
         {
             string tempDir = Path.Combine(Path.GetTempPath(), "febuilder-test-" + Path.GetRandomFileName());
             string fallbackPath = Path.Combine(tempDir, "tools", "bin", "ColorzCore.exe");
-            Directory.CreateDirectory(Path.GetDirectoryName(fallbackPath));
+            Directory.CreateDirectory(TestRequire.DirectoryName(fallbackPath));
             File.WriteAllText(fallbackPath, "mock");
             Directory.CreateDirectory(Path.Combine(tempDir, ".git"));
 
-            var savedConfig = CoreState.Config;
+            Config? savedConfig = CoreState.Config;
             var savedBaseDir = CoreState.BaseDirectory;
-            CoreState.Config = null;
+            CoreState.Config = null!;
             CoreState.BaseDirectory = tempDir;
             try
             {
@@ -95,7 +95,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.Config = savedConfig;
+                CoreState.Config = savedConfig!;
                 CoreState.BaseDirectory = savedBaseDir;
                 Directory.Delete(tempDir, true);
             }
@@ -107,8 +107,8 @@ namespace FEBuilderGBA.Core.Tests
             string tempDir = Path.Combine(Path.GetTempPath(), "febuilder-test-" + Path.GetRandomFileName());
             string eaExe = Path.Combine(tempDir, "ea", "ColorzCore.exe");
             string lynPath = Path.Combine(tempDir, "ea", "Tools", "lyn.exe");
-            Directory.CreateDirectory(Path.GetDirectoryName(eaExe));
-            Directory.CreateDirectory(Path.GetDirectoryName(lynPath));
+            Directory.CreateDirectory(TestRequire.DirectoryName(eaExe));
+            Directory.CreateDirectory(TestRequire.DirectoryName(lynPath));
             File.WriteAllText(eaExe, "mock");
             File.WriteAllText(lynPath, "mock");
 
@@ -129,7 +129,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             string tempDir = Path.Combine(Path.GetTempPath(), "febuilder-test-" + Path.GetRandomFileName());
             string eaExe = Path.Combine(tempDir, "ea", "ColorzCore.exe");
-            Directory.CreateDirectory(Path.GetDirectoryName(eaExe));
+            Directory.CreateDirectory(TestRequire.DirectoryName(eaExe));
             File.WriteAllText(eaExe, "mock");
 
             var savedBaseDir = CoreState.BaseDirectory;
@@ -156,8 +156,8 @@ namespace FEBuilderGBA.Core.Tests
             string tempDir = Path.Combine(Path.GetTempPath(), "febuilder-test-" + Path.GetRandomFileName());
             string eaExe = Path.Combine(tempDir, "ea", "ColorzCore.exe");
             string lynPath = Path.Combine(tempDir, "ea", "Tools", lynName);
-            Directory.CreateDirectory(Path.GetDirectoryName(eaExe));
-            Directory.CreateDirectory(Path.GetDirectoryName(lynPath));
+            Directory.CreateDirectory(TestRequire.DirectoryName(eaExe));
+            Directory.CreateDirectory(TestRequire.DirectoryName(lynPath));
             File.WriteAllText(eaExe, "mock");
             File.WriteAllText(lynPath, "mock");
 

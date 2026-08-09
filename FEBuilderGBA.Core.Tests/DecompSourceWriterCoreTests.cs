@@ -21,18 +21,18 @@ namespace FEBuilderGBA.Core.Tests
     [Collection("SharedState")]
     public class DecompSourceWriterCoreTests : IDisposable
     {
-        readonly DecompProject _savedProject;
+        readonly DecompProject? _savedProject;
 
         public DecompSourceWriterCoreTests()
         {
             _savedProject = CoreState.DecompProject;
-            CoreState.DecompProject = null;
+            CoreState.DecompProject = null!;
         }
 
         public void Dispose()
         {
-            CoreState.DecompProject = null; // ensure no leak into the next test
-            CoreState.DecompProject = _savedProject;
+            CoreState.DecompProject = null!; // ensure no leak into the next test
+            CoreState.DecompProject = _savedProject!;
         }
 
         // ---- helpers ----
@@ -52,7 +52,8 @@ namespace FEBuilderGBA.Core.Tests
                 ReadCommentHandling = JsonCommentHandling.Skip,
                 AllowTrailingCommas = true,
             };
-            return JsonSerializer.Deserialize<DecompManifest>(json, opts);
+            DecompManifest? manifest = JsonSerializer.Deserialize<DecompManifest>(json, opts);
+            return TestRequire.NotNull(manifest, "manifest");
         }
 
         static DecompTableEntry ItemsOwner(string sourceFile, string policy = "source", string format = "cstruct")
@@ -162,7 +163,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.NotNull(proj.TryGetTableOwner("items"));
             Assert.NotNull(proj.TryGetTableOwner("ITEMS"));
             Assert.Null(proj.TryGetTableOwner("classes"));
-            Assert.Null(proj.TryGetTableOwner(null));
+            Assert.Null(proj.TryGetTableOwner(null!));
         }
 
         [Fact]
@@ -362,7 +363,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 string srcRel = "src/item.c";
                 string srcAbs = Path.Combine(dir, "src", "item.c");
-                Directory.CreateDirectory(Path.GetDirectoryName(srcAbs));
+                Directory.CreateDirectory(TestRequire.DirectoryName(srcAbs));
                 string content =
                     "Item gItemData[] = {\n" +
                     "    [0] = { .might = 5 },\n" +
@@ -397,7 +398,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 string srcRel = "src/item.c";
                 string srcAbs = Path.Combine(dir, "src", "item.c");
-                Directory.CreateDirectory(Path.GetDirectoryName(srcAbs));
+                Directory.CreateDirectory(TestRequire.DirectoryName(srcAbs));
 
                 // Valid C text + a lone 0xFF byte (an invalid UTF-8 sequence).
                 byte[] validCBytes = new UTF8Encoding(false)
@@ -595,7 +596,7 @@ namespace FEBuilderGBA.Core.Tests
                 File.WriteAllText(srcAbs, content);
                 var proj = ProjectWith(dir, ItemsOwner("item.c"));
                 // CoreState.DecompProject is null (classic mode) — write must be a no-op.
-                CoreState.DecompProject = null;
+                CoreState.DecompProject = null!;
 
                 var res = DecompSourceWriterCore.WriteTableEntry(proj, "items", 0,
                     new Dictionary<string, uint> { { "might", 10 } });
@@ -629,7 +630,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Write_NullProject_NotDecompMode_NoThrow()
         {
-            var res = DecompSourceWriterCore.WriteTableEntry(null, "items", 0,
+            var res = DecompSourceWriterCore.WriteTableEntry(null!, "items", 0,
                 new Dictionary<string, uint> { { "might", 10 } });
             Assert.Equal(DecompSourceWriteStatus.NotDecompMode, res.Status);
         }
@@ -994,7 +995,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 string srcRel = "data/items.json";
                 string srcAbs = Path.Combine(dir, "data", "items.json");
-                Directory.CreateDirectory(Path.GetDirectoryName(srcAbs));
+                Directory.CreateDirectory(TestRequire.DirectoryName(srcAbs));
                 string content = "[ { \"might\": 5 }, { \"might\": 8 } ]\n";
                 File.WriteAllText(srcAbs, content);
 
@@ -1228,7 +1229,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 string srcRel = "data/items.json";
                 string srcAbs = Path.Combine(dir, "data", "items.json");
-                Directory.CreateDirectory(Path.GetDirectoryName(srcAbs));
+                Directory.CreateDirectory(TestRequire.DirectoryName(srcAbs));
                 string content = "[ { \"might\": 5 }, { \"might\": 9 } ";   // no closing ']'
                 File.WriteAllText(srcAbs, content);
 

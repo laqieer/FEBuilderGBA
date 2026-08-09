@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace FEBuilderGBA
@@ -18,7 +19,7 @@ namespace FEBuilderGBA
         /// Targets the 64-bit installer on a 64-bit OS, 32-bit otherwise.
         /// Returns null on any failure (network error, parse error, etc.).
         /// </summary>
-        public static string GetLatestInstallerUrl()
+        public static string? GetLatestInstallerUrl()
         {
             string suffix = Environment.Is64BitOperatingSystem ? "64-bit.exe" : "32-bit.exe";
             try
@@ -26,6 +27,33 @@ namespace FEBuilderGBA
                 string json = U.HttpGet(GitReleasesApiUrl,
                     referer: "https://github.com/git-for-windows/git/releases");
                 return string.IsNullOrEmpty(json) ? null : ExtractDownloadUrl(json, suffix);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        public static async Task<string?> GetLatestInstallerUrlAsync(
+            Func<string, string, CancellationToken, Task<string>> httpGet = null,
+            CancellationToken cancellationToken = default)
+        {
+            string suffix = Environment.Is64BitOperatingSystem ? "64-bit.exe" : "32-bit.exe";
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                httpGet ??= (url, referer, ct) => U.HttpGetAsync(url, referer, cancellationToken: ct);
+                string json = await httpGet(
+                    GitReleasesApiUrl,
+                    "https://github.com/git-for-windows/git/releases",
+                    cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                return string.IsNullOrEmpty(json) ? null : ExtractDownloadUrl(json, suffix);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch
             {

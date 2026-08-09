@@ -91,14 +91,14 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         static string ReadSource(string relativePath)
         {
-            string root = FindRepoRoot();
-            Assert.NotNull(root);
+            string root = FindRepoRoot()
+                ?? throw new InvalidOperationException("Could not find FEBuilderGBA.sln from test base directory.");
             string path = Path.Combine(root, relativePath);
             Assert.True(File.Exists(path), $"{relativePath} not found at {path}");
             return File.ReadAllText(path);
         }
 
-        static string FindRepoRoot()
+        static string? FindRepoRoot()
         {
             var dir = new DirectoryInfo(AppContext.BaseDirectory);
             while (dir != null)

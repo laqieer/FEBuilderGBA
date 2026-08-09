@@ -157,7 +157,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             finally { _loading = false; }
 
-            // Mirror the selected row into the probability list (WinForms N1<->N2 row sync).
+            // Mirror the selected row into the probability list (WinForms N1&lt;-&gt;N2 row sync).
             MirrorSelection(StageList, ProbList);
         }
 
@@ -345,7 +345,7 @@ namespace FEBuilderGBA.Avalonia.Views
         // Helpers
         // ----------------------------------------------------------------
 
-        /// <summary>Mirror the selected index from one list into the other (WinForms N1<->N2 row sync).</summary>
+        /// <summary>Mirror the selected index from one list into the other (WinForms N1&lt;-&gt;N2 row sync).</summary>
         void MirrorSelection(AddressListControl from, AddressListControl to)
         {
             int idx = from.SelectedOriginalIndex;

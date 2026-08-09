@@ -1,4 +1,4 @@
-﻿using global::Avalonia;
+using global::Avalonia;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -926,7 +926,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
 
-                string? clipText = await topLevel.Clipboard.GetTextAsync();
+                string? clipText = await ClipboardTextHelper.TryGetTextAsync(topLevel.Clipboard);
                 string? trimmed = clipText?.Trim();
 
                 if (!string.IsNullOrEmpty(trimmed) && HexPalette64.IsMatch(trimmed))
@@ -1043,7 +1043,7 @@ namespace FEBuilderGBA.Avalonia.Views
         /// buffer. Mirrors <see cref="Undo_Click"/>: guards on
         /// <see cref="Undo.CanRedo"/>, then verifies the redo actually
         /// advanced the cursor (RunRedo's bool surfaces silent
-        /// <see cref="Undo.RollbackROM"/> failures that
+        /// <c>RollbackROM</c> failures that
         /// <see cref="Undo.Rollback(int)"/> would otherwise hide).
         /// After a successful redo, reload the entry so palette /
         /// chipset / preview reflect the rolled-forward ROM bytes.
@@ -1090,7 +1090,7 @@ namespace FEBuilderGBA.Avalonia.Views
         /// file. Mirrors WF parity — raw ConfigUZ bytes, no magic header
         /// (the WF importer reads raw bytes with only a 9216-byte
         /// minimum check, so adding a header would break import parity).
-        /// Uses <see cref="FileDialogHelper.SaveFile"/> for picker parity
+        /// Uses <see cref="FileDialogHelper.SaveFile(TopLevel,string,string,string,string)"/> for picker parity
         /// with the rest of the Avalonia layer.
         /// </summary>
         async void MapChipExport_Click(object? sender, RoutedEventArgs e)

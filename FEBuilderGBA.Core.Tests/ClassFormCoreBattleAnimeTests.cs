@@ -100,7 +100,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetBattleAnimeAddrWhereID_NullRom_ReturnsNotFound()
         {
-            Assert.Equal(U.NOT_FOUND, ClassFormCore.GetBattleAnimeAddrWhereID(null, TEST_CLASS_ID));
+            Assert.Equal(U.NOT_FOUND, ClassFormCore.GetBattleAnimeAddrWhereID(null!, TEST_CLASS_ID));
         }
 
         [Fact]
@@ -257,7 +257,7 @@ namespace FEBuilderGBA.Core.Tests
         public void GetIDWhereBattleAnimeAddr_NullRom_ReturnsNotFound()
         {
             Assert.Equal(U.NOT_FOUND,
-                ClassFormCore.GetIDWhereBattleAnimeAddr(null, U.toPointer(ANIME_SETTING_PTR)));
+                ClassFormCore.GetIDWhereBattleAnimeAddr(null!, U.toPointer(ANIME_SETTING_PTR)));
         }
 
         [Fact]
@@ -326,7 +326,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetAnimeIDByAnimeSettingPointer_NullRom_ReturnsZero()
         {
-            Assert.Equal(0u, ClassFormCore.GetAnimeIDByAnimeSettingPointer(null, U.toPointer(ANIME_SETTING_PTR)));
+            Assert.Equal(0u, ClassFormCore.GetAnimeIDByAnimeSettingPointer(null!, U.toPointer(ANIME_SETTING_PTR)));
         }
 
         // ================================================================
@@ -368,7 +368,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetAnimeIDByClassID_NullRom_ReturnsZero()
         {
-            Assert.Equal(0u, ClassFormCore.GetAnimeIDByClassID(null, TEST_CLASS_ID));
+            Assert.Equal(0u, ClassFormCore.GetAnimeIDByClassID(null!, TEST_CLASS_ID));
         }
 
         [Fact]
@@ -427,7 +427,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetUnitPaletteAddr_NullRom_ReturnsNotFound()
         {
-            Assert.Equal(U.NOT_FOUND, BattleAnimeRendererCore.GetUnitPaletteAddr(null, 1));
+            Assert.Equal(U.NOT_FOUND, BattleAnimeRendererCore.GetUnitPaletteAddr(null!, 1));
         }
 
         // ================================================================
@@ -472,7 +472,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetBattleAnimeSettingRows_NullRom_ReturnsEmpty_NoThrow()
         {
-            var rows = ClassFormCore.GetBattleAnimeSettingRows(null);
+            var rows = ClassFormCore.GetBattleAnimeSettingRows(null!);
             Assert.Empty(rows);
         }
 
@@ -592,7 +592,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             ROM rom = MakeMultiClassRom(8, classCount: 6);
             Assert.Equal(U.NOT_FOUND, ClassFormCore.GetFirstClassSettingPointerByAnimeId(rom, 0));
-            Assert.Equal(U.NOT_FOUND, ClassFormCore.GetFirstClassSettingPointerByAnimeId(null, 1));
+            Assert.Equal(U.NOT_FOUND, ClassFormCore.GetFirstClassSettingPointerByAnimeId(null!, 1));
         }
 
         // ================================================================

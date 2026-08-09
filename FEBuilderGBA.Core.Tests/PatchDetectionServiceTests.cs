@@ -8,23 +8,29 @@ namespace FEBuilderGBA.Core.Tests
     public class PatchDetectionServiceTests : IDisposable
     {
         readonly ROM? _savedRom;
+        readonly ISystemTextEncoder _savedSystemTextEncoder;
 
         public PatchDetectionServiceTests()
         {
             _savedRom = CoreState.ROM;
+            _savedSystemTextEncoder = CoreState.SystemTextEncoder;
         }
 
         public void Dispose()
         {
-            CoreState.ROM = _savedRom;
+            CoreState.ROM = _savedRom!;
+            CoreState.SystemTextEncoder = _savedSystemTextEncoder;
+            NameResolver.ClearCache();
             PatchDetection.ClearAllCaches();
             MagicSplitUtil.ClearCache();
+            ResetSkillSystemTextBase(PatchDetectionService.Instance);
+            PatchDetectionService.Instance.Refresh();
         }
 
         [Fact]
         public void Refresh_NullROM_AllDefaults()
         {
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             var svc = PatchDetectionService.Instance;
             svc.Refresh();
 
@@ -43,7 +49,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Refresh_NullROM_ConvenienceHelpers_False()
         {
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             var svc = PatchDetectionService.Instance;
             svc.Refresh();
 
@@ -52,6 +58,37 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(svc.HasMagicSplit);
             Assert.False(svc.HasPortraitExtends);
             Assert.False(svc.IsHalfBody);
+        }
+
+        [Fact]
+        public void ResolveSkillName_UnresolvedIds_ReturnNull()
+        {
+            var svc = PatchDetectionService.Instance;
+
+            CoreState.ROM = null!;
+            svc.Refresh();
+
+            Assert.Null(svc.ResolveSkillName(0));
+            Assert.Null(svc.ResolveSkillName(1));
+
+            CoreState.ROM = MakeFE8USkillSystemRomWithAliasedOverflowText();
+            ResetSkillSystemTextBase(svc);
+            svc.Refresh();
+            Assert.Equal(PatchDetectionService.SkillSystemType.SkillSystem, svc.SkillSystem);
+            Assert.Null(svc.ResolveSkillName(1));
+            Assert.Null(svc.ResolveSkillName(0x80000000u));
+
+            CoreState.ROM = MakeFE8UCSkillSysRomWithAliasedOverflowText();
+            svc.Refresh();
+            Assert.Equal(PatchDetectionService.SkillSystemType.CSkillSys300, svc.SkillSystem);
+            Assert.Null(svc.ResolveSkillName(1));
+            Assert.Null(svc.ResolveSkillName(0x20000000u));
+
+            CoreState.ROM = MakeFE8NRomWithAliasedOverflowText();
+            svc.Refresh();
+            Assert.NotEqual(PatchDetectionService.SkillSystemType.None, svc.SkillSystem);
+            Assert.Null(svc.ResolveSkillName(1));
+            Assert.Null(svc.ResolveSkillName(0x80000000u));
         }
 
         [Fact]
@@ -216,7 +253,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.True(svc.HasSkillSystem);
 
             // Now unload ROM and refresh
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
             svc.Refresh();
             Assert.False(svc.HasSkillSystem);
         }
@@ -257,6 +294,87 @@ namespace FEBuilderGBA.Core.Tests
             var rom = new ROM();
             rom.LoadLow("test.gba", data, "BE8E01");
             return rom;
+        }
+
+        static ROM MakeFE8JRom()
+        {
+            byte[] data = new byte[0x1000000]; // 16 MB
+            byte[] versionBytes = System.Text.Encoding.ASCII.GetBytes("BE8J01");
+            Array.Copy(versionBytes, 0, data, 0xAC, versionBytes.Length);
+
+            var rom = new ROM();
+            rom.LoadLow("test-fe8j.gba", data, "BE8J01");
+            return rom;
+        }
+
+        static ROM MakeFE8USkillSystemRomWithAliasedOverflowText()
+        {
+            var rom = MakeFE8URom();
+            rom.Data[0x2ACF8] = 0x70;
+            rom.Data[0x2ACF9] = 0x47;
+
+            byte[] pattern = { 0x07, 0x49, 0x40, 0x00, 0x40, 0x18, 0x00, 0x88, 0x00, 0x28, 0x00, 0xD1, 0x06, 0x48, 0x21, 0x1C };
+            Array.Copy(pattern, 0, rom.Data, 0xB00000, pattern.Length);
+            uint skillTextBase = 0x2000;
+            WriteU32(rom.Data, 0xB00000 + (uint)pattern.Length + 16, U.toPointer(skillTextBase));
+            rom.Data[skillTextBase] = 5;
+            rom.Data[skillTextBase + 1] = 0;
+            InstallPlainText(rom, 5, "Aliased Skill");
+            return rom;
+        }
+
+        static ROM MakeFE8UCSkillSysRomWithAliasedOverflowText()
+        {
+            var rom = MakeFE8URom();
+            byte[] sig = { 0x43, 0x53, 0x4B, 0x49, 0x4C, 0x4C, 0x53, 0x59, 0x53, 0x5F, 0x4B, 0x2D, 0x33 };
+            Array.Copy(sig, 0, rom.Data, 0xB2A604, sig.Length);
+            uint skillInfoBase = 0x2000;
+            WriteU32(rom.Data, 0xB2A614, U.toPointer(skillInfoBase));
+            rom.Data[skillInfoBase + 4] = 5;
+            rom.Data[skillInfoBase + 5] = 0;
+            InstallPlainText(rom, 5, "Aliased Skill");
+            return rom;
+        }
+
+        static ROM MakeFE8NRomWithAliasedOverflowText()
+        {
+            var rom = MakeFE8JRom();
+            byte[] sig = { 0x00, 0x4B, 0x9F, 0x46 };
+            Array.Copy(sig, 0, rom.Data, 0x89268, sig.Length);
+            uint skillTextBase = 0x2000;
+            WriteU32(rom.Data, 0x8927C, U.toPointer(skillTextBase));
+            rom.Data[skillTextBase] = 5;
+            rom.Data[skillTextBase + 1] = 0;
+            InstallPlainText(rom, 5, "Aliased Skill");
+            return rom;
+        }
+
+        static void InstallPlainText(ROM rom, uint textId, string text)
+        {
+            const uint textTable = 0x4000;
+            const uint textData = 0x5000;
+            WriteU32(rom.Data, rom.RomInfo.text_pointer, U.toPointer(textTable));
+            WriteU32(rom.Data, textTable + textId * 4, FETextEncode.ConvertPointerToUnHuffmanPatchPointer(U.toPointer(textData)));
+            byte[] bytes = System.Text.Encoding.ASCII.GetBytes(text);
+            Array.Copy(bytes, 0, rom.Data, textData, bytes.Length);
+            rom.Data[textData + (uint)bytes.Length] = 0;
+            CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
+            NameResolver.ClearCache();
+        }
+
+        static void WriteU32(byte[] data, uint offset, uint value)
+        {
+            data[offset + 0] = (byte)(value & 0xFF);
+            data[offset + 1] = (byte)((value >> 8) & 0xFF);
+            data[offset + 2] = (byte)((value >> 16) & 0xFF);
+            data[offset + 3] = (byte)((value >> 24) & 0xFF);
+        }
+
+        static void ResetSkillSystemTextBase(PatchDetectionService svc)
+        {
+            typeof(PatchDetectionService)
+                .GetField("_skillSystemTextBase", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                ?.SetValue(svc, 0u);
         }
     }
 }

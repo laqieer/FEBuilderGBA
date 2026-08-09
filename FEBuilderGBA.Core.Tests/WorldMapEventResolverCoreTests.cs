@@ -160,7 +160,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void NullRom_NotFound()
         {
-            Assert.Equal(U.NOT_FOUND, WorldMapEventResolverCore.GetEventByMapID(null, 0));
+            Assert.Equal(U.NOT_FOUND, WorldMapEventResolverCore.GetEventByMapID(null!, 0));
         }
 
         // A non-FE6/7/8 ROM (e.g. the ROMFE0 testing build, version 0) has no
@@ -235,7 +235,7 @@ namespace FEBuilderGBA.Core.Tests
         /// </summary>
         static void RealRomResolvesSomeWorldMapEvent(string romName, int expectVersion)
         {
-            string romPath = FindRom(romName);
+            string? romPath = FindRom(romName);
             if (romPath == null) return; // skip when roms/ absent (worktree env)
 
             var saved = CoreState.ROM;
@@ -342,10 +342,10 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // Walk up from the test assembly to find roms/<name>.
-        static string FindRom(string romName)
+        static string? FindRom(string romName)
         {
             string thisAssembly = Assembly.GetExecutingAssembly().Location;
-            string dir = Path.GetDirectoryName(thisAssembly);
+            string? dir = Path.GetDirectoryName(thisAssembly);
             for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))

@@ -22131,6 +22131,9 @@ git
 下载完成: {0}
 :Downloaded {0} tool(s).
 已下载 {0} 个工具。
+:Download cancelled.
+下载已取消。
+
 :Download failed. Use Browse to set the path manually.
 下载失败，请使用浏览按钮手动设置路径。
 :This will download an executable from:
@@ -28158,6 +28161,12 @@ Git 操作失败，退出代码 {0}。
 
 :Issue Report
 报告问题
+
+:External process launching is not available on this device.
+此设备不支持启动外部进程。
+
+:Folder not found
+未找到文件夹
 
 :Couldn't open link:
 无法打开链接:

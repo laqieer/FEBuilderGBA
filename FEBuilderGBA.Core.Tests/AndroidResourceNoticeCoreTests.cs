@@ -32,7 +32,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void IsResourceDeliverySupported_TracksTheInjectableSeam()
         {
-            var saved = AndroidResourceNoticeCore.IsAndroidOverride;
+            Func<bool>? saved = AndroidResourceNoticeCore.IsAndroidOverride;
             try
             {
                 AndroidResourceNoticeCore.IsAndroidOverride = () => true;  // pretend Android
@@ -43,7 +43,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                AndroidResourceNoticeCore.IsAndroidOverride = saved;
+                AndroidResourceNoticeCore.IsAndroidOverride = saved!;
             }
         }
 
@@ -60,16 +60,16 @@ namespace FEBuilderGBA.Core.Tests
         {
             // A null override (accidental assignment / failed test) must not NRE — it
             // falls back to the real OS check (desktop test host => supported).
-            var saved = AndroidResourceNoticeCore.IsAndroidOverride;
+            Func<bool>? saved = AndroidResourceNoticeCore.IsAndroidOverride;
             try
             {
-                AndroidResourceNoticeCore.IsAndroidOverride = null;
+                AndroidResourceNoticeCore.IsAndroidOverride = null!;
                 bool supported = AndroidResourceNoticeCore.IsResourceDeliverySupported; // must not throw
                 Assert.True(supported); // desktop test runner
             }
             finally
             {
-                AndroidResourceNoticeCore.IsAndroidOverride = saved;
+                AndroidResourceNoticeCore.IsAndroidOverride = saved!;
             }
         }
     }

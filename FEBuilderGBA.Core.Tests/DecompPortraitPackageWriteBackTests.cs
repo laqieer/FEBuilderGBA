@@ -310,8 +310,8 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Import_NullArgs_BadArgs_NeverThrows()
         {
-            Assert.Equal(DecompAssetStatus.BadArgs, DecompAssetExportCore.ImportPortraitPackage(null, "x", false, false).Status);
-            Assert.Equal(DecompAssetStatus.BadArgs, DecompAssetExportCore.ImportPortraitPackage("x", null, false, false).Status);
+            Assert.Equal(DecompAssetStatus.BadArgs, DecompAssetExportCore.ImportPortraitPackage(null!, "x", false, false).Status);
+            Assert.Equal(DecompAssetStatus.BadArgs, DecompAssetExportCore.ImportPortraitPackage("x", null!, false, false).Status);
         }
 
         // ---------------------------------------------------------------- RoundTrip against baseline (the oracle)
@@ -378,7 +378,7 @@ namespace FEBuilderGBA.Core.Tests
             try
             {
                 Assert.Equal(DecompAssetStatus.BadArgs,
-                    DecompAssetExportCore.RoundTripPortraitPackageAgainstBaseline(src, null, false).Status);
+                    DecompAssetExportCore.RoundTripPortraitPackageAgainstBaseline(src, null!, false).Status);
             }
             finally { Cleanup(src); }
         }
@@ -419,7 +419,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Resolve_NullOrMissingDir_ReturnsNull()
         {
-            Assert.Null(DecompAssetExportCore.ResolvePortraitPackage(null));
+            Assert.Null(DecompAssetExportCore.ResolvePortraitPackage(null!));
             Assert.Null(DecompAssetExportCore.ResolvePortraitPackage(
                 Path.Combine(Path.GetTempPath(), "nope_" + Guid.NewGuid().ToString("N"))));
         }

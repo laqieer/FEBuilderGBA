@@ -17,7 +17,7 @@ namespace FEBuilderGBA.Core.Tests
         public void MakeListByUseBG_NullRom_ReturnsEmpty()
         {
             BGReferenceFinder.ResetCache();
-            var list = BGReferenceFinder.MakeListByUseBG(null, 0);
+            var list = BGReferenceFinder.MakeListByUseBG(null!, 0);
             Assert.NotNull(list);
             Assert.Empty(list);
         }
@@ -26,12 +26,12 @@ namespace FEBuilderGBA.Core.Tests
         public void MakeListByUseBG_Gating_NonActiveRom_ReturnsEmpty()
         {
             BGReferenceFinder.ResetCache();
-            var prevRom = CoreState.ROM;
-            var prevEs = CoreState.EventScript;
+            ROM? prevRom = CoreState.ROM;
+            EventScript? prevEs = CoreState.EventScript;
             try
             {
-                CoreState.ROM = null; // no active ROM -> gating returns empty
-                CoreState.EventScript = null;
+                CoreState.ROM = null!; // no active ROM -> gating returns empty
+                CoreState.EventScript = null!;
 
                 var rom = new ROM();
                 rom.LoadLow("bg-fe8u.gba", new byte[0x1000000], "BE8E01");
@@ -41,8 +41,8 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = prevRom;
-                CoreState.EventScript = prevEs;
+                CoreState.ROM = prevRom!;
+                CoreState.EventScript = prevEs!;
                 BGReferenceFinder.ResetCache();
             }
         }
@@ -50,7 +50,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RealRom_FE8U_MakeListByUseBG_FindsReferencedBg_HighIdEmpty_CacheReuse()
         {
-            string romPath = FindRom("FE8U.gba");
+            string? romPath = FindRom("FE8U.gba");
             if (romPath == null) return; // skip
 
             var savedRom = CoreState.ROM;
@@ -60,7 +60,8 @@ namespace FEBuilderGBA.Core.Tests
             var savedBaseDir = CoreState.BaseDirectory;
             try
             {
-                string asmDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                string asmDir = TestRequire.DirectoryName(Assembly.GetExecutingAssembly().Location);
+                Assert.NotNull(asmDir);
                 CoreState.BaseDirectory = asmDir;
 
                 var rom = new ROM();
@@ -129,17 +130,18 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RealRom_FE8U_NotReadyThenReady_RebuildsAndPopulates()
         {
-            string romPath = FindRom("FE8U.gba");
+            string? romPath = FindRom("FE8U.gba");
             if (romPath == null) return; // skip
 
-            var savedRom = CoreState.ROM;
-            var savedEs = CoreState.EventScript;
+            ROM? savedRom = CoreState.ROM;
+            EventScript? savedEs = CoreState.EventScript;
             var savedEnc = CoreState.SystemTextEncoder;
-            var savedComment = CoreState.CommentCache;
+            IEtcCache? savedComment = CoreState.CommentCache;
             var savedBaseDir = CoreState.BaseDirectory;
             try
             {
-                string asmDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                string asmDir = TestRequire.DirectoryName(Assembly.GetExecutingAssembly().Location);
+                Assert.NotNull(asmDir);
                 CoreState.BaseDirectory = asmDir;
 
                 var rom = new ROM();
@@ -149,9 +151,9 @@ namespace FEBuilderGBA.Core.Tests
 
                 // PHASE 1 — prerequisites NOT ready: ROM is not the active
                 // CoreState.ROM, no EventScript, no CommentCache.
-                CoreState.ROM = null;
-                CoreState.EventScript = null;
-                CoreState.CommentCache = null;
+                CoreState.ROM = null!;
+                CoreState.EventScript = null!;
+                CoreState.CommentCache = null!;
 
                 // Discover a referenced BG id up-front (needs a wired scan), so
                 // we do a temporary full init just to find the id, then tear it
@@ -182,9 +184,9 @@ namespace FEBuilderGBA.Core.Tests
                 }
 
                 // Tear back down to NOT-READY and reset the finder cache.
-                CoreState.ROM = null;
-                CoreState.EventScript = null;
-                CoreState.CommentCache = null;
+                CoreState.ROM = null!;
+                CoreState.EventScript = null!;
+                CoreState.CommentCache = null!;
                 BGReferenceFinder.ResetCache();
 
                 // PHASE 1 call (prereqs unsatisfied) → empty AND must not cache.
@@ -206,20 +208,20 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = savedRom;
-                CoreState.EventScript = savedEs;
+                CoreState.ROM = savedRom!;
+                CoreState.EventScript = savedEs!;
                 CoreState.SystemTextEncoder = savedEnc;
-                CoreState.CommentCache = savedComment;
+                CoreState.CommentCache = savedComment!;
                 if (savedBaseDir != null)
                     CoreState.BaseDirectory = savedBaseDir;
                 BGReferenceFinder.ResetCache();
             }
         }
 
-        static string FindRom(string romName)
+        static string? FindRom(string romName)
         {
             string thisAssembly = Assembly.GetExecutingAssembly().Location;
-            string dir = Path.GetDirectoryName(thisAssembly);
+            string? dir = Path.GetDirectoryName(thisAssembly);
             for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))

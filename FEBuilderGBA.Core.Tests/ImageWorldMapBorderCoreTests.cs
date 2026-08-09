@@ -148,16 +148,16 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ByteToImage16Tile_NoImageService_ReturnsNull()
         {
-            var saved = CoreState.ImageService;
+            IImageService? saved = CoreState.ImageService;
             try
             {
-                CoreState.ImageService = null;
+                CoreState.ImageService = null!;
                 byte[] bin = new byte[32];
                 byte[] pal = MakeSimplePalette();
                 IImage img = ImageUtilCore.ByteToImage16Tile(bin, 0, pal, 0, 8, 8);
                 Assert.Null(img);
             }
-            finally { CoreState.ImageService = saved; }
+            finally { CoreState.ImageService = saved!; }
         }
 
         // ====================================================================
@@ -190,7 +190,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ImageUtilAPCore_Parse_NullData_ReturnsFalse()
         {
             var ap = new ImageUtilAPCore();
-            bool ok = ap.Parse(null, 0x500);
+            bool ok = ap.Parse(null!, 0x500);
             Assert.False(ok);
         }
 
@@ -492,7 +492,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             WithRom((_) =>
             {
-                IImage img = ImageWorldMapCore.TryRenderBorder(null, 0, 0, 0, 0);
+                IImage img = ImageWorldMapCore.TryRenderBorder(null!, 0, 0, 0, 0);
                 Assert.Null(img);
             });
         }
@@ -501,12 +501,12 @@ namespace FEBuilderGBA.Core.Tests
         public void TryRenderBorder_NoImageService_ReturnsNull()
         {
             var savedRom = CoreState.ROM;
-            var savedSvc = CoreState.ImageService;
+            IImageService? savedSvc = CoreState.ImageService;
             try
             {
                 ROM rom = MakeRom();
                 CoreState.ROM = rom;
-                CoreState.ImageService = null;
+                CoreState.ImageService = null!;
                 PlantBorderGraphic(rom);
                 IImage img = ImageWorldMapCore.TryRenderBorder(
                     rom,
@@ -518,7 +518,7 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.ROM = savedRom;
-                CoreState.ImageService = savedSvc;
+                CoreState.ImageService = savedSvc!;
             }
         }
 

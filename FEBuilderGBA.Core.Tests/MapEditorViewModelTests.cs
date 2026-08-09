@@ -14,49 +14,49 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void MapSettingCore_MakeMapIDList_WithNoRom_ReturnsEmpty()
         {
-            var origRom = CoreState.ROM;
+            ROM? origRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var list = MapSettingCore.MakeMapIDList();
                 Assert.NotNull(list);
                 Assert.Empty(list);
             }
             finally
             {
-                CoreState.ROM = origRom;
+                CoreState.ROM = origRom!;
             }
         }
 
         [Fact]
         public void MapSettingCore_GetMapCount_WithNoRom_ReturnsZero()
         {
-            var origRom = CoreState.ROM;
+            ROM? origRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 int count = MapSettingCore.GetMapCount();
                 Assert.Equal(0, count);
             }
             finally
             {
-                CoreState.ROM = origRom;
+                CoreState.ROM = origRom!;
             }
         }
 
         [Fact]
         public void MapSettingCore_GetMapAddr_WithNoRom_ReturnsNotFound()
         {
-            var origRom = CoreState.ROM;
+            ROM? origRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 uint addr = MapSettingCore.GetMapAddr(0);
                 Assert.Equal(U.NOT_FOUND, addr);
             }
             finally
             {
-                CoreState.ROM = origRom;
+                CoreState.ROM = origRom!;
             }
         }
 
@@ -298,6 +298,7 @@ namespace FEBuilderGBA.Core.Tests
 
             // Out-of-bounds coordinates should be caught
             Assert.True(3 >= width);  // x=3 is OOB for width=2
+            Assert.True(3 >= height); // y=3 is OOB for height=2
             Assert.True(-1 < 0);     // negative is OOB
         }
 

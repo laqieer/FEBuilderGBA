@@ -37,12 +37,12 @@ namespace FEBuilderGBA.Core.Tests
         sealed class FakeClone
         {
             public int Called;
-            public string LastTarget;
+            public string LastTarget = string.Empty;
             public bool TargetExistedAtCall;
             public int ReturnCode;
             public bool CreateOnSuccess;
 
-            public int Op(string gitExe, string url, string targetPath, Action<string> progress, StringBuilder log)
+            public int Op(string gitExe, string url, string targetPath, Action<string>? progress, StringBuilder log)
             {
                 Called++;
                 LastTarget = targetPath;
@@ -60,7 +60,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             public int Called;
             public int ReturnCode;
-            public int Op(string gitExe, string repoPath, Action<string> progress, StringBuilder log, string remoteUrl)
+            public int Op(string gitExe, string repoPath, Action<string>? progress, StringBuilder log, string remoteUrl)
             {
                 Called++;
                 return ReturnCode;
@@ -77,7 +77,7 @@ namespace FEBuilderGBA.Core.Tests
         public void GitNotFound_WhenGitExeNull()
         {
             var r = Patch2GitService.InitializeOrUpdateCore(
-                "any", null, "url", _ => false, new FakeClone().Op, new FakeUpdate().Op, null);
+                "any", null!, "url", _ => false, new FakeClone().Op, new FakeUpdate().Op, null);
             Assert.Equal(Patch2GitResultKind.GitNotFound, r.Kind);
         }
 

@@ -418,7 +418,7 @@ namespace FEBuilderGBA
         /// Returns the number of entries written.
         /// </summary>
         public static int ExportTextsToFile(ROM rom, string outputPath, bool isOneLiner,
-            Action<string> progressCallback)
+            Action<string>? progressCallback)
         {
             return ExportTextsToFile(rom, outputPath, isOneLiner,
                 isModifiedTextOnly: false, translateFrom: string.Empty, translateTo: string.Empty,
@@ -437,7 +437,7 @@ namespace FEBuilderGBA
         /// </summary>
         public static int ExportTextsToFile(ROM rom, string outputPath, bool isOneLiner,
             bool isModifiedTextOnly, string translateFrom, string translateTo,
-            string fromRomPath, string toRomPath, Action<string> progressCallback)
+            string fromRomPath, string toRomPath, Action<string>? progressCallback)
         {
             if (rom?.RomInfo == null) return 0;
             if (string.IsNullOrEmpty(outputPath)) return 0;
@@ -757,7 +757,7 @@ namespace FEBuilderGBA
         /// Returns the number of entries successfully written.
         /// </summary>
         public static int ImportTextsFromFile(ROM rom, string filename,
-            RecycleAddress recycle, Undo.UndoData undo, Action<string> progressCallback)
+            RecycleAddress recycle, Undo.UndoData undo, Action<string>? progressCallback)
         {
             if (rom?.RomInfo == null) return 0;
             if (string.IsNullOrEmpty(filename) || !File.Exists(filename)) return 0;
@@ -1076,7 +1076,7 @@ namespace FEBuilderGBA
         /// pass; 0 on failure.
         /// </summary>
         public static int SimpleFireTranslate(ROM rom, SimpleFireOptions opts,
-            RecycleAddress recycle, Undo.UndoData undo, Action<string> progressCallback)
+            RecycleAddress recycle, Undo.UndoData undo, Action<string>? progressCallback)
         {
             if (rom?.RomInfo == null || opts == null) return 0;
             if (opts.FromLanguage == opts.ToLanguage) return 0;
@@ -1268,7 +1268,7 @@ namespace FEBuilderGBA
         public static ImportFontResult ImportFonts(ROM rom, string fontRomPath,
             string extraFontRomPath, IFontRasterizer rasterizer, FontSpec autoGenFont,
             bool autoGenEnabled, RecycleAddress recycle, Undo.UndoData undo,
-            Action<string> progressCallback)
+            Action<string>? progressCallback)
         {
             if (rom?.RomInfo == null) return default;
 
@@ -1401,7 +1401,7 @@ namespace FEBuilderGBA
         /// </summary>
         public static int ImportFontFromROMs(ROM rom, string fontRomPath,
             string extraFontRomPath, RecycleAddress recycle, Undo.UndoData undo,
-            Action<string> progressCallback)
+            Action<string>? progressCallback)
             => ImportFonts(rom, fontRomPath, extraFontRomPath, null, default, false,
                 recycle, undo, progressCallback).Ported;
 

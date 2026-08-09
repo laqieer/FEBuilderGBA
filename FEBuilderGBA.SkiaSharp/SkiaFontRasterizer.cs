@@ -66,7 +66,7 @@ namespace FEBuilderGBA.SkiaSharp
                     // uses Skia's own geometric rasterizer (no OS FreeType / GDI
                     // hinting), keeping the GOLDEN exact-byte output identical on
                     // every platform under the uniform native libSkiaSharp
-                    // (#796 / #798: aligned to Avalonia's bundled SkiaSharp 2.88).
+                    // (#796 / #798 / #2067: aligned to Avalonia's SkiaSharp 3.119 stack).
                     Edging = SKFontEdging.Antialias,
                     Hinting = SKFontHinting.None,
                     Subpixel = false,

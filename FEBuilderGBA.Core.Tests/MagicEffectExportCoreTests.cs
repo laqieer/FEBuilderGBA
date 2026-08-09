@@ -142,7 +142,7 @@ namespace FEBuilderGBA.Core.Tests
             List<MagicFrameMeta> frames;
             List<MagicCommandMeta> cmds;
             bool ok = MagicEffectExportCore.ScanMagicFrames(
-                null, 0x300u, 0u, 0u, out frames, out cmds);
+                null!, 0x300u, 0u, 0u, out frames, out cmds);
 
             Assert.False(ok);
             Assert.Empty(frames);
@@ -302,7 +302,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 CoreState.ImageService = new StubImageService();
                 var result = MagicEffectExportCore.RenderObjFrameSlot(
-                    MakeMinimalRom(), null, 0, 0u, 0u);
+                    MakeMinimalRom(), null!, 0, 0u, 0u);
                 Assert.Null(result);
             }
             finally { CoreState.ImageService = prevSvc; }
@@ -1323,7 +1323,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 CoreState.ImageService = new StubImageService();
                 var img = MagicEffectExportCore.RenderCsaFramePreview(
-                    null, 0x10000u, 0u, 0u, 0u);
+                    null!, 0x10000u, 0u, 0u, 0u);
                 Assert.Null(img);
             }
             finally { CoreState.ImageService = prevSvc; }
@@ -1334,12 +1334,12 @@ namespace FEBuilderGBA.Core.Tests
         {
             // guards: no ImageService → null (no throw).
             var prevRom = CoreState.ROM;
-            var prevSvc = CoreState.ImageService;
+            IImageService? prevSvc = CoreState.ImageService;
             try
             {
                 var rom = MakeMinimalRomSize(0x1100000);
                 CoreState.ROM = rom;
-                CoreState.ImageService = null;
+                CoreState.ImageService = null!;
 
                 uint baseOff = 0x14000u;
                 PlantTwoFrameCsaStream(rom, baseOff);
@@ -1348,7 +1348,7 @@ namespace FEBuilderGBA.Core.Tests
                     rom, baseOff, 0u, 0u, 0u);
                 Assert.Null(img);
             }
-            finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc; }
+            finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc!; }
         }
 
         [Fact]

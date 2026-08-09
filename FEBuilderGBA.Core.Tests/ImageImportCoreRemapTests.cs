@@ -19,9 +19,9 @@ namespace FEBuilderGBA.Core.Tests
 
         sealed class RestoreImageService : System.IDisposable
         {
-            readonly IImageService _prev;
-            public RestoreImageService(IImageService prev) { _prev = prev; }
-            public void Dispose() { CoreState.ImageService = _prev; }
+            readonly IImageService? _prev;
+            public RestoreImageService(IImageService? prev) { _prev = prev; }
+            public void Dispose() { TestRequire.RestoreImageService(_prev); }
         }
 
         // Helper: pack an RGB triple into a GBA BGR555 ushort (2 bytes).
@@ -40,8 +40,8 @@ namespace FEBuilderGBA.Core.Tests
         public void RemapToExistingPalette_NullInputs_ReturnNull()
         {
             using var _ = EnsureImageService();
-            Assert.Null(ImageImportCore.RemapToExistingPalette(null, 4, 4, new byte[32], 16));
-            Assert.Null(ImageImportCore.RemapToExistingPalette(new byte[16 * 4], 4, 4, null, 16));
+            Assert.Null(ImageImportCore.RemapToExistingPalette(null!, 4, 4, new byte[32], 16));
+            Assert.Null(ImageImportCore.RemapToExistingPalette(new byte[16 * 4], 4, 4, null!, 16));
         }
 
         [Fact]

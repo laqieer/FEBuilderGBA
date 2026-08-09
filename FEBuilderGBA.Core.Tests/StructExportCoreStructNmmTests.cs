@@ -20,10 +20,10 @@ namespace FEBuilderGBA.Core.Tests
     [Collection("SharedState")]
     public class StructExportCoreStructNmmTests
     {
-        static string FindRepoRoot()
+        static string? FindRepoRoot()
         {
-            string dir = AppContext.BaseDirectory;
-            for (int i = 0; i < 10; i++)
+            string? dir = AppContext.BaseDirectory;
+            for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (Directory.Exists(Path.Combine(dir, "config", "data")))
                     return dir;
@@ -36,7 +36,7 @@ namespace FEBuilderGBA.Core.Tests
         static void EnsureBaseDirectory()
         {
             if (CoreState.BaseDirectory != null) return;
-            string root = FindRepoRoot();
+            string? root = FindRepoRoot();
             if (root != null)
                 CoreState.BaseDirectory = root;
         }

@@ -134,7 +134,7 @@ namespace FEBuilderGBA
         /// <summary>
         /// Extracts the core version from a URL filename (handles both .7z and .zip).
         /// </summary>
-        public static string ExtractVersionFromUrl(string url)
+        public static string ExtractVersionFromUrl(string? url)
         {
             if (string.IsNullOrEmpty(url))
                 return "00000000.00";

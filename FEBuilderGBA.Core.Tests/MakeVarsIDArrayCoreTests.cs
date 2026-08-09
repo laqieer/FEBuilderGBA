@@ -24,10 +24,10 @@ namespace FEBuilderGBA.Core.Tests
     public class MakeVarsIDArrayCoreTests
     {
         // ---- real-ROM full-init harness (mirrors ExportFilterCoreTests) ----
-        static string FindRom(string romName)
+        static string? FindRom(string romName)
         {
             string thisAssembly = Assembly.GetExecutingAssembly().Location;
-            string dir = Path.GetDirectoryName(thisAssembly);
+            string? dir = Path.GetDirectoryName(thisAssembly);
             for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
@@ -46,19 +46,19 @@ namespace FEBuilderGBA.Core.Tests
         // walk up to the repo root (the FEBuilderGBA.sln dir, which has config/data).
         static string FindConfigBaseDir()
         {
-            string dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            string? dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             for (int i = 0; i < 12 && dir != null; i++)
             {
                 if (Directory.Exists(Path.Combine(dir, "config", "data")))
                     return dir;
                 dir = Path.GetDirectoryName(dir);
             }
-            return Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            return TestRequire.DirectoryName(Assembly.GetExecutingAssembly().Location);
         }
 
         static bool WithRealRom(string romName, System.Action<ROM> body)
         {
-            string romPath = FindRom(romName);
+            string? romPath = FindRom(romName);
             if (romPath == null) return false;
 
             var savedRom = CoreState.ROM;
@@ -127,7 +127,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void NullRom_ReturnsEmpty()
         {
-            var r = MakeVarsIDArrayCore.BuildAllUsedRefs(null);
+            var r = MakeVarsIDArrayCore.BuildAllUsedRefs(null!);
             Assert.Empty(r.TextIds);
             Assert.Empty(r.SongIds);
         }
@@ -251,7 +251,7 @@ namespace FEBuilderGBA.Core.Tests
         public void CacheEnumeration_DefaultInterface_IsEmpty()
         {
             ITextIDCache cache = new StubCache();
-            Assert.Empty(cache.EnumerateUsedTextIds(null));
+            Assert.Empty(cache.EnumerateUsedTextIds(null!));
         }
 
         [Fact]
@@ -288,7 +288,7 @@ namespace FEBuilderGBA.Core.Tests
         static void WithFE8Rom(bool isMultibyte, System.Action<ROM, TextIDCacheCore> body)
         {
             string romName = isMultibyte ? "FE8J.gba" : "FE8U.gba";
-            string path = FindRom(romName);
+            string? path = FindRom(romName);
             if (path == null) return;
             var saved = CoreState.BaseDirectory;
             var savedRom = CoreState.ROM;

@@ -23,10 +23,10 @@
     global property restore writes a net10.0-only assets file for FEBuilderGBA.Avalonia and
     the build fails with NETSDK1005 ("doesn't have a target for 'net10.0-ios'").
 
-    PREVIEW / not device-validated: iOS Release is full AOT + trimmed, and the Core/ROM
-    pipeline is reflection-heavy, so the runtime UX (touch, file pickers, editors) is
-    unvalidated — see docs/IOS.md. The interpreter + conservative linker settings below
-    maximize the chance the shipped .ipa actually runs.
+    PREVIEW / not device-validated: iOS Release is full AOT, while the Core/ROM
+    pipeline is reflection-heavy. The interpreter + no-link setting below maximize
+    runtime viability at the cost of artifact size; touch, file pickers, and editor UX
+    remain unvalidated — see docs/IOS.md.
   -->
   <PropertyGroup>
     <TargetFramework>net10.0-ios</TargetFramework>
@@ -48,25 +48,24 @@
     <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
 
     <!-- PREVIEW runtime viability (#1859): the Core/ROM pipeline is reflection-heavy.
-         Full iOS AOT + aggressive trimming can drop reflected types and crash the app at
-         launch even when it builds. Enable the Mono interpreter (dynamic/reflection
-         fallback) and link only the SDK so app assemblies (Core/Avalonia UI) are NOT
-         trimmed. If a future signed release wants a smaller binary, tighten these once the
-         runtime is validated on-device. -->
+         Full iOS AOT + trimming can drop reflected types and crash the app at launch even
+         when it builds. Enable the Mono interpreter and disable linking entirely until the
+         runtime is validated on-device. A future signed release can tighten this once the
+         reflection surface is trim-safe. -->
     <UseInterpreter>true</UseInterpreter>
-    <MtouchLink>SdkOnly</MtouchLink>
+    <MtouchLink>None</MtouchLink>
   </PropertyGroup>
 
   <ItemGroup>
     <!-- Avalonia iOS head. Must match the Avalonia version used by FEBuilderGBA.Avalonia
-         (11.2.3) — mixing Avalonia major/minor versions across heads is unsupported. -->
-    <PackageReference Include="Avalonia.iOS" Version="11.2.3" />
-    <!-- CRITICAL native-version pin (mirrors android #796/#798): the managed SkiaSharp
-         MUST match the native libSkiaSharp Avalonia bundles (2.88.x). A 3.x managed
-         package rejects the 2.88 native and crashes inside the Avalonia process. The iOS
-         native assets package therefore pins 2.88.9 to stay byte-compatible with
-         FEBuilderGBA.SkiaSharp.csproj. -->
-    <PackageReference Include="SkiaSharp.NativeAssets.iOS" Version="2.88.9" />
+         (11.3.18) — mixing Avalonia major/minor versions across heads is unsupported. -->
+    <PackageReference Include="Avalonia.iOS" Version="11.3.18" />
+    <!-- CRITICAL native-version pin (mirrors android #796/#798/#2067): the
+         managed SkiaSharp stack MUST match the native libSkiaSharp used by
+         Avalonia, so the iOS native assets package pins 3.119.4 in lockstep
+         with FEBuilderGBA.SkiaSharp.csproj. -->
+    <PackageReference Include="SkiaSharp.NativeAssets.iOS" Version="3.119.4" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.iOS" Version="8.3.1.5" />
   </ItemGroup>
 
   <ItemGroup>

@@ -751,9 +751,16 @@ namespace FEBuilderGBA.Tests.Unit
         [Fact]
         public void CliProgram_ImportBattleAnimeDetectsBinFormat()
         {
-            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            string cliProgramPath = GetCliProgramPath();
+            var src = System.IO.File.ReadAllText(cliProgramPath);
+            string detectorPath = Path.Combine(
+                Path.GetDirectoryName(cliProgramPath) ?? throw new InvalidOperationException("CLI source directory not found."),
+                "BattleAnimeFormatDetector.cs");
+            var detector = System.IO.File.ReadAllText(detectorPath);
+
             Assert.Contains("ImportFEditorBin", src);
-            Assert.Contains(".BIN", src);
+            Assert.Contains("IsFEditorBattleAnimationBin", src);
+            Assert.Contains(".BIN", detector);
         }
 
         [Fact]

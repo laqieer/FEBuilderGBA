@@ -3,6 +3,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>FEBuilderGBA</RootNamespace>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Nullable>annotations</Nullable>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <Deterministic>false</Deterministic>
     <!-- Suppress platform-specific warnings — Core is cross-platform but some
@@ -12,6 +13,5 @@
   <!-- InternalsVisibleTo is in Properties/AssemblyInfo.cs (GenerateAssemblyInfo=false) -->
   <ItemGroup>
     <PackageReference Include="SharpCompress" Version="0.48.0" />
-    <PackageReference Include="System.Text.Encoding.CodePages" Version="10.0.10" />
   </ItemGroup>
 </Project>

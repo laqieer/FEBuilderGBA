@@ -100,7 +100,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         /// pixel-for-pixel — a true differential against the WF semantics
         /// without leaning on sprite-specific colour values.
         /// </summary>
-        static byte[] RenderWinFormsCroppedPixels(uint waitIconIndex, out byte animType, out int outW, out int outH)
+        static byte[]? RenderWinFormsCroppedPixels(uint waitIconIndex, out byte animType, out int outW, out int outH)
         {
             animType = 0; outW = 0; outH = 0;
             ROM rom = CoreState.ROM;
@@ -175,8 +175,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Equal(16, actual.Width);
             Assert.Equal(16, actual.Height);
 
-            byte[] expected = RenderWinFormsCroppedPixels(id, out _, out int w, out int h);
-            Assert.NotNull(expected);
+            byte[] expected = Assert.IsType<byte[]>(RenderWinFormsCroppedPixels(id, out _, out int w, out int h));
             Assert.Equal(16, w);
             Assert.Equal(16, h);
             Assert.Equal(expected, actual.GetPixelData());
@@ -201,8 +200,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Equal(16, actual.Width);
             Assert.Equal(24, actual.Height);
 
-            byte[] expected = RenderWinFormsCroppedPixels(id, out byte at, out int w, out int h);
-            Assert.NotNull(expected);
+            byte[] expected = Assert.IsType<byte[]>(RenderWinFormsCroppedPixels(id, out byte at, out int w, out int h));
             Assert.Equal((byte)1, at);
             Assert.Equal(16, w);
             Assert.Equal(24, h);
@@ -228,8 +226,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Equal(32, actual.Width);
             Assert.Equal(32, actual.Height);
 
-            byte[] expected = RenderWinFormsCroppedPixels(id, out _, out int w, out int h);
-            Assert.NotNull(expected);
+            byte[] expected = Assert.IsType<byte[]>(RenderWinFormsCroppedPixels(id, out _, out int w, out int h));
             Assert.Equal(32, w);
             Assert.Equal(32, h);
             Assert.Equal(expected, actual.GetPixelData());
@@ -337,13 +334,13 @@ namespace FEBuilderGBA.Avalonia.Tests
             var prev = CoreState.ImageService;
             try
             {
-                CoreState.ImageService = null;
+                CoreStateTestState.ClearImageService();
                 using IImage img = PreviewIconHelper.LoadClassWaitIcon(1);
                 Assert.Null(img);
             }
             finally
             {
-                CoreState.ImageService = prev;
+                CoreStateTestState.RestoreImageService(prev);
             }
         }
     }

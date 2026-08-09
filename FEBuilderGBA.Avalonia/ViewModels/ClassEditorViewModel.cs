@@ -205,8 +205,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return;
+            ROMFEINFO? romInfo = rom.RomInfo;
+            if (romInfo == null)
+            {
+                CanWrite = false;
+                return;
+            }
 
-            uint dataSize = rom.RomInfo?.class_datasize ?? 84;
+            uint dataSize = romInfo.class_datasize;
             if (addr + dataSize > (uint)rom.Data.Length) return;
 
             IsLoading = true;
@@ -342,7 +348,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
 
             // Compute class index from address for MagicSplitUtil
-            uint classPtr2 = rom.RomInfo.class_pointer;
+            uint classPtr2 = romInfo.class_pointer;
             uint classBase2 = rom.p32(classPtr2);
             _currentClassIndex = (addr >= classBase2 && dataSize > 0)
                 ? (addr - classBase2) / dataSize

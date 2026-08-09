@@ -77,7 +77,6 @@ Avalonia bundles (and the WinForms output) as part of the .NET runtime payload.
 | SkiaSharp (and SkiaSharp.NativeAssets.*) | MIT | https://github.com/mono/SkiaSharp |
 | SharpCompress | MIT | https://github.com/adamhathcock/sharpcompress |
 | System.Drawing.Common | MIT | https://github.com/dotnet/runtime |
-| System.Text.Encoding.CodePages | MIT | https://github.com/dotnet/runtime |
 | Microsoft.CodeAnalysis.CSharp | MIT | https://github.com/dotnet/roslyn |
 
 ## License obligations

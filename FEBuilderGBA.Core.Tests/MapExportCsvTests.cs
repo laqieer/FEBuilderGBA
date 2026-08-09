@@ -29,7 +29,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Serialize_NullData_ReturnsEmpty()
         {
-            Assert.Equal("", MapExportCsv.Serialize(null));
+            Assert.Equal("", MapExportCsv.Serialize(null!));
         }
 
         [Fact]
@@ -153,7 +153,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Parse_NullCsv_ReturnsError()
         {
-            bool ok = MapExportCsv.Parse(null, out _, out _, out _, out string err);
+            bool ok = MapExportCsv.Parse(null!, out _, out _, out _, out string err);
             Assert.False(ok);
             Assert.NotNull(err);
         }

@@ -17,14 +17,14 @@ namespace FEBuilderGBA.Core.Tests
         readonly string _root;
         readonly string _etcDir;
         readonly string _projDir;
-        readonly ROM _savedRom;
+        readonly ROM? _savedRom;
 
         public WorkSupportScannerCoreTests()
         {
             // OtherLangLine (used by the update-info parser) reads CoreState.ROM;
             // null is a safe no-op for the parser, so isolate it.
             _savedRom = CoreState.ROM;
-            CoreState.ROM = null;
+            CoreState.ROM = null!;
 
             _root = Path.Combine(Path.GetTempPath(), "fe_worksupport_" + Guid.NewGuid().ToString("N"));
             _etcDir = Path.Combine(_root, "config", "etc", "FE8");
@@ -35,7 +35,7 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ROM = _savedRom;
+            CoreState.ROM = _savedRom!;
             try { if (Directory.Exists(_root)) Directory.Delete(_root, true); }
             catch { /* best effort */ }
         }

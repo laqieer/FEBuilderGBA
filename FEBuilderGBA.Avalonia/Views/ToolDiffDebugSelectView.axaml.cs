@@ -68,7 +68,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void TestPlay_Click(object? sender, RoutedEventArgs e)
+        async void TestPlay_Click(object? sender, RoutedEventArgs e)
         {
             string? backupPath = _vm.GetSelectedBackupPath();
             if (backupPath == null)
@@ -90,11 +90,11 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
 
-                var psi = new System.Diagnostics.ProcessStartInfo(emulatorPath, $"\"{backupPath}\"")
-                {
-                    UseShellExecute = false
-                };
-                System.Diagnostics.Process.Start(psi);
+                var result = await ExternalLauncher.Current.OpenPathAsync(emulatorPath, $"\"{backupPath}\"", useShellExecute: false);
+                if (!result.IsSucceeded)
+                    await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window,
+                        $"Failed to launch emulator: {result.Message}",
+                        "Error", MessageBoxMode.Ok);
             }
             catch (Exception ex)
             {

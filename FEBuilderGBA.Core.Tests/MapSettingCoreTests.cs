@@ -11,33 +11,33 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void MakeMapIDList_WithNoRom_ReturnsEmpty()
         {
-            var origRom = CoreState.ROM;
+            ROM? origRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 var list = MapSettingCore.MakeMapIDList();
                 Assert.NotNull(list);
                 Assert.Empty(list);
             }
             finally
             {
-                CoreState.ROM = origRom;
+                CoreState.ROM = origRom!;
             }
         }
 
         [Fact]
         public void GetMapAddr_WithNoRom_ReturnsNotFound()
         {
-            var origRom = CoreState.ROM;
+            ROM? origRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 uint addr = MapSettingCore.GetMapAddr(0);
                 Assert.Equal(U.NOT_FOUND, addr);
             }
             finally
             {
-                CoreState.ROM = origRom;
+                CoreState.ROM = origRom!;
             }
         }
 
@@ -356,15 +356,15 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetMapNameById_WithNoRom_ReturnsEmpty()
         {
-            var origRom = CoreState.ROM;
+            ROM? origRom = CoreState.ROM;
             try
             {
-                CoreState.ROM = null;
+                CoreState.ROM = null!;
                 Assert.Equal("", MapSettingCore.GetMapNameById(0));
             }
             finally
             {
-                CoreState.ROM = origRom;
+                CoreState.ROM = origRom!;
             }
         }
 

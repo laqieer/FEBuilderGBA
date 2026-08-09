@@ -188,13 +188,13 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void NullRom_NeverThrows()
         {
-            Assert.Empty(MapPointerPlistUsageCore.GetMapIDsWherePlist(null, MapChangeCore.PlistType.EVENT, 3));
-            var info = MapPointerPlistUsageCore.BuildPlistUsageInfo(null, MapChangeCore.PlistType.EVENT, 3);
+            Assert.Empty(MapPointerPlistUsageCore.GetMapIDsWherePlist(null!, MapChangeCore.PlistType.EVENT, 3));
+            var info = MapPointerPlistUsageCore.BuildPlistUsageInfo(null!, MapChangeCore.PlistType.EVENT, 3);
             Assert.False(info.IsAlreadyUse);
-            Assert.Equal(0u, MapPointerPlistUsageCore.GetEventPlistCount(null));
-            Assert.False(MapPointerPlistUsageCore.IsExtendsPlist(null));
+            Assert.Equal(0u, MapPointerPlistUsageCore.GetEventPlistCount(null!));
+            Assert.False(MapPointerPlistUsageCore.IsExtendsPlist(null!));
             Assert.Equal(MapPointerPlistUsageCore.ExtendState.Enabled,
-                MapPointerPlistUsageCore.GetExtendState(null));
+                MapPointerPlistUsageCore.GetExtendState(null!));
         }
 
         [Fact]

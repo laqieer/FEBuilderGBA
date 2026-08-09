@@ -70,9 +70,9 @@ namespace FEBuilderGBA.Core.Tests
 
         sealed class RestoreImageService : IDisposable
         {
-            readonly IImageService _prev;
-            public RestoreImageService(IImageService prev) { _prev = prev; }
-            public void Dispose() { CoreState.ImageService = _prev; }
+            readonly IImageService? _prev;
+            public RestoreImageService(IImageService? prev) { _prev = prev; }
+            public void Dispose() { TestRequire.RestoreImageService(_prev); }
         }
 
         // Build RGBA pixels whose colors match the synthetic palette (entry i ->
@@ -454,7 +454,7 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.ROM = rom;
                 Assert.Null(MapTileAnimation1ImageCore.ReadFrameBytes(rom, 0, SHEET_LEN));
                 Assert.Null(MapTileAnimation1ImageCore.ReadFrameBytes(rom, 0x08000800, 0));
-                Assert.Null(MapTileAnimation1ImageCore.ReadFrameBytes(null, 0x08000800, SHEET_LEN));
+                Assert.Null(MapTileAnimation1ImageCore.ReadFrameBytes(null!, 0x08000800, SHEET_LEN));
             }
             finally { CoreState.ROM = savedRom; }
         }
@@ -468,7 +468,7 @@ namespace FEBuilderGBA.Core.Tests
             try
             {
                 // null ROM ⇒ localized error, no file.
-                Assert.NotEqual("", MapTileAnimation1ImageCore.ExportGif(null, 1, gif));
+                Assert.NotEqual("", MapTileAnimation1ImageCore.ExportGif(null!, 1, gif));
                 Assert.False(File.Exists(gif));
 
                 ROM rom = MakeRom();
@@ -504,7 +504,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ExportGif_RealRomFE8U_ProducesValidMultiFrameGif()
         {
-            string romPath = FindRom("FE8U.gba");
+            string? romPath = FindRom("FE8U.gba");
             if (romPath == null) return; // skip
 
             var savedRom = CoreState.ROM;
@@ -551,7 +551,7 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.True(frameCount >= 1, $"Expected >= 1 GIF frame, found {frameCount}");
 
                 // The atomic temp-file-then-move path must leave no ".tmp" artifact.
-                string gifDir = Path.GetDirectoryName(gif);
+                string gifDir = TestRequire.DirectoryName(gif);
                 Assert.Empty(Directory.GetFiles(gifDir, "*" + Path.GetFileName(gif) + "*.tmp"));
             }
             finally
@@ -570,7 +570,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ResolveGifContext_FirstMatchingMapBroken_ReturnsNull_NoFallThrough()
         {
-            string romPath = FindRom("FE8U.gba");
+            string? romPath = FindRom("FE8U.gba");
             if (romPath == null) return; // skip
 
             var savedRom = CoreState.ROM;
@@ -635,10 +635,10 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // Walk up from the test assembly to find roms/<name> next to the .sln.
-        static string FindRom(string romName)
+        static string? FindRom(string romName)
         {
             string thisAssembly = System.Reflection.Assembly.GetExecutingAssembly().Location;
-            string dir = Path.GetDirectoryName(thisAssembly);
+            string? dir = Path.GetDirectoryName(thisAssembly);
             for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))

@@ -44,7 +44,7 @@ namespace FEBuilderGBA.Tests.Unit
     {
         // 16 MiB synthetic FE8 ROM, BE8E01 — RomInfo-bearing so both producers' GREP seed +
         // PROCS length detector work. Sets Program.ROM (reflection) AND CoreState.ROM.
-        static ROM MakeFe8RomAndInstall()
+        static ROM? MakeFe8RomAndInstall()
         {
             var data = new byte[0x1000000];
             byte[] code = System.Text.Encoding.ASCII.GetBytes("BE8E01");
@@ -62,7 +62,7 @@ namespace FEBuilderGBA.Tests.Unit
         {
             try
             {
-                PropertyInfo p = typeof(Program).GetProperty(
+                PropertyInfo? p = typeof(Program).GetProperty(
                     "ROM", BindingFlags.Public | BindingFlags.Static);
                 if (p == null) return false;
                 p.SetValue(null, rom, BindingFlags.NonPublic | BindingFlags.Instance, null, null, null);
@@ -107,9 +107,9 @@ namespace FEBuilderGBA.Tests.Unit
 
         // Call the private static WF PatchForm.MakePatchStructDataListForEA via reflection.
         // Returns null if the method is not found (→ test skips).
-        static List<Address> CallWfMakePatchStructDataListForEA(List<Address> list, bool isPointerOnly, PatchForm.PatchSt patch)
+        static List<Address>? CallWfMakePatchStructDataListForEA(List<Address> list, bool isPointerOnly, PatchForm.PatchSt patch)
         {
-            MethodInfo m = typeof(PatchForm).GetMethod(
+            MethodInfo? m = typeof(PatchForm).GetMethod(
                 "MakePatchStructDataListForEA",
                 BindingFlags.NonPublic | BindingFlags.Static);
             if (m == null) return null;
@@ -126,7 +126,7 @@ namespace FEBuilderGBA.Tests.Unit
             Key(uint a, uint l, uint p, Address.DataTypeEnum t) { Addr = a; Length = l; Pointer = p; Type = t; }
             public static Key Of(Address a) => new Key(a.Addr, a.Length, a.Pointer, a.DataType);
             public bool Equals(Key o) => Addr == o.Addr && Length == o.Length && Pointer == o.Pointer && Type == o.Type;
-            public override bool Equals(object o) => o is Key k && Equals(k);
+            public override bool Equals(object? o) => o is Key k && Equals(k);
             public override int GetHashCode() => HashCode.Combine(Addr, Length, Pointer, (int)Type);
         }
 

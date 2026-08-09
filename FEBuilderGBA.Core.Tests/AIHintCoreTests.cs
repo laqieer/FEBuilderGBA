@@ -31,7 +31,7 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ROM = _savedRom;
+            CoreState.ROM = _savedRom!;
             CoreState.Language = _savedLang;
             NameResolver.ClearCache();
         }
@@ -275,7 +275,7 @@ namespace FEBuilderGBA.Core.Tests
             string hint = ToolTranslateROMCore.AppendAIHintMessage(rom, "[LoadFace][0xFFFF]");
             Assert.DoesNotContain(R._("モブキャラ"), hint);
             Assert.DoesNotContain("(0x", hint); // no resolved face line emitted
-            Assert.Equal(hint.Trim(), ""); // only the WF leading blank lines
+            Assert.Equal("", hint.Trim()); // only the WF leading blank lines
         }
 
         static void EnsureConfig()

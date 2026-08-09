@@ -294,7 +294,7 @@ namespace FEBuilderGBA.Tests.Unit
         [InlineData("", true)]
         [InlineData("   ", false)] // Not empty, contains whitespace
         [InlineData("test", false)]
-        public void IsEmpty_WithString_ReturnsCorrectResult(string value, bool expected)
+        public void IsEmpty_WithString_ReturnsCorrectResult(string? value, bool expected)
         {
             // Act
             var result = U.IsEmpty(value);

@@ -35,7 +35,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void MakeSkipDataByPointer_NullReturnsEmpty()
         {
-            var skip = PointerCalcCore.MakeSkipDataByPointer(null);
+            var skip = PointerCalcCore.MakeSkipDataByPointer(null!);
             Assert.Empty(skip);
         }
 
@@ -103,7 +103,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ParseAddressList_NullReturnsEmpty()
         {
-            var addrs = PointerCalcCore.ParseAddressList(null);
+            var addrs = PointerCalcCore.ParseAddressList(null!);
             Assert.Empty(addrs);
         }
     }

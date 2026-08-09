@@ -134,18 +134,18 @@ shared `App`, which now presents `MainView` under the single-view lifetime.
 
 This is a known landmine in this repo. **A process loads exactly one native
 `libSkiaSharp`, so the managed SkiaSharp version must match the native that
-Avalonia bundles.** Avalonia 11.2.3 bundles native Skia `2.88.x`; managed
-SkiaSharp `3.x` rejects the `2.88` native ("88.1") and crashes inside the
-Avalonia process with a `TypeInitializationException` on non-Windows
-(Windows can mask it). See `FEBuilderGBA.SkiaSharp/FEBuilderGBA.SkiaSharp.csproj:7-13`
-(pinned to `SkiaSharp 2.88.9`) and issues #796 / #798.
+Avalonia bundles.** The accepted Avalonia 11 stack is Avalonia 11.3.18 with
+SkiaSharp 3.119.4 and HarfBuzzSharp 8.3.1.5; the older pre-#2067 Android native is
+not compatible with Android 15+/16 KB page-size requirements. See
+`FEBuilderGBA.SkiaSharp/FEBuilderGBA.SkiaSharp.csproj:7-15` and issues
+#796 / #798 / #2067.
 
-**For Android:** add `SkiaSharp.NativeAssets.Android` **pinned to the same
-`2.88.9` family** — never float it to `3.x` independently. The skeleton's
-`FEBuilderGBA.Android.csproj` already pins it:
+**For Android:** add `SkiaSharp.NativeAssets.Android` **pinned exactly to
+`3.119.4`** so the APK carries the same native SkiaSharp build as the managed
+stack. The skeleton's `FEBuilderGBA.Android.csproj` already pins it:
 
 ```xml
-<PackageReference Include="SkiaSharp.NativeAssets.Android" Version="2.88.9" />
+<PackageReference Include="SkiaSharp.NativeAssets.Android" Version="3.119.4" />
 ```
 
 **Risk (mitigated — #1125):** the parity smoke test now EXISTS and is authored
@@ -153,10 +153,14 @@ Avalonia process with a `TypeInitializationException` on non-Windows
 in the net10.0 cross-platform suite:
 
 - `FEBuilderGBA.Core.Tests/SkiaSharpVersionGuardTests.cs` — three-layer pin guard:
-  **(b1) declared** (every `SkiaSharp*` `<PackageReference>` across the repo's
-  csprojs pins `2.88.x`, never `3.x`), **(b2) runtime** (the managed SkiaSharp
-  assembly actually loaded is `2.88`), **(b3) restored** (`project.assets.json`
-  resolved only `2.88.x` SkiaSharp libraries, with no duplicate major family).
+  **(b1) declared** (every `Avalonia*` / `SkiaSharp*` / `HarfBuzzSharp*`
+  `<PackageReference>` across the repo's csprojs pins the #2067 stack),
+  **(b2) runtime** (the managed SkiaSharp assembly actually loaded is
+  `3.119.x`), **(b3) restored** (`project.assets.json` resolved only the
+  accepted SkiaSharp/HarfBuzzSharp versions, with no duplicate major family).
+  The runtime-version check uses stock xUnit assertions only, so the linked
+  Android.Tests copy stays self-contained and does not need Core.Tests-only
+  helpers.
 - `FEBuilderGBA.Core.Tests/SkiaRenderByteParityTests.cs` — render byte-parity:
   the GBA 4bpp-tile → palette-index decode and the index → RGBA palette
   expansion are asserted **EXACT (zero tolerance)** against hand-derived golden
@@ -185,7 +189,7 @@ before installing, while retaining every instrumentation/result failure gate.
   catches `Xunit.SkipException` vs failures, and writes its own xUnit-shaped
   `TestResults.xml` + an ADB result bundle. The test head restores from
   **nuget.org only** (`xunit`, `xunit.SkippableFact`,
-  `SkiaSharp.NativeAssets.Android 2.88.9`) — no XHarness packages, no dnceng
+  `SkiaSharp.NativeAssets.Android 3.119.4`) — no XHarness packages, no dnceng
   feed. `AndroidLinkMode=None`/`PublishTrimmed=false` ensure reflection-discovered
   classes survive the linker.
 - **CI workflow:** `.github/workflows/android-emulator-parity.yml` runs on
@@ -197,17 +201,17 @@ before installing, while retaining every instrumentation/result failure gate.
 - **ABI coverage (honest):** `x86_64` is the only on-device-proven ABI.
   API 34 has no 32-bit `x86` system image (Google dropped `x86` at API 31+).
   `arm64-v8a` and `armeabi-v7a` ship in the **same pinned
-  `SkiaSharp.NativeAssets.Android 2.88.9` package** (same package version /
+  `SkiaSharp.NativeAssets.Android 3.119.4` package** (same package version /
   same upstream Skia build, ABI-specific native binaries — not identical `.so`
   bytes) but are NOT bootable on GitHub-hosted `x86_64` runners — they require
   a self-hosted ARM runner or a paid ARM-emulator service. The `x86` (32-bit)
   ABI has no API-34 system image at all. The workflow provides direct on-device
   proof for `x86_64`; the other three ABIs (`arm64-v8a`, `armeabi-v7a`, `x86`)
   are covered by the same-package argument (same `SkiaSharp.NativeAssets.Android
-  2.88.9` pin, same upstream Skia source build).
+  3.119.4` pin, same upstream Skia source build).
 - **What runs on-device:** the image parity tests (EXACT byte equality — the tile
   decode + PNG round-trip golden); the font parity tests (within shared pixel
-  tolerance); and `RuntimeLoadedSkiaSharpAssembly_Is_288` (the runtime-loaded
+  tolerance); and `RuntimeLoadedSkiaSharpAssembly_Is_3119` (the runtime-loaded
   managed SkiaSharp version guard). The declared/restored-graph guards skip on
   the device (no source tree / `.sln` present on an Android host), as documented
   in `SkiaSharpVersionGuardTests.cs`.
@@ -463,9 +467,9 @@ This section is deliberately precise about **what built vs what is authored-only
   shared project excludes `Program.cs`, `Avalonia.Desktop`, `app.manifest`, the
   `GapSweep` Roslyn dev-tooling (`GapSweep/**` + `App.GapSweep.cs`) and the
   `Microsoft.CodeAnalysis.CSharp` package; the `GapSweep` dispatch in
-  `App.OnFrameworkInitializationCompleted` is `#if !ANDROID`-guarded. The only
-  android-specific warnings are benign `XA0141` 16-KB-page-size advisories on the
-  prebuilt Skia/HarfBuzz `.so` natives.
+  `App.OnFrameworkInitializationCompleted` is `#if !ANDROID`-guarded. The
+  SkiaSharp 3.119.4 / HarfBuzzSharp 8.3.1.5 native stack is 16-KB-page-size
+  compatible, so Android builds complete without `XA0141`.
 
 ### Historical blocker (resolved by #1121)
 
@@ -594,7 +598,7 @@ cached test package before installing the current APK. Genuine package-manager,
 instrumentation, and result failures remain red. Once consistently healthy it
 can be flipped to required via a branch-ruleset change. `arm64-v8a`,
 `armeabi-v7a`, and `x86` are covered by
-the same-package argument (same `SkiaSharp.NativeAssets.Android 2.88.9` package
+the same-package argument (same `SkiaSharp.NativeAssets.Android 3.119.4` package
 version / same upstream Skia build, ABI-specific native binaries — not identical `.so`
 bytes) but are not directly emulated on GitHub-hosted runners — `x86` has no
 API-34 system image; `arm64-v8a`/`armeabi-v7a` need a self-hosted ARM runner
@@ -676,7 +680,7 @@ linked under #1070 as its checklist:
    as the desktop suite (direct reflection runner, NOT XHarness — .NET 10
    Android embeds assemblies as `.so` files; xUnit's `Guard.FileExists` needs
    an on-disk DLL). `arm64-v8a`, `armeabi-v7a`, and `x86` ship in the same
-   `SkiaSharp.NativeAssets.Android 2.88.9` package (same package version /
+   `SkiaSharp.NativeAssets.Android 3.119.4` package (same package version /
    same upstream Skia build, ABI-specific native binaries) but are not
    bootable on GitHub-hosted runners (see §3). *(see §3, §7.)*
 6. ~~**Android: CI job + signed APK packaging** (separate android-workload job,

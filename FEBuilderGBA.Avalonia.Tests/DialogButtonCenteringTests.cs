@@ -65,7 +65,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 string.Join("\n  ", offenders));
         }
 
-        private static string FindViewsDir()
+        private static string? FindViewsDir()
         {
             var dir = AppContext.BaseDirectory;
             for (int i = 0; i < 12; i++)

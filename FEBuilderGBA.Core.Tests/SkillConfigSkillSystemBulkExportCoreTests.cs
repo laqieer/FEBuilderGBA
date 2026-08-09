@@ -44,7 +44,7 @@ namespace FEBuilderGBA.Core.Tests
         public void Dispose()
         {
             CoreState.ROM = _prevRom;
-            CoreState.ImageService = _prevSvc;
+            TestRequire.RestoreImageService(_prevSvc);
         }
 
         // ROM length: 0x1100000 (> extends offset 0x01000000) so we can plant an
@@ -135,7 +135,7 @@ namespace FEBuilderGBA.Core.Tests
             try
             {
                 string err = SkillConfigSkillSystemBulkExportCore.ExportAll(
-                    rom, TEXT_LOC, ANIME_LOC, tsvPath, null);
+                    rom, TEXT_LOC, ANIME_LOC, tsvPath, null!);
                 Assert.Equal("", err);
                 Assert.Equal(before, rom.Data); // READ-ONLY
                 Assert.Equal(SkillConfigSkillSystemBulkExportCore.MAX_COUNT, File.ReadAllLines(tsvPath).Length);

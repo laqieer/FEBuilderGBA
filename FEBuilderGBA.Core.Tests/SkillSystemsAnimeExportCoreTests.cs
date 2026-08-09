@@ -140,7 +140,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ExportSkillAnimation_NullRom_ReturnsError()
         {
-            var result = SkillSystemsAnimeExportCore.ExportSkillAnimation(null, 0x300u);
+            var result = SkillSystemsAnimeExportCore.ExportSkillAnimation(null!, 0x300u);
             Assert.NotEqual("", result.Error);
             Assert.Empty(result.Frames);
         }
@@ -462,7 +462,7 @@ namespace FEBuilderGBA.Core.Tests
         static string FindRepoRoot()
         {
             string asm = Assembly.GetExecutingAssembly().Location;
-            string dir = Path.GetDirectoryName(asm);
+            string? dir = Path.GetDirectoryName(asm);
             for (int i = 0; i < 12 && dir != null; i++)
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))

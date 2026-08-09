@@ -505,8 +505,8 @@ namespace FEBuilderGBA.Core.Tests
         static string FindAxamlPath()
         {
             // Walk up from test binary to repo root.
-            string dir = AppContext.BaseDirectory;
-            for (int i = 0; i < 10; i++)
+            string? dir = AppContext.BaseDirectory;
+            for (int i = 0; i < 10 && dir != null; i++)
             {
                 string candidate = System.IO.Path.Combine(
                     dir, "FEBuilderGBA.Avalonia", "Views",

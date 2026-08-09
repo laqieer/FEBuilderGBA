@@ -47,7 +47,7 @@ namespace FEBuilderGBA
         /// <summary>
         /// Check if byte data has a valid UPS header.
         /// </summary>
-        public static bool IsUPSData(byte[] data)
+        public static bool IsUPSData(byte[]? data)
         {
             if (data == null || data.Length <= 4)
                 return false;
@@ -123,7 +123,7 @@ namespace FEBuilderGBA
         /// Apply a UPS patch to source data. Returns patched data or null on failure.
         /// errorMessage is set on failure.
         /// </summary>
-        public static byte[] ApplyUPS(byte[] sourceData, byte[] patchData, out string errorMessage)
+        public static byte[]? ApplyUPS(byte[] sourceData, byte[] patchData, out string? errorMessage)
         {
             errorMessage = null;
 

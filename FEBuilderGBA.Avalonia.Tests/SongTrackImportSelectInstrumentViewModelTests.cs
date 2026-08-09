@@ -29,9 +29,9 @@ namespace FEBuilderGBA.Avalonia.Tests
         static readonly byte[] FE8U_NIMAP2 = Sig("00 3C 00 00 B8 2A 51 08 FF FA 00 CC 00 3C 00 00 68 80 2A 08 FF FA 00 CC 00 3C 00 00 8C 91 29 08 FF F9 00 A5 01 3C 00 00 02 00 00 00 00 00 0F 00 00 3C 00 00 F4 B7 2B 08 FF FD 00 CC 01 3C 00 00 02 00 00 00 00 00 0F 00 00 3C 00 00 24 F5 28 08 FF F9 00 A5 00 3C 00 00 24 F5 28 08 FF F5 96 96");
         static readonly byte[] ALL_INSTRUMENT = Sig("00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 01 01 02 02 03 03 04 05 05 05 05 06 06 06 07 07 07 07 08 08 09 09 09 0A 0A 0A 0A 0B 0C 0C 0C 0D 0D 0D 0D 0E 0E 0E 0F 0F 0F 0F 10 10 10 11 11 11 11 12 12 12 13 13 13 13 14 14 15 15 15 16 16 16 16 17 17 17 17 17 17 17 17 17 17 17 17 17 17 17 17 17 17 17 17 17 17 17");
 
-        static string FindRepoRoot()
+        static string? FindRepoRoot()
         {
-            string dir = AppContext.BaseDirectory;
+            string? dir = AppContext.BaseDirectory;
             while (dir != null && !Directory.Exists(Path.Combine(dir, "config", "data")))
                 dir = Path.GetDirectoryName(dir);
             return dir;
@@ -78,7 +78,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         [Fact]
         public void LoadList_PopulatesFromInstrumentSetCore_AndAutoSelectsFirstNonCurrent()
         {
-            string root = FindRepoRoot();
+            string? root = FindRepoRoot();
             if (root == null) return; // no config/data — cannot resolve signature list
 
             var savedRom = CoreState.ROM;

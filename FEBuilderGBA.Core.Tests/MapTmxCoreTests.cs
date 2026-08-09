@@ -352,7 +352,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void SerializeTmx_NullOrUndersized_ReturnsEmpty()
         {
-            Assert.Equal("", MapTmxCore.SerializeTmx(null, "t.tsx"));
+            Assert.Equal("", MapTmxCore.SerializeTmx(null!, "t.tsx"));
             Assert.Equal("", MapTmxCore.SerializeTmx(new byte[] { 2, 2 }, "t.tsx")); // header only, no data
         }
 
@@ -667,7 +667,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void SerializeTmj_NullOrUndersized_ReturnsEmpty()
         {
-            Assert.Equal("", MapTmxCore.SerializeTmj(null, "t.tsx"));
+            Assert.Equal("", MapTmxCore.SerializeTmj(null!, "t.tsx"));
             Assert.Equal("", MapTmxCore.SerializeTmj(new byte[] { 2, 2 }, "t.tsx"));
         }
 
@@ -714,9 +714,9 @@ namespace FEBuilderGBA.Core.Tests
         [InlineData("", "\uFEFF{ }", true)]          // UTF-8 BOM then '{'
         [InlineData("", "<map/>", false)]            // XML content, no name
         [InlineData(null, null, false)]              // null-safe
-        public void LooksLikeTmj_DetectsJson(string fileName, string text, bool expected)
+        public void LooksLikeTmj_DetectsJson(string? fileName, string? text, bool expected)
         {
-            Assert.Equal(expected, MapTmxCore.LooksLikeTmj(fileName, text));
+            Assert.Equal(expected, MapTmxCore.LooksLikeTmj(fileName!, text!));
         }
     }
 }

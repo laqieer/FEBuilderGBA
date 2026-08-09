@@ -25,13 +25,13 @@ namespace FEBuilderGBA.Core.Tests
 
         sealed class ImageServiceScope : IDisposable
         {
-            readonly IImageService _prev;
+            readonly IImageService? _prev;
             public ImageServiceScope()
             {
                 _prev = CoreState.ImageService;
                 CoreState.ImageService = new StubImageService();
             }
-            public void Dispose() { CoreState.ImageService = _prev; }
+            public void Dispose() { TestRequire.RestoreImageService(_prev); }
         }
 
         sealed class RomScope : IDisposable
@@ -227,7 +227,7 @@ namespace FEBuilderGBA.Core.Tests
             using var svc = new ImageServiceScope();
             ROM rom = MakeRom();
             CoreState.ROM = rom;
-            string err = FontAutoGenZHCore.AutoGenerateGlyphZH(rom, null,
+            string err = FontAutoGenZHCore.AutoGenerateGlyphZH(rom, null!,
                 new FontSpec { FamilyName = "SimSun", Size = 12f }, "、",
                 MOJI_TEN, isItemFont: false, verticalOffset: 0);
             Assert.NotEqual("", err);

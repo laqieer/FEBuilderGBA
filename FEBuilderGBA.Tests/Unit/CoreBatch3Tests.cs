@@ -368,7 +368,7 @@ namespace FEBuilderGBA.Tests.Unit
         private class MockAppServices : IAppServices
         {
             public bool ErrorShown { get; private set; }
-            public string LastError { get; private set; }
+            public string LastError { get; private set; } = "";
             public bool QuestionResult { get; set; } = false;
 
             public void ShowError(string message)

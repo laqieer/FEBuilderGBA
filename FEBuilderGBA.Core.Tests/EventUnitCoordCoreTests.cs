@@ -123,7 +123,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ReadAfterCoords_NoBlob_ReturnsOnlyStartRow()
         {
             ROM rom = MakeRom();
-            PlantBlock(rom, x: 9, y: 10, ext: 0, afterRecords: null); // P8=0, B7=0
+            PlantBlock(rom, x: 9, y: 10, ext: 0, afterRecords: null!); // P8=0, B7=0
 
             var list = EventUnitCoordCore.ReadAfterCoords(rom, rom.u16(W4Addr), rom.u8(B7Addr), rom.u32(P8Addr));
 
@@ -140,7 +140,7 @@ namespace FEBuilderGBA.Core.Tests
             // "always >=1 row" contract holds even with a null ROM — only the
             // blob records need the ROM (Copilot bot review on PR #1073).
             uint w4 = U.MakeFe8UnitPos(7, 12, 0);
-            var list = EventUnitCoordCore.ReadAfterCoords(null, w4, b7: 5, p8: 0x08001000);
+            var list = EventUnitCoordCore.ReadAfterCoords(null!, w4, b7: 5, p8: 0x08001000);
 
             Assert.Single(list);
             Assert.Equal(7u, list[0].X);
@@ -311,7 +311,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 ROM rom = MakeRom();
                 CoreState.ROM = rom;
-                PlantBlock(rom, x: 1, y: 1, ext: 0, afterRecords: null);
+                PlantBlock(rom, x: 1, y: 1, ext: 0, afterRecords: null!);
 
                 var list = new List<Fe8Coord> { Rec(12, 13, 3, 0, 0, 0xFF, 0xFF, 0) };
                 string err = EventUnitCoordCore.WriteAfterCoords(rom, W4Addr, B7Addr, P8Addr, list);
@@ -333,7 +333,7 @@ namespace FEBuilderGBA.Core.Tests
             PlantBlock(rom, x: 1, y: 1, ext: 0, afterRecords: new[] { Rec(2, 2, 0, 1, 1, 1, 1, 10) });
             byte[] before = (byte[])rom.Data.Clone();
 
-            string err = EventUnitCoordCore.WriteAfterCoords(rom, W4Addr, B7Addr, P8Addr, null);
+            string err = EventUnitCoordCore.WriteAfterCoords(rom, W4Addr, B7Addr, P8Addr, null!);
 
             Assert.NotEqual("", err);
             Assert.Equal(before, rom.Data);
@@ -356,7 +356,7 @@ namespace FEBuilderGBA.Core.Tests
         public void WriteAfterCoords_TooManyAfterRows_NoMutation()
         {
             ROM rom = MakeRom();
-            PlantBlock(rom, x: 1, y: 1, ext: 0, afterRecords: null);
+            PlantBlock(rom, x: 1, y: 1, ext: 0, afterRecords: null!);
             byte[] before = (byte[])rom.Data.Clone();
 
             // START + 256 after-coords (count-1 = 256 > 255).

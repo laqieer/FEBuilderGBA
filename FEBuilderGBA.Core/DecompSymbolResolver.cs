@@ -325,11 +325,11 @@ namespace FEBuilderGBA
     /// </summary>
     public sealed class MergedAsmMapFile : IAsmMapFile
     {
-        readonly IAsmMapFile _shipped;
-        readonly DecompSymbolResolver _project;
+        readonly IAsmMapFile? _shipped;
+        readonly DecompSymbolResolver? _project;
         readonly List<uint> _projectKeys;   // ascending, for SearchNear
 
-        public MergedAsmMapFile(IAsmMapFile shipped, DecompSymbolResolver project)
+        public MergedAsmMapFile(IAsmMapFile? shipped, DecompSymbolResolver? project)
         {
             _shipped = shipped;
             _project = project;

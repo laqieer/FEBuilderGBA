@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Core.Tests
@@ -194,6 +196,46 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.Language = origLang;
                 CoreState.Config = origConfig;
             }
+        }
+
+        [Fact]
+        public async Task DiscoverTilesetsAsync_ConfiguredWithEmptyAssetsRoot_PassesNullAssetsRoot()
+        {
+            var profile = new FEMapCreatorSetupSnapshot(
+                FEMapCreatorSetupStatus.Configured,
+                "femapcreator.exe",
+                "",
+                "",
+                executableSizeBytes: 1,
+                executableLastWriteUtcTicks: 2,
+                executableSha256: "abc");
+            string? capturedAssetsRoot = "not called";
+            var vm = new OptionsViewModel(
+                discoverTilesets: (executablePath, assetsRoot, cancellationToken) =>
+                {
+                    capturedAssetsRoot = assetsRoot;
+                    var result = new FEMapCreatorTilesetDiscoveryResult { Success = true };
+                    result.Tilesets.Add(new FEMapCreatorTilesetInfo
+                    {
+                        Name = "Plain",
+                        HasImage = true,
+                        HasGenerationData = true,
+                        ResolvedImagePath = "plain.png",
+                        ResolvedGenerationDataPath = "plain.json",
+                        IsCompatible = true,
+                    });
+                    return result;
+                },
+                getConfig: () => new Config(),
+                validateProfile: (executablePath, assetsRoot, cancellationToken) => profile);
+
+            vm.FEMapCreatorPath = "femapcreator.exe";
+            vm.FEMapCreatorAssetsRoot = "";
+            await vm.DiscoverTilesetsAsync();
+
+            Assert.Null(capturedAssetsRoot);
+            Assert.Single(vm.Tilesets);
+            Assert.Equal("Plain", vm.Tilesets[0].Name);
         }
 
         /// <summary>

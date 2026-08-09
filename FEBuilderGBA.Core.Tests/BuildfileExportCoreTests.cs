@@ -57,9 +57,9 @@ namespace FEBuilderGBA.Core.Tests
             try { if (Directory.Exists(parent)) Directory.Delete(parent, true); } catch { }
         }
 
-        static string FindBuiltColorzCore()
+        static string? FindBuiltColorzCore()
         {
-            string dir = AppContext.BaseDirectory;
+            string? dir = AppContext.BaseDirectory;
             for (int i = 0; i < 12 && dir != null; i++)
             {
                 foreach (string config in new[] { "Release", "Debug" })
@@ -101,14 +101,14 @@ namespace FEBuilderGBA.Core.Tests
             {
                 uint start = ext.GetProperty("start").GetUInt32();
                 uint len = ext.GetProperty("length").GetUInt32();
-                byte fill = Convert.ToByte(ext.GetProperty("fillByte").GetString().Substring(2), 16);
+                byte fill = Convert.ToByte(TestRequire.JsonString(ext.GetProperty("fillByte"), "fillByte").Substring(2), 16);
                 for (uint i = 0; i < len; i++) recon[start + i] = fill;
             }
 
             foreach (JsonElement r in root.GetProperty("ranges").EnumerateArray())
             {
                 uint offset = r.GetProperty("offset").GetUInt32();
-                string payload = r.GetProperty("payload").GetString();
+                string payload = TestRequire.JsonString(r.GetProperty("payload"), "payload");
                 Assert.StartsWith("data/", payload);
                 byte[] bytes = File.ReadAllBytes(Path.Combine(projectDir, payload.Replace('/', Path.DirectorySeparatorChar)));
                 Array.Copy(bytes, 0, recon, offset, bytes.Length);
@@ -399,7 +399,7 @@ namespace FEBuilderGBA.Core.Tests
 
                 foreach (JsonElement r in doc.RootElement.GetProperty("ranges").EnumerateArray())
                 {
-                    string payload = r.GetProperty("payload").GetString();
+                    string payload = TestRequire.JsonString(r.GetProperty("payload"), "payload");
                     Assert.DoesNotContain("\\", payload);   // forward slashes only
                     Assert.DoesNotContain("..", payload);   // no traversal
                     Assert.StartsWith("data/", payload);
@@ -454,9 +454,10 @@ namespace FEBuilderGBA.Core.Tests
         [SkippableFact]
         public void Export_MainEvent_RealColorzCore_ReconstructsTarget()
         {
-            string exe = FindBuiltColorzCore();
+            string? exe = FindBuiltColorzCore();
             Skip.If(exe == null,
                 "ColorzCore is not built; deterministic main.event assertions still run.");
+                exe = TestRequire.NotNull(exe, "ColorzCore path");
 
             var clean = new byte[RomSize];
             var target = new byte[RomSize * 2];
@@ -611,7 +612,7 @@ namespace FEBuilderGBA.Core.Tests
             target[0x10] = 0x9;
 
             var (outDir, parent) = FreshOut();
-            FileStream held = null;
+            FileStream? held = null;
             try
             {
                 var options = new BuildfileExportOptions
@@ -619,7 +620,7 @@ namespace FEBuilderGBA.Core.Tests
                     OutputDirectory = outDir,
                     BeforePayloadWriteForTest = payloadPath =>
                     {
-                        held = new FileStream(Path.Combine(Path.GetDirectoryName(payloadPath), "locked.bin"),
+                        held = new FileStream(Path.Combine(TestRequire.DirectoryName(payloadPath), "locked.bin"),
                             FileMode.Create, FileAccess.ReadWrite, FileShare.None);
                         held.WriteByte(1);
                         throw new IOException("injected payload write failure");
@@ -749,7 +750,7 @@ namespace FEBuilderGBA.Core.Tests
                         ProjectionRunner = scratch =>
                         {
                             sawPublishStage = Directory.GetDirectories(
-                                Path.GetDirectoryName(scratch)).Any(
+                                TestRequire.DirectoryName(scratch)).Any(
                                     path => Path.GetFileName(path).Contains(".stage-"));
                             return BuildfileProjectionOutcome.Refuse("test refusal");
                         },
@@ -917,7 +918,7 @@ namespace FEBuilderGBA.Core.Tests
                         BuiltInProjectionProducerForTest = (_, _, _, manifestPath) =>
                         {
                             string sidecarDir = Path.Combine(
-                                Path.GetDirectoryName(manifestPath),
+                                TestRequire.DirectoryName(manifestPath),
                                 "rebuild_bin");
                             Directory.CreateDirectory(sidecarDir);
                             File.WriteAllBytes(
@@ -1142,7 +1143,7 @@ namespace FEBuilderGBA.Core.Tests
             string socketPath = Path.Combine(root, "s");
             if (OperatingSystem.IsMacOS())
                 Assert.InRange(Encoding.UTF8.GetByteCount(socketPath), 1, 104);
-            Socket socket = null;
+            Socket? socket = null;
             try
             {
                 socket = new Socket(
@@ -1329,7 +1330,7 @@ namespace FEBuilderGBA.Core.Tests
             string external = Path.Combine(externalRoot, "outside.event");
             const string ExternalContent = "outside-secret-content\n";
             File.WriteAllText(external, ExternalContent);
-            Exception linkError = null;
+            Exception? linkError = null;
             bool replaced = false;
             try
             {
@@ -1394,7 +1395,7 @@ namespace FEBuilderGBA.Core.Tests
             const string ExternalContent = "external-secret\n";
             const string OriginalContent = "held-original\n";
             File.WriteAllText(externalFile, ExternalContent);
-            Exception swapError = null;
+            Exception? swapError = null;
             bool replaced = false;
             try
             {
@@ -1415,7 +1416,7 @@ namespace FEBuilderGBA.Core.Tests
                         if (replaced || Path.GetFileName(file) != "victim.event")
                             return;
                         replaced = true;
-                        string nested = Path.GetDirectoryName(file);
+                        string nested = TestRequire.DirectoryName(file);
                         string moved = nested + "-moved";
                         try
                         {
@@ -1470,7 +1471,7 @@ namespace FEBuilderGBA.Core.Tests
             byte[] originalBinary = { 1, 3, 5, 7 };
             File.WriteAllText(externalText, OriginalText);
             File.WriteAllBytes(externalBinary, originalBinary);
-            string linkFailure = null;
+            string? linkFailure = null;
             try
             {
                 var options = new BuildfileExportOptions
@@ -1544,7 +1545,7 @@ namespace FEBuilderGBA.Core.Tests
             string externalFile = Path.Combine(external, "outside.txt");
             const string Original = "outside\r\nmust remain unchanged\r\n";
             File.WriteAllText(externalFile, Original);
-            Exception linkError = null;
+            Exception? linkError = null;
             try
             {
                 var options = new BuildfileExportOptions
@@ -1599,7 +1600,7 @@ namespace FEBuilderGBA.Core.Tests
             string externalFile = Path.Combine(external, "outside.txt");
             const string Original = "external-child-content\n";
             File.WriteAllText(externalFile, Original);
-            Exception linkError = null;
+            Exception? linkError = null;
             try
             {
                 var options = new BuildfileExportOptions
@@ -1658,7 +1659,7 @@ namespace FEBuilderGBA.Core.Tests
             string externalFile = Path.Combine(external, "outside.txt");
             const string ExternalContent = "external-content\n";
             File.WriteAllText(externalFile, ExternalContent);
-            string linkError = null;
+            string? linkError = null;
             try
             {
                 var options = new BuildfileExportOptions
@@ -1730,7 +1731,7 @@ namespace FEBuilderGBA.Core.Tests
             string externalFile = Path.Combine(external, "outside.txt");
             const string Original = "external-content\n";
             File.WriteAllText(externalFile, Original);
-            Exception linkError = null;
+            Exception? linkError = null;
             try
             {
                 var options = new BuildfileExportOptions
@@ -1795,7 +1796,7 @@ namespace FEBuilderGBA.Core.Tests
             string externalFile = Path.Combine(external, "outside.txt");
             const string Original = "external-content\n";
             File.WriteAllText(externalFile, Original);
-            Exception linkError = null;
+            Exception? linkError = null;
             try
             {
                 var options = new BuildfileExportOptions
@@ -2137,7 +2138,7 @@ namespace FEBuilderGBA.Core.Tests
             target[0x30] = 0x55;
 
             var (outDir, parent) = FreshOut();
-            FileStream held = null;
+            FileStream? held = null;
             try
             {
                 var options = new BuildfileExportOptions
@@ -2676,7 +2677,10 @@ namespace FEBuilderGBA.Core.Tests
                 };
 
                 Func<string, FileStream> throwingOpener = p =>
-                    throw (Exception)Activator.CreateInstance(exceptionType, "simulated fault (test double)");
+                {
+                    object? exception = Activator.CreateInstance(exceptionType, "simulated fault (test double)");
+                    throw TestRequire.NotNull(exception as Exception, exceptionType.Name);
+                };
 
                 bool ok = BuildfileExportCore.TryAppendRawParamsBounded(
                     rec,
@@ -2823,7 +2827,7 @@ namespace FEBuilderGBA.Core.Tests
             var options = new BuildfileExportOptions
             {
                 OutputDirectory = Path.GetTempPath(),
-                PatchBaseDirectory = null,
+                PatchBaseDirectory = null!,
             };
 
             Assert.Throws<ArgumentOutOfRangeException>(() =>
@@ -2934,7 +2938,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             // Missing directory → true + empty (NOT a failure).
             string missing = Path.Combine(Path.GetTempPath(), "bfx_pm_missing_" + Guid.NewGuid().ToString("N"));
-            Assert.True(PatchMetadataCore.TryEnumeratePatches(missing, null, "en", out var m, out var mErr));
+            Assert.True(PatchMetadataCore.TryEnumeratePatches(missing, null!, "en", out var m, out var mErr));
             Assert.Empty(m);
             Assert.Equal("", mErr);
 
@@ -2943,11 +2947,11 @@ namespace FEBuilderGBA.Core.Tests
             Directory.CreateDirectory(empty);
             try
             {
-                Assert.True(PatchMetadataCore.TryEnumeratePatches(empty, null, "en", out var e, out var eErr));
+                Assert.True(PatchMetadataCore.TryEnumeratePatches(empty, null!, "en", out var e, out var eErr));
                 Assert.Empty(e);
                 Assert.Equal("", eErr);
                 // The legacy EnumeratePatches API still returns an (empty) list for the same input.
-                Assert.Empty(PatchMetadataCore.EnumeratePatches(empty, null, "en"));
+                Assert.Empty(PatchMetadataCore.EnumeratePatches(empty, null!, "en"));
                 Assert.True(PatchMetadataCore.IsExpectedFileSystemException(new ArgumentException()));
                 Assert.False(PatchMetadataCore.IsExpectedFileSystemException(new ArgumentNullException()));
                 Assert.False(PatchMetadataCore.IsExpectedFileSystemException(new ArgumentOutOfRangeException()));
@@ -2965,7 +2969,7 @@ namespace FEBuilderGBA.Core.Tests
                 File.WriteAllText(Path.Combine(patchBase, "PATCH_Test.txt"), "NAME=Test");
 
                 bool success = PatchMetadataCore.TryEnumeratePatches(
-                    patchBase, null, "en", _ => throw new IOException("injected read failure"),
+                    patchBase, null!, "en", _ => throw new IOException("injected read failure"),
                     out var patches, out string error);
 
                 Assert.False(success);
@@ -2979,7 +2983,7 @@ namespace FEBuilderGBA.Core.Tests
         public void TryEnumeratePatches_ListingFailureDistinguishesMissingFromAccessDenied()
         {
             bool missing = PatchMetadataCore.TryEnumeratePatches(
-                "missing", null, "en", File.ReadAllLines,
+                "missing", null!, "en", File.ReadAllLines,
                 _ => throw new DirectoryNotFoundException("missing"),
                 out var missingPatches, out string missingError);
             Assert.True(missing);
@@ -2987,7 +2991,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal("", missingError);
 
             bool denied = PatchMetadataCore.TryEnumeratePatches(
-                "denied", null, "en", File.ReadAllLines,
+                "denied", null!, "en", File.ReadAllLines,
                 _ => throw new UnauthorizedAccessException("denied"),
                 out var deniedPatches, out string deniedError);
             Assert.False(denied);
@@ -3332,7 +3336,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(BuildfilePathSafety.NormalizeFullPath(baseDir), BuildfilePathSafety.NormalizeFullPath(withSep));
             Assert.True(BuildfilePathSafety.PathsEqual(baseDir, withSep));
             // A filesystem root is preserved (not trimmed to empty).
-            string root = Path.GetPathRoot(Path.GetTempPath());
+            string root = TestRequire.PathRoot(Path.GetTempPath());
             Assert.False(string.IsNullOrEmpty(BuildfilePathSafety.NormalizeFullPath(root)));
         }
 
@@ -3341,7 +3345,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             Skip.IfNot(OperatingSystem.IsWindows(), "Windows device namespaces only exist on Windows");
             string ordinary = Path.Combine(
-                Path.GetPathRoot(Path.GetTempPath())!,
+                TestRequire.PathRoot(Path.GetTempPath()),
                 "bfx-device",
                 "rom.gba");
             string[] devicePaths =
@@ -3991,7 +3995,7 @@ namespace FEBuilderGBA.Core.Tests
                 // production 16 MiB cap is comfortably large enough that this run is
                 // unaffected, but it tells us EXACTLY how many bytes the real,
                 // materialization-error-rewritten manifest needs (no guessed threshold).
-                Exception linkErrorA = null;
+                Exception? linkErrorA = null;
                 var (outDirA, parentA) = FreshOut();
                 long finalManifestBytes;
                 try
@@ -4030,7 +4034,7 @@ namespace FEBuilderGBA.Core.Tests
                 // smaller, so the FIRST byte-cap check (before README) passes; only the SECOND
                 // check — immediately before the real RewriteProjectionMetadata call — can fail,
                 // since there is still no advisory patch inventory installed to degrade.
-                Exception linkError = null;
+                Exception? linkError = null;
                 var (outDir, parent) = FreshOut();
                 try
                 {

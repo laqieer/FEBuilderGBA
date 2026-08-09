@@ -85,9 +85,9 @@ namespace FEBuilderGBA
         /// <param name="desiredItems">The desired shop item vector (packed <c>(qty&lt;&lt;8)|id</c> u16 entries).</param>
         /// <returns>A typed routing result; never null.</returns>
         public static DecompShopRouteResult TryRouteShopSaveToSource(
-            ROM rom,
-            DecompProject project,
-            IAsmMapFile asmMap,
+            ROM? rom,
+            DecompProject? project,
+            IAsmMapFile? asmMap,
             uint shopAddr,
             IReadOnlyList<ushort> desiredItems)
         {

@@ -160,6 +160,7 @@ jobs:
         run: |
           dotnet publish FEBuilderGBA.iOS/FEBuilderGBA.iOS.csproj \
             -c ${{ env.BUILD_CONFIGURATION }} \
+            -warnaserror \
             -p:EnableIosTarget=true \
             -p:RuntimeIdentifier=ios-arm64 \
             -p:ArchiveOnBuild=true \
@@ -175,6 +176,7 @@ jobs:
           set -euo pipefail
           dotnet publish FEBuilderGBA.iOS/FEBuilderGBA.iOS.csproj \
             -c ${{ env.BUILD_CONFIGURATION }} \
+            -warnaserror \
             -p:EnableIosTarget=true \
             -p:RuntimeIdentifier=ios-arm64 \
             -p:EnableCodeSigning=false \

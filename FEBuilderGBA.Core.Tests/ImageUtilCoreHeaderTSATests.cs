@@ -139,7 +139,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void DecodeToCells_TooShort_IsInvalid()
         {
-            var r0 = ImageUtilCore.DecodeHeaderTSAToCells(null, 32, 20, 0);
+            var r0 = ImageUtilCore.DecodeHeaderTSAToCells(null!, 32, 20, 0);
             Assert.False(r0.IsValidHeader);
             Assert.Null(r0.Tile);
 
@@ -181,7 +181,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Serialize_NullTile_ReturnsDegenerate()
         {
-            byte[] r = ImageUtilCore.SerializeHeaderTSA(null, 3, 2, 0);
+            byte[] r = ImageUtilCore.SerializeHeaderTSA(null!, 3, 2, 0);
             Assert.Equal(2, r.Length);
         }
 

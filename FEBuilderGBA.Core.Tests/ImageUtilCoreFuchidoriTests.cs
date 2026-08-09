@@ -20,15 +20,15 @@ namespace FEBuilderGBA.Core.Tests
 
         sealed class RestoreImageService : System.IDisposable
         {
-            readonly IImageService _prev;
-            public RestoreImageService(IImageService prev) { _prev = prev; }
-            public void Dispose() { CoreState.ImageService = _prev; }
+            readonly IImageService? _prev;
+            public RestoreImageService(IImageService? prev) { _prev = prev; }
+            public void Dispose() { TestRequire.RestoreImageService(_prev); }
         }
 
         [Fact]
         public void Fuchidori_NullBuffer_NoOp()
         {
-            ImageUtilCore.Fuchidori(null, 4, 4, 15);
+            ImageUtilCore.Fuchidori(null!, 4, 4, 15);
             // No throw == pass.
         }
 

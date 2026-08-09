@@ -13,7 +13,7 @@ namespace FEBuilderGBA.Tests.Unit
         [Fact]
         public void GitExplainLabel_DoesNotOverlap_GitPathControls()
         {
-            ExceptionDispatchInfo edi = null;
+            ExceptionDispatchInfo? edi = null;
             var thread = new Thread(() =>
             {
                 try
@@ -93,18 +93,19 @@ namespace FEBuilderGBA.Tests.Unit
         [Fact]
         public void OptionForm_Function3Tab_HasNoLegacySubmoduleGroupBox_AndBottomControlsAreIntact()
         {
-            string err = null;
+            string? err = null;
             var t = new Thread(() =>
             {
                 try
                 {
-                    Type prog = typeof(OptionForm).Assembly.GetType("FEBuilderGBA.Program");
-                    Type cfgT = typeof(OptionForm).Assembly.GetType("FEBuilderGBA.ConfigWinForms");
-                    var cfgProp = prog.GetProperty("Config");
-                    object prevCfg = cfgProp.GetValue(null); // restore afterwards — don't leak shared state
-                    object cfg = Activator.CreateInstance(cfgT);
+                    Type prog = Assert.IsAssignableFrom<Type>(typeof(OptionForm).Assembly.GetType("FEBuilderGBA.Program"));
+                    Type cfgT = Assert.IsAssignableFrom<Type>(typeof(OptionForm).Assembly.GetType("FEBuilderGBA.ConfigWinForms"));
+                    var cfgProp = Assert.IsAssignableFrom<System.Reflection.PropertyInfo>(prog.GetProperty("Config"));
+                    object? prevCfg = cfgProp.GetValue(null); // restore afterwards — don't leak shared state
+                    object cfg = Activator.CreateInstance(cfgT) ?? throw new InvalidOperationException("ConfigWinForms could not be constructed.");
                     Config previousCoreConfig = CoreState.Config;
-                    cfgProp.GetSetMethod(true).Invoke(null, new[] { cfg });
+                    var cfgSetter = Assert.IsAssignableFrom<System.Reflection.MethodInfo>(cfgProp.GetSetMethod(true));
+                    cfgSetter.Invoke(null, new[] { cfg });
                     CoreState.Config = (Config)cfg;
                     try
                     {
@@ -141,7 +142,7 @@ namespace FEBuilderGBA.Tests.Unit
                         // The single remaining route to the wizard: a clickable label on the Path tab.
                         var tabPagePath = GetControl<TabPage>(form, "tabPagePath");
                         var wizardLink = GetControl<Label>(form, "X_EXPLAIN_CONTENT_REPOSITORIES");
-                        Control cur = wizardLink;
+                        Control? cur = wizardLink;
                         bool onPathTab = false;
                         while (cur != null)
                         {
@@ -153,7 +154,7 @@ namespace FEBuilderGBA.Tests.Unit
                     }
                     finally
                     {
-                        cfgProp.GetSetMethod(true).Invoke(null, new[] { prevCfg });
+                        cfgSetter.Invoke(null, new[] { prevCfg });
                         CoreState.Config = previousCoreConfig;
                     }
                 }

@@ -377,7 +377,7 @@ namespace FEBuilderGBA.Avalonia.Services
         /// Resolve a skill ID to a human-readable name using the detected skill system.
         /// Returns null if resolution fails (caller should use hex fallback).
         /// </summary>
-        public string ResolveSkillName(uint id)
+        public string? ResolveSkillName(uint id)
         {
             if (id == 0) return null;
             ROM rom = CoreState.ROM;
@@ -413,14 +413,13 @@ namespace FEBuilderGBA.Avalonia.Services
         /// CSkillSys09x/300: skill info table at fixed address 0xB2A614.
         /// Each entry is 8 bytes; text ID at offset +4 (u16).
         /// </summary>
-        static string ResolveCSkillSysName(ROM rom, uint id)
+        static string? ResolveCSkillSysName(ROM rom, uint id)
         {
             const uint gpSkillInfos = 0xB2A614;
             if (!U.isSafetyOffset(gpSkillInfos + 4, rom)) return null;
             uint baseAddr = rom.p32(gpSkillInfos);
             if (!U.isSafetyOffset(baseAddr, rom)) return null;
-            uint entryAddr = baseAddr + 8 * id;
-            if (!U.isSafetyOffset(entryAddr + 6, rom)) return null;
+            if (!TryGetScaledEntryAddress(rom, baseAddr, id, 8, 6, out uint entryAddr)) return null;
             uint textId = rom.u16(entryAddr + 4);
             if (textId == 0) return null;
             string text = NameResolver.GetTextById(textId);
@@ -431,14 +430,13 @@ namespace FEBuilderGBA.Avalonia.Services
         /// SkillSystems (FE8U): find TEXT pointer via byte-pattern scan.
         /// Text table stores u16 text IDs, entry = base + id * 2.
         /// </summary>
-        string ResolveSkillSystemName(ROM rom, uint id)
+        string? ResolveSkillSystemName(ROM rom, uint id)
         {
             if (_skillSystemTextBase == 0)
                 _skillSystemTextBase = FindSkillSystemTextBase(rom);
             if (_skillSystemTextBase == 0 || _skillSystemTextBase == U.NOT_FOUND)
                 return null;
-            uint entryAddr = _skillSystemTextBase + id * 2;
-            if (!U.isSafetyOffset(entryAddr + 2, rom)) return null;
+            if (!TryGetScaledEntryAddress(rom, _skillSystemTextBase, id, 2, 2, out uint entryAddr)) return null;
             uint textId = rom.u16(entryAddr);
             if (textId == 0) return null;
             string text = NameResolver.GetTextById(textId);
@@ -453,7 +451,7 @@ namespace FEBuilderGBA.Avalonia.Services
         /// FE8N variants: skill config at 0x89268 area.
         /// The text table pointer is at 0x89274 (ver2/ver3) or found via pattern scan.
         /// </summary>
-        static string ResolveFE8NSkillName(ROM rom, uint id)
+        static string? ResolveFE8NSkillName(ROM rom, uint id)
         {
             // FE8N ver2/3 have skill text pointers at known offsets
             // Ver2: 5 pointers at 0x89274, text pointer is at index 2 (0x8927C)
@@ -463,12 +461,23 @@ namespace FEBuilderGBA.Avalonia.Services
             if (!U.isSafetyOffset(textPtrAddr + 4, rom)) return null;
             uint textBase = rom.p32(textPtrAddr);
             if (!U.isSafetyOffset(textBase, rom)) return null;
-            uint entryAddr = textBase + id * 2;
-            if (!U.isSafetyOffset(entryAddr + 2, rom)) return null;
+            if (!TryGetScaledEntryAddress(rom, textBase, id, 2, 2, out uint entryAddr)) return null;
             uint textId = rom.u16(entryAddr);
             if (textId == 0) return null;
             string text = NameResolver.GetTextById(textId);
             return string.IsNullOrEmpty(text) || text == "???" ? null : text;
+        }
+
+        static bool TryGetScaledEntryAddress(ROM rom, uint baseAddr, uint id, uint entrySize, uint requiredOffset, out uint entryAddr)
+        {
+            entryAddr = 0;
+            ulong entry = (ulong)baseAddr + (ulong)id * entrySize;
+            ulong required = entry + requiredOffset;
+            if (entry > uint.MaxValue || required > uint.MaxValue)
+                return false;
+
+            entryAddr = (uint)entry;
+            return U.isSafetyOffset((uint)required, rom);
         }
 
         /// <summary>

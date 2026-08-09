@@ -127,7 +127,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>
         /// Build the comma-separated list of classes that promote INTO the
         /// class identified by <paramref name="currentAddr"/>. This mirrors the
-        /// WinForms <see cref="CCBranchForm.AddressList_SelectedIndexChanged"/>
+        /// WinForms <c>CCBranchForm.AddressList_SelectedIndexChanged</c>
         /// logic exactly:
         ///   - scan only the valid class count (NOT the hardcoded 0xFF used previously)
         ///   - class 0 has no upstream (WinForms guards with <c>if (class_id &gt;= 1)</c>)

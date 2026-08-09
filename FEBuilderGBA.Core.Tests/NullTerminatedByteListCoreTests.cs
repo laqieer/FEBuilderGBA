@@ -112,7 +112,7 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal(0x55, rom.Data[3]);
                 Assert.Single(undo.list);
                 Assert.Equal(3u, undo.list[0].addr);
-                Assert.Equal(1, undo.list[0].data.Length);
+                Assert.Single(undo.list[0].data);
 
                 // Undo restores the byte exactly.
                 RollbackAll(rom, undo);

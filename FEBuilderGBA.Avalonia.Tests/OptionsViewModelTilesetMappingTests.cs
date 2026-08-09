@@ -605,11 +605,15 @@ namespace FEBuilderGBA.Avalonia.Tests
                 createMappingEntry: (fingerprint, name, image, data, profile, token) =>
                 {
                     workerThreadId = Environment.CurrentManagedThreadId;
+                    var currentVm = vm
+                        ?? throw new InvalidOperationException("OptionsViewModel was not assigned before mapping creation.");
                     busyWhenWorkerStarted =
-                        vm.IsSavingTilesetMapping &&
-                        vm.IsTilesetMappingOperationInProgress;
+                        currentVm.IsSavingTilesetMapping &&
+                        currentVm.IsTilesetMappingOperationInProgress;
                     started.Set();
-                    token.WaitHandle.WaitOne();
+                    WaitHandle waitHandle = token.WaitHandle
+                        ?? throw new InvalidOperationException("Cancellation token did not expose a wait handle.");
+                    waitHandle.WaitOne();
                     token.ThrowIfCancellationRequested();
                     return new FEMapCreatorMappingEntryCreationResult(false, null, "unexpected release");
                 })

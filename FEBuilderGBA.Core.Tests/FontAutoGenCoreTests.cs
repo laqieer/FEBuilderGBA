@@ -28,13 +28,13 @@ namespace FEBuilderGBA.Core.Tests
         // glyph back to RGBA for the pixel-for-pixel round-trip assertion.
         sealed class ImageServiceScope : IDisposable
         {
-            readonly IImageService _prev;
+            readonly IImageService? _prev;
             public ImageServiceScope()
             {
                 _prev = CoreState.ImageService;
                 CoreState.ImageService = new StubImageService();
             }
-            public void Dispose() { CoreState.ImageService = _prev; }
+            public void Dispose() { TestRequire.RestoreImageService(_prev); }
         }
 
         // A stub rasterizer that returns a caller-supplied packed 64-byte tile and
@@ -294,7 +294,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 ROM rom = MakeRom();
                 CoreState.ROM = rom;
-                string err = FontAutoGenCore.AutoGenerateGlyph(rom, null, FileFontSpec(),
+                string err = FontAutoGenCore.AutoGenerateGlyph(rom, null!, FileFontSpec(),
                     "A", MOJI_A, isItemFont: false, verticalOffset: 0);
                 Assert.NotEqual("", err);
             }
@@ -306,7 +306,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var stub = new StubRasterizer(MakePackedTile(), width: 7);
             var ex = Record.Exception(() =>
-                FontAutoGenCore.AutoGenerateGlyph(null, stub, FileFontSpec(),
+                FontAutoGenCore.AutoGenerateGlyph(null!, stub, FileFontSpec(),
                     "A", MOJI_A, isItemFont: false, verticalOffset: 0));
             Assert.Null(ex);
         }

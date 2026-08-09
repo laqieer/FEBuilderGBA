@@ -8,6 +8,8 @@ using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace FEBuilderGBA
 {
@@ -80,7 +82,7 @@ namespace FEBuilderGBA
             return list[at];
         }
         [MethodImpl(256)]
-        public static bool IsEmpty(string str)
+        public static bool IsEmpty(string? str)
         {
             return string.IsNullOrEmpty(str);
         }
@@ -2088,16 +2090,7 @@ namespace FEBuilderGBA
         /// </summary>
         public static string md5(byte[] bin)
         {
-            using (var md5 = System.Security.Cryptography.MD5.Create())
-            {
-                byte[] bs = md5.ComputeHash(bin);
-                System.Text.StringBuilder result = new System.Text.StringBuilder();
-                foreach (byte b in bs)
-                {
-                    result.Append(b.ToString("x2"));
-                }
-                return result.ToString();
-            }
+            return global::FEBuilderGBA.Core.ManagedMd5.ComputeHex(bin);
         }
 
         // ---- TSV / dictionary resource savers ----
@@ -2190,29 +2183,103 @@ namespace FEBuilderGBA
         // ---- HTTP helpers (cross-platform, using HttpClient) ----
 
         static readonly HttpClient s_httpClient = CreateHttpClient();
+        static readonly HttpClient s_httpHeadClient = CreateHttpClient(null, TimeSpan.FromSeconds(8));
 
         static HttpClient CreateHttpClient()
         {
-            var handler = new HttpClientHandler();
-            // HttpClientHandler.AutomaticDecompression is NOT supported on the WASM/browser
-            // BrowserHttpHandler — its setter throws PlatformNotSupportedException, which would fault
-            // U's static ctor and break the ENTIRE U utility class in the web app (#1867). The browser
-            // fetch layer negotiates gzip/deflate transparently, so skip it there.
-            if (!OperatingSystem.IsBrowser())
+            return CreateHttpClient(null, TimeSpan.FromSeconds(30));
+        }
+
+        internal static HttpClient CreateHttpClient(HttpMessageHandler? handler, TimeSpan? timeout)
+        {
+            HttpMessageHandler actualHandler = handler;
+            if (actualHandler == null)
             {
-                handler.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
+                var httpHandler = new HttpClientHandler();
+                // HttpClientHandler.AutomaticDecompression is NOT supported on the WASM/browser
+                // BrowserHttpHandler — its setter throws PlatformNotSupportedException, which would fault
+                // U's static ctor and break the ENTIRE U utility class in the web app (#1867). The browser
+                // fetch layer negotiates gzip/deflate transparently, so skip it there.
+                if (!OperatingSystem.IsBrowser())
+                {
+                    httpHandler.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
+                }
+                actualHandler = httpHandler;
             }
-            var client = new HttpClient(handler);
+            var client = new HttpClient(actualHandler, disposeHandler: handler != null);
             client.DefaultRequestHeaders.UserAgent.ParseAdd("FEBuilderGBA/1.0");
-            client.Timeout = TimeSpan.FromSeconds(30);
+            client.Timeout = timeout ?? TimeSpan.FromSeconds(30);
             return client;
         }
 
-        /// <summary>
-        /// Simple synchronous HTTP GET returning the response body as string.
-        /// Cross-platform replacement for WinForms' U.HttpGet that uses legacy HttpWebRequest.
-        /// </summary>
-        public static string HttpGet(string url, string referer = "", System.Net.CookieContainer cookie = null)
+        public static Task<string?> HttpHeadLastModifiedAsync(string url, CancellationToken cancellationToken = default)
+        {
+            return HttpHeadLastModifiedAsync(url, s_httpHeadClient, cancellationToken);
+        }
+
+        internal static async Task<string?> HttpHeadLastModifiedAsync(
+            string url,
+            HttpMessageHandler handler,
+            TimeSpan? timeout,
+            CancellationToken cancellationToken)
+        {
+            using var client = CreateHttpClient(handler, timeout);
+            return await HttpHeadLastModifiedAsync(url, client, cancellationToken).ConfigureAwait(false);
+        }
+
+        static async Task<string?> HttpHeadLastModifiedAsync(
+            string url,
+            HttpClient client,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Head, url);
+                using var response = await client.SendAsync(
+                    request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                if (response.Content.Headers.LastModified.HasValue)
+                {
+                    return response.Content.Headers.LastModified.Value.ToString();
+                }
+                return null;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        public static Task<string> HttpGetAsync(
+            string url,
+            string referer = "",
+            System.Net.CookieContainer? cookie = null,
+            CancellationToken cancellationToken = default)
+        {
+            return HttpGetAsync(url, referer, cookie, s_httpClient, cancellationToken);
+        }
+
+        internal static async Task<string> HttpGetAsync(
+            string url,
+            string referer,
+            System.Net.CookieContainer? cookie,
+            HttpMessageHandler handler,
+            TimeSpan? timeout,
+            CancellationToken cancellationToken)
+        {
+            using var client = CreateHttpClient(handler, timeout);
+            return await HttpGetAsync(url, referer, cookie, client, cancellationToken).ConfigureAwait(false);
+        }
+
+        static async Task<string> HttpGetAsync(
+            string url,
+            string referer,
+            System.Net.CookieContainer? cookie,
+            HttpClient client,
+            CancellationToken cancellationToken)
         {
             try
             {
@@ -2220,15 +2287,115 @@ namespace FEBuilderGBA
                 if (!string.IsNullOrEmpty(referer))
                     request.Headers.Referrer = new Uri(referer);
 
-                using var response = s_httpClient.Send(request);
+                using var response = await client.SendAsync(
+                    request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
                 response.EnsureSuccessStatusCode();
-                using var stream = response.Content.ReadAsStream();
+                using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
                 using var reader = new StreamReader(stream, Encoding.UTF8);
-                return reader.ReadToEnd();
+                return await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch
             {
                 return "";
+            }
+        }
+
+        /// <summary>
+        /// Simple synchronous HTTP GET returning the response body as string.
+        /// Cross-platform replacement for WinForms' U.HttpGet that uses legacy HttpWebRequest.
+        /// </summary>
+        public static string HttpGet(string url, string referer = "", System.Net.CookieContainer? cookie = null)
+        {
+            return HttpGetAsync(url, referer, cookie).GetAwaiter().GetResult();
+        }
+
+        public static Task<(bool ok, string error)> HttpDownloadFileAsync(
+            string url,
+            string destPath,
+            string referer = "",
+            IProgress<long> progress = null,
+            CancellationToken cancellationToken = default)
+        {
+            return HttpDownloadFileAsync(url, destPath, referer, progress, s_httpClient, cancellationToken);
+        }
+
+        internal static async Task<(bool ok, string error)> HttpDownloadFileAsync(
+            string url,
+            string destPath,
+            string referer,
+            IProgress<long> progress,
+            HttpMessageHandler handler,
+            TimeSpan? timeout,
+            CancellationToken cancellationToken)
+        {
+            using var client = CreateHttpClient(handler, timeout);
+            return await HttpDownloadFileAsync(url, destPath, referer, progress, client, cancellationToken).ConfigureAwait(false);
+        }
+
+        static async Task<(bool ok, string error)> HttpDownloadFileAsync(
+            string url,
+            string destPath,
+            string referer,
+            IProgress<long> progress,
+            HttpClient client,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                if (!string.IsNullOrEmpty(referer))
+                    request.Headers.Referrer = new Uri(referer);
+
+                using var response = await client.SendAsync(
+                    request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                response.EnsureSuccessStatusCode();
+
+                string dir = Path.GetDirectoryName(destPath);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+
+                using (var src = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false))
+                using (var dst = new FileStream(destPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true))
+                {
+                    await CopyToAsync(src, dst, progress, cancellationToken).ConfigureAwait(false);
+                }
+                return (true, "");
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                try { if (File.Exists(destPath)) File.Delete(destPath); } catch { /* best-effort cleanup */ }
+                throw;
+            }
+            catch (Exception e)
+            {
+                string error = string.IsNullOrEmpty(e.Message)
+                    ? e.GetType().Name + " while downloading " + url
+                    : e.Message;
+                try { if (File.Exists(destPath)) File.Delete(destPath); } catch { /* best-effort cleanup */ }
+                return (false, error);
+            }
+        }
+
+        static async Task CopyToAsync(Stream src, Stream dst, IProgress<long> progress, CancellationToken cancellationToken)
+        {
+            byte[] buffer = new byte[81920];
+            long total = 0;
+            while (true)
+            {
+                int read = await src.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false);
+                if (read <= 0)
+                {
+                    break;
+                }
+                await dst.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+                total += read;
+                progress?.Report(total);
             }
         }
 
@@ -2249,40 +2416,9 @@ namespace FEBuilderGBA
         /// </summary>
         public static bool HttpDownloadFile(string url, string destPath, out string error, string referer = "")
         {
-            error = "";
-            try
-            {
-                using var request = new HttpRequestMessage(HttpMethod.Get, url);
-                if (!string.IsNullOrEmpty(referer))
-                    request.Headers.Referrer = new Uri(referer);
-
-                using var response = s_httpClient.Send(request, HttpCompletionOption.ResponseHeadersRead);
-                response.EnsureSuccessStatusCode();
-
-                string dir = Path.GetDirectoryName(destPath);
-                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-                {
-                    Directory.CreateDirectory(dir);
-                }
-
-                using (var src = response.Content.ReadAsStream())
-                using (var dst = new FileStream(destPath, FileMode.Create, FileAccess.Write, FileShare.None))
-                {
-                    src.CopyTo(dst);
-                }
-                return true;
-            }
-            catch (Exception e)
-            {
-                // Contract: failure ALWAYS yields a non-empty error. Some
-                // exceptions carry an empty Message, so fall back to the type
-                // name + URL rather than surfacing a blank error to callers.
-                error = string.IsNullOrEmpty(e.Message)
-                    ? e.GetType().Name + " while downloading " + url
-                    : e.Message;
-                try { if (File.Exists(destPath)) File.Delete(destPath); } catch { /* best-effort cleanup */ }
-                return false;
-            }
+            (bool ok, string message) = HttpDownloadFileAsync(url, destPath, referer).GetAwaiter().GetResult();
+            error = message;
+            return ok;
         }
 
         public static void append_u32(List<byte> data, uint a)

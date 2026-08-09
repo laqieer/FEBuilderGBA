@@ -19,21 +19,21 @@ namespace FEBuilderGBA.Core.Tests
     [Collection("SharedState")]
     public class DecompShopSourceWriteCoreTests : IDisposable
     {
-        readonly ROM _savedRom;
-        readonly DecompProject _savedProject;
+        readonly ROM? _savedRom;
+        readonly DecompProject? _savedProject;
 
         public DecompShopSourceWriteCoreTests()
         {
             _savedRom = CoreState.ROM;
             _savedProject = CoreState.DecompProject;
-            CoreState.ROM = null;
-            CoreState.DecompProject = null;
+            CoreState.ROM = null!;
+            CoreState.DecompProject = null!;
         }
 
         public void Dispose()
         {
-            CoreState.ROM = _savedRom;
-            CoreState.DecompProject = _savedProject;
+            CoreState.ROM = _savedRom!;
+            CoreState.DecompProject = _savedProject!;
         }
 
         // ----------------------------------------------------------------- helpers
@@ -51,21 +51,22 @@ namespace FEBuilderGBA.Core.Tests
         {
             string manifest =
                 "{ \"schemaVersion\": 1, \"builtRom\": \"rom.gba\", \"tables\": " + tablesJson + " }";
-            return System.Text.Json.JsonSerializer.Deserialize<DecompManifest>(
+            DecompManifest? parsed = System.Text.Json.JsonSerializer.Deserialize<DecompManifest>(
                 manifest, new System.Text.Json.JsonSerializerOptions
                 {
                     PropertyNameCaseInsensitive = true,
                     ReadCommentHandling = System.Text.Json.JsonCommentHandling.Skip,
                     AllowTrailingCommas = true,
                 });
+            return TestRequire.NotNull(parsed, "manifest");
         }
 
         sealed class Fixture : IDisposable
         {
-            public string Dir;
-            public DecompProject Project;
-            public IAsmMapFile Map;
-            public string SourceAbs;
+            public required string Dir;
+            public required DecompProject Project;
+            public required IAsmMapFile Map;
+            public required string SourceAbs;
             public void Dispose() { try { Directory.Delete(Dir, true); } catch { } }
         }
 
@@ -83,7 +84,7 @@ namespace FEBuilderGBA.Core.Tests
                 "[ { \"name\": \"" + symbolName + "\", \"addr\": \"0x08001000\", \"size\": 6 } ]");
             // Source file under src/.
             string srcAbs = Path.Combine(dir, "src", "shop.c");
-            Directory.CreateDirectory(Path.GetDirectoryName(srcAbs));
+            Directory.CreateDirectory(TestRequire.DirectoryName(srcAbs));
             File.WriteAllText(srcAbs, srcBody);
 
             var project = new DecompProject
@@ -93,7 +94,7 @@ namespace FEBuilderGBA.Core.Tests
                 Manifest = ManifestFromJson(tablesJson),
             };
             var resolver = DecompSymbolResolver.Load(project);
-            var map = new MergedAsmMapFile(null, resolver);
+            var map = new MergedAsmMapFile(new AsmMapSymbolFile(new ROM()), resolver);
             return new Fixture { Dir = dir, Project = project, Map = map, SourceAbs = srcAbs };
         }
 
@@ -155,7 +156,7 @@ namespace FEBuilderGBA.Core.Tests
         static void WriteDefaultHeader(Fixture fx, string headerText)
         {
             string headerAbs = Path.Combine(fx.Dir, "include", "constants", "items.h");
-            Directory.CreateDirectory(Path.GetDirectoryName(headerAbs));
+            Directory.CreateDirectory(TestRequire.DirectoryName(headerAbs));
             File.WriteAllText(headerAbs, headerText);
         }
 
@@ -315,7 +316,7 @@ namespace FEBuilderGBA.Core.Tests
             var rom = MakeRom();
             byte[] romBefore = (byte[])rom.Data.Clone();
             CoreState.ROM = rom;
-            CoreState.DecompProject = null;   // classic mode
+            CoreState.DecompProject = null!;   // classic mode
 
             var r = DecompShopSourceWriteCore.TryRouteShopSaveToSource(
                 rom, fx.Project, fx.Map, 0x1000u, new ushort[] { 0x0102 });

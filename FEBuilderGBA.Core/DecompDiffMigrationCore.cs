@@ -112,7 +112,7 @@ namespace FEBuilderGBA
     /// exactly like a real-classifier fault: <see cref="DecompDiffMigrationCore.ClassifyRangeSafe"/>
     /// degrades ONLY that one range to a stable unknown/low-confidence/manual-review record.
     /// </summary>
-    internal delegate MigrationRange RangeClassifierOverride(
+    internal delegate MigrationRange? RangeClassifierOverride(
         ROM rom, byte[] builtBytes, uint offset, uint spanLength, uint changedBytes,
         MergedAsmMapFile map, DecompSymbolResolver resolver);
 
@@ -279,13 +279,13 @@ namespace FEBuilderGBA
         internal static MigrationRange ClassifyRangeSafe(
             ROM rom, byte[] builtBytes, uint offset, uint spanLength, uint changedBytes,
             MergedAsmMapFile map, DecompSymbolResolver resolver,
-            RangeClassifierOverride overrideClassifier = null)
+            RangeClassifierOverride? overrideClassifier = null)
         {
             try
             {
                 if (overrideClassifier != null)
                 {
-                    MigrationRange overridden = overrideClassifier(rom, builtBytes, offset, spanLength, changedBytes, map, resolver);
+                    MigrationRange? overridden = overrideClassifier(rom, builtBytes, offset, spanLength, changedBytes, map, resolver);
                     if (overridden != null) return overridden;
                     // A bad override returning null is treated exactly like a fault: fall
                     // through to the stable fallback below rather than throwing/omitting.

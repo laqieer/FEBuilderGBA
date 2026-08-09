@@ -32,7 +32,7 @@ namespace FEBuilderGBA.Core.Tests
         [InlineData(0)]
         [InlineData(1)]
         [InlineData(2)]
-        public void Run_ParentExitStillTerminatesDescendantHoldingPipes(int iteration)
+        public async Task Run_ParentExitStillTerminatesDescendantHoldingPipes(int iteration)
         {
             if (!OperatingSystem.IsWindows() && !File.Exists("/usr/bin/python3"))
             {
@@ -53,6 +53,7 @@ namespace FEBuilderGBA.Core.Tests
             string? childIdentityPath = null;
             string? childReadyPath = null;
             Task<ProcessRunnerScenarioSupport.RunCompletion>? runTask = null;
+            ProcessRunnerScenarioSupport.RunCompletion? runCompletion = null;
             DateTimeOffset scenarioStartUtc = DateTimeOffset.UtcNow;
             ProcessRunnerScenarioSupport.ProcessIdentity? childIdentity = null;
             ProcessRunResult result = default;
@@ -86,17 +87,19 @@ namespace FEBuilderGBA.Core.Tests
                 readinessMs = readinessStopwatch.ElapsedMilliseconds;
                 Assert.True(childIdentity != null, "Child readiness file was never published.");
 
-                bool completed = runTask.Wait(TimeSpan.FromSeconds(25));
+                Task completedTask = await Task.WhenAny(
+                    runTask,
+                    Task.Delay(TimeSpan.FromSeconds(25)));
                 Assert.True(
-                    completed,
+                    ReferenceEquals(runTask, completedTask),
                     "Run(...) did not complete within 25s of observed child readiness.");
-                ProcessRunnerScenarioSupport.RunCompletion runCompletion = runTask.Result;
+                runCompletion = await runTask;
                 cleanupMs = ProcessRunnerScenarioSupport.ComputeCleanupMs(
                     childIdentity.Value,
-                    runCompletion.CompletionUtc);
+                    runCompletion.Value.CompletionUtc);
                 Assert.InRange(cleanupMs.Value, 0, 24_999);
 
-                result = runCompletion.Result;
+                result = runCompletion.Value.Result;
                 Assert.True(result.Started, result.ErrorMessage);
                 Assert.False(result.TimedOut, result.ErrorMessage);
                 Assert.False(result.OutputLimitExceeded, result.ErrorMessage);
@@ -176,13 +179,12 @@ namespace FEBuilderGBA.Core.Tests
                     root?.Dispose();
                 }
 
-                if (cleanupMs == null
-                    && childIdentity != null
-                    && runTask?.Status == TaskStatus.RanToCompletion)
+                if (cleanupMs == null)
                 {
-                    cleanupMs = ProcessRunnerScenarioSupport.ComputeCleanupMs(
-                        childIdentity.Value,
-                        runTask.Result.CompletionUtc);
+                    cleanupMs = await ResolveCleanupMsAsync(
+                        runTask,
+                        runCompletion,
+                        childIdentity);
                 }
 
                 ProcessRunnerScenarioSupport.EmitMetric(
@@ -194,6 +196,52 @@ namespace FEBuilderGBA.Core.Tests
                     totalStopwatch.ElapsedMilliseconds,
                     outcome);
             }
+        }
+
+        [Fact]
+        public async Task ResolveCleanupMsAsync_ReturnsCompletedTaskCleanup_WhenCompletionWasNotCaptured()
+        {
+            ProcessRunnerScenarioSupport.ProcessIdentity childIdentity =
+                new ProcessRunnerScenarioSupport.ProcessIdentity(123, 1_000);
+            ProcessRunnerScenarioSupport.RunCompletion completion =
+                new ProcessRunnerScenarioSupport.RunCompletion(
+                    default,
+                    DateTimeOffset.FromUnixTimeMilliseconds(1_250));
+            Task<ProcessRunnerScenarioSupport.RunCompletion> runTask =
+                Task.FromResult(completion);
+
+            long? cleanupMs = await ResolveCleanupMsAsync(
+                runTask,
+                null,
+                childIdentity);
+
+            Assert.Equal(250, cleanupMs);
+        }
+
+        private static async Task<long?> ResolveCleanupMsAsync(
+            Task<ProcessRunnerScenarioSupport.RunCompletion>? runTask,
+            ProcessRunnerScenarioSupport.RunCompletion? runCompletion,
+            ProcessRunnerScenarioSupport.ProcessIdentity? childIdentity)
+        {
+            if (childIdentity == null)
+                return null;
+
+            if (runCompletion != null)
+            {
+                return ProcessRunnerScenarioSupport.ComputeCleanupMs(
+                    childIdentity.Value,
+                    runCompletion.Value.CompletionUtc);
+            }
+
+            if (runTask?.IsCompletedSuccessfully == true)
+            {
+                ProcessRunnerScenarioSupport.RunCompletion completed = await runTask;
+                return ProcessRunnerScenarioSupport.ComputeCleanupMs(
+                    childIdentity.Value,
+                    completed.CompletionUtc);
+            }
+
+            return null;
         }
     }
 }

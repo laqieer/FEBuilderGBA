@@ -13,7 +13,7 @@ namespace FEBuilderGBA.Avalonia.Views
     /// <summary>
     /// Class OP Demo Editor view — Avalonia parity for the orphan WinForms
     /// `ClassOPDemoForm` (gap-sweep #405). The orphan WF form is
-    /// `<Compile Remove>`'d from the WinForms build but its Designer.cs is
+    /// `&lt;Compile Remove&gt;`'d from the WinForms build but its Designer.cs is
     /// parsed by the gap-sweep tooling, so this view rebuilds to match
     /// that surface (NOT the canonical `OPClassDemoForm`/`OPClassDemoViewerView`
     /// PR #544 built).

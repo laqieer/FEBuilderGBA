@@ -28,10 +28,10 @@ namespace FEBuilderGBA.Core.Tests
         // -----------------------------------------------------------------
         // Real-ROM full-init harness (mirrors BGReferenceFinderTests).
         // -----------------------------------------------------------------
-        static string FindRom(string romName)
+        static string? FindRom(string romName)
         {
             string thisAssembly = Assembly.GetExecutingAssembly().Location;
-            string dir = Path.GetDirectoryName(thisAssembly);
+            string? dir = Path.GetDirectoryName(thisAssembly);
             for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
@@ -52,7 +52,7 @@ namespace FEBuilderGBA.Core.Tests
         /// </summary>
         static bool WithRealRom(string romName, System.Action<ROM> body)
         {
-            string romPath = FindRom(romName);
+            string? romPath = FindRom(romName);
             if (romPath == null) return false;
 
             var savedRom = CoreState.ROM;
@@ -62,7 +62,8 @@ namespace FEBuilderGBA.Core.Tests
             var savedBaseDir = CoreState.BaseDirectory;
             try
             {
-                string asmDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                string asmDir = TestRequire.DirectoryName(Assembly.GetExecutingAssembly().Location);
+                Assert.NotNull(asmDir);
                 CoreState.BaseDirectory = asmDir;
 
                 var rom = new ROM();
@@ -91,7 +92,7 @@ namespace FEBuilderGBA.Core.Tests
         // UseValsID.AppendVarsID_Low): deref pointer field, walk up to `count`
         // entries (stopping at the first unsafe entry), collect u16 at each
         // offset with the WF 1<=id<0x7FFF guard.
-        static HashSet<uint> RefWalk(ROM rom, uint pointerField, uint entrySize, uint count, uint[] offsets, System.Func<ROM, uint, uint, bool> stop = null)
+        static HashSet<uint> RefWalk(ROM rom, uint pointerField, uint entrySize, uint count, uint[] offsets, System.Func<ROM, uint, uint, bool>? stop = null)
         {
             var ids = new HashSet<uint>();
             if (pointerField == 0 || entrySize == 0) return ids;
@@ -129,7 +130,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void NullRom_ReturnsNull()
         {
-            Assert.Null(ExportFilterCore.BuildFilteredTextIds(null, 1));
+            Assert.Null(ExportFilterCore.BuildFilteredTextIds(null!, 1));
         }
 
         [Fact]
@@ -474,7 +475,7 @@ namespace FEBuilderGBA.Core.Tests
                 var other = new ROM();
                 other.LoadLow("other-fe8u.gba", new byte[0x1000000], "BE8E01");
                 CoreState.ROM = active;
-                CoreState.EventScript = null;
+                CoreState.EventScript = null!;
 
                 var ids = new HashSet<uint>();
                 bool ran = EventScriptReferenceScanner.CollectEventCondTextIds(other, ids);
@@ -582,7 +583,7 @@ namespace FEBuilderGBA.Core.Tests
             rom.LoadLow("nulles-fe8u.gba", new byte[0x1000000], "BE8E01");
             var ids = new HashSet<uint>();
             // null EventScript must be a no-op, not an NRE.
-            EventScriptReferenceScanner.ScanScriptForTextIds(rom, null, 0x00800000u, new List<uint>(), ids);
+            EventScriptReferenceScanner.ScanScriptForTextIds(rom, null!, 0x00800000u, new List<uint>(), ids);
             Assert.Empty(ids);
         }
 
@@ -593,13 +594,13 @@ namespace FEBuilderGBA.Core.Tests
             // with CoreState.EventScript unwired they must return an empty set,
             // never throw (finding 2).
             var savedRom = CoreState.ROM;
-            var savedEs = CoreState.EventScript;
+            EventScript? savedEs = CoreState.EventScript;
             try
             {
                 var rom = new ROM();
                 rom.LoadLow("evt-fe8u.gba", new byte[0x1000000], "BE8E01");
                 CoreState.ROM = rom;
-                CoreState.EventScript = null;
+                CoreState.EventScript = null!;
 
                 foreach (int f in new[] { 7, 8, 10 })
                 {
@@ -611,7 +612,7 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.ROM = savedRom;
-                CoreState.EventScript = savedEs;
+                CoreState.EventScript = savedEs!;
             }
         }
     }

@@ -106,7 +106,7 @@ namespace FEBuilderGBA
         /// its first line contains a non-empty <c>gitdir:</c> value and the referenced
         /// directory actually exists. Broken links and ordinary files named .git return false.
         /// </summary>
-        public static bool IsGitRepo(string path)
+        public static bool IsGitRepo(string? path)
         {
             if (string.IsNullOrEmpty(path) || !Directory.Exists(path))
                 return false;
@@ -146,9 +146,9 @@ namespace FEBuilderGBA
         /// outputLog (nullable) accumulates all output lines for error reporting.
         /// Pass null callbacks and use fixed DoEvents checkpoint messages for UI updates.
         /// </summary>
-        public static int RunGit(string gitExe, string args, string workingDir,
-                                 Action<string> outputCallback = null,
-                                 StringBuilder outputLog = null)
+        public static int RunGit(string gitExe, string args, string? workingDir,
+                                 Action<string>? outputCallback = null,
+                                 StringBuilder? outputLog = null)
         {
             Process p = new Process();
             p.StartInfo.FileName = gitExe;
@@ -198,8 +198,8 @@ namespace FEBuilderGBA
         /// --progress forces git to emit progress lines even when stderr is redirected.
         /// </summary>
         public static int Clone(string gitExe, string url, string targetPath,
-                                Action<string> outputCallback = null,
-                                StringBuilder outputLog = null)
+                                Action<string>? outputCallback = null,
+                                StringBuilder? outputLog = null)
         {
             string args = string.Format("clone --progress --depth=1 \"{0}\" \"{1}\"", url, targetPath);
             return RunGit(gitExe, args, null, outputCallback, outputLog);
@@ -213,9 +213,9 @@ namespace FEBuilderGBA
         /// Returns exit code of the final step.
         /// </summary>
         public static int Update(string gitExe, string repoPath,
-                                 Action<string> outputCallback = null,
-                                 StringBuilder outputLog = null,
-                                 string remoteUrl = null)
+                                 Action<string>? outputCallback = null,
+                                 StringBuilder? outputLog = null,
+                                 string? remoteUrl = null)
         {
             // Switch origin to the configured remote URL before fetching
             if (!string.IsNullOrEmpty(remoteUrl))

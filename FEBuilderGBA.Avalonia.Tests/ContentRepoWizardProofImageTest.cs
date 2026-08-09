@@ -57,12 +57,12 @@ namespace FEBuilderGBA.Avalonia.Tests
                 var fg = new SKColor(0xF0, 0xF0, 0xF0);
                 var dim = new SKColor(0xA8, 0xAF, 0xB8);
                 c.Clear(bg);
-                using var title = new SKPaint { Color = accent, IsAntialias = true, TextSize = 30, FakeBoldText = true };
-                using var h = new SKPaint { Color = fg, IsAntialias = true, TextSize = 19, FakeBoldText = true };
-                using var text = new SKPaint { Color = fg, IsAntialias = true, TextSize = 16, Typeface = SKTypeface.FromFamilyName("Consolas") };
-                using var label = new SKPaint { Color = dim, IsAntialias = true, TextSize = 15 };
-                using var ready = new SKPaint { Color = accent, IsAntialias = true, TextSize = 16, FakeBoldText = true };
-                using var needs = new SKPaint { Color = warn, IsAntialias = true, TextSize = 16, FakeBoldText = true };
+                using var title = SkiaTestTextStyle.Create(accent, 30, bold: true);
+                using var h = SkiaTestTextStyle.Create(fg, 19, bold: true);
+                using var text = SkiaTestTextStyle.Create(fg, 16, familyName: "Consolas");
+                using var label = SkiaTestTextStyle.Create(dim, 15);
+                using var ready = SkiaTestTextStyle.Create(accent, 16, bold: true);
+                using var needs = SkiaTestTextStyle.Create(warn, 16, bold: true);
                 using var cardPaint = new SKPaint { Color = card, IsAntialias = true };
                 using var badgePaint = new SKPaint { Color = new SKColor(0x3B, 0x61, 0x54), IsAntialias = true };
 

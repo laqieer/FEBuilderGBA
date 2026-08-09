@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 using FEBuilderGBA;
 
@@ -58,12 +60,44 @@ namespace FEBuilderGBA.Tests.Unit
         {
             // This test verifies the method exists and doesn't throw.
             // It may return null if network is unavailable (which is fine for CI).
-            string url = GitInstaller.GetLatestInstallerUrl();
+            string? url = GitInstaller.GetLatestInstallerUrl();
             if (url != null)
             {
                 Assert.StartsWith("https://", url);
                 Assert.EndsWith(".exe", url);
             }
+        }
+
+        [Fact]
+        public async Task GitInstaller_GetLatestInstallerUrlAsync_UsesAsyncHttpGet()
+        {
+            bool called = false;
+            string json = "{\"browser_download_url\":\"https://example.test/Git-2.0-64-bit.exe\"}";
+
+            string? url = await GitInstaller.GetLatestInstallerUrlAsync(
+                (requestUrl, referer, _) =>
+                {
+                    called = true;
+                    Assert.Contains("git-for-windows", requestUrl);
+                    Assert.Equal("https://github.com/git-for-windows/git/releases", referer);
+                    return Task.FromResult(json);
+                },
+                CancellationToken.None);
+
+            Assert.True(called);
+            Assert.Equal("https://example.test/Git-2.0-64-bit.exe", url);
+        }
+
+        [Fact]
+        public async Task GitInstaller_GetLatestInstallerUrlAsync_CallerCancellation_Throws()
+        {
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                GitInstaller.GetLatestInstallerUrlAsync(
+                    (requestUrl, referer, ct) => Task.FromCanceled<string>(ct),
+                    cts.Token));
         }
 
         // ---- GitUtil (Core version using CoreState) ----

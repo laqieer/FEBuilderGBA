@@ -210,7 +210,7 @@ namespace FEBuilderGBA.Core.Tests
                 PlantIconStrip(rom, MINI_IMAGE_OFFSET, imgPtr, 8 * 8);
                 byte[] before = (byte[])rom.Data.Clone();
 
-                var result = ImageWorldMapCore.ImportIconStrip(rom, imgPtr, null, 64, 64);
+                var result = ImageWorldMapCore.ImportIconStrip(rom, imgPtr, null!, 64, 64);
 
                 Assert.False(result.Success);
                 Assert.Equal(before, rom.Data);
@@ -220,7 +220,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ImportIconStrip_NullRom_Fails()
         {
-            var result = ImageWorldMapCore.ImportIconStrip(null, 0x1000u, MakeIndexed(64, 64), 64, 64);
+            var result = ImageWorldMapCore.ImportIconStrip(null!, 0x1000u, MakeIndexed(64, 64), 64, 64);
             Assert.False(result.Success);
             Assert.False(string.IsNullOrEmpty(result.Error));
         }
@@ -263,7 +263,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void TryGetStripPalette_NullRom_ReturnsFalse()
         {
-            Assert.False(ImageWorldMapCore.TryGetStripPalette(null, 0x1000u, out byte[] palette));
+            Assert.False(ImageWorldMapCore.TryGetStripPalette(null!, 0x1000u, out byte[] palette));
             Assert.Null(palette);
         }
 

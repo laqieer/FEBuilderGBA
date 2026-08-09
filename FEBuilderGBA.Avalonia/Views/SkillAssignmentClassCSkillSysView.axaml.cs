@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // Code-behind for SkillAssignmentClassCSkillSysView. Rebuilt for gap-sweep
 // #415 to a three-pane master-detail layout matching WinForms
 // SkillAssignmentClassCSkillSysForm. The VM is the consolidated
@@ -510,12 +510,14 @@ namespace FEBuilderGBA.Avalonia.Views
         // wrapping StackPanel rather than advertising a silent no-op.
         // -----------------------------------------------------------------
 
-        void OnLearnInfo(object? sender, RoutedEventArgs e)
+        async void OnLearnInfo(object? sender, RoutedEventArgs e)
         {
             const string url = "https://laqieer.github.io/dw.ngmansion.xyz/wiki/en/guide_febuildergba_learnskillinfo.html";
             try
             {
-                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+                var result = await ExternalLauncher.Current.OpenUriAsync(TopLevel.GetTopLevel(this), new Uri(url));
+                if (!result.IsSucceeded)
+                    Log.ErrorF("SkillAssignmentClassCSkillSysView.OnLearnInfo launch failed: {0}", result.Message);
             }
             catch (Exception ex)
             {

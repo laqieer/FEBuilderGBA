@@ -49,8 +49,8 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ImportBattleAnime_NoRom_ReturnsError()
         {
-            var origRom = CoreState.ROM;
-            CoreState.ROM = null;
+            ROM? origRom = CoreState.ROM;
+            CoreState.ROM = null!;
             try
             {
                 // Create a temp script file
@@ -71,7 +71,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = origRom;
+                CoreState.ROM = origRom!;
             }
         }
 
@@ -219,8 +219,8 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ImportFEditorBin_NoRom_ReturnsError()
         {
-            var origRom = CoreState.ROM;
-            CoreState.ROM = null;
+            ROM? origRom = CoreState.ROM;
+            CoreState.ROM = null!;
             try
             {
                 string tempFile = System.IO.Path.Combine(
@@ -239,7 +239,7 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
-                CoreState.ROM = origRom;
+                CoreState.ROM = origRom!;
             }
         }
 

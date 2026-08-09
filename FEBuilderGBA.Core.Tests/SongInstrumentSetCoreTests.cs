@@ -73,7 +73,6 @@ namespace FEBuilderGBA.Core.Tests
                 rom.write_u8(addr + 11, b11);
             }
         }
-
         // Write an uncompressed DirectSound sample header + PCM at offset; returns
         // the sample body byte count (= pcmLen).
         static void WriteDirectSoundSample(ROM rom, uint off, uint freq, int pcmLen)
@@ -563,7 +562,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var sink = new Sink();
             // Null ROM.
-            SongInstrumentSetCore.ExportAll(null, VOCA_BASE, "vg", sink.WriteFile, sink.WriteLines);
+            SongInstrumentSetCore.ExportAll(null!, VOCA_BASE, "vg", sink.WriteFile, sink.WriteLines);
             Assert.Empty(sink.Indexes);
 
             var savedRom = CoreState.ROM;
@@ -576,12 +575,12 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Empty(sink.Indexes);
 
                 // Null delegates: no throw.
-                SongInstrumentSetCore.ExportAll(rom, VOCA_BASE, "vg", null, null);
+                SongInstrumentSetCore.ExportAll(rom, VOCA_BASE, "vg", null!, null!);
 
                 // Null / empty baseName: no throw, nothing emitted (the
                 // baseName + ".instrument" concat would otherwise NRE).
                 var sink2 = new Sink();
-                SongInstrumentSetCore.ExportAll(rom, VOCA_BASE, null, sink2.WriteFile, sink2.WriteLines);
+                SongInstrumentSetCore.ExportAll(rom, VOCA_BASE, null!, sink2.WriteFile, sink2.WriteLines);
                 Assert.Empty(sink2.Indexes);
                 Assert.Empty(sink2.Files);
                 SongInstrumentSetCore.ExportAll(rom, VOCA_BASE, "", sink2.WriteFile, sink2.WriteLines);
@@ -748,9 +747,9 @@ namespace FEBuilderGBA.Core.Tests
         // The Sink doubles as a reader for ImportAll: readLines/readFile look up the
         // in-memory index/side-file collections ExportAll filled. Missing name => null
         // (so the Core's validate phase reports it cleanly).
-        static Func<string, string[]> ReadLinesFrom(Sink sink) =>
+        static Func<string, string[]?> ReadLinesFrom(Sink sink) =>
             name => sink.Indexes.TryGetValue(name, out var lines) ? lines.ToArray() : null;
-        static Func<string, byte[]> ReadFileFrom(Sink sink) =>
+        static Func<string, byte[]?> ReadFileFrom(Sink sink) =>
             name => sink.Files.TryGetValue(name, out var bytes) ? bytes : null;
 
         // Build a complete synthetic voicegroup exercising every nesting shape:
@@ -829,8 +828,8 @@ namespace FEBuilderGBA.Core.Tests
                     importedBase = SongInstrumentSetCore.ImportAll(
                         rom, "vg.instrument",
                         ReadLinesFrom(export1), ReadFileFrom(export1),
-                        appendBinaryData: null, out string err);
-                    Assert.Equal((string)null, err);
+                        appendBinaryData: null, out string? err);
+                    Assert.Null(err);
                 }
                 Assert.NotEqual(U.NOT_FOUND, importedBase);
 
@@ -890,8 +889,8 @@ namespace FEBuilderGBA.Core.Tests
                     root = SongInstrumentSetCore.ImportAll(
                         rom, "vg.instrument",
                         ReadLinesFrom(export), ReadFileFrom(export),
-                        null, out string err);
-                    Assert.Equal((string)null, err);
+                        null, out string? err);
+                    Assert.Null(err);
                 }
                 Assert.NotEqual(U.NOT_FOUND, root);
 
@@ -946,7 +945,7 @@ namespace FEBuilderGBA.Core.Tests
                     result = SongInstrumentSetCore.ImportAll(
                         rom, "vg.instrument",
                         ReadLinesFrom(export), ReadFileFrom(export),
-                        null, out string err);
+                        null, out string? err);
                     Assert.Equal(U.NOT_FOUND, result);
                     Assert.False(string.IsNullOrEmpty(err));
                 }
@@ -980,7 +979,7 @@ namespace FEBuilderGBA.Core.Tests
                     result = SongInstrumentSetCore.ImportAll(
                         rom, "bad.instrument",
                         ReadLinesFrom(export), ReadFileFrom(export),
-                        null, out string err);
+                        null, out string? err);
                     Assert.Equal(U.NOT_FOUND, result);
                     Assert.False(string.IsNullOrEmpty(err));
                 }
@@ -1022,7 +1021,7 @@ namespace FEBuilderGBA.Core.Tests
                     result = SongInstrumentSetCore.ImportAll(
                         rom, "bad.instrument",
                         ReadLinesFrom(export), ReadFileFrom(export),
-                        null, out string err);
+                        null, out string? err);
                     Assert.Equal(U.NOT_FOUND, result);
                     Assert.False(string.IsNullOrEmpty(err));
                 }
@@ -1076,7 +1075,7 @@ namespace FEBuilderGBA.Core.Tests
                     result = SongInstrumentSetCore.ImportAll(
                         rom, "vg.instrument",
                         ReadLinesFrom(export), ReadFileFrom(export),
-                        faultyAppender, out string err);
+                        faultyAppender, out string? err);
                     Assert.Equal(U.NOT_FOUND, result);
                     Assert.False(string.IsNullOrEmpty(err));
                 }
@@ -1136,7 +1135,7 @@ namespace FEBuilderGBA.Core.Tests
                     uint result = SongInstrumentSetCore.ImportAll(
                         rom, "vg.instrument",
                         ReadLinesFrom(export), ReadFileFrom(export),
-                        faultyAppender, out string err);
+                        faultyAppender, out string? err);
                     Assert.Equal(U.NOT_FOUND, result);
                 }
 
@@ -1186,7 +1185,7 @@ namespace FEBuilderGBA.Core.Tests
                     uint result = SongInstrumentSetCore.ImportAll(
                         rom, "vg.instrument",
                         ReadLinesFrom(export), ReadFileFrom(export),
-                        null, out string err);
+                        null, out string? err);
                     Assert.Equal(U.NOT_FOUND, result);
                     Assert.False(string.IsNullOrEmpty(err));
                 }
@@ -1227,7 +1226,7 @@ namespace FEBuilderGBA.Core.Tests
                     uint result = SongInstrumentSetCore.ImportAll(
                         rom, "vg.instrument",
                         ReadLinesFrom(export), ReadFileFrom(export),
-                        null, out string err);
+                        null, out string? err);
                     Assert.Equal(U.NOT_FOUND, result);
                     Assert.False(string.IsNullOrEmpty(err));
                 }
@@ -1274,7 +1273,7 @@ namespace FEBuilderGBA.Core.Tests
                     uint result = SongInstrumentSetCore.ImportAll(
                         rom, "vg.instrument",
                         ReadLinesFrom(export), ReadFileFrom(export),
-                        null, out string err);
+                        null, out string? err);
                     Assert.Equal(U.NOT_FOUND, result);
                     Assert.False(string.IsNullOrEmpty(err));
                 }
@@ -1313,8 +1312,8 @@ namespace FEBuilderGBA.Core.Tests
                     importedBase = SongInstrumentSetCore.ImportAll(
                         rom, "vg.instrument",
                         ReadLinesFrom(export), ReadFileFrom(export),
-                        null, out string err);
-                    Assert.Equal((string)null, err);
+                        null, out string? err);
+                    Assert.Null(err);
                 }
                 Assert.NotEqual(U.NOT_FOUND, importedBase);
                 // The import GREW the ROM (appended the imported set).
@@ -1365,8 +1364,8 @@ namespace FEBuilderGBA.Core.Tests
                     root = SongInstrumentSetCore.ImportAll(
                         rom, "vg.instrument",
                         ReadLinesFrom(export), ReadFileFrom(export),
-                        null, out string err);
-                    Assert.Equal((string)null, err);
+                        null, out string? err);
+                    Assert.Null(err);
                 }
                 Assert.NotEqual(U.NOT_FOUND, root);
 
@@ -1391,7 +1390,7 @@ namespace FEBuilderGBA.Core.Tests
             var sink = new Sink();
             // Null ROM.
             uint r = SongInstrumentSetCore.ImportAll(
-                null, "vg.instrument", ReadLinesFrom(sink), ReadFileFrom(sink), null, out string e1);
+                null!, "vg.instrument", ReadLinesFrom(sink), ReadFileFrom(sink), null, out string? e1);
             Assert.Equal(U.NOT_FOUND, r);
             Assert.False(string.IsNullOrEmpty(e1));
 
@@ -1403,19 +1402,19 @@ namespace FEBuilderGBA.Core.Tests
 
                 // Missing index file.
                 uint r2 = SongInstrumentSetCore.ImportAll(
-                    rom, "nope.instrument", ReadLinesFrom(sink), ReadFileFrom(sink), null, out string e2);
+                    rom, "nope.instrument", ReadLinesFrom(sink), ReadFileFrom(sink), null, out string? e2);
                 Assert.Equal(U.NOT_FOUND, r2);
                 Assert.False(string.IsNullOrEmpty(e2));
 
                 // Null delegates.
                 uint r3 = SongInstrumentSetCore.ImportAll(
-                    rom, "vg.instrument", null, null, null, out string e3);
+                    rom, "vg.instrument", null!, null!, null, out string? e3);
                 Assert.Equal(U.NOT_FOUND, r3);
                 Assert.False(string.IsNullOrEmpty(e3));
 
                 // Empty index name.
                 uint r4 = SongInstrumentSetCore.ImportAll(
-                    rom, "", ReadLinesFrom(sink), ReadFileFrom(sink), null, out string e4);
+                    rom, "", ReadLinesFrom(sink), ReadFileFrom(sink), null, out string? e4);
                 Assert.Equal(U.NOT_FOUND, r4);
             }
             finally { CoreState.ROM = savedRom; }

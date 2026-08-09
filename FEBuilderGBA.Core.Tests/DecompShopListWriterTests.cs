@@ -73,7 +73,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RewriteListBody_NullDesired_TreatedAsEmpty()
         {
-            var res = DecompSourceWriterCore.RewriteListBody(SrcTwoItems, "ItemList_Foo", null, out string outText);
+            var res = DecompSourceWriterCore.RewriteListBody(SrcTwoItems, "ItemList_Foo", null!, out string outText);
             Assert.True(res.Ok, res.Message);
             Assert.Contains("0x0000,  // ITEM_NONE (terminator)", outText);
         }
@@ -129,7 +129,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void RewriteListBody_NullSource_ParseFailed()
         {
-            var res = DecompSourceWriterCore.RewriteListBody(null, "ItemList_Foo", new ushort[] { 0x0102 }, out string outText);
+            var res = DecompSourceWriterCore.RewriteListBody(null!, "ItemList_Foo", new ushort[] { 0x0102 }, out string outText);
             Assert.Equal(DecompSourceWriteStatus.ParseFailed, res.Status);
             Assert.Null(outText);
         }
@@ -266,7 +266,7 @@ namespace FEBuilderGBA.Core.Tests
                     ReadCommentHandling = System.Text.Json.JsonCommentHandling.Skip,
                     AllowTrailingCommas = true,
                 });
-            return new DecompProject { ProjectRoot = "X", Manifest = parsed };
+            return new DecompProject { ProjectRoot = "X", Manifest = TestRequire.NotNull(parsed, "manifest") };
         }
 
         [Fact]
@@ -306,13 +306,13 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void TryGetListOwner_NoManifest_OrEmptyName_ReturnsNull()
         {
-            var noManifest = new DecompProject { ProjectRoot = "X", Manifest = null };
+            var noManifest = new DecompProject { ProjectRoot = "X", Manifest = null! };
             Assert.Null(noManifest.TryGetListOwner("ItemList_Foo"));
 
             var project = ProjectFromManifestJson(
                 "[ { \"table\": \"s\", \"format\": \"u16-list\", \"arrayName\": \"ItemList_Foo\" } ]");
             Assert.Null(project.TryGetListOwner(""));
-            Assert.Null(project.TryGetListOwner(null));
+            Assert.Null(project.TryGetListOwner(null!));
         }
 
         // -------------------------------------------------------- resolver glue
@@ -401,7 +401,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void TryResolveShopOwner_NullArgs_ReturnsFalse()
         {
-            Assert.False(DecompShopSourceResolver.TryResolveShopOwner(null, null, 0x1000u, out _, out _));
+            Assert.False(DecompShopSourceResolver.TryResolveShopOwner(null!, null!, 0x1000u, out _, out _));
         }
     }
 }

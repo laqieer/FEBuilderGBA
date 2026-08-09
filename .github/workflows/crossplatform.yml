@@ -24,7 +24,7 @@ jobs:
         python-version: '3.12'
 
     - name: Validate fail-closed .NET workflow steps
-      run: python -m unittest scripts/tests/test_crossplatform_workflow.py -v
+      run: python -m unittest scripts.tests.test_crossplatform_workflow scripts.tests.test_build_warning_contract -v
 
   build:
     name: build (${{ matrix.check_name }})
@@ -68,27 +68,30 @@ jobs:
     - name: Run copilot-context-guard contract tests (issue #1995)
       run: python -m unittest discover -s scripts/tests -p "test_copilot_context_guard.py" -v
 
+    - name: Restore ColorzCore (bundled EA tool)
+      run: dotnet restore tools/ColorzCore/ColorzCore/ColorzCore.csproj -p:Configuration=Release -p:TargetFramework=net10.0 -warnaserror --disable-build-servers -p:UseSharedCompilation=false
+
     - name: Build ColorzCore (bundled EA tool)
-      run: dotnet build tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release --disable-build-servers -p:UseSharedCompilation=false
+      run: dotnet build tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release --no-restore -p:TargetFramework=net10.0 -warnaserror --disable-build-servers -p:UseSharedCompilation=false
 
     - name: Build Core library
-      run: dotnet build FEBuilderGBA.Core/FEBuilderGBA.Core.csproj -c Release --disable-build-servers -p:UseSharedCompilation=false
+      run: dotnet build FEBuilderGBA.Core/FEBuilderGBA.Core.csproj -c Release -warnaserror --disable-build-servers -p:UseSharedCompilation=false
 
     - name: Build CLI
-      run: dotnet build FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj -c Release --disable-build-servers -p:UseSharedCompilation=false
+      run: dotnet build FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj -c Release -warnaserror --disable-build-servers -p:UseSharedCompilation=false
 
     - name: Build SkiaSharp backend
-      run: dotnet build FEBuilderGBA.SkiaSharp/FEBuilderGBA.SkiaSharp.csproj -c Release --disable-build-servers -p:UseSharedCompilation=false
+      run: dotnet build FEBuilderGBA.SkiaSharp/FEBuilderGBA.SkiaSharp.csproj -c Release -warnaserror --disable-build-servers -p:UseSharedCompilation=false
 
     - name: Build Avalonia project
       timeout-minutes: 15
-      run: dotnet build FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release --disable-build-servers -p:UseSharedCompilation=false
+      run: dotnet build FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release -warnaserror --disable-build-servers -p:UseSharedCompilation=false
 
     - name: Run Core tests
-      run: dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj -c Release --disable-build-servers -p:UseSharedCompilation=false --logger "trx;LogFileName=core-tests.trx"
+      run: dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj -c Release -warnaserror --disable-build-servers -p:UseSharedCompilation=false --logger "trx;LogFileName=core-tests.trx"
 
     - name: Run Avalonia tests (data-verify headless validation)
-      run: dotnet test FEBuilderGBA.Avalonia.Tests/FEBuilderGBA.Avalonia.Tests.csproj -c Release --disable-build-servers -p:UseSharedCompilation=false --logger "trx;LogFileName=avalonia-tests.trx"
+      run: dotnet test FEBuilderGBA.Avalonia.Tests/FEBuilderGBA.Avalonia.Tests.csproj -c Release -warnaserror --disable-build-servers -p:UseSharedCompilation=false --logger "trx;LogFileName=avalonia-tests.trx"
 
     - name: CLI smoke test
       run: dotnet FEBuilderGBA.CLI/bin/Release/net10.0/FEBuilderGBA.CLI.dll --version
@@ -164,7 +167,7 @@ jobs:
         dotnet-version: '10.0.x'
 
     - name: Build CLI
-      run: dotnet build FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj -c Release --disable-build-servers -p:UseSharedCompilation=false
+      run: dotnet build FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj -c Release -warnaserror --disable-build-servers -p:UseSharedCompilation=false
 
     - name: Setup Python 3.12
       uses: actions/setup-python@v5
@@ -220,15 +223,18 @@ jobs:
       with:
         dotnet-version: '10.0.x'
 
+    - name: Restore ColorzCore (self-contained per-RID)
+      run: dotnet restore tools/ColorzCore/ColorzCore/ColorzCore.csproj -r ${{ matrix.rid }} -p:Configuration=Release -p:SelfContained=true -p:TargetFramework=net10.0 -warnaserror --disable-build-servers -p:UseSharedCompilation=false
+
     - name: Publish ColorzCore (self-contained per-RID)
-      run: dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release -r ${{ matrix.rid }} --self-contained true --disable-build-servers -p:UseSharedCompilation=false -o publish/tools-${{ matrix.rid }}
+      run: dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release -r ${{ matrix.rid }} --self-contained true --no-restore -p:TargetFramework=net10.0 -warnaserror --disable-build-servers -p:UseSharedCompilation=false -o publish/tools-${{ matrix.rid }}
 
     - name: Publish CLI
-      run: dotnet publish FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj -c Release -r ${{ matrix.rid }} --self-contained true --disable-build-servers -p:UseSharedCompilation=false -o publish/cli-${{ matrix.rid }}
+      run: dotnet publish FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj -c Release -r ${{ matrix.rid }} --self-contained true -warnaserror --disable-build-servers -p:UseSharedCompilation=false -o publish/cli-${{ matrix.rid }}
 
     - name: Publish Avalonia
       timeout-minutes: 20
-      run: dotnet publish FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release -r ${{ matrix.rid }} --self-contained true --disable-build-servers -p:UseSharedCompilation=false -o publish/avalonia-${{ matrix.rid }}
+      run: dotnet publish FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release -r ${{ matrix.rid }} --self-contained true -warnaserror --disable-build-servers -p:UseSharedCompilation=false -o publish/avalonia-${{ matrix.rid }}
 
     - name: Bundle ColorzCore into CLI and Avalonia artifacts
       shell: bash

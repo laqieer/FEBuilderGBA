@@ -1,5 +1,7 @@
 using System;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace FEBuilderGBA
 {
@@ -88,6 +90,48 @@ namespace FEBuilderGBA
 
                 string latest = ParseLatestVersionFromReleaseJson(body);
                 return BuildResult(U.getAppVersion(), latest, ReleasesLatestPageUrl);
+            }
+            catch (Exception ex)
+            {
+                return new UpdateCheckResult
+                {
+                    CheckSucceeded = false,
+                    Error = ex.Message,
+                    ReleasePageUrl = ReleasesLatestPageUrl,
+                    CurrentVersion = U.getAppVersion(),
+                };
+            }
+        }
+
+        public static async Task<UpdateCheckResult> CheckLatestAsync(
+            Func<string, CancellationToken, Task<string>> httpGet = null,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (httpGet == null)
+                    httpGet = (url, ct) => U.HttpGetAsync(url, cancellationToken: ct);
+                string body = await httpGet(ReleasesLatestApiUrl, cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                if (string.IsNullOrWhiteSpace(body))
+                {
+                    return new UpdateCheckResult
+                    {
+                        CheckSucceeded = false,
+                        Error = "Could not reach GitHub (offline or rate-limited).",
+                        ReleasePageUrl = ReleasesLatestPageUrl,
+                        CurrentVersion = U.getAppVersion(),
+                    };
+                }
+
+                string latest = ParseLatestVersionFromReleaseJson(body);
+                return BuildResult(U.getAppVersion(), latest, ReleasesLatestPageUrl);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {

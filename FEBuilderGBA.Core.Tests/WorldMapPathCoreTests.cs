@@ -84,7 +84,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void LoadPath_NullRom_ReturnsEmpty()
         {
-            Assert.Empty(WorldMapPathCore.LoadPath(null, 0));
+            Assert.Empty(WorldMapPathCore.LoadPath(null!, 0));
         }
 
         [Fact]
@@ -327,7 +327,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ExportPathBinFromRom_NullRom_ReturnsError()
         {
-            byte[] r = WorldMapPathCore.ExportPathBinFromRom(null, 0x2000, out string err);
+            byte[] r = WorldMapPathCore.ExportPathBinFromRom(null!, 0x2000, out string err);
             Assert.Null(r);
             Assert.False(string.IsNullOrEmpty(err));
         }
@@ -452,7 +452,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void DecodePathBin_NullOrTooShort_ReturnsNullAndError()
         {
-            Assert.Null(WorldMapPathCore.DecodePathBin(null, out string e1));
+            Assert.Null(WorldMapPathCore.DecodePathBin(null!, out string e1));
             Assert.False(string.IsNullOrEmpty(e1));
             Assert.Null(WorldMapPathCore.DecodePathBin(new byte[] { 0xFF, 0 }, out string e2));
             Assert.False(string.IsNullOrEmpty(e2));
@@ -552,7 +552,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void WritePath_NullRom_ReturnsError()
         {
-            string err = WorldMapPathCore.WritePath(null, 0, new List<PathChip>());
+            string err = WorldMapPathCore.WritePath(null!, 0, new List<PathChip>());
             Assert.False(string.IsNullOrEmpty(err));
         }
 
@@ -613,7 +613,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void TryRenderPathComposite_NullRom_ReturnsNull()
         {
-            Assert.Null(WorldMapPathCore.TryRenderPathComposite(null, new List<PathChip>()));
+            Assert.Null(WorldMapPathCore.TryRenderPathComposite(null!, new List<PathChip>()));
         }
 
         [Fact]

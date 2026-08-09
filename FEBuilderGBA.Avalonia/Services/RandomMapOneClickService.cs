@@ -93,7 +93,7 @@ namespace FEBuilderGBA.Avalonia.Services
     /// Delegate used to resolve the current, freshly-validated FEMapCreator profile and
     /// per-fingerprint mapping lookup (#1978 Slice 3). The default production implementation
     /// reads <see cref="CoreState.Config"/> and touches only the local filesystem (via
-    /// <see cref="FEMapCreatorProfileCore.Validate"/> / <see cref="FEMapCreatorTilesetMappingStoreCore.Lookup"/>)
+    /// <see cref="FEMapCreatorProfileCore.Validate(string, string)"/> / <see cref="FEMapCreatorTilesetMappingStoreCore.Lookup(System.Collections.Generic.IReadOnlyList{FEBuilderGBA.FEMapCreatorTilesetMappingEntry}, FEBuilderGBA.TilesetFingerprint, FEBuilderGBA.FEMapCreatorSetupSnapshot)"/>)
     /// — it never launches a process or touches the network. The service runs it off the UI
     /// thread and supplies cancellation through every authoritative file hash.
     /// </summary>

@@ -234,7 +234,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ScanSpecialOam_NullRom_ReturnsEmpty()
         {
             var ldrMap = new List<DisassemblerTrumb.LDRPointer>();
-            var entries = SpecialOamScanCore.ScanSpecialOam(null, ldrMap);
+            var entries = SpecialOamScanCore.ScanSpecialOam(null!, ldrMap);
             Assert.Empty(entries);
         }
 
@@ -246,7 +246,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 var rom = MakeOamSpRom();
                 CoreState.ROM = rom;
-                var entries = SpecialOamScanCore.ScanSpecialOam(rom, null);
+                var entries = SpecialOamScanCore.ScanSpecialOam(rom, null!);
                 Assert.Empty(entries);
             }
             finally
@@ -264,8 +264,8 @@ namespace FEBuilderGBA.Core.Tests
                 var rom = MakeOamSpRom();
                 CoreState.ROM = rom;
 
-                Assert.Equal("", SpecialOamScanCore.BuildDetailDump(rom, null));
-                Assert.Equal("", SpecialOamScanCore.BuildDetailDump(null, new SpecialOamScanCore.OamSpEntry()));
+                Assert.Equal("", SpecialOamScanCore.BuildDetailDump(rom, null!));
+                Assert.Equal("", SpecialOamScanCore.BuildDetailDump(null!, new SpecialOamScanCore.OamSpEntry()));
 
                 // An entry pointing past the end of ROM must not throw — the
                 // bounds guards stop the dump and return whatever was built.
@@ -290,7 +290,7 @@ namespace FEBuilderGBA.Core.Tests
             // GUARDED: requires roms/FE8U.gba next to the .sln. Skips cleanly when
             // absent (worktree / CI without ROM files). Proves the LDR scan + the
             // oam_name_ resource discover real OAMSP entries with real labels.
-            string romPath = FindRom("FE8U.gba");
+            string? romPath = FindRom("FE8U.gba");
             if (romPath == null) return; // skip
 
             var savedRom = CoreState.ROM;
@@ -298,8 +298,9 @@ namespace FEBuilderGBA.Core.Tests
             var savedLang = CoreState.Language;
             try
             {
-                string romsDir = Path.GetDirectoryName(romPath);
-                string repoRoot = Path.GetDirectoryName(romsDir);
+                string romsDir = TestRequire.DirectoryName(romPath);
+                string repoRoot = TestRequire.DirectoryName(romsDir);
+                Assert.NotNull(repoRoot);
                 CoreState.BaseDirectory = repoRoot;
                 CoreState.Language = "en";
 
@@ -331,10 +332,10 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
-        static string FindRom(string romName)
+        static string? FindRom(string romName)
         {
             string thisAssembly = Assembly.GetExecutingAssembly().Location;
-            string dir = Path.GetDirectoryName(thisAssembly);
+            string? dir = Path.GetDirectoryName(thisAssembly);
             for (int i = 0; i < 12 && dir != null; i++)
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))

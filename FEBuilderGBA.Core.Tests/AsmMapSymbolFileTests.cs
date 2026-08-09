@@ -173,7 +173,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Ctor_NullRom_EmptyMap_NoThrow()
         {
-            var map = new AsmMapSymbolFile(null);
+            var map = new AsmMapSymbolFile(null!);
             Assert.False(map.TryGetValue(0x08000000u, out _));
             Assert.Equal(U.NOT_FOUND, map.SearchNear(0x08001000u));
         }
@@ -210,7 +210,7 @@ namespace FEBuilderGBA.Core.Tests
         public void FirstKeyForScreenshot_ReturnsSmallestKey_AndNotFoundOnEmpty()
         {
             // Empty map -> NOT_FOUND (screenshot seed falls back).
-            var empty = new AsmMapSymbolFile(null);
+            var empty = new AsmMapSymbolFile(null!);
             Assert.Equal(U.NOT_FOUND, empty.FirstKeyForScreenshot());
 
             // Two-key map (deliberately out of ascending input order) -> the
@@ -227,7 +227,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             // GUARDED: requires roms/FE8U.gba next to the .sln. Skips cleanly
             // when absent (worktree / CI without ROM files).
-            string romPath = FindRom("FE8U.gba");
+            string? romPath = FindRom("FE8U.gba");
             if (romPath == null) return; // skip
 
             var savedRom = CoreState.ROM;
@@ -237,8 +237,9 @@ namespace FEBuilderGBA.Core.Tests
             {
                 // BaseDirectory = repo root so ConfigDataFilename finds
                 // config/data/asmmap_FE8*.txt. romPath = {root}/roms/FE8U.gba.
-                string romsDir = Path.GetDirectoryName(romPath);
-                string repoRoot = Path.GetDirectoryName(romsDir);
+                string romsDir = TestRequire.DirectoryName(romPath);
+                string repoRoot = TestRequire.DirectoryName(romsDir);
+                Assert.NotNull(repoRoot);
                 CoreState.BaseDirectory = repoRoot;
                 CoreState.Language = "en";
 
@@ -265,10 +266,10 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
-        static string FindRom(string romName)
+        static string? FindRom(string romName)
         {
             string thisAssembly = Assembly.GetExecutingAssembly().Location;
-            string dir = Path.GetDirectoryName(thisAssembly);
+            string? dir = Path.GetDirectoryName(thisAssembly);
             for (int i = 0; i < 12 && dir != null; i++)
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))

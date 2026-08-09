@@ -64,13 +64,13 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         public void Dispose()
         {
-            CoreState.ROM = _prevRom;
-            CoreState.CommentCache = _prevComment;
-            CoreState.LintCache = _prevLint;
-            CoreState.WorkSupportCache = _prevWork;
-            CoreState.SystemTextEncoder = _prevEncoder;
-            CoreState.BaseDirectory = _prevBaseDir;
-            CoreState.Config = _prevConfig;
+            CoreStateTestState.RestoreRom(_prevRom);
+            CoreStateTestState.RestoreCommentCache(_prevComment);
+            CoreStateTestState.RestoreLintCache(_prevLint);
+            CoreStateTestState.RestoreWorkSupportCache(_prevWork);
+            CoreStateTestState.RestoreSystemTextEncoder(_prevEncoder);
+            CoreStateTestState.RestoreBaseDirectory(_prevBaseDir);
+            CoreStateTestState.RestoreConfig(_prevConfig);
         }
 
         [AvaloniaFact]

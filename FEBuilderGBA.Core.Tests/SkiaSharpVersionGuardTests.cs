@@ -1,23 +1,24 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// SkiaSharp native-version pin guard (#1125).
+// Avalonia / SkiaSharp / HarfBuzz native-version pin guard (#1125, #2067).
 //
 // This repo has a known landmine: a process loads EXACTLY ONE native
 // libSkiaSharp, so the managed SkiaSharp version must match the native that
-// Avalonia 11.2.3 bundles (2.88.x). A 3.x managed package rejects the 2.88
-// native ("88.1") and crashes inside the Avalonia process with a
-// TypeInitializationException on non-Windows (Windows can mask it). See
-// docs/ANDROID.md §3 and issues #796 / #798.
+// Avalonia bundles. Android 15+/16 KB page-size devices additionally reject
+// old libSkiaSharp.so binaries, so the accepted Avalonia 11 compatibility stack
+// is Avalonia 11.3.18 + SkiaSharp 3.119.4 + HarfBuzzSharp 8.3.1.5.
 //
 // These three guards (authored cross-platform in FEBuilderGBA.Core.Tests, so
-// they also run on the #1126 Android emulator/instrumented CI) catch a 3.x leak
-// at three independent layers:
-//   (b1) DECLARED — every SkiaSharp* <PackageReference Version=…> in the repo's
-//        csprojs pins the 2.88.x family.
+// they also run on the #1126 Android emulator/instrumented CI) catch a version
+// skew at three independent layers:
+//   (b1) DECLARED — every Avalonia*/SkiaSharp*/HarfBuzzSharp*
+//        <PackageReference Version=…> in the repo's csprojs pins the accepted
+//        compatibility stack, and the required direct pins exist.
 //   (b2) RUNTIME  — the managed SkiaSharp assembly actually loaded into this
-//        test process is 2.88.x.
+//        test process is 3.119.x.
 //   (b3) RESTORED — the NuGet restore graph (project.assets.json) resolved only
-//        2.88.x SkiaSharp libraries, with no duplicate major family.
+//        accepted SkiaSharp/HarfBuzzSharp libraries, with no duplicate major
+//        family.
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -46,7 +47,7 @@ namespace FEBuilderGBA.Core.Tests
         /// (declared + restored-graph) SKIP in that case; the
         /// source-tree-independent runtime-loaded guard still runs.
         /// </summary>
-        static string FindRepoRoot()
+        static string? FindRepoRoot()
         {
             var dir = new DirectoryInfo(AppContext.BaseDirectory);
             while (dir != null)
@@ -85,31 +86,64 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        const string ExpectedAvaloniaVersion = "11.3.18";
+        const string ExpectedSkiaSharpVersion = "3.119.4";
+        const string ExpectedHarfBuzzSharpVersion = "8.3.1.5";
+
+        static readonly HashSet<string> OldRejectedPackageVersions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "11.2.3",
+            "2.88.9",
+            "7.3.0.3",
+        };
+
+        static readonly HashSet<string> RequiredDirectPackagePins = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Avalonia",
+            "Avalonia.Android",
+            "Avalonia.Browser",
+            "Avalonia.Desktop",
+            "Avalonia.Fonts.Inter",
+            "Avalonia.Headless",
+            "Avalonia.Headless.XUnit",
+            "Avalonia.iOS",
+            "Avalonia.Themes.Fluent",
+            "SkiaSharp",
+            "SkiaSharp.HarfBuzz",
+            "SkiaSharp.NativeAssets.Android",
+            "SkiaSharp.NativeAssets.iOS",
+            "SkiaSharp.NativeAssets.Linux",
+            "SkiaSharp.NativeAssets.WebAssembly",
+            "HarfBuzzSharp",
+            "HarfBuzzSharp.NativeAssets.Android",
+            "HarfBuzzSharp.NativeAssets.iOS",
+            "HarfBuzzSharp.NativeAssets.Linux",
+            "HarfBuzzSharp.NativeAssets.WebAssembly",
+        };
+
         // Matches: <PackageReference Include="SkiaSharp[.NativeAssets.*]" Version="X" />
         // (attribute order-independent).
         static readonly Regex PackageRefRegex = new Regex(
-            "<PackageReference\\b[^>]*?\\bInclude\\s*=\\s*\"(?<inc>SkiaSharp[^\"]*)\"[^>]*?\\bVersion\\s*=\\s*\"(?<ver>[^\"]+)\"",
+            "<PackageReference\\b[^>]*?\\bInclude\\s*=\\s*\"(?<inc>(?:Avalonia|SkiaSharp|HarfBuzzSharp)[^\"]*)\"[^>]*?\\bVersion\\s*=\\s*\"(?<ver>[^\"]+)\"",
             RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
         // Also catch the order where Version precedes Include.
         static readonly Regex PackageRefRegexVerFirst = new Regex(
-            "<PackageReference\\b[^>]*?\\bVersion\\s*=\\s*\"(?<ver>[^\"]+)\"[^>]*?\\bInclude\\s*=\\s*\"(?<inc>SkiaSharp[^\"]*)\"",
+            "<PackageReference\\b[^>]*?\\bVersion\\s*=\\s*\"(?<ver>[^\"]+)\"[^>]*?\\bInclude\\s*=\\s*\"(?<inc>(?:Avalonia|SkiaSharp|HarfBuzzSharp)[^\"]*)\"",
             RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
-        static readonly Regex Pin288 = new Regex("^2\\.88\\.");
-        static readonly Regex Reject3x = new Regex("^3\\.");
-
-        // Asserts EVERY direct SkiaSharp* <PackageReference> across the WHOLE repo
-        // (every *.csproj under the root, not a hard-coded subset) pins the 2.88.x
-        // family. The CLI / Avalonia / Tests projects pull SkiaSharp transitively
-        // via a ProjectReference (no direct pin), so they contribute zero refs —
-        // that's fine; we only require at least ONE direct pin to exist somewhere.
+        // Asserts EVERY direct Avalonia*/SkiaSharp*/HarfBuzzSharp*
+        // <PackageReference> across the WHOLE repo (every *.csproj under the
+        // root, not a hard-coded subset) pins the accepted #2067 stack. It also
+        // requires the explicit pins that keep desktop, Android, iOS, browser,
+        // and test heads in lockstep.
         [SkippableFact]
-        public void DeclaredSkiaSharpPackageRefs_Pin_288_Family()
+        public void DeclaredGraphicsPackageRefs_Pin_2067_CompatibilityStack()
         {
-            string root = FindRepoRoot();
+            string? root = FindRepoRoot();
             Skip.If(root == null, "source tree / FEBuilderGBA.sln not found (e.g. on-device Android instrumented host) — declared/restored-graph guards are source-tree-only; the runtime-loaded guard still validates the native here");
             int found = 0;
+            var foundPins = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (string path in EnumerateRepoCsprojs(root))
             {
@@ -121,16 +155,21 @@ namespace FEBuilderGBA.Core.Tests
                     string inc = m.Groups["inc"].Value;
                     string ver = m.Groups["ver"].Value;
                     found++;
+                    foundPins.Add(inc);
 
-                    Assert.False(Reject3x.IsMatch(ver),
-                        $"SkiaSharp 3.x leak: {rel} pins '{inc}' Version='{ver}' (must stay on the 2.88.x family — see docs/ANDROID.md §3)");
-                    Assert.True(Pin288.IsMatch(ver),
-                        $"SkiaSharp version drift: {rel} pins '{inc}' Version='{ver}' (expected 2.88.x — see docs/ANDROID.md §3)");
+                    Assert.False(OldRejectedPackageVersions.Contains(ver),
+                        $"old graphics dependency pin: {rel} pins '{inc}' Version='{ver}' (expected {ExpectedVersionForPackage(inc)} for #2067)");
+                    Assert.Equal(ExpectedVersionForPackage(inc), ver);
                 }
             }
 
             Assert.True(found > 0,
-                "found ZERO direct SkiaSharp PackageReference pins across every csproj in the repo — the parse silently matched nothing (expected at least the SkiaSharp + Android pins)");
+                "found ZERO direct Avalonia/SkiaSharp/HarfBuzzSharp PackageReference pins across every csproj in the repo — the parse silently matched nothing");
+
+            foreach (string required in RequiredDirectPackagePins)
+            {
+                Assert.Contains(required, foundPins);
+            }
         }
 
         static IEnumerable<Match> CollectPackageRefs(string xml)
@@ -155,15 +194,14 @@ namespace FEBuilderGBA.Core.Tests
         // ------------------------------------------------------------------
 
         [Fact]
-        public void RuntimeLoadedSkiaSharpAssembly_Is_288()
+        public void RuntimeLoadedSkiaSharpAssembly_Is_3119()
         {
             // typeof(SKBitmap) forces the managed SkiaSharp assembly that this
-            // process actually binds to load; its informational/file version
-            // tracks the 2.88.x package (managed assembly version is 2.88.0.0).
-            Version v = typeof(global::SkiaSharp.SKBitmap).Assembly.GetName().Version;
-            Assert.NotNull(v);
-            Assert.True(v.Major == 2 && v.Minor == 88,
-                $"runtime-loaded managed SkiaSharp is {v} — expected 2.88.x (a 3.x managed assembly crashes against Avalonia's 2.88 native; see docs/ANDROID.md §3)");
+            // process actually binds to load; its assembly version tracks the
+            // 3.119.x package family.
+            Version v = Assert.IsType<Version>(typeof(global::SkiaSharp.SKBitmap).Assembly.GetName().Version);
+            Assert.True(v.Major == 3 && v.Minor == 119,
+                $"runtime-loaded managed SkiaSharp is {v} — expected 3.119.x for #2067's Avalonia/Skia compatibility stack");
         }
 
         // ------------------------------------------------------------------
@@ -171,31 +209,105 @@ namespace FEBuilderGBA.Core.Tests
         // ------------------------------------------------------------------
 
         [SkippableFact]
-        public void RestoredAssetsGraph_Resolves_Only_288_SkiaSharp()
+        public void CoreTestsRestoreGraphs_ResolveOnly_2067_GraphicsStack()
         {
-            string root = FindRepoRoot();
+            string? root = FindRepoRoot();
+            Skip.If(root == null, "source tree / FEBuilderGBA.sln not found (e.g. on-device Android instrumented host) — declared/restored-graph guards are source-tree-only; the runtime-loaded guard still validates the native here");
+            AssertCoreTestsRestoreGraphs_ResolveOnly_2067_GraphicsStack(root);
+        }
+
+        [Fact]
+        public void RestoredAssetsGraph_FailsClosed_WhenCoreTestsRequiredGraphIsMissing()
+        {
+            string? root = FindRepoRoot();
             Skip.If(root == null, "source tree / FEBuilderGBA.sln not found (e.g. on-device Android instrumented host) — declared/restored-graph guards are source-tree-only; the runtime-loaded guard still validates the native here");
 
-            // Only assert on assets files that exist (a clean checkout may not
-            // have restored CLI). SkiaSharp's own assets reliably exist because
-            // Core.Tests references it, forcing its restore. Core.Tests' OWN
-            // assets are scanned too (#1125) — it explicitly pins the 2.88.9
-            // Linux native asset for Skia tests on Linux CI, so this guard now
-            // fails loudly if that native is ever bumped to a mismatched version.
-            string[] assetsCandidates =
+            string scratchRoot = Path.Combine(root, ".scratch", "SkiaSharpVersionGuardTests", Guid.NewGuid().ToString("N"));
+            try
             {
-                Path.Combine(root, "FEBuilderGBA.SkiaSharp", "obj", "project.assets.json"),
-                Path.Combine(root, "FEBuilderGBA.CLI", "obj", "project.assets.json"),
-                Path.Combine(root, "FEBuilderGBA.Core.Tests", "obj", "project.assets.json"),
+                Directory.CreateDirectory(Path.Combine(scratchRoot, "FEBuilderGBA.SkiaSharp", "obj"));
+                Directory.CreateDirectory(Path.Combine(scratchRoot, "FEBuilderGBA.Core.Tests", "obj"));
+
+                File.Copy(
+                    Path.Combine(root, "FEBuilderGBA.SkiaSharp", "obj", "project.assets.json"),
+                    Path.Combine(scratchRoot, "FEBuilderGBA.SkiaSharp", "obj", "project.assets.json"));
+                File.Copy(
+                    Path.Combine(root, "FEBuilderGBA.Core.Tests", "obj", "project.assets.json"),
+                    Path.Combine(scratchRoot, "FEBuilderGBA.Core.Tests", "obj", "project.assets.json"));
+
+                Assert.ThrowsAny<Exception>(() => AssertCoreTestsRestoreGraphs_ResolveOnly_2067_GraphicsStack(scratchRoot));
+            }
+            finally
+            {
+                if (Directory.Exists(scratchRoot))
+                    Directory.Delete(scratchRoot, true);
+            }
+        }
+
+        [Fact]
+        public void RestoredAssetsGraph_AcceptsValidContentAfterNoOpRestoreTimestampSkew()
+        {
+            string? root = FindRepoRoot();
+            Skip.If(root == null, "source tree / FEBuilderGBA.sln not found");
+
+            string scratchRoot = Path.Combine(root, ".scratch", "SkiaSharpVersionGuardTests", Guid.NewGuid().ToString("N"));
+            string[] projects =
+            {
+                "FEBuilderGBA.SkiaSharp",
+                "FEBuilderGBA.CLI",
+                "FEBuilderGBA.Core.Tests",
+            };
+            try
+            {
+                foreach (string project in projects)
+                {
+                    string sourceProjectDir = Path.Combine(root, project);
+                    string scratchProjectDir = Path.Combine(scratchRoot, project);
+                    string scratchObjDir = Path.Combine(scratchProjectDir, "obj");
+                    Directory.CreateDirectory(scratchObjDir);
+                    File.Copy(
+                        Path.Combine(sourceProjectDir, project + ".csproj"),
+                        Path.Combine(scratchProjectDir, project + ".csproj"));
+                    string scratchAssets = Path.Combine(scratchObjDir, "project.assets.json");
+                    File.Copy(
+                        Path.Combine(sourceProjectDir, "obj", "project.assets.json"),
+                        scratchAssets);
+                    File.SetLastWriteTimeUtc(scratchAssets, DateTime.UtcNow.AddMinutes(-5));
+                    File.SetLastWriteTimeUtc(
+                        Path.Combine(scratchProjectDir, project + ".csproj"),
+                        DateTime.UtcNow);
+                }
+
+                AssertCoreTestsRestoreGraphs_ResolveOnly_2067_GraphicsStack(scratchRoot);
+            }
+            finally
+            {
+                if (Directory.Exists(scratchRoot))
+                    Directory.Delete(scratchRoot, true);
+            }
+        }
+
+        static void AssertCoreTestsRestoreGraphs_ResolveOnly_2067_GraphicsStack(string root)
+        {
+            // Core.Tests guarantees these restore graphs: the managed SkiaSharp
+            // project, the CLI (built/restored via RestoreFontLibraryCli /
+            // BuildFontLibraryCli), and Core.Tests itself. Those are the only
+            // graphs this guard validates; Android/iOS/Browser coverage lives in
+            // the repo-wide package-declaration guard and the dedicated builds.
+            (string Name, string AssetsPath)[] requiredAssets =
+            {
+                ("FEBuilderGBA.SkiaSharp", Path.Combine(root, "FEBuilderGBA.SkiaSharp", "obj", "project.assets.json")),
+                ("FEBuilderGBA.CLI", Path.Combine(root, "FEBuilderGBA.CLI", "obj", "project.assets.json")),
+                ("FEBuilderGBA.Core.Tests", Path.Combine(root, "FEBuilderGBA.Core.Tests", "obj", "project.assets.json")),
             };
 
             int filesScanned = 0;
             int skiaLibsChecked = 0;
 
-            foreach (string assetsPath in assetsCandidates)
+            foreach ((string name, string assetsPath) in requiredAssets)
             {
-                if (!File.Exists(assetsPath))
-                    continue;
+                Assert.True(File.Exists(assetsPath),
+                    $"{name} project.assets.json is required for the Core.Tests restore-graph guard (no silent skip for missing required graphs)");
                 filesScanned++;
 
                 using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(assetsPath));
@@ -204,11 +316,11 @@ namespace FEBuilderGBA.Core.Tests
                 // family -> set of versions seen (to catch a duplicate major).
                 var byFamily = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
 
-                CollectSkiaLibraries(rootEl, "libraries", byFamily, ref skiaLibsChecked, assetsPath);
-                CollectSkiaLibraries(rootEl, "targets", byFamily, ref skiaLibsChecked, assetsPath);
+                CollectGraphicsLibraries(rootEl, "libraries", byFamily, ref skiaLibsChecked, assetsPath);
+                CollectGraphicsLibraries(rootEl, "targets", byFamily, ref skiaLibsChecked, assetsPath);
 
                 // No duplicate MAJOR family for the same package, e.g. both
-                // SkiaSharp/2.88.9 and SkiaSharp/3.x present.
+                // the accepted SkiaSharp 3.x stack and an older 2.x stack present.
                 foreach (var kv in byFamily)
                 {
                     var majors = new HashSet<string>();
@@ -219,18 +331,18 @@ namespace FEBuilderGBA.Core.Tests
                 }
             }
 
-            Skip.If(filesScanned == 0,
-                "no project.assets.json found to scan — run `dotnet restore` first (the build that runs these tests normally creates it)");
+            Assert.Equal(requiredAssets.Length, filesScanned);
             Assert.True(skiaLibsChecked > 0,
-                "scanned project.assets.json but matched ZERO SkiaSharp libraries — restore graph shape changed unexpectedly");
+                "scanned required Core.Tests project.assets.json files but matched ZERO SkiaSharp/HarfBuzzSharp libraries — restore graph shape changed unexpectedly");
         }
 
         /// <summary>
         /// Scan a top-level object (libraries or targets) for keys of the form
-        /// "SkiaSharp.../<version>"; assert each version is 2.88.x (not 3.x) and
-        /// record it per package family for the duplicate-major check.
+        /// "SkiaSharp.../&lt;version&gt;" / "HarfBuzzSharp.../&lt;version&gt;"; assert each
+        /// version matches the #2067 compatibility stack and record it per
+        /// package family for the duplicate-major check.
         /// </summary>
-        static void CollectSkiaLibraries(
+        static void CollectGraphicsLibraries(
             JsonElement root, string sectionName,
             Dictionary<string, HashSet<string>> byFamily,
             ref int skiaLibsChecked, string assetsPath)
@@ -260,21 +372,20 @@ namespace FEBuilderGBA.Core.Tests
             Dictionary<string, HashSet<string>> byFamily,
             ref int skiaLibsChecked, string assetsPath)
         {
-            // key form: "SkiaSharp/2.88.9" or "SkiaSharp.NativeAssets.Win32/2.88.9"
+            // key form: "SkiaSharp/3.119.4" or "HarfBuzzSharp/8.3.1.5"
             int slash = key.IndexOf('/');
             if (slash <= 0) return;
             string name = key.Substring(0, slash);
             string ver = key.Substring(slash + 1);
 
-            if (!name.StartsWith("SkiaSharp", StringComparison.OrdinalIgnoreCase))
+            if (!IsGraphicsRuntimePackage(name))
                 return;
 
             skiaLibsChecked++;
 
-            Assert.False(Reject3x.IsMatch(ver),
-                $"SkiaSharp 3.x leak in {assetsPath}: restored '{name}' version '{ver}' (must be 2.88.x — see docs/ANDROID.md §3)");
-            Assert.True(Pin288.IsMatch(ver),
-                $"SkiaSharp version drift in {assetsPath}: restored '{name}' version '{ver}' (expected 2.88.x)");
+            Assert.False(OldRejectedPackageVersions.Contains(ver),
+                $"old graphics dependency in {assetsPath}: restored '{name}' version '{ver}' (expected {ExpectedVersionForPackage(name)})");
+            Assert.Equal(ExpectedVersionForPackage(name), ver);
 
             if (!byFamily.TryGetValue(name, out var set))
             {
@@ -282,6 +393,24 @@ namespace FEBuilderGBA.Core.Tests
                 byFamily[name] = set;
             }
             set.Add(ver);
+        }
+
+        static bool IsGraphicsRuntimePackage(string name)
+        {
+            return name.StartsWith("SkiaSharp", StringComparison.OrdinalIgnoreCase)
+                || name.StartsWith("HarfBuzzSharp", StringComparison.OrdinalIgnoreCase);
+        }
+
+        static string ExpectedVersionForPackage(string name)
+        {
+            if (name.StartsWith("Avalonia", StringComparison.OrdinalIgnoreCase))
+                return ExpectedAvaloniaVersion;
+            if (name.StartsWith("SkiaSharp", StringComparison.OrdinalIgnoreCase))
+                return ExpectedSkiaSharpVersion;
+            if (name.StartsWith("HarfBuzzSharp", StringComparison.OrdinalIgnoreCase))
+                return ExpectedHarfBuzzSharpVersion;
+
+            throw new ArgumentOutOfRangeException(nameof(name), name, "Package is not part of the guarded graphics stack");
         }
     }
 }

@@ -42,7 +42,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             // Load the shipped English translation so the rendered info text is
             // readable English (Consolas has no CJK glyphs). Falls back to the
             // raw key if the repo's config/ isn't found.
-            string en = FindRepoFile("config/translate/en.txt");
+            string? en = FindRepoFile("config/translate/en.txt");
             if (en != null)
             {
                 MyTranslateResource.LoadResource(en);
@@ -57,9 +57,9 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         // Walk up from the test assembly to find a repo-relative file.
-        static string FindRepoFile(string rel)
+        static string? FindRepoFile(string rel)
         {
-            string dir = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+            string? dir = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
             for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
@@ -108,12 +108,12 @@ namespace FEBuilderGBA.Avalonia.Tests
                 var warn = new SKColor(0xE6, 0x8A, 0x4E);
                 c.Clear(bg);
 
-                using var title = new SKPaint { Color = accent, IsAntialias = true, TextSize = 23, FakeBoldText = true };
-                using var hdr = new SKPaint { Color = fg, IsAntialias = true, TextSize = 17, FakeBoldText = true };
-                using var lbl = new SKPaint { Color = dim, IsAntialias = true, TextSize = 15 };
-                using var mono = new SKPaint { Color = fg, IsAntialias = true, TextSize = 15, Typeface = SKTypeface.FromFamilyName("Consolas") };
-                using var note = new SKPaint { Color = accent, IsAntialias = true, TextSize = 14 };
-                using var warnP = new SKPaint { Color = warn, IsAntialias = true, TextSize = 14, Typeface = SKTypeface.FromFamilyName("Consolas") };
+                using var title = SkiaTestTextStyle.Create(accent, 23, bold: true);
+                using var hdr = SkiaTestTextStyle.Create(fg, 17, bold: true);
+                using var lbl = SkiaTestTextStyle.Create(dim, 15);
+                using var mono = SkiaTestTextStyle.Create(fg, 15, familyName: "Consolas");
+                using var note = SkiaTestTextStyle.Create(accent, 14);
+                using var warnP = SkiaTestTextStyle.Create(warn, 14, familyName: "Consolas");
                 using var panelP = new SKPaint { Color = panel, IsAntialias = true };
 
                 c.DrawText("New PLIST popup — EventCond Precise-allocate — FE8U   [#1433 fixed]", 24, 40, title);
@@ -162,7 +162,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             _output.WriteLine($"Saved proof image to: {outPath} ({new FileInfo(outPath).Length} bytes)");
         }
 
-        static void DrawWrapped(SKCanvas c, string text, float x, float y, float maxWidth, SKPaint paint, float lineH)
+        static void DrawWrapped(SKCanvas c, string text, float x, float y, float maxWidth, SkiaTestTextStyle paint, float lineH)
         {
             foreach (string rawLine in text.Replace("\r", "").Split('\n'))
             {

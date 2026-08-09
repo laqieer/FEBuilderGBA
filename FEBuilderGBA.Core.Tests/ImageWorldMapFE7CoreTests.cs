@@ -27,7 +27,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Render_NullRom_ReturnsNull()
         {
-            Assert.Null(ImageWorldMapCore.TryRenderFE7BigFieldMap(null));
+            Assert.Null(ImageWorldMapCore.TryRenderFE7BigFieldMap(null!));
         }
 
         [Fact]
@@ -111,7 +111,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void CanImport_NullRom_False()
         {
-            Assert.False(ImageWorldMapCore.CanImportFE7BigFieldMap(null));
+            Assert.False(ImageWorldMapCore.CanImportFE7BigFieldMap(null!));
         }
 
         [Fact]
@@ -133,7 +133,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void CanImportEvent_NullRom_False()
         {
-            Assert.False(ImageWorldMapCore.CanImportEvent(null));
+            Assert.False(ImageWorldMapCore.CanImportEvent(null!));
         }
 
         [Fact]
@@ -162,7 +162,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Import_NullRom_ReturnsError()
         {
-            string err = ImageWorldMapCore.ImportFE7BigFieldMap(null, new byte[16], 1024, 688);
+            string err = ImageWorldMapCore.ImportFE7BigFieldMap(null!, new byte[16], 1024, 688);
             Assert.False(string.IsNullOrEmpty(err));
         }
 
@@ -199,7 +199,7 @@ namespace FEBuilderGBA.Core.Tests
             WithRealRom("FE7U.gba", rom =>
             {
                 byte[] before = (byte[])rom.Data.Clone();
-                string err = ImageWorldMapCore.ImportFE7BigFieldMap(rom, null, FE7_BIG_WIDTH, FE7_BIG_HEIGHT);
+                string err = ImageWorldMapCore.ImportFE7BigFieldMap(rom, null!, FE7_BIG_WIDTH, FE7_BIG_HEIGHT);
                 Assert.False(string.IsNullOrEmpty(err));
                 Assert.Equal(before, rom.Data);
             });
@@ -260,7 +260,7 @@ namespace FEBuilderGBA.Core.Tests
 
         static void WithRealRom(string romName, Action<ROM> body)
         {
-            string romPath = FindTestRom(romName);
+            string? romPath = FindTestRom(romName);
             if (romPath == null) return; // skip if the ROM is unavailable
 
             var savedRom = CoreState.ROM;
@@ -287,10 +287,10 @@ namespace FEBuilderGBA.Core.Tests
 
         /// <summary>Locate a specific test ROM by name, walking up to the solution
         /// dir's roms/ folder. Returns null when unavailable (test skips).</summary>
-        static string FindTestRom(string romName)
+        static string? FindTestRom(string romName)
         {
             string thisAssembly = System.Reflection.Assembly.GetExecutingAssembly().Location;
-            string dir = System.IO.Path.GetDirectoryName(thisAssembly);
+            string? dir = System.IO.Path.GetDirectoryName(thisAssembly);
             for (int i = 0; i < 10 && dir != null; i++)
             {
                 if (System.IO.File.Exists(System.IO.Path.Combine(dir, "FEBuilderGBA.sln")))

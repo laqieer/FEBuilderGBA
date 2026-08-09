@@ -97,11 +97,11 @@ namespace FEBuilderGBA.Avalonia.Tests
                 var dim = new SKColor(0x9A, 0xA0, 0xA6);
                 c.Clear(bg);
 
-                using var title = new SKPaint { Color = accent, IsAntialias = true, TextSize = 24, FakeBoldText = true };
-                using var hdr = new SKPaint { Color = fg, IsAntialias = true, TextSize = 16, FakeBoldText = true };
-                using var en = new SKPaint { Color = dim, IsAntialias = true, TextSize = 15, Typeface = SKTypeface.FromFamilyName("Consolas") };
-                using var cjk = new SKPaint { Color = fg, IsAntialias = true, TextSize = 15, Typeface = SKTypeface.FromFamilyName("Microsoft YaHei") };
-                using var note = new SKPaint { Color = accent, IsAntialias = true, TextSize = 13 };
+                using var title = SkiaTestTextStyle.Create(accent, 24, bold: true);
+                using var hdr = SkiaTestTextStyle.Create(fg, 16, bold: true);
+                using var en = SkiaTestTextStyle.Create(dim, 15, familyName: "Consolas");
+                using var cjk = SkiaTestTextStyle.Create(fg, 15, familyName: "Microsoft YaHei");
+                using var note = SkiaTestTextStyle.Create(accent, 13);
                 using var panelP = new SKPaint { Color = panel, IsAntialias = true };
 
                 c.DrawText("#1468 — 5-view tool watermark literals now localize (R._() via config/translate)", 24, 38, title);

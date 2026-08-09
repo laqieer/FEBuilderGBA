@@ -6,7 +6,7 @@
     It links (never copies) the same SkiaRenderByteParityTests and
     SkiaSharpVersionGuardTests that run in the desktop Core.Tests suite,
     so the SAME golden assertions that pass on Linux/macOS/Windows are
-    run on-device under the pinned libSkiaSharp 2.88.x Android native.
+    run on-device under the pinned libSkiaSharp 3.119.x Android native.
 
     WHY NO XHarness: .NET 10 Android embeds managed assemblies as ELF-wrapped
     native libs (lib/<abi>/lib_<Name>.dll.so), not as plain PE .dll zip
@@ -62,10 +62,12 @@
     <!-- xUnit test framework (2.9.3). -->
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.SkippableFact" Version="1.4.13" />
-    <!-- CRITICAL native-version pin (#796/#798/#1125): must match the 2.88.x family
-         everywhere SkiaSharp ships a native. The SkiaSharp managed assembly arrives
-         transitively through FEBuilderGBA.SkiaSharp (pinned to 2.88.9 there). -->
-    <PackageReference Include="SkiaSharp.NativeAssets.Android" Version="2.88.9" />
+    <!-- CRITICAL native-version pin (#796/#798/#1125/#2067): must match the
+         3.119.4 family everywhere SkiaSharp ships a native. The SkiaSharp
+         managed assembly arrives transitively through FEBuilderGBA.SkiaSharp
+         (pinned to 3.119.4 there). -->
+    <PackageReference Include="SkiaSharp.NativeAssets.Android" Version="3.119.4" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Android" Version="8.3.1.5" />
   </ItemGroup>
 
   <ItemGroup>

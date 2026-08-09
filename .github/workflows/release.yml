@@ -85,11 +85,14 @@ jobs:
           "DOTNET_ROOT(x86)=$root" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "DOTNET_ROOT_X86=$root" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
+      - name: Restore ColorzCore (self-contained Windows x86)
+        run: dotnet restore tools/ColorzCore/ColorzCore/ColorzCore.csproj -r win-x86 -p:Configuration=${{ env.BUILD_CONFIGURATION }} -p:SelfContained=true -p:TargetFramework=net10.0 -warnaserror
+
       - name: Publish ColorzCore (self-contained Windows x86)
-        run: dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c ${{ env.BUILD_CONFIGURATION }} -r win-x86 --self-contained true -o tools/publish
+        run: dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c ${{ env.BUILD_CONFIGURATION }} -r win-x86 --self-contained true --no-restore -p:TargetFramework=net10.0 -warnaserror -o tools/publish
 
       - name: Build
-        run: dotnet msbuild /m /p:Configuration=${{ env.BUILD_CONFIGURATION }} /p:Platform=x86 /t:build /restore /p:InformationalVersion=${{ github.ref_name }} FEBuilderGBA.sln
+        run: dotnet msbuild /m /p:Configuration=${{ env.BUILD_CONFIGURATION }} /p:Platform=x86 /t:build /restore /warnaserror /p:InformationalVersion=${{ github.ref_name }} FEBuilderGBA.sln
 
       - name: Post Build (assemble desktop package)
         # Based on msbuild.yml's "Post Build" step: collect exe/dll/json + config
@@ -179,14 +182,17 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Restore ColorzCore (self-contained per-RID)
+        run: dotnet restore tools/ColorzCore/ColorzCore/ColorzCore.csproj -r ${{ matrix.rid }} -p:Configuration=${{ env.BUILD_CONFIGURATION }} -p:SelfContained=true -p:TargetFramework=net10.0 -warnaserror
+
       - name: Publish ColorzCore (self-contained per-RID)
-        run: dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c ${{ env.BUILD_CONFIGURATION }} -r ${{ matrix.rid }} --self-contained true -o publish/tools-${{ matrix.rid }}
+        run: dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c ${{ env.BUILD_CONFIGURATION }} -r ${{ matrix.rid }} --self-contained true --no-restore -p:TargetFramework=net10.0 -warnaserror -o publish/tools-${{ matrix.rid }}
 
       - name: Publish CLI
-        run: dotnet publish FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj -c ${{ env.BUILD_CONFIGURATION }} -r ${{ matrix.rid }} --self-contained true -o publish/cli-${{ matrix.rid }} -p:InformationalVersion=${{ github.ref_name }} -p:IncludeSourceRevisionInInformationalVersion=false
+        run: dotnet publish FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj -c ${{ env.BUILD_CONFIGURATION }} -r ${{ matrix.rid }} --self-contained true -warnaserror -o publish/cli-${{ matrix.rid }} -p:InformationalVersion=${{ github.ref_name }} -p:IncludeSourceRevisionInInformationalVersion=false
 
       - name: Publish Avalonia
-        run: dotnet publish FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c ${{ env.BUILD_CONFIGURATION }} -r ${{ matrix.rid }} --self-contained true -o publish/avalonia-${{ matrix.rid }} -p:InformationalVersion=${{ github.ref_name }} -p:IncludeSourceRevisionInInformationalVersion=false
+        run: dotnet publish FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c ${{ env.BUILD_CONFIGURATION }} -r ${{ matrix.rid }} --self-contained true -warnaserror -o publish/avalonia-${{ matrix.rid }} -p:InformationalVersion=${{ github.ref_name }} -p:IncludeSourceRevisionInInformationalVersion=false
 
       - name: Bundle ColorzCore into CLI and Avalonia artifacts
         shell: bash
@@ -255,7 +261,7 @@ jobs:
         run: dotnet workload install android
 
       - name: Build Android APK
-        run: dotnet build FEBuilderGBA.Android/FEBuilderGBA.Android.csproj -c ${{ env.BUILD_CONFIGURATION }} -p:EnableAndroidTarget=true -p:InformationalVersion=${{ github.ref_name }} -p:IncludeSourceRevisionInInformationalVersion=false
+        run: dotnet build FEBuilderGBA.Android/FEBuilderGBA.Android.csproj -c ${{ env.BUILD_CONFIGURATION }} -warnaserror -p:EnableAndroidTarget=true -p:InformationalVersion=${{ github.ref_name }} -p:IncludeSourceRevisionInInformationalVersion=false
 
       - name: Zip Android APK
         shell: bash
@@ -311,6 +317,7 @@ jobs:
           set -euo pipefail
           dotnet publish FEBuilderGBA.iOS/FEBuilderGBA.iOS.csproj \
             -c ${{ env.BUILD_CONFIGURATION }} \
+            -warnaserror \
             -p:EnableIosTarget=true \
             -p:RuntimeIdentifier=ios-arm64 \
             -p:EnableCodeSigning=false \

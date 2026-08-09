@@ -642,7 +642,7 @@ namespace FEBuilderGBA
             {
                 return Path.Combine(basedir, imagefilename);
             }
-            public animedata MakeBattleAnime(string imagefilename, bool isMode2)
+            public AnimeData MakeBattleAnime(string imagefilename, bool isMode2)
             {
                 Debug.Assert(this.IsMagicOAM != true);
 
@@ -678,7 +678,7 @@ namespace FEBuilderGBA
                     return null;
                 }
 
-                animedata r;
+                AnimeData r;
                 if (isMode2)
                 {
                     Bitmap seatBitmapBackup = ImageUtil.CloneBitmap(SeatBitmap);
@@ -689,7 +689,7 @@ namespace FEBuilderGBA
                     {
                         return null;
                     }
-                    animedata objbg = MakeBattleAnime(bitmap, true, this.RightToLeftOAM, imagefilename);
+                    AnimeData objbg = MakeBattleAnime(bitmap, true, this.RightToLeftOAM, imagefilename);
                     if (objbg == null)
                     {
                         return null;
@@ -722,7 +722,7 @@ namespace FEBuilderGBA
                 return r;
             }
 
-            public animedata MakeMagicAnime(string imagefilename)
+            public AnimeData MakeMagicAnime(string imagefilename)
             {
                 Debug.Assert(this.IsMagicOAM == true);
 
@@ -738,7 +738,7 @@ namespace FEBuilderGBA
                     return null;
                 }
 
-                animedata r;
+                AnimeData r;
                 Bitmap seatBitmapBackup = ImageUtil.CloneBitmap(SeatBitmap);
                 int oamBackupPostion = this.RightToLeftOAM.Count;
                 int oamBGBackupPostion = this.RightToLeftOAMBG.Count;
@@ -752,7 +752,7 @@ namespace FEBuilderGBA
                     bitmap.Dispose();
                     return null;
                 }
-                animedata bg = MakeBattleAnime(bitmap, true, this.RightToLeftOAMBG, imagefilename);
+                AnimeData bg = MakeBattleAnime(bitmap, true, this.RightToLeftOAMBG, imagefilename);
                 if (bg == null)
                 {
                     this.ErrorMessage = "MakeBattleAnime BG1 Error" + R._("\r\n画像ファイル名:{0}"
@@ -801,7 +801,7 @@ namespace FEBuilderGBA
                 bitmap.Dispose();
                 return r;
             }
-            public animedata MakeBorderAP(string imagefilename)
+            public AnimeData MakeBorderAP(string imagefilename)
             {
                 return MakeBattleAnime(imagefilename,isMode2: false);
             }
@@ -916,14 +916,14 @@ namespace FEBuilderGBA
                 return PaletteResult.OK;
             }
 
-            animedata MakeBattleAnime(Bitmap orignalBitmap, bool isMode2, List<byte> oam, string imagefilename)
+            AnimeData MakeBattleAnime(Bitmap orignalBitmap, bool isMode2, List<byte> oam, string imagefilename)
             {
-                animedata animedata = new animedata();
-                animedata.oam_pos = (uint)oam.Count;
-                animedata.image_pointer = (uint)this.Images.Count;
+                AnimeData animeData = new AnimeData();
+                animeData.oam_pos = (uint)oam.Count;
+                animeData.image_pointer = (uint)this.Images.Count;
                 if (this.IsMagicOAM)
                 {//魔法の場合、パレットがシートごとに切り替えられるため パレットもデータとして保存する.
-                    animedata.palette_pointer = (uint)(this.Images.Count + 1);
+                    animeData.palette_pointer = (uint)(this.Images.Count + 1);
                 }
                 Bitmap bitmap;
 
@@ -932,7 +932,7 @@ namespace FEBuilderGBA
                     if (orignalBitmap.Width <= SCREEN_TILE_WIDTH * 8)
                     {//ワイド画像ではない
                         AppendTermOAM(oam);
-                        return animedata;
+                        return animeData;
                     }
                     else if (orignalBitmap.Width >= (SCREEN_TILE_APPENDMODE2_WIDE - SCREEN_TILE_WIDTH) * 8 
                         && orignalBitmap.Height >= SCREEN_TILE_HEIGHT * 8)
@@ -944,7 +944,7 @@ namespace FEBuilderGBA
                     else
                     {
                         AppendTermOAM(oam);
-                        return animedata;
+                        return animeData;
                     }
                 }
                 else
@@ -994,7 +994,7 @@ namespace FEBuilderGBA
                 for (int oam_palette = 0; oam_palette < 4; oam_palette++)
                 {
                     Bitmap bmp = ImageUtil.CopyByPalette(bitmap, oam_palette, 0 , 0 , bitmap.Width , bitmap.Height );
-                    bool r = MakeBattleAnimeLow(bmp, animedata, oam_palette, oam);
+                    bool r = MakeBattleAnimeLow(bmp, animeData, oam_palette, oam);
                     if (!r)
                     {
                         //バックアップから復元します.
@@ -1021,10 +1021,10 @@ namespace FEBuilderGBA
                 }
 
                 AppendTermOAM(oam);
-                return animedata;
+                return animeData;
             }
 
-            bool MakeBattleAnimeLow(Bitmap bitmap, animedata animedata, int oam_palette , List<byte> oam)
+            bool MakeBattleAnimeLow(Bitmap bitmap, AnimeData animeData, int oam_palette , List<byte> oam)
             {
                 //ビットマップ画像で、使っていないところをマークする.
                 bool[] useTileData = ImageUtil.MakeUseTileData(bitmap);
@@ -2318,7 +2318,7 @@ namespace FEBuilderGBA
             return false;
         }
 
-        public class animedata
+        public class AnimeData
         {
             public uint image_pointer;
             public uint palette_pointer; //追加魔法用 魔法はシートごとにパレットを切り替えられる.
@@ -2364,7 +2364,7 @@ namespace FEBuilderGBA
             }
         }
 
-        public static animedata FindHash(string hash, Dictionary<string, animedata> animeDic)
+        public static AnimeData FindHash(string hash, Dictionary<string, AnimeData> animeDic)
         {
             foreach (var m in animeDic)
             {
@@ -2409,7 +2409,7 @@ namespace FEBuilderGBA
             oam.SetBaseDir(Path.GetDirectoryName(filename));
 
             //変換したアニメの記録
-            Dictionary<string, animedata> animeDic = new Dictionary<string, animedata>();
+            Dictionary<string, AnimeData> animeDic = new Dictionary<string, AnimeData>();
             uint image_number = 0;
             uint countLoopFrame = U.NOT_FOUND;
 
@@ -2572,7 +2572,7 @@ namespace FEBuilderGBA
                         oam.SetIsMultiPaletteOAM(paletteCount >= 4);
                     }
 
-                    animedata anime;
+                    AnimeData anime;
                     if (animeDic.ContainsKey(imagefilename))
                     {//すでに変換ずみなのでアドレスデータのコピー
                         anime = animeDic[imagefilename];

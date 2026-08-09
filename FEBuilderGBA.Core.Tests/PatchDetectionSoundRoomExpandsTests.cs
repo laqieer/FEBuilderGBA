@@ -26,7 +26,7 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ROM = _savedRom;
+            CoreState.ROM = _savedRom!;
             PatchDetection.ClearAllCaches();
         }
 
@@ -63,7 +63,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void SearchSoundRoomExpandsPatch_NullRom_ReturnsFalse()
         {
-            Assert.False(PatchDetection.SearchSoundRoomExpandsPatch((ROM?)null));
+            Assert.False(PatchDetection.SearchSoundRoomExpandsPatch((ROM?)null!));
         }
 
         [Fact]

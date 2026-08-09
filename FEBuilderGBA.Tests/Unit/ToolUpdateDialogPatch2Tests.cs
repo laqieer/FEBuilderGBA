@@ -30,12 +30,12 @@ namespace FEBuilderGBA.Tests.Unit
             var m = typeof(Control).GetMethod("GetState",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             Assert.NotNull(m); // guard: GetState(int) must exist on this .NET WinForms build
-            return (bool)m.Invoke(c, new object[] { 2 }); // STATE_VISIBLE = 0x02
+            return Assert.IsType<bool>(m.Invoke(c, new object[] { 2 })); // STATE_VISIBLE = 0x02
         }
 
         static void RunSTA(Action body)
         {
-            ExceptionDispatchInfo edi = null;
+            ExceptionDispatchInfo? edi = null;
             var t = new Thread(() =>
             {
                 try { body(); }
@@ -204,7 +204,7 @@ namespace FEBuilderGBA.Tests.Unit
             while (!string.IsNullOrEmpty(dir))
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln"))) return dir;
-                string parent = Directory.GetParent(dir)?.FullName;
+                string? parent = Directory.GetParent(dir)?.FullName;
                 if (parent == dir) break;
                 dir = parent ?? "";
             }

@@ -124,7 +124,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Import_NullRom_ReturnsError_NoThrow()
         {
-            string err = UnitMoveIconImportCore.Import(null, ENTRY_ADDR, MakeIndexed(32, 32), 32, 32);
+            string err = UnitMoveIconImportCore.Import(null!, ENTRY_ADDR, MakeIndexed(32, 32), 32, 32);
             Assert.False(string.IsNullOrEmpty(err));
         }
 
@@ -178,7 +178,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ImportAP_NullRom_ReturnsError_NoThrow()
         {
-            string err = UnitMoveIconImportCore.ImportAP(null, ENTRY_ADDR, new byte[] { 1, 2, 3, 4 });
+            string err = UnitMoveIconImportCore.ImportAP(null!, ENTRY_ADDR, new byte[] { 1, 2, 3, 4 });
             Assert.False(string.IsNullOrEmpty(err));
         }
 

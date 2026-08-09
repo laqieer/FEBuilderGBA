@@ -23,13 +23,13 @@ namespace FEBuilderGBA.Core.Tests
 
         sealed class ImageServiceScope : IDisposable
         {
-            readonly IImageService _prev;
+            readonly IImageService? _prev;
             public ImageServiceScope()
             {
                 _prev = CoreState.ImageService;
                 CoreState.ImageService = new StubImageService();
             }
-            public void Dispose() { CoreState.ImageService = _prev; }
+            public void Dispose() { TestRequire.RestoreImageService(_prev); }
         }
 
         // Synthetic FE8U ROM with one serif glyph for 'A'.
@@ -87,7 +87,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void EnumerateGlyphs_NullRom_ReturnsEmpty()
         {
-            Assert.Empty(FontGlyphRenderCore.EnumerateGlyphs(null, isItemFont: false));
+            Assert.Empty(FontGlyphRenderCore.EnumerateGlyphs(null!, isItemFont: false));
         }
 
         // ---------------- Render ----------------
@@ -129,22 +129,22 @@ namespace FEBuilderGBA.Core.Tests
         public void RenderGlyph_NullRom_ReturnsNull()
         {
             using var svc = new ImageServiceScope();
-            Assert.Null(FontGlyphRenderCore.RenderGlyph(null, GLYPH_OFF, isItemFont: false));
+            Assert.Null(FontGlyphRenderCore.RenderGlyph(null!, GLYPH_OFF, isItemFont: false));
         }
 
         [Fact]
         public void RenderGlyph_NullImageService_ReturnsNull()
         {
             var prevRom = CoreState.ROM;
-            var prevSvc = CoreState.ImageService;
+            IImageService? prevSvc = CoreState.ImageService;
             try
             {
                 ROM rom = MakeRom();
                 CoreState.ROM = rom;
-                CoreState.ImageService = null;
+                CoreState.ImageService = null!;
                 Assert.Null(FontGlyphRenderCore.RenderGlyph(rom, GLYPH_OFF, isItemFont: false));
             }
-            finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc; }
+            finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc!; }
         }
 
         // ---------------- Pack / encode ----------------
@@ -273,7 +273,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ImportGlyph_NullRom_ReturnsError_NoThrow()
         {
             byte[] idx = new byte[16 * 16];
-            string err = FontGlyphRenderCore.ImportGlyph(null, isItemFont: false, MOJI_A, idx, 16, 16);
+            string err = FontGlyphRenderCore.ImportGlyph(null!, isItemFont: false, MOJI_A, idx, 16, 16);
             Assert.NotEqual("", err);
         }
 

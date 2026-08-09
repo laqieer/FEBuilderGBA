@@ -77,7 +77,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void MakeList_NullRom_ReturnsEmpty_NoThrow()
         {
-            Assert.Empty(ChapterTitleCore.MakeList(null));
+            Assert.Empty(ChapterTitleCore.MakeList(null!));
         }
 
         [Fact]

@@ -515,7 +515,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// Uses the editor's <see cref="ReadCount"/> as the current row count
         /// (the action-anime predicate <c>U.isSafetyPointerOrNull</c> accepts
         /// row 0 as a reserved-null entry, so <c>EstimateEntryCount</c> would
-        /// undercount — see <see cref="DataExpansionCore.ExpandTableTo"/> XML
+        /// undercount — see <see cref="DataExpansionCore.ExpandTableTo(FEBuilderGBA.ROM, uint, uint, uint, uint, bool)"/> XML
         /// doc). Caller is responsible for wrapping in an
         /// <c>UndoService.Begin/Commit/Rollback</c> scope and passing the active
         /// <see cref="Undo.UndoData"/> so the all-reference repoint is recorded.

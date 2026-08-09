@@ -450,7 +450,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // Resolve the actual installer URL BEFORE the confirmation so the
             // dialog can name the real source. If it can't be resolved, name the
             // releases API source instead (the Core helper also re-checks).
-            string installerUrl = await Task.Run(() => GitInstaller.GetLatestInstallerUrl());
+            string installerUrl = await GitInstaller.GetLatestInstallerUrlAsync();
             string source = string.IsNullOrEmpty(installerUrl)
                 ? DownloadInstallCore.GitSourceLabel
                 : installerUrl;
@@ -465,23 +465,43 @@ namespace FEBuilderGBA.Avalonia.Views
 
             string? gitPath = null;
             string error = "";
+            bool cancelled = false;
             try
             {
                 await ProgressDialogService.RunWithProgress(this,
                     FEBuilderGBA.R._("Download and install Git"),
-                    async (progress, _) =>
+                    async (progress, ct) =>
                     {
-                        var gitResult = await DownloadInstallCore.DownloadGitAsync(
-                            msg => progress.Report(new ProgressInfo { Message = msg, PercentComplete = -1 }));
-                        gitPath = gitResult.Path;
-                        if (gitPath == null)
-                            error = gitResult.Error;
+                        try
+                        {
+                            var gitResult = await DownloadInstallCore.DownloadGitAsync(
+                                msg => progress.Report(new ProgressInfo { Message = msg, PercentComplete = -1 }),
+                                cancellationToken: ct);
+                            gitPath = gitResult.Path;
+                            if (gitPath == null)
+                                error = gitResult.Error;
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            cancelled = true;
+                            throw;
+                        }
                     });
+            }
+            catch (OperationCanceledException)
+            {
+                cancelled = true;
             }
             catch (Exception ex)
             {
                 gitPath = null;
                 error = ex.Message;
+            }
+
+            if (cancelled)
+            {
+                _vm.SettingStatus = FEBuilderGBA.R._("Download cancelled.");
+                return;
             }
 
             if (gitPath == null)
@@ -560,8 +580,8 @@ namespace FEBuilderGBA.Avalonia.Views
 
             try
             {
-                bool launched = await top.Launcher.LaunchUriAsync(FEMapCreatorProjectUri);
-                if (!launched)
+                var result = await ExternalLauncher.Current.OpenUriAsync(top, FEMapCreatorProjectUri);
+                if (!result.IsSucceeded)
                     ShowFEMapCreatorProjectPageError();
             }
             catch (System.ComponentModel.Win32Exception ex)
@@ -694,21 +714,43 @@ namespace FEBuilderGBA.Avalonia.Views
 
             string? resolved = null;
             string error = "";
+            bool cancelled = false;
             try
             {
                 await ProgressDialogService.RunWithProgress(this,
                     FEBuilderGBA.R._("Downloading"),
-                    (progress, _) => Task.Run(() =>
+                    async (progress, ct) =>
                     {
-                        resolved = DownloadInstallCore.Download(id, BaseDir,
-                            msg => progress.Report(new ProgressInfo { Message = msg, PercentComplete = -1 }),
-                            out error);
-                    }));
+                        try
+                        {
+                            DownloadInstallCore.DownloadResult result = await DownloadInstallCore.DownloadAsync(
+                                id, BaseDir,
+                                msg => progress.Report(new ProgressInfo { Message = msg, PercentComplete = -1 }),
+                                cancellationToken: ct);
+                            resolved = result.Path;
+                            error = result.Error;
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            cancelled = true;
+                            throw;
+                        }
+                    });
+            }
+            catch (OperationCanceledException)
+            {
+                cancelled = true;
             }
             catch (Exception ex)
             {
                 resolved = null;
                 error = ex.Message;
+            }
+
+            if (cancelled)
+            {
+                _vm.SettingStatus = FEBuilderGBA.R._("Download cancelled.");
+                return null;
             }
 
             if (resolved == null || !System.IO.File.Exists(resolved))
@@ -753,45 +795,68 @@ namespace FEBuilderGBA.Avalonia.Views
 
             string[]? results = null;
             string error = "";
+            bool cancelled = false;
             try
             {
                 await ProgressDialogService.RunWithProgress(this,
                     FEBuilderGBA.R._("Downloading"),
-                    (progress, _) => Task.Run(() =>
+                    async (progress, ct) =>
                     {
-                        // True all-or-none (Copilot #1102): STAGE every member to
-                        // its own temp dir first (places NOTHING into the app
-                        // folder), then CommitBundle commits them transactionally —
-                        // if any member's commit fails, every already-committed
-                        // member is rolled back. A failure at ANY phase therefore
-                        // leaves NO partial install.
-                        var staged = new List<DownloadInstallCore.StagedDownload>();
                         try
                         {
-                            foreach (var id in ids)
+                            // True all-or-none (Copilot #1102): STAGE every member to
+                            // its own temp dir first (places NOTHING into the app
+                            // folder), then CommitBundle commits them transactionally —
+                            // if any member's commit fails, every already-committed
+                            // member is rolled back. A failure at ANY phase therefore
+                            // leaves NO partial install.
+                            var staged = new List<DownloadInstallCore.StagedDownload>();
+                            try
                             {
-                                var s = DownloadInstallCore.Stage(id, BaseDir,
-                                    msg => progress.Report(new ProgressInfo { Message = msg, PercentComplete = -1 }),
-                                    out error);
-                                if (s == null)
-                                    return; // results stays null; finally disposes staged
-                                staged.Add(s);
-                            }
+                                foreach (var id in ids)
+                                {
+                                    DownloadInstallCore.StageDownloadResult stage = await DownloadInstallCore.StageAsync(
+                                        id, BaseDir,
+                                        msg => progress.Report(new ProgressInfo { Message = msg, PercentComplete = -1 }),
+                                        cancellationToken: ct);
+                                    if (!stage.Success)
+                                    {
+                                        error = stage.Error;
+                                        return; // results stays null; finally disposes staged
+                                    }
+                                    staged.Add(stage.Staged);
+                                }
 
-                            // All staged OK — commit every member atomically.
-                            results = DownloadInstallCore.CommitBundle(staged, ref error);
+                                // All staged OK — commit every member atomically.
+                                results = DownloadInstallCore.CommitBundle(staged, ref error);
+                            }
+                            finally
+                            {
+                                foreach (var s in staged)
+                                    s.Dispose();
+                            }
                         }
-                        finally
+                        catch (OperationCanceledException)
                         {
-                            foreach (var s in staged)
-                                s.Dispose();
+                            cancelled = true;
+                            throw;
                         }
-                    }));
+                    });
+            }
+            catch (OperationCanceledException)
+            {
+                cancelled = true;
             }
             catch (Exception ex)
             {
                 results = null;
                 error = ex.Message;
+            }
+
+            if (cancelled)
+            {
+                _vm.SettingStatus = FEBuilderGBA.R._("Download cancelled.");
+                return null;
             }
 
             if (results == null)

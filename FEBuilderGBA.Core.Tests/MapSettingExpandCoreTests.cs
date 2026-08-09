@@ -49,8 +49,8 @@ namespace FEBuilderGBA.Core.Tests
 
         public void Dispose()
         {
-            CoreState.ROM = _savedRom;
-            CoreState.Undo = _savedUndo;
+            CoreState.ROM = _savedRom!;
+            CoreState.Undo = _savedUndo!;
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -78,7 +78,7 @@ namespace FEBuilderGBA.Core.Tests
             DataExpansionCore.ExpandResult result;
             using (ROM.BeginUndoScope(undo.NewUndoData("expand")))
             {
-                result = MapSettingCore.ExpandMapSettingTable(rom, addCount, null, out string err);
+                result = MapSettingCore.ExpandMapSettingTable(rom, addCount, null!, out string err);
                 Assert.True(result.Success, err);
             }
 
@@ -119,7 +119,7 @@ namespace FEBuilderGBA.Core.Tests
             DataExpansionCore.ExpandResult result;
             using (ROM.BeginUndoScope(undo.NewUndoData("expand1")))
             {
-                result = MapSettingCore.ExpandMapSettingTable(rom, 1, null, out string err);
+                result = MapSettingCore.ExpandMapSettingTable(rom, 1, null!, out string err);
                 Assert.True(result.Success, err);
             }
 
@@ -151,7 +151,7 @@ namespace FEBuilderGBA.Core.Tests
             DataExpansionCore.ExpandResult result;
             using (ROM.BeginUndoScope(undo.NewUndoData("expand-refs")))
             {
-                result = MapSettingCore.ExpandMapSettingTable(rom, 2, null, out string err);
+                result = MapSettingCore.ExpandMapSettingTable(rom, 2, null!, out string err);
                 Assert.True(result.Success, err);
             }
 
@@ -191,7 +191,7 @@ namespace FEBuilderGBA.Core.Tests
             var ud = undo.NewUndoData("expand-rollback");
             using (ROM.BeginUndoScope(ud))
             {
-                var result = MapSettingCore.ExpandMapSettingTable(rom, 2, null, out string err);
+                var result = MapSettingCore.ExpandMapSettingTable(rom, 2, null!, out string err);
                 Assert.True(result.Success, err);
                 Assert.NotEqual(MapBase, rom.p32(pointerAddr));
             }
@@ -234,7 +234,7 @@ namespace FEBuilderGBA.Core.Tests
             DataExpansionCore.ExpandResult result;
             using (ROM.BeginUndoScope(undo.NewUndoData("expand-fp")))
             {
-                result = MapSettingCore.ExpandMapSettingTable(rom, 1, null, out string err);
+                result = MapSettingCore.ExpandMapSettingTable(rom, 1, null!, out string err);
                 Assert.True(result.Success, err);
             }
 
@@ -266,7 +266,7 @@ namespace FEBuilderGBA.Core.Tests
             DataExpansionCore.ExpandResult result;
             using (ROM.BeginUndoScope(undo.NewUndoData("expand-flood")))
             {
-                result = MapSettingCore.ExpandMapSettingTable(rom, 1, null, out string err);
+                result = MapSettingCore.ExpandMapSettingTable(rom, 1, null!, out string err);
                 Assert.False(result.Success);
                 Assert.False(string.IsNullOrEmpty(err));
             }
@@ -285,7 +285,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Empty(MapSettingCore.MakeMapIDList(rom));
 
             byte[] before = (byte[])rom.Data.Clone();
-            var result = MapSettingCore.ExpandMapSettingTable(rom, 1, null, out string err);
+            var result = MapSettingCore.ExpandMapSettingTable(rom, 1, null!, out string err);
             Assert.False(result.Success);
             Assert.False(string.IsNullOrEmpty(err));
             Assert.Equal(before, rom.Data);
@@ -297,7 +297,7 @@ namespace FEBuilderGBA.Core.Tests
             ROM rom = MakeFe6Rom(out uint entrySize);
             PlantValidRows(rom, entrySize, 3);
             byte[] before = (byte[])rom.Data.Clone();
-            var result = MapSettingCore.ExpandMapSettingTable(rom, 0, null, out string err);
+            var result = MapSettingCore.ExpandMapSettingTable(rom, 0, null!, out string err);
             Assert.False(result.Success);
             Assert.Equal(before, rom.Data);
         }
@@ -328,7 +328,7 @@ namespace FEBuilderGBA.Core.Tests
             DataExpansionCore.ExpandResult result;
             using (ROM.BeginUndoScope(undo.NewUndoData("expand-fault")))
             {
-                result = MapSettingCore.ExpandMapSettingTable(rom, 2, null, out string err);
+                result = MapSettingCore.ExpandMapSettingTable(rom, 2, null!, out string err);
                 Assert.False(result.Success);
                 Assert.False(string.IsNullOrEmpty(err));
             }

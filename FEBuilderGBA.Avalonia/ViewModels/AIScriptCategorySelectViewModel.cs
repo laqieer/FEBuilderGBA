@@ -72,7 +72,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             _categoryDic.Clear();
             var cats = new List<string>();
 
-            string fullfilename = null;
+            string? fullfilename = null;
             try
             {
                 if (!string.IsNullOrEmpty(CoreState.BaseDirectory))

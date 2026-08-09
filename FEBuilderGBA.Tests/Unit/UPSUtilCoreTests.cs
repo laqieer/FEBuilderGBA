@@ -73,7 +73,7 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.True(UPSUtilCore.IsUPSData(upsData));
 
             // Apply patch
-            byte[] result = UPSUtilCore.ApplyUPS(src, upsData, out string error);
+            byte[]? result = UPSUtilCore.ApplyUPS(src, upsData, out string? error);
             Assert.NotNull(result);
             Assert.Equal(dst.Length, result.Length);
             Assert.Equal(dst, result);
@@ -88,7 +88,7 @@ namespace FEBuilderGBA.Tests.Unit
                 dst[i] = (byte)(i * 2);
 
             byte[] upsData = UPSUtilCore.MakeUPSData(src, dst);
-            byte[] result = UPSUtilCore.ApplyUPS(src, upsData, out string error);
+            byte[]? result = UPSUtilCore.ApplyUPS(src, upsData, out string? error);
             Assert.NotNull(result);
             Assert.Equal(dst, result);
         }
@@ -98,7 +98,7 @@ namespace FEBuilderGBA.Tests.Unit
         {
             byte[] src = new byte[64];
             byte[] badPatch = new byte[] { 0, 0, 0 };
-            byte[] result = UPSUtilCore.ApplyUPS(src, badPatch, out string error);
+            byte[]? result = UPSUtilCore.ApplyUPS(src, badPatch, out string? error);
             Assert.Null(result);
             Assert.NotNull(error);
         }
@@ -114,9 +114,9 @@ namespace FEBuilderGBA.Tests.Unit
             // Try applying to different source
             byte[] wrongSrc = new byte[64];
             wrongSrc[0] = 0x01;
-            byte[] result = UPSUtilCore.ApplyUPS(wrongSrc, upsData, out string error);
+            byte[]? result = UPSUtilCore.ApplyUPS(wrongSrc, upsData, out string? error);
             Assert.Null(result);
-            Assert.Contains("CRC mismatch", error);
+            Assert.Contains("CRC mismatch", error ?? "");
         }
 
         [Fact]
@@ -130,7 +130,7 @@ namespace FEBuilderGBA.Tests.Unit
                 dst[i] = (byte)(i + 1);
 
             byte[] upsData = UPSUtilCore.MakeUPSData(src, dst);
-            byte[] result = UPSUtilCore.ApplyUPS(src, upsData, out string error);
+            byte[]? result = UPSUtilCore.ApplyUPS(src, upsData, out string? error);
             Assert.NotNull(result);
             Assert.Equal(dst.Length, result.Length);
             Assert.Equal(dst, result);

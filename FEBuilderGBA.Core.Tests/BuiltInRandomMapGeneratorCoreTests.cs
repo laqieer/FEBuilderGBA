@@ -38,9 +38,11 @@ namespace FEBuilderGBA.Core.Tests
                 [4] = Set(0, 4, 8),
                 [8] = Set(0, 4, 8),
             };
+            byte[] objData = new byte[BytesPerTile];
+            byte[] paletteData = new byte[32];
             return BuiltInRandomMapTilesetCorpus.CreateForTesting(
                 TilesetFingerprint.Empty, new List<uint> { 0 }, candidates, freq, freq,
-                horizontal, vertical, objData: null, paletteData: null, configData: new byte[64],
+                horizontal, vertical, objData: objData, paletteData: paletteData, configData: new byte[64],
                 totalCells: Width * Height);
         }
 
@@ -75,6 +77,18 @@ namespace FEBuilderGBA.Core.Tests
                     }
                 }
             }
+        }
+
+        [Fact]
+        public void Generate_NullCurrentGrid_IsPartOfPublicContract()
+        {
+            var corpus = MakeStrictCorpus();
+
+            BuiltInRandomMapGenerationResult result = BuiltInRandomMapGeneratorCore.Generate(
+                corpus, Width, Height, currentGrid: null!, seed: 23456, CancellationToken.None);
+
+            Assert.True(result.Success, result.ErrorMessage);
+            Assert.NotNull(result.Mars);
         }
 
         [Fact]
@@ -725,7 +739,7 @@ namespace FEBuilderGBA.Core.Tests
                 source,
                 seed: 123,
                 cts.Token,
-                out BuiltInRandomMapGenerationResult result,
+                out BuiltInRandomMapGenerationResult? result,
                 out string error);
 
             Assert.True(resolved);
@@ -761,7 +775,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Generate_NullCorpus_FailsInvalidInput()
         {
-            var result = BuiltInRandomMapGeneratorCore.Generate(null, Width, Height, null, seed: 1, CancellationToken.None);
+            var result = BuiltInRandomMapGeneratorCore.Generate(null!, Width, Height, null, seed: 1, CancellationToken.None);
 
             Assert.False(result.Success);
             Assert.Equal(BuiltInRandomMapErrorCategory.InvalidInput, result.ErrorCategory);

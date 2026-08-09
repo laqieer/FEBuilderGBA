@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Reflection;
 using Xunit;
 
 namespace FEBuilderGBA.Tests.Integration
@@ -16,6 +17,17 @@ namespace FEBuilderGBA.Tests.Integration
         {
             _testBaseDir = Path.Combine(Path.GetTempPath(), "FEBuilderGBA_IntegrationTests_" + Guid.NewGuid().ToString());
             Directory.CreateDirectory(_testBaseDir);
+        }
+
+        private static void SetVersionCore(UpdateInfo updateInfo, string version)
+        {
+            PropertyInfo? versionCoreProperty = typeof(UpdateInfo).GetProperty(nameof(UpdateInfo.VERSION_CORE));
+            Assert.True(versionCoreProperty is not null, $"{nameof(UpdateInfo.VERSION_CORE)} property should exist.");
+            if (versionCoreProperty is null)
+                throw new InvalidOperationException($"{nameof(UpdateInfo.VERSION_CORE)} property should exist.");
+
+            Assert.True(typeof(string).IsAssignableFrom(versionCoreProperty.PropertyType), $"{nameof(UpdateInfo.VERSION_CORE)} should accept string values.");
+            versionCoreProperty.SetValue(updateInfo, version);
         }
 
         ~SplitPackageIntegrationTests()
@@ -37,7 +49,7 @@ namespace FEBuilderGBA.Tests.Integration
         {
             // Arrange
             var updateInfo = new UpdateInfo();
-            typeof(UpdateInfo).GetProperty("VERSION_CORE").SetValue(updateInfo, localCore);
+            SetVersionCore(updateInfo, localCore);
 
             // Act
             var result = updateInfo.DetermineUpdateType(remoteCore);
@@ -64,7 +76,7 @@ namespace FEBuilderGBA.Tests.Integration
         {
             // Arrange
             var updateInfo = new UpdateInfo();
-            typeof(UpdateInfo).GetProperty("VERSION_CORE").SetValue(updateInfo, "20260226.00");
+            SetVersionCore(updateInfo, "20260226.00");
 
             updateInfo.URL_CORE = "https://example.com/FEBuilderGBA_20260227.00.7z";
 
