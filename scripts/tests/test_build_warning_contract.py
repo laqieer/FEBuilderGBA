@@ -381,6 +381,28 @@ class BuildWarningContractTests(unittest.TestCase):
         ]
         self.assertEqual([], offenders)
 
+    def test_msbuild_junit_logger_uses_available_exact_version(self) -> None:
+        workflow = (WORKFLOWS_DIR / "msbuild.yml").read_text(encoding="utf-8")
+        install_steps = [
+            step
+            for step in parse_workflow_runs(workflow, "msbuild.yml")
+            if step.name == "Install JUnit Test Logger"
+        ]
+
+        self.assertEqual(1, len(install_steps))
+        self.assertEqual(
+            [
+                "dotnet",
+                "add",
+                "FEBuilderGBA.Tests/FEBuilderGBA.Tests.csproj",
+                "package",
+                "JunitXml.TestLogger",
+                "--version",
+                "4.0.254",
+            ],
+            split_shell_words(install_steps[0].command),
+        )
+
     def test_colorzcore_compiles_have_explicit_matching_restore(self) -> None:
         failures: list[str] = []
         by_workflow_job: dict[tuple[str, str], list[DotnetInvocation]] = {}
