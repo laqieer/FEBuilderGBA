@@ -381,6 +381,62 @@ class BuildWarningContractTests(unittest.TestCase):
         ]
         self.assertEqual([], offenders)
 
+    def test_msbuild_junit_logger_uses_available_exact_version(self) -> None:
+        workflow = (WORKFLOWS_DIR / "msbuild.yml").read_text(encoding="utf-8")
+        steps = parse_workflow_runs(workflow, "msbuild.yml")
+        install_steps = [
+            step
+            for step in steps
+            if step.name == "Install JUnit Test Logger"
+        ]
+
+        self.assertEqual(1, len(install_steps))
+        self.assertEqual(
+            [
+                "dotnet",
+                "add",
+                "FEBuilderGBA.Tests/FEBuilderGBA.Tests.csproj",
+                "package",
+                "JunitXml.TestLogger",
+                "--version",
+                "4.0.254",
+            ],
+            split_shell_words(install_steps[0].command),
+        )
+
+        install_index = steps.index(install_steps[0])
+        sequence = steps[install_index : install_index + 3]
+        self.assertEqual(
+            [
+                "Install JUnit Test Logger",
+                "Restore and Build Test Project",
+                "Re-run Tests with JUnit Logger",
+            ],
+            [step.name for step in sequence],
+        )
+
+        build_invocations = dotnet_invocations(sequence[1])
+        self.assertEqual(1, len(build_invocations))
+        self.assertEqual("build", build_invocations[0].verb)
+        self.assertEqual(
+            "FEBuilderGBA.Tests/FEBuilderGBA.Tests.csproj",
+            build_invocations[0].project,
+        )
+        self.assertTrue(has_cli_warn_as_error(build_invocations[0].tokens))
+
+        test_invocations = dotnet_invocations(sequence[2])
+        self.assertEqual(1, len(test_invocations))
+        self.assertEqual("test", test_invocations[0].verb)
+        self.assertEqual(
+            "FEBuilderGBA.Tests/FEBuilderGBA.Tests.csproj",
+            test_invocations[0].project,
+        )
+        self.assertIn("--no-build", test_invocations[0].tokens)
+        self.assertIn(
+            "junit;LogFileName=test-results.xml",
+            [token.strip("\"'") for token in test_invocations[0].tokens],
+        )
+
     def test_colorzcore_compiles_have_explicit_matching_restore(self) -> None:
         failures: list[str] = []
         by_workflow_job: dict[tuple[str, str], list[DotnetInvocation]] = {}

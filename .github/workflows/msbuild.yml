@@ -222,7 +222,7 @@ jobs:
 
     - name: Install JUnit Test Logger
       if: always()
-      run: dotnet add FEBuilderGBA.Tests/FEBuilderGBA.Tests.csproj package JunitXml.TestLogger --version 3.1.21
+      run: dotnet add FEBuilderGBA.Tests/FEBuilderGBA.Tests.csproj package JunitXml.TestLogger --version 4.0.254
 
     - name: Restore and Build Test Project
       if: always()
