@@ -729,8 +729,7 @@ All 361 Avalonia `.axaml` files (360 views + 1 dialog) have `AutomationPropertie
 
 ```bash
 # Build the main application (Release, x86)
-dotnet restore FEBuilderGBA.sln -c Release -p:Platform=x86
-dotnet build FEBuilderGBA.sln -c Release -p:Platform=x86 --no-restore -warnaserror
+dotnet msbuild FEBuilderGBA.sln /m /restore /t:build /p:Configuration=Release /p:Platform=x86 /warnaserror
 
 # Run without ROMs — 13 passed, 32 skipped (fast, ~20 s)
 ROMS_DIR="" dotnet test FEBuilderGBA.E2ETests/FEBuilderGBA.E2ETests.csproj -c Release --no-build
