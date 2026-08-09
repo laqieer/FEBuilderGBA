@@ -199,7 +199,7 @@ namespace FEBuilderGBA.Core.Tests
             // typeof(SKBitmap) forces the managed SkiaSharp assembly that this
             // process actually binds to load; its assembly version tracks the
             // 3.119.x package family.
-            Version v = TestRequire.NotNull(typeof(global::SkiaSharp.SKBitmap).Assembly.GetName().Version, "SkiaSharp assembly version");
+            Version v = Assert.IsType<Version>(typeof(global::SkiaSharp.SKBitmap).Assembly.GetName().Version);
             Assert.True(v.Major == 3 && v.Minor == 119,
                 $"runtime-loaded managed SkiaSharp is {v} — expected 3.119.x for #2067's Avalonia/Skia compatibility stack");
         }

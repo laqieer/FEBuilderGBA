@@ -158,6 +158,9 @@ in the net10.0 cross-platform suite:
   **(b2) runtime** (the managed SkiaSharp assembly actually loaded is
   `3.119.x`), **(b3) restored** (`project.assets.json` resolved only the
   accepted SkiaSharp/HarfBuzzSharp versions, with no duplicate major family).
+  The runtime-version check uses stock xUnit assertions only, so the linked
+  Android.Tests copy stays self-contained and does not need Core.Tests-only
+  helpers.
 - `FEBuilderGBA.Core.Tests/SkiaRenderByteParityTests.cs` — render byte-parity:
   the GBA 4bpp-tile → palette-index decode and the index → RGBA palette
   expansion are asserted **EXACT (zero tolerance)** against hand-derived golden
