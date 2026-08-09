@@ -287,13 +287,32 @@ namespace FEBuilderGBA
                 CancellationToken.None).GetAwaiter().GetResult();
         }
 
-        public static async Task<StageResult> DownloadAndStageAsync(
+        public static Task<StageResult> DownloadAndStageAsync(
             string downloadUrl,
             string romDir,
             string recommendUpsName,
             Func<string, string, CancellationToken, Task<(bool ok, string error)>>? downloadFile,
             Func<string, string, string> extract,
             CancellationToken cancellationToken = default)
+        {
+            return DownloadAndStageAsyncCore(
+                downloadUrl,
+                romDir,
+                recommendUpsName,
+                downloadFile,
+                extract,
+                cancellationToken,
+                () => new StageTransaction());
+        }
+
+        internal static async Task<StageResult> DownloadAndStageAsyncCore(
+            string downloadUrl,
+            string romDir,
+            string recommendUpsName,
+            Func<string, string, CancellationToken, Task<(bool ok, string error)>>? downloadFile,
+            Func<string, string, string> extract,
+            CancellationToken cancellationToken,
+            Func<StageTransaction> transactionFactory)
         {
             StageTransaction? transaction = null;
             string tempfile = "";
@@ -313,7 +332,7 @@ namespace FEBuilderGBA
                 var staged = new List<string>();
 
                 tempfile = Path.GetTempFileName();
-                transaction = new StageTransaction();
+                transaction = transactionFactory();
 
                 // ---- download ----
                 (bool ok, string err) = downloadFile != null
@@ -452,10 +471,16 @@ namespace FEBuilderGBA
 
             readonly List<UndoEntry> _undo = new List<UndoEntry>();
             readonly List<string> _createdDirs = new List<string>();
+            readonly Action<string>? _afterFileCopied;
             string _backupDir = "";
             bool _committed;
             bool _rolledBack;
             bool _preserveBackupDir;
+
+            internal StageTransaction(Action<string>? afterFileCopied = null)
+            {
+                _afterFileCopied = afterFileCopied;
+            }
 
             internal string BackupDirectory => _backupDir;
 
@@ -481,6 +506,7 @@ namespace FEBuilderGBA
                 }
 
                 File.Copy(source, destination, true);
+                _afterFileCopied?.Invoke(destination);
                 cancellationToken.ThrowIfCancellationRequested();
             }
 

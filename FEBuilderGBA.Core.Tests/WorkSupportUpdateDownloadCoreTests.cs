@@ -192,22 +192,6 @@ namespace FEBuilderGBA.Core.Tests
             return data;
         }
 
-        static bool ExistingFileLengthDiffers(string path, long originalLength)
-        {
-            try
-            {
-                return File.Exists(path) && new FileInfo(path).Length != originalLength;
-            }
-            catch (IOException)
-            {
-                return false;
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return false;
-            }
-        }
-
         [Fact]
         public void Stage_RawUps_CopiedIntoRomDir()
         {
@@ -378,20 +362,9 @@ namespace FEBuilderGBA.Core.Tests
             File.WriteAllBytes(target, original);
 
             using var cts = new CancellationTokenSource();
-            Task<bool> cancelAfterOverwrite = Task.Run(() =>
-            {
-                bool observed = SpinWait.SpinUntil(
-                    () => ExistingFileLengthDiffers(target, original.Length),
-                    TimeSpan.FromSeconds(10));
-                if (observed)
-                {
-                    cts.Cancel();
-                }
-                return observed;
-            });
 
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-                WorkSupportUpdateDownloadCore.DownloadAndStageAsync(
+                WorkSupportUpdateDownloadCore.DownloadAndStageAsyncCore(
                     "http://cdn/build.ups", romDir, Path.Combine(romDir, "myrom.gba"),
                     downloadFile: (url, dest, _) =>
                     {
@@ -399,9 +372,10 @@ namespace FEBuilderGBA.Core.Tests
                         return Task.FromResult((true, ""));
                     },
                     extract: (a, d) => "must-not-extract-a-ups",
-                    cancellationToken: cts.Token));
+                    cancellationToken: cts.Token,
+                    transactionFactory: () =>
+                        new WorkSupportUpdateDownloadCore.StageTransaction(_ => cts.Cancel())));
 
-            Assert.True(await cancelAfterOverwrite);
             Assert.Equal(original, File.ReadAllBytes(target));
         }
 
@@ -418,20 +392,10 @@ namespace FEBuilderGBA.Core.Tests
             File.WriteAllBytes(overwritten, original);
 
             using var cts = new CancellationTokenSource();
-            Task<bool> cancelAfterMixedCopies = Task.Run(() =>
-            {
-                bool observed = SpinWait.SpinUntil(
-                    () => ExistingFileLengthDiffers(overwritten, original.Length) && File.Exists(created),
-                    TimeSpan.FromSeconds(10));
-                if (observed)
-                {
-                    cts.Cancel();
-                }
-                return observed;
-            });
+            int copiedFiles = 0;
 
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-                WorkSupportUpdateDownloadCore.DownloadAndStageAsync(
+                WorkSupportUpdateDownloadCore.DownloadAndStageAsyncCore(
                     "http://cdn/pack.zip", romDir, Path.Combine(romDir, "myrom.gba"),
                     downloadFile: (url, dest, _) =>
                     {
@@ -445,9 +409,15 @@ namespace FEBuilderGBA.Core.Tests
                         File.WriteAllBytes(Path.Combine(destDir, "02-large.ups"), largeUps);
                         return "";
                     },
-                    cancellationToken: cts.Token));
+                    cancellationToken: cts.Token,
+                    transactionFactory: () =>
+                        new WorkSupportUpdateDownloadCore.StageTransaction(_ =>
+                        {
+                            copiedFiles++;
+                            if (copiedFiles == 2)
+                                cts.Cancel();
+                        })));
 
-            Assert.True(await cancelAfterMixedCopies);
             Assert.Equal(original, File.ReadAllBytes(overwritten));
             Assert.False(File.Exists(created));
             Assert.False(File.Exists(largeDest));
