@@ -467,9 +467,9 @@ This section is deliberately precise about **what built vs what is authored-only
   shared project excludes `Program.cs`, `Avalonia.Desktop`, `app.manifest`, the
   `GapSweep` Roslyn dev-tooling (`GapSweep/**` + `App.GapSweep.cs`) and the
   `Microsoft.CodeAnalysis.CSharp` package; the `GapSweep` dispatch in
-  `App.OnFrameworkInitializationCompleted` is `#if !ANDROID`-guarded. The only
-  android-specific warnings are benign `XA0141` 16-KB-page-size advisories on the
-  prebuilt Skia/HarfBuzz `.so` natives.
+  `App.OnFrameworkInitializationCompleted` is `#if !ANDROID`-guarded. The
+  SkiaSharp 3.119.4 / HarfBuzzSharp 8.3.1.5 native stack is 16-KB-page-size
+  compatible, so Android builds complete without `XA0141`.
 
 ### Historical blocker (resolved by #1121)
 
