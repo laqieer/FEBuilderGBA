@@ -295,6 +295,8 @@ namespace FEBuilderGBA
             Func<string, string, string> extract,
             CancellationToken cancellationToken = default)
         {
+            StageTransaction? transaction = null;
+            string tempfile = "";
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -310,68 +312,65 @@ namespace FEBuilderGBA
                 // pre-existing unrelated *.ups are therefore never applied/written.
                 var staged = new List<string>();
 
-                string tempfile = Path.GetTempFileName();
-                try
+                tempfile = Path.GetTempFileName();
+                transaction = new StageTransaction();
+
+                // ---- download ----
+                (bool ok, string err) = downloadFile != null
+                    ? await downloadFile(downloadUrl, tempfile, cancellationToken).ConfigureAwait(false)
+                    : (false, "no downloader");
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!ok)
                 {
-                    // ---- download ----
-                    (bool ok, string err) = downloadFile != null
-                        ? await downloadFile(downloadUrl, tempfile, cancellationToken).ConfigureAwait(false)
-                        : (false, "no downloader");
-                    cancellationToken.ThrowIfCancellationRequested();
-                    if (!ok)
-                    {
-                        return StageResult.Fail(StageStatus.DownloadFailed, err);
-                    }
-                    if (!File.Exists(tempfile))
-                    {
-                        return StageResult.Fail(StageStatus.DownloadMissing);
-                    }
-                    if (U.GetFileSize(tempfile) <= MinDownloadSize)
-                    {
-                        return StageResult.Fail(StageStatus.DownloadTooSmall);
-                    }
-
-                    // ---- raw UPS vs archive ----
-                    if (UPSUtilCore.IsUPSFile(tempfile))
-                    {
-                        // Destination is known EXPLICITLY — record it as staged.
-                        string upsName = Path.Combine(romDir, RecommendUPSName(downloadUrl, recommendUpsName));
-                        File.Copy(tempfile, upsName, true);
-                        staged.Add(upsName);
-                    }
-                    else
-                    {
-                        string tempDir = MakeTempDir();
-                        try
-                        {
-                            string r = extract != null ? extract(tempfile, tempDir) : "no extractor";
-                            if (!string.IsNullOrEmpty(r))
-                            {
-                                return StageResult.Fail(StageStatus.ExtractFailed, r);
-                            }
-
-                            // Enumerate *.ups in the EXTRACTION tree, then map each to its
-                            // destination under romDir AFTER the same single-wrapper trim
-                            // CopyDirectory1Trim applies — so we return exactly the files
-                            // this extraction places, regardless of timestamps.
-                            string copyRoot = TrimSingleWrapperDir(tempDir);
-                            foreach (string srcUps in U.Directory_GetFiles_Safe(copyRoot, "*.ups", SearchOption.AllDirectories))
-                            {
-                                string rel = GetRelativePathSafe(copyRoot, srcUps);
-                                staged.Add(Path.Combine(romDir, rel));
-                            }
-
-                            CopyDirectory1Trim(tempDir, romDir);
-                        }
-                        finally
-                        {
-                            TryDeleteDir(tempDir);
-                        }
-                    }
+                    return StageResult.Fail(StageStatus.DownloadFailed, err);
                 }
-                finally
+                if (!File.Exists(tempfile))
                 {
-                    try { if (File.Exists(tempfile)) File.Delete(tempfile); } catch { /* best-effort */ }
+                    return StageResult.Fail(StageStatus.DownloadMissing);
+                }
+                if (U.GetFileSize(tempfile) <= MinDownloadSize)
+                {
+                    return StageResult.Fail(StageStatus.DownloadTooSmall);
+                }
+
+                // ---- raw UPS vs archive ----
+                if (UPSUtilCore.IsUPSFile(tempfile))
+                {
+                    // Destination is known EXPLICITLY — record it as staged.
+                    string upsName = Path.Combine(romDir, RecommendUPSName(downloadUrl, recommendUpsName));
+                    transaction.CopyFile(tempfile, upsName, cancellationToken);
+                    staged.Add(upsName);
+                }
+                else
+                {
+                    string tempDir = MakeTempDir();
+                    try
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        string r = extract != null ? extract(tempfile, tempDir) : "no extractor";
+                        cancellationToken.ThrowIfCancellationRequested();
+                        if (!string.IsNullOrEmpty(r))
+                        {
+                            return StageResult.Fail(StageStatus.ExtractFailed, r);
+                        }
+
+                        // Enumerate *.ups in the EXTRACTION tree, then map each to its
+                        // destination under romDir AFTER the same single-wrapper trim
+                        // CopyDirectory1Trim applies — so we return exactly the files
+                        // this extraction places, regardless of timestamps.
+                        string copyRoot = TrimSingleWrapperDir(tempDir);
+                        foreach (string srcUps in U.Directory_GetFiles_Safe(copyRoot, "*.ups", SearchOption.AllDirectories))
+                        {
+                            string rel = GetRelativePathSafe(copyRoot, srcUps);
+                            staged.Add(Path.Combine(romDir, rel));
+                        }
+
+                        transaction.CopyDirectory1Trim(tempDir, romDir, cancellationToken);
+                    }
+                    finally
+                    {
+                        TryDeleteDir(tempDir);
+                    }
                 }
 
                 // Keep only the staged destinations that actually landed on disk, and
@@ -387,18 +386,254 @@ namespace FEBuilderGBA
                 }
                 if (present.Count <= 0)
                 {
-                    return StageResult.Fail(StageStatus.NoUpsFound);
+                    List<string> rollbackErrors = transaction.Rollback();
+                    return StageResult.Fail(StageStatus.NoUpsFound, FormatRollbackErrors("", rollbackErrors));
                 }
 
+                cancellationToken.ThrowIfCancellationRequested();
+                transaction.Commit();
                 return new StageResult { Status = StageStatus.Ok, UpsFiles = present };
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
+                List<string>? rollbackErrors = transaction?.Rollback();
+                if (rollbackErrors != null && rollbackErrors.Count > 0)
+                {
+                    throw new OperationCanceledException(
+                        "Staging was canceled after modifying files; rollback errors: " + string.Join(" | ", rollbackErrors),
+                        cancellationToken);
+                }
                 throw;
             }
             catch (Exception e)
             {
-                return StageResult.Fail(StageStatus.DownloadFailed, e.Message);
+                List<string>? rollbackErrors = transaction?.Rollback();
+                return StageResult.Fail(StageStatus.DownloadFailed, FormatRollbackErrors(e.Message, rollbackErrors));
+            }
+            finally
+            {
+                transaction?.Dispose();
+                try { if (!string.IsNullOrEmpty(tempfile) && File.Exists(tempfile)) File.Delete(tempfile); } catch { /* best-effort */ }
+            }
+        }
+
+        static string FormatRollbackErrors(string originalError, IReadOnlyList<string>? rollbackErrors)
+        {
+            if (rollbackErrors == null || rollbackErrors.Count <= 0)
+            {
+                return originalError;
+            }
+
+            string suffix = "Rollback errors: " + string.Join(" | ", rollbackErrors);
+            return string.IsNullOrEmpty(originalError) ? suffix : originalError + " (" + suffix + ")";
+        }
+
+        internal sealed class StageTransaction : IDisposable
+        {
+            enum UndoKind
+            {
+                DeleteNewFile,
+                RestoreBackup,
+            }
+
+            readonly struct UndoEntry
+            {
+                public readonly UndoKind Kind;
+                public readonly string Target;
+                public readonly string Backup;
+
+                public UndoEntry(UndoKind kind, string target, string backup = "")
+                {
+                    Kind = kind;
+                    Target = target;
+                    Backup = backup;
+                }
+            }
+
+            readonly List<UndoEntry> _undo = new List<UndoEntry>();
+            readonly List<string> _createdDirs = new List<string>();
+            string _backupDir = "";
+            bool _committed;
+            bool _rolledBack;
+            bool _preserveBackupDir;
+
+            internal string BackupDirectory => _backupDir;
+
+            public void CopyFile(string source, string destination, CancellationToken cancellationToken)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                string? destinationDir = Path.GetDirectoryName(destination);
+                if (!string.IsNullOrEmpty(destinationDir))
+                {
+                    EnsureDirectory(destinationDir);
+                }
+
+                if (File.Exists(destination))
+                {
+                    string backup = MakeBackupPath();
+                    File.Copy(destination, backup, false);
+                    _undo.Add(new UndoEntry(UndoKind.RestoreBackup, destination, backup));
+                }
+                else
+                {
+                    _undo.Add(new UndoEntry(UndoKind.DeleteNewFile, destination));
+                }
+
+                File.Copy(source, destination, true);
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
+            public void CopyDirectory1Trim(string sourceDirName, string destDirName, CancellationToken cancellationToken)
+            {
+                CopyDirectory(TrimSingleWrapperDir(sourceDirName), destDirName, cancellationToken);
+            }
+
+            void CopyDirectory(string sourceDirName, string destDirName, CancellationToken cancellationToken)
+            {
+                string[] files = Directory.GetFiles(sourceDirName);
+                Array.Sort(files, StringComparer.OrdinalIgnoreCase);
+                foreach (string file in files)
+                {
+                    CopyFile(file, Path.Combine(destDirName, Path.GetFileName(file)), cancellationToken);
+                }
+
+                string[] dirs = Directory.GetDirectories(sourceDirName);
+                Array.Sort(dirs, StringComparer.OrdinalIgnoreCase);
+                foreach (string dir in dirs)
+                {
+                    if (IsEmptyDirectory(dir))
+                    {
+                        continue;
+                    }
+                    CopyDirectory(dir, Path.Combine(destDirName, Path.GetFileName(dir)), cancellationToken);
+                }
+            }
+
+            void EnsureDirectory(string dir)
+            {
+                if (Directory.Exists(dir))
+                {
+                    return;
+                }
+
+                var missing = new Stack<string>();
+                string? current = dir;
+                while (!string.IsNullOrEmpty(current) && !Directory.Exists(current))
+                {
+                    missing.Push(current);
+                    current = Path.GetDirectoryName(current);
+                }
+
+                while (missing.Count > 0)
+                {
+                    string next = missing.Pop();
+                    if (!Directory.Exists(next))
+                    {
+                        Directory.CreateDirectory(next);
+                        _createdDirs.Add(next);
+                    }
+                }
+            }
+
+            string MakeBackupPath()
+            {
+                if (string.IsNullOrEmpty(_backupDir))
+                {
+                    _backupDir = MakeTempDir();
+                }
+                return Path.Combine(_backupDir, _undo.Count.ToString("D6") + ".bak");
+            }
+
+            public void Commit()
+            {
+                _committed = true;
+                CleanupBackupDir();
+            }
+
+            public List<string> Rollback()
+            {
+                var errors = new List<string>();
+                bool restoreFailed = false;
+                if (_committed || _rolledBack)
+                {
+                    return errors;
+                }
+                _rolledBack = true;
+
+                for (int i = _undo.Count - 1; i >= 0; i--)
+                {
+                    UndoEntry entry = _undo[i];
+                    try
+                    {
+                        if (entry.Kind == UndoKind.DeleteNewFile)
+                        {
+                            if (File.Exists(entry.Target))
+                            {
+                                File.Delete(entry.Target);
+                            }
+                        }
+                        else if (entry.Kind == UndoKind.RestoreBackup && File.Exists(entry.Backup))
+                        {
+                            if (File.Exists(entry.Target))
+                            {
+                                File.Delete(entry.Target);
+                            }
+                            File.Move(entry.Backup, entry.Target);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        if (entry.Kind == UndoKind.RestoreBackup && File.Exists(entry.Backup))
+                        {
+                            restoreFailed = true;
+                        }
+                        errors.Add(entry.Target + ": " + e.Message);
+                    }
+                }
+
+                for (int i = _createdDirs.Count - 1; i >= 0; i--)
+                {
+                    string dir = _createdDirs[i];
+                    try
+                    {
+                        if (Directory.Exists(dir) && IsEmptyDirectory(dir))
+                        {
+                            Directory.Delete(dir);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        errors.Add(dir + ": " + e.Message);
+                    }
+                }
+
+                if (restoreFailed && !string.IsNullOrEmpty(_backupDir))
+                {
+                    _preserveBackupDir = true;
+                    errors.Add("Rollback backup preserved at: " + _backupDir);
+                }
+
+                return errors;
+            }
+
+            public void Dispose()
+            {
+                if (!_preserveBackupDir)
+                {
+                    CleanupBackupDir();
+                }
+            }
+
+            void CleanupBackupDir()
+            {
+                if (string.IsNullOrEmpty(_backupDir))
+                {
+                    return;
+                }
+
+                TryDeleteDir(_backupDir);
+                _backupDir = "";
             }
         }
 

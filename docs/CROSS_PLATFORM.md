@@ -259,7 +259,7 @@ dotnet workload install ios
 dotnet build FEBuilderGBA.iOS/FEBuilderGBA.iOS.csproj -c Release -p:EnableIosTarget=true
 ```
 
-`-p:EnableIosTarget=true` is required as a **global** property (the same NuGet-restore static-graph reason as Android's `EnableAndroidTarget`). `config/**` (excluding `patch2`) ships as `<BundleResource>` (structure preserved via `LogicalName`) and is extracted on first run into an app-private writable dir. iOS is a **PREVIEW**: it builds, but the on-device runtime (touch UX, file pickers, AOT/trim — mitigated with the Mono interpreter + `MtouchLink=SdkOnly`) is unvalidated. The CI-produced `.ipa` is **unsigned** (no Apple secret on this fork) — install it via re-signing with AltStore / Sideloadly / Apple Configurator. The head is intentionally **not** in `FEBuilderGBA.sln` (iOS needs macOS + Xcode and the `ios` workload). Full assessment: **[docs/IOS.md](IOS.md)**.
+`-p:EnableIosTarget=true` is required as a **global** property (the same NuGet-restore static-graph reason as Android's `EnableAndroidTarget`). `config/**` (excluding `patch2`) ships as `<BundleResource>` (structure preserved via `LogicalName`) and is extracted on first run into an app-private writable dir. iOS is a **PREVIEW**: it builds, but the on-device runtime (touch UX, file pickers, AOT/reflection — mitigated with the Mono interpreter + `MtouchLink=None`) is unvalidated. The CI-produced `.ipa` is **unsigned** (no Apple secret on this fork) — install it via re-signing with AltStore / Sideloadly / Apple Configurator. The head is intentionally **not** in `FEBuilderGBA.sln` (iOS needs macOS + Xcode and the `ios` workload). Full assessment: **[docs/IOS.md](IOS.md)**.
 
 ## Running in the browser (WebAssembly)
 

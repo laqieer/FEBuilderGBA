@@ -182,6 +182,32 @@ namespace FEBuilderGBA.Core.Tests
             return UPSUtilCore.MakeUPSData(src, dst);
         }
 
+        static byte[] MakeLargeUpsHeaderBytes()
+        {
+            byte[] data = new byte[32 * 1024 * 1024];
+            data[0] = (byte)'U';
+            data[1] = (byte)'P';
+            data[2] = (byte)'S';
+            data[3] = (byte)'1';
+            return data;
+        }
+
+        static bool ExistingFileLengthDiffers(string path, long originalLength)
+        {
+            try
+            {
+                return File.Exists(path) && new FileInfo(path).Length != originalLength;
+            }
+            catch (IOException)
+            {
+                return false;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return false;
+            }
+        }
+
         [Fact]
         public void Stage_RawUps_CopiedIntoRomDir()
         {
@@ -339,6 +365,192 @@ namespace FEBuilderGBA.Core.Tests
                 downloadFile: (u, d) => { File.WriteAllBytes(d, new byte[1024]); return (true, ""); },
                 extract: (a, d) => { File.WriteAllText(Path.Combine(d, "readme.txt"), "no ups"); return ""; });
             Assert.Equal(WorkSupportUpdateDownloadCore.StageStatus.NoUpsFound, r.Status);
+        }
+
+        [Fact]
+        public async Task StageAsync_RawUpsOverwrite_CancellationAfterCopy_RestoresOriginalBytes()
+        {
+            byte[] original = new byte[] { 0x10, 0x20, 0x30, 0x40 };
+            byte[] ups = MakeLargeUpsHeaderBytes();
+            string romDir = Path.Combine(_root, "romdir_raw_cancel_after_copy");
+            Directory.CreateDirectory(romDir);
+            string target = Path.Combine(romDir, "build.ups");
+            File.WriteAllBytes(target, original);
+
+            using var cts = new CancellationTokenSource();
+            Task<bool> cancelAfterOverwrite = Task.Run(() =>
+            {
+                bool observed = SpinWait.SpinUntil(
+                    () => ExistingFileLengthDiffers(target, original.Length),
+                    TimeSpan.FromSeconds(10));
+                if (observed)
+                {
+                    cts.Cancel();
+                }
+                return observed;
+            });
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                WorkSupportUpdateDownloadCore.DownloadAndStageAsync(
+                    "http://cdn/build.ups", romDir, Path.Combine(romDir, "myrom.gba"),
+                    downloadFile: (url, dest, _) =>
+                    {
+                        File.WriteAllBytes(dest, ups);
+                        return Task.FromResult((true, ""));
+                    },
+                    extract: (a, d) => "must-not-extract-a-ups",
+                    cancellationToken: cts.Token));
+
+            Assert.True(await cancelAfterOverwrite);
+            Assert.Equal(original, File.ReadAllBytes(target));
+        }
+
+        [Fact]
+        public async Task StageAsync_ArchiveCancellationAfterCopies_RestoresOverwrittenAndDeletesNew()
+        {
+            byte[] original = new byte[] { 0x01, 0x02, 0x03 };
+            byte[] largeUps = MakeLargeUpsHeaderBytes();
+            string romDir = Path.Combine(_root, "romdir_archive_cancel_after_copy");
+            Directory.CreateDirectory(romDir);
+            string overwritten = Path.Combine(romDir, "00-overwrite.bin");
+            string created = Path.Combine(romDir, "01-new.txt");
+            string largeDest = Path.Combine(romDir, "02-large.ups");
+            File.WriteAllBytes(overwritten, original);
+
+            using var cts = new CancellationTokenSource();
+            Task<bool> cancelAfterMixedCopies = Task.Run(() =>
+            {
+                bool observed = SpinWait.SpinUntil(
+                    () => ExistingFileLengthDiffers(overwritten, original.Length) && File.Exists(created),
+                    TimeSpan.FromSeconds(10));
+                if (observed)
+                {
+                    cts.Cancel();
+                }
+                return observed;
+            });
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                WorkSupportUpdateDownloadCore.DownloadAndStageAsync(
+                    "http://cdn/pack.zip", romDir, Path.Combine(romDir, "myrom.gba"),
+                    downloadFile: (url, dest, _) =>
+                    {
+                        File.WriteAllBytes(dest, new byte[1024]);
+                        return Task.FromResult((true, ""));
+                    },
+                    extract: (archive, destDir) =>
+                    {
+                        File.WriteAllBytes(Path.Combine(destDir, "00-overwrite.bin"), new byte[1024]);
+                        File.WriteAllText(Path.Combine(destDir, "01-new.txt"), "new");
+                        File.WriteAllBytes(Path.Combine(destDir, "02-large.ups"), largeUps);
+                        return "";
+                    },
+                    cancellationToken: cts.Token));
+
+            Assert.True(await cancelAfterMixedCopies);
+            Assert.Equal(original, File.ReadAllBytes(overwritten));
+            Assert.False(File.Exists(created));
+            Assert.False(File.Exists(largeDest));
+        }
+
+        [Fact]
+        public void Stage_ArchiveNoUpsAfterCopiedNonUps_RollsBack()
+        {
+            byte[] original = new byte[] { 0x42, 0x43, 0x44 };
+            string romDir = Path.Combine(_root, "romdir_archive_no_ups_rollback");
+            Directory.CreateDirectory(romDir);
+            string overwritten = Path.Combine(romDir, "readme.txt");
+            string created = Path.Combine(romDir, "new.txt");
+            string nestedDir = Path.Combine(romDir, "docs");
+            string nestedFile = Path.Combine(nestedDir, "info.txt");
+            File.WriteAllBytes(overwritten, original);
+
+            var r = WorkSupportUpdateDownloadCore.DownloadAndStage(
+                "http://cdn/pack.zip", romDir, Path.Combine(romDir, "myrom.gba"),
+                downloadFile: (u, d) => { File.WriteAllBytes(d, new byte[1024]); return (true, ""); },
+                extract: (archive, destDir) =>
+                {
+                    File.WriteAllText(Path.Combine(destDir, "readme.txt"), "overwritten");
+                    File.WriteAllText(Path.Combine(destDir, "new.txt"), "new");
+                    string docs = Path.Combine(destDir, "docs");
+                    Directory.CreateDirectory(docs);
+                    File.WriteAllText(Path.Combine(docs, "info.txt"), "nested");
+                    return "";
+                });
+
+            Assert.Equal(WorkSupportUpdateDownloadCore.StageStatus.NoUpsFound, r.Status);
+            Assert.Equal(original, File.ReadAllBytes(overwritten));
+            Assert.False(File.Exists(created));
+            Assert.False(File.Exists(nestedFile));
+            Assert.False(Directory.Exists(nestedDir));
+        }
+
+        [Fact]
+        public void Stage_ArchiveSuccess_CopiesAllContentAndReturnsOnlyPlacedUps()
+        {
+            byte[] ups = MakeUpsBytes();
+            string romDir = Path.Combine(_root, "romdir_archive_success_all_content");
+            Directory.CreateDirectory(romDir);
+            File.WriteAllBytes(Path.Combine(romDir, "unrelated.ups"), MakeUpsBytes());
+
+            var r = WorkSupportUpdateDownloadCore.DownloadAndStage(
+                "http://cdn/pack.zip", romDir, Path.Combine(romDir, "myrom.gba"),
+                downloadFile: (u, d) => { File.WriteAllBytes(d, new byte[1024]); return (true, ""); },
+                extract: (archive, destDir) =>
+                {
+                    string wrapper = Path.Combine(destDir, "Release_1.0");
+                    string nested = Path.Combine(wrapper, "nested");
+                    Directory.CreateDirectory(nested);
+                    File.WriteAllBytes(Path.Combine(wrapper, "patch.ups"), ups);
+                    File.WriteAllText(Path.Combine(wrapper, "notes.txt"), "notes");
+                    File.WriteAllBytes(Path.Combine(nested, "extra.ups"), ups);
+                    File.WriteAllText(Path.Combine(nested, "data.bin"), "data");
+                    return "";
+                });
+
+            Assert.Equal(WorkSupportUpdateDownloadCore.StageStatus.Ok, r.Status);
+            Assert.True(File.Exists(Path.Combine(romDir, "patch.ups")));
+            Assert.True(File.Exists(Path.Combine(romDir, "notes.txt")));
+            Assert.True(File.Exists(Path.Combine(romDir, "nested", "extra.ups")));
+            Assert.True(File.Exists(Path.Combine(romDir, "nested", "data.bin")));
+            Assert.Equal(2, r.UpsFiles.Count);
+            Assert.Contains(r.UpsFiles, p => Path.GetFileName(p) == "patch.ups");
+            Assert.Contains(r.UpsFiles, p => p.EndsWith(Path.Combine("nested", "extra.ups"), StringComparison.OrdinalIgnoreCase));
+            Assert.DoesNotContain(r.UpsFiles, p => Path.GetFileName(p) == "unrelated.ups");
+        }
+
+        [Fact]
+        public void StageTransaction_RestoreFailure_PreservesBackupAndReportsPath()
+        {
+            string source = Path.Combine(_root, "transaction-source.bin");
+            string target = Path.Combine(_root, "transaction-target.bin");
+            File.WriteAllBytes(source, new byte[] { 9, 8, 7 });
+            File.WriteAllBytes(target, new byte[] { 1, 2, 3 });
+
+            string backupDirectory = "";
+            try
+            {
+                using var transaction = new WorkSupportUpdateDownloadCore.StageTransaction();
+                transaction.CopyFile(source, target, CancellationToken.None);
+                backupDirectory = transaction.BackupDirectory;
+                Assert.True(Directory.Exists(backupDirectory));
+
+                File.Delete(target);
+                Directory.CreateDirectory(target);
+                List<string> errors = transaction.Rollback();
+
+                Assert.Contains(errors, e => e.Contains(target, StringComparison.Ordinal));
+                Assert.Contains(errors, e => e.Contains(backupDirectory, StringComparison.Ordinal));
+                Assert.True(Directory.Exists(backupDirectory));
+                Assert.NotEmpty(Directory.GetFiles(backupDirectory));
+            }
+            finally
+            {
+                if (Directory.Exists(target))
+                    Directory.Delete(target, true);
+                if (!string.IsNullOrEmpty(backupDirectory) && Directory.Exists(backupDirectory))
+                    Directory.Delete(backupDirectory, true);
+            }
         }
 
         // ---- ApplyUpsAgainstOriginal ----

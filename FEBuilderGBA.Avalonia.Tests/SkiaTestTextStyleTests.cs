@@ -20,12 +20,22 @@ namespace FEBuilderGBA.Avalonia.Tests
         const string ExpectedPixelHash = "19CA4B665632E6B06F4D5949EE908CDC358FDD4109D061CEFCEA9889FADE7E84";
 
         [Fact]
-        public void BundledFont_CurrentApiStyle_MatchesLegacyMeasurementBoundsAndPixels()
+        public void BundledFont_HelperMatchesDirectCurrentApiAndWindowsGolden()
         {
             string fontPath = Path.Combine(AppContext.BaseDirectory, "Fonts", "Tuffy-Regular.ttf");
             Assert.True(File.Exists(fontPath), $"bundled font missing at {fontPath}");
 
             using var typeface = SKTypeface.FromFile(fontPath);
+            using var directFont = new SKFont(typeface, 18)
+            {
+                Edging = SKFontEdging.Antialias,
+                Embolden = true,
+            };
+            using var directPaint = new SKPaint
+            {
+                Color = new SKColor(0x12, 0x34, 0x56),
+                IsAntialias = true,
+            };
             using var style = SkiaTestTextStyle.Create(
                 new SKColor(0x12, 0x34, 0x56),
                 18,
@@ -33,11 +43,9 @@ namespace FEBuilderGBA.Avalonia.Tests
                 bold: true);
 
             float measurement = style.MeasureText(Sample, out SKRect bounds);
-            Assert.Equal(ExpectedMeasurement, measurement);
-            Assert.Equal(ExpectedBoundsLeft, bounds.Left);
-            Assert.Equal(ExpectedBoundsTop, bounds.Top);
-            Assert.Equal(ExpectedBoundsRight, bounds.Right);
-            Assert.Equal(ExpectedBoundsBottom, bounds.Bottom);
+            float directMeasurement = directFont.MeasureText(Sample, out SKRect directBounds, directPaint);
+            Assert.Equal(directMeasurement, measurement);
+            Assert.Equal(directBounds, bounds);
 
             using var bmp = new SKBitmap(Width, Height, SKColorType.Rgba8888, SKAlphaType.Premul);
             using (var canvas = new SKCanvas(bmp))
@@ -47,9 +55,27 @@ namespace FEBuilderGBA.Avalonia.Tests
                 canvas.Flush();
             }
 
+            using var directBitmap = new SKBitmap(Width, Height, SKColorType.Rgba8888, SKAlphaType.Premul);
+            using (var directCanvas = new SKCanvas(directBitmap))
+            {
+                directCanvas.Clear(new SKColor(0xEE, 0xEE, 0xEE));
+                directCanvas.DrawText(Sample, 17, 43, directFont, directPaint);
+                directCanvas.Flush();
+            }
+
             Assert.Equal(Width, bmp.Width);
             Assert.Equal(Height, bmp.Height);
-            Assert.Equal(ExpectedPixelHash, PixelHash(bmp));
+            Assert.Equal(PixelHash(directBitmap), PixelHash(bmp));
+
+            if (OperatingSystem.IsWindows())
+            {
+                Assert.Equal(ExpectedMeasurement, measurement);
+                Assert.Equal(ExpectedBoundsLeft, bounds.Left);
+                Assert.Equal(ExpectedBoundsTop, bounds.Top);
+                Assert.Equal(ExpectedBoundsRight, bounds.Right);
+                Assert.Equal(ExpectedBoundsBottom, bounds.Bottom);
+                Assert.Equal(ExpectedPixelHash, PixelHash(bmp));
+            }
         }
 
         static string PixelHash(SKBitmap bitmap)

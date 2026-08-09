@@ -68,12 +68,12 @@ the same accepted limitation as Android ([#1641](https://github.com/laqieer/FEBu
 
 ## 5. Runtime viability (AOT + trimming)
 
-Unlike Android (Mono, JIT-capable), iOS Release is full **AOT + trimmed**. The Core/ROM
-pipeline is reflection-heavy, so the head sets `<UseInterpreter>true</UseInterpreter>` (Mono
-interpreter fallback for dynamic/reflection code) and `<MtouchLink>SdkOnly</MtouchLink>` (link
-only the SDK, leaving Core/UI assemblies untrimmed) to maximize the chance the shipped `.ipa`
-actually runs. This is the single most important preview caveat: the app may **build** cleanly
-yet still need on-device validation.
+Unlike Android (Mono, JIT-capable), iOS Release is full **AOT**. The Core/ROM pipeline is
+reflection-heavy, so the preview head sets `<UseInterpreter>true</UseInterpreter>` (Mono
+interpreter fallback for dynamic/reflection code) and `<MtouchLink>None</MtouchLink>` (no
+assembly linking/trimming) to maximize the chance the shipped `.ipa` actually runs. This
+increases artifact size and remains a preview trade-off until the reflection surface is
+validated and made trim-safe on-device.
 
 ## 6. Build & CI
 

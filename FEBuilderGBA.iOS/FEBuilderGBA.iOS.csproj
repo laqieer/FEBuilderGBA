@@ -48,13 +48,12 @@
     <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
 
     <!-- PREVIEW runtime viability (#1859): the Core/ROM pipeline is reflection-heavy.
-         Full iOS AOT + aggressive trimming can drop reflected types and crash the app at
-         launch even when it builds. Enable the Mono interpreter (dynamic/reflection
-         fallback) and link only the SDK so app assemblies (Core/Avalonia UI) are NOT
-         trimmed. If a future signed release wants a smaller binary, tighten these once the
-         runtime is validated on-device. -->
+         Full iOS AOT + trimming can drop reflected types and crash the app at launch even
+         when it builds. Enable the Mono interpreter and disable linking entirely until the
+         runtime is validated on-device. A future signed release can tighten this once the
+         reflection surface is trim-safe. -->
     <UseInterpreter>true</UseInterpreter>
-    <MtouchLink>SdkOnly</MtouchLink>
+    <MtouchLink>None</MtouchLink>
   </PropertyGroup>
 
   <ItemGroup>

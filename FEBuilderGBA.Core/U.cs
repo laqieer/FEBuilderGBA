@@ -2212,12 +2212,12 @@ namespace FEBuilderGBA
             return client;
         }
 
-        public static Task<string> HttpHeadLastModifiedAsync(string url, CancellationToken cancellationToken = default)
+        public static Task<string?> HttpHeadLastModifiedAsync(string url, CancellationToken cancellationToken = default)
         {
             return HttpHeadLastModifiedAsync(url, s_httpHeadClient, cancellationToken);
         }
 
-        internal static async Task<string> HttpHeadLastModifiedAsync(
+        internal static async Task<string?> HttpHeadLastModifiedAsync(
             string url,
             HttpMessageHandler handler,
             TimeSpan? timeout,
@@ -2227,7 +2227,7 @@ namespace FEBuilderGBA
             return await HttpHeadLastModifiedAsync(url, client, cancellationToken).ConfigureAwait(false);
         }
 
-        static async Task<string> HttpHeadLastModifiedAsync(
+        static async Task<string?> HttpHeadLastModifiedAsync(
             string url,
             HttpClient client,
             CancellationToken cancellationToken)
