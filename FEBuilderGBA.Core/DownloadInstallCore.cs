@@ -198,13 +198,16 @@ namespace FEBuilderGBA
         {
             StageDownloadResult staged = await StageAsync(
                 id, baseDir, progress, downloadStep, cancellationToken).ConfigureAwait(false);
-            cancellationToken.ThrowIfCancellationRequested();
             if (!staged.Success)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
                 return new DownloadResult(null, staged.Error);
+            }
 
             string error = staged.Error;
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 string path = Commit(staged.Staged, ref error);
                 return path == null
                     ? new DownloadResult(null, error)

@@ -143,6 +143,38 @@ namespace FEBuilderGBA.Core.Tests
                     cts.Token));
         }
 
+        [Fact]
+        public async Task DownloadAsync_CancelledAfterStaging_DeletesStagingDirectory()
+        {
+            using var cts = new CancellationTokenSource();
+            int progressCalls = 0;
+            string? stagingDirectory = null;
+            DownloadInstallCore.DownloadStep zipWriter =
+                FakeZipWriter("nested/mGBA.exe", new byte[] { 1, 2, 3, 4 });
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                DownloadInstallCore.DownloadAsync(
+                    DownloadInstallCore.ResourceId.MGba,
+                    _baseDir,
+                    _ =>
+                    {
+                        progressCalls++;
+                        if (progressCalls == 3)
+                            cts.Cancel();
+                    },
+                    async (url, dest, referer, _) =>
+                    {
+                        stagingDirectory = Path.GetDirectoryName(dest);
+                        bool ok = zipWriter(url, dest, out string error, referer);
+                        await Task.CompletedTask;
+                        return (ok, error);
+                    },
+                    cts.Token));
+
+            Assert.NotNull(stagingDirectory);
+            Assert.False(Directory.Exists(stagingDirectory));
+        }
+
         // ---- 2) Archive extract + nested-exe discovery --------------------
 
         [Fact]
