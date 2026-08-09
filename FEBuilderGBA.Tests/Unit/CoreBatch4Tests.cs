@@ -60,7 +60,7 @@ namespace FEBuilderGBA.Tests.Unit
         {
             // This test verifies the method exists and doesn't throw.
             // It may return null if network is unavailable (which is fine for CI).
-            string url = GitInstaller.GetLatestInstallerUrl();
+            string? url = GitInstaller.GetLatestInstallerUrl();
             if (url != null)
             {
                 Assert.StartsWith("https://", url);
@@ -74,7 +74,7 @@ namespace FEBuilderGBA.Tests.Unit
             bool called = false;
             string json = "{\"browser_download_url\":\"https://example.test/Git-2.0-64-bit.exe\"}";
 
-            string url = await GitInstaller.GetLatestInstallerUrlAsync(
+            string? url = await GitInstaller.GetLatestInstallerUrlAsync(
                 (requestUrl, referer, _) =>
                 {
                     called = true;

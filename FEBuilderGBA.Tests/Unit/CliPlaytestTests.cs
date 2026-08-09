@@ -53,10 +53,10 @@ namespace FEBuilderGBA.Tests.Unit
 
         private PlaytestOperations Operations(
             Func<string, IReadOnlyList<string>, string, int, ProcessRunResult> run,
-            string configuredPython = null,
+            string? configuredPython = null,
             bool isWindows = true,
-            string baseDirectory = null,
-            Func<string, string> resolvePhysicalPath = null)
+            string? baseDirectory = null,
+            Func<string, string>? resolvePhysicalPath = null)
         {
             return new PlaytestOperations
             {
@@ -127,9 +127,9 @@ namespace FEBuilderGBA.Tests.Unit
         [Fact]
         public void ExplicitPython_WinsAndUsesStructuralArguments()
         {
-            string command = null;
-            IReadOnlyList<string> arguments = null;
-            string workingDirectory = null;
+            string? command = null;
+            IReadOnlyList<string>? arguments = null;
+            string? workingDirectory = null;
             int timeout = 0;
             var operations = Operations(
                 (cmd, args, cwd, timeoutMs) =>
@@ -209,7 +209,7 @@ namespace FEBuilderGBA.Tests.Unit
         [Fact]
         public void Check_UsesModuleEntryPointWithoutRunArguments()
         {
-            IReadOnlyList<string> arguments = null;
+            IReadOnlyList<string>? arguments = null;
             var operations = Operations(
                 (cmd, args, cwd, timeoutMs) =>
                 {
@@ -386,7 +386,7 @@ namespace FEBuilderGBA.Tests.Unit
         public void SuccessfulOutput_IsPublishedFromPrivateStaging()
         {
             string outPath = Path.Combine(_root, "published-result.json");
-            string childOutPath = null;
+            string? childOutPath = null;
             var operations = Operations(
                 (cmd, args, cwd, timeoutMs) =>
                 {
@@ -868,8 +868,8 @@ namespace FEBuilderGBA.Tests.Unit
         [Fact]
         public void PosixLaunchUsesProcessGroupWorker()
         {
-            string capturedCommand = null;
-            IReadOnlyList<string> capturedArgs = null;
+            string? capturedCommand = null;
+            IReadOnlyList<string>? capturedArgs = null;
             var operations = Operations(
                 (cmd, args, cwd, timeoutMs) =>
                 {

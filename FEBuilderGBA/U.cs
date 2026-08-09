@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
 using System.Text;
@@ -109,7 +109,7 @@ namespace FEBuilderGBA
         }
         //名前長いから短い奴に
         [MethodImpl(256)]
-        public static bool IsEmpty(string str)
+        public static bool IsEmpty(string? str)
         {
             return string.IsNullOrEmpty(str);
         }

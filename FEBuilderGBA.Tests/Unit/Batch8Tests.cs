@@ -170,8 +170,16 @@ namespace FEBuilderGBA.Tests.Unit
 
             public void Add(uint pointer, AsmMapSt st) => _data[pointer] = st;
 
-            public bool TryGetValue(uint pointer, out AsmMapSt out_p) =>
-                _data.TryGetValue(pointer, out out_p);
+            public bool TryGetValue(uint pointer, out AsmMapSt out_p)
+            {
+                if (_data.TryGetValue(pointer, out AsmMapSt? value))
+                {
+                    out_p = value;
+                    return true;
+                }
+                out_p = new AsmMapSt();
+                return false;
+            }
         }
     }
 }

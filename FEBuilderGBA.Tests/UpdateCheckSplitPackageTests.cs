@@ -1,10 +1,22 @@
 using Xunit;
 using System;
+using System.Reflection;
 
 namespace FEBuilderGBA.Tests
 {
     public class UpdateCheckSplitPackageTests
     {
+        private static void SetVersionCore(UpdateInfo updateInfo, string version)
+        {
+            PropertyInfo? versionCoreProperty = typeof(UpdateInfo).GetProperty(nameof(UpdateInfo.VERSION_CORE));
+            Assert.True(versionCoreProperty is not null, $"{nameof(UpdateInfo.VERSION_CORE)} property should exist.");
+            if (versionCoreProperty is null)
+                throw new InvalidOperationException($"{nameof(UpdateInfo.VERSION_CORE)} property should exist.");
+
+            Assert.True(typeof(string).IsAssignableFrom(versionCoreProperty.PropertyType), $"{nameof(UpdateInfo.VERSION_CORE)} should accept string values.");
+            versionCoreProperty.SetValue(updateInfo, version);
+        }
+
         [Theory]
         [InlineData("https://example.com/FEBuilderGBA_20260226.15.7z",  "20260226.15")]
         [InlineData("https://example.com/FEBuilderGBA_20260226.15.zip", "20260226.15")]
@@ -13,7 +25,7 @@ namespace FEBuilderGBA.Tests
         [InlineData("",                                                   "00000000.00")]
         [InlineData(null,                                                 "00000000.00")]
         [InlineData("https://example.com/invalid.7z",                    "00000000.00")]
-        public void ExtractVersionFromUrl_ParsesCorrectly(string url, string expected)
+        public void ExtractVersionFromUrl_ParsesCorrectly(string? url, string expected)
         {
             string result = UpdateCheckSplitPackage.ExtractVersionFromUrl(url);
             Assert.Equal(expected, result);
@@ -61,7 +73,7 @@ namespace FEBuilderGBA.Tests
         {
             // Arrange
             var updateInfo = new UpdateInfo();
-            typeof(UpdateInfo).GetProperty("VERSION_CORE").SetValue(updateInfo, "20260225.00");
+            SetVersionCore(updateInfo, "20260225.00");
 
             updateInfo.URL_CORE = "https://example.com/FEBuilderGBA_20260226.00.7z";
 

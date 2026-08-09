@@ -14,10 +14,7 @@ namespace FEBuilderGBA.Tests
         [Fact]
         public void SettingStep3_VGMusicStudioHasNoHiddenSappyDownload()
         {
-            string root = FindRepoRoot();
-            Assert.False(
-                string.IsNullOrEmpty(root),
-                "Repository root with FEBuilderGBA.sln is required.");
+            string root = Assert.IsType<string>(FindRepoRoot());
             string sourcePath = Path.Combine(
                 root, "FEBuilderGBA", "ToolInitWizardForm.cs");
             Assert.True(
@@ -188,7 +185,7 @@ namespace FEBuilderGBA.Tests
                 "Unterminated method body: " + signature);
         }
 
-        static string FindRepoRoot()
+        static string? FindRepoRoot()
         {
             var directory = new DirectoryInfo(
                 AppContext.BaseDirectory);

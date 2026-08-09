@@ -428,7 +428,7 @@ namespace FEBuilderGBA.Tests.Unit
         private (int Code, string Stdout, string Stderr) Run(
             Dictionary<string, string> argsDic,
             RandomMapGeneratorCliOperations operations,
-            ProcessRunnerDelegate runner = null)
+            ProcessRunnerDelegate? runner = null)
         {
             var stdout = new StringWriter();
             var stderr = new StringWriter();

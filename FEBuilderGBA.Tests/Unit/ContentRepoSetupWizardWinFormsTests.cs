@@ -11,8 +11,8 @@ namespace FEBuilderGBA.Tests.Unit
     public class ContentRepoSetupWizardWinFormsTests : IDisposable
     {
         readonly string _baseDir;
-        readonly object _previousConfig;
-        readonly string _previousBaseDir;
+        readonly object? _previousConfig;
+        readonly string? _previousBaseDir;
         readonly bool _previousIsCommandLine;
         readonly Config _previousCoreConfig;
         readonly string _previousCoreBaseDirectory;
@@ -24,30 +24,30 @@ namespace FEBuilderGBA.Tests.Unit
         {
             _baseDir = Path.Combine(Path.GetTempPath(), "FEBuilderGBA_ContentRepoSetupWizardWinFormsTests_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_baseDir);
-            var program = typeof(OptionForm).Assembly.GetType("FEBuilderGBA.Program")!;
-            _configProp = program.GetProperty("Config")!;
-            _baseDirProp = program.GetProperty("BaseDirectory")!;
-            _isCommandLineProp = program.GetProperty("IsCommandLine")!;
-            _previousConfig = _configProp.GetValue(null)!;
-            _previousBaseDir = (string)_baseDirProp.GetValue(null)!;
-            _previousIsCommandLine = (bool)_isCommandLineProp.GetValue(null)!;
+            Type program = RequiredType(typeof(OptionForm).Assembly, "FEBuilderGBA.Program");
+            _configProp = RequiredProperty(program, "Config", typeof(Config));
+            _baseDirProp = RequiredProperty(program, "BaseDirectory", typeof(string));
+            _isCommandLineProp = RequiredProperty(program, "IsCommandLine", typeof(bool));
+            _previousConfig = _configProp.GetValue(null);
+            _previousBaseDir = _baseDirProp.GetValue(null) as string;
+            _previousIsCommandLine = ReadStaticProperty<bool>(_isCommandLineProp);
             _previousCoreConfig = CoreState.Config;
             _previousCoreBaseDirectory = CoreState.BaseDirectory;
 
             var cfg = new ConfigWinForms();
             cfg.Load(Path.Combine(_baseDir, "config.xml"));
-            _configProp.GetSetMethod(true)!.Invoke(null, new object?[] { cfg });
-            _baseDirProp.GetSetMethod(true)!.Invoke(null, new object?[] { _baseDir });
-            _isCommandLineProp.GetSetMethod(true)!.Invoke(null, new object?[] { false });
+            SetStaticProperty(_configProp, cfg);
+            SetStaticProperty(_baseDirProp, _baseDir);
+            SetStaticProperty(_isCommandLineProp, false);
             CoreState.Config = cfg;
             CoreState.BaseDirectory = _baseDir;
         }
 
         public void Dispose()
         {
-            _configProp.GetSetMethod(true)!.Invoke(null, new object?[] { _previousConfig });
-            _baseDirProp.GetSetMethod(true)!.Invoke(null, new object?[] { _previousBaseDir });
-            _isCommandLineProp.GetSetMethod(true)!.Invoke(null, new object?[] { _previousIsCommandLine });
+            SetStaticProperty(_configProp, _previousConfig);
+            SetStaticProperty(_baseDirProp, _previousBaseDir);
+            SetStaticProperty(_isCommandLineProp, _previousIsCommandLine);
             CoreState.Config = _previousCoreConfig;
             CoreState.BaseDirectory = _previousCoreBaseDirectory;
             try { if (Directory.Exists(_baseDir)) Directory.Delete(_baseDir, true); } catch { }
@@ -331,7 +331,7 @@ namespace FEBuilderGBA.Tests.Unit
             int runCalls = 0;
             RunSta(() =>
             {
-                ContentRepoSetupWizardForm form = null;
+                ContentRepoSetupWizardForm? form = null;
                 form = new ContentRepoSetupWizardForm(
                     gitAvailable: true,
                     isGitRepo: _ => false,
@@ -339,14 +339,15 @@ namespace FEBuilderGBA.Tests.Unit
                     runInitUpdate: (owner, repoDir, url, displayName) =>
                     {
                         runCalls++;
-                        Assert.False(form.Controls.Find("CloseButton", true)[0].Enabled);
-                        Assert.False(form.Controls.Find("DontShowAgainButton", true)[0].Enabled);
+                        ContentRepoSetupWizardForm activeForm = form ?? throw new InvalidOperationException("Wizard form was not assigned before operation callback.");
+                        Assert.False(activeForm.Controls.Find("CloseButton", true)[0].Enabled);
+                        Assert.False(activeForm.Controls.Find("DontShowAgainButton", true)[0].Enabled);
                         foreach (var repo in ContentRepoSetupCore.Repos)
-                            Assert.False(form.Controls.Find(repo.Id + "_Init", true)[0].Enabled);
+                            Assert.False(activeForm.Controls.Find(repo.Id + "_Init", true)[0].Enabled);
 
-                        form.Close();
-                        Assert.False(form.IsDisposed);
-                        Assert.Equal(DialogResult.None, form.DialogResult);
+                        activeForm.Close();
+                        Assert.False(activeForm.IsDisposed);
+                        Assert.Equal(DialogResult.None, activeForm.DialogResult);
                         Assert.Equal(
                             "0",
                             Program.Config.at(ContentRepoSetupCore.OptOutConfigKey, "0"));
@@ -356,11 +357,7 @@ namespace FEBuilderGBA.Tests.Unit
                             ContentRepoSetupCore.Repos[1].Id + "_Init",
                             true)[0];
                         secondButton.PerformClick();
-                        typeof(ContentRepoSetupWizardForm)
-                            .GetMethod(
-                                "InitUpdateButton_Click",
-                                BindingFlags.NonPublic | BindingFlags.Instance)!
-                            .Invoke(form, new object[] { secondButton, EventArgs.Empty });
+                        InvokeNonPublicInstanceMethod(form, "InitUpdateButton_Click", new object[] { secondButton, EventArgs.Empty });
                         Assert.Equal(1, runCalls);
                         return new Patch2GitResult { Kind = Patch2GitResultKind.Success };
                     });
@@ -397,15 +394,68 @@ namespace FEBuilderGBA.Tests.Unit
                 var args = new FormClosingEventArgs(
                     CloseReason.WindowsShutDown,
                     cancel: false);
-                typeof(ContentRepoSetupWizardForm)
-                    .GetMethod(
-                        "OnFormClosing",
-                        BindingFlags.NonPublic | BindingFlags.Instance)!
-                    .Invoke(form, new object[] { args });
+                InvokeNonPublicInstanceMethod(form, "OnFormClosing", new object[] { args });
 
                 Assert.False(args.Cancel);
                 form.SetOperationInProgress(false);
             });
+        }
+
+        static Type RequiredType(Assembly assembly, string typeName)
+        {
+            Type? type = assembly.GetType(typeName);
+            Assert.True(type is not null, $"{typeName} type should exist.");
+            if (type is null)
+                throw new InvalidOperationException($"{typeName} type should exist.");
+            return type;
+        }
+
+        static PropertyInfo RequiredProperty(Type type, string propertyName, Type valueType)
+        {
+            PropertyInfo? property = type.GetProperty(propertyName);
+            Assert.True(property is not null, $"{type.FullName}.{propertyName} property should exist.");
+            if (property is null)
+                throw new InvalidOperationException($"{type.FullName}.{propertyName} property should exist.");
+
+            Assert.True(valueType.IsAssignableFrom(property.PropertyType), $"{type.FullName}.{propertyName} should be assignable to {valueType.FullName}.");
+            return property;
+        }
+
+        static MethodInfo RequiredSetter(PropertyInfo property)
+        {
+            MethodInfo? setter = property.GetSetMethod(nonPublic: true);
+            Assert.True(setter is not null, $"{property.Name} setter should exist.");
+            if (setter is null)
+                throw new InvalidOperationException($"{property.Name} setter should exist.");
+            return setter;
+        }
+
+        static MethodInfo RequiredInstanceMethod(Type type, string methodName)
+        {
+            MethodInfo? method = type.GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Instance);
+            Assert.True(method is not null, $"{type.FullName}.{methodName} method should exist.");
+            if (method is null)
+                throw new InvalidOperationException($"{type.FullName}.{methodName} method should exist.");
+            return method;
+        }
+
+        static T ReadStaticProperty<T>(PropertyInfo property)
+        {
+            object? value = property.GetValue(null);
+            Assert.True(value is T, $"{property.Name} should contain a {typeof(T).FullName} value.");
+            if (value is not T typed)
+                throw new InvalidOperationException($"{property.Name} should contain a {typeof(T).FullName} value.");
+            return typed;
+        }
+
+        static void SetStaticProperty(PropertyInfo property, object? value)
+        {
+            RequiredSetter(property).Invoke(null, new object?[] { value });
+        }
+
+        static void InvokeNonPublicInstanceMethod(object target, string methodName, object[] parameters)
+        {
+            RequiredInstanceMethod(target.GetType(), methodName).Invoke(target, parameters);
         }
 
         static void RunSta(Action body)
@@ -443,9 +493,9 @@ namespace FEBuilderGBA.Tests.Unit
         public void AutoShowGating_RespectsCommandLineAndCoreDecision()
         {
             Assert.True(Program.ShouldAutoShowContentRepoSetupWizard());
-            _isCommandLineProp.GetSetMethod(true)!.Invoke(null, new object?[] { true });
+            SetStaticProperty(_isCommandLineProp, true);
             Assert.False(Program.ShouldAutoShowContentRepoSetupWizard());
-            _isCommandLineProp.GetSetMethod(true)!.Invoke(null, new object?[] { false });
+            SetStaticProperty(_isCommandLineProp, false);
 
             Program.Config[ContentRepoSetupCore.OptOutConfigKey] = "1";
             Assert.False(Program.ShouldAutoShowContentRepoSetupWizard());

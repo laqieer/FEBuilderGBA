@@ -158,7 +158,7 @@ namespace FEBuilderGBA.Tests.Unit
         [Fact]
         public void RoundTrip_ScratchCleanupFailure_MapsToExit1()
         {
-            string capturedScratchPath = null;
+            string? capturedScratchPath = null;
             var ops = new BuildfileRoundTripOperations
             {
                 Export = (clean, target, outDir) =>
@@ -190,17 +190,17 @@ namespace FEBuilderGBA.Tests.Unit
             string stderr = errWriter.ToString();
             Assert.Equal(1, code);
             Assert.Contains("cleanup incomplete", stderr, StringComparison.OrdinalIgnoreCase);
-            Assert.NotNull(capturedScratchPath);
-            Assert.Contains(capturedScratchPath, stderr, StringComparison.Ordinal);
+            string scratchPath = Assert.IsType<string>(capturedScratchPath);
+            Assert.Contains(scratchPath, stderr, StringComparison.Ordinal);
             Assert.Equal(
                 1,
-                stderr.Split(capturedScratchPath, StringSplitOptions.None).Length - 1);
+                stderr.Split(scratchPath, StringSplitOptions.None).Length - 1);
         }
 
         [Fact]
         public void RoundTrip_ScratchCleanupFailure_WithPath_DoesNotDuplicateResidualPath()
         {
-            string capturedScratchPath = null;
+            string? capturedScratchPath = null;
             var ops = new BuildfileRoundTripOperations
             {
                 Export = (clean, target, outDir) =>
@@ -232,10 +232,10 @@ namespace FEBuilderGBA.Tests.Unit
             string stderr = errWriter.ToString();
             Assert.Equal(1, code);
             Assert.Contains("cleanup incomplete", stderr, StringComparison.OrdinalIgnoreCase);
-            Assert.NotNull(capturedScratchPath);
+            string scratchPath = Assert.IsType<string>(capturedScratchPath);
             Assert.Equal(
                 1,
-                stderr.Split(capturedScratchPath, StringSplitOptions.None).Length - 1);
+                stderr.Split(scratchPath, StringSplitOptions.None).Length - 1);
             Assert.DoesNotContain(
                 "residual scratch path:",
                 stderr,

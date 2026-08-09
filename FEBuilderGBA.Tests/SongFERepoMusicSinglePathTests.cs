@@ -26,7 +26,7 @@ namespace FEBuilderGBA.Tests
         {
             // The single dispatcher must exist as a public static method so
             // SongExchangeForm can reuse it (no duplicate .s/.mid/.wav importer).
-            MethodInfo m = typeof(SongTrackForm).GetMethod(
+            MethodInfo? m = typeof(SongTrackForm).GetMethod(
                 "ImportMusicFileToSong",
                 BindingFlags.Public | BindingFlags.Static);
             Assert.NotNull(m);
@@ -116,14 +116,13 @@ namespace FEBuilderGBA.Tests
 
         static string ReadSource(string fileName)
         {
-            string root = FindRepoRoot();
-            Assert.NotNull(root);
+            string root = Assert.IsType<string>(FindRepoRoot());
             string path = Path.Combine(root, "FEBuilderGBA", fileName);
             Assert.True(File.Exists(path), $"{fileName} not found at {path}");
             return File.ReadAllText(path);
         }
 
-        static string FindRepoRoot()
+        static string? FindRepoRoot()
         {
             var dir = new DirectoryInfo(AppContext.BaseDirectory);
             while (dir != null)

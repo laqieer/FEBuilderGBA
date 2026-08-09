@@ -82,7 +82,7 @@ namespace FEBuilderGBA
             return list[at];
         }
         [MethodImpl(256)]
-        public static bool IsEmpty(string str)
+        public static bool IsEmpty(string? str)
         {
             return string.IsNullOrEmpty(str);
         }

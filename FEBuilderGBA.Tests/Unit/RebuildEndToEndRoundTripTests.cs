@@ -128,7 +128,7 @@ namespace FEBuilderGBA.Tests.Unit
         [InlineData(Mode.LowRelocate)]
         public void FullPipeline_RealFE8U_MakeWithProducer_Apply_RebuiltRomIsFaithful(Mode mode)
         {
-            string repoRoot = FindRepoRootWithRom();
+            string? repoRoot = FindRepoRootWithRom();
             if (repoRoot == null) return; // no checkout with roms/FE8U.gba reachable — early-exit (Pass)
             string romPath = Path.Combine(repoRoot, "roms", "FE8U.gba");
             if (!File.Exists(romPath)) return; // no ROM (gitignored, absent in CI) — early-exit (Pass)
@@ -141,7 +141,7 @@ namespace FEBuilderGBA.Tests.Unit
             // exist before), keeping the test fully isolated / non-persisting.
             string configXmlPath = Path.Combine(repoRoot, "config", "config.xml");
             bool configXmlExisted = File.Exists(configXmlPath);
-            byte[] configXmlSnapshot = configXmlExisted ? File.ReadAllBytes(configXmlPath) : null;
+            byte[]? configXmlSnapshot = configXmlExisted ? File.ReadAllBytes(configXmlPath) : null;
             try
             {
                 Directory.CreateDirectory(tmpDir);
@@ -241,7 +241,7 @@ namespace FEBuilderGBA.Tests.Unit
                 // Belt-and-suspenders: the log must carry no Missing! marker even if Success were mis-set.
                 Assert.DoesNotContain("Missing!", result.Log ?? "");
 
-                byte[] rebuilt = result.Rebuilt;
+                byte[] rebuilt = Assert.IsType<byte[]>(result.Rebuilt);
 
                 // (B2) Vanilla base preserved: the non-rebuild region [0, rebuildAddress) is left in place.
                 // Require BOTH ROMs to actually contain that whole range first — a clamped Math.Min compare
@@ -285,8 +285,8 @@ namespace FEBuilderGBA.Tests.Unit
                     int fixups = 0;
                     for (int i = 0; i + 3 < baseEnd; i += 4)
                     {
-                        uint vWord = (uint)(vanData[i] | (vanData[i + 1] << 8) | (vanData[i + 2] << 16) | ((uint)vanData[i + 3] << 24));
-                        uint rWord = (uint)(rebuilt[i] | (rebuilt[i + 1] << 8) | (rebuilt[i + 2] << 16) | ((uint)rebuilt[i + 3] << 24));
+                        uint vWord = (uint)vanData[i] | ((uint)vanData[i + 1] << 8) | ((uint)vanData[i + 2] << 16) | ((uint)vanData[i + 3] << 24);
+                        uint rWord = (uint)rebuilt[i] | ((uint)rebuilt[i + 1] << 8) | ((uint)rebuilt[i + 2] << 16) | ((uint)rebuilt[i + 3] << 24);
                         if (vWord == rWord)
                         {
                             // identical word — but if any of its 4 bytes were touched at a non-word boundary we
@@ -315,7 +315,7 @@ namespace FEBuilderGBA.Tests.Unit
                     {
                         if (rebuilt[i] == vanData[i]) continue;
                         int w = i & ~3;
-                        uint vWord = (uint)(vanData[w] | (vanData[w + 1] << 8) | (vanData[w + 2] << 16) | ((uint)vanData[w + 3] << 24));
+                        uint vWord = (uint)vanData[w] | ((uint)vanData[w + 1] << 8) | ((uint)vanData[w + 2] << 16) | ((uint)vanData[w + 3] << 24);
                         bool vanPointedIntoRebuild = U.isPointer(vWord)
                             && U.toOffset(vWord) >= rebuildAddress
                             && U.toOffset(vWord) < (uint)vanData.Length;
@@ -339,7 +339,7 @@ namespace FEBuilderGBA.Tests.Unit
                     int forwardRefHits = 0;
                     for (int i = vanData.Length; i + 3 < rebuilt.Length; i++)
                     {
-                        uint w = (uint)(rebuilt[i] | (rebuilt[i + 1] << 8) | (rebuilt[i + 2] << 16) | ((uint)rebuilt[i + 3] << 24));
+                        uint w = (uint)rebuilt[i] | ((uint)rebuilt[i + 1] << 8) | ((uint)rebuilt[i + 2] << 16) | ((uint)rebuilt[i + 3] << 24);
                         if (w == BASE_REGION_FORWARD_REF) forwardRefHits++;
                     }
                     Assert.True(forwardRefHits >= 2,
@@ -404,7 +404,7 @@ namespace FEBuilderGBA.Tests.Unit
                 {
                     if (configXmlExisted)
                     {
-                        File.WriteAllBytes(configXmlPath, configXmlSnapshot);
+                        File.WriteAllBytes(configXmlPath, configXmlSnapshot ?? throw new InvalidOperationException("Missing config.xml snapshot."));
                     }
                     else if (File.Exists(configXmlPath))
                     {
@@ -439,7 +439,7 @@ namespace FEBuilderGBA.Tests.Unit
         {
             try
             {
-                PropertyInfo p = typeof(Program).GetProperty(
+                PropertyInfo? p = typeof(Program).GetProperty(
                     "IsCommandLine", BindingFlags.Public | BindingFlags.Static);
                 p?.SetValue(null, true, BindingFlags.NonPublic | BindingFlags.Instance, null, null, null);
             }
@@ -459,21 +459,21 @@ namespace FEBuilderGBA.Tests.Unit
         {
             Type prog = typeof(Program);
 
-            PropertyInfo baseDirProp = prog.GetProperty(
+            PropertyInfo? baseDirProp = prog.GetProperty(
                 "BaseDirectory", BindingFlags.Public | BindingFlags.Static);
             baseDirProp?.SetValue(null, repoRoot);
 
-            PropertyInfo configProp = prog.GetProperty(
+            PropertyInfo? configProp = prog.GetProperty(
                 "Config", BindingFlags.Public | BindingFlags.Static);
             if (configProp != null && configProp.GetValue(null) == null)
             {
-                Type configType = prog.Assembly.GetType("FEBuilderGBA.ConfigWinForms");
+                Type? configType = prog.Assembly.GetType("FEBuilderGBA.ConfigWinForms");
                 if (configType != null)
                 {
-                    object cfg = Activator.CreateInstance(configType, nonPublic: true);
+                    object? cfg = Activator.CreateInstance(configType, nonPublic: true);
                     if (cfg != null)
                     {
-                        MethodInfo load = configType.GetMethod("Load", new[] { typeof(string) });
+                        MethodInfo? load = configType.GetMethod("Load", new[] { typeof(string) });
                         load?.Invoke(cfg, new object[] { Path.Combine(repoRoot, "config", "config.xml") });
                         configProp.SetValue(null, cfg);
                         CoreState.Config = (Config)cfg;
@@ -488,9 +488,9 @@ namespace FEBuilderGBA.Tests.Unit
         /// worktree at <c>&lt;main&gt;/.claude/worktrees/X</c>) always does. Returns null in CI (no ancestor
         /// has the ROM) so the test cleanly early-exits (Pass).
         /// </summary>
-        static string FindRepoRootWithRom()
+        static string? FindRepoRootWithRom()
         {
-            string dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            string? dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             for (int i = 0; i < 16 && dir != null; i++)
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln"))

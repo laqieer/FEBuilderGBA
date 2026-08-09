@@ -43,7 +43,7 @@ namespace FEBuilderGBA
         /// <see cref="FEBuilderGBA.U.getAppVersion"/> returns the tag WITH the prefix, so a
         /// raw <see cref="FEBuilderGBA.U.atof"/> would yield 0 and make every remote look newer.
         /// </summary>
-        public static double ParseVersion(string version)
+        public static double ParseVersion(string? version)
         {
             if (string.IsNullOrEmpty(version)) return 0;
             string v = version.Trim();
@@ -57,7 +57,7 @@ namespace FEBuilderGBA
         /// Returns: &lt;0 if v1 &lt; v2, 0 if equal, &gt;0 if v1 &gt; v2.
         /// Tolerates an optional <c>ver_</c> prefix on either side (see <see cref="ParseVersion"/>).
         /// </summary>
-        public static int CompareVersions(string v1, string v2)
+        public static int CompareVersions(string? v1, string? v2)
         {
             double version1 = ParseVersion(v1);
             double version2 = ParseVersion(v2);
@@ -70,7 +70,7 @@ namespace FEBuilderGBA
         /// <summary>
         /// Determines whether the core application needs updating.
         /// </summary>
-        public PackageType DetermineUpdateType(string remoteCore)
+        public PackageType DetermineUpdateType(string? remoteCore)
         {
             bool coreNeedsUpdate = CompareVersions(VERSION_CORE, remoteCore) < 0;
             return coreNeedsUpdate ? PackageType.CoreOnly : PackageType.None;
@@ -110,7 +110,7 @@ namespace FEBuilderGBA
         /// <summary>
         /// Validates that a version string is in correct format (yyyyMMdd.HH).
         /// </summary>
-        public static bool IsValidVersion(string version)
+        public static bool IsValidVersion(string? version)
         {
             if (string.IsNullOrEmpty(version))
                 return false;

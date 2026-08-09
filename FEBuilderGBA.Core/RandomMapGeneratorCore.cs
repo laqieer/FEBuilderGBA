@@ -43,9 +43,9 @@ namespace FEBuilderGBA
         /// </param>
         public static RandomMapGenerationResult Generate(
             RandomMapGenerationRequest request,
-            ProcessRunnerDelegate runner = null,
+            ProcessRunnerDelegate? runner = null,
             CancellationToken cancellationToken = default,
-            ProcessRunnerCancellableDelegate cancellableRunner = null)
+            ProcessRunnerCancellableDelegate? cancellableRunner = null)
         {
             return GenerateCore(
                 request,
@@ -57,10 +57,10 @@ namespace FEBuilderGBA
 
         internal static RandomMapGenerationResult GenerateWithPreLaunchHook(
             RandomMapGenerationRequest request,
-            ProcessRunnerDelegate runner,
+            ProcessRunnerDelegate? runner,
             CancellationToken cancellationToken,
-            ProcessRunnerCancellableDelegate cancellableRunner,
-            Action beforeProcessLaunch)
+            ProcessRunnerCancellableDelegate? cancellableRunner,
+            Action? beforeProcessLaunch)
         {
             return GenerateCore(
                 request,
@@ -72,10 +72,10 @@ namespace FEBuilderGBA
 
         static RandomMapGenerationResult GenerateCore(
             RandomMapGenerationRequest request,
-            ProcessRunnerDelegate runner,
+            ProcessRunnerDelegate? runner,
             CancellationToken cancellationToken,
-            ProcessRunnerCancellableDelegate cancellableRunner,
-            Action beforeProcessLaunch)
+            ProcessRunnerCancellableDelegate? cancellableRunner,
+            Action? beforeProcessLaunch)
         {
             if (cancellationToken.IsCancellationRequested)
                 return Fail(RandomMapGeneratorErrorCategory.Cancelled, "Random map generation was cancelled.");

@@ -106,7 +106,7 @@ namespace FEBuilderGBA
         /// its first line contains a non-empty <c>gitdir:</c> value and the referenced
         /// directory actually exists. Broken links and ordinary files named .git return false.
         /// </summary>
-        public static bool IsGitRepo(string path)
+        public static bool IsGitRepo(string? path)
         {
             if (string.IsNullOrEmpty(path) || !Directory.Exists(path))
                 return false;

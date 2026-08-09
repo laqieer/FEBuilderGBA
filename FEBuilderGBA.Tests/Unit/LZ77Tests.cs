@@ -212,11 +212,8 @@ namespace FEBuilderGBA.Tests.Unit
         [Fact]
         public void Decompress_WithNullInput_ThrowsException()
         {
-            // Arrange
-            byte[] nullInput = null;
-
             // Act & Assert - LZ77.decompress throws NullReferenceException for null input
-            Assert.Throws<NullReferenceException>(() => LZ77.decompress(nullInput, 0));
+            Assert.Throws<NullReferenceException>(() => LZ77.decompress(null!, 0));
         }
 
         [Fact]
@@ -235,11 +232,8 @@ namespace FEBuilderGBA.Tests.Unit
         [Fact]
         public void Compress_WithNullInput_ThrowsException()
         {
-            // Arrange
-            byte[] nullInput = null;
-
             // Act & Assert - LZ77.compress throws NullReferenceException for null input
-            Assert.Throws<NullReferenceException>(() => LZ77.compress(nullInput));
+            Assert.Throws<NullReferenceException>(() => LZ77.compress(null!));
         }
 
         [Fact]

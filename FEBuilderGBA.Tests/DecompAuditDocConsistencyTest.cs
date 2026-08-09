@@ -23,8 +23,7 @@ namespace FEBuilderGBA.Tests
         [Fact]
         public void ReadmeMatrixBlock_MatchesGeneratedMatrix()
         {
-            string root = FindRepoRoot();
-            Assert.NotNull(root);
+            string root = Assert.IsType<string>(FindRepoRoot());
             string readmePath = Path.Combine(root, "README.md");
             Assert.True(File.Exists(readmePath), $"README.md not found at {readmePath}");
 
@@ -75,7 +74,7 @@ namespace FEBuilderGBA.Tests
         }
 
         /// <summary>Walk up from the test base directory to the dir containing FEBuilderGBA.sln.</summary>
-        static string FindRepoRoot()
+        static string? FindRepoRoot()
         {
             var dir = new DirectoryInfo(AppContext.BaseDirectory);
             while (dir != null)

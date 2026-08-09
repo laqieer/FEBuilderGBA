@@ -30,7 +30,7 @@ namespace FEBuilderGBA.E2ETests.Tests
         public void ExportEditorImages_Avalonia_Succeeds()
         {
             Skip.If(AvaloniaExe == null, "Avalonia exe not found");
-            string romPath = RomLocator.FE8U;
+            string? romPath = RomLocator.FE8U;
             Skip.If(romPath == null, "FE8U ROM not found");
 
             string outputDir = Path.Combine(Path.GetTempPath(), "febuilder_avalonia_images_" + Guid.NewGuid().ToString("N")[..8]);
@@ -66,7 +66,7 @@ namespace FEBuilderGBA.E2ETests.Tests
         public void ExportEditorImages_WinForms_Succeeds()
         {
             Skip.If(WinFormsExe == null, "WinForms exe not found");
-            string romPath = RomLocator.FE8U;
+            string? romPath = RomLocator.FE8U;
             Skip.If(romPath == null, "FE8U ROM not found");
 
             string outputDir = Path.Combine(Path.GetTempPath(), "febuilder_winforms_images_" + Guid.NewGuid().ToString("N")[..8]);
@@ -102,7 +102,7 @@ namespace FEBuilderGBA.E2ETests.Tests
         {
             Skip.If(WinFormsExe == null, "WinForms exe not found");
             Skip.If(AvaloniaExe == null, "Avalonia exe not found");
-            string romPath = RomLocator.FE8U;
+            string? romPath = RomLocator.FE8U;
             Skip.If(romPath == null, "FE8U ROM not found");
 
             string winDir = Path.Combine(Path.GetTempPath(), "febuilder_compare_win_" + Guid.NewGuid().ToString("N")[..8]);

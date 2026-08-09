@@ -23,7 +23,7 @@ namespace FEBuilderGBA.Tests.Unit
         [Fact]
         public void ContentRepoGitWinForms_RunInitUpdate_HasExpectedSignature()
         {
-            MethodInfo m = typeof(ContentRepoGitWinForms).GetMethod(
+            MethodInfo? m = typeof(ContentRepoGitWinForms).GetMethod(
                 "RunInitUpdate", new[] { typeof(Form), typeof(string), typeof(string), typeof(string) });
             Assert.NotNull(m);
             Assert.True(m.IsStatic);
@@ -33,7 +33,7 @@ namespace FEBuilderGBA.Tests.Unit
         [Fact]
         public void Patch2GitWinForms_RunInitUpdate_StillPresent()
         {
-            MethodInfo m = typeof(Patch2GitWinForms).GetMethod(
+            MethodInfo? m = typeof(Patch2GitWinForms).GetMethod(
                 "RunInitUpdate", new[] { typeof(Form), typeof(string) });
             Assert.NotNull(m);
             Assert.Equal(typeof(Patch2GitResult), m.ReturnType);
@@ -74,17 +74,18 @@ namespace FEBuilderGBA.Tests.Unit
 
             // Behavioral half: constructing the real form must not create any of the old dead-UI
             // controls (by their legacy Name) anywhere in its control tree.
-            string err = null;
+            string? err = null;
             var t = new Thread(() =>
             {
                 try
                 {
-                    Type prog = typeof(OptionForm).Assembly.GetType("FEBuilderGBA.Program");
-                    Type cfgT = typeof(OptionForm).Assembly.GetType("FEBuilderGBA.ConfigWinForms");
-                    var cfgProp = prog.GetProperty("Config");
-                    object prevCfg = cfgProp.GetValue(null); // restore afterwards so we don't leak shared state
-                    object cfg = Activator.CreateInstance(cfgT);
-                    cfgProp.GetSetMethod(true).Invoke(null, new[] { cfg });
+                    Type prog = Assert.IsAssignableFrom<Type>(typeof(OptionForm).Assembly.GetType("FEBuilderGBA.Program"));
+                    Type cfgT = Assert.IsAssignableFrom<Type>(typeof(OptionForm).Assembly.GetType("FEBuilderGBA.ConfigWinForms"));
+                    var cfgProp = Assert.IsAssignableFrom<System.Reflection.PropertyInfo>(prog.GetProperty("Config"));
+                    object? prevCfg = cfgProp.GetValue(null); // restore afterwards so we don't leak shared state
+                    object cfg = Activator.CreateInstance(cfgT) ?? throw new InvalidOperationException("ConfigWinForms could not be constructed.");
+                    var cfgSetter = Assert.IsAssignableFrom<System.Reflection.MethodInfo>(cfgProp.GetSetMethod(true));
+                    cfgSetter.Invoke(null, new[] { cfg });
                     try
                     {
                         using var form = new OptionForm();
@@ -99,7 +100,7 @@ namespace FEBuilderGBA.Tests.Unit
                     }
                     finally
                     {
-                        cfgProp.GetSetMethod(true).Invoke(null, new[] { prevCfg });
+                        cfgSetter.Invoke(null, new[] { prevCfg });
                     }
                 }
                 catch (Exception ex) { err = ex.ToString(); }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -100,7 +100,7 @@ namespace FEBuilderGBA
                 ,"@0093","[OpenQuote]"    ///No Translate 英語版のみ
                 ,"@0094","[CloseQuote]"    ///No Translate 英語版のみ
         };
-        public bool Find(string parts)
+        public bool Find(string? parts)
         {
             for (int n = 0; n < ConvertEscapeToFEditorTable.Count; n += 2)
             {
