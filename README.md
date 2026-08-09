@@ -134,14 +134,13 @@ git submodule update --init --recursive
 
 **Note:** The patch repository ([FEBuilderGBA-patch2](https://github.com/laqieer/FEBuilderGBA-patch2)) is maintained separately for independent versioning and faster updates.
 
-**Bundled Tools:** [Event Assembler](https://github.com/laqieer/Event-Assembler) and [ColorzCore](https://github.com/FireEmblemUniverse/ColorzCore) are included as submodules in `tools/`. If no external EA path is configured, FEBuilderGBA automatically uses the bundled tools. To build them locally:
+**Bundled Tools:** [Event Assembler](https://github.com/laqieer/Event-Assembler) and [ColorzCore](https://github.com/FireEmblemUniverse/ColorzCore) are included as submodules in `tools/`. Event Assembler is treated here as an external source/prebuilt submodule; its upstream solution is stale and is not a parent-supported build target. If no external EA path is configured, FEBuilderGBA automatically uses the bundled tools. To rebuild ColorzCore locally, restore first and then build/publish with warnings as errors:
 ```bash
 git submodule update --init tools/Event-Assembler tools/ColorzCore
-# Windows:
-dotnet build tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release
-# Linux/macOS (produces a runnable executable in tools/bin/):
-# Replace linux-x64 with your platform's RID (e.g. osx-arm64, osx-x64)
-dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release -r linux-x64 --self-contained true -o tools/bin
+dotnet restore tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release
+dotnet build tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release --no-restore -warnaserror
+dotnet restore tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release -r linux-x64 -p:SelfContained=true
+dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release -r linux-x64 -p:SelfContained=true --no-restore -warnaserror
 ```
 
 **Runtime note:** All releases (WinForms, CLI, Avalonia) ship ColorzCore as a self-contained executable, requiring no additional .NET runtime.
@@ -166,16 +165,28 @@ On first run, or whenever `config/patch2`, `resources/FE-Repo`, or `resources/FE
 
 **Avalonia desktop save shortcut:** on the desktop `MainWindow` only, exact `Ctrl+S` or `⌘S` invokes the existing **Save ROM** action when that menu item is enabled. Separate editor windows keep their own shortcuts, and the single-view Android/iOS/browser shells continue to use their own Save UI.
 
-### Cross-Platform Build (Linux / macOS / Windows)
+### Warning-clean Build Matrix (Linux / macOS / Windows)
+
+The supported matrix is:
+
+- Debug + Release x86 solution builds
+- Cross-platform `net10.0` projects and tests
+- Android + `FEBuilderGBA.Android.Tests`
+- Browser `wasm-tools` publish
+- Helper tools
+- iOS on the macOS CI boundary
+- ColorzCore
 
 The Core library, CLI, SkiaSharp backend, and Avalonia GUI scaffold all target `net10.0` and build on any platform:
 
 ```bash
 # Build Core library
-dotnet build FEBuilderGBA.Core/FEBuilderGBA.Core.csproj
+dotnet restore FEBuilderGBA.Core/FEBuilderGBA.Core.csproj
+dotnet build FEBuilderGBA.Core/FEBuilderGBA.Core.csproj --no-restore -warnaserror
 
 # Build cross-platform CLI
-dotnet build FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj
+dotnet restore FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj
+dotnet build FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj --no-restore -warnaserror
 
 # Run CLI
 dotnet run --project FEBuilderGBA.CLI -- --version
@@ -409,8 +420,10 @@ dotnet run --project FEBuilderGBA.CLI -- --build-project --project=path/to/decom
 # Full flag/--kind reference, exit codes, and source-owner rules: docs/cli-reference.md
 
 # Build SkiaSharp image backend / Avalonia GUI
-dotnet build FEBuilderGBA.SkiaSharp/FEBuilderGBA.SkiaSharp.csproj
-dotnet build FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj
+dotnet restore FEBuilderGBA.SkiaSharp/FEBuilderGBA.SkiaSharp.csproj
+dotnet build FEBuilderGBA.SkiaSharp/FEBuilderGBA.SkiaSharp.csproj --no-restore -warnaserror
+dotnet restore FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj
+dotnet build FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj --no-restore -warnaserror
 
 # Run the Avalonia GUI with a ROM (or open a decomp project preview)
 dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba
@@ -559,7 +572,7 @@ format remains partial by design (#1150).
 Two distinct paths exist, both covered in detail in [docs/CROSS_PLATFORM.md → Running on Android](docs/CROSS_PLATFORM.md#running-on-android):
 
 - **Emulation (Gamenative/Winlator)** — run the Windows *desktop* build under Wine + Box86/Box64. User-side, **experimental / unsupported / community-tested**; try the Avalonia `win-x64` build first.
-- **Native Android app** — a separate port of the Avalonia GUI, tracked as exploration epic [#1070](https://github.com/laqieer/FEBuilderGBA/issues/1070). **Experimental / preview — not shipped as a full ROM-editing app.** It builds a signed APK and an emulator **boot smoke test** ([#1640](https://github.com/laqieer/FEBuilderGBA/issues/1640)) now proves the real app launches into its single-view editor-launcher shell (config first-run extraction + Avalonia boot are **emulator-validated**, not merely build-only). What remains on-device-unvalidated is the *interactive* ROM-editing flow — SAF ROM open/save (#1124) and reaching/using an editor need the system file picker + touch UX, which a non-interactive CI smoke test cannot drive — so the head stays experimental/preview. See the evidence-backed feasibility assessment in [docs/ANDROID.md](docs/ANDROID.md) (Avalonia.Android lifetime, SkiaSharp native pin, SAF ROM access, `config/` bundling, the multi-window→single-activity gap, the boot smoke test) and the authored head skeleton in [`FEBuilderGBA.Android/`](FEBuilderGBA.Android/README.md).
+- **Native Android app** — a separate port of the Avalonia GUI, tracked as exploration epic [#1070](https://github.com/laqieer/FEBuilderGBA/issues/1070). **Experimental / preview — not shipped as a full ROM-editing app.** It builds a signed APK and an emulator **boot smoke test** ([#1640](https://github.com/laqieer/FEBuilderGBA/issues/1640)) now proves the real app launches into its single-view editor-launcher shell (config first-run extraction + Avalonia boot are **emulator-validated**, not merely build-only). The Android docs track the Avalonia 11.3.18 + SkiaSharp 3.119.4 + HarfBuzz 8.3.1.5 stack and the Android 16 KB baseline. What remains on-device-unvalidated is the *interactive* ROM-editing flow — SAF ROM open/save (#1124) and reaching/using an editor need the system file picker + touch UX, which a non-interactive CI smoke test cannot drive — so the head stays experimental/preview. See the evidence-backed feasibility assessment in [docs/ANDROID.md](docs/ANDROID.md) (Avalonia.Android lifetime, SkiaSharp native pin, SAF ROM access, `config/` bundling, the multi-window→single-activity gap, the boot smoke test) and the authored head skeleton in [`FEBuilderGBA.Android/`](FEBuilderGBA.Android/README.md).
   - **Emulator boot smoke test (#1640)** — `.github/workflows/android-emulator-parity.yml` gains an `android-boot-smoke` job that builds the real signed APK, installs it on an API-34 `x86_64` emulator, launches it via its LAUNCHER intent (`monkey` — robust against the CRC-mangled .NET-for-Android activity class name), and asserts the activity reaches the RESUMED state with no fatal exception (PID/package-scoped crash detection, so unrelated system crashes don't false-fail). Advisory / non-blocking (job context `android-boot-smoke`, never the required `build`). Logic in `scripts/android-boot-smoke.sh`.
   - **Stream-based ROM I/O for SAF (#1124)** — `ROM.LoadFromStream`/`SaveToStream` (+ async) share the byte-level seam with the existing path `Load`/`Save`, so the Avalonia head can open/save a ROM picked via `IStorageProvider` even when the SAF `content://` handle has no local filesystem path (it retains the `IStorageFile` and reads/writes through `OpenReadAsync`/`OpenWriteAsync`). Desktop path I/O is unchanged. The auto-save sidecar is redirected into app-private `{BaseDirectory}/autosave/` on Android (where the ROM's parent dir is not writable); the log and `config.xml` already resolve under `BaseDirectory` (`Context.FilesDir` on Android via #1123).
   - **Single-activity navigation model (#1122)** — the desktop multi-window editor model is reworked behind an `INavigationService` abstraction so the same `FEBuilderGBA.Avalonia/Services/WindowManager` API drives two backends. Desktop uses `DesktopNavigationService` (the original `.Show()`/`.ShowDialog()` multi-window behavior, **verbatim** — regression-safe), while Android uses `AndroidNavigationService`, a **single-view page/view-stack host with a back stack** built on a pure, desktop-unit-tested `NavigationStack` (modal-as-page, `PickFromEditor` result-await). `App` sets a `Views/MainView` shell under `ISingleViewApplicationLifetime` so the booted Android app presents the editor launcher. The #1873 rollout has converted the proof editor, the simple AI batch, script-driven simple batches spanning Item/Map/Event/Menu/Sound/WorldMap/Text/Tool/Status/Unit support/resource/menu/class-demo/ending/support-talk/unit-main editors, and the first self-close dialog/tool batch to embeddable `UserControl` editors; the remaining on-device runtime UX (touch + per-editor attached-`Window` dialogs/file pickers) is still tracked under [#1873](https://github.com/laqieer/FEBuilderGBA/issues/1873).
@@ -713,7 +726,8 @@ All 361 Avalonia `.axaml` files (360 views + 1 dialog) have `AutomationPropertie
 
 ```bash
 # Build the main application (Release, x86)
-dotnet msbuild FEBuilderGBA.sln /p:Configuration=Release /p:Platform=x86 /t:build /restore
+dotnet restore FEBuilderGBA.sln -c Release -p:Platform=x86
+dotnet build FEBuilderGBA.sln -c Release -p:Platform=x86 --no-restore -warnaserror
 
 # Run without ROMs — 13 passed, 32 skipped (fast, ~20 s)
 ROMS_DIR="" dotnet test FEBuilderGBA.E2ETests/FEBuilderGBA.E2ETests.csproj -c Release --no-build
