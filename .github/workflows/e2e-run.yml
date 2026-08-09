@@ -52,8 +52,11 @@ jobs:
         run: git submodule update --init config/patch2 tools/Event-Assembler tools/ColorzCore resources/fe-info
 
       # ---------------------------------------------------------------- Build bundled tools
+      - name: Restore ColorzCore (bundled EA tool)
+        run: dotnet restore tools/ColorzCore/ColorzCore/ColorzCore.csproj -p:Configuration=Release -p:TargetFramework=net10.0 -warnaserror
+
       - name: Build ColorzCore (bundled EA tool)
-        run: dotnet build tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release
+        run: dotnet build tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release --no-restore -p:TargetFramework=net10.0 -warnaserror
 
       # ---------------------------------------------------------------- x86 .NET 10 runtimes
       - name: Ensure x86 .NET 10 runtimes
@@ -93,6 +96,7 @@ jobs:
           dotnet msbuild FEBuilderGBA.sln `
             /p:Configuration=Release /p:Platform=x86 `
             /t:restore,build `
+            /warnaserror `
             /m
 
       # ---------------------------------------------------------------- Download ROMs (skip for 'none')
@@ -255,7 +259,7 @@ jobs:
 
       # ---------------------------------------------------------------- Build Avalonia
       - name: Build Avalonia (for screenshot tests)
-        run: dotnet build FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release
+        run: dotnet build FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release -warnaserror
 
       # ---------------------------------------------------------------- Diagnostic probe
       - name: Diagnostic - probe app startup

@@ -71,7 +71,7 @@ class CrossPlatformWorkflowContractTests(unittest.TestCase):
     def test_contract_job_gates_parallel_dotnet_jobs(self) -> None:
         contract_steps = dict(named_steps(self.jobs["workflow-contract"]))
         self.assertEqual(
-            "python -m unittest scripts/tests/test_crossplatform_workflow.py -v",
+            "python -m unittest scripts.tests.test_crossplatform_workflow scripts.tests.test_build_warning_contract -v",
             run_command(contract_steps["Validate fail-closed .NET workflow steps"]),
         )
         self.assertRegex(self.jobs["build"], r"(?m)^    needs: workflow-contract$")
@@ -148,10 +148,39 @@ class CrossPlatformWorkflowContractTests(unittest.TestCase):
                     self.assertEqual(expected_verb, invocation.group("verb"))
                     self.assertEqual(expected_project, invocation.group("project"))
                     tokens = shlex.split(command)
+                    self.assertIn("-warnaserror", tokens)
                     self.assertIn("--disable-build-servers", tokens)
                     self.assertIn("-p:UseSharedCompilation=false", tokens)
                     self.assertNotIn("|| true", command)
                     self.assertNotRegex(command, r"\bretry\b")
+
+    def test_colorzcore_restore_steps_pair_with_no_restore_compiles(self) -> None:
+        build_steps = dict(named_steps(self.jobs["build"]))
+        publish_steps = dict(named_steps(self.jobs["publish"]))
+
+        build_restore = run_command(build_steps["Restore ColorzCore (bundled EA tool)"])
+        build_compile = run_command(build_steps["Build ColorzCore (bundled EA tool)"])
+        self.assertEqual(
+            "dotnet restore tools/ColorzCore/ColorzCore/ColorzCore.csproj -p:Configuration=Release -p:TargetFramework=net10.0 -warnaserror --disable-build-servers -p:UseSharedCompilation=false",
+            build_restore,
+        )
+        for required in ("--no-restore", "-p:TargetFramework=net10.0", "-warnaserror"):
+            self.assertIn(required, shlex.split(build_compile))
+
+        publish_restore = run_command(publish_steps["Restore ColorzCore (self-contained per-RID)"])
+        publish_compile = run_command(publish_steps["Publish ColorzCore (self-contained per-RID)"])
+        self.assertEqual(
+            "dotnet restore tools/ColorzCore/ColorzCore/ColorzCore.csproj -r ${{ matrix.rid }} -p:Configuration=Release -p:SelfContained=true -p:TargetFramework=net10.0 -warnaserror --disable-build-servers -p:UseSharedCompilation=false",
+            publish_restore,
+        )
+        for required in (
+            "-r ${{ matrix.rid }}",
+            "--self-contained true",
+            "--no-restore",
+            "-p:TargetFramework=net10.0",
+            "-warnaserror",
+        ):
+            self.assertIn(required, publish_compile)
 
     def test_avalonia_operations_have_live_runner_timeouts(self) -> None:
         build_steps = dict(named_steps(self.jobs["build"]))

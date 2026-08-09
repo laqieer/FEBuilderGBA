@@ -75,6 +75,7 @@ jobs:
         run: |
           dotnet publish FEBuilderGBA.Browser/FEBuilderGBA.Browser.csproj \
             -c ${{ env.BUILD_CONFIGURATION }} \
+            -warnaserror \
             -p:EnableBrowserTarget=true \
             -p:WasmEnableThreads=false \
             -p:PublishTrimmed=false \
@@ -158,6 +159,7 @@ jobs:
           E2E_PUBLISH="$GITHUB_WORKSPACE/browser-e2e-publish"
           dotnet publish FEBuilderGBA.Browser/FEBuilderGBA.Browser.csproj \
             -c ${{ env.BUILD_CONFIGURATION }} \
+            -warnaserror \
             -p:EnableBrowserTarget=true \
             -p:WasmEnableThreads=false \
             -p:PublishTrimmed=false \

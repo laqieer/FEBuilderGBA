@@ -70,14 +70,17 @@ jobs:
         "DOTNET_ROOT(x86)=$root" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
         "DOTNET_ROOT_X86=$root" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
+    - name: Restore ColorzCore (self-contained Windows x86)
+      run: dotnet restore tools/ColorzCore/ColorzCore/ColorzCore.csproj -r win-x86 -p:Configuration=${{env.BUILD_CONFIGURATION}} -p:SelfContained=true -p:TargetFramework=net10.0 -warnaserror
+
     - name: Publish ColorzCore (self-contained Windows x86)
-      run: dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c ${{env.BUILD_CONFIGURATION}} -r win-x86 --self-contained true -o tools/publish
+      run: dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c ${{env.BUILD_CONFIGURATION}} -r win-x86 --self-contained true --no-restore -p:TargetFramework=net10.0 -warnaserror -o tools/publish
 
     - name: Build
       working-directory: ${{env.GITHUB_WORKSPACE}}
       # Use the .NET 10 SDK's MSBuild engine rather than Visual Studio's older SDK resolver.
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
-      run: dotnet msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:Platform=${{env.BUILD_PLATFORM}} /t:build /restore ${{env.SOLUTION_FILE_PATH}}
+      run: dotnet msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:Platform=${{env.BUILD_PLATFORM}} /t:build /restore /warnaserror ${{env.SOLUTION_FILE_PATH}}
 
     # ------------------------------------------------------------------------
     # Conditional Authenticode signing of the WinForms FEBuilderGBA.exe (#1634).
@@ -223,7 +226,7 @@ jobs:
 
     - name: Restore and Build Test Project
       if: always()
-      run: dotnet build FEBuilderGBA.Tests/FEBuilderGBA.Tests.csproj --configuration ${{env.BUILD_CONFIGURATION}}
+      run: dotnet build FEBuilderGBA.Tests/FEBuilderGBA.Tests.csproj --configuration ${{env.BUILD_CONFIGURATION}} -warnaserror
 
     - name: Re-run Tests with JUnit Logger
       if: always()

@@ -93,7 +93,7 @@ jobs:
       run: bash scripts/install-mgba-playtest.sh --python=python3 --force
 
     - name: Publish canonical CLI surface
-      run: dotnet publish FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj -c Release -o playtest-cli
+      run: dotnet publish FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj -c Release -warnaserror -o playtest-cli
 
     - name: Run native phase smoke (no artifacts)
       id: native_smoke
@@ -188,6 +188,7 @@ jobs:
       run: >-
         dotnet publish FEBuilderGBA.CLI\FEBuilderGBA.CLI.csproj
         -c Release
+        -warnaserror
         -o playtest-cli
 
     - name: Run native phase smoke (no artifacts)

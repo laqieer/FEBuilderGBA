@@ -134,14 +134,17 @@ jobs:
     - name: Init build-required submodules
       run: git submodule update --init config/patch2 tools/Event-Assembler tools/ColorzCore resources/fe-info
 
+    - name: Restore ColorzCore (bundled EA tool)
+      run: dotnet restore tools/ColorzCore/ColorzCore/ColorzCore.csproj -p:Configuration=${{env.BUILD_CONFIGURATION}} -p:TargetFramework=net10.0 -warnaserror
+
     - name: Build ColorzCore (bundled EA tool)
-      run: dotnet build tools/ColorzCore/ColorzCore/ColorzCore.csproj -c ${{env.BUILD_CONFIGURATION}}
+      run: dotnet build tools/ColorzCore/ColorzCore/ColorzCore.csproj -c ${{env.BUILD_CONFIGURATION}} --no-restore -p:TargetFramework=net10.0 -warnaserror
 
     - name: Build
       working-directory: ${{env.GITHUB_WORKSPACE}}
       # Use the .NET 10 SDK's MSBuild engine rather than Visual Studio's older SDK resolver.
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
-      run: dotnet msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:Platform=${{env.BUILD_PLATFORM}} /t:build /restore ${{env.SOLUTION_FILE_PATH}}
+      run: dotnet msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:Platform=${{env.BUILD_PLATFORM}} /t:build /restore /warnaserror ${{env.SOLUTION_FILE_PATH}}
 
     - name: Run Tests
       run: dotnet test --configuration ${{env.BUILD_CONFIGURATION}} --no-build --verbosity normal --logger "trx" --collect:"XPlat Code Coverage" --settings coverlet.runsettings
@@ -192,7 +195,7 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Restore + build FEBuilderGBA.Avalonia
-        run: dotnet build FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release
+        run: dotnet build FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release -warnaserror
 
       - name: Run static-analysis sweeps
         shell: bash
