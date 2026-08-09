@@ -32,7 +32,8 @@ guard="$hook_dir/copilot_context_guard.py"
 
 python_bin=""
 for candidate in python3 python; do
-  if command -v "$candidate" >/dev/null 2>&1; then
+  if command -v "$candidate" >/dev/null 2>&1 \
+      && "$candidate" -c 'import sys' </dev/null >/dev/null 2>&1; then
     python_bin="$candidate"
     break
   fi

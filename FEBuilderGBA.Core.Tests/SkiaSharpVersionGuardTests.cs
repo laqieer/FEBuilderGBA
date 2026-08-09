@@ -244,6 +244,49 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        [Fact]
+        public void RestoredAssetsGraph_AcceptsValidContentAfterNoOpRestoreTimestampSkew()
+        {
+            string? root = FindRepoRoot();
+            Skip.If(root == null, "source tree / FEBuilderGBA.sln not found");
+
+            string scratchRoot = Path.Combine(root, ".scratch", "SkiaSharpVersionGuardTests", Guid.NewGuid().ToString("N"));
+            string[] projects =
+            {
+                "FEBuilderGBA.SkiaSharp",
+                "FEBuilderGBA.CLI",
+                "FEBuilderGBA.Core.Tests",
+            };
+            try
+            {
+                foreach (string project in projects)
+                {
+                    string sourceProjectDir = Path.Combine(root, project);
+                    string scratchProjectDir = Path.Combine(scratchRoot, project);
+                    string scratchObjDir = Path.Combine(scratchProjectDir, "obj");
+                    Directory.CreateDirectory(scratchObjDir);
+                    File.Copy(
+                        Path.Combine(sourceProjectDir, project + ".csproj"),
+                        Path.Combine(scratchProjectDir, project + ".csproj"));
+                    string scratchAssets = Path.Combine(scratchObjDir, "project.assets.json");
+                    File.Copy(
+                        Path.Combine(sourceProjectDir, "obj", "project.assets.json"),
+                        scratchAssets);
+                    File.SetLastWriteTimeUtc(scratchAssets, DateTime.UtcNow.AddMinutes(-5));
+                    File.SetLastWriteTimeUtc(
+                        Path.Combine(scratchProjectDir, project + ".csproj"),
+                        DateTime.UtcNow);
+                }
+
+                AssertCoreTestsRestoreGraphs_ResolveOnly_2067_GraphicsStack(scratchRoot);
+            }
+            finally
+            {
+                if (Directory.Exists(scratchRoot))
+                    Directory.Delete(scratchRoot, true);
+            }
+        }
+
         static void AssertCoreTestsRestoreGraphs_ResolveOnly_2067_GraphicsStack(string root)
         {
             // Core.Tests guarantees these restore graphs: the managed SkiaSharp
@@ -265,8 +308,6 @@ namespace FEBuilderGBA.Core.Tests
             {
                 Assert.True(File.Exists(assetsPath),
                     $"{name} project.assets.json is required for the Core.Tests restore-graph guard (no silent skip for missing required graphs)");
-                Assert.False(IsStaleAssetsFile(assetsPath),
-                    $"{name} project.assets.json is stale relative to its csproj(s); rebuild before running the Core.Tests restore-graph guard");
                 filesScanned++;
 
                 using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(assetsPath));
@@ -358,26 +399,6 @@ namespace FEBuilderGBA.Core.Tests
         {
             return name.StartsWith("SkiaSharp", StringComparison.OrdinalIgnoreCase)
                 || name.StartsWith("HarfBuzzSharp", StringComparison.OrdinalIgnoreCase);
-        }
-
-        static bool IsStaleAssetsFile(string assetsPath)
-        {
-            DirectoryInfo? objDir = Directory.GetParent(assetsPath);
-            DirectoryInfo? projectDir = objDir?.Parent;
-            if (projectDir == null)
-                return false;
-
-            string[] csprojs = Directory.GetFiles(projectDir.FullName, "*.csproj", SearchOption.TopDirectoryOnly);
-            if (csprojs.Length == 0)
-                return false;
-
-            DateTime assetsTime = File.GetLastWriteTimeUtc(assetsPath);
-            foreach (string csproj in csprojs)
-            {
-                if (File.GetLastWriteTimeUtc(csproj) > assetsTime)
-                    return true;
-            }
-            return false;
         }
 
         static string ExpectedVersionForPackage(string name)
