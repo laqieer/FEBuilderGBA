@@ -137,10 +137,13 @@ git submodule update --init --recursive
 **Bundled Tools:** [Event Assembler](https://github.com/laqieer/Event-Assembler) and [ColorzCore](https://github.com/FireEmblemUniverse/ColorzCore) are included as submodules in `tools/`. Event Assembler is treated here as an external source/prebuilt submodule; its upstream solution is stale and is not a parent-supported build target. If no external EA path is configured, FEBuilderGBA automatically uses the bundled tools. To rebuild ColorzCore locally, restore first and then build/publish with warnings as errors:
 ```bash
 git submodule update --init tools/Event-Assembler tools/ColorzCore
-dotnet restore tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release
-dotnet build tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release --no-restore -warnaserror
-dotnet restore tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release -r linux-x64 -p:SelfContained=true
-dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release -r linux-x64 -p:SelfContained=true --no-restore -warnaserror
+dotnet restore tools/ColorzCore/ColorzCore/ColorzCore.csproj -p:Configuration=Release -p:TargetFramework=net10.0 -warnaserror
+dotnet build tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release --no-restore -p:TargetFramework=net10.0 -warnaserror
+
+# Self-contained executable used by ToolPathResolver/releases.
+# Replace win-x86 with linux-x64, osx-x64, or osx-arm64 as needed.
+dotnet restore tools/ColorzCore/ColorzCore/ColorzCore.csproj -r win-x86 -p:Configuration=Release -p:SelfContained=true -p:TargetFramework=net10.0 -warnaserror
+dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release -r win-x86 --self-contained true --no-restore -p:TargetFramework=net10.0 -warnaserror -o tools/bin
 ```
 
 **Runtime note:** All releases (WinForms, CLI, Avalonia) ship ColorzCore as a self-contained executable, requiring no additional .NET runtime.
