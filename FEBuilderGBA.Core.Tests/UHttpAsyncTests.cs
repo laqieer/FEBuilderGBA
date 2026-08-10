@@ -153,35 +153,54 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public async Task HttpHeadLastModifiedAsync_CallerCancellation_Throws()
         {
+            var handlerEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
             var handler = new RecordingHandler(async (_, token) =>
             {
-                await Task.Delay(TimeSpan.FromSeconds(30), token);
+                handlerEntered.TrySetResult(true);
+                await Task.Delay(Timeout.InfiniteTimeSpan, token);
                 return new HttpResponseMessage(HttpStatusCode.OK);
             });
-            using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(20));
+            using var cts = new CancellationTokenSource();
 
-            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-                U.HttpHeadLastModifiedAsync(
-                    "https://example.test/slow", handler, TimeSpan.FromSeconds(5), cts.Token));
+            Task<string?> request = U.HttpHeadLastModifiedAsync(
+                "https://example.test/slow",
+                handler,
+                TimeSpan.FromSeconds(5),
+                cts.Token);
+            await handlerEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            cts.Cancel();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => request);
         }
 
         [Fact]
         public async Task HttpGetAsync_CallerCancellation_Throws()
         {
+            var handlerEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
             var handler = new RecordingHandler(async (_, token) =>
             {
-                await Task.Delay(TimeSpan.FromSeconds(30), token);
+                handlerEntered.TrySetResult(true);
+                await Task.Delay(Timeout.InfiniteTimeSpan, token);
                 return new HttpResponseMessage(HttpStatusCode.OK)
                 {
                     Content = new StringContent("late"),
                 };
             });
-            using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(20));
+            using var cts = new CancellationTokenSource();
 
-            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-                U.HttpGetAsync(
-                    "https://example.test/slow", "", null,
-                    handler, TimeSpan.FromSeconds(5), cts.Token));
+            Task<string> request = U.HttpGetAsync(
+                "https://example.test/slow",
+                "",
+                null,
+                handler,
+                TimeSpan.FromSeconds(5),
+                cts.Token);
+            await handlerEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            cts.Cancel();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => request);
         }
 
         [Fact]

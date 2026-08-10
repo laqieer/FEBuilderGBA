@@ -30,6 +30,7 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    timeout-minutes: 120
 
     steps:
     - uses: actions/checkout@v4
@@ -147,7 +148,38 @@ jobs:
       run: dotnet msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:Platform=${{env.BUILD_PLATFORM}} /t:build /restore /warnaserror ${{env.SOLUTION_FILE_PATH}}
 
     - name: Run Tests
-      run: dotnet test --configuration ${{env.BUILD_CONFIGURATION}} --no-build --verbosity normal --logger "trx" --collect:"XPlat Code Coverage" --settings coverlet.runsettings
+      shell: pwsh
+      timeout-minutes: 90
+      run: |
+        $projects = @(
+          "FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj"
+          "FEBuilderGBA.Avalonia.Tests/FEBuilderGBA.Avalonia.Tests.csproj"
+          "FEBuilderGBA.Tests/FEBuilderGBA.Tests.csproj"
+          "FEBuilderGBA.E2ETests/FEBuilderGBA.E2ETests.csproj"
+        )
+        $failedProjects = @()
+        foreach ($project in $projects) {
+          Write-Host "::group::dotnet test $project"
+          dotnet test $project `
+            --configuration ${{env.BUILD_CONFIGURATION}} `
+            --no-build `
+            --verbosity normal `
+            --logger "trx" `
+            --collect "XPlat Code Coverage" `
+            --settings coverlet.runsettings `
+            --blame-hang `
+            --blame-hang-timeout 20m
+          $exitCode = $LASTEXITCODE
+          Write-Host "::endgroup::"
+          if ($exitCode -ne 0) {
+            $failedProjects += $project
+            Write-Host "::error title=Test project failed::$project exited with code $exitCode"
+          }
+        }
+        if ($failedProjects.Count -gt 0) {
+          Write-Host "::error title=Test projects failed::$($failedProjects -join ', ')"
+          exit 1
+        }
 
     - name: Publish Test Results
       if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
