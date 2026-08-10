@@ -185,7 +185,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _ = MessageBoxWindow.Show(this, R._("File not found:") + $" {path}", R._("Error"), MessageBoxMode.Ok);
                 return;
             }
-            bool ok = LoadRomFile(path);
+            bool ok = LoadRecentRomFile(path);
             if (!ok)
             {
                 _ = MessageBoxWindow.Show(this, R._("Failed to load ROM:") + $" {path}", R._("Error"), MessageBoxMode.Ok);
@@ -750,6 +750,33 @@ namespace FEBuilderGBA.Avalonia.Views
         /// </summary>
         public bool LoadRomFile(string path)
             => LoadRomFile(path, null);
+
+        /// <summary>
+        /// Shared recent/last-ROM load path. Recovers a matching decomp project before
+        /// loading, falls back to plain-ROM mode, and clears project mode on failure.
+        /// </summary>
+        internal bool LoadRecentRomFile(
+            string path,
+            Func<string, string?, bool>? loadRomOverride = null)
+        {
+            DecompProject? project = DecompProjectDetector.DetectForRom(path);
+            CoreState.DecompProject = project;
+
+            bool ok = false;
+            try
+            {
+                ok = loadRomOverride != null
+                    ? loadRomOverride(path, project?.ForceVersion)
+                    : LoadRomFile(path, project?.ForceVersion);
+                return ok;
+            }
+            finally
+            {
+                if (!ok)
+                    CoreState.DecompProject = null;
+                UpdateDecompBadge();
+            }
+        }
 
         /// <summary>
         /// Load a ROM file, optionally forcing the version detection (#1134).
@@ -2797,16 +2824,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 return;
             }
 
-            // Opening a plain ROM clears any active decomp project (#1129). Cleared
-            // only after we know a real last ROM exists to load.
-            CoreState.DecompProject = null;
-
-            bool ok = LoadRomFile(lastPath);
+            bool ok = LoadRecentRomFile(lastPath);
             if (!ok)
             {
                 _ = MessageBoxWindow.Show(this, R._("Failed to load ROM:") + $" {lastPath}", R._("Error"), MessageBoxMode.Ok);
             }
-            UpdateDecompBadge();
         }
 
         private void Undo_Click(object? sender, RoutedEventArgs e)

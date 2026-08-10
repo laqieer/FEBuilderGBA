@@ -25,6 +25,13 @@ namespace FEBuilderGBA.Core.Tests
             return dir;
         }
 
+        static string NewIssue2071TestDir()
+        {
+            string dir = Path.Combine(AppContext.BaseDirectory, "issue2071_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            return dir;
+        }
+
         static void WriteFile(string dir, string name, string content)
             => File.WriteAllText(Path.Combine(dir, name), content);
 
@@ -212,6 +219,166 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Null(DecompProjectDetector.Detect(dir));
             Assert.Null(DecompProjectDetector.Detect(null!));
             Assert.Null(DecompProjectDetector.Detect(""));
+        }
+
+        // ---- DetectForRom: recent/last-ROM project recovery -----------------
+
+        [Fact]
+        public void DetectForRom_MatchingNestedProject_RestoresBuiltRomPath()
+        {
+            string dir = NewIssue2071TestDir();
+            try
+            {
+                string outputDir = Path.Combine(dir, "build", "release");
+                Directory.CreateDirectory(outputDir);
+                WriteFile(dir, DecompProject.ManifestFileName,
+                    "{ \"schemaVersion\": 1, \"builtRom\": \"build/release/game.gba\" }");
+                TouchGba(outputDir, "game.gba");
+                string selectedRom = Path.Combine(outputDir, "game.gba");
+
+                var project = DecompProjectDetector.DetectForRom(selectedRom);
+
+                Assert.NotNull(project);
+                Assert.Equal(Path.GetFullPath(dir), project.ProjectRoot);
+                Assert.Equal(Path.GetFullPath(selectedRom), project.BuiltRomPath);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void DetectForRom_PlainRomInDeepTree_ReturnsNullAndTerminatesAtRoot()
+        {
+            string dir = NewIssue2071TestDir();
+            try
+            {
+                string nested = Path.Combine(dir, "one", "two", "three");
+                Directory.CreateDirectory(nested);
+                TouchGba(nested, "plain.gba");
+
+                Assert.Null(DecompProjectDetector.DetectForRom(Path.Combine(nested, "plain.gba")));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void DetectForRom_ProjectWithDifferentBuiltRom_ReturnsNull()
+        {
+            string dir = NewIssue2071TestDir();
+            try
+            {
+                string outputDir = Path.Combine(dir, "build");
+                Directory.CreateDirectory(outputDir);
+                WriteFile(dir, DecompProject.ManifestFileName,
+                    "{ \"schemaVersion\": 1, \"builtRom\": \"build/project.gba\" }");
+                TouchGba(outputDir, "project.gba");
+                TouchGba(outputDir, "other.gba");
+
+                Assert.Null(DecompProjectDetector.DetectForRom(Path.Combine(outputDir, "other.gba")));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [SkippableFact]
+        public void DetectForRom_CaseDistinctExistingRomDoesNotMatch()
+        {
+            string dir = NewIssue2071TestDir();
+            try
+            {
+                string outputDir = Path.Combine(dir, "build");
+                Directory.CreateDirectory(outputDir);
+                WriteFile(dir, DecompProject.ManifestFileName,
+                    "{ \"schemaVersion\": 1, \"builtRom\": \"build/Game.gba\" }");
+                TouchGba(outputDir, "Game.gba");
+                TouchGba(outputDir, "game.gba");
+                string builtRom = Path.Combine(outputDir, "Game.gba");
+                string selectedRom = Path.Combine(outputDir, "game.gba");
+
+                Skip.If(
+                    ProjectionFileSystemSafety.SameExistingFileSystemEntry(
+                        builtRom,
+                        selectedRom),
+                    "The test filesystem is case-insensitive.");
+
+                Assert.Null(DecompProjectDetector.DetectForRom(selectedRom));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void DetectForRom_IdentityFailureAtChildContinuesToParentProject()
+        {
+            string dir = NewIssue2071TestDir();
+            try
+            {
+                string child = Path.Combine(dir, "child");
+                string outputDir = Path.Combine(child, "build");
+                Directory.CreateDirectory(outputDir);
+                WriteFile(dir, DecompProject.ManifestFileName,
+                    "{ \"schemaVersion\": 1, \"builtRom\": \"child/build/game.gba\" }");
+                WriteFile(child, DecompProject.ManifestFileName,
+                    "{ \"schemaVersion\": 1, \"builtRom\": \"build/game.gba\" }");
+                TouchGba(outputDir, "game.gba");
+                string selectedRom = Path.Combine(outputDir, "game.gba");
+                int identityChecks = 0;
+
+                var project = DecompProjectDetector.DetectForRom(
+                    selectedRom,
+                    (_, _) =>
+                    {
+                        identityChecks++;
+                        if (identityChecks == 1)
+                            throw new IOException("simulated child identity failure");
+                        return true;
+                    });
+
+                Assert.NotNull(project);
+                Assert.Equal(Path.GetFullPath(dir), project.ProjectRoot);
+                Assert.Equal(2, identityChecks);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [SkippableFact]
+        public void DetectForRom_FinalSymlinkToBuiltRomMatchesProject()
+        {
+            string dir = NewIssue2071TestDir();
+            try
+            {
+                string outputDir = Path.Combine(dir, "build");
+                Directory.CreateDirectory(outputDir);
+                WriteFile(dir, DecompProject.ManifestFileName,
+                    "{ \"schemaVersion\": 1, \"builtRom\": \"build/game.gba\" }");
+                TouchGba(outputDir, "game.gba");
+                string builtRom = Path.Combine(outputDir, "game.gba");
+                string recentAlias = Path.Combine(outputDir, "recent.gba");
+                try
+                {
+                    File.CreateSymbolicLink(recentAlias, builtRom);
+                }
+                catch (Exception ex) when (
+                    ex is PlatformNotSupportedException
+                    or UnauthorizedAccessException
+                    or IOException)
+                {
+                    Skip.If(true, "Symbolic links are unavailable: " + ex.Message);
+                }
+
+                var project = DecompProjectDetector.DetectForRom(recentAlias);
+
+                Assert.NotNull(project);
+                Assert.Equal(Path.GetFullPath(dir), project.ProjectRoot);
+                Assert.Equal(Path.GetFullPath(builtRom), project.BuiltRomPath);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void DetectForRom_InvalidPath_ReturnsNullNoThrow()
+        {
+            Assert.Null(DecompProjectDetector.DetectForRom(null!));
+            Assert.Null(DecompProjectDetector.DetectForRom(""));
+            Assert.Null(DecompProjectDetector.DetectForRom(
+                Path.Combine(AppContext.BaseDirectory, "missing_" + Guid.NewGuid().ToString("N") + ".gba")));
         }
 
         // ---- ResolveBuiltRom -------------------------------------------------
