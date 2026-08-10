@@ -416,12 +416,14 @@ class BuildWarningContractTests(unittest.TestCase):
         )
 
         self.assertIn("$failedProjects = @()", command)
+        self.assertIn("$PSNativeCommandUseErrorActionPreference = $false", command)
         self.assertIn("foreach ($project in $projects)", command)
         self.assertIn("$exitCode = $LASTEXITCODE", command)
         self.assertIn("$failedProjects += $project", command)
         self.assertIn("if ($failedProjects.Count -gt 0)", command)
-        self.assertRegex(command, r"(?m)^\s*exit 1\s*$")
         self.assertNotIn("break", command)
+        exit_matches = list(re.finditer(r"(?m)^\s*exit 1\s*$", command))
+        self.assertEqual(1, len(exit_matches))
         self.assertLess(
             command.index("$exitCode = $LASTEXITCODE"),
             command.index("$failedProjects += $project"),
@@ -429,6 +431,10 @@ class BuildWarningContractTests(unittest.TestCase):
         self.assertLess(
             command.index("$failedProjects += $project"),
             command.index("if ($failedProjects.Count -gt 0)"),
+        )
+        self.assertLess(
+            command.index("if ($failedProjects.Count -gt 0)"),
+            exit_matches[0].start(),
         )
 
     def test_every_workflow_compilation_is_warning_as_error(self) -> None:
