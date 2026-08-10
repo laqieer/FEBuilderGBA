@@ -728,10 +728,6 @@ namespace FEBuilderGBA
                     return null;
 
                 string current = Path.GetDirectoryName(selectedRom);
-                StringComparison comparison =
-                    OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
-                        ? StringComparison.OrdinalIgnoreCase
-                        : StringComparison.Ordinal;
 
                 while (!string.IsNullOrEmpty(current))
                 {
@@ -743,7 +739,7 @@ namespace FEBuilderGBA
                             && !string.IsNullOrEmpty(resolved.Path))
                         {
                             string builtRom = Path.GetFullPath(resolved.Path);
-                            if (string.Equals(selectedRom, builtRom, comparison))
+                            if (BuildfilePathSafety.SamePhysicalFile(selectedRom, builtRom))
                             {
                                 project.BuiltRomPath = builtRom;
                                 return project;
@@ -756,7 +752,7 @@ namespace FEBuilderGBA
                         break;
 
                     string parentPath = Path.GetFullPath(parent.FullName);
-                    if (string.Equals(current, parentPath, comparison))
+                    if (string.Equals(current, parentPath, StringComparison.Ordinal))
                         break;
                     current = parentPath;
                 }

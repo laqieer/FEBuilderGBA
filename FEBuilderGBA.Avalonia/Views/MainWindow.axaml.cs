@@ -755,15 +755,19 @@ namespace FEBuilderGBA.Avalonia.Views
         /// Shared recent/last-ROM load path. Recovers a matching decomp project before
         /// loading, falls back to plain-ROM mode, and clears project mode on failure.
         /// </summary>
-        internal bool LoadRecentRomFile(string path, Func<string, bool>? loadRomOverride = null)
+        internal bool LoadRecentRomFile(
+            string path,
+            Func<string, string?, bool>? loadRomOverride = null)
         {
-            CoreState.DecompProject = DecompProjectDetector.DetectForRom(path);
+            DecompProject? project = DecompProjectDetector.DetectForRom(path);
+            CoreState.DecompProject = project;
 
             bool ok = false;
             try
             {
-                Func<string, bool> loadRom = loadRomOverride ?? LoadRomFile;
-                ok = loadRom(path);
+                ok = loadRomOverride != null
+                    ? loadRomOverride(path, project?.ForceVersion)
+                    : LoadRomFile(path, project?.ForceVersion);
                 return ok;
             }
             finally

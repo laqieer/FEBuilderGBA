@@ -34,13 +34,17 @@ public sealed class RecentFileProjectModeTests
         return dir;
     }
 
-    static string CreateDecompRom(string root)
+    static string CreateDecompRom(string root, string? forceVersion = null)
     {
         string outputDir = Path.Combine(root, "build", "release");
         Directory.CreateDirectory(outputDir);
+        string forceVersionJson = forceVersion == null
+            ? ""
+            : $", \"forceVersion\": \"{forceVersion}\"";
         File.WriteAllText(
             Path.Combine(root, DecompProject.ManifestFileName),
-            "{ \"schemaVersion\": 1, \"builtRom\": \"build/release/game.gba\" }");
+            "{ \"schemaVersion\": 1, \"builtRom\": \"build/release/game.gba\""
+            + forceVersionJson + " }");
         string romPath = Path.Combine(outputDir, "game.gba");
         File.WriteAllBytes(romPath, new byte[] { 0, 1, 2, 3 });
         return romPath;
@@ -62,9 +66,10 @@ public sealed class RecentFileProjectModeTests
             };
             using var harness = new MainWindowHarness();
 
-            bool loaded = harness.Window.LoadRecentRomFile(plainRom, path =>
+            bool loaded = harness.Window.LoadRecentRomFile(plainRom, (path, forceVersion) =>
             {
                 Assert.Equal(plainRom, path);
+                Assert.Null(forceVersion);
                 Assert.Null(CoreState.DecompProject);
                 return true;
             });
@@ -90,7 +95,7 @@ public sealed class RecentFileProjectModeTests
             CoreState.DecompProject = null;
             using var harness = new MainWindowHarness();
 
-            bool loaded = harness.Window.LoadRecentRomFile(decompRom, path =>
+            bool loaded = harness.Window.LoadRecentRomFile(decompRom, (path, _) =>
             {
                 Assert.Equal(decompRom, path);
                 Assert.NotNull(CoreState.DecompProject);
@@ -121,7 +126,7 @@ public sealed class RecentFileProjectModeTests
             using var harness = new MainWindowHarness();
             DecompProject? projectDuringLoad = null;
 
-            bool loaded = harness.Window.LoadRecentRomFile(decompRom, _ =>
+            bool loaded = harness.Window.LoadRecentRomFile(decompRom, (_, _) =>
             {
                 projectDuringLoad = CoreState.DecompProject;
                 return false;
@@ -152,9 +157,40 @@ public sealed class RecentFileProjectModeTests
             Assert.Throws<InvalidOperationException>(() =>
                 harness.Window.LoadRecentRomFile(
                     decompRom,
-                    _ => throw new InvalidOperationException("load failed")));
+                    (_, _) => throw new InvalidOperationException("load failed")));
 
             Assert.Null(CoreState.DecompProject);
+        }
+        finally
+        {
+            CoreState.DecompProject = previousProject;
+            Directory.Delete(dir, true);
+        }
+    }
+
+    [AvaloniaFact]
+    public void RecentLoad_PassesRecoveredForceVersionToLoader()
+    {
+        string dir = NewTestDir();
+        DecompProject? previousProject = CoreState.DecompProject;
+        try
+        {
+            string decompRom = CreateDecompRom(dir, forceVersion: "FE8J");
+            CoreState.DecompProject = null;
+            using var harness = new MainWindowHarness();
+            string? seenForceVersion = null;
+
+            bool loaded = harness.Window.LoadRecentRomFile(
+                decompRom,
+                (_, forceVersion) =>
+                {
+                    seenForceVersion = forceVersion;
+                    return true;
+                });
+
+            Assert.True(loaded);
+            Assert.Equal("FE8J", seenForceVersion);
+            Assert.Equal("FE8J", CoreState.DecompProject?.ForceVersion);
         }
         finally
         {

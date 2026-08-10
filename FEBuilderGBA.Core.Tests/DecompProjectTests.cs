@@ -278,6 +278,30 @@ namespace FEBuilderGBA.Core.Tests
             finally { Directory.Delete(dir, true); }
         }
 
+        [SkippableFact]
+        public void DetectForRom_CaseDistinctExistingRomDoesNotMatch()
+        {
+            string dir = NewIssue2071TestDir();
+            try
+            {
+                string outputDir = Path.Combine(dir, "build");
+                Directory.CreateDirectory(outputDir);
+                WriteFile(dir, DecompProject.ManifestFileName,
+                    "{ \"schemaVersion\": 1, \"builtRom\": \"build/Game.gba\" }");
+                TouchGba(outputDir, "Game.gba");
+                TouchGba(outputDir, "game.gba");
+                string builtRom = Path.Combine(outputDir, "Game.gba");
+                string selectedRom = Path.Combine(outputDir, "game.gba");
+
+                Skip.If(
+                    BuildfilePathSafety.SamePhysicalFile(builtRom, selectedRom),
+                    "The test filesystem is case-insensitive.");
+
+                Assert.Null(DecompProjectDetector.DetectForRom(selectedRom));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
         [Fact]
         public void DetectForRom_InvalidPath_ReturnsNullNoThrow()
         {
