@@ -166,12 +166,13 @@ namespace FEBuilderGBA.Core.Tests
             Task<string?> request = U.HttpHeadLastModifiedAsync(
                 "https://example.test/slow",
                 handler,
-                TimeSpan.FromSeconds(5),
+                Timeout.InfiniteTimeSpan,
                 cts.Token);
             await handlerEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
             cts.Cancel();
 
-            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => request);
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(
+                () => request.WaitAsync(TimeSpan.FromSeconds(5)));
         }
 
         [Fact]
@@ -195,12 +196,13 @@ namespace FEBuilderGBA.Core.Tests
                 "",
                 null,
                 handler,
-                TimeSpan.FromSeconds(5),
+                Timeout.InfiniteTimeSpan,
                 cts.Token);
             await handlerEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
             cts.Cancel();
 
-            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => request);
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(
+                () => request.WaitAsync(TimeSpan.FromSeconds(5)));
         }
 
         [Fact]
