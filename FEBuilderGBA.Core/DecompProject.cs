@@ -713,6 +713,69 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Starting from a selected ROM, walk ancestor directories and recover the
+        /// decomp project whose resolved built ROM is that exact file. NEVER throws.
+        /// </summary>
+        public static DecompProject DetectForRom(string romPath)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(romPath))
+                    return null;
+
+                string selectedRom = Path.GetFullPath(romPath);
+                if (!File.Exists(selectedRom))
+                    return null;
+
+                string current = Path.GetDirectoryName(selectedRom);
+                StringComparison comparison =
+                    OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+                        ? StringComparison.OrdinalIgnoreCase
+                        : StringComparison.Ordinal;
+
+                while (!string.IsNullOrEmpty(current))
+                {
+                    var project = Detect(current);
+                    if (project != null)
+                    {
+                        var resolved = ResolveBuiltRom(current, project);
+                        if (resolved.Status == DecompResolveStatus.Ok
+                            && !string.IsNullOrEmpty(resolved.Path))
+                        {
+                            string builtRom = Path.GetFullPath(resolved.Path);
+                            if (string.Equals(selectedRom, builtRom, comparison))
+                            {
+                                project.BuiltRomPath = builtRom;
+                                return project;
+                            }
+                        }
+                    }
+
+                    var parent = Directory.GetParent(current);
+                    if (parent == null)
+                        break;
+
+                    string parentPath = Path.GetFullPath(parent.FullName);
+                    if (string.Equals(current, parentPath, comparison))
+                        break;
+                    current = parentPath;
+                }
+            }
+            catch (Exception ex) when (
+                ex is ArgumentException
+                or IOException
+                or NotSupportedException
+                or UnauthorizedAccessException
+                or System.Security.SecurityException)
+            {
+                // Guard every filesystem/path fault; recent-file loading falls back
+                // to ordinary ROM mode when no matching project can be recovered.
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Weighted heuristic score. Pure, guarded, never throws.
         /// Accept threshold (in <see cref="Detect"/>) is &gt;= 2.
         /// </summary>
