@@ -2569,7 +2569,7 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("LoadRecentFiles()", src);
             Assert.Contains("RecentFile_Click", src);
             Assert.Contains("RecentFileKeyPrefix", src); // Uses shared constant from MainWindowViewModel
-            Assert.Contains("LoadRomFile", src); // Directly loads ROM via MainWindow
+            Assert.Contains("LoadRecentRomFile", src); // Uses the state-safe recent ROM loader
         }
 
         // ================================================================
