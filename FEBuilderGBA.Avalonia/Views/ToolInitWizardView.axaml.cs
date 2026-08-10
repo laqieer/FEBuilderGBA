@@ -27,7 +27,6 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
-using global::Avalonia.Platform.Storage;
 using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
@@ -201,7 +200,9 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void OnRefEmulator_Click(object? sender, RoutedEventArgs e)
         {
-            string? picked = await PickExeFileAsync("Select Emulator");
+            string? picked = await PickExeFileAsync(
+                "Select Emulator",
+                allowMacApplicationBundle: true);
             if (picked != null)
                 _vm.PendingEmulatorPath = picked;
         }
@@ -876,32 +877,16 @@ namespace FEBuilderGBA.Avalonia.Views
         // ===================================================================
 
         /// <summary>
-        /// Avalonia file picker. Returns the local path of the chosen file,
-        /// or null if cancelled / no local path. Matches the pattern used by
-        /// OptionsView.BrowseFile_Click — file-type labels and title are
-        /// localised via R._() so the dialog reads correctly in ja/zh.
+        /// Centralized external-tool picker. The emulator step opts into the
+        /// macOS application-bundle folder picker; all other steps keep file
+        /// selection.
         /// </summary>
-        async System.Threading.Tasks.Task<string?> PickExeFileAsync(string title)
-        {
-            var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
-            if (storage == null)
-                return null;
-            var allFiles = new FilePickerFileType(FEBuilderGBA.R._("All Files")) { Patterns = new[] { "*" } };
-            var exeFiles = new FilePickerFileType(FEBuilderGBA.R._("Executables")) { Patterns = new[] { "*.exe", "*.app", "*" } };
-            var files = await storage.OpenFilePickerAsync(new FilePickerOpenOptions
-            {
-                Title = FEBuilderGBA.R._(title),
-                AllowMultiple = false,
-                FileTypeFilter = new[] { exeFiles, allFiles },
-            });
-            // #1639: this picks an EXECUTABLE whose path is later launched as an
-            // external process (devkitARM / EA). External tools need a real
-            // filesystem path and have no meaning under Android scoped storage,
-            // so the path-only result is intentional here — a SAF pick (no local
-            // path) simply leaves the configured tool path unchanged.
-            if (files.Count > 0)
-                return files[0].TryGetLocalPath();
-            return null;
-        }
+        System.Threading.Tasks.Task<string?> PickExeFileAsync(
+            string title,
+            bool allowMacApplicationBundle = false)
+            => FileDialogHelper.OpenExternalTool(
+                TopLevel.GetTopLevel(this),
+                title,
+                allowMacApplicationBundle);
     }
 }

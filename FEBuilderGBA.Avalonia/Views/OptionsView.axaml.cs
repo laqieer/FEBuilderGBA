@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Platform.Storage;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -29,6 +30,9 @@ namespace FEBuilderGBA.Avalonia.Views
         /// Never used by production code.
         /// </summary>
         internal OptionsViewModel ViewModelForTests => _vm;
+
+        internal static bool AllowsMacApplicationBundlePicker(string targetName)
+            => targetName is "EmulatorTextBox" or "Emulator2TextBox";
 
         public OptionsView()
         {
@@ -239,30 +243,13 @@ namespace FEBuilderGBA.Avalonia.Views
             var target = this.FindControl<TextBox>(targetName);
             if (target == null) return;
 
-            var allFiles = new FilePickerFileType(R._("All Files")) { Patterns = new[] { "*" } };
-            var exeFiles = new FilePickerFileType(R._("Executables")) { Patterns = new[] { "*.exe", "*.app", "*" } };
-            var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
-            if (storage == null) return;
-            var files = await storage.OpenFilePickerAsync(new FilePickerOpenOptions
-            {
-                Title = R._("Select File"),
-                AllowMultiple = false,
-                FileTypeFilter = new[] { exeFiles, allFiles },
-            });
-            if (files.Count > 0)
-            {
-                // #1639: these options configure paths to EXTERNAL tool
-                // executables that are launched as processes (devkitARM / EA),
-                // so a real filesystem path is required. On Android (no local
-                // path) leave the field and message instead of silently doing
-                // nothing.
-                string? path = files[0].TryGetLocalPath();
-                if (path != null)
-                    target.Text = path;
-                else
-                    CoreState.Services?.ShowInfo(R._("This setting configures an external tool path and requires desktop file-system access; it is not available on this device."));
-                RefreshFEMapCreatorStatus();
-            }
+            string? path = await FileDialogHelper.OpenExternalTool(
+                TopLevel.GetTopLevel(this),
+                "Select File",
+                AllowsMacApplicationBundlePicker(targetName));
+            if (path != null)
+                target.Text = path;
+            RefreshFEMapCreatorStatus();
         }
 
         async void BrowseFolder_Click(object? sender, RoutedEventArgs e)
