@@ -107,7 +107,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // Find the MainWindow and load the ROM directly
                 if (WindowManager.Instance.MainWindow is MainWindow mw)
                 {
-                    bool ok = mw.LoadRomFile(path);
+                    bool ok = mw.LoadRecentRomFile(path);
                     if (ok)
                     {
                         RequestClose();

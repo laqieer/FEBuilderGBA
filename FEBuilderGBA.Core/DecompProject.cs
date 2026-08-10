@@ -713,6 +713,94 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Starting from a selected ROM, walk ancestor directories and recover the
+        /// decomp project whose resolved built ROM is that exact file. NEVER throws.
+        /// </summary>
+        public static DecompProject DetectForRom(string romPath)
+            => DetectForRom(
+                romPath,
+                SamePhysicalExistingFile);
+
+        internal static DecompProject DetectForRom(
+            string romPath,
+            Func<string, string, bool> sameExistingEntry)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(romPath) || sameExistingEntry == null)
+                    return null;
+
+                string selectedRom = Path.GetFullPath(romPath);
+                if (!File.Exists(selectedRom))
+                    return null;
+
+                string current = Path.GetDirectoryName(selectedRom);
+
+                while (!string.IsNullOrEmpty(current))
+                {
+                    var project = Detect(current);
+                    if (project != null)
+                    {
+                        var resolved = ResolveBuiltRom(current, project);
+                        if (resolved.Status == DecompResolveStatus.Ok
+                            && !string.IsNullOrEmpty(resolved.Path))
+                        {
+                            string builtRom = Path.GetFullPath(resolved.Path);
+                            bool isSameEntry = false;
+                            try
+                            {
+                                isSameEntry = sameExistingEntry(selectedRom, builtRom);
+                            }
+                            catch (Exception ex) when (IsRecoverablePathException(ex))
+                            {
+                                // A broken/inaccessible child project must not hide a
+                                // valid matching project higher in the ancestor chain.
+                            }
+
+                            if (isSameEntry)
+                            {
+                                project.BuiltRomPath = builtRom;
+                                return project;
+                            }
+                        }
+                    }
+
+                    var parent = Directory.GetParent(current);
+                    if (parent == null)
+                        break;
+
+                    string parentPath = Path.GetFullPath(parent.FullName);
+                    if (string.Equals(current, parentPath, StringComparison.Ordinal))
+                        break;
+                    current = parentPath;
+                }
+            }
+            catch (Exception ex) when (IsRecoverablePathException(ex))
+            {
+                // Guard every filesystem/path fault; recent-file loading falls back
+                // to ordinary ROM mode when no matching project can be recovered.
+            }
+
+            return null;
+        }
+
+        static bool IsRecoverablePathException(Exception ex)
+            => ex is ArgumentException
+                or IOException
+                or NotSupportedException
+                or UnauthorizedAccessException
+                or System.Security.SecurityException;
+
+        static bool SamePhysicalExistingFile(string firstPath, string secondPath)
+        {
+            string physicalFirst = BuildfilePathSafety.ResolvePhysicalPath(firstPath);
+            string physicalSecond = BuildfilePathSafety.ResolvePhysicalPath(secondPath);
+            return ProjectionFileSystemSafety.SameExistingFileSystemEntry(
+                physicalFirst,
+                physicalSecond);
+        }
+
+        /// <summary>
         /// Weighted heuristic score. Pure, guarded, never throws.
         /// Accept threshold (in <see cref="Detect"/>) is &gt;= 2.
         /// </summary>
