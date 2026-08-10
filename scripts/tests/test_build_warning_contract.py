@@ -336,6 +336,131 @@ jobs:
 
 
 class BuildWarningContractTests(unittest.TestCase):
+    def test_check_workflow_serializes_test_projects_and_bounds_hangs(self) -> None:
+        workflow = (WORKFLOWS_DIR / "check.yml").read_text(encoding="utf-8")
+
+        build_match = re.search(
+            r"(?ms)^  build:\s*\n(?P<body>.*?)(?=^  [A-Za-z0-9_-]+:\s*$|\Z)",
+            workflow,
+        )
+        self.assertIsNotNone(build_match)
+        build_block = build_match.group("body")
+        self.assertEqual(
+            ["120"],
+            re.findall(r"(?m)^    timeout-minutes:\s*(\d+)\s*$", build_block),
+        )
+
+        test_step_match = re.search(
+            r"(?ms)^    - name: Run Tests\s*\n(?P<body>.*?)(?=^    - |\Z)",
+            build_block,
+        )
+        self.assertIsNotNone(test_step_match)
+        test_step_block = test_step_match.group("body")
+        self.assertEqual(
+            ["90"],
+            re.findall(r"(?m)^      timeout-minutes:\s*(\d+)\s*$", test_step_block),
+        )
+        self.assertEqual(
+            ["pwsh"],
+            re.findall(r"(?m)^      shell:\s*(\S+)\s*$", test_step_block),
+        )
+
+        run_steps = [
+            step
+            for step in parse_workflow_runs(workflow, "check.yml")
+            if step.job == "build" and step.name == "Run Tests"
+        ]
+        self.assertEqual(1, len(run_steps))
+        command = run_steps[0].command
+        expected_projects = [
+            "FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj",
+            "FEBuilderGBA.Avalonia.Tests/FEBuilderGBA.Avalonia.Tests.csproj",
+            "FEBuilderGBA.Tests/FEBuilderGBA.Tests.csproj",
+            "FEBuilderGBA.E2ETests/FEBuilderGBA.E2ETests.csproj",
+        ]
+        self.assertEqual(
+            expected_projects,
+            re.findall(r'"([^"]+Tests/[^"]+Tests\.csproj)"', command),
+        )
+
+        invocations = dotnet_invocations(run_steps[0])
+        self.assertEqual(1, len(invocations))
+        tokens = invocations[0].tokens
+        self.assertEqual("test", invocations[0].verb)
+        self.assertEqual("$project", invocations[0].project)
+        for required in (
+            "--no-build",
+            "--blame-hang",
+            "--logger",
+            "--collect",
+            "--settings",
+        ):
+            self.assertTrue(
+                any(
+                    token.lower() == required
+                    or token.lower().startswith(required + ":")
+                    or token.lower().startswith(required + "=")
+                    for token in tokens
+                ),
+                required,
+            )
+        self.assertEqual("20m", option_value(tokens, "--blame-hang-timeout"))
+        self.assertEqual("trx", option_value(tokens, "--logger"))
+        self.assertEqual(
+            "XPlatCodeCoverage",
+            option_value(tokens, "--collect"),
+        )
+        self.assertEqual(
+            "coverlet.runsettings",
+            option_value(tokens, "--settings"),
+        )
+
+        self.assertIn("$failedProjects = @()", command)
+        self.assertIn("$PSNativeCommandUseErrorActionPreference = $false", command)
+        self.assertIn("foreach ($project in $projects)", command)
+        self.assertIn("$exitCode = $LASTEXITCODE", command)
+        self.assertIn("if ($exitCode -ne 0)", command)
+        self.assertIn("$failedProjects += $project", command)
+        self.assertIn("if ($failedProjects.Count -gt 0)", command)
+        self.assertNotIn("break", command)
+        exit_matches = list(re.finditer(r"(?m)^\s*exit 1\s*$", command))
+        self.assertEqual(1, len(exit_matches))
+        self.assertLess(
+            command.index("$exitCode = $LASTEXITCODE"),
+            command.index("$failedProjects += $project"),
+        )
+        self.assertLess(
+            command.index("$failedProjects += $project"),
+            command.index("if ($failedProjects.Count -gt 0)"),
+        )
+        self.assertLess(
+            command.index("if ($failedProjects.Count -gt 0)"),
+            exit_matches[0].start(),
+        )
+
+        coverage_conditions = {
+            "Install ReportGenerator":
+                "${{ !cancelled() && github.event_name == 'pull_request' }}",
+            "Generate Coverage Report":
+                "${{ !cancelled() && github.event_name == 'pull_request' }}",
+            "Comment PR with Coverage":
+                "${{ !cancelled() && github.event_name == 'pull_request' "
+                "&& github.event.pull_request.head.repo.full_name == github.repository "
+                "&& hashFiles('coverage-report/SummaryGithub.md') != '' }}",
+        }
+        for step_name, expected_condition in coverage_conditions.items():
+            step_match = re.search(
+                rf"(?ms)^    - name: {re.escape(step_name)}\s*\n"
+                rf"(?P<body>.*?)(?=^    - |\Z)",
+                build_block,
+            )
+            self.assertIsNotNone(step_match, step_name)
+            self.assertEqual(
+                [expected_condition],
+                re.findall(r"(?m)^      if:\s*(.+?)\s*$", step_match.group("body")),
+                step_name,
+            )
+
     def test_every_workflow_compilation_is_warning_as_error(self) -> None:
         missing: list[str] = []
         for invocation in all_dotnet_invocations():
