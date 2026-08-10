@@ -9,6 +9,12 @@ using FEBuilderGBA;
 
 namespace FEBuilderGBA.Avalonia.Dialogs
 {
+    internal enum ExternalToolPickerMode
+    {
+        File,
+        Folder,
+    }
+
     /// <summary>
     /// Helper for file open/save dialogs using Avalonia 11 StorageProvider API.
     /// All user-visible strings are wrapped with R._() for i18n.
@@ -217,6 +223,7 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         // Reuse static pattern arrays to avoid repeated allocations
         static readonly string[] GbaPatterns = new[] { "*.gba" };
         static readonly string[] AllPatterns = new[] { "*" };
+        static readonly string[] ExecutablePatterns = new[] { "*.exe", "*.app", "*" };
         static readonly string[] UpsPatterns = new[] { "*.ups" };
         static readonly string[] PngPatterns = new[] { "*.png" };
         static readonly string[] ImagePatterns = new[] { "*.png", "*.bmp" };
@@ -237,6 +244,28 @@ namespace FEBuilderGBA.Avalonia.Dialogs
                 Log.Error($"FileDialogHelper.{operation}: TopLevel or StorageProvider is unavailable.");
             }
             return provider;
+        }
+
+        internal static ExternalToolPickerMode GetExternalToolPickerMode(
+            bool isMacOS,
+            bool allowMacApplicationBundle)
+            => isMacOS && allowMacApplicationBundle
+                ? ExternalToolPickerMode.Folder
+                : ExternalToolPickerMode.File;
+
+        static string? ResolveExternalToolLocalPath<T>(IReadOnlyList<T> items)
+            where T : IStorageItem
+        {
+            if (items.Count == 0)
+                return null;
+
+            string? path = items[0].TryGetLocalPath();
+            if (string.IsNullOrEmpty(path))
+            {
+                CoreState.Services?.ShowInfo(R._("This setting configures an external tool path and requires desktop file-system access; it is not available on this device."));
+                return null;
+            }
+            return path;
         }
 
         internal static FilePickerOpenOptions CreateProblemReportBackupOpenOptions()
@@ -508,6 +537,46 @@ namespace FEBuilderGBA.Avalonia.Dialogs
                 SuggestedFileName = suggestedName ?? "anim.txt",
                 FileTypeChoices = new[] { fileType, MakeAllFileType() },
             });
+        }
+
+        /// <summary>
+        /// Pick a local external-tool path. macOS callers may explicitly request
+        /// a folder picker for an application bundle; every other case uses the
+        /// ordinary executable file picker.
+        /// </summary>
+        public static async Task<string?> OpenExternalTool(
+            TopLevel? owner,
+            string title,
+            bool allowMacApplicationBundle = false)
+        {
+            var provider = GetStorageProvider(owner, nameof(OpenExternalTool));
+            if (provider == null)
+                return null;
+
+            string localizedTitle = R._(title);
+            if (GetExternalToolPickerMode(
+                OperatingSystem.IsMacOS(),
+                allowMacApplicationBundle) == ExternalToolPickerMode.Folder)
+            {
+                var folders = await provider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+                {
+                    Title = localizedTitle,
+                    AllowMultiple = false,
+                });
+                return ResolveExternalToolLocalPath(folders);
+            }
+
+            var executableFiles = new FilePickerFileType(R._("Executables"))
+            {
+                Patterns = ExecutablePatterns,
+            };
+            var files = await provider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = localizedTitle,
+                AllowMultiple = false,
+                FileTypeFilter = new[] { executableFiles, MakeAllFileType() },
+            });
+            return ResolveExternalToolLocalPath(files);
         }
 
         /// <summary>Open any file with custom filter.</summary>

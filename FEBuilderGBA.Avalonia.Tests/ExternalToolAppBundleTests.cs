@@ -5,6 +5,7 @@ using global::Avalonia.Controls;
 using global::Avalonia.Headless.XUnit;
 using global::Avalonia.Threading;
 using FEBuilderGBA;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.ViewModels;
 using FEBuilderGBA.Avalonia.Views;
 using Xunit;
@@ -52,6 +53,46 @@ public sealed class ExternalToolAppBundleTests : IDisposable
 
         Assert.Equal(expected, mainPath);
         Assert.Equal(expected, diffPath);
+    }
+
+    [Theory]
+    [InlineData(false, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(true, false, false)]
+    [InlineData(true, true, true)]
+    public void ExternalToolPickerMode_UsesFolderOnlyForMacApplicationBundles(
+        bool isMacOS,
+        bool allowMacApplicationBundle,
+        bool expectedFolder)
+    {
+        var expected = expectedFolder
+            ? ExternalToolPickerMode.Folder
+            : ExternalToolPickerMode.File;
+        Assert.Equal(expected, FileDialogHelper.GetExternalToolPickerMode(
+            isMacOS, allowMacApplicationBundle));
+    }
+
+    [Theory]
+    [InlineData("EmulatorTextBox", true)]
+    [InlineData("Emulator2TextBox", true)]
+    [InlineData("EventAssemblerTextBox", false)]
+    [InlineData("GitPathTextBox", false)]
+    public void OptionsView_RequestsBundleModeOnlyForEmulatorFields(
+        string targetName,
+        bool expected)
+    {
+        Assert.Equal(expected, OptionsView.AllowsMacApplicationBundlePicker(targetName));
+    }
+
+    [Fact]
+    public void RawMacExecutablePath_RemainsUnchangedAtLaunchBoundary()
+    {
+        string executable = Path.Combine(_root, "mGBA");
+        File.WriteAllText(executable, "not executed");
+
+        Assert.True(MainWindow.TryResolveExternalToolForLaunch(
+            executable, isMacOS: true, File.Exists, out string resolved));
+        Assert.Equal(executable, resolved);
     }
 
     [Fact]
