@@ -192,15 +192,15 @@ jobs:
         fail-on-error: true
 
     - name: Install ReportGenerator
-      if: github.event_name == 'pull_request'
+      if: ${{ !cancelled() && github.event_name == 'pull_request' }}
       run: dotnet tool install --global dotnet-reportgenerator-globaltool
 
     - name: Generate Coverage Report
-      if: github.event_name == 'pull_request'
+      if: ${{ !cancelled() && github.event_name == 'pull_request' }}
       run: reportgenerator -reports:**/coverage.cobertura.xml -targetdir:coverage-report -reporttypes:"MarkdownSummaryGithub"
 
     - name: Comment PR with Coverage
-      if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+      if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && hashFiles('coverage-report/SummaryGithub.md') != '' }}
       uses: marocchino/sticky-pull-request-comment@v2
       with:
         path: coverage-report/SummaryGithub.md

@@ -419,6 +419,7 @@ class BuildWarningContractTests(unittest.TestCase):
         self.assertIn("$PSNativeCommandUseErrorActionPreference = $false", command)
         self.assertIn("foreach ($project in $projects)", command)
         self.assertIn("$exitCode = $LASTEXITCODE", command)
+        self.assertIn("if ($exitCode -ne 0)", command)
         self.assertIn("$failedProjects += $project", command)
         self.assertIn("if ($failedProjects.Count -gt 0)", command)
         self.assertNotIn("break", command)
@@ -436,6 +437,29 @@ class BuildWarningContractTests(unittest.TestCase):
             command.index("if ($failedProjects.Count -gt 0)"),
             exit_matches[0].start(),
         )
+
+        coverage_conditions = {
+            "Install ReportGenerator":
+                "${{ !cancelled() && github.event_name == 'pull_request' }}",
+            "Generate Coverage Report":
+                "${{ !cancelled() && github.event_name == 'pull_request' }}",
+            "Comment PR with Coverage":
+                "${{ !cancelled() && github.event_name == 'pull_request' "
+                "&& github.event.pull_request.head.repo.full_name == github.repository "
+                "&& hashFiles('coverage-report/SummaryGithub.md') != '' }}",
+        }
+        for step_name, expected_condition in coverage_conditions.items():
+            step_match = re.search(
+                rf"(?ms)^    - name: {re.escape(step_name)}\s*\n"
+                rf"(?P<body>.*?)(?=^    - |\Z)",
+                build_block,
+            )
+            self.assertIsNotNone(step_match, step_name)
+            self.assertEqual(
+                [expected_condition],
+                re.findall(r"(?m)^      if:\s*(.+?)\s*$", step_match.group("body")),
+                step_name,
+            )
 
     def test_every_workflow_compilation_is_warning_as_error(self) -> None:
         missing: list[str] = []
