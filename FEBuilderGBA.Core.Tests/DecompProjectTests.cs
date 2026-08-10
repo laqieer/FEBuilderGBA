@@ -294,10 +294,46 @@ namespace FEBuilderGBA.Core.Tests
                 string selectedRom = Path.Combine(outputDir, "game.gba");
 
                 Skip.If(
-                    BuildfilePathSafety.SamePhysicalFile(builtRom, selectedRom),
+                    ProjectionFileSystemSafety.SameExistingFileSystemEntry(
+                        builtRom,
+                        selectedRom),
                     "The test filesystem is case-insensitive.");
 
                 Assert.Null(DecompProjectDetector.DetectForRom(selectedRom));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void DetectForRom_IdentityFailureAtChildContinuesToParentProject()
+        {
+            string dir = NewIssue2071TestDir();
+            try
+            {
+                string child = Path.Combine(dir, "child");
+                string outputDir = Path.Combine(child, "build");
+                Directory.CreateDirectory(outputDir);
+                WriteFile(dir, DecompProject.ManifestFileName,
+                    "{ \"schemaVersion\": 1, \"builtRom\": \"child/build/game.gba\" }");
+                WriteFile(child, DecompProject.ManifestFileName,
+                    "{ \"schemaVersion\": 1, \"builtRom\": \"build/game.gba\" }");
+                TouchGba(outputDir, "game.gba");
+                string selectedRom = Path.Combine(outputDir, "game.gba");
+                int identityChecks = 0;
+
+                var project = DecompProjectDetector.DetectForRom(
+                    selectedRom,
+                    (_, _) =>
+                    {
+                        identityChecks++;
+                        if (identityChecks == 1)
+                            throw new IOException("simulated child identity failure");
+                        return true;
+                    });
+
+                Assert.NotNull(project);
+                Assert.Equal(Path.GetFullPath(dir), project.ProjectRoot);
+                Assert.Equal(2, identityChecks);
             }
             finally { Directory.Delete(dir, true); }
         }

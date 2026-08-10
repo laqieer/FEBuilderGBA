@@ -717,10 +717,17 @@ namespace FEBuilderGBA
         /// decomp project whose resolved built ROM is that exact file. NEVER throws.
         /// </summary>
         public static DecompProject DetectForRom(string romPath)
+            => DetectForRom(
+                romPath,
+                ProjectionFileSystemSafety.SameExistingFileSystemEntry);
+
+        internal static DecompProject DetectForRom(
+            string romPath,
+            Func<string, string, bool> sameExistingEntry)
         {
             try
             {
-                if (string.IsNullOrEmpty(romPath))
+                if (string.IsNullOrEmpty(romPath) || sameExistingEntry == null)
                     return null;
 
                 string selectedRom = Path.GetFullPath(romPath);
@@ -739,7 +746,18 @@ namespace FEBuilderGBA
                             && !string.IsNullOrEmpty(resolved.Path))
                         {
                             string builtRom = Path.GetFullPath(resolved.Path);
-                            if (BuildfilePathSafety.SamePhysicalFile(selectedRom, builtRom))
+                            bool isSameEntry = false;
+                            try
+                            {
+                                isSameEntry = sameExistingEntry(selectedRom, builtRom);
+                            }
+                            catch (Exception ex) when (IsRecoverablePathException(ex))
+                            {
+                                // A broken/inaccessible child project must not hide a
+                                // valid matching project higher in the ancestor chain.
+                            }
+
+                            if (isSameEntry)
                             {
                                 project.BuiltRomPath = builtRom;
                                 return project;
@@ -757,12 +775,7 @@ namespace FEBuilderGBA
                     current = parentPath;
                 }
             }
-            catch (Exception ex) when (
-                ex is ArgumentException
-                or IOException
-                or NotSupportedException
-                or UnauthorizedAccessException
-                or System.Security.SecurityException)
+            catch (Exception ex) when (IsRecoverablePathException(ex))
             {
                 // Guard every filesystem/path fault; recent-file loading falls back
                 // to ordinary ROM mode when no matching project can be recovered.
@@ -770,6 +783,13 @@ namespace FEBuilderGBA
 
             return null;
         }
+
+        static bool IsRecoverablePathException(Exception ex)
+            => ex is ArgumentException
+                or IOException
+                or NotSupportedException
+                or UnauthorizedAccessException
+                or System.Security.SecurityException;
 
         /// <summary>
         /// Weighted heuristic score. Pure, guarded, never throws.
