@@ -719,7 +719,7 @@ namespace FEBuilderGBA
         public static DecompProject DetectForRom(string romPath)
             => DetectForRom(
                 romPath,
-                ProjectionFileSystemSafety.SameExistingFileSystemEntry);
+                SamePhysicalExistingFile);
 
         internal static DecompProject DetectForRom(
             string romPath,
@@ -790,6 +790,15 @@ namespace FEBuilderGBA
                 or NotSupportedException
                 or UnauthorizedAccessException
                 or System.Security.SecurityException;
+
+        static bool SamePhysicalExistingFile(string firstPath, string secondPath)
+        {
+            string physicalFirst = BuildfilePathSafety.ResolvePhysicalPath(firstPath);
+            string physicalSecond = BuildfilePathSafety.ResolvePhysicalPath(secondPath);
+            return ProjectionFileSystemSafety.SameExistingFileSystemEntry(
+                physicalFirst,
+                physicalSecond);
+        }
 
         /// <summary>
         /// Weighted heuristic score. Pure, guarded, never throws.

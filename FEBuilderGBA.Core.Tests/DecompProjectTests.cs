@@ -338,6 +338,40 @@ namespace FEBuilderGBA.Core.Tests
             finally { Directory.Delete(dir, true); }
         }
 
+        [SkippableFact]
+        public void DetectForRom_FinalSymlinkToBuiltRomMatchesProject()
+        {
+            string dir = NewIssue2071TestDir();
+            try
+            {
+                string outputDir = Path.Combine(dir, "build");
+                Directory.CreateDirectory(outputDir);
+                WriteFile(dir, DecompProject.ManifestFileName,
+                    "{ \"schemaVersion\": 1, \"builtRom\": \"build/game.gba\" }");
+                TouchGba(outputDir, "game.gba");
+                string builtRom = Path.Combine(outputDir, "game.gba");
+                string recentAlias = Path.Combine(outputDir, "recent.gba");
+                try
+                {
+                    File.CreateSymbolicLink(recentAlias, builtRom);
+                }
+                catch (Exception ex) when (
+                    ex is PlatformNotSupportedException
+                    or UnauthorizedAccessException
+                    or IOException)
+                {
+                    Skip.If(true, "Symbolic links are unavailable: " + ex.Message);
+                }
+
+                var project = DecompProjectDetector.DetectForRom(recentAlias);
+
+                Assert.NotNull(project);
+                Assert.Equal(Path.GetFullPath(dir), project.ProjectRoot);
+                Assert.Equal(Path.GetFullPath(builtRom), project.BuiltRomPath);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
         [Fact]
         public void DetectForRom_InvalidPath_ReturnsNullNoThrow()
         {
