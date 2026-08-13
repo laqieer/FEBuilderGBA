@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -83,6 +84,130 @@ namespace FEBuilderGBA.E2ETests.Helpers
                 return true;
             }, IntPtr.Zero);
             return result;
+        }
+
+        /// <summary>
+        /// Waits for top-level process windows that are not present in
+        /// <paramref name="baselineWindows"/>. The result must remain unchanged for
+        /// several polls so a modal window and any immediately-created companions
+        /// are returned together.
+        /// </summary>
+        public static List<IntPtr> WaitForNewProcessWindows(
+            int processId,
+            IReadOnlySet<IntPtr> baselineWindows,
+            int timeoutMs = 5_000,
+            int pollMs = 100)
+        {
+            return WaitForNewWindows(
+                () => GetProcessWindows(processId),
+                baselineWindows,
+                timeoutMs,
+                pollMs,
+                stablePollCount: 5);
+        }
+
+        internal static List<IntPtr> WaitForNewWindows(
+            Func<IReadOnlyCollection<IntPtr>> windowProbe,
+            IReadOnlySet<IntPtr> baselineWindows,
+            int timeoutMs,
+            int pollMs,
+            int stablePollCount)
+        {
+            ArgumentNullException.ThrowIfNull(windowProbe);
+            ArgumentNullException.ThrowIfNull(baselineWindows);
+            ArgumentOutOfRangeException.ThrowIfNegative(timeoutMs);
+            ArgumentOutOfRangeException.ThrowIfNegative(pollMs);
+            ArgumentOutOfRangeException.ThrowIfLessThan(stablePollCount, 1);
+
+            var sw = Stopwatch.StartNew();
+            HashSet<IntPtr>? latestNewWindows = null;
+            int stablePolls = 0;
+
+            while (true)
+            {
+                var newWindows = new HashSet<IntPtr>(windowProbe());
+                newWindows.ExceptWith(baselineWindows);
+
+                if (newWindows.Count == 0)
+                {
+                    latestNewWindows = null;
+                    stablePolls = 0;
+                }
+                else if (latestNewWindows != null &&
+                         latestNewWindows.SetEquals(newWindows))
+                {
+                    stablePolls++;
+                }
+                else
+                {
+                    latestNewWindows = newWindows;
+                    stablePolls = 1;
+                }
+
+                if (latestNewWindows != null && stablePolls >= stablePollCount)
+                    return latestNewWindows.ToList();
+
+                if (sw.ElapsedMilliseconds >= timeoutMs)
+                    return latestNewWindows?.ToList() ?? new List<IntPtr>();
+
+                WaitForNextPoll(sw, timeoutMs, pollMs);
+            }
+        }
+
+        /// <summary>
+        /// Waits until every target handle is absent from the process's top-level
+        /// windows, allowing asynchronous WM_CLOSE messages to complete.
+        /// </summary>
+        public static bool WaitForProcessWindowsClosed(
+            int processId,
+            IReadOnlyCollection<IntPtr> targetWindows,
+            int timeoutMs = 2_000,
+            int pollMs = 100)
+        {
+            return WaitForWindowsClosed(
+                () => GetProcessWindows(processId),
+                targetWindows,
+                timeoutMs,
+                pollMs);
+        }
+
+        internal static bool WaitForWindowsClosed(
+            Func<IReadOnlyCollection<IntPtr>> windowProbe,
+            IReadOnlyCollection<IntPtr> targetWindows,
+            int timeoutMs,
+            int pollMs)
+        {
+            ArgumentNullException.ThrowIfNull(windowProbe);
+            ArgumentNullException.ThrowIfNull(targetWindows);
+            ArgumentOutOfRangeException.ThrowIfNegative(timeoutMs);
+            ArgumentOutOfRangeException.ThrowIfNegative(pollMs);
+
+            var targets = new HashSet<IntPtr>(targetWindows);
+            var sw = Stopwatch.StartNew();
+
+            while (true)
+            {
+                var openWindows = new HashSet<IntPtr>(windowProbe());
+                if (!targets.Overlaps(openWindows))
+                    return true;
+
+                if (sw.ElapsedMilliseconds >= timeoutMs)
+                    return false;
+
+                WaitForNextPoll(sw, timeoutMs, pollMs);
+            }
+        }
+
+        private static void WaitForNextPoll(Stopwatch sw, int timeoutMs, int pollMs)
+        {
+            if (pollMs == 0)
+            {
+                Thread.Yield();
+                return;
+            }
+
+            int remainingMs = Math.Max(1, timeoutMs - (int)sw.ElapsedMilliseconds);
+            Thread.Sleep(Math.Min(pollMs, remainingMs));
         }
 
         /// <summary>

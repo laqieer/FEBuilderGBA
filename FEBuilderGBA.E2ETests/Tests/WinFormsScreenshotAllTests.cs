@@ -24,6 +24,8 @@ namespace FEBuilderGBA.E2ETests.Tests
         private Process? _process;
 
         private const int ButtonLoopTimeoutMs = 120_000; // 2 minutes per ROM
+        private const int WindowOpenTimeoutMs = 5_000;
+        private const int WindowCloseTimeoutMs = 2_000;
 
         public WinFormsScreenshotAllTests(ITestOutputHelper output)
         {
@@ -110,10 +112,12 @@ namespace FEBuilderGBA.E2ETests.Tests
                 var before = new HashSet<IntPtr>(WinAutomation.GetProcessWindows(_process.Id));
 
                 WinAutomation.ClickButton(btnHWnd);
-                Thread.Sleep(500);
-
-                var after = WinAutomation.GetProcessWindows(_process.Id);
-                var newWindows = after.Where(w => !before.Contains(w)).ToList();
+                int remainingMs = Math.Max(
+                    0, ButtonLoopTimeoutMs - (int)loopSw.ElapsedMilliseconds);
+                var newWindows = WinAutomation.WaitForNewProcessWindows(
+                    _process.Id,
+                    before,
+                    timeoutMs: Math.Min(WindowOpenTimeoutMs, remainingMs));
 
                 if (newWindows.Count > 0)
                 {
@@ -129,7 +133,22 @@ namespace FEBuilderGBA.E2ETests.Tests
                         }
                         WinAutomation.CloseWindow(nw);
                     }
-                    Thread.Sleep(500);
+
+                    int closeTimeoutMs = Math.Min(
+                        WindowCloseTimeoutMs,
+                        Math.Max(0, ButtonLoopTimeoutMs - (int)loopSw.ElapsedMilliseconds));
+                    bool closed = WinAutomation.WaitForProcessWindowsClosed(
+                        _process.Id,
+                        newWindows,
+                        timeoutMs: closeTimeoutMs);
+                    if (!closed)
+                        _output.WriteLine($"{romName}: {btnText} windows did not close within " +
+                            $"{closeTimeoutMs}ms");
+                }
+                else
+                {
+                    _output.WriteLine($"{romName}: {btnText} opened no top-level window within " +
+                        $"{Math.Min(WindowOpenTimeoutMs, remainingMs)}ms");
                 }
 
                 WinAutomation.CloseUnexpectedWindows(_process.Id, before);
