@@ -113,12 +113,18 @@ namespace FEBuilderGBA
                 // ItemShopForm then additionally skips shops whose first item byte
                 // is 0x00 (the `rom.u8(shopAddr) == 0` check below).
                 AddWorldMapShopIfValid(rom, pointAddr + 12, armoryPtr,
-                    rom.RomInfo.get_shop_name(0x16), pointName, result);
+                    GetLocalizedShopLabel(rom, 0x16), pointName, result);
                 AddWorldMapShopIfValid(rom, pointAddr + 16, vendorPtr,
-                    rom.RomInfo.get_shop_name(0x17), pointName, result);
+                    GetLocalizedShopLabel(rom, 0x17), pointName, result);
                 AddWorldMapShopIfValid(rom, pointAddr + 20, secretPtr,
-                    rom.RomInfo.get_shop_name(0x18), pointName, result);
+                    GetLocalizedShopLabel(rom, 0x18), pointName, result);
             }
+        }
+
+        static string GetLocalizedShopLabel(ROM rom, uint shopObject)
+        {
+            string shopLabel = rom.RomInfo.get_shop_name(shopObject);
+            return string.IsNullOrEmpty(shopLabel) ? shopLabel : R._(shopLabel);
         }
 
         /// <summary>
@@ -203,7 +209,7 @@ namespace FEBuilderGBA
 
                         // Look up the shop's display label by object type at +10.
                         uint objType = rom.u8(recAddr + 10);
-                        string shopLabel = rom.RomInfo.get_shop_name(objType);
+                        string shopLabel = GetLocalizedShopLabel(rom, objType);
                         if (string.IsNullOrEmpty(shopLabel)) continue;
 
                         // WinForms ItemShopForm filter: skip empty shops.

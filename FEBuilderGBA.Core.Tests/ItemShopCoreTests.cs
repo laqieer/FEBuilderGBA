@@ -1,6 +1,8 @@
-using Xunit;
-using FEBuilderGBA;
+using System;
 using System.Collections.Generic;
+using System.IO;
+using FEBuilderGBA;
+using Xunit;
 
 namespace FEBuilderGBA.Core.Tests
 {
@@ -19,6 +21,32 @@ namespace FEBuilderGBA.Core.Tests
     public class ItemShopCoreTests
     {
         // ---------- helpers ----------
+        sealed class ShopTranslationScope : IDisposable
+        {
+            readonly string _path;
+
+            public ShopTranslationScope()
+            {
+                _path = Path.GetTempFileName();
+                File.WriteAllText(_path,
+                    ":武器屋\n" +
+                    "Armory\n" +
+                    "\n" +
+                    ":道具屋\n" +
+                    "Vendor\n" +
+                    "\n" +
+                    ":秘密屋\n" +
+                    "Secret Shop\n");
+                MyTranslateResource.LoadResource(_path);
+            }
+
+            public void Dispose()
+            {
+                MyTranslateResource.Clear();
+                File.Delete(_path);
+            }
+        }
+
         static void WriteU32(byte[] data, int offset, uint value)
         {
             data[offset + 0] = (byte)(value & 0xFF);
@@ -110,6 +138,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void MakeShopList_IncludesWorldMapShops_OnSyntheticRom()
         {
+            using var translation = new ShopTranslationScope();
             var rom = MakeFE8UWithHenseiShop();
 
             // Set up one worldmap point at offset 0x400.
@@ -149,7 +178,9 @@ namespace FEBuilderGBA.Core.Tests
             var shops = ItemShopCore.MakeShopList(rom);
 
             // Expect at least 2 entries: hensei (0x200) + worldmap armory (0x500).
-            Assert.Contains(shops, s => s.addr == 0x500);
+            Assert.Contains(shops, s =>
+                s.addr == 0x500 &&
+                s.name.EndsWith("Armory", StringComparison.Ordinal));
         }
 
         [Fact]
@@ -188,6 +219,7 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void MakeShopList_IncludesEventCondShops_OnSyntheticRom()
         {
+            using var translation = new ShopTranslationScope();
             // Build the chain: map_setting_pointer -> map[0] -> PLIST byte -> event-cond block
             //   -> slot[2] (OBJECT) -> object record -> shop address.
             var rom = MakeFE8UWithHenseiShop();
@@ -251,7 +283,9 @@ namespace FEBuilderGBA.Core.Tests
             var shops = ItemShopCore.MakeShopList(rom);
 
             // We expect: hensei (0x200) + the event-cond armory shop (0x1300).
-            Assert.Contains(shops, s => s.addr == 0x1300);
+            Assert.Contains(shops, s =>
+                s.addr == 0x1300 &&
+                s.name.EndsWith("Armory", StringComparison.Ordinal));
         }
 
         [Fact]
