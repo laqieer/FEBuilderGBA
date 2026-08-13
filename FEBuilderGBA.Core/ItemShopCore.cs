@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace FEBuilderGBA
@@ -44,6 +45,14 @@ namespace FEBuilderGBA
         /// <see cref="RelocateShopList"/>).</returns>
         public static List<AddrResult> MakeShopList(ROM rom)
         {
+            return MakeShopList(rom, static shopLabel => R._(shopLabel));
+        }
+
+        internal static List<AddrResult> MakeShopList(
+            ROM rom,
+            Func<string, string> translateShopLabel)
+        {
+            ArgumentNullException.ThrowIfNull(translateShopLabel);
             var result = new List<AddrResult>();
             if (rom == null || rom.RomInfo == null)
                 return result;
@@ -64,16 +73,19 @@ namespace FEBuilderGBA
             // --- 2. FE8 worldmap shops ---
             if (rom.RomInfo.version >= 8)
             {
-                AppendWorldMapShops(rom, result);
+                AppendWorldMapShops(rom, result, translateShopLabel);
             }
 
             // --- 3. Per-map event-cond shops ---
-            AppendEventCondShops(rom, result);
+            AppendEventCondShops(rom, result, translateShopLabel);
 
             return result;
         }
 
-        static void AppendWorldMapShops(ROM rom, List<AddrResult> result)
+        static void AppendWorldMapShops(
+            ROM rom,
+            List<AddrResult> result,
+            Func<string, string> translateShopLabel)
         {
             uint wmPtrLoc = rom.RomInfo.worldmap_point_pointer;
             if (wmPtrLoc == 0) return;
@@ -113,18 +125,23 @@ namespace FEBuilderGBA
                 // ItemShopForm then additionally skips shops whose first item byte
                 // is 0x00 (the `rom.u8(shopAddr) == 0` check below).
                 AddWorldMapShopIfValid(rom, pointAddr + 12, armoryPtr,
-                    GetLocalizedShopLabel(rom, 0x16), pointName, result);
+                    GetLocalizedShopLabel(rom, 0x16, translateShopLabel), pointName, result);
                 AddWorldMapShopIfValid(rom, pointAddr + 16, vendorPtr,
-                    GetLocalizedShopLabel(rom, 0x17), pointName, result);
+                    GetLocalizedShopLabel(rom, 0x17, translateShopLabel), pointName, result);
                 AddWorldMapShopIfValid(rom, pointAddr + 20, secretPtr,
-                    GetLocalizedShopLabel(rom, 0x18), pointName, result);
+                    GetLocalizedShopLabel(rom, 0x18, translateShopLabel), pointName, result);
             }
         }
 
-        static string GetLocalizedShopLabel(ROM rom, uint shopObject)
+        static string GetLocalizedShopLabel(
+            ROM rom,
+            uint shopObject,
+            Func<string, string> translateShopLabel)
         {
             string shopLabel = rom.RomInfo.get_shop_name(shopObject);
-            return string.IsNullOrEmpty(shopLabel) ? shopLabel : R._(shopLabel);
+            return string.IsNullOrEmpty(shopLabel)
+                ? shopLabel
+                : translateShopLabel(shopLabel);
         }
 
         /// <summary>
@@ -166,7 +183,10 @@ namespace FEBuilderGBA
             result.Add(new AddrResult(shopAddr, name, pointerSlotAddr));
         }
 
-        static void AppendEventCondShops(ROM rom, List<AddrResult> result)
+        static void AppendEventCondShops(
+            ROM rom,
+            List<AddrResult> result,
+            Func<string, string> translateShopLabel)
         {
             // Iterate every map; for each, resolve the event-cond block and scan
             // only the OBJECT condition slots. Use ROM-pinned overloads so this
@@ -209,7 +229,8 @@ namespace FEBuilderGBA
 
                         // Look up the shop's display label by object type at +10.
                         uint objType = rom.u8(recAddr + 10);
-                        string shopLabel = GetLocalizedShopLabel(rom, objType);
+                        string shopLabel =
+                            GetLocalizedShopLabel(rom, objType, translateShopLabel);
                         if (string.IsNullOrEmpty(shopLabel)) continue;
 
                         // WinForms ItemShopForm filter: skip empty shops.
