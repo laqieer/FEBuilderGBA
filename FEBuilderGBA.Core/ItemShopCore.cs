@@ -154,10 +154,18 @@ namespace FEBuilderGBA
             try
             {
                 string text = textId != 0 ? FETextDecode.Direct(textId) : "";
+                text = NormalizeDecodedWorldMapPointName(text);
                 if (!string.IsNullOrEmpty(text)) return text;
             }
             catch { /* fall through to fallback */ }
             return "Point " + U.ToHexString(index);
+        }
+
+        internal static string NormalizeDecodedWorldMapPointName(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+            text = text.Replace("@001F", "");
+            return ToolTranslateROMCore.ConvertEscapeText(text);
         }
 
         static void AddWorldMapShopIfValid(ROM rom, uint pointerSlotAddr, uint shopPtr,

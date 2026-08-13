@@ -115,6 +115,17 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Empty(shops);
         }
 
+        [Theory]
+        [InlineData("Ide@001F", "Ide")]
+        [InlineData("Serafew@001F", "Serafew")]
+        public void NormalizeDecodedWorldMapPointName_RemovesPaddingToken(
+            string decoded,
+            string expected)
+        {
+            Assert.Equal(expected,
+                ItemShopCore.NormalizeDecodedWorldMapPointName(decoded));
+        }
+
         // ===================================================================
         // MakeShopList: worldmap (FE8)
         // ===================================================================
