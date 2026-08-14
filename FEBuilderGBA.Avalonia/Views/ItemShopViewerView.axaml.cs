@@ -26,6 +26,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ItemShopViewerViewModel _vm = new();
         readonly UndoService _undoService = new();
         bool _hasLoadedList;
+        bool _isAttachedToVisualTree;
         List<AddrResult> _currentShopList = new();
         List<AddrResult> _currentSlotList = new();
 
@@ -44,6 +45,7 @@ namespace FEBuilderGBA.Avalonia.Views
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
         {
             base.OnAttachedToVisualTree(e);
+            _isAttachedToVisualTree = true;
             CoreState.LanguageChanged -= OnLanguageChanged;
             CoreState.LanguageChanged += OnLanguageChanged;
             if (!_hasLoadedList)
@@ -55,6 +57,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
         {
+            _isAttachedToVisualTree = false;
             CoreState.LanguageChanged -= OnLanguageChanged;
             base.OnDetachedFromVisualTree(e);
         }
@@ -66,6 +69,8 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void ReloadShopListForLanguage()
         {
+            if (!_isAttachedToVisualTree) return;
+
             uint shopAddrToSelect = ShopList.SelectedItem?.addr ?? _vm.CurrentShopAddr;
             uint slotAddrToSelect = SlotList.SelectedItem?.addr ?? _vm.CurrentAddr;
             int slotIndexToSelect =

@@ -101,6 +101,9 @@ namespace FEBuilderGBA.Avalonia.Tests
                 src.Split("CoreState.LanguageChanged -= OnLanguageChanged;").Length - 1);
             Assert.Contains("CoreState.LanguageChanged += OnLanguageChanged;", src);
             Assert.Contains("Dispatcher.UIThread.Post(ReloadShopListForLanguage);", src);
+            Assert.Contains("_isAttachedToVisualTree = true;", src);
+            Assert.Contains("_isAttachedToVisualTree = false;", src);
+            Assert.Contains("if (!_isAttachedToVisualTree) return;", src);
             Assert.Contains(
                 "ReloadShopListAndSelect(shopAddrToSelect, slotIndexToSelect);",
                 src);
