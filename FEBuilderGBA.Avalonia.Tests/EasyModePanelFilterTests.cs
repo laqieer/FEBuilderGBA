@@ -71,6 +71,17 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [AvaloniaFact]
+        public void ApplyFilter_UnrelatedEditorAlias_DoesNotMatchUnmappedAction()
+        {
+            var panel = new EasyModePanel();
+
+            panel.ApplyFilter("Special OAM");
+
+            Assert.All(Categories(panel),
+                category => Assert.False(category.IsVisible));
+        }
+
+        [AvaloniaFact]
         public void ApplyFilter_EmptyQuery_RestoresAllCategories()
         {
             var panel = new EasyModePanel();

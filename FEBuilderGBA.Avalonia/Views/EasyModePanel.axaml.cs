@@ -28,8 +28,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 ["Events"] =
                     ["EventScript", "EventCond", "EventUnit"],
                 ["Graphics"] =
-                    ["PortraitViewer", "ImageBattleAnime", "BigCGViewer",
-                     "OAMSP"],
+                    ["PortraitViewer", "ImageBattleAnime", "BigCGViewer"],
                 ["Music"] =
                     ["SongTable", "SongTrack", "SoundRoomViewer"],
                 ["Text"] =
