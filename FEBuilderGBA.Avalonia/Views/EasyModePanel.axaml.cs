@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Platform.Storage;
@@ -12,8 +13,39 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class EasyModePanel : TranslatedUserControl
     {
+        static readonly IReadOnlyDictionary<string, string[]> CategoryCatalogKeys =
+            new Dictionary<string, string[]>(StringComparer.Ordinal)
+            {
+                ["Characters"] =
+                    ["UnitEditor", "ClassEditor", "ClassFE6",
+                     "SupportUnitEditor", "SupportTalk"],
+                ["Items"] =
+                    ["ItemEditor", "ItemWeaponEffectViewer",
+                     "ItemShopViewer", "ItemPromotionViewer"],
+                ["Maps"] =
+                    ["MapSetting", "MapEditor", "TerrainNameEditor",
+                     "MoveCostEditor"],
+                ["Events"] =
+                    ["EventScript", "EventCond", "EventUnit"],
+                ["Graphics"] =
+                    ["PortraitViewer", "ImageBattleAnime", "BigCGViewer"],
+                ["Music"] =
+                    ["SongTable", "SongTrack", "SoundRoomViewer"],
+                ["Text"] =
+                    ["TextViewer"],
+                ["Tools"] =
+                    ["HexEditor", "PatchManager", "PointerTool"],
+            };
+
+        internal static IReadOnlyList<string> CatalogSearchKeys { get; } =
+            CategoryCatalogKeys.Values
+                .SelectMany(keys => keys)
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+
         /// <summary>Category borders paired with their searchable keywords (category name + button labels).</summary>
-        private List<(Border border, string keywords)>? _categories;
+        private List<(Border border, string keywords,
+            IReadOnlyList<string> catalogKeys)>? _categories;
 
         public EasyModePanel()
         {
@@ -22,19 +54,29 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         /// <summary>Lazily build the category list after the control is initialized.</summary>
-        private List<(Border border, string keywords)> GetCategories()
+        private List<(Border border, string keywords,
+            IReadOnlyList<string> catalogKeys)> GetCategories()
         {
             if (_categories != null) return _categories;
-            _categories = new List<(Border, string)>
+            _categories = new List<(Border, string, IReadOnlyList<string>)>
             {
-                (CategoryCharacters, "characters units classes support talk"),
-                (CategoryItems, "items weapons weapon effect shops promotions"),
-                (CategoryMaps, "maps map settings editor terrain names move costs"),
-                (CategoryEvents, "events event scripts conditions units"),
-                (CategoryGraphics, "graphics portraits battle animations cg viewer image"),
-                (CategoryMusic, "music song table tracks sound room"),
-                (CategoryText, "text editor dialogue export import tsv"),
-                (CategoryTools, "tools hex editor patch manager lint pointer"),
+                (CategoryCharacters, "characters units classes support talk",
+                    CategoryCatalogKeys["Characters"]),
+                (CategoryItems, "items weapons weapon effect shops promotions",
+                    CategoryCatalogKeys["Items"]),
+                (CategoryMaps, "maps map settings editor terrain names move costs",
+                    CategoryCatalogKeys["Maps"]),
+                (CategoryEvents, "events event scripts conditions units",
+                    CategoryCatalogKeys["Events"]),
+                (CategoryGraphics,
+                    "graphics portraits battle animations cg viewer image",
+                    CategoryCatalogKeys["Graphics"]),
+                (CategoryMusic, "music song table tracks sound room",
+                    CategoryCatalogKeys["Music"]),
+                (CategoryText, "text editor dialogue export import tsv",
+                    CategoryCatalogKeys["Text"]),
+                (CategoryTools, "tools hex editor patch manager lint pointer",
+                    CategoryCatalogKeys["Tools"]),
             };
             return _categories;
         }
@@ -55,9 +97,23 @@ namespace FEBuilderGBA.Avalonia.Views
             bool showAll = string.IsNullOrWhiteSpace(query);
             var q = (query ?? "").Trim();
 
-            foreach (var (border, keywords) in categories)
+            foreach (var (border, keywords, catalogKeys) in categories)
             {
-                border.IsVisible = showAll || keywords.Contains(q, StringComparison.OrdinalIgnoreCase);
+                bool matches = showAll
+                    || keywords.Contains(q, StringComparison.OrdinalIgnoreCase);
+                if (!matches)
+                {
+                    for (int i = 0; i < catalogKeys.Count; i++)
+                    {
+                        if (EditorSearchIndex.MatchesCatalogEntry(
+                            catalogKeys[i], null, q))
+                        {
+                            matches = true;
+                            break;
+                        }
+                    }
+                }
+                border.IsVisible = matches;
             }
         }
 
