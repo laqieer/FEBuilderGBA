@@ -114,7 +114,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 Log.ErrorF(
                     "ItemShopViewerView.ReloadShopListForLanguage: {0}",
                     ex.Message);
-                StatusLabel.Text = $"Failed to refresh shop labels: {ex.Message}";
+                StatusLabel.Text =
+                    R._("Failed to refresh shop labels: {0}", ex.Message);
             }
         }
 

@@ -115,7 +115,9 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Contains(
                 "ItemShopViewerView.ReloadShopListForLanguage: {0}",
                 src);
-            Assert.Contains("Failed to refresh shop labels:", src);
+            Assert.Contains(
+                "R._(\"Failed to refresh shop labels: {0}\", ex.Message)",
+                src);
             Assert.DoesNotContain(
                 "ReloadShopListAndSelect(shopAddrToSelect, slotIndexToSelect);",
                 src);
