@@ -171,7 +171,8 @@ namespace FEBuilderGBA.Core.Tests
             rom.Data[0x502] = 0x00; // terminator
             rom.Data[0x503] = 0x00;
 
-            var shops = ItemShopCore.MakeShopList(rom, TranslateShopLabel);
+            var shops =
+                ItemShopCore.MakeShopListWithTranslator(rom, TranslateShopLabel);
 
             // Expect at least 2 entries: hensei (0x200) + worldmap armory (0x500).
             Assert.Contains(shops, s =>
@@ -275,7 +276,8 @@ namespace FEBuilderGBA.Core.Tests
             rom.Data[0x1302] = 0x00;
             rom.Data[0x1303] = 0x00;
 
-            var shops = ItemShopCore.MakeShopList(rom, TranslateShopLabel);
+            var shops =
+                ItemShopCore.MakeShopListWithTranslator(rom, TranslateShopLabel);
 
             // We expect: hensei (0x200) + the event-cond armory shop (0x1300).
             Assert.Contains(shops, s =>

@@ -45,10 +45,12 @@ namespace FEBuilderGBA
         /// <see cref="RelocateShopList"/>).</returns>
         public static List<AddrResult> MakeShopList(ROM rom)
         {
-            return MakeShopList(rom, static shopLabel => R._(shopLabel));
+            return MakeShopListWithTranslator(
+                rom,
+                static shopLabel => R._(shopLabel));
         }
 
-        internal static List<AddrResult> MakeShopList(
+        internal static List<AddrResult> MakeShopListWithTranslator(
             ROM rom,
             Func<string, string> translateShopLabel)
         {
