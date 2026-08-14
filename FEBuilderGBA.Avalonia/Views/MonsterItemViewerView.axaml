@@ -250,7 +250,7 @@
         <controls:AddressListControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_Entry_List"
                                      Grid.Column="0" Name="HoldingEntryList" Margin="4" />
 
-        <ScrollViewer Grid.Column="1" Margin="4" HorizontalScrollBarVisibility="Visible">
+        <ScrollViewer Grid.Column="1" Margin="4" Name="HoldingDetailScroll" HorizontalScrollBarVisibility="Visible" AllowAutoHide="False">
           <StackPanel Spacing="8" Margin="8">
             <TextBlock Text="Holdings Table" FontSize="18" FontWeight="Bold" />
 
