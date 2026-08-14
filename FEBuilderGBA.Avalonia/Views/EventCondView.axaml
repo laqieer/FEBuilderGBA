@@ -353,7 +353,7 @@
               <Button AutomationProperties.AutomationId="EventCond_AllocCallEndEvent_Button" Content="CALL EndEvent" Name="AllocCallEndEventBtn" Click="AllocCallEndEvent_Click" ToolTip.Tip="Call the chapter end-event and set the victory flag (W2=3)" />
               <Button AutomationProperties.AutomationId="EventCond_AllocCall1_Button" Content="CALL 1" Name="AllocCall1Btn" Click="AllocCall1_Click" ToolTip.Tip="Write the literal event-pointer value 1" />
             </StackPanel>
-            <Button AutomationProperties.AutomationId="EventCond_AllocCounter_Button" Content="Counter Reinforcement" Name="AllocCounterBtn" Click="AllocCounter_Click" IsVisible="False" ToolTip.Tip="Allocate a counter-reinforcement event and set this TURN to 1-255 (B8=1, B9=255)" />
+            <Button AutomationProperties.AutomationId="EventCond_AllocCounter_Button" Content="Counter Reinforcement" Name="AllocCounterBtn" Click="AllocCounter_Click" IsVisible="False" ToolTip.Placement="Right" ToolTip.Tip="Allocate a counter-reinforcement event and set this TURN to 1-255 (B8=1, B9=255)" />
           </StackPanel>
         </Border>
 
