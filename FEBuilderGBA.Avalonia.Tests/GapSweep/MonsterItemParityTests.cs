@@ -229,7 +229,7 @@ public class MonsterItemParityTests
             axaml,
             "ColumnDefinitions=\"80,300,140,300\"").Count);
         Assert.Contains(
-            "<ScrollViewer Grid.Column=\"1\" Margin=\"4\" HorizontalScrollBarVisibility=\"Auto\">",
+            "<ScrollViewer Grid.Column=\"1\" Margin=\"4\" HorizontalScrollBarVisibility=\"Visible\">",
             axaml);
     }
 
