@@ -1552,6 +1552,24 @@ public class EventCondParityTests
         Assert.Contains(automationId, content);
     }
 
+    [Fact]
+    public void View_AllocCounterTooltip_UsesRightPlacement()
+    {
+        string repoRoot = FindRepoRoot();
+        string axamlPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "EventCondView.axaml");
+        XDocument doc = XDocument.Load(axamlPath);
+        XElement button = doc.Descendants()
+            .Single(e => e.Name.LocalName == "Button"
+                && e.Attributes().Any(a => a.Name.LocalName == "Name"
+                    && a.Value == "AllocCounterBtn"));
+
+        XAttribute? placement = button.Attributes()
+            .SingleOrDefault(a => a.Name.LocalName == "ToolTip.Placement");
+        Assert.NotNull(placement);
+        Assert.Equal("Right", placement!.Value);
+    }
+
     [Theory]
     [InlineData("AllocCallEndEvent_Click")]
     [InlineData("AllocCall1_Click")]
