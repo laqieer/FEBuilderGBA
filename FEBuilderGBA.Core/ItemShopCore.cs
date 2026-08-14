@@ -409,7 +409,7 @@ namespace FEBuilderGBA
         /// <param name="newQuantity">Quantity to append.</param>
         /// <param name="pointerAddr">Address of the 4-byte pointer slot that
         ///   references the shop (i.e. the <c>tag</c> field of the
-        ///   <see cref="AddrResult"/> returned by <see cref="MakeShopList"/>).
+        ///   <see cref="AddrResult"/> returned by <see cref="MakeShopList(ROM)"/>).
         ///   This is the slot that gets rewritten to point at the new location.</param>
         public static uint RelocateShopList(ROM rom, uint oldShopAddr, byte newItemId,
             byte newQuantity, uint pointerAddr)

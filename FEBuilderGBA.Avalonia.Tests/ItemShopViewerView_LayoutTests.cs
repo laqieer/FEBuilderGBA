@@ -16,6 +16,15 @@ namespace FEBuilderGBA.Avalonia.Tests
     /// </summary>
     public class ItemShopViewerView_LayoutTests
     {
+        static string ReadViewSource()
+        {
+            string srcPath = System.IO.Path.Combine(
+                System.AppDomain.CurrentDomain.BaseDirectory,
+                "..", "..", "..", "..",
+                "FEBuilderGBA.Avalonia", "Views", "ItemShopViewerView.axaml.cs");
+            return System.IO.File.ReadAllText(srcPath);
+        }
+
         [AvaloniaFact]
         public void ItemShopViewerView_CanInstantiate()
         {
@@ -73,11 +82,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         [AvaloniaFact]
         public void ItemShopViewerView_RelocationPreservesShopSelection()
         {
-            string srcPath = System.IO.Path.Combine(
-                System.AppDomain.CurrentDomain.BaseDirectory,
-                "..", "..", "..", "..",
-                "FEBuilderGBA.Avalonia", "Views", "ItemShopViewerView.axaml.cs");
-            string src = System.IO.File.ReadAllText(srcPath);
+            string src = ReadViewSource();
             // After Relocated outcome, the handler must call the
             // shop-preserving reload helper (not raw LoadShopList).
             Assert.Contains("ReloadShopListAndSelect(newShopAddr", src);
@@ -85,6 +90,20 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Contains("ShopList.SelectAddress(shopAddrToSelect)", src);
             // The helper must reselect the appended slot inside the relocated shop.
             Assert.Contains("SlotList.SelectAddress(slot.addr)", src);
+        }
+
+        [AvaloniaFact]
+        public void ItemShopViewerView_LanguageChangeReloadsLocalizedRows()
+        {
+            string src = ReadViewSource();
+
+            Assert.Equal(2,
+                src.Split("CoreState.LanguageChanged -= OnLanguageChanged;").Length - 1);
+            Assert.Contains("CoreState.LanguageChanged += OnLanguageChanged;", src);
+            Assert.Contains("Dispatcher.UIThread.Post(ReloadShopListForLanguage);", src);
+            Assert.Contains(
+                "ReloadShopListAndSelect(shopAddrToSelect, slotIndexToSelect);",
+                src);
         }
     }
 }

@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
+using global::Avalonia.Threading;
 using FEBuilderGBA;
 using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Services;
@@ -43,11 +44,33 @@ namespace FEBuilderGBA.Avalonia.Views
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
         {
             base.OnAttachedToVisualTree(e);
+            CoreState.LanguageChanged -= OnLanguageChanged;
+            CoreState.LanguageChanged += OnLanguageChanged;
             if (!_hasLoadedList)
             {
                 _hasLoadedList = true;
                 LoadShopList();
             }
+        }
+
+        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            CoreState.LanguageChanged -= OnLanguageChanged;
+            base.OnDetachedFromVisualTree(e);
+        }
+
+        void OnLanguageChanged()
+        {
+            Dispatcher.UIThread.Post(ReloadShopListForLanguage);
+        }
+
+        void ReloadShopListForLanguage()
+        {
+            uint shopAddrToSelect = ShopList.SelectedItem?.addr ?? _vm.CurrentShopAddr;
+            uint slotAddrToSelect = SlotList.SelectedItem?.addr ?? _vm.CurrentAddr;
+            int slotIndexToSelect =
+                _currentSlotList.FindIndex(slot => slot.addr == slotAddrToSelect);
+            ReloadShopListAndSelect(shopAddrToSelect, slotIndexToSelect);
         }
 
         // ===================================================================
