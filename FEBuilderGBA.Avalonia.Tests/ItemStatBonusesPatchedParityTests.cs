@@ -173,6 +173,28 @@ public class ItemStatBonusesPatchedParityTests : System.IDisposable
                 && a.Value == "MagicOrUnknownBox"));
         Assert.Equal("3", magic.Attribute("Grid.Row")?.Value);
         Assert.Equal("4", magic.Attribute("Grid.Column")?.Value);
+
+        XElement growthGrid = doc.Descendants()
+            .Single(e => e.Name.LocalName == "Grid"
+                && e.Attributes().Any(a => a.Name.LocalName == "Name"
+                    && a.Value == "GrowthBonusGrid"));
+        Assert.Equal("128,128,128,128",
+            growthGrid.Attribute("ColumnDefinitions")?.Value);
+        Assert.Equal("Auto,Auto,Auto,Auto",
+            growthGrid.Attribute("RowDefinitions")?.Value);
+
+        XElement[] growthInputs = growthGrid.Descendants()
+            .Where(e => e.Name.LocalName == "NumericUpDown")
+            .ToArray();
+        Assert.Equal(8, growthInputs.Length);
+        Assert.All(growthInputs,
+            input => Assert.Equal("120", input.Attribute("Width")?.Value));
+
+        XElement unknown = growthInputs.Single(input =>
+            input.Attributes().Any(a => a.Name.LocalName == "Name"
+                && a.Value == "GrowUnknownBox"));
+        Assert.Equal("3", unknown.Attribute("Grid.Row")?.Value);
+        Assert.Equal("3", unknown.Attribute("Grid.Column")?.Value);
     }
 
     // ------------------------------------------------------------------

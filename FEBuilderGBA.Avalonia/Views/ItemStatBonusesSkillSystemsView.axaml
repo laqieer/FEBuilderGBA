@@ -44,24 +44,26 @@
 
         <!-- Growth Rate Bonuses Row -->
         <TextBlock Text="Growth Rate Bonuses" FontWeight="Bold" Margin="0,8,0,0" />
-        <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowDefinitions="Auto,Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="HP" Width="70" Margin="2" HorizontalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Text="Str/Mag" Width="70" Margin="2" HorizontalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="2" Text="Skill" Width="70" Margin="2" HorizontalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="3" Text="Speed" Width="70" Margin="2" HorizontalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="4" Text="Defense" Width="70" Margin="2" HorizontalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="5" Text="Resistance" Width="70" Margin="2" HorizontalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="6" Text="Luck" Width="70" Margin="2" HorizontalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="7" Text="??" Width="70" Margin="2" HorizontalAlignment="Center" />
+        <Grid Name="GrowthBonusGrid" ColumnDefinitions="128,128,128,128" RowDefinitions="Auto,Auto,Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="HP" Width="120" Margin="2" HorizontalAlignment="Center" />
+          <TextBlock Grid.Row="0" Grid.Column="1" Text="Str/Mag" Width="120" Margin="2" HorizontalAlignment="Center" />
+          <TextBlock Grid.Row="0" Grid.Column="2" Text="Skill" Width="120" Margin="2" HorizontalAlignment="Center" />
+          <TextBlock Grid.Row="0" Grid.Column="3" Text="Speed" Width="120" Margin="2" HorizontalAlignment="Center" />
 
-          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_GrowHP_Input" FormatString="0" Grid.Row="1" Grid.Column="0" Name="GrowHPBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_GrowStr_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="GrowStrBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_GrowSkill_Input" FormatString="0" Grid.Row="1" Grid.Column="2" Name="GrowSkillBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_GrowSpeed_Input" FormatString="0" Grid.Row="1" Grid.Column="3" Name="GrowSpeedBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_GrowDef_Input" FormatString="0" Grid.Row="1" Grid.Column="4" Name="GrowDefBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_GrowRes_Input" FormatString="0" Grid.Row="1" Grid.Column="5" Name="GrowResBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_GrowLuck_Input" FormatString="0" Grid.Row="1" Grid.Column="6" Name="GrowLuckBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_GrowUnknown_Input" FormatString="0" Grid.Row="1" Grid.Column="7" Name="GrowUnknownBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_GrowHP_Input" FormatString="0" Grid.Row="1" Grid.Column="0" Name="GrowHPBox" Minimum="-128" Maximum="127" Width="120" Margin="2" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_GrowStr_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="GrowStrBox" Minimum="-128" Maximum="127" Width="120" Margin="2" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_GrowSkill_Input" FormatString="0" Grid.Row="1" Grid.Column="2" Name="GrowSkillBox" Minimum="-128" Maximum="127" Width="120" Margin="2" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_GrowSpeed_Input" FormatString="0" Grid.Row="1" Grid.Column="3" Name="GrowSpeedBox" Minimum="-128" Maximum="127" Width="120" Margin="2" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Defense" Width="120" Margin="2" HorizontalAlignment="Center" />
+          <TextBlock Grid.Row="2" Grid.Column="1" Text="Resistance" Width="120" Margin="2" HorizontalAlignment="Center" />
+          <TextBlock Grid.Row="2" Grid.Column="2" Text="Luck" Width="120" Margin="2" HorizontalAlignment="Center" />
+          <TextBlock Grid.Row="2" Grid.Column="3" Text="??" Width="120" Margin="2" HorizontalAlignment="Center" />
+
+          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_GrowDef_Input" FormatString="0" Grid.Row="3" Grid.Column="0" Name="GrowDefBox" Minimum="-128" Maximum="127" Width="120" Margin="2" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_GrowRes_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="GrowResBox" Minimum="-128" Maximum="127" Width="120" Margin="2" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_GrowLuck_Input" FormatString="0" Grid.Row="3" Grid.Column="2" Name="GrowLuckBox" Minimum="-128" Maximum="127" Width="120" Margin="2" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_GrowUnknown_Input" FormatString="0" Grid.Row="3" Grid.Column="3" Name="GrowUnknownBox" Minimum="-128" Maximum="127" Width="120" Margin="2" />
         </Grid>
 
         <!-- Padding Row -->

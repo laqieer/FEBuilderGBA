@@ -80,7 +80,7 @@
              still carries its WF-parity AutomationId so Roslyn-static tests
              can detect them.
              =========================================================== -->
-        <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto"
+        <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Visible"
                       VerticalScrollBarVisibility="Disabled">
         <Grid Name="PaletteGrid" RowDefinitions="36,32,32,32">
           <Grid.ColumnDefinitions>
