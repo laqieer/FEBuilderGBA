@@ -16,6 +16,10 @@ using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using global::Avalonia;
+using global::Avalonia.Controls;
+using global::Avalonia.Headless.XUnit;
+using global::Avalonia.LogicalTree;
 using FEBuilderGBA.Avalonia.GapSweep;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
@@ -1568,6 +1572,35 @@ public class EventCondParityTests
             .SingleOrDefault(a => a.Name.LocalName == "ToolTip.Placement");
         Assert.NotNull(placement);
         Assert.Equal("Right", placement!.Value);
+    }
+
+    [AvaloniaFact]
+    public void View_AllocCounterTooltip_FocusedLayoutIsVisible()
+    {
+        var view = new EventCondView();
+        Border? panel = view.FindControl<Border>("AllocTemplatePanel");
+        Button? button = view.FindControl<Button>("AllocCounterBtn");
+        Assert.NotNull(panel);
+        Assert.NotNull(button);
+
+        panel!.IsVisible = true;
+        button!.IsVisible = true;
+        Assert.Equal(PlacementMode.Right, ToolTip.GetPlacement(button));
+
+        const int width = 1100;
+        const int height = 820;
+        view.Measure(new Size(width, height));
+        view.Arrange(new Rect(0, 0, width, height));
+
+        ScrollViewer? scroll = view.GetLogicalDescendants()
+            .OfType<ScrollViewer>()
+            .FirstOrDefault();
+        Assert.NotNull(scroll);
+        scroll!.Offset = new Vector(
+            0,
+            Math.Max(0, scroll.Extent.Height - scroll.Viewport.Height));
+        Assert.True(panel.IsVisible);
+        Assert.True(button.IsVisible);
     }
 
     [Theory]
