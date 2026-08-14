@@ -165,7 +165,8 @@ namespace FEBuilderGBA
         {
             if (string.IsNullOrEmpty(text)) return text;
             text = text.Replace("@001F", "");
-            return ToolTranslateROMCore.ConvertEscapeText(text);
+            text = ToolTranslateROMCore.ConvertEscapeText(text);
+            return U.ToOneLineCaption(text);
         }
 
         static void AddWorldMapShopIfValid(ROM rom, uint pointerSlotAddr, uint shopPtr,

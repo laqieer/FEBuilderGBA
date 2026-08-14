@@ -118,6 +118,8 @@ namespace FEBuilderGBA.Core.Tests
         [Theory]
         [InlineData("Ide@001F", "Ide")]
         [InlineData("Serafew@001F", "Serafew")]
+        [InlineData("Ide\u001F", "Ide")]
+        [InlineData("Serafew\u001F", "Serafew")]
         public void NormalizeDecodedWorldMapPointName_RemovesPaddingToken(
             string decoded,
             string expected)
