@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
+using global::Avalonia.Threading;
 using FEBuilderGBA;
 using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Services;
@@ -25,6 +26,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ItemShopViewerViewModel _vm = new();
         readonly UndoService _undoService = new();
         bool _hasLoadedList;
+        bool _isAttachedToVisualTree;
         List<AddrResult> _currentShopList = new();
         List<AddrResult> _currentSlotList = new();
 
@@ -43,10 +45,77 @@ namespace FEBuilderGBA.Avalonia.Views
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
         {
             base.OnAttachedToVisualTree(e);
+            _isAttachedToVisualTree = true;
+            CoreState.LanguageChanged -= OnLanguageChanged;
+            CoreState.LanguageChanged += OnLanguageChanged;
             if (!_hasLoadedList)
             {
                 _hasLoadedList = true;
                 LoadShopList();
+            }
+            else
+            {
+                ReloadShopListForLanguage();
+            }
+        }
+
+        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            _isAttachedToVisualTree = false;
+            CoreState.LanguageChanged -= OnLanguageChanged;
+            base.OnDetachedFromVisualTree(e);
+        }
+
+        void OnLanguageChanged()
+        {
+            Dispatcher.UIThread.Post(ReloadShopListForLanguage);
+        }
+
+        void ReloadShopListForLanguage()
+        {
+            if (!_isAttachedToVisualTree) return;
+
+            try
+            {
+                uint shopAddrToSelect =
+                    ShopList.SelectedItem?.addr ?? _vm.CurrentShopAddr;
+                ShopList.SelectedAddressChanged -= OnShopSelected;
+                try
+                {
+                    _currentShopList = _vm.LoadShopList();
+                    ShopList.SetItemsPreserveSelection(
+                        _currentShopList,
+                        shopAddrToSelect);
+                }
+                finally
+                {
+                    ShopList.SelectedAddressChanged += OnShopSelected;
+                }
+
+                AddrResult? selectedShop = ShopList.SelectedItem;
+                if (selectedShop == null) return;
+
+                bool wasLoading = _vm.IsLoading;
+                _vm.IsLoading = true;
+                try
+                {
+                    _vm.CurrentShopAddr = selectedShop.addr;
+                    _vm.CurrentShopPointerAddr = selectedShop.tag;
+                    _vm.CurrentShopName = selectedShop.name;
+                }
+                finally
+                {
+                    _vm.IsLoading = wasLoading;
+                }
+                ShopNameLabel.Text = selectedShop.name;
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorF(
+                    "ItemShopViewerView.ReloadShopListForLanguage: {0}",
+                    ex.Message);
+                StatusLabel.Text =
+                    R._("Failed to refresh shop labels: {0}", ex.Message);
             }
         }
 

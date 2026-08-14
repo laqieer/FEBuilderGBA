@@ -1,6 +1,7 @@
-using Xunit;
-using FEBuilderGBA;
+using System;
 using System.Collections.Generic;
+using FEBuilderGBA;
+using Xunit;
 
 namespace FEBuilderGBA.Core.Tests
 {
@@ -19,6 +20,17 @@ namespace FEBuilderGBA.Core.Tests
     public class ItemShopCoreTests
     {
         // ---------- helpers ----------
+        static string TranslateShopLabel(string shopLabel)
+        {
+            return shopLabel switch
+            {
+                "武器屋" => "Armory",
+                "道具屋" => "Vendor",
+                "秘密屋" => "Secret Shop",
+                _ => shopLabel,
+            };
+        }
+
         static void WriteU32(byte[] data, int offset, uint value)
         {
             data[offset + 0] = (byte)(value & 0xFF);
@@ -103,6 +115,19 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Empty(shops);
         }
 
+        [Theory]
+        [InlineData("Ide@001F", "Ide")]
+        [InlineData("Serafew@001F", "Serafew")]
+        [InlineData("Ide\u001F", "Ide")]
+        [InlineData("Serafew\u001F", "Serafew")]
+        public void NormalizeDecodedWorldMapPointName_RemovesPaddingToken(
+            string decoded,
+            string expected)
+        {
+            Assert.Equal(expected,
+                ItemShopCore.NormalizeDecodedWorldMapPointName(decoded));
+        }
+
         // ===================================================================
         // MakeShopList: worldmap (FE8)
         // ===================================================================
@@ -146,10 +171,13 @@ namespace FEBuilderGBA.Core.Tests
             rom.Data[0x502] = 0x00; // terminator
             rom.Data[0x503] = 0x00;
 
-            var shops = ItemShopCore.MakeShopList(rom);
+            var shops =
+                ItemShopCore.MakeShopListWithTranslator(rom, TranslateShopLabel);
 
             // Expect at least 2 entries: hensei (0x200) + worldmap armory (0x500).
-            Assert.Contains(shops, s => s.addr == 0x500);
+            Assert.Contains(shops, s =>
+                s.addr == 0x500 &&
+                s.name.EndsWith("Armory", StringComparison.Ordinal));
         }
 
         [Fact]
@@ -248,10 +276,13 @@ namespace FEBuilderGBA.Core.Tests
             rom.Data[0x1302] = 0x00;
             rom.Data[0x1303] = 0x00;
 
-            var shops = ItemShopCore.MakeShopList(rom);
+            var shops =
+                ItemShopCore.MakeShopListWithTranslator(rom, TranslateShopLabel);
 
             // We expect: hensei (0x200) + the event-cond armory shop (0x1300).
-            Assert.Contains(shops, s => s.addr == 0x1300);
+            Assert.Contains(shops, s =>
+                s.addr == 0x1300 &&
+                s.name.EndsWith("Armory", StringComparison.Ordinal));
         }
 
         [Fact]

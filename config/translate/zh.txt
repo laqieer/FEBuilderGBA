@@ -26680,6 +26680,9 @@ AI脚本已写入。
 :Import succeeded ({0} bytes) but UI refresh failed: {1}. Re-select the Map Style entry to refresh the view.
 导入成功（{0} 字节），但界面刷新失败：{1}。请重新选择该地图样式项以刷新视图。
 
+:Failed to refresh shop labels: {0}
+刷新商店标签失败：{0}
+
 :Imported {0} bytes of map chip config.
 已导入 {0} 字节的地图图块配置。
 
