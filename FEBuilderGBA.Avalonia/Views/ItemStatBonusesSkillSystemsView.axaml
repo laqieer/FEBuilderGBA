@@ -5,7 +5,7 @@
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
-    <ScrollViewer Grid.Column="1" Margin="4">
+    <ScrollViewer Grid.Column="1" Margin="4" HorizontalScrollBarVisibility="Auto">
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Stat Bonuses (Skill Systems)" FontSize="18" FontWeight="Bold" />
 
@@ -16,28 +16,30 @@
 
         <!-- Stat Bonuses Row -->
         <TextBlock Text="Stat Bonuses" FontWeight="Bold" Margin="0,8,0,0" />
-        <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowDefinitions="Auto,Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="HP" Width="70" Margin="2" HorizontalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Text="Str/Mag" Width="70" Margin="2" HorizontalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="2" Text="Skill" Width="70" Margin="2" HorizontalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="3" Text="Speed" Width="70" Margin="2" HorizontalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="4" Text="Defense" Width="70" Margin="2" HorizontalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="5" Text="Resistance" Width="70" Margin="2" HorizontalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="6" Text="Luck" Width="70" Margin="2" HorizontalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="7" Text="Move" Width="70" Margin="2" HorizontalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="8" Text="Con" Width="70" Margin="2" HorizontalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="9" Text="Magic/??" Width="70" Margin="2" HorizontalAlignment="Center" />
+        <Grid Name="StatBonusGrid" ColumnDefinitions="128,128,128,128,128" RowDefinitions="Auto,Auto,Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="HP" Width="120" Margin="2" HorizontalAlignment="Center" />
+          <TextBlock Grid.Row="0" Grid.Column="1" Text="Str/Mag" Width="120" Margin="2" HorizontalAlignment="Center" />
+          <TextBlock Grid.Row="0" Grid.Column="2" Text="Skill" Width="120" Margin="2" HorizontalAlignment="Center" />
+          <TextBlock Grid.Row="0" Grid.Column="3" Text="Speed" Width="120" Margin="2" HorizontalAlignment="Center" />
+          <TextBlock Grid.Row="0" Grid.Column="4" Text="Defense" Width="120" Margin="2" HorizontalAlignment="Center" />
 
-          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_HP_Input" FormatString="0" Grid.Row="1" Grid.Column="0" Name="HPBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_Str_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="StrBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_Skill_Input" FormatString="0" Grid.Row="1" Grid.Column="2" Name="SkillBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_Speed_Input" FormatString="0" Grid.Row="1" Grid.Column="3" Name="SpeedBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_Def_Input" FormatString="0" Grid.Row="1" Grid.Column="4" Name="DefBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_Res_Input" FormatString="0" Grid.Row="1" Grid.Column="5" Name="ResBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_Luck_Input" FormatString="0" Grid.Row="1" Grid.Column="6" Name="LuckBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_Move_Input" FormatString="0" Grid.Row="1" Grid.Column="7" Name="MoveBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_Con_Input" FormatString="0" Grid.Row="1" Grid.Column="8" Name="ConBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_MagicOrUnknown_Input" FormatString="0" Grid.Row="1" Grid.Column="9" Name="MagicOrUnknownBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_HP_Input" FormatString="0" Grid.Row="1" Grid.Column="0" Name="HPBox" Minimum="-128" Maximum="127" Width="120" Margin="2" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_Str_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="StrBox" Minimum="-128" Maximum="127" Width="120" Margin="2" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_Skill_Input" FormatString="0" Grid.Row="1" Grid.Column="2" Name="SkillBox" Minimum="-128" Maximum="127" Width="120" Margin="2" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_Speed_Input" FormatString="0" Grid.Row="1" Grid.Column="3" Name="SpeedBox" Minimum="-128" Maximum="127" Width="120" Margin="2" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_Def_Input" FormatString="0" Grid.Row="1" Grid.Column="4" Name="DefBox" Minimum="-128" Maximum="127" Width="120" Margin="2" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Resistance" Width="120" Margin="2" HorizontalAlignment="Center" />
+          <TextBlock Grid.Row="2" Grid.Column="1" Text="Luck" Width="120" Margin="2" HorizontalAlignment="Center" />
+          <TextBlock Grid.Row="2" Grid.Column="2" Text="Move" Width="120" Margin="2" HorizontalAlignment="Center" />
+          <TextBlock Grid.Row="2" Grid.Column="3" Text="Con" Width="120" Margin="2" HorizontalAlignment="Center" />
+          <TextBlock Grid.Row="2" Grid.Column="4" Text="Magic/??" Width="120" Margin="2" HorizontalAlignment="Center" />
+
+          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_Res_Input" FormatString="0" Grid.Row="3" Grid.Column="0" Name="ResBox" Minimum="-128" Maximum="127" Width="120" Margin="2" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_Luck_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="LuckBox" Minimum="-128" Maximum="127" Width="120" Margin="2" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_Move_Input" FormatString="0" Grid.Row="3" Grid.Column="2" Name="MoveBox" Minimum="-128" Maximum="127" Width="120" Margin="2" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_Con_Input" FormatString="0" Grid.Row="3" Grid.Column="3" Name="ConBox" Minimum="-128" Maximum="127" Width="120" Margin="2" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesSkillSystems_MagicOrUnknown_Input" FormatString="0" Grid.Row="3" Grid.Column="4" Name="MagicOrUnknownBox" Minimum="-128" Maximum="127" Width="120" Margin="2" />
         </Grid>
 
         <!-- Growth Rate Bonuses Row -->

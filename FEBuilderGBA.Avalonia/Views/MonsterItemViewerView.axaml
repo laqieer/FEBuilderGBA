@@ -250,7 +250,7 @@
         <controls:AddressListControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_Entry_List"
                                      Grid.Column="0" Name="HoldingEntryList" Margin="4" />
 
-        <ScrollViewer Grid.Column="1" Margin="4">
+        <ScrollViewer Grid.Column="1" Margin="4" HorizontalScrollBarVisibility="Auto">
           <StackPanel Spacing="8" Margin="8">
             <TextBlock Text="Holdings Table" FontSize="18" FontWeight="Bold" />
 
@@ -297,7 +297,7 @@
 
             <!-- Holdings Set 1 — 5 slots (B1..B5 / B11..B15 / B21..B25). -->
             <TextBlock Text="Holdings Set 1" FontSize="14" FontWeight="Bold" Margin="0,8,0,0" />
-            <Grid ColumnDefinitions="100,100,100,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
+            <Grid ColumnDefinitions="80,300,140,300" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="Slot" FontWeight="Bold" />
               <TextBlock Grid.Row="0" Grid.Column="1" Text="Candidate" FontWeight="Bold"
                          ToolTip.Tip="1-based index into the Item Table (Tab 1) — NOT a FE item ID. Click the field to Jump to the matching row." />
@@ -368,7 +368,7 @@
 
             <!-- Holdings Set 2 — 5 slots (B6..B10 / B16..B20 / B26..B30). -->
             <TextBlock Text="Holdings Set 2" FontSize="14" FontWeight="Bold" Margin="0,8,0,0" />
-            <Grid ColumnDefinitions="100,100,100,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
+            <Grid ColumnDefinitions="80,300,140,300" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="Slot" FontWeight="Bold" />
               <TextBlock Grid.Row="0" Grid.Column="1" Text="Candidate" FontWeight="Bold"
                          ToolTip.Tip="1-based index into the Item Table (Tab 1) — NOT a FE item ID. Click the field to Jump to the matching row." />
