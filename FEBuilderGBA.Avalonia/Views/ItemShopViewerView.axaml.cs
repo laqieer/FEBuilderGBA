@@ -53,6 +53,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 _hasLoadedList = true;
                 LoadShopList();
             }
+            else
+            {
+                ReloadShopListForLanguage();
+            }
         }
 
         protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
@@ -72,10 +76,35 @@ namespace FEBuilderGBA.Avalonia.Views
             if (!_isAttachedToVisualTree) return;
 
             uint shopAddrToSelect = ShopList.SelectedItem?.addr ?? _vm.CurrentShopAddr;
-            uint slotAddrToSelect = SlotList.SelectedItem?.addr ?? _vm.CurrentAddr;
-            int slotIndexToSelect =
-                _currentSlotList.FindIndex(slot => slot.addr == slotAddrToSelect);
-            ReloadShopListAndSelect(shopAddrToSelect, slotIndexToSelect);
+            ShopList.SelectedAddressChanged -= OnShopSelected;
+            try
+            {
+                _currentShopList = _vm.LoadShopList();
+                ShopList.SetItemsPreserveSelection(
+                    _currentShopList,
+                    shopAddrToSelect);
+            }
+            finally
+            {
+                ShopList.SelectedAddressChanged += OnShopSelected;
+            }
+
+            AddrResult? selectedShop = ShopList.SelectedItem;
+            if (selectedShop == null) return;
+
+            bool wasLoading = _vm.IsLoading;
+            _vm.IsLoading = true;
+            try
+            {
+                _vm.CurrentShopAddr = selectedShop.addr;
+                _vm.CurrentShopPointerAddr = selectedShop.tag;
+                _vm.CurrentShopName = selectedShop.name;
+            }
+            finally
+            {
+                _vm.IsLoading = wasLoading;
+            }
+            ShopNameLabel.Text = selectedShop.name;
         }
 
         // ===================================================================

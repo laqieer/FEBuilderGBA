@@ -104,7 +104,15 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Contains("_isAttachedToVisualTree = true;", src);
             Assert.Contains("_isAttachedToVisualTree = false;", src);
             Assert.Contains("if (!_isAttachedToVisualTree) return;", src);
+            Assert.Contains("ReloadShopListForLanguage();", src);
             Assert.Contains(
+                "ShopList.SelectedAddressChanged -= OnShopSelected;",
+                src);
+            Assert.Contains("ShopList.SetItemsPreserveSelection(", src);
+            Assert.Contains("_currentShopList,", src);
+            Assert.Contains("shopAddrToSelect);", src);
+            Assert.Contains("ShopNameLabel.Text = selectedShop.name;", src);
+            Assert.DoesNotContain(
                 "ReloadShopListAndSelect(shopAddrToSelect, slotIndexToSelect);",
                 src);
         }
