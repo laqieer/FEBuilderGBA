@@ -75,36 +75,47 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (!_isAttachedToVisualTree) return;
 
-            uint shopAddrToSelect = ShopList.SelectedItem?.addr ?? _vm.CurrentShopAddr;
-            ShopList.SelectedAddressChanged -= OnShopSelected;
             try
             {
-                _currentShopList = _vm.LoadShopList();
-                ShopList.SetItemsPreserveSelection(
-                    _currentShopList,
-                    shopAddrToSelect);
-            }
-            finally
-            {
-                ShopList.SelectedAddressChanged += OnShopSelected;
-            }
+                uint shopAddrToSelect =
+                    ShopList.SelectedItem?.addr ?? _vm.CurrentShopAddr;
+                ShopList.SelectedAddressChanged -= OnShopSelected;
+                try
+                {
+                    _currentShopList = _vm.LoadShopList();
+                    ShopList.SetItemsPreserveSelection(
+                        _currentShopList,
+                        shopAddrToSelect);
+                }
+                finally
+                {
+                    ShopList.SelectedAddressChanged += OnShopSelected;
+                }
 
-            AddrResult? selectedShop = ShopList.SelectedItem;
-            if (selectedShop == null) return;
+                AddrResult? selectedShop = ShopList.SelectedItem;
+                if (selectedShop == null) return;
 
-            bool wasLoading = _vm.IsLoading;
-            _vm.IsLoading = true;
-            try
-            {
-                _vm.CurrentShopAddr = selectedShop.addr;
-                _vm.CurrentShopPointerAddr = selectedShop.tag;
-                _vm.CurrentShopName = selectedShop.name;
+                bool wasLoading = _vm.IsLoading;
+                _vm.IsLoading = true;
+                try
+                {
+                    _vm.CurrentShopAddr = selectedShop.addr;
+                    _vm.CurrentShopPointerAddr = selectedShop.tag;
+                    _vm.CurrentShopName = selectedShop.name;
+                }
+                finally
+                {
+                    _vm.IsLoading = wasLoading;
+                }
+                ShopNameLabel.Text = selectedShop.name;
             }
-            finally
+            catch (Exception ex)
             {
-                _vm.IsLoading = wasLoading;
+                Log.ErrorF(
+                    "ItemShopViewerView.ReloadShopListForLanguage: {0}",
+                    ex.Message);
+                StatusLabel.Text = $"Failed to refresh shop labels: {ex.Message}";
             }
-            ShopNameLabel.Text = selectedShop.name;
         }
 
         // ===================================================================
