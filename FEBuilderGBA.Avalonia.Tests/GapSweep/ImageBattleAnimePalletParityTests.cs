@@ -113,6 +113,7 @@ public class ImageBattleAnimePalletParityTests
         Assert.All(columns,
             column => Assert.Equal("124", column.Attribute("Width")?.Value));
         Assert.Contains("HorizontalScrollBarVisibility=\"Visible\"", ReadAxaml());
+        Assert.Contains("AllowAutoHide=\"False\"", ReadAxaml());
     }
 
     [Fact]

@@ -81,6 +81,7 @@
              can detect them.
              =========================================================== -->
         <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Visible"
+                      AllowAutoHide="False"
                       VerticalScrollBarVisibility="Disabled">
         <Grid Name="PaletteGrid" RowDefinitions="36,32,32,32">
           <Grid.ColumnDefinitions>

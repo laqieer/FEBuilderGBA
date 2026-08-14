@@ -227,7 +227,7 @@ public class MonsterItemParityTests
 
         Assert.Equal(2, Regex.Matches(
             axaml,
-            "ColumnDefinitions=\"80,300,140,300\"").Count);
+            "ColumnDefinitions=\"80,420,140,420\"").Count);
         Assert.Contains(
             "<ScrollViewer Grid.Column=\"1\" Margin=\"4\" Name=\"HoldingDetailScroll\" HorizontalScrollBarVisibility=\"Visible\" AllowAutoHide=\"False\">",
             axaml);
