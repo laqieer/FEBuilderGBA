@@ -52,16 +52,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
-            uint ptr = ResolveSongTablePointerSlot(rom);
-            if (ptr == 0) return new List<AddrResult>();
+            uint ptr = rom.RomInfo.sound_table_pointer;
+            if (ptr == 0 || ptr + 3 >= (uint)rom.Data.Length)
+                return new List<AddrResult>();
 
             uint baseAddr = rom.p32(ptr);
-            if (baseAddr >= (uint)rom.Data.Length) return new List<AddrResult>();
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
 
             var result = new List<AddrResult>();
             for (uint i = 0; i < MaxSongCount; i++)
             {
-                uint addr = baseAddr + i * SongEntrySize;
+                uint addr = baseAddr + i * 8;
                 if (addr + 7 >= (uint)rom.Data.Length) break;
 
                 uint headerPtr = rom.u32(addr);
@@ -84,7 +85,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (configuredShow) return true;
             if (rom?.RomInfo == null) return false;
 
-            uint ptr = ResolveSongTablePointerSlot(rom);
+            uint ptr = rom.RomInfo.sound_table_pointer;
             if (ptr == 0 || ptr + 3 >= (uint)rom.Data.Length) return false;
             return rom.u32(ptr) >= rom.RomInfo.extends_address;
         }
@@ -235,12 +236,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         static uint ComputeSongIndex(ROM rom, uint addr)
         {
             if (rom?.RomInfo == null) return uint.MaxValue;
-            uint ptr = ResolveSongTablePointerSlot(rom);
+            uint ptr = rom.RomInfo.sound_table_pointer;
             // Guard the full 4-byte read: ROM.p32 only checks ptr >= Data.Length,
             // so a ptr within the last 3 bytes of the buffer can throw.
             if (ptr == 0 || ptr + 3 >= (uint)rom.Data.Length) return uint.MaxValue;
             uint baseAddr = rom.p32(ptr);
-            if (baseAddr >= (uint)rom.Data.Length || addr < baseAddr) return uint.MaxValue;
+            if (!U.isSafetyOffset(baseAddr) || addr < baseAddr) return uint.MaxValue;
             return (addr - baseAddr) / SongEntrySize;
         }
 
