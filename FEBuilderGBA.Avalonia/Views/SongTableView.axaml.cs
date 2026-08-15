@@ -2,6 +2,7 @@ using global::Avalonia;
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using System.Collections.Generic;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -44,6 +45,8 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var items = _vm.LoadSongList();
                 SongList.SetItems(items);
+                SongTable_Expand_Button.IsVisible =
+                    _vm.ShouldShowExpansion();
             }
             catch (Exception ex)
             {
@@ -53,6 +56,110 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _vm.IsLoading = false;
                 _vm.MarkClean();
+            }
+        }
+
+        async void DataExpansion_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (CoreState.IsDecompMode)
+                {
+                    CoreState.Services?.ShowError(R._(
+                        "This is a source-backed decomp project. The built ROM is a preview and cannot be saved over. Edit the source and rebuild instead."));
+                    return;
+                }
+                if (CoreState.ROM == null)
+                {
+                    CoreState.Services?.ShowInfo(R._("Load a ROM first."));
+                    return;
+                }
+
+                uint currentCount = (uint)SongList.ItemCount;
+                if (currentCount == 0)
+                {
+                    CoreState.Services?.ShowError(
+                        R._("Cannot expand: list is empty."));
+                    return;
+                }
+                if (currentCount >= SongTableViewModel.MaxSongCount)
+                {
+                    CoreState.Services?.ShowInfo(R._(
+                        "New count ({0}) exceeds the maximum ({1}).",
+                        currentCount + 1,
+                        SongTableViewModel.MaxSongCount));
+                    return;
+                }
+
+                uint? chosen = await Dialogs.NumberInputDialog.Show(
+                    TopLevel.GetTopLevel(this) as Window,
+                    R._("Enter the new entry count for the Song Table (current: {0}, max: {1}).",
+                        currentCount, SongTableViewModel.MaxSongCount),
+                    R._("Data Expansion"),
+                    currentCount + 1,
+                    currentCount + 1,
+                    SongTableViewModel.MaxSongCount);
+                if (chosen == null) return;
+                uint newCount = chosen.Value;
+
+                bool hadSelection = SongList.SelectedItem != null;
+                uint selectedTag = SongList.SelectedItem?.tag ?? 0;
+
+                _undoService.Begin("Expand Song Table");
+                try
+                {
+                    DataExpansionCore.ExpandResult result =
+                        _vm.ExpandSongTable(newCount);
+                    if (!result.Success)
+                    {
+                        _undoService.Rollback();
+                        CoreState.Services?.ShowError(
+                            R._("List expansion failed: {0}", result.Error));
+                        return;
+                    }
+
+                    _undoService.Commit();
+                    _vm.MarkClean();
+
+                    List<AddrResult> items = _vm.LoadSongList();
+                    uint preserveAddress = 0;
+                    if (hadSelection)
+                    {
+                        foreach (AddrResult item in items)
+                        {
+                            if (item.tag == selectedTag)
+                            {
+                                preserveAddress = item.addr;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (preserveAddress != 0)
+                        SongList.SetItemsPreserveSelection(items, preserveAddress);
+                    else
+                        SongList.SetItems(items);
+
+                    SongTable_Expand_Button.IsVisible =
+                        _vm.ShouldShowExpansion();
+                    CoreState.Services?.ShowInfo(R._(
+                        "Expanded Song Table to {0} entries.", newCount));
+                }
+                catch (Exception inner)
+                {
+                    _undoService.Rollback();
+                    Log.Error(
+                        "SongTableView.DataExpansion_Click inner failed: " +
+                        inner.ToString());
+                    CoreState.Services?.ShowError(
+                        R._("List expansion failed: {0}", inner.Message));
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error(
+                    "SongTableView.DataExpansion_Click failed: " +
+                    ex.ToString());
             }
         }
 

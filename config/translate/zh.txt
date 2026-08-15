@@ -28539,3 +28539,8 @@ FEMapCreator 是由 bwdyeti 创建的独立实用工具；FEBuilderGBA 不捆绑
 
 :Git: {0} ...
 Git: {0} ...
+:Enter the new entry count for the Song Table (current: {0}, max: {1}).
+请输入歌曲表的新条目数（当前：{0}，最大：{1}）。
+
+:Expanded Song Table to {0} entries.
+已将歌曲表扩展到{0}个条目。
