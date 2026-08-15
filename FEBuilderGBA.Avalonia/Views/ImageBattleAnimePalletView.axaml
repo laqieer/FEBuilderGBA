@@ -80,26 +80,27 @@
              still carries its WF-parity AutomationId so Roslyn-static tests
              can detect them.
              =========================================================== -->
-        <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto"
+        <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Visible"
+                      AllowAutoHide="False"
                       VerticalScrollBarVisibility="Disabled">
         <Grid Name="PaletteGrid" RowDefinitions="36,32,32,32">
           <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="62" />
-            <ColumnDefinition Width="62" />
-            <ColumnDefinition Width="62" />
-            <ColumnDefinition Width="62" />
-            <ColumnDefinition Width="62" />
-            <ColumnDefinition Width="62" />
-            <ColumnDefinition Width="62" />
-            <ColumnDefinition Width="62" />
-            <ColumnDefinition Width="62" />
-            <ColumnDefinition Width="62" />
-            <ColumnDefinition Width="62" />
-            <ColumnDefinition Width="62" />
-            <ColumnDefinition Width="62" />
-            <ColumnDefinition Width="62" />
-            <ColumnDefinition Width="62" />
-            <ColumnDefinition Width="62" />
+            <ColumnDefinition Width="124" />
+            <ColumnDefinition Width="124" />
+            <ColumnDefinition Width="124" />
+            <ColumnDefinition Width="124" />
+            <ColumnDefinition Width="124" />
+            <ColumnDefinition Width="124" />
+            <ColumnDefinition Width="124" />
+            <ColumnDefinition Width="124" />
+            <ColumnDefinition Width="124" />
+            <ColumnDefinition Width="124" />
+            <ColumnDefinition Width="124" />
+            <ColumnDefinition Width="124" />
+            <ColumnDefinition Width="124" />
+            <ColumnDefinition Width="124" />
+            <ColumnDefinition Width="124" />
+            <ColumnDefinition Width="124" />
           </Grid.ColumnDefinitions>
 
           <!-- Column 1 (PALETTE_P_1 swatch + label7 '1' + PALETTE_R_1/G_1/B_1) -->

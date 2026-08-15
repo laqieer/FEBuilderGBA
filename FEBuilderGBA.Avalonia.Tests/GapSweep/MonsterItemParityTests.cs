@@ -220,6 +220,19 @@ public class MonsterItemParityTests
             axaml);
     }
 
+    [Fact]
+    public void View_HoldingsGrids_ReserveNonOverlappingControlWidths()
+    {
+        string axaml = ReadAxaml();
+
+        Assert.Equal(2, Regex.Matches(
+            axaml,
+            "ColumnDefinitions=\"80,420,140,420\"").Count);
+        Assert.Contains(
+            "<ScrollViewer Grid.Column=\"1\" Margin=\"4\" Name=\"HoldingDetailScroll\" HorizontalScrollBarVisibility=\"Visible\" AllowAutoHide=\"False\">",
+            axaml);
+    }
+
     /// <summary>
     /// B31 is the trailing unknown byte in the 32-byte holdings record.
     /// WF labels it with the literal "00" (per designer.cs label56). The

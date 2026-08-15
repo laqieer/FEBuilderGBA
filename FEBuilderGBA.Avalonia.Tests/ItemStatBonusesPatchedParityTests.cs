@@ -13,6 +13,9 @@
 // reads the booster block, and persists writes (Venno preserving its
 // non-editable +0x0F padding byte). The parity helper now maps both editors
 // and no longer classifies them as context-dependent.
+using System.IO;
+using System.Linq;
+using System.Xml.Linq;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 using Xunit;
@@ -31,6 +34,19 @@ public class ItemStatBonusesPatchedParityTests : System.IDisposable
     // per test). Without this, later SharedState-collection parity tests see
     // our throwaway synthetic ROM and fail.
     readonly ROM? _prevRom = CoreState.ROM;
+
+    static string SkillSystemsAxamlPath()
+    {
+        string? dir = System.AppContext.BaseDirectory;
+        while (dir != null &&
+               !File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
+        {
+            dir = Path.GetDirectoryName(dir);
+        }
+        Assert.NotNull(dir);
+        return Path.Combine(dir!, "FEBuilderGBA.Avalonia", "Views",
+            "ItemStatBonusesSkillSystemsView.axaml");
+    }
 
     public void Dispose()
     {
@@ -129,6 +145,56 @@ public class ItemStatBonusesPatchedParityTests : System.IDisposable
 
         Assert.Equal(7u, rom.u8(BlockAddr + 0));
         Assert.Equal(-9, (sbyte)rom.u8(BlockAddr + 4));
+    }
+
+    [Fact]
+    public void SkillSystems_View_ReflowsTenStatsIntoTwoRows()
+    {
+        XDocument doc = XDocument.Load(SkillSystemsAxamlPath());
+        XElement grid = doc.Descendants()
+            .Single(e => e.Name.LocalName == "Grid"
+                && e.Attributes().Any(a => a.Name.LocalName == "Name"
+                    && a.Value == "StatBonusGrid"));
+
+        Assert.Equal("128,128,128,128,128",
+            grid.Attribute("ColumnDefinitions")?.Value);
+        Assert.Equal("Auto,Auto,Auto,Auto",
+            grid.Attribute("RowDefinitions")?.Value);
+
+        XElement[] inputs = grid.Descendants()
+            .Where(e => e.Name.LocalName == "NumericUpDown")
+            .ToArray();
+        Assert.Equal(10, inputs.Length);
+        Assert.All(inputs,
+            input => Assert.Equal("120", input.Attribute("Width")?.Value));
+
+        XElement magic = inputs.Single(input =>
+            input.Attributes().Any(a => a.Name.LocalName == "Name"
+                && a.Value == "MagicOrUnknownBox"));
+        Assert.Equal("3", magic.Attribute("Grid.Row")?.Value);
+        Assert.Equal("4", magic.Attribute("Grid.Column")?.Value);
+
+        XElement growthGrid = doc.Descendants()
+            .Single(e => e.Name.LocalName == "Grid"
+                && e.Attributes().Any(a => a.Name.LocalName == "Name"
+                    && a.Value == "GrowthBonusGrid"));
+        Assert.Equal("128,128,128,128",
+            growthGrid.Attribute("ColumnDefinitions")?.Value);
+        Assert.Equal("Auto,Auto,Auto,Auto",
+            growthGrid.Attribute("RowDefinitions")?.Value);
+
+        XElement[] growthInputs = growthGrid.Descendants()
+            .Where(e => e.Name.LocalName == "NumericUpDown")
+            .ToArray();
+        Assert.Equal(8, growthInputs.Length);
+        Assert.All(growthInputs,
+            input => Assert.Equal("120", input.Attribute("Width")?.Value));
+
+        XElement unknown = growthInputs.Single(input =>
+            input.Attributes().Any(a => a.Name.LocalName == "Name"
+                && a.Value == "GrowUnknownBox"));
+        Assert.Equal("3", unknown.Attribute("Grid.Row")?.Value);
+        Assert.Equal("3", unknown.Attribute("Grid.Column")?.Value);
     }
 
     // ------------------------------------------------------------------

@@ -98,6 +98,25 @@ public class ImageBattleAnimePalletParityTests
     }
 
     [Fact]
+    public void View_PaletteColumns_AccommodateGlobalNumericMinWidth()
+    {
+        XDocument doc = XDocument.Load(AxamlPath());
+        XElement grid = doc.Descendants()
+            .Single(e => e.Name.LocalName == "Grid"
+                && e.Attributes().Any(a => a.Name.LocalName == "Name"
+                    && a.Value == "PaletteGrid"));
+        XElement[] columns = grid.Descendants()
+            .Where(e => e.Name.LocalName == "ColumnDefinition")
+            .ToArray();
+
+        Assert.Equal(16, columns.Length);
+        Assert.All(columns,
+            column => Assert.Equal("124", column.Attribute("Width")?.Value));
+        Assert.Contains("HorizontalScrollBarVisibility=\"Visible\"", ReadAxaml());
+        Assert.Contains("AllowAutoHide=\"False\"", ReadAxaml());
+    }
+
+    [Fact]
     public void View_HasActionBar()
     {
         string axaml = ReadAxaml();
