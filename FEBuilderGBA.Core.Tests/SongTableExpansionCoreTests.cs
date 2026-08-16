@@ -188,6 +188,9 @@ namespace FEBuilderGBA.Core.Tests
         public void Undo_GrownRom_RestoresDestinationCacheCapturedBeforeShrink()
         {
             ROM rom = MakeRom(3, addFreeSpace: false);
+            byte[] unaligned = new byte[rom.Data.Length + 1];
+            Array.Copy(rom.Data, unaligned, rom.Data.Length);
+            rom.SwapNewROMDataDirect(unaligned);
             CoreState.ROM = rom;
             CoreState.Undo = new Undo();
             var comment = new HeadlessEtcCache();
@@ -203,6 +206,7 @@ namespace FEBuilderGBA.Core.Tests
                 result = SongTableExpansionCore.Expand(rom, 5);
             Assert.True(result.Success, result.Error);
             CoreState.Undo.Push(undo);
+            uint expandedLength = (uint)rom.Data.Length;
 
             Assert.Equal("moved", comment.At(result.NewBaseAddress + 8));
             CoreState.Undo.RunUndo();
@@ -211,6 +215,10 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal("moved", comment.At(TableBase + 8));
             Assert.Equal(
                 "destination-before", comment.At(originalLength + 8));
+
+            Assert.True(CoreState.Undo.RunRedo());
+            Assert.Equal(expandedLength, (uint)rom.Data.Length);
+            Assert.Equal("moved", comment.At(result.NewBaseAddress + 8));
         }
 
         [Fact]

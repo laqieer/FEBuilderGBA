@@ -684,8 +684,10 @@ namespace FEBuilderGBA.Core.Tests
 
             undo.Push(ud);
             undo.RunUndo();
-            Assert.Equal(U.Padding4(beforeLength), (uint)rom.Data.Length);
+            Assert.Equal(beforeLength, (uint)rom.Data.Length);
 
+            // Compatibility helper remains safe for existing callers, but exact
+            // Undo resizing now makes this a no-op.
             ImageImportCore.RestoreExactRomLengthAfterUndo(rom, beforeLength);
 
             Assert.Equal(beforeLength, (uint)rom.Data.Length);

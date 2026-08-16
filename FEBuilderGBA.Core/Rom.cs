@@ -890,7 +890,15 @@ namespace FEBuilderGBA
 
         internal bool write_resize_data_for_undo(uint resize)
         {
-            return write_resize_data(resize, trimCommentCache: false);
+            if (!write_resize_data(resize, trimCommentCache: false))
+                return false;
+            if ((uint)Data.Length == resize)
+                return true;
+
+            byte[] exactData = Data;
+            Array.Resize(ref exactData, checked((int)resize));
+            SwapNewROMDataDirect(exactData);
+            return true;
         }
 
         bool write_resize_data(uint resize, bool trimCommentCache)
