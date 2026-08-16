@@ -374,26 +374,50 @@ namespace FEBuilderGBA
                 Log.Error("Undo cache restore skipped because the live cache is unavailable or unsupported.");
                 return;
             }
-            if (!cache.TryRestoreAll(backup.Snapshot))
+
+            var patches = new List<EtcCacheUndoPatch>();
+            for (int i = this.UndoBuffer.Count - 1; i >= pos; i--)
+            {
+                List<EtcCacheUndoPatch> recordPatches =
+                    this.UndoBuffer[i].CachePatches;
+                for (int n = recordPatches.Count - 1; n >= 0; n--)
+                {
+                    EtcCacheUndoPatch patch = recordPatches[n];
+                    if (patch.Slot == slot)
+                        patches.Add(patch);
+                }
+            }
+
+            if (!cache.TryCaptureAll(out EtcCacheSnapshot current)
+                || !cache.TryRestoreAll(current))
             {
                 Log.Error("Undo cache restore is unsupported by the live cache.");
                 return;
             }
 
-            for (int i = this.UndoBuffer.Count - 1; i >= pos; i--)
+            foreach (EtcCacheUndoPatch patch in patches)
             {
-                List<EtcCacheUndoPatch> patches =
-                    this.UndoBuffer[i].CachePatches;
-                for (int n = patches.Count - 1; n >= 0; n--)
+                if (!cache.TryCaptureRanges(
+                        patch.Snapshot.Ranges,
+                        out EtcCacheSnapshot rangeProbe)
+                    || !cache.TryRestoreRanges(rangeProbe))
                 {
-                    EtcCacheUndoPatch patch = patches[n];
-                    if (patch.Slot != slot)
-                        continue;
-                    if (!cache.TryRestoreRanges(patch.Snapshot))
-                    {
-                        Log.Error("Undo cache range restore is unsupported by the live cache.");
-                        return;
-                    }
+                    Log.Error("Undo cache range restore is unsupported by the live cache.");
+                    return;
+                }
+            }
+
+            if (!cache.TryRestoreAll(backup.Snapshot))
+            {
+                Log.Error("Undo cache restore is unsupported by the live cache.");
+                return;
+            }
+            foreach (EtcCacheUndoPatch patch in patches)
+            {
+                if (!cache.TryRestoreRanges(patch.Snapshot))
+                {
+                    Log.Error("Undo cache range restore failed after capability validation.");
+                    return;
                 }
             }
         }

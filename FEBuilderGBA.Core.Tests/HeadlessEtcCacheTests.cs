@@ -2,7 +2,6 @@ using Xunit;
 using FEBuilderGBA;
 using System;
 using System.Collections.Generic;
-using System.IO;
 
 namespace FEBuilderGBA.Core.Tests
 {
@@ -112,40 +111,30 @@ namespace FEBuilderGBA.Core.Tests
             seed.Update(0x180, "value");
             Assert.True(seed.TryCaptureAll(out var seedSnapshot));
 
-            string savedBase = CoreState.BaseDirectory;
-            try
-            {
-                CoreState.BaseDirectory = Path.GetTempPath();
-                var cache = new EtcCache(
-                    "snapshot-test-" + Guid.NewGuid().ToString("N"));
-                Assert.True(cache.TryRestoreAll(seedSnapshot));
-                Assert.True(cache.TryCaptureAll(out var captured));
+            var cache = new EtcCache();
+            Assert.True(cache.TryRestoreAll(seedSnapshot));
+            Assert.True(cache.TryCaptureAll(out var captured));
 
-                Assert.True(captured.Entries.ContainsKey(0x100));
-                Assert.Equal("", captured.Entries[0x100]);
-                Assert.Equal("value", captured.Entries[0x180]);
+            Assert.True(captured.Entries.ContainsKey(0x100));
+            Assert.Equal("", captured.Entries[0x100]);
+            Assert.Equal("value", captured.Entries[0x180]);
 
-                var ranges =
-                    new[] { new EtcCacheRange(0x100, 0x100u) };
-                Assert.True(
-                    cache.TryCaptureRanges(ranges, out var rangeSnapshot));
-                cache.Remove(0x100);
-                cache.Update(0x180, "changed");
-                cache.Update(0x1F0, "new");
-                Assert.True(cache.TryRestoreRanges(rangeSnapshot));
-                Assert.True(cache.TryGetValue(0x100, out string empty));
-                Assert.Equal("", empty);
-                Assert.Equal("value", cache.At(0x180));
-                Assert.False(cache.CheckFast(0x1F0));
+            var ranges =
+                new[] { new EtcCacheRange(0x100, 0x100u) };
+            Assert.True(
+                cache.TryCaptureRanges(ranges, out var rangeSnapshot));
+            cache.Remove(0x100);
+            cache.Update(0x180, "changed");
+            cache.Update(0x1F0, "new");
+            Assert.True(cache.TryRestoreRanges(rangeSnapshot));
+            Assert.True(cache.TryGetValue(0x100, out string empty));
+            Assert.Equal("", empty);
+            Assert.Equal("value", cache.At(0x180));
+            Assert.False(cache.CheckFast(0x1F0));
 
-                cache.Update(0x200, "destination");
-                cache.RepointEtcData(0x180, 1, 0x200);
-                Assert.Equal("value", cache.At(0x200));
-            }
-            finally
-            {
-                CoreState.BaseDirectory = savedBase;
-            }
+            cache.Update(0x200, "destination");
+            cache.RepointEtcData(0x180, 1, 0x200);
+            Assert.Equal("value", cache.At(0x200));
         }
 
         [Fact]

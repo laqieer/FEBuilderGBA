@@ -35,6 +35,9 @@ namespace FEBuilderGBA.Core.Tests
         public void Expand_AuditFailureAfterGrowth_RestoresRomCachesAndUndo()
         {
             ROM rom = MakeRom(3, addFreeSpace: false);
+            byte[] unaligned = new byte[rom.Data.Length + 1];
+            Array.Copy(rom.Data, unaligned, rom.Data.Length);
+            rom.SwapNewROMDataDirect(unaligned);
             CoreState.ROM = rom;
             var comment = new HeadlessEtcCache();
             var lint = new HeadlessEtcCache();
@@ -59,6 +62,8 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(result.Success);
             Assert.Contains("implausible", result.Error);
             Assert.Equal(romBefore, rom.Data);
+            Assert.Equal(romBefore.Length, rom.Data.Length);
+            Assert.False(rom.Modified);
             Assert.Equal(commentBefore, Capture(comment));
             Assert.Equal(lintBefore, Capture(lint));
             Assert.Empty(undo.list);
@@ -255,6 +260,26 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void Expand_MissingRangeRestore_RollsBackWithoutCommit()
+        {
+            ROM rom = MakeRom(3);
+            CoreState.ROM = rom;
+            CoreState.CommentCache = new FullOnlyCache();
+            CoreState.LintCache = new HeadlessEtcCache();
+            byte[] before = (byte[])rom.Data.Clone();
+            var undo = NewUndo(rom, "range restore unsupported");
+
+            DataExpansionCore.ExpandResult result;
+            using (ROM.BeginUndoScope(undo))
+                result = SongTableExpansionCore.Expand(rom, 5);
+
+            Assert.False(result.Success);
+            Assert.Equal(before, rom.Data);
+            Assert.Empty(undo.list);
+            Assert.Empty(undo.CachePatches);
+        }
+
+        [Fact]
         public void Undo_UnsupportedReplacementCache_DoesNotThrowAfterRomRestore()
         {
             ROM rom = MakeRom(3);
@@ -278,6 +303,52 @@ namespace FEBuilderGBA.Core.Tests
 
             Assert.Null(error);
             Assert.Equal(before, rom.Data);
+        }
+
+        [Fact]
+        public void Undo_FullOnlyReplacementCache_RemainsUnchanged()
+        {
+            ROM rom = MakeRom(3);
+            CoreState.ROM = rom;
+            CoreState.Undo = new Undo();
+            CoreState.CommentCache = new HeadlessEtcCache();
+            CoreState.LintCache = new HeadlessEtcCache();
+
+            Undo.UndoData undo = CoreState.Undo.NewUndoData("expand");
+            using (ROM.BeginUndoScope(undo))
+            {
+                Assert.True(
+                    SongTableExpansionCore.Expand(rom, 5).Success);
+            }
+            CoreState.Undo.Push(undo);
+
+            var replacement = new FullOnlyCache();
+            replacement.Update(0x777, "replacement");
+            CoreState.CommentCache = replacement;
+            CoreState.Undo.RunUndo();
+
+            Assert.Equal("replacement", replacement.At(0x777));
+        }
+
+        [Fact]
+        public void Expand_UsesExplicitRomWhenGlobalDiffers()
+        {
+            ROM target = MakeRom(3);
+            ROM other = MakeRom(1);
+            CoreState.ROM = other;
+            CoreState.CommentCache = new HeadlessEtcCache();
+            CoreState.LintCache = new HeadlessEtcCache();
+
+            DataExpansionCore.ExpandResult result =
+                SongTableExpansionCore.Expand(target, 5);
+
+            Assert.True(result.Success, result.Error);
+            Assert.Equal(
+                result.NewBaseAddress,
+                target.p32(target.RomInfo.sound_table_pointer));
+            Assert.Equal(
+                TableBase,
+                other.p32(other.RomInfo.sound_table_pointer));
         }
 
         [Fact]
@@ -413,6 +484,36 @@ namespace FEBuilderGBA.Core.Tests
             }
             public void Update(uint addr, string comment) { }
             public void Remove(uint addr) { }
+        }
+
+        sealed class FullOnlyCache : IEtcCache
+        {
+            readonly HeadlessEtcCache _inner = new();
+
+            public void RemoveOverRange(uint range) =>
+                _inner.RemoveOverRange(range);
+            public void RemoveRange(uint start, uint end) =>
+                _inner.RemoveRange(start, end);
+            public bool CheckFast(uint num) => _inner.CheckFast(num);
+            public string At(uint num, string def = "") =>
+                _inner.At(num, def);
+            public string S_At(uint num) => _inner.S_At(num);
+            public bool TryGetValue(uint num, out string outData) =>
+                _inner.TryGetValue(num, out outData);
+            public void Update(uint addr, string comment) =>
+                _inner.Update(addr, comment);
+            public void Remove(uint addr) => _inner.Remove(addr);
+            public void RepointEtcData(
+                uint oldAddr, uint oldSize, uint newAddr) =>
+                _inner.RepointEtcData(oldAddr, oldSize, newAddr);
+            public bool TryCaptureAll(out EtcCacheSnapshot snapshot) =>
+                _inner.TryCaptureAll(out snapshot);
+            public bool TryCaptureRanges(
+                IReadOnlyList<EtcCacheRange> ranges,
+                out EtcCacheSnapshot snapshot) =>
+                _inner.TryCaptureRanges(ranges, out snapshot);
+            public bool TryRestoreAll(EtcCacheSnapshot snapshot) =>
+                _inner.TryRestoreAll(snapshot);
         }
     }
 }

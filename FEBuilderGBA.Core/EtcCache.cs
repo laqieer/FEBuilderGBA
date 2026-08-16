@@ -9,6 +9,12 @@ namespace FEBuilderGBA
 {
     public class EtcCache : IEtcCache
     {
+        internal EtcCache()
+        {
+            Type = "";
+            Cache = new Dictionary<uint, string>();
+        }
+
         public EtcCache(string type)
         {
             this.Type = type;

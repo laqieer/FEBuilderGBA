@@ -40,7 +40,7 @@ namespace FEBuilderGBA
             }
 
             uint oldBase = rom.p32(pointerSlot);
-            if (!U.isSafetyOffset(oldBase))
+            if (!U.isSafetyOffset(oldBase, rom))
                 return Failure("The Song Table pointer is out of ROM bounds.");
 
             uint currentCount = CountEntries(rom, oldBase);
@@ -75,6 +75,7 @@ namespace FEBuilderGBA
             }
 
             byte[] romBefore = (byte[])rom.Data.Clone();
+            bool modifiedBefore = rom.Modified;
             Undo.UndoData undo = ROM.GetAmbientUndoData();
             int undoStart = undo?.list?.Count ?? 0;
 
@@ -100,7 +101,7 @@ namespace FEBuilderGBA
                 {
                     RestoreFailure(
                         rom, romBefore, commentBefore, lintBefore,
-                        undo, undoStart);
+                        undo, undoStart, modifiedBefore);
                     return result;
                 }
 
@@ -110,7 +111,7 @@ namespace FEBuilderGBA
                 {
                     RestoreFailure(
                         rom, romBefore, commentBefore, lintBefore,
-                        undo, undoStart);
+                        undo, undoStart, modifiedBefore);
                     return Failure(
                         "Song Table expansion found no references to repoint.");
                 }
@@ -128,7 +129,7 @@ namespace FEBuilderGBA
                 {
                     RestoreFailure(
                         rom, romBefore, commentBefore, lintBefore,
-                        undo, undoStart);
+                        undo, undoStart, modifiedBefore);
                     return Failure(
                         "Song Table expansion did not repoint the canonical pointer slot.");
                 }
@@ -136,7 +137,7 @@ namespace FEBuilderGBA
                 {
                     RestoreFailure(
                         rom, romBefore, commentBefore, lintBefore,
-                        undo, undoStart);
+                        undo, undoStart, modifiedBefore);
                     return Failure(
                         $"Song Table expansion found an implausible {slots.Count} references.");
                 }
@@ -148,7 +149,7 @@ namespace FEBuilderGBA
                 {
                     RestoreFailure(
                         rom, romBefore, commentBefore, lintBefore,
-                        undo, undoStart);
+                        undo, undoStart, modifiedBefore);
                     return Failure(
                         "Song Table expansion could not restore the transactional caches.");
                 }
@@ -177,7 +178,7 @@ namespace FEBuilderGBA
                 {
                     RestoreFailure(
                         rom, romBefore, commentBefore, lintBefore,
-                        undo, undoStart);
+                        undo, undoStart, modifiedBefore);
                     return Failure(cacheError);
                 }
 
@@ -208,7 +209,7 @@ namespace FEBuilderGBA
             {
                 RestoreFailure(
                     rom, romBefore, commentBefore, lintBefore,
-                    undo, undoStart);
+                    undo, undoStart, modifiedBefore);
                 Log.Error(
                     "SongTableExpansionCore.Expand failed: " +
                     ex.ToString());
@@ -272,7 +273,8 @@ namespace FEBuilderGBA
                 return true;
             }
             if (cache == null
-                || !cache.TryCaptureRanges(ranges, out snapshot))
+                || !cache.TryCaptureRanges(ranges, out snapshot)
+                || !cache.TryRestoreRanges(snapshot))
             {
                 error =
                     $"Song Table expansion could not capture the live {name} cache.";
@@ -289,11 +291,17 @@ namespace FEBuilderGBA
             CacheState commentBefore,
             CacheState lintBefore,
             Undo.UndoData undo,
-            int undoStart)
+            int undoStart,
+            bool modifiedBefore)
         {
             if (rom.Data.Length != romBefore.Length)
+            {
                 rom.write_resize_data((uint)romBefore.Length);
+                ImageImportCore.RestoreExactRomLengthAfterUndo(
+                    rom, (uint)romBefore.Length);
+            }
             Array.Copy(romBefore, rom.Data, romBefore.Length);
+            rom.RestoreModifiedFlag(modifiedBefore);
 
             RestoreFullCache(CoreState.CommentCache, commentBefore);
             RestoreFullCache(CoreState.LintCache, lintBefore);

@@ -106,6 +106,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint selectedTag = SongList.SelectedItem?.tag ?? 0;
 
                 _undoService.Begin("Expand Song Table");
+                bool expanded = false;
                 try
                 {
                     DataExpansionCore.ExpandResult result =
@@ -118,41 +119,48 @@ namespace FEBuilderGBA.Avalonia.Views
                         return;
                     }
 
-                    _undoService.Commit();
-                    _vm.MarkClean();
-
-                    List<AddrResult> items = _vm.LoadSongList();
-                    uint preserveAddress = 0;
-                    if (hadSelection)
-                    {
-                        foreach (AddrResult item in items)
-                        {
-                            if (item.tag == selectedTag)
-                            {
-                                preserveAddress = item.addr;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (preserveAddress != 0)
-                        SongList.SetItemsPreserveSelection(items, preserveAddress);
-                    else
-                        SongList.SetItems(items);
-
+                    ReloadSongListPreserveSelection(
+                        hadSelection, selectedTag);
                     SongTable_Expand_Button.IsVisible =
                         _vm.ShouldShowExpansion();
-                    CoreState.Services?.ShowInfo(R._(
-                        "Expanded Song Table to {0} entries.", newCount));
+
+                    _undoService.Commit();
+                    _vm.MarkClean();
+                    expanded = true;
                 }
                 catch (Exception inner)
                 {
-                    _undoService.Rollback();
+                    bool canRollback = _undoService.HasPendingUndo;
+                    if (canRollback)
+                    {
+                        _undoService.Rollback();
+                        try
+                        {
+                            ReloadSongListPreserveSelection(
+                                hadSelection, selectedTag);
+                            SongTable_Expand_Button.IsVisible =
+                                _vm.ShouldShowExpansion();
+                        }
+                        catch (Exception refreshEx)
+                        {
+                            Log.Error(
+                                "SongTableView.DataExpansion_Click rollback refresh failed: " +
+                                refreshEx.ToString());
+                        }
+                    }
                     Log.Error(
                         "SongTableView.DataExpansion_Click inner failed: " +
                         inner.ToString());
-                    CoreState.Services?.ShowError(
-                        R._("List expansion failed: {0}", inner.Message));
+                    if (canRollback)
+                    {
+                        CoreState.Services?.ShowError(
+                            R._("List expansion failed: {0}", inner.Message));
+                    }
+                }
+                if (expanded)
+                {
+                    CoreState.Services?.ShowInfo(R._(
+                        "Expanded Song Table to {0} entries.", newCount));
                 }
             }
             catch (Exception ex)
@@ -161,6 +169,30 @@ namespace FEBuilderGBA.Avalonia.Views
                     "SongTableView.DataExpansion_Click failed: " +
                     ex.ToString());
             }
+        }
+
+        void ReloadSongListPreserveSelection(
+            bool hadSelection,
+            uint selectedTag)
+        {
+            List<AddrResult> items = _vm.LoadSongList();
+            uint preserveAddress = 0;
+            if (hadSelection)
+            {
+                foreach (AddrResult item in items)
+                {
+                    if (item.tag == selectedTag)
+                    {
+                        preserveAddress = item.addr;
+                        break;
+                    }
+                }
+            }
+
+            if (preserveAddress != 0)
+                SongList.SetItemsPreserveSelection(items, preserveAddress);
+            else
+                SongList.SetItems(items);
         }
 
         void OnSongSelected(uint addr)

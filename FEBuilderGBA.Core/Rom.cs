@@ -1212,6 +1212,10 @@ namespace FEBuilderGBA
         {
             this.Data = newROMData;
         }
+        internal void RestoreModifiedFlag(bool modified)
+        {
+            Modified = modified;
+        }
         public bool CompareByte(uint addr, byte[] bin)
         {
             if (addr + bin.Length >= this.Data.Length)
