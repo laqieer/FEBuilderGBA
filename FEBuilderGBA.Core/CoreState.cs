@@ -1,9 +1,110 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 
 namespace FEBuilderGBA
 {
+    public readonly struct EtcCacheRange
+    {
+        public const ulong AddressSpaceEnd = 1UL << 32;
+
+        public EtcCacheRange(uint start, ulong endExclusive)
+        {
+            if (endExclusive < start || endExclusive > AddressSpaceEnd)
+                throw new ArgumentOutOfRangeException(nameof(endExclusive));
+            Start = start;
+            EndExclusive = endExclusive;
+        }
+
+        public EtcCacheRange(uint start, uint size)
+            : this(start, (ulong)start + size)
+        {
+        }
+
+        public uint Start { get; }
+        public ulong EndExclusive { get; }
+        public bool Contains(uint address) =>
+            address >= Start && (ulong)address < EndExclusive;
+
+        public static EtcCacheRange All { get; } =
+            new EtcCacheRange(0, AddressSpaceEnd);
+    }
+
+    public sealed class EtcCacheSnapshot
+    {
+        readonly EtcCacheRange[] _ranges;
+        readonly Dictionary<uint, string> _entries;
+        readonly ReadOnlyCollection<EtcCacheRange> _readOnlyRanges;
+        readonly ReadOnlyDictionary<uint, string> _readOnlyEntries;
+
+        internal EtcCacheSnapshot(
+            IReadOnlyList<EtcCacheRange> ranges,
+            IReadOnlyDictionary<uint, string> entries)
+        {
+            _ranges = new EtcCacheRange[ranges.Count];
+            for (int i = 0; i < ranges.Count; i++)
+                _ranges[i] = ranges[i];
+            _entries = new Dictionary<uint, string>(entries);
+            _readOnlyRanges = Array.AsReadOnly(_ranges);
+            _readOnlyEntries =
+                new ReadOnlyDictionary<uint, string>(_entries);
+        }
+
+        public IReadOnlyList<EtcCacheRange> Ranges => _readOnlyRanges;
+        public IReadOnlyDictionary<uint, string> Entries => _readOnlyEntries;
+        internal bool CoversAll =>
+            _ranges.Length == 1
+            && _ranges[0].Start == 0
+            && _ranges[0].EndExclusive == EtcCacheRange.AddressSpaceEnd;
+
+        internal static EtcCacheSnapshot Capture(
+            IReadOnlyDictionary<uint, string> source,
+            IReadOnlyList<EtcCacheRange> ranges)
+        {
+            var entries = new Dictionary<uint, string>();
+            foreach (var pair in source)
+            {
+                if (Contains(ranges, pair.Key))
+                    entries[pair.Key] = pair.Value;
+            }
+            return new EtcCacheSnapshot(ranges, entries);
+        }
+
+        internal void RestoreRanges(Dictionary<uint, string> target)
+        {
+            var remove = new List<uint>();
+            foreach (uint key in target.Keys)
+            {
+                if (Contains(_ranges, key))
+                    remove.Add(key);
+            }
+            foreach (uint key in remove)
+                target.Remove(key);
+            foreach (var pair in _entries)
+                target[pair.Key] = pair.Value;
+        }
+
+        internal void RestoreAll(Dictionary<uint, string> target)
+        {
+            target.Clear();
+            foreach (var pair in _entries)
+                target[pair.Key] = pair.Value;
+        }
+
+        static bool Contains(
+            IReadOnlyList<EtcCacheRange> ranges,
+            uint address)
+        {
+            for (int i = 0; i < ranges.Count; i++)
+            {
+                if (ranges[i].Contains(address))
+                    return true;
+            }
+            return false;
+        }
+    }
+
     /// <summary>
     /// Interface for cache classes (EtcCache) needed by Core.
     /// Write methods used by Undo; read methods used by DisASMTrumb, etc.
@@ -30,6 +131,23 @@ namespace FEBuilderGBA
         /// continue to compile without breaking.
         /// </summary>
         void RepointEtcData(uint oldAddr, uint oldSize, uint newAddr) { }
+
+        bool TryCaptureAll(out EtcCacheSnapshot snapshot)
+        {
+            snapshot = null!;
+            return false;
+        }
+
+        bool TryCaptureRanges(
+            IReadOnlyList<EtcCacheRange> ranges,
+            out EtcCacheSnapshot snapshot)
+        {
+            snapshot = null!;
+            return false;
+        }
+
+        bool TryRestoreAll(EtcCacheSnapshot snapshot) => false;
+        bool TryRestoreRanges(EtcCacheSnapshot snapshot) => false;
     }
 
     /// <summary>

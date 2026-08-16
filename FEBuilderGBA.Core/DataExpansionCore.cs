@@ -73,6 +73,14 @@ namespace FEBuilderGBA
             /// parameter docs. Default <c>false</c> (a single
             /// <c>0xFFFFFFFF</c> dword).</summary>
             public bool FullZeroTerminatorRow { get; set; } = false;
+
+            /// <summary>
+            /// Whether comment/lint cache entries should be moved immediately
+            /// with the table. Defaults to <c>true</c> for compatibility.
+            /// Transaction orchestrators may defer this until their post-move
+            /// audits pass.
+            /// </summary>
+            public bool RepointEtcCaches { get; set; } = true;
         }
 
         /// <summary>
@@ -614,7 +622,7 @@ namespace FEBuilderGBA
             // MoveToFreeSapceForm.RepointEtcData behavior). KnownGap — ROM
             // undo does NOT reverse this; the caches stay pointing at the
             // new addresses after rollback.
-            if (oldTableSize > 0)
+            if (opts.RepointEtcCaches && oldTableSize > 0)
             {
                 CoreState.CommentCache?.RepointEtcData(oldBase, oldTableSize, newBase);
                 CoreState.LintCache?.RepointEtcData(oldBase, oldTableSize, newBase);

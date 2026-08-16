@@ -6,10 +6,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class SongTableViewModel : ViewModelBase, IDataVerifiable
     {
-        public const uint MaxSongCount = 32766;
+        public const uint MaxSongCount =
+            SongTableExpansionCore.MaxSongCount;
 
         const uint SongEntrySize = 8;
-        const int MaxPlausibleRepointSlots = 64;
 
         uint _currentAddr;
         uint _songIndex;
@@ -82,12 +82,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// </summary>
         internal static bool ShouldShowExpansion(ROM rom, bool configuredShow)
         {
-            if (configuredShow) return true;
-            if (rom?.RomInfo == null) return false;
-
-            uint ptr = rom.RomInfo.sound_table_pointer;
-            if (ptr == 0 || ptr + 3 >= (uint)rom.Data.Length) return false;
-            return rom.u32(ptr) >= rom.RomInfo.extends_address;
+            return SongTableExpansionCore.ShouldShowExpansion(
+                rom, configuredShow);
         }
 
         public bool ShouldShowExpansion()
@@ -105,93 +101,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// </summary>
         public DataExpansionCore.ExpandResult ExpandSongTable(uint newCount)
         {
-            ROM rom = CoreState.ROM;
-            if (rom?.RomInfo == null)
-                return ExpansionFailure("ROM not loaded.");
-
-            uint ptr = ResolveSongTablePointerSlot(rom);
-            if (ptr == 0 || ptr + 3 >= (uint)rom.Data.Length)
-                return ExpansionFailure("This ROM has no valid Song Table pointer.");
-
-            uint baseAddr = rom.p32(ptr);
-            if (baseAddr >= (uint)rom.Data.Length)
-                return ExpansionFailure("The Song Table pointer is out of ROM bounds.");
-
-            uint currentCount = CountSongEntries(rom, baseAddr);
-            if (currentCount == 0)
-                return ExpansionFailure("Cannot expand an empty Song Table because row 0 is unavailable.");
-            if (newCount <= currentCount)
-                return ExpansionFailure(
-                    $"New count ({newCount}) must be greater than current count ({currentCount}).");
-            if (newCount > MaxSongCount)
-                return ExpansionFailure(
-                    $"New count ({newCount}) exceeds the maximum ({MaxSongCount}).");
-
-            byte[] snapshot = (byte[])rom.Data.Clone();
-            Undo.UndoData? undo = ROM.GetAmbientUndoData();
-            int undoStart = undo?.list?.Count ?? 0;
-
-            try
-            {
-                DataExpansionCore.ExpandResult result =
-                    DataExpansionCore.ExpandTableTo(
-                        rom,
-                        ptr,
-                        SongEntrySize,
-                        currentCount,
-                        newCount,
-                        new DataExpansionCore.ExpandOptions
-                        {
-                            Fill = DataExpansionCore.ExpandFill.First,
-                            Repoint = DataExpansionCore.ExpandRepoint.RawAndLdrAll,
-                            FullZeroTerminatorRow = false,
-                        });
-
-                if (!result.Success)
-                {
-                    RestoreSnapshot(rom, snapshot, undo, undoStart);
-                    return result;
-                }
-
-                IReadOnlyList<uint> slots =
-                    result.RepointedSlots ?? Array.Empty<uint>();
-                if (slots.Count == 0)
-                {
-                    RestoreSnapshot(rom, snapshot, undo, undoStart);
-                    return ExpansionFailure(
-                        "Song Table expansion found no references to repoint.");
-                }
-
-                bool canonicalCovered = false;
-                foreach (uint slot in slots)
-                {
-                    if (slot == ptr)
-                    {
-                        canonicalCovered = true;
-                        break;
-                    }
-                }
-                if (!canonicalCovered)
-                {
-                    RestoreSnapshot(rom, snapshot, undo, undoStart);
-                    return ExpansionFailure(
-                        "Song Table expansion did not repoint the canonical pointer slot.");
-                }
-                if (slots.Count > MaxPlausibleRepointSlots)
-                {
-                    RestoreSnapshot(rom, snapshot, undo, undoStart);
-                    return ExpansionFailure(
-                        $"Song Table expansion found an implausible {slots.Count} references.");
-                }
-
-                return result;
-            }
-            catch (Exception ex)
-            {
-                RestoreSnapshot(rom, snapshot, undo, undoStart);
-                Log.Error("SongTableViewModel.ExpandSongTable failed: " + ex.ToString());
-                return ExpansionFailure("Song Table expansion failed: " + ex.Message);
-            }
+            return SongTableExpansionCore.Expand(
+                CoreState.ROM, newCount);
         }
 
         public void LoadSong(uint addr)
@@ -243,49 +154,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint baseAddr = rom.p32(ptr);
             if (!U.isSafetyOffset(baseAddr) || addr < baseAddr) return uint.MaxValue;
             return (addr - baseAddr) / SongEntrySize;
-        }
-
-        static uint ResolveSongTablePointerSlot(ROM rom)
-        {
-            return RebuildProducerCore.GetSoundTablePointer(rom);
-        }
-
-        static uint CountSongEntries(ROM rom, uint baseAddr)
-        {
-            uint count = 0;
-            while (count < MaxSongCount)
-            {
-                uint addr = baseAddr + count * SongEntrySize;
-                if (addr + SongEntrySize - 1 >= (uint)rom.Data.Length)
-                    break;
-                if (!U.isPointer(rom.u32(addr)))
-                    break;
-                count++;
-            }
-            return count;
-        }
-
-        static DataExpansionCore.ExpandResult ExpansionFailure(string error)
-        {
-            return new DataExpansionCore.ExpandResult
-            {
-                Success = false,
-                Error = error,
-            };
-        }
-
-        static void RestoreSnapshot(
-            ROM rom,
-            byte[] snapshot,
-            Undo.UndoData? undo,
-            int undoStart)
-        {
-            if (rom.Data.Length != snapshot.Length)
-                rom.write_resize_data((uint)snapshot.Length);
-            Array.Copy(snapshot, rom.Data, snapshot.Length);
-
-            if (undo?.list != null && undo.list.Count > undoStart)
-                undo.list.RemoveRange(undoStart, undo.list.Count - undoStart);
         }
 
         /// <summary>
