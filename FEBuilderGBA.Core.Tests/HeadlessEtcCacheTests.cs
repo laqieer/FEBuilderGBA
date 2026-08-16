@@ -1,5 +1,7 @@
 using Xunit;
 using FEBuilderGBA;
+using System;
+using System.Collections.Generic;
 
 namespace FEBuilderGBA.Core.Tests
 {
@@ -77,6 +79,75 @@ namespace FEBuilderGBA.Core.Tests
         {
             IEtcCache cache = new HeadlessEtcCache();
             Assert.NotNull(cache);
+        }
+
+        [Fact]
+        public void SnapshotRanges_RestoresExactValuesIncludingEmpty()
+        {
+            var cache = new HeadlessEtcCache();
+            cache.Update(0x100, "");
+            cache.Update(0x180, "inside");
+            cache.Update(0x300, "outside");
+            var ranges = new[] { new EtcCacheRange(0x100, 0x100u) };
+
+            Assert.True(cache.TryCaptureRanges(ranges, out var snapshot));
+            cache.Update(0x100, "changed");
+            cache.Remove(0x180);
+            cache.Update(0x1F0, "new");
+
+            Assert.True(cache.TryRestoreRanges(snapshot));
+            Assert.True(cache.TryGetValue(0x100, out string empty));
+            Assert.Equal("", empty);
+            Assert.Equal("inside", cache.At(0x180));
+            Assert.False(cache.CheckFast(0x1F0));
+            Assert.Equal("outside", cache.At(0x300));
+        }
+
+        [Fact]
+        public void CoreEtcCache_SnapshotRoundTrip_PreservesEmptyValue()
+        {
+            var seed = new HeadlessEtcCache();
+            seed.Update(0x100, "");
+            seed.Update(0x180, "value");
+            Assert.True(seed.TryCaptureAll(out var seedSnapshot));
+
+            var cache = new EtcCache();
+            Assert.True(cache.TryRestoreAll(seedSnapshot));
+            Assert.True(cache.TryCaptureAll(out var captured));
+
+            Assert.True(captured.Entries.ContainsKey(0x100));
+            Assert.Equal("", captured.Entries[0x100]);
+            Assert.Equal("value", captured.Entries[0x180]);
+
+            var ranges =
+                new[] { new EtcCacheRange(0x100, 0x100u) };
+            Assert.True(
+                cache.TryCaptureRanges(ranges, out var rangeSnapshot));
+            cache.Remove(0x100);
+            cache.Update(0x180, "changed");
+            cache.Update(0x1F0, "new");
+            Assert.True(cache.TryRestoreRanges(rangeSnapshot));
+            Assert.True(cache.TryGetValue(0x100, out string empty));
+            Assert.Equal("", empty);
+            Assert.Equal("value", cache.At(0x180));
+            Assert.False(cache.CheckFast(0x1F0));
+
+            cache.Update(0x200, "destination");
+            cache.RepointEtcData(0x180, 1, 0x200);
+            Assert.Equal("value", cache.At(0x200));
+        }
+
+        [Fact]
+        public void RepointEtcData_SourceEntryWinsDestinationCollision()
+        {
+            var cache = new HeadlessEtcCache();
+            cache.Update(0x100, "moved");
+            cache.Update(0x200, "destination");
+
+            cache.RepointEtcData(0x100, 1, 0x200);
+
+            Assert.False(cache.CheckFast(0x100));
+            Assert.Equal("moved", cache.At(0x200));
         }
     }
 }

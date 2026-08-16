@@ -14709,3 +14709,8 @@ Git が見つかりません。Git をインストールして再試行するか
 
 :Git: {0} ...
 Git: {0} ...
+:Enter the new entry count for the Song Table (current: {0}, max: {1}).
+ソングテーブルの新しいエントリ数を入力してください（現在: {0}、最大: {1}）。
+
+:Expanded Song Table to {0} entries.
+ソングテーブルを{0}エントリに拡張しました。

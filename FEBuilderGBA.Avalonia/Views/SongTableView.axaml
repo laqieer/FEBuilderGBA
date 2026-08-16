@@ -3,7 +3,20 @@
              xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
              x:Class="FEBuilderGBA.Avalonia.Views.SongTableView">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="SongTable_Song_List" Grid.Column="0" Name="SongList" Margin="4" />
+    <Grid Grid.Column="0" RowDefinitions="*,Auto">
+      <controls:AddressListControl AutomationProperties.AutomationId="SongTable_Song_List"
+                                   Grid.Row="0"
+                                   Name="SongList"
+                                   Margin="4" />
+      <Button AutomationProperties.AutomationId="SongTable_Expand_Button"
+              Grid.Row="1"
+              Name="SongTable_Expand_Button"
+              Content="Data Expansion"
+              Click="DataExpansion_Click"
+              IsVisible="False"
+              HorizontalAlignment="Stretch"
+              Margin="4" />
+    </Grid>
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">

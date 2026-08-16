@@ -72,21 +72,54 @@ namespace FEBuilderGBA
                     ? pair.Key >= oldAddr
                     : pair.Key >= oldAddr && pair.Key < oldEnd;
                 if (inWindow)
-                {
-                    uint relocated = (pair.Key - oldAddr) + newAddr;
-                    newStore[relocated] = pair.Value;
-                }
+                    continue;
                 else
                 {
                     newStore[pair.Key] = pair.Value;
                 }
             }
-            // Swap the backing store contents. (Avoid the word "atomically" —
-            // this method is not thread-safe; the clear-then-repopulate window
-            // is observable to other threads. Copilot bot review on PR #635
-            // inline #3.)
+            foreach (var pair in _store)
+            {
+                bool inWindow = windowWraps
+                    ? pair.Key >= oldAddr
+                    : pair.Key >= oldAddr && pair.Key < oldEnd;
+                if (inWindow)
+                {
+                    uint relocated = (pair.Key - oldAddr) + newAddr;
+                    newStore[relocated] = pair.Value;
+                }
+            }
             _store.Clear();
             foreach (var p in newStore) _store[p.Key] = p.Value;
+        }
+
+        public bool TryCaptureAll(out EtcCacheSnapshot snapshot)
+        {
+            snapshot = EtcCacheSnapshot.Capture(
+                _store, new[] { EtcCacheRange.All });
+            return true;
+        }
+
+        public bool TryCaptureRanges(
+            IReadOnlyList<EtcCacheRange> ranges,
+            out EtcCacheSnapshot snapshot)
+        {
+            snapshot = EtcCacheSnapshot.Capture(_store, ranges);
+            return true;
+        }
+
+        public bool TryRestoreAll(EtcCacheSnapshot snapshot)
+        {
+            if (snapshot == null || !snapshot.CoversAll) return false;
+            snapshot.RestoreAll(_store);
+            return true;
+        }
+
+        public bool TryRestoreRanges(EtcCacheSnapshot snapshot)
+        {
+            if (snapshot == null) return false;
+            snapshot.RestoreRanges(_store);
+            return true;
         }
     }
 }

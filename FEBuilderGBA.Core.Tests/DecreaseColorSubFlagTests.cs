@@ -6,6 +6,7 @@ namespace FEBuilderGBA.Core.Tests
     /// Tests for DecreaseColorCore.Quantize sub-flags:
     /// noScale, noReserve1stColor, ignoreTSA.
     /// </summary>
+    [Collection("SharedState")]
     public class DecreaseColorSubFlagTests
     {
 

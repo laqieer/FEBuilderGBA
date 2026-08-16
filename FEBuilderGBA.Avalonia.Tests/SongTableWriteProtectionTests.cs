@@ -178,6 +178,33 @@ namespace FEBuilderGBA.Avalonia.Tests
                 "The 'if (_vm.IsSongIdZero)' guard must appear before the undo scope opens.");
         }
 
+        [Fact]
+        public void SongTableView_HasExpansionButtonAndSafeHandler()
+        {
+            string axaml = File.ReadAllText(
+                ViewPath("SongTableView.axaml"));
+            string code = File.ReadAllText(
+                ViewPath("SongTableView.axaml.cs"));
+
+            Assert.Contains("SongTable_Expand_Button", axaml);
+            Assert.Contains("Content=\"Data Expansion\"", axaml);
+            Assert.Contains("CoreState.IsDecompMode", code);
+            Assert.Contains("NumberInputDialog.Show", code);
+            Assert.Contains("_vm.ExpandSongTable(newCount)", code);
+            Assert.Contains("SongList.SetItemsPreserveSelection", code);
+
+            int refreshIdx = code.IndexOf(
+                "ReloadSongListPreserveSelection(",
+                code.IndexOf("_vm.ExpandSongTable(newCount)",
+                    StringComparison.Ordinal),
+                StringComparison.Ordinal);
+            int commitIdx = code.IndexOf(
+                "_undoService.Commit()",
+                StringComparison.Ordinal);
+            Assert.True(refreshIdx >= 0 && commitIdx > refreshIdx,
+                "Song Table list refresh must finish before the expansion undo transaction commits.");
+        }
+
         // ------------------------------------------------------------------
         // Helpers
         // ------------------------------------------------------------------

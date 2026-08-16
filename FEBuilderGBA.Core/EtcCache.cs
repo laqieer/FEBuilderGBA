@@ -9,6 +9,12 @@ namespace FEBuilderGBA
 {
     public class EtcCache : IEtcCache
     {
+        internal EtcCache()
+        {
+            Type = "";
+            Cache = new Dictionary<uint, string>();
+        }
+
         public EtcCache(string type)
         {
             this.Type = type;
@@ -151,22 +157,56 @@ namespace FEBuilderGBA
 
         public void RepointEtcData(uint oldAddr, uint oldSize, uint newAddr)
         {
-            string fullfilename = U.ConfigEtcFilename(this.Type);
             Dictionary<uint, string> newDic = new Dictionary<uint, string>();
             foreach (var pair in this.Cache)
             {
-                if (pair.Key >= oldAddr && pair.Key < oldAddr + oldSize)
-                {
-                    uint addr = (pair.Key - oldAddr) + newAddr;
-                    newDic[(pair.Key - oldAddr) + newAddr] = pair.Value;
-                }
-                else
+                bool inWindow = oldSize != 0
+                    && (ulong)pair.Key >= oldAddr
+                    && (ulong)pair.Key < (ulong)oldAddr + oldSize;
+                if (!inWindow)
                 {
                     newDic[pair.Key] = pair.Value;
                 }
             }
+            foreach (var pair in this.Cache)
+            {
+                bool inWindow = oldSize != 0
+                    && (ulong)pair.Key >= oldAddr
+                    && (ulong)pair.Key < (ulong)oldAddr + oldSize;
+                if (inWindow)
+                    newDic[(pair.Key - oldAddr) + newAddr] = pair.Value;
+            }
 
             this.Cache = newDic;
+        }
+
+        public bool TryCaptureAll(out EtcCacheSnapshot snapshot)
+        {
+            snapshot = EtcCacheSnapshot.Capture(
+                Cache, new[] { EtcCacheRange.All });
+            return true;
+        }
+
+        public bool TryCaptureRanges(
+            IReadOnlyList<EtcCacheRange> ranges,
+            out EtcCacheSnapshot snapshot)
+        {
+            snapshot = EtcCacheSnapshot.Capture(Cache, ranges);
+            return true;
+        }
+
+        public bool TryRestoreAll(EtcCacheSnapshot snapshot)
+        {
+            if (snapshot == null || !snapshot.CoversAll) return false;
+            snapshot.RestoreAll(Cache);
+            return true;
+        }
+
+        public bool TryRestoreRanges(EtcCacheSnapshot snapshot)
+        {
+            if (snapshot == null) return false;
+            snapshot.RestoreRanges(Cache);
+            return true;
         }
         public void ShrinkEtcData(uint blank_start_addr, uint blank_size)
         {

@@ -6,6 +6,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class SongTableViewModel : ViewModelBase, IDataVerifiable
     {
+        public const uint MaxSongCount =
+            SongTableExpansionCore.MaxSongCount;
+
+        const uint SongEntrySize = 8;
+
         uint _currentAddr;
         uint _songIndex;
         uint _songHeaderPointer;
@@ -48,15 +53,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
             uint ptr = rom.RomInfo.sound_table_pointer;
-            if (ptr == 0) return new List<AddrResult>();
+            if (ptr == 0 || ptr + 3 >= (uint)rom.Data.Length)
+                return new List<AddrResult>();
 
             uint baseAddr = rom.p32(ptr);
             if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
 
             var result = new List<AddrResult>();
-            for (uint i = 0; i < 0x400; i++) // reasonable max
+            for (uint i = 0; i < MaxSongCount; i++)
             {
-                uint addr = (uint)(baseAddr + i * 8);
+                uint addr = baseAddr + i * 8;
                 if (addr + 7 >= (uint)rom.Data.Length) break;
 
                 uint headerPtr = rom.u32(addr);
@@ -67,6 +73,36 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;
+        }
+
+        /// <summary>
+        /// WinForms parity for the normally-hidden Song Table expansion button:
+        /// show it when explicitly enabled in config, or once the table already
+        /// resides in the ROM's expansion area.
+        /// </summary>
+        internal static bool ShouldShowExpansion(ROM rom, bool configuredShow)
+        {
+            return SongTableExpansionCore.ShouldShowExpansion(
+                rom, configuredShow);
+        }
+
+        public bool ShouldShowExpansion()
+        {
+            bool configuredShow =
+                U.atoi(CoreState.Config?.at("func_show_song_table_extends", "0") ?? "0") == 1;
+            ROM rom = CoreState.ROM;
+            return rom != null && ShouldShowExpansion(rom, configuredShow);
+        }
+
+        /// <summary>
+        /// Relocates and grows the Song Table using WinForms-compatible row-0
+        /// fill semantics, then repoints every raw/LDR reference to the old base.
+        /// Any failed expansion or audit restores the ROM byte-identically.
+        /// </summary>
+        public DataExpansionCore.ExpandResult ExpandSongTable(uint newCount)
+        {
+            return SongTableExpansionCore.Expand(
+                CoreState.ROM, newCount);
         }
 
         public void LoadSong(uint addr)
@@ -117,7 +153,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (ptr == 0 || ptr + 3 >= (uint)rom.Data.Length) return uint.MaxValue;
             uint baseAddr = rom.p32(ptr);
             if (!U.isSafetyOffset(baseAddr) || addr < baseAddr) return uint.MaxValue;
-            return (addr - baseAddr) / 8;
+            return (addr - baseAddr) / SongEntrySize;
         }
 
         /// <summary>

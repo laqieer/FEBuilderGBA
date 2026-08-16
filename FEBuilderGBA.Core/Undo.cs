@@ -7,6 +7,18 @@ namespace FEBuilderGBA
 {
     public class Undo
     {
+        internal enum EtcCacheSlot
+        {
+            Comment,
+            Lint,
+        }
+
+        internal sealed class EtcCacheUndoPatch
+        {
+            public EtcCacheSlot Slot { get; init; }
+            public EtcCacheSnapshot Snapshot { get; init; }
+        }
+
         public class UndoPostion
         {
             public uint addr { get; internal set; }
@@ -44,7 +56,18 @@ namespace FEBuilderGBA
             public List<UndoPostion> list { get; internal set; }
             public uint filesize { get; internal set; }
             public bool is_f5test { get; internal set; }
+            internal List<EtcCacheUndoPatch> CachePatches { get; } = new();
 
+            internal void AddCachePatch(
+                EtcCacheSlot slot,
+                EtcCacheSnapshot snapshot)
+            {
+                CachePatches.Add(new EtcCacheUndoPatch
+                {
+                    Slot = slot,
+                    Snapshot = snapshot,
+                });
+            }
         };
 
         /// <summary>
@@ -79,6 +102,14 @@ namespace FEBuilderGBA
             this.PostionWhenFileSaving = this.Postion;
         }
         byte[] RollBackCancelBackup; //ロールバックをキャンセルするためのバックアップ
+        CacheTipBackup RollBackCancelCommentCacheBackup;
+        CacheTipBackup RollBackCancelLintCacheBackup;
+
+        sealed class CacheTipBackup
+        {
+            public bool HadCache { get; init; }
+            public EtcCacheSnapshot Snapshot { get; init; }
+        }
 
         public Undo()
         {
@@ -145,6 +176,8 @@ namespace FEBuilderGBA
                 this.UndoBuffer.RemoveRange(this.Postion, this.UndoBuffer.Count - this.Postion);
                 //状況が変わるので、ロールバックバッファを破棄
                 this.RollBackCancelBackup = null;
+                this.RollBackCancelCommentCacheBackup = null;
+                this.RollBackCancelLintCacheBackup = null;
             }
             this.UndoBuffer.Add(ud);
             this.Postion = this.UndoBuffer.Count;
@@ -264,6 +297,10 @@ namespace FEBuilderGBA
             {
                 //ロールバックをキャンセルできるようにするために、現状のROMを記録しておく.
                 this.RollBackCancelBackup = (byte[])rom.Data.Clone();
+                this.RollBackCancelCommentCacheBackup =
+                    CaptureCacheTip(CoreState.CommentCache);
+                this.RollBackCancelLintCacheBackup =
+                    CaptureCacheTip(CoreState.LintCache);
             }
             else
             {
@@ -276,7 +313,8 @@ namespace FEBuilderGBA
                 //まずロールバックする前の状態に戻す.
                 if (this.RollBackCancelBackup.Length != rom.Data.Length)
                 {//長さが増える場合、ROMを増設する.
-                    rom.write_resize_data((uint)this.RollBackCancelBackup.Length);
+                    rom.write_resize_data_for_undo(
+                        (uint)this.RollBackCancelBackup.Length);
                 }
                 rom.write_range(0, this.RollBackCancelBackup);
             }
@@ -287,14 +325,114 @@ namespace FEBuilderGBA
                 Patch(this.UndoBuffer[i], rom);
             }
 
+            RestoreCaches(pos);
             this.Postion = pos;
             return true;
+        }
+
+        static CacheTipBackup CaptureCacheTip(IEtcCache cache)
+        {
+            if (cache == null)
+                return new CacheTipBackup { HadCache = false };
+
+            if (!cache.TryCaptureAll(out EtcCacheSnapshot snapshot))
+            {
+                Log.Error("Undo cache snapshot is unsupported; cache undo will be skipped.");
+                return new CacheTipBackup { HadCache = true };
+            }
+
+            return new CacheTipBackup
+            {
+                HadCache = true,
+                Snapshot = snapshot,
+            };
+        }
+
+        void RestoreCaches(int pos)
+        {
+            RestoreCache(
+                EtcCacheSlot.Comment,
+                RollBackCancelCommentCacheBackup,
+                pos);
+            RestoreCache(
+                EtcCacheSlot.Lint,
+                RollBackCancelLintCacheBackup,
+                pos);
+        }
+
+        void RestoreCache(
+            EtcCacheSlot slot,
+            CacheTipBackup backup,
+            int pos)
+        {
+            if (backup == null || !backup.HadCache)
+                return;
+
+            IEtcCache cache = GetLiveCache(slot);
+            if (cache == null || backup.Snapshot == null)
+            {
+                Log.Error("Undo cache restore skipped because the live cache is unavailable or unsupported.");
+                return;
+            }
+
+            var patches = new List<EtcCacheUndoPatch>();
+            for (int i = this.UndoBuffer.Count - 1; i >= pos; i--)
+            {
+                List<EtcCacheUndoPatch> recordPatches =
+                    this.UndoBuffer[i].CachePatches;
+                for (int n = recordPatches.Count - 1; n >= 0; n--)
+                {
+                    EtcCacheUndoPatch patch = recordPatches[n];
+                    if (patch.Slot == slot)
+                        patches.Add(patch);
+                }
+            }
+
+            if (!cache.TryCaptureAll(out EtcCacheSnapshot current)
+                || !cache.TryRestoreAll(current))
+            {
+                Log.Error("Undo cache restore is unsupported by the live cache.");
+                return;
+            }
+
+            foreach (EtcCacheUndoPatch patch in patches)
+            {
+                if (!cache.TryCaptureRanges(
+                        patch.Snapshot.Ranges,
+                        out EtcCacheSnapshot rangeProbe)
+                    || !cache.TryRestoreRanges(rangeProbe))
+                {
+                    Log.Error("Undo cache range restore is unsupported by the live cache.");
+                    return;
+                }
+            }
+
+            if (!cache.TryRestoreAll(backup.Snapshot))
+            {
+                Log.Error("Undo cache restore is unsupported by the live cache.");
+                return;
+            }
+            foreach (EtcCacheUndoPatch patch in patches)
+            {
+                if (!cache.TryRestoreRanges(patch.Snapshot))
+                {
+                    Log.Error("Undo cache range restore failed after capability validation.");
+                    return;
+                }
+            }
+        }
+
+        static IEtcCache GetLiveCache(EtcCacheSlot slot)
+        {
+            return slot == EtcCacheSlot.Comment
+                ? CoreState.CommentCache
+                : CoreState.LintCache;
         }
         void Patch(UndoData ud,ROM rom)
         {
             if (rom.Data.Length < ud.filesize)
             {//ROMサイズが増やさないといけないなら増やす.
-                rom.write_resize_data(ud.filesize);
+                rom.write_resize_data_for_undo(ud.filesize);
             }
 
             for(int i = 0 ; i < ud.list.Count ; i++)
@@ -304,7 +442,7 @@ namespace FEBuilderGBA
 
             if (rom.Data.Length > ud.filesize)
             {//ROMサイズを減らさないといけないなら、ここで減らす.
-                rom.write_resize_data(ud.filesize);
+                rom.write_resize_data_for_undo(ud.filesize);
             }
         }
 
