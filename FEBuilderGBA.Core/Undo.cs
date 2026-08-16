@@ -313,7 +313,8 @@ namespace FEBuilderGBA
                 //まずロールバックする前の状態に戻す.
                 if (this.RollBackCancelBackup.Length != rom.Data.Length)
                 {//長さが増える場合、ROMを増設する.
-                    rom.write_resize_data((uint)this.RollBackCancelBackup.Length);
+                    rom.write_resize_data_for_undo(
+                        (uint)this.RollBackCancelBackup.Length);
                 }
                 rom.write_range(0, this.RollBackCancelBackup);
             }
@@ -407,7 +408,7 @@ namespace FEBuilderGBA
         {
             if (rom.Data.Length < ud.filesize)
             {//ROMサイズが増やさないといけないなら増やす.
-                rom.write_resize_data(ud.filesize);
+                rom.write_resize_data_for_undo(ud.filesize);
             }
 
             for(int i = 0 ; i < ud.list.Count ; i++)
@@ -417,7 +418,7 @@ namespace FEBuilderGBA
 
             if (rom.Data.Length > ud.filesize)
             {//ROMサイズを減らさないといけないなら、ここで減らす.
-                rom.write_resize_data(ud.filesize);
+                rom.write_resize_data_for_undo(ud.filesize);
             }
         }
 

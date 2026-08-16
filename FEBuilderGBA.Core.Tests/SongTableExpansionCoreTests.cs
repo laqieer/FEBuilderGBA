@@ -146,13 +146,12 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Undo_TipHadNoCache_DoesNotMutateLaterInstalledCache()
         {
-            ROM rom = MakeRom(3);
+            ROM rom = MakeRom(3, addFreeSpace: false);
             CoreState.ROM = rom;
             CoreState.Undo = new Undo();
-            var original = new HeadlessEtcCache();
-            CoreState.CommentCache = original;
+            CoreState.CommentCache = null;
             CoreState.LintCache = new HeadlessEtcCache();
-            original.Update(TableBase + 8, "original");
+            uint originalLength = (uint)rom.Data.Length;
 
             Undo.UndoData expandUndo = CoreState.Undo.NewUndoData("expand");
             using (ROM.BeginUndoScope(expandUndo))
@@ -170,13 +169,43 @@ namespace FEBuilderGBA.Core.Tests
 
             CoreState.Undo.RunUndo();
             var replacement = new HeadlessEtcCache();
-            replacement.Update(0x777, "replacement");
+            uint replacementKey = originalLength + 4;
+            replacement.Update(replacementKey, "replacement");
             CoreState.CommentCache = replacement;
 
             CoreState.Undo.RunUndo();
 
-            Assert.Equal("replacement", replacement.At(0x777));
+            Assert.Equal("replacement", replacement.At(replacementKey));
             Assert.False(replacement.CheckFast(TableBase + 8));
+        }
+
+        [Fact]
+        public void Undo_GrownRom_RestoresDestinationCacheCapturedBeforeShrink()
+        {
+            ROM rom = MakeRom(3, addFreeSpace: false);
+            CoreState.ROM = rom;
+            CoreState.Undo = new Undo();
+            var comment = new HeadlessEtcCache();
+            CoreState.CommentCache = comment;
+            CoreState.LintCache = new HeadlessEtcCache();
+            uint originalLength = (uint)rom.Data.Length;
+            comment.Update(TableBase + 8, "moved");
+            comment.Update(originalLength + 8, "destination-before");
+
+            Undo.UndoData undo = CoreState.Undo.NewUndoData("expand");
+            DataExpansionCore.ExpandResult result;
+            using (ROM.BeginUndoScope(undo))
+                result = SongTableExpansionCore.Expand(rom, 5);
+            Assert.True(result.Success, result.Error);
+            CoreState.Undo.Push(undo);
+
+            Assert.Equal("moved", comment.At(result.NewBaseAddress + 8));
+            CoreState.Undo.RunUndo();
+
+            Assert.Equal(originalLength, (uint)rom.Data.Length);
+            Assert.Equal("moved", comment.At(TableBase + 8));
+            Assert.Equal(
+                "destination-before", comment.At(originalLength + 8));
         }
 
         [Fact]
@@ -223,6 +252,67 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(result.Success);
             Assert.Contains("transactional comment cache", result.Error);
             Assert.Equal(before, rom.Data);
+        }
+
+        [Fact]
+        public void Undo_UnsupportedReplacementCache_DoesNotThrowAfterRomRestore()
+        {
+            ROM rom = MakeRom(3);
+            CoreState.ROM = rom;
+            CoreState.Undo = new Undo();
+            CoreState.CommentCache = new HeadlessEtcCache();
+            CoreState.LintCache = new HeadlessEtcCache();
+            byte[] before = (byte[])rom.Data.Clone();
+
+            Undo.UndoData undo = CoreState.Undo.NewUndoData("expand");
+            using (ROM.BeginUndoScope(undo))
+            {
+                Assert.True(
+                    SongTableExpansionCore.Expand(rom, 5).Success);
+            }
+            CoreState.Undo.Push(undo);
+            CoreState.CommentCache = new UnsupportedCache();
+
+            Exception error = Record.Exception(
+                () => CoreState.Undo.RunUndo());
+
+            Assert.Null(error);
+            Assert.Equal(before, rom.Data);
+        }
+
+        [Fact]
+        public void Undo_AfterBranchTruncation_CapturesNewTip()
+        {
+            ROM rom = MakeRom(3);
+            CoreState.ROM = rom;
+            CoreState.Undo = new Undo();
+            var comment = new HeadlessEtcCache();
+            CoreState.CommentCache = comment;
+            CoreState.LintCache = new HeadlessEtcCache();
+            comment.Update(TableBase + 8, "original");
+
+            Undo.UndoData expandUndo = CoreState.Undo.NewUndoData("expand");
+            using (ROM.BeginUndoScope(expandUndo))
+            {
+                Assert.True(
+                    SongTableExpansionCore.Expand(rom, 5).Success);
+            }
+            CoreState.Undo.Push(expandUndo);
+            CoreState.Undo.RunUndo();
+            Assert.Equal("original", comment.At(TableBase + 8));
+
+            Undo.UndoData replacementEdit =
+                CoreState.Undo.NewUndoData("replacement edit");
+            using (ROM.BeginUndoScope(replacementEdit))
+                rom.write_u8(0x800, 0xBB);
+            CoreState.Undo.Push(replacementEdit);
+            Assert.Single(CoreState.Undo.UndoBuffer);
+
+            CoreState.Undo.RunUndo();
+
+            Assert.Equal(0u, rom.u8(0x800));
+            Assert.Equal("original", comment.At(TableBase + 8));
+            Assert.True(CoreState.Undo.CanRedo);
         }
 
         [Fact]

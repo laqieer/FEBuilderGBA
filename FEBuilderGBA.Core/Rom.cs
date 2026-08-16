@@ -885,6 +885,16 @@ namespace FEBuilderGBA
 
         public bool write_resize_data(uint resize)
         {
+            return write_resize_data(resize, trimCommentCache: true);
+        }
+
+        internal bool write_resize_data_for_undo(uint resize)
+        {
+            return write_resize_data(resize, trimCommentCache: false);
+        }
+
+        bool write_resize_data(uint resize, bool trimCommentCache)
+        {
             if (this.Data.Length == resize)
             {//サイズが同一なら何もしない
                 return true;
@@ -894,7 +904,7 @@ namespace FEBuilderGBA
                 CoreState.Services.ShowError(string.Format("32MB(0x02000000)より大きな領域を割り当てることはできません。\r\n要求サイズ:{0}", U.ToHexString(resize)));
                 return false;
             }
-            if (CoreState.CommentCache != null)
+            if (trimCommentCache && CoreState.CommentCache != null)
             {
                 CoreState.CommentCache.RemoveOverRange(resize);
             }
