@@ -54,11 +54,11 @@ Any conflict selects the higher tier. An untrusted or cross-repository PR is alw
 Reviewer selection uses the local runtime inventory:
 
 1. Inventory source is local runtime metadata only. Keep only explicitly selectable text/chat models whose runtime fields show they can run review agents; exclude picker aliases, non-review specializations, and the active developer provider. If runtime fields cannot determine candidate eligibility or review-agent capacity, fail closed.
-2. Resolve the developer provider identity and every candidate provider identity from runtime metadata only; never infer a provider from model names. Fail closed if any such identity is missing, contradictory, or ambiguous.
-3. Each candidate model must expose exactly one raw `advertised_index` in runtime metadata. Fail closed if it is absent, non-unique, or contradictory. Within each provider, sort models ascending by `(advertised_index, model_id lexical)` and retain the first model.
+2. Resolve the developer provider identity and every candidate provider identity from runtime metadata only; never infer a provider from model names. Define `advertised_index` as the candidate's zero-based position in the raw runtime-advertised inventory order. Fail closed if any provider identity is missing, contradictory, or ambiguous, or if that raw order is unavailable or contradictory.
+3. Within each provider, sort models ascending by `(advertised_index, model_id lexical)` and retain the first model. If any eligible model ID appears under multiple providers or has a contradictory provider mapping, fail closed before provider selection.
 4. Assign provider role bias by review stage: plan review `Google=0`, `xAI=1`, others `2`; PR review `xAI=0`, `Google=1`, others `2`. Sort providers ascending by `(role bias, first-model advertised_index, provider_id lexical)`.
 5. Normal review takes the first eligible provider. High review takes the first two distinct eligible providers. Never duplicate providers or model IDs; if too few distinct providers remain, fail closed.
-6. Record the inventory source, provider IDs, retained model IDs, and reviewer IDs in the Review Board entry.
+6. Record the inventory source and only the selected provider IDs, model IDs, and reviewer IDs in the Review Board entry.
 
 Each reviewer fetches the issue/plan/PR/diff from identifiers inside its own isolated invocation. Prompts contain only issue/PR numbers, accepted-plan URL, and current head SHA. Reports contain verdict, findings, and citations; normally under 4 KiB and never over 8 KiB.
 
@@ -67,7 +67,7 @@ Post the consolidated signoff with:
 ```text
 Review Tier: low|normal|high
 Classifier Result: <tier and reason>
-Review Board: <inventory source; provider ids; model ids; reviewer ids, omitted for low>
+Review Board: <inventory source; selected provider ids; selected model ids; reviewer ids, omitted for low>
 Copilot CLI: <version>
 Model: <display-name> (<model-id>)
 ```
