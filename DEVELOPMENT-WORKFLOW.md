@@ -53,12 +53,12 @@ Any conflict selects the higher tier. An untrusted or cross-repository PR is alw
 
 Reviewer selection uses the local runtime inventory:
 
-1. Inventory source is local runtime metadata only. Keep only explicitly selectable text/chat models that can run review agents; exclude picker aliases, non-review specializations, and the active developer provider.
-2. Resolve provider identity from runtime metadata and fail closed when it is missing, contradictory, ambiguous, or capacity is unavailable/unclear.
-3. Keep each model's raw advertised index. Order models within a provider by `(advertised_index, model_id lexical)`.
-4. Order providers for plan review as Google, then xAI, then the remaining providers by `(first model advertised_index, provider_id)`. Order providers for PR review as xAI, then Google, then the remaining providers by the same tie-break.
-5. Normal review selects one eligible provider. High review selects two distinct eligible providers. Never duplicate providers or model IDs; if enough distinct providers are unavailable, fail closed.
-6. Record the inventory source, model IDs, provider IDs, and reviewer IDs in the Review Board entry.
+1. Inventory source is local runtime metadata only. Keep only explicitly selectable text/chat models whose runtime fields show they can run review agents; exclude picker aliases, non-review specializations, and the active developer provider. If runtime fields cannot determine candidate eligibility or review-agent capacity, fail closed.
+2. Resolve the developer provider identity and every candidate provider identity from runtime metadata only; never infer a provider from model names. Fail closed if any such identity is missing, contradictory, or ambiguous.
+3. Each candidate model must expose exactly one raw `advertised_index` in runtime metadata. Fail closed if it is absent, non-unique, or contradictory. Within each provider, sort models ascending by `(advertised_index, model_id lexical)` and retain the first model.
+4. Assign provider role bias by review stage: plan review `Google=0`, `xAI=1`, others `2`; PR review `xAI=0`, `Google=1`, others `2`. Sort providers ascending by `(role bias, first-model advertised_index, provider_id lexical)`.
+5. Normal review takes the first eligible provider. High review takes the first two distinct eligible providers. Never duplicate providers or model IDs; if too few distinct providers remain, fail closed.
+6. Record the inventory source, provider IDs, retained model IDs, and reviewer IDs in the Review Board entry.
 
 Each reviewer fetches the issue/plan/PR/diff from identifiers inside its own isolated invocation. Prompts contain only issue/PR numbers, accepted-plan URL, and current head SHA. Reports contain verdict, findings, and citations; normally under 4 KiB and never over 8 KiB.
 
