@@ -1,5 +1,7 @@
 using System;
 using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Media;
 
 namespace FEBuilderGBA.Avalonia
@@ -31,7 +33,7 @@ namespace FEBuilderGBA.Avalonia
                 return;
             }
 
-            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args, ConfigureDesktopLifetime);
         }
 
         public static AppBuilder BuildAvaloniaApp()
@@ -90,6 +92,11 @@ namespace FEBuilderGBA.Avalonia
                     new FontFallback { FontFamily = new FontFamily("WenQuanYi Micro Hei") },
                 },
             };
+        }
+
+        internal static void ConfigureDesktopLifetime(IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
         }
     }
 }
