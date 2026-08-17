@@ -1,5 +1,6 @@
 using System;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Media;
 
 namespace FEBuilderGBA.Avalonia
@@ -31,7 +32,7 @@ namespace FEBuilderGBA.Avalonia
                 return;
             }
 
-            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args, ShutdownMode.OnMainWindowClose);
         }
 
         public static AppBuilder BuildAvaloniaApp()
