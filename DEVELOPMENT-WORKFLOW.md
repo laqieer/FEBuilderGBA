@@ -51,13 +51,14 @@ Any conflict selects the higher tier. An untrusted or cross-repository PR is alw
 | Normal | One reviewer from a different provider | One reviewer from a different provider |
 | High | Two reviewers from distinct providers | Two reviewers from distinct providers; add `security-review` when security-relevant |
 
-Reviewer provider preference:
+Reviewer selection uses the local runtime inventory:
 
-1. Exclude the active developer model's provider.
-2. Prefer xAI (`grok-4.5`) for PR review and Google (`gemini-3.6-flash`) for plan review.
-3. For high risk, use both available different providers; use OpenAI (`gpt-5.6-sol`, fallback `gpt-5.5`) when the developer is not OpenAI or another provider is unavailable.
-4. Google fallback is `gemini-3.1-pro-preview`.
-5. Never duplicate model IDs. If the required number of distinct providers is unavailable, fail closed.
+1. Inventory source is local runtime metadata only. Keep only explicitly selectable text/chat models that can run review agents; exclude picker aliases, non-review specializations, and the active developer provider.
+2. Resolve provider identity from runtime metadata and fail closed when it is missing, contradictory, ambiguous, or capacity is unavailable/unclear.
+3. Keep each model's raw advertised index. Order models within a provider by `(advertised_index, model_id lexical)`.
+4. Order providers for plan review as Google, then xAI, then the remaining providers by `(first model advertised_index, provider_id)`. Order providers for PR review as xAI, then Google, then the remaining providers by the same tie-break.
+5. Normal review selects one eligible provider. High review selects two distinct eligible providers. Never duplicate providers or model IDs; if enough distinct providers are unavailable, fail closed.
+6. Record the inventory source, model IDs, provider IDs, and reviewer IDs in the Review Board entry.
 
 Each reviewer fetches the issue/plan/PR/diff from identifiers inside its own isolated invocation. Prompts contain only issue/PR numbers, accepted-plan URL, and current head SHA. Reports contain verdict, findings, and citations; normally under 4 KiB and never over 8 KiB.
 
@@ -66,7 +67,7 @@ Post the consolidated signoff with:
 ```text
 Review Tier: low|normal|high
 Classifier Result: <tier and reason>
-Review Board: <model ids, omitted for low>
+Review Board: <inventory source; provider ids; model ids; reviewer ids, omitted for low>
 Copilot CLI: <version>
 Model: <display-name> (<model-id>)
 ```
