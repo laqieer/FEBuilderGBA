@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using Xunit;
 
@@ -17,6 +18,11 @@ namespace FEBuilderGBA.Core.Tests
     [Collection("SharedState")]
     public class EventAssemblerCompileCoreTests
     {
+        const string WritingBeforeInitializingOffsetWarning =
+            "warning: C_Code.lyn.event:11:1: Writing before initializing offset. You may be breaking the ROM!";
+        const string ColorzCoreSuccessMarker =
+            "No errors. Please continue being awesome.";
+
         static ROM CreateTestRom(int size = 512)
         {
             var rom = new ROM();
@@ -63,6 +69,237 @@ namespace FEBuilderGBA.Core.Tests
             string exePath = Path.Combine(tempDir, "ColorzCore.exe");
             File.WriteAllText(exePath, "fake");
             return exePath;
+        }
+
+        static void SetUnixExecutableBit(string path)
+        {
+            if (OperatingSystem.IsWindows())
+                return;
+
+            File.SetUnixFileMode(
+                path,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute
+                | UnixFileMode.GroupRead | UnixFileMode.GroupExecute
+                | UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+        }
+
+        static string CreateConcurrentOutputEventAssembler(out string tempDir)
+        {
+            tempDir = Path.Combine(Path.GetTempPath(), "febuilder-ea-concurrent-" + Path.GetRandomFileName());
+            Directory.CreateDirectory(tempDir);
+
+            if (OperatingSystem.IsWindows())
+            {
+                string wrapperPath = Path.Combine(tempDir, "ColorzCore.cmd");
+                string parentPath = Path.Combine(tempDir, "ColorzCore.ps1");
+                string stderrWriterPath = Path.Combine(tempDir, "stderr-writer.ps1");
+                string stdoutWriterPath = Path.Combine(tempDir, "stdout-writer.ps1");
+
+                File.WriteAllText(stderrWriterPath, string.Join("\n", new[]
+                {
+                    "$ErrorActionPreference = 'Stop'",
+                    "[Console]::Error.WriteLine('" + WritingBeforeInitializingOffsetWarning + "')",
+                    "[IO.File]::WriteAllText($args[0], 'ready')",
+                    "for ($i = 0; $i -lt 64; $i++) { [Console]::Error.WriteLine(\"stderr filler $i\") }",
+                    "",
+                }));
+
+                File.WriteAllText(stdoutWriterPath, string.Join("\n", new[]
+                {
+                    "$ErrorActionPreference = 'Stop'",
+                    "while (-not [IO.File]::Exists($args[0])) { Start-Sleep -Milliseconds 10 }",
+                    "for ($i = 0; $i -lt 64; $i++) { [Console]::Out.WriteLine(\"stdout filler $i\") }",
+                    "[Console]::Out.WriteLine('" + ColorzCoreSuccessMarker + "')",
+                    "",
+                }));
+
+                File.WriteAllText(parentPath, string.Join("\n", new[]
+                {
+                    "[CmdletBinding()]",
+                    "param([Parameter(ValueFromRemainingArguments = $true)][string[]]$RemainingArgs)",
+                    "$ErrorActionPreference = 'Stop'",
+                    "function Get-ArgValue([string]$Name) {",
+                    "    for ($i = 0; $i -lt $RemainingArgs.Count; $i++) {",
+                    "        $arg = $RemainingArgs[$i]",
+                    "        if ($arg.StartsWith($Name + ':', [StringComparison]::Ordinal)) {",
+                    "            return $arg.Substring($Name.Length + 1)",
+                    "        }",
+                    "        if ($arg -ceq $Name -and ($i + 1) -lt $RemainingArgs.Count) {",
+                    "            return $RemainingArgs[$i + 1]",
+                    "        }",
+                    "    }",
+                    "    throw ('Missing argument prefix: ' + $Name + ':')",
+                    "}",
+                    "$outputRom = Get-ArgValue '-output'",
+                    "$bytes = [IO.File]::ReadAllBytes($outputRom)",
+                    "$bytes[0x100] = 0xAA",
+                    "[IO.File]::WriteAllBytes($outputRom, $bytes)",
+                    "$signalPath = Join-Path $PSScriptRoot 'warning.ready'",
+                    "if ([IO.File]::Exists($signalPath)) { Remove-Item $signalPath -Force }",
+                    "$stderrWriter = Start-Process -FilePath 'powershell.exe' -ArgumentList @(",
+                    "    '-NoProfile',",
+                    "    '-ExecutionPolicy',",
+                    "    'Bypass',",
+                    "    '-File',",
+                    "    (Join-Path $PSScriptRoot 'stderr-writer.ps1'),",
+                    "    $signalPath",
+                    ") -PassThru -NoNewWindow",
+                    "$stdoutWriter = Start-Process -FilePath 'powershell.exe' -ArgumentList @(",
+                    "    '-NoProfile',",
+                    "    '-ExecutionPolicy',",
+                    "    'Bypass',",
+                    "    '-File',",
+                    "    (Join-Path $PSScriptRoot 'stdout-writer.ps1'),",
+                    "    $signalPath",
+                    ") -PassThru -NoNewWindow",
+                    "Wait-Process -Id $stderrWriter.Id, $stdoutWriter.Id",
+                    "if ([IO.File]::Exists($signalPath)) { Remove-Item $signalPath -Force }",
+                    "",
+                }));
+
+                File.WriteAllText(wrapperPath,
+                    "@echo off\r\n"
+                    + "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"%~dp0ColorzCore.ps1\" %*\r\n"
+                    + "exit /b %ERRORLEVEL%\r\n");
+                return wrapperPath;
+            }
+
+            Skip.IfNot(File.Exists("/usr/bin/python3"),
+                "python3 is required for the runnable Event Assembler stub on non-Windows hosts.");
+
+            string exePath = Path.Combine(tempDir, "ColorzCore");
+            string pyPath = Path.Combine(tempDir, "ColorzCore.py");
+            File.WriteAllText(pyPath, string.Join("\n", new[]
+            {
+                "import sys, threading",
+                "WARNING = " + QuotePythonStringLiteral(WritingBeforeInitializingOffsetWarning),
+                "SUCCESS = " + QuotePythonStringLiteral(ColorzCoreSuccessMarker),
+                "def get_arg_value(prefix):",
+                "    for arg in sys.argv[1:]:",
+                "        if arg.startswith(prefix):",
+                "            return arg[len(prefix):]",
+                "    raise RuntimeError('Missing argument prefix: ' + prefix)",
+                "output_rom = get_arg_value('-output:')",
+                "with open(output_rom, 'r+b') as fh:",
+                "    fh.seek(0x100)",
+                "    fh.write(b'\\xAA')",
+                "warning_ready = threading.Event()",
+                "def stderr_writer():",
+                "    sys.stderr.write(WARNING + '\\n')",
+                "    sys.stderr.flush()",
+                "    warning_ready.set()",
+                "    for i in range(64):",
+                "        sys.stderr.write(f'stderr filler {i}\\n')",
+                "    sys.stderr.flush()",
+                "def stdout_writer():",
+                "    warning_ready.wait()",
+                "    for i in range(64):",
+                "        sys.stdout.write(f'stdout filler {i}\\n')",
+                "    sys.stdout.write(SUCCESS + '\\n')",
+                "    sys.stdout.flush()",
+                "threads = [",
+                "    threading.Thread(target=stderr_writer),",
+                "    threading.Thread(target=stdout_writer),",
+                "]",
+                "for thread in threads:",
+                "    thread.start()",
+                "for thread in threads:",
+                "    thread.join()",
+                "",
+            }));
+            File.WriteAllText(exePath, "#!/bin/sh\nexec /usr/bin/python3 \"$0.py\" \"$@\"\n");
+            SetUnixExecutableBit(exePath);
+            return exePath;
+        }
+
+        static string CreateTimeoutCleanupEventAssembler(out string tempDir, out string markerPath)
+        {
+            tempDir = Path.Combine(Path.GetTempPath(), "febuilder-ea-timeout-" + Path.GetRandomFileName());
+            Directory.CreateDirectory(tempDir);
+            markerPath = Path.Combine(tempDir, "child-survived.txt");
+
+            if (OperatingSystem.IsWindows())
+            {
+                string wrapperPath = Path.Combine(tempDir, "ColorzCore.cmd");
+                string parentPath = Path.Combine(tempDir, "ColorzCore.ps1");
+                string childPath = Path.Combine(tempDir, "timeout-child.ps1");
+
+                File.WriteAllText(childPath, string.Join("\n", new[]
+                {
+                    "param([string]$MarkerPath)",
+                    "$ErrorActionPreference = 'Stop'",
+                    "Start-Sleep -Milliseconds 2500",
+                    "[IO.File]::WriteAllText($MarkerPath, 'child survived timeout kill')",
+                    "",
+                }));
+
+                File.WriteAllText(parentPath, string.Join("\n", new[]
+                {
+                    "[CmdletBinding()]",
+                    "param([Parameter(ValueFromRemainingArguments = $true)][string[]]$RemainingArgs)",
+                    "$ErrorActionPreference = 'Stop'",
+                    "$markerPath = Join-Path $PSScriptRoot 'child-survived.txt'",
+                    "if ([IO.File]::Exists($markerPath)) { Remove-Item $markerPath -Force }",
+                    "$child = Start-Process -FilePath 'powershell.exe' -ArgumentList @(",
+                    "    '-NoProfile',",
+                    "    '-ExecutionPolicy',",
+                    "    'Bypass',",
+                    "    '-File',",
+                    "    (Join-Path $PSScriptRoot 'timeout-child.ps1'),",
+                    "    $markerPath",
+                    ") -PassThru -NoNewWindow",
+                    "Start-Sleep -Seconds 60",
+                    "Wait-Process -Id $child.Id",
+                    "",
+                }));
+
+                File.WriteAllText(wrapperPath,
+                    "@echo off\r\n"
+                    + "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"%~dp0ColorzCore.ps1\" %*\r\n"
+                    + "exit /b %ERRORLEVEL%\r\n");
+                return wrapperPath;
+            }
+
+            Skip.IfNot(File.Exists("/usr/bin/python3"),
+                "python3 is required for the runnable Event Assembler stub on non-Windows hosts.");
+
+            string exePath = Path.Combine(tempDir, "ColorzCore");
+            string pyPath = Path.Combine(tempDir, "ColorzCore.py");
+            string childPyPath = Path.Combine(tempDir, "timeout_child.py");
+
+            File.WriteAllText(childPyPath, string.Join("\n", new[]
+            {
+                "import pathlib, sys, time",
+                "time.sleep(2.5)",
+                "pathlib.Path(sys.argv[1]).write_text('child survived timeout kill')",
+                "",
+            }));
+
+            File.WriteAllText(pyPath, string.Join("\n", new[]
+            {
+                "import os, pathlib, subprocess, sys, time",
+                "marker_path = os.path.join(os.path.dirname(__file__), 'child-survived.txt')",
+                "try:",
+                "    os.remove(marker_path)",
+                "except FileNotFoundError:",
+                "    pass",
+                "subprocess.Popen([",
+                "    sys.executable,",
+                "    os.path.join(os.path.dirname(__file__), 'timeout_child.py'),",
+                "    marker_path,",
+                "])",
+                "time.sleep(60)",
+                "",
+            }));
+
+            File.WriteAllText(exePath, "#!/bin/sh\nexec /usr/bin/python3 \"$0.py\" \"$@\"\n");
+            SetUnixExecutableBit(exePath);
+            return exePath;
+        }
+
+        static string QuotePythonStringLiteral(string value)
+        {
+            return "'" + value.Replace("\\", "\\\\").Replace("'", "\\'") + "'";
         }
 
         static string ExtractArgValue(string args, string prefix)
@@ -268,8 +505,8 @@ namespace FEBuilderGBA.Core.Tests
             string eaFile = "";
             string capturedWrapper = "";
             string dangerousOutput =
-                "warning: C_Code.lyn.event:11:1: Writing before initializing offset. You may be breaking the ROM!\r\n"
-                + "No errors. Please continue being awesome.\r\n";
+                WritingBeforeInitializingOffsetWarning + "\r\n"
+                + ColorzCoreSuccessMarker + "\r\n";
 
             var savedResolveExe = EventAssemblerCompileCore.ResolveExeOverride;
             var savedRunProcess = EventAssemblerCompileCore.RunProcessOverride;
@@ -371,6 +608,115 @@ namespace FEBuilderGBA.Core.Tests
             {
                 EventAssemblerCompileCore.ResolveExeOverride = savedResolveExe;
                 EventAssemblerCompileCore.RunProcessOverride = savedRunProcess;
+                try { if (eaFile != "") File.Delete(eaFile); } catch { }
+                try { if (fakeEaDir != "") Directory.Delete(fakeEaDir, true); } catch { }
+            }
+        }
+
+        [SkippableFact]
+        public void CompileAndInsert_ProductionRunner_CapturesConcurrentStdoutAndStderrBeforeSwap()
+        {
+            var rom = CreateTestRom(0x400);
+            byte[] before = (byte[])rom.Data.Clone();
+            var undo = NewUndo(rom);
+
+            string fakeEaDir = "";
+            string eaFile = "";
+
+            var savedResolveExe = EventAssemblerCompileCore.ResolveExeOverride;
+            var savedRunProcess = EventAssemblerCompileCore.RunProcessOverride;
+            var savedTimeoutMs = EventAssemblerCompileCore.RunProcessTimeoutMs;
+            try
+            {
+                string fakeExe = CreateConcurrentOutputEventAssembler(out fakeEaDir);
+                eaFile = Path.Combine(fakeEaDir, "warning.event");
+                File.WriteAllText(eaFile, "// production runner concurrency test\r\n");
+
+                EventAssemblerCompileCore.ResolveExeOverride = () => fakeExe;
+                EventAssemblerCompileCore.RunProcessOverride = null!;
+                EventAssemblerCompileCore.RunProcessTimeoutMs = EventAssemblerCompileCore.DefaultRunProcessTimeoutMs;
+
+                var result = EventAssemblerCompileCore.CompileAndInsert(
+                    rom, eaFile, EventAssemblerCompileCore.FreeAreaMode.None,
+                    undo, SymbolUtil.DebugSymbol.None);
+
+                Assert.False(result.Success);
+                Assert.Equal(before, rom.Data);
+                Assert.Empty(undo.list);
+                Assert.Contains("stderr filler 0", result.Output);
+                Assert.Contains("stdout filler 0", result.Output);
+
+                int warningIndex = result.Output.IndexOf(
+                    WritingBeforeInitializingOffsetWarning,
+                    StringComparison.Ordinal);
+                int successIndex = result.Output.IndexOf(
+                    ColorzCoreSuccessMarker,
+                    StringComparison.Ordinal);
+                Assert.True(warningIndex >= 0, result.Output);
+                Assert.True(successIndex >= 0, result.Output);
+                Assert.True(warningIndex < successIndex, result.Output);
+                Assert.Contains("Writing before initializing offset", result.ErrorMessage);
+            }
+            finally
+            {
+                EventAssemblerCompileCore.ResolveExeOverride = savedResolveExe;
+                EventAssemblerCompileCore.RunProcessOverride = savedRunProcess;
+                EventAssemblerCompileCore.RunProcessTimeoutMs = savedTimeoutMs;
+                try { if (eaFile != "") File.Delete(eaFile); } catch { }
+                try { if (fakeEaDir != "") Directory.Delete(fakeEaDir, true); } catch { }
+            }
+        }
+
+        [SkippableFact]
+        public void CompileAndInsert_ProductionRunner_TimeoutKillsProcessTreeBeforeCleanupMarker()
+        {
+            var rom = CreateTestRom(0x400);
+            byte[] before = (byte[])rom.Data.Clone();
+            var undo = NewUndo(rom);
+
+            string fakeEaDir = "";
+            string eaFile = "";
+            string markerPath = "";
+
+            var savedResolveExe = EventAssemblerCompileCore.ResolveExeOverride;
+            var savedRunProcess = EventAssemblerCompileCore.RunProcessOverride;
+            var savedTimeoutMs = EventAssemblerCompileCore.RunProcessTimeoutMs;
+            try
+            {
+                string fakeExe = CreateTimeoutCleanupEventAssembler(out fakeEaDir, out markerPath);
+                eaFile = Path.Combine(fakeEaDir, "timeout.event");
+                File.WriteAllText(eaFile, "// production runner timeout cleanup test\r\n");
+
+                EventAssemblerCompileCore.ResolveExeOverride = () => fakeExe;
+                EventAssemblerCompileCore.RunProcessOverride = null!;
+                EventAssemblerCompileCore.RunProcessTimeoutMs = 500;
+
+                var stopwatch = Stopwatch.StartNew();
+                var result = EventAssemblerCompileCore.CompileAndInsert(
+                    rom, eaFile, EventAssemblerCompileCore.FreeAreaMode.None,
+                    undo, SymbolUtil.DebugSymbol.None);
+                stopwatch.Stop();
+
+                bool childSurvived = SpinWait.SpinUntil(
+                    () => File.Exists(markerPath),
+                    TimeSpan.FromSeconds(3));
+
+                Assert.False(result.Success);
+                Assert.Contains("Error: Event Assembler timed out after 120 seconds.", result.Output);
+                Assert.Contains("Error: Event Assembler timed out after 120 seconds.", result.ErrorMessage);
+                Assert.False(childSurvived, "The timeout child outlived the process-tree kill.");
+                Assert.False(File.Exists(markerPath), "The timeout child wrote its cleanup marker after the runner returned.");
+                Assert.Equal(before, rom.Data);
+                Assert.Empty(undo.list);
+                Assert.True(
+                    stopwatch.Elapsed < TimeSpan.FromSeconds(15),
+                    $"Timed-out CompileAndInsert took too long to return: {stopwatch.Elapsed}.");
+            }
+            finally
+            {
+                EventAssemblerCompileCore.ResolveExeOverride = savedResolveExe;
+                EventAssemblerCompileCore.RunProcessOverride = savedRunProcess;
+                EventAssemblerCompileCore.RunProcessTimeoutMs = savedTimeoutMs;
                 try { if (eaFile != "") File.Delete(eaFile); } catch { }
                 try { if (fakeEaDir != "") Directory.Delete(fakeEaDir, true); } catch { }
             }

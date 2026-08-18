@@ -1,7 +1,9 @@
+using System.Collections.Generic;
 using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Threading;
 
 namespace FEBuilderGBA
 {
@@ -47,6 +49,16 @@ namespace FEBuilderGBA
         /// Core.Tests coverage.
         /// </summary>
         internal static Func<string, string, string, string> RunProcessOverride = RunProcessDefault;
+
+        internal const int DefaultRunProcessTimeoutMs = 120_000;
+
+        /// <summary>
+        /// Internal wait-duration seam for deterministic timeout tests. The
+        /// returned timeout sentinel stays the production "120 seconds" string so
+        /// <see cref="IsEASuccess"/> and higher-level error handling keep their
+        /// exact contract.
+        /// </summary>
+        internal static int RunProcessTimeoutMs = DefaultRunProcessTimeoutMs;
 
         /// <summary>
         /// Free-area selection mode (mirrors WinForms <c>FREEAREA_DEF_ENUM</c>).
@@ -374,7 +386,28 @@ namespace FEBuilderGBA
                 WorkingDirectory = workDir,
             };
 
-            var sb = new StringBuilder();
+            var outputLines = new List<(long Order, string Line)>();
+            object outputLock = new object();
+            long nextOutputOrder = 0;
+
+            void CaptureLine(string line)
+            {
+                if (line == null)
+                    return;
+
+                // stdout/stderr arrive on different callback threads. Record each
+                // whole line in callback-arrival order, then merge only after the
+                // final WaitForExit() drained both redirected readers.
+                long order = Interlocked.Increment(ref nextOutputOrder);
+                lock (outputLock)
+                {
+                    outputLines.Add((order, line));
+                }
+            }
+
+            int timeoutMs = RunProcessTimeoutMs > 0
+                ? RunProcessTimeoutMs
+                : DefaultRunProcessTimeoutMs;
             using (var proc = Process.Start(psi))
             {
                 // Process.Start can return null (documented) — guard against an NRE and
@@ -384,20 +417,54 @@ namespace FEBuilderGBA
                 {
                     return "Error: the Event Assembler process could not be started. filename:" + exePath;
                 }
-                proc.OutputDataReceived += (_, e) => { if (e.Data != null) sb.AppendLine(e.Data); };
-                proc.ErrorDataReceived += (_, e) => { if (e.Data != null) sb.AppendLine(e.Data); };
+                proc.OutputDataReceived += (_, e) => CaptureLine(e.Data);
+                proc.ErrorDataReceived += (_, e) => CaptureLine(e.Data);
                 proc.BeginOutputReadLine();
                 proc.BeginErrorReadLine();
 
-                if (!proc.WaitForExit(120_000))
+                if (!proc.WaitForExit(timeoutMs))
                 {
                     // Kill the WHOLE tree — an EA/build invocation may spawn child processes
                     // that killing only the parent would orphan.
-                    try { proc.Kill(entireProcessTree: true); } catch { }
+                    KillProcessTreeOnTimeout(proc);
+                    // A bounded WaitForExit(...) can report the process exit before the
+                    // last redirected callbacks run. Drain them even on timeout/kill so
+                    // the warning/failure output is complete before we return.
+                    proc.WaitForExit();
                     return "Error: Event Assembler timed out after 120 seconds.";
                 }
+                proc.WaitForExit();
             }
-            return sb.ToString();
+
+            lock (outputLock)
+            {
+                outputLines.Sort((x, y) => x.Order.CompareTo(y.Order));
+                var sb = new StringBuilder();
+                foreach (var outputLine in outputLines)
+                {
+                    sb.AppendLine(outputLine.Line);
+                }
+                return sb.ToString();
+            }
+        }
+
+        static void KillProcessTreeOnTimeout(Process proc)
+        {
+            if (proc.HasExited)
+                return;
+
+            try
+            {
+                proc.Kill(entireProcessTree: true);
+            }
+            catch (InvalidOperationException)
+            {
+                // The process exited between the timeout probe and the kill.
+            }
+            catch (System.ComponentModel.Win32Exception) when (proc.HasExited)
+            {
+                // Same race as above; don't hide real kill failures.
+            }
         }
     }
 }
