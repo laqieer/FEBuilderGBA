@@ -320,18 +320,20 @@ namespace FEBuilderGBA.Core.Tests
             string eaFile = Path.Combine(eaDir, "tiny.event");
             File.WriteAllText(eaFile, "ORG 0x100\r\nBYTE 0xAA\r\n");
 
-            // Point TMP/TEMP at a directory that does NOT exist → Path.GetTempFileName()
+            // Point TMP/TEMP/TMPDIR at a directory that does NOT exist → Path.GetTempFileName()
             // and the temp-ROM write throw (IOException/DirectoryNotFound), which the
-            // helper must catch and convert to a clean result.
+            // helper must catch and convert to a clean result on both Windows and Unix.
             string badTemp = Path.Combine(Path.GetTempPath(), "fbg-nonexistent-" + Guid.NewGuid());
             string? savedTmp = Environment.GetEnvironmentVariable("TMP");
             string? savedTemp = Environment.GetEnvironmentVariable("TEMP");
+            string? savedTmpDir = Environment.GetEnvironmentVariable("TMPDIR");
             var savedConfig = CoreState.Config;
             var savedUndo = CoreState.Undo;
             CoreState.Config = new Config { ["event_assembler"] = exe };
             CoreState.Undo = new Undo();
             Environment.SetEnvironmentVariable("TMP", badTemp);
             Environment.SetEnvironmentVariable("TEMP", badTemp);
+            Environment.SetEnvironmentVariable("TMPDIR", badTemp);
 
             try
             {
@@ -352,6 +354,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 Environment.SetEnvironmentVariable("TMP", savedTmp);
                 Environment.SetEnvironmentVariable("TEMP", savedTemp);
+                Environment.SetEnvironmentVariable("TMPDIR", savedTmpDir);
                 CoreState.Config = savedConfig;
                 CoreState.Undo = savedUndo;
                 try { Directory.Delete(eaDir, true); } catch { }
