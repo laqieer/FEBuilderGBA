@@ -9,12 +9,6 @@ using FEBuilderGBA;
 
 namespace FEBuilderGBA.Avalonia.Dialogs
 {
-    internal enum ExternalToolPickerMode
-    {
-        File,
-        Folder,
-    }
-
     /// <summary>
     /// Helper for file open/save dialogs using Avalonia 11 StorageProvider API.
     /// All user-visible strings are wrapped with R._() for i18n.
@@ -246,20 +240,27 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             return provider;
         }
 
-        internal static ExternalToolPickerMode GetExternalToolPickerMode(
-            bool isMacOS,
-            bool allowMacApplicationBundle)
-            => isMacOS && allowMacApplicationBundle
-                ? ExternalToolPickerMode.Folder
-                : ExternalToolPickerMode.File;
+        internal static FilePickerOpenOptions CreateExternalToolOpenOptions(string title)
+            => new()
+            {
+                Title = R._(title),
+                AllowMultiple = false,
+                FileTypeFilter = new[]
+                {
+                    new FilePickerFileType(R._("Executables"))
+                    {
+                        Patterns = ExecutablePatterns,
+                    },
+                    MakeAllFileType(),
+                },
+            };
 
-        static string? ResolveExternalToolLocalPath<T>(IReadOnlyList<T> items)
-            where T : IStorageItem
+        static string? ResolveExternalToolLocalPath(IReadOnlyList<IStorageFile>? files)
         {
-            if (items.Count == 0)
+            if (files == null || files.Count == 0)
                 return null;
 
-            string? path = items[0].TryGetLocalPath();
+            string? path = files[0].TryGetLocalPath();
             if (string.IsNullOrEmpty(path))
             {
                 CoreState.Services?.ShowInfo(R._("This setting configures an external tool path and requires desktop file-system access; it is not available on this device."));
@@ -540,42 +541,17 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         }
 
         /// <summary>
-        /// Pick a local external-tool path. macOS callers may explicitly request
-        /// a folder picker for an application bundle; every other case uses the
-        /// ordinary executable file picker.
+        /// Pick a local external-tool path with the shared executable file picker.
+        /// macOS application bundles remain selectable through the <c>*.app</c>
+        /// filter, while non-desktop targets still reject picks with no local path.
         /// </summary>
-        public static async Task<string?> OpenExternalTool(
-            TopLevel? owner,
-            string title,
-            bool allowMacApplicationBundle = false)
+        public static async Task<string?> OpenExternalTool(TopLevel? owner, string title)
         {
             var provider = GetStorageProvider(owner, nameof(OpenExternalTool));
             if (provider == null)
                 return null;
 
-            string localizedTitle = R._(title);
-            if (GetExternalToolPickerMode(
-                OperatingSystem.IsMacOS(),
-                allowMacApplicationBundle) == ExternalToolPickerMode.Folder)
-            {
-                var folders = await provider.OpenFolderPickerAsync(new FolderPickerOpenOptions
-                {
-                    Title = localizedTitle,
-                    AllowMultiple = false,
-                });
-                return ResolveExternalToolLocalPath(folders);
-            }
-
-            var executableFiles = new FilePickerFileType(R._("Executables"))
-            {
-                Patterns = ExecutablePatterns,
-            };
-            var files = await provider.OpenFilePickerAsync(new FilePickerOpenOptions
-            {
-                Title = localizedTitle,
-                AllowMultiple = false,
-                FileTypeFilter = new[] { executableFiles, MakeAllFileType() },
-            });
+            var files = await provider.OpenFilePickerAsync(CreateExternalToolOpenOptions(title));
             return ResolveExternalToolLocalPath(files);
         }
 
