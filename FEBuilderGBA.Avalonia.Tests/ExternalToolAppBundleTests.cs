@@ -16,7 +16,8 @@ namespace FEBuilderGBA.Avalonia.Tests;
 public sealed class ExternalToolAppBundleTests : IDisposable
 {
     readonly string _root = Path.Combine(
-        Path.GetTempPath(),
+        AppContext.BaseDirectory,
+        "test-output",
         "avalonia_external_tool_" + Guid.NewGuid().ToString("N"));
     readonly Config? _savedConfig = CoreState.Config;
     readonly string? _savedBaseDirectory = CoreState.BaseDirectory;
@@ -33,7 +34,11 @@ public sealed class ExternalToolAppBundleTests : IDisposable
     {
         CoreState.Config = _savedConfig;
         CoreState.BaseDirectory = _savedBaseDirectory;
-        try { Directory.Delete(_root, recursive: true); }
+        try
+        {
+            if (Directory.Exists(_root))
+                Directory.Delete(_root, recursive: true);
+        }
         catch (IOException) { }
         catch (UnauthorizedAccessException) { }
     }
@@ -55,33 +60,55 @@ public sealed class ExternalToolAppBundleTests : IDisposable
         Assert.Equal(expected, diffPath);
     }
 
-    [Theory]
-    [InlineData(false, false, false)]
-    [InlineData(false, true, false)]
-    [InlineData(true, false, false)]
-    [InlineData(true, true, true)]
-    public void ExternalToolPickerMode_UsesFolderOnlyForMacApplicationBundles(
-        bool isMacOS,
-        bool allowMacApplicationBundle,
-        bool expectedFolder)
+    [Fact]
+    public void ExternalToolPicker_UsesFileSelectionForExecutablesAndAppBundles()
     {
-        var expected = expectedFolder
-            ? ExternalToolPickerMode.Folder
-            : ExternalToolPickerMode.File;
-        Assert.Equal(expected, FileDialogHelper.GetExternalToolPickerMode(
-            isMacOS, allowMacApplicationBundle));
+        var options = FileDialogHelper.CreateExternalToolOpenOptions("Select File");
+
+        Assert.Equal("Select File", options.Title);
+        Assert.False(options.AllowMultiple);
+        Assert.NotNull(options.FileTypeFilter);
+        Assert.Collection(options.FileTypeFilter!,
+            executables =>
+            {
+                Assert.Equal("Executables", executables.Name);
+                Assert.Equal(new[] { "*.exe", "*.app", "*" }, executables.Patterns);
+            },
+            allFiles =>
+            {
+                Assert.Equal("All Files", allFiles.Name);
+                Assert.Equal(new[] { "*" }, allFiles.Patterns);
+            });
     }
 
-    [Theory]
-    [InlineData("EmulatorTextBox", true)]
-    [InlineData("Emulator2TextBox", true)]
-    [InlineData("EventAssemblerTextBox", false)]
-    [InlineData("GitPathTextBox", false)]
-    public void OptionsView_RequestsBundleModeOnlyForEmulatorFields(
-        string targetName,
-        bool expected)
+    [AvaloniaFact]
+    public void OptionsView_BrowseTargets_KeepFileAndDirectoryRoutesConsistent()
     {
-        Assert.Equal(expected, OptionsView.AllowsMacApplicationBundlePicker(targetName));
+        var view = new OptionsView();
+        var host = new Window { Content = view };
+        host.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+
+            foreach (string target in OptionsView.FilePickerTargetNames)
+            {
+                Assert.True(OptionsView.IsFilePickerTarget(target));
+                Assert.False(OptionsView.IsDirectoryPickerTarget(target));
+                Assert.NotNull(view.FindControl<TextBox>(target));
+            }
+
+            foreach (string target in OptionsView.DirectoryPickerTargetNames)
+            {
+                Assert.True(OptionsView.IsDirectoryPickerTarget(target));
+                Assert.False(OptionsView.IsFilePickerTarget(target));
+                Assert.NotNull(view.FindControl<TextBox>(target));
+            }
+        }
+        finally
+        {
+            host.Close();
+        }
     }
 
     [Fact]

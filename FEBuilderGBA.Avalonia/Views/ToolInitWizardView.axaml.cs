@@ -200,9 +200,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void OnRefEmulator_Click(object? sender, RoutedEventArgs e)
         {
-            string? picked = await PickExeFileAsync(
-                "Select Emulator",
-                allowMacApplicationBundle: true);
+            string? picked = await PickExeFileAsync("Select Emulator");
             if (picked != null)
                 _vm.PendingEmulatorPath = picked;
         }
@@ -876,17 +874,10 @@ namespace FEBuilderGBA.Avalonia.Views
         // Helpers.
         // ===================================================================
 
-        /// <summary>
-        /// Centralized external-tool picker. The emulator step opts into the
-        /// macOS application-bundle folder picker; all other steps keep file
-        /// selection.
-        /// </summary>
-        System.Threading.Tasks.Task<string?> PickExeFileAsync(
-            string title,
-            bool allowMacApplicationBundle = false)
+        /// <summary>Centralized external-tool picker using the shared executable file dialog.</summary>
+        System.Threading.Tasks.Task<string?> PickExeFileAsync(string title)
             => FileDialogHelper.OpenExternalTool(
                 TopLevel.GetTopLevel(this),
-                title,
-                allowMacApplicationBundle);
+                title);
     }
 }
