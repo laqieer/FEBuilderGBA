@@ -11,7 +11,9 @@ internal static class Program
     const string ChildMarkerEnvVar = "FEBUILDERGBA_EA_PROCESS_STUB_CHILD_MARKER";
 
     const string ConcurrentOutputMode = "concurrent-output";
+    const string ParentExitDescendantHoldsPipesMode = "parent-exit-descendant-holds-pipes";
     const string TimeoutParentMode = "timeout-parent";
+    const string ParentExitChildCommand = "__parent-exit-child";
     const string TimeoutChildCommand = "__timeout-child";
     const string WritingBeforeInitializingOffsetWarning =
         "warning: C_Code.lyn.event:11:1: Writing before initializing offset. You may be breaking the ROM!";
@@ -20,6 +22,8 @@ internal static class Program
 
     static int Main(string[] args)
     {
+        if (args.Length > 0 && args[0] == ParentExitChildCommand)
+            return RunParentExitChild(args);
         if (args.Length > 0 && args[0] == TimeoutChildCommand)
             return RunTimeoutChild(args);
 
@@ -44,6 +48,7 @@ internal static class Program
         return mode switch
         {
             ConcurrentOutputMode => RunConcurrentOutput(launch, launchRecordPath),
+            ParentExitDescendantHoldsPipesMode => RunParentExitDescendantHoldsPipes(launch, launchRecordPath),
             TimeoutParentMode => RunTimeoutParent(launch, launchRecordPath),
             _ => throw new InvalidOperationException("Unsupported process stub mode: " + mode),
         };
@@ -84,6 +89,31 @@ internal static class Program
         return 0;
     }
 
+    static int RunParentExitDescendantHoldsPipes(LaunchRecord launch, string launchRecordPath)
+    {
+        string childMarkerPath = RequireEnvironmentVariable(ChildMarkerEnvVar);
+        string processPath = Environment.ProcessPath ?? throw new InvalidOperationException("Process path unavailable.");
+        MutateOutputRom(launch.OutputRomPath);
+
+        var psi = new ProcessStartInfo(processPath)
+        {
+            UseShellExecute = false,
+            WorkingDirectory = Environment.CurrentDirectory,
+            CreateNoWindow = true,
+        };
+        psi.ArgumentList.Add(ParentExitChildCommand);
+        psi.ArgumentList.Add(childMarkerPath);
+
+        using var child = Process.Start(psi)
+            ?? throw new InvalidOperationException("Failed to start inherited-pipe child.");
+
+        launch.ChildProcessId = child.Id;
+        WriteLaunchRecord(launchRecordPath, launch);
+        Console.Out.WriteLine(ColorzCoreSuccessMarker);
+        Console.Out.Flush();
+        return 0;
+    }
+
     static int RunTimeoutParent(LaunchRecord launch, string launchRecordPath)
     {
         string childMarkerPath = RequireEnvironmentVariable(ChildMarkerEnvVar);
@@ -104,6 +134,16 @@ internal static class Program
         WriteLaunchRecord(launchRecordPath, launch);
 
         Thread.Sleep(TimeSpan.FromSeconds(60));
+        return 0;
+    }
+
+    static int RunParentExitChild(string[] args)
+    {
+        if (args.Length != 2)
+            throw new InvalidOperationException("Parent-exit child expects a marker path.");
+
+        Thread.Sleep(TimeSpan.FromMilliseconds(2500));
+        File.WriteAllText(args[1], "child survived inherited-pipe kill");
         return 0;
     }
 

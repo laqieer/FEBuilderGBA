@@ -8,6 +8,7 @@ internal static class EventAssemblerProcessStubSupport
     internal const string LaunchRecordEnvVar = "FEBUILDERGBA_EA_PROCESS_STUB_RECORD";
     internal const string ChildMarkerEnvVar = "FEBUILDERGBA_EA_PROCESS_STUB_CHILD_MARKER";
     internal const string ConcurrentOutputMode = "concurrent-output";
+    internal const string ParentExitDescendantHoldsPipesMode = "parent-exit-descendant-holds-pipes";
     internal const string TimeoutParentMode = "timeout-parent";
 
     internal static IDisposable Configure(string mode, string launchRecordPath, string? childMarkerPath = null)

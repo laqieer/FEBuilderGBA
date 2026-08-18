@@ -1,9 +1,7 @@
-using System.Collections.Generic;
 using System;
-using System.Diagnostics;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using System.Threading;
 
 namespace FEBuilderGBA
 {
@@ -45,18 +43,31 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Test seam for the EA process runner. Defaults to
-        /// <see cref="RunProcessDefault"/> and stays internal for deterministic
-        /// Core.Tests coverage.
+        /// <see cref="RunProcessDefault"/>'s <see cref="ProcessRunnerCore"/> adapter
+        /// and stays internal for deterministic Core.Tests coverage.
         /// </summary>
-        internal static Func<string, string, string, string> RunProcessOverride = RunProcessDefault;
+        internal static Func<string, IEnumerable<string>, string?, ProcessRunResult> RunProcessOverride = RunProcessDefault;
 
         internal const int DefaultRunProcessTimeoutMs = 120_000;
+        const string PosixProcessWorkerScript =
+            "#!/bin/sh\n"
+            + "if [ \"$#\" -lt 1 ]; then\n"
+            + "  exit 127\n"
+            + "fi\n"
+            + "if command -v setsid >/dev/null 2>&1; then\n"
+            + "  exec setsid \"$@\"\n"
+            + "fi\n"
+            + "if command -v python3 >/dev/null 2>&1; then\n"
+            + "  exec python3 -c 'import os, sys; os.setsid(); os.execvp(sys.argv[1], sys.argv[1:])' \"$@\"\n"
+            + "fi\n"
+            + "echo 'Unable to establish a process group: requires setsid or python3.' 1>&2\n"
+            + "exit 127\n";
 
         /// <summary>
-        /// Internal wait-duration seam for deterministic timeout tests. The
-        /// returned timeout sentinel stays the production "120 seconds" string so
-        /// <see cref="IsEASuccess"/> and higher-level error handling keep their
-        /// exact contract.
+        /// Internal wait-duration seam for deterministic timeout tests. The shared
+        /// <see cref="ProcessRunnerCore"/> still reports the production
+        /// "120 seconds" sentinel so <see cref="IsEASuccess"/> and higher-level
+        /// error handling keep their exact contract.
         /// </summary>
         internal static int RunProcessTimeoutMs = DefaultRunProcessTimeoutMs;
 
@@ -111,16 +122,51 @@ namespace FEBuilderGBA
         public static string BuildArgs(string gameCode, string wrapperPath, string outputRom,
             string symFile, bool isColorzCore, bool includeSym = true)
         {
-            string args = "A " + gameCode + " "
-                + U.escape_shell_args("-input:" + wrapperPath) + " "
-                + U.escape_shell_args("-output:" + outputRom);
-            if (includeSym)
+            string[] tokens = BuildArgTokens(
+                gameCode,
+                wrapperPath,
+                outputRom,
+                symFile,
+                isColorzCore,
+                includeSym);
+
+            string args = tokens[0] + " " + tokens[1];
+            for (int i = 2; i < tokens.Length; i++)
             {
-                args += " " + (isColorzCore
-                    ? U.escape_shell_args("--nocash-sym:" + symFile)
-                    : U.escape_shell_args("-symOutput:" + symFile));
+                args += " " + U.escape_shell_args(tokens[i]);
             }
             return args;
+        }
+
+        static string[] BuildArgTokens(
+            string gameCode,
+            string wrapperPath,
+            string outputRom,
+            string symFile,
+            bool isColorzCore,
+            bool includeSym = true)
+        {
+            if (!includeSym)
+            {
+                return new[]
+                {
+                    "A",
+                    gameCode,
+                    "-input:" + wrapperPath,
+                    "-output:" + outputRom,
+                };
+            }
+
+            return new[]
+            {
+                "A",
+                gameCode,
+                "-input:" + wrapperPath,
+                "-output:" + outputRom,
+                isColorzCore
+                    ? "--nocash-sym:" + symFile
+                    : "-symOutput:" + symFile,
+            };
         }
 
         /// <summary>
@@ -256,12 +302,24 @@ namespace FEBuilderGBA
 
                 // Track the args actually executed so a failure reports the right
                 // command (the old-EA fallback below replaces them).
-                string executedArgs = BuildArgs(gameCode, wrapperPath, tempRomPath, symFile, isColorzCore);
+                string[] executedArgTokens = BuildArgTokens(
+                    gameCode,
+                    wrapperPath,
+                    tempRomPath,
+                    symFile,
+                    isColorzCore);
+                string executedArgs = BuildArgs(
+                    gameCode,
+                    wrapperPath,
+                    tempRomPath,
+                    symFile,
+                    isColorzCore);
 
+                ProcessRunResult processRun;
                 string output;
                 try
                 {
-                    output = RunProcess(eaExe, executedArgs, toolDir);
+                    processRun = RunProcess(eaExe, executedArgTokens, toolDir);
                 }
                 catch (Exception ex)
                 {
@@ -271,8 +329,17 @@ namespace FEBuilderGBA
                     result.ErrorMessage = R._("プロセスを実行できません。\r\nfilename:{0}\r\n{1}", eaExe, ex.ToString());
                     return result;
                 }
+                if (!processRun.Started)
+                {
+                    result.Output = CombineProcessOutput(eaExe, processRun);
+                    result.ErrorMessage = R._("プロセスを実行できません。\r\nfilename:{0}\r\n{1}", eaExe, processRun.ErrorMessage);
+                    return result;
+                }
 
-                bool hasError = !IsEASuccess(output);
+                output = CombineProcessOutput(eaExe, processRun);
+
+                bool hasError = HasProcessRunnerFailure(processRun)
+                    || !IsEASuccess(output);
 
                 // Old-EA fallback: retry without -symOutput (re-seed the temp ROM
                 // first, the failed attempt may have partially written it).
@@ -282,9 +349,31 @@ namespace FEBuilderGBA
                 {
                     onRetry?.Invoke("Retrying without -symOutput (older EA detected)...");
                     File.WriteAllBytes(tempRomPath, rom.Data);
-                    executedArgs = BuildArgs(gameCode, wrapperPath, tempRomPath, symFile, isColorzCore, includeSym: false);
-                    output = RunProcess(eaExe, executedArgs, toolDir);
-                    hasError = !IsEASuccess(output);
+                    executedArgTokens = BuildArgTokens(
+                        gameCode,
+                        wrapperPath,
+                        tempRomPath,
+                        symFile,
+                        isColorzCore,
+                        includeSym: false);
+                    executedArgs = BuildArgs(
+                        gameCode,
+                        wrapperPath,
+                        tempRomPath,
+                        symFile,
+                        isColorzCore,
+                        includeSym: false);
+                    processRun = RunProcess(eaExe, executedArgTokens, toolDir);
+                    if (!processRun.Started)
+                    {
+                        result.Output = CombineProcessOutput(eaExe, processRun);
+                        result.ErrorMessage = R._("プロセスを実行できません。\r\nfilename:{0}\r\n{1}", eaExe, processRun.ErrorMessage);
+                        return result;
+                    }
+
+                    output = CombineProcessOutput(eaExe, processRun);
+                    hasError = HasProcessRunnerFailure(processRun)
+                        || !IsEASuccess(output);
                 }
 
                 result.Output = output;
@@ -367,103 +456,138 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Run the EA/ColorzCore process and capture combined stdout+stderr.
-        /// Same 120s timeout as the CLI <c>RunEAProcess</c>.
+        /// Run the EA/ColorzCore process via the shared
+        /// <see cref="ProcessRunnerCore"/> infrastructure.
         /// </summary>
-        static string RunProcess(string exePath, string args, string workDir)
+        static ProcessRunResult RunProcess(
+            string exePath,
+            IEnumerable<string> args,
+            string? workDir)
         {
             return (RunProcessOverride ?? RunProcessDefault)(exePath, args, workDir);
         }
 
-        static string RunProcessDefault(string exePath, string args, string workDir)
+        static ProcessRunResult RunProcessDefault(
+            string exePath,
+            IEnumerable<string> args,
+            string? workDir)
         {
-            var psi = new ProcessStartInfo(exePath, args)
-            {
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true,
-                WorkingDirectory = workDir,
-            };
-
-            var outputLines = new List<(long Order, string Line)>();
-            object outputLock = new object();
-            long nextOutputOrder = 0;
-
-            void CaptureLine(string line)
-            {
-                if (line == null)
-                    return;
-
-                // stdout/stderr arrive on different callback threads. Record each
-                // whole line in callback-arrival order, then merge only after the
-                // final WaitForExit() drained both redirected readers.
-                long order = Interlocked.Increment(ref nextOutputOrder);
-                lock (outputLock)
-                {
-                    outputLines.Add((order, line));
-                }
-            }
-
             int timeoutMs = RunProcessTimeoutMs > 0
                 ? RunProcessTimeoutMs
                 : DefaultRunProcessTimeoutMs;
-            using (var proc = Process.Start(psi))
-            {
-                // Process.Start can return null (documented) — guard against an NRE and
-                // return a clean error. The string carries no EA success marker, so the
-                // caller's IsEASuccess treats it as a failure and emits nothing (#1250).
-                if (proc == null)
-                {
-                    return "Error: the Event Assembler process could not be started. filename:" + exePath;
-                }
-                proc.OutputDataReceived += (_, e) => CaptureLine(e.Data);
-                proc.ErrorDataReceived += (_, e) => CaptureLine(e.Data);
-                proc.BeginOutputReadLine();
-                proc.BeginErrorReadLine();
 
-                if (!proc.WaitForExit(timeoutMs))
-                {
-                    // Kill the WHOLE tree — an EA/build invocation may spawn child processes
-                    // that killing only the parent would orphan.
-                    KillProcessTreeOnTimeout(proc);
-                    // A bounded WaitForExit(...) can report the process exit before the
-                    // last redirected callbacks run. Drain them even on timeout/kill so
-                    // the warning/failure output is complete before we return.
-                    proc.WaitForExit();
-                    return "Error: Event Assembler timed out after 120 seconds.";
-                }
-                proc.WaitForExit();
+            List<string> materializedArgs = args != null
+                ? new List<string>(args)
+                : new List<string>();
+
+            if (OperatingSystem.IsWindows())
+            {
+                return ProcessRunnerCore.Run(
+                    exePath,
+                    materializedArgs,
+                    workDir,
+                    timeoutMs);
             }
 
-            lock (outputLock)
-            {
-                outputLines.Sort((x, y) => x.Order.CompareTo(y.Order));
-                var sb = new StringBuilder();
-                foreach (var outputLine in outputLines)
-                {
-                    sb.AppendLine(outputLine.Line);
-                }
-                return sb.ToString();
-            }
-        }
-
-        static void KillProcessTreeOnTimeout(Process proc)
-        {
-            if (proc.HasExited)
-                return;
+            string processWorkerDir = Path.Combine(
+                Path.GetTempPath(),
+                "febuilder_ea_process_runner_" + Guid.NewGuid().ToString("N"));
+            string processWorkerPath = Path.Combine(
+                processWorkerDir,
+                "process_worker.py");
+            Directory.CreateDirectory(processWorkerDir);
+            File.WriteAllText(processWorkerPath, PosixProcessWorkerScript);
 
             try
             {
-                proc.Kill(entireProcessTree: true);
+                string processWorkerInterpreter = ResolvePosixProcessWorkerInterpreter();
+                var wrappedArgs = new List<string>(materializedArgs.Count + 2)
+                {
+                    processWorkerPath,
+                    exePath,
+                };
+                wrappedArgs.AddRange(materializedArgs);
+
+                ProcessRunResult wrappedRun = ProcessRunnerCore.Run(
+                    processWorkerInterpreter,
+                    wrappedArgs,
+                    workDir,
+                    timeoutMs);
+                return wrappedRun;
             }
-            catch (InvalidOperationException)
+            finally
             {
-                // The process exited between the timeout probe and the kill.
+                TryDelete(processWorkerPath);
+                TryDeleteDirectory(processWorkerDir);
             }
-            catch (System.ComponentModel.Win32Exception) when (proc.HasExited)
+        }
+
+        static bool HasProcessRunnerFailure(ProcessRunResult run)
+        {
+            return run.TimedOut
+                || run.OutputLimitExceeded
+                || run.TerminationFailed
+                || run.Cancelled;
+        }
+
+        static string CombineProcessOutput(string exePath, ProcessRunResult run)
+        {
+            if (!run.Started)
             {
-                // Same race as above; don't hide real kill failures.
+                if (run.ErrorMessage.IndexOf(
+                    "Process.Start returned false",
+                    StringComparison.Ordinal) >= 0)
+                {
+                    return "Error: the Event Assembler process could not be started. filename:"
+                        + exePath;
+                }
+                return run.ErrorMessage ?? "";
+            }
+            if (run.TimedOut)
+            {
+                return "Error: Event Assembler timed out after 120 seconds.";
+            }
+
+            var sb = new StringBuilder();
+            AppendOutputSegment(sb, run.Stderr);
+            AppendOutputSegment(sb, run.Stdout);
+            if (!string.IsNullOrEmpty(run.ErrorMessage))
+            {
+                AppendOutputSegment(sb, run.ErrorMessage);
+            }
+            return sb.ToString();
+        }
+
+        static void AppendOutputSegment(StringBuilder sb, string text)
+        {
+            if (string.IsNullOrEmpty(text))
+                return;
+
+            sb.Append(text);
+            if (!text.EndsWith("\r", StringComparison.Ordinal)
+                && !text.EndsWith("\n", StringComparison.Ordinal))
+            {
+                sb.AppendLine();
+            }
+        }
+
+        static string ResolvePosixProcessWorkerInterpreter()
+        {
+            const string systemShell = "/bin/sh";
+            return File.Exists(systemShell)
+                ? systemShell
+                : "sh";
+        }
+
+        static void TryDeleteDirectory(string path)
+        {
+            try
+            {
+                if (!string.IsNullOrEmpty(path) && Directory.Exists(path))
+                    Directory.Delete(path, recursive: true);
+            }
+            catch
+            {
             }
         }
     }

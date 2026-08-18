@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using Xunit;
 
 namespace FEBuilderGBA.Core.Tests
@@ -78,22 +79,16 @@ namespace FEBuilderGBA.Core.Tests
             return tempDir;
         }
 
-        static string ExtractArgValue(string args, string prefix)
+        static string ExtractArgValue(IEnumerable<string> args, string prefix)
         {
-            int start = args.IndexOf(prefix, StringComparison.Ordinal);
-            Assert.True(start >= 0, $"Missing argument prefix '{prefix}' in: {args}");
-            start += prefix.Length;
-
-            int end = args.IndexOf('"', start);
-            if (end < 0)
+            foreach (string arg in args)
             {
-                end = args.IndexOf(' ', start);
-                if (end < 0)
-                {
-                    end = args.Length;
-                }
+                if (arg.StartsWith(prefix, StringComparison.Ordinal))
+                    return arg.Substring(prefix.Length);
             }
-            return args.Substring(start, end - start);
+
+            throw new Xunit.Sdk.XunitException(
+                $"Missing argument prefix '{prefix}' in: {string.Join(" ", args)}");
         }
 
         // ---- BuildArgs ---------------------------------------------------------
@@ -304,7 +299,14 @@ namespace FEBuilderGBA.Core.Tests
                     tempRom[expectedFreeArea + 1] = 0xBB;
                     File.WriteAllBytes(outputRomPath, tempRom);
 
-                    return dangerousOutput;
+                    return new ProcessRunResult
+                    {
+                        Started = true,
+                        ExitCode = 0,
+                        Stdout = dangerousOutput,
+                        Stderr = "",
+                        ErrorMessage = "",
+                    };
                 };
 
                 var result = EventAssemblerCompileCore.CompileAndInsert(
@@ -364,7 +366,14 @@ namespace FEBuilderGBA.Core.Tests
                     Array.Copy(payload, 0, tempRom, (int)expectedFreeArea, payload.Length);
                     File.WriteAllBytes(outputRomPath, tempRom);
 
-                    return "Assembling...\r\nNo errors or warnings.\r\n";
+                    return new ProcessRunResult
+                    {
+                        Started = true,
+                        ExitCode = 0,
+                        Stdout = "Assembling...\r\nNo errors or warnings.\r\n",
+                        Stderr = "",
+                        ErrorMessage = "",
+                    };
                 };
 
                 var result = EventAssemblerCompileCore.CompileAndInsert(
@@ -385,6 +394,75 @@ namespace FEBuilderGBA.Core.Tests
                 EventAssemblerCompileCore.ResolveExeOverride = savedResolveExe;
                 EventAssemblerCompileCore.RunProcessOverride = savedRunProcess;
                 try { if (eaFile != "") File.Delete(eaFile); } catch { }
+                try { if (fakeEaDir != "") Directory.Delete(fakeEaDir, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void CompileAndInsert_ProductionRunner_ParentExitStillTerminatesDescendantHoldingPipes()
+        {
+            var rom = CreateTestRom(0x400);
+            var undo = NewUndo(rom);
+
+            string fakeEaDir = "";
+            string eaFile = "";
+            string launchRecordPath = "";
+            string markerPath = "";
+
+            var savedResolveExe = EventAssemblerCompileCore.ResolveExeOverride;
+            var savedRunProcess = EventAssemblerCompileCore.RunProcessOverride;
+            var savedTimeoutMs = EventAssemblerCompileCore.RunProcessTimeoutMs;
+            try
+            {
+                string fakeExe = EventAssemblerProcessStubSupport.FindExecutable();
+                fakeEaDir = CreateProcessStubScenarioDirectory("febuilder-ea-parent-exit-");
+                eaFile = Path.Combine(fakeEaDir, "parent-exit.event");
+                launchRecordPath = Path.Combine(fakeEaDir, "launch-record.json");
+                markerPath = Path.Combine(fakeEaDir, "child-survived.txt");
+                File.WriteAllText(eaFile, "// production runner parent-exit pipe-hold test\r\n");
+
+                EventAssemblerCompileCore.ResolveExeOverride = () => fakeExe;
+                EventAssemblerCompileCore.RunProcessOverride = null!;
+                EventAssemblerCompileCore.RunProcessTimeoutMs = 500;
+
+                var stopwatch = Stopwatch.StartNew();
+                EventAssemblerProcessStubSupport.LaunchRecord launch;
+                EventAssemblerCompileCore.CompileResult result;
+                using (EventAssemblerProcessStubSupport.Configure(
+                    EventAssemblerProcessStubSupport.ParentExitDescendantHoldsPipesMode,
+                    launchRecordPath,
+                    markerPath))
+                {
+                    result = EventAssemblerCompileCore.CompileAndInsert(
+                        rom, eaFile, EventAssemblerCompileCore.FreeAreaMode.None,
+                        undo, SymbolUtil.DebugSymbol.None);
+                    launch = EventAssemblerProcessStubSupport.ReadLaunchRecord(launchRecordPath);
+                }
+                stopwatch.Stop();
+
+                bool childSurvived = SpinWait.SpinUntil(
+                    () => File.Exists(markerPath),
+                    TimeSpan.FromSeconds(3));
+
+                Assert.True(result.Success, result.ErrorMessage);
+                Assert.Equal(EventAssemblerProcessStubSupport.ParentExitDescendantHoldsPipesMode, launch.Mode);
+                Assert.True(launch.ProcessId > 0);
+                Assert.True(launch.ChildProcessId > 0);
+                EventAssemblerProcessStubSupport.AssertSamePath(fakeExe, launch.ProcessPath);
+                Assert.Contains(ColorzCoreSuccessMarker, result.Output);
+                Assert.Equal(0xAA, rom.Data[0x100]);
+                Assert.NotEmpty(undo.list);
+                Assert.False(childSurvived, "The post-exit descendant outlived shared-runner containment.");
+                Assert.False(File.Exists(markerPath), "The post-exit descendant wrote its inherited-pipe marker.");
+                Assert.True(
+                    stopwatch.Elapsed < TimeSpan.FromSeconds(15),
+                    $"Parent-exit inherited-pipe cleanup took too long: {stopwatch.Elapsed}.");
+            }
+            finally
+            {
+                EventAssemblerCompileCore.ResolveExeOverride = savedResolveExe;
+                EventAssemblerCompileCore.RunProcessOverride = savedRunProcess;
+                EventAssemblerCompileCore.RunProcessTimeoutMs = savedTimeoutMs;
                 try { if (fakeEaDir != "") Directory.Delete(fakeEaDir, true); } catch { }
             }
         }
