@@ -45,12 +45,43 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void ResolveEventAssembler_FindsBundledColorzCore_BinCorePath()
+        public void ResolveEventAssembler_UsesConfiguredPathBeforeBundledCopies()
         {
-            // ColorzCore.csproj uses BaseOutputPath=bin/Core, so output is at bin/Core/Release/net6.0/
+            string tempDir = Path.Combine(Path.GetTempPath(), "febuilder-test-" + Path.GetRandomFileName());
+            string configuredPath = Path.Combine(tempDir, "custom", "ColorzCore.exe");
+            string bundledColorzCorePath = Path.Combine(tempDir, "tools", "ColorzCore", "ColorzCore",
+                "bin", "Core", "Release", "net10.0", "ColorzCore.exe");
+            Directory.CreateDirectory(TestRequire.DirectoryName(configuredPath));
+            Directory.CreateDirectory(TestRequire.DirectoryName(bundledColorzCorePath));
+            File.WriteAllText(configuredPath, "mock");
+            File.WriteAllText(bundledColorzCorePath, "mock");
+            Directory.CreateDirectory(Path.Combine(tempDir, ".git"));
+
+            Config? savedConfig = CoreState.Config;
+            var savedBaseDir = CoreState.BaseDirectory;
+            CoreState.Config = new Config { ["event_assembler"] = configuredPath };
+            CoreState.BaseDirectory = tempDir;
+            try
+            {
+                string result = ToolPathResolver.ResolveEventAssembler();
+                Assert.NotNull(result);
+                Assert.Equal(configuredPath, result);
+            }
+            finally
+            {
+                CoreState.Config = savedConfig!;
+                CoreState.BaseDirectory = savedBaseDir;
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        [Fact]
+        public void ResolveEventAssembler_FindsBundledColorzCore_BinCoreNet10Path()
+        {
+            // ColorzCore.csproj uses BaseOutputPath=bin/Core, so output is at bin/Core/Release/net10.0/
             string tempDir = Path.Combine(Path.GetTempPath(), "febuilder-test-" + Path.GetRandomFileName());
             string colorzCorePath = Path.Combine(tempDir, "tools", "ColorzCore", "ColorzCore",
-                "bin", "Core", "Release", "net6.0", "ColorzCore.exe");
+                "bin", "Core", "Release", "net10.0", "ColorzCore.exe");
             Directory.CreateDirectory(TestRequire.DirectoryName(colorzCorePath));
             File.WriteAllText(colorzCorePath, "mock");
             // Create .git dir to make it look like a repo root
@@ -65,6 +96,66 @@ namespace FEBuilderGBA.Core.Tests
                 string result = ToolPathResolver.ResolveEventAssembler();
                 Assert.NotNull(result);
                 Assert.Equal(colorzCorePath, result);
+            }
+            finally
+            {
+                CoreState.Config = savedConfig!;
+                CoreState.BaseDirectory = savedBaseDir;
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        [Fact]
+        public void ResolveEventAssembler_PrefersBundledColorzCore_OverBundledCoreFallback()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "febuilder-test-" + Path.GetRandomFileName());
+            string colorzCorePath = Path.Combine(tempDir, "tools", "ColorzCore", "ColorzCore",
+                "bin", "Core", "Release", "net10.0", "ColorzCore.exe");
+            string corePath = Path.Combine(tempDir, "tools", "Event-Assembler", "Event Assembler", "Core",
+                "bin", "Release", "net6.0", "Core.exe");
+            Directory.CreateDirectory(TestRequire.DirectoryName(colorzCorePath));
+            Directory.CreateDirectory(TestRequire.DirectoryName(corePath));
+            File.WriteAllText(colorzCorePath, "mock");
+            File.WriteAllText(corePath, "mock");
+            Directory.CreateDirectory(Path.Combine(tempDir, ".git"));
+
+            Config? savedConfig = CoreState.Config;
+            var savedBaseDir = CoreState.BaseDirectory;
+            CoreState.Config = null!;
+            CoreState.BaseDirectory = tempDir;
+            try
+            {
+                string result = ToolPathResolver.ResolveEventAssembler();
+                Assert.NotNull(result);
+                Assert.Equal(colorzCorePath, result);
+            }
+            finally
+            {
+                CoreState.Config = savedConfig!;
+                CoreState.BaseDirectory = savedBaseDir;
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        [Fact]
+        public void ResolveEventAssembler_FallsBackToBundledCore_WhenColorzCoreMissing()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "febuilder-test-" + Path.GetRandomFileName());
+            string corePath = Path.Combine(tempDir, "tools", "Event-Assembler", "Event Assembler", "Core",
+                "bin", "Release", "net6.0", "Core.exe");
+            Directory.CreateDirectory(TestRequire.DirectoryName(corePath));
+            File.WriteAllText(corePath, "mock");
+            Directory.CreateDirectory(Path.Combine(tempDir, ".git"));
+
+            Config? savedConfig = CoreState.Config;
+            var savedBaseDir = CoreState.BaseDirectory;
+            CoreState.Config = null!;
+            CoreState.BaseDirectory = tempDir;
+            try
+            {
+                string result = ToolPathResolver.ResolveEventAssembler();
+                Assert.NotNull(result);
+                Assert.Equal(corePath, result);
             }
             finally
             {

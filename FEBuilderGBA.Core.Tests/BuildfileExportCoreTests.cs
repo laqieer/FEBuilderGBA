@@ -67,7 +67,7 @@ namespace FEBuilderGBA.Core.Tests
                     foreach (string name in new[] { "ColorzCore.exe", "ColorzCore" })
                     {
                         string path = Path.Combine(dir, "tools", "ColorzCore", "ColorzCore",
-                            "bin", "Core", config, "net6.0", name);
+                            "bin", "Core", config, "net10.0", name);
                         if (File.Exists(path))
                             return path;
                     }

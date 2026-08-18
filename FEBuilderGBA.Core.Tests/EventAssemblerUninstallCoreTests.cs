@@ -604,20 +604,20 @@ namespace FEBuilderGBA.Core.Tests
             for (int i = 0; i < 12 && dir != null; i++)
             {
                 // ColorzCore.csproj sets BaseOutputPath=bin/Core, so a `-c Core` build
-                // lands in bin/Core/Core/net6.0/, while a `-c Release|Debug` build lands
-                // in bin/Core/{config}/net6.0/. Check all layouts so the round-trip runs
+                // lands in bin/Core/Core/net10.0/, while a `-c Release|Debug` build lands
+                // in bin/Core/{config}/net10.0/. Check all layouts so the round-trip runs
                 // wherever the submodule was built.
                 foreach (string config in new[] { "Core", "Release", "Debug" })
                 {
                     foreach (string name in new[] { "ColorzCore.exe", "ColorzCore" })
                     {
                         string p = Path.Combine(dir, "tools", "ColorzCore", "ColorzCore",
-                            "bin", "Core", config, "net6.0", name);
+                            "bin", "Core", config, "net10.0", name);
                         if (File.Exists(p)) return p;
 
                         // Standard output path (no BaseOutputPath override).
                         p = Path.Combine(dir, "tools", "ColorzCore", "ColorzCore",
-                            "bin", config, "net6.0", name);
+                            "bin", config, "net10.0", name);
                         if (File.Exists(p)) return p;
                     }
                 }
