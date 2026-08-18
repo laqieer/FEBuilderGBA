@@ -6,7 +6,7 @@
 	url = https://github.com/laqieer/Event-Assembler
 [submodule "tools/ColorzCore"]
 	path = tools/ColorzCore
-	url = https://github.com/FireEmblemUniverse/ColorzCore
+	url = https://github.com/laqieer/ColorzCore
 [submodule "resources/FE-Repo"]
 	path = resources/FE-Repo
 	url = https://github.com/Klokinator/FE-Repo

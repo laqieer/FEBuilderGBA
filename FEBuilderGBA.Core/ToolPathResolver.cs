@@ -43,18 +43,18 @@ namespace FEBuilderGBA
             foreach (string root in searchRoots)
             {
                 // ColorzCore (preferred) — submodule layout: tools/ColorzCore/ColorzCore/bin/...
-                // ColorzCore.csproj sets BaseOutputPath=bin/Core, so output lands in bin/Core/{config}/net6.0/
+                // ColorzCore.csproj sets BaseOutputPath=bin/Core, so output lands in bin/Core/{config}/net10.0/
                 foreach (string config in new[] { "Release", "Debug" })
                 {
                     foreach (string name in colorzNames)
                     {
                         string colorzCore = Path.Combine(root, "tools", "ColorzCore", "ColorzCore",
-                            "bin", "Core", config, "net6.0", name);
+                            "bin", "Core", config, "net10.0", name);
                         if (File.Exists(colorzCore)) return colorzCore;
 
-                        // Also check standard output path (bin/{config}/net6.0/) in case BaseOutputPath is removed
+                        // Also check standard output path (bin/{config}/net10.0/) in case BaseOutputPath is removed
                         colorzCore = Path.Combine(root, "tools", "ColorzCore", "ColorzCore",
-                            "bin", config, "net6.0", name);
+                            "bin", config, "net10.0", name);
                         if (File.Exists(colorzCore)) return colorzCore;
                     }
                 }
