@@ -31,9 +31,6 @@ namespace FEBuilderGBA.Avalonia.Views
         /// </summary>
         internal OptionsViewModel ViewModelForTests => _vm;
 
-        internal static bool AllowsMacApplicationBundlePicker(string targetName)
-            => targetName is "EmulatorTextBox" or "Emulator2TextBox";
-
         public OptionsView()
         {
             InitializeComponent();
@@ -245,8 +242,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
             string? path = await FileDialogHelper.OpenExternalTool(
                 TopLevel.GetTopLevel(this),
-                "Select File",
-                AllowsMacApplicationBundlePicker(targetName));
+                "Select File");
             if (path != null)
                 target.Text = path;
             RefreshFEMapCreatorStatus();
