@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using global::Avalonia;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
@@ -31,43 +30,6 @@ namespace FEBuilderGBA.Avalonia.Views
         /// Never used by production code.
         /// </summary>
         internal OptionsViewModel ViewModelForTests => _vm;
-
-        static readonly string[] FilePickerTargets = new[]
-        {
-            "GitPathTextBox",
-            "EmulatorTextBox",
-            "Emulator2TextBox",
-            "BinaryEditorTextBox",
-            "Program1TextBox",
-            "Program2TextBox",
-            "Program3TextBox",
-            "SappyTextBox",
-            "Mid2agbTextBox",
-            "GbaMusRiperTextBox",
-            "SoxTextBox",
-            "Midfix4agbTextBox",
-            "EventAssemblerTextBox",
-            "DevkitproEabiTextBox",
-            "GoldroadAsmTextBox",
-            "RetdecTextBox",
-            "Python3TextBox",
-            "FeclibTextBox",
-            "SrccodeTexteditorTextBox",
-            "FEMapCreatorPathTextBox",
-        };
-
-        static readonly string[] DirectoryPickerTargets = new[]
-        {
-            "SrccodeDirectoryTextBox",
-            "FEMapCreatorAssetsRootTextBox",
-        };
-
-        internal static IReadOnlyList<string> FilePickerTargetNames => FilePickerTargets;
-        internal static IReadOnlyList<string> DirectoryPickerTargetNames => DirectoryPickerTargets;
-        internal static bool IsFilePickerTarget(string targetName)
-            => Array.IndexOf(FilePickerTargets, targetName) >= 0;
-        internal static bool IsDirectoryPickerTarget(string targetName)
-            => Array.IndexOf(DirectoryPickerTargets, targetName) >= 0;
 
         public OptionsView()
         {
@@ -276,7 +238,7 @@ namespace FEBuilderGBA.Avalonia.Views
             if (sender is not Button btn || btn.Tag is not string targetName)
                 return;
             var target = this.FindControl<TextBox>(targetName);
-            if (target == null || !IsFilePickerTarget(targetName)) return;
+            if (target == null) return;
 
             string? path = await FileDialogHelper.OpenExternalTool(
                 TopLevel.GetTopLevel(this),
@@ -291,7 +253,7 @@ namespace FEBuilderGBA.Avalonia.Views
             if (sender is not Button btn || btn.Tag is not string targetName)
                 return;
             var target = this.FindControl<TextBox>(targetName);
-            if (target == null || !IsDirectoryPickerTarget(targetName)) return;
+            if (target == null) return;
 
             var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
             if (storage == null) return;
