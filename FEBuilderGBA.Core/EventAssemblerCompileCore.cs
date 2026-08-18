@@ -17,9 +17,10 @@ namespace FEBuilderGBA
     /// baseline — NOT a silent truncation of WinForms behaviour):
     ///   PROVIDED by this helper's wrapper:
     ///     - the <c>#include</c> of the chosen .event
-    ///     - <c>#define FreeSpace 0x...</c> for the Program/Data free-area modes
-    ///       (computed via <see cref="ROM.FindFreeSpace"/>, falling back to the ROM
-    ///       end); None mode defines no free area (the .event must ORG itself).
+    ///     - <c>#define FreeSpace 0x...</c> + <c>ORG FreeSpace</c> for the
+    ///       Program/Data free-area modes (computed via
+    ///       <see cref="ROM.FindFreeSpace"/>, falling back to the ROM end); None
+    ///       mode stays include-only (the .event must ORG itself).
     ///   INTENTIONALLY DEFERRED — the extra symbol auto-defs that the full WinForms
     ///   <c>EAUtil.MakeEAAutoDef</c> emits: the ItemImage/ItemPalette/ItemTable/
     ///   TextTable/PortraitTable/AI1Table/AI2Table table-pointer defines, the
@@ -34,6 +35,19 @@ namespace FEBuilderGBA
     /// </summary>
     public static class EventAssemblerCompileCore
     {
+        /// <summary>
+        /// Test seam for resolving the EA executable. Defaults to the production
+        /// resolver and stays internal so callers cannot swap it at runtime.
+        /// </summary>
+        internal static Func<string> ResolveExeOverride = ToolPathResolver.ResolveEventAssembler;
+
+        /// <summary>
+        /// Test seam for the EA process runner. Defaults to
+        /// <see cref="RunProcessDefault"/> and stays internal for deterministic
+        /// Core.Tests coverage.
+        /// </summary>
+        internal static Func<string, string, string, string> RunProcessOverride = RunProcessDefault;
+
         /// <summary>
         /// Free-area selection mode (mirrors WinForms <c>FREEAREA_DEF_ENUM</c>).
         /// </summary>
@@ -69,7 +83,7 @@ namespace FEBuilderGBA
         /// Returns null if none is found — callers should surface
         /// <see cref="GetNotFoundMessage"/>.
         /// </summary>
-        public static string ResolveExe() => ToolPathResolver.ResolveEventAssembler();
+        public static string ResolveExe() => (ResolveExeOverride ?? ToolPathResolver.ResolveEventAssembler)();
 
         /// <summary>Localized "Event Assembler not found" message (no throw).</summary>
         public static string GetNotFoundMessage()
@@ -98,11 +112,11 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Build the minimal free-area-def wrapper text. For Program/Data modes a
-        /// <c>#define FreeSpace 0x...</c> precedes the <c>#include</c>; for None no
-        /// FreeSpace is defined. The included path is the leaf filename, since the
-        /// wrapper is written into the same directory as the target .event (so EA's
-        /// include search finds it).
+        /// Build the minimal free-area-def wrapper text. Program/Data modes emit
+        /// <c>#define FreeSpace 0x...</c>, then <c>ORG FreeSpace</c>, then the
+        /// <c>#include</c>; None stays include-only. The included path is the leaf
+        /// filename, since the wrapper is written into the same directory as the
+        /// target .event (so EA's include search finds it).
         /// </summary>
         public static string BuildWrapper(string eaFileName, uint freeArea, FreeAreaMode mode)
         {
@@ -110,6 +124,7 @@ namespace FEBuilderGBA
             if (mode != FreeAreaMode.None && freeArea != U.NOT_FOUND)
             {
                 sb.AppendLine("#define FreeSpace " + U.To0xHexString(freeArea));
+                sb.AppendLine("ORG FreeSpace");
             }
             sb.AppendLine("#include \"" + eaFileName + "\"");
             return sb.ToString();
@@ -120,6 +135,17 @@ namespace FEBuilderGBA
         {
             return output.IndexOf("No errors or warnings.", StringComparison.Ordinal) >= 0
                 || output.IndexOf("No errors. Please continue being awesome.", StringComparison.Ordinal) >= 0;
+        }
+
+        /// <summary>
+        /// Detect the exact EA warning that means bytes were written before the
+        /// script selected an offset. This is treated as a hard failure even when
+        /// EA still prints its normal success marker.
+        /// </summary>
+        internal static bool HasWritingBeforeInitializingOffsetWarning(string output)
+        {
+            return !string.IsNullOrEmpty(output)
+                && output.IndexOf("Writing before initializing offset.", StringComparison.Ordinal) >= 0;
         }
 
         /// <summary>
@@ -258,6 +284,15 @@ namespace FEBuilderGBA
                     return result;
                 }
 
+                if (HasWritingBeforeInitializingOffsetWarning(output))
+                {
+                    // EA reported success, but this exact warning means the script
+                    // wrote before choosing an offset (e.g. missing ORG). Fail the
+                    // insert before SwapNewROMData so the loaded ROM stays untouched.
+                    result.ErrorMessage = eaExe + " " + executedArgs + " \r\noutput:\r\n" + output;
+                    return result;
+                }
+
                 if (!File.Exists(tempRomPath))
                 {
                     result.ErrorMessage = R._("Error: EA did not produce output ROM.");
@@ -324,6 +359,11 @@ namespace FEBuilderGBA
         /// Same 120s timeout as the CLI <c>RunEAProcess</c>.
         /// </summary>
         static string RunProcess(string exePath, string args, string workDir)
+        {
+            return (RunProcessOverride ?? RunProcessDefault)(exePath, args, workDir);
+        }
+
+        static string RunProcessDefault(string exePath, string args, string workDir)
         {
             var psi = new ProcessStartInfo(exePath, args)
             {

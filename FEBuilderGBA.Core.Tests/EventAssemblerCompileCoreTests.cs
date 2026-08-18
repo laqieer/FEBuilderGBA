@@ -54,6 +54,35 @@ namespace FEBuilderGBA.Core.Tests
             filesize = (uint)rom.Data.Length,
         };
 
+        static string NormalizeNewlines(string text) => text.Replace("\r\n", "\n");
+
+        static string CreateDummyEventAssembler(out string tempDir)
+        {
+            tempDir = Path.Combine(Path.GetTempPath(), "febuilder-ea-fake-" + Path.GetRandomFileName());
+            Directory.CreateDirectory(tempDir);
+            string exePath = Path.Combine(tempDir, "ColorzCore.exe");
+            File.WriteAllText(exePath, "fake");
+            return exePath;
+        }
+
+        static string ExtractArgValue(string args, string prefix)
+        {
+            int start = args.IndexOf(prefix, StringComparison.Ordinal);
+            Assert.True(start >= 0, $"Missing argument prefix '{prefix}' in: {args}");
+            start += prefix.Length;
+
+            int end = args.IndexOf('"', start);
+            if (end < 0)
+            {
+                end = args.IndexOf(' ', start);
+                if (end < 0)
+                {
+                    end = args.Length;
+                }
+            }
+            return args.Substring(start, end - start);
+        }
+
         // ---- BuildArgs ---------------------------------------------------------
 
         [Fact]
@@ -105,23 +134,32 @@ namespace FEBuilderGBA.Core.Tests
         // ---- BuildWrapper ------------------------------------------------------
 
         [Fact]
-        public void BuildWrapper_None_OmitsFreeSpaceDefine()
+        public void BuildWrapper_None_IsIncludeOnly()
         {
-            string wrapper = EventAssemblerCompileCore.BuildWrapper(
-                "my.event", 0x800000u, EventAssemblerCompileCore.FreeAreaMode.None);
+            string wrapper = NormalizeNewlines(EventAssemblerCompileCore.BuildWrapper(
+                "my.event", 0x800000u, EventAssemblerCompileCore.FreeAreaMode.None));
 
-            Assert.DoesNotContain("#define FreeSpace", wrapper);
-            Assert.Contains("#include \"my.event\"", wrapper);
+            Assert.Equal("#include \"my.event\"\n", wrapper);
         }
 
-        [Fact]
-        public void BuildWrapper_Program_AddsFreeSpaceDefine()
+        [Theory]
+        [InlineData(EventAssemblerCompileCore.FreeAreaMode.Program)]
+        [InlineData(EventAssemblerCompileCore.FreeAreaMode.Data)]
+        public void BuildWrapper_ProgramAndData_DefineThenOrgThenInclude(EventAssemblerCompileCore.FreeAreaMode mode)
         {
-            string wrapper = EventAssemblerCompileCore.BuildWrapper(
-                "my.event", 0x800000u, EventAssemblerCompileCore.FreeAreaMode.Program);
+            string wrapper = NormalizeNewlines(EventAssemblerCompileCore.BuildWrapper(
+                "my.event", 0x800000u, mode));
 
-            Assert.Contains("#define FreeSpace 0x800000", wrapper);
-            Assert.Contains("#include \"my.event\"", wrapper);
+            Assert.Equal("#define FreeSpace 0x800000\nORG FreeSpace\n#include \"my.event\"\n", wrapper);
+        }
+
+        [Theory]
+        [InlineData("warning: C_Code.lyn.event:11:1: Writing before initializing offset. You may be breaking the ROM!\r\nNo errors or warnings.\r\n", true)]
+        [InlineData("warning: C_Code.lyn.event:11:1: writing before initializing offset. You may be breaking the ROM!\r\nNo errors or warnings.\r\n", false)]
+        [InlineData("warning: C_Code.lyn.event:11:1: Writing before initializing offsets. You may be breaking the ROM!\r\nNo errors or warnings.\r\n", false)]
+        public void HasWritingBeforeInitializingOffsetWarning_UsesExactCase(string output, bool expected)
+        {
+            Assert.Equal(expected, EventAssemblerCompileCore.HasWritingBeforeInitializingOffsetWarning(output));
         }
 
         // ---- ComputeFreeArea ---------------------------------------------------
@@ -215,6 +253,127 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
             Assert.Equal(before, rom.Data);
             Assert.Empty(undo.list);
+        }
+
+        [Fact]
+        public void CompileAndInsert_SuccessWithWritingBeforeInitializingOffsetWarning_FailsBeforeSwap()
+        {
+            var rom = CreateTestRom(0x80000);
+            byte[] before = (byte[])rom.Data.Clone();
+            var undo = NewUndo(rom);
+            uint expectedFreeArea = EventAssemblerCompileCore.ComputeFreeArea(
+                rom, EventAssemblerCompileCore.FreeAreaMode.Program);
+
+            string fakeEaDir = "";
+            string eaFile = "";
+            string capturedWrapper = "";
+            string dangerousOutput =
+                "warning: C_Code.lyn.event:11:1: Writing before initializing offset. You may be breaking the ROM!\r\n"
+                + "No errors. Please continue being awesome.\r\n";
+
+            var savedResolveExe = EventAssemblerCompileCore.ResolveExeOverride;
+            var savedRunProcess = EventAssemblerCompileCore.RunProcessOverride;
+            try
+            {
+                string fakeExe = CreateDummyEventAssembler(out fakeEaDir);
+                eaFile = Path.Combine(fakeEaDir, "warning.event");
+                File.WriteAllText(eaFile, "// synthetic warning test\r\n");
+
+                EventAssemblerCompileCore.ResolveExeOverride = () => fakeExe;
+                EventAssemblerCompileCore.RunProcessOverride = (_, args, _) =>
+                {
+                    string wrapperPath = ExtractArgValue(args, "-input:");
+                    string outputRomPath = ExtractArgValue(args, "-output:");
+                    capturedWrapper = NormalizeNewlines(File.ReadAllText(wrapperPath));
+
+                    byte[] tempRom = File.ReadAllBytes(outputRomPath);
+                    tempRom[expectedFreeArea] = 0xAA;
+                    tempRom[expectedFreeArea + 1] = 0xBB;
+                    File.WriteAllBytes(outputRomPath, tempRom);
+
+                    return dangerousOutput;
+                };
+
+                var result = EventAssemblerCompileCore.CompileAndInsert(
+                    rom, eaFile, EventAssemblerCompileCore.FreeAreaMode.Program,
+                    undo, SymbolUtil.DebugSymbol.None);
+
+                Assert.False(result.Success);
+                Assert.Equal(dangerousOutput, result.Output);
+                Assert.Contains("Writing before initializing offset", result.ErrorMessage);
+                Assert.Equal(before, rom.Data);
+                Assert.Empty(undo.list);
+                Assert.Equal(
+                    "#define FreeSpace " + U.To0xHexString(expectedFreeArea) + "\n"
+                    + "ORG FreeSpace\n"
+                    + "#include \"warning.event\"\n",
+                    capturedWrapper);
+            }
+            finally
+            {
+                EventAssemblerCompileCore.ResolveExeOverride = savedResolveExe;
+                EventAssemblerCompileCore.RunProcessOverride = savedRunProcess;
+                try { if (eaFile != "") File.Delete(eaFile); } catch { }
+                try { if (fakeEaDir != "") Directory.Delete(fakeEaDir, true); } catch { }
+            }
+        }
+
+        [Theory]
+        [InlineData(EventAssemblerCompileCore.FreeAreaMode.Program)]
+        [InlineData(EventAssemblerCompileCore.FreeAreaMode.Data)]
+        public void CompileAndInsert_ProgramAndDataSuccess_UsesSelectedFreeArea(EventAssemblerCompileCore.FreeAreaMode mode)
+        {
+            var rom = CreateTestRom(0x80000);
+            var undo = NewUndo(rom);
+            uint expectedFreeArea = EventAssemblerCompileCore.ComputeFreeArea(rom, mode);
+            byte[] payload = { 0x11, 0x22, 0x33, 0x44 };
+
+            string fakeEaDir = "";
+            string eaFile = "";
+            string capturedWrapper = "";
+
+            var savedResolveExe = EventAssemblerCompileCore.ResolveExeOverride;
+            var savedRunProcess = EventAssemblerCompileCore.RunProcessOverride;
+            try
+            {
+                string fakeExe = CreateDummyEventAssembler(out fakeEaDir);
+                eaFile = Path.Combine(fakeEaDir, "selected.event");
+                File.WriteAllText(eaFile, "// synthetic success test\r\n");
+
+                EventAssemblerCompileCore.ResolveExeOverride = () => fakeExe;
+                EventAssemblerCompileCore.RunProcessOverride = (_, args, _) =>
+                {
+                    string wrapperPath = ExtractArgValue(args, "-input:");
+                    string outputRomPath = ExtractArgValue(args, "-output:");
+                    capturedWrapper = NormalizeNewlines(File.ReadAllText(wrapperPath));
+
+                    byte[] tempRom = File.ReadAllBytes(outputRomPath);
+                    Array.Copy(payload, 0, tempRom, (int)expectedFreeArea, payload.Length);
+                    File.WriteAllBytes(outputRomPath, tempRom);
+
+                    return "Assembling...\r\nNo errors or warnings.\r\n";
+                };
+
+                var result = EventAssemblerCompileCore.CompileAndInsert(
+                    rom, eaFile, mode, undo, SymbolUtil.DebugSymbol.None);
+
+                Assert.True(result.Success);
+                Assert.Equal(expectedFreeArea, result.InsertedAddr);
+                Assert.Equal(payload, rom.getBinaryData(expectedFreeArea, payload.Length));
+                Assert.NotEmpty(undo.list);
+                Assert.Equal(
+                    "#define FreeSpace " + U.To0xHexString(expectedFreeArea) + "\n"
+                    + "ORG FreeSpace\n"
+                    + "#include \"selected.event\"\n",
+                    capturedWrapper);
+            }
+            finally
+            {
+                EventAssemblerCompileCore.ResolveExeOverride = savedResolveExe;
+                EventAssemblerCompileCore.RunProcessOverride = savedRunProcess;
+                try { if (eaFile != "") File.Delete(eaFile); } catch { }
+                try { if (fakeEaDir != "") Directory.Delete(fakeEaDir, true); } catch { }
+            }
         }
 
         // ---- Header-change confirmation (the #1 / CI-blocker fix) — deterministic,
