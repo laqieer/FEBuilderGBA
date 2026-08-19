@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using System.Threading;
@@ -53,7 +54,7 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void ChildMarkerReader_WaitsForAtomicFinalPublishAndNonEmptyContent()
+        public void ChildMarkerReader_WaitsForAtomicReplacementOfEmptyFinalMarker()
         {
             string root = CreateRoot();
             string path = Path.Combine(root, "child-survived.txt");
@@ -66,6 +67,8 @@ namespace FEBuilderGBA.Core.Tests
             using var allowPublish = new ManualResetEventSlim(false);
             using var readerStarted = new ManualResetEventSlim(false);
 
+            File.WriteAllText(path, "");
+
             var publisher = new Thread(() =>
             {
                 try
@@ -75,9 +78,7 @@ namespace FEBuilderGBA.Core.Tests
                     if (!allowPublish.Wait(TimeSpan.FromSeconds(5)))
                         throw new TimeoutException("Child-marker publisher timed out before the final atomic publish.");
 
-                    EventAssemblerProcessStubSupport.PublishStagedAtomicText(
-                        path,
-                        ParentExitChildMarker);
+                    ReplaceStagedAtomicText(path, TimeSpan.FromSeconds(5));
                 }
                 catch (Exception ex)
                 {
@@ -94,7 +95,11 @@ namespace FEBuilderGBA.Core.Tests
                     publishReady.Wait(TimeSpan.FromSeconds(5)),
                     "Child-marker publisher did not stage the atomic publish.");
                 Assert.True(File.Exists(tempPath), "The child-marker publisher did not stage the temporary file.");
-                Assert.False(File.Exists(path), "The child-marker final path should remain unpublished while staging.");
+                Assert.Equal(ParentExitChildMarker, File.ReadAllText(tempPath));
+                Assert.True(
+                    File.Exists(path),
+                    "The child-marker final path should keep the seeded empty marker while staging the replacement.");
+                Assert.Equal(string.Empty, File.ReadAllText(path));
 
                 reader = new Thread(() =>
                 {
@@ -113,14 +118,31 @@ namespace FEBuilderGBA.Core.Tests
                 reader.Start();
 
                 Assert.True(readerStarted.Wait(TimeSpan.FromSeconds(5)), "Child-marker reader did not start.");
+                bool completedEarly = reader.Join(TimeSpan.FromMilliseconds(200));
                 Assert.False(
-                    reader.Join(TimeSpan.FromMilliseconds(200)),
-                    "Reader should keep retrying while the child-marker publish is still in progress.");
+                    completedEarly,
+                    readerError == null
+                        ? "Reader should keep retrying while the child-marker final marker is still empty before atomic replacement."
+                        : "Reader should keep retrying while the child-marker final marker is still empty before atomic replacement."
+                            + Environment.NewLine
+                            + readerError);
 
                 allowPublish.Set();
-                Assert.True(publisher.Join(TimeSpan.FromSeconds(5)), "Child-marker publisher thread did not finish.");
+                Assert.True(
+                    publisher.Join(TimeSpan.FromSeconds(5)),
+                    publisherError == null
+                        ? "Child-marker publisher thread did not finish."
+                        : "Child-marker publisher thread did not finish."
+                            + Environment.NewLine
+                            + publisherError);
                 Assert.Null(publisherError);
-                Assert.True(reader.Join(TimeSpan.FromSeconds(5)), "Child-marker reader thread did not finish.");
+                Assert.True(
+                    reader.Join(TimeSpan.FromSeconds(5)),
+                    readerError == null
+                        ? "Child-marker reader thread did not finish."
+                        : "Child-marker reader thread did not finish."
+                            + Environment.NewLine
+                            + readerError);
                 Assert.Null(readerError);
 
                 Assert.Equal(ParentExitChildMarker, marker);
@@ -132,6 +154,28 @@ namespace FEBuilderGBA.Core.Tests
                     publisher.Join(TimeSpan.FromSeconds(5));
                 if (reader?.IsAlive == true)
                     reader.Join(TimeSpan.FromSeconds(5));
+                try { Directory.Delete(root, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void ReadChildMarker_PersistentMissingFails()
+        {
+            string root = CreateRoot();
+            string path = Path.Combine(root, "child-survived.txt");
+
+            try
+            {
+                InvalidOperationException ex = Assert.Throws<InvalidOperationException>(
+                    () => EventAssemblerProcessStubSupport.ReadChildMarker(
+                        path,
+                        TimeSpan.FromMilliseconds(200)));
+
+                Assert.Contains(path, ex.Message);
+                Assert.IsType<FileNotFoundException>(ex.InnerException);
+            }
+            finally
+            {
                 try { Directory.Delete(root, true); } catch { }
             }
         }
@@ -271,9 +315,7 @@ namespace FEBuilderGBA.Core.Tests
                     if (!allowPublish.Wait(TimeSpan.FromSeconds(5)))
                         throw new TimeoutException("Launch-record publisher timed out before the final atomic publish.");
 
-                    EventAssemblerProcessStubSupport.PublishStagedAtomicText(
-                        path,
-                        expectedJson);
+                    ReplaceStagedAtomicText(path, TimeSpan.FromSeconds(5));
                 }
                 catch (Exception ex)
                 {
@@ -341,6 +383,28 @@ namespace FEBuilderGBA.Core.Tests
                 if (reader?.IsAlive == true)
                     reader.Join(TimeSpan.FromSeconds(5));
                 try { Directory.Delete(root, true); } catch { }
+            }
+        }
+
+        static void ReplaceStagedAtomicText(string path, TimeSpan timeout)
+        {
+            string tempPath = path + ".tmp";
+            var stopwatch = Stopwatch.StartNew();
+
+            while (true)
+            {
+                try
+                {
+                    File.Move(tempPath, path, overwrite: true);
+                    return;
+                }
+                catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+                {
+                    if (stopwatch.Elapsed >= timeout || !File.Exists(tempPath))
+                        throw;
+
+                    Thread.Sleep(20);
+                }
             }
         }
 
