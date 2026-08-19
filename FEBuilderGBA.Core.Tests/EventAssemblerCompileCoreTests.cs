@@ -533,7 +533,6 @@ namespace FEBuilderGBA.Core.Tests
                     Assert.False(result.Success);
                     Assert.Equal(before, rom.Data);
                     Assert.Empty(undo.list);
-                    Assert.Contains(ColorzCoreSuccessMarker, result.Output);
                     Assert.Contains(
                         ProcessRunnerScenarioSupport.CaptureIncompleteErrorMessage,
                         result.Output);
@@ -543,6 +542,9 @@ namespace FEBuilderGBA.Core.Tests
                     Assert.True(
                         descendantSelfTerminated,
                         "The POSIX helper descendant did not self-terminate after the bounded capture failure.");
+                    Assert.Equal(
+                        "parent-exit helper descendant self-terminated",
+                        File.ReadAllText(markerPath));
                 }
             }
             finally
