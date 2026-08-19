@@ -21188,3 +21188,21 @@ Enter the new entry count for the AI pointer table (current: {0}, max: {1}).
 
 :GitHubでバグを報告
 Report a Bug on GitHub
+
+:Triangle attack (16-byte)
+Triangle attack (16-byte)
+
+:Event/Flag Byte:
+Event/Flag Byte:
+
+:Character (Unit):
+Character:
+
+:Main battle-dialogue rows are 12-byte attacker/defender/text/flag records triggered when those two units fight.
+Main battle-dialogue rows are 12-byte attacker/defender/text/flag records triggered when those two units fight.
+
+:FE6's boss-conversation table stores 16-byte generic boss lines: one triggering unit, a chapter/map id, text, flag, and an event pointer.
+FE6's boss-conversation table stores 16-byte generic boss lines: one triggering unit, a chapter/map id, text, flag, and an event pointer.
+
+:FE6's triangle-attack quotes use a direct 6-row 16-byte table: character, chapter/map id, text, and event/flag byte only. There is no event pointer.
+FE6's triangle-attack quotes use a direct 6-row 16-byte table: character, chapter/map id, text, and event/flag byte only. There is no event pointer.

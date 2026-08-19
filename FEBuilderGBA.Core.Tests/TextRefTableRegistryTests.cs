@@ -385,6 +385,74 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(12u, dt.MaxCount);
         }
 
+
+        [Fact]
+        public void FE6_TriangleAttackTalk_HasDirectFixedDescriptor()
+        {
+            var rom = MakeRomFE6();
+            Assert.Equal(0x666528u, rom.RomInfo.event_triangle_attack_quote_address);
+
+            var tables = TextRefTableRegistry.BuildForRom(rom);
+            var tri = tables.First(t => t.Kind == "TriangleAttackTalk");
+            Assert.Equal(0u, tri.PointerField);
+            Assert.Equal(0x666528u, tri.DirectBase);
+            Assert.Equal(16u, tri.EntrySize);
+            Assert.Equal(6u, tri.MaxCount);
+            Assert.True(tri.RequireFullRange);
+            Assert.Equal(new uint[] { 4 }, tri.TextIdOffsets);
+            Assert.Null(tri.Terminator);
+        }
+
+        [Fact]
+        public void FE6_TriangleAttackTalk_TextReferences_UseFixedDirectCount_NoTerminatorOrNeighborScan()
+        {
+            var rom = MakeRomFE6();
+            uint baseAddr = rom.RomInfo.event_triangle_attack_quote_address;
+
+            for (uint i = 0; i < 6; i++)
+            {
+                uint addr = baseAddr + i * 16;
+                rom.Data[addr + 0] = i == 0 ? (byte)0x00 : i == 1 ? (byte)0xFF : (byte)(0x10 + i);
+                rom.Data[addr + 1] = i == 1 ? (byte)0xFF : (byte)i;
+                rom.write_u16(addr + 4, 0x600 + i);
+            }
+            rom.write_u16(baseAddr + 6 * 16 + 4, 0x700);
+
+            var ids = TextReferenceFinder.CollectReferencedTextIds(
+                rom, TextRefTableRegistry.BuildForRom(rom));
+
+            for (uint id = 0x600; id < 0x606; id++)
+                Assert.Contains(id, ids);
+            Assert.DoesNotContain(0x700u, ids);
+        }
+
+        [Fact]
+        public void FE6_TriangleAttackTalk_TextReferences_ShortRomFailsClosed()
+        {
+            var rom = MakeRomFE6();
+            uint baseAddr = rom.RomInfo.event_triangle_attack_quote_address;
+            var shortData = new byte[(int)(baseAddr + 5 * 16 + 6)];
+            shortData[baseAddr + 4] = 0x34;
+            shortData[baseAddr + 5] = 0x12;
+            rom.SwapNewROMDataDirect(shortData);
+
+            var ids = TextReferenceFinder.CollectReferencedTextIds(
+                rom, TextRefTableRegistry.BuildForRom(rom));
+
+            Assert.DoesNotContain(0x1234u, ids);
+        }
+
+        [Fact]
+        public void NonFE6_Roms_DoNotExposeTriangleAttackTalkAddress()
+        {
+            var roms = new[] { MakeRomFE7JP(), MakeRomFE7U(), MakeRomFE8JP(), MakeRomFE8U() };
+            foreach (var rom in roms)
+            {
+                Assert.Equal(0u, rom.RomInfo.event_triangle_attack_quote_address);
+                Assert.DoesNotContain(TextRefTableRegistry.BuildForRom(rom), t => t.Kind == "TriangleAttackTalk");
+            }
+        }
+
         // ---------- Configuration validity sweep ----------
 
         [Fact]

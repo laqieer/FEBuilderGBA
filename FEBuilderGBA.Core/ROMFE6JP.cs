@@ -100,6 +100,7 @@ namespace FEBuilderGBA
             sound_room_cg_pointer = 0x0;  // サウンドルームの背景リスト(FE7のみ)
             event_ballte_talk_pointer = 0x6b660;  // 交戦時セリフの開始位置
             event_ballte_talk2_pointer = 0x6b744; // 交戦時セリフの開始位置2 (FE6だとボス汎用会話テーブルがある)
+            event_triangle_attack_quote_address = 0x666528; // FE6 triangle-attack quote table direct address
             event_haiku_pointer = 0x6b7fc;  // 死亡時セリフの開始位置
             event_haiku_tutorial_1_pointer = 0x0;  // リン編チュートリアル 死亡時セリフの開始位置 FE7のみ
             event_haiku_tutorial_2_pointer = 0x0;  // エリウッド編チュートリアル 死亡時セリフの開始位置 FE7のみ

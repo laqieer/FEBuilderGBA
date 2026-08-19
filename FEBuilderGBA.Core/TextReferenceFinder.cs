@@ -46,6 +46,13 @@ namespace FEBuilderGBA
         /// <summary>Maximum number of entries to scan.</summary>
         public uint MaxCount { get; init; }
 
+        /// <summary>
+        /// When true, the full <see cref="MaxCount"/> * <see cref="EntrySize"/>
+        /// range must fit in the ROM or the table is skipped. Use for fixed
+        /// direct-address tables where partial tail scans would be unsafe.
+        /// </summary>
+        public bool RequireFullRange { get; init; }
+
         /// <summary>Byte offsets within each entry that hold a u16 text ID.</summary>
         public uint[] TextIdOffsets { get; init; } = Array.Empty<uint>();
 
@@ -211,6 +218,7 @@ namespace FEBuilderGBA
             ulong end = (ulong)baseAddr + (ulong)t.MaxCount * (ulong)t.EntrySize;
             if (end > (ulong)rom.Data.Length)
             {
+                if (t.RequireFullRange) return;
                 ulong available = (ulong)rom.Data.Length - (ulong)baseAddr;
                 fittingCount = (uint)(available / t.EntrySize);
                 if (fittingCount == 0) return;

@@ -390,6 +390,11 @@ namespace FEBuilderGBA
                 // WF N_Init stops on u16==0 || 0xFFFF (NOT 0xFFFF only) — #1256.
                 AppendFlagTable(rom, mapId, list, FELintCore.Type.BATTTLE_TALK,
                     talk2Ptr, 16, 8, 1, TableTerm.U16ZeroOrSentinel);
+                // + Triangle attack quotes: direct fixed table, exactly 6 x 16,
+                // byte flag/event id at +8, chapter at +1. No pointer deref and
+                // no terminator/empty-run scan.
+                AppendDirectByteFlagTable(rom, mapId, list, FELintCore.Type.BATTTLE_TALK,
+                    rom.RomInfo.event_triangle_attack_quote_address, 6, 16, 8, 1);
             }
         }
 
@@ -460,6 +465,36 @@ namespace FEBuilderGBA
                 uint mapid = anyChapter ? U.NOT_FOUND : mapId;
                 UseFlagIDCore.AppendUseFlagID(
                     list, type, addr, U.ToHexString((uint)i), flag, mapid, (uint)i);
+            }
+        }
+
+        static void AppendDirectByteFlagTable(
+            ROM rom, uint mapId, List<UseFlagIDCore> list, FELintCore.Type type,
+            uint directBase, uint count, uint blockSize, uint flagOffset, uint chapterOffset)
+        {
+            if (list == null) return;
+            if (directBase == 0 || count == 0 || blockSize == 0) return;
+            if (flagOffset >= blockSize || chapterOffset >= blockSize) return;
+
+            uint baseAddr = U.toOffset(directBase);
+            if (!U.isSafetyOffset(baseAddr, rom)) return;
+
+            ulong end = (ulong)baseAddr + (ulong)count * (ulong)blockSize;
+            if (end > (ulong)rom.Data.Length) return;
+
+            for (uint i = 0; i < count; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                uint flag = rom.u8(addr + flagOffset);
+                if (flag == 0) continue;
+
+                uint chapter = rom.u8(addr + chapterOffset);
+                bool anyChapter = chapter >= 0xF0;
+                if (!anyChapter && chapter != mapId) continue;
+
+                uint resolvedMapId = anyChapter ? U.NOT_FOUND : mapId;
+                UseFlagIDCore.AppendUseFlagID(
+                    list, type, addr, U.ToHexString(i), flag, resolvedMapId, i);
             }
         }
 

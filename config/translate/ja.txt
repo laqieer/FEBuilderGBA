@@ -14714,3 +14714,21 @@ Git: {0} ...
 
 :Expanded Song Table to {0} entries.
 ソングテーブルを{0}エントリに拡張しました。
+
+:Triangle attack (16-byte)
+トライアングルアタック (16バイト)
+
+:Event/Flag Byte:
+イベント/フラグ バイト:
+
+:Character (Unit):
+ユニット:
+
+:Main battle-dialogue rows are 12-byte attacker/defender/text/flag records triggered when those two units fight.
+FE6のメイン戦闘会話テーブルは、2ユニットの交戦時に発生する12バイトの [攻撃ユニット / 防御ユニット / テキスト / フラグ] レコードです。
+
+:FE6's boss-conversation table stores 16-byte generic boss lines: one triggering unit, a chapter/map id, text, flag, and an event pointer.
+FE6のボス会話テーブルは、汎用ボス台詞を格納する16バイトレコードです。内容は [トリガーユニット / 章・マップID / テキスト / フラグ / イベントポインタ] です。
+
+:FE6's triangle-attack quotes use a direct 6-row 16-byte table: character, chapter/map id, text, and event/flag byte only. There is no event pointer.
+FE6のトライアングルアタック台詞は、直接配置された6行固定の16バイトテーブルです。内容は [ユニット / 章・マップID / テキスト / イベント/フラグバイト] のみで、イベントポインタはありません。

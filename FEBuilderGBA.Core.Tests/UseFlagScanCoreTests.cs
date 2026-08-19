@@ -399,6 +399,88 @@ namespace FEBuilderGBA.Core.Tests
             });
         }
 
+
+        // =================================================================
+        // Issue #2114 — FE6 triangle-attack quotes, direct 6 x 16 table.
+        // =================================================================
+
+        const int Fe6RomSize = 0x800000;
+        const uint Fe6TriangleBase = 0x666528u;
+
+        static void WithFe6Triangle(System.Action<ROM> body)
+        {
+            var prevRom = CoreState.ROM;
+            var prevEs = CoreState.EventScript;
+            var prevComment = CoreState.CommentCache;
+            try
+            {
+                var rom = new ROM();
+                Assert.True(rom.LoadLow("flagscan-fe6.gba", new byte[Fe6RomSize], "AFEJ01"));
+                Assert.Equal(Fe6TriangleBase, rom.RomInfo.event_triangle_attack_quote_address);
+                CoreState.ROM = rom;
+                CoreState.EventScript = null;
+                CoreState.CommentCache = null;
+                body(rom);
+            }
+            finally
+            {
+                CoreState.ROM = prevRom;
+                CoreState.EventScript = prevEs;
+                CoreState.CommentCache = prevComment;
+            }
+        }
+
+        [Fact]
+        public void Scan_FE6TriangleAttack_FindsByteFlags_IgnoresTerminatorsAndNeighbor()
+        {
+            WithFe6Triangle(rom =>
+            {
+                // Record 0 begins with u16==0; record 1 begins with u16==0xFFFF.
+                // A terminator scan would miss one or both. The direct table must
+                // still scan exactly the fixed six records and no seventh neighbor.
+                rom.Data[Fe6TriangleBase + 0] = 0x00;
+                rom.Data[Fe6TriangleBase + 1] = 0x00;
+                rom.Data[Fe6TriangleBase + 8] = 0x41;
+
+                uint row1 = Fe6TriangleBase + 16;
+                rom.Data[row1 + 0] = 0xFF;
+                rom.Data[row1 + 1] = 0xFF; // any chapter marker
+                rom.Data[row1 + 8] = 0x42;
+
+                uint row5 = Fe6TriangleBase + 5 * 16;
+                rom.Data[row5 + 0] = 0x20;
+                rom.Data[row5 + 1] = 0x02;
+                rom.Data[row5 + 8] = 0x43;
+
+                rom.Data[Fe6TriangleBase + 6 * 16 + 1] = 0x00;
+                rom.Data[Fe6TriangleBase + 6 * 16 + 8] = 0x44;
+
+                var map0 = UseFlagScanCore.Scan(rom, 0u);
+                Assert.Contains(map0, u => u.ID == 0x41 && u.DataType == FELintCore.Type.BATTTLE_TALK && u.Addr == Fe6TriangleBase);
+                Assert.Contains(map0, u => u.ID == 0x42 && u.DataType == FELintCore.Type.BATTTLE_TALK && u.Addr == row1);
+                Assert.DoesNotContain(map0, u => u.ID == 0x43);
+                Assert.DoesNotContain(map0, u => u.ID == 0x44);
+
+                var map2 = UseFlagScanCore.Scan(rom, 2u);
+                Assert.Contains(map2, u => u.ID == 0x43 && u.DataType == FELintCore.Type.BATTTLE_TALK && u.Addr == row5);
+            });
+        }
+
+        [Fact]
+        public void Scan_FE6TriangleAttack_ShortRomFailsClosed()
+        {
+            WithFe6Triangle(rom =>
+            {
+                var shortData = new byte[(int)(Fe6TriangleBase + 5 * 16 + 9)];
+                shortData[Fe6TriangleBase + 1] = 0x00;
+                shortData[Fe6TriangleBase + 8] = 0x55;
+                rom.SwapNewROMDataDirect(shortData);
+
+                var list = UseFlagScanCore.Scan(rom, 0u);
+                Assert.DoesNotContain(list, u => u.ID == 0x55 && u.DataType == FELintCore.Type.BATTTLE_TALK);
+            });
+        }
+
         // =================================================================
         // Real-ROM regression test for the PR #1254 duplicate-row bug
         // (skipped when the ROM is absent — e.g. CI without roms/).
