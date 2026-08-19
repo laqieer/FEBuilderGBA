@@ -44,8 +44,6 @@ internal static class Program
             Arguments = args,
         };
 
-        WriteLaunchRecord(launchRecordPath, launch);
-
         return mode switch
         {
             ConcurrentOutputMode => RunConcurrentOutput(launch, launchRecordPath),
@@ -57,8 +55,8 @@ internal static class Program
 
     static int RunConcurrentOutput(LaunchRecord launch, string launchRecordPath)
     {
-        MutateOutputRom(launch.OutputRomPath);
         WriteLaunchRecord(launchRecordPath, launch);
+        MutateOutputRom(launch.OutputRomPath);
 
         using var warningReady = new ManualResetEventSlim(false);
         var stderrThread = new Thread(() =>
@@ -184,7 +182,9 @@ internal static class Program
     static void WriteLaunchRecord(string path, LaunchRecord launch)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, JsonSerializer.Serialize(launch));
+        string tempPath = path + ".tmp";
+        File.WriteAllText(tempPath, JsonSerializer.Serialize(launch));
+        File.Move(tempPath, path, true);
     }
 
     sealed class LaunchRecord

@@ -1,9 +1,14 @@
+using System.IO;
 using System.Text.Json;
+using System.Threading;
 
 namespace FEBuilderGBA.Core.Tests;
 
 internal static class EventAssemblerProcessStubSupport
 {
+    const int LaunchRecordReadRetryCount = 20;
+    const int LaunchRecordReadRetryDelayMs = 50;
+
     internal const string ModeEnvVar = "FEBUILDERGBA_EA_PROCESS_STUB_MODE";
     internal const string LaunchRecordEnvVar = "FEBUILDERGBA_EA_PROCESS_STUB_RECORD";
     internal const string ChildMarkerEnvVar = "FEBUILDERGBA_EA_PROCESS_STUB_CHILD_MARKER";
@@ -25,8 +30,32 @@ internal static class EventAssemblerProcessStubSupport
     internal static LaunchRecord ReadLaunchRecord(string path)
     {
         Assert.True(File.Exists(path), "Production runner helper record was not written: " + path);
-        return JsonSerializer.Deserialize<LaunchRecord>(File.ReadAllText(path))
-            ?? throw new InvalidOperationException("Could not deserialize process stub launch record.");
+
+        Exception? lastError = null;
+        for (int attempt = 0; attempt < LaunchRecordReadRetryCount; attempt++)
+        {
+            try
+            {
+                string json = File.ReadAllText(path);
+                if (string.IsNullOrWhiteSpace(json))
+                    throw new InvalidDataException("Process stub launch record was empty.");
+
+                return JsonSerializer.Deserialize<LaunchRecord>(json)
+                    ?? throw new InvalidDataException("Could not deserialize process stub launch record.");
+            }
+            catch (Exception ex) when (IsTransientLaunchRecordReadFailure(ex))
+            {
+                lastError = ex;
+                if (attempt + 1 == LaunchRecordReadRetryCount)
+                    break;
+
+                Thread.Sleep(LaunchRecordReadRetryDelayMs);
+            }
+        }
+
+        throw new InvalidOperationException(
+            "Could not read a complete process stub launch record: " + path,
+            lastError);
     }
 
     internal static string FindExecutable()
@@ -79,6 +108,13 @@ internal static class EventAssemblerProcessStubSupport
             directory = Path.GetDirectoryName(directory);
         }
         return directory ?? throw new InvalidOperationException("Could not locate FEBuilderGBA.sln.");
+    }
+
+    static bool IsTransientLaunchRecordReadFailure(Exception ex)
+    {
+        return ex is IOException
+            || ex is JsonException
+            || ex is InvalidDataException;
     }
 
     internal sealed class LaunchRecord
