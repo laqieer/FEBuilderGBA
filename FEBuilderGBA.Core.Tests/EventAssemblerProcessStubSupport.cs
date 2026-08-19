@@ -6,8 +6,12 @@ namespace FEBuilderGBA.Core.Tests;
 
 internal static class EventAssemblerProcessStubSupport
 {
+    internal const int AtomicPublishRetryCount = 3;
+    internal const int AtomicPublishRetryDelayMs = 50;
+
     const int LaunchRecordReadRetryCount = 20;
     const int LaunchRecordReadRetryDelayMs = 50;
+    const int ChildMarkerReadRetryDelayMs = 50;
 
     internal const string ModeEnvVar = "FEBUILDERGBA_EA_PROCESS_STUB_MODE";
     internal const string LaunchRecordEnvVar = "FEBUILDERGBA_EA_PROCESS_STUB_RECORD";
@@ -29,16 +33,14 @@ internal static class EventAssemblerProcessStubSupport
 
     internal static LaunchRecord ReadLaunchRecord(string path)
     {
-        Assert.True(File.Exists(path), "Production runner helper record was not written: " + path);
-
         Exception? lastError = null;
         for (int attempt = 0; attempt < LaunchRecordReadRetryCount; attempt++)
         {
             try
             {
-                string json = File.ReadAllText(path);
-                if (string.IsNullOrWhiteSpace(json))
-                    throw new InvalidDataException("Process stub launch record was empty.");
+                string json = ReadRequiredNonEmptyText(
+                    path,
+                    "Process stub launch record was empty.");
 
                 return JsonSerializer.Deserialize<LaunchRecord>(json)
                     ?? throw new InvalidDataException("Could not deserialize process stub launch record.");
@@ -56,6 +58,21 @@ internal static class EventAssemblerProcessStubSupport
         throw new InvalidOperationException(
             "Could not read a complete process stub launch record: " + path,
             lastError);
+    }
+
+    internal static string ReadChildMarker(string path, TimeSpan timeout)
+    {
+        if (TryReadChildMarker(path, timeout, out string? marker, out Exception? lastError))
+            return marker!;
+
+        throw new InvalidOperationException(
+            "Could not read a complete process stub child marker: " + path,
+            lastError);
+    }
+
+    internal static bool TryReadChildMarker(string path, TimeSpan timeout, out string? marker)
+    {
+        return TryReadChildMarker(path, timeout, out marker, out _);
     }
 
     internal static string FindExecutable()
@@ -87,6 +104,69 @@ internal static class EventAssemblerProcessStubSupport
         throw new FileNotFoundException("Runnable ColorzCore test stub was not built.");
     }
 
+    internal static void WriteAtomicText(string path, string content)
+    {
+        WriteAtomicText(path, content, MoveFileOverwrite, Thread.Sleep);
+    }
+
+    internal static void WriteAtomicText(
+        string path,
+        string content,
+        Action<string, string> moveOverwrite,
+        Action<int> delay)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        ArgumentNullException.ThrowIfNull(content);
+        ArgumentNullException.ThrowIfNull(moveOverwrite);
+        ArgumentNullException.ThrowIfNull(delay);
+
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        string tempPath = path + ".tmp";
+        File.WriteAllText(tempPath, content);
+        PublishStagedAtomicText(
+            path,
+            content,
+            moveOverwrite,
+            delay);
+    }
+
+    internal static void PublishStagedAtomicText(string path, string expectedContent)
+    {
+        PublishStagedAtomicText(path, expectedContent, MoveFileOverwrite, Thread.Sleep);
+    }
+
+    internal static void PublishStagedAtomicText(
+        string path,
+        string expectedContent,
+        Action<string, string> moveOverwrite,
+        Action<int> delay)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        ArgumentNullException.ThrowIfNull(expectedContent);
+        ArgumentNullException.ThrowIfNull(moveOverwrite);
+        ArgumentNullException.ThrowIfNull(delay);
+
+        string tempPath = path + ".tmp";
+        for (int attempt = 0; attempt < AtomicPublishRetryCount; attempt++)
+        {
+            try
+            {
+                moveOverwrite(tempPath, path);
+                return;
+            }
+            catch (Exception ex) when (IsTransientAtomicPublishFailure(ex))
+            {
+                if (HasExpectedAtomicPublishContent(path, expectedContent))
+                    return;
+
+                if (!File.Exists(tempPath) || attempt + 1 == AtomicPublishRetryCount)
+                    throw;
+
+                delay(AtomicPublishRetryDelayMs);
+            }
+        }
+    }
+
     internal static void AssertSamePath(string expected, string actual)
     {
         string normalizedExpected = Path.GetFullPath(expected);
@@ -110,11 +190,127 @@ internal static class EventAssemblerProcessStubSupport
         return directory ?? throw new InvalidOperationException("Could not locate FEBuilderGBA.sln.");
     }
 
+    static bool TryReadChildMarker(
+        string path,
+        TimeSpan timeout,
+        out string? marker,
+        out Exception? lastError)
+    {
+        return TryReadNonEmptyText(
+            path,
+            GetRetryCount(timeout, ChildMarkerReadRetryDelayMs),
+            ChildMarkerReadRetryDelayMs,
+            "Process stub child marker was empty.",
+            out marker,
+            out lastError);
+    }
+
+    static bool TryReadNonEmptyText(
+        string path,
+        int retryCount,
+        int retryDelayMs,
+        string emptyMessage,
+        out string? text,
+        out Exception? lastError)
+    {
+        if (retryCount <= 0)
+            throw new ArgumentOutOfRangeException(nameof(retryCount));
+        if (retryDelayMs < 0)
+            throw new ArgumentOutOfRangeException(nameof(retryDelayMs));
+
+        text = null;
+        lastError = null;
+
+        for (int attempt = 0; attempt < retryCount; attempt++)
+        {
+            try
+            {
+                text = ReadRequiredNonEmptyText(path, emptyMessage);
+                return true;
+            }
+            catch (Exception ex) when (IsTransientMarkerReadFailure(ex))
+            {
+                lastError = ex;
+                if (attempt + 1 == retryCount)
+                    break;
+
+                Thread.Sleep(retryDelayMs);
+            }
+        }
+
+        return false;
+    }
+
+    static string ReadRequiredNonEmptyText(string path, string emptyMessage)
+    {
+        using var stream = new FileStream(
+            path,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.ReadWrite | FileShare.Delete);
+        using var reader = new StreamReader(stream);
+        string text = reader.ReadToEnd();
+        if (string.IsNullOrWhiteSpace(text))
+            throw new InvalidDataException(emptyMessage);
+
+        return text;
+    }
+
+    static bool HasExpectedAtomicPublishContent(string path, string expectedContent)
+    {
+        try
+        {
+            using var stream = new FileStream(
+                path,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.ReadWrite | FileShare.Delete);
+            using var reader = new StreamReader(stream);
+            return string.Equals(
+                reader.ReadToEnd(),
+                expectedContent,
+                StringComparison.Ordinal);
+        }
+        catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    static int GetRetryCount(TimeSpan timeout, int retryDelayMs)
+    {
+        if (timeout <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(timeout));
+        if (retryDelayMs <= 0)
+            throw new ArgumentOutOfRangeException(nameof(retryDelayMs));
+
+        return Math.Max(
+            1,
+            1 + (int)Math.Ceiling(timeout.TotalMilliseconds / retryDelayMs));
+    }
+
     static bool IsTransientLaunchRecordReadFailure(Exception ex)
     {
         return ex is IOException
             || ex is JsonException
             || ex is InvalidDataException;
+    }
+
+    static bool IsTransientMarkerReadFailure(Exception ex)
+    {
+        return ex is IOException
+            || ex is InvalidDataException;
+    }
+
+    static bool IsTransientAtomicPublishFailure(Exception ex)
+    {
+        return ex is IOException
+            || ex is UnauthorizedAccessException;
+    }
+
+    static void MoveFileOverwrite(string sourcePath, string destinationPath)
+    {
+        File.Move(sourcePath, destinationPath, overwrite: true);
     }
 
     internal sealed class LaunchRecord

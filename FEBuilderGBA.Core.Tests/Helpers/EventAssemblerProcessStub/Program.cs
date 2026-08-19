@@ -14,6 +14,8 @@ internal static class Program
     const string ParentExitDescendantHoldsPipesMode = "parent-exit-descendant-holds-pipes";
     const string TimeoutParentMode = "timeout-parent";
     const int ParentExitChildSelfTerminateSeconds = 12;
+    const int AtomicPublishRetryCount = 3;
+    const int AtomicPublishRetryDelayMs = 50;
     const string ParentExitChildCommand = "__parent-exit-child";
     const string TimeoutChildCommand = "__timeout-child";
     const string WritingBeforeInitializingOffsetWarning =
@@ -142,7 +144,7 @@ internal static class Program
             throw new InvalidOperationException("Parent-exit child expects a marker path.");
 
         Thread.Sleep(TimeSpan.FromSeconds(ParentExitChildSelfTerminateSeconds));
-        File.WriteAllText(args[1], "parent-exit helper descendant self-terminated");
+        WriteAtomicText(args[1], "parent-exit helper descendant self-terminated");
         return 0;
     }
 
@@ -152,7 +154,7 @@ internal static class Program
             throw new InvalidOperationException("Timeout child expects a marker path.");
 
         Thread.Sleep(TimeSpan.FromMilliseconds(2500));
-        File.WriteAllText(args[1], "child survived timeout kill");
+        WriteAtomicText(args[1], "child survived timeout kill");
         return 0;
     }
 
@@ -181,10 +183,59 @@ internal static class Program
 
     static void WriteLaunchRecord(string path, LaunchRecord launch)
     {
+        WriteAtomicText(path, JsonSerializer.Serialize(launch));
+    }
+
+    static void WriteAtomicText(string path, string content)
+    {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         string tempPath = path + ".tmp";
-        File.WriteAllText(tempPath, JsonSerializer.Serialize(launch));
-        File.Move(tempPath, path, true);
+        File.WriteAllText(tempPath, content);
+        for (int attempt = 0; attempt < AtomicPublishRetryCount; attempt++)
+        {
+            try
+            {
+                File.Move(tempPath, path, overwrite: true);
+                return;
+            }
+            catch (Exception ex) when (IsTransientAtomicPublishFailure(ex))
+            {
+                if (HasExpectedAtomicPublishContent(path, content))
+                    return;
+
+                if (!File.Exists(tempPath) || attempt + 1 == AtomicPublishRetryCount)
+                    throw;
+
+                Thread.Sleep(AtomicPublishRetryDelayMs);
+            }
+        }
+    }
+
+    static bool HasExpectedAtomicPublishContent(string path, string expectedContent)
+    {
+        try
+        {
+            using var stream = new FileStream(
+                path,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.ReadWrite | FileShare.Delete);
+            using var reader = new StreamReader(stream);
+            return string.Equals(
+                reader.ReadToEnd(),
+                expectedContent,
+                StringComparison.Ordinal);
+        }
+        catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    static bool IsTransientAtomicPublishFailure(Exception ex)
+    {
+        return ex is IOException
+            || ex is UnauthorizedAccessException;
     }
 
     sealed class LaunchRecord
