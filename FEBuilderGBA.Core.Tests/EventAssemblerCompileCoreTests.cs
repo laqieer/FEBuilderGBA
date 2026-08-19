@@ -399,9 +399,71 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void CompileAndInsert_ProductionRunner_ParentExitStillTerminatesDescendantHoldingPipes()
+        public void CompileAndInsert_NonZeroRunnerExitCode_FailsClosedBeforeSwap()
         {
             var rom = CreateTestRom(0x400);
+            byte[] before = (byte[])rom.Data.Clone();
+            var undo = NewUndo(rom);
+
+            string fakeEaDir = "";
+            string eaFile = "";
+
+            var savedResolveExe = EventAssemblerCompileCore.ResolveExeOverride;
+            var savedRunProcess = EventAssemblerCompileCore.RunProcessOverride;
+            try
+            {
+                string fakeExe = CreateDummyEventAssembler(out fakeEaDir);
+                eaFile = Path.Combine(fakeEaDir, "capture-failure.event");
+                File.WriteAllText(eaFile, "// synthetic capture failure test\r\n");
+
+                EventAssemblerCompileCore.ResolveExeOverride = () => fakeExe;
+                EventAssemblerCompileCore.RunProcessOverride = (_, args, _) =>
+                {
+                    string outputRomPath = ExtractArgValue(args, "-output:");
+                    byte[] tempRom = File.ReadAllBytes(outputRomPath);
+                    tempRom[0x100] = 0xAA;
+                    File.WriteAllBytes(outputRomPath, tempRom);
+
+                    return new ProcessRunResult
+                    {
+                        Started = true,
+                        ExitCode = -1,
+                        Stdout = ColorzCoreSuccessMarker + "\r\n",
+                        Stderr = "",
+                        ErrorMessage =
+                            ProcessRunnerScenarioSupport.CaptureIncompleteErrorMessage,
+                    };
+                };
+
+                var result = EventAssemblerCompileCore.CompileAndInsert(
+                    rom, eaFile, EventAssemblerCompileCore.FreeAreaMode.None,
+                    undo, SymbolUtil.DebugSymbol.None);
+
+                Assert.False(result.Success);
+                Assert.Equal(before, rom.Data);
+                Assert.Empty(undo.list);
+                Assert.Contains(ColorzCoreSuccessMarker, result.Output);
+                Assert.Contains(
+                    ProcessRunnerScenarioSupport.CaptureIncompleteErrorMessage,
+                    result.Output);
+                Assert.Contains(
+                    ProcessRunnerScenarioSupport.CaptureIncompleteErrorMessage,
+                    result.ErrorMessage);
+            }
+            finally
+            {
+                EventAssemblerCompileCore.ResolveExeOverride = savedResolveExe;
+                EventAssemblerCompileCore.RunProcessOverride = savedRunProcess;
+                try { if (eaFile != "") File.Delete(eaFile); } catch { }
+                try { if (fakeEaDir != "") Directory.Delete(fakeEaDir, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void CompileAndInsert_ProductionRunner_ParentExitDescendantHoldingPipes_ReturnsWithinBound()
+        {
+            var rom = CreateTestRom(0x400);
+            byte[] before = (byte[])rom.Data.Clone();
             var undo = NewUndo(rom);
 
             string fakeEaDir = "";
@@ -440,23 +502,48 @@ namespace FEBuilderGBA.Core.Tests
                 }
                 stopwatch.Stop();
 
-                bool childSurvived = SpinWait.SpinUntil(
-                    () => File.Exists(markerPath),
-                    TimeSpan.FromSeconds(3));
-
-                Assert.True(result.Success, result.ErrorMessage);
                 Assert.Equal(EventAssemblerProcessStubSupport.ParentExitDescendantHoldsPipesMode, launch.Mode);
                 Assert.True(launch.ProcessId > 0);
                 Assert.True(launch.ChildProcessId > 0);
                 EventAssemblerProcessStubSupport.AssertSamePath(fakeExe, launch.ProcessPath);
-                Assert.Contains(ColorzCoreSuccessMarker, result.Output);
-                Assert.Equal(0xAA, rom.Data[0x100]);
-                Assert.NotEmpty(undo.list);
-                Assert.False(childSurvived, "The post-exit descendant outlived shared-runner containment.");
-                Assert.False(File.Exists(markerPath), "The post-exit descendant wrote its inherited-pipe marker.");
                 Assert.True(
                     stopwatch.Elapsed < TimeSpan.FromSeconds(15),
                     $"Parent-exit inherited-pipe cleanup took too long: {stopwatch.Elapsed}.");
+
+                if (OperatingSystem.IsWindows())
+                {
+                    Assert.True(result.Success, result.ErrorMessage);
+                    Assert.Contains(ColorzCoreSuccessMarker, result.Output);
+                    Assert.Equal(0xAA, rom.Data[0x100]);
+                    Assert.NotEmpty(undo.list);
+                    Assert.False(
+                        SpinWait.SpinUntil(() => File.Exists(markerPath), TimeSpan.FromSeconds(3)),
+                        "Windows job containment should kill the helper descendant before it self-terminates.");
+                    Assert.False(
+                        File.Exists(markerPath),
+                        "The job-contained descendant wrote its self-termination marker.");
+                }
+                else
+                {
+                    bool descendantSelfTerminated = SpinWait.SpinUntil(
+                        () => File.Exists(markerPath),
+                        TimeSpan.FromSeconds(
+                            EventAssemblerProcessStubSupport.ParentExitChildSelfTerminateSeconds));
+
+                    Assert.False(result.Success);
+                    Assert.Equal(before, rom.Data);
+                    Assert.Empty(undo.list);
+                    Assert.Contains(ColorzCoreSuccessMarker, result.Output);
+                    Assert.Contains(
+                        ProcessRunnerScenarioSupport.CaptureIncompleteErrorMessage,
+                        result.Output);
+                    Assert.Contains(
+                        ProcessRunnerScenarioSupport.CaptureIncompleteErrorMessage,
+                        result.ErrorMessage);
+                    Assert.True(
+                        descendantSelfTerminated,
+                        "The POSIX helper descendant did not self-terminate after the bounded capture failure.");
+                }
             }
             finally
             {

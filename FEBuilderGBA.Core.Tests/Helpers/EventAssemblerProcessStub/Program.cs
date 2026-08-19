@@ -13,6 +13,7 @@ internal static class Program
     const string ConcurrentOutputMode = "concurrent-output";
     const string ParentExitDescendantHoldsPipesMode = "parent-exit-descendant-holds-pipes";
     const string TimeoutParentMode = "timeout-parent";
+    const int ParentExitChildSelfTerminateSeconds = 12;
     const string ParentExitChildCommand = "__parent-exit-child";
     const string TimeoutChildCommand = "__timeout-child";
     const string WritingBeforeInitializingOffsetWarning =
@@ -142,8 +143,8 @@ internal static class Program
         if (args.Length != 2)
             throw new InvalidOperationException("Parent-exit child expects a marker path.");
 
-        Thread.Sleep(TimeSpan.FromMilliseconds(2500));
-        File.WriteAllText(args[1], "child survived inherited-pipe kill");
+        Thread.Sleep(TimeSpan.FromSeconds(ParentExitChildSelfTerminateSeconds));
+        File.WriteAllText(args[1], "parent-exit helper descendant self-terminated");
         return 0;
     }
 

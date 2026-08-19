@@ -49,19 +49,6 @@ namespace FEBuilderGBA
         internal static Func<string, IEnumerable<string>, string?, ProcessRunResult> RunProcessOverride = RunProcessDefault;
 
         internal const int DefaultRunProcessTimeoutMs = 120_000;
-        const string PosixProcessWorkerScript =
-            "#!/bin/sh\n"
-            + "if [ \"$#\" -lt 1 ]; then\n"
-            + "  exit 127\n"
-            + "fi\n"
-            + "if command -v setsid >/dev/null 2>&1; then\n"
-            + "  exec setsid \"$@\"\n"
-            + "fi\n"
-            + "if command -v python3 >/dev/null 2>&1; then\n"
-            + "  exec python3 -c 'import os, sys; os.setsid(); os.execvp(sys.argv[1], sys.argv[1:])' \"$@\"\n"
-            + "fi\n"
-            + "echo 'Unable to establish a process group: requires setsid or python3.' 1>&2\n"
-            + "exit 127\n";
 
         /// <summary>
         /// Internal wait-duration seam for deterministic timeout tests. The shared
@@ -480,51 +467,21 @@ namespace FEBuilderGBA
                 ? new List<string>(args)
                 : new List<string>();
 
-            if (OperatingSystem.IsWindows())
-            {
-                return ProcessRunnerCore.Run(
-                    exePath,
-                    materializedArgs,
-                    workDir,
-                    timeoutMs);
-            }
-
-            string processWorkerDir = Path.Combine(
-                Path.GetTempPath(),
-                "febuilder_ea_process_runner_" + Guid.NewGuid().ToString("N"));
-            string processWorkerPath = Path.Combine(
-                processWorkerDir,
-                "process_worker.py");
-            Directory.CreateDirectory(processWorkerDir);
-            File.WriteAllText(processWorkerPath, PosixProcessWorkerScript);
-
-            try
-            {
-                string processWorkerInterpreter = ResolvePosixProcessWorkerInterpreter();
-                var wrappedArgs = new List<string>(materializedArgs.Count + 2)
-                {
-                    processWorkerPath,
-                    exePath,
-                };
-                wrappedArgs.AddRange(materializedArgs);
-
-                ProcessRunResult wrappedRun = ProcessRunnerCore.Run(
-                    processWorkerInterpreter,
-                    wrappedArgs,
-                    workDir,
-                    timeoutMs);
-                return wrappedRun;
-            }
-            finally
-            {
-                TryDelete(processWorkerPath);
-                TryDeleteDirectory(processWorkerDir);
-            }
+            // Use the shared runner directly on every platform. If a post-exit
+            // descendant keeps inherited pipes open, ProcessRunnerCore's bounded
+            // capture drain still fails closed instead of hanging compilation.
+            return ProcessRunnerCore.Run(
+                exePath,
+                materializedArgs,
+                workDir,
+                timeoutMs);
         }
 
         static bool HasProcessRunnerFailure(ProcessRunResult run)
         {
-            return run.TimedOut
+            return !run.Started
+                || run.ExitCode != 0
+                || run.TimedOut
                 || run.OutputLimitExceeded
                 || run.TerminationFailed
                 || run.Cancelled;
@@ -571,24 +528,5 @@ namespace FEBuilderGBA
             }
         }
 
-        static string ResolvePosixProcessWorkerInterpreter()
-        {
-            const string systemShell = "/bin/sh";
-            return File.Exists(systemShell)
-                ? systemShell
-                : "sh";
-        }
-
-        static void TryDeleteDirectory(string path)
-        {
-            try
-            {
-                if (!string.IsNullOrEmpty(path) && Directory.Exists(path))
-                    Directory.Delete(path, recursive: true);
-            }
-            catch
-            {
-            }
-        }
     }
 }

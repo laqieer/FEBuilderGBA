@@ -10,6 +10,7 @@ internal static class EventAssemblerProcessStubSupport
     internal const string ConcurrentOutputMode = "concurrent-output";
     internal const string ParentExitDescendantHoldsPipesMode = "parent-exit-descendant-holds-pipes";
     internal const string TimeoutParentMode = "timeout-parent";
+    internal const int ParentExitChildSelfTerminateSeconds = 12;
 
     internal static IDisposable Configure(string mode, string launchRecordPath, string? childMarkerPath = null)
     {
