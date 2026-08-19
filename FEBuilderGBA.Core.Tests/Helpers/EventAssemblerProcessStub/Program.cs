@@ -142,7 +142,7 @@ internal static class Program
             throw new InvalidOperationException("Parent-exit child expects a marker path.");
 
         Thread.Sleep(TimeSpan.FromSeconds(ParentExitChildSelfTerminateSeconds));
-        File.WriteAllText(args[1], "parent-exit helper descendant self-terminated");
+        WriteAtomicText(args[1], "parent-exit helper descendant self-terminated");
         return 0;
     }
 
@@ -152,7 +152,7 @@ internal static class Program
             throw new InvalidOperationException("Timeout child expects a marker path.");
 
         Thread.Sleep(TimeSpan.FromMilliseconds(2500));
-        File.WriteAllText(args[1], "child survived timeout kill");
+        WriteAtomicText(args[1], "child survived timeout kill");
         return 0;
     }
 
@@ -181,9 +181,14 @@ internal static class Program
 
     static void WriteLaunchRecord(string path, LaunchRecord launch)
     {
+        WriteAtomicText(path, JsonSerializer.Serialize(launch));
+    }
+
+    static void WriteAtomicText(string path, string content)
+    {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         string tempPath = path + ".tmp";
-        File.WriteAllText(tempPath, JsonSerializer.Serialize(launch));
+        File.WriteAllText(tempPath, content);
         File.Move(tempPath, path, true);
     }
 

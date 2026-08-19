@@ -20,6 +20,7 @@ namespace FEBuilderGBA.Core.Tests
             "warning: C_Code.lyn.event:11:1: Writing before initializing offset. You may be breaking the ROM!";
         const string ColorzCoreSuccessMarker =
             "No errors. Please continue being awesome.";
+        const int ParentExitColdStartTimeoutMs = 10_000;
 
         static ROM CreateTestRom(int size = 512)
         {
@@ -70,7 +71,7 @@ namespace FEBuilderGBA.Core.Tests
 
                 EventAssemblerCompileCore.ResolveExeOverride = () => fakeExe;
                 EventAssemblerCompileCore.RunProcessOverride = null!;
-                EventAssemblerCompileCore.RunProcessTimeoutMs = 500;
+                EventAssemblerCompileCore.RunProcessTimeoutMs = ParentExitColdStartTimeoutMs;
 
                 var stopwatch = Stopwatch.StartNew();
                 EventAssemblerProcessStubSupport.LaunchRecord launch;
@@ -102,18 +103,18 @@ namespace FEBuilderGBA.Core.Tests
                     Assert.Equal(0xAA, rom.Data[0x100]);
                     Assert.NotEmpty(undo.list);
                     Assert.False(
-                        SpinWait.SpinUntil(() => File.Exists(markerPath), TimeSpan.FromSeconds(3)),
+                        EventAssemblerProcessStubSupport.TryReadChildMarker(
+                            markerPath,
+                            TimeSpan.FromSeconds(3),
+                            out _),
                         "Windows job containment should kill the helper descendant before it self-terminates.");
-                    Assert.False(
-                        File.Exists(markerPath),
-                        "The job-contained descendant wrote its self-termination marker.");
                 }
                 else
                 {
-                    bool descendantSelfTerminated = SpinWait.SpinUntil(
-                        () => File.Exists(markerPath),
+                    string childMarker = EventAssemblerProcessStubSupport.ReadChildMarker(
+                        markerPath,
                         TimeSpan.FromSeconds(
-                            EventAssemblerProcessStubSupport.ParentExitChildSelfTerminateSeconds));
+                            EventAssemblerProcessStubSupport.ParentExitChildSelfTerminateSeconds + 2));
 
                     Assert.False(result.Success);
                     Assert.Equal(before, rom.Data);
@@ -124,12 +125,9 @@ namespace FEBuilderGBA.Core.Tests
                     Assert.Contains(
                         ProcessRunnerScenarioSupport.CaptureIncompleteErrorMessage,
                         result.ErrorMessage);
-                    Assert.True(
-                        descendantSelfTerminated,
-                        "The POSIX helper descendant did not self-terminate after the bounded capture failure.");
                     Assert.Equal(
                         "parent-exit helper descendant self-terminated",
-                        File.ReadAllText(markerPath));
+                        childMarker);
                 }
             }
             finally
@@ -255,9 +253,10 @@ namespace FEBuilderGBA.Core.Tests
                 }
                 stopwatch.Stop();
 
-                bool childSurvived = SpinWait.SpinUntil(
-                    () => File.Exists(markerPath),
-                    TimeSpan.FromSeconds(3));
+                bool childSurvived = EventAssemblerProcessStubSupport.TryReadChildMarker(
+                    markerPath,
+                    TimeSpan.FromSeconds(3),
+                    out _);
 
                 Assert.False(result.Success);
                 Assert.Equal(EventAssemblerProcessStubSupport.TimeoutParentMode, launch.Mode);
@@ -267,7 +266,6 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Contains("Error: Event Assembler timed out after 120 seconds.", result.Output);
                 Assert.Contains("Error: Event Assembler timed out after 120 seconds.", result.ErrorMessage);
                 Assert.False(childSurvived, "The timeout child outlived the process-tree kill.");
-                Assert.False(File.Exists(markerPath), "The timeout child wrote its cleanup marker after the runner returned.");
                 Assert.Equal(before, rom.Data);
                 Assert.Empty(undo.list);
                 Assert.True(

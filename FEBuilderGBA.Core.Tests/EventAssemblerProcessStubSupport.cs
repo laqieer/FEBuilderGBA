@@ -8,6 +8,7 @@ internal static class EventAssemblerProcessStubSupport
 {
     const int LaunchRecordReadRetryCount = 20;
     const int LaunchRecordReadRetryDelayMs = 50;
+    const int ChildMarkerReadRetryDelayMs = 50;
 
     internal const string ModeEnvVar = "FEBUILDERGBA_EA_PROCESS_STUB_MODE";
     internal const string LaunchRecordEnvVar = "FEBUILDERGBA_EA_PROCESS_STUB_RECORD";
@@ -29,16 +30,14 @@ internal static class EventAssemblerProcessStubSupport
 
     internal static LaunchRecord ReadLaunchRecord(string path)
     {
-        Assert.True(File.Exists(path), "Production runner helper record was not written: " + path);
-
         Exception? lastError = null;
         for (int attempt = 0; attempt < LaunchRecordReadRetryCount; attempt++)
         {
             try
             {
-                string json = File.ReadAllText(path);
-                if (string.IsNullOrWhiteSpace(json))
-                    throw new InvalidDataException("Process stub launch record was empty.");
+                string json = ReadRequiredNonEmptyText(
+                    path,
+                    "Process stub launch record was empty.");
 
                 return JsonSerializer.Deserialize<LaunchRecord>(json)
                     ?? throw new InvalidDataException("Could not deserialize process stub launch record.");
@@ -56,6 +55,21 @@ internal static class EventAssemblerProcessStubSupport
         throw new InvalidOperationException(
             "Could not read a complete process stub launch record: " + path,
             lastError);
+    }
+
+    internal static string ReadChildMarker(string path, TimeSpan timeout)
+    {
+        if (TryReadChildMarker(path, timeout, out string? marker, out Exception? lastError))
+            return marker!;
+
+        throw new InvalidOperationException(
+            "Could not read a complete process stub child marker: " + path,
+            lastError);
+    }
+
+    internal static bool TryReadChildMarker(string path, TimeSpan timeout, out string? marker)
+    {
+        return TryReadChildMarker(path, timeout, out marker, out _);
     }
 
     internal static string FindExecutable()
@@ -110,10 +124,88 @@ internal static class EventAssemblerProcessStubSupport
         return directory ?? throw new InvalidOperationException("Could not locate FEBuilderGBA.sln.");
     }
 
+    static bool TryReadChildMarker(
+        string path,
+        TimeSpan timeout,
+        out string? marker,
+        out Exception? lastError)
+    {
+        return TryReadNonEmptyText(
+            path,
+            GetRetryCount(timeout, ChildMarkerReadRetryDelayMs),
+            ChildMarkerReadRetryDelayMs,
+            "Process stub child marker was empty.",
+            out marker,
+            out lastError);
+    }
+
+    static bool TryReadNonEmptyText(
+        string path,
+        int retryCount,
+        int retryDelayMs,
+        string emptyMessage,
+        out string? text,
+        out Exception? lastError)
+    {
+        if (retryCount <= 0)
+            throw new ArgumentOutOfRangeException(nameof(retryCount));
+        if (retryDelayMs < 0)
+            throw new ArgumentOutOfRangeException(nameof(retryDelayMs));
+
+        text = null;
+        lastError = null;
+
+        for (int attempt = 0; attempt < retryCount; attempt++)
+        {
+            try
+            {
+                text = ReadRequiredNonEmptyText(path, emptyMessage);
+                return true;
+            }
+            catch (Exception ex) when (IsTransientMarkerReadFailure(ex))
+            {
+                lastError = ex;
+                if (attempt + 1 == retryCount)
+                    break;
+
+                Thread.Sleep(retryDelayMs);
+            }
+        }
+
+        return false;
+    }
+
+    static string ReadRequiredNonEmptyText(string path, string emptyMessage)
+    {
+        string text = File.ReadAllText(path);
+        if (string.IsNullOrWhiteSpace(text))
+            throw new InvalidDataException(emptyMessage);
+
+        return text;
+    }
+
+    static int GetRetryCount(TimeSpan timeout, int retryDelayMs)
+    {
+        if (timeout <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(timeout));
+        if (retryDelayMs <= 0)
+            throw new ArgumentOutOfRangeException(nameof(retryDelayMs));
+
+        return Math.Max(
+            1,
+            1 + (int)Math.Ceiling(timeout.TotalMilliseconds / retryDelayMs));
+    }
+
     static bool IsTransientLaunchRecordReadFailure(Exception ex)
     {
         return ex is IOException
             || ex is JsonException
+            || ex is InvalidDataException;
+    }
+
+    static bool IsTransientMarkerReadFailure(Exception ex)
+    {
+        return ex is IOException
             || ex is InvalidDataException;
     }
 
