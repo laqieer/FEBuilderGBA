@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Core.Tests;
 
 internal static class EventAssemblerProcessStubSupport
 {
+    internal const int AtomicPublishRetryCount = 3;
+    internal const int AtomicPublishRetryDelayMs = 50;
+
     const int LaunchRecordReadRetryCount = 20;
     const int LaunchRecordReadRetryDelayMs = 50;
     const int ChildMarkerReadRetryDelayMs = 50;
@@ -101,6 +104,69 @@ internal static class EventAssemblerProcessStubSupport
         throw new FileNotFoundException("Runnable ColorzCore test stub was not built.");
     }
 
+    internal static void WriteAtomicText(string path, string content)
+    {
+        WriteAtomicText(path, content, MoveFileOverwrite, Thread.Sleep);
+    }
+
+    internal static void WriteAtomicText(
+        string path,
+        string content,
+        Action<string, string> moveOverwrite,
+        Action<int> delay)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        ArgumentNullException.ThrowIfNull(content);
+        ArgumentNullException.ThrowIfNull(moveOverwrite);
+        ArgumentNullException.ThrowIfNull(delay);
+
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        string tempPath = path + ".tmp";
+        File.WriteAllText(tempPath, content);
+        PublishStagedAtomicText(
+            path,
+            content,
+            moveOverwrite,
+            delay);
+    }
+
+    internal static void PublishStagedAtomicText(string path, string expectedContent)
+    {
+        PublishStagedAtomicText(path, expectedContent, MoveFileOverwrite, Thread.Sleep);
+    }
+
+    internal static void PublishStagedAtomicText(
+        string path,
+        string expectedContent,
+        Action<string, string> moveOverwrite,
+        Action<int> delay)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        ArgumentNullException.ThrowIfNull(expectedContent);
+        ArgumentNullException.ThrowIfNull(moveOverwrite);
+        ArgumentNullException.ThrowIfNull(delay);
+
+        string tempPath = path + ".tmp";
+        for (int attempt = 0; attempt < AtomicPublishRetryCount; attempt++)
+        {
+            try
+            {
+                moveOverwrite(tempPath, path);
+                return;
+            }
+            catch (Exception ex) when (IsTransientAtomicPublishFailure(ex))
+            {
+                if (HasExpectedAtomicPublishContent(path, expectedContent))
+                    return;
+
+                if (!File.Exists(tempPath) || attempt + 1 == AtomicPublishRetryCount)
+                    throw;
+
+                delay(AtomicPublishRetryDelayMs);
+            }
+        }
+    }
+
     internal static void AssertSamePath(string expected, string actual)
     {
         string normalizedExpected = Path.GetFullPath(expected);
@@ -177,11 +243,38 @@ internal static class EventAssemblerProcessStubSupport
 
     static string ReadRequiredNonEmptyText(string path, string emptyMessage)
     {
-        string text = File.ReadAllText(path);
+        using var stream = new FileStream(
+            path,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.ReadWrite | FileShare.Delete);
+        using var reader = new StreamReader(stream);
+        string text = reader.ReadToEnd();
         if (string.IsNullOrWhiteSpace(text))
             throw new InvalidDataException(emptyMessage);
 
         return text;
+    }
+
+    static bool HasExpectedAtomicPublishContent(string path, string expectedContent)
+    {
+        try
+        {
+            using var stream = new FileStream(
+                path,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.ReadWrite | FileShare.Delete);
+            using var reader = new StreamReader(stream);
+            return string.Equals(
+                reader.ReadToEnd(),
+                expectedContent,
+                StringComparison.Ordinal);
+        }
+        catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 
     static int GetRetryCount(TimeSpan timeout, int retryDelayMs)
@@ -207,6 +300,17 @@ internal static class EventAssemblerProcessStubSupport
     {
         return ex is IOException
             || ex is InvalidDataException;
+    }
+
+    static bool IsTransientAtomicPublishFailure(Exception ex)
+    {
+        return ex is IOException
+            || ex is UnauthorizedAccessException;
+    }
+
+    static void MoveFileOverwrite(string sourcePath, string destinationPath)
+    {
+        File.Move(sourcePath, destinationPath, overwrite: true);
     }
 
     internal sealed class LaunchRecord

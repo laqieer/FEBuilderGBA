@@ -14,6 +14,8 @@ internal static class Program
     const string ParentExitDescendantHoldsPipesMode = "parent-exit-descendant-holds-pipes";
     const string TimeoutParentMode = "timeout-parent";
     const int ParentExitChildSelfTerminateSeconds = 12;
+    const int AtomicPublishRetryCount = 3;
+    const int AtomicPublishRetryDelayMs = 50;
     const string ParentExitChildCommand = "__parent-exit-child";
     const string TimeoutChildCommand = "__timeout-child";
     const string WritingBeforeInitializingOffsetWarning =
@@ -189,7 +191,51 @@ internal static class Program
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         string tempPath = path + ".tmp";
         File.WriteAllText(tempPath, content);
-        File.Move(tempPath, path, true);
+        for (int attempt = 0; attempt < AtomicPublishRetryCount; attempt++)
+        {
+            try
+            {
+                File.Move(tempPath, path, overwrite: true);
+                return;
+            }
+            catch (Exception ex) when (IsTransientAtomicPublishFailure(ex))
+            {
+                if (HasExpectedAtomicPublishContent(path, content))
+                    return;
+
+                if (!File.Exists(tempPath) || attempt + 1 == AtomicPublishRetryCount)
+                    throw;
+
+                Thread.Sleep(AtomicPublishRetryDelayMs);
+            }
+        }
+    }
+
+    static bool HasExpectedAtomicPublishContent(string path, string expectedContent)
+    {
+        try
+        {
+            using var stream = new FileStream(
+                path,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.ReadWrite | FileShare.Delete);
+            using var reader = new StreamReader(stream);
+            return string.Equals(
+                reader.ReadToEnd(),
+                expectedContent,
+                StringComparison.Ordinal);
+        }
+        catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    static bool IsTransientAtomicPublishFailure(Exception ex)
+    {
+        return ex is IOException
+            || ex is UnauthorizedAccessException;
     }
 
     sealed class LaunchRecord
